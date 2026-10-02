@@ -422,6 +422,49 @@ pub fn cut_before(dir: &Path, model_digest: &str, fingerprint: &str) -> bool {
     cut_marker(dir, model_digest, fingerprint).is_some()
 }
 
+/// The record a retry saves: the marker's measured trials pooled with
+/// everything this retry produced — one entry per candidate. The retry's
+/// own measurement is the fresher one and wins a pair where both measured
+/// the same launch; a refusal this start wrote never erases an earlier
+/// reply (a refusal is a closed cause, not a measurement), so a marker's
+/// winner survives a retry that could not measure it. The winner is
+/// re-chosen over the union by the same rule every winner answers to —
+/// band, decode, dominance, lightness — so the better reply wins whoever
+/// measured it, and `reply_is_sound` still holds because every pooled
+/// entry is the reply it was saved as. `retry`'s fingerprint is the
+/// record's: the marker was only read for this fingerprint in the first
+/// place.
+pub fn pool_retry(prior: &Record, retry: Record) -> Record {
+    let mut trials = retry.trials;
+    for (candidate, kept) in &prior.trials {
+        let Kept::Replied(reply) = kept else {
+            continue; // only measurements pool in from the first attempt
+        };
+        if trials.iter().any(|(other, held)| {
+            other == candidate && matches!(held, Kept::Replied(_))
+        }) {
+            continue; // the retry measured it too: the fresher number wins
+        }
+        // One entry per candidate — validate would reject the duplicate —
+        // so a refusal of the same launch makes way for the measurement.
+        trials.retain(|(other, _)| other != candidate);
+        trials.push((*candidate, Kept::Replied(*reply)));
+    }
+    let scored: Vec<(Candidate, Reply)> = trials
+        .iter()
+        .filter_map(|(candidate, kept)| match kept {
+            Kept::Replied(reply) => Some((*candidate, *reply)),
+            _ => None,
+        })
+        .collect();
+    let winner = crate::score::reply_winner(&scored);
+    Record {
+        fingerprint: retry.fingerprint,
+        winner,
+        trials,
+    }
+}
+
 /// The record filed for one model, by name alone — the display read. The
 /// model identity IS the file's name here, so the fingerprint's other
 /// facts (engine build, context) are not re-checked: a stale figure is

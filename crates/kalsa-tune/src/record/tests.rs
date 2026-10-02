@@ -340,6 +340,94 @@ fn a_record_keyed_by_an_older_scoring_rule_is_not_reused() {
     );
 }
 
+/// One entry per candidate in a retry's pool: where both attempts measured
+/// the same launch the retry's number is the fresher one and stands alone;
+/// a refusal this start wrote never erases an earlier reply; and the winner
+/// is re-chosen over the union by the same rule every winner answers to —
+/// here the first attempt's better reply survives the retry's own.
+#[test]
+fn the_retry_pool_keeps_one_entry_per_candidate_and_the_better_reply() {
+    let cpu8 = Candidate {
+        backend: ServerBackend::Cpu,
+        threads: Some(8),
+        offload: offload_for(ServerBackend::Cpu),
+        draft: None,
+    };
+    let cpu16 = Candidate {
+        backend: ServerBackend::Cpu,
+        threads: Some(16),
+        offload: offload_for(ServerBackend::Cpu),
+        draft: None,
+    };
+    let fast = Reply::from_rates(1000.0, 100.0).expect("measured");
+    let retry_slow = Reply::from_rates(1000.0, 10.0).expect("measured");
+    let better = Reply::from_rates(500.0, 20.0).expect("measured");
+    let prior = Record {
+        fingerprint: fp(DIGEST),
+        winner: Some(Winner {
+            candidate: cpu8,
+            reply: fast,
+        }),
+        trials: vec![
+            (cpu8, Kept::Replied(fast)),
+            (cpu16, Kept::Replied(better)),
+        ],
+    };
+    let retry = Record {
+        fingerprint: fp(DIGEST),
+        winner: Some(Winner {
+            candidate: cpu8,
+            reply: retry_slow,
+        }),
+        trials: vec![
+            (cpu8, Kept::Replied(retry_slow)),
+            (
+                cpu16,
+                Kept::Refused {
+                    refusal: Refusal::DidNotStart,
+                    prompt_rate: None,
+                },
+            ),
+        ],
+    };
+    let pooled = pool_retry(&prior, retry);
+    assert_eq!(pooled.fingerprint, fp(DIGEST), "the retry's own key");
+    assert_eq!(pooled.trials.len(), 2, "one entry per candidate: {pooled:?}");
+    let cpu8_trial = pooled
+        .trials
+        .iter()
+        .find(|(candidate, _)| *candidate == cpu8)
+        .expect("the measured-again launch is there");
+    assert_eq!(
+        cpu8_trial.1,
+        Kept::Replied(retry_slow),
+        "measured twice: the retry's fresher number, one entry"
+    );
+    let cpu16_trial = pooled
+        .trials
+        .iter()
+        .find(|(candidate, _)| *candidate == cpu16)
+        .expect("the refused-again launch is still measured from the first attempt");
+    assert_eq!(
+        cpu16_trial.1,
+        Kept::Replied(better),
+        "a refusal is not a measurement and cannot erase one"
+    );
+    assert_eq!(
+        pooled.winner,
+        Some(Winner {
+            candidate: cpu16,
+            reply: better,
+        }),
+        "the union, chosen by the same rule: the better reply wins"
+    );
+    // The union is a record the store still accepts — reply_is_sound holds
+    // because every pooled entry is the reply it was measured as.
+    let dir = Scratch::new("pool-union");
+    save(&dir, DIGEST, &pooled).expect("the union validates");
+    assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), Some(pooled));
+}
+
 /// An unfinished verdict is written as a marker: the same record and one
 /// `cut=<cause>` line, which the launch read refuses (the next start must
 /// measure again) while `cut_before` and the display read still see it,

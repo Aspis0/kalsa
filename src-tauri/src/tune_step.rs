@@ -316,8 +316,8 @@ fn tune_launch_inner(
                     total: planned,
                 })
             });
-            let mut winner = tuned.winner;
-            let mut record = kalsa_tune::record::Record {
+            let winner = tuned.winner;
+            let record = kalsa_tune::record::Record {
                 fingerprint: fingerprint.clone(),
                 winner,
                 trials: tuned.trials,
@@ -326,11 +326,12 @@ fn tune_launch_inner(
             // the budget stopped a lifetime in either pass, or nothing
             // replied — is written as the marker `load` refuses, so the
             // next start measures once more; a second unfinished verdict is
-            // saved as it stands. The marker IS the "retried once":
-            // `cut_before` reads it back, so a persistently missing build
-            // (like a slow or broken machine) spends the budget on one
-            // retry, not on every start. A shape the bound skipped ran —
-            // its own entry stands — and is never a hole here.
+            // saved, pooled with what the first measured (below). The
+            // marker IS the "retried once": `cut_marker` reads it back, so
+            // a persistently missing build (like a slow or broken machine)
+            // spends the budget on one retry, not on every start. A shape
+            // the bound skipped ran — its own entry stands — and is never a
+            // hole here.
             let unfinished = if resolved.len() != candidates.len() {
                 Some(kalsa_tune::record::Marker::Unresolved)
             } else if tuned.cut {
@@ -342,26 +343,24 @@ fn tune_launch_inner(
             } else {
                 None
             };
-            let retried = unfinished.is_some()
-                && kalsa_tune::record::cut_before(root, &model_digest, &fingerprint);
-            // A retry that measured nothing keeps the better of the pair:
-            // the marker's winner was measured too, and a fresh record of
-            // refusals must not erase it — this start launches it and the
-            // save below keeps it.
-            if retried && winner.is_none() {
-                if let Some(prior) =
-                    kalsa_tune::record::cut_marker(root, &model_digest, &fingerprint)
-                {
-                    if prior.winner.is_some() {
-                        winner = prior.winner;
-                        record = prior;
-                        eprintln!(
-                            "kalsa-brain: the retry measured nothing; keeping the first attempt's winner"
-                        );
-                    }
+            // A marker means this start IS the retry it was owed: pool the
+            // first attempt's measured trials with this retry's own and let
+            // `reply_winner` choose over the union — the better reply wins
+            // whichever attempt measured it, one entry per candidate, the
+            // retry's fresher number when both measured the same launch.
+            let marker = kalsa_tune::record::cut_marker(root, &model_digest, &fingerprint);
+            let (record, winner) = match marker.as_ref() {
+                Some(prior) => {
+                    let pooled = kalsa_tune::record::pool_retry(prior, record);
+                    eprintln!(
+                        "kalsa-brain: the retry pools the first attempt's measured trials into this verdict"
+                    );
+                    let winner = pooled.winner;
+                    (pooled, winner)
                 }
-            }
-            let staged = match (unfinished, retried) {
+                None => (record, winner),
+            };
+            let staged = match (unfinished, marker.is_some()) {
                 (Some(cause), false) => {
                     eprintln!(
                         "kalsa-brain: the tune's verdict is unfinished ({cause:?}; {}/{} candidates ran); withheld once — the next start measures again",

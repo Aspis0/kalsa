@@ -737,7 +737,9 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
         kalsa_tune::record::cut_before(&dir, &digest, &fingerprint),
         "the marker says the next start measures once more"
     );
-    // The second cut: what was measured is saved as it stands.
+    // The second cut: both attempts measured the same two launches, so
+    // the retry's fresher numbers stand and `reply_winner` picks over the
+    // union — the faster 25.8 s reply, not the first start's input.
     let mut again = prepared("/main-gpu");
     tune_launch(
         &mut again,
@@ -748,17 +750,17 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
         &mut progress,
         cut_first,
     );
-    assert_eq!(
-        again.info.args.threads,
-        Some(10),
-        "the second start's winner launches too"
-    );
     let saved = kalsa_tune::record::load(&dir, &digest, &fingerprint)
         .expect("a second pass-one cut saves what exists instead of re-tuning forever");
     assert_eq!(
-        saved.winner.map(|win| win.candidate.threads),
-        Some(Some(10)),
-        "the saved verdict is the cut tune's own winner"
+        saved.winner.map(|win| win.reply.seconds),
+        Some(reply(60.0, 30.0).seconds),
+        "the pooled verdict is the same rule's pick: the faster reply"
+    );
+    let pooled_threads = saved.winner.as_ref().and_then(|win| win.candidate.threads);
+    assert_eq!(
+        again.info.args.threads, pooled_threads,
+        "the second start launches the pooled winner"
     );
     assert!(!kalsa_tune::record::cut_before(&dir, &digest, &fingerprint));
     // The third start: the record answers, nothing measures.
@@ -772,7 +774,7 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
         &mut progress,
         |_, _, _| panic!("the saved record answers; nothing measures"),
     );
-    assert_eq!(third.info.args.threads, Some(10));
+    assert_eq!(third.info.args.threads, pooled_threads);
     assert!(
         matches!(third.info.tune, Some(Tune::Measured(_))),
         "kept: {:?}",
@@ -1653,11 +1655,15 @@ fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
         "the first attempt's winner survives the refusing retry: {saved:?}"
     );
     assert!(
+        saved.trials.len() == 3,
+        "the pool is both attempts' facts — the marker's measurement and the retry's own: {saved:?}"
+    );
+    assert!(
         saved
             .trials
             .iter()
-            .all(|(_, kept)| matches!(kept, kalsa_tune::record::Kept::Replied(_))),
-        "the marker's measured trials, not a fresh wall of refusals: {saved:?}"
+            .any(|(_, kept)| matches!(kept, kalsa_tune::record::Kept::Replied(_))),
+        "the marker's measured trial stands: {saved:?}"
     );
     assert_eq!(
         again.info.args.threads, winner_threads,
@@ -1668,6 +1674,112 @@ fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
         "kept: {:?}",
         again.info.tune
     );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The better of the two attempts wins under the same rule that picks any
+/// winner: a first attempt cut with a fast reply, then a retry that
+/// finishes with a slower one — the pooled trials go back through
+/// `reply_winner`, the fast reply stands, and this start launches it.
+#[test]
+fn a_slower_retry_cannot_erase_the_first_attempts_faster_winner() {
+    let dir = scratch("slower-retry");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut first = prepared("/main-gpu");
+    let digest = first.info.model_sha256.as_deref().unwrap().to_string();
+    let fingerprint = tune_fingerprint(&machine, &first.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    // The first attempt: one fast reply, then the budget cuts its sweep.
+    fn fast_then_cut(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(usize, usize),
+    ) -> kalsa_tune::Tuned {
+        counts(resolved.len(), resolved.len());
+        let fast = resolved[0].0;
+        let mut measured = tuned(
+            vec![replied(fast, 1000.0, 100.0)],
+            Some(kalsa_tune::Winner {
+                candidate: fast,
+                reply: reply(1000.0, 100.0),
+            }),
+        );
+        measured.cut = true;
+        measured
+    }
+    // The retry: another shape answers, at a third of the speed — a winner,
+    // but the worse one.
+    fn slower_winner(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(usize, usize),
+    ) -> kalsa_tune::Tuned {
+        counts(resolved.len(), resolved.len());
+        let slower = resolved[1].0;
+        tuned(
+            vec![replied(slower, 100.0, 10.0)],
+            Some(kalsa_tune::Winner {
+                candidate: slower,
+                reply: reply(100.0, 10.0),
+            }),
+        )
+    }
+    tune_launch(
+        &mut first,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        fast_then_cut,
+    );
+    let first_winner = match &first.info.tune {
+        Some(Tune::Measured(record)) => record.winner.expect("the first attempt had a winner"),
+        other => panic!("the first start measured: {other:?}"),
+    };
+    assert!(
+        kalsa_tune::record::load(&dir, &digest, &fingerprint).is_none(),
+        "the cut is a marker, not a verdict"
+    );
+    let mut again = prepared("/main-gpu");
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        slower_winner,
+    );
+    let saved = kalsa_tune::record::load(&dir, &digest, &fingerprint)
+        .expect("the retry's pooled verdict is saved");
+    assert_eq!(
+        saved.winner,
+        Some(first_winner),
+        "the faster first attempt stands over the slower retry: {saved:?}"
+    );
+    assert_eq!(
+        saved.trials.len(),
+        2,
+        "the union of both attempts: {saved:?}"
+    );
+    match &again.info.tune {
+        Some(Tune::Measured(record)) => {
+            assert_eq!(
+                record.winner,
+                Some(first_winner),
+                "and this start launches it"
+            );
+        }
+        other => panic!("the retry kept a verdict: {other:?}"),
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
 
