@@ -15,6 +15,8 @@ export interface Env {
 
 const ZONE_HOST = "kalsa.io";
 const MAX_BODY_BYTES = 4 * 1024 * 1024; // two 2 MiB log files
+export const DAILY_CAP = 300; // × 4 MiB keeps worst-case storage near 1.2 GiB/day
+const MAX_STORE_ATTEMPTS = 3;
 const APP_HEADER_PATTERN = /^[0-9A-Za-z._-]{1,32}\/[a-z0-9_]{1,16}\/[a-z0-9_]{1,16}$/;
 const LOG_CONTENT_TYPE = /^text\/plain(\s*;\s*charset\s*=\s*"?utf-8"?)?$/i;
 // Phone-readable: no 0/O/1/I/L, so a tester can spell an id out loud.
@@ -60,7 +62,7 @@ export function newReportId(): string {
 
 type BodyRead = { ok: true; bytes: Uint8Array } | { ok: false; response: Response };
 
-/** Cap enforced mid-stream: a lying Content-Length must not get more than the cap stored. */
+/** Cap enforced mid-stream: a missing or lying Content-Length must not exceed the cap. */
 async function readBody(request: Request): Promise<BodyRead> {
   const stream = request.body;
   if (!stream) {
@@ -91,27 +93,40 @@ async function readBody(request: Request): Promise<BodyRead> {
   return { ok: true, bytes };
 }
 
+type StoreResult = { ok: true; id: string } | { ok: false; response: Response };
+
+/** Conditional write: a failed precondition (key taken) returns null, so retry a fresh id. */
+async function storeReport(
+  env: Env,
+  day: string,
+  bytes: Uint8Array,
+  app: string,
+  received: string,
+): Promise<StoreResult> {
+  for (let attempt = 0; attempt < MAX_STORE_ATTEMPTS; attempt++) {
+    const id = newReportId();
+    const stored = await env.REPORTS.put(`${day}/${id}.log`, bytes, {
+      onlyIf: { etagDoesNotMatch: "*" },
+      httpMetadata: { contentType: "text/plain" },
+      customMetadata: { app, received },
+    });
+    if (stored !== null) return { ok: true, id };
+  }
+  return {
+    ok: false,
+    response: error(503, "storage_conflict", "Could not allocate a unique report id; retry."),
+  };
+}
+
 async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (url.hostname !== ZONE_HOST || url.pathname !== "/report") {
     return error(404, "not_found", "Unknown path.");
   }
   if (request.method !== "POST") {
-    return error(405, "method_not_allowed", "Only POST is supported.");
-  }
-  // The connecting IP is the limiter key and nothing else; it is never stored.
-  const { success } = await env.REPORT_RATE_LIMITER.limit({
-    key: request.headers.get("cf-connecting-ip") ?? "",
-  });
-  if (!success) {
-    return error(429, "rate_limited", "Too many uploads from this address; wait a minute.");
-  }
-  const length = request.headers.get("content-length");
-  if (length === null || !/^\d+$/.test(length.trim())) {
-    return error(411, "length_required", "Content-Length is required.");
-  }
-  if (Number(length) > MAX_BODY_BYTES) {
-    return tooLarge();
+    const res = error(405, "method_not_allowed", "Only POST is supported.");
+    res.headers.set("allow", "POST");
+    return res;
   }
   const contentType = request.headers.get("content-type");
   if (contentType === null || !LOG_CONTENT_TYPE.test(contentType)) {
@@ -121,15 +136,28 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (app === null || !APP_HEADER_PATTERN.test(app)) {
     return error(400, "bad_app_header", "X-Kalsa-App must be <version>/<os>/<arch>.");
   }
+  const length = request.headers.get("content-length");
+  if (length !== null && /^\d+$/.test(length.trim()) && Number(length.trim()) > MAX_BODY_BYTES) {
+    return tooLarge();
+  }
+  // Validation first: rejected requests must not spend the client's rate-limit quota.
+  const { success } = await env.REPORT_RATE_LIMITER.limit({
+    key: request.headers.get("cf-connecting-ip") ?? "",
+  });
+  if (!success) {
+    return error(429, "rate_limited", "Too many uploads from this address; wait a minute.");
+  }
   const body = await readBody(request);
   if (!body.ok) return body.response;
   const received = new Date();
-  const id = newReportId();
-  await env.REPORTS.put(`${received.toISOString().slice(0, 10)}/${id}.log`, body.bytes, {
-    httpMetadata: { contentType: "text/plain" },
-    customMetadata: { app, received: received.toISOString() },
-  });
-  return json(201, { id });
+  const day = received.toISOString().slice(0, 10);
+  const dayObjects = await env.REPORTS.list({ prefix: `${day}/`, limit: DAILY_CAP });
+  if (dayObjects.objects.length >= DAILY_CAP) {
+    return error(503, "daily_limit", "Too many reports today; try again tomorrow.");
+  }
+  const stored = await storeReport(env, day, body.bytes, app, received.toISOString());
+  if (!stored.ok) return stored.response;
+  return json(201, { id: stored.id });
 }
 
 export default {
