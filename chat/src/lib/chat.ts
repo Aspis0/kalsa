@@ -109,35 +109,52 @@ export interface ToolOutcome {
 /** No new words for this long means the server is gone, not slow. */
 export const IDLE_TIMEOUT_MS = 60_000;
 
-/** The engine prefills a prompt in batches of this many tokens (`BATCH` in
-    kalsa-launch) and reports progress after each, so the silence between two
-    reports is a batch's prefill. */
-export const PREFILL_BATCH_TOKENS = 2048;
+/** Before any batch of a prompt has been timed there is nothing to derive a
+    gap from, so the first one gets this many times the ordinary bound. */
+const PREFILL_FIRST_GAP_FACTOR = 5;
 
-/** The slowest prompt rate worth waiting for, in tokens a second: below it a
-    long prompt is a wait nobody keeps, so the gap it would need is no gap
-    this client allows. */
-const PREFILL_MIN_RATE = 7;
+/** A batch is expected to take about as long as the last one; this many times
+    that is where it has stopped instead of being slow. */
+const PREFILL_SAFETY = 3;
 
-/** The longest silence a prefill report may be followed by. */
-export const PREFILL_IDLE_MAX_MS = 300_000;
+/** The longest delay a browser timer takes: past it the timer fires at once. */
+const MAX_TIMER_MS = 2_147_483_647;
 
 /**
- * How long the next prefill report may take, from the one just received
- * (`prompt_progress`: `total` tokens in the prompt, `processed` so far). The
- * allowance is the next batch at the slowest rate worth waiting for, kept
- * between the ordinary idle bound and `PREFILL_IDLE_MAX_MS`: a quick prefill
- * keeps the one-minute rule, a slow machine reading a long prompt gets the
- * minutes its batch needs, and only while the engine is reporting. A report
- * that cannot be read is no more than ordinary liveness.
+ * Follows one request's prefill reports (`prompt_progress`: `total` tokens in
+ * the prompt, `processed` so far, `time_ms` since it began) and says how long
+ * the next report may take. The pace is the engine's own: a few times the
+ * last batch's duration, the difference of two `time_ms`, so a slow machine
+ * with a large batch gets the minutes its batch needs and a fast one keeps the
+ * ordinary bound, whatever the batch size the owner chose. Never below the
+ * ordinary bound. The first report has no batch behind it and gets a generous
+ * guess; a fully read prompt, or a report that cannot be read, is back to the
+ * ordinary bound.
  */
-export function prefillAllowance(progress: unknown): number {
-  if (typeof progress !== "object" || progress === null) return IDLE_TIMEOUT_MS;
-  const { total, processed } = progress as { total?: unknown; processed?: unknown };
-  if (typeof total !== "number" || typeof processed !== "number") return IDLE_TIMEOUT_MS;
-  const next = Math.min(Math.max(total - processed, 0), PREFILL_BATCH_TOKENS);
-  const needed = (next / PREFILL_MIN_RATE) * 1000;
-  return Math.min(PREFILL_IDLE_MAX_MS, Math.max(IDLE_TIMEOUT_MS, needed));
+export function createPrefillWatch(): { report: (progress: unknown) => number } {
+  let lastTimeMs: number | null = null;
+  return {
+    report(progress) {
+      if (typeof progress !== "object" || progress === null) return IDLE_TIMEOUT_MS;
+      const { total, processed, time_ms: timeMs } = progress as Record<string, unknown>;
+      if (!isFiniteNumber(total) || !isFiniteNumber(processed) || !isFiniteNumber(timeMs)) {
+        return IDLE_TIMEOUT_MS;
+      }
+      const previous = lastTimeMs;
+      lastTimeMs = timeMs;
+      if (processed >= total) return IDLE_TIMEOUT_MS;
+      const firstGap = IDLE_TIMEOUT_MS * PREFILL_FIRST_GAP_FACTOR;
+      const gap = previous === null ? 0 : timeMs - previous;
+      if (!(gap > 0)) return firstGap;
+      const allowed = gap * PREFILL_SAFETY;
+      if (!Number.isFinite(allowed)) return firstGap;
+      return Math.min(MAX_TIMER_MS, Math.max(IDLE_TIMEOUT_MS, allowed));
+    },
+  };
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 /**

@@ -3,7 +3,7 @@ import {
   IDLE_TIMEOUT_MS,
   completionBody,
   completionsUrl,
-  prefillAllowance,
+  createPrefillWatch,
 } from "./chat";
 import type { StreamOptions, WireMessage } from "./chat";
 import { accumulate } from "./toolCalls";
@@ -124,8 +124,9 @@ export async function runRound(
     linked.abort();
   };
   // The silence allowed after the last sign of life: the ordinary bound, or —
-  // while the engine reports its prefill and no word has come — what the next
-  // batch needs (`prefillAllowance`).
+  // while the engine reports its prefill and no word has come — what its own
+  // pace says the next batch needs (`createPrefillWatch`).
+  const prefill = createPrefillWatch();
   let allowance = IDLE_TIMEOUT_MS;
   let idle: number | undefined = window.setTimeout(fireIdle, allowance);
   const poke = () => {
@@ -257,7 +258,7 @@ export async function runRound(
       // A prefill report is a sign of life and nothing else: its delta is
       // role-only, so it can never become text below.
       if (data.prompt_progress !== undefined && data.prompt_progress !== null) {
-        allowance = prefillAllowance(data.prompt_progress);
+        allowance = prefill.report(data.prompt_progress);
         poke();
       }
       if (!Array.isArray(data.choices)) return;
