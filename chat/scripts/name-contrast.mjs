@@ -68,12 +68,20 @@ function valueOf(source, name, theme) {
 
 const lightPage = valueOf(lightBlock, "page", "light");
 const darkPage = valueOf(darkBlock, "page", "dark");
+// The ink is the text a tinted bubble carries: it must clear AA on the wash
+// as surely as a name clears it on the page.
+const lightInk = valueOf(lightBlock, "ink", "light");
+const darkInk = valueOf(darkBlock, "ink", "dark");
 const slots = ["kalsa", 1, 2, 3, 4, 5];
 const lightColors = new Map();
 const darkColors = new Map();
+const lightTints = new Map();
+const darkTints = new Map();
 for (const slot of slots) {
   lightColors.set(slot, valueOf(lightBlock, `room-name-${slot}`, "light"));
   darkColors.set(slot, valueOf(darkBlock, `room-name-${slot}`, "dark"));
+  lightTints.set(slot, valueOf(lightBlock, `room-tint-${slot}`, "light"));
+  darkTints.set(slot, valueOf(darkBlock, `room-tint-${slot}`, "dark"));
 }
 
 const AA = 4.5;
@@ -87,6 +95,18 @@ for (const slot of slots) {
   if (dark && darkPage) {
     const value = ratio(dark, darkPage);
     if (value < AA) problems.push(`dark --room-name-${slot} on --page is ${value.toFixed(2)}:1, below ${AA}`);
+  }
+  // The bubble's wash: the message's own text — the theme's ink — sits on
+  // it, so the tint is checked where its reader sits, not against the page.
+  const lightTint = lightTints.get(slot);
+  const darkTint = darkTints.get(slot);
+  if (lightTint && lightInk) {
+    const value = ratio(lightInk, lightTint);
+    if (value < AA) problems.push(`light ink on --room-tint-${slot} is ${value.toFixed(2)}:1, below ${AA}`);
+  }
+  if (darkTint && darkInk) {
+    const value = ratio(darkInk, darkTint);
+    if (value < AA) problems.push(`dark ink on --room-tint-${slot} is ${value.toFixed(2)}:1, below ${AA}`);
   }
 }
 
@@ -139,6 +159,16 @@ if (problems.length > 0) {
       return `${slot} ${value.toFixed(2)}:1`;
     })
     .join(", ");
+  const washes = slots
+    .map((slot) => {
+      const value = Math.min(
+        ratio(lightInk, lightTints.get(slot)),
+        ratio(darkInk, darkTints.get(slot)),
+      );
+      return `${slot} ${value.toFixed(2)}:1`;
+    })
+    .join(", ");
   console.log(`ok: every room name color clears ${AA}:1 on both themes' --page (worst: ${shown}), ` +
-    `each slot keeps one hue across the themes, and no slot sits within 40° of Kalsa's green`);
+    `the ink clears it on every bubble wash (worst: ${washes}), each slot keeps one hue across ` +
+    `the themes, and no slot sits within 40° of Kalsa's green`);
 }

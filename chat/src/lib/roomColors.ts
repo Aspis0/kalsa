@@ -3,9 +3,10 @@
 // color across a restart. The host's color is its alone: everyone else cycles
 // through the remaining four, so however large the household grows, nobody is
 // ever dressed as this computer. Kalsa stands outside the rotation in the
-// app's own green, and a former member holds no slot at all — they left. The
-// values live in tokens.css (one light and one dark tuning per hue, all past
-// WCAG AA against the page); scripts/name-contrast.mjs holds them there.
+// app's own green, and a former member holds no slot at all — they left. Each
+// slot is two values in tokens.css: the full color (names, dots, borders) and
+// a tint of the same hue (bubble washes), both past WCAG AA where their text
+// sits; scripts/name-contrast.mjs holds them there.
 
 import type { RoomMember } from "../surfaces/roomFeed";
 
@@ -16,16 +17,20 @@ export const NAME_COLOR_SLOTS = 5;
 const HOST_COLOR_INDEX = 0;
 
 export const KALSA_NAME_COLOR = "var(--room-name-kalsa)";
+export const KALSA_TINT = "var(--room-tint-kalsa)";
 
 export function nameColor(index: number): string {
   return `var(--room-name-${(index % NAME_COLOR_SLOTS) + 1})`;
 }
 
-/** The color each member's name wears: the host keeps the first slot to
-    itself, Kalsa keeps the green, the people cycle through the rest by their
-    stable order, and a former member gets nothing. */
-export function assignNameColors(members: RoomMember[]): Map<number, string> {
-  const colors = new Map<number, string>();
+export function nameTint(index: number): string {
+  return `var(--room-tint-${(index % NAME_COLOR_SLOTS) + 1})`;
+}
+
+/** The slot each member holds, in the stable order: the host first, then
+    the phones by id. Formers and the assistant hold none. */
+function slotsOf(members: RoomMember[]): Map<number, number> {
+  const slots = new Map<number, number>();
   const people = members
     .filter((member) => member.kind === "host" || member.kind === "phone")
     .filter((member) => !member.former)
@@ -37,10 +42,28 @@ export function assignNameColors(members: RoomMember[]): Map<number, string> {
     const slot = index === HOST_COLOR_INDEX
       ? HOST_COLOR_INDEX
       : 1 + ((index - 1) % (NAME_COLOR_SLOTS - 1));
-    colors.set(member.member_id, nameColor(slot));
+    slots.set(member.member_id, slot);
   });
+  return slots;
+}
+
+/** The color each member's name wears. */
+export function assignNameColors(members: RoomMember[]): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const [id, slot] of slotsOf(members)) out.set(id, nameColor(slot));
   for (const member of members) {
-    if (member.kind === "ai") colors.set(member.member_id, KALSA_NAME_COLOR);
+    if (member.kind === "ai") out.set(member.member_id, KALSA_NAME_COLOR);
   }
-  return colors;
+  return out;
+}
+
+/** The tint each member's messages wash with — the same slot, the other
+    value of it. */
+export function assignNameTints(members: RoomMember[]): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const [id, slot] of slotsOf(members)) out.set(id, nameTint(slot));
+  for (const member of members) {
+    if (member.kind === "ai") out.set(member.member_id, KALSA_TINT);
+  }
+  return out;
 }

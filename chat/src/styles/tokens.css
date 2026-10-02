@@ -33,6 +33,15 @@
   --room-name-3: #b04d59;
   --room-name-4: #926100;
   --room-name-5: #0074a5;
+  /* The same hues as quiet bubble washes — a message's tinted background —
+     light enough that the ink stays past AA on them; scripts/
+     name-contrast.mjs computes ink-on-tint for both themes. */
+  --room-tint-kalsa: #d8f5e7;
+  --room-tint-1: #deefff;
+  --room-tint-2: #f0e8ff;
+  --room-tint-3: #ffe4e5;
+  --room-tint-4: #f9ebd3;
+  --room-tint-5: #d6f2ff;
 
   --font-ui: system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
   --font-display: Georgia, "Times New Roman", serif;
@@ -69,4 +78,11 @@
   --room-name-3: #c26c74;
   --room-name-4: #a97e2c;
   --room-name-5: #268fb8;
+  /* The same hues as dark bubble washes, dark enough for the light ink. */
+  --room-tint-kalsa: #10271d;
+  --room-tint-1: #162232;
+  --room-tint-2: #241e30;
+  --room-tint-3: #301a1c;
+  --room-tint-4: #2a200d;
+  --room-tint-5: #0e252f;
 }

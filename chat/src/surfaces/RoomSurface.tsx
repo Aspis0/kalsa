@@ -9,7 +9,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { UIEvent } from "react";
 import { available } from "../lib/tauri";
 import { RoomText } from "../lib/roomMention";
-import { assignNameColors, KALSA_NAME_COLOR } from "../lib/roomColors";
+import { assignNameColors, assignNameTints, KALSA_NAME_COLOR, KALSA_TINT } from "../lib/roomColors";
 import { Composer } from "../components/Composer";
 import { Markdown } from "../components/Markdown";
 import { stamp, Thinking } from "../components/Thread";
@@ -107,13 +107,15 @@ export function RoomSurface() {
   const refusalLine = line(feed.refusal?.code);
   const nameLine = line(feed.nameError?.code);
   const sendErrorLine = line(feed.sendError?.code);
-  // One color per member, stable order, Kalsa in green.
+  // One color per member, stable order, Kalsa in green — and the tint of
+  // the same hue every message of theirs washes with.
   const colors = assignNameColors(info?.members ?? []);
+  const tints = assignNameTints(info?.members ?? []);
 
   return (
     <div className="surface-page room-page">
       <header className="room-head">
-        <h2 className="surface-verdict">{info?.room_name || table.chrome.room}</h2>
+        <h2 className="surface-verdict">{info?.room_name || hostName || table.chrome.room}</h2>
         <div className="room-people">
           {(info?.members ?? []).map((member) => (
             <span className="room-person" key={member.member_id}>
@@ -171,12 +173,14 @@ export function RoomSurface() {
             {entries.length === 0 && live === null && !turnRunning ? (
               <p className="surface-quiet">{room.emptyRoom}</p>
             ) : null}
-            {entries.map((entry) => (
+            {entries.map((entry, index) => (
               <RoomRow
                 key={entry.seq}
                 entry={entry}
                 info={info ?? null}
                 color={colors.get(entry.member_id)}
+                tint={tints.get(entry.member_id)}
+                grouped={index > 0 && entries[index - 1].member_id === entry.member_id}
                 defaultHostName={room.defaultHostName}
                 asked={room.askedKalsa}
                 left={room.left}
@@ -185,13 +189,16 @@ export function RoomSurface() {
               />
             ))}
             {live !== null || turnRunning ? (
-              <div className="row row-assistant">
+              <div className="row room-row">
                 <div className="room-author">
                   <span className="room-author-name" style={{ color: KALSA_NAME_COLOR }}>
                     Kalsa
                   </span>
                 </div>
-                <div className="assistant-body">
+                <div
+                  className="room-bubble"
+                  style={{ "--room-bubble-color": KALSA_NAME_COLOR, "--room-bubble-tint": KALSA_TINT } as React.CSSProperties}
+                >
                   {live !== null && live.text !== "" ? (
                     <Markdown text={live.text} />
                   ) : (
@@ -250,14 +257,19 @@ export function RoomSurface() {
   );
 }
 
-/** One message of the room, in the thread's shapes: this computer's own
-    words in the user's bubble, everyone else's in an authored block —
-    Kalsa's typeset like the chat's answers, the room's people with their
-    calls and reads marked. The author's name wears the member's color. */
+/** One message of the room. The author's name sits above in their color
+    with the dot of it — once for a run of consecutive messages — and the
+    bubble washes with the tint of the same hue, edged in the full color:
+    whose words these are is readable at a glance, this computer's own on
+    the right in their own color rather than a generic grey. A member who
+    left holds no slot: their name wears the page's ink and their bubble
+    the page's muted surface. */
 function RoomRow({
   entry,
   info,
   color,
+  tint,
+  grouped,
   defaultHostName,
   asked,
   left,
@@ -269,6 +281,10 @@ function RoomRow({
   /** The author's palette color, absent for a member no longer in the
       room: they hold no slot, and their name wears the page's own ink. */
   color: string | undefined;
+  /** The same slot's tint, absent with the color. */
+  tint: string | undefined;
+  /** The previous message was this author's: their name is already above. */
+  grouped: boolean;
   defaultHostName: string;
   asked: string;
   left: string;
@@ -276,26 +292,20 @@ function RoomRow({
   when: string;
 }) {
   const own = info !== null && entry.member_id === info.you;
-  if (own) {
-    return (
-      <div className="row row-user" title={when}>
-        <div className="user-bubble">
-          <RoomText text={entry.text} />
-        </div>
-      </div>
-    );
-  }
   const aiId = info?.members.find((member) => member.kind === "ai")?.member_id;
   const isKalsa = entry.member_id === aiId;
+  const style = { "--room-bubble-color": color, "--room-bubble-tint": tint } as React.CSSProperties;
   return (
-    <div className="row row-assistant" title={when}>
-      <div className="room-author">
-        <span className="room-author-name" style={{ color }}>
-          {entry.name === "" ? defaultHostName : entry.name}
-        </span>
-        {entry.former ? <span className="room-left">{left}</span> : null}
-      </div>
-      <div className="assistant-body">
+    <div className={`row room-row${own ? " room-row-own" : ""}${grouped ? " room-row-grouped" : ""}`} title={when}>
+      {!grouped ? (
+        <div className="room-author">
+          <span className="room-author-name" style={{ color }}>
+            {entry.name === "" ? defaultHostName : entry.name}
+          </span>
+          {entry.former ? <span className="room-left">{left}</span> : null}
+        </div>
+      ) : null}
+      <div className="room-bubble" style={style}>
         {entry.call_ai && !isKalsa ? <span className="room-asked">{asked} </span> : null}
         {isKalsa ? <Markdown text={entry.text} /> : <RoomText text={entry.text} />}
         {entry.read !== null && entry.read !== undefined ? (

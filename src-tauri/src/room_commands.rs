@@ -167,7 +167,7 @@ pub fn brain_room(
         room_name: stored
             .iter()
             .find(|device| device.kind == crate::DeviceKind::Host)
-            .map(|device| device.label.clone())
+            .map(|device| room::room_title(&device.label))
             .unwrap_or_default(),
         you: MemberId::Host.wire(),
         members,

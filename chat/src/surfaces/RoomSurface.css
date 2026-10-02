@@ -45,6 +45,54 @@
   font-size: 0.85rem;
 }
 
+/* One member's message: the name above in their color with the dot of it,
+   the bubble washed in the tint of the same hue and edged in the full
+   color. The custom properties arrive inline from the member's slot; a
+   member who left holds none, and their bubble falls back to the page's
+   muted surface with the quiet border. */
+.room-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: var(--measure);
+}
+
+.room-row-own {
+  align-items: flex-end;
+}
+
+.room-row-grouped {
+  /* The author's name is already above the run; the bubble simply
+     continues it, a touch closer. */
+  margin-top: -0.6rem;
+}
+
+.room-bubble {
+  max-width: min(42rem, 85%);
+  padding: 0.6rem 0.9rem;
+  color: var(--ink);
+  background: var(--room-bubble-tint, var(--surface-muted));
+  border-left: 3px solid var(--room-bubble-color, var(--border-strong));
+  border-radius: 4px 14px 14px 14px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* This computer's own words stand on the right, mirrored: the edge faces
+   the thread's spine. */
+.room-row-own .room-bubble {
+  border-left: none;
+  border-right: 3px solid var(--room-bubble-color, var(--border-strong));
+  border-radius: 14px 4px 14px 14px;
+}
+
+/* The asking token and the read count ride INSIDE the wash, quiet. */
+.room-bubble .room-asked,
+.room-bubble .room-read {
+  color: var(--silence);
+}
+
 /* The member's mark: a small dot of the name's own color, in the thread
    and in the header's list — currentColor, so the color is set once. */
 .room-author-name::before,

@@ -138,6 +138,18 @@ pub(crate) fn wire_name(room: &Room, labels: &Labels, member: kalsa_room::Member
     }
 }
 
+/// The room's title from the host record's label: a label the owner set
+/// crosses as itself, and the store's own default — English words nobody
+/// chose — crosses empty for the page to localize, exactly as an unnamed
+/// host's name does.
+pub(crate) fn room_title(label: &str) -> String {
+    if label == kalsa_pairing::store::HOST_LABEL {
+        String::new()
+    } else {
+        label.to_string()
+    }
+}
+
 /// Why the host's call was not taken, as the protocol's pair.
 pub(crate) struct CallOutcome {
     pub(crate) ai_call: Option<&'static str>,
@@ -323,6 +335,15 @@ mod tests {
             "Studio",
             "the resolver the door's routes use is unchanged"
         );
+    }
+
+    #[test]
+    fn the_rooms_title_crosses_the_stores_default_empty() {
+        // The title is the host record's label: the store's own default is
+        // English nobody chose, so it crosses empty and the page titles the
+        // room with the household's words — the same rule as the names.
+        assert_eq!(room_title("This computer"), "");
+        assert_eq!(room_title("Studio"), "Studio");
     }
 
     #[test]
