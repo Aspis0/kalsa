@@ -20,16 +20,21 @@ const POLL: Duration = Duration::from_millis(50);
 /// `CREATE_NO_WINDOW` — the rule `kalsa-supervisor::hide_console` states
 /// for the engine's children, restated here because this crate has no
 /// edge to that one and a dependency is too heavy a price for a helper
-/// this small: the app owns no console, so a console child (wmic,
-/// PowerShell) would open a window of its own on the desktop. Off Windows
+/// this small. The app owns no console in the shipped build
+/// (`windows_subsystem = "windows"` sits under
+/// `cfg_attr(not(debug_assertions))` in the app's main.rs — a debug build
+/// keeps its console), so a console child (wmic, PowerShell) would open a
+/// window of its own on the desktop. `creation_flags` ASSIGNS its
+/// argument, it does not OR into what is there — the last call wins — so
+/// this must be the only `creation_flags` call on a Command. Off Windows
 /// there is no console to hide and nothing is done.
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 fn hide_console(cmd: &mut Command) {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW);
 }
 
-#[cfg(not(windows))]
+#[cfg(not(target_os = "windows"))]
 fn hide_console(_cmd: &mut Command) {}
 
 /// Runs `program`, answering its stdout as text only when it ran,
@@ -173,25 +178,26 @@ mod tests {
         );
     }
 
-    /// Off Windows the helper compiles, takes a command, and does
-    /// nothing: there is no console to hide — and the spawn still runs.
-    #[cfg(not(windows))]
+    /// The flag has no getter on `Command`, but its effect has: a child
+    /// started behind CREATE_NO_WINDOW has no console, so
+    /// `GetConsoleWindow()` inside it is NULL and this runner reads a
+    /// bare 0 back.
+    #[cfg(target_os = "windows")]
     #[test]
-    fn off_windows_the_console_hider_changes_nothing() {
-        let mut cmd = std::process::Command::new("/bin/sh");
-        cmd.arg("-c").arg("exit 0");
-        hide_console(&mut cmd);
-        assert!(cmd.status().expect("the child runs").success());
-    }
-
-    /// The flagged half, where a flag exists. The flag itself cannot be
-    /// read back — `creation_flags` is a setter with no getter — so the
-    /// check is that a child behind it still answers this runner.
-    #[cfg(windows)]
-    #[test]
-    fn command_text_reads_a_child_whose_console_is_hidden() {
-        let answer = command_text("cmd", ["/C", "echo", "hidden"], Duration::from_secs(5));
-        assert_eq!(answer, Some("hidden\r\n".to_string()));
+    fn command_text_reads_no_console_window_from_a_flagged_child() {
+        const GET_CONSOLE_WINDOW: &str = "Add-Type -Name W -Namespace K -MemberDefinition \
+            '[DllImport(\"kernel32.dll\")] public static extern System.IntPtr GetConsoleWindow();'; \
+            [K.W]::GetConsoleWindow()";
+        let answer = command_text(
+            "powershell",
+            ["-NoProfile", "-Command", GET_CONSOLE_WINDOW],
+            Duration::from_secs(30),
+        );
+        assert_eq!(
+            answer.expect("powershell answered").trim(),
+            "0",
+            "the child had a console window"
+        );
     }
 
     #[test]

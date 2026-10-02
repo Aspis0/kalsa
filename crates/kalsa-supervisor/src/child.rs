@@ -61,18 +61,23 @@ pub fn strip_llama_env(
     }
 }
 
-/// `CREATE_NO_WINDOW`: the app is a GUI process that owns no console, so a
-/// console child of ours would open a console window of its own — the
-/// window an owner sees titled `kalsa-server.exe` when the app turns on.
-/// The flag only suppresses that window: the stdio the caller set is
-/// untouched. Off Windows there is no console to hide and nothing is done.
-#[cfg(windows)]
+/// `CREATE_NO_WINDOW`: in the shipped build the app is a GUI process that
+/// owns no console (`windows_subsystem = "windows"` sits under
+/// `cfg_attr(not(debug_assertions))` in the app's main.rs — a debug build
+/// keeps its console), so a console child of ours would open a console window of its
+/// own: the window an owner sees titled `kalsa-server.exe` when the app
+/// turns on. The flag only suppresses that window; the stdio the caller
+/// set is untouched. `creation_flags` ASSIGNS its argument, it does not
+/// OR into what is there — the last call wins — so this must be the only
+/// `creation_flags` call on a Command. Off Windows there is no console to
+/// hide and nothing is done.
+#[cfg(target_os = "windows")]
 pub fn hide_console(cmd: &mut Command) {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW);
 }
 
-#[cfg(not(windows))]
+#[cfg(not(target_os = "windows"))]
 pub fn hide_console(_cmd: &mut Command) {}
 
 /// How often `wait_within` looks at the child.
@@ -627,29 +632,30 @@ pub use job::{confine, Job};
 mod tests {
     use super::*;
 
-    /// Off Windows the helper compiles, takes a command, and does
-    /// nothing: there is no console to hide — and the spawn still runs
-    /// and reports its status.
-    #[cfg(not(windows))]
+    /// The flag has no getter on `Command`, but its effect has: a child
+    /// started behind CREATE_NO_WINDOW has no console, so
+    /// `GetConsoleWindow()` inside it is NULL and the child prints 0
+    /// through the stdout this test captures.
+    #[cfg(target_os = "windows")]
     #[test]
-    fn off_windows_the_console_hider_changes_nothing() {
-        let mut cmd = std::process::Command::new("/bin/sh");
-        cmd.arg("-c").arg("exit 0");
+    fn a_child_behind_the_flag_has_no_console_window() {
+        const GET_CONSOLE_WINDOW: &str = "Add-Type -Name W -Namespace K -MemberDefinition \
+            '[DllImport(\"kernel32.dll\")] public static extern System.IntPtr GetConsoleWindow();'; \
+            [K.W]::GetConsoleWindow()";
+        let mut cmd = std::process::Command::new("powershell");
+        cmd.args(["-NoProfile", "-Command", GET_CONSOLE_WINDOW]);
         hide_console(&mut cmd);
-        assert!(cmd.status().expect("the child runs").success());
-    }
-
-    /// The flag itself cannot be asserted: `creation_flags` is a setter
-    /// with no getter, and no query reports the creation flags a live
-    /// process was started with. What is checkable is that a flagged
-    /// spawn still starts, exits, and reports success.
-    #[cfg(windows)]
-    #[test]
-    fn a_flagged_child_still_runs() {
-        let mut cmd = std::process::Command::new("cmd");
-        cmd.args(["/C", "exit", "0"]);
-        hide_console(&mut cmd);
-        assert!(cmd.status().expect("the flagged child runs").success());
+        let out = cmd.output().expect("powershell runs");
+        assert!(
+            out.status.success(),
+            "powershell failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&out.stdout).trim(),
+            "0",
+            "the child had a console window"
+        );
     }
 
     #[test]
