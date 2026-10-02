@@ -105,9 +105,10 @@ pub enum Kept {
 
 /// One tune's result, kept until the fingerprint moves: the winner with
 /// its reply, and every candidate's own numbers or cause — the app must
-/// show the wait it chose, so the trials travel with the choice. A tune
-/// the budget cut inside its sweep is written as a marker file instead
-/// (see [`save_marker`]): the same lines plus one, and `load` refuses it.
+/// show the wait it chose, so the trials travel with the choice. An
+/// unfinished tune — cut by the budget, never finished, or all-refused —
+/// is written as a marker file instead (see [`save_marker`]): the same
+/// lines plus one, and `load` refuses it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
     /// The caller's opaque key (model digest, engine builds, context,
@@ -200,18 +201,54 @@ fn trial_holds(trials: &[(Candidate, Kept)], candidate: &Candidate, reply: &Repl
 /// whole (or no record at all on the first save) — never a truncated file
 /// that could parse as a smaller truth.
 pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
-    save_with(dir, model_digest, record, false)
+    save_with(dir, model_digest, record, None)
+}
+
+/// Why a file on disk is a marker rather than a verdict: the cause its
+/// `cut=` line carries — one closed name per cause, so the file says what
+/// actually happened. Every cause reads the same: [`load`] refuses it,
+/// [`cut_before`] finds it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Marker {
+    /// The budget stopped the decode sweep.
+    Sweep,
+    /// The budget stopped the first pass: a shape never began.
+    PassOne,
+    /// Every shape ran; none of them replied.
+    Refused,
+}
+
+impl Marker {
+    fn cause(self) -> &'static str {
+        match self {
+            Marker::Sweep => "sweep",
+            Marker::PassOne => "first",
+            Marker::Refused => "refused",
+        }
+    }
 }
 
 /// Saves the tune as a marker rather than a verdict: the same record and
-/// one `cut=sweep` line, which `load` refuses and [`cut_before`] reads. A
-/// tune the budget cut inside its sweep is written this way, so the next
-/// start finishes the sweep instead of reusing a partial one.
-pub fn save_marker(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
-    save_with(dir, model_digest, record, true)
+/// one `cut=<cause>` line, which `load` refuses and [`cut_before`] reads.
+/// An unfinished verdict is written this way so the next start measures
+/// once more — and a second unfinished verdict is saved by [`save`] as it
+/// stands, which is what keeps a slow or broken machine from spending the
+/// whole budget on every start forever.
+pub fn save_marker(
+    dir: &Path,
+    model_digest: &str,
+    record: &Record,
+    marker: Marker,
+) -> io::Result<()> {
+    save_with(dir, model_digest, record, Some(marker.cause()))
 }
 
-fn save_with(dir: &Path, model_digest: &str, record: &Record, cut: bool) -> io::Result<()> {
+fn save_with(
+    dir: &Path,
+    model_digest: &str,
+    record: &Record,
+    cut: Option<&'static str>,
+) -> io::Result<()> {
     validate(record)?;
     let Some(target) = path(dir, model_digest) else {
         return Err(io::Error::new(
@@ -221,8 +258,8 @@ fn save_with(dir: &Path, model_digest: &str, record: &Record, cut: bool) -> io::
     };
     fs::create_dir_all(dir)?;
     let mut text = format!("{MAGIC}\nfingerprint={}\n", record.fingerprint);
-    if cut {
-        text.push_str("cut=sweep\n");
+    if let Some(cause) = cut {
+        text.push_str(&format!("cut={cause}\n"));
     }
     for (index, (candidate, kept)) in record.trials.iter().enumerate() {
         text.push_str(&format!(
@@ -350,10 +387,11 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
     (saved == fingerprint && !cut).then_some(record)
 }
 
-/// Whether the last start's tune for this fingerprint was cut inside its
-/// decode sweep: the one fact that lets THIS start save a cut result
-/// instead of withholding it a second time — a slow machine must not
-/// re-tune forever. A record for another fingerprint, a torn file, or
+/// Whether the last start's tune for this fingerprint left an unfinished
+/// verdict behind — the budget cut it, a pass never ran, or nothing
+/// replied: the one fact that lets THIS start save its own unfinished
+/// result instead of withholding it a second time — a slow machine must
+/// not re-tune forever. A record for another fingerprint, a torn file, or
 /// none at all answers no.
 pub fn cut_before(dir: &Path, model_digest: &str, fingerprint: &str) -> bool {
     let Some(file) = path(dir, model_digest) else {
@@ -523,8 +561,8 @@ fn parse(text: &str) -> Option<(String, Record, bool)> {
             "cut"
                 if !cut && saved_fingerprint.is_some() && trials.is_empty() && winner.is_none() =>
             {
-                if value != "sweep" {
-                    return None; // one closed name, like every other cause here
+                if !matches!(value, "sweep" | "first" | "refused") {
+                    return None; // one closed name per cause, like every other field
                 }
                 cut = true;
             }

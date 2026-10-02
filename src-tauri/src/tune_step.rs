@@ -3,8 +3,9 @@
 //!
 //! Every failure degrades to the plan's launch, panic included (caught
 //! below; the runtime's hook prints first, and neither line names argv).
-//! The exception: an incomplete tune's measured winner runs and only its
-//! record is withheld, so the next start measures again.
+//! The exception: an unfinished tune's measured winner runs and its
+//! record is withheld as a marker — once — so the next start measures
+//! again; a second unfinished result is saved as it stands.
 //!
 //! No GPU flag on the graphics candidate: the engine's fit adapts the
 //! layers to this start's free memory only when no count is given
@@ -194,12 +195,13 @@ pub(crate) fn measure_with_rule(
 }
 
 /// The tune step itself: look the winner up by fingerprint; keep it on a
-/// hit; on a miss measure (when there is anything to compare), save — only
-/// when every candidate ran — and keep the best. An incomplete tune is
-/// never saved: a partial picture would lock the next start out of the
-/// re-run that would complete it. Nothing here fails the walk: the whole
-/// step is caught below, and any panic degrades to the plan with one log
-/// line.
+/// hit; on a miss measure (when there is anything to compare) and keep the
+/// best. A verdict the budget or a refusal left unfinished is saved as the
+/// marker `load` refuses, so the next start measures once more; a second
+/// unfinished verdict is saved as it stands — a slow or broken machine
+/// must not spend the whole budget on every start forever. Nothing here
+/// fails the walk: the whole step is caught below, and any panic degrades
+/// to the plan with one log line.
 pub(crate) fn tune_launch(
     prepared: &mut PreparedStart,
     machine: &Machine,
@@ -315,53 +317,48 @@ fn tune_launch_inner(
                 })
             });
             let winner = tuned.winner;
-            // A sweep the budget cut is not this start's verdict: the
-            // untried settings get their chance, so the file is written as
-            // a marker `load` refuses. A start whose predecessor was cut
-            // too saves what exists instead — the machine is slow, not the
-            // tune broken, and re-tuning forever would spend the budget
-            // every start.
-            let retry =
-                tuned.cut && !kalsa_tune::record::cut_before(root, &model_digest, &fingerprint);
             let record = kalsa_tune::record::Record {
                 fingerprint: fingerprint.clone(),
                 winner,
                 trials: tuned.trials,
             };
-            // Every shape must have RUN, and its exe must have resolved:
-            // anything else is a partial picture, and saving it would lock
-            // the next start out of the re-run that would complete it. A
-            // shape the bound skipped did run — its own entry says so. A
-            // refusal is a shape that ran too, but a tune where every shape
-            // refused has no winner to remember. This start's winner still
-            // launches — it just is not remembered.
-            if !tuned.complete {
-                eprintln!(
-                    "kalsa-brain: the tune's budget cut a shape before it ran; not saved — the next start tries again"
-                );
-            } else if resolved.len() != candidates.len() {
+            // An unfinished verdict — the budget stopped a lifetime in
+            // either pass, or nothing replied — is written as the marker
+            // `load` refuses, so the next start measures once more; a
+            // second unfinished verdict is saved as it stands. The marker
+            // IS the "retried once": `cut_before` reads it back, and a
+            // slow or broken machine must not spend the whole budget on
+            // every start forever.
+            let unfinished = if tuned.cut {
+                Some(kalsa_tune::record::Marker::Sweep)
+            } else if !tuned.complete {
+                Some(kalsa_tune::record::Marker::PassOne)
+            } else if winner.is_none() {
+                Some(kalsa_tune::record::Marker::Refused)
+            } else {
+                None
+            };
+            let retried = unfinished.is_some()
+                && kalsa_tune::record::cut_before(root, &model_digest, &fingerprint);
+            // Every candidate must have had an exe to run: a dropped shape
+            // is a hole no picture may pin — the bound's skips are not a
+            // hole, they ran and their own entries stand — so this start
+            // writes nothing.
+            if resolved.len() != candidates.len() {
                 eprintln!(
                     "kalsa-brain: the tune ran {} of {} candidates; not saved — the next start tries again",
                     resolved.len(),
                     candidates.len()
                 );
-            } else if winner.is_none() {
-                // Nothing replied: a record of refusals would be reused as a
-                // verdict, and the rule launch it leaves has no processor
-                // fallback prepared. The next start measures again.
-                eprintln!("kalsa-brain: no shape replied; not saved — the next start tries again");
             } else {
-                if retry {
-                    eprintln!(
-                        "kalsa-brain: the budget cut the tune's sweep; not kept as a verdict — the next start completes it"
-                    );
-                }
-                // The marker is the same record and one line, which `load`
-                // refuses and the next start reads.
-                let staged = if retry {
-                    kalsa_tune::record::save_marker(root, &model_digest, &record)
-                } else {
-                    kalsa_tune::record::save(root, &model_digest, &record)
+                let staged = match (unfinished, retried) {
+                    (Some(cause), false) => {
+                        eprintln!(
+                            "kalsa-brain: the tune's verdict is unfinished ({cause:?}); withheld once — the next start measures again"
+                        );
+                        kalsa_tune::record::save_marker(root, &model_digest, &record, cause)
+                    }
+                    _ => kalsa_tune::record::save(root, &model_digest, &record),
                 };
                 if let Err(error) = staged {
                     // Best effort: a record that cannot be written costs a

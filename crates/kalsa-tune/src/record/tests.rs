@@ -312,32 +312,34 @@ fn an_older_format_reads_as_no_record() {
     }
 }
 
-/// A tune the budget cut inside its sweep is written as a marker: the
-/// same record and one line, which the launch read refuses (the next
-/// start must finish the sweep) while `cut_before` and the display read
-/// still see it.
+/// An unfinished verdict is written as a marker: the same record and one
+/// `cut=<cause>` line, which the launch read refuses (the next start must
+/// measure again) while `cut_before` and the display read still see it,
+/// for every cause the marker carries.
 #[test]
-fn a_cut_marker_is_refused_as_a_verdict_and_read_as_a_marker() {
+fn a_marker_is_refused_as_a_verdict_and_read_as_a_marker() {
     let dir = Scratch::new("cut-marker");
     let record = sample();
-    save_marker(&dir, DIGEST, &record).expect("marker");
-    assert_eq!(
-        load(&dir, DIGEST, &record.fingerprint),
-        None,
-        "a marker is not this start's verdict"
-    );
-    assert!(
-        cut_before(&dir, DIGEST, &record.fingerprint),
-        "the next start can read the marker"
-    );
-    assert!(
-        load_by_model(&dir, DIGEST).is_some(),
-        "the display read still shows the numbers"
-    );
-    assert!(
-        !cut_before(&dir, DIGEST, &fp(OTHER_DIGEST)),
-        "another fingerprint's marker is not this launch's"
-    );
+    for cause in [Marker::Sweep, Marker::PassOne, Marker::Refused] {
+        save_marker(&dir, DIGEST, &record, cause).expect("marker");
+        assert_eq!(
+            load(&dir, DIGEST, &record.fingerprint),
+            None,
+            "{cause:?}: a marker is not this start's verdict"
+        );
+        assert!(
+            cut_before(&dir, DIGEST, &record.fingerprint),
+            "{cause:?}: the next start can read the marker"
+        );
+        assert!(
+            load_by_model(&dir, DIGEST).is_some(),
+            "{cause:?}: the display read still shows the numbers"
+        );
+        assert!(
+            !cut_before(&dir, DIGEST, &fp(OTHER_DIGEST)),
+            "another fingerprint's marker is not this launch's"
+        );
+    }
 
     // The verdict of a later start replaces the marker and is reusable.
     save(&dir, DIGEST, &record).expect("verdict");

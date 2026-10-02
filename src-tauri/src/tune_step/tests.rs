@@ -353,10 +353,11 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A tune where every shape refused: nothing is saved — a reusable record
-/// of refusals would keep an iGPU start on its rule launch with no processor
-/// fallback, so the next start measures again — the rule stands untouched,
-/// and the counts reached the progress callback.
+/// A tune where every shape refused: this start saves no verdict — a
+/// reusable record of refusals would keep an iGPU start on its rule
+/// launch with no processor fallback — only the marker that makes the
+/// next start measure once more. The rule stands untouched, and the
+/// counts reached the progress callback.
 #[test]
 fn a_refused_tune_is_not_saved_and_the_rule_stands() {
     let dir = scratch("refused");
@@ -413,9 +414,12 @@ fn a_refused_tune_is_not_saved_and_the_rule_stands() {
     );
     let model = prepared.info.model_sha256.as_deref().unwrap();
     assert!(
-        kalsa_tune::record::load(&dir, model, &fingerprint).is_none()
-            && kalsa_tune::record::load_by_model(&dir, model).is_none(),
-        "no record of refusals is kept: the next start measures again"
+        kalsa_tune::record::load(&dir, model, &fingerprint).is_none(),
+        "no verdict of refusals is kept: the next start measures again"
+    );
+    assert!(
+        kalsa_tune::record::cut_before(&dir, model, &fingerprint),
+        "only the marker, which is what owes the next start one measurement"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -662,70 +666,212 @@ fn a_processor_fallback_still_tunes_the_graphics_candidate() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A partial picture is not a picture: when the budget cut a shape before
-/// its first lifetime (the seam says `complete: false`), this start's
-/// winner still launches, but no record is written — the next start must
-/// try the whole thing again.
+/// A pass-one cut is an unfinished verdict, not a lost one: this start's
+/// winner of what ran still launches and the file is only a marker
+/// `load` refuses — the next start, cut the same way, saves what exists
+/// instead of measuring on every start forever — and the start after
+/// that answers from the record without measuring at all.
 #[test]
-fn an_incomplete_tune_is_not_saved() {
-    let dir = scratch("incomplete");
+fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
+    let dir = scratch("pass-one-cut");
     let machine = machine(Backend::DiscreteGpu {
         vram_bytes: Some(6_439_305_216),
     });
-    let mut prepared = prepared("/main-gpu");
-    let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
+    let mut first = prepared("/main-gpu");
+    let digest = first.info.model_sha256.as_deref().unwrap().to_string();
+    let fingerprint = tune_fingerprint(&machine, &first.info, ServerBackend::Vulkan, CORES)
         .expect("this walk has a platform and a digest");
     let mut memo = Memo {
         cores: CORES,
         processor: Some(Ok(PathBuf::from("/stub-cpu"))),
     };
     let mut progress = |_: Progress| {};
+    // The seam's answer when the budget stops pass one: two of the three
+    // shapes answered, the last never began.
+    fn cut_first(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(usize, usize),
+    ) -> kalsa_tune::Tuned {
+        counts(resolved.len(), resolved.len());
+        let best = resolved[2].0;
+        let mut tuned = tuned(
+            vec![
+                replied(resolved[0].0, 60.0, 30.0),
+                replied(best, 80.0, 12.0),
+            ],
+            Some(kalsa_tune::Winner {
+                candidate: best,
+                reply: reply(80.0, 12.0),
+            }),
+        );
+        tuned.complete = false;
+        tuned
+    }
+    // The first cut: the winner of what ran (the third candidate, 10
+    // threads) launches; the file is only a marker.
     tune_launch(
-        &mut prepared,
+        &mut first,
         &machine,
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
-            // The budget cut before the last shape ran: two of the three
-            // candidates answered.
-            let best = resolved[2].0;
-            let mut tuned = tuned(
-                vec![
-                    replied(resolved[0].0, 60.0, 30.0),
-                    replied(best, 80.0, 12.0),
-                ],
-                Some(kalsa_tune::Winner {
-                    candidate: best,
-                    reply: reply(80.0, 12.0),
-                }),
-            );
-            tuned.complete = false;
-            tuned
-        },
+        cut_first,
     );
-    // The winner of what ran (the third candidate, 10 threads) launches…
     assert_eq!(
-        prepared.info.args.threads,
+        first.info.args.threads,
         Some(10),
         "this start's winner is applied"
     );
     assert!(
-        matches!(prepared.info.tune, Some(Tune::Measured(_))),
+        matches!(first.info.tune, Some(Tune::Measured(_))),
         "the line shows what ran: {:?}",
-        prepared.info.tune
+        first.info.tune
     );
-    // …but nothing was written down.
     assert!(
-        kalsa_tune::record::load(
-            &dir,
-            prepared.info.model_sha256.as_deref().unwrap(),
-            &fingerprint
+        kalsa_tune::record::load(&dir, &digest, &fingerprint).is_none(),
+        "a pass-one cut is not a verdict yet"
+    );
+    assert!(
+        kalsa_tune::record::cut_before(&dir, &digest, &fingerprint),
+        "the marker says the next start measures once more"
+    );
+    // The second cut: what was measured is saved as it stands.
+    let mut again = prepared("/main-gpu");
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        cut_first,
+    );
+    assert_eq!(
+        again.info.args.threads,
+        Some(10),
+        "the second start's winner launches too"
+    );
+    let saved = kalsa_tune::record::load(&dir, &digest, &fingerprint)
+        .expect("a second pass-one cut saves what exists instead of re-tuning forever");
+    assert_eq!(
+        saved.winner.map(|win| win.candidate.threads),
+        Some(Some(10)),
+        "the saved verdict is the cut tune's own winner"
+    );
+    assert!(!kalsa_tune::record::cut_before(&dir, &digest, &fingerprint));
+    // The third start: the record answers, nothing measures.
+    let mut third = prepared("/main-gpu");
+    tune_launch(
+        &mut third,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |_, _, _| panic!("the saved record answers; nothing measures"),
+    );
+    assert_eq!(third.info.args.threads, Some(10));
+    assert!(
+        matches!(third.info.tune, Some(Tune::Measured(_))),
+        "kept: {:?}",
+        third.info.tune
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// An all-refused tune is retried once and then stands: the first start
+/// measures, keeps only the marker and runs the rule; the second
+/// measures again and saves the no-winner record; the third goes
+/// straight to the rule without measuring anything.
+#[test]
+fn an_all_refused_tune_is_retried_once_and_then_stands() {
+    let dir = scratch("all-refused");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut first = prepared("/main-gpu");
+    let digest = first.info.model_sha256.as_deref().unwrap().to_string();
+    let fingerprint = tune_fingerprint(&machine, &first.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    fn refused_tune(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(usize, usize),
+    ) -> kalsa_tune::Tuned {
+        counts(resolved.len(), resolved.len());
+        tuned(
+            resolved
+                .iter()
+                .map(|(candidate, _)| refused(*candidate, kalsa_tune::Refusal::NotReady))
+                .collect(),
+            None,
         )
-        .is_none(),
-        "an incomplete tune must not be saved"
+    }
+    // First: nothing replied, so nothing is a verdict — only the marker.
+    tune_launch(
+        &mut first,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        refused_tune,
+    );
+    assert!(
+        matches!(first.info.tune, Some(Tune::NoWinner(_))),
+        "the rule stands: {:?}",
+        first.info.tune
+    );
+    assert!(
+        kalsa_tune::record::load(&dir, &digest, &fingerprint).is_none(),
+        "an all-refused tune is not a verdict yet"
+    );
+    assert!(
+        kalsa_tune::record::cut_before(&dir, &digest, &fingerprint),
+        "the marker says the next start measures once more"
+    );
+    // The second refusal: the no-winner record stands.
+    let mut again = prepared("/main-gpu");
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        refused_tune,
+    );
+    let saved = kalsa_tune::record::load(&dir, &digest, &fingerprint)
+        .expect("a second all-refused tune is saved instead of re-tuning forever");
+    assert!(saved.winner.is_none(), "a no-winner record: {saved:?}");
+    assert!(!kalsa_tune::record::cut_before(&dir, &digest, &fingerprint));
+    // The third start: straight to the rule, nothing measured.
+    let mut third = prepared("/main-gpu");
+    tune_launch(
+        &mut third,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |_, _, _| panic!("the saved no-winner record answers; nothing measures"),
+    );
+    assert!(
+        matches!(third.info.tune, Some(Tune::NoWinner(_))),
+        "kept: {:?}",
+        third.info.tune
+    );
+    assert_eq!(
+        third.server.exe,
+        PathBuf::from("/main-gpu"),
+        "the rule's own launch"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }

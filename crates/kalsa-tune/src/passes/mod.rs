@@ -32,9 +32,9 @@ pub(crate) struct First {
 /// What the two passes produced: the trials the record keeps, the winner
 /// the launch applies, whether every shape's first lifetime ran, and
 /// whether the budget stopped a drafted sweep. A shape that never began is
-/// a hole in the picture, and the caller withholds the record rather than
-/// pinning a partial one; a sweep the budget cut is a marker for the next
-/// start, which gets the chance to finish it.
+/// a hole in the picture, and the caller withholds that picture as a
+/// marker so the next start can finish it — a second unfinished picture is
+/// kept as it stands.
 #[derive(Debug, PartialEq)]
 pub struct Tuned {
     pub trials: Vec<(Candidate, Kept)>,
