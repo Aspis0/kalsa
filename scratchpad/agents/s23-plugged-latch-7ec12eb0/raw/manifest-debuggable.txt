@@ -1,0 +1,1 @@
+android:debuggable attribute: name pool[7]='debuggable' type=0x12(INT_BOOLEAN) data=0xffffffff (TRUE), record at 0x5898

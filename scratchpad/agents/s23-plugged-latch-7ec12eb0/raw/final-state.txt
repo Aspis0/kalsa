@@ -1,0 +1,10 @@
+  mWakefulness=Awake
+  AC powered: false
+  USB powered: false
+  level: 97
+  temperature: 378
+Thermal Status: 1
+    topResumedActivity=ActivityRecord{57588037 u0 com.kalsa.app/.MainActivity t168}
+0
+    lastUpdateTime=2026-10-02 18:13:29
+10-02 19:09:35.070 I/ReactNativeJS(31230): KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":3005.06,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"off","npu_fit":"NoFit","available_src":"fresh"}

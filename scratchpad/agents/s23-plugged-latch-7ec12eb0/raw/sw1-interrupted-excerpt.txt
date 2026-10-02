@@ -1,0 +1,45 @@
+10-02 18:40:30.195 I/ReactNativeJS( 7866): KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit","decode_repack":false,"required_mib_with_repack":7331.47,"required_mib_without_repack":4627.83,"available_mib":3777.85,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"on","npu_fit":"NoFit","available_src":"fresh"}
+10-02 18:40:30.195 I/ReactNativeJS( 7866): KALSA_SESSION {"op":"init","no_extra_bufts":1}
+10-02 18:40:30.207 I/RNLlama ( 7866): loadModel:1045 Using n_parallel: 1 (enables up to 1 parallel slots)
+10-02 18:40:30.207 I/RNLlama ( 7866): loadModel:1101 kalsa moe stream: kalsa_moe disabled
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.attn_norm.weight (size = 10240 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.post_attention_norm.weight (size = 10240 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.attn_q.weight (size = 11796480 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.attn_k.weight (size = 1474560 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.attn_v.weight (size = 2150400 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.attn_output.weight (size = 5898240 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.ffn_gate.weight (size = 13271040 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.ffn_down.weight (size = 19353600 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.ffn_up.weight (size = 13271040 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.nextn.eh_proj.weight (size = 13926400 bytes) -- ignoring
+10-02 18:40:30.646 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.nextn.enorm.weight (size = 10240 bytes) -- ignoring
+10-02 18:40:30.647 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.nextn.hnorm.weight (size = 10240 bytes) -- ignoring
+10-02 18:40:30.647 I/ReactNativeJS( 7866): KALSA_NATIVE warn model has unused tensor blk.32.nextn.shared_head_norm.weight (size = 10240 bytes) -- ignoring
+10-02 18:40:31.911 I/ReactNativeJS( 7866): KALSA_NATIVE warn warning: failed to mlock 532455424-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 18:40:33.076 I/RNLlama ( 7866): loadModel:1179 Context initialized with n_seq_max = 1
+10-02 18:40:33.076 I/RNLlama ( 7866): loadModel:1188 ctx_shift: disabled
+10-02 18:40:33.077 I/RNLlama ( 7866): attachThreadpoolsIfAvailable:778 Attached ggml threadpool (n_threads=5, n_threads_batch=5)
+10-02 18:40:33.100 I/ReactNativeJS( 7866): KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+10-02 18:40:33.111 I/ReactNativeJS( 7866): KALSA_SESSION {"op":"load","ms":9,"ok":false,"tokensOnDisk":0,"reason":"no_file","stemHash":"3739513326"}
+10-02 18:40:33.111 I/ReactNativeJS( 7866): 'KALSA_KVDIAG', '{"n_past":0,"tokens_on_disk":0,"ok":false}'
+10-02 18:40:33.111 I/RNLlama ( 7866): llama_rn_context_mtmd:715 [DEBUG] Initializing multimodal with mmproj path: /data/user/0/com.kalsa.app/files/models/qwen3.5-4b/mmproj-F16.gguf
+10-02 18:40:33.111 I/RNLlama ( 7866): llama_rn_context_mtmd:724 [DEBUG] Model info: n_ctx=8192, n_embd=2560
+10-02 18:40:33.111 I/RNLlama ( 7866): llama_rn_context_mtmd:735 [DEBUG] Initializing mtmd context with threads=5, image_min_tokens=-1, image_max_tokens=512
+10-02 18:40:34.506 I/RNLlama ( 7866): llama_rn_context_mtmd:752 [DEBUG] Model multimodal properties: uses_mrope=1, uses_non_causal=0
+10-02 18:40:34.506 I/RNLlama ( 7866): llama_rn_context_mtmd:761 Multimodal context initialized successfully with mmproj: /data/user/0/com.kalsa.app/files/models/qwen3.5-4b/mmproj-F16.gguf
+10-02 18:40:34.506 I/RNLlama ( 7866): llama_rn_context_mtmd:762 Context shifting disabled for multimodal support
+10-02 18:40:34.534 I/ReactNativeJS( 7866): 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+10-02 18:40:34.550 I/ReactNativeJS( 7866): KALSA_DIGEST {"durationMs":1,"corpusSize":3,"selectedCount":3,"ciswireFlags":1}
+10-02 18:40:34.555 I/ReactNativeJS( 7866): KALSA_WINDOW {"turnId":"7","kvHeld":false,"nPast":null,"lastSaveTokens":null,"loadedB":null,"hasDigest":true,"legacyWindowStart":4,"textEst":3673,"measuredCharsPerToken":null,"windowTokens":3673}
+10-02 18:40:34.650 W/RNLlama ( 7866): loadSession:86 KALSA_KVRESUME n_tokens=1692 pos_max=1691 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1
+10-02 18:40:34.650 I/RNLlama ( 7866): probeStateCache:160 prompt state cache enabled (recurrent/hybrid model)
+10-02 18:40:34.722 I/ReactNativeJS( 7866): KALSA_PREFIX_MEASURED {"tokens":1692,"restored":true}
+10-02 18:40:34.724 I/ReactNativeJS( 7866): 'KALSA_PREWARM', '{"op":"restore","ok":true,"tokens":1692,"hash":"3677660334"}'
+10-02 18:40:34.730 I/ReactNativeJS( 7866): KALSA_THINKING {"turnId":"7","budget":256,"decodeTokPerSec":null,"forceShort":false,"contextMode":"ciswire"}
+10-02 18:40:34.792 I/RNLlama ( 7866): loadPrompt:504 loadPrompt: prompt_n=5111 n_ctx=8192 embd=1692
+10-02 18:40:34.792 W/RNLlama ( 7866): loadPrompt:537 KALSA_KVPREFIX embd=1692 text_tokens=5111 n_common=1692 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007b7dc7da00
+10-02 18:40:45.506 I/ReactNativeJS( 7866): KALSA_MEMORY {"memoryEnabled":0,"factsExtracted":-1,"factsStored":-1,"factsRejectedFull":-1,"factsInjected":0,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":-1,"ciswireFlags":1}
+10-02 18:40:45.506 I/ReactNativeJS( 7866): KALSA_MEMORY_EXTRACT {"memoryEnabled":0,"factsExtracted":-1,"factsStored":-1,"factsRejectedFull":-1,"factsInjected":-1,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":4,"ciswireFlags":1,"durationMs":0,"timeoutMs":20000,"stopReason":"skipped_no_snapshot"}
+10-02 18:41:05.923 I/RNLlama ( 7866): nextToken:1835 Decoding Interrupted

@@ -1,0 +1,26 @@
+10-02 18:16:11.621 I/ReactNativeJS( 7866): KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+10-02 18:16:11.768 I/ReactNativeJS( 7866): 'KALSA_PREWARM', '{"op":"skip","reason":"not_ready"}'
+10-02 18:16:12.041 I/ReactNativeJS( 7866): KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":3563.8,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"on","npu_fit":"Fit","available_src":"fresh"}
+10-02 18:16:12.041 I/ReactNativeJS( 7866): KALSA_SESSION {"op":"init","no_extra_bufts":0}
+10-02 18:16:12.044 D/RNLlama ( 7866): Using /data/user/0/com.kalsa.app/app_rnllama-htp for HTP libraries
+10-02 18:16:12.046 D/RNLlama ( 7866): Extracted HTP library: libggml-htp-v73.so
+10-02 18:16:12.048 D/RNLlama ( 7866): Extracted HTP library: libggml-htp-v75.so
+10-02 18:16:12.050 D/RNLlama ( 7866): Extracted HTP library: libggml-htp-v79.so
+10-02 18:16:12.052 D/RNLlama ( 7866): Extracted HTP library: libggml-htp-v81.so
+10-02 18:16:12.052 D/RNLlama ( 7866): Set ADSP_LIBRARY_PATH=/data/user/0/com.kalsa.app/app_rnllama-htp
+10-02 18:16:12.104 I/ReactNativeJS( 7866): KALSA_NATIVE warn ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+10-02 18:16:12.106 I/ReactNativeJS( 7866): KALSA_NATIVE warn ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+10-02 18:16:12.162 I/RNLlama ( 7866): load_governor_models:183 KALSA_KV_TYPE_OVERRIDE {requested_k:"q8_0", requested_v:"q4_0", effective_k:"q8_0", effective_v:"q8_0", reason:"htp-prefill-kv"}
+10-02 18:16:14.686 I/ReactNativeJS( 7866): KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 18:16:18.295 I/ReactNativeJS( 7866): KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+10-02 18:16:18.827 I/RNLlama ( 7866): loadModel:1179 Context initialized with n_seq_max = 1
+10-02 18:16:18.827 I/RNLlama ( 7866): loadModel:1188 ctx_shift: enabled
+10-02 18:16:18.865 I/ReactNativeJS( 7866): KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":{"prefill":99,"decode":0}}
+10-02 18:16:18.900 I/ReactNativeJS( 7866): 'KALSA_PREWARM', '{"op":"start","hash":"3677660334","systemChars":3886,"toolCount":3}'
+10-02 18:16:18.924 I/ReactNativeJS( 7866): 'KALSA_PREWARM', '{"op":"restore","ok":false,"reason":"no_file","hash":"3677660334"}'
+10-02 18:16:18.934 I/RNLlama ( 7866): loadPrompt:504 loadPrompt: prompt_n=1660 n_ctx=8192 embd=0
+10-02 18:16:18.934 W/RNLlama ( 7866): loadPrompt:537 KALSA_KVPREFIX embd=0 text_tokens=1660 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007b7a9d4000
+10-02 18:16:18.934 I/RNLlama ( 7866): probeStateCache:160 prompt state cache enabled (recurrent/hybrid model)
+10-02 18:16:21.158 I/ReactNativeJS( 7866): KALSA_PREFIX_MEASURED {"tokens":1660}
+10-02 18:16:21.163 I/ReactNativeJS( 7866): 'KALSA_PREWARM', '{"op":"done","promptMs":2198.21,"promptN":1660,"hash":"3677660334"}'
+10-02 18:16:21.174 I/ReactNativeJS( 7866): 'KALSA_PREWARM', '{"op":"snapshot_save","ok":false,"reason":"save_error","hash":"3677660334"}'

@@ -1,0 +1,4 @@
+  AC powered: true
+  USB powered: false
+  level: 100
+  temperature: 329

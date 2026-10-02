@@ -1,0 +1,8 @@
+t1  (LFM, long needle prompt)  UI text="ZAFFIRO-42"   (win/t1-ui-postsend.xml)
+t2  (LFM, 17x23?)              UI text="391"
+t3  (LFM, 18x23?)              UI text="414"
+t4  (LFM, 17x23?)              UI text="391"
+t5  (LFM, 18x23?)              UI text="414"
+t6  (LFM, 17x23?)              UI text="391"
+sw1 (Qwen turn 7)              ABORTED BY HARNESS re-tap 3 s after send (Decoding Interrupted); no answer expected
+sw1b(Qwen turn 8)              UI text="Roma"

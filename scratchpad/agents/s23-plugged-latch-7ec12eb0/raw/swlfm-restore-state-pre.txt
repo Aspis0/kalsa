@@ -1,0 +1,3 @@
+  AC powered: false
+  level: 98
+  temperature: 362

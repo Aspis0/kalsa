@@ -1,0 +1,6 @@
+  mWakefulness=Awake
+  AC powered: true
+  USB powered: false
+  level: 100
+  temperature: 338
+Thermal Status: 0
