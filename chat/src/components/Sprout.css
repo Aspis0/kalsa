@@ -1,0 +1,157 @@
+/* The walk's face (Sprout.tsx): the plant, the thin bar under the soil, the
+   line under that. Every colour is a token, so light and dark come from the
+   page; every animation sits in the one no-preference block, so under
+   reduced motion the plant is still, the leaves open by class alone (at
+   once, not over time), the stripes stand where they are, and the caption's
+   own clock is the only thing left moving. */
+
+.sprout {
+  margin: 0.45rem 0 0;
+}
+
+.sprout-svg {
+  display: block;
+  width: 104px;
+  height: auto;
+}
+
+/* The soil, carried the whole width of the page: the plant stands on the
+   SVG's bottom edge, this is the ground that continues under it, and the
+   bar below is the walk's own claim on the same line. */
+.sprout-ground {
+  border-top: 1.5px solid var(--border-strong);
+}
+
+.sprout-seed {
+  fill: var(--accent);
+}
+
+.sprout-stem {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  /* One unit over the whole path (pathLength="1" on the element), so the
+     dashoffset below is the growth itself: 1 hidden, 0 drawn. */
+  stroke-dasharray: 1;
+}
+
+.sprout-leaf path {
+  fill: var(--accent);
+}
+
+.sprout-plant,
+.sprout-bow {
+  /* Both turn about the root in viewBox units: the sway rocks the plant on
+     the soil, the bow lifts it off the same point. */
+  transform-box: view-box;
+  transform-origin: 40px 66px;
+}
+
+.sprout-leaf {
+  /* The sharp corner is the attachment: the leaf unfolds out of the stem,
+     not out of its own middle. */
+  transform-box: fill-box;
+  transform-origin: 0 100%;
+  transform: scale(0) rotate(-30deg);
+}
+
+.sprout-leaf.is-open {
+  transform: scale(1) rotate(0deg);
+}
+
+.sprout-bar {
+  position: relative;
+  height: 6px;
+  margin: 6px 0 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.sprout-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+}
+
+/* A step with no fraction: stripes walking sideways, a bar that is always
+   moving and never claims ground the walk has not covered. */
+.sprout-bar.is-indeterminate::after {
+  content: "";
+  position: absolute;
+  inset: 0 -32px 0 0;
+  background: repeating-linear-gradient(115deg, var(--accent) 0 14px, var(--surface-muted) 14px 32px);
+}
+
+.sprout-caption {
+  margin: 0.5rem 0 1.25rem;
+  color: var(--silence);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Growth: the stem draws and the leaves turn open, a beat behind the
+     number that caused them. */
+  .sprout-stem {
+    transition: stroke-dashoffset 700ms ease-out;
+  }
+
+  .sprout-leaf {
+    transition: transform 550ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
+  /* Never still: the sway is the "it is alive" signal while a step waits;
+     a done report adds one small bow over it, on its own element so the
+     two never fight for the same transform. */
+  .sprout-plant {
+    animation: sprout-sway 3.6s ease-in-out infinite;
+  }
+
+  .sprout-svg.is-done .sprout-bow {
+    animation: sprout-bow 640ms cubic-bezier(0.28, 0.8, 0.32, 1.2) 1;
+  }
+
+  .sprout-bar-fill {
+    transition: width 700ms ease-out;
+  }
+
+  .sprout-bar.is-indeterminate::after {
+    animation: sprout-walk 1.6s linear infinite;
+  }
+}
+
+@keyframes sprout-sway {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
+}
+
+@keyframes sprout-bow {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-4px) scale(1.04);
+  }
+  70% {
+    transform: translateY(1px) scale(0.99);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sprout-walk {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-32px);
+  }
+}

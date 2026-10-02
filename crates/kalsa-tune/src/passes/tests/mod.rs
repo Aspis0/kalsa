@@ -79,7 +79,7 @@ fn every_shape_takes_one_first_lifetime_and_then_its_drafted_sweep() {
         true,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |done, planned| seen.borrow_mut().push((done, planned)),
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
         |shape, _| {
             firsts.borrow_mut().push(*shape);
             first(100.0, 50.0)
@@ -132,7 +132,7 @@ fn the_off_number_comes_from_the_first_lifetime() {
         true,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |_, _| {},
+        &mut |_| {},
         |shape, _| {
             firsts.borrow_mut().push(*shape);
             first(60.0, 31.0)
@@ -178,7 +178,7 @@ fn the_bound_skips_a_hopeless_shapes_drafted_sweep_and_the_record_stays_whole() 
         true,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |done, planned| seen.borrow_mut().push((done, planned)),
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
         |shape, _| {
             // The card's history is two seconds; the processors' are
             // hundreds — more than the card's whole reply below.
@@ -257,7 +257,7 @@ fn a_shape_whose_prefill_sits_inside_the_band_is_swept_and_wins_on_decode() {
         true,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |_, _| {},
+        &mut |_| {},
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
                 first(1000.0, 100.0)
@@ -295,7 +295,7 @@ fn the_card_that_decodes_faster_but_waits_longer_loses() {
         false,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |_, _| {},
+        &mut |_| {},
         |shape, _| match (shape.backend, shape.threads) {
             (ServerBackend::Vulkan, _) => first(60.0, 10.0),
             (_, Some(16)) => first(300.0, 8.0),
@@ -322,7 +322,7 @@ fn a_drafter_on_a_shape_that_loses_the_decode_race_wins_the_room() {
         true,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |_, _| {},
+        &mut |_| {},
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
                 first(60.0, 30.0)
@@ -358,7 +358,7 @@ fn a_refused_candidate_falls_to_the_best_processor() {
         true,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |done, planned| seen.borrow_mut().push((done, planned)),
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
                 Err(Refusal::NotReady)
@@ -419,7 +419,7 @@ fn a_launch_without_a_drafter_is_complete_after_the_first_lifetime() {
         false,
         Duration::from_secs(3600),
         || Duration::ZERO,
-        &mut |_, _| {},
+        &mut |_| {},
         |_, _| first(100.0, 40.0),
         |_, _| panic!("no drafter, no drafted lifetime"),
     );
@@ -432,6 +432,62 @@ fn a_launch_without_a_drafter_is_complete_after_the_first_lifetime() {
         tuned.winner.map(|win| win.candidate),
         Some(gpu()),
         "the first shape's reply wins the tie"
+    );
+}
+
+/// The walk's words come from these reports alone: every candidate's start
+/// and its close, in order, each carrying the 1-based index and the plan's
+/// total — the page's "Test 2 of 4" and its bar count these and nothing
+/// else. A start names the candidate about to run (`candidate == done + 1`);
+/// a close counts it in (`candidate == done`), which is also the shape a
+/// lowered plan takes when nothing new began.
+#[test]
+fn every_candidate_reports_a_start_and_a_close_with_its_index_and_the_total() {
+    let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        Duration::from_secs(3600),
+        || Duration::ZERO,
+        &mut |report| seen.borrow_mut().push(report),
+        |_, _| first(100.0, 50.0),
+        |_, _| Ok(vec![50.0]),
+    );
+    assert!(tuned.complete, "every lifetime ran");
+    let seen = seen.borrow();
+    for report in seen.iter() {
+        assert!(
+            report.candidate == report.done + 1 || report.candidate == report.done,
+            "a report starts its candidate or closes it: {report:?}"
+        );
+    }
+    let total = 12; // three shapes, each with a first lifetime and 2, 3 and 4
+    for candidate in 1..=total {
+        let start = seen
+            .iter()
+            .position(|r| r.candidate == candidate && r.done + 1 == candidate)
+            .unwrap_or_else(|| panic!("candidate {candidate} never started: {seen:?}"));
+        let close = seen
+            .iter()
+            .position(|r| r.candidate == candidate && r.done == candidate)
+            .unwrap_or_else(|| panic!("candidate {candidate} never closed: {seen:?}"));
+        assert!(
+            start < close,
+            "candidate {candidate} closes after it starts: {seen:?}"
+        );
+        assert_eq!(seen[start].total, total, "the plan's total on the start");
+        assert_eq!(seen[close].total, total, "the plan's total on the close");
+    }
+    assert_eq!(
+        seen.first().map(|r| (r.done, r.total, r.candidate)),
+        Some((0, total, 1)),
+        "the tune opens on candidate 1 of {total}"
+    );
+    assert_eq!(
+        seen.last().map(|r| (r.done, r.total)),
+        Some((total, total)),
+        "and ends with the plan at what really ran"
     );
 }
 

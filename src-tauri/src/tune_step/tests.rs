@@ -174,6 +174,17 @@ fn tuned(
     }
 }
 
+/// The measure's closing report when it ran everything: every candidate
+/// counted in, the plan's count, and the candidate that last closed — the
+/// shape `passes::tune` ends a full run with.
+fn all_done(candidates: usize) -> kalsa_tune::Report {
+    kalsa_tune::Report {
+        done: candidates,
+        total: candidates,
+        candidate: candidates,
+    }
+}
+
 /// The one builder: binary, threads, offload and port — nothing else in
 /// argv may move.
 #[test]
@@ -384,8 +395,8 @@ fn a_refused_tune_is_not_saved_and_the_rule_stands() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, counts: &mut dyn FnMut(usize, usize)| {
-            counts(resolved.len(), resolved.len());
+        |resolved, _, counts: &mut dyn FnMut(kalsa_tune::Report)| {
+            counts(all_done(resolved.len()));
             tuned(
                 resolved
                     .iter()
@@ -408,9 +419,15 @@ fn a_refused_tune_is_not_saved_and_the_rule_stands() {
         "the rule's threads stand: {argv:?}"
     );
     assert!(
-        seen.iter()
-            .any(|step| matches!(step, Progress::Tuning { done: 3, total: 3 })),
-        "three lifetimes planned, three done"
+        seen.iter().any(|step| matches!(
+            step,
+            Progress::Tuning {
+                done: 3,
+                total: 3,
+                candidate: 3
+            }
+        )),
+        "three lifetimes planned, three done, the last one closed"
     );
     let model = prepared.info.model_sha256.as_deref().unwrap();
     assert!(
@@ -644,7 +661,7 @@ fn a_processor_fallback_still_tunes_the_graphics_candidate() {
         &mut memo,
         &mut progress,
         |resolved, rule, counts| {
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             *captured.borrow_mut() = resolved.to_vec();
             assert!(
                 rule.draft.is_none(),
@@ -691,9 +708,9 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
     fn cut_first(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
-        counts: &mut dyn FnMut(usize, usize),
+        counts: &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned {
-        counts(resolved.len(), resolved.len());
+        counts(all_done(resolved.len()));
         let best = resolved[2].0;
         let mut tuned = tuned(
             vec![
@@ -805,9 +822,9 @@ fn an_all_refused_tune_is_retried_once_and_then_stands() {
     fn refused_tune(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
-        counts: &mut dyn FnMut(usize, usize),
+        counts: &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned {
-        counts(resolved.len(), resolved.len());
+        counts(all_done(resolved.len()));
         tuned(
             resolved
                 .iter()
@@ -905,9 +922,9 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
     fn dropped(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
-        counts: &mut dyn FnMut(usize, usize),
+        counts: &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned {
-        counts(resolved.len(), resolved.len());
+        counts(all_done(resolved.len()));
         assert_eq!(resolved.len(), 1, "the processor candidates were dropped");
         let only = resolved[0].0;
         tuned(
@@ -982,8 +999,14 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
     );
     assert_eq!(third.info.args.threads, first.info.args.threads);
     assert!(
-        seen.iter()
-            .any(|step| matches!(step, Progress::Tuning { done: 1, total: 1 })),
+        seen.iter().any(|step| matches!(
+            step,
+            Progress::Tuning {
+                done: 1,
+                total: 1,
+                candidate: 1
+            }
+        )),
         "the processor candidates never ran"
     );
     let _ = std::fs::remove_dir_all(&dir);
@@ -1043,7 +1066,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         &mut progress,
         |resolved, _, counts| {
             measured.set(measured.get() + 1);
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             // Complete: every candidate ran and the first replied, so the
             // result may be saved.
             let first = resolved[0].0;
@@ -1129,16 +1152,96 @@ fn a_panicking_tune_leaves_the_plan_standing() {
 }
 
 /// The count's wire name is the page's name: ProgressStep reads `total`,
-/// and one name on both sides is the whole point of the field.
+/// and one name on both sides is the whole point of the field. `candidate`
+/// is the page's third number, carried whole — the index is the one thing
+/// its "Test 2 of 4" line cannot get from the counts.
 #[test]
 fn the_tuning_step_serialises_the_total_the_page_reads() {
-    let json = serde_json::to_value(Progress::Tuning { done: 1, total: 2 }).expect("serialise");
+    let json = serde_json::to_value(Progress::Tuning {
+        done: 1,
+        total: 2,
+        candidate: 2,
+    })
+    .expect("serialise");
     assert_eq!(json["kind"], "tuning");
     assert_eq!(json["total"], 2);
+    assert_eq!(json["candidate"], 2, "the index the page names arrives whole");
     assert!(
         json.get("planned").is_none(),
         "the old name must not appear"
     );
+}
+
+/// The walk's words are built from the tune's reports and nothing else, so
+/// the step passes each one through with its index and total untouched: a
+/// start (the candidate about to run, `done` one behind) and a close
+/// (`done` counting it in) for every candidate, in the order they happened.
+#[test]
+fn the_tune_passes_a_start_and_a_close_for_every_candidate_to_the_walk() {
+    let dir = scratch("reports");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut prepared = prepared("/main-gpu");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut seen: Vec<Progress> = Vec::new();
+    let mut progress = |step: Progress| seen.push(step);
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, counts| {
+            // The production seam's shape, candidate by candidate: the
+            // start report, then the close that answers it.
+            for index in 0..resolved.len() {
+                counts(kalsa_tune::Report {
+                    done: index,
+                    total: resolved.len(),
+                    candidate: index + 1,
+                });
+                counts(kalsa_tune::Report {
+                    done: index + 1,
+                    total: resolved.len(),
+                    candidate: index + 1,
+                });
+            }
+            counts(all_done(resolved.len()));
+            tuned(vec![], None)
+        },
+    );
+    let reports: Vec<(usize, usize, usize)> = seen
+        .iter()
+        .filter_map(|step| match step {
+            Progress::Tuning {
+                done,
+                total,
+                candidate,
+            } => Some((*done, *total, *candidate)),
+            _ => None,
+        })
+        .collect();
+    let candidates = 3; // the fixture's list: graphics, 16 threads, 22
+    assert_eq!(
+        reports,
+        vec![
+            (0, 3, 1),
+            (1, 3, 1),
+            (1, 3, 2),
+            (2, 3, 2),
+            (2, 3, 3),
+            (3, 3, 3),
+            (3, 3, 3),
+        ],
+        "a start and a close per candidate, index and total intact: {reports:?}"
+    );
+    assert_eq!(reports.len(), 2 * candidates + 1, "and nothing else");
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// MTP on a shape whose target-only reply loses: the drafted processor
@@ -1167,7 +1270,7 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
         &mut progress,
         |resolved, rule, counts| {
             passes.set(passes.get() + 1);
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             assert!(rule.draft.is_some(), "this plan ships a drafter");
             assert!(
                 resolved
@@ -1275,7 +1378,7 @@ fn a_failing_draft_candidate_loses() {
         &mut memo,
         &mut progress,
         |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             let gpu = resolved[0].0;
             let processor = resolved
                 .iter()
@@ -1351,7 +1454,7 @@ fn a_launch_without_a_drafter_measures_no_draft_lifetimes() {
         &mut progress,
         |resolved, rule, counts| {
             passes.set(passes.get() + 1);
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             assert!(
                 rule.draft.is_none(),
                 "no drafter in the plan: nothing to sweep"
@@ -1395,7 +1498,7 @@ fn off_wins_the_second_ask_even_though_the_grid_measured_it() {
         &mut memo,
         &mut progress,
         |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             let gpu = resolved[0].0;
             let processor = resolved
                 .iter()
@@ -1457,9 +1560,9 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
     fn cut_tune(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
-        counts: &mut dyn FnMut(usize, usize),
+        counts: &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned {
-        counts(resolved.len(), resolved.len());
+        counts(all_done(resolved.len()));
         let gpu = resolved[0].0;
         let processor = resolved
             .iter()
@@ -1586,9 +1689,9 @@ fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
     fn cut_with_winner(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
-        counts: &mut dyn FnMut(usize, usize),
+        counts: &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned {
-        counts(resolved.len(), resolved.len());
+        counts(all_done(resolved.len()));
         let best = resolved[0].0;
         let mut measured = tuned(
             vec![replied(best, 60.0, 30.0)],
@@ -1604,9 +1707,9 @@ fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
     fn refuses_all(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
-        counts: &mut dyn FnMut(usize, usize),
+        counts: &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned {
-        counts(resolved.len(), resolved.len());
+        counts(all_done(resolved.len()));
         tuned(
             resolved
                 .iter()
@@ -1700,9 +1803,9 @@ fn a_slower_retry_cannot_erase_the_first_attempts_faster_winner() {
     fn fast_then_cut(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
-        counts: &mut dyn FnMut(usize, usize),
+        counts: &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned {
-        counts(resolved.len(), resolved.len());
+        counts(all_done(resolved.len()));
         let fast = resolved[0].0;
         let mut measured = tuned(
             vec![replied(fast, 1000.0, 100.0)],
@@ -1719,9 +1822,9 @@ fn a_slower_retry_cannot_erase_the_first_attempts_faster_winner() {
     fn slower_winner(
         resolved: &[(kalsa_tune::Candidate, PathBuf)],
         _: &ServerArgs,
-        counts: &mut dyn FnMut(usize, usize),
+        counts: &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned {
-        counts(resolved.len(), resolved.len());
+        counts(all_done(resolved.len()));
         let slower = resolved[1].0;
         tuned(
             vec![replied(slower, 100.0, 10.0)],
@@ -1810,7 +1913,7 @@ fn an_unresolvable_draft_exe_leaves_the_tune_unsaved() {
         &mut memo,
         &mut progress,
         |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             let ghost = kalsa_tune::Candidate {
                 backend: ServerBackend::Cpu,
                 threads: Some(8),
@@ -1860,7 +1963,7 @@ fn the_processor_leg_carries_the_drafter_pinned_to_the_cpu() {
         &mut memo,
         &mut progress,
         |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             let fitted = resolved
                 .iter()
                 .map(|(candidate, _)| *candidate)
@@ -1934,7 +2037,7 @@ fn an_integrated_gpu_measures_the_mixed_shape_and_keeps_a_processor_fallback() {
         &mut memo,
         &mut progress,
         |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             let by = |offload: Offload| {
                 resolved
                     .iter()
@@ -1999,7 +2102,7 @@ fn a_dedicated_gpu_is_not_offered_the_mixed_shape() {
         &mut memo,
         &mut progress,
         |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
+            counts(all_done(resolved.len()));
             assert!(
                 resolved
                     .iter()

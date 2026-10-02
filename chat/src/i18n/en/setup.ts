@@ -30,4 +30,8 @@ export const SETUP = {
   receivedSoFar: (received: string) => `${received} received so far.`,
   receiving: "Receiving.",
   pickingUp: (text: string) => `Picking up where it stopped — ${text}`,
+  // The tune's own line, under the bar: which test it is, how long it has
+  // run, and — once one finished — what is left of the wait.
+  attempt: (index: number, total: number) => `Test ${index} of ${total}`,
+  minutesLeft: (minutes: number) => `about ${minutes} min left`,
 };

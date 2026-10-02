@@ -28,4 +28,6 @@ export const SETUP = {
     "receivedSoFar": (received: string) => `目前已接收 ${received}。`,
     "receiving": "正在接收。",
     "pickingUp": (text: string) => `从停止处继续 —— ${text}`,
+    "attempt": (index: number, total: number) => `测试 ${index}/${total}`,
+    "minutesLeft": (minutes: number) => `约剩 ${minutes} 分钟`,
   };

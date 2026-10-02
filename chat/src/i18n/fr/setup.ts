@@ -28,4 +28,6 @@ export const SETUP = {
     "receivedSoFar": (received: string) => `${received} reçus pour l'instant.`,
     "receiving": "Réception.",
     "pickingUp": (text: string) => `Reprend là où il s'était arrêté — ${text}`,
+    "attempt": (index: number, total: number) => `Essai ${index} sur ${total}`,
+    "minutesLeft": (minutes: number) => `environ ${minutes} min restantes`,
   };

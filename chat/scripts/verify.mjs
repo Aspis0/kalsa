@@ -13,6 +13,7 @@ import {
   LEAVING_ATTRIBUTE as leavingAttribute,
 } from "../src/app/handoff.ts";
 import { zipSync, strToU8 } from "fflate";
+import { minutesLeft, tuneFace, tunePercent, tuneShare } from "../src/surfaces/tuneProgress.ts";
 import { fileURLToPath } from "node:url";
 import { installBrainStub } from "./lib/brain-stub.mjs";
 
@@ -3949,6 +3950,54 @@ const tests = {
       JSON.stringify(cycle),
     );
     check("roomColors: a former member holds no slot", colors.get(former.member_id) === undefined);
+  },
+
+  // The walk's tuning bar: the three numbers src-tauri/src/startup.rs sends
+  // (Progress::Tuning), mapped to the percent the bar may show — and the
+  // owner's rule with it: full only when the tune's own report says the plan
+  // ran to the end, never a hopeful bar while candidates are still running.
+  walkProgress: () => {
+    const at = (done, total, candidate) => tuneFace({ kind: "tuning", done, total, candidate });
+    const closed = (done, total) => at(done, total, done);
+
+    check("walkProgress: another phase carries no fraction", tuneFace({ kind: "deciding" }) === null);
+    check(
+      "walkProgress: the tune opens on test 1 of 4",
+      JSON.stringify(at(0, 4, 1)) === '{"done":0,"total":4,"candidate":1,"closing":false}',
+      JSON.stringify(at(0, 4, 1)),
+    );
+    check("walkProgress: two closed of four is half", tunePercent(closed(2, 4), 0) === 50, `${tunePercent(closed(2, 4), 0)}`);
+    check("walkProgress: the running test fills its own slot", tunePercent(at(2, 4, 3), 0.5) === 62, `${tunePercent(at(2, 4, 3), 0.5)}`);
+
+    // Never 100 before the report whose done reaches its total — including
+    // a share far past any real one, which must still stop short.
+    const run = [];
+    for (let done = 0; done < 4; done += 1) {
+      run.push(at(done, 4, done + 1));
+      run.push(closed(done + 1, 4));
+    }
+    const pending = run.filter((face) => face.done < face.total);
+    check(
+      "walkProgress: never 100 before the tune's own report",
+      pending.length === 7 && pending.every((face) => tunePercent(face, 50) < 100),
+      `${pending.length} pending, max ${Math.max(...pending.map((face) => tunePercent(face, 50)))}`,
+    );
+    check("walkProgress: an absurd share still cannot fill it", tunePercent(at(3, 4, 4), 40) === 99, `${tunePercent(at(3, 4, 4), 40)}`);
+    check("walkProgress: the closing report fills it", tunePercent(closed(4, 4), 0) === 100);
+    check("walkProgress: a plan of nothing shows none", tunePercent(closed(0, 0), 0) === 0);
+
+    // The estimate: nothing to average yet, then the candidates left at
+    // 100 s apiece — the running one's own rest taken off the top.
+    check("walkProgress: no estimate before a candidate finished", minutesLeft(at(0, 4, 1), 0, 0) === null);
+    check("walkProgress: three left of four at 100 s is 5 min", minutesLeft(at(1, 4, 2), 0, 100) === 5, `${minutesLeft(at(1, 4, 2), 0, 100)}`);
+    check("walkProgress: halfway through the running one, 4", minutesLeft(at(1, 4, 2), 0.5, 100) === 4, `${minutesLeft(at(1, 4, 2), 0.5, 100)}`);
+    check("walkProgress: nothing left to estimate at the end", minutesLeft(closed(4, 4), 0, 100) === null);
+
+    // The share: only a running candidate fills a slot, and only against a
+    // real average.
+    check("walkProgress: a closing report fills no slot", tuneShare(closed(1, 4), 90, 100) === 0);
+    check("walkProgress: the running one is timed against the average", tuneShare(at(1, 4, 2), 50, 100) === 0.5);
+    check("walkProgress: no average means no share", tuneShare(at(1, 4, 2), 50, 0) === 0);
   },
 
 };

@@ -89,7 +89,15 @@ pub(crate) enum Progress {
     /// lifetimes have finished, and how many are planned so far. The
     /// second field is named for the page's own wire: ProgressStep reads
     /// `total`, and one name on both sides is cheaper than a mapping.
-    Tuning { done: usize, total: usize },
+    /// `candidate` is the page's third number: the candidate this report
+    /// is about — `done + 1` when it starts, `done` when it closes (or
+    /// when only the plan lowered) — so the walk can name the test on
+    /// screen and time one candidate against the ones behind it.
+    Tuning {
+        done: usize,
+        total: usize,
+        candidate: usize,
+    },
 }
 
 /// The funded maxima under both cache types. The guard compares against the

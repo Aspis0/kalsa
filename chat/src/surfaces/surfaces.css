@@ -131,20 +131,9 @@
   color: var(--accent);
 }
 
-.surface-walk-progress {
-  margin: 0 0 0.6rem;
-  color: var(--ink);
-  font-size: 0.88rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.surface-walk-bar {
-  height: 6px;
-  margin: 0 0 1.25rem;
-  border-radius: 999px;
-  background: linear-gradient(to right, var(--accent) var(--pct, 0%), var(--surface-muted) 0);
-}
-
+/* The walk's line and bar are Sprout's own (components/Sprout.css), beside
+   the plant that shows them. `.surface-walk` carries no styles: it is the
+   hook that view renders under. */
 .surface-qr {
   width: min(200px, 100%);
   margin: 0.25rem 0 0.6rem;

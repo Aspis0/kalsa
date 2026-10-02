@@ -39,6 +39,15 @@ function gigabytes(bytes: number, tag: string): string {
   return `${value} GB`;
 }
 
+// The first run's own waits — the check, the engine coming up, the walk
+// between the pick and the first event — as steps of the one view every
+// other wait renders: a static sentence here read as a frozen app for the
+// whole check or the whole engine start. Constant objects, so the view's
+// identity (and its clock) holds for as long as the wait does.
+const STARTING_STEP: ProgressStep = { kind: "starting" };
+const CHECKING_STEP: ProgressStep = { kind: "checking" };
+const WORKING_STEP: ProgressStep = { kind: "working" };
+
 interface FirstRunProps {
   capability: Capability;
   liveStep: ProgressStep | null;
@@ -87,13 +96,13 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
 
   let body;
   if (starting) {
-    body = <p className="surface-verdict">{t.starting}</p>;
+    body = <SetupProgress step={STARTING_STEP} />;
   } else if (step.kind === "checking") {
-    body = <p className="surface-verdict">{t.checkingComputer}</p>;
+    body = <SetupProgress step={CHECKING_STEP} />;
   } else if (liveStep) {
     body = <SetupProgress step={liveStep} />;
   } else if (step.kind === "working") {
-    body = <p className="surface-verdict">{t.gettingReady}</p>;
+    body = <SetupProgress step={WORKING_STEP} />;
   } else if (step.kind === "failed") {
     const { suggestions, error } = step;
     body = (

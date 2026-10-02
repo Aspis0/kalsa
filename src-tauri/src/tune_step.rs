@@ -163,7 +163,7 @@ pub(crate) fn measure_with_rule(
     root: &Path,
     resolved: &[(kalsa_tune::Candidate, PathBuf)],
     rule: &ServerArgs,
-    counts: &mut dyn FnMut(usize, usize),
+    counts: &mut dyn FnMut(kalsa_tune::Report),
 ) -> kalsa_tune::Tuned {
     let ask = kalsa_tune::Ask {
         prompt: kalsa_tune::DRAFT_PROMPT,
@@ -212,7 +212,7 @@ pub(crate) fn tune_launch(
     measure: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
-        &mut dyn FnMut(usize, usize),
+        &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned,
 ) {
     // The plan's own launch, kept before anything may rewrite it: the rule
@@ -244,7 +244,7 @@ fn tune_launch_inner(
     measure: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
-        &mut dyn FnMut(usize, usize),
+        &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned,
 ) {
     let rule_args = prepared.info.args.clone();
@@ -312,10 +312,11 @@ fn tune_launch_inner(
                 return;
             }
             log::info!("tune start: {} candidates", resolved.len());
-            let tuned = measure(&resolved, &rule_args, &mut |done, planned| {
+            let tuned = measure(&resolved, &rule_args, &mut |report| {
                 progress(Progress::Tuning {
-                    done,
-                    total: planned,
+                    done: report.done,
+                    total: report.total,
+                    candidate: report.candidate,
                 })
             });
             let winner = tuned.winner;

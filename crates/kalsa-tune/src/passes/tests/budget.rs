@@ -28,7 +28,7 @@ fn a_shape_cut_before_its_first_lifetime_leaves_the_picture_incomplete() {
                 Duration::from_secs(60)
             }
         },
-        &mut |done, planned| seen.borrow_mut().push((done, planned)),
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
         |_, _| first(100.0, 50.0),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -102,7 +102,7 @@ fn a_cut_between_the_passes_leaves_every_shape_with_an_entry() {
                 Duration::from_secs(60)
             }
         },
-        &mut |done, planned| seen.borrow_mut().push((done, planned)),
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
         |_, _| first(100.0, 50.0),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -150,7 +150,7 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
                 Duration::from_secs(60)
             }
         },
-        &mut |done, planned| seen.borrow_mut().push((done, planned)),
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
         |_, _| first(100.0, 50.0),
         |_, _| Ok(vec![50.0]),
     );
@@ -192,7 +192,7 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
                 Duration::from_secs(60)
             }
         },
-        &mut |done, planned| seen.borrow_mut().push((done, planned)),
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
         |shape, _| {
             // Every shape's first lifetime runs (ticks 1..3), and the
             // processors' prefill floors are far above the card's reply, so

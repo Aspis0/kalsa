@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use kalsa_runtime::{free_loopback_port, serve, ServeError};
 
 use crate::candidates::Candidate;
-use crate::passes::{self, First, Samples, Tuned};
+use crate::passes::{self, First, Report, Samples, Tuned};
 use crate::refusal::Refusal;
 use crate::room;
 use crate::sample::{post_to, request_ask, serves_id, Ask};
@@ -90,7 +90,7 @@ pub fn measure_tune(
     ask: &Ask,
     drafter: bool,
     build: impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
-    progress: &mut dyn FnMut(usize, usize),
+    progress: &mut dyn FnMut(Report),
 ) -> Tuned {
     let started = Instant::now();
     let build = &build;

@@ -29,6 +29,20 @@ pub(crate) struct First {
     pub off: Samples,
 }
 
+/// One report from the two passes, in the shape the walk's words are built
+/// from: how far the plan has got (lifetimes finished and planned) and which
+/// candidate the report is about — `done + 1` when that candidate starts,
+/// `done` when it closes, and `done` too when only the plan lowered (nothing
+/// new ran, so the last closed candidate still names the report). The page
+/// reads these three numbers and nothing else: a start and a close per
+/// candidate, in the order they happen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Report {
+    pub done: usize,
+    pub total: usize,
+    pub candidate: usize,
+}
+
 /// What the two passes produced: the trials the record keeps, the winner
 /// the launch applies, whether every shape's first lifetime ran, and
 /// whether the budget stopped a drafted sweep. A shape that never began is
@@ -53,7 +67,7 @@ pub(crate) fn tune<P, D>(
     drafter: bool,
     budget: Duration,
     since_start: impl Fn() -> Duration,
-    progress: &mut dyn FnMut(usize, usize),
+    progress: &mut dyn FnMut(Report),
     mut first: P,
     mut decode: D,
 ) -> Tuned
@@ -82,7 +96,13 @@ where
             complete = false; // never began: a shape-sized hole in the picture
             break;
         }
-        progress(done, planned);
+        // The candidate starts: its index is what the page names, and the
+        // close below is the only other report it makes about this one.
+        progress(Report {
+            done,
+            total: planned,
+            candidate: done + 1,
+        });
         ran[index] = true;
         match first(shape, exe) {
             Ok(measured) => {
@@ -125,7 +145,6 @@ where
             // A shape that cannot be scored has no sweep left to run: the
             // plan lowers now, so the panel's total is what will happen.
             planned = lower(planned, settings.len(), done);
-            progress(done, planned);
             trials.push((
                 *shape,
                 Kept::Refused {
@@ -134,6 +153,13 @@ where
                 },
             ));
         }
+        // The candidate closes with the plan as it stands, so a refusal's
+        // lowered total travels on the close itself.
+        progress(Report {
+            done,
+            total: planned,
+            candidate: done,
+        });
     }
 
     // Pass two: each shape's drafted sweep, in the same order. A reply
@@ -150,9 +176,14 @@ where
         };
         if best.is_some_and(|best| prefill_seconds(shape_prompt) > best * (1.0 + TIE_BAND)) {
             // The bound skipped lifetimes that will never run: the plan
-            // lowers with them.
+            // lowers with them, and the report carries the new total under
+            // the candidate that closed last — nothing new began.
             planned = lower(planned, settings.len(), done);
-            progress(done, planned);
+            progress(Report {
+                done,
+                total: planned,
+                candidate: done,
+            });
             continue;
         }
         for setting in settings {
@@ -163,10 +194,18 @@ where
                 // again — and the plan is finished as of now.
                 cut = true;
                 planned = done;
-                progress(done, planned);
+                progress(Report {
+                    done,
+                    total: planned,
+                    candidate: done,
+                });
                 break 'sweep;
             }
-            progress(done, planned);
+            progress(Report {
+                done,
+                total: planned,
+                candidate: done + 1,
+            });
             let trial = Candidate {
                 draft: *setting,
                 ..*shape
@@ -197,10 +236,21 @@ where
                     },
                 )),
             }
+            // The candidate closes: the page's bar counts these, and its
+            // line names the one that just ran.
+            progress(Report {
+                done,
+                total: planned,
+                candidate: done,
+            });
         }
     }
     // The plan may only shrink at the end, to what really began.
-    progress(done, done);
+    progress(Report {
+        done,
+        total: done,
+        candidate: done,
+    });
 
     let scored: Vec<(Candidate, Reply)> = trials
         .iter()
