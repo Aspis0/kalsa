@@ -149,9 +149,11 @@ fn cpuid_brand_bytes() -> Option<[u8; 48]> {
     Some(bytes)
 }
 
-/// The 48 bytes as the name they spell: vendor ASCII, padded at both ends
-/// with spaces or NULs, whichever the vendor fills with — trimmed of
-/// exactly that, and all-padding is no name at all.
+/// The 48 bytes as the name they spell: the string ends at the first
+/// NUL — whatever follows is padding or a neighbouring field, never the
+/// name — every byte before it must be printable ASCII (a vendor that
+/// says otherwise earns no name rather than a mangled one), and the
+/// padding spaces come off both ends. All spaces is no name.
 #[cfg(any(
     test,
     all(
@@ -160,8 +162,18 @@ fn cpuid_brand_bytes() -> Option<[u8; 48]> {
     )
 ))]
 fn brand_from_bytes(bytes: &[u8; 48]) -> Option<String> {
-    let text: String = bytes.iter().map(|&byte| byte as char).collect();
-    let name = text.trim_matches(|c: char| c == '\0' || c.is_whitespace());
+    let end = bytes
+        .iter()
+        .position(|&byte| byte == 0)
+        .unwrap_or(bytes.len());
+    let name = &bytes[..end];
+    if !name
+        .iter()
+        .all(|byte| byte.is_ascii_graphic() || *byte == b' ')
+    {
+        return None;
+    }
+    let name = std::str::from_utf8(name).ok()?.trim();
     (!name.is_empty()).then(|| name.to_string())
 }
 
@@ -220,6 +232,35 @@ mod tests {
             Some("AMD Ryzen 9 5900X 12-Core Processor".to_string())
         );
         assert_eq!(brand_from_bytes(&[0u8; 48]), None);
+    }
+
+    #[test]
+    fn brand_bytes_of_all_spaces_are_no_name() {
+        assert_eq!(brand_from_bytes(&[b' '; 48]), None);
+    }
+
+    #[test]
+    fn the_name_ends_at_the_first_nul_and_what_follows_is_never_read() {
+        // Junk after the first NUL — not printable, not the name's
+        // business: the cut is what makes the junk unreachable.
+        let mut bytes = [0xFFu8; 48];
+        let name = b"AMD Ryzen 9 5900X 12-Core Processor";
+        bytes[..name.len()].copy_from_slice(name);
+        bytes[name.len()] = 0;
+        assert_eq!(
+            brand_from_bytes(&bytes),
+            Some("AMD Ryzen 9 5900X 12-Core Processor".to_string())
+        );
+    }
+
+    #[test]
+    fn a_brand_that_is_not_printable_ascii_is_no_name() {
+        // No NUL before the odd byte, so the whole run must be printable:
+        // a multi-byte é in a brand is a brand this line will not print.
+        let mut bytes = [b' '; 48];
+        let odd = b"Fr\xC3\xA9quency CPU";
+        bytes[..odd.len()].copy_from_slice(odd);
+        assert_eq!(brand_from_bytes(&bytes), None);
     }
 
     /// The machine's own name, on the hosts that answer: sysctl's on an

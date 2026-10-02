@@ -125,15 +125,19 @@ pub(crate) fn machine_lines(machine: &Machine, host: &str) -> Vec<String> {
         machine.arch
     ));
     if let Some(cpu) = &machine.cpu {
+        // The brand is vendor output: the same cleaning every gathered
+        // string gets — printable ASCII, 80 characters, redacted and
+        // host-stripped — before the line is written, exactly as an
+        // adapter name is cleaned.
         let said = format!(
             "cpu: {} · {} physical / {} logical cores",
-            cpu,
+            clean_gathered(cpu, 80, host),
             machine.physical_cores.map_or("?".to_string(), |n| n.to_string()),
             machine
                 .logical_cores
                 .map_or("?".to_string(), |n| n.to_string()),
         );
-        lines.push(without_host(&said, host));
+        lines.push(said);
     }
     lines.push(format!(
         "ram: {} total · {} available",
@@ -351,10 +355,10 @@ fn os_description_uncached() -> String {
         match (major, build) {
             (Some(major), Some(build)) => windows_version_line(
                 major,
-                reg_dword("CurrentMinorVersionNumber").unwrap_or(0),
                 build,
                 reg_sz("DisplayVersion").as_deref(),
                 reg_dword("UBR"),
+                reg_sz("InstallationType").is_some_and(|kind| kind.eq_ignore_ascii_case("server")),
             ),
             _ => std::env::consts::OS.to_string(),
         }
@@ -367,46 +371,64 @@ fn os_description_uncached() -> String {
 
 /// The line a Windows version prints: `windows 11 25H2 (build 26200.4652)`.
 /// Build 22000 is where Windows 11 starts, and the major number never says
-/// so — it stays 10 — so the name follows the build. The marketing version
-/// and the revision print only when the machine reports them.
+/// so — it stays 10 — so a client's name follows the build; below 22000 the
+/// line keeps `major.0`, the minor having been 0 since Windows 8.1 with no
+/// value left to read. A Server SKU (`InstallationType` "Server") puts
+/// `server` in that place instead, with no consumer marketing version: the
+/// build is what a server carries. The marketing version and the revision
+/// print only when the machine reports them.
 #[cfg(any(target_os = "windows", test))]
 fn windows_version_line(
     major: u32,
-    minor: u32,
     build: u32,
     display: Option<&str>,
     revision: Option<u32>,
+    server: bool,
 ) -> String {
-    let name = if build >= 22000 {
+    let name = if server {
+        "server".to_string()
+    } else if build >= 22000 {
         "11".to_string()
     } else {
-        format!("{major}.{minor}")
+        format!("{major}.0")
     };
-    let display = display
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map_or_else(String::new, |value| format!(" {value}"));
+    let display = if server {
+        String::new()
+    } else {
+        display
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map_or_else(String::new, |value| format!(" {value}"))
+    };
     let revision = revision.map_or_else(String::new, |value| format!(".{value}"));
     format!("windows {name}{display} (build {build}{revision})")
 }
 
-/// One REG_DWORD under HKLM's `Windows NT\CurrentVersion`, read through the
-/// handle's own key (a null subkey). `None` when the value is absent or is
-/// not a DWORD — a machine that cannot say gets no invented number.
+/// The key every value read here lives under. `RegGetValueW` takes the
+/// subkey per call; a null one reads a value named at HKLM's own root,
+/// where none of these exist — every read would fail and the line would
+/// print the bare OS name.
+#[cfg(target_os = "windows")]
+const CURRENT_VERSION: &str = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion";
+
+/// One REG_DWORD under [`CURRENT_VERSION`]. `None` when the value is
+/// absent or is not a DWORD — a machine that cannot say gets no invented
+/// number.
 #[cfg(target_os = "windows")]
 fn reg_dword(value: &str) -> Option<u32> {
     use windows_sys::Win32::System::Registry::{
         RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_DWORD,
     };
+    let subkey = wide(CURRENT_VERSION);
     let name = wide(value);
     let mut data: u32 = 0;
     let mut size = std::mem::size_of::<u32>() as u32;
-    // SAFETY: `data` holds exactly the DWORD `size` declares, and `name` is
-    // the terminated buffer the API takes.
+    // SAFETY: `data` holds exactly the DWORD `size` declares, and both
+    // `subkey` and `name` are the terminated buffers the API takes.
     let status = unsafe {
         RegGetValueW(
             HKEY_LOCAL_MACHINE,
-            std::ptr::null(),
+            subkey.as_ptr(),
             name.as_ptr(),
             RRF_RT_REG_DWORD,
             std::ptr::null_mut(),
@@ -417,18 +439,21 @@ fn reg_dword(value: &str) -> Option<u32> {
     (status == 0).then_some(data)
 }
 
-/// One REG_SZ under the same key. The count the API returns is in bytes and
-/// includes the terminator, so the string ends at the first NUL word.
+/// One REG_SZ under [`CURRENT_VERSION`]. The count the API returns is in
+/// bytes and includes the terminator, so the string ends at the first NUL
+/// word.
 #[cfg(target_os = "windows")]
 fn reg_sz(value: &str) -> Option<String> {
     use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+    let subkey = wide(CURRENT_VERSION);
     let name = wide(value);
     let mut size: u32 = 0;
-    // SAFETY: sizing call — no data buffer, only the count it writes.
+    // SAFETY: sizing call — no data buffer, only the count it writes; both
+    // strings are terminated buffers.
     let sized = unsafe {
         RegGetValueW(
             HKEY_LOCAL_MACHINE,
-            std::ptr::null(),
+            subkey.as_ptr(),
             name.as_ptr(),
             RRF_RT_REG_SZ,
             std::ptr::null_mut(),
@@ -444,7 +469,7 @@ fn reg_sz(value: &str) -> Option<String> {
     let read = unsafe {
         RegGetValueW(
             HKEY_LOCAL_MACHINE,
-            std::ptr::null(),
+            subkey.as_ptr(),
             name.as_ptr(),
             RRF_RT_REG_SZ,
             std::ptr::null_mut(),
@@ -548,21 +573,84 @@ mod tests {
     #[test]
     fn a_windows_version_is_named_by_its_build() {
         assert_eq!(
-            windows_version_line(10, 0, 26200, Some("25H2"), Some(4652)),
+            windows_version_line(10, 26200, Some("25H2"), Some(4652), false),
             "windows 11 25H2 (build 26200.4652)"
         );
         assert_eq!(
-            windows_version_line(10, 0, 22000, None, None),
+            windows_version_line(10, 22000, None, None, false),
             "windows 11 (build 22000)"
         );
         assert_eq!(
-            windows_version_line(10, 0, 19045, Some("22H2"), Some(4046)),
+            windows_version_line(10, 19045, Some("22H2"), Some(4046), false),
             "windows 10.0 22H2 (build 19045.4046)"
         );
         // A blank marketing version leaves no doubled space in the line.
         assert_eq!(
-            windows_version_line(10, 0, 26200, Some(" "), None),
+            windows_version_line(10, 26200, Some(" "), None, false),
             "windows 11 (build 26200)"
+        );
+    }
+
+    /// A Server SKU names itself, not a consumer version: no 11, no 10,
+    /// no marketing version — the build is what a server carries.
+    #[test]
+    fn a_server_sku_names_the_build_instead_of_a_consumer_version() {
+        assert_eq!(
+            windows_version_line(10, 26100, Some("24H2"), Some(2000), true),
+            "windows server (build 26100.2000)"
+        );
+        assert_eq!(
+            windows_version_line(10, 26100, None, None, true),
+            "windows server (build 26100)"
+        );
+    }
+
+    /// The read itself, on the machine that holds the keys: the line must
+    /// carry a real build number — a failed registry read falls back to
+    /// the bare OS name, and that is what turns this red on the Surface.
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn os_description_reads_the_build_this_machine_runs() {
+        let line = os_description_uncached();
+        assert!(line.contains("build "), "{line}");
+        let build = line
+            .split("build ")
+            .nth(1)
+            .unwrap_or_default()
+            .trim_end_matches(')')
+            .split('.')
+            .next()
+            .unwrap_or_default()
+            .parse::<u32>()
+            .unwrap_or(0);
+        assert!(build >= 10_000, "{line}");
+    }
+
+    /// The brand string is vendor output: the cpu line gives it the same
+    /// cleaning the adapter line gives its strings — printable ASCII,
+    /// 80 characters, redacted and host-stripped — before it is written.
+    #[test]
+    fn the_cpu_brand_is_cleaned_like_every_other_gathered_string() {
+        let mut m = machine();
+        m.cpu = Some(format!(
+            "Wéird\u{0007} CPU on fixture-host {}",
+            "X".repeat(200)
+        ));
+        let lines = machine_lines(&m, "fixture-host");
+        let cpu = lines
+            .iter()
+            .find(|line| line.starts_with("cpu:"))
+            .expect("the cpu line exists");
+        assert!(!cpu.contains('\u{0007}'), "control byte: {cpu}");
+        assert!(!cpu.contains('é'), "non-ASCII: {cpu}");
+        assert!(cpu.contains("<host>"), "host stripped: {cpu}");
+        assert!(
+            !cpu.to_lowercase().contains("fixture-host"),
+            "host stripped: {cpu}"
+        );
+        assert!(
+            cpu.chars().count() < 160,
+            "the brand is clipped to 80: {cpu}"
         );
     }
 
