@@ -597,6 +597,11 @@ teach the wrong mechanism. Identity check limit: same-shape different weights re
 124 tok/s). 5 upstream workflows the first sweep missed (gh workflow list truncates) were disabled; one had fired
 on the tag and was cancelled. Manifest sent to kalsa-brain. Desktop repinned: kalsa-brain `05487d01` (branch brain, local; all 6 digests match the
 manifest, cargo test 88/88, space-bunny audit clean); Kalsa.app auto-upgraded to v1.1.4 on the Mac.
+Desktop on v1.1.5 (kalsa-brain report 2026-10-02): repin 43d996f7 audited; M1 Max `-ngl 0` E4B 23.1 tok/s clean exit.
+**Lenovo cross-device MTP repro PASSES on v1.1.5**: drafter on Vulkan1 + shared K on Vulkan0 now refuses to start with
+"cannot share KV cells ... the drafter and the shared K/V must be on the same device" (v1.1.4: abort 0xC0000409). App
+pins one device from `--list-devices` (Vulkan order differs between the interactive and the SSH session on that
+laptop). First-start tune on the Lenovo: RTX + MTP n=2, prompt 1,859 tok/s, decode 86.7 (MTP off 47.6), VRAM 3,800 MiB.
 The fork's free Actions minutes were eaten by UPSTREAM scheduled workflows (Build Actions Cache ~9 Windows min x
 ~5/day, msys 68 Windows min weekly): owner approved disabling the 47 inherited workflows with `gh workflow disable`
 (repo setting, no tree change); only kalsa-server.yml and check-vendor.yml stay enabled. Desktop side: new
