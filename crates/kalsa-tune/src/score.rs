@@ -17,11 +17,16 @@ const TURN_REPLY_TOKENS: u64 = 200;
 pub(crate) const ROOM_PROMPT_TOKENS: u64 = 2000;
 const ROOM_REPLY_TOKENS: u64 = 200;
 
-/// Trials within 5 % of the fastest reply are equal in use, so the
-/// lighter launch wins — the same band the rate ranking used, now on
-/// seconds: two runs of one launch differ by percents, and a trial that
-/// wins by less than this has not won.
+/// Trials within 5 % of the fastest reply are equal in wait, so the one that
+/// answers fastest wins: two runs of one launch differ by percents, and a
+/// trial that wins the wait by less than this has not won it.
 pub(crate) const TIE_BAND: f64 = 0.05;
+
+/// Inside the band the winner is the highest decode rate — in a chat the
+/// decode is felt on every message, the wait only in total. Decode rates
+/// within 5 % of the best are equal too, and only then does the lighter
+/// launch win.
+pub(crate) const DECODE_MARGIN: f64 = 0.05;
 
 /// What one trial measured, as the room feels it: the shape's prefill
 /// rate, the trial's own decode rate, and the seconds the owner waits.
@@ -90,7 +95,7 @@ fn measured(rate: f64) -> bool {
     rate.is_finite() && rate > 0.0
 }
 
-/// Lighter is better inside the band: the offload that puts every layer on
+/// Lighter is better among equal decoders: the offload that puts every layer on
 /// the GPU first (the GPU does the work then, though full offload does not
 /// free the processor entirely), then the fewer threads — and an unknown
 /// thread count ranks heaviest of all: the engine's own default may be
@@ -110,16 +115,23 @@ fn lightness(candidate: &Candidate) -> (u8, usize, u32) {
     (offload_rank, thread_rank, draft_rank)
 }
 
-/// The winner among the scored trials: the lowest reply time, and within
-/// `TIE_BAND` of it the lightest candidate. `None` when nothing scored.
+/// The winner among the scored trials: the lowest reply time; within
+/// `TIE_BAND` of it the fastest decoder; within `DECODE_MARGIN` of that
+/// decode rate the lightest candidate. `None` when nothing scored.
 pub(crate) fn reply_winner(scored: &[(Candidate, Reply)]) -> Option<Winner> {
     let top = scored
         .iter()
         .map(|(_, reply)| reply.seconds)
         .reduce(f64::min)?;
+    let in_band = |reply: &Reply| reply.seconds <= top * (1.0 + TIE_BAND);
+    let fastest_decode = scored
+        .iter()
+        .filter(|(_, reply)| in_band(reply))
+        .map(|(_, reply)| reply.decode_rate)
+        .reduce(f64::max)?;
     let mut best: Option<Winner> = None;
     for (candidate, reply) in scored {
-        if reply.seconds > top * (1.0 + TIE_BAND) {
+        if !in_band(reply) || reply.decode_rate < fastest_decode * (1.0 - DECODE_MARGIN) {
             continue;
         }
         let take = match &best {
@@ -265,6 +277,66 @@ mod tests {
         );
     }
 
+    /// The Surface's tune run 3 (LFM2.5 Q8): three shapes inside the 5 %
+    /// band — the engine-fitted card (53.3 s, decode 5.3), the mixed shape
+    /// (52.5 s, 9.8) and the processor at 8 threads (53.9 s, 13.3). The old
+    /// tie-break gave the owner the card's 5.3 tok/s; the chat is felt in
+    /// decode, so the fastest writer of the three wins.
+    #[test]
+    fn inside_the_band_the_fastest_decoder_wins() {
+        let fitted = Candidate {
+            backend: ServerBackend::Vulkan,
+            threads: Some(4),
+            offload: Offload::EngineFitted,
+            draft: None,
+        };
+        let mixed = Candidate {
+            offload: Offload::ForcedOff,
+            ..fitted
+        };
+        let trials = [
+            (fitted, reply(73.1, 5.32)),
+            (mixed, reply(35.9, 9.78)),
+            (cpu(4), reply(24.1, 11.1)),
+            (cpu(8), reply(29.6, 13.29)),
+        ];
+        let seconds: Vec<f64> = trials.iter().map(|(_, reply)| reply.seconds).collect();
+        assert!((seconds[0] - 53.33).abs() < 0.01, "{seconds:?}");
+        assert!((seconds[1] - 52.49).abs() < 0.01, "{seconds:?}");
+        assert!((seconds[2] - 65.74).abs() < 0.01, "{seconds:?}");
+        assert!((seconds[3] - 53.93).abs() < 0.05, "{seconds:?}");
+        let win = reply_winner(&trials).expect("scored");
+        assert_eq!(win.candidate, cpu(8), "{win:?}");
+        // The shape outside the band never competes, whatever it decodes.
+        let slow_but_fast_decoder = [(cpu(4), reply(10.0, 40.0)), (fitted, reply(73.1, 5.32))];
+        assert_eq!(
+            reply_winner(&slow_but_fast_decoder).map(|win| win.candidate),
+            Some(fitted),
+            "a decode rate cannot buy a wait that is outside the band"
+        );
+    }
+
+    /// Decode rates inside 5 % of each other are equal, and then the
+    /// lighter launch wins — fewer threads, no draft, the fuller offload.
+    #[test]
+    fn equal_decoders_fall_back_to_the_lighter_launch() {
+        let trials = [
+            (cpu(8), reply(500.0, 20.0)),
+            (cpu(4), reply(500.0, 19.2)),
+        ];
+        assert_eq!(
+            reply_winner(&trials).map(|win| win.candidate),
+            Some(cpu(4)),
+            "4 % apart is one decode rate"
+        );
+        let apart = [(cpu(8), reply(500.0, 20.0)), (cpu(4), reply(500.0, 18.0))];
+        assert_eq!(
+            reply_winner(&apart).map(|win| win.candidate),
+            Some(cpu(8)),
+            "10 % apart is a real decode lead"
+        );
+    }
+
     /// Inside the band (3.15 s against 3.09 s) the lighter setting wins,
     /// not the raw minimum — 22 logical threads ask for six more than the
     /// machine's sixteen physical cores.
@@ -322,11 +394,13 @@ mod tests {
         );
     }
 
-    /// Two equal scores: the tie-break alone decides, and EngineFitted
-    /// ranks with the fuller offload — it aims at the card, and the
-    /// engine's fit decides how many layers fit this start's memory.
+    /// Two equal scores and equal decoders: the lightness alone decides, and
+    /// EngineFitted ranks with the fuller offload — it aims at the card, and
+    /// the engine's fit decides how many layers fit this start's memory.
+    /// (A faster decoder would win first: see
+    /// `inside_the_band_the_fastest_decoder_wins`.)
     #[test]
-    fn an_engine_fitted_tie_is_the_fullest_offload() {
+    fn an_engine_fitted_tie_between_equal_decoders_is_the_fullest_offload() {
         let off = cpu(16);
         let fitted = Candidate {
             backend: ServerBackend::Vulkan,
@@ -338,7 +412,7 @@ mod tests {
         assert_eq!(
             reply_winner(&trials).map(|win| win.candidate),
             Some(fitted),
-            "the fuller offload wins the tie"
+            "equal decoders: the fuller offload wins the tie"
         );
     }
 
