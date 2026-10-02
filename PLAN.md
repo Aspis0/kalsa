@@ -957,6 +957,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   bundles (checked), CSP adds only 'wasm-unsafe-eval', SC cmaps + 14 standard fonts packed, +2.27 MB; audit running,
   then S23 PDF check, then push. (3) The owner-relayed iOS launch crash (UIScene check, 00:58 sim build) predates the
   `enableSceneSupport` fix already on main (app.config.js:153). Release run on Mac (Designed for iPad, Metal) delegated.
+  **Owner 2026-10-02, PDF CJK scope:** pack Simplified + Traditional Chinese pdf.js cmaps (TC ~0.5 MB raw: CNS/UniCNS/
+  B5/ETen/HKscs + Adobe-CNS1). NO Japanese/Korean now. FUTURE (remote, owner wants it remembered): JA+KO cmaps cost
+  ~1.1 MB more (all 169 = ~1.6 MB raw, +1/3 as base64 per extraction); add them if Kalsa ever ships JA/KO or users send
+  such PDFs. Until then those PDFs surface `cmapsMissing` instead of silently empty text.
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,
