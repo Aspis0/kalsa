@@ -1529,6 +1529,91 @@ mod tests {
         );
     }
 
+    /// The owner's Lenovo as measurement.json records it: 33 945 935 872 B of
+    /// RAM, the 6 439 305 216-byte card, and 62 460 761 598 B/s timed on the
+    /// CPU with no chip figure beside it — the machine whose first-run screen
+    /// offers Gemma 4 E4B.
+    fn lenovo() -> Machine {
+        Machine {
+            measurement: measured(
+                62_460_761_598.0,
+                Backend::DiscreteGpu {
+                    vram_bytes: Some(6_439_305_216),
+                },
+            ),
+            ram_bytes: 33_945_935_872,
+        }
+    }
+
+    #[test]
+    fn the_pick_the_preview_offers_funds_on_the_card_the_start_sizes_it_against() {
+        // One machine, two answers, one arithmetic: the page reads
+        // `capability::dto` and the walk runs `choose_model` and then the
+        // launch plan. Vulkan's budget IS the card detection read
+        // (`budget_backend`), so both size the row against the same
+        // 5 365 563 392 B — and the Lab measured that card holding E4B plus
+        // its 98 653 280-byte drafter at 3 828 MiB.
+        let machine = lenovo();
+
+        // The preview, read as the page reads it — the JSON, not the struct's
+        // private fields.
+        let preview = crate::capability::dto(
+            &machine.measurement,
+            machine.ram_bytes,
+            None,
+            false,
+            &scratch("lenovo-preview"),
+        );
+        let json = serde_json::to_value(&preview).expect("serialise");
+        assert_eq!(json["model"]["name"], "Google Gemma 4 E4B", "{json}");
+        // The preview's "up to N" is the card's funded maximum for the row;
+        // the launch takes the chat default out of it.
+        let promised = json["model"]["context_tokens"]
+            .as_u64()
+            .expect("the preview must promise a window the start then funds");
+        assert_eq!(promised, 131_072, "the card's funded maximum for the row");
+
+        // The start path: the token the page sends back, the row it names,
+        // and the plan that builds the server beside the proven drafter.
+        let row = rows()
+            .find(|entry| entry.display_name == "Google Gemma 4 E4B" && entry.quant == "Q4_K_M")
+            .expect("the test row left the catalog");
+        let token = model_token(row);
+        let (plan, chosen, reason) =
+            choose_model(ServerBackend::Vulkan, &machine, None, Some(&token))
+                .expect("the preview's pick is runnable on the card");
+        assert_eq!(chosen.repo, row.repo, "the token names the row on the page");
+        let config = planned_config_with_overrides(
+            ServerBackend::Vulkan,
+            PathBuf::from("/server/kalsa-server"),
+            None,
+            PathBuf::from("/models/chosen.gguf"),
+            Some(DrafterLaunch {
+                path: PathBuf::from("/models/drafter.gguf"),
+                sha256: TEST_SHA256,
+                bytes: 98_653_280,
+            }),
+            chosen,
+            reason,
+            plan.sha256,
+            &machine,
+            1,
+            PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
+            LaunchOverrides::default(),
+        )
+        .expect("the pick the preview offers funds on the card it was sized against");
+        assert_eq!(
+            config.info.args.context_tokens, CHOOSER_CONTEXT_TOKENS,
+            "the chooser's own window, funded"
+        );
+        assert!(
+            promised >= u64::from(config.info.args.context_tokens),
+            "the preview's maximum must cover the window the launch funds: {promised} vs {}",
+            config.info.args.context_tokens
+        );
+    }
+
     #[test]
     fn a_choice_the_catalog_does_not_know_stops_the_walk() {
         // A token from a build whose catalog has moved on: the walk stops

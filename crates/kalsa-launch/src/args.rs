@@ -459,8 +459,10 @@ pub struct MemoryAssumption {
     /// True when the per-token figure behind `kv_cache_bytes` is the
     /// catalog's pessimistic assumption, not a measurement of this row.
     pub kv_per_token_assumed: bool,
-    /// Weights + mmproj + compute buffers + KV at the chosen context — the
-    /// whole footprint, which fits the budget below by construction.
+    /// Weights + mmproj + compute buffers + KV at the chosen context, plus
+    /// the drafter resident beside them — the whole footprint, which fits
+    /// the budget below by construction: a card's budget is charged the row
+    /// minus its host-mapped tensors, since those never enter the card.
     pub total_bytes: u64,
     /// The budget it was sized against: VRAM on a card that decodes, system
     /// RAM otherwise, always after the OS/browser margin.

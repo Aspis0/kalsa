@@ -190,20 +190,31 @@ pub fn host_bytes_on_gpu(entry: &ModelEntry) -> Option<u64> {
     }
 }
 
+/// The bytes of this row that this budget does not hold: the tensors
+/// [`host_bytes_on_gpu`] names, on a card's budget, and zero anywhere the row
+/// runs whole. Two arithmetics read it — [`fits_footprint`] subtracts it from
+/// a footprint, the launch planner from the weights it charges — because a
+/// fit and a funding that disagree about the same row is how a pick reaches
+/// a start that refuses it.
+pub fn uncharged_host_bytes(budget: &MemoryBudget, entry: &ModelEntry) -> u64 {
+    if budget.card_sized {
+        host_bytes_on_gpu(entry).unwrap_or(0)
+    } else {
+        0
+    }
+}
+
 /// What a row has to fit: its whole footprint on a budget sized in system
 /// RAM — those bytes are in RAM where the row runs, so they are charged
 /// there as part of the file — and on a card's budget the footprint minus
-/// [`host_bytes_on_gpu`], because they never enter the card. Nothing is
+/// [`uncharged_host_bytes`], because they never enter the card. Nothing is
 /// dropped from the arithmetic; each byte is charged where it lives, and
 /// `weights_bytes` still says what the file weighs on either path.
 pub fn fits_footprint(entry: &ModelEntry, footprint: &Footprint, budget: &MemoryBudget) -> bool {
-    let total = footprint.total_bytes();
-    let charged = if budget.card_sized {
-        total.saturating_sub(host_bytes_on_gpu(entry).unwrap_or(0))
-    } else {
-        total
-    };
-    charged <= budget.usable_bytes
+    footprint
+        .total_bytes()
+        .saturating_sub(uncharged_host_bytes(budget, entry))
+        <= budget.usable_bytes
 }
 
 pub fn fits(entry: &ModelEntry, context_tokens: u64, budget: &MemoryBudget) -> bool {

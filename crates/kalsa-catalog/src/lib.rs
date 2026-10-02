@@ -67,8 +67,8 @@ pub use choice::{
     ROOMY_RAM_BYTES, SAME_CLASS_BAND,
 };
 pub use footprint::{
-    fits, fits_footprint, footprint_bytes, host_bytes_on_gpu, memory_budget, usable_bytes,
-    Footprint, MemoryBudget, GIB,
+    fits, fits_footprint, footprint_bytes, host_bytes_on_gpu, memory_budget, uncharged_host_bytes,
+    usable_bytes, Footprint, MemoryBudget, GIB,
 };
 pub use q8::served;
 // `ChoiceInput` cannot be built without a `Backend`, so the type is re-exported

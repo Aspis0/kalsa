@@ -231,11 +231,15 @@ pub(crate) fn chosen_stands(
     stored.is_some_and(|row| runnable_row(&input_for(measurement, ram_bytes, phone), row).is_some())
 }
 
-/// The budget a row's window is priced from: minus the drafter this row's
-/// plan carries — the bytes `kalsa_launch::plan` charges when it runs one.
-fn window_budget(budget: MemoryBudget, download: &DownloadPlan) -> u64 {
+/// The budget a row's window is priced from: what this budget may spend on
+/// this row — a card's budget never held the row's host-mapped tensors, so
+/// they are not the card's to spend (`kalsa_catalog::uncharged_host_bytes`,
+/// the rule the launch plan funds with) — minus the drafter this row's plan
+/// carries, the bytes `kalsa_launch::plan` charges when it runs one.
+fn window_budget(budget: MemoryBudget, row: &ModelEntry, download: &DownloadPlan) -> u64 {
     budget
         .usable_bytes
+        .saturating_add(kalsa_catalog::uncharged_host_bytes(&budget, row))
         .saturating_sub(download.drafter.as_ref().map_or(0, |file| file.bytes))
 }
 
@@ -283,7 +287,7 @@ pub(crate) fn dto(
                     context_tokens: row.and_then(|row| {
                         funded_context(
                             row,
-                            window_budget(budget, &selection.download),
+                            window_budget(budget, row, &selection.download),
                             DEFAULT_PARALLEL,
                         )
                     }),
@@ -316,7 +320,7 @@ pub(crate) fn dto(
                             download_bytes: row.download.total_bytes(),
                             context_tokens: funded_context(
                                 row.entry,
-                                window_budget(budget, &row.download),
+                                window_budget(budget, row.entry, &row.download),
                                 DEFAULT_PARALLEL,
                             ),
                             speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
@@ -379,7 +383,7 @@ pub(crate) fn dto(
                 download_bytes: row.download.total_bytes(),
                 context_tokens: funded_context(
                     row.entry,
-                    window_budget(budget, &row.download),
+                    window_budget(budget, row.entry, &row.download),
                     DEFAULT_PARALLEL,
                 ),
                 speed_context_tokens: CHOOSER_CONTEXT_TOKENS,

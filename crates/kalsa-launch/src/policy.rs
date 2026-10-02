@@ -5,7 +5,8 @@
 use std::path::PathBuf;
 
 use kalsa_catalog::footprint::{
-    footprint_bytes, MemoryBudget, ASSUMED_KV_BYTES_PER_TOKEN, COMPUTE_BUFFER_BYTES, MIB,
+    footprint_bytes, uncharged_host_bytes, MemoryBudget, ASSUMED_KV_BYTES_PER_TOKEN,
+    COMPUTE_BUFFER_BYTES, MIB,
 };
 use kalsa_catalog::manifest::{ModelEntry, SlotCache};
 use kalsa_probe::plateau;
@@ -88,9 +89,18 @@ fn funded_ceiling(input: &LaunchInput) -> Option<(u64, u64, u64)> {
     // refuses a capacity of zero, so a raw field holding 0 would otherwise
     // render `--parallel 0` beside a one-slot plan.
     let slots = u64::from(input.parallel.max(1));
+    // A card's budget never held the row's host-mapped tensors, so they are
+    // not the card's to spend: the same subtraction `fits_footprint` does,
+    // which is what lets the pick and the plan answer one question alike
+    // (Gemma 4 E4B leaves 2_315_556_864 B in host memory and the Lab
+    // measured the card using 3_828 MiB for row + drafter at 64k).
+    let spendable = input
+        .budget
+        .usable_bytes
+        .saturating_add(uncharged_host_bytes(&input.budget, input.model));
     let (funded, prompt_cache_roof) = context_and_prompt_cache_roof(
         input.model,
-        input.budget.usable_bytes,
+        spendable,
         input.drafter_bytes,
         input.kv_cache,
         slots,
@@ -172,7 +182,11 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
             .saturating_add(footprint.mmproj_bytes)
             .saturating_add(footprint.buffer_bytes)
             .saturating_add(kv_bytes)
-            .saturating_add(input.drafter_bytes),
+            .saturating_add(input.drafter_bytes)
+            // Charged where the bytes live: this budget is the card's, so
+            // the total reported beside it must be the card's share — the
+            // host-mapped tensors are not the card's to hold.
+            .saturating_sub(uncharged_host_bytes(&input.budget, input.model)),
         budget_bytes: input.budget.usable_bytes,
     };
     Some(LaunchPlan { args, memory })
@@ -250,8 +264,9 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
     let (funded, _roof) = context_and_prompt_cache_roof(
         model,
         usable_bytes,
-        // Nothing charged here: the caller that knows a drafter's bytes has
-        // already taken them out of `usable_bytes`.
+        // Nothing charged here: the caller has already taken the drafter's
+        // bytes out of `usable_bytes` and, on a card's budget, added the
+        // row's `uncharged_host_bytes` — the same terms [`plan`] is given.
         0,
         KvCache::Q8_0,
         slots,
@@ -757,6 +772,56 @@ mod tests {
         // A zero per-token measurement is broken data, not a free cache.
         let garbage = broken_row(4 * GIB);
         assert!(plan(&input(ServerBackend::Cpu, budget, &garbage, M1_MAX_RAMP)).is_none());
+    }
+
+    #[test]
+    fn a_card_funds_the_row_whose_host_bytes_it_never_holds() {
+        // The owner's Lenovo, the row its chooser picks: 6_439_305_216 B of
+        // card minus the one-GiB floor leaves 5_365_563_392 B, while the
+        // row's whole footprint at the chooser's window — 6_183_121_120 B
+        // with the drafter — is larger than that. It only fits because
+        // 2_315_556_864 B of its embeddings never enter the card, and the Lab
+        // measured row + drafter at 3_828 MiB on exactly this card. Charged
+        // whole, the walk's own pick cannot be started by the walk that picked it.
+        let model = shipped_row("Google Gemma 4 E4B");
+        let budget = memory_budget(
+            Backend::DiscreteGpu {
+                vram_bytes: Some(6_439_305_216),
+            },
+            33_945_935_872,
+        );
+        let launched = plan(&LaunchInput {
+            drafter_bytes: 98_653_280,
+            ..input(ServerBackend::Vulkan, budget, model, M1_MAX_RAMP)
+        })
+        .expect("the card funds the row beside its drafter");
+        assert_eq!(
+            launched.args.context_tokens, 65_536,
+            "the chooser's own window is fundable"
+        );
+        assert_eq!(
+            launched.memory.total_bytes, 3_889_846_496,
+            "the card's share of the row + drafter, host-mapped tensors out"
+        );
+        assert!(
+            launched.memory.total_bytes <= budget.usable_bytes,
+            "{} over {}",
+            launched.memory.total_bytes,
+            budget.usable_bytes
+        );
+        // The whole reservation — the report plus the sleeping-chat roof the
+        // argv carries — stays inside the card as well.
+        let reserved = launched.memory.total_bytes + u64::from(launched.args.cache_ram_mib) * MIB;
+        assert!(
+            reserved <= budget.usable_bytes,
+            "reserved {reserved} over {}",
+            budget.usable_bytes
+        );
+        assert_eq!(
+            launched.args.offload,
+            Offload::All,
+            "all layers, as the Lab ran it"
+        );
     }
 
     #[test]
