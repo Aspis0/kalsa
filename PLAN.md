@@ -914,6 +914,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   kernel/skel change - RECOMMENDED; (b) q8 prefill / q4 decode with conversion at commit - engine change; (c) one shared
   KV in rpcmem read by CPU decode - architecture change, CPU-on-rpcmem was -35 % for weights; (d) HTP q4_0 SET_ROWS +
   FLASH_ATTN kernels - weeks. Owner 2026-10-02: plan OK; (a) waits for the V q8 vs q4 quality result (luna 356da047).
+  **S23 Expo-57 smoke BLOCKED 2026-10-02 ~04:00 EDT** (GLM 5e5aaf19, `s23-expo57-smoke/REPORT.md`, 0/7 run): a 5-s
+  airplane-mode drill killed One UI's wireless-debugging adbd (re-checked by the coordinator: 192.168.1.152, announced
+  port 45119 refused). Needs the owner: Developer options -> Wireless debugging OFF/ON. Left on the phone: bench keys
+  npu_lane=on, route=auto, devmodels=1 (found: route=gpu, npu_lane=off, energy_trace=1, kvtranscript=1, nativelog=off)
+  - restore them. Rerun item 4 WITHOUT cutting the network.
   Queued for the governor session: (a) S23 smoke of the Expo SDK 57 patch-line APK (iOS session 818369e6 lands it on
   app main, owner-approved 2026-10-02; Android change: expo-modules-core 57.0.10+ double-settled promise never settles,
   expo#46770) - baseline = tonight's 101c2bdd run; (b) next binding round folds in the iOS build fixes of
