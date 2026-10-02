@@ -1494,9 +1494,6 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     /** ShellPreview only: the notice under the strip, never shown in the app.
      *  Short enough to fit one line at 349 dp: "Pinned 325 in 621 dp" is 21
      *  characters, and the pill's old sentence did not fit the collapsed strip. */
-    /** ShellPreview only: the notice under the strip, never shown in the app.
-     *  Short enough to fit one line at 349 dp: "Pinned 325 in 621 dp" is 21
-     *  characters, and the pill's old sentence did not fit the collapsed strip. */
     preview: {
       sizeNotLive: "Pinned {pinned} in {live} dp",
     },

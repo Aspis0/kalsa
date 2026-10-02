@@ -1,6 +1,7 @@
 /**
- * Sender tests with a mocked network: the header grammar, the local refusals
- * (empty log, malformed header) that must never reach fetch, the Worker
+ * Sender tests with a mocked network: the header grammar (pinned to the
+ * shipped version), the local refusals (empty log, malformed header) that
+ * must never reach fetch, the no-cookie and no-redirect guards, the Worker
  * status/JSON mapping, the timeout, and the exact body handed to fetch.
  */
 
@@ -50,7 +51,11 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-function mockFetchReply(reply: { status: number; json: () => Promise<unknown> }): void {
+function mockFetchReply(reply: {
+  status: number;
+  url?: string;
+  json: () => Promise<unknown>;
+}): void {
   fetchMock.mockImplementation(async () => reply);
 }
 
@@ -83,6 +88,18 @@ describe("the X-Kalsa-App header", () => {
     );
   });
 
+  it("accepts the shipped app.config.js version 0.1.0 with no local refusal", async () => {
+    mockVersion.value = "0.1.0"; // the version that actually ships
+    mockFetchReply(jsonResponse(201, { id: "ABCD2345" }));
+    const result = await sendLog();
+
+    expect(result).toEqual({ ok: true, id: "ABCD2345" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((sentInit().headers as Record<string, string>)["X-Kalsa-App"]).toBe(
+      "0.1.0/android/arm64",
+    );
+  });
+
   it("never sends a header outside the Worker grammar", async () => {
     mockFetchReply(jsonResponse(201, { id: "ABCD2345" }));
     await sendLog();
@@ -95,6 +112,35 @@ describe("the X-Kalsa-App header", () => {
 
     expect(result).toEqual({ ok: false, reason: "failed" });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("the request guards", () => {
+  it("sends no cookies and asks fetch to refuse redirects", async () => {
+    mockFetchReply(jsonResponse(201, { id: "ABCD2345" }));
+    await sendLog();
+
+    expect(sentInit().credentials).toBe("omit");
+    expect(sentInit().redirect).toBe("error");
+  });
+
+  it("treats a response that landed on another origin as failed, id or not", async () => {
+    // a captive portal followed the 30x and re-POSTed the log elsewhere
+    mockFetchReply({
+      status: 201,
+      url: "http://captive.portal/uploaded",
+      json: async () => ({ id: "ABCD2345" }),
+    });
+    await expect(sendLog()).resolves.toEqual({ ok: false, reason: "failed" });
+  });
+
+  it("accepts a 201 whose final url is exactly the report endpoint", async () => {
+    mockFetchReply({
+      status: 201,
+      url: "https://kalsa.io/report",
+      json: async () => ({ id: "ABCD2345" }),
+    });
+    await expect(sendLog()).resolves.toEqual({ ok: true, id: "ABCD2345" });
   });
 });
 
@@ -113,6 +159,7 @@ describe("the Worker status mapping", () => {
     ["201 with a well-formed id", jsonResponse(201, { id: "ABCD2345" }), { ok: true, id: "ABCD2345" }],
     ["201 with a lowercase id", jsonResponse(201, { id: "abcd2345" }), { ok: false, reason: "failed" }],
     ["201 with an id containing 1", jsonResponse(201, { id: "AB1C2345" }), { ok: false, reason: "failed" }],
+    ["201 with an id containing I", jsonResponse(201, { id: "IIIIIIII" }), { ok: false, reason: "failed" }],
     ["201 with a non-string id", jsonResponse(201, { id: 12345678 }), { ok: false, reason: "failed" }],
     ["429", jsonResponse(429, { error: { code: "rate_limited" } }), { ok: false, reason: "rate_limited" }],
     ["503 daily_limit", jsonResponse(503, { error: { code: "daily_limit" } }), { ok: false, reason: "daily_limit" }],
@@ -169,6 +216,17 @@ describe("the 30 s timeout", () => {
     await expect(pending).resolves.toEqual({ ok: false, reason: "failed" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(abortSignal?.aborted).toBe(true);
+  });
+});
+
+describe("an unexpected throw before fetch", () => {
+  it("resolves failed when the report reader throws, and never calls fetch", async () => {
+    collector.readLogReportText.mockImplementation(() => {
+      throw new Error("store closed");
+    });
+
+    await expect(sendLog()).resolves.toEqual({ ok: false, reason: "failed" });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

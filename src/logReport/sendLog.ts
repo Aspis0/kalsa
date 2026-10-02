@@ -16,8 +16,10 @@ const REPORT_ARCH = "arm64";
 // Same grammar the Worker enforces (workers/report/index.ts APP_HEADER_PATTERN);
 // validating locally keeps a malformed header a local error, not a 400 round-trip.
 const APP_HEADER_PATTERN = /^[0-9A-Za-z._-]{1,32}\/[a-z0-9_]{1,16}\/[a-z0-9_]{1,16}$/;
-// Phone-readable ids: capitals without I/L/O and digits without 0/1.
-const REPORT_ID_PATTERN = /^[A-Z2-9]{8}$/;
+// The exact alphabet the Worker mints ids from (workers/report/index.ts
+// ID_ALPHABET): capitals without I/L/O and digits without 0/1, so a reply
+// carrying, say, I or 0 was not minted by the Worker and must not pass.
+const REPORT_ID_PATTERN = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/;
 
 export type SendLogFailure = {
   reason: "empty" | "rate_limited" | "daily_limit" | "failed";
@@ -71,29 +73,43 @@ async function mapResponse(res: { status: number; json(): Promise<unknown> }): P
  * server's response text.
  */
 export async function sendLog(): Promise<SendLogResult> {
-  const body = readLogReportText();
-  if (body.length === 0) return { ok: false, reason: "empty" };
-
-  const app = `${appVersion()}/${Platform.OS}/${REPORT_ARCH}`;
-  if (!APP_HEADER_PATTERN.test(app)) return { ok: false, reason: "failed" };
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
+  // The whole body is wrapped because the steps before fetch (the report
+  // reader, the header build) can throw too: the caller only ever sees a
+  // resolved result, never a rejection to handle.
   try {
-    const res = await fetch(REPORT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "X-Kalsa-App": app,
-      },
-      body,
-      signal: controller.signal,
-    });
-    return await mapResponse(res);
+    const body = readLogReportText();
+    if (body.length === 0) return { ok: false, reason: "empty" };
+
+    const app = `${appVersion()}/${Platform.OS}/${REPORT_ARCH}`;
+    if (!APP_HEADER_PATTERN.test(app)) return { ok: false, reason: "failed" };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
+    try {
+      const res = await fetch(REPORT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "X-Kalsa-App": app,
+        },
+        body,
+        // No cookies: the report is anonymous. redirect:"error" asks fetch to
+        // fail on a 30x (a captive portal could re-POST the log elsewhere),
+        // but RN fetch may ignore it — hence the final-URL check below.
+        credentials: "omit",
+        redirect: "error",
+        signal: controller.signal,
+      });
+      // The only final URL we accept is the one we sent to; an empty url
+      // (RN can produce one) keeps the status/JSON mapping in charge.
+      if (res.url && res.url !== REPORT_URL) return { ok: false, reason: "failed" };
+      return await mapResponse(res);
+    } finally {
+      clearTimeout(timer);
+    }
   } catch {
-    // network error, timeout abort, or fetch rejection are all one outcome
+    // network error, timeout abort, fetch rejection, a throwing reader —
+    // every throw is one outcome
     return { ok: false, reason: "failed" };
-  } finally {
-    clearTimeout(timer);
   }
 }

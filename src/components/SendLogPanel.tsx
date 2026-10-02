@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useLocale, type TranslationKey } from "../i18n";
+import { lastReportId, rememberReportId } from "../logReport/lastReportId";
 import { sendLog, type SendLogFailure } from "../logReport/sendLog";
 import { useLabTheme } from "../ui/labTheme";
 import { radius, spacing } from "../theme/tokens";
@@ -36,7 +37,12 @@ export function SendLogPanel() {
   const { t } = useLocale();
   const typography = useTypography();
   const { colors } = useLabTheme<any>();
-  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [phase, setPhase] = useState<Phase>(() => {
+    // A session-wide success survives unmount: without it, reopening Settings
+    // would re-arm the button and allow a second upload.
+    const id = lastReportId();
+    return id === null ? { kind: "idle" } : { kind: "sent", id };
+  });
 
   const busy = phase.kind === "sending";
   const done = phase.kind === "sent";
@@ -44,10 +50,16 @@ export function SendLogPanel() {
   const onSend = () => {
     if (busy || done) return;
     setPhase({ kind: "sending" });
-    void sendLog().then((result) => {
-      if (result.ok) setPhase({ kind: "sent", id: result.id });
-      else setPhase({ kind: "error", reason: result.reason });
-    });
+    void sendLog()
+      .then((result) => {
+        if (result.ok) {
+          rememberReportId(result.id);
+          setPhase({ kind: "sent", id: result.id });
+        } else {
+          setPhase({ kind: "error", reason: result.reason });
+        }
+      })
+      .catch(() => setPhase({ kind: "error", reason: "failed" }));
   };
 
   return (
@@ -78,12 +90,25 @@ export function SendLogPanel() {
         </Text>
       </Pressable>
       {phase.kind === "sent" ? (
-        <Text selectable testID="sendlog.result" style={[typography.bodySm, { color: colors.muted }]}>
+        <Text
+          selectable
+          testID="sendlog.result"
+          accessibilityRole="text"
+          // Live region so the report number itself is announced (Android;
+          // the button keeps its own label, the result line is the message).
+          accessibilityLiveRegion="polite"
+          style={[typography.bodySm, { color: colors.muted }]}
+        >
           {t("report.sentWithId", { id: phase.id })}
         </Text>
       ) : null}
       {phase.kind === "error" ? (
-        <Text testID="sendlog.result" style={[typography.bodySm, { color: colors.muted }]}>
+        <Text
+          testID="sendlog.result"
+          accessibilityRole="text"
+          accessibilityLiveRegion="polite"
+          style={[typography.bodySm, { color: colors.muted }]}
+        >
           {t(errorKey(phase.reason))}
         </Text>
       ) : null}

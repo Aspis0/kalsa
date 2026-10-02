@@ -1,8 +1,9 @@
 /**
  * The panel's send discipline, driven through the rendered tree: nothing sends
  * until the button press, the button is disabled while sending and after a
- * success (but re-arms after a failure), the id is shown, and the failure copy
- * is picked by the mapped reason.
+ * success (but re-arms after a failure), the id is shown, the failure copy is
+ * picked by the mapped reason, a rejected send still lands on the failed copy,
+ * and a success survives a remount through the session holder.
  */
 
 jest.mock("react-native", () => {
@@ -27,6 +28,19 @@ jest.mock("../logReport/sendLog", () => ({
   sendLog: jest.fn(),
 }));
 
+// The holder is mocked so each test starts from a fresh session; `state` is
+// the reset handle (the real module keeps its id private).
+jest.mock("../logReport/lastReportId", () => {
+  const state = { id: null as string | null };
+  return {
+    state,
+    rememberReportId: (next: string) => {
+      state.id = next;
+    },
+    lastReportId: () => state.id,
+  };
+});
+
 jest.mock("../ui/labTheme", () => ({
   useLabTheme: () => ({
     colors: { ink: "#111", muted: "#666", accent: "#1f5f4e", primaryText: "#fff" },
@@ -44,6 +58,9 @@ import { SendLogPanel } from "./SendLogPanel";
 import { sendLog } from "../logReport/sendLog";
 
 const sendLogMock = sendLog as jest.Mock;
+const holder = jest.requireMock("../logReport/lastReportId") as {
+  state: { id: string | null };
+};
 
 async function renderPanel(): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
@@ -64,6 +81,7 @@ function resultText(renderer: ReactTestRenderer): ReactTestInstance {
 
 beforeEach(() => {
   sendLogMock.mockReset();
+  holder.state.id = null;
 });
 
 describe("the SendLogPanel", () => {
@@ -124,6 +142,51 @@ describe("the SendLogPanel", () => {
     await act(async () => renderer.unmount());
   });
 
+  it("keeps the sent state and stays disabled after a remount", async () => {
+    sendLogMock.mockResolvedValue({ ok: true, id: "ABCD2345" });
+    const first = await renderPanel();
+    await act(async () => {
+      sendButton(first).props.onPress();
+    });
+    await act(async () => first.unmount());
+
+    const second = await renderPanel();
+    expect(sendLogMock).toHaveBeenCalledTimes(1);
+    expect(resultText(second).props.children).toBe("report.sentWithId#ABCD2345");
+    expect(sendButton(second).props.disabled).toBe(true);
+    await act(async () => {
+      sendButton(second).props.onPress();
+    });
+    expect(sendLogMock).toHaveBeenCalledTimes(1);
+    await act(async () => second.unmount());
+  });
+
+  it("maps a sendLog rejection to the failed copy instead of hanging on sending", async () => {
+    sendLogMock.mockRejectedValue(new Error("reader threw"));
+    const renderer = await renderPanel();
+
+    await act(async () => {
+      sendButton(renderer).props.onPress();
+    });
+
+    expect(resultText(renderer).props.children).toBe("report.errSend");
+    expect(sendButton(renderer).props.disabled).toBe(false);
+    await act(async () => renderer.unmount());
+  });
+
+  it("announces the report number through a polite live region with the text role", async () => {
+    sendLogMock.mockResolvedValue({ ok: true, id: "ABCD2345" });
+    const renderer = await renderPanel();
+
+    await act(async () => {
+      sendButton(renderer).props.onPress();
+    });
+
+    expect(resultText(renderer).props.accessibilityLiveRegion).toBe("polite");
+    expect(resultText(renderer).props.accessibilityRole).toBe("text");
+    await act(async () => renderer.unmount());
+  });
+
   it("re-arms after a failure so the tester can press again", async () => {
     sendLogMock.mockResolvedValue({ ok: false, reason: "failed" });
     const renderer = await renderPanel();
@@ -154,6 +217,7 @@ describe("the SendLogPanel", () => {
     });
 
     expect(resultText(renderer).props.children).toBe(expectedKey);
+    expect(resultText(renderer).props.accessibilityLiveRegion).toBe("polite");
     await act(async () => renderer.unmount());
   });
 });

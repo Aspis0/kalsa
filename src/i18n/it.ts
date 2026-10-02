@@ -1437,8 +1437,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     },
     /** ShellPreview only: the notice under the strip, never shown in the app.
      *  One line at 349 dp: "Fisso 325 in 621 dp" is 19 characters. */
-    /** ShellPreview only: the notice under the strip, never shown in the app.
-     *  One line at 349 dp: "Fisso 325 in 621 dp" is 19 characters. */
     preview: {
       sizeNotLive: "Fisso {pinned} in {live} dp",
     },
