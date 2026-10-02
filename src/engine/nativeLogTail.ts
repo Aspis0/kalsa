@@ -29,8 +29,9 @@ let nativeLogSetupDone = false;
 let nativeLogMirrorAll = false;
 
 /**
- * The mirror gate. WARN/ERROR always pass; everything else (the binding maps
- * DEBUG onto the "info" string too) only with the bench pref.
+ * The mirror gate. WARN/ERROR always pass; INFO (and its continuation lines,
+ * also labelled "info") only with the bench pref. The binding never forwards
+ * DEBUG since kalsa.rn 2ff449b7.
  */
 export function shouldMirrorNativeLog(level: string, mirrorAll: boolean): boolean {
   if (level === "warn" || level === "error") return true;
