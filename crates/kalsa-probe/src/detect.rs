@@ -400,7 +400,8 @@ pub fn discrete_name_from_video_controllers_with(
 /// The WMI name of the discrete adapter the budget came from, asked of the
 /// same controller query once per session (a present answer only, like
 /// [`backend`]): the engine's `--list-devices` description is matched
-/// against it, and no name leaves the match to the single-device rule.
+/// against it, and a card this query cannot name routes the start to the
+/// CPU build — the single-device rule belongs to the integrated GPU alone.
 #[cfg(target_os = "windows")]
 pub fn discrete_name() -> Option<String> {
     static NAMED: std::sync::OnceLock<String> = std::sync::OnceLock::new();

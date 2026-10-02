@@ -14,11 +14,12 @@ use crate::room;
 use crate::sample::{post_to, request_ask, serves_id, Ask};
 
 /// One clock over both passes, checked before each lifetime and never
-/// during one: 1080 s covers four shapes (the integrated GPU's mixed shape
-/// is the fourth), each a prefill-and-off lifetime and three drafted
-/// settings — sixteen lifetimes at ~68 s apiece. A lifetime that begins just
-/// inside the bound can still run to its own limit, so the tune ends no
-/// later than the bound plus [`LIFETIME_LIMIT`].
+/// during one: 1080 s for four shapes (the integrated GPU's mixed shape is
+/// the fourth), each a prefill-and-off lifetime and three drafted settings
+/// — sixteen lifetimes averaging 67.5 s apiece. The clock stops a lifetime
+/// from BEGINNING past the bound, and one that begins just inside runs on
+/// by its own limits ([`LIFETIME_LIMIT`], an estimate), so the tune may
+/// overrun the budget by up to about one lifetime.
 const TOTAL_BUDGET: Duration = Duration::from_secs(1080);
 
 /// A lifetime's ready deadline: a cold first read of a 5 GB file on a
@@ -45,9 +46,12 @@ pub(crate) const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 /// candidate.
 pub(crate) const ROOM_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 
-/// The longest one lifetime can run: the ready deadline, the warm-up, the
-/// room ask, the three decode requests and the two identity checks, each at
-/// its own bound.
+/// One lifetime's cost added up from its parts — the ready deadline, the
+/// warm-up, the room ask, the three decode requests and the two identity
+/// checks, each at its own request bound. An estimate, not a ceiling:
+/// every request also spends a connect deadline of its own (sample.rs's
+/// agent sets `timeout_connect` beside the request's timeout) and a DNS
+/// lookup sits outside both, so a lifetime can overrun this figure.
 const LIFETIME_LIMIT: Duration = Duration::from_secs(
     READY_TIMEOUT.as_secs()
         + REQUEST_TIMEOUT.as_secs()
