@@ -21,7 +21,7 @@ use sha2::{Digest, Sha256};
 
 use crate::assets::{self, probe_model, ArchiveFormat, Asset, Platform, ServerBackend};
 use crate::mirror::download_with_mirror;
-use crate::{extract, marker};
+use crate::{extract, marker, warm};
 
 #[derive(Debug)]
 pub(crate) enum StoreError {
@@ -159,6 +159,11 @@ pub(crate) fn ensure_backend(
         extract_into(&staging, &archives).map_err(StoreError::Io)?;
     }
     let exe = publish(&staging, &dir, &runtime, table_exe)?;
+    // Only a fresh install pays the antivirus's first scan; Windows is where
+    // that scan is slow enough to matter.
+    if cfg!(windows) {
+        warm::warm(&exe);
+    }
     sweep_unpinned(root, platform);
     Ok(exe)
 }

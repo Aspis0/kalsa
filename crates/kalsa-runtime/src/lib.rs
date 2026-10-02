@@ -40,6 +40,7 @@ mod mirror;
 mod probe;
 mod store;
 mod verdict;
+mod warm;
 
 /// The per-user directory this crate keeps builds, archives and models in:
 /// the shell places the chosen model here so one directory tells the whole

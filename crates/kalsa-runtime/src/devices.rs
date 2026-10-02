@@ -38,13 +38,14 @@ static LISTED: OnceLock<Vec<(String, String)>> = OnceLock::new();
 /// or named no device.
 pub fn list_devices(exe: &Path) -> Option<Vec<(String, String)>> {
     kalsa_probe::once_present(&LISTED, || {
-        Some(parse_listed_devices(&ask_list_devices(exe)?)).filter(|listed| !listed.is_empty())
+        Some(parse_listed_devices(&ask_list_devices(exe, LIST_DEADLINE)?))
+            .filter(|listed| !listed.is_empty())
     })
 }
 
 /// `--list-devices` run the way the probe runs the engine: in the exe's own
-/// directory, stdout captured, killed rather than left hanging.
-fn ask_list_devices(exe: &Path) -> Option<String> {
+/// directory, stdout captured, killed at `deadline` rather than left hanging.
+pub(crate) fn ask_list_devices(exe: &Path, deadline: Duration) -> Option<String> {
     let mut command = std::process::Command::new(exe);
     command
         .arg("--list-devices")
@@ -55,7 +56,7 @@ fn ask_list_devices(exe: &Path) -> Option<String> {
         command.current_dir(dir);
     }
     let mut child = command.spawn().ok()?;
-    let deadline = Instant::now() + LIST_DEADLINE;
+    let deadline = Instant::now() + deadline;
     let status = loop {
         match child.try_wait() {
             Ok(Some(status)) => break status,
@@ -294,11 +295,11 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn only_a_clean_exit_makes_the_listing_an_answer() {
-        let ok = ask_list_devices(&fake_engine("ok", 0)).expect("a clean exit answers");
+        let ok = ask_list_devices(&fake_engine("ok", 0), LIST_DEADLINE).expect("a clean exit answers");
         assert_eq!(parse_listed_devices(&ok).len(), 1);
         // The same text from a build that then crashed is not an answer, so
         // it is never parsed, let alone remembered.
-        assert_eq!(ask_list_devices(&fake_engine("crash", 1)), None);
+        assert_eq!(ask_list_devices(&fake_engine("crash", 1), LIST_DEADLINE), None);
     }
 
     #[test]
