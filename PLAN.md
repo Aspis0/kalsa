@@ -968,6 +968,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   B5/ETen/HKscs + Adobe-CNS1). NO Japanese/Korean now. FUTURE (remote, owner wants it remembered): JA+KO cmaps cost
   ~1.1 MB more (all 169 = ~1.6 MB raw, +1/3 as base64 per extraction); add them if Kalsa ever ships JA/KO or users send
   such PDFs. Until then those PDFs surface `cmapsMissing` instead of silently empty text.
+  **iOS on Mac 2026-10-02 (`ios-readiness/MAC-RELEASE-RUN.md`, GLM 27645d01):** Release build (SDK 57 baseline c67e2df1,
+  free Personal Team, push entitlement stripped on the command line) runs as "Designed for iPad" on the M1 Max: launches
+  past the iOS 27 UIScene check (6 launches, no crash). Metal: `offloaded 31/31 layers`, recommendedMaxWorkingSetSize
+  55,662.79 MB, load 314.72 ms warm. LFM2.5-2.6B generation: decode 31.22 tok/s (214 tok), prefill 17 tok only (not a
+  prefill number). OPEN: 31 tok/s looks low for an M1 Max (memory bandwidth suggests far more) - check app settings
+  (16k ctx, FA, threads) vs llama-bench before quoting it; os_proc_available_memory never logged (telemetry off).
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,

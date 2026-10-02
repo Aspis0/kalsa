@@ -808,6 +808,8 @@ peer conflicts, fingerprint change; `ios-readiness/AUDIT-sdk58-trial.md`). pdf.j
 `749f3591` (audit + S23 PDF check pending). iOS UIScene launch crash = old build before `enableSceneSupport` (on main).
 Owner 2026-10-02: PDF cmaps = Simplified + Traditional Chinese only; Japanese/Korean deferred (~1.1 MB), noted in PLAN
 for a remote future.
+iOS on Mac 2026-10-02: Release build runs as an iPad app on the M1 Max, no UIScene crash, LFM2.5 31/31 layers on Metal,
+decode 31 tok/s (suspiciously low, to check vs llama-bench).
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
