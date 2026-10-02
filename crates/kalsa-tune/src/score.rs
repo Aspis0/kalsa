@@ -24,8 +24,8 @@ pub(crate) const TIE_BAND: f64 = 0.05;
 
 /// Inside the band the winner is the highest decode rate — in a chat the
 /// decode is felt on every message, the wait only in total. Decode rates
-/// within 5 % of the best are equal too, and only then does the lighter
-/// launch win.
+/// within 5 % of the best are equal too; then — and only for trials no
+/// other in-band trial beats on both axes — the lighter launch wins.
 pub(crate) const DECODE_MARGIN: f64 = 0.05;
 
 /// What one trial measured, as the room feels it: the shape's prefill
@@ -95,13 +95,14 @@ fn measured(rate: f64) -> bool {
     rate.is_finite() && rate > 0.0
 }
 
-/// Lighter is better among equal decoders: the offload that puts every layer on
-/// the GPU first (the GPU does the work then, though full offload does not
-/// free the processor entirely), then the fewer threads — and an unknown
-/// thread count ranks heaviest of all: the engine's own default may be
-/// every core the machine has. The draft axis ranks last and lightest at
-/// none: speculation a measurement did not clearly buy is not kept, and a
-/// wider proposal loses a tie to a narrower one.
+/// Lighter is better among trials neither of which dominates the other
+/// and whose decodes the margin calls equal: the offload that puts every
+/// layer on the GPU first (the GPU does the work then, though full
+/// offload does not free the processor entirely), then the fewer threads —
+/// and an unknown thread count ranks heaviest of all: the engine's own
+/// default may be every core the machine has. The draft axis ranks last
+/// and lightest at none: speculation a measurement did not clearly buy is
+/// not kept, and a wider proposal loses a tie to a narrower one.
 fn lightness(candidate: &Candidate) -> (u8, usize, u32) {
     // EngineFitted aims at the same place as All — every layer on the
     // card — and lets the engine confirm the count, so it ranks as the
@@ -117,7 +118,12 @@ fn lightness(candidate: &Candidate) -> (u8, usize, u32) {
 
 /// The winner among the scored trials: the lowest reply time; within
 /// `TIE_BAND` of it the fastest decoder; within `DECODE_MARGIN` of that
-/// decode rate the lightest candidate. `None` when nothing scored.
+/// decode rate the lightest candidate that no other in-band trial
+/// dominates — another trial at least as good on BOTH the wait and the
+/// decode and strictly better on one, which can therefore never win,
+/// however light it is. `None` when nothing scored. Exact ties on every
+/// axis fall to the lower reply seconds and then the candidate's own
+/// identity, so the winner cannot depend on the order the trials arrive in.
 pub(crate) fn reply_winner(scored: &[(Candidate, Reply)]) -> Option<Winner> {
     let top = scored
         .iter()
@@ -129,23 +135,47 @@ pub(crate) fn reply_winner(scored: &[(Candidate, Reply)]) -> Option<Winner> {
         .filter(|(_, reply)| in_band(reply))
         .map(|(_, reply)| reply.decode_rate)
         .reduce(f64::max)?;
-    let mut best: Option<Winner> = None;
-    for (candidate, reply) in scored {
-        if !in_band(reply) || reply.decode_rate < fastest_decode * (1.0 - DECODE_MARGIN) {
-            continue;
-        }
-        let take = match &best {
-            None => true,
-            Some(current) => lightness(candidate) < lightness(&current.candidate),
-        };
-        if take {
-            best = Some(Winner {
-                candidate: *candidate,
-                reply: *reply,
-            });
-        }
-    }
-    best
+    // Dominated: another in-band trial is at least as good on both axes
+    // and strictly better on one — a trial that lost twice cannot win on
+    // lightness. The dominating trial needs no separate check to be a
+    // survivor itself: its wait is no worse (so it is in-band too) and its
+    // decode no lower (so it passes the margin when the dominated one does).
+    let dominated = |reply: &Reply| {
+        scored.iter().any(|(_, other)| {
+            in_band(other)
+                && other.seconds <= reply.seconds
+                && other.decode_rate >= reply.decode_rate
+                && (other.seconds < reply.seconds || other.decode_rate > reply.decode_rate)
+        })
+    };
+    scored
+        .iter()
+        .filter(|(_, reply)| in_band(reply))
+        .filter(|(_, reply)| reply.decode_rate >= fastest_decode * (1.0 - DECODE_MARGIN))
+        .filter(|(_, reply)| !dominated(reply))
+        .map(|(candidate, reply)| {
+            // The identity is the candidate's own debug spelling:
+            // injective on the struct and stable across runs, so two trials
+            // tied on every scored axis are separated here, never by the
+            // order they arrived in.
+            (
+                lightness(candidate),
+                reply.seconds,
+                format!("{candidate:?}"),
+                candidate,
+                reply,
+            )
+        })
+        .min_by(|left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.1.total_cmp(&right.1))
+                .then_with(|| left.2.cmp(&right.2))
+        })
+        .map(|(_, _, _, candidate, reply)| Winner {
+            candidate: *candidate,
+            reply: *reply,
+        })
 }
 
 #[cfg(test)]
@@ -316,16 +346,26 @@ mod tests {
         );
     }
 
-    /// Decode rates inside 5 % of each other are equal, and then the
-    /// lighter launch wins — fewer threads, no draft, the fuller offload.
+    /// Decode rates inside 5 % of each other are equal, and the lighter
+    /// launch wins — but only between trials that trade: a launch that
+    /// waits longer AND writes slower is dominated and cannot win on
+    /// lightness, however few threads it asks for.
     #[test]
-    fn equal_decoders_fall_back_to_the_lighter_launch() {
-        let trials = [
-            (cpu(8), reply(500.0, 20.0)),
-            (cpu(4), reply(500.0, 19.2)),
-        ];
+    fn lightness_decides_only_where_no_trial_is_dominated() {
+        // cpu(4) writes 4 % slower and waits longer (12.72 s against
+        // 12.30): dominated on both axes, so the heavier cpu(8) takes it.
+        let dominated = [(cpu(8), reply(500.0, 20.0)), (cpu(4), reply(500.0, 19.2))];
         assert_eq!(
-            reply_winner(&trials).map(|win| win.candidate),
+            reply_winner(&dominated).map(|win| win.candidate),
+            Some(cpu(8)),
+            "the lighter launch lost on both axes"
+        );
+        // A real trade: cpu(4) reads faster (700 against 500) and writes
+        // 2.5 % slower — neither dominates the other, and the fewer
+        // threads win the tie the score cannot break.
+        let trade = [(cpu(8), reply(500.0, 20.0)), (cpu(4), reply(700.0, 19.5))];
+        assert_eq!(
+            reply_winner(&trade).map(|win| win.candidate),
             Some(cpu(4)),
             "4 % apart is one decode rate"
         );
@@ -337,26 +377,97 @@ mod tests {
         );
     }
 
-    /// Inside the band (3.15 s against 3.09 s) the lighter setting wins,
-    /// not the raw minimum — 22 logical threads ask for six more than the
-    /// machine's sixteen physical cores.
+    /// Inside the band the fewer threads win only when nothing else
+    /// separates the trials: at equal rates (3.15 s, 100 tok/s) the six
+    /// extra threads buy nothing and lose the tie — but cpu(22)'s 3.09 s
+    /// at 103 tok/s beats cpu(16) on BOTH axes, and the faster, heavier
+    /// launch takes the room.
     #[test]
-    fn a_tie_within_the_band_goes_to_the_fewer_threads() {
-        let trials = [
+    fn the_fewer_threads_win_the_band_when_nothing_else_separates() {
+        let equal = [
             (cpu(16), reply(1000.0, 100.0)),
-            (cpu(22), reply(1000.0, 103.0)),
+            (cpu(22), reply(1000.0, 100.0)),
         ];
-        assert!(trials[1].1.seconds < trials[0].1.seconds, "a real lead");
         assert_eq!(
-            reply_winner(&trials).map(|win| win.candidate),
+            reply_winner(&equal).map(|win| win.candidate),
             Some(cpu(16)),
             "within 5 %, the fewer threads win"
         );
+        let both_axes = [
+            (cpu(16), reply(1000.0, 100.0)),
+            (cpu(22), reply(1000.0, 103.0)),
+        ];
+        assert!(
+            both_axes[1].1.seconds < both_axes[0].1.seconds,
+            "a real lead"
+        );
+        assert_eq!(
+            reply_winner(&both_axes).map(|win| win.candidate),
+            Some(cpu(22)),
+            "the 22 threads wait less AND write faster: dominance, not lightness"
+        );
     }
 
-    /// The draft axis is the lightest: a drafted trial marginally faster
-    /// than the same shape's target-only run loses the tie, because
-    /// speculation a measurement did not clearly buy is not kept.
+    /// The pair that exposed lightness picking the loser: B waits longer
+    /// (11.676 s against 11.150) and writes slower (19 against 20 tok/s)
+    /// yet is the lighter launch — dominated on both axes, it cannot win,
+    /// whichever order the two arrive in.
+    #[test]
+    fn a_trial_dominated_on_both_axes_never_wins_on_lightness() {
+        let a = cpu(8);
+        let b = gpu(); // Vulkan, All: the lighter launch of the two
+        let trials = [(a, reply(1000.0, 20.0)), (b, reply(1000.0, 19.0))];
+        assert!((trials[0].1.seconds - 11.150).abs() < 1e-9, "{trials:?}");
+        assert!((trials[1].1.seconds - 11.676).abs() < 1e-3, "{trials:?}");
+        assert!(
+            trials[1].1.seconds > trials[0].1.seconds
+                && trials[1].1.decode_rate < trials[0].1.decode_rate,
+            "B is worse on both axes"
+        );
+        assert_eq!(
+            reply_winner(&trials).map(|win| win.candidate),
+            Some(a),
+            "dominated on both axes: the heavier A wins"
+        );
+        let reversed = [(b, reply(1000.0, 19.0)), (a, reply(1000.0, 20.0))];
+        assert_eq!(
+            reply_winner(&reversed).map(|win| win.candidate),
+            Some(a),
+            "dominance does not care about order either"
+        );
+    }
+
+    /// The selection is total: two trials equal on every scored axis and
+    /// on lightness are separated by the candidates' own identities, so
+    /// the same set yields the same winner whichever order it arrives in.
+    #[test]
+    fn the_winner_does_not_depend_on_the_order_of_the_trials() {
+        let all = Candidate {
+            backend: ServerBackend::Vulkan,
+            threads: Some(8),
+            offload: Offload::All,
+            draft: None,
+        };
+        let fitted = Candidate {
+            offload: Offload::EngineFitted,
+            ..all
+        };
+        assert_eq!(lightness(&all), lightness(&fitted), "the fixtures tie");
+        let first = (all, reply(500.0, 20.0));
+        let second = (fitted, reply(500.0, 20.0));
+        let forward = reply_winner(&[first, second]).expect("both scored");
+        let backward = reply_winner(&[second, first]).expect("both scored");
+        assert_eq!(
+            forward.candidate, backward.candidate,
+            "input order must not pick the winner: {forward:?} against {backward:?}"
+        );
+    }
+
+    /// The draft axis is the lightest: with the two replies inseparable the
+    /// target-only run wins, because speculation a measurement did not
+    /// separate is not kept. What lightness cannot do is keep a run that
+    /// waits longer AND writes slower — the drafted run that beats the base
+    /// on both axes wins despite being the heavier launch.
     #[test]
     fn no_draft_wins_a_tie_inside_the_band() {
         let base = cpu(16);
@@ -364,9 +475,18 @@ mod tests {
             draft: Some(2),
             ..base
         };
-        let trials = [(drafted, reply(500.0, 20.16)), (base, reply(500.0, 20.0))];
-        assert!(trials[0].1.seconds < trials[1].1.seconds, "a real lead");
-        assert_eq!(reply_winner(&trials).map(|win| win.candidate), Some(base));
+        let tied = [(drafted, reply(500.0, 20.0)), (base, reply(500.0, 20.0))];
+        assert_eq!(reply_winner(&tied).map(|win| win.candidate), Some(base));
+        let dominated = [(drafted, reply(500.0, 20.16)), (base, reply(500.0, 20.0))];
+        assert!(
+            dominated[0].1.seconds < dominated[1].1.seconds,
+            "a real lead"
+        );
+        assert_eq!(
+            reply_winner(&dominated).map(|win| win.candidate),
+            Some(drafted),
+            "the base waits longer AND writes slower: dominance outranks lightness"
+        );
     }
 
     /// A rate that is not positive is not a measurement: a row of them
@@ -418,21 +538,26 @@ mod tests {
 
     /// An unknown thread count is the heaviest, not the lightest: the
     /// engine's own default may be every core, and ranking it as zero
-    /// would let the unmeasured setting win the tie it cannot justify.
+    /// would let the unmeasured setting win a tie it cannot justify. It
+    /// still wins the trials it is measurably better on — that victory
+    /// comes from dominance, never from its rank.
     #[test]
     fn an_unknown_thread_count_is_the_heaviest_not_the_lightest() {
         let unknown = Candidate {
             threads: None,
             ..cpu(4)
         };
-        let trials = [
-            (unknown, reply(1000.0, 22.0)),
-            (cpu(4), reply(1000.0, 21.5)),
-        ];
+        let tied = [(unknown, reply(1000.0, 22.0)), (cpu(4), reply(1000.0, 22.0))];
         assert_eq!(
-            reply_winner(&trials).map(|win| win.candidate),
+            reply_winner(&tied).map(|win| win.candidate),
             Some(cpu(4)),
             "the known count is lighter than the engine's default"
+        );
+        let better_on_both = [(unknown, reply(1000.0, 22.0)), (cpu(4), reply(1000.0, 21.5))];
+        assert_eq!(
+            reply_winner(&better_on_both).map(|win| win.candidate),
+            Some(unknown),
+            "shorter wait and faster decode: the rank never gets a say"
         );
     }
 }
