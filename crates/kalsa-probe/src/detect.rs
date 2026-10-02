@@ -239,10 +239,13 @@ pub fn parse_nvidia_video_memory(text: &str) -> Option<u64> {
 /// the system's, and AdapterRAM reports a carve-out, not a budget. Integrated
 /// is a trailing "Graphics" ("Radeon(TM) Graphics", "Radeon 780M Graphics",
 /// "Radeon Vega 8 Graphics", "Radeon(TM) RX Vega 11 Graphics" — the Ryzen
-/// 2400G) or a three-digit-M model ("Radeon 890M"). A discrete card names an
+/// 2400G), a three-digit-M model ("Radeon 890M"), or a Vega with an APU's
+/// compute-unit count even when the name stops there ("Radeon RX Vega 11":
+/// the APUs carry 3 to 11, the cards 56 and 64). A discrete card names an
 /// RX, Pro or VII model and does not end in "Graphics" ("Radeon RX 6600M",
-/// "Radeon Pro W7800", "Radeon VII"); the four-digit M of an RX 6800M is not
-/// the three-digit M of an APU. `lowered` is already lowercase.
+/// "Radeon RX Vega 64", "Radeon Pro W7800", "Radeon VII"); the four-digit M
+/// of an RX 6800M is not the three-digit M of an APU. `lowered` is already
+/// lowercase.
 #[cfg(any(target_os = "windows", test))]
 fn is_amd_integrated(lowered: &str) -> bool {
     if !lowered.contains("radeon") {
@@ -252,7 +255,14 @@ fn is_amd_integrated(lowered: &str) -> bool {
     if tokens.last() == Some(&"graphics") {
         return true;
     }
-    let card_model = tokens.iter().any(|t| matches!(*t, "rx" | "pro" | "vii"));
+    let pro = tokens.contains(&"pro");
+    let apu_vega = tokens
+        .windows(2)
+        .any(|pair| pair[0] == "vega" && pair[1].parse::<u32>().is_ok_and(|units| units <= 12));
+    if apu_vega && !pro {
+        return true;
+    }
+    let card_model = pro || tokens.iter().any(|t| matches!(*t, "rx" | "vii"));
     let apu_model = tokens.iter().any(|t| {
         let digits = t.strip_suffix('m').unwrap_or("");
         digits.len() == 3 && digits.bytes().all(|b| b.is_ascii_digit())
@@ -738,6 +748,8 @@ mod tests {
             "Radeon Vega 8 Graphics",
             "AMD Radeon(TM) Vega 8 Graphics",
             "AMD Radeon(TM) RX Vega 11 Graphics",
+            "AMD Radeon RX Vega 11",
+            "Radeon RX Vega 10",
             "AMD Radeon(TM) R7 Graphics",
         ] {
             // With the carve-out WMI reports, and without.
@@ -750,6 +762,8 @@ mod tests {
             "AMD Radeon RX 6800M",
             "AMD Radeon RX 7600M XT",
             "AMD Radeon RX Vega 56",
+            "AMD Radeon RX Vega 64",
+            "AMD Radeon Pro Vega 20",
             "AMD Radeon Pro W7800",
             "AMD Radeon Pro WX 3200 Series",
             "AMD Radeon VII",
