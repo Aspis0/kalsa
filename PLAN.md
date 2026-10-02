@@ -957,7 +957,16 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   `cpp/jsi/RNLlamaJSI.cpp:271-277` still forwards llama.cpp DEBUG to JS as "info", and the native tail keeps every
   level, so with tools on the `llama-grammar` "awaiting trigger ... (`%s`)" lines carry every sampled piece of the
   answer (memory native-log-mirror-puts-model-text-in-logcat). Fix in the binding (drop below INFO before JS) in the
-  next binding round, before any phone upload exists.
+  next binding round, before any phone upload exists. Binding 2ff449b7 (DEBUG/NONE dropped before JS) + 4f884d74 (iOS
+  fixes of BINDING-PATCHES.md items 1-4 at their patch sources), GLM; hostile audit space-bunny 80f568a2 -> fix round
+  (stderr gets the same level filter, thread_local CONT lineage, symmetric x86 guard, true comments, plugin strips the
+  old OTHER_CPLUSPLUSFLAGS line). **Collector design constraint from that audit:** level filtering is NOT enough -
+  engine ERROR/WARN lines still carry user text and reach JS: `common/sampling.cpp:304` LOG_ERR prints the whole
+  generation prompt when the grammar sampler fails to init, `common/chat.cpp:1513` LOG_WRN prints unparsed model
+  output on every tool-call parse failure, `common/chat.cpp:317` tool names. So native lines enter the uploaded log
+  only by allow-list (our KALSA_* structured lines + a fixed list of engine prefixes, each clipped), never free text;
+  and the collector never reads logcat (`RNLLAMA_LOG_CONTENT` is ON by design in debuggable APKs: content goes to
+  logcat tag RNLlama there).
   **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
   definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
   skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
