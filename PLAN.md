@@ -914,6 +914,9 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   kernel/skel change - RECOMMENDED; (b) q8 prefill / q4 decode with conversion at commit - engine change; (c) one shared
   KV in rpcmem read by CPU decode - architecture change, CPU-on-rpcmem was -35 % for weights; (d) HTP q4_0 SET_ROWS +
   FLASH_ATTN kernels - weeks. Owner 2026-10-02: plan OK; (a) waits for the V q8 vs q4 quality result (luna 356da047).
+  **Quality DONE 2026-10-02 (`htp-kv-attention/QUALITY-v-q8-vs-q4.md`, CPU, ctx 4096, vs f16 KV; coordinator re-read the
+  IT logs): V q8_0 is better in all five languages** - mean KLD IT 0.0091 -> 0.0025 (EN 0.0080 -> 0.0022, ZH 0.0088
+  -> 0.0025), same-top 95.5 % -> 97.5 %, PPL lower everywhere. Option (a) STARTED: binding step first.
   **S23 Expo-57 smoke BLOCKED 2026-10-02 ~04:00 EDT** (GLM 5e5aaf19, `s23-expo57-smoke/REPORT.md`, 0/7 run): a 5-s
   airplane-mode drill killed One UI's wireless-debugging adbd (re-checked by the coordinator: 192.168.1.152, announced
   port 45119 refused). Needs the owner: Developer options -> Wireless debugging OFF/ON. Left on the phone: bench keys
