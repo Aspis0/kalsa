@@ -1049,6 +1049,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   crafted multi-line JS error message can forge a frame location with digits only. Nothing is sent yet: step 2 =
   sender + Settings panel (en/it strings from the desktop); step 3 = unclean-exit prompt (Android ApplicationExitInfo
   via kalsa-lifecycle).
+  **Step 2 of 3 PUSHED on app main `d5097453` (2026-10-02):** `sendLog` (one POST to https://kalsa.io/report, 30 s
+  abort, `credentials:"omit"`, `redirect:"error"` + final-URL check, exact Worker id alphabet, never rejects) +
+  `sendLogOnce` session holder (one upload per app session, remounts join the in-flight send, failure re-arms) +
+  `SendLogPanel` in Settings Diagnostics (en/it strings, polite live region). GLM 0f8c8742 -> audit 803044f9 -> GLM
+  ab575461 -> audit luna 995a978c -> deepseek 3fcccba1 -> audit luna 50c1510d -> my d5097453; full jest 306/3277 green.
+  Accepted residual (owner may override): RN follows redirects natively, so a 307/308 FROM kalsa.io would resend the
+  body before JS sees it - only our own Worker over HTTPS can emit one. Tests can never reach the network (fetch spy
+  rejects by default). Next: step 3 (unclean-exit prompt).
   **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
   definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
   skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
