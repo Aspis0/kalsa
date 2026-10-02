@@ -456,3 +456,97 @@ fn writes_from_many_threads_all_reach_the_file() {
     assert_eq!(total, 100, "every line written under the lock");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+/// The engine's whole start line, through every stage that can touch it:
+/// the supervisor's own worker renders the argv, the installed sink
+/// redacts, the file holds the bytes. The path's separators are exactly
+/// the shapes a C-style unescaper would eat — `\r`, `\a`, `\n`, `\t`,
+/// `\b` after a separator — so the file must carry every one of them as
+/// backslash and letter, with only the home replaced by `~`.
+#[test]
+fn an_engine_start_line_keeps_escape_shaped_separators_from_argv_to_the_file() {
+    use kalsa_supervisor::{ServerConfig, Supervisor};
+    use std::net::TcpListener;
+    use std::time::{Duration, Instant};
+
+    // This process's sinks read their home once, at install — so the
+    // Windows home the path below sits under is named first, wherever
+    // this test runs.
+    let previous_home = std::env::var("USERPROFILE").ok();
+    std::env::set_var("USERPROFILE", r"C:\Users\x");
+    let dir = scratch("engine-start-escapes");
+    install(None, "test");
+    attach_file(dir.clone(), "test");
+
+    let port = {
+        let probe = TcpListener::bind("127.0.0.1:0").expect("a free port");
+        probe.local_addr().expect("the address").port()
+    };
+    let state_file =
+        std::env::temp_dir().join(format!("kalsa-brain-escapes-{}.state", std::process::id()));
+    let _ = std::fs::remove_file(&state_file);
+    let path = r"C:\Users\x\AppData\Roaming\ai.kalsa.brain\runtime\new\tmp\b";
+    #[cfg(unix)]
+    let quiet = "-c";
+    #[cfg(windows)]
+    let quiet = "/C";
+    let supervisor = Supervisor::new();
+    let waiter = supervisor.start(ServerConfig {
+        #[cfg(unix)]
+        exe: std::path::PathBuf::from("/bin/sh"),
+        #[cfg(windows)]
+        exe: std::path::PathBuf::from("cmd.exe"),
+        argv: vec![
+            quiet.to_string(),
+            "exit 0".to_string(),
+            "--host".to_string(),
+            "127.0.0.1".to_string(),
+            "--port".to_string(),
+            port.to_string(),
+            "--model".to_string(),
+            path.to_string(),
+        ],
+        state_file: state_file.clone(),
+        port,
+        ready_timeout: Duration::from_millis(300),
+        stop_grace: Duration::from_millis(50),
+    });
+    // The worker writes on its own thread: wait for the line rather than
+    // for the settle, which can land either side of the write.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let engine_line = loop {
+        if let Some(line) = live_lines(&dir)
+            .into_iter()
+            .find(|line| line.contains("engine start:") && line.contains(r"\new\tmp\b"))
+        {
+            break line;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the engine start line never reached the file: state {:?}, lines {:?}",
+            supervisor.state(),
+            live_lines(&dir)
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let _ = waiter.outcome();
+    let rendered = format!(
+        "argv {quiet} \"exit 0\" --host 127.0.0.1 --port {port} --model ~\\AppData\\Roaming\\ai.kalsa.brain\\runtime\\new\\tmp\\b"
+    );
+    assert!(
+        engine_line.contains(&rendered),
+        "the path must reach the file as one backslash per separator: {engine_line}"
+    );
+    assert!(
+        !engine_line.contains(r"C:\Users\x"),
+        "the home is gone, only ~ stands for it: {engine_line}"
+    );
+    assert!(
+        !engine_line.contains(r"\\"),
+        "no doubled separator anywhere: {engine_line}"
+    );
+    match previous_home {
+        Some(home) => std::env::set_var("USERPROFILE", home),
+        None => std::env::remove_var("USERPROFILE"),
+    }
+}
