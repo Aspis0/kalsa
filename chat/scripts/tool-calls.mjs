@@ -87,7 +87,12 @@ equal("empty arguments parse to none", readArguments(calls[0].name, calls[0].arg
 const broken = accumulate([], [{ index: 0, id: "f1", function: { name: "web_fetch", arguments: '{"url": ' } }]);
 const brokenRead = readArguments(broken[0].name, broken[0].arguments);
 check("malformed JSON does not throw", brokenRead.problem !== null, JSON.stringify(brokenRead));
-check("the refusal names the tool", (brokenRead.problem ?? "").includes("web_fetch"), brokenRead.problem ?? "");
+// The owner reads this sentence: plain words, never the tool's internal name.
+check(
+  "the refusal is the plain sentence, without the tool's internal name",
+  brokenRead.problem === "Kalsa couldn't finish checking. Ask again." && !brokenRead.problem.includes("web_fetch"),
+  brokenRead.problem ?? "",
+);
 equal("a refusal runs the tool with no arguments", brokenRead.args, {});
 
 // JSON that is valid but not an object cannot be a tool's arguments either.
@@ -169,7 +174,11 @@ const flood = accumulate([], [{ index: 0, id: "j1", function: { name: "web_searc
 check("arguments are cut at the cap", flood[0].arguments.length === MAX_ARGUMENTS, String(flood[0].arguments.length));
 check("a cut call is marked", flood[0].cut === true);
 const floodRead = readArguments(flood[0].name, flood[0].arguments, flood[0].cut);
-check("a cut call fails honestly instead of parsing half a sentence", (floodRead.problem ?? "").includes("longer than this app accepts"), floodRead.problem ?? "");
+check(
+  "a cut call fails honestly instead of parsing half a sentence",
+  (floodRead.problem ?? "").includes("too long for Kalsa to check"),
+  floodRead.problem ?? "",
+);
 equal("and it runs with no arguments", floodRead.args, {});
 // The cap holds across many small fragments too.
 let long = [];
