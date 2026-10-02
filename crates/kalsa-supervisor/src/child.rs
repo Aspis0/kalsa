@@ -60,6 +60,21 @@ pub fn strip_llama_env(
         }
     }
 }
+
+/// `CREATE_NO_WINDOW`: the app is a GUI process that owns no console, so a
+/// console child of ours would open a console window of its own — the
+/// window an owner sees titled `kalsa-server.exe` when the app turns on.
+/// The flag only suppresses that window: the stdio the caller set is
+/// untouched. Off Windows there is no console to hide and nothing is done.
+#[cfg(windows)]
+pub fn hide_console(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+pub fn hide_console(_cmd: &mut Command) {}
+
 /// How often `wait_within` looks at the child.
 const WAIT_POLL: Duration = Duration::from_millis(25);
 
@@ -163,6 +178,7 @@ impl ChildHandle {
             .stdout(Stdio::null())
             .stderr(Stdio::piped());
         strip_llama_env(&mut cmd, std::env::vars_os());
+        hide_console(&mut cmd);
         if exe.is_absolute() {
             if let Some(dir) = exe.parent() {
                 cmd.current_dir(dir);
@@ -610,6 +626,31 @@ pub use job::{confine, Job};
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Off Windows the helper compiles, takes a command, and does
+    /// nothing: there is no console to hide — and the spawn still runs
+    /// and reports its status.
+    #[cfg(not(windows))]
+    #[test]
+    fn off_windows_the_console_hider_changes_nothing() {
+        let mut cmd = std::process::Command::new("/bin/sh");
+        cmd.arg("-c").arg("exit 0");
+        hide_console(&mut cmd);
+        assert!(cmd.status().expect("the child runs").success());
+    }
+
+    /// The flag itself cannot be asserted: `creation_flags` is a setter
+    /// with no getter, and no query reports the creation flags a live
+    /// process was started with. What is checkable is that a flagged
+    /// spawn still starts, exits, and reports success.
+    #[cfg(windows)]
+    #[test]
+    fn a_flagged_child_still_runs() {
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(["/C", "exit", "0"]);
+        hide_console(&mut cmd);
+        assert!(cmd.status().expect("the flagged child runs").success());
+    }
 
     #[test]
     fn pid_zero_is_refused_not_signalled() {

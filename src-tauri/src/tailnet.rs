@@ -143,13 +143,13 @@ fn run(cli: &Path, args: &[&str]) -> Option<String> {
 /// without a deadline of its own is the one after a kill, which is the
 /// reaping itself.
 fn run_within(cli: &Path, args: &[&str], timeout: Duration) -> Option<String> {
-    let mut child = Command::new(cli)
-        .args(args)
+    let mut cmd = Command::new(cli);
+    cmd.args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
+        .stderr(Stdio::null());
+    kalsa_supervisor::hide_console(&mut cmd);
+    let mut child = cmd.spawn().ok()?;
     let mut stdout = child.stdout.take()?;
     let (send, received) = mpsc::channel();
     std::thread::spawn(move || {

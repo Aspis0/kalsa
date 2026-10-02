@@ -104,6 +104,7 @@ impl Child {
         // a child of ours, because those knobs are the ones that print
         // prompt text and key fragments.
         kalsa_supervisor::strip_llama_env(&mut cmd, std::env::vars_os());
+        kalsa_supervisor::hide_console(&mut cmd);
         if exe.is_absolute() {
             if let Some(dir) = exe.parent() {
                 // Same pin as the supervisor's spawn: ggml's backend scan puts

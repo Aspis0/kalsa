@@ -86,6 +86,7 @@ pub(crate) fn ask_list_devices(exe: &Path, deadline: Duration) -> Option<String>
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
+    kalsa_supervisor::hide_console(&mut command);
     if let Some(dir) = exe.parent() {
         command.current_dir(dir);
     }

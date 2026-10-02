@@ -17,6 +17,21 @@ use std::time::{Duration, Instant};
 /// How often a waiting child is checked; nothing rides on the exact figure.
 const POLL: Duration = Duration::from_millis(50);
 
+/// `CREATE_NO_WINDOW` — the rule `kalsa-supervisor::hide_console` states
+/// for the engine's children, restated here because this crate has no
+/// edge to that one and a dependency is too heavy a price for a helper
+/// this small: the app owns no console, so a console child (wmic,
+/// PowerShell) would open a window of its own on the desktop. Off Windows
+/// there is no console to hide and nothing is done.
+#[cfg(windows)]
+fn hide_console(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_console(_cmd: &mut Command) {}
+
 /// Runs `program`, answering its stdout as text only when it ran,
 /// succeeded, and finished inside `deadline` — anything else (it could not
 /// be spawned, exited non-zero, or outlived the deadline and was killed
@@ -31,12 +46,10 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    let mut child = match Command::new(program)
-        .args(args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-    {
+    let mut cmd = Command::new(program);
+    cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::null());
+    hide_console(&mut cmd);
+    let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(_) => return None,
     };
@@ -158,6 +171,27 @@ mod tests {
             command_text("/bin/echo", &[line], Duration::from_secs(5)),
             Some("3221225472  NVIDIA \u{FFFD}\n".to_string())
         );
+    }
+
+    /// Off Windows the helper compiles, takes a command, and does
+    /// nothing: there is no console to hide — and the spawn still runs.
+    #[cfg(not(windows))]
+    #[test]
+    fn off_windows_the_console_hider_changes_nothing() {
+        let mut cmd = std::process::Command::new("/bin/sh");
+        cmd.arg("-c").arg("exit 0");
+        hide_console(&mut cmd);
+        assert!(cmd.status().expect("the child runs").success());
+    }
+
+    /// The flagged half, where a flag exists. The flag itself cannot be
+    /// read back — `creation_flags` is a setter with no getter — so the
+    /// check is that a child behind it still answers this runner.
+    #[cfg(windows)]
+    #[test]
+    fn command_text_reads_a_child_whose_console_is_hidden() {
+        let answer = command_text("cmd", ["/C", "echo", "hidden"], Duration::from_secs(5));
+        assert_eq!(answer, Some("hidden\r\n".to_string()));
     }
 
     #[test]

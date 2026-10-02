@@ -17,7 +17,7 @@ mod presence;
 mod supervisor;
 mod suspect;
 
-pub use child::{pid_alive, strip_llama_env, terminate_pid, Step, Termination};
+pub use child::{hide_console, pid_alive, strip_llama_env, terminate_pid, Step, Termination};
 #[cfg(windows)]
 pub use child::{confine, Job};
 pub use config::{ServerConfig, DEFAULT_STOP_GRACE};
