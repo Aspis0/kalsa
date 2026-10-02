@@ -1,8 +1,9 @@
 /**
- * JS face of the iroh road (Android). One bridge holds the node identity;
- * tunnels are numbered handles whose byte moves are base64 at this seam.
- * All calls are async: natively they block on plain threads bounded by
- * per-call deadlines, and the JS thread must never be one of them.
+ * JS face of the iroh road (Android, iOS). One bridge holds the node
+ * identity; tunnels are numbered handles whose byte moves are base64 at
+ * this seam. All calls are async: natively they block on plain threads
+ * bounded by per-call deadlines, and the JS thread must never be one of
+ * them.
  */
 
 import { requireOptionalNativeModule } from "expo-modules-core";
@@ -43,7 +44,7 @@ export function isNativeModulePresent(): boolean {
 function requireModule(): NativeKalsaIrohModule {
   const module = getNativeModule();
   if (!module) {
-    throw new Error("KalsaIroh native module unavailable (Android only)");
+    throw new Error("KalsaIroh native module unavailable in this build");
   }
   return module;
 }

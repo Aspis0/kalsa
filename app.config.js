@@ -158,6 +158,7 @@ const config = {
     // compiled from source; KALSA_LLAMA_FROM_SOURCE=0 throws. See plugin header.
     "./plugins/withLlamaFromSource",
     "./plugins/withLlamaIosSourceBuild",
+    "./plugins/withIrohXcframework",
     [
       "expo-calendar",
       {

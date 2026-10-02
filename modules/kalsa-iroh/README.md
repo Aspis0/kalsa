@@ -1,18 +1,19 @@
 # kalsa-iroh (Expo module)
 
-The Android platform bridge for the iroh road: the uniffi face of
-`native/kalsa-iroh-mobile` behind an Expo local module. One bridge object
-holds the node identity; JS gets numbered tunnels whose byte moves are
-base64 at this seam. Every native call blocks on a plain pool thread
-bounded by per-call deadlines — never the JS thread.
+The platform bridge for the iroh road on Android and iOS: the uniffi face
+of `native/kalsa-iroh-mobile` behind an Expo local module. One bridge
+object holds the node identity; JS gets numbered tunnels whose byte moves
+are base64 at this seam. Every native call blocks on a plain pool thread /
+dispatch queue bounded by per-call deadlines — never the JS thread.
 
 ## Layout
 
-- `android/.../KalsaIrohModule.kt` — the Expo module: `startBridge()`
-  (argless — the key path is resolved natively from `context.filesDir`),
-  `nodeId()`, `openTunnel(nodeHex, lane)`, `write(id, base64, timeoutMs)`,
-  `read(id, max, timeoutMs)` (base64, empty = EOF), `shutdown(id)`.
-  Blocking calls run on a bounded fixed pool (8 plain threads).
+- `android/.../KalsaIrohModule.kt` — the Android Expo module:
+  `startBridge()` (argless — the key path is resolved natively from
+  `context.filesDir`), `nodeId()`, `openTunnel(nodeHex, lane)`,
+  `write(id, base64, timeoutMs)`, `read(id, max, timeoutMs)` (base64,
+  empty = EOF), `shutdown(id)`. Blocking calls run on a bounded fixed
+  pool (8 plain threads).
 - `android/.../uniffi/kalsa_iroh_mobile/` — the generated uniffi Kotlin
   bindings, vendored: they change only when the crate's uniffi API changes,
   and vendoring keeps the Gradle build hermetic (no Rust toolchain needed
@@ -20,6 +21,18 @@ bounded by per-call deadlines — never the JS thread.
   `native/kalsa-iroh-mobile/README.md` and copy the file here.
 - `android/src/main/jniLibs/arm64-v8a/` — `libkalsa_iroh_mobile.so`,
   built by the APK workflow (never committed; gitignored in place).
+- `ios/KalsaIrohModule.swift` — the Apple Expo module: the same method
+  names, the same `KALSA_IROH_*` rejection codes, the same deadlines and
+  shutdown semantics. Blocking calls run on dedicated dispatch queues.
+- `ios/KalsaIroh.podspec` — the pod: compiles the Swift module plus the
+  generated uniffi Swift bindings, links `Generated/KalsaIroh.xcframework`
+  (device + simulator staticlib slices, SystemConfiguration/CoreFoundation/
+  Security for the iroh dependency graph).
+- `ios/Generated/` — build output, never committed (gitignored): produced
+  at pod install by `scripts/gen-iroh-xcframework.sh` (injected into the
+  Podfile by `plugins/withIrohXcframework.js`). Needs a Mac with the Rust
+  toolchain and Xcode; Linux CI never runs it (the Podfile exists only
+  after an iOS prebuild).
 - `src/index.ts` — the typed JS API.
 
 ## The .so
@@ -34,9 +47,10 @@ fails — then copied into the module's jniLibs.
 
 ## Key path
 
-The node identity lives at `<Context.filesDir>/iroh-node.key`, resolved
-by the Kotlin module — a filesystem path is what the crate wants, and
-resolving it natively means no `file://` URI is ever parsed in JS.
+The node identity lives at `<Context.filesDir>/iroh-node.key` on Android
+and `<Application Support>/iroh-node.key` on iOS, resolved by the platform
+module — a filesystem path is what the crate wants, and resolving it
+natively means no `file://` URI is ever parsed in JS.
 
 ## JNA
 

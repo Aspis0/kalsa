@@ -130,6 +130,11 @@ results/ciswire-campaign/
 !modules/*/ios/
 !modules/*/ios/**
 
+# The KalsaIroh pod's build output (Rust staticlibs, uniffi Swift bindings,
+# XCFramework): regenerated at pod install by scripts/gen-iroh-xcframework.sh.
+# No binaries in git — this rule must stay after the !modules/*/ios negations.
+modules/kalsa-iroh/ios/Generated/
+
 # kalsa-moe-experiments is a SEPARATE repo (Aspis0/kalsa-moe-experiments), cloned at
 # ../kalsa-moe-experiments. Its PLAN.md and docs/ALIVE.md are the two living docs.
 # A copy of them grew here on 15/09 and diverged for two days; do not track it again.
