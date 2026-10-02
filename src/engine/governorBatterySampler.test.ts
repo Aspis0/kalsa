@@ -233,23 +233,32 @@ describe("native trace CSV schema", () => {
   });
 });
 
-// CHANGED DELIBERATELY: the plug-in-edge latch was removed from the native
-// module by the policy consolidation (the engine is the sole decider). The
-// first case used to assert the latch regex; it now pins its absence.
-describe("readThermo raw plugged reading", () => {
+describe("readThermo plugged idle latch", () => {
   const start = KOTLIN_SOURCE.indexOf("fun readThermo(");
   const end = KOTLIN_SOURCE.indexOf("fun readSoc(");
   const readThermo = KOTLIN_SOURCE.slice(start, end);
 
-  it("holds no latch state and reports the live temperature", () => {
+  it("latches the idle baseline on the plug-in edge and clears it on unplug", () => {
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
-    expect(KOTLIN_SOURCE).not.toContain("idleBaselineTenthsC");
-    expect(readThermo).toContain('result.putInt("t_idle_tenths_c", temperature)');
+    expect(KOTLIN_SOURCE).toContain("private var idleBaselineTenthsC: Int? = null");
+    expect(readThermo).toMatch(
+      /if \(plugged\) \{[\s\S]*idleBaselineTenthsC = temperature[\s\S]*\} else \{[\s\S]*idleBaselineTenthsC = null/,
+    );
   });
 
-  it("reports the raw sensor flag in tenths and leaves the degrees conversion to the app", () => {
-    expect(readThermo).toContain('putBoolean("t_idle_valid", sensorValid)');
+  it("clears the latch on unplug without a sensor-validity gate", () => {
+    // The clear hangs off the plug state alone: at a 12-space indent the else
+    // pairs with readThermo's own `if (plugged)`, so a dead sensor on unplug
+    // cannot keep the baseline latched.
+    expect(readThermo).toMatch(
+      /\n {12}\} else \{\n {16}idleBaselineTenthsC = null\n {12}\}/,
+    );
+  });
+
+  it("reports the latch in tenths and leaves the degrees conversion to the app", () => {
+    expect(readThermo).toContain('putBoolean("t_idle_valid", idleTenths != null)');
+    expect(readThermo).toContain('putInt("t_idle_tenths_c", idleTenths)');
     // The tenths-to-degrees conversion happens exactly once, in profileFrom.
     expect(readThermo).not.toContain('"t_idle_c"');
   });
