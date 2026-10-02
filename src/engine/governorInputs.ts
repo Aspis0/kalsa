@@ -65,7 +65,8 @@ export type NpuLaneInputs = {
 
 type Generation = "V73" | "V75" | "V79" | "Unknown";
 
-const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
+/** Exported (keys only) for the logReport schema drift test — the one runtime source of the governor fallback generations. */
+export const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
   V79: true, // S5 run 6 oracle PASS 4/4 (kalsa-moe-experiments ALIVE 48)
   /* Owner decision (2026-09-07): enable V75 under R6 of the logit-oracle protocol;
    * a PASS is reported, but production enablement is the owner's call, not an automatic promotion.

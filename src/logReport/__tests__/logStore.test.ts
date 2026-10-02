@@ -3,8 +3,12 @@ jest.mock("expo-file-system", () => {
   const store = new Map<string, string>();
   class FakeFile {
     static store = store;
+    // Injected failure for non-append writes: rotate's keep-write must fail
+    // BEFORE the live log is touched.
+    static failPlainWrites = false;
     static reset(): void {
       store.clear();
+      FakeFile.failPlainWrites = false;
     }
     uri: string;
     constructor(...parts: string[]) {
@@ -20,7 +24,15 @@ jest.mock("expo-file-system", () => {
       if (!store.has(this.uri)) store.set(this.uri, "");
     }
     write(content: string, options?: { append?: boolean }): void {
+      if (FakeFile.failPlainWrites && !options?.append) throw new Error("write failed");
       store.set(this.uri, options?.append ? (store.get(this.uri) ?? "") + content : content);
+    }
+    moveSync(destination: FakeFile, options?: { overwrite?: boolean }): void {
+      if (store.has(destination.uri) && !options?.overwrite) {
+        throw new Error("destination exists");
+      }
+      store.set(destination.uri, store.get(this.uri) ?? "");
+      store.delete(this.uri);
     }
     textSync(): string {
       const value = store.get(this.uri);
@@ -36,7 +48,11 @@ jest.mock("expo-file-system", () => {
 
 import { File } from "expo-file-system";
 
-type FakeFileStatic = { store: Map<string, string>; reset(): void };
+type FakeFileStatic = {
+  store: Map<string, string>;
+  reset(): void;
+  failPlainWrites: boolean;
+};
 const fakeFile = File as unknown as FakeFileStatic;
 
 type LogStore = typeof import("../logStore");
@@ -66,7 +82,10 @@ describe("rotation at the byte cap", () => {
     const text = readReportText();
     expect(Buffer.byteLength(text, "utf8")).toBeLessThanOrEqual(MAX_REPORT_BYTES);
     expect(text.endsWith(`#${5199}\n`)).toBe(true);
-    expect(text.split("\n").filter((l) => l.includes(`#${0}\n`))).toEqual([]);
+    // The oldest line itself must be gone: an exact-line match can really
+    // fail, unlike the old `l.includes("#0\n")` on split lines (never true).
+    const oldest = `${line} #0`;
+    expect(text.split("\n").filter((l) => l === oldest)).toEqual([]);
   });
 
   it("cuts rotated content at a line boundary", () => {
@@ -78,6 +97,21 @@ describe("rotation at the byte cap", () => {
     for (const line of text.split("\n")) {
       if (line.length > 0) expect(line.startsWith("KALSA_CTX_FLOOR ")).toBe(true);
     }
+  });
+});
+
+describe("rotation write failure", () => {
+  it("keeps the whole log when the rotation write fails", () => {
+    const { appendLine } = loadFresh();
+    const line = `KALSA_CTX_FLOOR ${JSON.stringify({ pad: "z".repeat(100_000) })}`;
+    // ~100 kB/line: the 4 MiB cap is crossed within the 50 appends, so a
+    // rotate runs and its plain (non-append) write is the one that fails.
+    fakeFile.failPlainWrites = true;
+    for (let i = 0; i < 50; i++) appendLine(`${line} #${i}`);
+    fakeFile.failPlainWrites = false;
+    // The old delete-then-write lost the file the moment the post-delete
+    // write threw; write-then-replace never deletes before the write lands.
+    expect(storedText()).toContain(`${line} #0`);
   });
 });
 

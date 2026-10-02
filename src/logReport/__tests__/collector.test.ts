@@ -181,7 +181,7 @@ describe("global JS error handler", () => {
     expect(logStore.readReportText()).not.toContain("secret user message");
   });
 
-  it("falls back to name=Error and frame=unknown without a usable stack", () => {
+  it("falls back to name=Error and frame=none without a usable stack", () => {
     const { collector, logStore } = loadFresh();
      (globalThis as unknown as { ErrorUtils: unknown }).ErrorUtils = {
       getGlobalHandler: () => undefined,
@@ -191,7 +191,7 @@ describe("global JS error handler", () => {
     };
     collector.installLogReportCollector();
     const lines = storedLines();
-    expect(lines[0]).toContain("js_error name=Error frame=unknown");
+    expect(lines[0]).toContain("js_error name=Error frame=none");
     expect(logStore.readReportText()).not.toContain("boom");
   });
 
@@ -208,12 +208,106 @@ describe("global JS error handler", () => {
       },
     };
     collector.installLogReportCollector();
-    expect(storedLines()[0]).toContain("js_error name=Error frame=unknown");
+    expect(storedLines()[0]).toContain("js_error name=Error frame=none");
   });
 });
 
-describe("append serialization under concurrent console calls", () => {
-  it("writes every accepted line exactly once, in order", () => {
+describe("install lifecycle", () => {
+  it("uninstall restores the previous handler and the original console methods", () => {
+    const { collector } = loadFresh();
+    const previous = (error: unknown, fatal?: unknown) => ({ error, fatal });
+    let handler: unknown = previous;
+    (globalThis as unknown as { ErrorUtils: unknown }).ErrorUtils = {
+      getGlobalHandler: () => handler,
+      setGlobalHandler: (h: unknown) => {
+        handler = h;
+      },
+    };
+    const uninstall = collector.installLogReportCollector();
+    expect(handler).not.toBe(previous);
+    uninstall();
+    expect(console.log).toBe(savedConsole.log);
+    expect(console.error).toBe(savedConsole.error);
+    expect(handler).toBe(previous);
+  });
+
+  it("a second install after uninstall wraps and captures again", () => {
+    const { collector, logStore } = loadFresh();
+    const first = collector.installLogReportCollector();
+    first();
+    collector.installLogReportCollector();
+    console.log('KALSA_CTX_FLOOR {"nCtx":4096}');
+    expect(storedLines()).toHaveLength(1);
+    expect(logStore.readReportText()).toContain('"nCtx":4096');
+  });
+
+  it("a re-evaluated module does not wrap twice, and its uninstall fully restores", () => {
+    const previous = (error: unknown) => error;
+    let handler: unknown = previous;
+    (globalThis as unknown as { ErrorUtils: unknown }).ErrorUtils = {
+      getGlobalHandler: () => handler,
+      setGlobalHandler: (h: unknown) => {
+        handler = h;
+      },
+    };
+    // Fast Refresh: a fresh module evaluation against the SAME live console.
+    loadFresh().collector.installLogReportCollector();
+    const uninstallSecond = loadFresh().collector.installLogReportCollector();
+    console.log('KALSA_CTX_FLOOR {"nCtx":4096}');
+    expect(storedLines()).toHaveLength(1);
+    uninstallSecond();
+    expect(console.log).toBe(savedConsole.log);
+    expect(console.warn).toBe(savedConsole.warn);
+    expect(handler).toBe(previous);
+  });
+
+  it("a fatal error with no previous handler reaches reportFatalError", () => {
+    const { collector } = loadFresh();
+    const reported: unknown[] = [];
+    let handler!: (error: unknown, fatal?: boolean) => unknown;
+    (globalThis as unknown as { ErrorUtils: unknown }).ErrorUtils = {
+      getGlobalHandler: () => undefined,
+      setGlobalHandler: (h: (error: unknown, fatal?: boolean) => unknown) => {
+        handler = h;
+      },
+      reportFatalError: (error: unknown) => {
+        reported.push(error);
+      },
+    };
+    collector.installLogReportCollector();
+    const error = new Error("fatal one");
+    handler(error, true);
+    expect(reported).toEqual([error]);
+    handler(new Error("soft"), false);
+    expect(reported).toHaveLength(1);
+  });
+
+  it("with a previous handler the fatal fallback does not fire", () => {
+    const { collector } = loadFresh();
+    const reported: unknown[] = [];
+    const seen: unknown[] = [];
+    let handler!: (error: unknown, fatal?: boolean) => unknown;
+    const previous = (error: unknown, fatal?: boolean) => {
+      seen.push([error, fatal]);
+    };
+    (globalThis as unknown as { ErrorUtils: unknown }).ErrorUtils = {
+      getGlobalHandler: () => previous,
+      setGlobalHandler: (h: (error: unknown, fatal?: boolean) => unknown) => {
+        handler = h;
+      },
+      reportFatalError: (error: unknown) => {
+        reported.push(error);
+      },
+    };
+    collector.installLogReportCollector();
+    handler(new Error("fatal two"), true);
+    expect(seen).toHaveLength(1);
+    expect(reported).toEqual([]);
+  });
+});
+
+describe("ordering of sequentially scheduled console calls", () => {
+  it("writes every accepted line in the order the calls were scheduled", () => {
     const { collector } = loadFresh();
     collector.installLogReportCollector();
     const writes: Array<Promise<void>> = [];

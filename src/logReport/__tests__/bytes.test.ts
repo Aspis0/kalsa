@@ -20,6 +20,30 @@ describe("utf8ByteLength", () => {
   it("adds up mixed text", () => {
     expect(utf8ByteLength("aé€日𝄞")).toBe(1 + 2 + 3 + 3 + 4);
   });
+
+  describe("matches TextEncoder", () => {
+    // A lone surrogate encodes as U+FFFD (3 bytes), a pair as 4.
+    const cases = [
+      "ascii only",
+      "é€日𝄞",
+      "\ud800", // lone high surrogate
+      "\udc00", // lone low surrogate
+      "a\ud800b",
+      "\udc00\ud800", // lone low, then lone high
+      "🫡\ud800", // pair, then lone high
+      "\ud800🫡", // lone high, then pair
+      "日\udc00",
+      "mixed 🫡 text \udfff end",
+    ];
+    it.each(cases.map((s) => [s]))("%j", (s) => {
+      expect(utf8ByteLength(s)).toBe(new TextEncoder().encode(s).length);
+    });
+
+    it("counts a lone surrogate as the 3 replacement bytes, not 1 or 4", () => {
+      expect(utf8ByteLength("\ud800")).toBe(3);
+      expect(utf8ByteLength("\udc00")).toBe(3);
+    });
+  });
 });
 
 describe("trimNewestLinesToByteCap", () => {

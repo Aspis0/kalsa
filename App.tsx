@@ -39,8 +39,10 @@ import { LocaleProvider, useLocale } from "./src/i18n";
 import { installLogReportCollector } from "./src/logReport/collector";
 import { setLogModelIds } from "./src/logReport/schema";
 
-// Earliest point of the bundle: the collector observes console calls and the
-// global JS error handler from before any other side effect runs.
+// Earliest point of App.tsx's module body: the imports above — including RN's
+// InitializeCore, which is why a previous global handler exists to chain —
+// have already run. No accepted KALSA_* tag is emitted at module scope today,
+// so nothing between bundle start and this line is missed by the collector.
 installLogReportCollector();
 
 // Emitted in every build, deliberately. This is the provenance of the JS

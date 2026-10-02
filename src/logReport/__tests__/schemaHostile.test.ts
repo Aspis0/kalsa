@@ -131,3 +131,34 @@ describe("counter turnIds only", () => {
     expect(out?.turnId !== undefined).toBe(accepted);
   });
 });
+
+describe("closed numObj keys", () => {
+  it("drops the whole nGpuLayers field on a hostile key", () => {
+    const out = record(
+      "KALSA_NATIVE_VARIANT",
+      '{"androidLib":"rnllama_jni_v8_2","nGpuLayers":{"prefill":99,"decode":999,"constructor":1,"__proto__":2}}',
+    );
+    expect(out).toEqual({ androidLib: "rnllama_jni_v8_2" });
+  });
+
+  it("keeps the closed {prefill, decode} object and the plain number", () => {
+    expect(
+      record("KALSA_NATIVE_VARIANT", '{"nGpuLayers":{"prefill":99,"decode":999}}'),
+    ).toEqual({ nGpuLayers: { prefill: 99, decode: 999 } });
+    expect(record("KALSA_NATIVE_VARIANT", '{"nGpuLayers":33}')).toEqual({ nGpuLayers: 33 });
+  });
+
+  it("drops the whole field on a non-numeric value under a closed key", () => {
+    const out = record(
+      "KALSA_NATIVE_VARIANT",
+      '{"nGpuLayers":{"prefill":"99","decode":1}}',
+    );
+    expect(out).toEqual({});
+  });
+});
+
+describe("prototype-reachable tags fail closed", () => {
+  it.each(["constructor", "toString", "__proto__", "valueOf"])("rejects tag %s", (tag) => {
+    expect(formatRecord(tag, { a: 1 })).toBeNull();
+  });
+});

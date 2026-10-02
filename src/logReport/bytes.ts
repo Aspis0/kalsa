@@ -1,7 +1,8 @@
 /**
  * UTF-8 byte arithmetic for the 4 MiB report cap: byte length of a JS string
  * and a newest-lines trim that always cuts at a line boundary. No TextEncoder
- * — the Hermes runtime must not be assumed to ship one.
+ * — the Hermes runtime must not be assumed to ship one. Lone surrogates count
+ * 3 bytes, what an actual UTF-8 encoder emits for the U+FFFD replacement.
  */
 
 export function utf8ByteLength(text: string): number {
@@ -10,11 +11,16 @@ export function utf8ByteLength(text: string): number {
     const code = text.charCodeAt(i);
     if (code < 0x80) bytes += 1;
     else if (code < 0x800) bytes += 2;
-    else if (code >= 0xd800 && code <= 0xdbff) {
+    else if (
+      code >= 0xd800 &&
+      code <= 0xdbff &&
+      i + 1 < text.length &&
+      text.charCodeAt(i + 1) >= 0xdc00 &&
+      text.charCodeAt(i + 1) <= 0xdfff
+    ) {
       bytes += 4;
       i++; // the low surrogate is consumed with the high one
-    } else if (code >= 0xdc00 && code <= 0xdfff) bytes += 1;
-    else bytes += 3;
+    } else bytes += 3;
   }
   return bytes;
 }

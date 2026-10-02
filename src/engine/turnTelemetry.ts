@@ -39,7 +39,8 @@ export type ToolRetrievalStrategy =
   | "error"
   | null;
 
-const STRATEGY_SET: ReadonlySet<string> = new Set([
+/** Exported for the logReport schema drift test — the one runtime source of the strategy set. */
+export const STRATEGY_SET: ReadonlySet<string> = new Set([
   "hybrid",
   "bm25_only",
   "full_context",

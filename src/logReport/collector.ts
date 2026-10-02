@@ -10,7 +10,39 @@ import { appendLine, readReportText } from "./logStore";
 import { formatRecord } from "./schema";
 import { formatJsErrorLine } from "./jsErrorLine";
 
+type ConsoleMethodName = "log" | "info" | "warn" | "error";
+type ConsoleFn = (...args: unknown[]) => void;
 type ErrorHandler = (error: unknown, isFatal?: boolean) => unknown;
+
+type ErrorUtils = {
+  getGlobalHandler?: () => ErrorHandler | undefined;
+  setGlobalHandler?: (handler: ErrorHandler | undefined) => void;
+  reportFatalError?: (error: unknown) => void;
+};
+
+const CONSOLE_METHODS: readonly ConsoleMethodName[] = ["log", "info", "warn", "error"];
+
+/**
+ * Install state lives on the wrapped functions themselves, never in module
+ * state: Fast Refresh re-evaluates this module while the live console and
+ * ErrorUtils still carry the previous install, and module state resets — so
+ * a module-level flag would let a re-evaluated module wrap twice and capture
+ * every line twice.
+ */
+interface InstallMark {
+  __kalsaLogReportInstall?: { original: unknown };
+}
+
+function markInstall<T>(wrapper: T, original: unknown): T {
+  (wrapper as unknown as InstallMark).__kalsaLogReportInstall = { original };
+  return wrapper;
+}
+
+/** `{original}` when fn is one of our wrappers (original may be undefined), else null. */
+function markedOriginal(fn: unknown): { original: unknown } | null {
+  if (typeof fn !== "function") return null;
+  return (fn as unknown as InstallMark).__kalsaLogReportInstall ?? null;
+}
 
 function captureConsoleLine(args: unknown[]): void {
   const first = args[0];
@@ -38,52 +70,68 @@ function captureConsoleLine(args: unknown[]): void {
   if (line !== null) appendLine(line);
 }
 
-function wrapConsoleMethod(name: "log" | "info" | "warn" | "error"): void {
-  const original = console[name].bind(console);
-  console[name] = (...args: unknown[]) => {
+function wrapConsoleMethod(name: ConsoleMethodName): void {
+  const bound = console[name].bind(console);
+  const wrapped: ConsoleFn = (...args: unknown[]) => {
     try {
       captureConsoleLine(args);
     } catch {
       // capture must never break the caller's console call
     }
-    original(...args);
+    bound(...args);
   };
+  console[name] = markInstall(wrapped, console[name]);
 }
 
-function installJsErrorHandler(): void {
-  const errorUtils = (globalThis as { ErrorUtils?: {
-    getGlobalHandler?: () => ErrorHandler | undefined;
-    setGlobalHandler?: (handler: ErrorHandler) => void;
-  } }).ErrorUtils;
-  if (!errorUtils?.setGlobalHandler) return;
-  const previous = errorUtils.getGlobalHandler?.();
-  errorUtils.setGlobalHandler((error, isFatal) => {
-    try {
-      const line = finalizeLine(formatJsErrorLine(error));
-      if (line !== null) appendLine(line);
-    } catch {
-      // the record must never replace the crash itself
-    }
-    return previous?.(error, isFatal);
-  });
+/** Install our handler unless one of ours is already installed; in both cases
+ *  return the restore that puts back the TRUE previous handler (possibly
+ *  undefined), for the uninstall. */
+function installJsErrorHandler(): (() => void) | null {
+  const errorUtils = (globalThis as { ErrorUtils?: ErrorUtils }).ErrorUtils;
+  if (!errorUtils?.setGlobalHandler) return null;
+  const current = errorUtils.getGlobalHandler?.();
+  const ours = markedOriginal(current);
+  if (ours) {
+    const previous = ours.original as ErrorHandler | undefined;
+    return () => errorUtils.setGlobalHandler?.(previous);
+  }
+  const previous = current;
+  errorUtils.setGlobalHandler(
+    markInstall((error: unknown, isFatal?: boolean) => {
+      try {
+        const line = finalizeLine(formatJsErrorLine(error));
+        if (line !== null) appendLine(line);
+      } catch {
+        // the record must never replace the crash itself
+      }
+      if (previous !== undefined) return previous(error, isFatal);
+      // No previous handler: a fatal error must still reach the native crash
+      // reporter instead of dying silently in our capture.
+      if (isFatal === true) errorUtils.reportFatalError?.(error);
+      return undefined;
+    }, previous),
+  );
+  return () => errorUtils.setGlobalHandler?.(previous);
 }
 
-let installed = false;
-
-/** Install the collector once; returns an uninstall for tests. */
+/** Install the collector; returns an uninstall for tests. A second install —
+ *  same module or a re-evaluated one — wraps nothing new, and its uninstall
+ *  still restores the very first originals. */
 export function installLogReportCollector(): () => void {
-  if (installed) return () => undefined;
-  installed = true;
-  const originals = (["log", "info", "warn", "error"] as const).map((name) => ({
-    name,
-    original: console[name],
-  }));
-  for (const name of ["log", "info", "warn", "error"] as const) wrapConsoleMethod(name);
-  installJsErrorHandler();
+  const restoreConsole: Array<() => void> = [];
+  for (const name of CONSOLE_METHODS) {
+    const current: unknown = console[name];
+    const ours = markedOriginal(current);
+    const original = (ours ? ours.original : current) as ConsoleFn;
+    restoreConsole.push(() => {
+      console[name] = original;
+    });
+    if (!ours) wrapConsoleMethod(name);
+  }
+  const restoreHandler = installJsErrorHandler();
   return () => {
-    if (!installed) return;
-    installed = false;
-    for (const { name, original } of originals) console[name] = original;
+    for (const restore of restoreConsole) restore();
+    restoreHandler?.();
   };
 }
 

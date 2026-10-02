@@ -37,6 +37,9 @@ function projectValue(rule: FieldRule, value: unknown): unknown {
       if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
       const out: Record<string, number> = {};
       for (const [key, item] of Object.entries(value)) {
+        // An unknown key — including prototype-shaped ones like "constructor" —
+        // drops the whole field: the key set is closed, not filtered.
+        if (!rule.keys.includes(key)) return undefined;
         if (typeof item !== "number" || !Number.isFinite(item)) return undefined;
         out[key] = item;
       }
@@ -51,7 +54,11 @@ function projectValue(rule: FieldRule, value: unknown): unknown {
  * absent or of the wrong kind is dropped, never the whole line.
  */
 export function formatRecord(tag: string, payload: unknown): string | null {
-  const schema = TAG_SCHEMAS[tag];
+  // Own-property check: an index access like TAG_SCHEMAS["constructor"] would
+  // otherwise reach Object.prototype and project a line for a hostile tag.
+  const schema = Object.prototype.hasOwnProperty.call(TAG_SCHEMAS, tag)
+    ? TAG_SCHEMAS[tag]
+    : undefined;
   if (!schema) return null;
   if (payload === null || typeof payload !== "object" || Array.isArray(payload)) return null;
   const input = payload as Record<string, unknown>;

@@ -18,8 +18,9 @@ export type FieldRule =
   | { k: "counter" }
   /** A catalog model id; the accepted set is installed at startup. */
   | { k: "modelId" }
-  /** A finite number, or a depth-1 object of them (e.g. {prefill, decode}). */
-  | { k: "numObj" };
+  /** A finite number, or a depth-1 object of them under exactly these keys —
+   *  any other key drops the whole field. */
+  | { k: "numObj"; keys: readonly string[] };
 
 type TagSchema = Record<string, FieldRule>;
 
@@ -155,7 +156,7 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
       "rnllama_jni_x86_64",
       "rnllama_jni",
     ),
-    nGpuLayers: { k: "numObj" }, // number, or {prefill, decode} (LlamaService.ts:2669-2673)
+    nGpuLayers: { k: "numObj", keys: ["prefill", "decode"] }, // number, or {prefill, decode} (LlamaService.ts:2669-2673)
   },
   // logPrewarm sites LlamaService.ts:855-1574, :4633 and useHostEngine.ts:142.
   // DROPPED fields: hash / prewarm / send (prefix hashes, LlamaService.ts:1091,

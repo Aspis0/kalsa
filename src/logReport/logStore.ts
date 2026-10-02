@@ -12,6 +12,8 @@ import { trimNewestLinesToByteCap } from "./bytes";
 export const MAX_REPORT_BYTES = 4 * 1024 * 1024;
 const ROTATE_KEEP_BYTES = MAX_REPORT_BYTES / 2;
 const RING_MAX_LINES = 400;
+const LOG_NAME = "kalsa-report.log";
+const TEMP_NAME = "kalsa-report.tmp";
 
 const ring: string[] = [];
 let fileForTests: ((uri: string) => File) | null = null;
@@ -21,25 +23,29 @@ export function setFileFactoryForTests(factory: ((uri: string) => File) | null):
   fileForTests = factory;
 }
 
-function openLogFile(): File {
+function openLogFile(name: string): File {
   const file = fileForTests
-    ? fileForTests("file:///docs/kalsa-report.log")
-    : new File(Paths.document, "kalsa-report.log");
+    ? fileForTests(`file:///docs/${name}`)
+    : new File(Paths.document, name);
   if (!file.exists) file.create();
   return file;
 }
 
 function rotate(file: File): void {
   const kept = trimNewestLinesToByteCap(file.textSync(), ROTATE_KEEP_BYTES);
-  file.delete();
-  openLogFile().write(kept);
+  // Write-then-replace: a failed rotate write must never have deleted the log
+  // first. moveSync over the live file is the only destructive step, and it
+  // runs only once the kept text is already on disk.
+  const temp = openLogFile(TEMP_NAME);
+  temp.write(kept);
+  temp.moveSync(file, { overwrite: true });
 }
 
 export function appendLine(line: string): void {
   ring.push(line);
   if (ring.length > RING_MAX_LINES) ring.shift();
   try {
-    const file = openLogFile();
+    const file = openLogFile(LOG_NAME);
     file.write(`${line}\n`, { append: true });
     if (file.size > MAX_REPORT_BYTES) rotate(file);
   } catch {
@@ -54,8 +60,8 @@ export function appendLine(line: string): void {
 export function readReportText(): string {
   try {
     const file = fileForTests
-      ? fileForTests("file:///docs/kalsa-report.log")
-      : new File(Paths.document, "kalsa-report.log");
+      ? fileForTests(`file:///docs/${LOG_NAME}`)
+      : new File(Paths.document, LOG_NAME);
     if (file.exists) return trimNewestLinesToByteCap(file.textSync(), MAX_REPORT_BYTES);
   } catch {
     // fall through to the ring
