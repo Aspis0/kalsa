@@ -11,47 +11,54 @@ private let thermalStateDidChange = "thermalStateDidChange"
 
 /** Bridges ProcessInfo thermalState and observes Apple's thermal notification. */
 public class KalsaThermalModule: Module {
+  // ExpoModulesCore's Module (= AnyModule & BaseModule) does not inherit
+  // NSObject, so @objc members and #selector(self...) observers cannot compile
+  // on it — use the block-based NotificationCenter API and keep the returned
+  // token for removal on stop/destroy.
+  private var observerToken: NSObjectProtocol?
+
   public func definition() -> ModuleDefinition {
     Name("KalsaThermal")
     Events(thermalStateDidChange)
 
     AsyncFunction("getCurrentThermalStateAsync") { () -> [String: Any] in
-      currentSnapshot()
+      self.currentSnapshot()
     }
 
     // Read first, then register. The initial value cannot be lost between the
     // query and subscription, and the explicit event below covers startup UI.
     OnStartObserving {
-      let initial = currentSnapshot()
-      NotificationCenter.default.addObserver(
-        self,
-        selector: #selector(self.thermalStateDidChange),
-        name: ProcessInfo.thermalStateDidChangeNotification,
-        object: nil
-      )
-      self.sendEvent(thermalStateDidChange, initial)
+      self.startObservingThermalState()
+      self.sendEvent(thermalStateDidChange, self.currentSnapshot())
     }
 
     OnStopObserving {
-      NotificationCenter.default.removeObserver(
-        self,
-        name: ProcessInfo.thermalStateDidChangeNotification,
-        object: nil
-      )
+      self.stopObservingThermalState()
     }
 
     OnDestroy {
-      NotificationCenter.default.removeObserver(
-        self,
-        name: ProcessInfo.thermalStateDidChangeNotification,
-        object: nil
-      )
+      self.stopObservingThermalState()
     }
   }
 
-  @objc
-  private func thermalStateDidChange() {
-    sendEvent(thermalStateDidChange, currentSnapshot())
+  private func startObservingThermalState() {
+    guard observerToken == nil else { return }
+    // .main: thermalStateDidChangeNotification posts on the main thread, and
+    // sendEvent must not race the JS event emitter off it.
+    observerToken = NotificationCenter.default.addObserver(
+      forName: ProcessInfo.thermalStateDidChangeNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      guard let self else { return }
+      self.sendEvent(thermalStateDidChange, self.currentSnapshot())
+    }
+  }
+
+  private func stopObservingThermalState() {
+    guard let token = observerToken else { return }
+    observerToken = nil
+    NotificationCenter.default.removeObserver(token)
   }
 
   private func currentSnapshot() -> [String: Any] {

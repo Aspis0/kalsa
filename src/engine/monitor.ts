@@ -3,7 +3,9 @@
  *
  * Decision paths (load / regen / edit) must re-read MemAvailable uncached
  * immediately before acting. getAvailableMemoryBytes() in memoryEstimate.ts
- * is process-lifetime cached and must NOT be used for live decisions.
+ * is process-lifetime cached on Android and must NOT be used for live decisions;
+ * its iOS read is uncached now, but decision paths use the reader here so
+ * both platforms share one guaranteed-fresh path.
  *
  * Pure at module scope (no static RN/expo imports) so node harnesses stay clean.
  */
@@ -51,6 +53,8 @@ async function readProcText(
  * Read MemAvailable from /proc/meminfo (Android), or on iOS the per-app
  * jetsam headroom (kalsa-lifecycle module), with NO process cache.
  * Never throws. Returns null off-Android/iOS / on read failure.
+ * 0 is a real reading on iOS (os_proc_available_memory returns 0 when the app
+ * is at/over its limit) — callers must treat it as zero headroom, not unknown.
  */
 export async function getAvailableMemoryBytesUncached(): Promise<number | null> {
   try {

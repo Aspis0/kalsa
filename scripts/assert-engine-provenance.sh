@@ -27,6 +27,13 @@ if command -v sha256sum >/dev/null 2>&1; then HASH=(sha256sum); else HASH=(shasu
 
 # Build output written inside the installed copy. Anything else that is
 # there and not in the fork is a divergence, and must be reported.
+# KNOWN, accepted iOS divergence: on a machine that ran `pod install`,
+# plugins/withLlamaIosSourceBuild.js generates the gitignored
+# vendor/llama.cpp/ggml/src/ggml-metal/ggml-metal-embed-*.s INSIDE the
+# installed tree (link-time requirements the fork builds only in its own
+# bootstrap.sh). The manifest does not exclude them, so this gate reports
+# DIVERGENT on exactly those paths there — expected, not tampering. Prove
+# the pin itself in a fresh `npm ci` tree, where no generator has run.
 manifest() {
   local root="$1" out="$2" count
   count="$(cd "$root" && find . -type f \

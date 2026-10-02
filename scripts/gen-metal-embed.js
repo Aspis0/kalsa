@@ -9,7 +9,11 @@
  * The .s files are gitignored upstream, so a git install of the binding never
  * has them. The binding regenerates them in scripts/bootstrap.sh (its own
  * checkout); an npm git dependency ships no scripts/, so the app must
- * generate them itself — this script, wired as package.json postinstall.
+ * generate them itself — this script, invoked from the generated ios/Podfile
+ * by plugins/withLlamaIosSourceBuild.js. It deliberately runs ONLY on the iOS
+ * path: a root package.json postinstall would also run on Android CI and
+ * write these .s files into the installed binding, where
+ * scripts/assert-engine-provenance.sh counts every extra file as divergence.
  *
  * Flattening semantics follow the vendored engine's own build definition
  * (ggml/src/ggml-metal/CMakeLists.txt), NOT bootstrap.sh: the per-kernel

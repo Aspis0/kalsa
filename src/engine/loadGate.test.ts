@@ -52,6 +52,17 @@ describe("gateModelLoad", () => {
     expect(input.disposeResident).not.toHaveBeenCalled();
   });
 
+  test("0 available (iOS at/over the jetsam limit) refuses the load, not unknown", async () => {
+    // os_proc_available_memory returns 0 when the app is at/over its limit:
+    // the gate must read that as zero headroom (ios/first-build audit P1).
+    const input = baseInput(BIG);
+    input.getAvailableBytes = jest.fn(async () => 0);
+    const verdict = await gateModelLoad(input);
+    expect(verdict.allow).toBe(false);
+    expect(verdict.reasonKey).toBe("model.tooLarge");
+    expect(verdict.refusedBy).toBe("fit");
+  });
+
   test("resident big + selected small → dispose first, then fit, then allow", async () => {
     const calls: string[] = [];
     const input = baseInput(SMALL);

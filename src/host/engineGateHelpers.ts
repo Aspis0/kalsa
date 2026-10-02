@@ -164,7 +164,9 @@ export async function profileWithFreshMemory(
 ): Promise<DeviceProfile> {
   try {
     const availableMemoryBytes = await getAvailableMemoryBytesUncached();
-    if (typeof availableMemoryBytes === "number" && availableMemoryBytes > 0) {
+    // 0 is a real reading on iOS (at/over the jetsam limit): it must REPLACE
+    // the cached sample, not be swallowed by a stale positive estimate.
+    if (typeof availableMemoryBytes === "number" && availableMemoryBytes >= 0) {
       return { ...profile, availableMemoryBytes };
     }
   } catch {

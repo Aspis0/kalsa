@@ -186,8 +186,13 @@ export function estimateMemory(input: {
  *                 live (LMK protects the active activity) but background kill is
  *                 likely; also used when total resident exceeds available while
  *                 non-evictable still fits (weight pages thrash under pressure)
- * - fits:         nonEvictable + headroom ≤ available and total ≤ available
- * - unknown:      availableMiB is null / non-finite / ≤0 (caller keeps today's UI)
+ * - fits:         non-evictable + headroom ≤ available and total ≤ available
+ * - unknown:      availableMiB is null / non-finite / negative (caller keeps
+ *                 today's UI)
+ *
+ * A budget of 0 is a REAL reading, not unknown: Apple's os_proc_available_memory
+ * returns 0 when the app is at/over its limit, so 0 must reach the verdicts
+ * (any positive non-evictable → does_not_fit), never collapse into "unknown".
  */
 export function fitMemoryEstimate(
   estimate: MemoryEstimate,
@@ -196,7 +201,7 @@ export function fitMemoryEstimate(
   const avail =
     typeof availableMiB === "number" &&
     Number.isFinite(availableMiB) &&
-    availableMiB > 0
+    availableMiB >= 0
       ? availableMiB
       : null;
 
@@ -282,8 +287,14 @@ async function readProcText(
 /**
  * Read MemAvailable from /proc/meminfo (Android), or on iOS the per-app jetsam
  * headroom from the kalsa-lifecycle module (os_proc_available_memory — the
- * closest iOS analog of MemAvailable; no /proc there). Cached for process
- * lifetime.
+ * closest iOS analog of MemAvailable; no /proc there).
+ *
+ * The ANDROID read is cached for process lifetime (/proc/meminfo is
+ * device-wide; callers needing fresh values use monitor.ts). The iOS read is
+ * NEVER cached: Apple documents os_proc_available_memory as a rapidly
+ * changing per-process budget and says not to cache it. On iOS, 0 is a real
+ * reading (the app is at/over its limit) and is distinct from null — null
+ * means the platform read does not exist (module not linked).
  *
  * Never throws. Returns null when no platform read exists (other platforms,
  * module not linked) or the value cannot be parsed — caller must fall back to
@@ -291,7 +302,6 @@ async function readProcText(
  * import-clean.
  */
 export async function getAvailableMemoryBytes(): Promise<number | null> {
-  if (cachedAvailableBytes !== undefined) return cachedAvailableBytes;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Platform } = require("react-native") as { Platform: { OS: string } };
@@ -300,9 +310,11 @@ export async function getAvailableMemoryBytes(): Promise<number | null> {
       const { getOsAvailableMemoryBytes } = require("../../modules/kalsa-lifecycle/src") as {
         getOsAvailableMemoryBytes: () => Promise<number | null>;
       };
-      cachedAvailableBytes = await getOsAvailableMemoryBytes();
-      return cachedAvailableBytes;
+      // Uncached by design (see above) — must not fold into cachedAvailableBytes.
+      return await getOsAvailableMemoryBytes();
     }
+    // Android /proc read: process-lifetime cache stays (see doc above).
+    if (cachedAvailableBytes !== undefined) return cachedAvailableBytes;
     if (Platform.OS !== "android") {
       cachedAvailableBytes = null;
       return null;

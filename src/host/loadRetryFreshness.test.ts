@@ -28,6 +28,14 @@ describe("the retry re-runs the verdict against a fresh MemAvailable", () => {
     // comes from the FIRST gate, which was the stale one.
     expect(LOAD).toContain("getAvailableMemoryBytesUncached()");
   });
+
+  test("a fresh 0 replaces the cached sample instead of being swallowed by it", () => {
+    // os_proc_available_memory returns 0 at/over the jetsam limit: keeping a
+    // stale positive estimate there would price a load against headroom the
+    // process no longer has (ios/first-build audit, P1).
+    expect(HELPERS).toContain("availableMemoryBytes >= 0");
+    expect(HELPERS).not.toContain("&& availableMemoryBytes > 0");
+  });
 });
 
 describe("the stale sample's home, named — the engine change this slice did not make", () => {

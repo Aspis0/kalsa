@@ -98,9 +98,10 @@ export function cancelNativeBackgroundTimer(handle: NativeTimerHandle): void {
   }
 }
 
-/** Subscribe to Android ComponentCallbacks2 trim-memory events. On iOS the
- *  same event arrives with level 15 on a UIKit memory warning (see the Swift
- *  module header). */
+/** Subscribe to Android ComponentCallbacks2 trim-memory events. Android-only
+ *  by definition: the Apple lifecycle module deliberately does not re-emit
+ *  UIKit's memory warning on this event (its coarse warning is not on the
+ *  Android trim-level scale, and nothing consumed the mapping). */
 export function addTrimMemoryListener(
   listener: (level: number) => void,
 ): EventSubscription | null {
@@ -118,8 +119,11 @@ export function addTrimMemoryListener(
 
 /**
  * Apple side: os_proc_available_memory() — the per-app jetsam headroom in
- * bytes, the closest iOS analog of Android's MemAvailable. Never throws;
- * null when the Apple module is not linked or the read is malformed.
+ * bytes, the closest iOS analog of Android's MemAvailable. 0 is a REAL
+ * reading (Apple: the app is at/over its memory limit) and must reach callers
+ * as 0, never as null; null means the module is not linked or the read is
+ * malformed. Never throws. Never cached — Apple documents the value as a
+ * fast-changing snapshot and says not to cache it.
  */
 export async function getOsAvailableMemoryBytes(): Promise<number | null> {
   const module = getNativeModule();

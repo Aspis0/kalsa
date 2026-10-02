@@ -182,11 +182,14 @@ export function modelGateVerdict(
     return verdict(false, "blocked_tier");
   }
 
+  // availableMemoryBytes === 0 is a real reading on iOS (os_proc_available_memory
+  // returns 0 when the app is at/over its limit), not an unknown: it must reach
+  // the comparison so any positive non-evictable charge blocks the load.
   if (
     checkVolatileMemory &&
     typeof availableMemoryBytes === "number" &&
     Number.isFinite(availableMemoryBytes) &&
-    availableMemoryBytes > 0 &&
+    availableMemoryBytes >= 0 &&
     typeof modelNonEvictableMiB === "number" &&
     Number.isFinite(modelNonEvictableMiB) &&
     modelNonEvictableMiB > 0
@@ -209,10 +212,13 @@ export function modelGateVerdict(
   }
 
   // Memory probes unknown → allowed but flagged (caller may still soft-warn).
+  // availableMemoryBytes 0 counts as KNOWN (iOS at/over its jetsam limit): the
+  // verdict above already refused when a positive charge cannot fit, so this
+  // must not reclassify the same zero into "unknown".
   const memoryKnown =
     (typeof availableMemoryBytes === "number" &&
       Number.isFinite(availableMemoryBytes) &&
-      availableMemoryBytes > 0) ||
+      availableMemoryBytes >= 0) ||
     (typeof input.totalMemoryBytes === "number" &&
       Number.isFinite(input.totalMemoryBytes) &&
       input.totalMemoryBytes > 0);
@@ -373,10 +379,12 @@ export function evaluateModelFit(
     repack: options.repack !== false,
     mmap: options.mmap !== false,
   });
+  // 0 MiB available is a real iOS reading (at/over the limit) — it must reach
+  // fitMemoryEstimate as 0, not degrade into the "unknown" fail-open.
   const availableMiB =
     typeof availableBytes === "number" &&
     Number.isFinite(availableBytes) &&
-    availableBytes > 0
+    availableBytes >= 0
       ? availableBytes / (1024 * 1024)
       : null;
   const fit = fitMemoryEstimate(estimate, availableMiB);
@@ -664,12 +672,18 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
   ]);
   const { socModel, socManufacturer } = await readSocProperties();
 
+  // ONE reported RAM value for both the profile field and the tier: when the
+  // Expo read is null and the Apple fallback supplies the bytes, the tier must
+  // classify the value the profile actually reports, or the same device is
+  // described as 12 GiB and gated as "low".
+  const reportedTotalMemoryBytes = totalMemoryBytes ?? appleClass?.ramBytes ?? null;
+
   return {
     brand,
     manufacturer,
     modelName,
     modelId,
-    totalMemoryBytes: totalMemoryBytes ?? appleClass?.ramBytes ?? null,
+    totalMemoryBytes: reportedTotalMemoryBytes,
     availableMemoryBytes,
     socModel: socModel ?? appleClass?.chipClass ?? null,
     socManufacturer: socManufacturer ?? (appleClass ? "Apple" : null),
@@ -677,7 +691,7 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     osVersion,
     cpuCoreCount,
     cpuCapacities,
-    ramTier: getRamTier(totalMemoryBytes),
+    ramTier: getRamTier(reportedTotalMemoryBytes),
     family,
     isMiuiFamily,
     isFoldableCandidate,

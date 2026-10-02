@@ -1,6 +1,7 @@
 import { appleDeviceClassForModelId } from "./appleDeviceClass";
 
 const EIGHT_GIB = 8_589_934_592;
+const TWELVE_GIB = 12_884_901_888;
 
 describe("appleDeviceClassForModelId", () => {
   it("resolves the enumerated Apple Intelligence iPhones and iPads", () => {
@@ -13,15 +14,35 @@ describe("appleDeviceClassForModelId", () => {
     expect(appleDeviceClassForModelId("iPad16,6")?.chipClass).toBe("M4");
   });
 
-  it("covers the whole iPhone18,x generation by prefix", () => {
+  it("maps the iPhone 17 family by exact identifier (12 GiB Pro/Air, 8 GiB base/17e)", () => {
+    // Sources in appleDeviceClass.ts header: Xcode 26 via MacRumors (RAM),
+    // Apple tech specs (chips), adamawolf gist (identifiers).
     expect(appleDeviceClassForModelId("iPhone18,1")).toEqual({
+      chipClass: "A19 Pro",
+      ramBytes: TWELVE_GIB,
+    });
+    expect(appleDeviceClassForModelId("iPhone18,2")).toEqual({
+      chipClass: "A19 Pro",
+      ramBytes: TWELVE_GIB,
+    });
+    expect(appleDeviceClassForModelId("iPhone18,3")).toEqual({
       chipClass: "A19",
       ramBytes: EIGHT_GIB,
     });
-    expect(appleDeviceClassForModelId("iPhone18,9")).toEqual({
+    expect(appleDeviceClassForModelId("iPhone18,4")).toEqual({
+      chipClass: "A19 Pro",
+      ramBytes: TWELVE_GIB,
+    });
+    expect(appleDeviceClassForModelId("iPhone18,5")).toEqual({
       chipClass: "A19",
       ramBytes: EIGHT_GIB,
     });
+  });
+
+  it("returns null for unmapped identifiers inside a mapped generation (no prefix guessing)", () => {
+    expect(appleDeviceClassForModelId("iPhone18,9")).toBeNull();
+    expect(appleDeviceClassForModelId("iPhone18,6")).toBeNull();
+    expect(appleDeviceClassForModelId("iPhone19,1")).toBeNull();
   });
 
   it("treats any Mac identifier as the Apple Silicon iPad-build host", () => {
