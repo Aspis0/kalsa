@@ -1088,6 +1088,17 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   Accepted residual (owner may override): RN follows redirects natively, so a 307/308 FROM kalsa.io would resend the
   body before JS sees it - only our own Worker over HTTPS can emit one. Tests can never reach the network (fetch spy
   rejects by default). Next: step 3 (unclean-exit prompt).
+  **Mixed K/V decode on Snapdragon CPU, QDC 2026-10-02** (owner "puoi provarlo su qdc"; agent 792d456b, report
+  `scratchpad/agents/qdc-kv-mixed-decode/`, lab ec943f0b; numbers re-read by me from raw/*.json): QRD8650 (8 Gen 3; both
+  8 Gen 2 boards Unavailable), LFM2.5-2.6B Q4_0, static llama-bench f86fcfab4 (-march armv8.2-a+dotprod+i8mm, engine
+  code = pin 5b596ce43), taskset f0 -t 4, FA on, tg128. **No mixed-type penalty on CPU**: depth 2048 A q8_0/q4_0 23.15,
+  B q8_0/q8_0 22.98, C f16/f16 21.29, D q4_0/q4_0 22.45 tok/s (mean of 2 interleaved rounds); depth 0 within noise
+  (cold first reps). So the Metal cliff (-70%, iOS) does NOT apply to Android CPU decode: keep the Android default
+  q8_0/q4_0 (iOS moved to q8_0/q8_0 in `resolveKvCacheProfile`, 818369e6). Open: depth 8192 (A 14.04 one hot sample,
+  B lost at session end) - the app's real depth is ~15.7k; a cold A/B pair there is the only remaining question. Note:
+  quantized V needs FA on this engine (`-fa 0` with V q4_0/q8_0 refuses). Engine main CI fixes on the way:
+  android-bench builds static for the app arch (e86ece391, 7d9db53b3 env-var input after the security review,
+  f86fcfab4), libllama links libandroid on Android (1092e33a9; the binding already did). 40 QDC min billed.
   **Step 3 of 3 PUSHED on app main `37624f8e` (2026-10-02) - phone log feature COMPLETE:** `kalsa-lifecycle`
   `lastExitInfo()` (Android ApplicationExitInfo, newest record: closed reason literal + importance + timestamp only;
   never description/trace/processName/pid, source-guarded) -> `uncleanExit.ts` asks once per record iff crash /
