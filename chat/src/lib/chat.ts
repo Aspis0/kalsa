@@ -109,6 +109,37 @@ export interface ToolOutcome {
 /** No new words for this long means the server is gone, not slow. */
 export const IDLE_TIMEOUT_MS = 60_000;
 
+/** The engine prefills a prompt in batches of this many tokens (`BATCH` in
+    kalsa-launch) and reports progress after each, so the silence between two
+    reports is a batch's prefill. */
+export const PREFILL_BATCH_TOKENS = 2048;
+
+/** The slowest prompt rate worth waiting for, in tokens a second: below it a
+    long prompt is a wait nobody keeps, so the gap it would need is no gap
+    this client allows. */
+const PREFILL_MIN_RATE = 7;
+
+/** The longest silence a prefill report may be followed by. */
+export const PREFILL_IDLE_MAX_MS = 300_000;
+
+/**
+ * How long the next prefill report may take, from the one just received
+ * (`prompt_progress`: `total` tokens in the prompt, `processed` so far). The
+ * allowance is the next batch at the slowest rate worth waiting for, kept
+ * between the ordinary idle bound and `PREFILL_IDLE_MAX_MS`: a quick prefill
+ * keeps the one-minute rule, a slow machine reading a long prompt gets the
+ * minutes its batch needs, and only while the engine is reporting. A report
+ * that cannot be read is no more than ordinary liveness.
+ */
+export function prefillAllowance(progress: unknown): number {
+  if (typeof progress !== "object" || progress === null) return IDLE_TIMEOUT_MS;
+  const { total, processed } = progress as { total?: unknown; processed?: unknown };
+  if (typeof total !== "number" || typeof processed !== "number") return IDLE_TIMEOUT_MS;
+  const next = Math.min(Math.max(total - processed, 0), PREFILL_BATCH_TOKENS);
+  const needed = (next / PREFILL_MIN_RATE) * 1000;
+  return Math.min(PREFILL_IDLE_MAX_MS, Math.max(IDLE_TIMEOUT_MS, needed));
+}
+
 /**
  * The server root behind any endpoint shape: full chat URLs and /v1 bases
  * collapse back to the host root, where companion routes (like /props)
@@ -349,6 +380,21 @@ export function completionBody(
   // is never offered the control (see `thinking.ts`), so this cannot be a field
   // the model ignores.
   const kwargs = thinking === false ? { chat_template_kwargs: { enable_thinking: false } } : {};
-  if (tools.length === 0) return { ...sampling, model, messages, stream: true, ...kwargs };
-  return { ...sampling, model, messages, stream: true, tools, tool_choice: toolChoice, ...kwargs };
+  // `return_progress` makes the engine report the prompt's prefill as it goes
+  // (chunks with an empty delta and a `prompt_progress` object), so a long
+  // prompt on a slow machine is a stream that is alive, not a silence.
+  const progress = { return_progress: true };
+  if (tools.length === 0) {
+    return { ...sampling, model, messages, stream: true, ...progress, ...kwargs };
+  }
+  return {
+    ...sampling,
+    model,
+    messages,
+    stream: true,
+    ...progress,
+    tools,
+    tool_choice: toolChoice,
+    ...kwargs,
+  };
 }

@@ -3,6 +3,7 @@ import {
   IDLE_TIMEOUT_MS,
   completionBody,
   completionsUrl,
+  prefillAllowance,
 } from "./chat";
 import type { StreamOptions, WireMessage } from "./chat";
 import { accumulate } from "./toolCalls";
@@ -122,10 +123,18 @@ export async function runRound(
     timedOut = true;
     linked.abort();
   };
-  let idle: number | undefined = window.setTimeout(fireIdle, IDLE_TIMEOUT_MS);
+  // The silence allowed after the last sign of life: the ordinary bound, or —
+  // while the engine reports its prefill and no word has come — what the next
+  // batch needs (`prefillAllowance`).
+  let allowance = IDLE_TIMEOUT_MS;
+  let idle: number | undefined = window.setTimeout(fireIdle, allowance);
   const poke = () => {
     window.clearTimeout(idle);
-    idle = window.setTimeout(fireIdle, IDLE_TIMEOUT_MS);
+    idle = window.setTimeout(fireIdle, allowance);
+  };
+  const alive = () => {
+    allowance = IDLE_TIMEOUT_MS;
+    poke();
   };
   const forwardAbort = () => linked.abort();
   if (signal.aborted) linked.abort();
@@ -244,7 +253,13 @@ export async function runRound(
     // reason at once; each goes to its own channel.
     let choice: { delta?: unknown; finish_reason?: unknown };
     try {
-      const data = JSON.parse(payload) as { choices?: unknown };
+      const data = JSON.parse(payload) as { choices?: unknown; prompt_progress?: unknown };
+      // A prefill report is a sign of life and nothing else: its delta is
+      // role-only, so it can never become text below.
+      if (data.prompt_progress !== undefined && data.prompt_progress !== null) {
+        allowance = prefillAllowance(data.prompt_progress);
+        poke();
+      }
       if (!Array.isArray(data.choices)) return;
       choice = (data.choices[0] ?? {}) as { delta?: unknown; finish_reason?: unknown };
     } catch {
@@ -254,7 +269,7 @@ export async function runRound(
       const thought = pickReasoning(choice.delta as Record<string, unknown>);
       if (thought) {
         gotReasoning = true;
-        poke();
+        alive();
         onReasoning(thought);
       }
       const content = (choice.delta as { content?: unknown }).content;
@@ -262,7 +277,7 @@ export async function runRound(
         // Text arrived, so this is not an empty stream — even when all of it
         // turns out to be markup and nothing is shown.
         gotToken = true;
-        poke();
+        alive();
         const visible = markup === null ? content : markup.push(content);
         if (visible) onToken(visible);
       }
@@ -272,7 +287,7 @@ export async function runRound(
       // reaches the wire or the transcript from here.
       if (tools.length > 0 && calls !== toolCalls) {
         toolCalls = calls;
-        poke();
+        alive();
       }
     }
     if (typeof choice.finish_reason === "string") finishReason = choice.finish_reason;
@@ -292,6 +307,9 @@ export async function runRound(
         return round();
       }
     }
+    // An idle abort that ends the stream cleanly instead of failing the read
+    // is still the idle abort, not an empty answer.
+    if (timedOut) throw new ChatRequestError("timeout", "Idle too long", undefined, url);
     // The final frame may arrive without a trailing newline: drain it.
     buffer += decoder.decode();
     if (buffer.trim()) handleLine(buffer);
