@@ -242,6 +242,48 @@ fn the_bound_skips_a_hopeless_shapes_drafted_sweep_and_the_record_stays_whole() 
     }
 }
 
+/// Inside the tie band prefill alone prunes nothing: a reply costs at
+/// least its shape's prefill, so the bound runs to the best reply pushed
+/// out to the band's edge — and a shape that stays inside wins on decode.
+/// The card reads at 1000 and decodes at 100 (3.15 s); the processor
+/// reads at 359.375 — a 3.2 s history, inside 3.15 × 1.05 — and its
+/// drafted reply decodes at 2000 (3.3 s), the fastest decode in the band.
+#[test]
+fn a_shape_whose_prefill_sits_inside_the_band_is_swept_and_wins_on_decode() {
+    let shapes = vec![on(gpu()), on(cpu(16))];
+    let decodes = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        Duration::from_secs(3600),
+        || Duration::ZERO,
+        &mut |_, _| {},
+        |shape, _| {
+            if shape.backend == ServerBackend::Vulkan {
+                first(1000.0, 100.0)
+            } else {
+                first(359.375, 50.0)
+            }
+        },
+        |trial, _| {
+            decodes.borrow_mut().push((trial.backend, trial.draft));
+            Ok(vec![if trial.backend == ServerBackend::Cpu {
+                2000.0
+            } else {
+                100.0
+            }])
+        },
+    );
+    assert!(
+        decodes.borrow().contains(&(ServerBackend::Cpu, Some(2))),
+        "the in-band shape's sweep must run: {:?}",
+        decodes.borrow()
+    );
+    let win = tuned.winner.expect("both shapes replied");
+    assert_eq!(win.candidate, drafted(cpu(16), 2), "{win:?}");
+    assert_eq!(win.reply.decode_rate, 2000.0, "the band's fastest decoder");
+}
+
 /// The card decodes 10 tok/s but reads at 60, a 39.2 s mean wait; the
 /// processor decodes 8.0 and reads at 300, a 28.8 s one. The tune keeps the
 /// shorter wait, not the faster decoder.

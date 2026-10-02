@@ -1,7 +1,7 @@
 //! The tune's two passes under one budget: every shape's first lifetime —
 //! the room ask and the shape's own off-decode in one server — then the
-//! drafted sweep, off the shape's own numbers, so a shape whose prefill
-//! alone already costs more than the best complete reply costs one
+//! drafted sweep, off the shape's own numbers, so a shape that cannot
+//! reach the best complete reply even inside the tie band costs one
 //! lifetime instead of four.
 
 use std::path::PathBuf;
@@ -10,7 +10,7 @@ use std::time::Duration;
 use crate::candidates::Candidate;
 use crate::record::Kept;
 use crate::refusal::Refusal;
-use crate::score::{best_rate, prefill_seconds, reply_winner, Reply, Winner};
+use crate::score::{best_rate, prefill_seconds, reply_winner, Reply, Winner, TIE_BAND};
 
 /// The drafted settings a shape is swept at when the plan ships a drafter;
 /// the off setting is not among them — it rides the shape's first lifetime
@@ -136,10 +136,11 @@ where
         }
     }
 
-    // Pass two: each shape's drafted sweep, in the same order. A shape
-    // whose prefill alone already costs at least the best complete reply —
-    // every shape's off reply is already in it — cannot beat it, so its
-    // drafted lifetimes are skipped: not a hole, its own off entry stands.
+    // Pass two: each shape's drafted sweep, in the same order. A reply
+    // costs at least its shape's prefill, so a shape whose prefill lands
+    // beyond the best reply outside [`TIE_BAND`] can no longer enter the
+    // band and its drafted lifetimes are skipped — not a hole, its own off
+    // entry stands. Inside the band it still competes, and on decode.
     'sweep: for (index, (shape, exe)) in shapes.iter().enumerate() {
         if !ran[index] {
             break; // the budget cut pass one: the shapes behind it never ran
@@ -147,7 +148,7 @@ where
         let Some(shape_prompt) = prompt[index] else {
             continue; // the first lifetime refused: its entry is that refusal
         };
-        if best.is_some_and(|best| prefill_seconds(shape_prompt) >= best) {
+        if best.is_some_and(|best| prefill_seconds(shape_prompt) > best * (1.0 + TIE_BAND)) {
             // The bound skipped lifetimes that will never run: the plan
             // lowers with them.
             planned = lower(planned, settings.len(), done);
