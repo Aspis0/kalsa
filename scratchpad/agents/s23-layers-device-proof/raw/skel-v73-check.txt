@@ -1,0 +1,2 @@
+7c693a438dbb32d6c788aa3a6580dbff09bf7abba05027e54d854e7d9709adfa  libggml-htp-v73.so
+libggml-htp-v73.so=7c693a438dbb32d6c788aa3a6580dbff09bf7abba05027e54d854e7d9709adfa

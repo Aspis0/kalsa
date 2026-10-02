@@ -1,0 +1,16 @@
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 68
+  temperature: 389
+  mWakefulness=Awake
+      showing=false
+Thermal Status: 2
+0
+    topResumedActivity=ActivityRecord{8506619 u0 com.kalsa.app/.MainActivity t146}
+--- bench keys ---
+kalsa.bench.energy_trace|1
+kalsa.bench.kvtranscript|1
+kalsa.bench.nativelog|off
+kalsa.bench.npu_lane|off
+kalsa.bench.route|gpu

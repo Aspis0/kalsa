@@ -1,0 +1,11 @@
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 64
+  temperature: 333
+  mWakefulness=Awake
+      showing=false
+Thermal Status: 0
+0
+    topResumedActivity=ActivityRecord{165501120 u0 com.kalsa.app/.MainActivity t147}
+ls: /data/local/tmp/htp-kv-attention: No such file or directory

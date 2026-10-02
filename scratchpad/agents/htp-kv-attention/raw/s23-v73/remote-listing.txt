@@ -1,0 +1,7 @@
+rc=0
+total 1558089
+drwxrwxrwx  4 shell shell       3452 2026-10-02 01:06 .
+drwxrwx--x 49 shell shell       8192 2026-10-02 01:06 ..
+drwxrwxrwx  2 shell shell       3452 2026-10-02 01:06 bin
+drwxrwxrwx  2 shell shell       3452 2026-10-02 01:06 lib
+-rw-rw-rw-  1 shell shell 1593894944 2026-09-24 09:31 ship.gguf

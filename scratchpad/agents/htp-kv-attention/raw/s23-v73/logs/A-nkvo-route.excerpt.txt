@@ -1,0 +1,5 @@
+load_tensors:         HTP0 model buffer size =  1525.87 MiB
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+llama_kv_cache:        CPU KV buffer size =     2.12 MiB
+execute-op lines: 425
