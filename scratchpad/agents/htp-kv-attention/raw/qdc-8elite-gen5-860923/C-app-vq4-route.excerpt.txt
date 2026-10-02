@@ -1,0 +1,12 @@
+# excerpt of C-app-vq4-route.log ( 1681059 bytes, full log off-repo at ~/kalsa-qdc/htp-kv-860923-full/logs/)
+# HTP0 execute-op lines: 425
+ggml-hex: Hexagon Arch version v81, DMA64 enabled
+ggml-hex: HTP0 allocating new session : domain 1000 phys-idx 0 virt-idx 0
+ggml-hex: HTP0 new session : session-id 0 domain-id 100000 uri file:///libggml-htp-v81.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=nsp1000&_session=0 handle 0xb4000070d7439f30
+load_tensors:          CPU model buffer size =   205.08 MiB
+load_tensors:         HTP0 model buffer size =  1525.87 MiB
+llama_kv_cache:        CPU KV buffer size =     1.62 MiB
+llama_kv_cache: size =    1.62 MiB (   256 cells,   8 layers,  1/1 seqs), K (q8_0):    1.06 MiB, V (q4_0):    0.56 MiB
+| model                          |       size |     params | backend    | ngl | threads | n_batch | n_ubatch | type_k | type_v |          nkvo | dev          |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | ------: | -------: | -----: | -----: | ------------: | ------------ | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |           pp128 |        845.18 ± 0.00 |

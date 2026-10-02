@@ -1,0 +1,72 @@
+2026-10-02T03:59:59.451427+00:00	SESSION_START target=qrd-tunnel arch=v81 dry_run=False personal=False estimated_device_minutes=28 deadline_minutes=25.0
+2026-10-02T04:00:00.433553+00:00	DEVICE_IDENTITY rc=0 'Canoe for arm64\nSM8850\n8'
+2026-10-02T04:00:01.397061+00:00	MODEL_SHA a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
+2026-10-02T04:00:04.361958+00:00	PUSH llama-bench -> bin/llama-bench rc=0
+2026-10-02T04:00:06.851129+00:00	PUSH llama-completion -> bin/llama-completion rc=0
+2026-10-02T04:00:08.228929+00:00	PUSH libggml-htp-v81.so -> lib/libggml-htp-v81.so rc=0
+2026-10-02T04:01:12.540438+00:00	PUSH LFM2.5-2.6B-QAD-Q4_0.gguf -> ship.gguf rc=0
+2026-10-02T04:01:14.303570+00:00	DEVICE_SHAS rc=0
+2026-10-02T04:01:14.304745+00:00	STAGE_SHAS_OK
+2026-10-02T04:01:14.304872+00:00	GATES A-nkvo-route: probe_ok; thermal_status<3; skin<50C
+2026-10-02T04:01:15.361323+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.50268', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:01:15.361699+00:00	CLI_START A-nkvo-route cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T04:01:26.493506+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.84012', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:01:27.568337+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.84012', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:01:27.581521+00:00	CLI_OK A-nkvo-route wall_s=12
+2026-10-02T04:01:27.582026+00:00	GATES A-nkvo-clean: probe_ok; thermal_status<3; skin<50C
+2026-10-02T04:01:28.668947+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.8196', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:01:28.669215+00:00	CLI_START A-nkvo-clean cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T04:01:39.663922+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '35.8602', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:01:50.660162+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '39.91632', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:02:01.714183+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '40.84884', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:02:02.744593+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '40.73408', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:02:02.744893+00:00	CLI_OK A-nkvo-clean wall_s=34
+2026-10-02T04:02:02.745161+00:00	COOLDOWN 120s between arms
+2026-10-02T04:04:02.754531+00:00	GATES B-offload-route: probe_ok; thermal_status<3; skin<50C
+2026-10-02T04:04:03.838299+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.23836', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:04:03.839034+00:00	CLI_START B-offload-route cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 0
+2026-10-02T04:04:14.912158+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.382', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:04:15.962672+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.37744', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:04:15.974700+00:00	CLI_OK B-offload-route wall_s=12
+2026-10-02T04:04:15.974945+00:00	GATES B-offload-clean: probe_ok; thermal_status<3; skin<50C
+2026-10-02T04:04:17.050694+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.37212', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:04:17.050925+00:00	CLI_START B-offload-clean cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q8_0 -nkvo 0
+2026-10-02T04:04:28.128684+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '35.76824', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:04:29.186392+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '35.90656', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:04:29.187031+00:00	CLI_OK B-offload-clean wall_s=12
+2026-10-02T04:04:29.189077+00:00	COOLDOWN 120s between arms
+2026-10-02T04:06:29.194938+00:00	GATES C-app-vq4-route: probe_ok; thermal_status<3; skin<50C
+2026-10-02T04:06:30.331778+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.72992', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:06:30.332120+00:00	CLI_START C-app-vq4-route cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0 -r 1 -ctk q8_0 -ctv q4_0 -nkvo 1
+2026-10-02T04:06:41.460093+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.96932', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:06:42.550689+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.97464', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:06:42.559779+00:00	CLI_OK C-app-vq4-route wall_s=12
+2026-10-02T04:06:42.560006+00:00	GATES C-app-vq4-clean: probe_ok; thermal_status<3; skin<50C
+2026-10-02T04:06:43.625171+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.97464', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:06:43.625777+00:00	CLI_START C-app-vq4-clean cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q4_0 -nkvo 1
+2026-10-02T04:06:54.626394+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.07148', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:07:05.592620+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '40.07592', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:07:16.644702+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '41.78364', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:07:17.685588+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '41.70004', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:07:17.685971+00:00	CLI_OK C-app-vq4-clean wall_s=34
+2026-10-02T04:07:17.686684+00:00	COOLDOWN 120s between arms
+2026-10-02T04:09:17.688795+00:00	GATES A-nkvo-profile: probe_ok; thermal_status<3; skin<50C
+2026-10-02T04:09:18.756677+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.743', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:09:18.756895+00:00	CLI_START A-nkvo-profile cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 1700 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T04:09:29.830795+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.37168', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:09:30.885750+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.53812', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:09:30.937784+00:00	CLI_OK A-nkvo-profile wall_s=12
+2026-10-02T04:09:30.955790+00:00	PLACEMENT A-nkvo htp_ops=9 summary=A-nkvo-profile-placement.txt
+2026-10-02T04:09:30.955917+00:00	COOLDOWN 120s between arms
+2026-10-02T04:11:30.966861+00:00	GATES B-offload-profile: probe_ok; thermal_status<3; skin<50C
+2026-10-02T04:11:32.118704+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.20568', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:11:32.118972+00:00	CLI_START B-offload-profile cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 1700 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 0
+2026-10-02T04:11:43.214048+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.79696', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:11:44.273120+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '34.83192', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1', 'model': 'Canoe for arm64', 'soc': 'SM8850', 'battery_level': '100', 'battery_temp_c': '45.0'}
+2026-10-02T04:11:44.326325+00:00	CLI_OK B-offload-profile wall_s=12
+2026-10-02T04:11:44.343511+00:00	PLACEMENT B-offload htp_ops=13 summary=B-offload-profile-placement.txt
+2026-10-02T04:11:44.343873+00:00	TSV_WRITTEN results-gen5-860923/bench.tsv rows=12
+2026-10-02T04:11:45.279121+00:00	PULL_LISTING rc=0
+2026-10-02T04:11:46.452169+00:00	CLEANUP rc=1 'ls: /data/local/tmp/htp-kv-attention: No such file or directory'
+2026-10-02T04:11:46.452358+00:00	STAGE_END all error=None
+EXIT=0

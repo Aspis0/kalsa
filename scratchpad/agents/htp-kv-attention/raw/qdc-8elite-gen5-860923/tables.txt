@@ -1,0 +1,27 @@
+clean (no -v), n=3; ms = 128000/tok_s, sd carried proportionally
+arm	depth	tok_s	sd	ms	ms_sd	src
+A	0	1089.51	302.02	117.5	32.6	A-nkvo-clean.log
+A	512	641.57	32.89	199.5	10.2	A-nkvo-clean.log
+A	1700	260.90	11.39	490.6	21.4	A-nkvo-clean.log
+A	3100	148.94	3.59	859.4	20.7	A-nkvo-clean.log
+B	0	1555.03	69.66	82.3	3.7	B-offload-clean.log
+B	512	1475.90	48.21	86.7	2.8	B-offload-clean.log
+B	1700	1374.91	71.88	93.1	4.9	B-offload-clean.log
+B	3100	1309.04	41.71	97.8	3.1	B-offload-clean.log
+C	0	1168.82	313.14	109.5	29.3	C-app-vq4-clean.log
+C	512	625.06	8.44	204.8	2.8	C-app-vq4-clean.log
+C	1700	247.17	4.04	517.9	8.5	C-app-vq4-clean.log
+C	3100	132.03	8.19	969.5	60.1	C-app-vq4-clean.log
+
+depth	B/A	C/A	B/C
+0	1.43	1.07	1.33
+512	2.30	0.97	2.36
+1700	5.27	0.95	5.56
+3100	8.79	0.89	9.91
+
+OLS ms/chunk vs depth: arm	ms_per_1k_ctx	intercept_ms
+A	242.9	94.2
+B	4.9	83.5
+C	280.0	78.6
+
+skin over gated runs: min 33.5 max 41.8 C, n=28; thermal_status values ['0']
