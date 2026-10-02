@@ -316,7 +316,7 @@ impl Guard {
         let listener = match listener.try_clone() {
             Ok(listener) => listener,
             Err(error) => {
-                eprintln!("kalsa brain: the instance guard cannot watch for knocks: {error}");
+                log::warn!("the instance guard cannot watch for knocks: {error}");
                 return;
             }
         };

@@ -39,7 +39,7 @@ pub fn set_host_display_name(
 pub fn forget_now(brain: &crate::Brain, device: u32) -> Result<(), String> {
     if let Some(room) = brain.room.get() {
         if let Err(error) = room.forget_device(device) {
-            eprintln!("kalsa-brain: the room could not forget a device: {error}");
+            log::warn!("the room could not forget a device: {error}");
             return Err(
                 "This device was forgotten, but the room could not record it; it will catch up on the next check."
                     .to_string(),
@@ -69,7 +69,7 @@ pub fn reconcile(room: &Room, host: DeviceId, old: &Devices, new: &Devices) {
         // The guest's seat is the room's own, not a member's.
         if id != host && id.value() != kalsa_door::ROOM_DEVICE && !new_ids.contains(&id.value()) {
             if let Err(error) = room.forget_device(id.value()) {
-                eprintln!("kalsa-brain: the room could not forget a device: {error}");
+                log::warn!("the room could not forget a device: {error}");
             }
         }
     }

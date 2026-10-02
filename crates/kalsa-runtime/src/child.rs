@@ -129,14 +129,14 @@ impl Child {
         // Windows: the lock dies with the app (handles are not inherited),
         // so the job is what reaps this child when a force-quit takes us —
         // without it a disposable llama-server would outlive its own record. A
-        // failed confine is said out loud, the supervisor's way.
+        // failed confine is said out loud, through the log.
         #[cfg(windows)]
         let job = {
             use std::os::windows::io::AsRawHandle;
             let job = confine(inner.as_raw_handle());
             if job.is_none() {
-                eprintln!(
-                    "kalsa-brain: the disposable child could not be confined to a kill-on-close \
+                log::warn!(
+                    "the disposable child could not be confined to a kill-on-close \
                      job: a force-quit will not reap it"
                 );
             }
@@ -250,8 +250,8 @@ pub(crate) fn reap_orphan(state_file: &Path, grace: Duration) {
             Termination::Gone { .. } => {
                 let _ = std::fs::remove_file(state_file);
             }
-            other => eprintln!(
-                "kalsa-brain: an orphan pid {pid} did not go away ({other:?}); the state \
+            other => log::warn!(
+                "an orphan pid {pid} did not go away ({other:?}); the state \
                  file stays so the next start can try again"
             ),
         },

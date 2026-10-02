@@ -274,11 +274,11 @@ pub(crate) fn open(
                 Ok(Err(error)) => {
                     // For the log only: errors carry no secrets, but the
                     // panel speaks human, not transport.
-                    eprintln!("kalsa-brain: internet road unavailable: {error}");
+                    log::warn!("internet road unavailable: {error}");
                     None
                 }
                 Err(_) => {
-                    eprintln!("kalsa-brain: internet road did not open within its budget");
+                    log::warn!("internet road did not open within its budget");
                     None
                 }
             };

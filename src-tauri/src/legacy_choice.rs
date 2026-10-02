@@ -84,8 +84,8 @@ fn mark_checked(state_file: &Path, digest: &str) {
     if let Err(error) =
         kalsa_pairing::store::write_owner_only(&marker(state_file), digest.as_bytes())
     {
-        eprintln!(
-            "kalsa-brain: the legacy check could not be recorded: {error}; \
+        log::warn!(
+            "the legacy check could not be recorded: {error}; \
              it will run again on the next launch"
         );
     }

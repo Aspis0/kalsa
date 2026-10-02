@@ -204,7 +204,7 @@ fn accept_loop(
             }
             Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
             Err(error) => {
-                eprintln!("kalsa door listener stopped: {error}");
+                log::error!("the door listener stopped: {error}");
                 stop.store(true, Ordering::SeqCst);
             }
         }

@@ -428,6 +428,17 @@ impl Desk {
         })
     }
 
+    /// The label the store holds for one device — the owner's own name for
+    /// it, and the only identifier a log line carries. `None` when the store
+    /// cannot be read or does not hold the id; the caller says the id then.
+    pub(crate) fn device_label(file: &Path, id: u32) -> Option<String> {
+        kalsa_pairing::store::load_devices(file)
+            .ok()?
+            .into_iter()
+            .find(|device| device.id == id)
+            .map(|device| device.label)
+    }
+
     /// The owner removes ONE device from the house. The others keep their
     /// credentials and their ids; a PAIRED desk recomputes itself from the
     /// store afterwards — `new`'s rule — so the phone it names and the
@@ -523,16 +534,25 @@ impl Desk {
         // square: the owner may be away from the screen, so a live link must
         // not depend on a square being on it — the desk only has to be
         // serving. Both roads answer the one uniform way the wire requires.
-        if self.invites.claim(code, now) {
-            return true;
-        }
-        let State::Live { pairing, .. } = &mut *state else {
-            return false;
+        let claimed = if self.invites.claim(code, now) {
+            true
+        } else {
+            match &mut *state {
+                State::Live { pairing, .. } => {
+                    matches!(
+                        pairing.claim(code, now),
+                        kalsa_pairing::ClaimResult::Claimed
+                    )
+                }
+                _ => false,
+            }
         };
-        matches!(
-            pairing.claim(code, now),
-            kalsa_pairing::ClaimResult::Claimed
-        )
+        // That anything was claimed is on the record; WHAT was claimed (the
+        // code) never is.
+        if claimed {
+            log::info!("pairing: a device claimed a code");
+        }
+        claimed
     }
 
     /// A phone presents its proof. The scanned square was the

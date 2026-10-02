@@ -2584,6 +2584,7 @@ dependencies = [
  "kalsa-tune",
  "kalsa-web",
  "libc",
+ "log",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -2609,6 +2610,7 @@ dependencies = [
  "kalsa-catalog",
  "kalsa-pairing",
  "kalsa-room",
+ "log",
  "serde_json",
  "sha2 0.10.9",
  "subtle",
@@ -2714,6 +2716,7 @@ dependencies = [
  "kalsa-probe",
  "kalsa-supervisor",
  "libc",
+ "log",
  "serde_json",
  "sha2 0.10.9",
  "tar",
@@ -2732,6 +2735,7 @@ name = "kalsa-supervisor"
 version = "0.0.1"
 dependencies = [
  "libc",
+ "log",
  "windows-sys 0.59.0",
 ]
 

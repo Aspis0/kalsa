@@ -227,7 +227,7 @@ pub(crate) fn tune_launch(
     if result.is_err() {
         // One line, no argv: a panic here is our bug, and the walk's plan
         // is still a launch this machine can run.
-        eprintln!("kalsa-brain: the tune failed unexpectedly; running the plan's launch");
+        log::warn!("the tune failed unexpectedly; running the plan's launch");
         prepared.server = rule.clone();
         prepared.info.args = rule_info;
         prepared.info.tune = None;
@@ -264,7 +264,8 @@ fn tune_launch_inner(
     let (record, winner) = match kept {
         Some(record) => {
             // Kept: no measuring, and the panel says what won from the
-            // record itself.
+            // record itself. The applied winner is logged below, beside the
+            // launch it produced.
             let winner = record.winner;
             (record, winner)
         }
@@ -300,8 +301,8 @@ fn tune_launch_inner(
                     progress,
                 ) {
                     Ok(exe) => resolved.push((*candidate, exe)),
-                    Err(_) => eprintln!(
-                        "kalsa-brain: the {} candidate has no processor build to run; dropping it from the tune",
+                    Err(_) => log::warn!(
+                        "the {} candidate has no processor build to run; dropping it from the tune",
                         tune_label(candidate)
                     ),
                 }
@@ -310,6 +311,7 @@ fn tune_launch_inner(
                 prepared.info.tune = Some(Tune::Skipped);
                 return;
             }
+            log::info!("tune start: {} candidates", resolved.len());
             let tuned = measure(&resolved, &rule_args, &mut |done, planned| {
                 progress(Progress::Tuning {
                     done,
@@ -322,6 +324,27 @@ fn tune_launch_inner(
                 winner,
                 trials: tuned.trials,
             };
+            // Every candidate's own numbers, whatever they turned out to be:
+            // the launch (backend, threads, offload, draft) and the rates it
+            // measured, or the refusal that kept the numbers out.
+            for (candidate, kept) in &record.trials {
+                match kept {
+                    kalsa_tune::record::Kept::Replied(reply) => log::info!(
+                        "tune: {}: backend {}, prompt {:.0} tok/s, decode {:.0} tok/s, reply {:.1}s",
+                        tune_label(candidate),
+                        candidate.backend.name(),
+                        reply.prompt_rate,
+                        reply.decode_rate,
+                        reply.seconds
+                    ),
+                    kalsa_tune::record::Kept::Refused { refusal, prompt_rate } => log::info!(
+                        "tune: {}: backend {}, refused ({refusal:?}, prompt rate {:?})",
+                        tune_label(candidate),
+                        candidate.backend.name(),
+                        prompt_rate
+                    ),
+                }
+            }
             // An unfinished verdict — a candidate's build never resolved,
             // the budget stopped a lifetime in either pass, or nothing
             // replied — is written as the marker `load` refuses, so the
@@ -352,9 +375,7 @@ fn tune_launch_inner(
             let (record, winner) = match marker.as_ref() {
                 Some(prior) => {
                     let pooled = kalsa_tune::record::pool_retry(prior, record);
-                    eprintln!(
-                        "kalsa-brain: the retry pools the first attempt's measured trials into this verdict"
-                    );
+                    log::info!("the retry pools the first attempt's measured trials into this verdict");
                     let winner = pooled.winner;
                     (pooled, winner)
                 }
@@ -362,8 +383,8 @@ fn tune_launch_inner(
             };
             let staged = match (unfinished, marker.is_some()) {
                 (Some(cause), false) => {
-                    eprintln!(
-                        "kalsa-brain: the tune's verdict is unfinished ({cause:?}; {}/{} candidates ran); withheld once — the next start measures again",
+                    log::info!(
+                        "the tune's verdict is unfinished ({cause:?}; {}/{} candidates ran); withheld once — the next start measures again",
                         resolved.len(),
                         candidates.len()
                     );
@@ -374,7 +395,7 @@ fn tune_launch_inner(
             if let Err(error) = staged {
                 // Best effort: a record that cannot be written costs a
                 // re-tune next start, never this launch.
-                eprintln!("kalsa-brain: the tune record could not be written: {error}");
+                log::warn!("the tune record could not be written: {error}");
             }
             (record, winner)
         }
@@ -395,6 +416,13 @@ fn tune_launch_inner(
         .map(|exe| (win, exe)),
         None => None,
     };
+    log::info!(
+        "tune winner: {}",
+        chosen
+            .as_ref()
+            .map(|(win, _)| tune_label(&win.candidate))
+            .unwrap_or_else(|| "none, the rule stands".to_string())
+    );
     match &chosen {
         Some((win, exe)) => {
             apply(
@@ -436,9 +464,7 @@ fn tune_launch_inner(
             );
             prepared.info.tune = Some(Tune::NoWinner(record));
             if winner.is_some() {
-                eprintln!(
-                    "kalsa-brain: the winning candidate's build could not be resolved; the rule stands"
-                );
+                log::warn!("the winning candidate's build could not be resolved; the rule stands");
             }
         }
     }

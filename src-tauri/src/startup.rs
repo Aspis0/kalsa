@@ -239,7 +239,15 @@ pub(crate) fn run(
     // The build that won carries the backend it was chosen for; a dev-pinned
     // binary has no verdict, so the platform's default path stands in.
     let (mut backend, mut exe) = match server_override {
-        Some(exe) => (dev_backend(), exe),
+        Some(exe) => {
+            log::info!(
+                "machine: {} GiB RAM, runs on {:?}, card {}, backend dev-pinned",
+                machine.ram_bytes / (1024 * 1024 * 1024),
+                machine.measurement.will_run_on,
+                kalsa_probe::discrete_name().as_deref().unwrap_or("none named")
+            );
+            (dev_backend(), exe)
+        }
         None => {
             progress(Progress::Deciding);
             let decision = kalsa_runtime::decide(machine.measurement.will_run_on, &mut |p| {
@@ -248,6 +256,16 @@ pub(crate) fn run(
                     total: p.bytes_total,
                 })
             })?;
+            // The machine check, as the walk will act on it: the RAM it
+            // budgets, the graphics it measured and named, the backend the
+            // decision chose.
+            log::info!(
+                "machine: {} GiB RAM, runs on {:?}, card {}, backend {}",
+                machine.ram_bytes / (1024 * 1024 * 1024),
+                machine.measurement.will_run_on,
+                kalsa_probe::discrete_name().as_deref().unwrap_or("none named"),
+                decision.backend.name()
+            );
             (decision.backend, decision.exe)
         }
     };
@@ -319,6 +337,7 @@ pub(crate) fn run(
             // about to be placed; without it nothing is used — not even a
             // copy already on disk.
             let placed = place_model(&plan, root, consented(chosen, row), progress)?;
+            log::info!("model picked: {} ({} bytes)", model_token(row), plan.bytes);
             let drafter = placed
                 .drafter
                 .zip(plan.drafter.as_ref())
@@ -979,8 +998,8 @@ fn planned_config_with_overrides(
     // number the plan divides by is the number the door will serve.
     let parallel = planned_parallel(&exe, affordable);
     if affordable < requested_parallel {
-        eprintln!(
-            "kalsa-brain: {requested_parallel} devices are enrolled on this computer, but the \
+        log::warn!(
+            "{requested_parallel} devices are enrolled on this computer, but the \
              plan funds only {affordable} of them at once; the plan is for {affordable} devices, \
              and the door will refuse the rest with a sentence saying the seats are full and \
              naming no device. Change the context in Advanced, or forget a device on the \
@@ -988,8 +1007,8 @@ fn planned_config_with_overrides(
         );
     }
     if parallel < affordable {
-        eprintln!(
-            "kalsa-brain: the engine at {} carries no x-kalsa-slot inlet; the plan is \
+        log::warn!(
+            "the engine at {} carries no x-kalsa-slot inlet; the plan is \
              for {parallel} device with one slot's context, not the requested \
              {affordable} slots",
             exe.display()

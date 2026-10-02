@@ -116,7 +116,7 @@ pub(super) fn serve(
         Some(join) if member != kalsa_room::MemberId::Host => Some(join - 1),
         Some(_) => None,
         None => {
-            eprintln!("kalsa door: a member with no join point opened a stream");
+            log::error!("a member with no join point opened a stream");
             let answer = json_error(500, origin, "internal", "The room's store failed on disk.");
             let _ = proxy::write_with_deadline(&mut client, &answer, deadline);
             return;

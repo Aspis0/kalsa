@@ -14,6 +14,8 @@ zip = { version = "2.2", default-features = false, features = ["deflate"] }
 # The macOS release archives are gzipped tars.
 flate2 = "1"
 tar = "0.4"
+# The log facade: the app installs the one file sink.
+log = "0.4"
 kalsa-download = { path = "../kalsa-download" }
 kalsa-probe = { path = "../kalsa-probe" }
 kalsa-supervisor = { path = "../kalsa-supervisor" }

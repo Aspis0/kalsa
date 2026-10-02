@@ -105,7 +105,7 @@ pub(crate) fn save(measurement: &Measurement, dir: &Path, taken_unix: u64, ram_b
     let bytes = match serde_json::to_vec_pretty(&record) {
         Ok(bytes) => bytes,
         Err(error) => {
-            eprintln!("kalsa-brain: the measurement could not be recorded: {error}");
+            log::warn!("the measurement could not be recorded: {error}");
             return;
         }
     };
@@ -131,8 +131,8 @@ pub(crate) fn save(measurement: &Measurement, dir: &Path, taken_unix: u64, ram_b
     })();
     if let Err(error) = written {
         let _ = std::fs::remove_file(&temporary);
-        eprintln!(
-            "kalsa-brain: the measurement could not be recorded, so the next launch will \
+        log::warn!(
+            "the measurement could not be recorded, so the next launch will \
              measure again: {error}"
         );
     }

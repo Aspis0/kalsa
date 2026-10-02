@@ -33,8 +33,8 @@ pub(crate) fn engine_declaration(exe: &Path) -> EnginePrivateHeaders {
     // Loud on purpose: a silent downgrade to one device reads as a bug in
     // the door, and this line is the only trace of what the engine actually
     // was.
-    eprintln!(
-        "kalsa-brain: the engine at {} carries no x-kalsa-slot inlet; \
+    log::warn!(
+        "the engine at {} carries no x-kalsa-slot inlet; \
          the door will serve one device",
         exe.display()
     );

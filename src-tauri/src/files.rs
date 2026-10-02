@@ -85,7 +85,7 @@ pub(crate) async fn brain_files_list(path: String) -> Result<ListingDto, FileCom
     // folded into a coded refusal, never forwarded.
     tauri::async_runtime::spawn_blocking(move || {
         let listing = kalsa_files::list_dir(Path::new(&path)).map_err(|error| {
-            eprintln!("kalsa-brain: files list failed: {error}");
+            log::warn!("files list failed: {error}");
             FileCommandError::new(
                 "files.list_failed",
                 "Kalsa can't open this file. Choose another.",

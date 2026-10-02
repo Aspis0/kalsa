@@ -23,8 +23,10 @@ use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-/// How many stderr lines we keep to explain an unexpected exit.
-const OUTPUT_TAIL: usize = 12;
+/// How many stderr lines we keep to explain an unexpected exit. A crash
+/// report pastes the whole tail into the log, and llama-server's startup
+/// scan alone runs longer than a dozen lines.
+const OUTPUT_TAIL: usize = 40;
 /// How often `wait_within` looks at the child.
 const WAIT_POLL: Duration = Duration::from_millis(25);
 
@@ -173,12 +175,11 @@ impl ChildHandle {
         // No job means no kill-on-close: a force-quit of this app would
         // leave the server running with nothing to reap it. The server
         // still starts — the guarantee, not its life, is what was lost —
-        // but that is a guarantee the owner is told, this crate's way:
-        // one eprintln, no logging framework.
+        // but that is a guarantee the owner is told, through the log.
         #[cfg(windows)]
         if job.is_none() {
-            eprintln!(
-                "kalsa-brain: the server could not be confined to a kill-on-close job: a \
+            log::warn!(
+                "the server could not be confined to a kill-on-close job: a \
                  force-quit will not reap it, and an orphan server may outlive the app"
             );
         }

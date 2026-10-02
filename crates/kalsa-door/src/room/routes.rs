@@ -167,7 +167,7 @@ pub(super) fn history(
     // honest answer is the internal one, never a floor of nothing that
     // quietly serves everything.
     let Some(floor) = floor_of(&door.room, member) else {
-        eprintln!("kalsa door: a member with no join point asked for history");
+        log::error!("a member with no join point asked for history");
         return json_error(500, origin, "internal", store_failed());
     };
     let page = match (after, before) {

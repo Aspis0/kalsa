@@ -7,6 +7,7 @@
 //! must report, not an exception it may assume away.
 
 use std::net::TcpListener;
+use std::path::Path;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
@@ -451,6 +452,12 @@ fn work(
                                 port: config.port,
                             },
                         );
+                        log::info!(
+                            "engine adopted: {} (pid {})",
+                            engine_name(&config.exe),
+                            pid.map(|pid| pid.to_string())
+                                .unwrap_or_else(|| "unknown".to_string())
+                        );
                         let _ = settled.send(StartSettled::Up);
                         owned = Some(Owned {
                             child: None,
@@ -482,6 +489,7 @@ fn work(
                                 reason: reason.clone(),
                             },
                         );
+                        log::warn!("engine start failed: {reason:?}");
                         let _ = settled.send(StartSettled::Failed(reason));
                     }
                 }
@@ -511,6 +519,8 @@ fn work(
                         Some(child) => {
                             if let Ok(Some(status)) = child.try_wait() {
                                 let reason = exit_reason(child, status);
+                                log::warn!("engine exited: {reason:?}");
+                                log_stderr_tail(child);
                                 owned = None;
                                 set(&state, ServerState::Failed { reason });
                             }
@@ -717,7 +727,7 @@ fn stop(
         // escalation or an unconfirmed stop is a line the operator can read,
         // never a `let _ =`.
         if escalated || !settled.stopped {
-            eprintln!("kalsa-brain: stop walk: {measures}");
+            log::warn!("stop walk: {measures}");
         }
         if settled.record {
             // §9's suspicion, carried to the next start: absence was not
@@ -751,7 +761,7 @@ fn stop(
                 let measures =
                     format!("a second stop, nothing owned: port {addr} — {answer:?}");
                 if !settled.stopped {
-                    eprintln!("kalsa-brain: stop walk: {measures}");
+                    log::warn!("stop walk: {measures}");
                 }
                 if settled.record {
                     let _ = Suspect::of(&config.state_file).write(&measures);
@@ -818,6 +828,16 @@ fn start_blocking(
     .map_err(|e| Failure::ServerNotStarted {
         detail: format!("could not start the server: {e}"),
     })?;
+    // The engine start, as the launch describes it: the binary's own name
+    // (it carries the pinned build) and the flags and paths it was handed.
+    // Flags and paths only — the argv's renderer cannot emit a verbose
+    // flag, so no prompt text can ever ride the engine's stderr tail.
+    log::info!(
+        "engine start: {} argv {:?}",
+        engine_name(&config.exe),
+        config.argv
+    );
+    let began = Instant::now();
     instance
         .describe(child.pid(), config.port)
         .map_err(|e| Failure::InstanceUnwritable {
@@ -827,19 +847,43 @@ fn start_blocking(
     let deadline = Instant::now() + config.ready_timeout;
     loop {
         if let Ok(Some(status)) = child.try_wait() {
-            return Err(exit_reason(&child, status));
+            let reason = exit_reason(&child, status);
+            log::warn!("engine exited before it was ready: {reason:?}");
+            log_stderr_tail(&child);
+            return Err(reason);
         }
         if health::health_ok(config.address(), "/health", PROBE_TIMEOUT) {
+            log::info!("engine ready in {:.1}s", began.elapsed().as_secs_f64());
             suspect.clear();
             return Ok(Started::Spawned { child, instance });
         }
         if Instant::now() >= deadline {
+            let seconds = config.ready_timeout.as_secs();
             let _ = child.terminate(config.stop_grace);
-            return Err(Failure::NotReady {
-                seconds: config.ready_timeout.as_secs(),
-            });
+            log::warn!("engine not ready in {seconds}s");
+            log_stderr_tail(&child);
+            return Err(Failure::NotReady { seconds });
         }
         std::thread::sleep(TICK);
+    }
+}
+
+/// The binary's own name — the one part of the path that names what is
+/// running and, for a shipped engine, which build (the pinned id is in the
+/// name). The whole path is the redaction helper's business at the sink.
+fn engine_name(exe: &Path) -> String {
+    exe.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| exe.to_string_lossy().into_owned())
+}
+
+/// The engine's own last words on the record, after an exit or a failed
+/// start: the in-memory stderr tail, one log line per stderr line. Safe to
+/// log because the argv renderer cannot emit a verbose flag — llama-server
+/// at default verbosity prints no prompt text.
+fn log_stderr_tail(child: &ChildHandle) {
+    for line in child.output_tail() {
+        log::warn!("engine stderr: {line}");
     }
 }
 

@@ -103,17 +103,15 @@ fn acquire_model(
             ) {
                 Ok(()) => false,
                 Err(kalsa_download::DownloadError::NotEnoughSpace { .. }) => {
-                    eprintln!(
-                        "kalsa-brain: no room for the drafter beside the weights; starting without it"
-                    );
+                    log::warn!("no room for the drafter beside the weights; starting without it");
                     true
                 }
                 Err(other) => {
                     // A probe that cannot ask is not an answer about room:
                     // the real error is said, and the weights-only probe
                     // below decides the start on its own.
-                    eprintln!(
-                        "kalsa-brain: could not ask the disk about room for the drafter ({other}); starting without it"
+                    log::warn!(
+                        "could not ask the disk about room for the drafter ({other}); starting without it"
                     );
                     true
                 }
@@ -180,9 +178,7 @@ fn acquire_model(
                     if matches!(fault, StartupFailure::DownloadCorrupted) {
                         mark_drafter_failed(&path, file.sha256);
                     }
-                    eprintln!(
-                        "kalsa-brain: the drafter could not be placed ({fault:?}); starting without it"
-                    );
+                    log::warn!("the drafter could not be placed ({fault:?}); starting without it");
                     // The promised total shrank with the drafter: close the
                     // bar at what did place, so the stream's last reading is
                     // a complete one.
@@ -253,9 +249,7 @@ fn drafter_of<'a>(
     match plan_file_name(&file.url) {
         Ok(name) => Some((models_dir.join(name), file)),
         Err(_) => {
-            eprintln!(
-                "kalsa-brain: the drafter's address does not name a plain file; starting without it"
-            );
+            log::warn!("the drafter's address does not name a plain file; starting without it");
             None
         }
     }
@@ -282,7 +276,9 @@ fn proven_file(path: &Path, bytes: u64, sha256: &str, roots: &[PathBuf]) -> Opti
 }
 
 /// One file fetched into `path`, its progress relayed into the plan's one
-/// total at the offset of everything already accounted for.
+/// total at the offset of everything already accounted for. The fetch's
+/// three facts land in the log: the start, the finish with its duration,
+/// and the fault — so a stuck or repeated download reads off the file.
 fn fetch_file(
     url: &str,
     path: &Path,
@@ -292,13 +288,32 @@ fn fetch_file(
     total: u64,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<(), StartupFailure> {
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| url.to_string());
+    let started = std::time::Instant::now();
+    log::info!("download start: {name} ({bytes} bytes)");
     let mut relay = |p: kalsa_download::Progress| {
         progress(Progress::ModelBytes {
             done: base + p.bytes_done,
             total,
         });
     };
-    download(url, path, bytes, sha256, &mut relay).map_err(StartupFailure::from)
+    let placed = download(url, path, bytes, sha256, &mut relay);
+    match placed {
+        Ok(()) => {
+            log::info!(
+                "download done: {name} ({bytes} bytes in {:.1}s)",
+                started.elapsed().as_secs_f64()
+            );
+            Ok(())
+        }
+        Err(fault) => {
+            log::warn!("download failed: {name}: {fault}");
+            Err(fault.into())
+        }
+    }
 }
 
 #[cfg(test)]

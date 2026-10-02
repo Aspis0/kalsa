@@ -404,7 +404,7 @@ pub(super) fn handle(
     let job = match registry.start(device, response::client_head(&upstream_head.raw)) {
         Ok(job) => job,
         Err(StartRefused::Entropy) => {
-            eprintln!("kalsa door could not mint a job id");
+            log::warn!("the door could not mint a job id");
             let answer = busy_response(origin.as_deref());
             let _ = write_with_deadline(&mut client, &answer, deadline);
             return;

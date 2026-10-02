@@ -366,3 +366,9 @@
     }
   }
 }
+
+/* The Advanced surface's log-folder row: the button above its one
+   explanatory line. */
+.log-folder {
+  margin-top: 1.5rem;
+}

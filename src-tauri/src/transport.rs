@@ -125,10 +125,10 @@ impl WriteErrorLog {
             return;
         };
         if suppressed == 0 {
-            eprintln!("kalsa pairing response was not delivered: {error}");
+            log::warn!("pairing response was not delivered: {error}");
         } else {
-            eprintln!(
-                "kalsa pairing response was not delivered: {error} ({suppressed} similar errors suppressed)"
+            log::warn!(
+                "pairing response was not delivered: {error} ({suppressed} similar errors suppressed)"
             );
         }
     }
@@ -251,7 +251,7 @@ fn accept_loop(
         ) {
             Ok(progressed) => progressed,
             Err(error) => {
-                eprintln!("kalsa pairing listener stopped: {error}");
+                log::error!("pairing listener stopped: {error}");
                 desk.listener_failed();
                 stop.store(true, Ordering::SeqCst);
                 break;
@@ -288,7 +288,7 @@ fn accept_loop(
                             refuse_connection(&mut work.stream, &logger);
                         }
                         Err(mpsc::TrySendError::Disconnected(_)) => {
-                            eprintln!("kalsa pairing listener stopped: worker pool disconnected");
+                            log::error!("pairing listener stopped: worker pool disconnected");
                             desk.listener_failed();
                             stop.store(true, Ordering::SeqCst);
                         }

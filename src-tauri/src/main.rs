@@ -19,6 +19,7 @@ mod first_run;
 mod instance;
 mod invites;
 mod legacy_choice;
+mod logging;
 mod measurement;
 mod metrics;
 mod options;
@@ -185,8 +186,8 @@ fn tick(door: &Mutex<Option<ActiveDoor>>, watch: &Watch) {
         Err(_) => {
             static POISONED: std::sync::Once = std::sync::Once::new();
             POISONED.call_once(|| {
-                eprintln!(
-                    "kalsa-brain: the disk tier's timer lost the door to a panicked \
+                log::warn!(
+                    "the disk tier's timer lost the door to a panicked \
                      thread, so a chat is now saved only when it is switched"
                 );
             });
@@ -380,6 +381,7 @@ impl Brain {
         self.road.close();
         let door = self.door.lock().ok().and_then(|mut stored| stored.take());
         if let Some(door) = door {
+            log::info!("door stopped");
             door.door.shutdown();
         }
     }
@@ -696,20 +698,20 @@ impl Brain {
                         // refuses is a bug: no door is built rather than one
                         // that answers a chat route with 501 unnamed.
                         Err(_) => {
-                            eprintln!(
-                                "kalsa-brain: the launch record's model digest is not eight \
+                            log::error!(
+                                "the launch record's model digest is not eight \
                                  lowercase hex characters; the door was not built"
                             );
                             return Err("The authenticated door could not start.".to_string());
                         }
                     },
                     Err(DiskTierRefusal::NoIdentity(reason)) => {
-                        eprintln!("kalsa-brain: {reason}");
+                        log::warn!("{reason}");
                         door
                     }
                     Err(DiskTierRefusal::Malformed) => {
-                        eprintln!(
-                            "kalsa-brain: the launch record's model digest is shorter than \
+                        log::error!(
+                            "the launch record's model digest is shorter than \
                              eight characters; the door was not built"
                         );
                         return Err("The authenticated door could not start.".to_string());
@@ -738,6 +740,7 @@ impl Brain {
                     address,
                     door: Arc::new(running),
                 });
+                log::info!("door started: {address}, {capacity} seats");
                 // The road opens only while the owner's switch has it on, and
                 // toward the address the running door itself reported — never
                 // a port reconstructed from elsewhere. A road that cannot open
@@ -967,7 +970,7 @@ impl From<&str> for CommandError {
 
 impl From<String> for CommandError {
     fn from(text: String) -> Self {
-        eprintln!("kalsa-brain: {text}");
+        log::warn!("{text}");
         Self {
             code: "app.unexpected".into(),
             params: serde_json::Value::Null,
@@ -1919,18 +1922,23 @@ fn brain_pairing_forget_device(
     if desk.desk.is_host(id) {
         // Unreachable from the page — the host row draws no Forget — and
         // kept as a coded refusal for defense in depth and the log.
-        eprintln!("kalsa-brain: a forget reached the host record ({id})");
+        log::warn!("a forget reached the host record ({id})");
         return Err(CommandError::new(
             "pairing.host_forget",
             "This computer's own connection cannot be forgotten.",
         ));
     }
+    // The label is read BEFORE the forget: afterwards the store no longer
+    // holds the device. A store that cannot be read logs the id — not a
+    // secret — and goes on.
+    let label = pairing::Desk::device_label(desk.desk.file(), id);
     desk.desk.forget_device(id).map_err(|_| {
         CommandError::new(
             "pairing.save_failed",
             "Kalsa couldn't save this change. Try again.",
         )
     })?;
+    log::info!("pairing: device forgotten: {}", label.unwrap_or_else(|| format!("id {id}")));
     // The room follows at once, not at the next poll: the member's posts
     // stop the moment the owner's finger leaves the button.
     room::forget_now(&brain, id)?;
@@ -1948,7 +1956,15 @@ fn brain_pairing_allow_device(desk: State<Desk>, id: u32) -> Result<(), CommandE
             "pairing.save_failed",
             "Kalsa couldn't save this change. Try again.",
         )
-    })
+    })?;
+    // The label, never a credential or a code: the label is what the owner
+    // knows the device by.
+    log::info!(
+        "pairing: device allowed: {}",
+        pairing::Desk::device_label(desk.desk.file(), id)
+            .unwrap_or_else(|| format!("id {id}"))
+    );
+    Ok(())
 }
 
 /// This computer's own credential, for the page's own chat to present at the
@@ -1988,8 +2004,9 @@ fn forget_store_and_keep_own_seat(desk: &pairing::Desk) -> Result<(), String> {
         "This computer could not forget the old phone connection. Check its permissions and try again."
             .to_string()
     })?;
+    log::info!("pairing: the whole pairing store was forgotten");
     if let Err(error) = take_own_seat(desk.file()) {
-        eprintln!("kalsa-brain: this computer could not take its own seat back: {error}");
+        log::warn!("this computer could not take its own seat back: {error}");
     }
     Ok(())
 }
@@ -2056,11 +2073,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             files::brain_files_roots,
             files::brain_files_list,
             files::brain_files_read,
-            files::brain_files_search
+            files::brain_files_search,
+            brain_open_log_folder
         ])
         .setup({
             let guard = std::sync::Arc::clone(&guard);
             move |app| {
+            // The log is the first thing that works, so everything after it
+            // is on the record: the folder is the platform's own place for
+            // this app's logs, and a folder that cannot be resolved or
+            // opened leaves the app on stderr only — never a launch
+            // refused for it.
+            logging::install(
+                app.path().app_log_dir().ok(),
+                env!("CARGO_PKG_VERSION"),
+            );
+            logging::install_panic_hook();
+            log::info!("app start");
             // The desk needs this machine's data directory, and the square
             // needs the listener's port: both are only knowable once the app
             // has a handle, so this is where the pairing side is born.
@@ -2099,7 +2128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let lock = match instance::acquire_dir_lock(parent) {
                 Ok(lock) => lock,
                 Err(instance::LockFailure::AlreadyRunning) => {
-                    eprintln!("Kalsa is already running — its window is coming forward.");
+                    log::info!("a second launch was refused — the running window comes forward");
                     for window in app.webview_windows().values() {
                         let _ = window.close();
                     }
@@ -2146,7 +2175,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Refusing to launch would turn a store this app cannot write
             // into a computer whose owner cannot run a model at all.
             if let Err(error) = take_own_seat(&file) {
-                eprintln!("kalsa-brain: this computer could not take its own seat: {error}");
+                log::warn!("this computer could not take its own seat: {error}");
             }
             // The room this computer hosts, opened once in the same data
             // directory the pairing store lives in: the door gets it when
@@ -2164,7 +2193,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     room_events::spawn_event_pump(app.handle().clone(), &app.state::<Brain>());
                 }
                 Err(error) => {
-                    eprintln!("kalsa-brain: the room could not be opened: {error}");
+                    log::warn!("the room could not be opened: {error}");
                 }
             }
             // A pairing-side loopback bind failure is a startup failure,
@@ -2195,8 +2224,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(ticker) => {
                     app.manage(ticker);
                 }
-                Err(error) => eprintln!(
-                    "kalsa-brain: the disk tier's timer did not start, so a chat is saved \
+                Err(error) => log::warn!(
+                    "the disk tier's timer did not start, so a chat is saved \
                      only when it is switched: {error}"
                 ),
             }
@@ -2214,7 +2243,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }})
         .build(tauri::generate_context!())
         .map_err(|error| {
-            eprintln!("kalsa-brain: pairing service could not start: {error}");
+            log::error!("the app could not be built: {error}");
             error
         })?;
     app.run(|app, event| {
@@ -2231,9 +2260,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 brain.stop_door();
                 brain.supervisor.shutdown();
             }
+            // `Exit` is the loop's last event, so this reads once per run;
+            // a `PreventExit`-ed `ExitRequested` is not an exit and stays
+            // unlogged.
+            if matches!(event, RunEvent::Exit) {
+                log::info!("app exit");
+            }
         }
     });
     Ok(())
+}
+
+/// Opens the log folder in the platform's own file manager, so a tester can
+/// find `kalsa-brain.log` and send it by hand. No shell: the folder is one
+/// argument, and the child is reaped on a thread of its own exactly as the
+/// browser opener does.
+#[tauri::command]
+fn brain_open_log_folder() -> Result<(), String> {
+    let folder = logging::folder()
+        .ok_or_else(|| "The log folder is not available on this computer.".to_string())?
+        .to_path_buf();
+    #[cfg(target_os = "macos")]
+    let opener = "open";
+    #[cfg(target_os = "windows")]
+    let opener = "explorer";
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let opener = "xdg-open";
+    std::process::Command::new(opener)
+        .arg(&folder)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(|mut child| {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        })
+        .map_err(|_| "Kalsa couldn't open the log folder.".to_string())
 }
 
 /// One card per row: the pick list is keyed by the model token — repo,

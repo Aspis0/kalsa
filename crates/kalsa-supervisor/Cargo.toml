@@ -8,6 +8,9 @@ license.workspace = true
 # Deliberately UI-free and dependency-light: the app shell may come and go, this
 # must stay testable with `cargo test -p kalsa-supervisor`.
 [dependencies]
+# The log facade: the app installs the one file sink; a test run with no
+# logger installed pays nothing but the macro calls.
+log = "0.4"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
