@@ -1,69 +1,110 @@
-/* The walk's face (Sprout.tsx): the plant, the thin bar under the soil, the
-   line under that. Every colour is a token, so light and dark come from the
-   page; every animation sits in the one no-preference block, so under
-   reduced motion the plant is still, the leaves open by class alone (at
-   once, not over time), the stripes stand where they are, and the caption's
-   own clock is the only thing left moving. */
+/* The walk's face (Sprout.tsx): the plant, the thin bar under its soil, the
+   line under that. The three share one axis — a 360px column centred under
+   the phase's sentence — so the plant stands over the middle of its bar
+   instead of hugging the page's edge. Every colour is a token, so light and
+   dark come from the page (the midrib's white excepted: it is a highlight,
+   lighter than the leaf in both). Every animation sits in the one
+   no-preference block, so under reduced motion the plant is still, the
+   leaves and the bud open by class alone (at once, not over time), the
+   stripes stand where they are, and the caption's own clock is the only
+   thing left moving. */
 
 .sprout {
-  margin: 0.45rem 0 0;
+  width: min(360px, 100%);
+  margin: 0.4rem auto 0;
 }
 
 .sprout-svg {
   display: block;
-  width: 104px;
-  height: auto;
-}
-
-/* The soil, carried the whole width of the page: the plant stands on the
-   SVG's bottom edge, this is the ground that continues under it, and the
-   bar below is the walk's own claim on the same line. */
-.sprout-ground {
-  border-top: 1.5px solid var(--border-strong);
+  width: 160px;
+  /* The viewBox starts 16 above the plant's own zero: the bud's overshoot
+     and the bow's lift both travel up, and neither may be clipped by the
+     SVG's viewport. The bottom edge (and so the bar's distance to the soil)
+     does not move. */
+  height: 168px;
+  margin: 0 auto;
 }
 
 .sprout-seed {
   fill: var(--accent);
 }
 
+.sprout-soil {
+  /* A light tint of the same green: soft enough that the bar below it is
+     still the loud line, present enough to bury the seed's lower half. */
+  fill: var(--accent);
+  opacity: 0.3;
+}
+
 .sprout-stem {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 3;
   stroke-linecap: round;
-  /* One unit over the whole path (pathLength="1" on the element), so the
-     dashoffset below is the growth itself: 1 hidden, 0 drawn. */
-  stroke-dasharray: 1;
+  /* Three passes of one curve at three widths (Sprout.tsx), each drawing
+     against its own share of the growth, so the growth below is what the
+     transition carries. */
 }
 
-.sprout-leaf path {
+.sprout-body {
   fill: var(--accent);
+}
+
+.sprout-vein {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0.55;
 }
 
 .sprout-plant,
 .sprout-bow {
-  /* Both turn about the root in viewBox units: the sway rocks the plant on
-     the soil, the bow lifts it off the same point. */
+  /* Both turn about the root in viewBox units: the sway rocks the plant out
+     of the soil, the bow lifts it off the same point. */
   transform-box: view-box;
-  transform-origin: 40px 66px;
+  transform-origin: 80px 140px;
+}
+
+.sprout-leaf,
+.sprout-bud {
+  /* The attachment is the left edge, mid-height: a leaf unfolds out of the
+     stem, not out of its own middle. */
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+}
+
+/* The bud's seat: it carries the same translate the stem's dash draws to,
+   on the same 700 ms ease-out, so the bud is never ahead of the stem it
+   sits on — and its own states below wait out that beat before they move. */
+.sprout-bud-seat {
+  transform-origin: 0 0;
 }
 
 .sprout-leaf {
-  /* The sharp corner is the attachment: the leaf unfolds out of the stem,
-     not out of its own middle. */
-  transform-box: fill-box;
-  transform-origin: 0 100%;
-  transform: scale(0) rotate(-30deg);
+  transform: scale(0) rotate(-20deg);
 }
 
 .sprout-leaf.is-open {
   transform: scale(1) rotate(0deg);
 }
 
+.sprout-bud {
+  transform: scale(0);
+}
+
+.sprout-bud.is-grown {
+  transform: scale(0.55);
+}
+
+/* After `.is-grown` on purpose: open is the later state of the same bud. */
+.sprout-bud.is-open {
+  transform: scale(1) rotate(45deg);
+}
+
 .sprout-bar {
   position: relative;
   height: 6px;
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   overflow: hidden;
   border-radius: 999px;
   background: var(--surface-muted);
@@ -85,21 +126,28 @@
 }
 
 .sprout-caption {
-  margin: 0.5rem 0 1.25rem;
+  margin: 0.55rem 0 1.25rem;
   color: var(--silence);
   font-size: 0.88rem;
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   /* Growth: the stem draws and the leaves turn open, a beat behind the
-     number that caused them. */
+     number that caused them — and the leaves a beat behind the stem, so a
+     leaf never opens on a tip that has not reached it yet. */
   .sprout-stem {
-    transition: stroke-dashoffset 700ms ease-out;
+    transition: stroke-dasharray 700ms ease-out;
   }
 
-  .sprout-leaf {
-    transition: transform 550ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  .sprout-bud-seat {
+    transition: transform 700ms ease-out;
+  }
+
+  .sprout-leaf,
+  .sprout-bud {
+    transition: transform 550ms cubic-bezier(0.34, 1.4, 0.64, 1) 700ms;
   }
 
   /* Never still: the sway is the "it is alive" signal while a step waits;
@@ -110,7 +158,9 @@
   }
 
   .sprout-svg.is-done .sprout-bow {
-    animation: sprout-bow 640ms cubic-bezier(0.28, 0.8, 0.32, 1.2) 1;
+    /* After the stem, leaves and bud have had their 700 ms: the bow is the
+       plant's full stop, not its entrance. */
+    animation: sprout-bow 640ms cubic-bezier(0.28, 0.8, 0.32, 1.2) 700ms 1;
   }
 
   .sprout-bar-fill {

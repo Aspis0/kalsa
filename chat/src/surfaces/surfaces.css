@@ -133,7 +133,13 @@
 
 /* The walk's line and bar are Sprout's own (components/Sprout.css), beside
    the plant that shows them. `.surface-walk` carries no styles: it is the
-   hook that view renders under. */
+   hook that view renders under — and it centres its sentence over the
+   column the plant and its bar stand in, so the walk reads as one block
+   instead of a left-aligned line over a centred island. */
+.surface-walk .surface-verdict {
+  text-align: center;
+}
+
 .surface-qr {
   width: min(200px, 100%);
   margin: 0.25rem 0 0.6rem;

@@ -72,8 +72,15 @@ async function shot(page, path) {
   console.log("  saved", path);
 }
 
-/** One `brain_progress` envelope, exactly as the real bus hands it over. */
+/** One `brain_progress` envelope, exactly as the real bus hands it over —
+    into a page that is actually listening: the app's subscription is async,
+    and one slow load once delivered a whole sequence into the void. */
 async function deliver(page, payload) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const live = await page.evaluate(() => (window.__kbListeners?.brain_progress ?? []).length > 0);
+    if (live) break;
+    await page.waitForTimeout(500);
+  }
   await page.evaluate((step) => {
     for (const handler of window.__kbListeners?.brain_progress ?? []) {
       handler({ event: "brain_progress", id: 1, payload: step });
@@ -102,6 +109,17 @@ async function read(page) {
       determinate: Boolean(fill),
       indeterminate: bar?.classList.contains("is-indeterminate") ?? false,
       done: document.querySelector(".sprout-svg")?.classList.contains("is-done") ?? false,
+      budOpen: document.querySelector(".sprout-bud")?.classList.contains("is-open") ?? false,
+      // The hinge itself: the matrix's b/a is the bud's own rotation in its
+      // frame — 0 is shut along the stem, 45 is open to the side.
+      budAngle: (() => {
+        const bud = document.querySelector(".sprout-bud");
+        if (!bud) return null;
+        const matrix = getComputedStyle(bud).transform;
+        const parts = matrix.startsWith("matrix(") ? matrix.slice(7, -1).split(",").map(Number) : [1, 0];
+        return Math.round((Math.atan2(parts[1], parts[0]) * 180) / Math.PI);
+      })(),
+      leavesOpen: document.querySelectorAll(".sprout-leaf.is-open").length,
       fillColor: fill ? getComputedStyle(fill).backgroundColor : null,
       captionColor: caption ? getComputedStyle(caption).color : null,
       sway: plant ? getComputedStyle(plant).animationName : null,
@@ -142,9 +160,11 @@ async function walk(page, theme) {
   await shot(page, `shots/90-walk-checking${suffix}.png`);
 
   // The tune at nothing: a seed on the soil, test 1 of 4, no estimate —
-  // there is nothing finished to average yet.
+  // there is nothing finished to average yet. The wait outlasts the resting
+  // sprout's retract (its own 700 ms beat), so the picture is the seed and
+  // not the last leaf on its way out.
   await deliver(page, { kind: "tuning", done: 0, total: 4, candidate: 1 });
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1300);
   const seed = await read(page);
   check(`${theme}: the tune's own line is up`, seed.head === "Finding what runs fastest on your computer…", seed.head);
   check(`${theme}: test 1 of 4`, seed.caption.startsWith("Test 1 of 4 ·"), seed.caption);
@@ -182,20 +202,25 @@ async function walk(page, theme) {
   check(`${theme}: the plant is still alive while it waits`, inside.running.includes("sprout-sway"), inside.running.join(","));
   await shot(page, `shots/92-walk-tune-mid${suffix}.png`);
 
-  // The tune's own report: the bar eases to full, the top leaf is open
-  // and the bow is mid-flight — and there is nothing left to estimate.
+  // The tune's own report: the stem, leaves and bud take their 700 ms
+  // beat, then the bow lands over them and the bar is full. Asserted at
+  // the bow, shot once everything has settled.
   await deliver(page, { kind: "tuning", done: 4, total: 4, candidate: 4 });
-  await page.waitForTimeout(350);
+  await page.waitForTimeout(850);
   const bowing = await read(page);
-  check(`${theme}: the plant takes its bow`, bowing.done);
+  check(`${theme}: the plant takes its bow`, bowing.done && bowing.running.includes("sprout-bow"), bowing.running.join(","));
   check(`${theme}: test 4 of 4`, bowing.caption.startsWith("Test 4 of 4 ·"), bowing.caption);
   check(`${theme}: nothing left to estimate`, !/min left/.test(bowing.caption), bowing.caption);
+  check(`${theme}: the closing report fills the bar`, bowing.percent === 100, `${bowing.percent}`);
+  check(
+    `${theme}: every leaf and the bud opened`,
+    bowing.leavesOpen === 3 && bowing.budOpen,
+    `${bowing.leavesOpen} leaves, bud ${bowing.budOpen ? "open" : "shut"}`,
+  );
+  await page.waitForTimeout(600);
+  const settled = await read(page);
+  check(`${theme}: the bud swung open on its hinge`, settled.budAngle === 45, `${settled.budAngle}°`);
   await shot(page, `shots/93-walk-tune-done${suffix}.png`);
-  // The fill grows on its own ease (Sprout.css, 700 ms): the report says
-  // 100 and the bar arrives there, once the growth it was asked for is over.
-  await page.waitForTimeout(650);
-  const full = await read(page);
-  check(`${theme}: the closing report fills the bar`, full.percent === 100, `${full.percent}`);
 }
 
 /** Reduced motion: no sway, no walking stripes, no growth transition —
@@ -251,7 +276,7 @@ async function main() {
       { theme, answers: { brain_state: STATE, brain_capability: CAPABILITY } },
     );
     await page.goto(APP);
-    await page.waitForSelector(".shell", { timeout: 10000 });
+    await page.waitForSelector(".shell", { timeout: 30000 });
     await page.waitForTimeout(600);
     await walk(page, theme);
     if (theme === "light") await reduced(page);
