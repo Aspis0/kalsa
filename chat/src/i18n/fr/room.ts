@@ -23,12 +23,18 @@ export const ROOM: RoomTable = {
   askedKalsa: "a demandé à Kalsa ·",
   readLast: (count: number) =>
     count === 1 ? " · a lu le dernier message" : ` · a lu les ${count} derniers messages`,
+  sendFailed: "Le message n'est pas arrivé au salon. Réessaie.",
   notes: {
     "busy_waiting": "Kalsa est occupée avec une autre conversation. Tu gardes ton tour.",
     "unavailable": "Kalsa ne peut pas répondre dans ce salon pour le moment.",
     "empty_answer": "Kalsa n'a pas eu de réponse à cela.",
     "could_not_start": "Kalsa n'a pas pu démarrer. Réessaie.",
     "engine_problem": "Kalsa a eu un problème sur cet ordinateur et n'a pas pu répondre. Réessaie.",
+    "seat_timeout": "Kalsa a attendu son tour au moteur et a renoncé. Redemande.",
+    "too_large": "Ce message est trop long pour le salon. Raccourcis-le ou coupe-le en deux.",
+    "read_only": "Le salon n'accepte pas de messages pour le moment. Réessaie dans un instant.",
+    "client_msg_id_reused": "Ce message est déjà dans le salon.",
+    "internal": "Quelque chose a mal tourné sur cet ordinateur. Réessaie.",
     "already_pending": "Tu as déjà une question en attente pour Kalsa.",
     "name_taken": "Quelqu'un dans ce salon utilise déjà ce nom. Choisis-en un autre.",
     "name_reserved": "Kalsa est le nom de l'assistant. Choisis-en un autre.",

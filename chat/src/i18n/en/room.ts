@@ -20,6 +20,9 @@ export interface RoomTable {
   left: string;
   askedKalsa: string;
   readLast: (count: number) => string;
+  /** The app's own sentence for a send the room refused with a code the
+      notes table does not know. */
+  sendFailed: string;
   notes: Record<string, string>;
 }
 
@@ -43,12 +46,18 @@ export const ROOM: RoomTable = {
   left: " · left",
   askedKalsa: "asked Kalsa ·",
   readLast: (count) => ` · read the last ${count}`,
+  sendFailed: "The message did not reach the room. Try again.",
   notes: {
     busy_waiting: "Kalsa is busy with another conversation. You keep your turn.",
     unavailable: "Kalsa can't answer in this room right now.",
     empty_answer: "Kalsa had no answer to that.",
     could_not_start: "Kalsa couldn't start. Try again.",
     engine_problem: "Kalsa ran into a problem on this computer and couldn't answer. Ask again.",
+    seat_timeout: "Kalsa waited for a turn at the engine and gave up. Ask again.",
+    too_large: "That message is too long for the room. Shorten it or split it in two.",
+    read_only: "The room can't take messages right now. Try again in a moment.",
+    client_msg_id_reused: "That message is already in the room.",
+    internal: "Something went wrong on this computer. Try again.",
     already_pending: "You already have a question waiting for Kalsa.",
     name_taken: "Someone in this room already uses that name. Pick another.",
     name_reserved: "Kalsa is the assistant's name. Pick another.",

@@ -40,6 +40,12 @@ const QUEUE_WAIT: Duration = Duration::from_secs(20);
 /// and the engine's slot until the ceiling.
 const DETACHED_GRACE: Duration = Duration::from_secs(2 * 60);
 
+/// How long a room turn may wait for a seat at the engine before it ends
+/// and says so. A house this busy will not free one soon, and a call that
+/// waits forever is a lie the Room keeps on screen. The room turn driver
+/// reads it (see `room::turn`).
+pub(crate) const SEAT_WAIT: Duration = Duration::from_secs(120);
+
 /// The limits one door applies. `Default` is the product's; a test builds its
 /// own door with shorter ones.
 #[derive(Clone, Copy, Debug)]
@@ -50,6 +56,7 @@ pub(crate) struct Clocks {
     pub(crate) completion_idle: Duration,
     pub(crate) queue_wait: Duration,
     pub(crate) detached_grace: Duration,
+    pub(crate) seat_wait: Duration,
 }
 
 impl Default for Clocks {
@@ -60,6 +67,7 @@ impl Default for Clocks {
             completion_idle: COMPLETION_IDLE,
             queue_wait: QUEUE_WAIT,
             detached_grace: DETACHED_GRACE,
+            seat_wait: SEAT_WAIT,
         }
     }
 }
@@ -84,6 +92,10 @@ impl Clocks {
     }
     pub(crate) fn detached(mut self, value: Duration) -> Self {
         self.detached_grace = value;
+        self
+    }
+    pub(crate) fn seat_wait(mut self, value: Duration) -> Self {
+        self.seat_wait = value;
         self
     }
 }

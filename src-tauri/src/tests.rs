@@ -570,8 +570,10 @@ impl TestUpstream {
     }
 
     /// Answers with the same head but a body that arrives in six
-    /// 8-byte steps, 40 ms apart: long enough that a test can change
-    /// the device set while an answer is genuinely in flight.
+    /// 8-byte steps, 150 ms apart: long enough that a test can change
+    /// the device set and ask the next request while an answer is
+    /// genuinely in flight — the no-slot 503 answers a seat that is
+    /// leased, not one that was merely used first.
     fn slow_start() -> (Self, u16) {
         Self::serve(|mut stream| {
             let _ = std::io::Write::write_all(
@@ -579,7 +581,7 @@ impl TestUpstream {
                 b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 48\r\nConnection: close\r\n\r\n",
             );
             for _ in 0..6 {
-                std::thread::sleep(Duration::from_millis(40));
+                std::thread::sleep(Duration::from_millis(150));
                 // `#` never appears in an HTTP head, so the client can
                 // count body bytes by counting the marker.
                 let _ = std::io::Write::write_all(&mut stream, b"########");
@@ -974,17 +976,8 @@ fn a_set_change_keeps_the_door_and_the_one_slot_engine_refuses_the_extra_device(
     .unwrap();
     brain.start_door_if_paired(port, &file, false).unwrap();
 
-    // The in-flight answer survives the swap, to its last byte.
-    let mut answer = Vec::new();
-    std::io::Read::read_to_end(&mut stream, &mut answer).unwrap();
-    assert_eq!(
-        answer.iter().filter(|&&byte| byte == b'#').count(),
-        48,
-        "the in-flight answer was cut by a set change: the door was rebuilt"
-    );
-
-    // The one-slot engine refuses the new device, and the kept device is
-    // undisturbed.
+    // The one-slot engine refuses the new device while the seat is leased,
+    // and the kept device is undisturbed.
     let door_port = brain.door_port().unwrap();
     let newcomer_response = door_response(door_port, &newcomer);
     assert!(
@@ -998,6 +991,17 @@ fn a_set_change_keeps_the_door_and_the_one_slot_engine_refuses_the_extra_device(
         "the refusal did not say why: {}",
         String::from_utf8_lossy(&newcomer_response)
     );
+
+    // The in-flight answer survives the swap, to its last byte — read only
+    // now, after the refusal above asked while it was still running.
+    let mut answer = Vec::new();
+    std::io::Read::read_to_end(&mut stream, &mut answer).unwrap();
+    assert_eq!(
+        answer.iter().filter(|&&byte| byte == b'#').count(),
+        48,
+        "the in-flight answer was cut by a set change: the door was rebuilt"
+    );
+
     let original_response = door_response(door_port, &original);
     assert!(
         original_response.starts_with(b"HTTP/1.1 200 OK"),

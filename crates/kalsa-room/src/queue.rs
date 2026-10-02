@@ -148,11 +148,16 @@ impl Queue {
 
     /// The driver's tick at a turn's end: `member`'s serve is recorded,
     /// their turn is cleared if it is still the running one, and the next
-    /// waiting call is picked by least-recently-served. One driver thread
-    /// owns succession — a withdrawal or the owner's stop clears the
-    /// running turn and publishes, and THIS call is what starts whatever
-    /// waits, so a stopped turn's successor is never started twice.
-    pub(crate) fn end_turn(&mut self, member: MemberId) -> Option<(MemberId, u64)> {
+    /// waiting call is picked by least-recently-served. The bool says the
+    /// queue EMPTIED — the room publishes its own idle frame then, because
+    /// every watcher's `running` is derived from the state at frame time
+    /// and a turn that ended in silence would leave the last frame carrying
+    /// it as still running, the Room's answering line and Stop button with
+    /// it. One driver thread owns succession — a withdrawal or the owner's
+    /// stop clears the running turn and publishes, and THIS call is what
+    /// starts whatever waits, so a stopped turn's successor is never
+    /// started twice.
+    pub(crate) fn end_turn(&mut self, member: MemberId) -> (Option<(MemberId, u64)>, bool) {
         self.served.retain(|who| *who != member);
         self.served.push(member);
         if self
@@ -163,9 +168,10 @@ impl Queue {
             self.running = None;
         }
         if self.running.is_some() {
-            return None;
+            return (None, false);
         }
-        self.pick_next()
+        let next = self.pick_next();
+        (next, next.is_none())
     }
 
     /// Arrival stamp wins; recency only breaks an exact tie.
@@ -315,13 +321,21 @@ impl Room {
         taken
     }
 
-    /// The driver's end of a turn: the member is served, and the next
-    /// waiting call comes back for the same driver to run.
+    /// The driver's end of a turn: the member is served, the next waiting
+    /// call comes back for the same driver to run, and a queue left empty
+    /// says so on the room's own news (see [`Queue::end_turn`]).
     pub fn end_turn(&self, member: MemberId) -> Option<(MemberId, u64)> {
-        let next = {
+        let (next, emptied) = {
             let mut state = self.lock_state();
             state.queue.end_turn(member)
         };
+        if emptied {
+            self.publish_ai(AiEvent::Status {
+                state: "idle",
+                note_code: None,
+                note: None,
+            });
+        }
         next
     }
 
@@ -406,12 +420,12 @@ mod order_tests {
         let mut queue = Queue::new();
 
         assert_eq!(queue.submit_at(a, "a1", start), Ok(CallTaken::Starts(1)));
-        assert_eq!(queue.end_turn(a), None);
+        assert_eq!(queue.end_turn(a), (None, true));
         assert_eq!(
             queue.submit_at(b, "b1", start + Duration::from_secs(1)),
             Ok(CallTaken::Starts(2))
         );
-        assert_eq!(queue.end_turn(b), None);
+        assert_eq!(queue.end_turn(b), (None, true));
         assert_eq!(
             queue.submit_at(c, "c1", start + Duration::from_secs(2)),
             Ok(CallTaken::Starts(3))
@@ -419,6 +433,6 @@ mod order_tests {
         let tie = start + Duration::from_secs(3);
         assert_eq!(queue.submit_at(a, "a2", tie), Ok(CallTaken::Queued));
         assert_eq!(queue.submit_at(b, "b2", tie), Ok(CallTaken::Queued));
-        assert_eq!(queue.end_turn(c), Some((a, 4)));
+        assert_eq!(queue.end_turn(c), (Some((a, 4)), false));
     }
 }

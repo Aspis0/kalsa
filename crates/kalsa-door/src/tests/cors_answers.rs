@@ -105,19 +105,22 @@ fn an_authentication_refusal_names_the_origin_that_asked() {
 
 #[test]
 fn the_no_slot_refusal_names_the_origin_that_asked() {
-    let upstream = RecordingUpstream::start();
+    let upstream = HoldingUpstream::start();
     let (first, second) = (credential(), credential());
     let (door, address) = door(upstream.port, &[&first, &second]);
 
-    let served = exchanged(
-        address,
-        &chat_post(ORIGIN, Some(&format!("Bearer {first}")), None),
-    );
-    assert!(
-        served.starts_with(b"HTTP/1.1 200 OK\r\n"),
-        "the first device was not served: {}",
-        String::from_utf8_lossy(&served)
-    );
+    // The no-slot 503 is pressure, not planning: the first device's request
+    // is in flight, its seat leased, when the second asks.
+    let mut held = TcpStream::connect(address).unwrap();
+    held.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    held.write_all(chat_post(ORIGIN, Some(&format!("Bearer {first}")), None).as_bytes())
+        .unwrap();
+    let leased = Instant::now() + Duration::from_secs(2);
+    while upstream.accepts() == 0 && Instant::now() < leased {
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(upstream.accepts(), 1, "the first device's request never left");
+
     let refused = exchanged(
         address,
         &chat_post(ORIGIN, Some(&format!("Bearer {second}")), None),
@@ -129,11 +132,13 @@ fn the_no_slot_refusal_names_the_origin_that_asked() {
     );
     assert_origin_aware(&refused, Some(ORIGIN), "the no-slot refusal");
     assert!(
-        String::from_utf8_lossy(&refused)
-            .contains("This computer is set up for 1 device at once, and one of them is this computer."),
+        String::from_utf8_lossy(&refused).contains(
+            "This computer is set up for 1 device at once, and every seat is busy right now.",
+        ),
         "the refusal stopped saying what it says: {}",
         String::from_utf8_lossy(&refused)
     );
+    drop(held);
     door.shutdown();
 }
 
@@ -160,12 +165,24 @@ fn the_gone_answer_names_the_origin_that_asked() {
 
 #[test]
 fn every_answer_that_can_name_an_origin_says_it_varies_by_origin() {
-    let upstream = RecordingUpstream::start();
+    let upstream = HoldingUpstream::start();
     let (first, second) = (credential(), credential());
     let (door, address) = door(upstream.port, &[&first, &second]);
     let stranger = format!("Bearer {}", wrong_credential(&first));
     let unknown = format!("{}:3", "ab".repeat(16));
     let asked_from = [(ORIGIN, Some(ORIGIN)), ("https://evil.example", None)];
+
+    // The first device's request is in flight, its seat leased, so the
+    // no-slot legs below get the door's own 503.
+    let mut held = TcpStream::connect(address).unwrap();
+    held.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    held.write_all(chat_post(ORIGIN, Some(&format!("Bearer {first}")), None).as_bytes())
+        .unwrap();
+    let leased = Instant::now() + Duration::from_secs(2);
+    while upstream.accepts() == 0 && Instant::now() < leased {
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(upstream.accepts(), 1, "the first device's request never left");
 
     // Three answers a browser reads and three answers that can name an
     // origin: the refusal of a credential the door does not know, the gone
@@ -203,7 +220,14 @@ fn every_answer_that_can_name_an_origin_says_it_varies_by_origin() {
         );
         assert_origin_aware(&no_slot, expected, "the no-slot refusal");
     }
-    no_upstream_connection(&upstream);
+    // The one upstream connection is the held request; nothing the refusals
+    // answered ever reached it.
+    let settle = Instant::now() + Duration::from_secs(2);
+    while upstream.accepts() == 1 && Instant::now() < settle {
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(upstream.accepts(), 1);
+    drop(held);
     door.shutdown();
 }
 

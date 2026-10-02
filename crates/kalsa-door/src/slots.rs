@@ -8,6 +8,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
+use std::time::Instant;
 
 use crate::{DeviceId, Devices};
 
@@ -57,6 +58,10 @@ struct Slots {
     /// Slots whose device left the set while a lease was still held. They
     /// move to `free` when the last lease drops.
     pending_free: BTreeSet<u32>,
+    /// The instant each slot was last leased. Seats follow demand, and this
+    /// is the order they move in: the idle seat whose device asked longest
+    /// ago is the one that yields.
+    last_used: HashMap<u32, Instant>,
     capacity: u32,
 }
 
@@ -84,6 +89,23 @@ pub(crate) struct DeviceSet {
     in_write: Mutex<Option<Box<dyn Fn() + Send>>>,
 }
 
+impl Slots {
+    /// The idle assigned seat that yields, and the device that yields it:
+    /// no lease holds the slot, and its device's last ask is the oldest of
+    /// the idle seats. A seat still in flight never yields — that is the
+    /// leases map's whole promise — and `None` when every assigned slot is
+    /// in flight.
+    fn yieldable(&self) -> Option<(DeviceId, u32)> {
+        self.assigned
+            .iter()
+            .filter(|(_, slot)| self.leases.get(*slot).copied().unwrap_or(0) == 0)
+            .min_by_key(|(device, slot)| {
+                (self.last_used.get(*slot).copied(), device.value())
+            })
+            .map(|(device, slot)| (*device, *slot))
+    }
+}
+
 impl DeviceSet {
     pub(crate) fn new(devices: Devices, capacity: u32) -> Self {
         Self {
@@ -94,6 +116,7 @@ impl DeviceSet {
                 free: (0..capacity).collect(),
                 leases: HashMap::new(),
                 pending_free: BTreeSet::new(),
+                last_used: HashMap::new(),
                 capacity,
             }),
             #[cfg(test)]
@@ -135,6 +158,14 @@ impl DeviceSet {
     /// [`LeaseError::NotHeld`] rather than given a slot it would keep
     /// forever, and the lease keeps that slot out of `free` until the request
     /// ends.
+    ///
+    /// Seats follow demand: the set routinely holds more devices than the
+    /// engine has slots — the room's guest is seated beside the household by
+    /// construction — so an assignment whose device holds no lease is the
+    /// seat a waiting device takes, oldest use first. A lasting assignment
+    /// would lock out whoever asked second forever, an idle engine included:
+    /// that starvation is why the map yields. Stability is kept whenever a
+    /// seat is free, which is what the warm cache buys.
     pub(crate) fn lease(&self, device: DeviceId) -> Result<SlotLease<'_>, LeaseError> {
         #[cfg(test)]
         if let Some(hook) = self
@@ -152,15 +183,25 @@ impl DeviceSet {
         let slot = match slots.assigned.get(&device) {
             Some(&slot) => slot,
             None => {
-                let Some(slot) = slots.free.iter().next().copied() else {
-                    // The free set is the authority. The stored capacity is
-                    // never re-derived; the partition is only asserted: every
-                    // id is assigned, free, or waiting on a revoked lease.
-                    debug_assert_eq!(
-                        slots.assigned.len() + slots.free.len() + slots.pending_free.len(),
-                        slots.capacity as usize
-                    );
-                    return Err(LeaseError::NoRoom);
+                let slot = match slots.free.iter().next().copied() {
+                    Some(slot) => slot,
+                    None => {
+                        let Some((holder, slot)) = slots.yieldable() else {
+                            // The free set is the authority. The stored
+                            // capacity is never re-derived; the partition is
+                            // only asserted: every id is assigned, free, or
+                            // waiting on a revoked lease.
+                            debug_assert_eq!(
+                                slots.assigned.len()
+                                    + slots.free.len()
+                                    + slots.pending_free.len(),
+                                slots.capacity as usize
+                            );
+                            return Err(LeaseError::NoRoom);
+                        };
+                        slots.assigned.remove(&holder);
+                        slot
+                    }
                 };
                 slots.free.remove(&slot);
                 slots.assigned.insert(device, slot);
@@ -168,6 +209,7 @@ impl DeviceSet {
             }
         };
         *slots.leases.entry(slot).or_insert(0) += 1;
+        slots.last_used.insert(slot, Instant::now());
         Ok(SlotLease {
             set: self,
             device,
@@ -251,6 +293,7 @@ impl DeviceSet {
             .collect();
         for id in removed {
             if let Some(slot) = slots.assigned.remove(&id) {
+                slots.last_used.remove(&slot);
                 if slots.leases.get(&slot).copied().unwrap_or(0) > 0 {
                     slots.pending_free.insert(slot);
                 } else {

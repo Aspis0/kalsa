@@ -27,12 +27,17 @@ interface NameErrorDto {
   code: string;
 }
 
+interface SendErrorDto {
+  code: string;
+}
+
 export function useRoomFeed() {
   const [feed, setFeed] = useState<RoomFeed>(emptyFeed);
   const [info, setInfo] = useState<RoomInfo | null>(null);
   const [note, setNote] = useState<{ code: string | null; text: string | null } | null>(null);
   const [refusal, setRefusal] = useState<{ code: string } | null>(null);
   const [nameError, setNameError] = useState<{ code: string } | null>(null);
+  const [sendError, setSendError] = useState<{ code: string } | null>(null);
   const [sending, setSending] = useState(false);
   // The listener's closure reads the epoch through a ref: it must compare
   // against what the feed holds NOW, not the value from its first render.
@@ -78,7 +83,17 @@ export function useRoomFeed() {
               }
             : current,
         );
-        setNote(event.note_code || event.note ? { code: event.note_code, text: event.note } : null);
+        // The idle frame is the turn's end, not news: it clears the
+        // answering line (its running is null) and must leave the note the
+        // turn ended with — the failure or the wait is what there is to
+        // read.
+        setNote((current) =>
+          event.state === "idle"
+            ? current
+            : event.note_code || event.note
+              ? { code: event.note_code, text: event.note }
+              : null,
+        );
       }
       if (event.kind === "member" && event.action === "renamed") {
         setInfo((current) =>
@@ -134,10 +149,14 @@ export function useRoomFeed() {
         // approved copy renders, the rest wait for the owner.
         if (answer.refusal) setRefusal({ code: answer.refusal });
         else setRefusal(null);
+        setSendError(null);
         return true;
-      } catch {
+      } catch (error) {
         // A refused post keeps the words where they were typed: nothing
-        // was stored, nothing pretends.
+        // was stored, nothing pretends. The code is carried for the page,
+        // which says what happened instead of swallowing it.
+        const code = (error as SendErrorDto | undefined)?.code;
+        setSendError({ code: code ?? "internal" });
         return false;
       } finally {
         setSending(false);
@@ -171,6 +190,7 @@ export function useRoomFeed() {
     note,
     refusal,
     nameError,
+    sendError,
     sending,
     load,
     send,

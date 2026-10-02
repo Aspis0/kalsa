@@ -92,6 +92,75 @@ impl Drop for RecordingUpstream {
     }
 }
 
+/// A held-seat upstream: every connection is accepted, counted, and then
+/// left unanswered past any test's patience, so the request that reached it
+/// stays in flight with its seat leased the whole time. The count is how a
+/// test proves a later refusal never opened a connection of its own.
+pub(super) struct HoldingUpstream {
+    pub(super) port: u16,
+    accepts: Arc<AtomicUsize>,
+    stop: Arc<AtomicBool>,
+    handle: Option<thread::JoinHandle<()>>,
+}
+
+impl HoldingUpstream {
+    pub(super) fn start() -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let stop = Arc::new(AtomicBool::new(false));
+        let accepts = Arc::new(AtomicUsize::new(0));
+        let thread_stop = Arc::clone(&stop);
+        let thread_accepts = Arc::clone(&accepts);
+        let handle = thread::spawn(move || {
+            listener.set_nonblocking(true).unwrap();
+            while !thread_stop.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        thread_accepts.fetch_add(1, Ordering::SeqCst);
+                        // Each connection holds on its own thread: a held
+                        // exchange must not stop the next accept.
+                        thread::spawn(move || {
+                            let mut stream = stream;
+                            stream.set_nonblocking(false).unwrap();
+                            let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+                            let mut head = Vec::new();
+                            if read_until(&mut stream, b"\r\n\r\n", &mut head).is_err() {
+                                return;
+                            }
+                            // Past every clock a test's door carries: the
+                            // exchange outlives the test that held it.
+                            thread::sleep(Duration::from_secs(600));
+                        });
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    Err(_) => return,
+                }
+            }
+        });
+        Self {
+            port,
+            accepts,
+            stop,
+            handle: Some(handle),
+        }
+    }
+
+    pub(super) fn accepts(&self) -> usize {
+        self.accepts.load(Ordering::SeqCst)
+    }
+}
+
+impl Drop for HoldingUpstream {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
 /// Every value the head carries for a field name, case-insensitively.
 pub(super) fn header_values(head: &[u8], name: &str) -> Vec<String> {
     let text = String::from_utf8_lossy(head);

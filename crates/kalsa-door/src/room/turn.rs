@@ -124,6 +124,10 @@ const ENGINE_PROBLEM: (&str, &str) = (
     "engine_problem",
     "Kalsa ran into a problem on this computer and couldn't answer. Ask again.",
 );
+const SEAT_TIMEOUT: (&str, &str) = (
+    "seat_timeout",
+    "Kalsa waited for a turn at the engine and gave up. Ask again.",
+);
 
 /// The room's own seat at the engine: the fixed device id the door mints
 /// into its set when it is given a room. A seat of its own, because the
@@ -139,6 +143,7 @@ pub(crate) fn spawn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, member: MemberId
         .name("kalsa-door-room-turn".into())
         .spawn(move || drive(&driving, &shared, member, turn));
     if spawned.is_err() {
+        log::info!("room turn finished: turn {turn} reason could_not_start");
         publish(Arc::clone(&door.room), "refused", Some(COULD_NOT_START));
         let _ = door.room.end_turn(member);
     }
@@ -155,7 +160,11 @@ fn drive(door: &Arc<RoomDoor>, shared: &Arc<Shared>, mut member: MemberId, mut t
             member,
             armed: true,
         };
-        run_one_turn(door, shared, turn);
+        // The app's log carries the turn's phases and their stable reason
+        // codes — ids and turn numbers only, never a word anyone said.
+        log::info!("room turn started: member {} turn {turn}", member.wire());
+        let reason = run_one_turn(door, shared, turn);
+        log::info!("room turn finished: turn {turn} reason {reason}");
         match guard.finish() {
             Some((next_member, next_turn)) => {
                 member = next_member;
@@ -207,7 +216,10 @@ enum Exchange {
     Failed,
 }
 
-fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
+/// One turn, from the thinking frame to its end. The `&'static str` is the
+/// stable reason code the log carries; the room is told only what the
+/// publish calls along the way said.
+fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'static str {
     publish(door.room.clone(), "thinking", None);
     let mut budget = budget_of(shared.slot_context);
     // One free retry for an engine problem: a stream that broke, a socket
@@ -216,19 +228,31 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
     let mut engine_retries = 1;
     loop {
         if !door.room.turn_alive(turn) {
-            return;
+            return "cancelled";
         }
         let (messages, read) = transcript(door, shared, budget);
+        let mut said_waiting = false;
+        let waiting_since = Instant::now();
         let lease = loop {
             if !door.room.turn_alive(turn) {
-                return;
+                return "cancelled";
             }
             match shared.set.lease(DeviceId::new(ROOM_DEVICE)) {
                 Ok(lease) => break lease,
                 // No seat, no failure: the call keeps its place and says
                 // what it is waiting for, which is a computer, not a
-                // model.
+                // model — and the wait is bounded (the door's own seat
+                // clock), because a call that waits forever is a lie the
+                // Room keeps on screen.
                 Err(LeaseError::NoRoom) => {
+                    if waiting_since.elapsed() >= shared.clocks.seat_wait {
+                        publish(door.room.clone(), "refused", Some(SEAT_TIMEOUT));
+                        return "seat_timeout";
+                    }
+                    if !said_waiting {
+                        said_waiting = true;
+                        log::info!("room turn waiting for a seat: turn {turn}");
+                    }
                     publish(door.room.clone(), "waiting", Some(BUSY_WAITING));
                     std::thread::sleep(SEAT_POLL);
                 }
@@ -236,19 +260,19 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
                 // itself; not held means the door was built without it.
                 Err(LeaseError::NotHeld) => {
                     publish(door.room.clone(), "refused", Some(UNAVAILABLE));
-                    return;
+                    return "unavailable";
                 }
             }
         };
         let Some(salt) = shared.set.cache_salt(DeviceId::new(ROOM_DEVICE)) else {
             publish(door.room.clone(), "refused", Some(UNAVAILABLE));
-            return;
+            return "unavailable";
         };
         match ask_the_engine(door, shared, turn, &lease, &salt, &messages) {
             Exchange::Answered(answer) => {
                 if answer.is_empty() {
                     publish(door.room.clone(), "refused", Some(EMPTY_ANSWER));
-                    return;
+                    return "empty_answer";
                 }
                 let _ = door.room.post_ai(&answer, read);
                 door.room.publish_ai(AiEvent::Status {
@@ -256,7 +280,7 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
                     note_code: None,
                     note: None,
                 });
-                return;
+                return "done";
             }
             // Too large for the engine: halve and go again, down to the
             // newest message alone. Only when even that is refused is the
@@ -270,17 +294,17 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) {
                 }
                 None => {
                     publish(door.room.clone(), "refused", Some(ENGINE_PROBLEM));
-                    return;
+                    return "engine_problem";
                 }
             },
-            Exchange::Abandoned => return,
+            Exchange::Abandoned => return "cancelled",
             Exchange::Failed => {
                 if engine_retries > 0 {
                     engine_retries -= 1;
                     continue;
                 }
                 publish(door.room.clone(), "refused", Some(ENGINE_PROBLEM));
-                return;
+                return "engine_problem";
             }
         }
     }
@@ -332,6 +356,7 @@ fn ask_the_engine(
     {
         return Exchange::Failed;
     }
+    log::info!("room turn request sent: turn {turn}");
     let mut reader = BufReader::new(engine);
     let mut answer = String::new();
     let mut answered = false;

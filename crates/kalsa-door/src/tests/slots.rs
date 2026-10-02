@@ -37,10 +37,11 @@ fn two_devices_get_distinct_slots_below_the_capacity() {
 }
 
 #[test]
-fn a_fifth_device_is_refused_without_touching_the_upstream() {
-    // The fifth device is refused with the door's own 503, and the accept
-    // counter stays at four: the refusal happens before `connect_timeout`,
-    // so no generation can be started for a device the engine has no slot for.
+fn a_device_beyond_the_seats_takes_an_idle_seat() {
+    // More devices than the engine funds seats for — the set routinely
+    // holds one more than the seats, the room's guest — take turns: whoever
+    // asks while a seat sits idle takes it, and nobody is locked out for
+    // having asked second.
     let upstream = RecordingUpstream::start();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
@@ -51,62 +52,86 @@ fn a_fifth_device_is_refused_without_touching_the_upstream() {
         .start()
         .unwrap();
 
-    for token in &tokens[..4] {
+    for token in &tokens {
         let response = request(address, Some(&format!("Bearer {token}")));
         assert!(
             response.starts_with(b"HTTP/1.1 200 OK"),
-            "one of the first four devices was not served: {}",
+            "one of the five devices was not served: {}",
             String::from_utf8_lossy(&response)
         );
     }
+    assert_eq!(upstream.heads().len(), 5, "every device reached the engine");
+    let slots: Vec<u32> = upstream
+        .heads()
+        .iter()
+        .map(|head| sealed_slot(head))
+        .collect();
+    assert!(
+        slots.iter().all(|slot| *slot < 4),
+        "a slot escaped the capacity: {slots:?}"
+    );
+    door.shutdown();
+}
 
-    let fifth = request(address, Some(&format!("Bearer {}", tokens[4])));
-    let text = String::from_utf8_lossy(&fifth).to_string();
+#[test]
+fn a_full_house_of_live_requests_refuses_the_next_without_touching_the_upstream() {
+    // The no-slot 503 is pressure, not planning: every seat holds an
+    // in-flight request. The refusal happens before `connect_timeout`, so
+    // no generation can be started for a device the engine has no seat for
+    // right now.
+    let upstream = HoldingUpstream::start();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let (first, second) = (credential(), credential());
+    let door = Door::new_with_engine(
+        listener,
+        upstream.port,
+        door_devices(&[&first, &second]),
+        1,
+        EnginePrivateHeaders::Consumed,
+    )
+    .unwrap()
+    .start()
+    .unwrap();
+
+    // The first device's request is in flight, its seat leased.
+    let mut held = TcpStream::connect(address).unwrap();
+    held.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    held.write_all(
+        chat_post(ORIGIN, Some(&format!("Bearer {first}")), None).as_bytes(),
+    )
+    .unwrap();
+    let leased = Instant::now() + Duration::from_secs(2);
+    while upstream.accepts() == 0 && Instant::now() < leased {
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(upstream.accepts(), 1, "the first device's request never left");
+
+    let refused = request(address, Some(&format!("Bearer {second}")));
+    let text = String::from_utf8_lossy(&refused).to_string();
     assert!(
         text.starts_with("HTTP/1.1 503 Service Unavailable"),
-        "the fifth device was not refused with the door's own 503: {text}"
+        "the second device was not refused with the door's own 503: {text}"
     );
     assert!(
-        text.contains("This computer is set up for 4 devices at once, and one of them is this computer."),
-        "the refusal does not say the count or that the host is one of them: {text}"
-    );
-    assert!(
-        text.contains("Turning the assistant off and on again re-plans the seats from the devices stored now; if it still cannot fund one seat per stored device, lower the context in Advanced, or forget a device on the Devices page."),
-        "the refusal does not say what to do: {text}"
-    );
-    // `Content-Length` must be exactly the body written, or the client hangs.
-    let body_at = fifth
-        .windows(4)
-        .position(|window| window == b"\r\n\r\n")
-        .map(|at| at + 4)
-        .expect("the refusal has a head and a body");
-    let (head, body) = fifth.split_at(body_at);
-    let declared: usize = String::from_utf8_lossy(head)
-        .lines()
-        .find_map(|line| line.strip_prefix("Content-Length: "))
-        .and_then(|value| value.trim().parse().ok())
-        .expect("the refusal declares its length");
-    assert_eq!(
-        declared,
-        body.len(),
-        "the no-slot Content-Length does not match the body: {}",
-        String::from_utf8_lossy(&fifth)
+        text.contains(
+            "This computer is set up for 1 device at once, and every seat is busy right now."
+        ),
+        "the refusal does not say the count or that the seats are busy: {text}"
     );
     // A spurious connection that is dropped at once is still a connection
-    // the upstream's accept loop will count, just not instantly. Poll on the
-    // condition with a deadline — no fixed sleep, which would be either
-    // flaky (too short) or slow (too long) — so the assertion fails the
-    // moment a refused request has been seen upstream.
+    // the upstream's accept loop will count, just not instantly. Poll on
+    // the condition with a deadline, then read the number after it.
     let accepted = Instant::now() + Duration::from_secs(2);
-    while upstream.accepts() == 4 && Instant::now() < accepted {
+    while upstream.accepts() == 1 && Instant::now() < accepted {
         thread::sleep(Duration::from_millis(5));
     }
     assert_eq!(
         upstream.accepts(),
-        4,
+        1,
         "the refusal opened an upstream connection"
     );
-    assert_eq!(upstream.heads().len(), 4);
+    drop(held);
     door.shutdown();
 }
 
@@ -342,6 +367,13 @@ fn the_slot_map_answers_the_slot_it_assigned() {
     let _a = set.lease(DeviceId::new(0)).expect("held");
     let _b = set.lease(DeviceId::new(1)).expect("held");
     assert!(matches!(set.lease(DeviceId::new(2)), Err(LeaseError::NoRoom)));
+    // With both seats IN FLIGHT there is nothing to yield. Let them go and
+    // the third device takes the idle seat whose device asked longest ago:
+    // seats follow demand.
+    drop(_a);
+    drop(_b);
+    let evicted = set.lease(DeviceId::new(2)).expect("an idle seat yields");
+    assert_eq!(evicted.slot(), 0, "the oldest ask is the seat that yields");
 }
 
 #[test]

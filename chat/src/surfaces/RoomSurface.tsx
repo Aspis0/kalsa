@@ -31,7 +31,6 @@ export function RoomSurface() {
   const room = table.room;
   const { info, note, entries, live } = feed;
   const [draft, setDraft] = useState("");
-
   // The header's name affordance exists only while there is a name to
   // show: a bare "You are …" is noise, and the placeholder copy is not
   // approved.
@@ -47,7 +46,8 @@ export function RoomSurface() {
 
   async function send(withCall: boolean): Promise<void> {
     const text = draft.trim();
-    if (!text) return;
+    // A bare "@" names nobody: there is nothing to post and nobody to ask.
+    if (!text || text === "@") return;
     setDraft("");
     await feed.send(text, withCall);
   }
@@ -72,6 +72,11 @@ export function RoomSurface() {
   const noteLine = room.notes[note?.code ?? ""] ?? note?.text ?? null;
   const refusalLine = room.notes[feed.refusal?.code ?? ""] ?? null;
   const nameLine = room.notes[feed.nameError?.code ?? ""] ?? null;
+  // A send that the room refused is said, never swallowed; the sentence
+  // follows the code, and one the table does not know gets the app's own.
+  const sendErrorLine = feed.sendError
+    ? (room.notes[feed.sendError.code] ?? room.sendFailed)
+    : null;
 
   return (
     <div className="surface-page room-page">
@@ -155,6 +160,12 @@ export function RoomSurface() {
         {refusalLine ? <p className="surface-quiet">{refusalLine}</p> : null}
         {noteLine ? <p className="surface-quiet">{noteLine}</p> : null}
       </div>
+
+      {sendErrorLine ? (
+        <p className="surface-quiet" role="alert">
+          {sendErrorLine}
+        </p>
+      ) : null}
 
       <form
         className="room-bar"

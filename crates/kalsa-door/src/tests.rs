@@ -28,6 +28,7 @@ mod paging_sweep;
 mod revocation;
 mod room_engine;
 mod room_routes;
+mod room_seat;
 mod room_support;
 mod room_turn;
 mod room_turn_wire;
