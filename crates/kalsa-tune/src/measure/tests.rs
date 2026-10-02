@@ -85,3 +85,78 @@ fn a_nonce_is_unlike_any_model_name() {
         "a fresh identity per lifetime"
     );
 }
+
+/// A loopback server that answers one request after `delay` with a room
+/// ask's timings, the way a slow processor does.
+fn slow_engine(delay: Duration) -> SocketAddr {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            // The whole request first: closing on unread bytes resets the
+            // connection and the client never sees the answer.
+            let mut request = Vec::new();
+            let mut chunk = [0u8; 4096];
+            loop {
+                let Ok(read) = stream.read(&mut chunk) else {
+                    break;
+                };
+                request.extend_from_slice(&chunk[..read]);
+                let text = String::from_utf8_lossy(&request);
+                let Some((head, body)) = text.split_once("\r\n\r\n") else {
+                    continue;
+                };
+                let length = head
+                    .lines()
+                    .find_map(|line| {
+                        line.to_ascii_lowercase()
+                            .strip_prefix("content-length: ")
+                            .and_then(|v| v.trim().parse::<usize>().ok())
+                    })
+                    .unwrap_or(0);
+                if read == 0 || body.len() >= length {
+                    break;
+                }
+            }
+            std::thread::sleep(delay);
+            let body = r#"{"timings":{"prompt_n":2252,"prompt_per_second":22.7}}"#;
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    addr
+}
+
+/// A slow shape is measured, not refused: an answer that takes longer than
+/// a decode request is allowed to is still the room ask's rate while it
+/// lands inside the room ask's own bound — and a hang past it is refused.
+#[test]
+fn a_slow_room_ask_is_measured_inside_its_bound_and_refused_past_it() {
+    let rate = room_prompt_rate(
+        slow_engine(Duration::from_millis(600)),
+        Duration::from_secs(5),
+    );
+    assert_eq!(rate, Ok(22.7));
+    let hung = room_prompt_rate(
+        slow_engine(Duration::from_secs(3)),
+        Duration::from_millis(300),
+    );
+    assert_eq!(hung, Err(Refusal::NoUsableAnswer));
+}
+
+/// The bound the lifetime really uses: the Surface's 99 s prefill fits with
+/// room to spare, a decode request's bound would not, and the longest
+/// lifetime stays a bounded number.
+#[test]
+fn the_room_ask_is_given_a_bound_a_slow_processor_fits_in() {
+    assert!(ROOM_REQUEST_TIMEOUT >= Duration::from_secs(3 * 99));
+    assert!(ROOM_REQUEST_TIMEOUT > REQUEST_TIMEOUT);
+    assert_eq!(
+        LIFETIME_LIMIT,
+        Duration::from_secs(120 + 60 + 300 + 180 + 10)
+    );
+}

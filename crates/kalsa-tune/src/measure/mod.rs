@@ -14,9 +14,11 @@ use crate::room;
 use crate::sample::{post_to, request_ask, serves_id, Ask};
 
 /// One clock over both passes, checked before each lifetime and never
-/// during one: 1080 s is the widest tune — three shapes, each a
-/// prefill-and-off lifetime and three drafted settings — at the slowest
-/// plausible ~68 s apiece, twelve lifetimes ≈ 820 s.
+/// during one: 1080 s covers four shapes (the integrated GPU's mixed shape
+/// is the fourth), each a prefill-and-off lifetime and three drafted
+/// settings — sixteen lifetimes at ~68 s apiece. A lifetime that begins just
+/// inside the bound can still run to its own limit, so the tune ends no
+/// later than the bound plus [`LIFETIME_LIMIT`].
 const TOTAL_BUDGET: Duration = Duration::from_secs(1080);
 
 /// A lifetime's ready deadline: a cold first read of a 5 GB file on a
@@ -27,16 +29,32 @@ const READY_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// One request's bound: 60 s refuses anything slower than about 2 tok/s
 /// on the decode ask — a real refusal, not only a hang. The decode ask is
-/// 128 tokens and the room ask about two thousand, so a processor or
-/// forced-off launch decoding below ~2 tok/s is refused, and prefill below
-/// ~33 tok/s is refused with it: both are near or below the catalog's own
-/// floor (`MINIMUM_TOKENS_PER_SECOND = 3.0`,
-/// `kalsa-catalog/src/choice.rs`) and useless in use regardless of how
-/// they rank — nobody waits a minute for a two-hundred-token reply. The
-/// refusal costs the tune nothing: if it is the only candidate there is no
-/// tune, and the caller keeps the rule. One wedged candidate also cannot
-/// spend the whole budget.
+/// 128 tokens, so a launch decoding below ~2 tok/s is refused: that is near
+/// or below the catalog's own floor (`MINIMUM_TOKENS_PER_SECOND = 3.0`,
+/// `kalsa-catalog/src/choice.rs`) and useless in use regardless of how it
+/// ranks. The refusal costs the tune nothing: if it is the only candidate
+/// there is no tune, and the caller keeps the rule. One wedged candidate
+/// also cannot spend the whole budget.
 pub(crate) const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+
+/// The room ask's own bound: a prefill of about 2,250 tokens is the longest
+/// request the tune makes, and a slow processor is slow, not broken — the
+/// Surface's CPU build took 99 s (22.7 tok/s) and under 60 s was refused as
+/// "no usable answer" instead of measured. 300 s refuses prefill below
+/// ~7.5 tok/s, where a long history is a five-minute wait and not a
+/// candidate.
+pub(crate) const ROOM_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
+
+/// The longest one lifetime can run: the ready deadline, the warm-up, the
+/// room ask, the three decode requests and the two identity checks, each at
+/// its own bound.
+const LIFETIME_LIMIT: Duration = Duration::from_secs(
+    READY_TIMEOUT.as_secs()
+        + REQUEST_TIMEOUT.as_secs()
+        + ROOM_REQUEST_TIMEOUT.as_secs()
+        + (WARMUP_REQUESTS + MEASURED_REQUESTS) as u64 * REQUEST_TIMEOUT.as_secs()
+        + 2 * IDENTITY_TIMEOUT.as_secs(),
+);
 
 /// The identity checks get their own short bound: `/v1/models` is a
 /// set-iteration over one entry and a string build — instant — so five
@@ -149,18 +167,23 @@ fn first_lifetime(
 ) -> Result<First, Refusal> {
     lifetime(state_root, candidate, resolved_exe, build, |addr| {
         let _ = post_to(addr, REQUEST_TIMEOUT, "/completion", &room::warmup_body());
-        let prompt_rate = match post_to(addr, REQUEST_TIMEOUT, "/completion", &room::ask_body()) {
-            Ok(answer) => room::prompt_rate(&answer)?,
-            // A timeout or an HTTP error is a lifetime with no usable
-            // answer, the same reading the decode pass gives one.
-            Err(_) => return Err(Refusal::NoUsableAnswer),
-        };
+        let prompt_rate = room_prompt_rate(addr, ROOM_REQUEST_TIMEOUT)?;
         let rates = draft_requests(addr, ask);
         Ok(First {
             prompt_rate,
             off: measured(rates),
         })
     })
+}
+
+/// The shape's prefill rate from the room ask, within `timeout`. A timeout
+/// or an HTTP error is a lifetime with no usable answer, the same reading
+/// the decode pass gives one.
+fn room_prompt_rate(addr: SocketAddr, timeout: Duration) -> Result<f64, Refusal> {
+    match post_to(addr, timeout, "/completion", &room::ask_body()) {
+        Ok(answer) => room::prompt_rate(&answer),
+        Err(_) => Err(Refusal::NoUsableAnswer),
+    }
 }
 
 /// The drafted sweep's lifetime: the same ask and the same request
