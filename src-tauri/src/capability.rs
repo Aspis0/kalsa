@@ -1038,6 +1038,53 @@ mod tests {
     }
 
     #[test]
+    fn the_first_run_on_the_owners_card_offers_gemma_and_never_sells_the_floor_as_a_rate() {
+        // The Lenovo as measurement.json holds it: 62 460 761 598 B/s timed
+        // on the processor, under a card the model will decode on. The row
+        // that fits that card entirely is the pick, and its speed line is a
+        // lower bound — the processor's figure is never sold as the rate
+        // this model will reach on the card.
+        let lenovo = Measurement {
+            ramp: vec![(2, 62_460_761_598.0)],
+            ceiling_bytes_per_second: 62_460_761_598.0,
+            ceiling: kalsa_probe::Series::new(vec![62_460_761_598.0]),
+            ..measured(Backend::DiscreteGpu {
+                vram_bytes: Some(6_439_305_216),
+            })
+        };
+        let suggestion = dto(&lenovo, 32 * GIB, None, false, &records_root("lenovo-card"));
+        let CapabilityDto::Measured {
+            machine,
+            model,
+            quicker,
+            refusal,
+            ..
+        } = suggestion
+        else {
+            panic!("a measured machine answers Measured");
+        };
+        assert_eq!(machine.bandwidth_basis, "floor");
+        assert!(refusal.is_none(), "a pick does not carry a refusal");
+        let pick = model.expect("the card runs something");
+        assert_eq!(
+            (pick.name.as_str(), pick.quant.as_str()),
+            ("Google Gemma 4 E4B", "Q4_K_M")
+        );
+        assert!(
+            matches!(pick.speed, SpeedDto::AtLeast { .. }),
+            "a floor travels as an at-least, never as a figure"
+        );
+        assert!(
+            pick.details
+                .contains("A floor: timed on a slower path than the model will run on."),
+            "{}",
+            pick.details
+        );
+        let second = quicker.expect("the second card beside the pick");
+        assert_eq!(second.name.as_str(), "Liquid LFM 2.5");
+    }
+
+    #[test]
     fn only_the_pick_claims_the_fit_and_no_speed_contradicts_itself() {
         // Two defects in one string, both read off the screen on 2026-09-19: the
         // working is written for the pick and was applied to both rows, so the

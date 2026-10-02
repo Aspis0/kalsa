@@ -931,10 +931,17 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
         |candidate: &Candidate| dense_speed_floor(candidate.entry).is_none_or(|line| {
             candidate.decode.floor() >= line
         });
+    // The owner's rule: a row that fits entirely in a dedicated card's
+    // budget runs on the card, and the floor under it was timed on the
+    // processor — so the floor may keep such a row but never withhold it.
+    // Its speed stays what the type says: at least the floor, unknown above.
+    let on_the_card_under_a_floor = |candidate: &Candidate| {
+        budget.card_sized && matches!(candidate.decode, Prediction::Floor(_))
+    };
     let any_clears = eligible.iter().any(|candidate| clears_its_line(candidate));
     let mut remaining = Vec::new();
     for candidate in eligible {
-        if any_clears && !clears_its_line(&candidate) {
+        if any_clears && !clears_its_line(&candidate) && !on_the_card_under_a_floor(&candidate) {
             // Withheld, never offerable here — and counted, so an answer
             // about what fits cannot pretend this row does not exist.
             too_slow.push(candidate);

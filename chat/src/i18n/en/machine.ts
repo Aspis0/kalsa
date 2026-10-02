@@ -26,7 +26,9 @@ export const MACHINE = {
   speedSteady: (rate: string) => `Answers at a steady pace · ${rate} tokens/s`,
   speedSlow: (rate: string) => `Takes a moment · ${rate} tokens/s`,
   speedRange: (low: string, high: string) => `About ${low}–${high} tokens/s`,
-  speedAbout: (value: string) => `About ${value} tokens/s`,
+  // The wire shape is `at_least`: a floor, never a point — "About" sold the
+  // processor's floor as the rate the model would reach on the card.
+  speedAbout: (value: string) => `At least ${value} tokens/s`,
   detailRange: "Estimated from this computer's speed.",
   detailMeasured: (machine: string) => `last measured on ${machine}`,
   onDisk: (bytes: string) => `${bytes} on this computer`,

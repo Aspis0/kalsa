@@ -24,7 +24,7 @@ export const MACHINE = {
     "speedSteady": (rate: string) => `回答节奏平稳 · ${rate} token/s`,
     "speedSlow": (rate: string) => `需要一点时间 · ${rate} token/s`,
     "speedRange": (low: string, high: string) => `约 ${low}–${high} token/s`,
-    "speedAbout": (value: string) => `约 ${value} token/s`,
+    "speedAbout": (value: string) => `至少 ${value} token/s`,
     "detailRange": "根据这台电脑的速度估算。",
     "detailMeasured": (machine: string) => `上次在${machine}上实测`,
     "onDisk": (bytes: string) => `${bytes} 在这台电脑上`,

@@ -24,7 +24,7 @@ export const MACHINE = {
     "speedSteady": (rate: string) => `Responde a ritmo constante · ${rate} tokens/s`,
     "speedSlow": (rate: string) => `Tarda un momento · ${rate} tokens/s`,
     "speedRange": (low: string, high: string) => `Unos ${low}–${high} tokens/s`,
-    "speedAbout": (value: string) => `Unos ${value} tokens/s`,
+    "speedAbout": (value: string) => `Al menos ${value} tokens/s`,
     "detailRange": "Estimado según la velocidad de este equipo.",
     "detailMeasured": (machine: string) => `medida por última vez en ${machine}`,
     "onDisk": (bytes: string) => `${bytes} en este equipo`,
