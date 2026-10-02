@@ -1021,6 +1021,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   only by allow-list (our KALSA_* structured lines + a fixed list of engine prefixes, each clipped), never free text;
   and the collector never reads logcat (`RNLLAMA_LOG_CONTENT` is ON by design in debuggable APKs: content goes to
   logcat tag RNLlama there).
+  **Step 1 of 3 PUSHED on app main `25a72150` (2026-10-02):** `src/logReport/` = per-tag schema (19 tags: numbers,
+  booleans, closed literals pinned to the emitters by a drift test, registry model ids), final normalizer, console +
+  JS-error collector, app-private 4 MiB file (temp+move rotation). Design: luna 2a42d349 + my decisions
+  (`phone-log-report/DESIGN.md`); GLM 363e302b -> audit space-bunny 437372b7 (no reachable leak; 2 latent holes +
+  bugs) -> GLM f9597f12 -> re-audit luna bf567220 -> my schema update for npu_fit/available_src. Accepted residual: a
+  crafted multi-line JS error message can forge a frame location with digits only. Nothing is sent yet: step 2 =
+  sender + Settings panel (en/it strings from the desktop); step 3 = unclean-exit prompt (Android ApplicationExitInfo
+  via kalsa-lifecycle).
   **Binding r3 follow-up round CLOSED 2026-10-01** (GLM a833e1e5 + ab2525d3, audit luna 5b5ed90e r4): host CMake build
   definition (CMakeLists, rnllama-sources.cmake, rnllama-build-options.cmake) now in the skel source fingerprint;
   skels bound to their DSP version via ELF e_flags; governor_npu_device under its mutex; clean errors on malformed
