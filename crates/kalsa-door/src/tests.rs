@@ -27,6 +27,7 @@ mod paging_support;
 mod paging_sweep;
 mod revocation;
 mod room_engine;
+mod room_handover;
 mod room_routes;
 mod room_seat;
 mod room_support;
@@ -539,8 +540,8 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
                 port: 1,
                 slot_context: None,
                 clocks: Default::default(),
+                chats: Arc::new(crate::paging::Chats::new(1, None, None, None)),
             }),
-            &crate::paging::Chats::new(1, None, None, None),
             &registry,
             &active,
             None,
@@ -817,8 +818,8 @@ fn a_connection_that_waited_past_the_queue_bound_is_answered_busy() {
                 port: 1,
                 slot_context: None,
                 clocks: Default::default(),
+                chats: Arc::new(crate::paging::Chats::new(1, None, None, None)),
             }),
-            &crate::paging::Chats::new(1, None, None, None),
             &registry,
             &active,
             None,

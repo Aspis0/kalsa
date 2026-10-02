@@ -42,7 +42,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use self::io::{erase_slot, restore, save, ChatError, STAGING};
+use self::io::{erase_slot, restore, save, STAGING};
+// The tier's refusal, for the handover in `proxy` — one vocabulary for
+// every path that ends in one.
+pub(crate) use self::io::ChatError;
 use self::names::{file_name, valid_id};
 use crate::cors;
 use crate::devices::DeviceId;
@@ -326,6 +329,65 @@ impl Chats {
         if let Ok(mut state) = self.lock(slot) {
             cadence::note_activity(&mut state);
         }
+    }
+
+    /// The handover a stolen seat owes the tier. [`DeviceSet::lease`] moves
+    /// idle seats between devices; the map this tier keeps must not go on
+    /// naming the evicted device's chat in a slot its state is about to be
+    /// replaced in, or `save_idle` writes the new holder's words into the
+    /// evicted chat's file and the evicted device's next `activate`
+    /// early-returns on a stranger's state as its own. So the evicted chat is
+    /// saved under its own name first — the same save `activate` makes of
+    /// `previous`, under the same slot lock `activate` holds across its own
+    /// save, which is what makes the handover atomic against `save_idle`,
+    /// `activate` and `mark_dirty`, all of which take that lock — and the
+    /// slot is then `Unknown`, the one residency honest about a holder this
+    /// tier cannot name. The evicted device's next `activate` finds `Unknown`,
+    /// skips the early return, and restores its file warm.
+    ///
+    /// A refused save is `Err` with the map untouched: nothing was written
+    /// into the slot on this path, so the residency it carries is still true,
+    /// and the caller refuses the request that would have made it a lie —
+    /// the same closure `activate` gives a refused save.
+    ///
+    /// `Ok(())` having done nothing is every case the map already disagrees
+    /// with the eviction — an earlier handover, an `activate`, a revoke — or
+    /// a door built without the tier, where no chat is named and no file is
+    /// written by anyone.
+    pub(crate) fn handover(
+        &self,
+        devices: &DeviceSet,
+        slot: u32,
+        evicted: DeviceId,
+        upstream_port: u16,
+    ) -> Result<(), ChatError> {
+        let (Some(model), Some(dir)) = (self.model.as_deref(), self.dir.as_deref()) else {
+            return Ok(());
+        };
+        let mut state = self.lock(slot)?;
+        let chat = match &state.resident {
+            Residency::Resident(owner, chat) if *owner == evicted => chat.clone(),
+            _ => return Ok(()),
+        };
+        let Some(salt) = devices.cache_salt(evicted) else {
+            // The evicted device left the set: the record dies here the way
+            // `activate` drops it, and there is nobody left to save for.
+            state.resident = Residency::Empty;
+            state.dirty_at = None;
+            return Ok(());
+        };
+        let engine = Engine {
+            port: upstream_port,
+            slot,
+            salt: &salt,
+            deadline: Instant::now() + crate::PATIENCE,
+        };
+        // The lock is held across the engine call, so the commit check is
+        // vacuously true — the residency cannot move under it.
+        save(dir, &file_name(model, evicted, &chat), &engine, &|| true)?;
+        state.resident = Residency::Unknown;
+        state.dirty_at = None;
+        Ok(())
     }
 
     /// Writes out every slot that changed and has been quiet long enough, and

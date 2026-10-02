@@ -7,8 +7,8 @@
 //! cannot land between a membership check and an allocation.
 
 use std::collections::{BTreeSet, HashMap};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
-use std::time::Instant;
 
 use crate::{DeviceId, Devices};
 
@@ -58,10 +58,13 @@ struct Slots {
     /// Slots whose device left the set while a lease was still held. They
     /// move to `free` when the last lease drops.
     pending_free: BTreeSet<u32>,
-    /// The instant each slot was last leased. Seats follow demand, and this
-    /// is the order they move in: the idle seat whose device asked longest
-    /// ago is the one that yields.
-    last_used: HashMap<u32, Instant>,
+    /// The order each slot was last leased in: a count from the door's own
+    /// monotonic sequence, not a clock — two asks in the same instant must
+    /// still order by which came first, and a coarse clock (Windows) can
+    /// hand back the same instant for both. Seats follow demand in THIS
+    /// order: the idle seat whose device asked longest ago is the one that
+    /// yields.
+    last_used: HashMap<u32, u64>,
     capacity: u32,
 }
 
@@ -78,6 +81,10 @@ struct Slots {
 pub(crate) struct DeviceSet {
     gate: RwLock<()>,
     slots: Mutex<Slots>,
+    /// The monotonic sequence `last_used` counts come from: one per door, so
+    /// the order seats yield in is the order devices asked in, whatever the
+    /// platform's clock resolution.
+    uses: AtomicU64,
     /// Test seam: runs at the top of the next `lease`, before the lock is
     /// taken, so a test can revoke the device in the exact window between
     /// authentication and the slot decision.
@@ -92,16 +99,15 @@ pub(crate) struct DeviceSet {
 impl Slots {
     /// The idle assigned seat that yields, and the device that yields it:
     /// no lease holds the slot, and its device's last ask is the oldest of
-    /// the idle seats. A seat still in flight never yields — that is the
-    /// leases map's whole promise — and `None` when every assigned slot is
-    /// in flight.
+    /// the idle seats, by the monotonic count rather than any clock —
+    /// counts never tie, so no second rule is ever needed. A seat still in
+    /// flight never yields — that is the leases map's whole promise — and
+    /// `None` when every assigned slot is in flight.
     fn yieldable(&self) -> Option<(DeviceId, u32)> {
         self.assigned
             .iter()
             .filter(|(_, slot)| self.leases.get(*slot).copied().unwrap_or(0) == 0)
-            .min_by_key(|(device, slot)| {
-                (self.last_used.get(*slot).copied(), device.value())
-            })
+            .min_by_key(|(_, slot)| self.last_used.get(*slot))
             .map(|(device, slot)| (*device, *slot))
     }
 }
@@ -110,6 +116,7 @@ impl DeviceSet {
     pub(crate) fn new(devices: Devices, capacity: u32) -> Self {
         Self {
             gate: RwLock::new(()),
+            uses: AtomicU64::new(0),
             slots: Mutex::new(Slots {
                 current: Arc::new(devices),
                 assigned: HashMap::new(),
@@ -166,6 +173,11 @@ impl DeviceSet {
     /// would lock out whoever asked second forever, an idle engine included:
     /// that starvation is why the map yields. Stability is kept whenever a
     /// seat is free, which is what the warm cache buys.
+    ///
+    /// Taking a seat from another device is reported on the lease
+    /// ([`SlotLease::evicted`]): the caller owes the disk tier a handover
+    /// before its request writes into the slot (see `paging::Chats::handover`),
+    /// because the map there still names the evicted device's chat in it.
     pub(crate) fn lease(&self, device: DeviceId) -> Result<SlotLease<'_>, LeaseError> {
         #[cfg(test)]
         if let Some(hook) = self
@@ -180,6 +192,7 @@ impl DeviceSet {
         if !slots.current.contains(device) {
             return Err(LeaseError::NotHeld);
         }
+        let mut evicted = None;
         let slot = match slots.assigned.get(&device) {
             Some(&slot) => slot,
             None => {
@@ -200,6 +213,7 @@ impl DeviceSet {
                             return Err(LeaseError::NoRoom);
                         };
                         slots.assigned.remove(&holder);
+                        evicted = Some(holder);
                         slot
                     }
                 };
@@ -209,11 +223,12 @@ impl DeviceSet {
             }
         };
         *slots.leases.entry(slot).or_insert(0) += 1;
-        slots.last_used.insert(slot, Instant::now());
+        slots.last_used.insert(slot, self.uses.fetch_add(1, Ordering::Relaxed));
         Ok(SlotLease {
             set: self,
             device,
             slot,
+            evicted,
         })
     }
 
@@ -331,11 +346,21 @@ pub(crate) struct SlotLease<'a> {
     set: &'a DeviceSet,
     device: DeviceId,
     slot: u32,
+    /// The device this lease's slot was taken from, when taking it moved an
+    /// idle holder off its seat. The caller owes the disk tier the handover
+    /// before its request writes into the slot; nothing else needs to know.
+    evicted: Option<DeviceId>,
 }
 
 impl SlotLease<'_> {
     pub(crate) fn slot(&self) -> u32 {
         self.slot
+    }
+
+    /// The device whose seat this lease took, when it took one. `None` on a
+    /// free seat or the device's own.
+    pub(crate) fn evicted(&self) -> Option<DeviceId> {
+        self.evicted
     }
 
     /// Whether the device is still in the set. Re-checked before the

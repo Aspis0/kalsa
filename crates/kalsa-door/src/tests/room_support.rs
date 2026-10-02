@@ -189,6 +189,13 @@ impl<'a> Feed<'a> {
 
     /// Reads until `needle` appears anywhere in the history, then hands
     /// the whole history back — the assertions search it, not a boundary.
+    ///
+    /// The trap in that shape: the needle is searched over EVERYTHING ever
+    /// read, so a needle that has already appeared once — the stream's
+    /// opening snapshot is itself an idle frame — returns at once without
+    /// reading another byte. Waiting for a second frame of a shape already
+    /// seen needs [`Self::read_more`] and a predicate of the caller's own,
+    /// never a second `until` with the same needle.
     pub(super) fn until(&mut self, needle: &[u8], patience: Duration) -> String {
         let deadline = Instant::now() + patience;
         while Instant::now() < deadline
@@ -204,6 +211,26 @@ impl<'a> Feed<'a> {
                 Err(_) => {}
             }
         }
+        String::from_utf8_lossy(&self.seen).to_string()
+    }
+
+    /// Reads whatever arrives for up to `patience`, keeping it in the
+    /// history: a wait that cannot short-circuit, for the frames `until`
+    /// cannot tell apart from ones already read.
+    pub(super) fn read_more(&mut self, patience: Duration) {
+        let deadline = Instant::now() + patience;
+        while Instant::now() < deadline {
+            let mut chunk = [0u8; 1024];
+            match self.stream.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(read) => self.seen.extend_from_slice(&chunk[..read]),
+                Err(_) => {}
+            }
+        }
+    }
+
+    /// Everything read so far, as text — the searchable whole.
+    pub(super) fn history(&self) -> String {
         String::from_utf8_lossy(&self.seen).to_string()
     }
 }

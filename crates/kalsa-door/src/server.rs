@@ -58,8 +58,9 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     // read would race the ticker's own saves for nothing.
     chats.sweep(&device_set);
     // What every worker serves with, built once: the stop flag, the live
-    // device set, and the room. One bundle because it is one thing — the
-    // door's shared state — and the room's threads take clones of it whole.
+    // device set, the room, and the tier's map. One bundle because it is one
+    // thing — the door's shared state — and the room's threads take clones
+    // of it whole.
     let shared = Arc::new(crate::proxy::Shared {
         stop: Arc::clone(&stop),
         set: Arc::clone(&door.devices),
@@ -67,6 +68,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         port: door.upstream_port,
         slot_context: door.slot_context,
         clocks: door.clocks,
+        chats: Arc::clone(&chats),
     });
     let queue = Arc::new(Queue::new(QUEUE));
     let mut threads = Vec::with_capacity(WORKERS + 2);
@@ -75,7 +77,6 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         let worker_active = Arc::clone(&active);
         let worker_queue = Arc::clone(&queue);
         let worker_registry = Arc::clone(&registry);
-        let worker_chats = Arc::clone(&chats);
         let worker_shared = Arc::clone(&shared);
         let port = door.upstream_port;
         let capacity = door.capacity;
@@ -88,7 +89,6 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
                     worker_active,
                     worker_queue,
                     worker_registry,
-                    worker_chats,
                     worker_shared,
                     port,
                     capacity,
@@ -215,7 +215,6 @@ fn worker(
     active: Arc<ActiveDevices>,
     queue: Arc<Queue<Work>>,
     registry: Arc<Registry>,
-    chats: Arc<crate::paging::Chats>,
     shared: Arc<crate::proxy::Shared>,
     upstream_port: u16,
     capacity: u32,
@@ -234,7 +233,6 @@ fn worker(
                         upstream_port,
                         capacity,
                         &shared,
-                        &chats,
                         &registry,
                         &active,
                         response_observer.as_deref(),

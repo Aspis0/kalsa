@@ -238,7 +238,31 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
                 return "cancelled";
             }
             match shared.set.lease(DeviceId::new(ROOM_DEVICE)) {
-                Ok(lease) => break lease,
+                Ok(lease) => {
+                    // A seat taken from a device is a handover the disk tier
+                    // must hear about before the room's prompt writes into
+                    // the slot (see `paging::Chats::handover`): the evicted
+                    // chat is saved under its own name and the slot stops
+                    // being named for it, or the idle tick would write the
+                    // room's words into that chat's file and the evicted
+                    // device's next activate would find them as its own. A
+                    // save the engine refuses ends the turn with the
+                    // engine-problem note — the same closure activate gives
+                    // a switch it could not save for — and nothing was sent
+                    // to the engine, so the slot still holds what the tier
+                    // says it holds.
+                    if let Some(evicted) = lease.evicted() {
+                        if shared
+                            .chats
+                            .handover(&shared.set, lease.slot(), evicted, shared.port)
+                            .is_err()
+                        {
+                            publish(door.room.clone(), "refused", Some(ENGINE_PROBLEM));
+                            return "handover_failed";
+                        }
+                    }
+                    break lease;
+                }
                 // No seat, no failure: the call keeps its place and says
                 // what it is waiting for, which is a computer, not a
                 // model — and the wait is bounded (the door's own seat

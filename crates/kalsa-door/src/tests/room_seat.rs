@@ -169,13 +169,18 @@ fn a_turn_waiting_for_a_seat_ends_after_a_bound_and_says_so() {
 }
 
 #[test]
-fn a_finished_turns_last_word_says_nobody_is_running() {
-    // The Room's "Kalsa is answering" line reads the running name every
-    // status event carries — derived from the queue's state at frame time,
-    // by the app's pump and the door's stream alike. So the proof that a
-    // finished turn clears the line is the room's own event log: the last
-    // word of a finished turn is the queue's idle frame, published by the
-    // end of the turn itself, and the queue then names nobody.
+fn a_finished_turns_last_word_reaches_the_room_stream() {
+    // Delivery, not publication: the Room's answering line and its Stop
+    // button read the status frames the stream DELIVERS, so the last word
+    // of a finished turn has to arrive — the idle frame with running null,
+    // after the done frame. The room's log orders the two (done is
+    // published inside the turn, idle by its end), so a follower attached
+    // before the call must deliver idle after done.
+    //
+    // The reading is read_more and a predicate, never a second `until` on
+    // "idle": the stream's opening snapshot is itself an idle frame, and a
+    // needle-wait would return on that one without reading another byte —
+    // the spin that once read as a delivery flake.
     let host_credential = credential();
     let (door, room, _fake, _) = house_at(
         vec![Reply::Sse(vec!["ciao".to_string()])],
@@ -183,27 +188,35 @@ fn a_finished_turns_last_word_says_nobody_is_running() {
         1,
         crate::clocks::Clocks::default(),
     );
-    // The cursor is taken before the call, so what reads back is exactly
-    // this turn's news, in order.
-    let mut cursor = room.next_cursor();
+    let bearer = format!("Bearer {host_credential}");
+    let mut follower = stream_get(door.address(), &bearer, "/kalsa/room/events", None);
+    let mut feed = Feed::new(&mut follower);
+    // The snapshot fixes the cursor: everything after this is live news.
+    let opened = feed.until(b"ai_status", Duration::from_secs(6));
+    assert!(opened.contains("\"state\":\"idle\""), "the stream opened idle: {opened}");
     host_calls(&door, &room, "host-1", "@Kalsa ciao");
-    let landed = super::room_turn::await_answer(&room);
-    assert_eq!(landed.text, "ciao");
-    let mut out = Vec::new();
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
-    let take = room.read_since(&mut cursor, deadline, &mut out);
-    assert_eq!(take, kalsa_room::Take::Events);
-    let last_status = out.iter().rev().find_map(|event| match event {
-        kalsa_room::Event::Ai(status @ kalsa_room::AiEvent::Status { .. }) => Some(status.clone()),
-        _ => None,
-    });
-    match last_status {
-        Some(kalsa_room::AiEvent::Status { state, .. }) => assert_eq!(
-            state, "idle",
-            "the turn's last word is the queue's idle frame"
-        ),
-        other => panic!("the turn never said idle: {other:?}"),
-    }
+    let deadline = std::time::Instant::now() + Duration::from_secs(15);
+    let delivered = loop {
+        feed.read_more(Duration::from_millis(200));
+        let whole = feed.history();
+        let done_at = whole.rfind("\"state\":\"done\"");
+        let last_status = whole.rsplit("event: ai_status").next().unwrap_or("");
+        if done_at.is_some()
+            && whole[..done_at.expect("checked just above")].contains("event: ai_status")
+            && last_status.contains("\"state\":\"idle\"")
+            && last_status.contains("\"running\":null")
+        {
+            break whole;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the turn's end never reached the stream: {whole}"
+        );
+    };
+    assert!(
+        delivered.contains("\"state\":\"done\""),
+        "the turn's own done frame is in there too: {delivered}"
+    );
     assert_eq!(
         room.turn_state().running,
         None,

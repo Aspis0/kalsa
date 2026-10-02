@@ -82,8 +82,8 @@ impl Drop for SlotTurn<'_> {
 }
 
 /// The door's shared state, one per door: the stop flag, the live device
-/// set, and the room. Built in `server::start`; workers and the room's
-/// stream threads hold it whole.
+/// set, the room, and the disk tier's map. Built in `server::start`; workers
+/// and the room's threads hold it whole.
 pub(super) struct Shared {
     pub(super) stop: Arc<AtomicBool>,
     pub(super) set: Arc<DeviceSet>,
@@ -92,11 +92,16 @@ pub(super) struct Shared {
     /// reaches the engine through a client's own request.
     pub(super) port: u16,
     /// The per-slot context the launch funded (`--ctx-size /
-    /// --parallel`), for the room's transcript budget. `None` when the
+    /// `--parallel`), for the room's transcript budget. `None` when the
     /// door was built without one; the turn then keeps the fallback.
     pub(super) slot_context: Option<u64>,
     /// The door's limits on the engine's answers and on queueing.
     pub(super) clocks: crate::clocks::Clocks,
+    /// The disk tier's map, the same object every worker serves with: a seat
+    /// the set hands between devices is a handover this map must hear about
+    /// (`paging::Chats::handover`), wherever the new holder's request comes
+    /// from — a client's or the room turn's own.
+    pub(super) chats: Arc<paging::Chats>,
 }
 
 pub(super) fn handle(
@@ -106,13 +111,13 @@ pub(super) fn handle(
     upstream_port: u16,
     capacity: u32,
     shared: &Arc<Shared>,
-    chats: &paging::Chats,
     registry: &Registry,
     active: &ActiveDevices,
     observer: Option<&Observed>,
 ) {
     let devices: &DeviceSet = &shared.set;
     let stop: &AtomicBool = &shared.stop;
+    let chats: &paging::Chats = &shared.chats;
     // Everything below is counted from the moment this worker took the
     // connection up, not from accept: a client that waited in the line for a
     // worker is not punished for the wait with a budget already spent. The
@@ -210,6 +215,22 @@ pub(super) fn handle(
             return;
         }
     };
+    // A seat taken from another device is a handover the disk tier must hear
+    // about before this request writes into it: the evicted device's chat is
+    // saved under its own name and the slot stops being named for it — or
+    // `save_idle` would write this request's words into that chat's file and
+    // the evicted device's next `activate` would early-return on a
+    // stranger's state as its own. A save the engine refuses answers this
+    // request with the same refusal `activate` gives: nothing has been sent
+    // to the engine on this path, so the slot still holds what the map says.
+    if let Some(evicted) = lease.evicted() {
+        if let Err(error) = chats.handover(devices, lease.slot(), evicted, upstream_port) {
+            let _ = discard_request_body(&mut client, head.body_length, deadline);
+            let answer = error.answer(head.origin.as_deref());
+            let _ = write_with_deadline(&mut client, &answer, deadline);
+            return;
+        }
+    }
     // Presence for the running door: this device, exactly while the door is
     // inside this request. Only an authenticated, slotted device is counted.
     let _active = active.enter(device);

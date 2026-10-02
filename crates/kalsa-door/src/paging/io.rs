@@ -48,8 +48,9 @@ impl ChatError {
 /// What a failed action tells the client. The statuses are the door's own
 /// vocabulary — 400 for the client's request, 501 for a door the app never
 /// built the tier into, 502 for the engine — and the sentence is what a UI can
-/// show.
-pub(super) enum ChatError {
+/// show. `pub(crate)` because the seat handover in `proxy` refuses a request
+/// with the same words the routes answer with.
+pub(crate) enum ChatError {
     Unreachable,
     Save,
     Restore,
@@ -61,7 +62,7 @@ pub(super) enum ChatError {
 }
 
 impl ChatError {
-    pub(super) fn answer(self, origin: Option<&[u8]>) -> Vec<u8> {
+    pub(crate) fn answer(self, origin: Option<&[u8]>) -> Vec<u8> {
         // The body is JSON — a code the page renders in the owner's
         // language, and the English sentence a phone client or an unknown
         // code falls back to. The status stays the protocol's own.

@@ -364,16 +364,25 @@ fn the_slot_map_answers_the_slot_it_assigned() {
     ));
 
     let set = DeviceSet::new(door_devices(&[&credential(), &credential(), &credential()]), 2);
-    let _a = set.lease(DeviceId::new(0)).expect("held");
-    let _b = set.lease(DeviceId::new(1)).expect("held");
+    let higher = set.lease(DeviceId::new(1)).expect("held");
+    let lower = set.lease(DeviceId::new(0)).expect("held");
+    assert_eq!(higher.slot(), 0);
+    assert_eq!(lower.slot(), 1);
     assert!(matches!(set.lease(DeviceId::new(2)), Err(LeaseError::NoRoom)));
     // With both seats IN FLIGHT there is nothing to yield. Let them go and
     // the third device takes the idle seat whose device asked longest ago:
-    // seats follow demand.
-    drop(_a);
-    drop(_b);
+    // seats follow demand, and the oldest ask is deliberately the HIGHER
+    // id — device 1 asked first, device 0 asked after — so a policy that
+    // simply picked the lowest device id would hand over the other seat.
+    drop(lower);
+    drop(higher);
     let evicted = set.lease(DeviceId::new(2)).expect("an idle seat yields");
     assert_eq!(evicted.slot(), 0, "the oldest ask is the seat that yields");
+    assert_eq!(
+        evicted.evicted(),
+        Some(DeviceId::new(1)),
+        "the first to ask is the one moved aside, not the lowest id"
+    );
 }
 
 #[test]
