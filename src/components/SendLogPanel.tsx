@@ -13,6 +13,7 @@ import { reportSession, sendLogOnce } from "../logReport/sendLogOnce";
 import { useLabTheme } from "../ui/labTheme";
 import { radius, spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
+import { MIN_TOUCH_TARGET } from "../ui/shell/shellGeometry";
 
 type Phase =
   | { kind: "idle" }
@@ -92,6 +93,8 @@ export function SendLogPanel() {
         style={{
           marginTop: spacing.xxs,
           paddingVertical: spacing.sm,
+          minHeight: MIN_TOUCH_TARGET,
+          justifyContent: "center",
           borderRadius: radius.md,
           backgroundColor: colors.accent,
           alignItems: "center",
