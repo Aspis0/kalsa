@@ -795,6 +795,9 @@ kalsallama; an arm-only file compiled for x86_64), audited (`AUDIT-first-compile
 iOS first run 2026-10-02: Kalsa launches on the iOS 27 simulator and loads LFM2.5-2.6B (CPU in the simulator);
 generation not yet run. Needed an Expo SDK 57 patch-line bump that also changes Android behaviour (audit
 `ios-readiness/AUDIT-first-run.md`): stays on the local branch until the app-chain owner validates Android.
+Owner 2026-10-02: "Aggiorna expo". Expo SDK 57 patch-line bump landed on app main `7ddf39ad` (base 101c2bdd; audited
+`ios-readiness/AUDIT-expo57-bump.md`: no blockers, Android double-settle change unreachable from Kalsa's modules).
+APK run 36979390863; S23 smoke handed to session 1d714246 with the audit checklist.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
