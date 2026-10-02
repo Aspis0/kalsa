@@ -1173,11 +1173,15 @@ mod tests {
     /// text and key fragments. `GGML_*` are performance knobs and stay.
     #[test]
     fn the_spawned_child_inherits_no_llama_environment() {
+        use std::ffi::OsString;
         let env = vec![
-            ("LLAMA_SERVER_SLOTS_DEBUG".to_string(), "1".to_string()),
-            ("llama_arg_log_verbosity".to_string(), "10".to_string()),
-            ("GGML_CUDA_ENABLE_UNIFIED_MEMORY".to_string(), "1".to_string()),
-            ("PATH".to_string(), "/usr/bin".to_string()),
+            (OsString::from("LLAMA_SERVER_SLOTS_DEBUG"), OsString::from("1")),
+            (OsString::from("llama_arg_log_verbosity"), OsString::from("10")),
+            (
+                OsString::from("GGML_CUDA_ENABLE_UNIFIED_MEMORY"),
+                OsString::from("1"),
+            ),
+            (OsString::from("PATH"), OsString::from("/usr/bin")),
         ];
         let mut cmd = std::process::Command::new("llama-server");
         cmd.envs(env.clone());
@@ -1189,21 +1193,75 @@ mod tests {
         for (name, value) in &seen {
             let removed = value.is_none();
             let llama = name.to_ascii_uppercase().starts_with("LLAMA_");
-            assert!(
-                !(llama && !removed),
-                "{name} would still reach the child"
-            );
+            assert!(!(llama && !removed), "{name} would still reach the child");
         }
         // Both spellings are removed; the performance knob and the PATH
         // are explicitly set and untouched.
-        assert!(seen.iter().any(|(name, value)| name == "LLAMA_SERVER_SLOTS_DEBUG" && value.is_none()));
+        assert!(
+            seen.iter().any(|(name, value)| name == "LLAMA_SERVER_SLOTS_DEBUG" && value.is_none())
+        );
         assert!(
             seen.iter()
                 .any(|(name, value)| name == "llama_arg_log_verbosity" && value.is_none()),
             "case-insensitive: a lowercase export is stripped too"
         );
-        assert!(seen.iter().any(|(name, value)| name == "GGML_CUDA_ENABLE_UNIFIED_MEMORY" && value.is_some()));
+        assert!(
+            seen.iter()
+                .any(|(name, value)| name == "GGML_CUDA_ENABLE_UNIFIED_MEMORY" && value.is_some())
+        );
         assert!(seen.iter().any(|(name, value)| name == "PATH" && value.is_some()));
+    }
+
+    /// One variable no shell promised to be UTF-8 — a value here, and a
+    /// whole NAME below — must neither panic the strip (which would crash
+    /// every engine start) nor stop it stripping the knobs it exists for.
+    /// The LLAMA_ prefix is ASCII, so it survives lossy comparison even
+    /// with junk behind it; a non-UTF-8 name cannot be one of the fork's
+    /// ASCII knobs and stays put.
+    #[cfg(unix)]
+    #[test]
+    fn a_non_utf8_environment_neither_panics_nor_stops_the_strip() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+        let env = vec![
+            // The knob, with a value that is not UTF-8: values are never
+            // read, so this is stripped like any other.
+            (
+                OsString::from("LLAMA_SERVER_SLOTS_DEBUG"),
+                OsString::from_vec(vec![0xff, 0xfe, 0x80]),
+            ),
+            // The knob's own NAME not valid UTF-8 after the prefix.
+            (OsString::from_vec(b"LLAMA_\xff\x8f".to_vec()), OsString::from("1")),
+            // A foreign, non-UTF-8 name: not ours, left alone.
+            (OsString::from_vec(vec![0x87, 0xff]), OsString::from("1")),
+            // A performance knob with junk: kept.
+            (OsString::from("GGML_A"), OsString::from_vec(vec![0xff])),
+        ];
+        let mut cmd = std::process::Command::new("llama-server");
+        cmd.envs(env.clone());
+        child::strip_llama_env(&mut cmd, env.into_iter());
+        let seen: Vec<_> = cmd
+            .get_envs()
+            .map(|(name, value)| (name.to_string_lossy().into_owned(), value))
+            .collect();
+        assert!(
+            seen.iter()
+                .any(|(name, value)| name == "LLAMA_SERVER_SLOTS_DEBUG" && value.is_none()),
+            "the knob with the odd value is stripped: {seen:?}"
+        );
+        assert!(
+            seen.iter()
+                .any(|(name, value)| name.starts_with("LLAMA_") && name.contains('\u{fffd}') && value.is_none()),
+            "the odd-named knob is stripped too (lossy prefix match): {seen:?}"
+        );
+        assert!(
+            seen.iter().any(|(name, value)| name.contains('\u{fffd}') && name.starts_with('\u{fffd}') && value.is_some()),
+            "the foreign non-UTF-8 name stays: {seen:?}"
+        );
+        assert!(
+            seen.iter().any(|(name, value)| name == "GGML_A" && value.is_some()),
+            "the performance knob with the odd value stays: {seen:?}"
+        );
     }
 
     #[test]

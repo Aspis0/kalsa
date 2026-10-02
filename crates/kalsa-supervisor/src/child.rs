@@ -36,11 +36,26 @@ const OUTPUT_TAIL: usize = 40;
 /// the log's promise is that none of that can reach it, whatever a shell
 /// happened to export. `GGML_*` stay: they are performance knobs, not
 /// logging ones. Case-insensitive, because env names are, on Windows.
-/// Public: the runtime's disposable probe children spawn through the same
-/// rule.
-pub fn strip_llama_env(cmd: &mut Command, env: impl Iterator<Item = (String, String)>) {
+///
+/// The environment arrives as `OsString` pairs — `env::vars()` PANICS on
+/// a name or value no shell promised to be UTF-8, and one odd variable
+/// must not crash every engine start. Names are compared LOSSILY: the
+/// knobs this exists to strip are ASCII, which survives lossy conversion
+/// unchanged (so even `LLAMA_\xff` is caught — its lossy form still leads
+/// with the prefix, and the removal uses the original key), while a name
+/// that is not valid UTF-8 cannot be one of the fork's ASCII knobs and
+/// stays put. Values are never read at all. Public: the runtime's
+/// disposable probe children spawn through the same rule.
+pub fn strip_llama_env(
+    cmd: &mut Command,
+    env: impl Iterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) {
     for (name, _) in env {
-        if name.to_ascii_uppercase().starts_with("LLAMA_") {
+        if name
+            .to_string_lossy()
+            .to_ascii_uppercase()
+            .starts_with("LLAMA_")
+        {
             cmd.env_remove(&name);
         }
     }
@@ -147,7 +162,7 @@ impl ChildHandle {
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::piped());
-        strip_llama_env(&mut cmd, std::env::vars());
+        strip_llama_env(&mut cmd, std::env::vars_os());
         if exe.is_absolute() {
             if let Some(dir) = exe.parent() {
                 cmd.current_dir(dir);
