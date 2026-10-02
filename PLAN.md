@@ -1022,6 +1022,16 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   governor as Android/PC; Apple Foundation Models = candidate extra "no download" option on Apple Intelligence devices;
   MLX only if our own measurement beats llama.cpp clearly. Measurement on the M1 Max delegated
   (`ios-engine-choice/BRIEF.md`, GLM 9088c720); iOS parity/desktop-link gap list delegated (luna c77e4209).
+  **iOS LANDED on app main 2026-10-02: `d6d0f425`** = 7ec12eb0 + 6 iOS commits (first-build readiness, audit fixes,
+  x86_64 sim exclusion, sim 0-fallback, truthful comments, `17c7e564`->`d6d0f425` zero-memory semantics scoped to iOS
+  via zeroAvailableMemoryIsReal()). Audit `ios-readiness/AUDIT-ios-landing.md` (space-bunny): LAND yes, Android
+  runtime unchanged, prebuilt android/ byte-identical. Verified before push on node 22: npm ci, provenance, tsc, jest
+  engine/host/hooks/modules 177 suites/1714 tests, all 0. Built from the pin with ZERO node_modules patches (binding
+  kalsa.rn 6b87db16): sim Debug + Mac Release, LFM2.5 31/31 on Metal. Known local trap: after an iOS pod install the
+  34 generated ggml-metal-embed-*.s make assert-engine-provenance exit 1 on the Mac (npm ci fixes; CI unaffected).
+  Follow-ups (thermal observer race, thermal call timeout, Mac* guard, dead RAM fallback, iPad-on-Mac memory) with
+  Coder deepseek 8e331c83. Parity gaps (`PARITY-GAP.md`): iroh pairing (Android-only module), share-in extension,
+  no battery current on iOS; TestFlight needs the $99 Apple Developer Program.
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,

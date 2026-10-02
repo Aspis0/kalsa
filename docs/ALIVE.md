@@ -813,6 +813,7 @@ decode 31 tok/s (suspiciously low, to check vs llama-bench).
 pdf.js 5.7 on the S23 2026-10-02: FAIL (WebView dies right after start on every PDF); not landed, diagnosis parked.
 Owner 2026-10-02: iOS engine = llama.cpp on Metal; Apple Foundation Models as an optional extra; MLX only if measured
 clearly faster. Mac measurement running.
+iOS landed on app main d6d0f425 (2026-10-02): builds from the pin with no hand patches, Android unchanged (audited).
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
