@@ -275,7 +275,19 @@ impl Chats {
             // caller must not be told the switch failed while the slot holds
             // nothing, nor told that it succeeded.
             let Some(previous) = previous.as_deref() else {
-                return Err(error);
+                // Nothing was open to put back — the slot is `Unknown`, the
+                // seat fresh from the room or a release — and the file this
+                // chat asked for is one the engine will not load: written by
+                // another build, another model, another life of this
+                // directory. The warmth is what was refused, not the
+                // conversation: the words live in the app's store, and the
+                // chat opens on the emptied slot exactly as a chat with no
+                // file does, rather than standing unopenable over a file
+                // every later attempt would refuse again.
+                erase_slot(engine)?;
+                state.resident = Residency::Resident(device, id.to_string());
+                state.dirty_at = None;
+                return Ok(());
             };
             if let Err(repair) = restore(&mut state, engine, &file_name(model, device, previous)) {
                 return Err(repair);

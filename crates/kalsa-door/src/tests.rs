@@ -13,6 +13,7 @@ use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 
 mod cors;
 mod cors_answers;
+mod logging;
 mod paging;
 mod answer_limits;
 mod patience;
@@ -28,6 +29,7 @@ mod paging_sweep;
 mod revocation;
 mod room_engine;
 mod room_handover;
+mod room_reopen;
 mod room_routes;
 mod room_seat;
 mod room_support;

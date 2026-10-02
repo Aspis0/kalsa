@@ -15,7 +15,7 @@ use crate::request;
 use crate::response;
 use crate::slot_routes;
 use crate::stream;
-use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, PATIENCE, TOKEN_BYTES};
+use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, SlotLease, PATIENCE, TOKEN_BYTES};
 use crate::clocks::Clocks;
 
 /// The observer type every serving path shares: it sees exactly the bytes
@@ -102,6 +102,36 @@ pub(super) struct Shared {
     /// (`paging::Chats::handover`), wherever the new holder's request comes
     /// from — a client's or the room turn's own.
     pub(super) chats: Arc<paging::Chats>,
+}
+
+/// How often a waiting switch looks for its seat again — the room turn's
+/// own poll cadence, so the two waiters agree on what a moment is.
+const SEAT_POLL: Duration = Duration::from_millis(200);
+
+/// A disk-tier route's wait for a seat: every lease is taken, the door
+/// stops, or the connection's own deadline ends the wait.
+fn wait_for_seat<'a>(
+    devices: &'a DeviceSet,
+    stop: &AtomicBool,
+    device: DeviceId,
+    deadline: Instant,
+) -> Result<SlotLease<'a>, ()> {
+    loop {
+        if stop.load(Ordering::SeqCst) {
+            return Err(());
+        }
+        match devices.lease(device) {
+            Ok(lease) => return Ok(lease),
+            // Revoked while waiting: the 401 the caller owes, not a seat.
+            Err(LeaseError::NotHeld) => return Err(()),
+            Err(LeaseError::NoRoom) => {
+                if Instant::now() >= deadline {
+                    return Err(());
+                }
+                std::thread::sleep(SEAT_POLL);
+            }
+        }
+    }
 }
 
 pub(super) fn handle(
@@ -202,6 +232,12 @@ pub(super) fn handle(
     // refused with the no-slot 503. The engine does not refuse for us (it
     // wraps `id_slot % slots.size()`), so the door is the only thing
     // standing between a device and somebody else's slot.
+    // The disk tier's routes are the one exception to the 503: a chat's
+    // activate is a switch, not pressure, and the seat's holder — the
+    // room's turn answering on the one slot a small CPU funds — ends. The
+    // owner reading "every seat is busy" as "this conversation will not
+    // open" is exactly the refusal waiting exists to unmake, and a
+    // generation that waits would be refused anyway once its turn came.
     let lease = match devices.lease(device) {
         Ok(lease) => lease,
         Err(LeaseError::NotHeld) => {
@@ -210,9 +246,19 @@ pub(super) fn handle(
             return;
         }
         Err(LeaseError::NoRoom) => {
-            let _ = discard_request_body(&mut client, head.body_length, deadline);
-            let _ = write_with_deadline(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
-            return;
+            if !paging::owns(&head.target) {
+                let _ = discard_request_body(&mut client, head.body_length, deadline);
+                let _ = write_with_deadline(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
+                return;
+            }
+            match wait_for_seat(devices, stop, device, deadline) {
+                Ok(lease) => lease,
+                Err(()) => {
+                    let _ = discard_request_body(&mut client, head.body_length, deadline);
+                    let _ = write_with_deadline(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
+                    return;
+                }
+            }
         }
     };
     // A seat taken from another device is a handover the disk tier must hear

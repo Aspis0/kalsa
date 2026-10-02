@@ -5,11 +5,16 @@ import { TABLES } from "../i18n";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { lastKnown, standingOf } from "../lib/slotGate";
+import { logUiEvent } from "../lib/uiLog";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./SetupProgress";
 import type { ChatSettings, LiveSettings } from "../lib/types";
 
-const POLL_MS = 1000;
+// Two seconds, not one: the state this carries changes on a person's scale —
+// a start, a stop, a death — and the crash prompt watches the same read, for
+// which two seconds is still prompt. Nothing downstream polls faster than
+// this; the UI's liveness is events, not this clock.
+const POLL_MS = 2000;
 
 /** The disk tier's numbers as `brain_state` answers them: three separate
     reads of the running door, not one instant. The residency count and the
@@ -237,7 +242,11 @@ async function poll(): Promise<void> {
       // this app itself wrote passes — whichever of the command's three it
       // was; anything else arrives as null and the page speaks its own
       // not-made-yet words instead.
-      credentialMessage = credentialRefusalText(error);
+      // The first poll that lands a refusal is the on-screen error; a later
+      // poll of the same episode gets no second line.
+      const refused = credentialRefusalText(error);
+      if (refused !== null && credentialMessage === null) logUiEvent("chat.credential_refused");
+      credentialMessage = refused;
     }
   }
   publish();
@@ -335,6 +344,12 @@ function getBrainServer(): BrainServer | null {
 
 function getDoorStanding(): DoorStanding {
   return standingSnapshot;
+}
+
+/** The brain's state alone, from the one shared poll — for a page that
+    would otherwise open a second one. */
+export function useBrainState(): BrainState | null {
+  return useSyncExternalStore(subscribeBrainRead, getBrainRead).state;
 }
 
 /** The brain's server facts, for the shell. */

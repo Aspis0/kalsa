@@ -79,7 +79,7 @@ pub use room::guest_entry;
 /// range, above every id a pairing store mints.
 pub const ROOM_DEVICE: u32 = u32::MAX;
 pub use slots::EnginePrivateHeaders;
-pub(crate) use slots::{DeviceSet, LeaseError};
+pub(crate) use slots::{DeviceSet, LeaseError, SlotLease};
 
 use std::collections::HashMap;
 use std::fmt;

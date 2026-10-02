@@ -10,7 +10,6 @@ import type { English } from "../i18n/en/all";
 import { AdvancedField } from "./AdvancedField";
 import { KnobInfoScope } from "./KnobInfo";
 import "./AdvancedPanel.css";
-const POLL_MS = 2000;
 type CacheType = "q8_0" | "f16";
 type CacheChoice = CacheType | "";
 /** What `brain_advanced` answers: Rust's launch description, read-only here. */
@@ -249,10 +248,12 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
     setDto(next);
     syncInputs(next);
   }, [syncInputs]);
+  // Read once: the launch record this shows changes only through this
+  // panel's own save, which hands the answer straight to the fields — a
+  // timer re-asking every 2 s was reading a fact that cannot move behind
+  // the owner's back, and wiping the fields' dirty state with it.
   useEffect(() => {
     void refresh();
-    const timer = setInterval(() => void refresh(), POLL_MS);
-    return () => clearInterval(timer);
   }, [refresh]);
   function trackText(setValue: (value: string) => void) {
     return {

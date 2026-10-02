@@ -1,18 +1,15 @@
-import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import type { SurfaceKey } from "../app/surfaces";
 import { AdvancedPanel, type AdvancedDto, type AdvancedSaveInput } from "../components/AdvancedPanel";
 import { SamplingPanel } from "../components/SamplingPanel";
 import { ReportProblem } from "../components/ReportProblem";
-import { available, invoke } from "../lib/tauri";
-import { lastKnown } from "../lib/slotGate";
+import { invoke } from "../lib/tauri";
 // ONE declaration of `brain_state`'s answer, shared with the poll every other
 // surface reads. A local copy of `kind` here is how "stopping" was read as
 // "could not tell": the DTO moved and this page's second declaration did not.
-import type { BrainState } from "./useBrain";
+import { useBrainState } from "./useBrain";
 import "./surfaces.css";
 
-const POLL_MS = 2000;
 /** Shown only when the launch record carried no reason: the development path,
  *  where the developer pinned a file and no catalog choice was made. It states
  *  nothing about a phone, because on this path a phone played no part. */
@@ -29,27 +26,12 @@ interface ModelsSurfaceProps {
 export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfaceProps) {
   const { table } = useLanguage();
   const t = table.machine;
-  const [state, setState] = useState<BrainState | null>(null);
-
-  useEffect(() => {
-    async function refresh(): Promise<void> {
-      let next: BrainState | null = null;
-      if (available()) {
-        try {
-          next = await invoke<BrainState>("brain_state");
-        } catch {
-          next = null;
-        }
-      }
-      // A read that rejected — or one that answered nothing — keeps what
-      // this page already knows; only a page that never had an answer shows
-      // the "could not check" sentence.
-      setState((previous) => lastKnown(previous, next));
-    }
-    void refresh();
-    const timer = setInterval(() => void refresh(), POLL_MS);
-    return () => clearInterval(timer);
-  }, []);
+  // The one shared poll answers this page too: a second interval here was a
+  // second brain_state every 2 s beside the shell's own, and the two could
+  // disagree for a tick. A read that rejected keeps what the poll already
+  // knows — `lastKnown` folds that in there — and only a page whose poll
+  // never answered shows the "could not check" sentence.
+  const state = useBrainState();
 
   let headline: string | null = null;
   let sentence: string;
