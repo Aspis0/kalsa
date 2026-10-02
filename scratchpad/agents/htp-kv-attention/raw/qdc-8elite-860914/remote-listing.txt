@@ -1,0 +1,7 @@
+rc=0
+total 1558084
+drwxrwxrwx 4 root  root        3452 2026-10-01 20:16 .
+drwxrwx--x 4 shell shell       3452 2026-10-01 20:16 ..
+drwxrwxrwx 2 root  root        3452 2026-10-01 20:16 bin
+drwxrwxrwx 2 root  root        3452 2026-10-01 20:16 lib
+-rw-rw-rw- 1 root  root  1593894944 2026-09-24 06:31 ship.gguf

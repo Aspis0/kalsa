@@ -1,0 +1,59 @@
+2026-10-02T03:16:20.907166+00:00	SESSION_START target=qrd-tunnel arch=v79 dry_run=False estimated_device_minutes=15 deadline_minutes=30.0
+2026-10-02T03:16:21.860276+00:00	DEVICE_IDENTITY rc=0 'Sun for arm64\nSM8750\n8'
+2026-10-02T03:16:22.652681+00:00	MODEL_SHA a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
+2026-10-02T03:16:25.526949+00:00	PUSH llama-bench -> bin/llama-bench rc=0
+2026-10-02T03:16:27.943276+00:00	PUSH llama-completion -> bin/llama-completion rc=0
+2026-10-02T03:16:29.365127+00:00	PUSH libggml-htp-v79.so -> lib/libggml-htp-v79.so rc=0
+2026-10-02T03:17:35.667469+00:00	PUSH LFM2.5-2.6B-QAD-Q4_0.gguf -> ship.gguf rc=0
+2026-10-02T03:17:37.455650+00:00	DEVICE_SHAS rc=0
+2026-10-02T03:17:37.458087+00:00	STAGE_SHAS_OK
+2026-10-02T03:17:37.458419+00:00	STAGE_END stage error=None
+2026-10-02T03:17:47.464500+00:00	SESSION_START target=qrd-tunnel arch=v79 dry_run=False estimated_device_minutes=15 deadline_minutes=27.0
+2026-10-02T03:17:48.482171+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '29.392', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:17:48.482552+00:00	CLI_START A-nkvo cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T03:17:59.512328+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '29.397', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:17:59.513051+00:00	CLI_FAILED A-nkvo adb_rc=1 remote_exit=?
+2026-10-02T03:17:59.513129+00:00	STAGE_END run error='arm A-nkvo failed'
+2026-10-02T03:18:13.839231+00:00	SESSION_START target=qrd-tunnel arch=v79 dry_run=False estimated_device_minutes=15 deadline_minutes=26.0
+2026-10-02T03:18:14.885820+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '29.381', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:18:14.886161+00:00	CLI_START A-nkvo cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T03:18:25.890733+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '29.998', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:18:36.912661+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.323', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:18:47.928590+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.896', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:18:47.929254+00:00	PROOF_STOP A-nkvo: route proof missing
+2026-10-02T03:18:47.929548+00:00	STAGE_END run error='arm A-nkvo failed'
+2026-10-02T03:19:18.428431+00:00	SESSION_START target=qrd-tunnel arch=v79 dry_run=False estimated_device_minutes=15 deadline_minutes=24.0
+2026-10-02T03:19:19.430484+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '32.906', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:19:19.430800+00:00	CLI_START A-nkvo cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T03:19:30.409088+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '33.216', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:19:41.470245+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '35.196', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:19:52.480987+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.553', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:19:52.592788+00:00	CLI_OK A-nkvo wall_s=33
+2026-10-02T03:19:53.614968+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.576', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:19:53.615371+00:00	CLI_START B-offload cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q8_0 -nkvo 0
+2026-10-02T03:20:04.649547+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.635', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:20:04.782922+00:00	CLI_OK B-offload wall_s=11
+2026-10-02T03:20:05.868454+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '36.688', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:20:05.868753+00:00	CLI_START C-app-vq4 cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 0,512,1700,3100 -r 3 -ctk q8_0 -ctv q4_0 -nkvo 1
+2026-10-02T03:20:16.826724+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '37.309', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:20:27.776236+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '38.717', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:20:38.830428+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '39.839', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:20:38.943605+00:00	CLI_OK C-app-vq4 wall_s=33
+2026-10-02T03:20:39.983378+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '39.894', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:20:39.983674+00:00	CLI_START A-nkvo-profile cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 1700 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 1
+2026-10-02T03:20:50.978490+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '39.976', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:20:51.030030+00:00	CLI_OK A-nkvo-profile wall_s=11
+2026-10-02T03:20:51.047369+00:00	PLACEMENT A-nkvo htp_ops=9 summary=A-nkvo-profile-placement.txt
+2026-10-02T03:20:52.108207+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '40.022', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:20:52.108460+00:00	CLI_START B-offload-profile cmd=./bin/llama-bench -m ship.gguf -ngl 99 -dev HTP0 -p 128 -n 0 -b 128 -ub 128 -t 5 -fa auto --no-warmup -o md -v -d 1700 -r 1 -ctk q8_0 -ctv q8_0 -nkvo 0
+2026-10-02T03:21:03.170485+00:00	SNAP {'probe_ok': True, 'thermal_status': '0', 'skin_C': '39.919', 'plug': {'AC': 'false', 'USB': 'false', 'Wireless': 'false'}, 'awake': False, 'traced': '1'}
+2026-10-02T03:21:03.256225+00:00	CLI_OK B-offload-profile wall_s=11
+2026-10-02T03:21:03.272404+00:00	PLACEMENT B-offload htp_ops=13 summary=B-offload-profile-placement.txt
+2026-10-02T03:21:03.291605+00:00	TSV_WRITTEN results-qdc-8elite-860914/bench.tsv rows=14
+2026-10-02T03:21:03.291684+00:00	STAGE_END run error=None
+2026-10-02T03:22:14.941559+00:00	SESSION_START target=qrd-tunnel arch=v79 dry_run=False estimated_device_minutes=15 deadline_minutes=55
+2026-10-02T03:22:15.883227+00:00	PULL_LISTING rc=0
+2026-10-02T03:22:15.883367+00:00	STAGE_END pull error=None
+2026-10-02T03:22:15.941161+00:00	SESSION_START target=qrd-tunnel arch=v79 dry_run=False estimated_device_minutes=15 deadline_minutes=55
+2026-10-02T03:22:17.088444+00:00	CLEANUP rc=1 'ls: /data/local/tmp/htp-kv-attention: No such file or directory'
+2026-10-02T03:22:17.088594+00:00	STAGE_END cleanup error=None

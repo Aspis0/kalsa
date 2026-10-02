@@ -1,0 +1,30 @@
+# excerpt of B-offload.log (24545154 bytes, full log kept off-repo at ~/kalsa-qdc/htp-kv-860914-full/logs/B-offload.log)
+# execute-op lines: 27189
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v79.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb40000718a62ca10
+ggml-hex: HTP0 execute-op SCALE|cache_r_l0 (reshaped) (view) -> cache_r_l0 (reshaped) (view) (view)|4096:1 -> 4096:1|f32 -> f32|4:16384 -> 4:16384|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+ggml-hex: HTP0 execute-op GET_ROWS|cache_r_l0 (reshaped) x HTP0#rs_s_copy (view)#0 -> node_5|4096:1 x 1:1 -> 4096:1|f32 x i32 -> f32|4:16384 x 4:4 -> 4:16384|HTP0 x HTP0 -> HTP0|sametype vtcm 0|flags 0x0
+ggml-hex: HTP0 execute-op RMS_NORM|HTP0#model.embed_tokens#0 -> norm-0|2048:128 -> 2048:128|f32 -> f32|4:8192 -> 4:8192|HTP0 -> HTP0|row-block vtcm 8257536|flags 0x0
+ggml-hex: HTP0 execute-op FLASH_ATTN_EXT| (reshaped) (view) (permuted) x cache_k_l2 (view) (permuted) x cache_v_l2 (view) (permuted) x HTP0#attn_inp_kq_mask#0 -> node_102|64:128:32:1 x 64:256:8:1 x 64:256:8:1 x 256:128 -> 64:32:128:1|f32 x q8_0 x q8_0 x f16 -> f32|4:8192:256:1048576! x 34:544:68:139264! x 34:544:68:139264! x 2:512 -> 4:256:8192:1048576|HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|hmx-pipe vtcm 700928|flags 0x0
+ggml-hex: HTP0 execute-op FLASH_ATTN_EXT| (reshaped) (view) (permuted) x cache_k_l5 (view) (permuted) x cache_v_l5 (view) (permuted) x HTP0#attn_inp_kq_mask#0 -> node_215|64:128:32:1 x 64:256:8:1 x 64:256:8:1 x 256:128 -> 64:32:128:1|f32 x q8_0 x q8_0 x f16 -> f32|4:8192:256:1048576! x 34:544:68:139264! x 34:544:68:139264! x 2:512 -> 4:256:8192:1048576|HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|hmx-pipe vtcm 700928|flags 0x0
+| model                          |       size |     params | backend    | ngl | threads | n_batch | n_ubatch | type_k | type_v | dev          |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | ------: | -------: | -----: | -----: | ------------ | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q8_0 | HTP0         |           pp128 |     1249.08 ± 144.39 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q8_0 | HTP0         |    pp128 @ d512 |      1262.56 ± 43.05 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q8_0 | HTP0         |   pp128 @ d1700 |      1115.92 ± 63.76 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q8_0 | HTP0         |   pp128 @ d3100 |      1052.59 ± 58.72 |
+EXIT=0
+# buffer lines (first of each kind)
+   1 llama_kv_cache:       HTP0 KV buffer size =     2.12 MiB
+   1 llama_kv_cache:       HTP0 KV buffer size =     6.38 MiB
+   1 llama_kv_cache:       HTP0 KV buffer size =    17.00 MiB
+   1 llama_kv_cache:       HTP0 KV buffer size =    27.62 MiB
+   1 load_tensors:          CPU model buffer size =   205.08 MiB
+   1 load_tensors:         HTP0 model buffer size =  1525.87 MiB
+   1 sched_reserve:        CPU compute buffer size =     2.10 MiB
+   1 sched_reserve:        CPU compute buffer size =     2.22 MiB
+   1 sched_reserve:        CPU compute buffer size =     2.53 MiB
+   1 sched_reserve:        CPU compute buffer size =     2.85 MiB
+   1 sched_reserve:       HTP0 compute buffer size =    64.60 MiB
+   1 sched_reserve:       HTP0 compute buffer size =    64.72 MiB

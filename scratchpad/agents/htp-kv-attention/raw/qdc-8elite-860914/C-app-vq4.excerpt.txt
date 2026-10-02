@@ -1,0 +1,28 @@
+# excerpt of C-app-vq4.log (24265369 bytes, full log kept off-repo at ~/kalsa-qdc/htp-kv-860914-full/logs/C-app-vq4.log)
+# execute-op lines: 23317
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v79.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007945b3ac90
+ggml-hex: HTP0 execute-op RMS_NORM|HTP0#model.embed_tokens#0 -> norm-0|2048:128 -> 2048:128|f32 -> f32|4:8192 -> 4:8192|HTP0 -> HTP0|row-block vtcm 8257536|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.shortconv.in_proj.weight x model.layers.{}.operator_norm-0 (reshaped) -> model.layers.{}.conv.in_proj-0|2048:6144 x 2048:128 -> 6144:128|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:24576|HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8095744|flags 0x0
+ggml-hex: HTP0 execute-op MUL|model.layers.{}.conv.in_proj-0 (view) x model.layers.{}.conv.in_proj-0 (view) -> node_17|2048:128 x 2048:128 -> 2048:128|f32 x f32 -> f32|4:24576! x 4:24576! -> 4:8192|HTP0 x HTP0 -> HTP0|vtcm 8257536|flags 0x0
+| model                          |       size |     params | backend    | ngl | threads | n_batch | n_ubatch | type_k | type_v |          nkvo | dev          |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | ------: | -------: | -----: | -----: | ------------: | ------------ | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |           pp128 |     1116.55 ± 114.14 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |    pp128 @ d512 |       504.21 ± 12.86 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |   pp128 @ d1700 |        208.32 ± 8.88 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       5 |     128 |      128 |   q8_0 |   q4_0 |             1 | HTP0         |   pp128 @ d3100 |        116.30 ± 1.40 |
+EXIT=0
+# buffer lines (first of each kind)
+   1 llama_kv_cache:        CPU KV buffer size =     1.62 MiB
+   1 llama_kv_cache:        CPU KV buffer size =     4.88 MiB
+   1 llama_kv_cache:        CPU KV buffer size =    13.00 MiB
+   1 llama_kv_cache:        CPU KV buffer size =    21.12 MiB
+   1 load_tensors:          CPU model buffer size =   205.08 MiB
+   1 load_tensors:         HTP0 model buffer size =  1525.87 MiB
+   1 sched_reserve:        CPU compute buffer size =     3.60 MiB
+   1 sched_reserve:        CPU compute buffer size =     3.72 MiB
+   1 sched_reserve:        CPU compute buffer size =     4.03 MiB
+   1 sched_reserve:        CPU compute buffer size =     4.35 MiB
+   4 sched_reserve:       HTP0 compute buffer size =    64.50 MiB
+   1 ~llama_context:        CPU compute buffer size is   3.5972 MiB, matches expectation of   3.5972 MiB

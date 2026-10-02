@@ -1,0 +1,1 @@
+/system/bin/sh: export: ./bin/llama-bench: is not an identifier
