@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import "./Sprout.css";
 
 // The walk's face: Kalsa's own leaf, grown. A seed half in the soil with
@@ -106,11 +107,15 @@ export interface SproutProps {
   /** The walk's own done for this step: the bud opens and the plant takes
       one small bow. */
   done?: boolean;
-  /** The line under the bar: the step's numbers, in words. */
-  caption?: string | null;
+  /** The line under the bar. The ticking clock rides in a span assistive
+      tech skips, so the line's live region speaks when the candidate or
+      the wait changes — not every second. */
+  caption?: ReactNode;
+  /** The same line as one string: the bar's aria-valuetext. */
+  valueText?: string | null;
 }
 
-export function Sprout({ pct, done = false, caption = null }: SproutProps) {
+export function Sprout({ pct, done = false, caption = null, valueText = null }: SproutProps) {
   const growth = pct === null ? RESTING : Math.min(Math.max(pct, 0), 100) / 100;
   const shown = pct === null ? null : Math.min(Math.max(pct, 0), 100);
   const tip = stemAt(growth);
@@ -174,10 +179,19 @@ export function Sprout({ pct, done = false, caption = null }: SproutProps) {
           </g>
         </g>
       </svg>
-      <div className={shown === null ? "sprout-bar is-indeterminate" : "sprout-bar"}>
+      <div
+        className={shown === null ? "sprout-bar is-indeterminate" : "sprout-bar"}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        // An indeterminate bar has no value to name — its not knowing IS
+        // the information (the phase carries no fraction).
+        aria-valuenow={shown ?? undefined}
+        aria-valuetext={valueText ?? undefined}
+      >
         {shown === null ? null : <span className="sprout-bar-fill" style={{ width: `${shown}%` }} />}
       </div>
-      {caption !== null ? <p className="sprout-caption">{caption}</p> : null}
+      {caption !== null ? <p className="sprout-caption" aria-live="polite">{caption}</p> : null}
     </div>
   );
 }

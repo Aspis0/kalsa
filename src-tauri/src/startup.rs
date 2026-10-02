@@ -97,6 +97,11 @@ pub(crate) enum Progress {
         done: usize,
         total: usize,
         candidate: usize,
+        /// The budget (or a shape that never began) stopped this tune short
+        /// of its plan: `total` is what the start still owes, so `done ==
+        /// total` never means finished here — the page keeps its bar at the
+        /// height reached and says the rest runs next start.
+        cut: bool,
     },
 }
 

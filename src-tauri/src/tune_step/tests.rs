@@ -182,6 +182,7 @@ fn all_done(candidates: usize) -> kalsa_tune::Report {
         done: candidates,
         total: candidates,
         candidate: candidates,
+        cut: false,
     }
 }
 
@@ -424,7 +425,8 @@ fn a_refused_tune_is_not_saved_and_the_rule_stands() {
             Progress::Tuning {
                 done: 3,
                 total: 3,
-                candidate: 3
+                candidate: 3,
+                cut: false,
             }
         )),
         "three lifetimes planned, three done, the last one closed"
@@ -1004,7 +1006,8 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
             Progress::Tuning {
                 done: 1,
                 total: 1,
-                candidate: 1
+                candidate: 1,
+                cut: false,
             }
         )),
         "the processor candidates never ran"
@@ -1161,11 +1164,13 @@ fn the_tuning_step_serialises_the_total_the_page_reads() {
         done: 1,
         total: 2,
         candidate: 2,
+        cut: false,
     })
     .expect("serialise");
     assert_eq!(json["kind"], "tuning");
     assert_eq!(json["total"], 2);
     assert_eq!(json["candidate"], 2, "the index the page names arrives whole");
+    assert_eq!(json["cut"], false, "and the stop marker rides along");
     assert!(
         json.get("planned").is_none(),
         "the old name must not appear"
@@ -1204,25 +1209,28 @@ fn the_tune_passes_a_start_and_a_close_for_every_candidate_to_the_walk() {
                     done: index,
                     total: resolved.len(),
                     candidate: index + 1,
+                    cut: false,
                 });
                 counts(kalsa_tune::Report {
                     done: index + 1,
                     total: resolved.len(),
                     candidate: index + 1,
+                    cut: false,
                 });
             }
             counts(all_done(resolved.len()));
             tuned(vec![], None)
         },
     );
-    let reports: Vec<(usize, usize, usize)> = seen
+    let reports: Vec<(usize, usize, usize, bool)> = seen
         .iter()
         .filter_map(|step| match step {
             Progress::Tuning {
                 done,
                 total,
                 candidate,
-            } => Some((*done, *total, *candidate)),
+                cut,
+            } => Some((*done, *total, *candidate, *cut)),
             _ => None,
         })
         .collect();
@@ -1230,17 +1238,87 @@ fn the_tune_passes_a_start_and_a_close_for_every_candidate_to_the_walk() {
     assert_eq!(
         reports,
         vec![
-            (0, 3, 1),
-            (1, 3, 1),
-            (1, 3, 2),
-            (2, 3, 2),
-            (2, 3, 3),
-            (3, 3, 3),
-            (3, 3, 3),
+            (0, 3, 1, false),
+            (1, 3, 1, false),
+            (1, 3, 2, false),
+            (2, 3, 2, false),
+            (2, 3, 3, false),
+            (3, 3, 3, false),
+            (3, 3, 3, false),
         ],
         "a start and a close per candidate, index and total intact: {reports:?}"
     );
     assert_eq!(reports.len(), 2 * candidates + 1, "and nothing else");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The stop rides the same wire as the counts: a measure whose plan was
+/// cut short must reach the walk with its marker, because the page reads
+/// `cut` to hold the bar where the tune really stopped instead of playing
+/// the finish it did not earn — the record keeps the same stop as an
+/// unfinished marker to retry next start (see `tune_launch`'s `unfinished`).
+#[test]
+fn the_cut_report_reaches_the_walk_untouched() {
+    let dir = scratch("cut-report");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut prepared = prepared("/main-gpu");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut seen: Vec<Progress> = Vec::new();
+    let mut progress = |step: Progress| seen.push(step);
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |_, _, counts| {
+            // One candidate measured, then the budget: the plan still
+            // names the two it owes.
+            counts(kalsa_tune::Report {
+                done: 0,
+                total: 3,
+                candidate: 1,
+                cut: false,
+            });
+            counts(kalsa_tune::Report {
+                done: 1,
+                total: 3,
+                candidate: 1,
+                cut: false,
+            });
+            counts(kalsa_tune::Report {
+                done: 1,
+                total: 3,
+                candidate: 1,
+                cut: true,
+            });
+            counts(all_done(1));
+            tuned(vec![], None)
+        },
+    );
+    let reports: Vec<(usize, usize, usize, bool)> = seen
+        .iter()
+        .filter_map(|step| match step {
+            Progress::Tuning {
+                done,
+                total,
+                candidate,
+                cut,
+            } => Some((*done, *total, *candidate, *cut)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        reports,
+        vec![(0, 3, 1, false), (1, 3, 1, false), (1, 3, 1, true), (1, 1, 1, false)],
+        "the stop arrives with its marker, the plan and the candidate: {reports:?}"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 

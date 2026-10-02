@@ -33,14 +33,16 @@ pub(crate) struct First {
 /// from: how far the plan has got (lifetimes finished and planned) and which
 /// candidate the report is about — `done + 1` when that candidate starts,
 /// `done` when it closes, and `done` too when only the plan lowered (nothing
-/// new ran, so the last closed candidate still names the report). The page
-/// reads these three numbers and nothing else: a start and a close per
-/// candidate, in the order they happen.
+/// new ran, so the last closed candidate still names the report). `cut` is
+/// the stop marker: the budget (or a shape that never began) ended the tune
+/// short of its plan, so `total` still names what this start OWED and the
+/// page must not read `done == total` as a finish — the rest runs next time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Report {
     pub done: usize,
     pub total: usize,
     pub candidate: usize,
+    pub cut: bool,
 }
 
 /// What the two passes produced: the trials the record keeps, the winner
@@ -102,6 +104,7 @@ where
             done,
             total: planned,
             candidate: done + 1,
+            cut: false,
         });
         ran[index] = true;
         match first(shape, exe) {
@@ -159,6 +162,7 @@ where
             done,
             total: planned,
             candidate: done,
+            cut: false,
         });
     }
 
@@ -183,6 +187,7 @@ where
                 done,
                 total: planned,
                 candidate: done,
+                cut: false,
             });
             continue;
         }
@@ -193,11 +198,14 @@ where
                 // unfinished — the caller must let the next start try
                 // again — and the plan is finished as of now.
                 cut = true;
-                planned = done;
+                // The plan is NOT re-cut down to `done`: what this start
+                // did not measure is what it still owes, and the page's bar
+                // must stay at the height the tune really reached.
                 progress(Report {
                     done,
                     total: planned,
                     candidate: done,
+                    cut: true,
                 });
                 break 'sweep;
             }
@@ -205,6 +213,7 @@ where
                 done,
                 total: planned,
                 candidate: done + 1,
+                cut: false,
             });
             let trial = Candidate {
                 draft: *setting,
@@ -242,14 +251,17 @@ where
                 done,
                 total: planned,
                 candidate: done,
+                cut: false,
             });
         }
     }
-    // The plan may only shrink at the end, to what really began.
+    // The plan as it stands: on a finished tune that is exactly what ran,
+    // and on one the budget stopped it is what the next start is owed.
     progress(Report {
         done,
-        total: done,
+        total: planned,
         candidate: done,
+        cut: cut || !complete,
     });
 
     let scored: Vec<(Candidate, Reply)> = trials

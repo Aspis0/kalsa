@@ -28,7 +28,7 @@ fn a_shape_cut_before_its_first_lifetime_leaves_the_picture_incomplete() {
                 Duration::from_secs(60)
             }
         },
-        &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |report| seen.borrow_mut().push(report),
         |_, _| first(100.0, 50.0),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -73,9 +73,16 @@ fn a_shape_cut_before_its_first_lifetime_leaves_the_picture_incomplete() {
         "the shape that never began is absent, not invented"
     );
     assert_eq!(
-        seen.borrow().last(),
-        Some(&(2, 2)),
-        "the plan is finished at the cut: {:?}",
+        seen.borrow().iter().map(|r| (r.done, r.total, r.candidate, r.cut)).collect::<Vec<_>>(),
+        vec![
+            (0, 12, 1, false),
+            (1, 12, 1, false),
+            (1, 12, 2, false),
+            (2, 12, 2, false),
+            (2, 12, 2, true),
+            (2, 12, 2, true),
+        ],
+        "a start and a close per candidate, then the stop naming the plan it owes: {:?}",
         seen.borrow()
     );
 }
@@ -102,7 +109,7 @@ fn a_cut_between_the_passes_leaves_every_shape_with_an_entry() {
                 Duration::from_secs(60)
             }
         },
-        &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |report| seen.borrow_mut().push(report),
         |_, _| first(100.0, 50.0),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -123,9 +130,16 @@ fn a_cut_between_the_passes_leaves_every_shape_with_an_entry() {
         "the first lifetime's own off reply decides"
     );
     assert_eq!(
-        seen.borrow().last(),
-        Some(&(2, 2)),
-        "the plan is finished at the cut: {:?}",
+        seen.borrow().iter().map(|r| (r.done, r.total, r.candidate, r.cut)).collect::<Vec<_>>(),
+        vec![
+            (0, 8, 1, false),
+            (1, 8, 1, false),
+            (1, 8, 2, false),
+            (2, 8, 2, false),
+            (2, 8, 2, true),
+            (2, 8, 2, true),
+        ],
+        "every shape closed before the stop, and the stop owes the sweep: {:?}",
         seen.borrow()
     );
 }
@@ -150,7 +164,7 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
                 Duration::from_secs(60)
             }
         },
-        &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |report| seen.borrow_mut().push(report),
         |_, _| first(100.0, 50.0),
         |_, _| Ok(vec![50.0]),
     );
@@ -164,9 +178,18 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
     );
     assert!(tuned.winner.is_some(), "what ran still decides");
     assert_eq!(
-        seen.borrow().last(),
-        Some(&(3, 3)),
-        "the plan is finished at the cut: {:?}",
+        seen.borrow().iter().map(|r| (r.done, r.total, r.candidate, r.cut)).collect::<Vec<_>>(),
+        vec![
+            (0, 4, 1, false),
+            (1, 4, 1, false),
+            (1, 4, 2, false),
+            (2, 4, 2, false),
+            (2, 4, 3, false),
+            (3, 4, 3, false),
+            (3, 4, 3, true),
+            (3, 4, 3, true),
+        ],
+        "three closes, then the stop — plan intact at four: {:?}",
         seen.borrow()
     );
 }
@@ -192,7 +215,7 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
                 Duration::from_secs(60)
             }
         },
-        &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |report| seen.borrow_mut().push(report),
         |shape, _| {
             // Every shape's first lifetime runs (ticks 1..3), and the
             // processors' prefill floors are far above the card's reply, so
@@ -208,9 +231,9 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
     );
     assert!(tuned.complete, "all three first lifetimes ran");
     assert!(tuned.cut, "the sweep was cut on the first shape");
-    for (done, planned) in seen.borrow().iter() {
+    for report in seen.borrow().iter() {
         assert!(
-            planned >= done,
+            report.total >= report.done,
             "the plan never falls below what ran: {seen:?}"
         );
     }
@@ -225,9 +248,18 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
         .iter()
         .all(|(candidate, kept)| candidate.draft.is_none() && matches!(kept, Kept::Replied(_))));
     assert_eq!(
-        seen.borrow().last(),
-        Some(&(3, 3)),
-        "the plan is finished at the cut: {:?}",
+        seen.borrow().iter().map(|r| (r.done, r.total, r.candidate, r.cut)).collect::<Vec<_>>(),
+        vec![
+            (0, 12, 1, false),
+            (1, 12, 1, false),
+            (1, 12, 2, false),
+            (2, 12, 2, false),
+            (2, 12, 3, false),
+            (3, 12, 3, false),
+            (3, 12, 3, true),
+            (3, 12, 3, true),
+        ],
+        "three closes, then the stop — plan intact at twelve: {:?}",
         seen.borrow()
     );
 }

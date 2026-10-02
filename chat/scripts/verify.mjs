@@ -13,7 +13,7 @@ import {
   LEAVING_ATTRIBUTE as leavingAttribute,
 } from "../src/app/handoff.ts";
 import { zipSync, strToU8 } from "fflate";
-import { minutesLeft, tuneFace, tunePercent, tuneShare } from "../src/surfaces/tuneProgress.ts";
+import { tuneDone, tuneFace, tunePercent, tuneShare, tuneWait } from "../src/surfaces/tuneProgress.ts";
 import { fileURLToPath } from "node:url";
 import { installBrainStub } from "./lib/brain-stub.mjs";
 
@@ -4026,7 +4026,7 @@ const tests = {
     check("walkProgress: another phase carries no fraction", tuneFace({ kind: "deciding" }) === null);
     check(
       "walkProgress: the tune opens on test 1 of 4",
-      JSON.stringify(at(0, 4, 1)) === '{"done":0,"total":4,"candidate":1,"closing":false}',
+      JSON.stringify(at(0, 4, 1)) === '{"done":0,"total":4,"candidate":1,"closing":false,"cut":false}',
       JSON.stringify(at(0, 4, 1)),
     );
     check("walkProgress: two closed of four is half", tunePercent(closed(2, 4), 0) === 50, `${tunePercent(closed(2, 4), 0)}`);
@@ -4049,12 +4049,53 @@ const tests = {
     check("walkProgress: the closing report fills it", tunePercent(closed(4, 4), 0) === 100);
     check("walkProgress: a plan of nothing shows none", tunePercent(closed(0, 0), 0) === 0);
 
-    // The estimate: nothing to average yet, then the candidates left at
-    // 100 s apiece — the running one's own rest taken off the top.
-    check("walkProgress: no estimate before a candidate finished", minutesLeft(at(0, 4, 1), 0, 0) === null);
-    check("walkProgress: three left of four at 100 s is 5 min", minutesLeft(at(1, 4, 2), 0, 100) === 5, `${minutesLeft(at(1, 4, 2), 0, 100)}`);
-    check("walkProgress: halfway through the running one, 4", minutesLeft(at(1, 4, 2), 0.5, 100) === 4, `${minutesLeft(at(1, 4, 2), 0.5, 100)}`);
-    check("walkProgress: nothing left to estimate at the end", minutesLeft(closed(4, 4), 0, 100) === null);
+    // The wait: nothing to average yet, then the candidates left at 100 s
+    // apiece — the running one's own rest taken off the top.
+    check("walkProgress: no estimate before a candidate finished", tuneWait(at(0, 4, 1), 0, 0) === null);
+    check(
+      "walkProgress: three left of four at 100 s is 5 min",
+      JSON.stringify(tuneWait(at(1, 4, 2), 0, 100)) === '{"kind":"minutes","minutes":5}',
+      JSON.stringify(tuneWait(at(1, 4, 2), 0, 100)),
+    );
+    check(
+      "walkProgress: halfway through the running one, 4",
+      JSON.stringify(tuneWait(at(1, 4, 2), 0.5, 100)) === '{"kind":"minutes","minutes":4}',
+      JSON.stringify(tuneWait(at(1, 4, 2), 0.5, 100)),
+    );
+    check("walkProgress: nothing left to estimate at the end", tuneWait(closed(4, 4), 0, 100) === null);
+    // A candidate slower than the average is expected to take at least
+    // max(average, its own elapsed): it pushes the wait out, never under.
+    check(
+      "walkProgress: one slow candidate pushes the estimate out",
+      JSON.stringify(tuneWait(at(1, 6, 2), 5, 30)) === '{"kind":"minutes","minutes":2}',
+      JSON.stringify(tuneWait(at(1, 6, 2), 5, 30)),
+    );
+    // …and once it has outlived everything left to wait for, the honest
+    // answer is "any moment now": an estimate already exceeded is never
+    // shown as a number of minutes.
+    check(
+      "walkProgress: the last candidate over its average is almost done",
+      JSON.stringify(tuneWait(at(3, 4, 4), 2, 60)) === '{"kind":"almost"}',
+      JSON.stringify(tuneWait(at(3, 4, 4), 2, 60)),
+    );
+
+    // A budget cut: the plan stopped short of its end. The marker rides the
+    // wire, a stopped tune is never a finish (no full bar, no bow, no open
+    // bud), the bar holds at the height it really reached, and the line
+    // says the rest belongs to the next start.
+    const stopped = tuneFace({ kind: "tuning", done: 3, total: 12, candidate: 3, cut: true });
+    check("walkProgress: a cut report arrives with its marker", stopped !== null && stopped.cut === true, JSON.stringify(stopped));
+    check("walkProgress: a stopped tune is never done", tuneDone(stopped) === false, JSON.stringify(stopped));
+    check("walkProgress: the bar stays at the height reached", tunePercent(stopped, 99) === 33, `${tunePercent(stopped, 99)}`);
+    check(
+      "walkProgress: the stop line replaces the estimate",
+      JSON.stringify(tuneWait(stopped, 0, 60)) === '{"kind":"cut"}',
+      JSON.stringify(tuneWait(stopped, 0, 60)),
+    );
+    check(
+      "walkProgress: only the finished plan is done",
+      tuneDone(at(3, 4, 4)) === false && tuneDone(closed(4, 4)) === true,
+    );
 
     // The share: only a running candidate fills a slot, and only against a
     // real average.

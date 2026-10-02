@@ -317,6 +317,7 @@ fn tune_launch_inner(
                     done: report.done,
                     total: report.total,
                     candidate: report.candidate,
+                    cut: report.cut,
                 })
             });
             let winner = tuned.winner;

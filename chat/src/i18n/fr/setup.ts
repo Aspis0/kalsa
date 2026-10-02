@@ -30,4 +30,6 @@ export const SETUP = {
     "pickingUp": (text: string) => `Reprend là où il s'était arrêté — ${text}`,
     "attempt": (index: number, total: number) => `Essai ${index} sur ${total}`,
     "minutesLeft": (minutes: number) => `environ ${minutes} min restantes`,
+    "finishNextStart": "Kalsa terminera les tests au prochain démarrage",
+    "almostDone": "presque terminé",
   };

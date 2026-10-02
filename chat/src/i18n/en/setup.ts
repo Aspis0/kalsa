@@ -34,4 +34,7 @@ export const SETUP = {
   // run, and — once one finished — what is left of the wait.
   attempt: (index: number, total: number) => `Test ${index} of ${total}`,
   minutesLeft: (minutes: number) => `about ${minutes} min left`,
+  // A stop, not a finish: the budget ran out with the plan unfinished.
+  finishNextStart: "Kalsa will finish testing next time it starts",
+  almostDone: "almost done",
 };

@@ -120,6 +120,19 @@ async function read(page) {
         return Math.round((Math.atan2(parts[1], parts[0]) * 180) / Math.PI);
       })(),
       leavesOpen: document.querySelectorAll(".sprout-leaf.is-open").length,
+      // The bar's own contract with assistive tech: a progressbar that
+      // names its range and value (and has no value when the phase carries
+      // none), its value spoken in the line's words, and a live region whose
+      // ticking clock is hidden from it.
+      aria: {
+        role: bar?.getAttribute("role") ?? null,
+        min: bar?.getAttribute("aria-valuemin"),
+        max: bar?.getAttribute("aria-valuemax"),
+        now: bar?.getAttribute("aria-valuenow"),
+        valuetext: bar?.getAttribute("aria-valuetext"),
+        live: caption?.getAttribute("aria-live"),
+        clockHidden: Boolean(caption?.querySelector('span[aria-hidden="true"]')),
+      },
       fillColor: fill ? getComputedStyle(fill).backgroundColor : null,
       captionColor: caption ? getComputedStyle(caption).color : null,
       sway: plant ? getComputedStyle(plant).animationName : null,
@@ -148,6 +161,21 @@ async function walk(page, theme) {
   check(`${theme}: a phase with no fraction has no fill`, checking.determinate === false && checking.indeterminate);
   check(`${theme}: the time alone is on the line`, /^\d+:\d\d$/.test(checking.caption), checking.caption);
   check(`${theme}: the plant sways`, checking.sway === "sprout-sway", checking.sway);
+  check(
+    `${theme}: the bar is a progressbar with no value it does not have`,
+    checking.aria.role === "progressbar" &&
+      checking.aria.min === "0" &&
+      checking.aria.max === "100" &&
+      checking.aria.now === null,
+    JSON.stringify(checking.aria),
+  );
+  check(
+    `${theme}: the line is polite, its clock unspoken, its words the bar's value`,
+    checking.aria.live === "polite" &&
+      checking.aria.clockHidden &&
+      checking.aria.valuetext === checking.caption,
+    JSON.stringify(checking.aria),
+  );
   const stripesA = checking.stripes;
   await page.waitForTimeout(500);
   const walking = await read(page);
@@ -189,7 +217,14 @@ async function walk(page, theme) {
   await page.waitForTimeout(400);
   const mid = await read(page);
   check(`${theme}: test 3 of 4`, mid.caption.startsWith("Test 3 of 4 ·"), mid.caption);
-  check(`${theme}: one candidate finished, so an estimate appears`, /about \d+ min left/.test(mid.caption), mid.caption);
+  // The harness runs on compressed time: two candidates of ~2.5 s leave
+  // seconds, not minutes, and "almost done" is the honest wait for that —
+  // the minutes path itself is pinned in verify.mjs's walkProgress.
+  check(
+    `${theme}: one candidate finished, so the wait line appears`,
+    /min left|almost done/.test(mid.caption),
+    mid.caption,
+  );
   check(`${theme}: two of four is half`, mid.percent !== null && mid.percent >= 49 && mid.percent <= 60, `${mid.percent}`);
   const before = mid.percent;
   await page.waitForTimeout(1400);
@@ -198,6 +233,11 @@ async function walk(page, theme) {
     `${theme}: the running candidate fills its own slot`,
     inside.percent !== null && inside.percent > before && inside.percent < 100,
     `${before} → ${inside.percent}`,
+  );
+  check(
+    `${theme}: the determinate bar names its value in the line's words`,
+    mid.aria.now !== null && mid.aria.valuetext === mid.caption,
+    JSON.stringify(mid.aria),
   );
   check(`${theme}: the plant is still alive while it waits`, inside.running.includes("sprout-sway"), inside.running.join(","));
   await shot(page, `shots/92-walk-tune-mid${suffix}.png`);
@@ -210,7 +250,11 @@ async function walk(page, theme) {
   const bowing = await read(page);
   check(`${theme}: the plant takes its bow`, bowing.done && bowing.running.includes("sprout-bow"), bowing.running.join(","));
   check(`${theme}: test 4 of 4`, bowing.caption.startsWith("Test 4 of 4 ·"), bowing.caption);
-  check(`${theme}: nothing left to estimate`, !/min left/.test(bowing.caption), bowing.caption);
+  check(
+    `${theme}: nothing left to estimate`,
+    !/(min left|almost done)/.test(bowing.caption),
+    bowing.caption,
+  );
   check(`${theme}: the closing report fills the bar`, bowing.percent === 100, `${bowing.percent}`);
   check(
     `${theme}: every leaf and the bud opened`,
@@ -251,6 +295,39 @@ async function reduced(page) {
   await shot(page, "shots/94-walk-reduced.png");
 }
 
+/** A budget cut: the stop keeps the bar where the tune reached, the plant
+    does not play the finish it did not earn, the line says the next start
+    does the rest, and the clock stops with the tune. */
+async function cut(page, theme) {
+  const suffix = theme === "dark" ? "-dark" : "";
+  // The reduced pass left the page quiet; this is the ordinary walk again.
+  await page.emulateMedia({ reducedMotion: null });
+  await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true });
+  await page.waitForTimeout(1400); // the plant settles at its real height
+  const stopped = await read(page);
+  check(`${theme}: the bar holds at the height the tune reached`, stopped.percent === 50, `${stopped.percent}`);
+  check(
+    `${theme}: a cut does not play the finish`,
+    stopped.done === false && stopped.budAngle !== 45,
+    `done=${stopped.done} bud=${stopped.budAngle}°`,
+  );
+  check(
+    `${theme}: the line says the next start finishes it`,
+    stopped.caption.includes("Kalsa will finish testing next time it starts"),
+    stopped.caption,
+  );
+  check(
+    `${theme}: the stop names its value and keeps its live line`,
+    stopped.aria.live === "polite" && stopped.aria.valuetext === stopped.caption && stopped.aria.now === "50",
+    JSON.stringify(stopped.aria),
+  );
+  const frozen = stopped.caption;
+  await page.waitForTimeout(1300);
+  const still = await read(page);
+  check(`${theme}: the cut stops the clock`, still.caption === frozen, `${frozen} → ${still.caption}`);
+  await shot(page, `shots/95-walk-tune-cut${suffix}.png`);
+}
+
 async function main() {
   const browser = await chromium.launch({ args: ["--no-sandbox"] });
   for (const theme of ["light", "dark"]) {
@@ -280,6 +357,7 @@ async function main() {
     await page.waitForTimeout(600);
     await walk(page, theme);
     if (theme === "light") await reduced(page);
+    await cut(page, theme);
     await page.close();
   }
   await browser.close();

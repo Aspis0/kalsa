@@ -30,4 +30,6 @@ export const SETUP = {
     "pickingUp": (text: string) => `从停止处继续 —— ${text}`,
     "attempt": (index: number, total: number) => `测试 ${index}/${total}`,
     "minutesLeft": (minutes: number) => `约剩 ${minutes} 分钟`,
+    "finishNextStart": "Kalsa 下次启动时会完成测试",
+    "almostDone": "快完成了",
   };
