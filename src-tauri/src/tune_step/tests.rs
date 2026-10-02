@@ -876,17 +876,21 @@ fn an_all_refused_tune_is_retried_once_and_then_stands() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A processor build that could not be resolved makes the tune incomplete
-/// too (candidates were dropped): same rule — use it, do not save it —
-/// and the memo remembers the failure so it is not retried per candidate.
+/// A candidate build that cannot be resolved drops its shapes — and is
+/// still an unfinished verdict: the first start withholds it as the marker
+/// `load` refuses, the second saves what ran (the memo remembers the
+/// failure, so it is not retried per candidate), and the third reads the
+/// record instead of measuring again. A persistently missing build must
+/// spend the budget once, not on every start.
 #[test]
-fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
+fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
     let dir = scratch("unresolvable");
     let machine = machine(Backend::DiscreteGpu {
         vram_bytes: Some(6_439_305_216),
     });
-    let mut prepared = prepared("/main-gpu");
-    let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
+    let mut first = prepared("/main-gpu");
+    let digest = first.info.model_sha256.as_deref().unwrap().to_string();
+    let fingerprint = tune_fingerprint(&machine, &first.info, ServerBackend::Vulkan, CORES)
         .expect("this walk has a platform and a digest");
     let mut memo = Memo {
         cores: CORES,
@@ -894,46 +898,91 @@ fn an_unresolvable_processor_build_makes_the_tune_incomplete() {
     };
     let mut seen: Vec<Progress> = Vec::new();
     let mut progress = |step: Progress| seen.push(step);
-    let fingerprint_for_seam = fingerprint.clone();
+    // One shape resolves (the memo has the processor failure), two are
+    // dropped — every start.
+    fn dropped(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        counts: &mut dyn FnMut(usize, usize),
+    ) -> kalsa_tune::Tuned {
+        counts(resolved.len(), resolved.len());
+        assert_eq!(resolved.len(), 1, "the processor candidates were dropped");
+        let only = resolved[0].0;
+        tuned(
+            vec![replied(only, 60.0, 30.0)],
+            Some(kalsa_tune::Winner {
+                candidate: only,
+                reply: reply(60.0, 30.0),
+            }),
+        )
+    }
     tune_launch(
-        &mut prepared,
+        &mut first,
         &machine,
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        move |resolved, _, counts| {
-            counts(resolved.len(), resolved.len());
-            assert_eq!(
-                resolved.len(),
-                1,
-                "the processor candidates were dropped: {fingerprint_for_seam}"
-            );
-            let only = resolved[0].0;
-            tuned(
-                vec![replied(only, 60.0, 30.0)],
-                Some(kalsa_tune::Winner {
-                    candidate: only,
-                    reply: reply(60.0, 30.0),
-                }),
-            )
-        },
+        dropped,
     );
-    // The processor candidates were dropped by the memoized failure — one
-    // shape ran, two candidates exist — so this is incomplete.
+    // One shape ran, two candidates exist: a hole — and a marker, so the
+    // hole gets exactly one more measurement instead of every start's.
+    // (The progress walk is asserted after the last start, while the
+    // `progress` closure is still borrowed.)
+    assert!(
+        matches!(first.info.tune, Some(Tune::Measured(_))),
+        "what ran launches: {:?}",
+        first.info.tune
+    );
+    assert!(
+        kalsa_tune::record::load(&dir, &digest, &fingerprint).is_none(),
+        "a dropped shape's tune is not a verdict yet"
+    );
+    assert!(
+        kalsa_tune::record::cut_before(&dir, &digest, &fingerprint),
+        "the marker owes the next start one measurement"
+    );
+    // The second start, the build still missing: what ran is saved.
+    let mut again = prepared("/main-gpu");
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        dropped,
+    );
+    let saved = kalsa_tune::record::load(&dir, &digest, &fingerprint)
+        .expect("a persistently missing build must not re-tune forever");
+    assert!(saved.winner.is_some(), "what ran is the verdict: {saved:?}");
+    assert_eq!(saved.trials.len(), 1, "one shape measured: {saved:?}");
+    assert_eq!(
+        again.info.args.threads,
+        first.info.args.threads,
+        "the same winner launches"
+    );
+    // The third start: the record answers, nothing measures.
+    let mut third = prepared("/main-gpu");
+    tune_launch(
+        &mut third,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |_, _, _| panic!("the saved record answers; nothing measures"),
+    );
+    assert!(
+        matches!(third.info.tune, Some(Tune::Measured(_))),
+        "kept: {:?}",
+        third.info.tune
+    );
+    assert_eq!(third.info.args.threads, first.info.args.threads);
     assert!(
         seen.iter()
             .any(|step| matches!(step, Progress::Tuning { done: 1, total: 1 })),
         "the processor candidates never ran"
-    );
-    assert!(
-        kalsa_tune::record::load(
-            &dir,
-            prepared.info.model_sha256.as_deref().unwrap(),
-            &fingerprint
-        )
-        .is_none(),
-        "an incomplete tune must not be saved"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -1514,8 +1563,8 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
 
 /// The winner's build must be launchable: when the processor build refuses
 /// (so its shapes were dropped) and the seam still answers for one of
-/// them, nothing is saved — the next start measures again instead of
-/// reusing a record whose winner nobody can launch.
+/// them, no verdict is kept — only the marker — so the next start measures
+/// once more instead of reusing a record whose winner nobody can launch.
 #[test]
 fn an_unresolvable_draft_exe_leaves_the_tune_unsaved() {
     let dir = scratch("draft-no-exe");

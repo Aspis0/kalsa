@@ -216,6 +216,9 @@ pub enum Marker {
     PassOne,
     /// Every shape ran; none of them replied.
     Refused,
+    /// Some candidate's build never resolved, so its shapes never ran:
+    /// the dropped hole the next start gets one chance to fill.
+    Unresolved,
 }
 
 impl Marker {
@@ -224,6 +227,7 @@ impl Marker {
             Marker::Sweep => "sweep",
             Marker::PassOne => "first",
             Marker::Refused => "refused",
+            Marker::Unresolved => "unresolved",
         }
     }
 }
@@ -561,7 +565,7 @@ fn parse(text: &str) -> Option<(String, Record, bool)> {
             "cut"
                 if !cut && saved_fingerprint.is_some() && trials.is_empty() && winner.is_none() =>
             {
-                if !matches!(value, "sweep" | "first" | "refused") {
+                if !matches!(value, "sweep" | "first" | "refused" | "unresolved") {
                     return None; // one closed name per cause, like every other field
                 }
                 cut = true;

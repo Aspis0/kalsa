@@ -322,14 +322,18 @@ fn tune_launch_inner(
                 winner,
                 trials: tuned.trials,
             };
-            // An unfinished verdict — the budget stopped a lifetime in
-            // either pass, or nothing replied — is written as the marker
-            // `load` refuses, so the next start measures once more; a
-            // second unfinished verdict is saved as it stands. The marker
-            // IS the "retried once": `cut_before` reads it back, and a
-            // slow or broken machine must not spend the whole budget on
-            // every start forever.
-            let unfinished = if tuned.cut {
+            // An unfinished verdict — a candidate's build never resolved,
+            // the budget stopped a lifetime in either pass, or nothing
+            // replied — is written as the marker `load` refuses, so the
+            // next start measures once more; a second unfinished verdict is
+            // saved as it stands. The marker IS the "retried once":
+            // `cut_before` reads it back, so a persistently missing build
+            // (like a slow or broken machine) spends the budget on one
+            // retry, not on every start. A shape the bound skipped ran —
+            // its own entry stands — and is never a hole here.
+            let unfinished = if resolved.len() != candidates.len() {
+                Some(kalsa_tune::record::Marker::Unresolved)
+            } else if tuned.cut {
                 Some(kalsa_tune::record::Marker::Sweep)
             } else if !tuned.complete {
                 Some(kalsa_tune::record::Marker::PassOne)
@@ -340,31 +344,21 @@ fn tune_launch_inner(
             };
             let retried = unfinished.is_some()
                 && kalsa_tune::record::cut_before(root, &model_digest, &fingerprint);
-            // Every candidate must have had an exe to run: a dropped shape
-            // is a hole no picture may pin — the bound's skips are not a
-            // hole, they ran and their own entries stand — so this start
-            // writes nothing.
-            if resolved.len() != candidates.len() {
-                eprintln!(
-                    "kalsa-brain: the tune ran {} of {} candidates; not saved — the next start tries again",
-                    resolved.len(),
-                    candidates.len()
-                );
-            } else {
-                let staged = match (unfinished, retried) {
-                    (Some(cause), false) => {
-                        eprintln!(
-                            "kalsa-brain: the tune's verdict is unfinished ({cause:?}); withheld once — the next start measures again"
-                        );
-                        kalsa_tune::record::save_marker(root, &model_digest, &record, cause)
-                    }
-                    _ => kalsa_tune::record::save(root, &model_digest, &record),
-                };
-                if let Err(error) = staged {
-                    // Best effort: a record that cannot be written costs a
-                    // re-tune next start, never this launch.
-                    eprintln!("kalsa-brain: the tune record could not be written: {error}");
+            let staged = match (unfinished, retried) {
+                (Some(cause), false) => {
+                    eprintln!(
+                        "kalsa-brain: the tune's verdict is unfinished ({cause:?}; {}/{} candidates ran); withheld once — the next start measures again",
+                        resolved.len(),
+                        candidates.len()
+                    );
+                    kalsa_tune::record::save_marker(root, &model_digest, &record, cause)
                 }
+                _ => kalsa_tune::record::save(root, &model_digest, &record),
+            };
+            if let Err(error) = staged {
+                // Best effort: a record that cannot be written costs a
+                // re-tune next start, never this launch.
+                eprintln!("kalsa-brain: the tune record could not be written: {error}");
             }
             (record, winner)
         }

@@ -320,7 +320,7 @@ fn an_older_format_reads_as_no_record() {
 fn a_marker_is_refused_as_a_verdict_and_read_as_a_marker() {
     let dir = Scratch::new("cut-marker");
     let record = sample();
-    for cause in [Marker::Sweep, Marker::PassOne, Marker::Refused] {
+    for cause in [Marker::Sweep, Marker::PassOne, Marker::Refused, Marker::Unresolved] {
         save_marker(&dir, DIGEST, &record, cause).expect("marker");
         assert_eq!(
             load(&dir, DIGEST, &record.fingerprint),
