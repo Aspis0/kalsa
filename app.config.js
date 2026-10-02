@@ -147,6 +147,11 @@ const config = {
           // install.
           minSdkVersion: 33,
         },
+        // iOS 27 requires the UIKit scene lifecycle; Expo generates the
+        // scene manifest and delegate wiring for this build-properties option.
+        ios: {
+          enableSceneSupport: true,
+        },
       },
     ],
     // The llama.rn fork ships no prebuilt jniLibs, so the engine is always
