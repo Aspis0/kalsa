@@ -37,8 +37,19 @@ static LISTED: OnceLock<Vec<(String, String)>> = OnceLock::new();
 /// could not be asked (no spawn, no exit within the deadline, a nonzero exit)
 /// or named no device.
 pub fn list_devices(exe: &Path) -> Option<Vec<(String, String)>> {
-    kalsa_probe::once_present(&LISTED, || {
-        Some(parse_listed_devices(&ask_list_devices(exe, LIST_DEADLINE)?))
+    listed_once(&LISTED, exe, LIST_DEADLINE)
+}
+
+/// [`list_devices`] against a cache of the caller's own. An empty list is no
+/// answer: it is not remembered, and the caller routes on `None` exactly as
+/// it would on the empty list.
+fn listed_once(
+    cache: &OnceLock<Vec<(String, String)>>,
+    exe: &Path,
+    deadline: Duration,
+) -> Option<Vec<(String, String)>> {
+    kalsa_probe::once_present(cache, || {
+        Some(parse_listed_devices(&ask_list_devices(exe, deadline)?))
             .filter(|listed| !listed.is_empty())
     })
 }
@@ -270,9 +281,10 @@ mod tests {
         assert_eq!(route(Some(&lenovo()), None), (ServerBackend::Cpu, None));
     }
 
-    /// An executable that prints a listing and exits with `code`.
+    /// An executable that prints `lines` after the header and exits with
+    /// `code`.
     #[cfg(unix)]
-    fn fake_engine(name: &str, code: i32) -> std::path::PathBuf {
+    fn fake_engine_printing(name: &str, lines: &str, code: i32) -> std::path::PathBuf {
         use std::os::unix::fs::PermissionsExt;
         let dir = std::env::temp_dir().join(format!(
             "kalsa-runtime-devices-{name}-{}",
@@ -284,12 +296,38 @@ mod tests {
         std::fs::write(
             &exe,
             format!(
-                "#!/bin/sh\necho 'Available devices:'\necho '  Vulkan0: GPU (1 MiB, 1 MiB free)'\nexit {code}\n"
+                "#!/bin/sh\necho 'Available devices:'\necho '{lines}'\nexit {code}\n"
             ),
         )
         .expect("script");
         std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).expect("chmod");
         exe
+    }
+
+    #[cfg(unix)]
+    fn fake_engine(name: &str, code: i32) -> std::path::PathBuf {
+        fake_engine_printing(name, "  Vulkan0: GPU (1 MiB, 1 MiB free)", code)
+    }
+
+    /// Only a successful, non-empty list is remembered: an empty listing
+    /// and a crash leave the cache open for the next ask, a real list fills
+    /// it.
+    #[cfg(unix)]
+    #[test]
+    fn only_a_non_empty_clean_listing_is_cached() {
+        let cache = OnceLock::new();
+        let empty = fake_engine_printing("empty", "  (none)", 0);
+        assert_eq!(listed_once(&cache, &empty, LIST_DEADLINE), None);
+        assert!(cache.get().is_none(), "an empty list is not an answer");
+        let crash = fake_engine("cache-crash", 1);
+        assert_eq!(listed_once(&cache, &crash, LIST_DEADLINE), None);
+        assert!(cache.get().is_none(), "a crash is not an answer");
+        let good = fake_engine("cache-good", 0);
+        let listed = listed_once(&cache, &good, LIST_DEADLINE).expect("a real list");
+        assert_eq!(listed, vec![("Vulkan0".to_string(), "GPU".to_string())]);
+        assert_eq!(cache.get(), Some(&listed));
+        // And once filled, the build is not asked again.
+        assert_eq!(listed_once(&cache, &empty, LIST_DEADLINE), Some(listed));
     }
 
     #[cfg(unix)]
