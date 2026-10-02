@@ -26,8 +26,10 @@ import {
 const DEFAULT_INTERVAL_MS = 30_000;
 
 // Same 1 s bound the governor feed puts on this native call: a read that never
-// settles must not leave samples pending while the interval starts more.
+// settles must not leave samples pending while the interval starts more. The
+// fallback memory read is the same native bridge and gets the same bound.
 const PLATFORM_THERMAL_READ_TIMEOUT_MS = 1_000;
+const MEMORY_READ_TIMEOUT_MS = 1_000;
 
 /** Millidegree strings from thermal_zoneN/temp (millidegrees) to Celsius. */
 function parseThermalZoneTemp(text: string): number | null {
@@ -164,22 +166,29 @@ export function useThermalMonitor(opts?: {
       }
 
       // Fallback: memory-pressure heuristic (no temperature available).
+      let bytes: number | null;
       try {
-        const bytes = await getAvailableMemoryBytesUncached();
-        if (!mountedRef.current) return;
-        if (bytes == null) {
-          commit({ status: "unknown", currentTempC: null, source: "none" });
-          return;
-        }
-        // Very low free RAM → advisory "warm" (not a real temperature).
-        const availMiB = bytes / (1024 * 1024);
-        const status: ThermalStatus =
-          availMiB < MEMORY_PROXY_WARM_BELOW_MIB ? "warm" : "ok";
-        commit({ status, currentTempC: null, source: "memory_proxy" });
+        bytes = await withNativeCallTimeout(
+          getAvailableMemoryBytesUncached(),
+          MEMORY_READ_TIMEOUT_MS,
+          "available memory read",
+        );
       } catch {
-        if (!mountedRef.current) return;
-        commit({ status: "unknown", currentTempC: null, source: "none" });
+        // The reader never throws (monitor.ts catches internally), so this is
+        // the timeout: keep the previous sample instead of overwriting a real
+        // thermal source with the proxy.
+        return;
       }
+      if (!mountedRef.current) return;
+      if (bytes == null) {
+        commit({ status: "unknown", currentTempC: null, source: "none" });
+        return;
+      }
+      // Very low free RAM → advisory "warm" (not a real temperature).
+      const availMiB = bytes / (1024 * 1024);
+      const status: ThermalStatus =
+        availMiB < MEMORY_PROXY_WARM_BELOW_MIB ? "warm" : "ok";
+      commit({ status, currentTempC: null, source: "memory_proxy" });
     };
 
     void sample();

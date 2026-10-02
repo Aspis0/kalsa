@@ -1,5 +1,9 @@
+const mockPlatform = { OS: "ios" };
+jest.mock("react-native", () => ({ Platform: mockPlatform }));
+
 import {
   recommendedModelId,
+  resolveContextProfile,
   type RamTier,
 } from "./contextProfile";
 import { isChatModel2BClass, isChatModel4BClass } from "./llamaContextGate";
@@ -42,5 +46,34 @@ describe("size-class classification via the catalog (no id-string parsing)", () 
   it("every listed model declares a sizeClass", () => {
     const missing = MODEL_REGISTRY.filter((model) => model.listed !== false && !model.sizeClass);
     expect(missing).toHaveLength(0);
+  });
+});
+
+/**
+ * The KV pair the load runs. initEngine's cacheTypeK/V come from this
+ * function's result on the load path, so both platform answers are pinned
+ * here — the engineEnsureLoad call site passes it through unchanged.
+ */
+describe("resolveContextProfile — the KV pair the load runs", () => {
+  const catalogPair = { k: "q8_0", v: "q4_0" } as const;
+  const input = {
+    hybrid: true,
+    kvCache: catalogPair,
+    catalogCtx: 8192,
+    totalMemoryBytes: 8_000_000_000,
+  };
+
+  it("iOS: the catalog's mixed pair resolves to q8_0/q8_0", () => {
+    mockPlatform.OS = "ios";
+    const profile = resolveContextProfile(input);
+    expect(profile.cacheTypeK).toBe("q8_0");
+    expect(profile.cacheTypeV).toBe("q8_0");
+  });
+
+  it("Android: the same input keeps the catalog's pair", () => {
+    mockPlatform.OS = "android";
+    const profile = resolveContextProfile(input);
+    expect(profile.cacheTypeK).toBe("q8_0");
+    expect(profile.cacheTypeV).toBe("q4_0");
   });
 });

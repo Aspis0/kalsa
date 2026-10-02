@@ -1,9 +1,9 @@
 /**
  * The platform rule of the KV pair. On iOS both paths — the unset default and
  * an explicit Standard — land on q8_0/q8_0, because mixed K/V types leave
- * Metal's fast path (LFM2.5-2.6B: 31 tok/s at q8_0/q4_0 against 97 at
- * q8_0/q8_0). Off iOS the resolution is the one the catalog always had: the
- * stored choice, else the catalog's own pair, else the shipped q8_0/q4_0.
+ * Metal's fast path (that measurement, on a Mac, is in kvCacheProfile.ts). Off
+ * iOS the resolution is the one the catalog always had: the stored choice, else
+ * the catalog's own pair, else the shipped q8_0/q4_0.
  */
 const mockPlatform = { OS: "ios" };
 jest.mock("react-native", () => ({ Platform: mockPlatform }));

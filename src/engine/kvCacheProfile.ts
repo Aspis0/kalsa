@@ -20,11 +20,12 @@ const IOS_KV_CACHE: KvCacheProfile = { k: "q8_0", v: "q8_0" };
 const SHIPPED_KV_CACHE: KvCacheProfile = { k: "q8_0", v: "q4_0" };
 
 /**
- * Whether this load runs on iOS. The require is lazy and its failure reads as
+ * Whether this build runs on iOS. The require is lazy and its failure reads as
  * off-iOS: node harnesses and tests load this module with no react-native, and
- * there the shipped pair has to keep standing.
+ * there the shipped pair has to keep standing. Exported because Settings picks
+ * its cache copy with the same rule.
  */
-function isIos(): boolean {
+export function isIosPlatform(): boolean {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Platform } = require("react-native") as { Platform: { OS: string } };
@@ -40,15 +41,18 @@ function isIos(): boolean {
  *
  * Off iOS: choice ?? catalog ?? the shipped pair — the resolution unchanged.
  * On iOS: q8_0/q8_0 whatever came in, because mixed K/V types leave Metal's
- * fast path — LFM2.5-2.6B measured 31 tok/s at the catalog's q8_0/q4_0 against
- * 97 with both sides q8_0 — so that pair is a decode cost there, not a saving.
- * The Standard row resolves through here too, which is what keeps the mixed
- * pair off both iOS paths (unset and an explicit Standard).
+ * fast path. Measured on an M1 Max Mac under Metal, not on an iPhone:
+ * llama-bench on LFM2.5-2.6B Q4_0, -t 4, flash attention on — q8_0/q8_0
+ * decodes at 97.5 tok/s against q8_0/q4_0's 31.3 at depth 2048, and 94.9
+ * against 12.6 at depth 15744 (the app's own 16384 reservation; the iPhone is
+ * unmeasured — lab ios-engine-choice/REPORT.md). So the mixed pair is a decode
+ * cost there, not a saving. The Standard row resolves through here too, which
+ * is what keeps it off both iOS paths (unset and an explicit Standard).
  */
 export function resolveKvCacheProfile(
   choice: KvCacheProfile | null | undefined,
   catalog?: KvCacheProfile | null,
 ): KvCacheProfile {
-  if (isIos()) return IOS_KV_CACHE;
+  if (isIosPlatform()) return IOS_KV_CACHE;
   return choice ?? catalog ?? SHIPPED_KV_CACHE;
 }

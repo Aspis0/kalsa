@@ -60,7 +60,7 @@ import { resolveGateLoadPolicy } from "../engine/loadPolicy";
 import { readGovernorEnabled, writeGovernorEnabled } from "../engine/governorRuntime";
 import { resolveEngineTuningSync } from "../engine/deviceTuning";
 import { kvBytesPerTokenAtProfile, modelAtKvProfile } from "../engine/kvQuantCost";
-import { resolveKvCacheProfile } from "../engine/kvCacheProfile";
+import { isIosPlatform, resolveKvCacheProfile } from "../engine/kvCacheProfile";
 import {
   contextSizeChoices,
   contextSizeOutcome,
@@ -1196,6 +1196,9 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   const kvCacheChoice = kvCacheChoiceById(kvCacheChoiceId);
   /** Standard is the default row, so unset and Standard resolve to one pair. */
   const effectiveKvCacheChoiceId: KvCacheChoiceId = kvCacheChoiceId ?? "standard";
+  // The Android hint promises a bits difference iOS rows do not have; iOS
+  // renders copy that describes what its own rows load.
+  const isIos = isIosPlatform();
 
   const catalogContextTokens = useMemo(
     () =>
@@ -1752,7 +1755,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
             {t("settings.kvCache")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
-            {t("settings.kvCacheHint")}
+            {t(isIos ? "settings.kvCacheHintIos" : "settings.kvCacheHint")}
           </Text>
           <View style={{ gap: spacing.xs }}>
             {kvCacheOptionRows.map((row) => {
@@ -1812,7 +1815,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
                   </View>
                   {row.choice.id === "high" &&
                   kvCacheHighCostMiB != null &&
-                  kvCacheHighCostMiB > 0 ? (
+                  (!isIos || kvCacheHighCostMiB > 0) ? (
                     <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
                       {t("settings.kvCacheHighCost", {
                         mib: kvCacheHighCostMiB,

@@ -64,8 +64,9 @@ export function loadGateFitModel(input: {
   // catalog's q4_0 — the gate must charge the bytes init will really take.
   const chosenKv = resolveKvCacheProfile(input.kvCache, input.model.kvCache);
   // resolveContextProfile decides the request exactly as init does: an explicit
-  // value wins and skips the high-RAM upgrade; otherwise the catalog value plus
-  // that upgrade for a high-RAM hybrid.
+  // n_ctx wins and never reaches the high-RAM upgrade; otherwise the catalog
+  // value plus that upgrade for a high-RAM hybrid. The cache choice is not a
+  // request input — it changes the bytes priced below, not the token count.
   const requestedContextTokens = resolveContextProfile({
     hybrid: input.model.hybrid,
     kvCache: chosenKv,

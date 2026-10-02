@@ -1,3 +1,6 @@
+const mockPlatform = { OS: "ios" };
+jest.mock("react-native", () => ({ Platform: mockPlatform }));
+
 import { resolveEngineTuningSync, resolveGateContextTokens, type ProvenanceSource } from "./deviceTuning";
 
 const profile = {
@@ -44,6 +47,37 @@ describe("device tuning size-class policy", () => {
     });
 
     expect(result.thermal).toEqual({ guardSource: "none" });
+  });
+});
+
+/**
+ * The KV report the Settings panel prices and the load budget charges: iOS
+ * must report the pair resolveKvCacheProfile makes the engine allocate,
+ * Android must keep the pair the catalog names.
+ */
+describe("resolveEngineTuningSync — the reported KV pair", () => {
+  it("iOS: reports q8_0/q8_0 for the catalog's mixed pair", () => {
+    mockPlatform.OS = "ios";
+    const result = resolveEngineTuningSync({
+      model: baseModel,
+      profile,
+      request: {},
+      platformHint: "ios",
+      resolvedThreads: 4,
+    });
+    expect(result.kv).toEqual({ type_k: "q8_0", type_v: "q8_0" });
+  });
+
+  it("Android: reports the catalog's q8_0/q4_0 unchanged", () => {
+    mockPlatform.OS = "android";
+    const result = resolveEngineTuningSync({
+      model: baseModel,
+      profile,
+      request: {},
+      platformHint: "android",
+      resolvedThreads: 4,
+    });
+    expect(result.kv).toEqual({ type_k: "q8_0", type_v: "q4_0" });
   });
 });
 

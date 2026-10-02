@@ -556,6 +556,18 @@ function readExpoDevice(): ExpoDeviceMod | null {
   }
 }
 
+/** Platform.OS, or null when react-native is not loadable (file header). */
+function readPlatformOs(): string | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as { Platform?: { OS?: string } };
+    const os = Platform?.OS;
+    return typeof os === "string" && os.length > 0 ? os : null;
+  } catch {
+    return null;
+  }
+}
+
 function asNullableString(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
@@ -651,12 +663,9 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
   // Apple chip class from the model id, iOS-gated: an Android id must never
   // reach the map's Mac* prefix rule. The map's nominal RAM is not consulted —
   // expo-device's iOS totalMemory (ProcessInfo.physicalMemory) is positive by
-  // construction, so no null read exists for it to back up. react-native stays
-  // a dynamic require (file header).
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Platform } = require("react-native") as { Platform: { OS: string } };
+  // construction, so no null read exists for it to back up.
   const appleClass =
-    Platform.OS === "ios" ? appleDeviceClassForModelId(modelId) : null;
+    readPlatformOs() === "ios" ? appleDeviceClassForModelId(modelId) : null;
 
   const family = deviceFamilyForBrand(brand);
   const isMiuiFamily = family === "xiaomi";
