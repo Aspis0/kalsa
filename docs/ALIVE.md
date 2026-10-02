@@ -778,6 +778,10 @@ and model/picker flows portable; blockers: the binding's `ios/rnllama.xcframewor
 vendored source build with Metal), the declared Apple thermal module does not exist; iroh pairing and share-in are
 Android-only. No Xcode on the Mac yet, no Apple Developer account, no lab iPhone. Apple Foundation Models lists all
 five languages (iPhone 15 Pro+); one community test has MLX ahead of llama.cpp on iPhone 17 Pro.
+iOS first-build prep on local app branch `ios/first-build` `ffd5867c` (worktree `~/Projects/kalsa-ios`, not pushed):
+llama.rn source build with Metal via a Podfile plugin (embeds generated at pod install, Android CI untouched), iOS
+RAM/chip/thermal/jetsam-headroom paths, Swift modules fixed; two hostile audits; waits for Xcode. Next:
+`scratchpad/agents/ios-readiness/NEXT.md`.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 
