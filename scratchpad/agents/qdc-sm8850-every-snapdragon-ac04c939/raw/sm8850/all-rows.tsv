@@ -1,0 +1,11 @@
+board	label	arm	prompt	plan_npu_lane	plan_npu_fit	plan_gpu_fit	plan_avail_mib	plan_avail_src	gov_lines	thermal_state	chunks	layers_counts	engine_prefill	prefill_kv	cache_k	cache_v	failed	prefill_tok_s	prompt_n	n_common	decode_tok_s	tokens_predicted	skin_start	skin_peak	batt_peak	fallbacks	crash_lines	lmk_lines	correct
+sm8850	off-short-2	OFF	short						0									NA		1889			33.81732	48.4	42.0	0	0	24	NA
+sm8850	on-long-1	OFF	long	auto	Fit	Fit	18876.89	fresh	1	COOLMODE	21	HTP0x21	NPU	device	q8_0	q8_0	NA	1306.7	2680	1889	23.603710376634314	671	38.74972	46.3	42.0	0	0	21	yes
+sm8850	on-short-1	OFF	short	auto	Fit	Fit	18975.61	fresh	1	COOLMODE	17	HTP0x17	NPU	device	q8_0	q8_0	NA	1337.3	1964	0	27.888575336494746	475	31.2242	39.2	42.0	0	0	17	sent=3
+sm8850	on-short-2	OFF	short	auto	Fit	Fit	18896.8	fresh	1	COOLMODE	5	HTP0x5	NPU	device	q8_0	q8_0	NA	1334.0	628	1889	25.373235114919837	564	35.598	42.6	42.0	0	0	20	sent=3
+sm8850	p1-A	OFF	short						0									NA		518			39.36532	48.1	42.0	0	0	24	NA
+sm8850	p1-B	OFF	short	off	Fit	Fit	18880.1	fresh	1	FAST	8	GPUOpenCLx8	GPU	device	q8_0	q4_0	NA	299.9	2845	518	24.45850063079262	31	39.66096	46.3	42.0	0	0	25	sent=1
+sm8850	p2-A	OFF	short						0									NA		518			39.72328	49.1	42.0	0	0	21	NA
+sm8850	p2-B	OFF	short	off	Fit	Fit	18953.82	fresh	1	FAST	9	GPUOpenCLx9	GPU	device	q8_0	q4_0	NA	297.2	2954	518	23.763165560274118	31	39.84792	46.1	42.0	0	0	22	sent=4
+sm8850	p3-A	OFF	short						0									NA		518			39.89656	49.4	42.0	0	0	24	NA
+sm8850	p3-B	OFF	short	off	Fit	Fit	18863.42	fresh	1	FAST	9	GPUOpenCLx9	GPU	device	q8_0	q4_0	NA	299.2	3063	518	23.40062396631518	31	39.88972	46.2	42.0	0	0	23	sent=4
