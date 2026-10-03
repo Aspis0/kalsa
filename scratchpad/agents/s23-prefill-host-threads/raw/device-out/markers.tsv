@@ -1,0 +1,26 @@
+1791053700	SESSION_PREFLIGHT	wake=Awake plug=0 level=62 battery_dC=342 status=0 traced=0
+1791053702	BEFORE_P-npu-t5-1	wake=Awake plug=0 level=62 battery_dC=342 status=0 traced=0
+1791053702	START_P-npu-t5-1	flags=-ngl 99 -dev HTP0 -t 5
+1791053707	END_P-npu-t5-1	rc=0
+1791053768	TAIL_END_P-npu-t5-1	
+1791053768	BEFORE_P-npu-t1-1	wake=Awake plug=0 level=62 battery_dC=346 status=0 traced=0
+1791053768	START_P-npu-t1-1	flags=-ngl 99 -dev HTP0 -t 1
+1791053773	END_P-npu-t1-1	rc=0
+1791053833	TAIL_END_P-npu-t1-1	
+1791053833	BEFORE_P-npu-t5-2	wake=Awake plug=0 level=62 battery_dC=342 status=0 traced=0
+1791053833	START_P-npu-t5-2	flags=-ngl 99 -dev HTP0 -t 5
+1791053838	END_P-npu-t5-2	rc=0
+1791053898	TAIL_END_P-npu-t5-2	
+1791053899	BEFORE_P-npu-t1-2	wake=Awake plug=0 level=62 battery_dC=341 status=0 traced=0
+1791053899	START_P-npu-t1-2	flags=-ngl 99 -dev HTP0 -t 1
+1791053904	END_P-npu-t1-2	rc=0
+1791053964	TAIL_END_P-npu-t1-2	
+1791053964	BEFORE_P-gpu-t5-1	wake=Awake plug=0 level=61 battery_dC=340 status=0 traced=0
+1791053964	START_P-gpu-t5-1	flags=-ngl 99 -dev GPUOpenCL -t 5
+1791053979	END_P-gpu-t5-1	rc=0
+1791054039	TAIL_END_P-gpu-t5-1	
+1791054039	BEFORE_P-gpu-t1-1	wake=Awake plug=0 level=61 battery_dC=344 status=0 traced=0
+1791054039	START_P-gpu-t1-1	flags=-ngl 99 -dev GPUOpenCL -t 1
+1791054055	END_P-gpu-t1-1	rc=0
+1791054115	TAIL_END_P-gpu-t1-1	
+1791054118	SESSION_END	wake=Awake plug=0 level=61 battery_dC=343 status=0 traced=0

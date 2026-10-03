@@ -73,3 +73,11 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   at `-t 1` drops the CPU zone to 61-67 C (90-91 at `-t 5`) for -30 % speed; NPU at `-t 1` = 22.9 tok/s with the
   CPU at 61 C - host threads, not the accelerator, were heating the CPU. Next: thread count per backend in the
   governor + a hop prototype.
+- 2026-10-03 prefill threads (`s23-prefill-host-threads`): NPU pp1024 t1 = t5 speed (892 vs 889) with CPU zones
+  5-10 C cooler; GPU prefill t1 worse (-13 %, one hot core). -> STEP 1: HTP-pinned governor context at 1 host thread.
+- 2026-10-03 decode-hop recon (luna 332ff775): CPU<->NPU mid-turn hop needs NO new infrastructure - two contexts,
+  bidirectional llama_kv_commit (decode-to-prefill already exists, q8_0/q8_0 both sides), sampler and n_past are
+  completion-owned; missing piece = per-token decode target choice + KV catch-up before each hop (today a decode
+  engine change = full reload, -2). GPU as 3rd decode backend = 3rd context (~34 MiB KV @4k) and in practice a 3rd
+  weight copy (GPU one-copy ~92x slower); GPU decode correctness on Adreno 740 unproven. -> STEP 2 prototype:
+  CPU<->NPU every N tokens first, GPU after.
