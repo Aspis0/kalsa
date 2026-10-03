@@ -939,6 +939,15 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   (short 10.6 vs 11.1, long 9.10 vs 8.65 tok/s): V q8_0 costs nothing measurable on CPU decode. Control = lane-off GPU
   (unchanged path) within +4 % of the baseline -> comparable conditions. 7/7 answers correct. Temps 29.6-39.7 C pre-turn,
   peak 41.0, never 43. Option (a) is DONE as engineering; turning the NPU lane on by default is the owner's call.
+  **OWNER 2026-10-02: "Si vai" + "accendi tutto e provalo su qdc, su tutti i telefoni snapdragon facendo on vs off".**
+  PUSHED app main `2a079bd2`: ac7a0a02 absent `kalsa.bench.npu_lane` = "auto" (gated: Android, no mmproj, HTP arch >= 73,
+  not MoE, lane fit); ea3c8313 absent/unreadable `kalsa.governor.enabled` = ON (explicit "0"/"false" from Settings stays
+  OFF; Settings switch shows ON when absent); 2a079bd2 my fix of audit luna d418d9ee P1: the enabled-but-not-loaded
+  `n_gpu_layers = 0` fallback is now Android-only (it would have dropped Metal on every iOS load). Full jest 317/3376.
+  Blast radius (audit): Mali/MediaTek/unknown SoC and iOS never load the governor (generation map); low-RAM phones are
+  guarded only by the governor's estimate-based fit (two contexts priced) - device evidence pending; V75 enablement
+  rests on one board. Next: debuggable APK run 37089802965 -> QDC on every available Snapdragon board, governor ON
+  (default) vs OFF ("0"), interleaved.
   **S23 Expo-57 smoke BLOCKED 2026-10-02 ~04:00 EDT** (GLM 5e5aaf19, `s23-expo57-smoke/REPORT.md`, 0/7 run): a 5-s
   airplane-mode drill killed One UI's wireless-debugging adbd (re-checked by the coordinator: 192.168.1.152, announced
   port 45119 refused). Needs the owner: Developer options -> Wireless debugging OFF/ON. Left on the phone: bench keys
