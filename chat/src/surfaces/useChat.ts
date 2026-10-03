@@ -234,27 +234,31 @@ export function useChat(shell: ChatShell) {
   const streaming = activeId !== null && streamingByConv[activeId] !== undefined;
   const streamingAny = Object.keys(streamingByConv).length > 0;
 
-  // An empty assistant message with no stream behind it is a response that
-  // never arrived (failed before, app reloaded since). It must never render
-  // as a blank row: surface it as retryable, whatever the original cause —
-  // retrying re-runs the request, so a stale cause would only mislead.
-  const effectiveFailed: FailedState | null = useMemo(() => {
-    if (!active) return null;
-    const direct = active.messages.map((m) => failedById[m.id]).find((f) => f !== undefined);
-    if (direct) return direct;
-    if (streaming) return null;
+  // The thread's failures, one entry per message. A response that never
+  // arrived (failed before, app reloaded since) is one more entry — an empty
+  // assistant tail must never render as a blank row — and one turn's failure
+  // never hides another's: each row shows its own sentence and its own retry.
+  const failures: Record<string, FailedState> = useMemo(() => {
+    const out: Record<string, FailedState> = {};
+    if (!active) return out;
+    for (const message of active.messages) {
+      const found = failedById[message.id];
+      if (found) out[message.id] = found;
+    }
     const last = active.messages.at(-1);
     // A thinking-only tail is not a failure: the no-answer note owns it.
     if (
+      !streaming &&
       last &&
       last.role === "assistant" &&
       last.content === "" &&
       !last.stopped &&
-      !last.reasoning
+      !last.reasoning &&
+      out[last.id] === undefined
     ) {
-      return { messageId: last.id, kind: "network" };
+      out[last.id] = { messageId: last.id, kind: "network" };
     }
-    return null;
+    return out;
   }, [failedById, active, streaming]);
 
   // `announce` is for the attach flow, which is the only caller a human is
@@ -651,7 +655,7 @@ export function useChat(shell: ChatShell) {
     activeId,
     streamingIds: Object.keys(streamingByConv),
     streaming,
-    effectiveFailed: effectiveFailed,
+    failures,
     tails,
     drawerOpen,
     setDrawerOpen,

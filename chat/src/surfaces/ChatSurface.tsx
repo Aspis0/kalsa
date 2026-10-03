@@ -20,7 +20,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
     conversations,
     streamingIds,
     streaming,
-    effectiveFailed,
+    failures,
     tails,
     drawerOpen,
     setDrawerOpen,
@@ -118,7 +118,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           <Thread
             messages={active.messages}
             streaming={streaming}
-            failed={effectiveFailed}
+            failures={failures}
             tails={tails}
             onRetry={retry}
           />

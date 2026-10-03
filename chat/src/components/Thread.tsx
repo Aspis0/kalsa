@@ -17,7 +17,8 @@ export interface FailedState {
 interface ThreadProps {
   messages: ChatMessage[];
   streaming: boolean;
-  failed: FailedState | null;
+  /** One entry per message that failed; each row shows its own. */
+  failures: Record<string, FailedState>;
   tails: Record<string, string>;
   onRetry: (messageId: string) => void;
 }
@@ -64,28 +65,28 @@ export function stamp(when: number, tag: string): string {
 function AssistantRow({
   message,
   streaming,
-  failed,
+  failures,
   tail,
   onRetry,
 }: {
   message: ChatMessage;
   streaming: boolean;
-  failed: FailedState | null;
+  failures: Record<string, FailedState>;
   tail?: string;
   onRetry: (messageId: string) => void;
 }) {
   const { table, tag } = useLanguage();
   const t = table.thread;
-  const failedHere = failed !== null && failed.messageId === message.id;
+  const failedHere: FailedState | null = failures[message.id] ?? null;
   const hasReasoning = (message.reasoning ?? "") !== "";
   const toolRuns = message.toolRuns ?? [];
   const toolWorking = toolRuns.some((run) => run.state === "running");
   // Dots only when nothing has arrived at all: reasoning, once present, is the
   // waiting face, and a running tool says what it is doing.
   const showThinking =
-    streaming && message.content.length === 0 && !hasReasoning && !failedHere && !toolWorking;
+    streaming && message.content.length === 0 && !hasReasoning && failedHere === null && !toolWorking;
   const showNoAnswer =
-    hasReasoning && message.content === "" && !streaming && !failedHere && !message.stopped;
+    hasReasoning && message.content === "" && !streaming && failedHere === null && !message.stopped;
   return (
     <div className="row row-assistant" title={stamp(message.createdAt, tag)}>
       <div className="assistant-body">
@@ -108,7 +109,7 @@ function AssistantRow({
         ) : message.content ? (
           <Markdown text={message.content} />
         ) : null}
-        {message.stopped && !failedHere ? (
+        {message.stopped && failedHere === null ? (
           <p className="row-note">{t.stoppedEarly}</p>
         ) : null}
         {showNoAnswer ? (
@@ -119,10 +120,10 @@ function AssistantRow({
             </button>
           </div>
         ) : null}
-        {failedHere ? (
+        {failedHere !== null ? (
           <div className="error-block" role="alert">
-            <p className="error-title">{errorCopy(t, failed.kind).title}</p>
-            <p className="error-body">{errorCopy(t, failed.kind).body}</p>
+            <p className="error-title">{errorCopy(t, failedHere.kind).title}</p>
+            <p className="error-body">{errorCopy(t, failedHere.kind).body}</p>
             <div className="error-actions">
               <button type="button" className="btn-primary" onClick={() => onRetry(message.id)}>
                 {t.tryAgain}
@@ -138,7 +139,7 @@ function AssistantRow({
 export function Thread({
   messages,
   streaming,
-  failed,
+  failures,
   tails,
   onRetry,
 }: ThreadProps) {
@@ -188,7 +189,7 @@ export function Thread({
                 key={message.id}
                 message={message}
                 streaming={streaming}
-                failed={failed}
+                failures={failures}
                 tail={tails[message.id]}
                 onRetry={onRetry}
               />
