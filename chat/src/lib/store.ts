@@ -262,14 +262,19 @@ function graphemes(text: string): string[] {
   return out;
 }
 
+/** The first `count` characters of `text`, where a character is a grapheme
+    when the platform segments them and a code point otherwise — never half a
+    surrogate pair. */
+export function firstCharacters(text: string, count: number): string {
+  const characters = graphemes(text);
+  return characters.length <= count ? text : characters.slice(0, count).join("");
+}
+
 export function titleFor(firstText: string, fallback = "New conversation"): string {
   const oneLine = firstText.replace(/\s+/g, " ").trim();
   if (!oneLine) return fallback;
-  // The cut is on what a reader counts: a title of 46 emoji is 46 characters,
-  // not the 80+ UTF-16 units it used to be measured in (and cut through).
-  const characters = graphemes(oneLine);
-  if (characters.length <= 46) return oneLine;
-  return `${characters.slice(0, 46).join("").trimEnd()}…`;
+  const cut = firstCharacters(oneLine, 46);
+  return cut === oneLine ? oneLine : `${cut.trimEnd()}…`;
 }
 
 export function createStore(): ConversationStore {

@@ -38,7 +38,7 @@ await build({
   outfile,
   logLevel: "silent",
 });
-const { titleFor } = await import(pathToFileURL(outfile).href);
+const { firstCharacters, titleFor } = await import(pathToFileURL(outfile).href);
 
 const ELLIPSIS = "…";
 const FAMILY = "👨‍👩‍👧‍👦";
@@ -67,6 +67,12 @@ const emoji = "🎉".repeat(30);
 equal("thirty emoji are not over the limit", titleFor(emoji), emoji);
 
 equal("an empty first message keeps the fallback", titleFor("   "), "New conversation");
+
+// The same cut titles a conversation made from an attached file's name.
+equal("a name under the limit is untouched", firstCharacters("mini-report.pdf", 46), "mini-report.pdf");
+const nameCut = firstCharacters(`${"a".repeat(45)}🚀name.pdf`, 46);
+check("an attached name's emoji survives the cut", nameCut === `${"a".repeat(45)}🚀`, JSON.stringify(nameCut));
+check("no lone surrogate in the attached-name cut", !hasLoneSurrogate(nameCut));
 
 await rm(dir, { recursive: true, force: true });
 if (fail > 0) {

@@ -7,7 +7,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
-import { createStore, titleFor, uid } from "../lib/store";
+import { createStore, firstCharacters, titleFor, uid } from "../lib/store";
 import { activateChat, eraseChat, fetchContextSize, serverBase } from "../lib/chat";
 import { ensureContextSize, hasContextSize } from "../lib/contextSize";
 import { createSlotGate } from "../lib/slotGate";
@@ -309,7 +309,7 @@ export function useChat(shell: ChatShell) {
     if (!convId) {
       const fresh: Conversation = {
         id: uid(),
-        title: list[0].name.slice(0, 46),
+        title: firstCharacters(list[0].name, 46),
         createdAt: Date.now(),
         updatedAt: Date.now(),
         messages: [],
