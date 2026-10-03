@@ -81,3 +81,12 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   engine change = full reload, -2). GPU as 3rd decode backend = 3rd context (~34 MiB KV @4k) and in practice a 3rd
   weight copy (GPU one-copy ~92x slower); GPU decode correctness on Adreno 740 unproven. -> STEP 2 prototype:
   CPU<->NPU every N tokens first, GPU after.
+- 2026-10-03 owner vision: governor = 3-legged surfer (CPU/NPU/GPU), weight per moment, later on 2-3 legs at once by
+  per-component temperature; hop code must show WHEN and WHY in one place per phase, no over-engineering.
+- 2026-10-03 WARM + 1 HTP host thread SHIPPED (app 8eba7982): S23 prefill 706.8/707.7/706.7 tok/s (unchanged), WARM
+  turn reports NPU (`s23-warm-1thread-8eba7982`).
+- 2026-10-03 STEP 2 decode hop CPU<->NPU PUSHED behind `kalsa.bench.decode_hop` (default off): engine 32f6033c8
+  (ed268d8f1 GLM + audit luna 1632b49f fixes: hop owns decode incl. COOLMODE, clock resets per completion, stats
+  lifetimes, hybrid hop test), binding c3f982b5 (vendor + param + JSI stats + NPU decode-hop HTP failure attribution,
+  audit luna 6f261cdd), app 3238e1bb. Host: all governor tests green on the ship model (hybrid), hop scenario greedy-
+  identical. APK run 37160382939 -> S23 measurement: CPU-only vs hop N (tok/s, battery/skin area, CPU/NSP zone peaks).
