@@ -26,6 +26,10 @@ const config = {
         "Kalsa reads your calendar to answer agenda questions on this device. Events stay on the device.",
       NSCalendarsFullAccessUsageDescription:
         "Kalsa reads your calendar to answer agenda questions on this device. Events stay on the device.",
+      // The iroh road hole-punches to the desktop's LAN address; without
+      // this key iOS 14+ silently denies the direct same-network path.
+      NSLocalNetworkUsageDescription:
+        "Kalsa connects directly to your Kalsa desktop on the same network.",
       // Without this, Core Animation stays at 60Hz on iPhone (iPad Pro does not need it).
       CADisableMinimumFrameDurationOnPhone: true,
     },
