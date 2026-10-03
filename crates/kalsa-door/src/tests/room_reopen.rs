@@ -438,3 +438,44 @@ fn the_recall_line_goes_through_the_audit_hash() {
         );
     }
 }
+
+#[test]
+fn the_handover_save_survives_a_slow_engine_reply() {
+    // The engine waking from idle sleep plus a checkpoint save answers past
+    // the door's default 10 s patience — the Surface walk's first chat open
+    // failed 502 exactly there. The paging tier carries its own patience
+    // (60 s): the handover save is slow and still lands.
+    let dir = tier::temp_dir("room-reopen-slowsave");
+    let (door, room, engine, host) = house(&dir);
+
+    std::fs::write(dir.join(tier::file_name(CHAT)), b"state:9:older").unwrap();
+    assert_eq!(tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)), 204);
+    tier::wait_for(&engine, 1);
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, 2);
+
+    // The handover save is held 11 s — past the old 10 s patience — so the
+    // turn's own quiet wait is longer than the helper's.
+    engine.delay(Duration::from_millis(11000));
+    host_calls(&door, &room, "host-1", "@Kalsa ciao");
+    let quiet = Instant::now() + Duration::from_secs(40);
+    while room.turn_state().running.is_some() {
+        assert!(Instant::now() < quiet, "the room's turn never ended");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+
+    // The turn finished without the engine-problem note the failed handover
+    // publishes, and the seat's chat is on disk (Evicted): the host's next
+    // activate RESTORES it instead of claiming it resident.
+    assert_eq!(door.residents(), 0, "the chat was evicted to disk");
+    // The asks so far: the first restore, the completion, the handover
+    // save, then the room's prefill dial — which the fake answers with a
+    // plain 200, so the turn retries it once (5 asks in all).
+    tier::wait_for(&engine, 5);
+    assert_eq!(engine.sent()[2].action, "save", "the handover save ran");
+
+    assert_eq!(tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)), 204);
+    tier::wait_for(&engine, 6);
+    assert_eq!(engine.sent()[5].action, "restore", "the activate restored the evicted chat");
+    door.shutdown();
+}

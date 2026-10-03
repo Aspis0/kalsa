@@ -22,6 +22,7 @@
 use std::time::Instant;
 
 use super::io::{save, Saved};
+use super::PAGING_PATIENCE;
 use super::{file_name, Chats, Residency, Slot};
 use crate::engine::Engine;
 use crate::DeviceSet;
@@ -177,7 +178,8 @@ pub(super) fn save_idle(
             port: upstream_port,
             slot: index as u32,
             salt: &salt,
-            deadline: Instant::now() + crate::PATIENCE,
+            deadline: Instant::now() + PAGING_PATIENCE,
+            patience: PAGING_PATIENCE,
         };
         // The lock was free while the engine wrote, so the slot may have been
         // handed to another chat before this save comes back. `save` takes the

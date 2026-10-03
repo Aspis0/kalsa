@@ -62,6 +62,13 @@ const PREFIX: &[u8] = b"/kalsa/";
 const ACTIVATE: &[u8] = b"/kalsa/chat/activate";
 const ERASE: &[u8] = b"/kalsa/chat/erase";
 
+/// The patience for the tier's own engine calls (save, restore, erase): a
+/// wake from `--sleep-idle-seconds` plus a checkpoint load is slower than
+/// the door's default 10 s on a CPU — measured on the Surface walk, where a
+/// restore answered past 10 s and the chat open failed 502 every idle. The
+/// size of a checkpoint scales the restore too; 60 s covers both with room.
+const PAGING_PATIENCE: std::time::Duration = std::time::Duration::from_secs(60);
+
 /// The largest body the door reads for its own route: one id.
 const MAX_PAYLOAD: usize = 4 * 1024;
 
@@ -213,6 +220,7 @@ impl Chats {
             slot,
             salt: &salt,
             deadline,
+            patience: PAGING_PATIENCE,
         };
         // The action's own line: which chat (by hash), what happened, how long
         // it took and how big its file is. Read before the action for erase
@@ -460,7 +468,8 @@ impl Chats {
             port: upstream_port,
             slot,
             salt: &salt,
-            deadline: Instant::now() + crate::PATIENCE,
+            deadline: Instant::now() + PAGING_PATIENCE,
+            patience: PAGING_PATIENCE,
         };
         // The lock is held across the engine call, so the commit check is
         // vacuously true — the residency cannot move under it.
@@ -507,7 +516,8 @@ impl Chats {
             port: upstream_port,
             slot,
             salt: &devices.cache_salt(device)?,
-            deadline: Instant::now() + crate::PATIENCE,
+            deadline: Instant::now() + PAGING_PATIENCE,
+            patience: PAGING_PATIENCE,
         };
         // `restore` records the refusal's meaning itself — `Empty` for a
         // refusal (the engine's catch cleared the slot), `Unknown` for a

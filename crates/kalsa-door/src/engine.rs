@@ -12,7 +12,7 @@
 
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::proxy;
 use crate::request;
@@ -31,12 +31,16 @@ pub(super) enum Call {
 }
 
 /// Where the engine is and how to reach it as one device, so the sequence
-/// functions take one argument instead of five.
+/// functions take one argument instead of five. `patience` bounds the reply
+/// read: the paging tier hands in a longer one than the door's default,
+/// because a wake from `--sleep-idle-seconds` plus a checkpoint load is
+/// slower than 10 s on a CPU (measured on the Surface walk).
 pub(super) struct Engine<'a> {
     pub(super) port: u16,
     pub(super) slot: u32,
     pub(super) salt: &'a [u8; 32],
     pub(super) deadline: Instant,
+    pub(super) patience: Duration,
 }
 
 impl Engine<'_> {
@@ -79,7 +83,8 @@ impl Engine<'_> {
         proxy::set_write_deadline(&engine, self.deadline).map_err(|_| Call::Unreachable)?;
         engine.write_all(&head).map_err(|_| Call::Unreachable)?;
         let reply =
-            response::read_upstream_head(&mut engine, self.deadline, None).map_err(|_| Call::Unreachable)?;
+            response::read_upstream_head(&mut engine, self.deadline, self.patience, None)
+                .map_err(|_| Call::Unreachable)?;
         let (status, length) = reply_head(&reply.raw).ok_or(Call::Unreachable)?;
         if !(200..300).contains(&status) {
             return Err(Call::Refused);

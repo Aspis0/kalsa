@@ -27,13 +27,16 @@ pub(super) struct Head {
 /// answer is being read: the engine sends it once it starts on the request,
 /// which on a busy seat can be well past one patience, so a quiet read is
 /// waited through (the deadline, the cancel and the idle bound still end it).
-/// `None` keeps the single patience for the door's own short calls.
+/// `patience` is the floor for a quiet read: the door's own short calls keep
+/// [`PATIENCE`]; the paging tier hands in its longer one (a wake plus a
+/// checkpoint load on a CPU is slower than the default).
 pub(super) fn read_upstream_head(
     stream: &mut TcpStream,
     deadline: Instant,
+    patience: Duration,
     waiting: Option<(&Cancel, Duration, Duration)>,
 ) -> std::io::Result<Head> {
-    let patience = waiting.map_or(PATIENCE, |(_, _, patience)| patience);
+    let patience = waiting.map_or(patience, |(_, _, patience)| patience);
     let begun = Instant::now();
     // The timeout is set once for the whole head: the reads are one byte
     // each (the body must not be swallowed), and re-arming SO_RCVTIMEO per

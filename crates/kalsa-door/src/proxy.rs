@@ -541,7 +541,7 @@ pub(super) fn handle(
     // The request is in; what follows is the engine's answer. A completion's
     // answer has its own, longer, lifetime (see `COMPLETION_LIFETIME`).
     let (deadline, idle) = answer_window(started, completion, &shared.clocks);
-    let upstream_head = match response::read_upstream_head(&mut upstream, deadline, Some((&cancel, idle, shared.clocks.patience))) {
+    let upstream_head = match response::read_upstream_head(&mut upstream, deadline, PATIENCE, Some((&cancel, idle, shared.clocks.patience))) {
         Ok(head) => head,
         Err(_) => return,
     };
