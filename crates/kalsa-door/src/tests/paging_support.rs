@@ -131,7 +131,7 @@ fn answer(
     dir: PathBuf,
 ) {
     stream.set_nonblocking(false).unwrap();
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(70)));
     let mut head = Vec::new();
     if read_until(&mut stream, b"\r\n\r\n", &mut head).is_err() {
         return;
@@ -279,11 +279,23 @@ pub(super) fn post(
     path: &str,
     body: &str,
 ) -> Vec<u8> {
+    post_for(address, token, path, body, Duration::from_secs(5))
+}
+
+/// [`post`] with the client's own read bound — for the activate whose
+/// engine call the door waits out past the default patience.
+pub(super) fn post_for(
+    address: SocketAddr,
+    token: Option<&str>,
+    path: &str,
+    body: &str,
+    read_timeout: Duration,
+) -> Vec<u8> {
     let auth = token
         .map(|token| format!("Authorization: Bearer {token}\r\n"))
         .unwrap_or_default();
     let mut client = TcpStream::connect(address).unwrap();
-    client.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    client.set_read_timeout(Some(read_timeout)).unwrap();
     write!(
         client,
         "POST {path} HTTP/1.1\r\nHost: localhost\r\n{auth}Origin: tauri://localhost\r\n\

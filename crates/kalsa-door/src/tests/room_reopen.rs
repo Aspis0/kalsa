@@ -479,3 +479,48 @@ fn the_handover_save_survives_a_slow_engine_reply() {
     assert_eq!(engine.sent()[5].action, "restore", "the activate restored the evicted chat");
     door.shutdown();
 }
+
+#[test]
+fn a_restore_answered_past_the_patience_opens_the_chat_cold_and_others_warm() {
+    // The engine asleep, the checkpoint big: the restore answers PAST the
+    // paging patience (61 s vs 60 s) — the door saw Unreachable, the engine
+    // ran it late. The slot must not lock the owner out: the fallback erases
+    // it and opens THIS chat cold, and another chat opens warm afterwards.
+    let dir = tier::temp_dir("room-reopen-p12");
+    let (door, _room, engine, host) = house(&dir);
+
+    std::fs::write(dir.join(tier::file_name(CHAT)), b"state:9:older").unwrap();
+    std::fs::write(dir.join(tier::file_name("bbbbbbbb")), b"state:7:chat-b").unwrap();
+
+    engine.delay(Duration::from_secs(61));
+    let answer = tier::post_for(
+        door.address(),
+        Some(&host),
+        "/kalsa/chat/activate",
+        &format!("{{\"id\":\"{CHAT}\"}}"),
+        Duration::from_secs(70),
+    );
+    assert_eq!(
+        tier::status_of(&answer),
+        204,
+        "the chat opens cold on the erased slot: {}",
+        String::from_utf8_lossy(&answer)
+    );
+    tier::wait_for(&engine, 2);
+
+    // And another chat opens too, warm: its restore follows the save of A.
+    assert_eq!(
+        tier::status_of(&tier::activate(door.address(), Some(&host), "bbbbbbbb")),
+        204
+    );
+    tier::wait_for(&engine, 4);
+    let sent = engine.sent();
+    let actions: Vec<&str> = sent.iter().map(|ask| ask.action.as_str()).collect();
+    assert_eq!(
+        actions,
+        vec!["restore", "erase", "save", "restore"],
+        "the sequence: A's timed-out restore, the erase, then B warm: {sent:?}"
+    );
+    assert_eq!(door.residents(), 1, "B is the resident at the end");
+    door.shutdown();
+}

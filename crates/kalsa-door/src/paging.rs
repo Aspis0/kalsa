@@ -67,7 +67,7 @@ const ERASE: &[u8] = b"/kalsa/chat/erase";
 /// the door's default 10 s on a CPU — measured on the Surface walk, where a
 /// restore answered past 10 s and the chat open failed 502 every idle. The
 /// size of a checkpoint scales the restore too; 60 s covers both with room.
-const PAGING_PATIENCE: std::time::Duration = std::time::Duration::from_secs(60);
+pub(crate) const PAGING_PATIENCE: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// The largest body the door reads for its own route: one id.
 const MAX_PAYLOAD: usize = 4 * 1024;
@@ -322,11 +322,27 @@ impl Chats {
             return Ok(());
         }
         if let Err(error) = restore(dir, &mut state, engine, &target) {
+            // A restore that timed out (the engine asleep, or the checkpoint
+            // load slow) is the one that must never lock the owner out: the
+            // slot holds nothing the door can name, so the tier erases it and
+            // lets THIS chat open cold (the warmth failed, the conversation
+            // lives in the app's store) — and any other chat opens too,
+            // instead of every activate re-failing on a slot the door cannot
+            // name. Only when the erase cannot be delivered either does the
+            // activate fail (Unknown) — and a retry after the engine truly
+            // wakes succeeds.
+
             // An unanswered restore is not repaired: the engine may never have
             // run it, so nothing is known to be missing, and the chat that was
             // open is already saved and renamed on disk by the save above. The
             // residency `restore` recorded is `Unknown`, and the sentence says
             // so rather than calling the slot empty.
+            if matches!(error, ChatError::Unknown) && previous.is_none() {
+                erase_slot(engine)?;
+                state.resident = Residency::Resident(device, id.to_string());
+                state.dirty_at = None;
+                return Ok(());
+            }
             if matches!(error, ChatError::Unknown) {
                 return Err(error);
             }

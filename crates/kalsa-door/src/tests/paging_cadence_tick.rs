@@ -178,9 +178,9 @@ fn the_second_dirty_slot_of_one_tick_is_offered_a_budget_of_its_own() {
     complete(address, &second);
     let opened = engine.sent().len();
 
-    // The first save is held past the whole patience: the tick spends its
-    // ten seconds on slot 0 before it even looks at slot 1.
-    engine.delay(crate::PATIENCE + Duration::from_millis(400));
+    // The first save is held past the whole paging patience: the tick
+    // spends its sixty seconds on slot 0 before it even looks at slot 1.
+    engine.delay(crate::paging::PAGING_PATIENCE + Duration::from_millis(400));
     // A real tick passes `Instant::now()`, and the quiet has to have genuinely
     // run out under it — so this one sleeps instead of being handed a future
     // instant, which would push the deadline slot 1 is measured against.
