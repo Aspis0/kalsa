@@ -68,3 +68,8 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   battery C·s/token; NPU 21.7 tok/s, 0.15-0.17; CPU 19.9 tok/s, 0.30 (n=1, the CPU-2 arm hit thermal status 3).
   GPU decode is last on speed AND heat; NPU decode beats CPU on both when sustained. Owner question "when GPU?" ->
   only where no NPU lane is usable.
+- 2026-10-03 owner: V81 GPU off, WARM keeps NPU (engine bc4fd8e8f, local, audit luna 773e9e0d), decode hops
+  CPU<->NPU<->GPU incl. short GPU bursts to spread heat. S23 isolation run (`s23-gpu-host-isolation`): GPU decode
+  at `-t 1` drops the CPU zone to 61-67 C (90-91 at `-t 5`) for -30 % speed; NPU at `-t 1` = 22.9 tok/s with the
+  CPU at 61 C - host threads, not the accelerator, were heating the CPU. Next: thread count per backend in the
+  governor + a hop prototype.
