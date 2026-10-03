@@ -1105,6 +1105,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   (`ios-desktop-link/REVIEW-doorless-*.md`, no P0), P1+key P2 fixed (f4f3696c). Verified before push: npm ci,
   provenance, tsc, jest 2236 tests, apk.yml harness block - all 0. NEXT: owner-present pairing of the iOS sim with
   his Mac Brain over iroh (fresh invite, Allow), then one real Android phone.
+  **Apple Foundation Models measured 2026-10-03 (M1 Max, macOS 26.6.2; `ios-engine-choice/REPORT.md` AFM section):**
+  contextSize 4096 total; decode ~33-46 tok/s, TTFT 0.5-0.7 s short / ~7 s on long prompts; no refusals. Quality: IT
+  and ES grammar slips, ZH code-switches to English, 3-turn chat degrades (hallucination), reasoning cell correct.
+  Coordinator verdict: not a main engine (small context, multi-turn weak, no model id/version); at most an optional
+  "no download" fallback, low priority. LFM2.5 on llama.cpp with q8_0/q8_0 KV: ~95 tok/s on the same Mac.
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,

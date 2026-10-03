@@ -224,3 +224,132 @@ Coordinator cells at the app's real context (`-d 15744`, `-r 2`, same flags, no 
 | q8_0 / q4_0 | 12.55 +- 0.24 |
 
 All cells are on the M1 Max Mac (Metal), not on an iPhone: the iPhone gap is expected but unmeasured.
+
+## AFM (Apple Intelligence enabled) — full probe (2026-10-03)
+
+Follow-up to the section above: Apple Intelligence was enabled on this Mac on 2026-10-02 23:45
+(`/tmp/afm2/poll.log`: first `unavailable reason=modelNotReady` at 23:40, then `AVAILABLE
+contextSize=4096` at 23:45). The probe in `/tmp/afm2` (Swift + FoundationModels, compiled with the
+MacOSX27.0.sdk of Xcode at `/Applications/Xcode.app`) re-confirmed availability and ran the full
+sweep plus a context-limit probe.
+
+What the framework reports: OS `Version 26.6.2 (Build 25G83)`; `SystemLanguageModel.default`
+exposes only `availability` and `contextSize` — **no model identifier or revision is exposed**.
+`contextSize: 4096` (total content budget, prompt + output together, enforced as shown below).
+
+Harness (each binary one responsibility, sources in `/tmp/afm2/{sweep,limit,tokrate}/main.swift`):
+
+```
+swiftc -O main.swift -o afm-sweep     # streamed cells: TTFT/total/chunks + verbatim answer
+swiftc -O main.swift -o afm-limit     # growing prompt vs contextSize
+swiftc -O main.swift -o afm-tokrate   # non-streamed twin: API token counts -> tok/s
+/tmp/afm2/sweep/afm-sweep  > /tmp/afm2/sweep.log 2>&1; echo $?    # exit 0
+/tmp/afm2/limit/afm-limit  > /tmp/afm2/limit.log 2>&1; echo $?    # exit 0
+/tmp/afm2/tokrate/afm-tokrate > /tmp/afm2/tokrate.log 2>&1; echo $?  # exit 0
+```
+
+Both timed runs waited behind `/tmp/afm2/bin/waitgate.sh` (brief's pgrep pattern): the first gate
+window timed out (exit 3) behind a ~100 min Xcode build of KalsaAIChat; a second clean window
+passed (exit 0) before the sweep, and the gate was re-checked before limit and tokrate.
+
+### Token-count API note
+
+The 26.6.2 runtime carries `promptTokenCount`/`responseTokenCount` on
+`LanguageModelSession.Response` but the installed 27.0 SDK exposes only a new `usage` struct
+(availability macOS 27.0), so `afm-tokrate` reads the runtime fields via `Mirror` reflection
+(`promptTokenCount` includes the session's default instructions: ~30 tokens of preamble).
+Token counts/tok/s therefore come from the non-streamed twin run; TTFT/total/chunks come from the
+streamed run. Both are single runs.
+
+### Prompts (same cells to repeat with LFM2.5)
+
+- it: `Spiegami in tre frasi cos'è la fotosintesi.`
+- fr: `Explique-moi en trois phrases ce qu'est la photosynthèse.`
+- es: `Explícame en tres frases qué es la fotosíntesis.`
+- en: `Explain to me in three sentences what photosynthesis is.`
+- zh: `请用三句话解释什么是光合作用。`
+- kalsa-summary: `Riassumi in tre frasi il paragrafo seguente:\n\n<paragrafo300.txt>` — the 300-word
+  Italian paragraph is saved in this folder as `paragrafo300.txt` (copy of `/tmp/afm2/paragrafo300.txt`)
+- kalsa-3turn (one session, 3 turns): t1 `In una frase: cos'è il KV cache in un motore LLM on-device?`
+  t2 `Perché quantizzarlo riduce la memoria occupata?`
+  t3 `Tornando alla tua prima risposta: qual è il principale rischio di qualità quando si quantizza il KV cache?`
+- kalsa-reasoning: `Se ho 3 mele e ne mangio una ogni 2 ore partendo alle 9, a che ora finisco?`
+
+### Metrics (streamed run; tok/s from the non-streamed twin)
+
+| cell | TTFT ms | total ms | chunks | prompt tok | response tok | out tok/s |
+|---|---|---|---|---|---|---|
+| it | 717 | 3208 | 10 | 37 | 87 | 34.6 |
+| fr | 644 | 3348 | 12 | 38 | 117 | 46.3 |
+| es | 658 | 2886 | 9 | 36 | 111 | 39.4 |
+| en | 506 | 2348 | 9 | 32 | 86 | 37.2 |
+| zh | 692 | 2332 | 7 | 32 | 94 | 33.0 |
+| kalsa-summary | 7032 | 12597 | 12 | 440 | 117 | 9.4 |
+| kalsa-3turn/t1 | 421 | 1833 | 6 | 40 | 50 | 11.1 |
+| kalsa-3turn/t2 | 467 | 1457 | 5 | 108 | 40 | 5.5 |
+| kalsa-3turn/t3 | 6462 | 13608 | 6 | 177 | 52 | 11.9 |
+| kalsa-reasoning | 6717 | 9108 | 12 | 48 | 46 | 6.2 |
+
+Observations: no guardrail refusals and no unsupported-language errors — all 5 languages answered.
+Streaming is coarse (5–12 chunks per answer, not per-token). TTFT is bimodal: ~0.4–0.7 s on recall
+cells vs ~6.5–7 s on cells where the model deliberates (summary, t3, reasoning). Short-prompt
+throughput is ~33–46 out tok/s; the Kalsa-like cells land at 5.5–12 out tok/s (deliberation +
+short answers amortize badly). The 3-turn session's prompt grows 40 → 108 → 177 tokens as context
+accumulates.
+
+### Answers verbatim
+
+**it** — `La fotosintesi è il processo attraverso il quale le piante, le alghe e alcune batteri convertono la luce solare in energia chimica. Questo avviene principalmente nei cloroplasti attraverso la sintesi di glucosio e ossigeno dall'anidride carbonica e dall'acqua. Durante questo processo, la luce solare fornisce l'energia necessaria per catalizzare le reazioni chimiche che trasformano i nutrienti in energia utilizzabile dalla pianta.`
+
+**fr** — `La photosynthèse est le processus par lequel les plantes, les algues et certaines bactéries transforment la lumière solaire en énergie chimique sous forme de glucose. Ce processus se déroule principalement dans les chloroplastes et nécessite l'absorption de dioxyde de carbone et d'eau. À l'aide de l'énergie solaire, ces substances sont converties en glucose et en oxygène, ce qui contribue à la production d'oxygène dans l'atmosphère et fournit de l'énergie pour la vie sur Terre.`
+
+**es** — `La fotosíntesis es un proceso mediante el cual las plantas, algas y ciertas bacterias convierten la luz solar, el agua y el dióxido de carbono en glucosa y oxígeno. Este proceso ocurre principalmente en las cloroplastos de las células vegetales. La glucosa generada es utilizada como fuente de energía para la planta, mientras que el oxígeno es liberado al aire como subproducto.`
+
+**en** — `Photosynthesis is a process used by plants, algae, and some bacteria to convert light energy, usually from the sun, into chemical energy stored in glucose. This process occurs in the chloroplasts of plant cells, where chlorophyll captures sunlight and uses it to combine carbon dioxide and water into glucose and oxygen. The oxygen produced as a byproduct is released into the atmosphere, while the glucose serves as an energy source for the plant.`
+
+**zh** — `光合作用是一种植物、藻类和某些细菌通过 chlorophyll 进行的光合反应，将二氧化碳和水转化为葡萄糖和氧气。这个过程需要阳光的能量来驱动化学反应。光合作用不仅为植物提供能量和碳水化合物，也为地球上大部分生物提供氧气，维持生命循环。`
+
+**kalsa-summary** — `L'intelligenza artificiale on-device consente di eseguire modelli linguistici direttamente sui dispositivi mobili, riducendo la latenza e migliorando la privacy, ma richiede più memoria rispetto ai modelli cloud. La quantizzazione dei modelli, che riduce il peso a quattro bit, è cruciale per ottimizzare la memoria e il consumo energetico, anche se comporta una perdita di qualità. Tuttavia, la scelta del motore di inferenza e la velocità dei chip possono influenzare significativamente le prestazioni, rendendo le cifre dei benchmark di difficile interpretazione.`
+
+**kalsa-3turn/t1** — `Il KV cache in un motore LLM on-device è un sistema di memorizzazione a chiave-valore che consente di accedere rapidamente ai dati di contesto e agli stati intermedi durante la comprensione del linguaggio naturale, migliorando l'efficienza e la velocità dell'elaborazione.`
+
+**kalsa-3turn/t2** — `Quantizzare il modello riduce la memoria occupata poiché le operazioni matematiche vengono eseguite con numeri di precisione ridotta, riducendo le dimensioni dei dati di input e del risultato, e semplificando la gestione dei parametri.`
+
+**kalsa-3turn/t3** — `Il principale rischio di qualità quando si quantizza il KV cache è la perdita di accuratezza nelle operazioni matematiche, specialmente in presenza di dati complessi o quando si utilizzano operazioni che richiedono una precisione elevata, come le operazioni di logaritmo.`
+
+**kalsa-reasoning** —
+
+```
+Se inizi a mangiare mele alle 9 e ne mangi una ogni 2 ore, puoi calcolare il tempo necessario per mangiare tutte e 3 le mele.
+
+1. Mangia la prima mela alle 9:00.
+2. Mangia la seconda mela alle 11:00 (9:00 + 2 ore).
+3. Mangia la terza mela alle 13:00 (11:00 + 2 ore).
+
+Quindi, finirai di mangiare le mele alle 13:00.
+```
+
+Raw logs: `/tmp/afm2/sweep.log`, `/tmp/afm2/tokrate.log`, `/tmp/afm2/limit.log` (answers above are
+copied verbatim from sweep.log in case /tmp is wiped).
+
+### Context limit
+
+Filler prompts of growing length (English filler ~4.9 chars/token real vs the 4.0 assumed, so the
+"scale" labels underestimate real tokens): ok at ~3.1k chars-estimated 3062 (real ~2.5k), ok at
+"0.95×" and even "1.1×" (17,972 chars ≈ 3.7k real tokens, answered, though the 0.95× answer
+hallucinated `cervo` for `fox` — quality degrades near the cap). First failure at 24,560 chars:
+
+```
+ERROR_TYPE: GenerationError
+ERROR: exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(
+  debugDescription: "Content contains 5029 tokens, which exceeds the maximum allowed context size of 4096.",
+  underlyingErrors: [Provided 5,029 tokens, but the maximum allowed is 4,096.], ...))
+```
+
+So the enforced 4096 budget counts the whole submitted content (prompt alone rejected at 5029);
+with prompt+output sharing 4096, usable input for a Kalsa-like chat is roughly ≤3.5k tokens.
+
+Quality flags for the coordinator (who judges): zh answer code-switches (`通过 chlorophyll 进行`);
+it `alcune batteri` and es `en las cloroplastos` gender agreement errors; 3-turn t2 answers about
+quantizing the model in general, missing the KV-cache referent; t3's risk answer ends on
+`operazioni di logaritmo`, an incoherent detail. Reasoning cell correct (13:00).
