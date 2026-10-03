@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { Sprout } from "../components/Sprout";
+import { downloadBytes } from "../lib/downloadBytes";
 import { useElapsed } from "./useElapsed";
 import { tuneAttempt, tuneDone, tuneFace, tunePercent, tuneShare, tuneWait } from "./tuneProgress";
 import type { TuneWait } from "./tuneProgress";
@@ -55,13 +56,6 @@ const HEAD: Record<
   tuning: "tuning",
   model_bytes: "downloading",
 };
-
-// The bytes that have arrived, in the one unit worth showing. The unit is
-// kept as-is; only the number follows the language.
-function receivedText(done: number, tag: string): string {
-  const oneDecimal = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  return done >= 1e9 ? `${oneDecimal.format(done / 1e9)} GB` : `${new Intl.NumberFormat(tag).format(Math.round(done / 1e6))} MB`;
-}
 
 // One rounding, one source: the percentage is computed from the same
 // displayed numbers the line shows, so the line cannot disagree with itself.
@@ -127,13 +121,13 @@ function walkView(
   // No size announced, or a resumed download past the total it was given:
   // how much has arrived is all there honestly is.
   if (total === null || done > total) {
-    return { view: { head, progress: done > 0 ? t.receivedSoFar(receivedText(done, tag)) : t.receiving, pct: null }, kind };
+    return { view: { head, progress: done > 0 ? t.receivedSoFar(downloadBytes(done, tag)) : t.receiving, pct: null }, kind };
   }
   const shown = display(done, total, tag);
   if (shown === null) {
     // A total that rounds away to zero in its own unit: there is no
     // percentage of nothing, and the honest line says why.
-    return { view: { head, progress: done > 0 ? t.receivedSoFar(receivedText(done, tag)) : t.sizeNotAnnounced, pct: null }, kind };
+    return { view: { head, progress: done > 0 ? t.receivedSoFar(downloadBytes(done, tag)) : t.sizeNotAnnounced, pct: null }, kind };
   }
   const text = t.ofTotal(shown.parts[0], shown.parts[1], shown.parts[2]);
   return {

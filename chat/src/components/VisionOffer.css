@@ -1,0 +1,74 @@
+/* The vision offer. Shape follows the web-call ask (`.webgate`): a card in
+   the flow above the composer, not a modal, so the thread stays readable and
+   Stop stays reachable while the owner decides. Stronger border than a banner
+   because this one asks a question with two answers. */
+
+.vision-offer {
+  flex: none;
+  margin: 0 auto 0.5rem;
+  width: 100%;
+  max-width: calc(var(--measure) + 4rem);
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+
+.vision-offer p {
+  margin: 0 0 0.6rem;
+}
+
+.vision-failed {
+  border-color: var(--danger);
+}
+
+.vision-failed p:last-child {
+  margin-bottom: 0;
+}
+
+.vision-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.vision-actions button {
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+
+.vision-download {
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+}
+
+.vision-download:hover {
+  color: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.vision-not-now {
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+}
+
+.vision-not-now:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* The download's own view, kept to the card's measure: `SetupProgress` is a
+   page-level block (centred sentence over the plant) and this is not a page. */
+.vision-running .surface-walk {
+  margin: 0;
+}
+
+.vision-restarting {
+  margin: 0;
+  color: var(--ink-soft);
+  text-align: center;
+}

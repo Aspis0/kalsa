@@ -9,6 +9,7 @@ import { IMAGE_TOKENS } from "../lib/attachments";
 import { Panel } from "../components/Panel";
 import { Sidebar } from "../components/Sidebar";
 import { Thread } from "../components/Thread";
+import { VisionOffer } from "../components/VisionOffer";
 import { useLanguage } from "../i18n/useLanguage";
 import type { Chat } from "./useChat";
 
@@ -39,6 +40,12 @@ export function ChatSurface({ chat }: { chat: Chat }) {
     thinkingSupported,
     saveThinking,
     vision,
+    visionOfferBytes,
+    visionFlow,
+    visionStep,
+    askVision,
+    dismissVision,
+    enableVision,
     pendingImages,
     removeImage,
     draft,
@@ -132,6 +139,15 @@ export function ChatSurface({ chat }: { chat: Chat }) {
             {attachStatus}
           </p>
         ) : null}
+        {visionFlow ? (
+          <VisionOffer
+            phase={visionFlow}
+            step={visionStep}
+            onDownload={() => void enableVision()}
+            onNotNow={dismissVision}
+            onRetry={() => void enableVision()}
+          />
+        ) : null}
         <Composer
           thinking={thinkingSupported ? thinking : null}
           onThinking={saveThinking}
@@ -143,6 +159,8 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           onStop={stop}
           onAttach={(files) => void attachFiles(files)}
           acceptsImages={vision}
+          visionOfferBytes={visionOfferBytes}
+          onOfferVision={askVision}
           images={pendingImages.map(({ id, url }) => ({ id, url }))}
           onRemoveImage={removeImage}
         />

@@ -34,6 +34,7 @@ import { rustSentence } from "../lib/rustText";
 import { logUiEvent } from "../lib/uiLog";
 import { useBrain, useBrainServer, useDoorStanding, withBrainDefaults } from "./useBrain";
 import { useServerFacts } from "./useServerFacts";
+import { useVisionOffer } from "./useVisionOffer";
 import { setupArm } from "../components/EmptyState";
 import { useChatTurns } from "./useChatTurns";
 
@@ -218,6 +219,11 @@ export function useChat(shell: ChatShell) {
     effectiveSettings.model,
   );
   const vision = modalities.vision;
+  // The projector offer: what the brain has on the shelf, the ask, the
+  // download and its progress, and the refusal that follows a failure. Its
+  // own hook, because it is its own flow — the chat only wires it to the
+  // composer and to the image road below.
+  const visionOffer = useVisionOffer();
   const thinkingSupported = thinkingSupport(chatTemplate).enableThinking;
   // Per model, and it follows the model this request will name: the brain's own
   // fills the blank while the machine is serving.
@@ -349,6 +355,13 @@ export function useChat(shell: ChatShell) {
     const list = Array.from(files);
     if (list.length === 0) return;
     setRefusal(null);
+    // A picture while this model is blind and a projector is only an offer:
+    // the ask comes instead of the extractor's not-readable sentence, which
+    // would state a limit the owner can lift in one press.
+    if (visionOffer.offerBytes !== null && !vision && list.some(isImageFile)) {
+      visionOffer.ask();
+      return;
+    }
     let convId = activeId;
     if (!convId) {
       const fresh: Conversation = {
@@ -788,6 +801,14 @@ export function useChat(shell: ChatShell) {
     thinking,
     // The served model's own word about itself: every image road below it.
     vision,
+    // The projector the brain has on the shelf — the composer's one quiet
+    // affordance — and what the offer is doing on screen right now.
+    visionOfferBytes: visionOffer.offerBytes,
+    visionFlow: visionOffer.flow,
+    visionStep: visionOffer.step,
+    askVision: visionOffer.ask,
+    dismissVision: visionOffer.dismiss,
+    enableVision: visionOffer.enable,
     // This conversation's attached-but-unsent pictures, chip-ready.
     pendingImages: activeId ? (pendingImages[activeId] ?? []) : [],
     removeImage: removePendingImage,

@@ -22,6 +22,7 @@ import { KNOBS } from "./knobs";
 import { SAMPLING } from "./sampling";
 import { BROWSER } from "./browser";
 import { MARKDOWN } from "./markdown";
+import { VISION } from "./vision";
 import { RUST } from "./rust";
 
 export interface English {
@@ -49,6 +50,7 @@ export interface English {
   sampling: typeof SAMPLING;
   browser: typeof BROWSER;
   markdown: typeof MARKDOWN;
+  vision: typeof VISION;
   rust: {
     startup: Record<string, (params: Record<string, unknown>, tag: string) => string>;
     choice: Record<string, (params: Record<string, unknown>, tag: string) => string>;
@@ -83,5 +85,6 @@ export const ENGLISH: English = {
   sampling: SAMPLING,
   browser: BROWSER,
   markdown: MARKDOWN,
+  vision: VISION,
   rust: RUST,
 };

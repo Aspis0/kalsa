@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 import { useLanguage } from "../i18n/useLanguage";
+import { downloadBytes } from "../lib/downloadBytes";
 import "./Composer.css";
 
 /** One pending picture, chip-shaped: the reference and the object URL the
@@ -33,6 +34,12 @@ interface ComposerProps {
   // Whether the model can see: the picker then offers pictures, and paste
   // and drop take them. Blind, nothing about images shows here at all.
   acceptsImages?: boolean;
+  /** The projector the brain has on the shelf, in bytes: the one quiet
+      affordance beside the attach button. Null (or absent) when there is
+      nothing to offer, and while the offer, the download or a refusal is
+      already on screen. */
+  visionOfferBytes?: number | null;
+  onOfferVision?: () => void;
   // Pictures attached but not yet sent, removable like documents.
   images?: ComposerImage[];
   onRemoveImage?: (id: string) => void;
@@ -59,14 +66,17 @@ export function Composer({
   onStop,
   onAttach,
   acceptsImages = false,
+  visionOfferBytes = null,
+  onOfferVision,
   images,
   onRemoveImage,
   thinking = null,
   onThinking,
   ask,
 }: ComposerProps) {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const composer = table.composer;
+  const visionWords = table.vision;
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // A send is in flight — the words are with the room and the answer has
@@ -206,6 +216,15 @@ export function Composer({
               </svg>
             </button>
           </>
+        ) : null}
+        {visionOfferBytes !== null && onOfferVision ? (
+          <button
+            type="button"
+            className="composer-action composer-vision"
+            onClick={onOfferVision}
+          >
+            {visionWords.offer(downloadBytes(visionOfferBytes, tag))}
+          </button>
         ) : null}
         {thinking === null || thinking === undefined ? null : (
           <button

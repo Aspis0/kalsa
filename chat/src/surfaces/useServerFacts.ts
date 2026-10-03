@@ -5,6 +5,7 @@ import type { Modalities } from "../lib/modalities";
 import { NO_MODALITIES } from "../lib/modalities";
 import type { Sampling } from "../lib/sampling";
 import { SAMPLING_KNOBS } from "../lib/knobs/sampling";
+import { useBrainState } from "./useBrain";
 
 /**
  * The server's own facts about the model it is serving, read once and shared:
@@ -16,7 +17,12 @@ import { SAMPLING_KNOBS } from "../lib/knobs/sampling";
  * they mount this rather than each opening their own way to `/props`, because
  * two readers of one fact that disagree is the defect this exists to prevent.
  * The read follows the MODEL as well as the endpoint: a model switch restarts
- * the engine, and the new one's answers belong to the new read.
+ * the engine, and the new one's answers belong to the new read. And it follows
+ * the engine's own standing (`brain_state.kind`, read here rather than passed
+ * in, so no caller can forget it): a restart that keeps the model leaves and
+ * comes back to `running` under the same endpoint and the same name, so
+ * neither input above would ask again — the vision offer's restart is that
+ * case, and the projector's arrival is exactly what `/props` then says.
  */
 
 export type FactsStatus = SamplingDefaultsStatus | "loading" | "not-configured";
@@ -52,6 +58,7 @@ export function useServerFacts(endpoint: string, token: string, model: string): 
   const [status, setStatus] = useState<FactsStatus>("not-configured");
   const [chatTemplate, setChatTemplate] = useState("");
   const [modalities, setModalities] = useState<Modalities>(() => NO_MODALITIES);
+  const engine = useBrainState()?.kind ?? "";
 
   useEffect(() => {
     if (!endpoint) {
@@ -88,7 +95,7 @@ export function useServerFacts(endpoint: string, token: string, model: string): 
       alive = false;
       clearTimeout(retry);
     };
-  }, [endpoint, token, model]);
+  }, [endpoint, token, model, engine]);
 
   return { defaults, status, chatTemplate, modalities };
 }

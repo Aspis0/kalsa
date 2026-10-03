@@ -22,6 +22,7 @@ import { KNOBS } from "./knobs";
 import { SAMPLING } from "./sampling";
 import { BROWSER } from "./browser";
 import { MARKDOWN } from "./markdown";
+import { VISION } from "./vision";
 import { RUST } from "./rust";
 import type { English } from "../en/all";
 
@@ -50,5 +51,6 @@ export const FRENCH: English = {
   sampling: SAMPLING,
   browser: BROWSER,
   markdown: MARKDOWN,
+  vision: VISION,
   rust: RUST,
 };

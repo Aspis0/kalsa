@@ -68,6 +68,11 @@ export interface BrainState {
   // known" — a server this app adopted on startup has no stderr to read — and
   // is never taken for "loaded".
   asleep?: boolean | null;
+  /// Only on `running`: what this launch can see, as `vision.rs` renders it
+  /// — `{"state":"none"}`, `{"state":"offer","bytes":N}` or
+  /// `{"state":"on"}`. Read through `lib/vision.ts`, which refuses a shape
+  /// this build cannot read; absent means the same as `none`.
+  vision?: unknown;
   metrics?: {
     decode_tokens_per_second?: number;
     // Who the door is serving right now, with the kind that tells this
@@ -350,6 +355,14 @@ function getDoorStanding(): DoorStanding {
     would otherwise open a second one. */
 export function useBrainState(): BrainState | null {
   return useSyncExternalStore(subscribeBrainRead, getBrainRead).state;
+}
+
+/** The walk's live step, whatever the brain's own state. `useBrain`'s
+    `liveStep` is gated on the walk owning the page (a start or a stop), and
+    the shell's own download — the vision projector — moves bytes while the
+    engine is still up and must show them there too. */
+export function useBrainStep(): ProgressStep | null {
+  return useSyncExternalStore(subscribeBrainRead, getBrainRead).step;
 }
 
 /** The brain's server facts, for the shell. */
