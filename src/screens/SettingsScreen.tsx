@@ -57,7 +57,11 @@ import {
 } from "../engine/deviceProfile";
 import { gateCacheOptionFit, gateContextOptionFit, gateNonEvictableMiB, optionAvailability } from "../engine/modelGateRAM";
 import { resolveGateLoadPolicy } from "../engine/loadPolicy";
-import { readGovernorEnabled, writeGovernorEnabled } from "../engine/governorRuntime";
+import {
+  GOVERNOR_ENABLED_DEFAULT,
+  readGovernorEnabled,
+  writeGovernorEnabled,
+} from "../engine/governorRuntime";
 import { resolveEngineTuningSync } from "../engine/deviceTuning";
 import { kvBytesPerTokenAtProfile, modelAtKvProfile } from "../engine/kvQuantCost";
 import { isIosPlatform, resolveKvCacheProfile } from "../engine/kvCacheProfile";
@@ -312,8 +316,10 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
   const [telemetryBusy, setTelemetryBusy] = useState(false);
 
-  // ── Per-phase thermal governor (experimental; consulted at model load) ────
-  const [governorEnabled, setGovernorEnabled] = useState(false);
+  // ── Per-phase thermal governor (consulted at model load; ON by default) ───
+  // The pre-hydration state matches that default; the read below applies an
+  // explicit Settings OFF.
+  const [governorEnabled, setGovernorEnabled] = useState(GOVERNOR_ENABLED_DEFAULT);
 
   // ── Thinking mode (bench/benchConfig — same storage key as /bench thinking) ──
   const [thinkingMode, setThinkingModeState] = useState<ThinkingMode>("default");

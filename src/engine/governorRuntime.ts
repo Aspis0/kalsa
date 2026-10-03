@@ -12,12 +12,28 @@ type RetryArgs<P, R> = {
   log?: (line: string) => void;
 };
 
+/** Owner decision (2026-10-02): the governor is ON by default. Absent,
+ *  unrecognized or unreadable storage reads this; an explicit "0"/"false"
+ *  (what the Settings switch writes) is always OFF. */
+export const GOVERNOR_ENABLED_DEFAULT = true;
+
+/**
+ * The governor switch as the load path reads it: an explicit OFF stays off
+ * ("0"/"false"), everything else — including a storage read error — is
+ * GOVERNOR_ENABLED_DEFAULT. ON is the safe side of that error: the
+ * governorLoad gate still refuses the governor on its own — correctness
+ * (governorBase.enabled), thermal (governorThermo.sensor_valid plus the
+ * engine's own stops), memory fit (gpu_fit "NoFit"), vision (mmprojPath) and
+ * MoE streaming (streamExperts) — so an unreadable flag cannot force a load
+ * the phone cannot serve.
+ */
 export async function readGovernorEnabled(): Promise<boolean> {
   try {
     const value = await AsyncStorage.getItem(GOVERNOR_ENABLED_KEY);
-    return value === "1" || value?.toLowerCase() === "true";
+    if (value === "0" || value?.toLowerCase() === "false") return false;
+    return GOVERNOR_ENABLED_DEFAULT;
   } catch {
-    return false;
+    return GOVERNOR_ENABLED_DEFAULT;
   }
 }
 

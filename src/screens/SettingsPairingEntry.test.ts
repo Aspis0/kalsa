@@ -2,6 +2,9 @@
  * The pairing entry's routing: the home rows open the PairingScreen. The
  * regression this pins: `pairingOpen` used to lose to the home page's own
  * return, so the tap did nothing (Jelly, APK c6e0b3a9).
+ *
+ * The same SettingsScreen harness renders the advanced page at the bottom of
+ * this file, for the governor switch's initial state.
  */
 
 jest.mock("react-native", () => {
@@ -15,6 +18,7 @@ jest.mock("react-native", () => {
     BackHandler: { addEventListener: jest.fn(() => ({ remove: jest.fn() })) },
     Image: host("Image"),
     Linking: { openSettings: jest.fn(async () => undefined) },
+    Platform: { OS: "android", select: (spec: Record<string, unknown>) => spec.default },
     Pressable: host("Pressable"),
     ScrollView: host("ScrollView"),
     Switch: host("Switch"),
@@ -30,13 +34,28 @@ jest.mock("lucide-react-native", () => new Proxy({}, { get: (_target, key) => St
 jest.mock("../i18n", () => ({
   useLocale: () => ({ t: (key: string) => key, locale: "en", setLocale: jest.fn() }),
 }));
-jest.mock("../ui/labTheme", () => ({
-  useLabTheme: () => ({ mode: "light", setMode: jest.fn(), fontScaleId: "m", setFontScaleId: jest.fn() }),
-}));
-jest.mock("../theme/typography", () => ({
-  useTypography: () => ({}),
-  fontFamilies: {},
-}));
+jest.mock("../ui/labTheme", () => {
+  const { palettes } =
+    jest.requireActual("../theme/palettes") as typeof import("../theme/palettes");
+  return {
+    // The advanced page paints from ThemeContext.colors (App.tsx:135): the real
+    // light palette, so the page renders without a provider.
+    useLabTheme: () => ({
+      colors: palettes.light.colors,
+      mode: "light",
+      setMode: jest.fn(),
+      fontScaleId: "m",
+      setFontScaleId: jest.fn(),
+    }),
+  };
+});
+jest.mock("../theme/typography", () => {
+  const actual =
+    jest.requireActual("../theme/typography") as typeof import("../theme/typography");
+  // The advanced page reads type roles by name (typography.bodyMd.fontSize), so
+  // an empty record is not enough there.
+  return { useTypography: () => actual.typography, fontFamilies: actual.fontFamilies };
+});
 jest.mock("../theme/components", () => {
   const react = require("react") as typeof import("react");
   return {
@@ -123,10 +142,16 @@ jest.mock("../engine/modelGateRAM", () => ({
   optionAvailability: jest.fn(() => ({})),
 }));
 jest.mock("../engine/loadPolicy", () => ({ resolveGateLoadPolicy: jest.fn(() => null) }));
-jest.mock("../engine/governorRuntime", () => ({
-  readGovernorEnabled: jest.fn(async () => false),
-  writeGovernorEnabled: jest.fn(async () => undefined),
-}));
+jest.mock("../engine/governorRuntime", () => {
+  const actual =
+    jest.requireActual("../engine/governorRuntime") as typeof import("../engine/governorRuntime");
+  return {
+    ...actual,
+    // The governor switch paints from the real read; AsyncStorage above is an
+    // empty store, i.e. an absent kalsa.governor.enabled.
+    writeGovernorEnabled: jest.fn(async () => true),
+  };
+});
 jest.mock("../engine/deviceTuning", () => ({ resolveEngineTuningSync: jest.fn(() => null) }));
 jest.mock("../engine/kvQuantCost", () => ({
   kvBytesPerTokenAtProfile: jest.fn(() => 0),
@@ -221,6 +246,27 @@ describe("the pairing entry on the home page", () => {
     });
 
     expect(renderer.root.findAllByType(PairingScreen)).toHaveLength(1);
+    await act(async () => renderer.unmount());
+  });
+});
+
+// The same SettingsScreen render harness, one question: the governor switch
+// reads the real flag, and a store with no kalsa.governor.enabled must paint ON
+// (owner decision 2026-10-02).
+describe("the governor switch on the advanced page", () => {
+  it("starts ON while kalsa.governor.enabled is absent", async () => {
+    const renderer = await renderSettings();
+
+    await act(async () => {
+      renderer.root
+        .findByProps({ testID: "settings.home.advanced" })
+        .props.onPress();
+    });
+
+    expect(
+      renderer.root.findByProps({ accessibilityLabel: "settings.governor" })
+        .props.value,
+    ).toBe(true);
     await act(async () => renderer.unmount());
   });
 });

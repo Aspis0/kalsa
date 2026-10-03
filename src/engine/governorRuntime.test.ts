@@ -27,7 +27,7 @@ describe("governor runtime gate", () => {
     (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
   });
 
-  test("defaults the feature flag off and uses CPU params", async () => {
+  test("an off gate loads the CPU params and reports no retry", async () => {
     const init = jest.fn(
       async (params: { n_gpu_layers: number; governor?: unknown }) => params,
     );
@@ -42,7 +42,6 @@ describe("governor runtime gate", () => {
     expect(result.retried).toBe(false);
     expect(init).toHaveBeenCalledWith(cpuParams);
     expect(init.mock.calls[0][0]).not.toHaveProperty("governor");
-    expect((await readGovernorEnabled())).toBe(false);
   });
 
   test("retries once after a native governor fallback", async () => {
@@ -79,8 +78,23 @@ describe("governor runtime gate", () => {
     expect(isGovernorFallback(new Error("native load failed"), current, stale)).toBe(true);
   });
 
-  test("reads false when nothing is stored", async () => {
-    expect(await readGovernorEnabled()).toBe(false);
+  test("an absent or unrecognized key reads ON, the owner's 2026-10-02 default", async () => {
+    expect(await readGovernorEnabled()).toBe(true);
+    for (const value of ["1", "true", "2", "true ", "yes"]) {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(value);
+      await expect(readGovernorEnabled()).resolves.toBe(true);
+    }
+    // A store that will not answer must not flip the switch off either: every
+    // gate in the governorLoad path can still refuse the governor.
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(new Error("store broken"));
+    await expect(readGovernorEnabled()).resolves.toBe(true);
+  });
+
+  test("an explicit Settings OFF stays off", async () => {
+    for (const value of ["0", "false", "FALSE"]) {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(value);
+      await expect(readGovernorEnabled()).resolves.toBe(false);
+    }
   });
 
   test("round-trips a write followed by a read", async () => {
