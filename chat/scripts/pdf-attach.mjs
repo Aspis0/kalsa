@@ -200,9 +200,14 @@ async function probeEngine(engineName, origin) {
     // 3. The refusal's own reason: an empty file is empty; a damaged PDF is
     //    unreadable with the reader's error name, and no file name leaks into the
     //    token the log event carries.
-    const refusals = await page.evaluate(async () => {
+    const refusals = await page.evaluate(async (textlessBase64) => {
       const { extractAttachment } = window.__PDF__;
       const empty = new File([], "secret-name.txt", { type: "text/plain" });
+      const textless = new File(
+        [Uint8Array.from(atob(textlessBase64), (c) => c.charCodeAt(0))],
+        "secret-name-scan.pdf",
+        { type: "application/pdf" },
+      );
       const damaged = new File([new TextEncoder().encode("not a pdf at all")], "secret-name.pdf", {
         type: "application/pdf",
       });
@@ -214,12 +219,17 @@ async function probeEngine(engineName, origin) {
           return { ok: false, failure: error.failure, reason: error.reason };
         }
       };
-      return { empty: await read(empty), damaged: await read(damaged) };
-    });
+      return { empty: await read(empty), textless: await read(textless), damaged: await read(damaged) };
+    }, makePdf("").toString("base64"));
     check(
       "an empty file is refused as empty, not unreadable",
       refusals.empty.failure === "empty" && refusals.empty.reason === "empty",
       JSON.stringify(refusals.empty),
+    );
+    check(
+      "a PDF with bytes but no words keeps the scan sentence",
+      refusals.textless.failure === "no-text" && refusals.textless.reason === "no_text",
+      JSON.stringify(refusals.textless),
     );
     check(
       "a damaged PDF is unreadable with the reader's own token",

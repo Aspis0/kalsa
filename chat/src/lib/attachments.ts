@@ -28,7 +28,7 @@ export const MAX_FILE_BYTES = 32 * 1024 * 1024;
 /** Completion headroom kept free whenever the context size is known. */
 export const CONTEXT_RESERVE_TOKENS = 512;
 
-export type AttachmentFailure = "unsupported" | "too-big" | "unreadable" | "empty";
+export type AttachmentFailure = "unsupported" | "too-big" | "unreadable" | "empty" | "no-text";
 
 /** The one part a refusal sentence still names: the app an old format
  *  names. The file's own name no longer appears in the words. */
@@ -315,9 +315,14 @@ export async function extractAttachment(file: File): Promise<Attachment> {
   }
   text = cleanText(text);
   if (!text) {
+    // No bytes is an empty file; bytes whose text never arrives is a document
+    // a reader can only see as an image — a scan.
+    if (file.size === 0) {
+      throw new AttachmentError("empty", `“${file.name}” is empty.`);
+    }
     throw new AttachmentError(
-      "empty",
-      `“${file.name}” holds no readable text (an empty file, or a scan without a text layer).`,
+      "no-text",
+      `“${file.name}” holds no readable text (a scan without a text layer).`,
     );
   }
   return {

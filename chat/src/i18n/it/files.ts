@@ -22,6 +22,7 @@ export const FILES = {
     "unsupportedLegacy": (app: string) => `Questo file è in un formato vecchio. Aprilo in ${app}, salvalo in una nuova copia e allega quella.`,
     "tooBig": "Questo file è troppo grande per Kalsa. Prova uno più piccolo.",
     "unreadable": "Kalsa non ha potuto leggere questo file. Può essere danneggiato o protetto da password.",
+    "emptyFile": "Questo file è vuoto.",
     "noText": "Kalsa non ha trovato parole in questo file. Se è una scansione, non può ancora leggerla.",
     "couldNotOpen": "Kalsa non ha potuto aprire questo file. Sceglilo di nuovo.",
   };

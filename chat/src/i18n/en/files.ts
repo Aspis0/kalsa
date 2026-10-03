@@ -25,6 +25,7 @@ export const FILES = {
   unsupportedLegacy: (app: string) => `This file is in an old format. Open it in ${app}, save a new copy, and attach that.`,
   tooBig: "This file is too large for Kalsa. Try a smaller one.",
   unreadable: "Kalsa couldn't read this file. It may be damaged or locked with a password.",
+  emptyFile: "This file is empty.",
   noText: "Kalsa found no words in this file. If it's a scan, she can't read it yet.",
   couldNotOpen: "Kalsa couldn't open this file. Choose it again.",
 };

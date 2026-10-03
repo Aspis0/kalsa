@@ -403,6 +403,8 @@ export function useChat(shell: ChatShell) {
       case "unreadable":
         return files.unreadable;
       case "empty":
+        return files.emptyFile;
+      case "no-text":
         return files.noText;
     }
   }
