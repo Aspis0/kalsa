@@ -228,10 +228,31 @@ function metaFor(conversation: Conversation): ConversationMeta {
   };
 }
 
+let cachedSegmenter: Intl.Segmenter | null | undefined;
+
+function segmenterFor(): Intl.Segmenter {
+  cachedSegmenter ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  return cachedSegmenter;
+}
+
+/** The characters a reader counts, not UTF-16 units: graphemes where the
+    platform segments them (an emoji family is one), code points elsewhere. */
+function graphemes(text: string): string[] {
+  const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl ? segmenterFor() : null;
+  if (segmenter === null) return Array.from(text);
+  const out: string[] = [];
+  for (const { segment } of segmenter.segment(text)) out.push(segment);
+  return out;
+}
+
 export function titleFor(firstText: string, fallback = "New conversation"): string {
   const oneLine = firstText.replace(/\s+/g, " ").trim();
   if (!oneLine) return fallback;
-  return oneLine.length > 46 ? `${oneLine.slice(0, 46).trimEnd()}…` : oneLine;
+  // The cut is on what a reader counts: a title of 46 emoji is 46 characters,
+  // not the 80+ UTF-16 units it used to be measured in (and cut through).
+  const characters = graphemes(oneLine);
+  if (characters.length <= 46) return oneLine;
+  return `${characters.slice(0, 46).join("").trimEnd()}…`;
 }
 
 export function createStore(): ConversationStore {
