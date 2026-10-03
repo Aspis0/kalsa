@@ -412,3 +412,29 @@ fn a_refused_recall_never_fails_the_completion() {
     assert_eq!(door.residents(), 0, "a refused recall claims nothing");
     door.shutdown();
 }
+
+/// The recall line is the one new line this feature added, and a chat id is
+/// the one client value that must never reach it raw: the log promises the
+/// id only as the audit hash (audit/line.rs). Read the source the way the
+/// cache-salt tripwire reads its own — the wiring, not a captured run.
+#[test]
+fn the_recall_line_goes_through_the_audit_hash() {
+    let proxy = include_str!("../proxy.rs");
+    assert!(
+        proxy.contains("audit::line::recall_line(lease.slot(), device, &chat)"),
+        "the recall must be logged through audit::line::recall_line, which hashes the id"
+    );
+    // The raw id must never be interpolated beside it: the one format! that
+    // names a chat is the audited call above, not a hand-built one.
+    let recall_region = proxy
+        .split("chats.recall(")
+        .nth(1)
+        .and_then(|rest| rest.split("let _active").next())
+        .unwrap_or("");
+    for raw in ["chat {}", "chat {chat}", "{chat}"] {
+        assert!(
+            !recall_region.contains(&format!("\"chat {raw}")),
+            "the recall's log line interpolates the raw chat id: {raw}"
+        );
+    }
+}

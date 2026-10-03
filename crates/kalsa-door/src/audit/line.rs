@@ -33,6 +33,16 @@ pub(crate) fn handover_line(
     )
 }
 
+/// The chat the seat's return brought back from disk, before the request
+/// that took the seat continues it.
+pub(crate) fn recall_line(slot: u32, device: DeviceId, chat: &str) -> String {
+    format!(
+        "slot {slot} recall: device {} chat {} restored before the request",
+        device.value(),
+        id_hash(chat)
+    )
+}
+
 /// One disk-tier action: the chat hash, what happened, and how long it took.
 /// `bytes` is the file's size on disk where one was read. The device is
 /// `None` only for a call that was not given the device and would not parse
@@ -83,6 +93,20 @@ mod tests {
     use super::*;
 
     const UUID: &str = "0f1e2d3c-5a6b-4c7d-8e9f-001122334455";
+
+    #[test]
+    fn a_recall_line_names_the_hash_and_never_the_id() {
+        let line = recall_line(0, DeviceId::new(0), UUID);
+        assert_eq!(
+            line,
+            format!(
+                "slot 0 recall: device 0 chat {} restored before the request",
+                id_hash(UUID)
+            )
+        );
+        assert!(!line.contains(UUID), "{line}");
+        assert!(!line.contains("0f1e2d3c"), "{line}");
+    }
 
     #[test]
     fn a_chat_line_names_the_hash_and_never_the_id() {
