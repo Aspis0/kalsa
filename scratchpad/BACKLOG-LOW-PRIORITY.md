@@ -23,3 +23,14 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 ## Expo SDK 58 (trial tag local/sdk58-trial, re-trial at RN 0.88 stable)
 - Lock carries 3 peer conflicts (@expo/ws-tunnel wants ws ^8); fingerprint "balanced" ignores node_modules edits;
   whisper.rn batchedBridge path - AUDIT-sdk58-trial.md, WHISPER-RN-RECON.md (upgrade whisper.rn 0.7.4 when touched)
+
+## iOS desktop link / iroh (branch ios/desktop-link; reviews ios-desktop-link/REVIEW-runtime.md, REVIEW-build.md)
+- BEFORE TESTFLIGHT: `ITSAppUsesNonExemptEncryption: false` while the app ships its own TLS/QUIC (iroh) - check
+  Apple export-compliance rules - REVIEW-runtime.md
+- Android: same startBridge-vs-destroy race leaks a runtime + UDP socket (latent, pre-existing) - REVIEW-runtime.md
+- `_ = previous` release idiom; spurious `try`; `[0]` force-index; `deadlineMs(max)` on a byte count; Swift 6
+  Sendable annotations - REVIEW-runtime.md
+- road.test.ts reads only the Kotlin file, Swift error codes can drift - REVIEW-runtime.md
+- README:16 thread-pool description false; JS key-path comment says filesDir - both reviews
+- No lock against concurrent pod installs; changed Android error string makes the JS bundle not byte-identical
+  (behaviour identical) - REVIEW-build.md
