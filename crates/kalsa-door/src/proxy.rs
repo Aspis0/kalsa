@@ -381,6 +381,20 @@ pub(super) fn handle(
             }
         }
     }
+    // The chat this device left on the seat, brought back before the
+    // request runs: a completion does not name its conversation, so the
+    // handover's saved chat is the only name the door has for what the
+    // engine is about to be asked to continue — and without this the engine
+    // rebuilds the whole history from nothing, a minute on a small CPU after
+    // every room use. No outcome of the recall fails the request it serves.
+    if let Some(chat) = chats.recall(devices, lease.slot(), device, upstream_port) {
+        log::info!(
+            "slot {} recall: device {} chat {} restored before the request",
+            lease.slot(),
+            device.value(),
+            chat
+        );
+    }
     // Presence for the running door: this device, exactly while the door is
     // inside this request. Only an authenticated, slotted device is counted.
     let _active = active.enter(device);

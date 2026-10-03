@@ -117,6 +117,13 @@ enum Residency {
     Empty,
     Unknown,
     Resident(DeviceId, String),
+    /// The chat this device had in the slot when the seat was taken, saved
+    /// to its file by the handover: not in the slot any more, on disk and
+    /// known by name. The device's next request that takes the seat back
+    /// recalls it ([`Chats::recall`]) — a completion does not name its
+    /// conversation, so this is the only way the door can know which chat
+    /// the engine is about to be asked to rebuild from nothing.
+    Evicted(DeviceId, String),
 }
 
 pub(crate) enum Route {
@@ -437,8 +444,9 @@ impl Chats {
         // A clean slot's file already holds its state — there is nothing to
         // write, and a tick that wrote the slot just before this lease
         // landed would otherwise be repeated here: the same file, twice.
+        // Either way the chat is on disk and named: evicted, recallable.
         if state.dirty_at.is_none() {
-            state.resident = Residency::Unknown;
+            state.resident = Residency::Evicted(evicted, chat);
             return Ok(false);
         }
         let Some(salt) = devices.cache_salt(evicted) else {
@@ -457,9 +465,64 @@ impl Chats {
         // The lock is held across the engine call, so the commit check is
         // vacuously true — the residency cannot move under it.
         save("handover", dir, &file_name(model, evicted, &chat), &engine, &|| true)?;
-        state.resident = Residency::Unknown;
+        state.resident = Residency::Evicted(evicted, chat);
         state.dirty_at = None;
         Ok(true)
+    }
+
+    /// Brings back the chat the handover put on disk, for the device whose
+    /// request just took the seat back: the completion that follows does not
+    /// name its conversation — the UI that never unmounted never re-activated
+    /// — so this is the moment the engine learns which chat the request
+    /// continues, instead of re-prefilling the whole history from nothing on
+    /// a computer where that costs a minute. Nothing else acts: a slot that
+    /// is not this device's evicted chat is left exactly as it is, and no
+    /// outcome of the recall is allowed to fail the request it serves — a
+    /// refused or missing file drops the warmth and the request goes on
+    /// cold. The lock is held across the engine call, the handover's own
+    /// discipline: the mutating paths of this tier keep the slot's lock.
+    pub(crate) fn recall(
+        &self,
+        devices: &DeviceSet,
+        slot: u32,
+        device: DeviceId,
+        upstream_port: u16,
+    ) -> Option<String> {
+        let (Some(model), Some(dir)) = (self.model.as_deref(), self.dir.as_deref()) else {
+            return None;
+        };
+        let mut state = self.lock(slot).ok()?;
+        let chat = match &state.resident {
+            Residency::Evicted(owner, chat) if *owner == device => chat.clone(),
+            _ => return None,
+        };
+        let name = file_name(model, device, &chat);
+        if !dir.join(&name).exists() {
+            // Erased while it waited: nothing to bring back, and nothing
+            // known about the slot beyond that.
+            state.resident = Residency::Unknown;
+            return None;
+        }
+        let engine = Engine {
+            port: upstream_port,
+            slot,
+            salt: &devices.cache_salt(device)?,
+            deadline: Instant::now() + crate::PATIENCE,
+        };
+        // `restore` records the refusal's meaning itself — `Empty` for a
+        // refusal (the engine's catch cleared the slot), `Unknown` for a
+        // silence — and leaves the claim alone on success, which is the
+        // caller's to set.
+        match restore(dir, &mut state, &engine, &name) {
+            Ok(()) => {
+                // The claim carries the chat's ID, the vocabulary of every
+                // other claim — the filename is the engine's word for it.
+                state.resident = Residency::Resident(device, chat.clone());
+                state.dirty_at = None;
+                Some(chat)
+            }
+            Err(_) => None,
+        }
     }
 
     /// Writes out every slot that changed and has been quiet long enough, and

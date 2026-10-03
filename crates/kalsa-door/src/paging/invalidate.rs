@@ -58,6 +58,9 @@ impl Chats {
             Residency::Empty => "empty",
             Residency::Unknown => "unknown",
             Residency::Resident(..) => "resident",
+            // The chat is on disk and named, waiting for its owner's seat:
+            // its own word, because neither "empty" nor "unknown" is true.
+            Residency::Evicted(..) => "evicted",
         };
         (state.dirty_at, claim)
     }

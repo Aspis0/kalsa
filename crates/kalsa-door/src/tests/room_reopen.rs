@@ -337,3 +337,78 @@ fn a_third_concurrent_switch_waiter_is_answered_rather_than_parked() {
     turn_quiet(&room);
     door.shutdown();
 }
+
+#[test]
+fn the_chats_completion_after_the_room_recalls_the_saved_chat() {
+    // The owner's P2: chat -> room -> chat works, but the completion after
+    // the room re-prefilled the whole history from nothing — the UI never
+    // re-activated, so nothing told the engine which chat it was continuing
+    // even though the handover had just saved that chat to disk. The seat's
+    // return now recalls it: the restore is in the engine's log BEFORE the
+    // completion, and the map names the chat again for the saves that
+    // follow.
+    let dir = tier::temp_dir("room-reopen-recall");
+    let (door, room, engine, host) = house(&dir);
+
+    std::fs::write(dir.join(tier::file_name(CHAT)), b"state:9:older").unwrap();
+    assert_eq!(tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)), 204);
+    tier::wait_for(&engine, 1);
+    // The chat goes to the room dirty: the handover saves it.
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, 2);
+    host_calls(&door, &room, "host-1", "@Kalsa ciao");
+    turn_quiet(&room);
+    tier::wait_for(&engine, 5);
+    let before = engine.sent().len();
+
+    // Back to the chat: the next completion, with no activate anywhere.
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, before + 2);
+
+    let sent = engine.sent();
+    let actions: Vec<&str> = sent.iter().map(|ask| ask.action.as_str()).collect();
+    assert_eq!(
+        actions,
+        vec!["restore", "", "save", "", "", "restore", ""],
+        "the saved chat is restored before the completion is forwarded: {sent:?}"
+    );
+    assert_eq!(sent[5].filename, tier::file_name(CHAT), "it is the host's chat");
+    // And the map names it: the completion's mark has a name to save under.
+    assert_eq!(door.residents(), 1, "the recalled chat is the resident");
+    door.shutdown();
+}
+
+#[test]
+fn a_refused_recall_never_fails_the_completion() {
+    // The file may be one the engine will not load — another build's, a
+    // model's. The recall drops the warmth and the completion goes through
+    // cold: the owner asked the chat a question, and the answer must not
+    // hinge on a cache file.
+    let dir = tier::temp_dir("room-reopen-recallrefused");
+    let (door, room, engine, host) = house(&dir);
+
+    std::fs::write(dir.join(tier::file_name(CHAT)), b"state:9:older").unwrap();
+    assert_eq!(tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)), 204);
+    tier::wait_for(&engine, 1);
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, 2);
+    host_calls(&door, &room, "host-1", "@Kalsa ciao");
+    turn_quiet(&room);
+    tier::wait_for(&engine, 5);
+    // The recall's restore is refused; the completion after it is served.
+    engine.reply([tier::Reply::Refused]);
+
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, 7);
+    let sent = engine.sent();
+    let actions: Vec<&str> = sent.iter().map(|ask| ask.action.as_str()).collect();
+    assert_eq!(
+        actions,
+        vec!["restore", "", "save", "", "", "restore", ""],
+        "the refused recall left the completion served: {sent:?}"
+    );
+    // The refusal's meaning is recorded — the slot is empty, not unknown —
+    // and the panel says no resident.
+    assert_eq!(door.residents(), 0, "a refused recall claims nothing");
+    door.shutdown();
+}

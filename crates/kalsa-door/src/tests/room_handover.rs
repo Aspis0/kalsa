@@ -335,20 +335,24 @@ fn a_chat_taking_the_room_s_seat_saves_nothing_for_the_room() {
     turn_quiet(&room);
     tier::wait_for(&engine, 5);
 
-    // The host's next completion takes the seat back from the room.
+    // The host's next completion takes the seat back from the room: it
+    // SAVES nothing for the room (the room has no chat), and it recalls the
+    // host's own — the one the first handover put on disk — so the engine
+    // continues the chat instead of rebuilding it.
     tier::complete(door.address(), &host);
-    tier::wait_for(&engine, 6);
+    tier::wait_for(&engine, 7);
     let sent = engine.sent();
     let actions: Vec<&str> = sent.iter().map(|ask| ask.action.as_str()).collect();
     assert_eq!(
         actions,
-        vec!["restore", "", "save", "", "", ""],
-        "the crossing back saves nothing: {sent:?}"
+        vec!["restore", "", "save", "", "", "restore", ""],
+        "the crossing back saves nothing for the room and recalls the host: {sent:?}"
     );
+    assert_eq!(sent[5].filename, tier::file_name(CHAT));
     assert_eq!(
         door.residents(),
-        0,
-        "a completion names no chat — the door cannot know which one it is"
+        1,
+        "the recalled chat is the resident — a completion's chat, recalled"
     );
     let files: Vec<String> = std::fs::read_dir(&dir)
         .unwrap()
