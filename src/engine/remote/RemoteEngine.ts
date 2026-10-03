@@ -17,6 +17,7 @@ import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
 import type { RemoteDoorConfig } from "./remoteDoorConfig";
+import { doorRequestBase } from "./doorRequestBase";
 import { removedRoomError } from "../../room/roomError";
 import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../../remote/doorRoad";
 import { createIrohChatXhr } from "../../remote/irohChatXhr";
@@ -141,7 +142,17 @@ export async function testRemoteConnection(): Promise<{
       // chat request either — the same verdict the room routes give.
       return { ok: false, modelId: configured || null, error: removedRoomError().code };
     }
-    const base = door.url;
+    // A pairing that saved no address names the iroh stand-in origin —
+    // or fails here with the code for a road this phone no longer has.
+    const resolvedBase = doorRequestBase(door);
+    if (!resolvedBase.ok) {
+      return {
+        ok: false,
+        modelId: configured || null,
+        error: resolvedBase.error,
+      };
+    }
+    const base = resolvedBase.base;
     const urlGate = remoteUrlGateError(base);
     if (urlGate) {
       return {
@@ -363,7 +374,12 @@ export async function streamRemoteAssistantTurn(
     reportPreStreamError(err);
     return;
   }
-  const base = door.url;
+  const resolvedBase = doorRequestBase(door);
+  if (!resolvedBase.ok) {
+    reportPreStreamError(new Error(resolvedBase.error));
+    return;
+  }
+  const base = resolvedBase.base;
   const urlGate = remoteUrlGateError(base);
   if (urlGate) {
     reportPreStreamError(new Error(urlGate));

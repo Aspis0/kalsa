@@ -8,6 +8,10 @@
  * (keys at crates/kalsa-door/src/room/routes.rs:61-66, HEAD c40c6a12).
  */
 jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+jest.mock("../remote/irohBridge", () => ({
+  irohModulePresent: jest.fn(() => true),
+  openIrohTunnel: jest.fn(),
+}));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({
   getRemoteDoorConfig: jest.fn(),
   getRemoteDoorToken: jest.fn(),
@@ -18,13 +22,22 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
 }));
 
 import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../remote/doorRoad";
+import { irohModulePresent } from "../remote/irohBridge";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "../engine/remote/remoteDoorConfig";
 import { fetchRoomInfo } from "./roomApi";
 import infoFixture from "./fixtures/info.json";
 
 const CREDENTIAL = "ab".repeat(32);
+const NODE = "cd".repeat(32);
 
-type DoorSetup = { url: string; token?: string | null; removed?: boolean; roadError?: Error; fetchError?: Error };
+type DoorSetup = {
+  url: string;
+  token?: string | null;
+  removed?: boolean;
+  roadError?: Error;
+  fetchError?: Error;
+  node?: string | null;
+};
 
 function installDoor(setup: DoorSetup) {
   const fetcher = jest.fn(async (_url: string, _init: Parameters<DoorFetch>[1]) => {
@@ -39,8 +52,8 @@ function installDoor(setup: DoorSetup) {
   (getRemoteDoorConfig as jest.MockedFunction<typeof getRemoteDoorConfig>).mockResolvedValue({
     url: setup.url,
     pairedCredential: CREDENTIAL,
-    node: null,
-    pairedVia: null,
+    node: setup.node ?? null,
+    pairedVia: setup.node !== undefined ? "iroh" : null,
     source: "pairing",
     pairing: { localId: "p-lid-door", removed: setup.removed === true },
   });
@@ -56,6 +69,7 @@ function installDoor(setup: DoorSetup) {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  (irohModulePresent as jest.Mock).mockReturnValue(true);
 });
 
 test("a door this build may not talk to is unusable: no road is even decided", async () => {
@@ -115,4 +129,33 @@ test("a request that died mid-flight is unreachable and quotes nothing", async (
     error: { code: "unreachable", message: "remote_brain_network" },
   });
   expect(JSON.stringify(result)).not.toContain(CREDENTIAL);
+});
+
+test("a doorless pairing the iroh road still carries names the stand-in origin", async () => {
+  const fetcher = installDoor({ url: "", node: NODE });
+
+  await expect(fetchRoomInfo()).resolves.toMatchObject({ ok: true });
+
+  // The request line names the stand-in origin, and the road decision saw
+  // the same record the base did.
+  expect(fetcher).toHaveBeenCalledWith(
+    "https://iroh.kalsa.invalid/kalsa/room/info",
+    expect.objectContaining({ method: "GET" }),
+  );
+  expect(establishDoorRoad).toHaveBeenCalledWith(
+    expect.objectContaining({ node: NODE, pairedVia: "iroh" }),
+    undefined,
+  );
+});
+
+test("a doorless pairing whose iroh module is gone is an unusable door", async () => {
+  (irohModulePresent as jest.Mock).mockReturnValue(false);
+  const fetcher = installDoor({ url: "", node: NODE });
+
+  await expect(fetchRoomInfo()).resolves.toEqual({
+    ok: false,
+    error: { code: "door_unusable", message: "remote_brain_iroh_missing" },
+  });
+  expect(establishDoorRoad).not.toHaveBeenCalled();
+  expect(fetcher).not.toHaveBeenCalled();
 });

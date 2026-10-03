@@ -14,6 +14,9 @@ describe("humanRemoteBrainError", () => {
     expect(humanRemoteBrainError("remote_brain_url_missing", t)).toBe(
       "settings.remoteBrainUrlMissing",
     );
+    expect(humanRemoteBrainError("remote_brain_iroh_missing", t)).toBe(
+      "settings.remoteBrainFailIrohMissing",
+    );
     expect(humanRemoteBrainError("invalid_scheme", t)).toBe(
       "settings.remoteBrainUrlInvalid",
     );

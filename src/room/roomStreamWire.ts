@@ -43,6 +43,9 @@ export type RoomEventsHandlers = {
 
 export type RoomEventsTarget = {
   door: RemoteDoorConfig;
+  /** The URL the request line names: the door's address, or the iroh
+   *  stand-in origin for a pairing that saved none. */
+  base: string;
   token: string | null;
   /** The last seq this client delivered; sent as Last-Event-ID when set. */
   lastSeq: number;
@@ -69,7 +72,7 @@ export async function openRoomEvents(
   const road = await establishDoorRoad(target.door, target.signal);
   const xhr = newRoomXhr(road);
   const parser = createSseParser();
-  const url = joinRemoteApiUrl(target.door.url, "/kalsa/room/events");
+  const url = joinRemoteApiUrl(target.base, "/kalsa/room/events");
   let consumed = 0;
   let settled = false;
 

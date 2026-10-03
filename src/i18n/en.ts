@@ -190,6 +190,8 @@ export const en = {
       "Could not reach your computer. Check the address and try again.",
     remoteBrainFailNetwork:
       "Your computer isn't answering. Check that it is awake and reachable, then try again.",
+    remoteBrainFailIrohMissing:
+      "This app can't reach a computer paired without an address. Update Kalsa on this phone, or pair again using the computer's address.",
     remoteBrainFailTimeout:
       "Your computer stopped replying. Try again, or switch to the model on this phone in Settings.",
     remoteBrainFailServer:

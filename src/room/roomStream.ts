@@ -305,6 +305,7 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
       const opened = await openRoomEvents(
         {
           door: resolved.value.door,
+          base: resolved.value.base,
           token: resolved.value.token,
           lastSeq: frames.resumeFrom(),
           epoch: cachedRoomEpoch(roomLocalId),

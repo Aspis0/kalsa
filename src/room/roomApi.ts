@@ -21,6 +21,7 @@ import {
   joinRemoteApiUrl,
   remoteUrlGateError,
 } from "../engine/remote/remoteUrl";
+import { doorRequestBase } from "../engine/remote/doorRequestBase";
 import {
   bindPairingRoom,
   getPairing,
@@ -89,7 +90,14 @@ async function readErrorBody(response: { json: () => Promise<unknown> }): Promis
 
 type RoomCall = { result: RoomResult<unknown>; localId: string | null };
 
-export type RoomCallDoor = { door: RemoteDoorConfig; localId: string | null; token: string | null };
+export type RoomCallDoor = {
+  door: RemoteDoorConfig;
+  localId: string | null;
+  token: string | null;
+  /** The URL this call's request lines name: the door's address, or the
+   *  iroh stand-in origin for a pairing that saved none. */
+  base: string;
+};
 
 /** The door, bearer and pre-request verdicts one room call or event
  *  stream rides: the record named by roomLocalId, or the active pairing
@@ -116,16 +124,26 @@ export async function roomDoorForCall(
   if (door.pairing !== null && door.pairing.removed) {
     return { ok: false, error: removedRoomError() };
   }
-  const gate = remoteUrlGateError(door.url);
+  // The request line names the saved address, or the iroh stand-in for a
+  // pairing that saved none — a road this phone may no longer have, which
+  // reads as an unusable door before anything dials.
+  const resolved = doorRequestBase(door);
+  if (!resolved.ok) {
+    return { ok: false, error: { code: "door_unusable", message: resolved.error } };
+  }
+  const gate = remoteUrlGateError(resolved.base);
   if (gate !== null) return { ok: false, error: { code: "door_unusable", message: gate } };
   const token = await getRemoteDoorToken(door);
-  if (token === null && isNonLoopback(door.url)) {
+  if (token === null && isNonLoopback(resolved.base)) {
     return {
       ok: false,
       error: { code: "door_unusable", message: "remote_brain_token_required" },
     };
   }
-  return { ok: true, value: { door, localId: door.pairing?.localId ?? null, token } };
+  return {
+    ok: true,
+    value: { door, localId: door.pairing?.localId ?? null, token, base: resolved.base },
+  };
 }
 
 /** One route call: local bounds, door, bearer, road, request, status →
@@ -147,10 +165,10 @@ async function roomRequest(
   try {
     const resolved = await roomDoorForCall(options?.roomLocalId);
     if (!resolved.ok) return { result: refused(resolved.error), localId: null };
-    const { door, localId, token } = resolved.value;
+    const { door, localId, token, base } = resolved.value;
     const road = await establishDoorRoad(door, options?.signal);
     const fetcher = doorFetchFor(road);
-    const url = joinRemoteApiUrl(door.url, path) + (query.length > 0 ? `?${query.join("&")}` : "");
+    const url = joinRemoteApiUrl(base, path) + (query.length > 0 ? `?${query.join("&")}` : "");
     const headers: Record<string, string> = { Accept: "application/json" };
     if (encodedBody !== undefined) headers["Content-Type"] = "application/json";
     if (token !== null && canSendAuthorization(url)) headers.Authorization = `Bearer ${token}`;

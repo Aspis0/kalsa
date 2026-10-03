@@ -9,6 +9,10 @@ type Translate = (key: TranslationKey, vars?: Record<string, string>) => string;
 
 const CODE_KEYS: Record<string, TranslationKey> = {
   remote_brain_url_missing: "settings.remoteBrainUrlMissing",
+  // A pairing that saved no address dials by node; this phone lost the
+  // iroh road that dial needs (module or node gone), and no address can
+  // be typed to fix it.
+  remote_brain_iroh_missing: "settings.remoteBrainFailIrohMissing",
   empty_url: "settings.remoteBrainUrlMissing",
   remote_brain_https_required: "settings.remoteBrainHttpsRequired",
   remote_brain_token_required: "settings.remoteBrainTokenRequired",

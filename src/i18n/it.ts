@@ -189,6 +189,8 @@ export const it: typeof en = {
       "Il tuo computer non risponde. Controlla l'indirizzo e riprova.",
     remoteBrainFailNetwork:
       "Il tuo computer non risponde. Controlla che sia acceso e raggiungibile, poi riprova.",
+    remoteBrainFailIrohMissing:
+      "Quest'app non riesce a contattare un computer abbinato senza indirizzo. Aggiorna Kalsa su questo telefono, oppure abbina di nuovo usando l'indirizzo del computer.",
     remoteBrainFailTimeout:
       "Il tuo computer ha smesso di rispondere. Riprova, oppure passa al modello di questo telefono in Impostazioni.",
     remoteBrainFailServer:
