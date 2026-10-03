@@ -31,3 +31,18 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
 4. **QDC SM8850**: NPU lane correctness + speed (app answers, needle) on v81; GPU oracle on Adreno 840 (the app-shaped
    logit oracle, `logit-oracle/PREREG.md`) -> flip V81 GPU only on PASS.
 5. **GPU list -> runtime self-qualification** (owner: "fixiamo o aggiorniamo"): design next, after 1-4.
+
+## Progress
+
+- 2026-10-03 step 1 DONE: engine main `0917c6933` (1ca434ae5 no-skel-no-device, d31061926 V81, 0917c6933 the
+  GGML_HEXAGON_ARCH override goes through the same skel check + WARN no longer prints an unread arch). Audit
+  space-bunny 9ec5d8e8 (hung 3.5 h on a whole-filesystem grep, cancelled, report salvaged). Rejected: the hardcoded
+  CDSP_DOMAIN_ID arch query (pre-existing, reads v75/v79 right on QDC); no host test for the hexagon logic (needs
+  the SDK; step 4 is the check). Compiled locally in ghcr.io/snapdragon-toolchain/arm64-android:v0.7 (amd64
+  emulation), ggml-hexagon EXIT=0: GitHub Actions minutes on Aspis0 are OUT (the snapdragon CI never started).
+- 2026-10-03 step 2 DONE (unpushed): binding `697b6971` vendor bump + four skels rebuilt locally, `42af2e08` V81
+  parser/types. Gates: assert-htp-skels / assert-kalsa-vendor / assert-rnllama-sources EXIT=0, params test 13/13.
+- Step 2b (GLM f6df2c40): a lane that does not resolve must clear npu_lane_enabled (else the engine says NPU while
+  the prefill context sits on the default GPU - an unqualified Adreno 840 on V81); backend_devices_info gains
+  `description` ("Hexagon v<NN>") so the app can read the runtime arch.
+- Step 3 inputs: SM8850 = ro.soc.model SM8850, board.platform / product.model "canoe" (QDC logs).
