@@ -58,3 +58,9 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
 - 2026-10-03 S23 v73 regression check PASS on APK 37135421002 (ac04c939): production defaults, NPU lane auto
   opens on the runtime arch, prefill 707.7/703.9/703.2 short (ref 706.7), 654.1 long (ref 661.4), 4/4 correct,
   0 crashes - `s23-every-snapdragon-ac04c939/REPORT.md`. Next: step 4 QDC SM8850 (v81 NPU + Adreno 840 oracle).
+- 2026-10-03 step 4 DONE (QDC SM8850 session 864730, 60.3 min, card 940 -> 850; Sonnet agent 387ebd8e, lab
+  929eb3b9, verified on disk): Part A PASS - 8 Elite Gen 5 runs the NPU lane BY DEFAULT on v81: plan auto/Fit/HTP0,
+  43/43 chunks HTP0, 0 fallbacks/crashes, prefill 1337/1334/1307 tok/s (CPU 112 on the old APK, ~12x), decode
+  27.9/25.4/23.6. Part B: logit oracle on Adreno 840 FAIL R2 on both valid pairs (R1 clean; R5 still unmet, arm A
+  truncated by the 48 C stop) -> V81 GPU stays OFF (owner's call under R6). Heat data (S23/8 Elite) also rank GPU
+  last in prefill and decode, so the NPU-first order needs no GPU on V81.
