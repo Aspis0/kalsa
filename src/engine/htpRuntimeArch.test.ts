@@ -2,8 +2,7 @@ jest.mock("llama.rn", () => ({
   getBackendDevicesInfo: jest.fn(async () => []),
 }));
 
-import { getBackendDevicesInfo } from "llama.rn";
-import { htpArchFromDevices, readHtpRuntimeArch } from "./htpRuntimeArch";
+import { htpArchFromDevices } from "./htpRuntimeArch";
 
 describe("htpArchFromDevices", () => {
   test("parses the trailing v<NN> of the HTP0 description", () => {
@@ -38,22 +37,28 @@ describe("htpArchFromDevices", () => {
 });
 
 describe("readHtpRuntimeArch", () => {
-  test("reads the backend devices once per process and returns the arch", async () => {
-    const mock = getBackendDevicesInfo as jest.Mock;
-    mock.mockResolvedValue([{ deviceName: "HTP0", description: "Hexagon v81" }]);
-    await expect(readHtpRuntimeArch()).resolves.toBe(81);
-    await expect(readHtpRuntimeArch()).resolves.toBe(81);
-    expect(mock).toHaveBeenCalledTimes(1);
-  });
-
-  test("a native failure resolves null, not a throw, and stays memoized", async () => {
-    // A fresh module graph: the memo under test is per-process state.
+  // The kept arch is per-process state: every test gets a fresh module graph.
+  async function freshModules() {
     jest.resetModules();
     const llama = await import("llama.rn");
-    (llama.getBackendDevicesInfo as jest.Mock).mockRejectedValue(new Error("native boom"));
-    const { readHtpRuntimeArch: fresh } = await import("./htpRuntimeArch");
-    await expect(fresh()).resolves.toBeNull();
-    await expect(fresh()).resolves.toBeNull();
-    expect(llama.getBackendDevicesInfo).toHaveBeenCalledTimes(1);
+    const { readHtpRuntimeArch } = await import("./htpRuntimeArch");
+    return { read: readHtpRuntimeArch, devices: llama.getBackendDevicesInfo as jest.Mock };
+  }
+
+  test("keeps a read arch for the process", async () => {
+    const { read, devices } = await freshModules();
+    devices.mockResolvedValue([{ deviceName: "HTP0", description: "Hexagon v81" }]);
+    await expect(read()).resolves.toBe(81);
+    await expect(read()).resolves.toBe(81);
+    expect(devices).toHaveBeenCalledTimes(1);
+  });
+
+  test("a native failure resolves null and the next call reads again", async () => {
+    const { read, devices } = await freshModules();
+    devices.mockRejectedValueOnce(new Error("native boom"));
+    devices.mockResolvedValueOnce([{ deviceName: "HTP0", description: "Hexagon v73" }]);
+    await expect(read()).resolves.toBeNull();
+    await expect(read()).resolves.toBe(73);
+    expect(devices).toHaveBeenCalledTimes(2);
   });
 });

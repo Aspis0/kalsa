@@ -13,18 +13,19 @@ export function htpArchFromDevices(
   return match ? Number(match[1]) : null;
 }
 
-let cached: Promise<number | null> | null = null;
+let cachedArch: number | null = null;
 
-/** One backend-device read per process: the HTP registration is fixed at
- *  engine init, so the arch cannot change under a live app. Any failure —
- *  missing native module, rejected call, malformed payload — resolves null. */
-export function readHtpRuntimeArch(): Promise<number | null> {
-  cached ??= (async () => {
-    try {
-      return htpArchFromDevices(await getBackendDevicesInfo());
-    } catch {
-      return null;
-    }
-  })();
-  return cached;
+/** The HTP registration is fixed at engine init, so a read arch is kept for
+ *  the process. A null is not kept: a transient native failure must not hold
+ *  the lane off until the app restarts, and a re-read is one cheap JSI call.
+ *  Any failure — missing native module, rejected call, malformed payload —
+ *  resolves null. */
+export async function readHtpRuntimeArch(): Promise<number | null> {
+  if (cachedArch !== null) return cachedArch;
+  try {
+    cachedArch = htpArchFromDevices(await getBackendDevicesInfo());
+  } catch {
+    return null;
+  }
+  return cachedArch;
 }
