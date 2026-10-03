@@ -1,5 +1,5 @@
 use std::io::{self, Read, Write};
-use std::net::{Ipv4Addr, SocketAddr, TcpStream};
+use std::net::{Ipv4Addr, Shutdown, SocketAddr, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -8,6 +8,7 @@ use crate::audit;
 use crate::cors;
 use crate::devices::{DeviceId, Devices};
 use crate::jobs::ResumeDecision;
+use crate::media;
 use crate::paging;
 use crate::registry::{Registry, StartRefused};
 use crate::room;
@@ -16,7 +17,7 @@ use crate::request;
 use crate::response;
 use crate::slot_routes;
 use crate::stream;
-use crate::{busy_response, no_slot_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, SlotLease, PATIENCE, TOKEN_BYTES};
+use crate::{busy_response, no_slot_response, too_large_response, unauthorized_response, upstream_failure_response, ActiveDevices, BUSY_RESPONSE, CONNECTION_LIFETIME, DeviceSet, LeaseError, SlotLease, PATIENCE, TOKEN_BYTES};
 use crate::clocks::Clocks;
 
 /// The observer type every serving path shares: it sees exactly the bytes
@@ -65,9 +66,11 @@ fn is_completion(target: &[u8]) -> bool {
 /// starts when its last byte reached the client, not when its request went out.
 /// A slot whose completion is still generating is not quiet — a tick would write
 /// out a prefix of the answer the engine is still making — and one whose client
-/// hung up mid-answer, or whose request only half reached the engine, has still
-/// had a turn write into it. Every way out of the request from the relay on is
-/// one of those, which is what `Drop` gets and a call at the end does not.
+/// hung up mid-answer has still had a turn write into it. Every way out of the
+/// request from the sealed head's write on is one of those, which is what `Drop`
+/// gets and a call at the end does not: the guard is armed as that write lands,
+/// so a body the door never relayed — a read that failed, a source it refused —
+/// is not a turn and leaves the slot as clean as it was.
 struct SlotTurn<'a> {
     chats: &'a paging::Chats,
     slot: u32,
@@ -230,7 +233,14 @@ pub(super) fn handle(
         }
         match request::read_head(&mut client, head_deadline) {
             Ok(head) => head,
-            Err(()) => {
+            Err(request::HeadError::TooLarge { origin }) => {
+                // The body was never read: the size is the whole reason, and
+                // the client is owed the code that says so.
+                audit::reason("door.body_too_large");
+                let _ = refuse_oversize(&mut client, origin.as_deref(), deadline);
+                return;
+            }
+            Err(request::HeadError::Malformed) => {
                 // Two different facts, two different answers. If the
                 // patience was already spent, the door never read a byte:
                 // that is pressure, and the answer is the busy one. A head
@@ -501,6 +511,19 @@ pub(super) fn handle(
     // refusal, the upstream-failure 502, the busy 503 — are written with the
     // request's origin still in hand, so it leaves the head here.
     let origin = head.origin.take();
+    // The body is held before any upstream socket exists and the media guard
+    // decides on it: a source the engine would fetch is answered here, with
+    // nothing for the engine to do, and an accepted body goes upstream byte
+    // for byte.
+    let body = match read_request_body(&mut client, body_length, deadline, &cancel) {
+        Ok(body) => body,
+        Err(_) => return,
+    };
+    if media::inspect(&body) == media::Verdict::Refused {
+        audit::reason("door.media_source_refused");
+        let _ = answer_to(&mut client, &media::refusal_response(origin.as_deref()), deadline);
+        return;
+    }
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, upstream_port));
     let timeout = match remaining(deadline) {
         Some(timeout) => timeout,
@@ -545,7 +568,7 @@ pub(super) fn handle(
         slot: lease.slot(),
         generating: completion,
     };
-    if relay_exact(&mut client, &mut upstream, body_length, deadline, &cancel).is_err() {
+    if write_with_deadline(&mut upstream, &body, deadline).is_err() {
         return;
     }
     // The request is in; what follows is the engine's answer. A completion's
@@ -752,33 +775,36 @@ fn authenticated(value: Option<&[u8]>, devices: &Devices) -> Option<DeviceId> {
     if format_ok { matched } else { None }
 }
 
-fn relay_exact(
-    from: &mut TcpStream,
-    to: &mut TcpStream,
+/// Reads exactly the declared body into memory: the media guard needs all of it
+/// before the engine may see any of it, and an accepted body is written
+/// upstream unchanged. `Err` leaves the request unanswered, the same as a body
+/// that stopped arriving always did.
+fn read_request_body(
+    client: &mut TcpStream,
     length: usize,
     deadline: Instant,
     cancel: &Cancel,
-) -> io::Result<()> {
+) -> io::Result<Vec<u8>> {
+    let mut body = Vec::with_capacity(length.min(64 * 1024));
     let mut left = length;
     let mut buffer = [0u8; 16 * 1024];
     while left > 0 {
         if cancel.stopped() {
             return Err(io::Error::new(io::ErrorKind::Interrupted, "door stopped"));
         }
-        set_read_deadline(from, deadline)?;
-        set_write_deadline(to, deadline)?;
-        let chunk_length = left.min(buffer.len());
-        let read = from.read(&mut buffer[..chunk_length])?;
+        set_read_deadline(client, deadline)?;
+        let chunk = left.min(buffer.len());
+        let read = client.read(&mut buffer[..chunk])?;
         if read == 0 {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "request body ended",
             ));
         }
-        to.write_all(&buffer[..read])?;
+        body.extend_from_slice(&buffer[..read]);
         left -= read;
     }
-    Ok(())
+    Ok(body)
 }
 
 fn relay_response(
@@ -870,6 +896,36 @@ pub(super) fn client_gone(client: &TcpStream) -> bool {
 
 fn refuse(stream: &mut TcpStream, origin: Option<&[u8]>, deadline: Instant) -> io::Result<()> {
     answer_to(stream, &unauthorized_response(origin), deadline)
+}
+
+/// How long the door keeps reading a body it has already refused, and how long
+/// a silence may last inside that read. An unread body turns the close into a
+/// reset, and the reset erases the answer the client is owed — but the body's
+/// declared size is whatever the client chose, so the wait is bounded.
+const OVERSIZE_DRAIN: Duration = Duration::from_secs(2);
+const OVERSIZE_SILENCE: Duration = Duration::from_millis(250);
+
+/// Answers a body past the cap, then half-closes and reads what the client is
+/// still sending, briefly: see [`OVERSIZE_DRAIN`]. Nothing read here is kept.
+fn refuse_oversize(
+    client: &mut TcpStream,
+    origin: Option<&[u8]>,
+    deadline: Instant,
+) -> io::Result<()> {
+    answer_to(client, &too_large_response(origin), deadline)?;
+    let _ = client.shutdown(Shutdown::Write);
+    let stop_at = Instant::now() + OVERSIZE_DRAIN;
+    let mut buffer = [0u8; 16 * 1024];
+    while Instant::now() < stop_at {
+        if set_read_deadline_within(client, deadline, OVERSIZE_SILENCE).is_err() {
+            return Ok(());
+        }
+        match client.read(&mut buffer) {
+            Ok(0) | Err(_) => return Ok(()),
+            Ok(_) => {}
+        }
+    }
+    Ok(())
 }
 
 /// One answer to the client, and the door's own count of it: the bytes and

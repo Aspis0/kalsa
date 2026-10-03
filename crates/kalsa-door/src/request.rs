@@ -5,6 +5,20 @@ use std::time::Instant;
 pub(super) const MAX_HEAD: usize = 32 * 1024;
 pub(super) const MAX_BODY: usize = 16 * 1024 * 1024;
 
+/// Why a head could not be read. The cap is its own case because the request
+/// was well formed: its body only declared more bytes than the door holds, and
+/// the honest answer to that is the size refusal — not the unauthorized one a
+/// head the door cannot trust gets.
+#[derive(Debug)]
+pub(super) enum HeadError {
+    /// The head is not one the door will read: malformed, repeated, or a
+    /// claim (`Transfer-Encoding`, an unparsable length) it does not serve.
+    Malformed,
+    /// The declared body is past [`MAX_BODY`]. The origin comes along when the
+    /// head named one, so the 413 can name it back.
+    TooLarge { origin: Option<Vec<u8>> },
+}
+
 /// Hop-by-hop headers (RFC 9110 §7.6.1): they describe THIS connection and
 /// die on this connection. The door serves one request per connection and
 /// closes it, so a promise of reuse must never travel to the upstream, and
@@ -97,38 +111,47 @@ fn hex(bytes: &[u8]) -> String {
     out
 }
 
-pub(super) fn read_head(stream: &mut TcpStream, deadline: Instant) -> Result<UnsealedHead, ()> {
+pub(super) fn read_head(
+    stream: &mut TcpStream,
+    deadline: Instant,
+) -> Result<UnsealedHead, HeadError> {
     let mut bytes = Vec::with_capacity(1024);
     loop {
         if bytes.len() == MAX_HEAD {
-            return Err(());
+            return Err(HeadError::Malformed);
         }
-        let remaining = deadline.checked_duration_since(Instant::now()).ok_or(())?;
+        let remaining = deadline
+            .checked_duration_since(Instant::now())
+            .ok_or(HeadError::Malformed)?;
         stream
             .set_read_timeout(Some(remaining.min(super::PATIENCE)))
-            .map_err(|_| ())?;
+            .map_err(|_| HeadError::Malformed)?;
         let mut byte = [0u8; 1];
         match stream.read(&mut byte) {
-            Ok(0) => return Err(()),
+            Ok(0) => return Err(HeadError::Malformed),
             Ok(1) => {
                 bytes.push(byte[0]);
                 if bytes.ends_with(b"\r\n\r\n") {
                     return parse(&bytes);
                 }
             }
-            Ok(_) => return Err(()),
-            Err(_) => return Err(()),
+            Ok(_) => return Err(HeadError::Malformed),
+            Err(_) => return Err(HeadError::Malformed),
         }
     }
 }
 
-fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
-    let end = bytes.len().checked_sub(2).ok_or(())?;
+fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
+    let end = bytes.len().checked_sub(2).ok_or(HeadError::Malformed)?;
     let mut lines = bytes[..end].split(|byte| *byte == b'\n');
-    if !lines.next_back().ok_or(())?.is_empty() {
-        return Err(());
+    if !lines.next_back().ok_or(HeadError::Malformed)?.is_empty() {
+        return Err(HeadError::Malformed);
     }
-    let request_line = lines.next().ok_or(())?.strip_suffix(b"\r").ok_or(())?;
+    let request_line = lines
+        .next()
+        .ok_or(HeadError::Malformed)?
+        .strip_suffix(b"\r")
+        .ok_or(HeadError::Malformed)?;
     let target = request_target(request_line)?;
     let method = request_line
         .split(|byte| *byte == b' ')
@@ -153,34 +176,35 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
     let mut asks_for_method = false;
     let mut slot_seen = false;
     let mut salt_seen = false;
+    let mut too_large = false;
     let mut body_length = None;
     let mut named: Vec<Vec<u8>> = Vec::new();
     let mut candidates: Vec<(Vec<u8>, &[u8])> = Vec::new();
     for line in lines {
-        let line = line.strip_suffix(b"\r").ok_or(())?;
-        let colon = line.iter().position(|byte| *byte == b':').ok_or(())?;
+        let line = line.strip_suffix(b"\r").ok_or(HeadError::Malformed)?;
+        let colon = line.iter().position(|byte| *byte == b':').ok_or(HeadError::Malformed)?;
         let name = &line[..colon];
         let value = &line[colon + 1..];
         if !valid_name(name) || !valid_value(value) {
-            return Err(());
+            return Err(HeadError::Malformed);
         }
         let lower = name.to_ascii_lowercase();
         match lower.as_slice() {
             b"authorization" => {
                 if authorization.is_some() {
-                    return Err(());
+                    return Err(HeadError::Malformed);
                 }
                 authorization = Some(trim_ows(value).to_vec());
             }
             b"last-event-id" => {
                 if last_event_id.is_some() {
-                    return Err(());
+                    return Err(HeadError::Malformed);
                 }
                 last_event_id = Some(trim_ows(value).to_vec());
             }
             b"kalsa-room-epoch" => {
                 if room_epoch.is_some() {
-                    return Err(());
+                    return Err(HeadError::Malformed);
                 }
                 room_epoch = Some(trim_ows(value).to_vec());
             }
@@ -200,29 +224,32 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
             // refused like every other repeated private header.
             b"x-kalsa-slot" => {
                 if slot_seen {
-                    return Err(());
+                    return Err(HeadError::Malformed);
                 }
                 slot_seen = true;
             }
             b"x-kalsa-cache-salt" => {
                 if salt_seen {
-                    return Err(());
+                    return Err(HeadError::Malformed);
                 }
                 salt_seen = true;
             }
             b"content-length" => {
                 if body_length.is_some() {
-                    return Err(());
+                    return Err(HeadError::Malformed);
                 }
                 let value = trim_ows(value);
-                let value = std::str::from_utf8(value).map_err(|_| ())?;
-                let length = value.parse::<usize>().map_err(|_| ())?;
+                let value = std::str::from_utf8(value).map_err(|_| HeadError::Malformed)?;
+                let length = value.parse::<usize>().map_err(|_| HeadError::Malformed)?;
                 if length > MAX_BODY {
-                    return Err(());
+                    // The head is still read to its end: the origin may come
+                    // after this line, and the webview has to be allowed to
+                    // read the 413 that answers it.
+                    too_large = true;
                 }
                 body_length = Some(length);
             }
-            b"transfer-encoding" => return Err(()),
+            b"transfer-encoding" => return Err(HeadError::Malformed),
             b"connection" => {
                 // Headers named by `Connection` die with it.
                 for entry in value.split(|byte| *byte == b',') {
@@ -255,6 +282,9 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
         }
     }
     let origin = origin.filter(|_| !origin_twice);
+    if too_large {
+        return Err(HeadError::TooLarge { origin });
+    }
     let preflight = is_options && asks_for_method && origin.is_some();
     forwarded.extend_from_slice(b"Connection: close\r\n");
     Ok(UnsealedHead {
@@ -274,11 +304,11 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, ()> {
 /// HTTP/1.1, and nothing else. It returns the target because the door's own
 /// routing decision reads it, and one parse is one place for a bad line to be
 /// refused.
-fn request_target(line: &[u8]) -> Result<&[u8], ()> {
+fn request_target(line: &[u8]) -> Result<&[u8], HeadError> {
     let mut parts = line.split(|byte| *byte == b' ');
-    let method = parts.next().ok_or(())?;
-    let target = parts.next().ok_or(())?;
-    let version = parts.next().ok_or(())?;
+    let method = parts.next().ok_or(HeadError::Malformed)?;
+    let target = parts.next().ok_or(HeadError::Malformed)?;
+    let version = parts.next().ok_or(HeadError::Malformed)?;
     if parts.next().is_some()
         || method.is_empty()
         || !method.iter().copied().all(is_token)
@@ -286,7 +316,7 @@ fn request_target(line: &[u8]) -> Result<&[u8], ()> {
         || target.iter().copied().any(is_ctl)
         || version != b"HTTP/1.1"
     {
-        return Err(());
+        return Err(HeadError::Malformed);
     }
     Ok(target)
 }
@@ -358,6 +388,33 @@ mod tests {
         assert!(forwarded.contains("Host: localhost\r\n"));
         assert_eq!(head.body_length, 0);
         assert!(head.authorization.is_none());
+    }
+
+    #[test]
+    fn a_body_past_the_cap_is_the_size_refusal() {
+        // The origin comes after the oversized length on purpose: the head is
+        // read to its end anyway, so the 413 can name the origin a browser
+        // sent — wherever in the head it was.
+        let head = format!(
+            "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
+             Content-Length: {}\r\nOrigin: tauri://localhost\r\n\r\n",
+            super::MAX_BODY + 1
+        );
+        match parse(head.as_bytes()) {
+            Err(super::HeadError::TooLarge { origin }) => {
+                assert_eq!(origin.as_deref(), Some(&b"tauri://localhost"[..]));
+            }
+            _ => panic!("a body past the cap was refused as something else"),
+        }
+        let at_cap = format!(
+            "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
+             Content-Length: {}\r\n\r\n",
+            super::MAX_BODY
+        );
+        assert_eq!(
+            parse(at_cap.as_bytes()).expect("the cap itself is a body the door reads").body_length,
+            super::MAX_BODY
+        );
     }
 
     #[test]

@@ -323,8 +323,12 @@ fn a_generation_in_flight_is_not_quiet_and_the_end_of_the_relay_is() {
     door.shutdown();
 }
 
+/// A body the engine never received is not a turn: the client announces a
+/// body, never sends it, and closes. The door reads the whole body before any
+/// upstream socket exists, so the request stops at the door — nothing reached
+/// the engine, nothing wrote the slot, and nothing may be saved as if it had.
 #[test]
-fn an_interrupted_generation_still_marks_the_slot() {
+fn an_interrupted_body_never_reaches_the_engine_or_marks_the_slot() {
     let slot_dir = temp_dir("cadence-interrupted");
     let engine = Engine::start(&slot_dir);
     let token = credential();
@@ -332,10 +336,6 @@ fn an_interrupted_generation_still_marks_the_slot() {
     assert_eq!(status_of(&activate(address, Some(&token), "aaaa1111")), 204);
     let opened = engine.sent().len();
 
-    // The client announces a body and never sends it, then closes. The door's
-    // relay of the request ends in an error — the branch a client that hangs up
-    // or a door that stops leaves by — and the engine may have read a partial
-    // request and started a turn, so the slot cannot be called clean.
     let mut client = TcpStream::connect(address).unwrap();
     write!(
         client,
@@ -346,19 +346,27 @@ fn an_interrupted_generation_still_marks_the_slot() {
     .unwrap();
     client.shutdown(Shutdown::Write).unwrap();
 
-    // This waits for the mark to exist, not for a clock: the tick's instant is
-    // injected, so a loaded machine cannot decide the outcome — only whether
-    // the wait had to loop.
-    let deadline = Instant::now() + Duration::from_secs(3);
-    while door.save_idle(quiet_since(Instant::now())) == 0 {
-        assert!(Instant::now() < deadline, "an interrupted generation left the slot clean");
-        thread::sleep(Duration::from_millis(2));
-    }
+    // The door closes the connection when the body never arrives: no answer is
+    // written for a request it never read, and the close is the signal that it
+    // is done with it.
+    let mut answer = Vec::new();
+    client.read_to_end(&mut answer).unwrap();
+    assert!(answer.is_empty(), "an unanswered request got an answer: {answer:?}");
     assert_eq!(
         engine.sent().len(),
-        opened + 1,
-        "the interrupted turn was not written out exactly once: {:?}",
+        opened,
+        "a body that never arrived reached the engine: {:?}",
         &engine.sent()[opened..]
+    );
+
+    // Nothing was written into the slot, so no instant can make it writable:
+    // an hour from now is the same answer as a millisecond, and the tick's
+    // instant is injected rather than slept through.
+    let far = Instant::now() + Duration::from_secs(3600);
+    assert_eq!(
+        door.save_idle(far),
+        0,
+        "a request the engine never saw was saved as a turn"
     );
     drop(client);
     door.shutdown();

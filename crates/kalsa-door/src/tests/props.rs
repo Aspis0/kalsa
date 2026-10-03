@@ -76,6 +76,50 @@ fn a_props_answer_reaches_the_device_without_the_model_path() {
     }
 }
 
+/// The capability the clients read out of `/props`: the engine's
+/// `modalities` object — which media this model can take — survives the
+/// rewrite as it was, nested fields and all. The door drops the model path
+/// and changes nothing else.
+#[test]
+fn the_engines_modalities_reach_the_device_intact() {
+    let modalities = serde_json::json!({
+        "vision": true,
+        "audio": false,
+        "video": false,
+        "image": { "formats": ["jpeg", "png"], "max_pixels": 1_048_576 },
+    });
+    let (port, stop, upstream) = json_upstream(
+        serde_json::json!({
+            "model_path": MODEL_PATH,
+            "modalities": modalities,
+            "n_ctx": 65_536,
+        })
+        .to_string(),
+        false,
+    );
+    let token = credential();
+    let (door, address) = door(port, &[&token]);
+    let response = exchanged(address, &props_request(&token));
+
+    assert!(
+        response.starts_with(b"HTTP/1.1 200 OK\r\n"),
+        "the device was not served: {}",
+        String::from_utf8_lossy(&response)
+    );
+    let json: serde_json::Value =
+        serde_json::from_slice(response_body(&response)).expect("still JSON");
+    assert_eq!(
+        json["modalities"],
+        modalities,
+        "the capabilities did not survive the rewrite: {json}"
+    );
+    assert!(json.get("model_path").is_none(), "the path is still in the body: {json}");
+
+    stop.store(true, Ordering::SeqCst);
+    let _ = upstream.join();
+    door.shutdown();
+}
+
 /// A body the door cannot rewrite is answered with an error, not relayed:
 /// the path in it is a leak, and leaking is worse than a failed /props.
 #[test]

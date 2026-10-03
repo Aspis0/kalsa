@@ -56,6 +56,7 @@ mod cors;
 mod devices;
 mod engine;
 mod jobs;
+mod media;
 mod paging;
 mod payload;
 mod proxy;
@@ -177,6 +178,31 @@ pub(crate) fn no_slot_response(capacity: u32, origin: Option<&[u8]>) -> Vec<u8> 
          Content-Type: text/plain; charset=utf-8\r\n\
          Content-Length: {}\r\nConnection: close\r\n\r\n{words}",
         words.len()
+    )
+    .into_bytes()
+}
+/// The answer for a body past the door's cap: the head parser refuses it
+/// before a byte of the body is read, and the honest code is the one that says
+/// the size — not the unauthorized refusal a head the door cannot trust gets.
+/// The origin is named when the head carried one, so a browser is allowed to
+/// read this answer instead of reporting a network failure.
+pub(crate) fn too_large_response(origin: Option<&[u8]>) -> Vec<u8> {
+    let body = serde_json::json!({
+        "error": {
+            "message": format!(
+                "The request body is larger than the {} MiB this door accepts.",
+                request::MAX_BODY / (1024 * 1024)
+            ),
+            "type": "invalid_request_error",
+            "code": 413,
+        }
+    })
+    .to_string();
+    let origin_headers = cors::origin_headers(origin);
+    format!(
+        "HTTP/1.1 413 Payload Too Large\r\n{origin_headers}Content-Type: application/json\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
     )
     .into_bytes()
 }

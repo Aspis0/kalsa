@@ -14,6 +14,8 @@ use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 mod cors;
 mod cors_answers;
 mod logging;
+mod media;
+mod media_guard;
 mod paging;
 mod answer_limits;
 mod patience;

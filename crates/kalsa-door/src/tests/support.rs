@@ -20,6 +20,7 @@ pub(super) struct RecordingUpstream {
     pub(super) port: u16,
     accepts: Arc<AtomicUsize>,
     heads: Arc<Mutex<Vec<Vec<u8>>>>,
+    bodies: Arc<Mutex<Vec<Vec<u8>>>>,
     stop: Arc<AtomicBool>,
     handle: Option<thread::JoinHandle<()>>,
 }
@@ -31,9 +32,11 @@ impl RecordingUpstream {
         let stop = Arc::new(AtomicBool::new(false));
         let accepts = Arc::new(AtomicUsize::new(0));
         let heads = Arc::new(Mutex::new(Vec::new()));
+        let bodies = Arc::new(Mutex::new(Vec::new()));
         let thread_stop = Arc::clone(&stop);
         let thread_accepts = Arc::clone(&accepts);
         let thread_heads = Arc::clone(&heads);
+        let thread_bodies = Arc::clone(&bodies);
         let handle = thread::spawn(move || {
             listener.set_nonblocking(true).unwrap();
             while !thread_stop.load(Ordering::SeqCst) {
@@ -43,6 +46,7 @@ impl RecordingUpstream {
                         // Each connection is served on its own thread: a
                         // held exchange must not stop the next accept.
                         let heads = Arc::clone(&thread_heads);
+                        let bodies = Arc::clone(&thread_bodies);
                         thread::spawn(move || {
                             let mut stream = stream;
                             stream.set_nonblocking(false).unwrap();
@@ -51,7 +55,18 @@ impl RecordingUpstream {
                             if read_until(&mut stream, b"\r\n\r\n", &mut head).is_err() {
                                 return;
                             }
+                            // The body is read before the answer goes out, so
+                            // a test can hold the door to what it relayed.
+                            let length: usize = header_values(&head, "content-length")
+                                .first()
+                                .and_then(|value| value.parse().ok())
+                                .unwrap_or(0);
+                            let mut body = vec![0u8; length];
+                            if stream.read_exact(&mut body).is_err() {
+                                return;
+                            }
                             heads.lock().unwrap().push(head);
+                            bodies.lock().unwrap().push(body);
                             let _ = std::io::Write::write_all(
                                 &mut stream,
                                 b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
@@ -69,6 +84,7 @@ impl RecordingUpstream {
             port,
             accepts,
             heads,
+            bodies,
             stop,
             handle: Some(handle),
         }
@@ -80,6 +96,11 @@ impl RecordingUpstream {
 
     pub(super) fn heads(&self) -> Vec<Vec<u8>> {
         self.heads.lock().unwrap().clone()
+    }
+
+    /// Every request body the upstream read, in the order the requests came.
+    pub(super) fn bodies(&self) -> Vec<Vec<u8>> {
+        self.bodies.lock().unwrap().clone()
     }
 }
 

@@ -13,7 +13,7 @@ use std::sync::{Mutex, Once, OnceLock};
 use std::time::{Duration, Instant};
 
 use super::paging_support::{activate, door_of, file_name, status_of, temp_dir, Engine, Reply, HASH};
-use super::support::{door, exchanged, RecordingUpstream};
+use super::support::{door, exchanged, RecordingUpstream, ORIGIN};
 use super::*;
 use crate::audit::line::id_hash;
 
@@ -325,6 +325,56 @@ fn a_release_relaxes_the_map_and_says_how_many_slots() {
             .iter()
             .any(|line| line.contains("engine residency invalidated: 4 slot(s) -> unknown")),
         "the release is not on the record: {lines:?}"
+    );
+    door.shutdown();
+}
+
+/// A refused media source is named nowhere: not in the 400 the client reads,
+/// and not in the line the door writes about it. The address is a canary no
+/// other test writes, in a URL whose host, path and query all carry it.
+#[test]
+fn a_refused_media_source_is_not_in_the_answer_or_the_line() {
+    capture();
+    let upstream = RecordingUpstream::start();
+    let token = credential();
+    let (door, address) = door(upstream.port, &[&token]);
+    const CANARY: &str = "media-leak-canary-7f31";
+    let body = format!(
+        "{{\"messages\":[{{\"role\":\"user\",\"content\":[{{\"type\":\"image_url\",\
+         \"image_url\":{{\"url\":\"http://{CANARY}.example/private/{CANARY}.png?token={CANARY}\"}}}}]}}]}}"
+    );
+    let request = format!(
+        "POST {ROUTE} HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {token}\r\n\
+         Origin: {ORIGIN}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\
+         Connection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let since = line_count();
+    let response = exchanged(address, &request);
+    let text = String::from_utf8_lossy(&response).to_string();
+    assert_eq!(status_of(&response), 400, "the source was not refused: {text}");
+    assert!(!text.contains(CANARY), "the refused source reached the answer: {text}");
+    assert_eq!(
+        upstream.accepts(),
+        0,
+        "the engine was contacted for a refused body"
+    );
+
+    let _ = wait_for_new("reason door.media_source_refused", since);
+    // One more settle: a line written a moment after the marker's own is in
+    // the snapshot the canary is searched in.
+    thread::sleep(Duration::from_millis(50));
+    let lines = lines().lock().unwrap().clone();
+    assert!(
+        lines
+            .iter()
+            .skip(since)
+            .any(|line| line.contains("reason door.media_source_refused")),
+        "the refusal is not on the record: {lines:?}"
+    );
+    assert!(
+        !lines.iter().skip(since).any(|line| line.contains(CANARY)),
+        "the refused source reached the log: {lines:?}"
     );
     door.shutdown();
 }
