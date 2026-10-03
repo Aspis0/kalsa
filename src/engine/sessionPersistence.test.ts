@@ -447,6 +447,12 @@ describe("shouldSaveSession", () => {
       shouldSaveSession({ ...common, kvReproducible: false }),
     ).toEqual({ save: false, reason: "kv_not_reproducible" });
   });
+
+  test("refuses the KV of a GPU-poisoned context (iOS suspension)", () => {
+    expect(
+      shouldSaveSession({ ...common, kvReproducible: true, kvPoisoned: true }),
+    ).toEqual({ save: false, reason: "kv_poisoned" });
+  });
 });
 
 describe("hybrid snapshot consistency", () => {

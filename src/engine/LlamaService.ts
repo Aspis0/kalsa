@@ -521,6 +521,32 @@ let disposing = false;
 let contextHung = false;
 
 /**
+ * True while the resident context's GPU state is known-broken: an iOS
+ * suspension latches `has_error` inside ggml-metal, and only a newly created
+ * context clears it. Set by the iOS background guard
+ * (`src/host/iosBackgroundGuard.ts`), cleared when that context is released.
+ * While it is set the context's KV is never written to disk
+ * (`shouldSaveSession` in sessionPersistence.ts) — a cache whose compute path
+ * is broken must not outlive the context it was decoded on.
+ */
+let contextPoisoned = false;
+
+/** Mark the resident context as GPU-poisoned; see `contextPoisoned`. */
+export function markContextPoisoned(): void {
+  contextPoisoned = true;
+}
+
+/** Whether the resident context's GPU state is known-broken. */
+export function isContextPoisoned(): boolean {
+  return contextPoisoned;
+}
+
+/** The poisoned context is gone (released): the next load builds a fresh one. */
+export function clearContextPoison(): void {
+  contextPoisoned = false;
+}
+
+/**
  * VmRSS sampled after a successful initLlama. Telemetry only — RSS collapse
  * is mmap eviction, not a lost signal.
  */
@@ -3487,6 +3513,7 @@ export async function saveEngineSession(
         kvHoldsChatSession,
         kvReproducible: kvReproState.reproducible,
         kvDivergesAtLastExchange: kvReproState.divergesAtLastExchange,
+        kvPoisoned: contextPoisoned,
       });
       if (!gate.save) {
         log(false, { reason: gate.reason ?? "no_context" });

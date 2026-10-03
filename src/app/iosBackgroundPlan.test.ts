@@ -1,4 +1,8 @@
-import { iosBackgroundPlan } from "./iosBackgroundPlan";
+import {
+  iosBackgroundMarkAfterRelease,
+  iosBackgroundPlan,
+  type LocalReleaseOutcome,
+} from "./iosBackgroundPlan";
 
 const none = { stop: false, mark: false, release: false };
 
@@ -8,6 +12,8 @@ const plan = (over: Partial<Parameters<typeof iosBackgroundPlan>[0]> = {}) =>
     event: "background",
     sending: true,
     remote: false,
+    nativeWork: true,
+    loadInProgress: false,
     reloadPending: false,
     ...over,
   });
@@ -17,8 +23,44 @@ describe("iosBackgroundPlan", () => {
     expect(plan()).toEqual({ stop: true, mark: true, release: false });
   });
 
+  test("stops a local send even before its native completion registers", () => {
+    expect(plan({ nativeWork: false })).toEqual({
+      stop: true,
+      mark: true,
+      release: false,
+    });
+  });
+
+  test("marks native work with no send of its own — a prewarm, an extraction", () => {
+    expect(plan({ sending: false, nativeWork: true })).toEqual({
+      stop: false,
+      mark: true,
+      release: false,
+    });
+  });
+
+  test("marks a load building a context before its initLlama registers", () => {
+    expect(plan({ sending: false, nativeWork: false, loadInProgress: true })).toEqual({
+      stop: false,
+      mark: true,
+      release: false,
+    });
+  });
+
   test("leaves a remote send alone: no local GPU is in the way", () => {
-    expect(plan({ remote: true })).toEqual(none);
+    expect(plan({ remote: true, nativeWork: false })).toEqual(none);
+  });
+
+  test("marks a remote send's local background work but never stops it", () => {
+    expect(plan({ remote: true, nativeWork: true })).toEqual({
+      stop: false,
+      mark: true,
+      release: false,
+    });
+  });
+
+  test("an engine resident and idle is not work: no mark", () => {
+    expect(plan({ sending: false, nativeWork: false })).toEqual(none);
   });
 
   test("does nothing on inactive: Control Center and the app switcher fire it", () => {
@@ -27,25 +69,49 @@ describe("iosBackgroundPlan", () => {
 
   test("does nothing on Android, whatever the send is doing", () => {
     expect(plan({ platform: "android" })).toEqual(none);
-    expect(plan({ platform: "android", event: "active", reloadPending: true })).toEqual(none);
-  });
-
-  test("background with no send in flight marks nothing", () => {
-    expect(plan({ sending: false })).toEqual(none);
+    expect(
+      plan({ platform: "android", event: "active", reloadPending: true }),
+    ).toEqual(none);
   });
 
   test("releases the marked context on the way back — once", () => {
-    expect(plan({ event: "active", sending: false, reloadPending: true })).toEqual({
-      stop: false,
-      mark: false,
-      release: true,
-    });
-    // The caller consumes the mark synchronously, so the next active event
-    // (iOS may emit more than one) finds nothing pending.
-    expect(plan({ event: "active", sending: false, reloadPending: false })).toEqual(none);
+    expect(
+      plan({
+        event: "active",
+        sending: false,
+        nativeWork: false,
+        reloadPending: true,
+      }),
+    ).toEqual({ stop: false, mark: false, release: true });
+    // The caller consumes the mark before the (async) release, so the next
+    // active event (iOS may emit more than one) finds nothing pending.
+    expect(
+      plan({
+        event: "active",
+        sending: false,
+        nativeWork: false,
+        reloadPending: false,
+      }),
+    ).toEqual(none);
   });
 
   test("active without a mark does nothing", () => {
-    expect(plan({ event: "active", sending: false })).toEqual(none);
+    expect(plan({ event: "active", sending: false, nativeWork: false })).toEqual(none);
+  });
+});
+
+describe("iosBackgroundMarkAfterRelease", () => {
+  const after = (outcome: LocalReleaseOutcome) => iosBackgroundMarkAfterRelease(outcome);
+
+  test("a real release ends the mark and is the only thing logged", () => {
+    expect(after("released")).toEqual({ keepMark: false, released: true });
+  });
+
+  test("no context left to release ends the mark silently", () => {
+    expect(after("absent")).toEqual({ keepMark: false, released: false });
+  });
+
+  test("a withheld release keeps the mark for the next active retry", () => {
+    expect(after("withheld")).toEqual({ keepMark: true, released: false });
   });
 });

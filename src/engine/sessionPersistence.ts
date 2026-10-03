@@ -838,8 +838,12 @@ export function shouldSaveSession(args: {
   kvHoldsChatSession: boolean;
   kvReproducible: boolean;
   kvDivergesAtLastExchange?: boolean;
+  /** The resident context's GPU state is known-broken (`LlamaService`
+   *  `contextPoisoned`): the KV decoded on it must not outlive it. */
+  kvPoisoned?: boolean;
 }): { save: boolean; reason?: string; preservePrefix?: boolean } {
   if (!args.hasContext) return { save: false, reason: "no_context" };
+  if (args.kvPoisoned) return { save: false, reason: "kv_poisoned" };
   if (args.disposing) return { save: false, reason: "disposing" };
   if (!args.kvHoldsChatSession) return { save: false, reason: "kv_not_chat" };
   if (!args.kvReproducible) {
