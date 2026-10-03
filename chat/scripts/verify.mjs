@@ -1454,10 +1454,15 @@ const tests = {
       { timeout: 20000 },
     );
     const body = await lastBody(page);
-    const pinned = (body?.messages ?? []).find(
-      (m) => m.role === "system" && (m.content ?? "").includes("Attached documents"),
+    // One system message, first — the fixed prompt with the pinned documents
+    // appended to it, not a second message after it.
+    const systems = (body?.messages ?? []).filter((m) => m.role === "system");
+    check(
+      "attachtxt: one system message, first",
+      systems.length === 1 && body?.messages?.[0] === systems[0],
+      `${systems.length} system message(s)`,
     );
-    check("attachtxt: wire has pinned block", (pinned?.content ?? "").includes("Report body.") && (pinned?.content ?? "").includes("report.txt"));
+    check("attachtxt: wire has pinned block", (systems[0]?.content ?? "").includes("Report body.") && (systems[0]?.content ?? "").includes("report.txt"));
     await browser.close();
   },
 

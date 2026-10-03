@@ -82,30 +82,49 @@ const ATTACHMENT = {
   active: true,
 };
 
-// The prompt is the wire's first message, exactly once, with and without
-// documents, and the documents follow it.
+// The wire carries ONE system message — several chat templates render only
+// the one at index 0 — and it is the fixed prompt with the pinned documents
+// appended to the same content, which keeps the prompt as the byte prefix the
+// engine's cache holds onto.
 const withDocs = buildPinnedContext(MESSAGES, [ATTACHMENT], null);
-equal("first wire message is the system prompt", withDocs.wire[0], SYSTEM_PROMPT);
 equal(
-  "the prompt appears exactly once",
-  withDocs.wire.filter((m) => m.content === SYSTEM_PROMPT.content).length,
+  "one system message with documents attached",
+  withDocs.wire.filter((m) => m.role === "system").length,
   1,
 );
+equal("the system message is first", withDocs.wire[0], withDocs.wire.find((m) => m.role === "system"));
 check(
-  "the pinned documents follow the prompt",
-  withDocs.wire[1]?.role === "system" && (withDocs.wire[1]?.content ?? "").startsWith("Attached documents"),
+  "it starts with the fixed prompt, byte for byte",
+  (withDocs.wire[0]?.content ?? "").startsWith(SYSTEM_PROMPT.content),
+  JSON.stringify((withDocs.wire[0]?.content ?? "").slice(0, 70)),
+);
+check(
+  "the pinned documents ride in the same message",
+  (withDocs.wire[0]?.content ?? "").includes("Attached documents") &&
+    (withDocs.wire[0]?.content ?? "").includes("report.txt") &&
+    (withDocs.wire[0]?.content ?? "").includes("HELLO"),
+  JSON.stringify((withDocs.wire[0]?.content ?? "").slice(-90)),
+);
+check(
+  "the prompt is followed by a blank line, then the block",
+  (withDocs.wire[0]?.content ?? "").includes(`${SYSTEM_PROMPT.content}\n\nAttached documents`),
+);
+check(
+  "the turn follows the one system message",
+  withDocs.wire[1]?.role === "user" && withDocs.wire[1]?.content === "Look at my picture.",
   JSON.stringify(withDocs.wire[1] ?? null).slice(0, 120),
 );
-check(
-  "the turn is still on the wire",
-  withDocs.wire.some((m) => m.role === "user" && m.content === "Look at my picture."),
-);
+
 const withoutDocs = buildPinnedContext(MESSAGES, [], null);
-equal("without documents the prompt is still first", withoutDocs.wire[0], SYSTEM_PROMPT);
 equal(
-  "without documents it is still once",
-  withoutDocs.wire.filter((m) => m.content === SYSTEM_PROMPT.content).length,
+  "one system message without documents",
+  withoutDocs.wire.filter((m) => m.role === "system").length,
   1,
+);
+equal("without documents the content is the prompt itself", withoutDocs.wire[0], SYSTEM_PROMPT);
+check(
+  "without documents no block is appended",
+  !(withoutDocs.wire[0]?.content ?? "").includes("Attached documents"),
 );
 
 // The fit counts it: what the wire costs for a conversation is the stored
@@ -127,8 +146,8 @@ check(
 );
 
 // One turn through the tool loop: round one asks for a call, round two
-// answers after the result, and both requests carry the prompt once and
-// first.
+// answers after the result, and both requests carry the one system message,
+// first, still whole.
 const bodies = [];
 const server = createServer((request, response) => {
   let raw = "";
@@ -179,16 +198,17 @@ server.close();
 equal("the tool round asked twice", bodies.length, 2);
 for (const [index, body] of bodies.entries()) {
   const round = index + 1;
-  equal(`round ${round}: the prompt is first`, body.messages[0], SYSTEM_PROMPT);
-  equal(
-    `round ${round}: the prompt appears exactly once`,
-    body.messages.filter((m) => m.content === SYSTEM_PROMPT.content).length,
-    1,
+  const systems = body.messages.filter((m) => m.role === "system");
+  equal(`round ${round}: exactly one system message`, systems.length, 1);
+  equal(`round ${round}: it is the first message`, body.messages[0], systems[0]);
+  check(
+    `round ${round}: it still starts with the fixed prompt`,
+    (body.messages[0]?.content ?? "").startsWith(SYSTEM_PROMPT.content),
+    JSON.stringify((body.messages[0]?.content ?? "").slice(0, 70)),
   );
   check(
-    `round ${round}: the documents still follow`,
-    (body.messages[1]?.content ?? "").startsWith("Attached documents"),
-    JSON.stringify(body.messages[1] ?? null).slice(0, 120),
+    `round ${round}: the documents still ride in it`,
+    (body.messages[0]?.content ?? "").includes("Attached documents"),
   );
 }
 check(

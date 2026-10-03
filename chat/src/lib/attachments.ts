@@ -274,7 +274,7 @@ export async function extractAttachment(file: File): Promise<Attachment> {
 }
 
 /**
- * The one system message every request carries, first in the wire. Fixed on
+ * The fixed prompt that heads every request's one system message. Fixed on
  * purpose: the engine caches the prompt's prefix, so a byte that moves between
  * turns (a date, a model name, a count) would re-prefill the conversation. It
  * answers the two questions a model left to guess gets wrong — what it can
@@ -302,15 +302,28 @@ export function wireTokens(messages: ChatMessage[]): number {
   return historyTokens(messages) + SYSTEM_PROMPT_TOKENS;
 }
 
-function docBlockFor(docs: Attachment[]): WireMessage {
+/** The pinned-documents text, for the tail of the one system message: the
+    block, then one section per document. */
+function docBlockText(docs: Attachment[]): string {
   const parts = docs.map(
     (d) =>
       `--- ${d.name} (${d.kind}${d.pages !== undefined ? `, ${d.pages} pages` : ""}, ≈${d.tokens} tokens) ---\n${d.text}`,
   );
-  return {
-    role: "system",
-    content: `Attached documents (pinned — they stay even as older turns are dropped):\n\n${parts.join("\n\n")}`,
-  };
+  return `Attached documents (pinned — they stay even as older turns are dropped):\n\n${parts.join("\n\n")}`;
+}
+
+/**
+ * The wire's ONE system message: the fixed prompt, and — when documents are
+ * pinned — their block appended to the same content after a blank line. One
+ * message, not two: several chat templates render a system message only at
+ * index 0 (the Gemma family notably), so a second one can be dropped or
+ * misplaced. The prompt's bytes are the content's prefix, which is the prefix
+ * the engine's cache holds onto; the documents' own weight is the fit's
+ * `docTokens`, so nothing is counted twice.
+ */
+function systemMessage(docs: Attachment[]): WireMessage {
+  if (docs.length === 0) return SYSTEM_PROMPT;
+  return { role: "system", content: `${SYSTEM_PROMPT.content}\n\n${docBlockText(docs)}` };
 }
 
 /**
@@ -361,10 +374,10 @@ export type PinnedContext =
   | { status: "refused"; need: number; have: number; docTokens: number; historyTokens: number };
 
 /**
- * Assemble what is actually sent: the fixed system prompt first, then the
- * pinned documents (they are never pruned), then turns newest-kept — oldest
- * turns drop first when the known context fills. With unknown size nothing is
- * pruned or refused.
+ * Assemble what is actually sent: the one system message first — the fixed
+ * prompt with the pinned documents appended to it when any are active — then
+ * turns newest-kept, oldest turns dropping first when the known context fills.
+ * With unknown size nothing is pruned or refused.
  */
 export function buildPinnedContext(
   messages: ChatMessage[],
@@ -390,7 +403,6 @@ export function buildPinnedContext(
     }
   }
   const wire = turns.flatMap(wireFor);
-  if (actives.length > 0) wire.unshift(docBlockFor(actives));
-  wire.unshift(SYSTEM_PROMPT);
+  wire.unshift(systemMessage(actives));
   return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
 }
