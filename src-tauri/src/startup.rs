@@ -1341,9 +1341,9 @@ pub(crate) fn file_digest_is(path: &Path, size: u64, sha: &str) -> bool {
 /// The same check with its answer's honesty: `Err` when the file was never
 /// read whole — absent, not the promised size, or the disk said no — which
 /// is not an answer. `Ok(true)` is the pinned file, proven by reading it
-/// whole once (the record beside it then answers for the launches after)
-/// or by that record alone; `Ok(false)` is read whole and not it, the one
-/// answer a caller may treat as final.
+/// whole once (the record beside it then answers for the launches after,
+/// on its stamp and its sample) or by that record; `Ok(false)` is read
+/// whole and not it, the one answer a caller may treat as final.
 pub(crate) fn file_digest_checked(path: &Path, size: u64, sha: &str) -> std::io::Result<bool> {
     let started = std::time::Instant::now();
     let mut file = std::fs::File::open(path)?;
@@ -1358,17 +1358,18 @@ pub(crate) fn file_digest_checked(path: &Path, size: u64, sha: &str) -> std::io:
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|| "the file".to_string());
-    // A file that was read whole once and has not moved since (same size,
-    // same time, same file id) is answered from its record: the read that
-    // ended in a match is the expensive part, and repeating it every launch
-    // is the minute of silence this record exists to end.
+    // A file that was read whole once and has not moved since — same size,
+    // same time, same file id, and its sample reads back to the digest the
+    // record holds — is answered from that record: the read that ended in a
+    // match is the expensive part, and repeating it every launch is the
+    // minute of silence this record exists to end.
     let stamp = crate::verified::Stamp::of(&meta);
     if stamp
         .as_ref()
         .is_some_and(|stamp| crate::verified::unchanged(path, sha, stamp))
     {
         log::info!(
-            "model check: {name}: unchanged, sha256 skipped ({size} bytes, {:.2}s)",
+            "model check: {name}: sample matched, sha256 skipped ({size} bytes, {:.2}s)",
             started.elapsed().as_secs_f64()
         );
         return Ok(true);
@@ -1390,9 +1391,15 @@ pub(crate) fn file_digest_checked(path: &Path, size: u64, sha: &str) -> std::io:
         started.elapsed().as_secs_f64()
     );
     if matched {
-        // Only a match is worth writing down; a mismatch must be read again
-        // next launch, because the bytes may be replaced in between.
-        if let Some(stamp) = stamp {
+        // Only a match is worth writing down, and only for a stamp that held
+        // still through the whole read: the record must describe the bytes
+        // that are at the path now. A mismatch is read again next launch in
+        // any case, because the bytes may be replaced in between.
+        let after = file
+            .metadata()
+            .ok()
+            .and_then(|meta| crate::verified::Stamp::of(&meta));
+        if let Some(stamp) = crate::verified::recordable(stamp, after) {
             crate::verified::record(path, sha, &stamp);
         }
     }
@@ -1523,11 +1530,12 @@ mod tests {
     }
 
     /// The check reads a file whole once and writes the record beside it;
-    /// the launch after that answers from the record without reading the
-    /// file — the minute of silence a 22 GB model used to cost every start.
-    /// The other half is the security property: a change on disk (a byte
-    /// under a new time, a size that moved, a pin the record does not name)
-    /// is read again and answered on its bytes, never on the stamp.
+    /// the launch after that answers from the record — the stamp and the
+    /// sample — without reading the file, the minute of silence a 22 GB
+    /// model used to cost every start. The other half is the security
+    /// property: a change on disk (a byte inside the sample with the time
+    /// even put back, a byte under a new time, a size that moved, a pin the
+    /// record does not name) is read again and answered on its bytes.
     #[test]
     fn a_proven_file_is_answered_by_its_record_until_something_moves() {
         let dir = scratch("digest-record");
@@ -1537,26 +1545,23 @@ mod tests {
         let sha = digest_of(pinned);
         let size = pinned.len() as u64;
         assert!(file_digest_checked(&path, size, &sha).expect("the first read"));
-        // Same size, another byte under it, the time put back: the record
-        // answers true — proof that no read happened. This is the trade the
-        // record makes, stated in its own module.
+        // Same size, another byte under it, the time put back: the record's
+        // sample is read, disagrees, and the bytes are read whole and
+        // refused — the stamp alone is not the answer.
         let at = std::fs::metadata(&path)
             .expect("stat")
             .modified()
             .expect("mtime");
         std::fs::write(&path, b"XXXXXXXXXXXXXXXX").expect("write");
         set_mtime(&path, at);
-        assert_eq!(
-            file_digest_checked(&path, size, &sha).expect("the record's answer"),
-            true,
-            "the record answered, not the bytes"
+        assert!(
+            !file_digest_checked(&path, size, &sha).expect("the sample's answer"),
+            "a changed sample re-reads and refuses"
         );
-        // The time moved: the bytes are read again, and they are not the
-        // pinned ones after all.
+        // The time moved: still read again, and still not the pinned bytes.
         set_mtime(&path, at + std::time::Duration::from_secs(1));
-        assert_eq!(
-            file_digest_checked(&path, size, &sha).expect("the second read"),
-            false,
+        assert!(
+            !file_digest_checked(&path, size, &sha).expect("the second read"),
             "a moved time re-reads"
         );
         // The pinned bytes back, and a pin the record does not name: the
@@ -1564,9 +1569,8 @@ mod tests {
         std::fs::write(&path, pinned).expect("write");
         assert!(file_digest_checked(&path, size, &sha).expect("the third read"));
         let other = digest_of(b"another model entirely");
-        assert_eq!(
-            file_digest_checked(&path, size, &other).expect("the fourth read"),
-            false,
+        assert!(
+            !file_digest_checked(&path, size, &other).expect("the fourth read"),
             "a moved pin re-reads"
         );
         // A size that is not the pin's is refused before any read at all.

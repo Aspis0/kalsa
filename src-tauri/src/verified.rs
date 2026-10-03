@@ -4,22 +4,37 @@
 //! Reading 22 GB is a minute of silence on the way to a running assistant,
 //! and the file on disk is the same file it was last launch. So the read
 //! that ends in a match is written down — the pin, the size, the
-//! modification time, the file id — and the next launch compares the file
-//! against that line before reading a byte. Only a full match skips the
-//! read; a size or a time that moved, a file id that changed, a pin the
-//! record does not name, a record that cannot be parsed: each falls back to
-//! the sha256. The trust this buys is the trust a build system's stamp
-//! carries — a replacement that keeps the size, the time and the id is
-//! indistinguishable from the file that was read.
+//! modification time, the file id, and a digest of one sample of the file —
+//! and the next launch compares the file against that line before reading
+//! it whole: the same pin, the same stamp, and a fresh reading of the
+//! sample to the same digest. Only all three are answered from the record;
+//! a size or a time that moved, a file id that changed, a sample that
+//! disagrees, a pin the record does not name, a record that cannot be
+//! parsed: each falls back to the whole-file sha256. The sample is the
+//! file's first and last four MiB plus sixteen chunks of 256 KiB across the
+//! middle, at offsets the size alone decides — ~12 MiB of reads, a fraction
+//! of a second where the whole file is a minute — and it is what catches a
+//! changed byte inside the sampled ranges when the size, the time and the
+//! file id were all kept.
 
 use std::fs::Metadata;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
+
+use sha2::{Digest, Sha256};
 
 /// The suffix the record carries: `Qwen….gguf` → `Qwen….gguf.verified`.
 const SUFFIX: &str = ".verified";
 
+/// The sample's shape: the file's first and last [`SAMPLE_END`] bytes, plus
+/// [`SAMPLE_CHUNKS`] readings of [`SAMPLE_CHUNK`] across what lies between.
+const SAMPLE_END: u64 = 4 * 1024 * 1024;
+const SAMPLE_CHUNK: u64 = 256 * 1024;
+const SAMPLE_CHUNKS: u64 = 16;
+
 /// What a proven file looked like when it was last read whole.
+#[derive(Clone, Copy, PartialEq)]
 pub(crate) struct Stamp {
     size: u64,
     /// Nanoseconds since the epoch, as the platform's clock reports them,
@@ -48,7 +63,7 @@ impl Stamp {
 
 /// The file's own id where the platform keeps one: the Windows handle's
 /// lives behind an unstable feature, and a missing id only makes the record
-/// weaker, never wrong — the size and the time still stand.
+/// weaker, never wrong — the size, the time and the sample still stand.
 #[cfg(unix)]
 fn file_id(meta: &Metadata) -> u64 {
     use std::os::unix::fs::MetadataExt;
@@ -60,37 +75,119 @@ fn file_id(_meta: &Metadata) -> u64 {
     0
 }
 
-/// Whether the record beside `path` names this pin and this stamp, so the
-/// bytes need not be read again.
+/// The stamp worth writing down after a whole-file read: the one taken
+/// before it, and only if the file's own stamp after it is the same. A file
+/// that moved under the read is not a file the record may describe, and a
+/// stamp that cannot be read is no stamp at all.
+pub(crate) fn recordable(before: Option<Stamp>, after: Option<Stamp>) -> Option<Stamp> {
+    match (before, after) {
+        (Some(before), Some(after)) if before == after => Some(before),
+        _ => None,
+    }
+}
+
+/// Whether the record beside `path` says this file is the bytes that were
+/// read whole: the pin and the stamp it was written for, and a fresh
+/// reading of the sample to the digest it holds.
 pub(crate) fn unchanged(path: &Path, sha: &str, stamp: &Stamp) -> bool {
     let Some(record) = read(&record_path(path)) else {
         return false;
     };
-    record.sha.eq_ignore_ascii_case(sha)
-        && record.stamp.size == stamp.size
-        && record.stamp.modified_nanos == stamp.modified_nanos
-        && record.stamp.id == stamp.id
+    if !record.sha.eq_ignore_ascii_case(sha) || record.stamp != *stamp {
+        return false;
+    }
+    sample_digest(path, stamp.size).is_ok_and(|sample| sample == record.sample)
 }
 
-/// Writes the record beside `path` after a proof that held. A record that
-/// cannot be written costs the next launch a re-read, never the proof.
+/// Writes the record beside `path` after a proof that held. The line lands
+/// in a fresh temporary and takes the record's name by rename, so a link
+/// planted at that name is replaced rather than written through. A record
+/// that cannot be written costs the next launch a re-read, never the proof.
 pub(crate) fn record(path: &Path, sha: &str, stamp: &Stamp) {
+    let Ok(sample) = sample_digest(path, stamp.size) else {
+        return;
+    };
     let line = format!(
-        "{sha} {} {} {}\n",
+        "{sha} {} {} {} {sample}\n",
         stamp.size, stamp.modified_nanos, stamp.id
     );
-    let _ = std::fs::write(record_path(path), line);
+    let target = record_path(path);
+    let temp = beside(path, &format!("{SUFFIX}.tmp-{}", std::process::id()));
+    // `create_new` is the other half of the link guard: a temporary that
+    // already exists — a link among them — is not opened through, the
+    // write simply does not happen.
+    let written = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temp)
+        .and_then(|mut file| file.write_all(line.as_bytes()))
+        .is_ok();
+    if !written || std::fs::rename(&temp, &target).is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
 }
 
-/// The record's own path, beside the file it describes — the place the
-/// drafter's failure marker already uses.
-fn record_path(path: &Path) -> PathBuf {
+/// `name` in `path`'s own directory: the record, and the temporary it lands
+/// in — beside the file it describes, the place the drafter's failure
+/// marker already uses.
+fn beside(path: &Path, suffix: &str) -> PathBuf {
     let mut name = path
         .file_name()
         .map(|name| name.to_os_string())
         .unwrap_or_default();
-    name.push(SUFFIX);
+    name.push(suffix);
     path.with_file_name(name)
+}
+
+fn record_path(path: &Path) -> PathBuf {
+    beside(path, SUFFIX)
+}
+
+/// The ranges one sample reads, in the order it reads them: the file's
+/// first and last [`SAMPLE_END`] bytes, then [`SAMPLE_CHUNKS`] chunks of
+/// [`SAMPLE_CHUNK`] across what lies between, each offset a function of the
+/// size alone, so the launch that records and every launch that checks read
+/// the same bytes. A file smaller than the sample is read whole — the
+/// ranges overlap and some bytes are hashed twice, which is harmless when
+/// the reading is what must be the same.
+fn sample_ranges(size: u64) -> Vec<(u64, u64)> {
+    let mut ranges = vec![
+        (0, size.min(SAMPLE_END)),
+        (size.saturating_sub(SAMPLE_END), size.min(SAMPLE_END)),
+    ];
+    if size > 2 * SAMPLE_END {
+        let span = size - 2 * SAMPLE_END;
+        for index in 0..SAMPLE_CHUNKS {
+            let offset = SAMPLE_END + span * (2 * index + 1) / (2 * SAMPLE_CHUNKS);
+            ranges.push((offset, SAMPLE_CHUNK.min(size - offset)));
+        }
+    }
+    ranges.retain(|(_, len)| *len > 0);
+    ranges
+}
+
+/// The sha256 of one sample of the file at `path`, as lowercase hex.
+fn sample_digest(path: &Path, size: u64) -> std::io::Result<String> {
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0u8; 64 * 1024];
+    for (offset, len) in sample_ranges(size) {
+        file.seek(SeekFrom::Start(offset))?;
+        let mut left = len;
+        while left > 0 {
+            let want = left.min(buf.len() as u64) as usize;
+            let read = file.read(&mut buf[..want])?;
+            if read == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "the file ended inside its own sample",
+                ));
+            }
+            hasher.update(&buf[..read]);
+            left -= read as u64;
+        }
+    }
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 /// One record line's fields, or `None` when the file is missing or does not
@@ -104,96 +201,20 @@ fn read(path: &Path) -> Option<Record> {
         modified_nanos: fields.next()?.parse().ok()?,
         id: fields.next()?.parse().ok()?,
     };
-    fields.next().is_none().then_some(Record { sha, stamp })
+    let sample = fields.next()?.to_string();
+    fields.next().is_none().then_some(Record {
+        sha,
+        stamp,
+        sample,
+    })
 }
 
 struct Record {
     sha: String,
     stamp: Stamp,
+    sample: String,
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("kalsa-verified-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).expect("mkdir");
-        dir
-    }
-
-    fn stamp_of(path: &Path) -> Stamp {
-        Stamp::of(&std::fs::metadata(path).expect("stat")).expect("a stamp")
-    }
-
-    /// The recorded pin and stamp answer; every difference — another pin,
-    /// another byte under the same name, another size, a record that is not
-    /// one — reads again.
-    #[test]
-    fn a_recorded_file_answers_and_every_difference_re_reads() {
-        let dir = scratch("roundtrip");
-        let path = dir.join("model.gguf");
-        std::fs::write(&path, b"the bytes").expect("write");
-        let sha = "a".repeat(64);
-        assert!(
-            !unchanged(&path, &sha, &stamp_of(&path)),
-            "no record is not a match"
-        );
-        record(&path, &sha, &stamp_of(&path));
-        assert!(unchanged(&path, &sha, &stamp_of(&path)));
-        assert!(
-            !unchanged(&path, &"b".repeat(64), &stamp_of(&path)),
-            "a pin the record does not name"
-        );
-        // The same name and size, another byte: the time is the signal.
-        std::fs::write(&path, b"other one").expect("write");
-        assert!(!unchanged(&path, &sha, &stamp_of(&path)));
-        // A size that moved is the other signal, and a record that is not
-        // one — or misses a field — is no record at all.
-        std::fs::write(&path, b"a longer set of bytes").expect("write");
-        assert!(!unchanged(&path, &sha, &stamp_of(&path)), "the size moved");
-        record(&path, &sha, &stamp_of(&path));
-        assert!(unchanged(&path, &sha, &stamp_of(&path)));
-        std::fs::write(record_path(&path), "not a record\n").expect("write");
-        assert!(!unchanged(&path, &sha, &stamp_of(&path)));
-        std::fs::write(record_path(&path), format!("{sha} 1 2\n")).expect("write");
-        assert!(
-            !unchanged(&path, &sha, &stamp_of(&path)),
-            "a record missing a field is no record"
-        );
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    /// A replacement that restored the time is another file: the inode says
-    /// so on the platforms that have one.
-    #[cfg(unix)]
-    #[test]
-    fn a_replaced_file_with_the_restored_time_is_still_caught() {
-        let dir = scratch("replaced");
-        let path = dir.join("model.gguf");
-        std::fs::write(&path, b"the bytes").expect("write");
-        let sha = "c".repeat(64);
-        let stamp = stamp_of(&path);
-        record(&path, &sha, &stamp);
-        let modified = std::fs::metadata(&path)
-            .expect("stat")
-            .modified()
-            .expect("mtime");
-        // A file that exists while the old one does cannot be handed the
-        // old one's inode, so the replacement is guaranteed to be another
-        // file even where inode numbers are reused.
-        let replacement = dir.join("replacement.gguf");
-        std::fs::write(&replacement, b"the bytes").expect("write");
-        std::fs::rename(&replacement, &path).expect("replace");
-        std::fs::File::open(&path)
-            .expect("open")
-            .set_modified(modified)
-            .expect("restore the time");
-        let replacement = stamp_of(&path);
-        assert_eq!(replacement.modified_nanos, stamp.modified_nanos);
-        assert_ne!(replacement.id, stamp.id, "the replacement is another file");
-        assert!(!unchanged(&path, &sha, &replacement));
-        std::fs::remove_dir_all(&dir).ok();
-    }
-}
+#[path = "verified/tests.rs"]
+mod tests;
