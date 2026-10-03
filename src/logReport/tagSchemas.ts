@@ -65,14 +65,15 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     npu_fit: enumOrNull("Fit", "NoFit"), // governorInputs.ts:264 — null when the lane was not priced
     available_src: enumOrNull("fresh", "cached", "none"), // governorInputs.ts:265
   },
-  // LlamaService.ts:2456; reason is governorBase.reason (governorInputs.ts:342,
-  // `gpu-prefill-incorrect-<Generation>`, Generation at governorInputs.ts:66).
+  // LlamaService.ts:2456; reason is governorBase.reason (governorInputs.ts,
+  // `gpu-prefill-incorrect-<Generation>`, Generation in governorInputs.ts).
   KALSA_GOVERNOR_FALLBACK: {
     stage: enumOf("correctness"),
     reason: enumOf(
       "gpu-prefill-incorrect-V73",
       "gpu-prefill-incorrect-V75",
       "gpu-prefill-incorrect-V79",
+      "gpu-prefill-incorrect-V81",
       "gpu-prefill-incorrect-Unknown",
     ),
     forced: BOOL,

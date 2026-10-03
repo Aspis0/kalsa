@@ -110,6 +110,7 @@ describe("governor plan log", () => {
       android: true,
       hasMmproj: false,
       lanePref: "auto",
+      htpArch: 73,
     });
     expect(governor).toMatchObject({
       npu_lane_enabled: true,
@@ -157,6 +158,7 @@ describe("governor plan log", () => {
         hasMmproj: false,
         lanePref: "auto",
         laneModel,
+        htpArch: 73,
       }),
       undefined,
       "auto",

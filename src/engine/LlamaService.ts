@@ -57,6 +57,7 @@ import {
 } from "./staticPrefixSnapshot";
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
+import { readHtpRuntimeArch } from "./htpRuntimeArch";
 import {
   buildGovernorPlanLog,
   buildGovernorParams,
@@ -2380,6 +2381,12 @@ export function initEngine(
       const governorThermo = governorFeatureEnabled
         ? await readGovernorThermo()
         : null;
+      // The NPU auto gate reads the registered HTP device, not the SoC name:
+      // Android only, feature-gated, one native read per process (memoized).
+      const htpArch =
+        governorFeatureEnabled && Platform.OS === "android"
+          ? await readHtpRuntimeArch()
+          : null;
       const governorBase =
         governorFeatureEnabled && pricedModel != null
           ? buildGovernorParams(pricedModel, deviceProfile, {
@@ -2402,6 +2409,7 @@ export function initEngine(
               // reads as "auto"); with the lane off buildGovernorParams
               // prices the entry as if this were absent.
               laneModel,
+              htpArch,
             },
           )
           : null;
@@ -2570,7 +2578,13 @@ export function initEngine(
       ...(options.kvUnified ? { kv_unified: true } : {}), // hybrid/recurrent (Qwen3.5 DeltaNet)
       // Required for multimodal: without context shifting the media stay anchored.
       ctx_shift: isMultimodal ? false : true,
-      ...(governorLoad ? { governor: governorLoad } : {}),
+      ...(governorLoad
+        ? {
+            // The engine's governor parses "V81" (kalsa.rn); the pinned
+            // binding's ContextParams type lags until the next pin bump.
+            governor: governorLoad as unknown as ContextParams["governor"],
+          }
+        : {}),
     };
 
     // Android: an enabled governor with an invalid thermo sample or a

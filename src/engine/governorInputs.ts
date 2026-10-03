@@ -69,9 +69,15 @@ export type NpuLaneInputs = {
    *  pref requests the lane ("auto", absent included, or "on"): with the
    *  lane off the entry's own pricing stands, byte-identical to 7ddf39ad. */
   laneModel?: GovernorModel;
+  /** The Hexagon arch the runtime actually registered (readHtpRuntimeArch,
+   *  the "Hexagon v<NN>" HTP0 description); null when no HTP device is
+   *  registered or the read failed. The auto gate reads the device, not the
+   *  SoC name — an unknown SoC whose v79 HTP device registered takes the
+   *  lane, and a named SoC without a registered device does not. */
+  htpArch: number | null;
 };
 
-type Generation = "V73" | "V75" | "V79" | "Unknown";
+type Generation = "V73" | "V75" | "V79" | "V81" | "Unknown";
 
 /** Exported (keys only) for the logReport schema drift test — the one runtime source of the governor fallback generations. */
 export const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
@@ -86,6 +92,7 @@ export const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
    */
   V75: true,
   V73: true, // owner decision 2026-09-21: enabled in production, never measured in-app; kalsa.bench.governor_force still exists for the other paths
+  V81: false, // Adreno 840 unmeasured by the logit oracle; flips only after a PASS
   Unknown: false,
 };
 
@@ -127,12 +134,15 @@ function generationFor(profile: DeviceProfile): Generation {
   if (/(SM8550|KALAMA|SM7675|SM8635)/.test(soc)) return "V73";
   if (/(SM8650|PINEAPPLE)/.test(soc)) return "V75";
   if (/(SM8750|SUN)/.test(soc)) return "V79";
+  // QDC device logs: ro.soc.model=SM8850, board.platform=canoe, product.model=Canoe.
+  if (/(SM8850|CANOE)/.test(soc)) return "V81";
   const text = [profile.modelName, profile.modelId, profile.manufacturer]
     .filter((value): value is string => typeof value === "string")
     .join(" ")
     .toUpperCase();
   if (/(^|[^A-Z0-9])(QRD8650|SM8650)([^A-Z0-9]|$)/.test(text)) return "V75";
   if (/(^|[^A-Z0-9])(QRD8750|SM8750)([^A-Z0-9]|$)/.test(text)) return "V79";
+  if (/(^|[^A-Z0-9])(QRD8850|SM8850)([^A-Z0-9]|$)/.test(text)) return "V81";
   if (/(^|[^A-Z0-9])(HDK8550|SM8550|QRD7675|SM7675|QRD8635|SM8635)([^A-Z0-9]|$)/.test(text)) return "V73";
   return "Unknown";
 }
@@ -182,12 +192,10 @@ function lanePrice(model: GovernorModel, memory: MemorySnapshot, repack: boolean
 
 function laneFit(
   model: GovernorModel,
-  profile: DeviceProfile,
   memory: MemorySnapshot,
   repack: boolean,
   extraMiB = 0,
 ) {
-  if (generationFor(profile) === "Unknown") return "NoFit" as const;
   const lane = lanePrice(model, memory, repack);
   if (!lane) return "NoFit" as const;
   const verdict = fitMemoryEstimate(
@@ -200,21 +208,6 @@ function laneFit(
 
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
   return lane.requiredMiB + extraMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
-}
-
-/** Hexagon HTP arch a generation implies (the shipped libggml-htp-v73/75/79
- *  assets cover it); null when the SoC is unknown — no lane below v73. */
-export function htpArchFor(generation: Generation): number | null {
-  switch (generation) {
-    case "V73":
-      return 73;
-    case "V75":
-      return 75;
-    case "V79":
-      return 79;
-    default:
-      return null;
-  }
 }
 
 export function buildGovernorPlanLog(
@@ -278,7 +271,6 @@ export function buildGovernorPlanLog(
 
 function gpuFit(
   model: GovernorModel,
-  profile: DeviceProfile,
   memory: MemorySnapshot,
   benchNoRepack: boolean | undefined,
   extraMiB = 0,
@@ -291,10 +283,10 @@ function gpuFit(
   // skips the with-repack attempt (no-repack arm), "0" skips the P1 fallback
   // (repack-on arm, refused rather than silently re-priced); absent lets the
   // production order above decide.
-  if (benchNoRepack !== true && laneFit(model, profile, memory, true, extraMiB) === "Fit") {
+  if (benchNoRepack !== true && laneFit(model, memory, true, extraMiB) === "Fit") {
     return { fit: "Fit" as const, decodeRepack: true };
   }
-  if (benchNoRepack !== false && laneFit(model, profile, memory, false, extraMiB) === "Fit") {
+  if (benchNoRepack !== false && laneFit(model, memory, false, extraMiB) === "Fit") {
     return { fit: "Fit" as const, decodeRepack: false };
   }
   return { fit: "NoFit" as const, decodeRepack: benchNoRepack === false };
@@ -309,8 +301,7 @@ export function buildGovernorParams(
   npu?: NpuLaneInputs,
 ) {
   const generation = generationFor(deviceProfile);
-  const enabled = force || GPU_PREFILL_CORRECT[generation];
-  const lane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack);
+  const lane = gpuFit(modelEntry, memory, benchNoRepack);
   // Only a requested lane re-prices: lanePref is the one place "requested"
   // lives, so a load with the lane off (pref "off") prices npu_fit at the
   // entry's own caller profile, byte-identical to 7ddf39ad.
@@ -318,7 +309,6 @@ export function buildGovernorParams(
   const laneRequested = lanePref !== "off";
   const npuLane = gpuFit(
     laneRequested ? (npu?.laneModel ?? modelEntry) : modelEntry,
-    deviceProfile,
     memory,
     benchNoRepack,
     NPU_PREFILL_EXTRA_MIB,
@@ -337,7 +327,7 @@ export function buildGovernorParams(
   // degrades to GPU when HTP0 does not resolve.
   const androidOk = npu?.android ?? false;
   const visionOk = !npu?.hasMmproj;
-  const arch = htpArchFor(generation);
+  const arch = npu?.htpArch ?? null;
   const kindOk = modelKind(modelEntry) !== "MoE";
   const fitOk = npuLane.fit === "Fit";
   const autoOk = androidOk && visionOk && arch !== null && arch >= 73 && kindOk && fitOk;
@@ -345,6 +335,11 @@ export function buildGovernorParams(
     lanePref === "auto" ? autoOk
     : lanePref === "on" ? androidOk && visionOk && fitOk
     : false; // "off"
+  // The governor also loads lane-only: a generation whose GPU prefill is not
+  // qualified (V81, Unknown) still runs prefill on HTP0 with decode on CPU,
+  // so enabled is GPU-qualified OR lane enabled — and when both are false
+  // the Android-only n_gpu_layers guard lands the load on CPU.
+  const enabled = force || GPU_PREFILL_CORRECT[generation] || laneEnabled;
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
     enabled,

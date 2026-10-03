@@ -32,7 +32,6 @@ import { modelAtKvProfile } from "./kvQuantCost";
 import { effectiveCacheTypes } from "./engineParams";
 import {
   buildGovernorParams,
-  htpArchFor,
   npuLaneCacheTypes,
   readBenchGovernorForce,
   readBenchNpuLane,
@@ -105,7 +104,10 @@ describe("governor inputs", () => {
     expect(buildGovernorParams(model, device("unlisted"), memory).gpu_prefill_measured).toBe(
       false,
     );
-    expect(buildGovernorParams(model, device("unlisted"), memory).gpu_fit).toBe("NoFit");
+    // laneFit prices memory only: an Unknown SoC with no lane inputs still
+    // prices its GPU lane (Fit here) — the refusal lives in
+    // GPU_PREFILL_CORRECT, so `enabled` stays false and Android lands on CPU.
+    expect(buildGovernorParams(model, device("unlisted"), memory).gpu_fit).toBe("Fit");
     expect(
       buildGovernorParams(
         model,
@@ -159,6 +161,18 @@ describe("governor inputs", () => {
       bench_force_gpu_prefill: false,
       enabled: true,
     });
+  });
+
+  test("maps the Snapdragon 8 Elite Gen 5 (SM8850/Canoe) to V81, GPU prefill unmeasured", () => {
+    expect(buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "SM8850"), memory)).toMatchObject({
+      generation: "V81",
+      enabled: false,
+      gpu_prefill_measured: false,
+    });
+    // QDC device logs: board.platform=canoe, product.model=Canoe.
+    expect(buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "canoe"), memory).generation).toBe("V81");
+    expect(buildGovernorParams(model, device("QRD8850"), memory).generation).toBe("V81");
+    expect(buildGovernorParams(model, device("SM8850 board"), memory).generation).toBe("V81");
   });
 
   test("keeps V79 enabled and permits an explicit V75 bench override", async () => {
@@ -380,8 +394,8 @@ describe("governor inputs", () => {
     });
   });
 
-  test("NPU lane eligibility: the auto gates are android + arch >= 73 + vision + kind + fit", () => {
-    const inputs = { android: true, hasMmproj: false, lanePref: "auto" as const };
+  test("NPU lane eligibility: the auto gates are android + runtime arch >= 73 + vision + kind + fit", () => {
+    const inputs = { android: true, hasMmproj: false, lanePref: "auto" as const, htpArch: 73 };
     // S23 (SM8550 -> V73), hybrid, 8 GiB free, kalsa.bench.npu_lane=auto:
     // eligible, HTP0 claimed.
     expect(
@@ -393,11 +407,14 @@ describe("governor inputs", () => {
       htp_trunk_readable: true,
       htp_experts_readable: false,
     });
-    // The owner's daily phone profile (Jelly, Helio G99): unknown SoC, no
-    // HTP arch >= 73, so auto stays off.
+    // The owner's daily phone profile (Jelly, Helio G99): no HTP device
+    // registered (no skel ships for its DSP), so the runtime arch is null
+    // and auto stays off.
     expect(
-      buildGovernorParams(model, device("Jelly Star"), memory, false, undefined, inputs)
-        .npu_lane_enabled,
+      buildGovernorParams(model, device("Jelly Star"), memory, false, undefined, {
+        ...inputs,
+        htpArch: null,
+      }).npu_lane_enabled,
     ).toBe(false);
     // Platform is hard: never on a non-Android host, not even forced on.
     expect(
@@ -413,10 +430,12 @@ describe("governor inputs", () => {
         hasMmproj: true,
       }).npu_lane_enabled,
     ).toBe(false);
-    // Unknown SoC -> no HTP arch >= 73.
+    // No runtime arch below v73 takes the lane.
     expect(
-      buildGovernorParams(model, device("unlisted"), memory, false, undefined, inputs)
-        .npu_lane_enabled,
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...inputs,
+        htpArch: 69,
+      }).npu_lane_enabled,
     ).toBe(false);
     // MoE never claims it: no expert-readability signal in the app.
     expect(
@@ -443,6 +462,7 @@ describe("governor inputs", () => {
       buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
         android: true,
         hasMmproj: false,
+        htpArch: 73,
       }),
     ).toMatchObject({
       npu_lane_enabled: true,
@@ -451,7 +471,7 @@ describe("governor inputs", () => {
       htp_trunk_readable: true,
       htp_experts_readable: false,
     });
-    const absent = { android: true, hasMmproj: false };
+    const absent = { android: true, hasMmproj: false, htpArch: 73 as const };
     // Vision restates the LlamaService governorLoad gate: mmproj never claims it.
     expect(
       buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
@@ -470,10 +490,12 @@ describe("governor inputs", () => {
         absent,
       ).npu_lane_enabled,
     ).toBe(false);
-    // Unknown SoC -> no HTP arch >= 73.
+    // No registered HTP device (htpArch null) keeps auto off.
     expect(
-      buildGovernorParams(model, device("unlisted"), memory, false, undefined, absent)
-        .npu_lane_enabled,
+      buildGovernorParams(model, device("unlisted"), memory, false, undefined, {
+        ...absent,
+        htpArch: null,
+      }).npu_lane_enabled,
     ).toBe(false);
     // Memory fit with the +219 MiB HTP copy: 100 MiB free fits neither lane.
     const tight = { ...memory, availableMemoryBytes: 100 * 1024 ** 2 };
@@ -490,7 +512,7 @@ describe("governor inputs", () => {
   });
 
   test("bench pref kalsa.bench.npu_lane picks off, auto and on", () => {
-    const inputs = { android: true, hasMmproj: false };
+    const inputs = { android: true, hasMmproj: false, htpArch: 73 as const };
     expect(
       buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
         ...inputs,
@@ -504,8 +526,9 @@ describe("governor inputs", () => {
       }).npu_lane_enabled,
     ).toBe(false);
     // Forced on bypasses the auto gates only (arch/kind): fit, platform and
-    // vision stay hard, and the engine degrades to GPU when HTP0 is absent.
-    // MoE is the visible bypass: auto refuses it, "on" takes it.
+    // vision stay hard, and the engine still degrades to GPU when HTP0 is
+    // absent. MoE is the visible bypass: auto refuses it, "on" takes it —
+    // with no runtime arch read at all (htpArch null).
     expect(
       buildGovernorParams(
         { ...model, hybrid: false, canStreamExperts: true },
@@ -513,16 +536,19 @@ describe("governor inputs", () => {
         memory,
         false,
         undefined,
-        { ...inputs, lanePref: "on" },
+        { ...inputs, htpArch: null, lanePref: "on" },
       ).npu_lane_enabled,
     ).toBe(true);
-    // Even forced on, an unpriced SoC stays off: laneFit refuses Unknown.
+    // An unpriced SoC takes the lane when "on" asks for it: laneFit prices
+    // memory only, and the engine policy turns the lane off when its HTP
+    // device does not resolve at load.
     expect(
       buildGovernorParams(model, device("unlisted"), memory, false, undefined, {
         ...inputs,
+        htpArch: null,
         lanePref: "on",
       }).npu_lane_enabled,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
         ...inputs,
@@ -539,11 +565,45 @@ describe("governor inputs", () => {
     ).toBe(false);
   });
 
-  test("htpArchFor maps the shipped generations to their Hexagon arch", () => {
-    expect(htpArchFor("V73")).toBe(73);
-    expect(htpArchFor("V75")).toBe(75);
-    expect(htpArchFor("V79")).toBe(79);
-    expect(htpArchFor("Unknown")).toBeNull();
+  test("V81 with a registered v81 HTP device runs the lane, and the governor with it", () => {
+    const inputs = { android: true, hasMmproj: false, lanePref: "auto" as const, htpArch: 81 };
+    expect(
+      buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "SM8850"), memory, false, undefined, inputs),
+    ).toMatchObject({
+      enabled: true,
+      generation: "V81",
+      npu_lane_enabled: true,
+      npu_device: "HTP0",
+      // The flip GPU_PREFILL_CORRECT.V81 awaits its oracle PASS: the lane
+      // load carries prefill on HTP0, decode on CPU, GPU prefill unmeasured.
+      gpu_prefill_measured: false,
+    });
+  });
+
+  test("V81 with no runtime HTP arch stays off with its correctness reason", () => {
+    const out = buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "SM8850"), memory, false, undefined, {
+      android: true,
+      hasMmproj: false,
+      lanePref: "auto",
+      htpArch: null,
+    });
+    expect(out.enabled).toBe(false);
+    expect(out.reason).toBe("gpu-prefill-incorrect-V81");
+  });
+
+  test("an Unknown generation with a registered v79 HTP device still takes the lane", () => {
+    const out = buildGovernorParams(model, device("unlisted"), memory, false, undefined, {
+      android: true,
+      hasMmproj: false,
+      lanePref: "auto",
+      htpArch: 79,
+    });
+    expect(out).toMatchObject({
+      enabled: true,
+      generation: "Unknown",
+      npu_lane_enabled: true,
+      gpu_prefill_measured: false,
+    });
   });
 
   test("readBenchNpuLane parses off/on and ignores anything else", async () => {
@@ -587,6 +647,7 @@ describe("governor inputs", () => {
       hasMmproj: false,
       lanePref: "auto" as const,
       laneModel,
+      htpArch: 73,
     };
     // Lane requirement with the upgraded KV: 3030.06 MiB repack-free + 219
     // HTP prefill copy = 3249.06 MiB (catalog KV would need 3217.06). One MiB
@@ -622,6 +683,7 @@ describe("governor inputs", () => {
       hasMmproj: false,
       lanePref: "auto" as const,
       laneModel,
+      htpArch: 73,
     };
     // 3249 MiB admitted the pre-fix caller-profile price (3217.06 MiB) — a
     // false Fit: the f16 V the engine really holds prices 3090.06 + 219 HTP
@@ -648,7 +710,7 @@ describe("governor inputs", () => {
     // needs 3217.06 MiB (Fit), the upgraded KV 3249.06 (NoFit). An "off" lane
     // must report the pre-lane price, so the whole plan equals a load whose
     // inputs never carried a laneModel.
-    const laneOff = { android: true, hasMmproj: false, lanePref: "off" as const };
+    const laneOff = { android: true, hasMmproj: false, lanePref: "off" as const, htpArch: null };
     const baseline = buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, laneOff);
     expect(
       buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, {
@@ -666,6 +728,7 @@ describe("governor inputs", () => {
         android: true,
         hasMmproj: false,
         laneModel,
+        htpArch: 73,
       }),
     ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
   });
@@ -684,7 +747,7 @@ describe("governor inputs", () => {
     // The load's own estimate stays at the caller profile even with a
     // lane-priced model in the inputs: the repack-free boundaries
     // (2998.06 MiB) hold byte-identically.
-    const inputs = { android: true, hasMmproj: false, laneModel };
+    const inputs = { android: true, hasMmproj: false, laneModel, htpArch: null };
     expect(
       buildGovernorParams(lfm, s23, laneAt(2999), false, undefined, inputs).gpu_fit,
     ).toBe("Fit");
