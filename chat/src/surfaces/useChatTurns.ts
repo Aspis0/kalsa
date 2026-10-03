@@ -139,8 +139,14 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       const shell = words.current.shell;
       const conv = store.get(conversationId);
       if (!conv) return;
-      const turns = conv.messages
-        .filter((m) => m.id !== assistantId && !(m.role === "assistant" && m.content === ""))
+      // A retry of an older row regenerates THAT turn: its wire is what came
+      // before the row, never the turns after it, which answered a different
+      // prompt. A normal send's placeholder is the last message, so the slice
+      // is the whole history.
+      const at = conv.messages.findIndex((m) => m.id === assistantId);
+      const before = at === -1 ? conv.messages : conv.messages.slice(0, at);
+      const turns = before
+        .filter((m) => !(m.role === "assistant" && m.content === ""))
         .filter((m) => m.content.length > 0 || m.role === "user");
       const docs = store.getAttachments(conversationId).filter((a) => a.active);
       // Send-time never fetches: the cached size (or unknown) decides, so a
