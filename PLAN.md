@@ -1058,6 +1058,16 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   ~3x at 2k, ~7.5x at 16k on the M1 Max; iPhone unmeasured); Android unchanged incl. Settings copy. Verified before
   push: npm ci, provenance, tsc, jest engine/host/hooks/screens/modules 192 suites/1846 tests, all 0. Android mixed-KV
   cost on the S23 CPU queued by 1d714246 (needs the phone unplugged).
+  **iOS desktop link LANDED on app main `c4cd72ab`** (2026-10-02, owner "collegamento pc su iphone sicuro, tailscale e
+  iroh"): Swift Expo bridge for native/kalsa-iroh-mobile (crate unchanged; XCFramework built at pod install by
+  scripts/gen-iroh-xcframework.sh, stamped by input hash, nothing binary committed); sim proof: real nodeId through
+  Rust->uniffi->Swift->JS. One max-recall review (space-bunny runtime + luna build, `ios-desktop-link/REVIEW-*.md`),
+  P0-P2 fixed (Int64 trap, concurrent control + dedicated parked threads, node key excluded from backup +
+  completeUntilFirstUserAuthentication, start/destroy race, NSLocalNetworkUsageDescription, LINKAGE/OTHER logging,
+  script stale-output + --locked); P3 in BACKLOG. Release: iroh ~6.85 MiB of the binary, dead-strip on. Android
+  prebuild byte-identical. Tailscale road needs no app change (HTTPS door/desk, ATS default OK). NOT verified:
+  end-to-end pairing/chat with a Brain (asked kalsa-brain d4e57ba1 how to pair the sim with this Mac's Brain), and
+  anything on a physical iPhone (Tailscale VPN, Local Network prompt, NAT, suspension).
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,

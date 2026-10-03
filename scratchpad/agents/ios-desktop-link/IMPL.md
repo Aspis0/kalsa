@@ -150,3 +150,79 @@ direct), `tablet-v477jrig` (relay nyc), `xiaomi-14` (direct); `jelly-star` offli
 `/tmp/kalsa-main-baseline` git worktree removed (`git worktree remove --force`).
 The regenerated `android/` prebuild output was deleted from the worktree. Nothing
 in `~/Projects/kalsa` or `kalsa-moe-experiments` was modified; nothing pushed.
+
+## Fix round (2026-10-02, evening) — review-response commit `c4cd72ab`
+
+One commit on top of `0e4078c4` (branch `ios/desktop-link`, base `ee8b5f25`): 3 files,
++137/−28 (`KalsaIrohModule.swift`, `app.config.js`, `scripts/gen-iroh-xcframework.sh`).
+Android files untouched; nothing pushed; the temp `App.tsx` probe was reverted before the
+commit. Per-item disposition of REVIEW-runtime.md / REVIEW-build.md (coordinator triage):
+
+1. **P0 handle trap — fixed.** `handle()` now mirrors Kotlin `id.toLong()`: NaN → 0,
+   `>= 2^63` → `Int64.max`, `<= -2^63` → `Int64.min`, otherwise truncate toward zero
+   (finite, in range — the checked conversion cannot trap). A malformed id lands in
+   `no tunnel <n>` → `KALSA_IROH_OTHER`, same as Kotlin (`KalsaIrohModule.kt:90,217`).
+   Other Double→Int sites: `deadlineMs` was already trap-free (review-verified parity,
+   untouched); `Double(id)` in `openTunnel` is Int64→Double (lossless, no trap).
+2. **P1/P2 threading — fixed.** `control` is now a concurrent queue (one 10 s dial no
+   longer serializes `nodeId`/`startBridge`/`shutdown`/other dials); reads and writes
+   each get a dedicated 1 MB-stack `Thread` via a `park(_:)` helper (Kotlin's unbounded
+   cached pool has no GCD equivalent that leaves libdispatch's capped shared worker
+   pool). Choice explained in the queue comment in the file.
+3. **P1 key hygiene — fixed.** `markPrivate(_:)` sets `isExcludedFromBackup` and
+   `completeUntilFirstUserAuthentication` on the parent dir when we create it and on
+   the key file after the crate creates it (startBridge re-marks every start, so a
+   pre-existing file gets covered). Verified in the sim container: `-rw-------` (0600)
+   + xattr `com.apple.metadata:com_apple_backup_excludeItem: com.apple.MobileBackup`
+   on the file. Path unchanged (crate reads it); atomic temp+rename untouched.
+4. **P2 startBridge race — fixed (iOS only).** `destroyed` re-checked under the same
+   lock that installs; a raced fresh bridge is dropped on a parked thread and the call
+   rejects. Android's latent race left as is, per triage.
+5. **P2 local-network prompt — fixed.** `NSLocalNetworkUsageDescription: "Kalsa
+   connects directly to your Kalsa desktop on the same network."` in `ios.infoPlist`.
+   Android prebuild byte-identity re-proven: `expo prebuild -p android --no-install`
+   on `ee8b5f25` vs this branch in /tmp, `diff -r` **exit 0, 0 lines**
+   (/tmp/kalsa-fix-android-diff.txt). Key confirmed in the regenerated
+   `ios/KalsaAIChat/Info.plist`.
+6. **P2 logging + LINKAGE — fixed.** `reject` prints `[KalsaIroh] KALSA_IROH_OTHER: <message>`
+   (code + message only; crate errors carry io::Error text, never key bytes/paths, and
+   payloads never become messages). `rejectionCode` maps the uniffi machinery failures
+   (fileprivate `UniffiInternalError` — stale handle/unknown enum case/rust panic) to
+   `KALSA_IROH_LINKAGE` via a runtime type-name check (type is not nameable across
+   files); that is the iOS analog of Kotlin's `is LinkageError`, and `road.ts:38`
+   already maps the code (road.test.ts 23/23 still green).
+7. **P2 build script — fixed.** (a) missing rustup targets fail before the compile with
+   the exact command (`rustup target add aarch64-apple-ios-sim` — proven with a shimmed
+   rustup, exit 1); (b) rebuilds only when a `.inputs.sha256` stamp beside the output
+   (inside gitignored Generated/) stops matching the hash of Cargo.toml + Cargo.lock +
+   src/** — proven: pod-install run built + stamped, standalone re-run reused in 0.08 s
+   exit 0; a failed build leaves no stamp, so stale output is never silently linked;
+   (c) all three cargo invocations carry `--locked` (Cargo.lock clean in git status).
+   `set -euo pipefail` kept; bash-3.2-safe (no arrays under `set -u`).
+8. **Release size (iphonesimulator, full bundle, fresh derived data):** `.app`
+   **97.9 MB** (100,260 KiB, incl. `main.jsbundle` 7,983,444 B); main binary
+   **44,879,568 B** (`__TEXT` 19,398,656 B). iroh contribution from the `-map` link map
+   (post-dead-strip): rust staticlib members 7,129,074 B + pod Swift 55,924 B =
+   **6.85 MiB (16.0% of the binary)**. **Dead-stripping is ON**: `-Xlinker -dead_strip`
+   on the link line and a "Dead Stripped Symbols" section in the map. "Without the
+   module" rebuild was not run (pod install + full rebuild too costly); the map number
+   is the linked contribution instead.
+
+### Gates (real exit codes)
+
+| gate | result |
+|---|---|
+| `npx tsc --noEmit` | exit 0 |
+| `npx jest src/remote/road.test.ts --silent` | exit 0, 23/23 (only TS surface touched is app.config.js — not jest-covered; no other TS file touched) |
+| `pod install` (regenerated ios/, runs the new gen script) | exit 0 |
+| `xcodebuild … -configuration Debug -sdk iphonesimulator SKIP_BUNDLING=1 build` | exit 0 (`BUILD SUCCEEDED`) |
+| simulator relaunch (iPhone 18 Pro, Metro) | `LOG [ios-probe] module present: true` + `LOG [ios-probe] nodeId ok: f210d194f50b6436b099722040d10cc99605b87e20a7ca8c721bed3879390568` |
+| `npm ci` then `bash scripts/assert-engine-provenance.sh` | npm ci exit 0; provenance exit 0 ("OK: 1154 files match Aspis0/kalsa.rn@6b87db167a8f") |
+| `xcodebuild … -configuration Release -sdk iphonesimulator build` | exit 0 (also the item-8 size source) |
+
+Notes from this round: SDK 57 `expo prebuild --platform ios` (even without `--clean`)
+cleared the whole gitignored `ios/` tree — Pods/workspace/build had to be regenerated
+via `pod install` (which exercised the new gen script end to end); `ios/.xcode.env.local`
+recreated (`NODE_BINARY=/opt/homebrew/opt/node@22/bin/node`). One compile fix during the
+round: the iOS 27 SDK's new Foundation has no settable `URL.resourceValues` property —
+`setResourceValues(_:)` is the working form (first Debug run exited 65, second exited 0).
