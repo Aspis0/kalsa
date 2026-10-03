@@ -55,3 +55,6 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   sets ADSP_LIBRARY_PATH before JSI), memoized null FIXED, bench paths -> backlog. Gates: provenance EXIT=0, tsc 0,
   jest targeted, apk.yml harness block EXIT=0.
 - APK run 37135421002 (debuggable, ac04c939) building -> S23 v73 regression check, then step 4 QDC SM8850.
+- 2026-10-03 S23 v73 regression check PASS on APK 37135421002 (ac04c939): production defaults, NPU lane auto
+  opens on the runtime arch, prefill 707.7/703.9/703.2 short (ref 706.7), 654.1 long (ref 661.4), 4/4 correct,
+  0 crashes - `s23-every-snapdragon-ac04c939/REPORT.md`. Next: step 4 QDC SM8850 (v81 NPU + Adreno 840 oracle).

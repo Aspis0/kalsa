@@ -1,0 +1,5 @@
+label	prompt	thermal_state	plat_thermal	lvl	temp_pre_c	tmax_c	chunks	actual_counts	layers_counts	engine_prefill	prefill_kv	cache_k	cache_v	attempt	failed	prefill_tok_s	prompt_n	n_common	decode_tok_s	npu_device	tokens_predicted	interrupted
+esd-l1	long	COOLMODE	2	86	39.0	41.7	11	gpux11	HTP0x11	NPU	device	q8_0	q8_0	1	false	654.1	3145	0	8.740138210718905	HTP0	741	false
+esd-s1	short	FAST	0	89	30.2	33.5	6	gpux6	HTP0x6	NPU	device	q8_0	q8_0	1	false	707.7	1735	0	10.598502701099223	HTP0	464	false
+esd-s2	short	FAST	0	88	35.9	36.6	6	gpux6	HTP0x6	NPU	device	q8_0	q8_0	1	false	703.9	1735	0	10.19811265139389	HTP0	570	false
+esd-s3	short	WARM	1	87	38.6	39.2	6	gpux6	HTP0x6	GPU	device	q8_0	q8_0	1	false	703.2	1735	0	10.105551103243686	HTP0	440	false
