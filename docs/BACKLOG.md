@@ -30,6 +30,10 @@ they are promoted.
 - `chat/src/surfaces/useChat.ts` is 652 lines — declared, not split.
 - `verify.mjs`: 33 checks fail in the local harness for environmental reasons (the brain stub answers only `brain_state`); not proven environmental by anything but an identical baseline.
 - Stray English strings in the Italian UI (e.g. the AI page's "You chose this model…") — translation is post-alpha.
+- Opening chat B while chat A streams waits for A to finish (one seat) with only "Opening the chat…" on screen (27 s on the Mac walk).
+- The last attachment error stays under the composer across chat switches until relaunch.
+- With Kalsa already off, a failed row still advises "Turn Kalsa off and on again from Home".
+- On Windows the log-folder opener logs a WARN because explorer.exe always exits 1.
 - Windows on ARM prints no `cpu:` line (CPUID path is x86 only).
 - Attach preflight fits the new files against history only, not the documents already pinned to the chat; send can then refuse what attach accepted (`useChat.ts:334` vs `useChatTurns.ts:145`).
 - The fit counts each document's text but not its block framing (name, kind, pages line) (`attachments.ts` `docBlockText`).
@@ -43,6 +47,8 @@ they are promoted.
 - The kalsa.io report Worker's rate limiter is approximate (≈20 requests before a 429); the daily cap is the real bound.
 
 ## Measurement
+- Pairing or forgetting a device changes `--parallel`, which doubles/halves the automatic context, which is part of the tune key (`kalsa-tune/src/record/mod.rs:67-80`, `startup.rs:1035`, `kalsa-launch/src/policy.rs:135`): the next start re-tunes in full (6 min on an M1 Max, ~18 min on the Surface). Candidate: key by per-slot context. Owner call.
+- One model switch's tune on the Surface ended "verdict unfinished … withheld once — the next start measures again" (18 min, 2026-10-03 11:36Z).
 - The mixed (iGPU prefill + CPU decode) shape is measured only at the physical-core thread count (`crates/kalsa-tune/src/candidates.rs:69`).
 
 ## Post-alpha features (owner decisions)
