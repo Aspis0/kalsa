@@ -821,6 +821,7 @@ iOS KV q8_0/q8_0 default landed on app main ee8b5f25 (2026-10-02); one max-recal
 iOS iroh desktop link landed on app main c4cd72ab (2026-10-02); end-to-end with a Brain pending.
 iOS 2026-10-02 night: governor-default-ON dropped iOS to CPU, fixed c7bee6db (31/31 Metal); iroh invite must pair
 without a door address (desktop contract) - phone fix in progress.
+Doorless iroh pairing landed on app main f4f3696c (2026-10-03): scan/tap pairs over iroh with nothing to type.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
 

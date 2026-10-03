@@ -1085,6 +1085,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   Desktop contract (kalsa-brain d4e57ba1): an invite with `node` must pair with no door address, via iroh; keep the
   gate only for node-less invites. Fix on iOS+Android delegated (GLM f4537e6b). (3) AFM: Apple Intelligence enabled,
   model still downloading; probe ready (GLM cf5629bf, to be re-prompted when ready).
+  **Doorless iroh pairing LANDED on app main `f4f3696c`** (2026-10-03, Android + iOS): a node-bearing invite pairs with
+  no door address (claim/complete over the iroh desk lane; record doorUrl "" + pairedVia iroh); probe/chat/room
+  resolve their base via doorRequestBase.ts (stand-in https://iroh.kalsa.invalid, refused by the network fetch before
+  any socket); one shared predicate pairedIrohRoad(); door-bearing records unchanged. One max-recall review
+  (`ios-desktop-link/REVIEW-doorless-*.md`, no P0), P1+key P2 fixed (f4f3696c). Verified before push: npm ci,
+  provenance, tsc, jest 2236 tests, apk.yml harness block - all 0. NEXT: owner-present pairing of the iOS sim with
+  his Mac Brain over iroh (fresh invite, Allow), then one real Android phone.
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,
