@@ -56,3 +56,7 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 ## iOS background generation (branch ios/background-generation; review luna db7af22b, 2026-10-03)
 - P3: `reloadPending` lives in module state (iosBackgroundGuard.ts); a Fast Refresh while suspended resets it and the
   next "active" misses the release. Dev-only (Metro Fast Refresh), not in release builds.
+- (audit luna 773e9e0d, engine 60b837197) Admission picks chunks from {128,512,1024,2048} by n_batch, not by the
+  reported NPU prefill_token_cap 512: a WARM NPU prefill can admit 1024-token chunks (same as the old GPU path);
+  the admission deltas are "unmeasured defaults" for CPU/GPU, none NPU-specific.
+- GPU_COOLMODE (V73 MoE, cool_prefill_eligible) is not state-gated and can win in battery WARM (pre-existing).
