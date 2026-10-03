@@ -1111,6 +1111,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   kalsa-remote-mac). Every KALSA_ROAD line road=iroh (desk dial 222 ms first, door dials 6-34 ms, one 1163 ms before
   the stream); zero https road lines. Not checked: the stored record (Keychain) - doorUrl/pairedVia inferred from the
   road log only. NEXT: one real Android phone on the same flow; Tailscale road only with owner OK.
+  **iOS CPU threads: NO CHANGE (2026-10-03, measured).** iOS uses the fixed fallback of 4 threads
+  (threadProfile.ts "fallback:non-android"). Mac M1 Max, build-metal llama-bench, LFM2.5-2.6B QAD-Q4_0, -ngl 99 -fa 1
+  q8_0/q8_0: tg128 t1 118.5 / t2 123.3 / t4 122.3 tok/s (r=5); pp512 ~1227 at t2 and t4, 1196 at t8. With full Metal
+  offload the thread count does not move decode or prefill, so no per-chip thread table. Unmeasured on an iPhone
+  (A17 Pro = 2P+4E); recheck there only if a real device shows CPU-bound time.
   **Apple Foundation Models measured 2026-10-03 (M1 Max, macOS 26.6.2; `ios-engine-choice/REPORT.md` AFM section):**
   contextSize 4096 total; decode ~33-46 tok/s, TTFT 0.5-0.7 s short / ~7 s on long prompts; no refusals. Quality: IT
   and ES grammar slips, ZH code-switches to English, 3-turn chat degrades (hallucination), reasoning cell correct.
