@@ -47,7 +47,8 @@ they are promoted.
 - The kalsa.io report Worker's rate limiter is approximate (≈20 requests before a 429); the daily cap is the real bound.
 
 ## Measurement
-- Pairing or forgetting a device changes `--parallel`, which doubles/halves the automatic context, which is part of the tune key (`kalsa-tune/src/record/mod.rs:67-80`, `startup.rs:1035`, `kalsa-launch/src/policy.rs:135`): the next start re-tunes in full (6 min on an M1 Max, ~18 min on the Surface). Candidate: key by per-slot context. Owner call.
+- The tune key now uses the per-slot context (e6778dfc, owner 2026-10-03: pairing must not re-tune). A winner measured at one seat is reused at two (and back) although the second seat's KV reservation changes memory headroom during measurement — matters only near the memory limit (`tune_step.rs:150`, `policy.rs:170-175`).
+- A v4 record written at parallel ≥2 before e6778dfc (key = total ctx) can collide with a later parallel-1 plan whose per-slot window equals that total (`record/mod.rs:401-406`).
 - One model switch's tune on the Surface ended "verdict unfinished … withheld once — the next start measures again" (18 min, 2026-10-03 11:36Z).
 - The mixed (iGPU prefill + CPU decode) shape is measured only at the physical-core thread count (`crates/kalsa-tune/src/candidates.rs:69`).
 
