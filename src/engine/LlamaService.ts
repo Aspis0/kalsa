@@ -2565,18 +2565,20 @@ export function initEngine(
       // Backend policy: metal→99 on iOS; cpu-only→0 on Android (HTP0 fatal).
       n_gpu_layers: nGpuLayersForBackend(tuning.backend),
       flash_attn_type: "auto",
-      cache_type_k: cacheTypeK, // KV quantizzata: q8_0 ≈98% qualità FP16
+      cache_type_k: cacheTypeK, // quantized KV: q8_0 ~98% of FP16 quality
       cache_type_v: cacheTypeV, // from catalog (hybrid q8 or Q3 q4; dense V often q4)
-      ...(options.kvUnified ? { kv_unified: true } : {}), // ibridi/ricorrenti (Qwen3.5 DeltaNet)
-      // Richiesto per multimodal: senza context shifting i media restano ancorati.
+      ...(options.kvUnified ? { kv_unified: true } : {}), // hybrid/recurrent (Qwen3.5 DeltaNet)
+      // Required for multimodal: without context shifting the media stay anchored.
       ctx_shift: isMultimodal ? false : true,
       ...(governorLoad ? { governor: governorLoad } : {}),
     };
 
-    // An enabled governor with an invalid thermo sample or a conservative fit
-    // refusal stays on the existing CPU-only loader; no native two-context
-    // attempt is made and no driver allocation is risked.
-    if (governorFeatureEnabled && !governorLoad) {
+    // Android: an enabled governor with an invalid thermo sample or a
+    // conservative fit refusal stays on the existing CPU-only loader; no native
+    // two-context attempt is made and no driver allocation is risked. Not iOS:
+    // the governor never loads there and its normal backend is Metal, so with
+    // the governor ON by default this would silently drop every iOS load to CPU.
+    if (Platform.OS === "android" && governorFeatureEnabled && !governorLoad) {
       params.n_gpu_layers = 0;
     }
 

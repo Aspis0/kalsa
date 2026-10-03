@@ -14,7 +14,7 @@ type RetryArgs<P, R> = {
 
 /** Owner decision (2026-10-02): the governor is ON by default. Absent,
  *  unrecognized or unreadable storage reads this; an explicit "0"/"false"
- *  (what the Settings switch writes) is always OFF. */
+ *  (what the Settings switch writes) is OFF whenever storage can be read. */
 export const GOVERNOR_ENABLED_DEFAULT = true;
 
 /**
