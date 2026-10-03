@@ -932,6 +932,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   follow-up n_common=3192 -> 391 (NPU-prefilled KV read by CPU decode); DEBUG "awaiting trigger" 0 with 1,285 INFO
   lines; lane off -> Canberra, no override. Keys restored (route=gpu, npu_lane=off, devmodels absent, nativelog off,
   energy_trace=1, kvtranscript=1). Speed vs the 101c2bdd baseline still unmeasured.
+  **SPEED MEASURED 2026-10-02 evening, S23 UNPLUGGED** (GLM f6febc48, `scratchpad/agents/s23-option-a-speed-7ec12eb0/`,
+  lab 56d590db; per-turn rows re-read by me in raw/all-rows.tsv): app 7ec12eb0, baseline protocol of
+  `s23-layers-device-proof` (101c2bdd). Lane-on prefill: short 1,735 tok **706.7 vs 177.5 tok/s (4.0x)**, long 3,145 tok
+  **661.4 vs 120.2 (5.5x; 26.1 s -> 4.75 s)**, all chunks HTP0, KV q8_0/q8_0 on device. Decode unchanged within noise
+  (short 10.6 vs 11.1, long 9.10 vs 8.65 tok/s): V q8_0 costs nothing measurable on CPU decode. Control = lane-off GPU
+  (unchanged path) within +4 % of the baseline -> comparable conditions. 7/7 answers correct. Temps 29.6-39.7 C pre-turn,
+  peak 41.0, never 43. Option (a) is DONE as engineering; turning the NPU lane on by default is the owner's call.
   **S23 Expo-57 smoke BLOCKED 2026-10-02 ~04:00 EDT** (GLM 5e5aaf19, `s23-expo57-smoke/REPORT.md`, 0/7 run): a 5-s
   airplane-mode drill killed One UI's wireless-debugging adbd (re-checked by the coordinator: 192.168.1.152, announced
   port 45119 refused). Needs the owner: Developer options -> Wireless debugging OFF/ON. Left on the phone: bench keys
