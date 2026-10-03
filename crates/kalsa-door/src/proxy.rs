@@ -519,10 +519,17 @@ pub(super) fn handle(
         Ok(body) => body,
         Err(_) => return,
     };
-    if media::inspect(&body) == media::Verdict::Refused {
-        audit::reason("door.media_source_refused");
-        let _ = answer_to(&mut client, &media::refusal_response(origin.as_deref()), deadline);
-        return;
+    match media::inspect(&body) {
+        media::Verdict::Allowed => {}
+        media::Verdict::Refused(refusal) => {
+            audit::reason(refusal.audit_reason());
+            let _ = answer_to(
+                &mut client,
+                &media::refusal_response(refusal, origin.as_deref()),
+                deadline,
+            );
+            return;
+        }
     }
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, upstream_port));
     let timeout = match remaining(deadline) {

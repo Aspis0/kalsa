@@ -8,7 +8,8 @@
 //! one that reaches: a paired phone would be naming a host the engine, on
 //! loopback, can reach while the phone cannot — or a file only that machine can
 //! open. The door admits one source form, a `data:` URI carried inline in the
-//! body, so the engine never performs a request a client chose.
+//! body, so the engine never performs a request a client chose — and video is
+//! refused whole, before any source rule can admit a byte of it.
 //!
 //! The guard never rewrites the bytes it accepts; the proxy relays the body
 //! byte for byte. Each shape below describes what the engine's own parser
@@ -22,28 +23,62 @@ use serde_json::{Map, Value};
 pub(super) enum Verdict {
     /// The engine may be handed these bytes, unchanged.
     Allowed,
-    /// A part named a source the engine would reach for itself.
-    Refused,
+    /// The body carries something the door does not pass on.
+    Refused(Refusal),
 }
 
-/// The word a refusal answers with and logs. It names the rule and never the
-/// source: a refused body's bytes are not the door's to write anywhere.
-pub(super) const REFUSED: &str = "media_source_refused";
+/// Why a body was refused. Each names itself in the answer and in the door's
+/// own line; neither ever names the refused bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Refusal {
+    /// A part named a source the engine would fetch or read itself.
+    Source,
+    /// A part carried video, which the engine's own path hands to an external
+    /// decoder.
+    Kind,
+}
+
+impl Refusal {
+    /// The code the answer carries.
+    pub(super) fn code(self) -> &'static str {
+        match self {
+            Refusal::Source => "media_source_refused",
+            Refusal::Kind => "media_kind_refused",
+        }
+    }
+
+    /// The code as the door's own line spells it.
+    pub(super) fn audit_reason(self) -> &'static str {
+        match self {
+            Refusal::Source => "door.media_source_refused",
+            Refusal::Kind => "door.media_kind_refused",
+        }
+    }
+
+    /// The one sentence the client reads.
+    fn message(self) -> &'static str {
+        match self {
+            Refusal::Source => {
+                "Media must travel inline in the request, as a data: URI. \
+                 This door does not pass a URL or a file on to the engine."
+            }
+            Refusal::Kind => {
+                "Video reaches the AI as still frames; this door does not pass video to the engine."
+            }
+        }
+    }
+}
 
 /// The keys the engine reads a media source from — the chat dialect's
-/// `image_url`, the audio and video parts, the engine's `video_url` alias for
-/// `input_video`, and the `source` object the Messages dialect uses.
-const SOURCE_KEYS: &[&str] = &[
-    "image_url",
-    "input_audio",
-    "input_video",
-    "video_url",
-    "source",
-];
+/// `image_url`, the audio part, and the `source` object the Messages dialect
+/// uses. The video keys are absent on purpose: [`video_part`] refuses those
+/// whole before any source rule runs.
+const SOURCE_KEYS: &[&str] = &["image_url", "input_audio", "source"];
 
-/// The data-URI families a part may carry. The engine accepts any family under
-/// any source key; the door holds a part to its own kind, so a mislabelled
-/// part is refused rather than decoded as another medium.
+/// The data-URI families the engine's loader names. Image and audio are the
+/// ones a part may carry, and each is held to its own part kind so a
+/// mislabelled part is refused rather than decoded as another medium; the
+/// video family is refused whole (see [`video_part`]).
 const IMAGE: &str = "data:image/";
 const AUDIO: &str = "data:audio/";
 const VIDEO: &str = "data:video/";
@@ -51,21 +86,45 @@ const VIDEO: &str = "data:video/";
 /// Inspects one request body.
 pub(super) fn inspect(body: &[u8]) -> Verdict {
     match serde_json::from_slice::<Value>(body) {
+        // Video first, and whole: no source rule gets to admit a byte of it.
+        Ok(value) if video_part(&value) => Verdict::Refused(Refusal::Kind),
         Ok(value) => walk(&value, false),
         Err(_) => unreadable(body),
     }
 }
 
+/// Video is refused whole: the engine spawns ffmpeg/ffprobe from PATH; the app sends still frames.
+///
+/// That covers an `input_video` or `video_url` key whatever it holds, a
+/// Messages `source.media_type` of `video/…`, and a `data:video/…` string
+/// anywhere at all.
+fn video_part(value: &Value) -> bool {
+    match value {
+        Value::String(text) => text.starts_with(VIDEO),
+        Value::Array(items) => items.iter().any(video_part),
+        Value::Object(map) => {
+            map.contains_key("input_video")
+                || map.contains_key("video_url")
+                || map
+                    .get("source")
+                    .and_then(|source| source.get("media_type"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|kind| kind.starts_with("video/"))
+                || map.values().any(video_part)
+        }
+        _ => false,
+    }
+}
+
 /// The answer a refused body gets: a 400 whose body says what the door
-/// accepts, in the error shape the clients already read. The refused source is
+/// accepts, in the error shape the clients already read. The refused bytes are
 /// named nowhere in it — the client knows what it sent.
-pub(super) fn refusal_response(origin: Option<&[u8]>) -> Vec<u8> {
+pub(super) fn refusal_response(refusal: Refusal, origin: Option<&[u8]>) -> Vec<u8> {
     let body = serde_json::json!({
         "error": {
-            "message": "Media must travel inline in the request, as a data: URI. \
-                        This door does not pass a URL or a file on to the engine.",
+            "message": refusal.message(),
             "type": "invalid_request_error",
-            "code": REFUSED,
+            "code": refusal.code(),
         }
     })
     .to_string();
@@ -88,20 +147,22 @@ fn walk(value: &Value, part: bool) -> Verdict {
     match value {
         Value::Array(items) => {
             for item in items {
-                if walk(item, part) == Verdict::Refused {
-                    return Verdict::Refused;
+                let verdict = walk(item, part);
+                if verdict != Verdict::Allowed {
+                    return verdict;
                 }
             }
             Verdict::Allowed
         }
         Value::Object(map) => {
-            if inspect_sources(map) == Verdict::Refused || (part && names_a_url(map)) {
-                return Verdict::Refused;
+            if inspect_sources(map) != Verdict::Allowed || (part && names_a_url(map)) {
+                return Verdict::Refused(Refusal::Source);
             }
             for (key, child) in map {
                 let child_is_part = key == "content" && child.is_array();
-                if walk(child, child_is_part) == Verdict::Refused {
-                    return Verdict::Refused;
+                let verdict = walk(child, child_is_part);
+                if verdict != Verdict::Allowed {
+                    return verdict;
                 }
             }
             Verdict::Allowed
@@ -119,10 +180,9 @@ fn inspect_sources(map: &Map<String, Value>) -> Verdict {
             // The image part's source lives in `url`, and a bare string is
             // the Responses dialect's spelling of the same thing.
             "image_url" => source_is_inline(part, IMAGE, true),
-            // The audio and video parts read `data`, falling back to `url`
-            // when it is absent; only `data` is inline by contract.
+            // The audio part reads `data`, falling back to `url` when it is
+            // absent; only `data` is inline by contract.
             "input_audio" => source_is_inline(part, AUDIO, false),
-            "input_video" | "video_url" => source_is_inline(part, VIDEO, false),
             // The Messages dialect wraps the source one level down, and its
             // `source.data` is raw base64: the engine's own converter wraps it
             // in a `data:` URI before loading it, so only `source.url` can
@@ -131,7 +191,7 @@ fn inspect_sources(map: &Map<String, Value>) -> Verdict {
             _ => true,
         };
         if !inline {
-            return Verdict::Refused;
+            return Verdict::Refused(Refusal::Source);
         }
     }
     Verdict::Allowed
@@ -172,7 +232,7 @@ fn message_source_is_inline(source: &Value) -> bool {
     };
     match map.get("url") {
         None => true,
-        Some(Value::String(url)) => [IMAGE, AUDIO, VIDEO]
+        Some(Value::String(url)) => [IMAGE, AUDIO]
             .iter()
             .any(|family| inline_base64(url, family)),
         Some(_) => false,
@@ -216,8 +276,11 @@ fn unreadable(body: &[u8]) -> Verdict {
     if !starts_like_json(body) {
         return Verdict::Allowed;
     }
+    if VIDEO_SPELLINGS.iter().any(|spelling| contains(body, spelling)) {
+        return Verdict::Refused(Refusal::Kind);
+    }
     if body.contains(&b'\\') || SOURCE_SPELLINGS.iter().any(|spelling| contains(body, spelling)) {
-        return Verdict::Refused;
+        return Verdict::Refused(Refusal::Source);
     }
     Verdict::Allowed
 }
@@ -229,12 +292,14 @@ fn unreadable(body: &[u8]) -> Verdict {
 const SOURCE_SPELLINGS: &[&[u8]] = &[
     b"image_url",
     b"input_audio",
-    b"input_video",
-    b"video_url",
     b"\"url\"",
     b"http:",
     b"file:",
 ];
+
+/// The same, for the video a whole part would be refused for: an unreadable
+/// body may not sneak one past a parser that is not this door's.
+const VIDEO_SPELLINGS: &[&[u8]] = &[b"input_video", b"video_url", b"data:video/"];
 
 /// Whether the body's first meaningful byte puts it in the JSON shape the
 /// engine's media loader runs on. A leading UTF-8 BOM counts, because the

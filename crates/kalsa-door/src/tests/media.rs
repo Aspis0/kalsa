@@ -98,6 +98,45 @@ fn a_named_source_is_refused_before_the_engine_is_contacted() {
     door.shutdown();
 }
 
+/// Video is refused whole at the door too: 400 with its own code, the sentence
+/// the client reads saying why, and no socket opened for it.
+#[test]
+fn a_video_part_is_refused_whole_at_the_door() {
+    for body in [
+        r#"{"messages":[{"role":"user","content":[{"type":"input_video","input_video":{"data":"data:video/mp4;base64,AAAAIGZ0eXA="}}]}]}"#,
+        r#"{"messages":[{"role":"user","content":[{"type":"video_url","video_url":{"url":"http://example.com/a.mp4"}}]}]}"#,
+        r#"{"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:video/mp4;base64,AAAAIGZ0eXA="}}]}]}"#,
+    ] {
+        let upstream = RecordingUpstream::start();
+        let token = credential();
+        let (door, address) = door(upstream.port, &[&token]);
+        let response = exchanged(address, &chat_request(&token, body));
+
+        assert_eq!(
+            status_of(&response),
+            400,
+            "a video part was not refused: {}",
+            String::from_utf8_lossy(&response)
+        );
+        let error = error_of(&response);
+        assert_eq!(error["error"]["code"], "media_kind_refused");
+        assert!(
+            error["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("still frames"),
+            "the refusal does not say why: {error}"
+        );
+        assert_origin_aware(&response, Some(ORIGIN), "the video refusal");
+        assert_eq!(
+            upstream.accepts(),
+            0,
+            "the engine was contacted for a video body"
+        );
+        door.shutdown();
+    }
+}
+
 /// The accepted body is the client's own bytes: the guard reads it, the proxy
 /// writes it upstream unchanged, and the upstream reads exactly that.
 #[test]
