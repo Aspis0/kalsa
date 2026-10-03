@@ -323,8 +323,9 @@ export function buildGovernorParams(
   // priced with the +219 MiB HTP prefill copy. MoE never claims it — the app
   // has no expert-readability signal, and the engine requires the pair.
   // bench pref: "off" forces off; "on" bypasses only the auto gates (arch
-  // and kind); fit, platform and vision stay hard and the engine still
-  // degrades to GPU when HTP0 does not resolve.
+  // and kind); fit, platform and vision stay hard. When HTP0 does not
+  // resolve at load the binding clears the lane, so the engine falls back to
+  // GPU only on a GPU-qualified generation and to CPU otherwise.
   const androidOk = npu?.android ?? false;
   const visionOk = !npu?.hasMmproj;
   const arch = npu?.htpArch ?? null;

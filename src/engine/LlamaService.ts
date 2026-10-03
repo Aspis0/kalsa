@@ -2578,13 +2578,7 @@ export function initEngine(
       ...(options.kvUnified ? { kv_unified: true } : {}), // hybrid/recurrent (Qwen3.5 DeltaNet)
       // Required for multimodal: without context shifting the media stay anchored.
       ctx_shift: isMultimodal ? false : true,
-      ...(governorLoad
-        ? {
-            // The engine's governor parses "V81" (kalsa.rn); the pinned
-            // binding's ContextParams type lags until the next pin bump.
-            governor: governorLoad as unknown as ContextParams["governor"],
-          }
-        : {}),
+      ...(governorLoad ? { governor: governorLoad } : {}),
     };
 
     // Android: an enabled governor with an invalid thermo sample or a
