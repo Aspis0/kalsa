@@ -28,6 +28,10 @@ they are promoted.
 - `verify.mjs`: 33 checks fail in the local harness for environmental reasons (the brain stub answers only `brain_state`); not proven environmental by anything but an identical baseline.
 - Stray English strings in the Italian UI (e.g. the AI page's "You chose this model…") — translation is post-alpha.
 - Windows on ARM prints no `cpu:` line (CPUID path is x86 only).
+- Attach preflight fits the new files against history only, not the documents already pinned to the chat; send can then refuse what attach accepted (`useChat.ts:334` vs `useChatTurns.ts:145`).
+- The fit counts each document's text but not its block framing (name, kind, pages line) (`attachments.ts` `docBlockText`).
+- The budget meter shows the fixed system prompt's ~78 tokens inside "Earlier messages" (`BudgetMeter.tsx:40`).
+- `scripts/system-prompt.mjs` closes its server and removes its temp dir only on the success path.
 
 ## Log and report
 - Add "awaiting trigger" to the engine stderr denylist (defence in depth; not printed at default verbosity).
