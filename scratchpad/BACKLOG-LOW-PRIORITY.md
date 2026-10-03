@@ -60,3 +60,6 @@ One line per item: area - finding - source audit. Pick from here only when a rel
   reported NPU prefill_token_cap 512: a WARM NPU prefill can admit 1024-token chunks (same as the old GPU path);
   the admission deltas are "unmeasured defaults" for CPU/GPU, none NPU-specific.
 - GPU_COOLMODE (V73 MoE, cool_prefill_eligible) is not state-gated and can win in battery WARM (pre-existing).
+- (audit luna 225ef274, binding 6752f659) JSI completion params mutate ctx->params thread counts
+  (JSIParams.cpp:701) but no llama_set_n_threads reaches the governor contexts; the eval-failure log then reports the
+  mutated count (rn-completion.cpp:1728), not the context's. No test pins the per-context thread counts.
