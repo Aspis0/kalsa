@@ -130,6 +130,10 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     idleMs: NUM,
     tokenSilenceMs: NUMN,
   },
+  // iosBackgroundGuard.ts — one line per iOS background suspend action.
+  KALSA_IOS_BG: {
+    op: enumOf("abort", "reload"),
+  },
   // engineLoad.ts:160-167; verdict sets at loadGate.ts:105-115; the only
   // caller passes source "ensure" (engineEnsureLoad.ts:98).
   KALSA_LOAD: {

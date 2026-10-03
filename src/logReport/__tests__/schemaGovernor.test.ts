@@ -210,3 +210,11 @@ describe("KALSA_IDLE_STALL (foregroundIdle.ts:249-252)", () => {
     });
   });
 });
+
+describe("KALSA_IOS_BG (iosBackgroundGuard.ts)", () => {
+  it("keeps the two ops and drops anything else", () => {
+    expect(record("KALSA_IOS_BG", '{"op":"abort"}')).toEqual({ op: "abort" });
+    expect(record("KALSA_IOS_BG", '{"op":"reload"}')).toEqual({ op: "reload" });
+    expect(record("KALSA_IOS_BG", '{"op":"stop"}')).toEqual({});
+  });
+});

@@ -15,6 +15,7 @@ import {
 import { notifyStaticPrefixInputs, type EngineTool } from "../engine/engineBackend";
 import { createStaticPrefixNotifier } from "./staticPrefixNotify";
 import { idleDiscardAbortRef } from "./foregroundIdle";
+import { useIosBackgroundGuard } from "./iosBackgroundGuard";
 import type { TurnFence } from "./turnGuards";
 
 export interface HostEffectParams {
@@ -99,6 +100,11 @@ export function useHostEffects(params: HostEffectParams): void {
     setSending,
     clearTools,
   ]);
+
+  // iOS suspend: stop the LOCAL send the phone is about to break, and release
+  // the context it poisoned (`iosBackgroundGuard.ts`) — the same controller
+  // this file bridges to the idle governor.
+  useIosBackgroundGuard({ abortRef });
 
   // Unmount: flush the partial from the ref BEFORE aborting — updateMessage
   // no-ops once unmounted and the turn's finally may never rewrite state.
