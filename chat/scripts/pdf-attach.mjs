@@ -238,6 +238,35 @@ check(
   JSON.stringify(refusals),
 );
 
+// 4. A worker that cannot be built keeps its own reason: the dispatcher's
+//    catch must not re-derive it from the AttachmentError's class name.
+const workerPage = await browser.newPage();
+await workerPage.addInitScript(() => {
+  window.Worker = class {
+    constructor() {
+      throw new Error("no worker here");
+    }
+  };
+});
+await workerPage.goto(`${origin}/.pdf-attach-probe/`);
+const workerFailure = await workerPage.evaluate(async (base64) => {
+  const { extractAttachment } = window.__PDF__;
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const file = new File([bytes], "mini.pdf", { type: "application/pdf" });
+  try {
+    await extractAttachment(file);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, failure: error.failure, reason: error.reason };
+  }
+}, makePdf("Mini report says the sky is blue.").toString("base64"));
+check(
+  "a worker that cannot be built keeps its own reason",
+  workerFailure.failure === "unreadable" && workerFailure.reason === "pdf_worker",
+  JSON.stringify(workerFailure),
+);
+await workerPage.close();
+
 await browser.close();
 server.close();
 await rm(probeDir, { recursive: true, force: true });

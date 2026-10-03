@@ -276,6 +276,9 @@ export async function extractAttachment(file: File): Promise<Attachment> {
       }
     }
   } catch (error) {
+    // A nested AttachmentError already names its own reason (pdf_worker, for
+    // one): re-deriving it from its class name would log pdf_attachmenterror.
+    if (error instanceof AttachmentError) throw error;
     throw new AttachmentError(
       "unreadable",
       `“${file.name}” could not be read. The file may be damaged or protected.`,
