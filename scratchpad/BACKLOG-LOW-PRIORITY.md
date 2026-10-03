@@ -52,3 +52,7 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - KALSA_GOVERNOR has no TAG_SCHEMAS entry: a sent log carries the planned lane, not the resolved route.
 - Four HTP skel lists (engine skel_archs, CMake build_htp_skel, binding HTP_DSP_VERSIONS, example gradle) with no
   check tying the C++ list to the others.
+
+## iOS background generation (branch ios/background-generation; review luna db7af22b, 2026-10-03)
+- P3: `reloadPending` lives in module state (iosBackgroundGuard.ts); a Fast Refresh while suspended resets it and the
+  next "active" misses the release. Dev-only (Metro Fast Refresh), not in release builds.
