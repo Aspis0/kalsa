@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { appendTail } from "../lib/tail";
-import { ChatRequestError } from "../lib/chat";
+import { ChatRequestError, completionBody } from "../lib/chat";
 import type { ChatErrorKind } from "../lib/chat";
 import { streamChatCompletion } from "../lib/toolLoop";
 import { loadSampling, samplingWire } from "../lib/sampling";
@@ -18,6 +18,8 @@ import { buildPinnedContext } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
 import { getImage } from "../lib/imageStore";
 import { blobToDataUrl } from "../lib/images";
+import { selectWireImages, WIRE_BODY_BUDGET } from "../lib/wireBudget";
+import type { WireImage } from "../lib/wireBudget";
 import { executeToolCall, offeredTools } from "../lib/tools/registry";
 import type { GateCheck } from "../lib/tools/registry";
 import type { FailedState } from "../components/Thread";
@@ -157,36 +159,87 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
         .filter((m) => !(m.role === "assistant" && m.content === ""))
         .filter((m) => m.content.length > 0 || m.role === "user");
       const docs = store.getAttachments(conversationId).filter((a) => a.active);
-      // The pictures the wire will carry, read out of IndexedDB as data URIs.
-      // Only under a seeing model: placeholders need no pixels. A blob that
-      // is gone simply rides as nothing — the turn's text stands alone.
-      const urlMap = new Map<string, string>();
-      if (vision) {
-        for (const message of turns) {
-          for (const image of message.images ?? []) {
-            if (urlMap.has(image.id)) continue;
-            const blob = await getImage(image.id);
-            if (blob) urlMap.set(image.id, await blobToDataUrl(blob));
-          }
-        }
-      }
-      const media: MediaView = { vision, url: (id) => urlMap.get(id) ?? null };
       // Send-time never fetches: the cached size (or unknown) decides, so a
       // request never waits on /props. Unknown means unpruned, never refused.
       const known = contextSizes.current.get(currentSettings.endpoint) ?? null;
-      const ctx = buildPinnedContext(turns, docs, known, media);
-      if (ctx.status === "refused") {
-        // History outgrew the context after attaching: keep the empty
-        // placeholder so the error has a place to live, and say the numbers.
+      // The token fit is answered once, on the wire where every picture is
+      // the placeholder sentence: each stored picture costs IMAGE_TOKENS
+      // whether it rides or not, so the fit is the same for both shapes.
+      const dry = buildPinnedContext(turns, docs, known, { vision, url: () => null });
+
+      function refuseOversize(code: string): void {
+        // History outgrew the context after attaching — or the pictures the
+        // person just attached cannot fit the door's body at all: keep the
+        // empty placeholder so the error has a place to live, and log the
+        // one code that says which.
         persistLive({ failed: "oversize" });
         setFailedById((prev) => ({
           ...prev,
           [assistantId]: { messageId: assistantId, kind: "oversize" },
         }));
-        logUiEvent("chat.turn_oversize");
+        logUiEvent(code);
         announce(shell.tooMuchAtOnce);
+      }
+
+      if (dry.status === "refused") {
+        refuseOversize("chat.turn_oversize");
         return;
       }
+      // The door holds 16 MiB of body and answers 413 past it, so the wire
+      // is packed under its own budget before it leaves: pictures ride
+      // newest-first until the budget is spent and the oldest become the
+      // placeholder sentence. The current turn's own pictures always ride —
+      // a send they cannot fit is refused above their heads, never trimmed
+      // out silently.
+      const blobs = new Map<string, Blob>();
+      const wire: WireImage[] = [];
+      let currentTurnImages: string[] = [];
+      if (vision) {
+        for (const message of turns) {
+          if (message.role !== "user") continue;
+          const found: string[] = [];
+          for (const image of message.images ?? []) {
+            if (blobs.has(image.id)) {
+              found.push(image.id);
+              continue;
+            }
+            const blob = await getImage(image.id);
+            if (!blob) continue;
+            blobs.set(image.id, blob);
+            wire.push({ id: image.id, bytes: blob.size });
+            found.push(image.id);
+          }
+          currentTurnImages = found;
+        }
+      }
+      const dryBody = JSON.stringify(
+        completionBody(
+          currentSettings.model,
+          dry.wire,
+          samplingWire(loadSampling()),
+          offeredTools(currentSettings.webTools),
+          "auto",
+          loadThinking(currentSettings.model),
+        ),
+      );
+      const pick = selectWireImages(wire, dryBody.length, currentTurnImages.length);
+      if (dryBody.length + pick.imageBytes > WIRE_BODY_BUDGET) {
+        refuseOversize("chat.wire_oversize");
+        return;
+      }
+      if (wire.length - pick.rides.size > 0) logUiEvent("chat.wire_image_placeholder");
+      const urlMap = new Map<string, string>();
+      for (const image of wire) {
+        if (pick.rides.has(image.id)) {
+          urlMap.set(image.id, await blobToDataUrl(blobs.get(image.id) ?? new Blob()));
+        }
+      }
+      const media: MediaView = { vision, url: (id) => urlMap.get(id) ?? null };
+      const ctx = buildPinnedContext(turns, docs, known, media);
+      // Unreachable by construction: this build spends the same tokens the
+      // dry one already passed above (a picture costs IMAGE_TOKENS riding
+      // or not), so the check exists to hand the type that invariant.
+      if (ctx.status === "refused") return;
       const history = ctx.wire;
       const controller = new AbortController();
       controllers.current.set(assistantId, controller);

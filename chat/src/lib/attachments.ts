@@ -472,21 +472,25 @@ export interface MediaView {
 /** A user turn's content on the wire. Pictures ride as parts, text first;
     for a model that cannot see them the turn goes as text with one honest
     sentence where the pictures would have been — the engine errors on image
-    parts without a projector. A turn whose blobs all came back missing has
-    no media left and stays a plain string. */
+    parts without a projector. A picture the wire budget demoted, or whose
+    bytes are gone, becomes that same sentence in the text: one per picture,
+    so the model knows a picture was there and that it cannot see this one. */
 function userWireContent(message: ChatMessage, media: MediaView | undefined): string | WireContentPart[] {
   const images = message.role === "user" ? (message.images ?? []) : [];
   if (images.length === 0) return message.content;
   if (!media?.vision) {
     return message.content ? `${message.content}\n${IMAGE_PLACEHOLDER}` : IMAGE_PLACEHOLDER;
   }
-  const parts: WireContentPart[] = [];
-  if (message.content.trim()) parts.push({ type: "text", text: message.content });
+  const imageParts: WireContentPart[] = [];
+  const dropped: string[] = [];
   for (const image of images) {
     const url = media.url(image.id);
-    if (url !== null) parts.push({ type: "image_url", image_url: { url } });
+    if (url !== null) imageParts.push({ type: "image_url", image_url: { url } });
+    else dropped.push(IMAGE_PLACEHOLDER);
   }
-  return parts.some((part) => part.type === "image_url") ? parts : message.content;
+  const text = [message.content, ...dropped].filter(Boolean).join("\n");
+  if (imageParts.length === 0) return text;
+  return [...(text ? [{ type: "text", text } as const] : []), ...imageParts];
 }
 
 function wireFor(message: ChatMessage, media: MediaView | undefined): WireMessage[] {

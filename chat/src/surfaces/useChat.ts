@@ -26,6 +26,7 @@ import {
 import { isImageFile, prepareImage } from "../lib/images";
 import type { PreparedImage } from "../lib/images";
 import { deleteConversationImages, deleteImage, putImage } from "../lib/imageStore";
+import { ATTACH_IMAGE_CEILING, wireImageBytes } from "../lib/wireBudget";
 import { filesRead } from "../lib/files";
 import type { SurfaceKey } from "../app/surfaces";
 import { arrivingIn, handoff, leavingGhost } from "../app/handoff";
@@ -427,6 +428,30 @@ export function useChat(shell: ChatShell) {
         });
         setAttachStatus(null);
         logUiEvent("chat.attach_refused");
+        announce(t.tooMuchAtOnce);
+        for (const chip of prepared) URL.revokeObjectURL(chip.url);
+        return;
+      }
+      // The door's own ceiling, asked while the chips are still only these
+      // bytes: the pictures this conversation would send together (the chips
+      // already sat plus these) must fit the wire as one body, or the send
+      // that carries them would leave refused — better refused here, where
+      // nothing has landed in storage yet.
+      const names = [...extracted.map((a) => a.name), ...imageFiles.map((f) => f.name)];
+      const pendingWireBytes = [...(pendingImages[target] ?? []), ...prepared].reduce(
+        (sum, chip) => sum + wireImageBytes(chip.blob.size),
+        0,
+      );
+      if (pendingWireBytes > ATTACH_IMAGE_CEILING) {
+        setRefusal({
+          names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
+          docTokens: 0,
+          historyTokens: 0,
+          need: pendingWireBytes,
+          have: ATTACH_IMAGE_CEILING,
+        });
+        setAttachStatus(null);
+        logUiEvent("chat.attach_wire_refused");
         announce(t.tooMuchAtOnce);
         for (const chip of prepared) URL.revokeObjectURL(chip.url);
         return;

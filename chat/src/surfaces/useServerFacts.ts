@@ -70,6 +70,11 @@ export function useServerFacts(endpoint: string, token: string, model: string): 
     let alive = true;
     let retry: ReturnType<typeof setTimeout> | undefined;
     setStatus("loading");
+    // The old capability dies with the old model: until the new `/props`
+    // answers, this model is one this window has no word about, and "no
+    // word" is blindness — the previous answer standing through the pending
+    // window is exactly how a picture reached a blind model after a switch.
+    setModalities(NO_MODALITIES);
     const deadline = Date.now() + RETRY_BUDGET_MS;
 
     // Only silence is retried. `refused` and `invalid` are answers from a

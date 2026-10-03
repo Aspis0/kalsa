@@ -108,6 +108,69 @@ function hasApp1Segment(jpeg) {
   return false;
 }
 
+/** Every marker before SOS, with its payload: the fixture writer's own view
+    of what a sanitizer kept and what it dropped. */
+function jpegSegmentsBeforeSos(jpeg) {
+  const out = [];
+  let at = 2;
+  while (at + 4 <= jpeg.length) {
+    if (jpeg[at] !== 0xff) return out;
+    const marker = jpeg[at + 1];
+    if (marker === 0xda) return out;
+    const length = 2 + jpeg.readUInt16BE(at + 2);
+    out.push({ marker, payload: jpeg.subarray(at + 4, at + length) });
+    at += length;
+  }
+  return out;
+}
+
+/** One JPEG segment (marker, payload) as bytes. */
+function jpegSegment(marker, payload) {
+  const segment = Buffer.alloc(4 + payload.length);
+  segment[0] = 0xff;
+  segment[1] = marker;
+  segment.writeUInt16BE(payload.length + 2, 2);
+  payload.copy(segment, 4);
+  return segment;
+}
+
+/** Splice segments in after the JFIF APP0 (WebKit refuses an EXIF APP1 that
+    precedes it, and the fixtures must decode everywhere). */
+function spliceAfterApp0(jpeg, segments) {
+  let at = 2;
+  while (jpeg[at] === 0xff && jpeg[at + 1] === 0xe0) {
+    at += 2 + jpeg.readUInt16BE(at + 2);
+  }
+  return Buffer.concat([jpeg.subarray(0, at), ...segments, jpeg.subarray(at)]);
+}
+
+/** Every chunk type in a PNG, in order. */
+function pngChunkTypes(png) {
+  const out = [];
+  let at = 8;
+  while (at + 8 <= png.length) {
+    const length = png.readUInt32BE(at);
+    const type = png.toString("latin1", at + 4, at + 8);
+    out.push(type);
+    at += 12 + length;
+    if (type === "IEND") return out;
+  }
+  return out;
+}
+
+/** A PNG with extra metadata chunks inserted after IHDR — the iCCP payload
+    is a name, a null, a compression byte and some profile-ish bytes; tIME
+    is its seven fixed bytes. Both are shapes real files carry. */
+function pngWithMetadata(png) {
+  const ihdrEnd = 8 + 12 + png.readUInt32BE(8);
+  const iccp = pngChunk(
+    "iCCP",
+    Buffer.concat([Buffer.from("secret-icc\0", "latin1"), Buffer.from([0x00]), Buffer.from([0x9c, 0xdb, 0x42, 0x8c, 0x21])]),
+  );
+  const time = pngChunk("tIME", Buffer.from([7, 214, 9, 3, 12, 30, 5]));
+  return Buffer.concat([png.subarray(0, ihdrEnd), iccp, time, png.subarray(ihdrEnd)]);
+}
+
 function withGpsExif(jpeg) {
   const tiff = Buffer.concat([
     Buffer.from("II", "latin1"),
@@ -154,11 +217,17 @@ async function probeEngine(engineName, origin) {
     page.on("console", (message) => consoleLines.push(message.text()));
     await page.addInitScript(() => {
       window.__logEvents = [];
+      window.__model = "m";
+      window.__hangProps = false;
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
             if (command === "brain_state")
-              return { kind: "running", endpoint: "http://127.0.0.1:18099/v1", model: "m" };
+              return {
+                kind: "running",
+                endpoint: "http://127.0.0.1:18099/v1",
+                model: window.__model,
+              };
             if (command === "brain_host_credential") return "t";
             if (command === "brain_capability") return { kind: "unmeasured", chosen: true };
             if (command === "brain_previous_session_crashed") return false;
@@ -173,21 +242,28 @@ async function probeEngine(engineName, origin) {
       };
     });
     await page.route("**/kalsa/chat/**", (route) => route.fulfill({ status: 204, body: "" }));
-    await page.route("**/props", (route) =>
-      route.fulfill({
+    await page.route("**/props", async (route) => {
+      // The pending window a model switch really has: /props asked and not
+      // yet answered.
+      if (await page.evaluate(() => window.__hangProps)) return;
+      await route.fulfill({
         json: {
           default_generation_settings: { n_ctx: state.nctx },
           modalities: { vision: state.vision, audio: false, video: false },
           chat_template: "",
         },
-      }),
-    );
+      });
+    });
     const bodies = [];
+    const bodyLengths = [];
     await page.route("**/v1/chat/completions", async (route) => {
       try {
-        bodies.push(JSON.parse(route.request().postData() ?? "{}"));
+        const raw = route.request().postData() ?? "";
+        bodies.push(JSON.parse(raw));
+        bodyLengths.push(raw.length);
       } catch {
         bodies.push(null);
+        bodyLengths.push(0);
       }
       await route.fulfill({
         status: 200,
@@ -217,6 +293,90 @@ async function probeEngine(engineName, origin) {
       await page.locator(".composer-attach").click();
       const chooser = await chooserPromise;
       await chooser.setFiles(files);
+    }
+
+    /** The bytes behind the pending chip, as the app made them: read from
+        the image store the chip's own attach filled (the store holds the
+        exact blob the wire would send), base64'd for Node, decode-checked
+        in the page's own decoder. Call `clearImages` first — the record to
+        read is the only one. */
+    async function readChip() {
+      return page.evaluate(async () => {
+        const record = await new Promise((resolve, reject) => {
+          const open = indexedDB.open("kalsa-chat.images");
+          open.onsuccess = () => {
+            const db = open.result;
+            const request = db.transaction("images", "readonly").objectStore("images").getAll();
+            request.onsuccess = () => {
+              db.close();
+              resolve(request.result.at(-1) ?? null);
+            };
+            request.onerror = () => {
+              db.close();
+              reject(request.error ?? new Error("indexeddb"));
+            };
+          };
+          open.onerror = () => reject(open.error ?? new Error("indexeddb"));
+        });
+        if (record === null) return { b64: "", decodes: false };
+        const blob = new Blob([record.bytes], { type: record.mime });
+        const b64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(",")[1]);
+          reader.readAsDataURL(blob);
+        });
+        let decodes = true;
+        try {
+          const bitmap = await createImageBitmap(blob);
+          bitmap.close();
+        } catch {
+          decodes = false;
+        }
+        return { b64, decodes };
+      });
+    }
+
+    async function clearImages() {
+      await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const open = indexedDB.open("kalsa-chat.images");
+            open.onsuccess = () => {
+              const db = open.result;
+              const tx = db.transaction("images", "readwrite");
+              tx.objectStore("images").clear();
+              tx.oncomplete = () => {
+                db.close();
+                resolve();
+              };
+            };
+            open.onerror = () => resolve();
+          }),
+      );
+    }
+
+    /** Bounded wait for a page condition: false instead of a thrown timeout,
+        so a failed check reports its own detail. */
+    async function settles(condition, timeout) {
+      try {
+        await page.waitForFunction(condition, null, { timeout });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    /** Back to nothing: the conversation store's keys and the image store. */
+    async function wipeStorage() {
+      await page.evaluate(() => {
+        localStorage.clear();
+        return Promise.all([
+          new Promise((resolve) => {
+            const req = indexedDB.deleteDatabase("kalsa-chat.images");
+            req.onsuccess = req.onerror = req.onblocked = () => resolve();
+          }),
+        ]);
+      });
     }
 
     async function sendText(text) {
@@ -473,17 +633,7 @@ async function probeEngine(engineName, origin) {
     //    the picture's own 560 tokens being counted.
     state.vision = true;
     state.nctx = 700;
-    await page.evaluate(() => {
-      localStorage.clear();
-      return Promise.all(
-        window.indexedDB
-          ? [new Promise((resolve) => {
-              const req = indexedDB.deleteDatabase("kalsa-chat.images");
-              req.onsuccess = req.onerror = req.onblocked = () => resolve();
-            })]
-          : [],
-      );
-    });
+    await wipeStorage();
     await page.reload();
     await page.waitForTimeout(1200);
     await openChat();
@@ -558,6 +708,193 @@ async function probeEngine(engineName, origin) {
         !logEvents.some((event) => event.includes(".png") || event.includes(".heic") || event.includes("gps-photo")),
       JSON.stringify(logEvents),
     );
+
+    // 12. The strip is an allow-list: a JPEG carrying COM, APP2 (ICC) and an
+    //     APP1 XMP packet, and a PNG carrying iCCP and tIME, come out with
+    //     none of them — and still decode.
+    const metaJpeg = spliceAfterApp0(
+      Buffer.from(await bigCanvasJpeg(), "base64"),
+      [
+        jpegSegment(0xfe, Buffer.from("secret-comment-marker", "latin1")),
+        jpegSegment(0xe2, Buffer.concat([Buffer.from("ICC_PROFILE\0\x01", "latin1"), Buffer.alloc(64, 0x7e)])),
+        jpegSegment(0xe1, Buffer.from('<x:xmpmeta xmlns:x="adobe:ns:meta/">secret-xmp-packet</x:xmpmeta>', "latin1")),
+      ],
+    );
+    await clearImages();
+    await attach([{ name: "meta.jpg", mimeType: "image/jpeg", buffer: metaJpeg }]);
+    await page.waitForSelector(".composer-image", { timeout: 6000 });
+    const jpegChip = await readChip();
+    const jpegMarkers = jpegSegmentsBeforeSos(Buffer.from(jpegChip.b64, "base64")).map((s) => s.marker);
+    check(
+      "the JPEG strip keeps only structure: no COM, no APP1, no APP2",
+      !jpegMarkers.includes(0xfe) && !jpegMarkers.includes(0xe1) && !jpegMarkers.includes(0xe2),
+      JSON.stringify(jpegMarkers),
+    );
+    const jpegRaw = Buffer.from(jpegChip.b64, "base64");
+    check(
+      "the comment, the ICC tag and the XMP packet are gone from the bytes",
+      !jpegRaw.includes("secret-comment-marker") &&
+        !jpegRaw.includes("secret-xmp-packet") &&
+        !jpegRaw.includes("ICC_PROFILE"),
+      `${jpegRaw.length} bytes`,
+    );
+    check("the stripped JPEG still decodes", jpegChip.decodes === true, JSON.stringify(jpegChip.decodes));
+    await page.locator(".composer-image-remove").click();
+    await page.waitForFunction(() => document.querySelectorAll(".composer-image").length === 0, null, { timeout: 4000 });
+
+    // Transparency keeps the PNG road, so this fixture exercises the PNG
+    // strip and not the JPEG one.
+    const metaPng = pngWithMetadata(
+      makePng(32, 32, (x, y) => [30, 90 + x, 40 + y, x === 0 && y === 0 ? 128 : 255]),
+    );
+    const seededTypes = pngChunkTypes(metaPng);
+    check(
+      "the PNG fixture really carries iCCP and tIME",
+      seededTypes.includes("iCCP") && seededTypes.includes("tIME"),
+      JSON.stringify(seededTypes),
+    );
+    await clearImages();
+    await attach([{ name: "meta.png", mimeType: "image/png", buffer: metaPng }]);
+    await page.waitForSelector(".composer-image", { timeout: 6000 });
+    const pngChip = await readChip();
+    const keptTypes = pngChunkTypes(Buffer.from(pngChip.b64, "base64"));
+    check(
+      "the PNG strip keeps the picture and its colour, nothing else",
+      keptTypes.every((type) => ["IHDR", "PLTE", "tRNS", "IDAT", "IEND", "sRGB", "gAMA", "cHRM"].includes(type)) &&
+        keptTypes.includes("IHDR") &&
+        keptTypes.includes("IDAT"),
+      JSON.stringify(keptTypes),
+    );
+    check(
+      "iCCP and tIME are gone",
+      !keptTypes.includes("iCCP") && !keptTypes.includes("tIME"),
+      JSON.stringify(keptTypes),
+    );
+    check("the stripped PNG still decodes", pngChip.decodes === true, JSON.stringify(pngChip.decodes));
+    await page.locator(".composer-image-remove").click();
+    await page.waitForFunction(() => document.querySelectorAll(".composer-image").length === 0, null, { timeout: 4000 });
+
+    // 13. The wire budget: eight stored pictures of 1.4 MB each are ~15 MB
+    //     of body as base64 — past the door's 16 MB only in a good mood. The
+    //     send must pack the newest under the 12 MB budget and speak the
+    //     placeholder for the oldest.
+    state.vision = true;
+    state.nctx = 65536;
+    await wipeStorage();
+    const WORDS = ["one", "two", "three", "four", "five", "six", "seven", "eight"];
+    const seed = {
+      id: "seed-conv",
+      messages: WORDS.map((word, index) => ({
+        id: `u${index}`,
+        role: "user",
+        content: `shot ${word}`,
+        createdAt: 1000 + index,
+        images: [{ id: `img${index}`, width: 100, height: 100, mime: "image/jpeg" }],
+      })),
+    };
+    await page.evaluate(async ({ id, messages }) => {
+      localStorage.setItem(
+        "crescent-chat.index.v2",
+        JSON.stringify([
+          { id, title: "seeded shots", createdAt: 1, updatedAt: 9, preview: "shot eight", search: "seeded shots\nshot eight", hasMessages: true },
+        ]),
+      );
+      localStorage.setItem(`crescent-chat.msgs.${id}.v2`, JSON.stringify(messages));
+      await new Promise((resolve) => {
+        const open = indexedDB.open("kalsa-chat.images", 1);
+        open.onupgradeneeded = () => {
+          const store = open.result.createObjectStore("images", { keyPath: "id" });
+          store.createIndex("by-conversation", "convId", { unique: false });
+        };
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction("images", "readwrite");
+          const store = tx.objectStore("images");
+          for (let index = 0; index < 8; index += 1) {
+            store.put({ id: `img${index}`, convId: id, mime: "image/jpeg", bytes: new Uint8Array(1_500_000).buffer });
+          }
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+        };
+        open.onerror = () => resolve();
+      });
+    }, seed);
+    await page.reload();
+    await page.waitForTimeout(1200);
+    await openChat();
+    const seedDrawer = page.getByRole("button", { name: "Show conversations", exact: true });
+    if (await seedDrawer.isVisible()) await seedDrawer.click();
+    await page.locator(".sidebar").getByRole("button", { name: /seeded shots/i }).first().click();
+    await page.waitForTimeout(600);
+    await sendText("what did you see?");
+    const packed = bodies.at(-1);
+    const packedLength = bodyLengths.at(-1) ?? 0;
+    check(
+      "a body of many pictures stays under the wire budget",
+      packedLength > 0 && packedLength <= 12 * 1024 * 1024,
+      `${packedLength} bytes`,
+    );
+    check(
+      "and it really packed pictures, not placeholders",
+      packedLength > 11 * 1024 * 1024,
+      `${packedLength} bytes`,
+    );
+    const packedUsers = (packed?.messages ?? []).filter((m) => m.role === "user");
+    const asParts = packedUsers.filter((m) => Array.isArray(m.content));
+    const asPlaceholder = packedUsers.filter(
+      (m) => typeof m.content === "string" && m.content.includes("[an image the current AI cannot see]"),
+    );
+    check(
+      "the six newest pictures ride as image parts",
+      asParts.length === 6 &&
+        asParts.every((m) =>
+          m.content.some(
+            (part) => part?.type === "image_url" && String(part?.image_url?.url).startsWith("data:image/jpeg;base64,"),
+          ),
+        ),
+      JSON.stringify({ parts: asParts.length, of: packedUsers.length }),
+    );
+    check(
+      "the two oldest became the placeholder text",
+      asPlaceholder.length === 2 &&
+        asPlaceholder.every((m) => /shot (one|two)\n\[an image/.test(m.content)),
+      JSON.stringify(asPlaceholder.map((m) => m.content)),
+    );
+
+    // 14. A model switch closes the image road for the whole pending window:
+    //     the old model's word does not outlive it.
+    const picker = () =>
+      page.evaluate(() => document.querySelector('.composer input[type="file"]')?.getAttribute("accept") ?? "");
+    check(
+      "the seeing picker offers pictures before the switch",
+      (await picker()).includes(".png"),
+      await picker(),
+    );
+    await page.evaluate(() => {
+      window.__hangProps = true;
+      window.__model = "switched";
+    });
+    const pendingBlind = await settles(
+      () => !(document.querySelector('.composer input[type="file"]')?.getAttribute("accept") ?? "").includes(".png"),
+      9000,
+    );
+    check(
+      "while the new model's word is pending, no picture road shows",
+      pendingBlind,
+      await picker(),
+    );
+    await page.evaluate(() => {
+      window.__hangProps = false;
+      window.__model = "switched-again";
+    });
+    const seeingAgain = await settles(
+      () => (document.querySelector('.composer input[type="file"]')?.getAttribute("accept") ?? "").includes(".png"),
+      10000,
+    );
+    check("the road returns when the new model answers", seeingAgain, await picker());
+
     check(
       "no file name and no image bytes reached the console",
       !consoleLines.some((line) => line.includes("gps-photo") || line.includes("tiny.png") || line.includes("data:image")),
