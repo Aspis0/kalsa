@@ -20,6 +20,9 @@ they are promoted.
 - `handover` holds the slot lock across an engine save of up to 10 s (same discipline as `activate`); the idle tick waits behind it.
 - The chat save's log line is written while the slot lock is held (`paging/io.rs:137`) — small synchronous I/O inside the lock, no deadlock.
 - `id_hash` (4 bytes of SHA-256 of the chat id) is a stable correlator across log files — fine for debugging, not anonymous across sends.
+- A restore that times out is followed by an erase; nothing proves a late restore cannot land after it (relies on the engine running one slot action at a time, in order) (`paging.rs` activate fallback).
+- Paging engine calls may take 60 s under the slot lock; four slow ones can occupy all four door workers and stall the idle tick (`paging.rs:70`, `lib.rs:96`).
+- A closed job's producer notices only after its current upstream read returns (≤10 s when the engine is silent) (`stream.rs` producer loop).
 
 ## App / tooling
 - `lib/tauri.ts` unwraps Tauri event envelopes by sniffing for `payload`; no unit test.
@@ -35,6 +38,8 @@ they are promoted.
 
 ## Log and report
 - Add "awaiting trigger" to the engine stderr denylist (defence in depth; not printed at default verbosity).
+- The download log line names the model file (`placement.rs:295-300`) — a catalog name, not user data; kept.
+- The "first send in a new chat vanishes" from the Surface walk (P1-3) was not reproduced in ~90 harness runs; suspected the walk's synthetic Enter. Watch for it.
 - The kalsa.io report Worker's rate limiter is approximate (≈20 requests before a 429); the daily cap is the real bound.
 
 ## Measurement
