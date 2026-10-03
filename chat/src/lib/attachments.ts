@@ -39,13 +39,29 @@ export interface AttachmentRefusal {
 export class AttachmentError extends Error {
   failure: AttachmentFailure;
   refusal: AttachmentRefusal;
+  /** The stable token the log gets, never a name or a message. */
+  reason: string;
 
-  constructor(failure: AttachmentFailure, message: string, refusal: AttachmentRefusal = {}) {
+  constructor(
+    failure: AttachmentFailure,
+    message: string,
+    refusal: AttachmentRefusal = {},
+    reason?: string,
+  ) {
     super(message);
     this.name = "AttachmentError";
     this.failure = failure;
     this.refusal = refusal;
+    this.reason = (reason ?? failure).replace(/-/g, "_");
   }
+}
+
+/** The log's reason for a failed read: the format and the reader's own error
+    name, lowercased — never the file's name or a message. */
+function readReason(kind: AttachmentKind, error: unknown): string {
+  const raw = error instanceof Error ? error.name : "";
+  const name = raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return name ? `${kind}_${name}` : `${kind}_read`;
 }
 
 export function estTokens(text: string): number {
@@ -105,7 +121,19 @@ let workerSet = false;
 
 async function extractPdf(file: File): Promise<{ text: string; pages: number }> {
   if (!workerSet) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+    // pdf.js mints a blob: worker when the page's URL has an opaque origin —
+    // every tauri:// page does, so it wraps the real worker and the CSP
+    // refuses the blob. A Worker handed over as the port skips that decision.
+    try {
+      pdfjsLib.GlobalWorkerOptions.workerPort = new Worker(workerUrl, { type: "module" });
+    } catch {
+      throw new AttachmentError(
+        "unreadable",
+        `“${file.name}” could not be read. The file may be damaged or protected.`,
+        {},
+        "pdf_worker",
+      );
+    }
     workerSet = true;
   }
   const data = await file.arrayBuffer();
@@ -247,10 +275,12 @@ export async function extractAttachment(file: File): Promise<Attachment> {
         break;
       }
     }
-  } catch {
+  } catch (error) {
     throw new AttachmentError(
       "unreadable",
       `“${file.name}” could not be read. The file may be damaged or protected.`,
+      {},
+      readReason(kind, error),
     );
   }
   text = cleanText(text);

@@ -353,7 +353,11 @@ export function useChat(shell: ChatShell) {
       );
     } catch (error) {
       setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
-      logUiEvent("chat.attach_failed");
+      logUiEvent(
+        error instanceof AttachmentError
+          ? `chat.attach_failed.${error.reason}`
+          : "chat.attach_failed.unknown",
+      );
       announce(t.attachmentFailed);
     }
   }
@@ -371,7 +375,7 @@ export function useChat(shell: ChatShell) {
       setAttachStatus(
         error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error),
       );
-      logUiEvent("chat.attach_failed");
+      logUiEvent("chat.attach_failed.read");
     }
   }
 
