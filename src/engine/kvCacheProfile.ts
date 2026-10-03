@@ -13,6 +13,11 @@ export type KvCacheProfile = {
   v: "f16" | "f32" | "q8_0" | "q4_0" | "q4_1" | "iq4_nl" | "q5_0" | "q5_1";
 };
 
+// The standalone `--ignoreConfig` harness compile has no node types; this
+// module-scoped declaration names the bundler's require for it (Metro and
+// jest still resolve the call below as a normal require).
+declare const require: (id: string) => unknown;
+
 /** The pair iOS runs: mixed K/V types leave Metal's fast path (see below). */
 const IOS_KV_CACHE: KvCacheProfile = { k: "q8_0", v: "q8_0" };
 
