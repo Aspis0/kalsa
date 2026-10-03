@@ -242,8 +242,11 @@ export function useChat(shell: ChatShell) {
     const out: Record<string, FailedState> = {};
     if (!active) return out;
     for (const message of active.messages) {
-      const found = failedById[message.id];
-      if (found) out[message.id] = found;
+      const live = failedById[message.id];
+      if (live) out[message.id] = live;
+      else if (message.role === "assistant" && message.failed) {
+        out[message.id] = { messageId: message.id, kind: message.failed };
+      }
     }
     const last = active.messages.at(-1);
     // A thinking-only tail is not a failure: the no-answer note owns it.

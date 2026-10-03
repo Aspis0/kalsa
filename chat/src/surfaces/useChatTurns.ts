@@ -156,6 +156,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       if (ctx.status === "refused") {
         // History outgrew the context after attaching: keep the empty
         // placeholder so the error has a place to live, and say the numbers.
+        persistLive({ failed: "oversize" });
         setFailedById((prev) => ({
           ...prev,
           [assistantId]: { messageId: assistantId, kind: "oversize" },
@@ -168,6 +169,10 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       const controller = new AbortController();
       controllers.current.set(assistantId, controller);
       setStreamingByConv((prev) => ({ ...prev, [conversationId]: assistantId }));
+      const storedFailure = store
+        .get(conversationId)
+        ?.messages.find((m) => m.id === assistantId)?.failed;
+      if (storedFailure) persistLive({ failed: undefined });
       setFailedById((prev) => {
         if (!(assistantId in prev)) return prev;
         const next = { ...prev };
@@ -179,7 +184,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       let thoughtStartedAt: number | null = null;
       let answerStartedAt: number | null = null;
 
-      function persistLive(extra?: { stopped?: boolean; reasoningMs?: number }): void {
+      function persistLive(extra?: { stopped?: boolean; reasoningMs?: number; failed?: ChatErrorKind | undefined }): void {
         const b = bufs.current.get(assistantId);
         const latest = store.get(conversationId);
         if (!latest) return;
@@ -310,7 +315,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           const kind: ChatErrorKind =
             error instanceof ChatRequestError ? error.kind : "network";
           const state: FailedState = { messageId: assistantId, kind };
-          persistLive();
+          persistLive({ failed: kind });
           setFailedById((prev) => ({ ...prev, [assistantId]: state }));
           // The kind is the code's tail; the hyphen in `bad-response` is not
           // a character the log writes, so it leaves as an underscore.

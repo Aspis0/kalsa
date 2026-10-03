@@ -1,4 +1,5 @@
 import { TOOL_STOPPED } from "./types";
+import type { ChatErrorKind } from "./chat";
 import type { ChatMessage, Conversation, ConversationMeta, ToolRun } from "./types";
 import type { Attachment, AttachmentKind } from "./attachments";
 
@@ -80,6 +81,19 @@ function cleanAttachment(value: unknown): Attachment | null {
     active: a.active,
   };
 }
+// The failure kinds cleanMessage admits on reload. This list must hold every
+// ChatErrorKind, or a failed row comes back without its sentence and Retry.
+const FAILED_KINDS: ChatErrorKind[] = [
+  "network",
+  "unauthorized",
+  "http",
+  "bad-response",
+  "truncated",
+  "timeout",
+  "oversize",
+  "aborted",
+];
+
 const PREVIEW_CHARS = 140;
 const SEARCH_CHARS = 500;
 /** Every conversation payload key starts with this; nothing else may. */
@@ -137,6 +151,9 @@ function cleanMessage(value: unknown): ChatMessage | null {
       ? { reasoning: value.reasoning }
       : {}),
     ...(typeof value.reasoningMs === "number" ? { reasoningMs: value.reasoningMs } : {}),
+    ...(typeof value.failed === "string" && (FAILED_KINDS as readonly string[]).includes(value.failed)
+      ? { failed: value.failed as ChatErrorKind }
+      : {}),
     ...(Array.isArray(value.toolRuns) ? cleanToolRuns(value.toolRuns) : {}),
   };
 }

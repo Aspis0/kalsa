@@ -53,7 +53,6 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: ["--no-sandbox"] });
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
 await page.addInitScript(() => {
-  localStorage.clear();
   // The idle bound is a minute; shrink it so the harness can watch it fire.
   const real = window.setTimeout.bind(window);
   window.setTimeout = ((fn, ms, ...rest) =>
@@ -88,12 +87,7 @@ await textarea.fill("second question");
 await textarea.press("Enter");
 await page.waitForTimeout(1800);
 
-const rows = await page.locator(".row-assistant").evaluateAll((els) =>
-  els.map((el) => ({
-    text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
-    error: el.querySelector(".error-block") !== null,
-  })),
-);
+const rows = await assistantRows();
 check("two failed turns, two assistant rows", rows.length === 2, JSON.stringify(rows));
 check("the first failed row keeps its own sentence", rows[0]?.error === true, JSON.stringify(rows[0] ?? null));
 const TIMEOUT_TITLE = "Kalsa stopped answering after a minute without new words.";
@@ -141,6 +135,65 @@ check(
   "a retry of the older row carries only the turns before it",
   asked.length === 1 && asked[0] === "first question",
   JSON.stringify(asked),
+);
+
+/** Back to the chat and its conversation after a reload. */
+async function reopen() {
+  await page.waitForTimeout(1200);
+  const chip = page.locator(".brain-bar-chat");
+  if ((await chip.count()) > 0) await chip.first().click();
+  await page.waitForTimeout(400);
+  const drawer = page.getByRole("button", { name: "Show conversations", exact: true });
+  if (await drawer.isVisible()) await drawer.click();
+  await page.locator(".sidebar").getByRole("button", { name: /first question/i }).first().click();
+  await page.waitForTimeout(600);
+}
+
+/** Every assistant row's sentence, as the DOM shows it. */
+async function assistantRows() {
+  return page.locator(".row-assistant").evaluateAll((els) =>
+    els.map((el) => ({
+      text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+      error: el.querySelector(".error-block") !== null,
+    })),
+  );
+}
+
+// A failure is data, not React state: after a reload every failed row still
+// shows its own sentence and its own Retry.
+await page.reload();
+await reopen();
+const reloaded = await assistantRows();
+check(
+  "both failed rows keep their sentence after a reload",
+  reloaded.length === 2 &&
+    reloaded.every((row) => row.error && row.text.includes(TIMEOUT_TITLE)),
+  JSON.stringify(reloaded.map((row) => row.text.slice(0, 50))),
+);
+
+// Stored data from before the field existed carries no `failed`: it must load.
+await page.evaluate(() => {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith("crescent-chat.msgs.")) continue;
+    const messages = JSON.parse(localStorage.getItem(key) ?? "[]");
+    localStorage.setItem(
+      key,
+      JSON.stringify(messages.map((message) => {
+        const { failed, ...rest } = message;
+        void failed;
+        return rest;
+      })),
+    );
+  }
+});
+await page.reload();
+await reopen();
+const oldData = await assistantRows();
+check(
+  "old data without the field still loads",
+  oldData.length === 2,
+  JSON.stringify(oldData.map((row) => row.text.slice(0, 50))),
 );
 
 await browser.close();

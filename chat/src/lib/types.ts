@@ -1,3 +1,5 @@
+import type { ChatErrorKind } from "./chat";
+
 export type Role = "user" | "assistant";
 
 /**
@@ -46,6 +48,9 @@ export interface ChatMessage {
   reasoningMs?: number;
   /** Tools this answer used, in the order they were called. */
   toolRuns?: ToolRun[];
+  /** The failure this turn ended in, so a reload can show its sentence and
+      Retry again; absent on every turn that did not fail. */
+  failed?: ChatErrorKind;
 }
 
 export interface ConversationMeta {
