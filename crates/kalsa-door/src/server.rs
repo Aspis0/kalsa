@@ -69,6 +69,8 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         slot_context: door.slot_context,
         clocks: door.clocks,
         chats: Arc::clone(&chats),
+        seat_waiters: AtomicUsize::new(0),
+        seat_waiting: Mutex::new(std::collections::HashSet::new()),
     });
     let queue = Arc::new(Queue::new(QUEUE));
     let mut threads = Vec::with_capacity(WORKERS + 2);

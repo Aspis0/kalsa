@@ -1,7 +1,7 @@
 use std::io::{self, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::audit;
@@ -103,31 +103,86 @@ pub(super) struct Shared {
     /// (`paging::Chats::handover`), wherever the new holder's request comes
     /// from — a client's or the room turn's own.
     pub(super) chats: Arc<paging::Chats>,
+    /// The seat wait's own bounds, so the wait can never take the door with
+    /// it: how many switches wait at once, and which devices are waiting.
+    /// Four workers all parked on a seat would starve the phones and the
+    /// room behind them — the later requests would spend the queue's bound
+    /// and be answered busy — so the wait is a scarce thing on purpose.
+    pub(super) seat_waiters: AtomicUsize,
+    pub(super) seat_waiting: Mutex<std::collections::HashSet<DeviceId>>,
 }
 
 /// How often a waiting switch looks for its seat again — the room turn's
 /// own poll cadence, so the two waiters agree on what a moment is.
 const SEAT_POLL: Duration = Duration::from_millis(200);
 
-/// A disk-tier route's wait for a seat: every lease is taken, the door
-/// stops, or the connection's own deadline ends the wait.
-fn wait_for_seat<'a>(
-    devices: &'a DeviceSet,
-    stop: &AtomicBool,
+/// At most this many seat waiters at once, across every device: the door
+/// has four workers, and the wait must never hold more than two of them or
+/// the phones and the room queue up behind switches they never asked for.
+const SEAT_WAITERS_MAX: usize = 2;
+
+/// Why a wait ended without a seat: the honest 503, or the device was
+/// revoked under the wait — two answers the caller must not flatten.
+enum SeatMiss {
+    Busy,
+    Revoked,
+}
+
+/// Hands the wait's seat back however the wait ends, an unwind included.
+struct SeatWaitGuard<'a> {
+    shared: &'a Shared,
     device: DeviceId,
-    deadline: Instant,
-) -> Result<SlotLease<'a>, ()> {
+}
+
+impl Drop for SeatWaitGuard<'_> {
+    fn drop(&mut self) {
+        self.shared.seat_waiters.fetch_sub(1, Ordering::SeqCst);
+        self.shared
+            .seat_waiting
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .remove(&self.device);
+    }
+}
+
+/// Admits one waiter: a device already waiting is told no (its own second
+/// click cannot stack on its first), and so is a third waiter of any
+/// device — the wait is bounded to keep workers serving.
+fn take_wait_seat(shared: &Shared, device: DeviceId) -> Option<SeatWaitGuard<'_>> {
+    let mut waiting = shared
+        .seat_waiting
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    // `insert` answers whether THIS device was absent: one waiter per
+    // device, decided in the one critical section that can decide it.
+    if !waiting.insert(device) {
+        return None;
+    }
+    if shared.seat_waiters.fetch_add(1, Ordering::SeqCst) >= SEAT_WAITERS_MAX {
+        shared.seat_waiters.fetch_sub(1, Ordering::SeqCst);
+        waiting.remove(&device);
+        return None;
+    }
+
+    Some(SeatWaitGuard { shared, device })
+}
+
+/// A disk-tier route's wait for a seat: every lease is taken, the door
+/// stops, the device is revoked, or the room's own seat clock — the same
+/// 120 s the room turn's wait lives by — ends it.
+fn wait_for_seat<'a>(shared: &'a Shared, device: DeviceId) -> Result<SlotLease<'a>, SeatMiss> {
+    let devices: &DeviceSet = &shared.set;
+    let until = Instant::now() + shared.clocks.seat_wait;
     loop {
-        if stop.load(Ordering::SeqCst) {
-            return Err(());
+        if shared.stop.load(Ordering::SeqCst) {
+            return Err(SeatMiss::Busy);
         }
         match devices.lease(device) {
             Ok(lease) => return Ok(lease),
-            // Revoked while waiting: the 401 the caller owes, not a seat.
-            Err(LeaseError::NotHeld) => return Err(()),
+            Err(LeaseError::NotHeld) => return Err(SeatMiss::Revoked),
             Err(LeaseError::NoRoom) => {
-                if Instant::now() >= deadline {
-                    return Err(());
+                if Instant::now() >= until {
+                    return Err(SeatMiss::Busy);
                 }
                 std::thread::sleep(SEAT_POLL);
             }
@@ -261,15 +316,35 @@ pub(super) fn handle(
             return;
         }
         Err(LeaseError::NoRoom) => {
-            if !paging::owns(&head.target) {
-                let _ = discard_request_body(&mut client, head.body_length, deadline);
-                audit::reason("door.no_slot");
-                let _ = answer_to(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);
-                return;
-            }
-            match wait_for_seat(devices, stop, device, deadline) {
-                Ok(lease) => lease,
-                Err(()) => {
+            // Only the tier's own two routes wait — a chat's activate or
+            // erase is a switch, and the seat's holder ends; anything else
+            // under the door's prefix, the room's routes included, is an
+            // ordinary request against a full house and answers now.
+            let waited = match paging::route(&head.target) {
+                Some(_) => match take_wait_seat(shared, device) {
+                    Some(guard) => {
+                        let seat = wait_for_seat(shared, device);
+                        drop(guard);
+                        match seat {
+                            Ok(lease) => Some(lease),
+                            Err(SeatMiss::Revoked) => {
+                                let _ = discard_request_body(&mut client, head.body_length, deadline);
+                                audit::reason("door.revoked");
+                                let _ = refuse(&mut client, head.origin.as_deref(), deadline);
+                                return;
+                            }
+                            Err(SeatMiss::Busy) => None,
+                        }
+                    }
+                    // The wait's own bounds are full: the honest 503 now,
+                    // not a third switch parked on a worker.
+                    None => None,
+                },
+                None => None,
+            };
+            match waited {
+                Some(lease) => lease,
+                None => {
                     let _ = discard_request_body(&mut client, head.body_length, deadline);
                     audit::reason("door.no_slot");
                     let _ = answer_to(&mut client, &no_slot_response(capacity, head.origin.as_deref()), deadline);

@@ -209,3 +209,131 @@ fn a_room_turn_whose_handover_save_failed_leaves_the_chat_openable() {
     assert_eq!(engine.sent().len(), 3, "no engine call was spent on what is resident");
     door.shutdown();
 }
+
+#[test]
+fn a_room_route_under_a_taken_seat_answers_now_rather_than_waiting() {
+    // The wait belongs to the tier's two routes alone: the room's own
+    // routes are ordinary requests against a full house, and an /kalsa/
+    // prefix is not a licence to park a worker on them for the seat's
+    // whole life. While the room's turn holds the only seat, a room read
+    // answers the honest 503 immediately.
+    let dir = tier::temp_dir("room-reopen-roomroute");
+    let (door, room, engine, host) = house(&dir);
+
+    std::fs::write(dir.join(tier::file_name(CHAT)), b"state:9:older").unwrap();
+    assert_eq!(tier::status_of(&tier::activate(door.address(), Some(&host), CHAT)), 204);
+    tier::wait_for(&engine, 1);
+    tier::complete(door.address(), &host);
+    tier::wait_for(&engine, 2);
+
+    // The turn's handover save is held, so the seat is provably taken.
+    engine.delay(Duration::from_millis(1500));
+    host_calls(&door, &room, "host-1", "@Kalsa ciao");
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while engine.sent().len() < 3 && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(engine.sent().len() >= 3, "the handover's save never arrived");
+
+    // The room's own route, while the seat is the turn's.
+    let began = Instant::now();
+    let answer = super::room_support::get(
+        door.address(),
+        Some(&format!("Bearer {host}")),
+        "/kalsa/room/info",
+    );
+    let answered = began.elapsed();
+    assert_eq!(
+        tier::status_of(&answer),
+        503,
+        "a full house is the honest answer: {}",
+        String::from_utf8_lossy(&answer)
+    );
+    assert!(
+        answered < Duration::from_millis(900),
+        "the room route waited for the seat: {answered:?}"
+    );
+    turn_quiet(&room);
+    door.shutdown();
+}
+
+#[test]
+fn a_third_concurrent_switch_waiter_is_answered_rather_than_parked() {
+    // The wait is scarce on purpose: at most one waiter per device and two
+    // in all, or four parked workers would starve the phones and the room
+    // behind them. The third switch — and a device's own second — get the
+    // honest 503 at once; the two admitted waiters still get their chats.
+    let dir = tier::temp_dir("room-reopen-cap");
+    let engine = tier::Engine::start(&dir);
+    let host = credential();
+    let one = credential();
+    let two = credential();
+    let devices = super::room_support::seated_labeled(&[
+        (HOST, "This computer", &host),
+        (1, "Paired phone", &one),
+        (2, "Second phone", &two),
+    ]);
+    let room = Arc::new(Room::open(&scratch("room-reopen-cap")).unwrap());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let door = crate::Door::new_with_engine(
+        listener,
+        engine.port,
+        devices,
+        1,
+        EnginePrivateHeaders::Consumed,
+    )
+    .unwrap()
+    .with_model_hash(HASH)
+    .unwrap()
+    .with_slot_dir(dir.to_path_buf())
+    .with_idle_save(QUIET)
+    .with_room(Arc::clone(&room), DeviceId::new(HOST))
+    .start()
+    .unwrap();
+
+    // The room's turn holds the seat for a while.
+    engine.delay(Duration::from_millis(1500));
+    host_calls(&door, &room, "host-1", "@Kalsa ciao");
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while engine.sent().len() < 1 && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(5));
+    }
+
+    // Two switch waiters are admitted (the host's and the first phone's);
+    // the second phone's is the third, and the host's own second is the
+    // per-device refusal.
+    let address = door.address();
+    let ask = |token: String, id: &'static str| {
+        std::thread::spawn(move || {
+            let response = tier::activate(address, Some(&token), id);
+            (tier::status_of(&response), Instant::now())
+        })
+    };
+    let first = ask(host.clone(), CHAT);
+    let second = ask(one.clone(), "phone-one-chat");
+    std::thread::sleep(Duration::from_millis(300));
+    let third_began = Instant::now();
+    let third = ask(two.clone(), "phone-two-chat");
+    let again = ask(host.clone(), CHAT);
+
+    let (third_status, third_at) = third.join().unwrap();
+    assert_eq!(third_status, 503, "the third waiter is answered, not parked");
+    assert!(
+        third_at - third_began < Duration::from_millis(900),
+        "the third waiter waited for the seat"
+    );
+    let (again_status, again_at) = again.join().unwrap();
+    assert_eq!(again_status, 503, "a device's own second waiter is refused");
+    assert!(
+        again_at - third_began < Duration::from_millis(900),
+        "the second waiter of a device waited for the seat"
+    );
+
+    // The two admitted waiters still opened their chats.
+    let (first_status, _) = first.join().unwrap();
+    let (second_status, _) = second.join().unwrap();
+    assert_eq!(first_status, 204, "the first waiter opened its chat");
+    assert_eq!(second_status, 204, "the second waiter opened its chat");
+    turn_quiet(&room);
+    door.shutdown();
+}
