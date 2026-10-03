@@ -15,7 +15,7 @@ Brain (cannot message us; Marco relays).
 - iroh on iOS: XCFramework via `scripts/gen-iroh-xcframework.sh`, Swift module `modules/kalsa-iroh/ios/`.
 - Doorless iroh pairing (Android + iOS): invite with `node` pairs with no door; record doorUrl "" + pairedVia "iroh";
   stand-in base https://iroh.kalsa.invalid; predicate `pairedIrohRoad()` in src/remote/doorRoad.ts.
-  Reviewed (`ios-desktop-link/REVIEW-doorless-*.md`), NOT yet tested live.
+  Reviewed (`ios-desktop-link/REVIEW-doorless-*.md`); live PASS on the Simulator 2026-10-03.
 - SDK 58: NO-GO until RN 0.88 stable; trial kept as local tag `local/sdk58-trial` (7c324067). `SDK58-TRIAL.md`.
 - pdf.js 5.7 PARKED (WebView dies on the S23); main ships 3.11. Branch expo57-bump c39f105e in ~/Projects/kalsa-expo-bump.
 
