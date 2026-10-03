@@ -1,0 +1,4 @@
+label	prompt	thermal_state	plat_thermal	lvl	temp_pre_c	tmax_c	chunks	actual_counts	layers_counts	engine_prefill	prefill_kv	cache_k	cache_v	attempt	failed	prefill_tok_s	prompt_n	n_common	decode_tok_s	npu_device	tokens_predicted	interrupted
+wt-s1	short	FAST	0	47	30.6	35.0	6	gpux6	HTP0x6	NPU	device	q8_0	q8_0	1	false	706.8	1735	0	11.103227222147167	HTP0	578	false
+wt-s2	short	FAST	0	46	35.0	36.6	6	gpux6	HTP0x6	NPU	device	q8_0	q8_0	1	false	707.7	1735	0	10.863847970539451	HTP0	591	false
+wt-s3	short	WARM	1	45	38.6	39.3	6	gpux6	HTP0x6	NPU	device	q8_0	q8_0	1	false	706.7	1735	0	9.407655620222481	HTP0	576	false
