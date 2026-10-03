@@ -20,7 +20,8 @@ Brain (cannot message us; Marco relays).
 - pdf.js 5.7 PARKED (WebView dies on the S23); main ships 3.11. Branch expo57-bump c39f105e in ~/Projects/kalsa-expo-bump.
 
 ## Next (in order)
-1. Live iroh pairing test on the Simulator with Marco's Mac Brain (needs Marco):
+1. DONE 2026-10-03 (LIVE PASS, see PLAN.md): Simulator paired with the Mac Brain over iroh and one chat answered.
+   Recipe kept for re-runs (the Simulator UI is /Applications/Xcode.app/Contents/Applications/DeviceHub.app):
    - Marco: Brain -> Dispositivi -> Invita con link -> Copia link, pastes it in chat, then clicks Consenti on the
      unlocked Mac. The link is a one-use secret: never write it to files.
    - Me: Metro from ~/Projects/kalsa-ios (`npx expo start --port 8081`, Node 22), relaunch the Debug app in the

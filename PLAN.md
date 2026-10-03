@@ -1103,8 +1103,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   resolve their base via doorRequestBase.ts (stand-in https://iroh.kalsa.invalid, refused by the network fetch before
   any socket); one shared predicate pairedIrohRoad(); door-bearing records unchanged. One max-recall review
   (`ios-desktop-link/REVIEW-doorless-*.md`, no P0), P1+key P2 fixed (f4f3696c). Verified before push: npm ci,
-  provenance, tsc, jest 2236 tests, apk.yml harness block - all 0. NEXT: owner-present pairing of the iOS sim with
-  his Mac Brain over iroh (fresh invite, Allow), then one real Android phone.
+  provenance, tsc, jest 2236 tests, apk.yml harness block - all 0.
+  **LIVE PASS 2026-10-03 11:00-11:03 EDT (iOS session, owner present):** iOS Simulator (iPhone 18 Pro, iOS 27, Debug
+  app on f4f3696c via Metro) + Marco's Mac Brain. Fresh invite (v3, carried node 459c914b... and a loopback
+  `reachable`) -> openurl -> claim over iroh -> owner pressed Allow -> "Paired with your computer". Then one chat on
+  "Your computer": prompt "Rispondi solo con la parola: iroh" -> reply "iroh" (remote.brain.stream, model
+  kalsa-remote-mac). Every KALSA_ROAD line road=iroh (desk dial 222 ms first, door dials 6-34 ms, one 1163 ms before
+  the stream); zero https road lines. Not checked: the stored record (Keychain) - doorUrl/pairedVia inferred from the
+  road log only. NEXT: one real Android phone on the same flow; Tailscale road only with owner OK.
   **Apple Foundation Models measured 2026-10-03 (M1 Max, macOS 26.6.2; `ios-engine-choice/REPORT.md` AFM section):**
   contextSize 4096 total; decode ~33-46 tok/s, TTFT 0.5-0.7 s short / ~7 s on long prompts; no refusals. Quality: IT
   and ES grammar slips, ZH code-switches to English, 3-turn chat degrades (hallucination), reasoning cell correct.
