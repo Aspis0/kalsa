@@ -18,6 +18,8 @@ they are promoted.
 ## Door / paging
 - A handover racing an idle-tick save that is already inside the engine can write the same file twice; harmless (same state, the tick's rename is dropped) (`crates/kalsa-door/src/paging.rs` `handover`).
 - `handover` holds the slot lock across an engine save of up to 10 s (same discipline as `activate`); the idle tick waits behind it.
+- The chat save's log line is written while the slot lock is held (`paging/io.rs:137`) — small synchronous I/O inside the lock, no deadlock.
+- `id_hash` (4 bytes of SHA-256 of the chat id) is a stable correlator across log files — fine for debugging, not anonymous across sends.
 
 ## App / tooling
 - `lib/tauri.ts` unwraps Tauri event envelopes by sniffing for `payload`; no unit test.
