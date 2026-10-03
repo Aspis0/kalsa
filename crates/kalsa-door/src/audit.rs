@@ -11,8 +11,10 @@
 //! included.
 //!
 //! What never reaches a line: a query string, a chat id, a message body, a
-//! credential. A route is cut at its first `?`, a chat id is written as four
-//! bytes of its SHA-256, and no function here is ever handed a body.
+//! credential, or the client's own path bytes. The route field is a closed
+//! vocabulary of templates the door names, and anything else is `other`.
+//! A chat id is written as four bytes of its SHA-256, and no function here is
+//! ever handed a body.
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -175,17 +177,86 @@ fn method_of(method: &[u8]) -> String {
     if known { token } else { "?".to_string() }
 }
 
-/// The route, without its query or fragment: the query is the client's (a
-/// signed URL, a token) and never reaches the file. Printable ASCII only,
-/// so no control byte can be written into a line either.
+/// The forwarded spellings the product sends. The door forwards every path to
+/// the engine, so its vocabulary here is the set the app and its phones use —
+/// the completion and props spellings are the proxy's own two suffix matchers
+/// (`is_completion`, `is_props`), the rest are the engine's own routes.
+const FORWARDED: &[&[u8]] = &[
+    b"/v1/chat/completions",
+    b"/chat/completions",
+    b"/v1/completions",
+    b"/completion",
+    b"/v1/props",
+    b"/props",
+    b"/health",
+    b"/v1/models",
+    b"/tokenize",
+    b"/detokenize",
+];
+
+/// The door's route templates, or `other`. A closed vocabulary on purpose: a
+/// request target is attacker-chosen bytes — an absolute-form one can carry a
+/// user, a password and a host — and only a template this module names may
+/// reach the line. Every arm is one of the door's own routers: [`crate::paging`]
+/// and [`crate::room`] for the door's routes, [`crate::slot_routes`] for the
+/// engine's refused ones (escapes decoded, as the engine decodes them), and the
+/// forwarded spellings above. Ids collapse to `<id>`, and a path none of them
+/// names is `other`: the log under-reports rather than echoes.
 pub(crate) fn route_of(target: &[u8]) -> String {
-    let path = target
-        .split(|byte| *byte == b'?' || *byte == b'#')
-        .next()
-        .unwrap_or(target);
-    path.iter()
-        .map(|byte| if (0x21..=0x7e).contains(byte) { *byte as char } else { '?' })
-        .collect()
+    // The query is cut first: every arm below is about the path, and a query
+    // is the client's (a signed URL, a token) wherever it hangs.
+    let path = cut(target);
+    if crate::room::owns(path) {
+        return match path {
+            b"/kalsa/room/info" => "/kalsa/room/info",
+            b"/kalsa/room/history" => "/kalsa/room/history",
+            b"/kalsa/room/messages" => "/kalsa/room/messages",
+            b"/kalsa/room/call" => "/kalsa/room/call",
+            b"/kalsa/room/name" => "/kalsa/room/name",
+            b"/kalsa/room/events" => "/kalsa/room/events",
+            _ => "other",
+        }
+        .to_string();
+    }
+    if crate::paging::owns(path) {
+        return match crate::paging::route(path) {
+            Some(crate::paging::Route::Activate) => "/kalsa/chat/activate".to_string(),
+            Some(crate::paging::Route::Erase) => "/kalsa/chat/erase".to_string(),
+            None => "other".to_string(),
+        };
+    }
+    if crate::slot_routes::is_slot_route(path) {
+        return if path.starts_with(b"/slots/") {
+            "/slots/<id>".to_string()
+        } else {
+            "/slots".to_string()
+        };
+    }
+    if path
+        .strip_prefix(b"/v1/models/")
+        .is_some_and(|id| !id.is_empty())
+    {
+        return "/v1/models/<id>".to_string();
+    }
+    if FORWARDED.contains(&path) {
+        // The match above proved these are one of the constants, so nothing
+        // of a client's choosing can be in them.
+        return String::from_utf8_lossy(path).into_owned();
+    }
+    "other".to_string()
+}
+
+/// The path of a target: everything from the first `#` is dropped, then from
+/// the first `?` — the same cut the engine and the proxy's own matchers make.
+fn cut(target: &[u8]) -> &[u8] {
+    let target = match target.iter().position(|byte| *byte == b'#') {
+        Some(at) => &target[..at],
+        None => target,
+    };
+    match target.iter().position(|byte| *byte == b'?') {
+        Some(at) => &target[..at],
+        None => target,
+    }
 }
 
 #[cfg(test)]
@@ -244,15 +315,79 @@ mod tests {
     }
 
     #[test]
-    fn a_client_cannot_write_anything_into_a_route() {
-        assert_eq!(route_of(b"/v1/models?after=9#frag"), "/v1/models");
+    fn the_route_is_a_closed_vocabulary_and_never_the_clients_bytes() {
+        // The door's own routes, by its own routers.
         assert_eq!(route_of(b"/kalsa/chat/activate"), "/kalsa/chat/activate");
-        assert_eq!(route_of(b"\x1b[31m/evil\r\n"), "?[31m/evil??");
+        assert_eq!(route_of(b"/kalsa/chat/activate?token=SECRET"), "/kalsa/chat/activate");
+        assert_eq!(route_of(b"/kalsa/chat/erase"), "/kalsa/chat/erase");
+        assert_eq!(route_of(b"/kalsa/room/history"), "/kalsa/room/history");
+        assert_eq!(route_of(b"/kalsa/room/events?after=9#frag"), "/kalsa/room/events");
+        // The engine's refused ones, decoded by the door's own matcher.
+        assert_eq!(route_of(b"/slots"), "/slots");
+        assert_eq!(route_of(b"/slots/3"), "/slots/<id>");
+        assert_eq!(route_of(b"/%u0073%u006c%u006f%u0074%u0073"), "/slots");
+        // The forwarded spellings the product sends.
+        assert_eq!(
+            route_of(b"/v1/chat/completions?api_key=sk-secret#f"),
+            "/v1/chat/completions"
+        );
+        assert_eq!(route_of(b"/v1/completions"), "/v1/completions");
+        assert_eq!(route_of(b"/props"), "/props");
+        assert_eq!(route_of(b"/health"), "/health");
+        assert_eq!(route_of(b"/v1/models"), "/v1/models");
+        // An id collapses to the placeholder, whatever it is.
+        assert_eq!(route_of(b"/v1/models/kalsa-3?x=1"), "/v1/models/<id>");
+        assert_eq!(route_of(b"/v1/models/secret-model"), "/v1/models/<id>");
+    }
+
+    #[test]
+    fn a_target_that_is_not_a_template_logs_as_other() {
+        // An absolute-form target, the P0's shape: authority with a user and
+        // a password, and a path that exists. None of it may be echoed.
+        let absolute = b"http://user:password@127.0.0.1:8131/v1/chat/completions?token=SECRET";
+        let line = route_line(absolute);
+        assert!(
+            line.starts_with("door request: POST other device 3 status 400 "),
+            "{line}"
+        );
+        assert!(line.ends_with("ms 1b"), "{line}");
+        for secret in ["user", "password", "127.0.0.1", "8131", "SECRET"] {
+            assert!(!line.contains(secret), "{line}");
+        }
+        // Junk bytes and near-misses: `other`, never the bytes.
+        for target in [
+            b"\x1b[31mEVIL\r\n".as_slice(),
+            b"/v1/chat/completions/../../etc".as_slice(),
+            b"/kalsa/chat/activate/../..".as_slice(),
+            b"/kalsa/other".as_slice(),
+            b"/v1/logline-shape-probe".as_slice(),
+            b"*".as_slice(),
+        ] {
+            assert_eq!(route_of(target), "other", "{target:?}");
+            let line = route_line(target);
+            let shown = String::from_utf8_lossy(target);
+            assert!(!line.contains(&*shown), "echoed {target:?} into {line}");
+            assert!(line.contains("POST other"), "{line}");
+        }
         assert_eq!(method_of(b"GET"), "GET");
         assert_eq!(method_of(b"get"), "?");
         assert_eq!(method_of(b"GET\r\nX: y"), "?");
         assert_eq!(method_of(b""), "?");
         assert_eq!(status_of(b"HTTP/1.1 503 Service Unavailable\r\n"), Some(503));
         assert_eq!(status_of(b"POST /x HTTP/1.1"), None);
+    }
+
+    /// One request line for a target, built the way `handle` fills it.
+    fn route_line(target: &[u8]) -> String {
+        request_line(&RequestLog {
+            started: Instant::now(),
+            method: RefCell::new(method_of(b"POST")),
+            route: RefCell::new(route_of(target)),
+            device: Cell::new(Some(DeviceId::new(3))),
+            status: Cell::new(Some(400)),
+            reason: RefCell::new(None),
+            bytes: Cell::new(1),
+            streamed: Cell::new(false),
+        })
     }
 }

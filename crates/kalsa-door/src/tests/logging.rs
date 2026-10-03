@@ -19,9 +19,10 @@ use crate::audit::line::id_hash;
 
 /// A string no other test writes, and one every forbidden field carries.
 const CANARY: &str = "LOG-LEAK-CANARY-a91f";
-/// A route no other test calls, so its request line is unmistakably this
-/// test's — with the canary only where the log must lose it.
-const SHAPE_ROUTE: &str = "/v1/logline-shape-probe";
+/// The one template this test's completion request names: the route field is
+/// a closed vocabulary, so a made-up path would log as `other` and pin
+/// nothing. The line is found by its index instead (see [`wait_for_new`]).
+const ROUTE: &str = "/v1/chat/completions";
 /// A chat id of the shape the app mints, unique to this module (lowercase:
 /// a real id's alphabet). `id_hash` is what the log may write.
 const CHAT: &str = "0f1e2d3c-5a6b-4c7d-8e9f-0011logleakcanary";
@@ -84,6 +85,32 @@ fn wait_for(marker: &str) -> Vec<String> {
     }
 }
 
+/// The lines written so far, as a count: what a test captures before its own
+/// request, so [`wait_for_new`] can tell its line from an earlier test's.
+fn line_count() -> usize {
+    lines().lock().unwrap().len()
+}
+
+/// [`wait_for`], but only a line at or after `since` counts. Two tests can
+/// drive the same route through two doors, and the capture is one for the
+/// whole binary; the index is what makes the marker this test's.
+fn wait_for_new(marker: &str, since: usize) -> Vec<String> {
+    let until = Instant::now() + Duration::from_secs(2);
+    loop {
+        let found = lines()
+            .lock()
+            .unwrap()
+            .iter()
+            .skip(since)
+            .any(|line| line.contains(marker));
+        if found || Instant::now() >= until {
+            thread::sleep(Duration::from_millis(50));
+            return lines().lock().unwrap().clone();
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
 #[test]
 fn a_request_line_names_the_route_and_never_the_query_or_the_body() {
     capture();
@@ -92,12 +119,13 @@ fn a_request_line_names_the_route_and_never_the_query_or_the_body() {
     let (door, address) = door(upstream.port, &[&token]);
     let body = format!("{{\"messages\":[{{\"role\":\"user\",\"content\":\"{CANARY}\"}}]}}");
     let request = format!(
-        "POST {SHAPE_ROUTE}?api_key={CANARY}&q={CANARY} HTTP/1.1\r\n\
+        "POST {ROUTE}?api_key={CANARY}&q={CANARY} HTTP/1.1\r\n\
          Host: localhost\r\nAuthorization: Bearer {token}\r\n\
          Content-Type: application/json\r\nContent-Length: {}\r\n\
          Connection: close\r\n\r\n{body}",
         body.len()
     );
+    let since = line_count();
     let response = exchanged(address, &request);
     assert_eq!(
         status_of(&response),
@@ -106,12 +134,13 @@ fn a_request_line_names_the_route_and_never_the_query_or_the_body() {
         String::from_utf8_lossy(&response)
     );
 
-    let marker = format!("door request: POST {SHAPE_ROUTE} device 0 status 200");
-    let lines = wait_for(&marker);
+    let marker = format!("door request: POST {ROUTE} device 0 status 200");
+    let lines = wait_for_new(&marker, since);
     let line = lines
         .iter()
+        .skip(since)
         .find(|line| line.contains(&marker))
-        .expect("the door wrote no request line for the probe route");
+        .expect("the door wrote no request line for this request");
     assert!(line.contains("ms ") && line.ends_with('b'), "{line}");
     assert!(
         !lines.iter().any(|line| line.contains(CANARY)),
@@ -119,7 +148,47 @@ fn a_request_line_names_the_route_and_never_the_query_or_the_body() {
     );
     // The query is gone, and the route it hung from is still named.
     assert!(!line.contains("api_key"), "{line}");
-    assert!(line.contains(SHAPE_ROUTE), "{line}");
+    assert!(line.contains(ROUTE), "{line}");
+    door.shutdown();
+}
+
+#[test]
+fn an_absolute_form_target_with_credentials_logs_as_other() {
+    capture();
+    let upstream = RecordingUpstream::start();
+    let token = credential();
+    let (door, address) = door(upstream.port, &[&token]);
+    // The P0's shape: an absolute-form target (the form a proxy sends) whose
+    // authority carries a user and a password and whose query carries the
+    // canary. The door forwards it; the line must name none of it.
+    let target = format!(
+        "http://leak-user:leak-password@127.0.0.1:8131/v1/chat/completions?token={CANARY}"
+    );
+    // PROPFIND on purpose: no other test sends one, so this line is
+    // unmistakably this test's in the capture the whole binary shares.
+    let request = format!(
+        "PROPFIND {target} HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {token}\r\n\
+         Content-Type: application/json\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+    );
+    let since = line_count();
+    let _ = exchanged(address, &request);
+
+    let lines = wait_for_new("door request: PROPFIND other device 0", since);
+    let line = lines
+        .iter()
+        .skip(since)
+        .find(|line| line.contains("door request: PROPFIND other device 0"))
+        .expect("the door wrote no line for the absolute-form request");
+    assert!(line.contains("ms ") && line.ends_with('b'), "{line}");
+    for secret in ["leak-user", "leak-password", "8131", "127.0.0.1", CANARY] {
+        assert!(!line.contains(secret), "{line}");
+    }
+    assert!(
+        !lines
+            .iter()
+            .any(|line| line.contains("leak-user") || line.contains("leak-password")),
+        "credentials reached the log: {lines:?}"
+    );
     door.shutdown();
 }
 
