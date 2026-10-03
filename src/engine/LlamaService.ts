@@ -1784,13 +1784,6 @@ async function emitGovernorTelemetry(
       cache_type_k?: string | null;
       cache_type_v?: string | null;
       prefill_kv?: string | null;
-      // Decode-hop stats (binding pin still pending): present once the
-      // binding publishes them, on every hop-capable load thereafter.
-      decode_hops?: number;
-      decode_tokens_cpu?: number;
-      decode_tokens_npu?: number;
-      decode_hop_commit_bytes?: number;
-      decode_hop_commit_ms?: number;
     };
     console.log(
       `KALSA_GOVERNOR ${JSON.stringify({
@@ -1817,13 +1810,13 @@ async function emitGovernorTelemetry(
         cache_type_v: npuStats.cache_type_v ?? null,
         prefill_kv: npuStats.prefill_kv ?? null,
         // Decode-hop evidence (kalsa.bench.decode_hop): hops this turn, the
-        // tokens each device generated, and what the hop itself cost in KV
-        // commit traffic. null while the installed binding predates them.
-        decode_hops: npuStats.decode_hops ?? null,
-        decode_tokens_cpu: npuStats.decode_tokens_cpu ?? null,
-        decode_tokens_npu: npuStats.decode_tokens_npu ?? null,
-        decode_hop_commit_bytes: npuStats.decode_hop_commit_bytes ?? null,
-        decode_hop_commit_ms: npuStats.decode_hop_commit_ms ?? null,
+        // tokens each device generated, and what the hops cost in KV commit
+        // traffic. All 0 while the cadence is off.
+        decode_hops: stats.decode_hops,
+        decode_tokens_cpu: stats.decode_tokens_cpu,
+        decode_tokens_npu: stats.decode_tokens_npu,
+        decode_hop_commit_bytes: stats.decode_hop_commit_bytes,
+        decode_hop_commit_ms: stats.decode_hop_commit_ms,
         fallback_reason: activeGovernorFallbackReason,
         // A latched governor failure is sticky: every later turn dies on it.
         // Surface it here so it is visible in telemetry, not just in the
