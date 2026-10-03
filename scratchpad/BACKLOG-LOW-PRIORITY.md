@@ -34,3 +34,10 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - README:16 thread-pool description false; JS key-path comment says filesDir - both reviews
 - No lock against concurrent pod installs; changed Android error string makes the JS bundle not byte-identical
   (behaviour identical) - REVIEW-build.md
+
+## Doorless iroh pairing (branch pairing/iroh-no-door; reviews ios-desktop-link/REVIEW-doorless-*.md)
+- `tailnet` field outside the pairing MAC steers the stored doorUrl/Host (no bearer leak, no downgrade) - security P2-6
+- isNonLoopback("https://iroh.kalsa.invalid") is true; respelling the constant as loopback would drop
+  remote_brain_token_required for doorless doors - security P2-7
+- engine/remote imports from pairing/pairingUrls (layering); self-pinning literal at remoteEngineDoorless.test.ts:273;
+  stale doorRequired copy - security P3
