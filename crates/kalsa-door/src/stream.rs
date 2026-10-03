@@ -13,7 +13,7 @@ use std::net::TcpStream;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::jobs::{Appended, Failure, Job, Status, Take};
+use crate::jobs::{Appended, Failure, Job, Reading, Status, Take};
 use crate::clocks::Clocks;
 use crate::proxy::{client_gone, is_silence, set_read_deadline_within, Cancel};
 use crate::chunk::Dechunker;
@@ -54,6 +54,11 @@ pub(super) fn produce_and_serve(
         if let Some(observer) = observer {
             observer(head);
         }
+    } else {
+        // The client died before the first byte: nobody is following this
+        // answer from its own socket, and a detached producer never writes
+        // again — this is the only place that loss is reported.
+        job.original_left();
     }
     // When the client was last known to be there, and the last byte the engine
     // sent: the producer finishes an answer nobody is listening to so a phone
@@ -119,11 +124,11 @@ pub(super) fn produce_and_serve(
                     job.close(Status::Failed(Failure::Upstream));
                     break;
                 }
-                // A client that left during a long prefill is noticed here,
-                // not only at the next write.
-                if attached && client_gone(&client) {
-                    attached = false;
-                }
+            // A client that left during a long prefill is noticed here,
+            // not only at the next write.
+            if attached && client_gone(&client) {
+                client_detached(job, &mut attached);
+            }
                 continue;
             }
             // Anything else — a crash, a stop, a reload — the answer stopped.
@@ -177,7 +182,7 @@ pub(super) fn produce_and_serve(
         // Everything accumulated so far, without blocking: the producer is
         // its own client's server between upstream reads.
         if !follow_now(job, &mut cursor, &mut client, observer, deadline) {
-            attached = false;
+            client_detached(job, &mut attached);
         }
     }
     drop(upstream);
@@ -201,7 +206,10 @@ pub(super) fn produce_and_serve(
 const TAIL_SLICE: Duration = Duration::from_millis(500);
 
 /// A later connection rejoining the job: replay from the index after the
-/// client's last event, then follow the tail live to the end.
+/// client's last event, then follow the tail live to the end. The
+/// connection was counted as a reader before the door decided to serve
+/// it (`find_reading`), so no supersede can close the answer in the gap
+/// between that decision and this follow.
 pub(super) fn serve_resume(
     job: &Arc<Job>,
     client: &mut TcpStream,
@@ -209,10 +217,11 @@ pub(super) fn serve_resume(
     observer: Option<&Observed>,
     deadline: Instant,
     cancel: &Cancel,
+    reading: Reading,
 ) {
+    let _reading = reading;
     // The revocation check and the head write are one step under the shared
     // gate; the observer runs after it is released.
-    let _reading = job.reading();
     let head = job.head();
     {
         let _gate = cancel.revocation_gate();
@@ -269,6 +278,15 @@ fn failure_event(failure: Failure) -> Vec<u8> {
     format!("data: {body}\n\n").into_bytes()
 }
 
+/// The original client's connection ended: its answer stops counting as
+/// followed from its own socket, so a supersede from the same device may
+/// now take it. Every path that gives up on the client's bytes goes
+/// through here — a missed one would pin the answer for ever.
+fn client_detached(job: &Job, attached: &mut bool) {
+    *attached = false;
+    job.original_left();
+}
+
 /// Numbers and stores the freshly parsed events; keep-alives go straight to
 /// an attached client and nowhere else.
 fn split_append_and_serve(
@@ -287,11 +305,11 @@ fn split_append_and_serve(
                 return;
             }
         } else if *attached && !write_bytes(client, &sse::keepalive(&raw), observer, deadline) {
-            *attached = false;
+            client_detached(job, attached);
         }
     }
     if *attached && !follow_now(job, cursor, client, observer, deadline) {
-        *attached = false;
+        client_detached(job, attached);
     }
 }
 

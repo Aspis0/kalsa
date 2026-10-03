@@ -9,7 +9,7 @@
 
 use std::sync::Condvar;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -80,6 +80,12 @@ pub(super) struct Job {
     signal: Condvar,
     /// Resuming connections following the answer right now.
     readers: AtomicUsize,
+    /// Whether the client that asked for the answer is still following it.
+    /// Only a resuming connection takes a reading guard; the original
+    /// stream never does, yet a supersede must not touch an answer its
+    /// own client is still reading — so the producer reports the loss of
+    /// that client here the moment it notices.
+    original_attached: AtomicBool,
 }
 
 /// One resuming connection, counted while it follows the answer.
@@ -133,6 +139,9 @@ impl Job {
             }),
             signal: Condvar::new(),
             readers: AtomicUsize::new(0),
+            // The answer exists because a client asked and stayed for the
+            // head: attached from birth, before the producer's first write.
+            original_attached: AtomicBool::new(true),
         }
     }
 
@@ -146,6 +155,19 @@ impl Job {
     /// Whether any resuming connection is following the answer.
     pub(super) fn has_readers(&self) -> bool {
         self.readers.load(Ordering::SeqCst) > 0
+    }
+
+    /// Whether the client that started the answer is still following it
+    /// from its own socket.
+    pub(super) fn original_attached(&self) -> bool {
+        self.original_attached.load(Ordering::SeqCst)
+    }
+
+    /// The original client is gone: the producer noticed its connection
+    /// had ended, so a later completion from the same device may supersede
+    /// this answer.
+    pub(super) fn original_left(&self) {
+        self.original_attached.store(false, Ordering::SeqCst);
     }
 
     /// The device that started the answer.

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::devices::DeviceId;
-use crate::jobs::Job;
+use crate::jobs::{Job, Reading};
 use crate::token::Token;
 use crate::MAX_JOBS;
 
@@ -71,18 +71,34 @@ impl Registry {
         })
     }
 
-    pub(super) fn find(&self, token: &Token) -> Option<Arc<Job>> {
-        self.lock().get(&token.key()).cloned()
+    /// Finds the job and counts the asking connection as its reader in
+    /// one step under the registry lock. A supersede (`abandon_detached`)
+    /// holds the same lock, so it either runs before this and the resume
+    /// replays a finished answer, or sees the reader and leaves the job
+    /// alive — deciding to serve a resume first and counting the reader
+    /// later would leave a window in which the job has no reader and no
+    /// verdict, and could be closed inside it.
+    pub(super) fn find_reading(&self, token: &Token) -> Option<(Arc<Job>, Reading)> {
+        let job = self.lock().get(&token.key()).cloned()?;
+        let reading = job.reading();
+        Some((job, reading))
     }
 
-    /// Closes every running, readerless job of one device — a superseded
-    /// answer. The producer sees the closure and drops the engine
-    /// connection, which stops the generation. Answers with an attached
-    /// reader are left alone, and so are finished ones.
+    /// Closes every running job of one device whose every client has
+    /// left — a superseded answer. The producer sees the closure and
+    /// drops the engine connection, which stops the generation. An
+    /// answer is left alone while any client may still be reading it: a
+    /// resuming connection following right now, or the original client
+    /// still attached to the socket that asked — the desktop's second
+    /// chat must not kill its first — and so are finished ones.
     pub(super) fn abandon_detached(&self, owner: DeviceId) -> usize {
         let mut abandoned = 0;
         for (_, job) in self.lock().iter() {
-            if job.owner() != owner || job.finished().is_some() || job.has_readers() {
+            if job.owner() != owner
+                || job.finished().is_some()
+                || job.has_readers()
+                || job.original_attached()
+            {
                 continue;
             }
             job.close(crate::jobs::Status::Failed(crate::jobs::Failure::Abandoned));
@@ -130,6 +146,12 @@ mod tests {
         Token::from_hex(job.token().hex().as_bytes()).unwrap()
     }
 
+    /// Whether the registry still holds the job — `find_reading` seen as
+    /// presence, the reading guard dropping with the statement.
+    fn holds(registry: &Registry, token: &Token) -> bool {
+        registry.find_reading(token).is_some()
+    }
+
     #[test]
     fn the_registry_evicts_the_oldest_finished_job_first() {
         let registry = Registry::new();
@@ -144,10 +166,10 @@ mod tests {
         // Full: the oldest finished job leaves; the running ones and the
         // newer finished one stay.
         registry.start(owner(), head()).unwrap();
-        assert!(registry.find(&token_of(&jobs[0])).is_none());
-        assert!(registry.find(&token_of(&jobs[MAX_JOBS - 1])).is_some());
+        assert!(!holds(&registry, &token_of(&jobs[0])));
+        assert!(holds(&registry, &token_of(&jobs[MAX_JOBS - 1])));
         assert!(
-            registry.find(&token_of(&jobs[2])).is_some(),
+            holds(&registry, &token_of(&jobs[2])),
             "a running job is never evicted"
         );
     }
@@ -167,15 +189,15 @@ mod tests {
         stale.age_finished_to(Instant::now() - Duration::from_secs(15 * 60));
         registry.reap();
         assert!(
-            registry.find(&token_of(&running)).is_some(),
+            holds(&registry, &token_of(&running)),
             "a running job is never reaped"
         );
         assert!(
-            registry.find(&token_of(&recent)).is_some(),
+            holds(&registry, &token_of(&recent)),
             "a five-minute-old answer is still kept"
         );
         assert!(
-            registry.find(&token_of(&stale)).is_none(),
+            !holds(&registry, &token_of(&stale)),
             "a fifteen-minute-old answer is dropped"
         );
     }

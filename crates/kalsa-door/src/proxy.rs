@@ -672,14 +672,19 @@ fn resume(
     cancel: &Cancel,
 ) {
     let words = match parse_resume(last_event_id) {
-        Some(resume) => match registry.find(&resume.token) {
-        Some(job) => match job.resume_decision(resume.seen, device) {
-            ResumeDecision::Serve => {
-                stream::serve_resume(&job, client, resume.seen + 1, observer, deadline, cancel);
-                return;
-            }
-            ResumeDecision::Refused(words) => words,
-        },
+        Some(resume) => match registry.find_reading(&resume.token) {
+            // The reader guard is held from before the decision: a
+            // completion of the same device arriving beside this resume
+            // cannot supersede the answer out from under it.
+            Some((job, reading)) => match job.resume_decision(resume.seen, device) {
+                ResumeDecision::Serve => {
+                    stream::serve_resume(
+                        &job, client, resume.seen + 1, observer, deadline, cancel, reading,
+                    );
+                    return;
+                }
+                ResumeDecision::Refused(words) => words,
+            },
             None => "That answer is no longer kept here.",
         },
         None => "The door cannot resume an answer from that id.",
