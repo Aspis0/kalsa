@@ -119,7 +119,34 @@ function cleanText(text: string): string {
 
 let workerSet = false;
 
+/** WKWebView on macOS 26 ships ReadableStream without Symbol.asyncIterator
+ *  (WebKit adds it in Safari 27), and pdf.js consumes the text stream with
+ *  `for await`, which then throws TypeError. Upstream closed this as not
+ *  planned and points at a polyfill (mozilla/pdf.js#20973), so the one piece
+ *  of the iterator pdf.js uses is supplied here. */
+function ensureStreamAsyncIterator(): void {
+  const proto = globalThis.ReadableStream?.prototype as
+    | (ReadableStream<unknown> & { [Symbol.asyncIterator]?: unknown })
+    | undefined;
+  if (!proto || Symbol.asyncIterator in proto) return;
+  proto[Symbol.asyncIterator] = function (this: ReadableStream<unknown>) {
+    const reader = this.getReader();
+    return {
+      next: () => reader.read().then(({ done, value }) => ({ done, value })),
+      return: async (value?: unknown) => {
+        await reader.cancel();
+        reader.releaseLock();
+        return { done: true, value };
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+    };
+  };
+}
+
 async function extractPdf(file: File): Promise<{ text: string; pages: number }> {
+  ensureStreamAsyncIterator();
   if (!workerSet) {
     // pdf.js mints a blob: worker when the page's URL has an opaque origin —
     // every tauri:// page does, so it wraps the real worker and the CSP
