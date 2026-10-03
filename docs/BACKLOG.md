@@ -53,8 +53,16 @@ they are promoted.
 - One model switch's tune on the Surface ended "verdict unfinished … withheld once — the next start measures again" (18 min, 2026-10-03 11:36Z).
 - The mixed (iGPU prefill + CPU decode) shape is measured only at the physical-core thread count (`crates/kalsa-tune/src/candidates.rs:69`).
 
+## Vision (review of 1801cbdd..fb30130a)
+- Four concurrent 16 MiB bodies hold ~128 MiB in the door (buffered body + parsed JSON strings) (`proxy.rs:795`, `media.rs:88`, `lib.rs:97`).
+- An image small on disk but huge in pixels is decoded whole before the 1536 px resize; dimensions are checked after `createImageBitmap` (`images.ts:126-136`).
+- Image bytes can be orphaned in IndexedDB when a chat is deleted while an attach is writing, or when a later `putImage` in a batch fails (`useChat.ts:423`, `imageStore.ts:81`).
+- The context-size cache is keyed by endpoint, not model; a model switch at the same endpoint keeps the old n_ctx for preflight (`contextSize.ts:76`, `useChat.ts:305`).
+- Two attach batches started at once can each pass preflight against the same image count; send-time catches it as a failed turn (`useChat.ts:395-428`).
+- The door refuses raw-base64 `image_url.url` (llama-server accepts it); clients must send `data:image/…;base64,` (`media.rs:246`) — stated in the phone contract.
+- `scripts/image-attach.mjs` deletes a fixed `.image-attach-dist` dir before and after a run.
+
 ## Post-alpha features (owner decisions)
-- Images in the chat (mmproj download + `--mmproj` + attach) — see the memory note; LFM2.5-VL-3B is weak at tool calls.
 - Small tool-calling model beside a bigger writer — Lab.
 - Advanced "every AI" list, BYO GGUF.
 - All translation/copy polish.
