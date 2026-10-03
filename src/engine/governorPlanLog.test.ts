@@ -45,16 +45,19 @@ describe("governor plan log", () => {
     const governor = buildGovernorParams(model, s23, memory);
 
     const plan = buildGovernorPlanLog(model, memory, governor, undefined);
+    // The absent pref is "auto" now, so the printed required_mib are the
+    // lane's own (+219 MiB HTP prefill copy); the lane-off prices stay pinned
+    // below (4518.12 / 2998.06).
     expect(plan).toEqual({
       gpu_fit: "Fit",
       decode_repack: true,
-      required_mib_with_repack: 4518.12,
-      required_mib_without_repack: 2998.06,
+      required_mib_with_repack: 4737.12,
+      required_mib_without_repack: 3217.06,
       available_mib: 4519,
       bench_norepack_forced: null,
       npu_device: null,
       npu_fallback: null,
-      npu_lane: "off",
+      npu_lane: "auto",
       npu_fit: "Fit",
       available_src: null,
     });
@@ -169,7 +172,7 @@ describe("governor plan log", () => {
     expect(laneOff.required_mib_without_repack).toBe(2998.06);
   });
 
-  test("reports the requested lane pref verbatim, defaulting an absent one to off", () => {
+  test("reports the effective lane pref, defaulting an absent one to auto", () => {
     const model = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
     const memory = {
       availableMemoryBytes: 4519 * 1024 ** 2,
@@ -187,8 +190,9 @@ describe("governor plan log", () => {
     expect(laneOf("on")).toBe("on");
     expect(laneOf("off")).toBe("off");
     // readBenchNpuLane maps absent/invalid storage to undefined, and the
-    // plan reports the value the gate resolves that to — not "auto".
-    expect(laneOf(undefined)).toBe("off");
+    // plan reports the value the gate resolves that to: "auto" since the
+    // owner's 2026-10-02 decision.
+    expect(laneOf(undefined)).toBe("auto");
   });
 
   test("records a computed NoFit plan even when GPU prefill is forced", () => {

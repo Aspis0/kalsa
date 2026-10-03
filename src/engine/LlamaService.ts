@@ -2398,8 +2398,9 @@ export function initEngine(
               // (… && !options.mmprojPath): vision never claims the lane.
               hasMmproj: Boolean(options.mmprojPath),
               lanePref: benchNpuLane,
-              // Re-priced only when the pref requests the lane; with it off
-              // buildGovernorParams prices the entry as if this were absent.
+              // Re-priced when the effective pref requests the lane (absent
+              // reads as "auto"); with the lane off buildGovernorParams
+              // prices the entry as if this were absent.
               laneModel,
             },
           )

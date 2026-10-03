@@ -8,14 +8,21 @@ import { getCurrentGovernorThermalStatus } from "./platformThermalStatus";
 const MIB = 1024 * 1024;
 const BENCH_THERMO_KEY = "kalsa.bench.thermo";
 export const BENCH_GOVERNOR_FORCE_KEY = "kalsa.bench.governor_force";
-/** Bench-only A/B for the governor NPU lane: absent → OFF (the lane lands
- *  disabled and flips only after the device soak and the heat arm — DESIGN
- *  step 6), "auto" → eligibility, "off" forces it off, "on" forces it past
- *  the auto gates (fit and platform still win — the engine degrades to GPU
- *  when the device does not resolve). Production never writes this key. */
+/** Bench-only A/B for the governor NPU lane: absent or invalid → "auto", the
+ *  gated default since the owner's 2026-10-02 decision, "off" forces the lane
+ *  off, "on" forces it past the auto gates (fit and platform still win — the
+ *  engine degrades to GPU when the device does not resolve). Production never
+ *  writes this key. */
 export const BENCH_NPU_LANE_KEY = "kalsa.bench.npu_lane";
 
 export type BenchNpuLanePref = "off" | "on" | "auto";
+
+/** The pref the gates act on: absent or invalid (readBenchNpuLane →
+ *  undefined) means "auto", the default since the owner's 2026-10-02
+ *  decision. "off" still forces the lane off; "on" keeps its bypass. */
+function effectiveNpuLanePref(pref?: BenchNpuLanePref): BenchNpuLanePref {
+  return pref ?? "auto";
+}
 
 /** The HTP prefill copy costs +219 MiB over the OpenCL one (spike buffer
  *  table: HTP0 1525.87 MiB vs OpenCL 1307.20 MiB), so the NPU lane prices
@@ -52,14 +59,15 @@ export type NpuLaneInputs = {
   /** Restates the LlamaService governorLoad gate (`… && !options.mmprojPath`)
    *  where the flag is built: vision models never claim the lane. */
   hasMmproj: boolean;
+  /** The bench key's value as read; absent/invalid resolves to "auto". */
   lanePref?: BenchNpuLanePref;
   /** The model with its KV priced at npuLaneCacheTypes of the load's
    *  cache types — the lane fit must price the KV the lane will really hold.
    *  Composed from the catalog number at the call site: the model entry this
    *  function otherwise sees is already priced at the caller profile, and
-   *  re-pricing that again would compound. Honoured only when lanePref
-   *  requests the lane (auto/on): with the lane off the entry's own pricing
-   *  stands, byte-identical to 7ddf39ad. */
+   *  re-pricing that again would compound. Honoured only when the effective
+   *  pref requests the lane ("auto", absent included, or "on"): with the
+   *  lane off the entry's own pricing stands, byte-identical to 7ddf39ad. */
   laneModel?: GovernorModel;
 };
 
@@ -234,9 +242,11 @@ export function buildGovernorPlanLog(
   // printed required_mib must carry the same +219 MiB HTP prefill copy and
   // the same lane-priced KV the decision used — otherwise a postmortem
   // recomputing fit-vs-available from this line disagrees with the verdict
-  // by exactly the extra. With the lane off the binding check is the GPU
-  // lane's own (no extra, entry pricing).
-  const laneRequested = npuLanePref === "auto" || npuLanePref === "on";
+  // by exactly the extra. The effective pref decides both (an absent/invalid
+  // read is "auto"); with the lane off the binding check is the GPU lane's
+  // own (no extra, entry pricing).
+  const lanePref = effectiveNpuLanePref(npuLanePref);
+  const laneRequested = lanePref !== "off";
   const pricedModel = laneRequested ? (lane?.laneModel ?? model) : model;
   const extraMiB = laneRequested ? NPU_PREFILL_EXTRA_MIB : 0;
   const withRepack = lanePrice(pricedModel, memory, true);
@@ -255,10 +265,10 @@ export function buildGovernorPlanLog(
     // GPU degrade is reported on KALSA_GOVERNOR via the stats fields.
     npu_device: governor.npu_device ?? null,
     npu_fallback: governor.npu_fallback ?? null,
-    // The pref ASKED for, not the resolved lane, so a crash can be
-    // attributed to lane on vs off: absent/invalid reads resolve to off
-    // (readBenchNpuLane → the gate's default), never to auto.
-    npu_lane: npuLanePref ?? "off",
+    // The effective pref ASKED for, not the resolved lane, so a crash can be
+    // attributed to lane on vs off: absent/invalid reads resolve to the
+    // default "auto" and print as such.
+    npu_lane: lanePref,
     // The lane fit verdict these required_mib explain (the GPU lane's is
     // gpu_fit above).
     npu_fit: governor.npu_fit ?? null,
@@ -302,10 +312,10 @@ export function buildGovernorParams(
   const enabled = force || GPU_PREFILL_CORRECT[generation];
   const lane = gpuFit(modelEntry, deviceProfile, memory, benchNoRepack);
   // Only a requested lane re-prices: lanePref is the one place "requested"
-  // lives, so a load with the lane off (pref absent/off) prices npu_fit at
-  // the entry's own caller profile, byte-identical to 7ddf39ad — a bench key
-  // nobody wrote must not move the diagnostics.
-  const laneRequested = npu?.lanePref === "auto" || npu?.lanePref === "on";
+  // lives, so a load with the lane off (pref "off") prices npu_fit at the
+  // entry's own caller profile, byte-identical to 7ddf39ad.
+  const lanePref = effectiveNpuLanePref(npu?.lanePref);
+  const laneRequested = lanePref !== "off";
   const npuLane = gpuFit(
     laneRequested ? (npu?.laneModel ?? modelEntry) : modelEntry,
     deviceProfile,
@@ -313,8 +323,12 @@ export function buildGovernorParams(
     benchNoRepack,
     NPU_PREFILL_EXTRA_MIB,
   );
-  // NPU lane eligibility (owner rule 2026-09-28). Hard gates never bend:
-  // Android only, vision excluded (the LlamaService governorLoad gate
+  // NPU lane eligibility (owner rule 2026-09-28). The default is "auto" since
+  // the owner's 2026-10-02 decision: the S23 measurement (lane-on prefill
+  // 4.0x/5.5x vs host KV, decode unchanged, 7/7 correct) and the S23 heat
+  // arms (HTP the coolest prefill backend per 1k tokens) cleared the gates
+  // that used to leave the lane off. Hard gates never bend: Android only,
+  // vision excluded (the LlamaService governorLoad gate
   // `… && !options.mmprojPath`, restated here via hasMmproj), memory fit
   // priced with the +219 MiB HTP prefill copy. MoE never claims it — the app
   // has no expert-readability signal, and the engine requires the pair.
@@ -328,9 +342,9 @@ export function buildGovernorParams(
   const fitOk = npuLane.fit === "Fit";
   const autoOk = androidOk && visionOk && arch !== null && arch >= 73 && kindOk && fitOk;
   const laneEnabled =
-    npu?.lanePref === "auto" ? autoOk
-    : npu?.lanePref === "on" ? androidOk && visionOk && fitOk
-    : false; // default OFF: flips only after the device soak and the heat arm (DESIGN step 6)
+    lanePref === "auto" ? autoOk
+    : lanePref === "on" ? androidOk && visionOk && fitOk
+    : false; // "off"
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
     enabled,
@@ -374,7 +388,7 @@ export async function readBenchGovernorForce(): Promise<boolean> {
   }
 }
 
-/** absent/invalid → undefined, and the gate maps that to OFF. */
+/** absent/invalid → undefined; the gates resolve that to "auto". */
 export async function readBenchNpuLane(): Promise<BenchNpuLanePref | undefined> {
   try {
     const raw = await AsyncStorage.getItem(BENCH_NPU_LANE_KEY);

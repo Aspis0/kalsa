@@ -380,14 +380,7 @@ describe("governor inputs", () => {
     });
   });
 
-  test("NPU lane eligibility: default off, auto gates android + arch >= 73 + vision + kind + fit", () => {
-    // Default: no bench key, the lane is off even on perfect hardware.
-    expect(
-      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
-        android: true,
-        hasMmproj: false,
-      }).npu_lane_enabled,
-    ).toBe(false);
+  test("NPU lane eligibility: the auto gates are android + arch >= 73 + vision + kind + fit", () => {
     const inputs = { android: true, hasMmproj: false, lanePref: "auto" as const };
     // S23 (SM8550 -> V73), hybrid, 8 GiB free, kalsa.bench.npu_lane=auto:
     // eligible, HTP0 claimed.
@@ -442,6 +435,58 @@ describe("governor inputs", () => {
     expect(
       buildGovernorParams(model, device("SM8550"), tight, false, undefined, inputs),
     ).toMatchObject({ npu_lane_enabled: false, npu_fit: "NoFit" });
+  });
+
+  test("an absent lane pref is auto, the gated default since the owner's 2026-10-02 decision", () => {
+    // No bench key at all, perfect hardware: the lane claims HTP0.
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        android: true,
+        hasMmproj: false,
+      }),
+    ).toMatchObject({
+      npu_lane_enabled: true,
+      npu_fit: "Fit",
+      npu_device: "HTP0",
+      htp_trunk_readable: true,
+      htp_experts_readable: false,
+    });
+    const absent = { android: true, hasMmproj: false };
+    // Vision restates the LlamaService governorLoad gate: mmproj never claims it.
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...absent,
+        hasMmproj: true,
+      }).npu_lane_enabled,
+    ).toBe(false);
+    // MoE never claims it: no expert-readability signal in the app.
+    expect(
+      buildGovernorParams(
+        { ...model, hybrid: false, canStreamExperts: true },
+        device("SM8550"),
+        memory,
+        false,
+        undefined,
+        absent,
+      ).npu_lane_enabled,
+    ).toBe(false);
+    // Unknown SoC -> no HTP arch >= 73.
+    expect(
+      buildGovernorParams(model, device("unlisted"), memory, false, undefined, absent)
+        .npu_lane_enabled,
+    ).toBe(false);
+    // Memory fit with the +219 MiB HTP copy: 100 MiB free fits neither lane.
+    const tight = { ...memory, availableMemoryBytes: 100 * 1024 ** 2 };
+    expect(
+      buildGovernorParams(model, device("SM8550"), tight, false, undefined, absent),
+    ).toMatchObject({ npu_lane_enabled: false, npu_fit: "NoFit" });
+    // "off" stays the one pref that declines the lane outright.
+    expect(
+      buildGovernorParams(model, device("SM8550"), memory, false, undefined, {
+        ...absent,
+        lanePref: "off" as const,
+      }).npu_lane_enabled,
+    ).toBe(false);
   });
 
   test("bench pref kalsa.bench.npu_lane picks off, auto and on", () => {
@@ -589,7 +634,7 @@ describe("governor inputs", () => {
     ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
   });
 
-  test("with the lane off the lane-priced model moves nothing (7ddf39ad byte-identical)", () => {
+  test("an \"off\" lane ignores the lane-priced model (7ddf39ad byte-identical)", () => {
     const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
     const s23 = device("SM-S911U", 8 * 1024 ** 3, "SM8550");
     const laneModel = modelAtKvProfile(lfm, "q8_0", "q8_0");
@@ -600,21 +645,29 @@ describe("governor inputs", () => {
       availableMemoryBytes: availableMiB * 1024 ** 2,
     });
     // At 3249 MiB the two prices disagree: the entry's own caller profile
-    // needs 3217.06 MiB (Fit), the upgraded KV 3249.06 (NoFit). A lane nobody
-    // requested — pref absent or "off" — must report the pre-lane price, so
-    // the whole plan equals a load whose inputs never carried a laneModel.
-    const withLaneModel = { android: true, hasMmproj: false, laneModel };
-    const without = { android: true, hasMmproj: false };
-    for (const pref of [undefined, "off"] as const) {
-      const inputs = pref ? { ...withLaneModel, lanePref: pref } : withLaneModel;
-      const baseline = buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, without);
-      expect(buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, inputs)).toEqual(
-        baseline,
-      );
-      // The baseline itself is the discriminating Fit: had the re-price
-      // leaked into a lane-off load, npu_fit would read NoFit here.
-      expect(baseline.npu_fit).toBe("Fit");
-    }
+    // needs 3217.06 MiB (Fit), the upgraded KV 3249.06 (NoFit). An "off" lane
+    // must report the pre-lane price, so the whole plan equals a load whose
+    // inputs never carried a laneModel.
+    const laneOff = { android: true, hasMmproj: false, lanePref: "off" as const };
+    const baseline = buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, laneOff);
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, {
+        ...laneOff,
+        laneModel,
+      }),
+    ).toEqual(baseline);
+    // The baseline itself is the discriminating Fit: had the re-price leaked
+    // into a lane-off load, npu_fit would read NoFit here.
+    expect(baseline.npu_fit).toBe("Fit");
+    // The absent pref requests the lane, so the same lane model re-prices and
+    // flips this verdict.
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, {
+        android: true,
+        hasMmproj: false,
+        laneModel,
+      }),
+    ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
   });
 
   test("the lane-priced KV never moves the GPU lane estimate", () => {
