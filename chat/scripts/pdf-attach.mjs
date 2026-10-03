@@ -191,6 +191,39 @@ async function probeEngine(engineName, origin) {
     check("the port is set", state.port);
     check("the cross-origin decision is never consulted", state.sameOriginCalls === 0, String(state.sameOriginCalls));
     check("the stream iterator is available after extraction", state.iterator === "function");
+    const iteration = await page.evaluate(async () => {
+      const make = () =>
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue("a");
+            controller.enqueue("b");
+            controller.close();
+          },
+        });
+      const reopen = async (stream) => {
+        try {
+          stream.getReader().releaseLock();
+          return "ok";
+        } catch (error) {
+          return String(error);
+        }
+      };
+      try {
+        const eof = make();
+        const seen = [];
+        for await (const chunk of eof) seen.push(chunk);
+        const broken = make();
+        for await (const chunk of broken) break;
+        return { seen, afterEof: await reopen(eof), afterBreak: await reopen(broken) };
+      } catch (error) {
+        return { error: String(error) };
+      }
+    });
+    check(
+      "the iterator releases the stream at EOF and on an early return",
+      iteration.afterEof === "ok" && iteration.afterBreak === "ok" && iteration.seen?.join("") === "ab",
+      JSON.stringify(iteration),
+    );
     check(
       "the extraction adds no CSP refusal",
       !messages.slice(before).some((line) => line.includes("Content Security Policy")),
@@ -203,6 +236,10 @@ async function probeEngine(engineName, origin) {
     const refusals = await page.evaluate(async (textlessBase64) => {
       const { extractAttachment } = window.__PDF__;
       const empty = new File([], "secret-name.txt", { type: "text/plain" });
+      const emptyPdf = new File([], "secret-name.pdf", { type: "application/pdf" });
+      const emptyDocx = new File([], "secret-name.docx", {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
       const textless = new File(
         [Uint8Array.from(atob(textlessBase64), (c) => c.charCodeAt(0))],
         "secret-name-scan.pdf",
@@ -219,12 +256,19 @@ async function probeEngine(engineName, origin) {
           return { ok: false, failure: error.failure, reason: error.reason };
         }
       };
-      return { empty: await read(empty), textless: await read(textless), damaged: await read(damaged) };
+      return {
+        txt: await read(empty),
+        pdf: await read(emptyPdf),
+        docx: await read(emptyDocx),
+        textless: await read(textless),
+        damaged: await read(damaged),
+      };
     }, makePdf("").toString("base64"));
+    const emptyKinds = [refusals.txt, refusals.pdf, refusals.docx];
     check(
-      "an empty file is refused as empty, not unreadable",
-      refusals.empty.failure === "empty" && refusals.empty.reason === "empty",
-      JSON.stringify(refusals.empty),
+      "an empty file is refused as empty, whatever its type",
+      emptyKinds.every((refusal) => refusal.failure === "empty" && refusal.reason === "empty"),
+      JSON.stringify(emptyKinds),
     );
     check(
       "a PDF with bytes but no words keeps the scan sentence",

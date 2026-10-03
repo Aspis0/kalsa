@@ -128,15 +128,45 @@ function ensureStreamAsyncIterator(): void {
   const proto = globalThis.ReadableStream?.prototype as
     | (ReadableStream<unknown> & { [Symbol.asyncIterator]?: unknown })
     | undefined;
-  if (!proto || Symbol.asyncIterator in proto) return;
+  if (!proto || typeof proto[Symbol.asyncIterator] === "function") return;
   proto[Symbol.asyncIterator] = function (this: ReadableStream<unknown>) {
     const reader = this.getReader();
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      reader.releaseLock();
+    };
     return {
-      next: () => reader.read().then(({ done, value }) => ({ done, value })),
+      next: () => {
+        if (released) return Promise.resolve({ done: true, value: undefined });
+        return reader.read().then(({ done, value }) => {
+          if (done) release();
+          return { done, value };
+        });
+      },
       return: async (value?: unknown) => {
-        await reader.cancel();
-        reader.releaseLock();
+        if (!released) {
+          try {
+            await reader.cancel();
+          } finally {
+            release();
+          }
+        }
         return { done: true, value };
+      },
+      throw: async (error?: unknown) => {
+        if (!released) {
+          try {
+            await reader.cancel(error);
+          } catch {
+            // The consumer's own error is the one to see; a cancel that
+            // fails (the stream is already closed) must not replace it.
+          } finally {
+            release();
+          }
+        }
+        throw error;
       },
       [Symbol.asyncIterator]() {
         return this;
@@ -277,6 +307,11 @@ export async function extractAttachment(file: File): Promise<Attachment> {
       `“${file.name}” is too large to read in the browser (${Math.round(file.size / 1048576)} MB).`,
     );
   }
+  // Before the parsers: pdf.js calls a zero-byte PDF an invalid one and the
+  // zip readers find no entry, but no bytes is no bytes, whatever the type.
+  if (file.size === 0) {
+    throw new AttachmentError("empty", `“${file.name}” is empty.`);
+  }
   let text: string;
   let pages: number | undefined;
   try {
@@ -315,11 +350,6 @@ export async function extractAttachment(file: File): Promise<Attachment> {
   }
   text = cleanText(text);
   if (!text) {
-    // No bytes is an empty file; bytes whose text never arrives is a document
-    // a reader can only see as an image — a scan.
-    if (file.size === 0) {
-      throw new AttachmentError("empty", `“${file.name}” is empty.`);
-    }
     throw new AttachmentError(
       "no-text",
       `“${file.name}” holds no readable text (a scan without a text layer).`,
