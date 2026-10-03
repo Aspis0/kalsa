@@ -372,6 +372,63 @@ fn an_interrupted_body_never_reaches_the_engine_or_marks_the_slot() {
     door.shutdown();
 }
 
+/// A generation the client left in flight is a turn all the same: the engine
+/// holds the whole request and is still making the answer when the phone
+/// hangs up, so the slot was written into and the tick owes it a save. This is
+/// the path the body-never-arrived case above cannot reach: the request
+/// reached the engine, the answer was cut by the client.
+#[test]
+fn a_client_that_leaves_mid_generation_still_marks_the_slot() {
+    let slot_dir = temp_dir("cadence-hangup");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
+    let chat = "aaaa1111";
+    assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
+    let opened = engine.sent().len();
+
+    // The engine holds the answer back for the length of GENERATION: it has
+    // the whole request and is mid-generation while the client is still there.
+    engine.delay(GENERATION);
+    let body = r#"{"messages":[{"role":"user","content":"hi"}],"stream":false}"#;
+    let mut client = TcpStream::connect(address).unwrap();
+    write!(
+        client,
+        "POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\nOrigin: {ORIGIN}\r\n\
+         Authorization: Bearer {token}\r\nContent-Type: application/json\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    )
+    .unwrap();
+
+    // The engine's own record is the proof it read the whole body: the fixture
+    // reads and records the request before it holds the answer back.
+    wait_for(&engine, opened + 1);
+    drop(client);
+
+    // The generation was written into the slot, so the tick owes it a save —
+    // and this waits for the mark to exist, not for a clock.
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while door.save_idle(quiet_since(Instant::now())) == 0 {
+        assert!(
+            Instant::now() < deadline,
+            "a generation the client left was written out as clean"
+        );
+        thread::sleep(Duration::from_millis(2));
+    }
+    assert_eq!(
+        engine.sent().len(),
+        opened + 2,
+        "the interrupted turn was not written out exactly once: {:?}",
+        &engine.sent()[opened..]
+    );
+    assert!(
+        slot_dir.join(file_name(chat)).exists(),
+        "the save of the interrupted turn renamed nothing into place"
+    );
+    door.shutdown();
+}
+
 #[test]
 fn a_dirty_unknown_slot_is_never_saved() {
     // A name of its own: this test asserts the directory is EMPTY, so sharing
