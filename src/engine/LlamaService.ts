@@ -2599,7 +2599,10 @@ export function initEngine(
     // configuration faithfully rather than inheriting streaming's.
     params.no_extra_bufts =
       params.moe_stream?.enabled === true ? true : load.noExtraBufts;
-    if (governorFeatureEnabled && !governorLoad) {
+    // Same Android-only scope as the site above (same rationale): a second,
+    // unguarded copy of this zero survived 2a079bd2 and still dropped every
+    // iOS default load to CPU once the flag read ON.
+    if (Platform.OS === "android" && governorFeatureEnabled && !governorLoad) {
       params.n_gpu_layers = 0;
     }
 
