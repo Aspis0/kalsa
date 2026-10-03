@@ -123,8 +123,10 @@ struct Brain {
     room_events: Mutex<Option<Arc<std::sync::atomic::AtomicBool>>>,
     /// How many Turn offs the owner has asked for. A walk captures it at its
     /// start and re-checks it before each start it makes: a stop taken
-    /// mid-walk is never undone by the launch that follows.
-    stops: AtomicU64,
+    /// mid-walk is never undone by the launch that follows. Crate-visible
+    /// because vision's enable is a walk too — it reads the generation
+    /// before its download begins and vetoes its own restart with it.
+    pub(crate) stops: AtomicU64,
     /// One gate across both sides of that race: the Stop side holds it over
     /// bump+send, the walk side over claim+snapshot and check+send — so on
     /// the channel's FIFO no Turn off can land between a check and its send.
@@ -497,13 +499,6 @@ impl Brain {
             .lock()
             .ok()
             .and_then(|stored| stored.as_ref().cloned())
-    }
-
-    /// Whether a walk holds the single-walk claim: the vision command asks
-    /// before downloading, so an accept during a start is refused with the
-    /// same words a second Turn on gets, before any bytes move.
-    pub(crate) fn walk_in_progress(&self) -> bool {
-        self.turning_on.load(Ordering::SeqCst)
     }
 
     /// The kept measurement, for the fit question a command asks outside a
@@ -1391,10 +1386,9 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     walk_and_settle(&app, &brain).await
 }
 
-/// The walk `brain_start` runs, shared with vision's enable: the owner's
-/// accept downloads a projector and then restarts the engine through THIS
-/// path, so the launch that follows is planned, tuned and settled exactly
-/// as a Turn on is — one walk, never a second way to start.
+/// The walk `brain_start` runs: claim the single walk, then run [`settle`]
+/// — the same body vision's restart runs on a claim of its own, so an
+/// accept and a Turn on are one kind of walk, never two ways to start.
 pub(crate) async fn walk_and_settle(
     app: &tauri::AppHandle,
     brain: &Brain,
@@ -1413,7 +1407,26 @@ pub(crate) async fn walk_and_settle(
     // Every `?` below returns through this: the claim (and the door's
     // raise) must not stay stuck behind a fallible call.
     let _walk = WalkGuard(brain);
+    settle(app, brain, state_file, stops_seen).await
+}
+
+/// The walk's body once the single-walk claim is held: the measurement,
+/// the walk itself and the settlement, all disciplined by `stops_seen`.
+/// The generation is the CALLER'S — a Turn on passes the one its own claim
+/// took; vision's restart passes the one taken before the projector
+/// download began, so a Turn off that landed while the bytes moved is
+/// still caught by every check below (`queue_start`'s above all). No
+/// `require_choice` here: the restart re-runs a model that already chose,
+/// including one the automatic path picked for the owner.
+pub(crate) async fn settle(
+    app: &tauri::AppHandle,
+    brain: &Brain,
+    state_file: PathBuf,
+    stops_seen: u64,
+) -> Result<(), CommandError> {
     brain.metrics.reset();
+    let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
+    let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
     let kept = brain
         .measurement
         .lock()
@@ -1481,7 +1494,7 @@ pub(crate) async fn walk_and_settle(
     .await;
 
     let record_dir = app.path().app_data_dir().ok();
-    let result = match outcome {
+    match outcome {
         Ok(walked) => settle_walk(brain, walked, record_dir.as_deref(), stops_seen),
         // The blocking task itself died and nothing came back: nothing to
         // keep, and the standing sentence for it.
@@ -1489,11 +1502,7 @@ pub(crate) async fn walk_and_settle(
             "startup.could_not_start",
             "Kalsa couldn't start. Try again.",
         )),
-    };
-    // The claim releases here (WalkGuard) — after settlement, retry
-    // included: no second Turn on may queue behind an open start verdict.
-    drop(_walk);
-    result
+    }
 }
 
 /// What the blocking walk hands back: the verdict for the screen, and —
