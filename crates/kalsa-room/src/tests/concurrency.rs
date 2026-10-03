@@ -53,7 +53,7 @@ fn concurrent_writers_keep_one_order_and_a_reader_sees_no_gaps() {
             let mut posted = Vec::new();
             for n in 0..PER_WRITER {
                 let entry = room
-                    .post(member, &format!("d{device}-m{n}"), "text", false)
+                    .post(member, &format!("d{device}-m{n}"), "text", false, &[])
                     .expect("the post lands");
                 posted.push(entry.seq);
             }

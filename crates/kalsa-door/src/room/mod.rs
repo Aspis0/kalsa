@@ -9,6 +9,7 @@
 //! `Last-Event-ID` the client carries.
 
 mod answers;
+mod media;
 mod prefill;
 mod routes;
 mod stream;
@@ -183,16 +184,22 @@ pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Insta
                     let _ = proxy::answer_to(&mut client, &answer, deadline);
                 }
                 _ => {
-                    let _ = proxy::answer_to(
-                        &mut client,
-                        &json_ok_no_content(origin),
-                        deadline,
-                    );
+                    let _ = proxy::answer_to(&mut client, &json_ok_no_content(origin), deadline);
                 }
             }
         }
         (b"/kalsa/room/name", b"PUT") => {
             let answer = set_name(&mut client, door, head, member, origin, deadline);
+            let _ = proxy::answer_to(&mut client, &answer, deadline);
+        }
+        // The media road: reserve at the bare path, then the whole
+        // subtree — chunks, completes and downloads — one file's routes.
+        (b"/kalsa/room/media", b"POST") => {
+            let answer = media::create(&mut client, &door.room, head, member, origin, deadline);
+            let _ = proxy::answer_to(&mut client, &answer, deadline);
+        }
+        (path, _) if path.starts_with(b"/kalsa/room/media/") => {
+            let answer = media::serve(&mut client, door, head, member, origin, deadline, path);
             let _ = proxy::answer_to(&mut client, &answer, deadline);
         }
         (b"/kalsa/room/events", b"GET") => {

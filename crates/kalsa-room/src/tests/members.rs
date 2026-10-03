@@ -31,7 +31,7 @@ fn a_forgotten_member_retires_and_a_returning_device_is_new() {
 
     room.forget_device(3).expect("the device is forgotten");
     assert!(
-        room.post(member, "m2", "refused", false).is_err(),
+        room.post(member, "m2", "refused", false, &[]).is_err(),
         "a retired member cannot post",
     );
     assert!(room.is_former(member), "the door's mark for a former member");

@@ -106,7 +106,7 @@ fn event_json(
     Ok(match event {
         kalsa_room::Event::Message(entry) => {
             let name = wire_name(room, labels, entry.member);
-            serde_json::json!({
+            let mut payload = serde_json::json!({
                 "kind": if entry.member == kalsa_room::MemberId::Ai { "ai_message" } else { "message" },
                 "epoch": room.epoch(),
                 "seq": entry.seq,
@@ -117,7 +117,12 @@ fn event_json(
                 "time": entry.time,
                 "call_ai": entry.call_ai,
                 "read": (entry.member == kalsa_room::MemberId::Ai).then_some(entry.read),
-            })
+            });
+            if !entry.media.is_empty() {
+                payload["media"] = serde_json::to_value(&entry.media)
+                    .expect("a media descriptor always serializes");
+            }
+            payload
         }
         kalsa_room::Event::Member(event) => match event {
             MemberEvent::Joined { member, name } => serde_json::json!({
@@ -131,7 +136,11 @@ fn event_json(
                 "name": wire_name(room, labels, member),
             }),
         },
-        kalsa_room::Event::Ai(kalsa_room::AiEvent::Status { state, note_code, note }) => {
+        kalsa_room::Event::Ai(kalsa_room::AiEvent::Status {
+            state,
+            note_code,
+            note,
+        }) => {
             let turns = room.turn_state();
             serde_json::json!({
                 "kind": "ai_status", "state": state,
@@ -183,8 +192,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            payload["name"],
-            "",
+            payload["name"], "",
             "the departure names the host by the wire rule"
         );
         assert_eq!(payload["action"], "left");

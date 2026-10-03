@@ -6,6 +6,7 @@ mod concurrency;
 mod durability;
 mod history;
 mod members;
+mod media;
 mod mention;
 mod permissions;
 mod post;
@@ -67,6 +68,6 @@ fn phone(room: &Room, device: u32) -> MemberId {
 }
 
 fn say(room: &Room, device: u32, id: &str, text: &str) -> Entry {
-    room.post(phone(room, device), id, text, false)
+    room.post(phone(room, device), id, text, false, &[])
         .expect("the post lands")
 }

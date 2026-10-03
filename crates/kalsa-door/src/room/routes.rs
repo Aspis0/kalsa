@@ -226,7 +226,28 @@ pub(super) fn post(
         .get("call_ai")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    match door.room.post(member, client_msg_id, text, call_ai) {
+    // The blobs a post attaches: ids only, the descriptors living on the
+    // shelf the store keeps. A media field that is not an array of strings
+    // is a body of a shape the route does not read.
+    let media = match value.get("media") {
+        None => Vec::new(),
+        Some(media) => match media.as_array() {
+            Some(ids) if ids.len() <= kalsa_room::POST_MEDIA_MAX => {
+                let mut names = Vec::with_capacity(ids.len());
+                for id in ids {
+                    match id.as_str() {
+                        Some(id) => names.push(id.to_string()),
+                        None => {
+                            return json_error(400, origin, "bad_request", MALFORMED);
+                        }
+                    }
+                }
+                names
+            }
+            _ => return json_error(400, origin, "bad_request", MALFORMED),
+        },
+    };
+    match door.room.post(member, client_msg_id, text, call_ai, &media) {
         Ok(entry) => {
             // A called message takes its place in the queue — the store
             // already derived the call from the flag or the token — and
@@ -262,6 +283,7 @@ fn post_error(origin: Option<&[u8]>, error: &kalsa_room::PostError) -> Vec<u8> {
         }
         E::TextTooLong => json_error(413, origin, "too_large", &error.to_string()),
         E::ClientIdReused => json_error(409, origin, "client_msg_id_reused", &error.to_string()),
+        E::Media(media) => super::media::refusal(origin, media),
         E::ReadOnly => json_error(503, origin, "read_only", &error.to_string()),
         E::Io(_) => json_error(500, origin, "internal", store_failed()),
     }

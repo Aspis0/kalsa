@@ -35,6 +35,8 @@ pub enum PostError {
     /// different flag is a disagreement, not a retry.
     ClientIdReused,
     NotAMember,
+    /// The media the post named was refused by the shelf.
+    Media(crate::media::MediaError),
     /// The transcript could not be repaired at open. Reads serve what is
     /// intact; writes are refused until a reopen succeeds.
     ReadOnly,
@@ -51,9 +53,10 @@ impl std::fmt::Display for PostError {
                 f.write_str("that client message id was already used for a different message")
             }
             Self::NotAMember => f.write_str("that member cannot post in this room"),
-            Self::ReadOnly => {
-                f.write_str("the room's transcript needs repair; posts are refused until it is reopened")
-            }
+            Self::Media(error) => write!(f, "{error}"),
+            Self::ReadOnly => f.write_str(
+                "the room's transcript needs repair; posts are refused until it is reopened",
+            ),
             Self::Io(_) => f.write_str("the room's store failed on disk"),
         }
     }
@@ -63,6 +66,9 @@ pub struct Room {
     pub(crate) dir: PathBuf,
     write: Mutex<Writer>,
     state: Mutex<State>,
+    /// The media shelf, under its own lock — never held while the write
+    /// lock waits on it (see `media`).
+    pub(crate) media: Mutex<crate::shelf::MediaState>,
     pub(crate) signal: Condvar,
 }
 
@@ -117,7 +123,8 @@ impl Room {
             .iter()
             .map(|message| StoredEvent::Message(Arc::clone(message)))
             .collect();
-        Ok(Self {
+        let media = crate::shelf::MediaState::open(&dir)?;
+        let room = Self {
             dir: dir.to_path_buf(),
             write: Mutex::new(Writer {
                 file: opened.file,
@@ -131,8 +138,14 @@ impl Room {
                 roster,
                 queue: crate::queue::Queue::new(),
             }),
+            media: Mutex::new(media),
             signal: Condvar::new(),
-        })
+        };
+        // The reference table is the transcript's shadow: rebuilt from the
+        // entries the loader served, so a reopened room's access rules
+        // name the same blobs the old one did.
+        room.media_seed_refs();
+        Ok(room)
     }
 
     // Poison policy, decided once for both locks: a panicked critical
@@ -179,12 +192,7 @@ fn by_client_of(messages: &[Arc<Message>]) -> HashMap<(MemberId, String), u64> {
     messages
         .iter()
         .filter(|message| message.member != MemberId::Ai)
-        .map(|message| {
-            (
-                (message.member, message.client_msg_id.clone()),
-                message.seq,
-            )
-        })
+        .map(|message| ((message.member, message.client_msg_id.clone()), message.seq))
         .collect()
 }
 

@@ -47,7 +47,7 @@ fn house_at(
 /// through the room, the call is taken, and the app's own door drives the
 /// turn — no room route carries the host's posts.
 fn host_calls(door: &crate::RunningDoor, room: &Room, client_msg_id: &str, text: &str) -> u64 {
-    room.post(MemberId::Host, client_msg_id, text, true)
+    room.post(MemberId::Host, client_msg_id, text, true, &[])
         .expect("the host's message lands");
     let turn = match room.submit_call(MemberId::Host, client_msg_id) {
         Ok(CallTaken::Starts(turn)) => turn,

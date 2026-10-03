@@ -54,6 +54,10 @@ pub struct RoomEntryDto {
     pub text: String,
     pub time: u64,
     pub call_ai: bool,
+    /// The media this entry carries, descriptors whole; absent when the
+    /// entry carries none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media: Option<Vec<crate::room_media::RoomMediaDto>>,
     /// The AI's own answer carries how many of the room's messages it
     /// read; `None` on everyone else's.
     pub read: Option<u32>,
@@ -76,7 +80,7 @@ pub struct RoomCommandError {
 }
 
 impl RoomCommandError {
-    fn internal() -> Self {
+    pub(crate) fn internal() -> Self {
         Self { code: "internal" }
     }
 }
@@ -84,25 +88,58 @@ impl RoomCommandError {
 fn command_error(error: kalsa_room::PostError) -> RoomCommandError {
     match error {
         kalsa_room::PostError::TextTooLong => RoomCommandError { code: "too_large" },
-        kalsa_room::PostError::ClientIdReused => RoomCommandError { code: "client_msg_id_reused" },
+        kalsa_room::PostError::ClientIdReused => RoomCommandError {
+            code: "client_msg_id_reused",
+        },
+        kalsa_room::PostError::Media(media) => media_command_error(media),
         kalsa_room::PostError::ReadOnly => RoomCommandError { code: "read_only" },
         kalsa_room::PostError::EmptyText
         | kalsa_room::PostError::BadClientMsgId
-        | kalsa_room::PostError::NotAMember => RoomCommandError { code: "bad_request" },
+        | kalsa_room::PostError::NotAMember => RoomCommandError {
+            code: "bad_request",
+        },
         kalsa_room::PostError::Io(_) => RoomCommandError::internal(),
     }
 }
 
+/// The shelf's refusals as stable codes — the same table the door answers
+/// a phone's media routes with.
+pub(crate) fn media_command_error(error: kalsa_room::MediaError) -> RoomCommandError {
+    let code = match error {
+        kalsa_room::MediaError::BadRequest => "bad_request",
+        kalsa_room::MediaError::Incomplete => "media_incomplete",
+        kalsa_room::MediaError::BadSha => "media_bad_sha",
+        kalsa_room::MediaError::BadMagic => "media_bad_magic",
+        kalsa_room::MediaError::TooLarge => "too_large",
+        kalsa_room::MediaError::Full => "room_media_full",
+        kalsa_room::MediaError::Unknown => "media_not_found",
+        kalsa_room::MediaError::NotYours => "media_not_yours",
+        kalsa_room::MediaError::Forbidden => "media_forbidden",
+        kalsa_room::MediaError::Io(_) => "internal",
+    };
+    RoomCommandError { code }
+}
+
 fn name_command_error(error: kalsa_room::NameError) -> RoomCommandError {
     match error {
-        kalsa_room::NameError::TooLong => RoomCommandError { code: "name_too_long" },
-        kalsa_room::NameError::Reserved => RoomCommandError { code: "name_reserved" },
+        kalsa_room::NameError::TooLong => RoomCommandError {
+            code: "name_too_long",
+        },
+        kalsa_room::NameError::Reserved => RoomCommandError {
+            code: "name_reserved",
+        },
         kalsa_room::NameError::Taken => RoomCommandError { code: "name_taken" },
-        kalsa_room::NameError::Framing => RoomCommandError { code: "name_framing" },
-        kalsa_room::NameError::MixedScripts => RoomCommandError { code: "name_mixed_scripts" },
+        kalsa_room::NameError::Framing => RoomCommandError {
+            code: "name_framing",
+        },
+        kalsa_room::NameError::MixedScripts => RoomCommandError {
+            code: "name_mixed_scripts",
+        },
         kalsa_room::NameError::Empty
         | kalsa_room::NameError::Invisible
-        | kalsa_room::NameError::NotAMember => RoomCommandError { code: "bad_request" },
+        | kalsa_room::NameError::NotAMember => RoomCommandError {
+            code: "bad_request",
+        },
         kalsa_room::NameError::Io(_) => RoomCommandError::internal(),
     }
 }
@@ -125,6 +162,13 @@ fn entry_dto(room: &Room, labels: &Labels, entry: &Entry) -> RoomEntryDto {
         text: entry.text.clone(),
         time: entry.time,
         call_ai: entry.call_ai,
+        media: (!entry.media.is_empty()).then(|| {
+            entry
+                .media
+                .iter()
+                .map(crate::room_media::RoomMediaDto::of)
+                .collect()
+        }),
         read: (entry.member == MemberId::Ai).then_some(entry.read),
     }
 }
@@ -143,7 +187,12 @@ pub fn brain_room(
             room_name: String::new(),
             you: MemberId::Host.wire(),
             members: Vec::new(),
-            ai: RoomAiDto { state: "idle", running: None, queue: Vec::new(), you_pending: false },
+            ai: RoomAiDto {
+                state: "idle",
+                running: None,
+                queue: Vec::new(),
+                you_pending: false,
+            },
         });
     };
     let labels = room::device_labels(&desk);
@@ -206,7 +255,9 @@ pub fn brain_room_history(
         (None, Some(before)) => room.page_before(1, before, limit),
         (None, None) => room.newest_page(1, limit),
     }
-    .map_err(|_| RoomCommandError { code: "bad_request" })?;
+    .map_err(|_| RoomCommandError {
+        code: "bad_request",
+    })?;
     Ok(page
         .messages
         .iter()
@@ -215,7 +266,8 @@ pub fn brain_room_history(
 }
 
 /// The host's own message into the room, with the call flag the button
-/// carries — the store itself adds a call for "@Kalsa" in the text.
+/// carries — the store itself adds a call for "@Kalsa" in the text — and
+/// the media ids of blobs the host uploaded to the shelf.
 #[tauri::command]
 pub fn brain_room_post(
     brain: tauri::State<'_, crate::Brain>,
@@ -223,18 +275,29 @@ pub fn brain_room_post(
     client_msg_id: String,
     text: String,
     call_ai: bool,
+    media: Option<Vec<String>>,
 ) -> Result<RoomPostDto, RoomCommandError> {
     let Some(room) = brain.room.get() else {
         return Err(RoomCommandError::internal());
     };
-    let entry = room::host_post(room, &client_msg_id, &text, call_ai).map_err(command_error)?;
+    let entry = room::host_post(
+        room,
+        &client_msg_id,
+        &text,
+        call_ai,
+        media.as_deref().unwrap_or(&[]),
+    )
+    .map_err(command_error)?;
     let labels = room::device_labels(&desk);
     let dto = entry_dto(room, &labels, &entry);
     // The message landed; the call is taken only if a running door can
     // drive it — a queue nobody serves would hold the host's call until
     // restart, which is a lie the page cannot see past.
     let outcome = if !entry.call_ai {
-        CallOutcome { ai_call: None, refusal: None }
+        CallOutcome {
+            ai_call: None,
+            refusal: None,
+        }
     } else {
         let door = brain
             .door
@@ -246,12 +309,22 @@ pub fn brain_room_post(
                 let outcome = room::take_host_call(room, &client_msg_id, |member, turn| {
                     door.drive_room_turn(member, turn)
                 });
-                CallOutcome { ai_call: outcome.ai_call, refusal: outcome.refusal }
+                CallOutcome {
+                    ai_call: outcome.ai_call,
+                    refusal: outcome.refusal,
+                }
             }
-            None => CallOutcome { ai_call: Some("refused"), refusal: Some("could_not_start") },
+            None => CallOutcome {
+                ai_call: Some("refused"),
+                refusal: Some("could_not_start"),
+            },
         }
     };
-    Ok(RoomPostDto { entry: dto, ai_call: outcome.ai_call, refusal: outcome.refusal })
+    Ok(RoomPostDto {
+        entry: dto,
+        ai_call: outcome.ai_call,
+        refusal: outcome.refusal,
+    })
 }
 
 /// The host's own display name in this room.
@@ -309,7 +382,7 @@ mod tests {
         assert_eq!(host.name, "", "the default name is the page's to localize");
 
         let said = room
-            .post(MemberId::Host, "host-1", "ciao", false)
+            .post(MemberId::Host, "host-1", "ciao", false, &[])
             .expect("the host's message lands");
         let said = entry_dto(&room, &labels, &said);
         assert_eq!(said.name, "", "entries follow the same rule");

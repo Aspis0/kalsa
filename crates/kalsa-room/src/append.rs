@@ -9,6 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::events::StoredEvent;
 use crate::log::{self, Message};
+use crate::media::{MediaAsset, MediaError};
 use crate::mention::calls_ai;
 use crate::room::{Room, Writer};
 use crate::roster;
@@ -16,31 +17,46 @@ use crate::{Entry, MemberId, PostError, RoomError};
 
 impl Room {
     /// Appends one message and answers it. The same `(member,
-    /// client_msg_id)`, with the same text and flag, never posts twice:
-    /// the seq the first attempt got is the seq every retry sees, so a
-    /// phone that queues messages while the host sleeps can retry on every
-    /// wake without a duplicate ever landing. The same id with DIFFERENT
-    /// words or flag is refused: one id, one message.
+    /// client_msg_id)`, with the same text, flag and media, never posts
+    /// twice: the seq the first attempt got is the seq every retry sees,
+    /// so a phone that queues messages while the host sleeps can retry on
+    /// every wake without a duplicate ever landing. The same id with
+    /// DIFFERENT words, flag or media is refused: one id, one message.
+    ///
+    /// Words may be empty when media ride with the post — the fallback
+    /// text stands in for them, so every reader of the transcript,
+    /// including phones from before media, has something to show.
     pub fn post(
         &self,
         member: MemberId,
         client_msg_id: &str,
         text: &str,
         call_ai: bool,
+        media: &[String],
     ) -> Result<Entry, PostError> {
         if !log::is_client_msg_id(client_msg_id) {
             return Err(PostError::BadClientMsgId);
         }
-        if text.is_empty() {
+        if text.is_empty() && media.is_empty() {
             return Err(PostError::EmptyText);
         }
         if text.len() > log::MAX_TEXT_BYTES {
             return Err(PostError::TextTooLong);
         }
+        // The media are resolved before any lock the posting path holds:
+        // the shelf's own lock is never taken inside the write lock's
+        // critical section here, and a blob the poster does not own is
+        // refused before anything is written.
+        let assets = self.own_media(member, media)?;
+        let text = if text.is_empty() {
+            fallback_text(&assets)
+        } else {
+            text.to_string()
+        };
         // The call rule is the store's to apply, not a caller's to
         // remember: the flag is one way to call, the token is the other,
         // and the entry carries the OR of both.
-        let call_ai = call_ai || calls_ai(text);
+        let call_ai = call_ai || calls_ai(&text);
         let mut writer = self.lock_write();
         if !writer.writable {
             return Err(PostError::ReadOnly);
@@ -57,7 +73,10 @@ impl Room {
             {
                 Some(seq) => {
                     let stored = &state.messages[seq as usize - 1];
-                    if stored.text == text && stored.call_ai == call_ai {
+                    if stored.text == text
+                        && stored.call_ai == call_ai
+                        && media_ids_of(&stored.media) == media
+                    {
                         return Ok(Entry::of(stored));
                     }
                     return Err(PostError::ClientIdReused);
@@ -66,16 +85,21 @@ impl Room {
                     seq: state.messages.len() as u64 + 1,
                     member,
                     client_msg_id: client_msg_id.to_string(),
-                    text: text.to_string(),
+                    text,
                     time: now(),
                     call_ai,
                     read: 0,
+                    media: assets,
                 },
             }
         };
         if let Err(error) = append(&mut writer.file, &fresh) {
             return self.after_failed_append(&mut writer, fresh, error);
         }
+        // Only now, with the entry on disk, do the blobs it names become
+        // the transcript's to serve: a blob is never opened up to a
+        // message that does not exist.
+        self.media_reference(&fresh.media, fresh.seq);
         Ok(self.land(fresh))
     }
 
@@ -106,6 +130,7 @@ impl Room {
                 time: now(),
                 call_ai: true,
                 read,
+                media: Vec::new(),
             }
         };
         if let Err(error) = append(&mut writer.file, &fresh) {
@@ -148,6 +173,7 @@ impl Room {
                         && landed.member == message.member
                         && landed.client_msg_id == message.client_msg_id
                         && landed.text == message.text
+                        && media_ids_of(&landed.media) == media_ids_of(&message.media)
                 })
                 .cloned(),
             _ => None,
@@ -222,13 +248,57 @@ fn now() -> u64 {
         .unwrap_or(0)
 }
 
+/// The ids a posted entry carries, in order, for the idempotency compare.
+fn media_ids_of(assets: &[MediaAsset]) -> Vec<&str> {
+    assets.iter().map(|asset| asset.id.as_str()).collect()
+}
+
+/// The words that stand in when a post carries media and no text: what an
+/// old phone — and the AI without vision — shows instead of nothing.
+fn fallback_text(assets: &[MediaAsset]) -> String {
+    let any_video = assets
+        .iter()
+        .any(|asset| asset.kind == crate::media::MediaKind::Video);
+    if any_video {
+        "[Video]".to_string()
+    } else {
+        "[Image]".to_string()
+    }
+}
+
+impl Room {
+    /// The shelf records behind the ids a post names: each one published,
+    /// owned by the poster, and free of duplicates — the poster attaches
+    /// its own uploads, nobody else's.
+    fn own_media(&self, member: MemberId, ids: &[String]) -> Result<Vec<MediaAsset>, PostError> {
+        if ids.len() > crate::media::POST_MEDIA_MAX {
+            return Err(PostError::Media(MediaError::BadRequest));
+        }
+        let mut assets = Vec::with_capacity(ids.len());
+        let media = self.media.lock().unwrap_or_else(|p| p.into_inner());
+        for id in ids {
+            if assets.iter().any(|asset: &MediaAsset| &asset.id == id) {
+                return Err(PostError::Media(MediaError::BadRequest));
+            }
+            match media.asset_of(id) {
+                Some((asset, owner)) if *owner == member => assets.push(asset.clone()),
+                Some(_) => return Err(PostError::Media(MediaError::NotYours)),
+                None => return Err(PostError::Media(MediaError::Unknown)),
+            }
+        }
+        Ok(assets)
+    }
+}
+
 /// A recovery failure as the io error the caller sees. A corrupt file is
 /// not retryable, so it does not become one.
 fn io_of(error: RoomError) -> std::io::Error {
     match error {
         RoomError::Io(error) => error,
         RoomError::Corrupt(why) => std::io::Error::other(why),
-        RoomError::RosterFull => std::io::Error::other("the room has more members than it can name"),
+        RoomError::RosterFull => {
+            std::io::Error::other("the room has more members than it can name")
+        }
         RoomError::Entropy => std::io::Error::other("the room could not mint an identity"),
     }
 }

@@ -41,7 +41,7 @@ fn house(dir: &Path) -> (crate::RunningDoor, Arc<Room>, tier::Engine, String) {
 }
 
 fn host_calls(door: &crate::RunningDoor, room: &Room, id: &str, text: &str) {
-    room.post(MemberId::Host, id, text, true)
+    room.post(MemberId::Host, id, text, true, &[])
         .expect("the host's message lands");
     let turn = match room.submit_call(MemberId::Host, id) {
         Ok(CallTaken::Starts(turn)) => turn,

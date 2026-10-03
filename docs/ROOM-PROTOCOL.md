@@ -3,8 +3,8 @@
 The contract the phone implements against. One room per Kalsa computer: the
 computer hosts it, every device paired to it (after the owner's Allow) is a
 member, and so is the computer's own user, the host. The AI, shown as
-"Kalsa", answers only when called. Text only; the AI itself and the queue
-behind it are later steps — the wire already carries them.
+"Kalsa", answers only when called. Members post words, pictures and
+videos (§5b).
 
 ## 1. Transport and auth
 
@@ -110,6 +110,9 @@ Query parameters, all optional:
   caller's own history: a member's pages begin at their join point, and
   the host's at the transcript's start. A `Last-Event-ID` replay begins at
   the join point too, never before it.
+- A message that carries pictures or videos names them in a `media`
+  array of blob descriptors (§5b); a message without media has no
+  `media` field at all.
 - `name` is the author's CURRENT display name, resolved at read time: a
   rename recolors that member's past messages. A former member's messages
   show the name it had, and carry `"former": true` — that field is the
@@ -128,7 +131,8 @@ Query parameters, all optional:
   client. It exists because the host may be asleep when a message is
   written: the phone queues the message locally and retries the POST until
   it succeeds, and the id makes the retry harmless.
-- `text` (required): 1–8000 UTF-8 bytes. The whole request body is capped
+- `text` (required, unless `media` rides with the post — §5b): 1–8000
+  UTF-8 bytes. The whole request body is capped
   at 16 KiB before it is read: JSON escaping can make a text within 8000
   bytes exceed the cap (a quote-heavy 7900-byte text can escape past it),
   and the answer is then `413 too_large` — the text is legal, the body is
@@ -187,6 +191,111 @@ means the `@` belongs to a word or an address, not to a call. Detection
 runs on the raw text, before any processing, and the computer applies it
 itself — the request's `call_ai` flag is the second way to call, not a
 duty of the caller.
+
+## 5b. Media — pictures and videos
+
+Members post pictures and videos beside their words. THE SENDER'S DEVICE
+COMPRESSES before anything is uploaded — a picture re-encoded to at most
+1600 px on the long side and 4 MiB of JPEG, a video to roughly 720p
+H.264 in an MP4 — and the computer never transcodes: it verifies what
+arrived against what the upload declared, stores it, and serves the same
+bytes to everyone.
+
+- Kinds and mimes: `image/jpeg`, `image/png`, `image/webp`, `video/mp4`.
+  Nothing else is stored. The computer checks the file's magic bytes
+  against the mime on publish and refuses a mismatch
+  (`400 media_bad_magic`).
+- A video may carry up to 4 still frames its sender extracted and
+  uploaded first (each an image of its own). The frames ride the video's
+  descriptor; THE AI SEES VIDEO ONLY AS THOSE FRAMES.
+- No filename, no path, no mime+filename pair exists anywhere in the
+  protocol. A blob is named by an opaque `id` (32 lowercase hex).
+
+### Uploading — `POST /kalsa/room/media`, `PUT /kalsa/room/media/{upload}/{index}`, `POST /kalsa/room/media/{upload}/complete`
+
+Reserve, feed, publish — three calls, all under the room's usual bearer
+and epoch rules, and the uploader of an upload is the only device that
+may touch it (`403 media_not_yours` otherwise).
+
+`POST /kalsa/room/media` — the reserve:
+
+```json
+{"kind": "image", "mime": "image/jpeg", "bytes": 183421,
+ "sha256": "<64 lowercase hex>", "width": 1600, "height": 900,
+ "duration_ms": null, "frames": null}
+```
+
+`kind` is `"image"` or `"video"`; `bytes` and the digest describe the
+WHOLE file; `width`/`height` are the sender's own pixels (required,
+1+); `duration_ms` only a video may carry; `frames` only a video, an
+array of 0–4 image ids the same member published. The answer is
+`{"upload": "<32 hex>"}`. Caps are checked here: an image over 4 MiB or
+a video over 100 MiB is `413 too_large`; a room whose media shelf is at
+its 2 GiB quota (published plus in-flight) is `413 room_media_full` —
+nothing is ever deleted to make room.
+
+`PUT /kalsa/room/media/{upload}/{index}` — the bytes, raw
+(`application/octet-stream`), at most 4 MiB a chunk, at
+`index * 4 MiB` in the file; every chunk but the last is exactly 4 MiB.
+The answer is `{"received": <bytes so far>}`. Re-sending an index the
+computer already holds is ANSWERED, not an error — the retry is
+idempotent. A chunk past the cap is refused before its bytes are read.
+
+`POST /kalsa/room/media/{upload}/complete` — no body. The computer
+checks the bytes whole: every declared byte arrived
+(`400 media_incomplete`), the digest matches (`400 media_bad_sha`), the
+magic bytes are the mime (`400 media_bad_magic`) — and publishes,
+answering with the blob's descriptor:
+
+```json
+{"id": "<32 hex>", "kind": "image", "mime": "image/jpeg",
+ "bytes": 183421, "sha256": "<64 hex>", "width": 1600, "height": 900,
+ "duration_ms": null, "frames": []}
+```
+
+(`duration_ms` and `frames` are absent on the wire when empty.) An
+upload the hour left unfinished is swept and its place in the quota
+returned; the sender sends it again. An upload does not survive the
+computer restarting — the same rule with a shorter fuse.
+
+### Posting media
+
+`POST /kalsa/room/messages` gains one optional field, `media`: an array
+of 1–8 blob ids the poster published itself (`403 media_not_yours` for
+anyone else's). The `text` may then be empty — the computer stores a
+fallback text, `[Image]` or `[Video]`, so every reader (and a phone
+from before this section) shows something; text that IS present rides
+as written. The same `client_msg_id` with a different media list is
+`409 client_msg_id_reused`, exactly as for different words.
+
+### Downloading — `GET /kalsa/room/media/{id}`
+
+The blob's bytes, `Content-Type` the stored mime, `Cache-Control:
+private`, `Accept-Ranges: bytes`. A single `Range: bytes=a-b` (or
+`bytes=a-`, or the suffix form `bytes=-n`) is answered `206` with
+`Content-Range`; a start past the end is `416` with
+`Content-Range: bytes */<len>`; anything else in the header is ignored
+and the whole blob is served.
+
+WHO MAY READ: any active member, and a blob only where the transcript
+entry that posted it is one the caller may see — the entry's `seq` at
+or after the caller's join floor (§2). An unreferenced blob —
+published, not yet posted — only its uploader may read. A member the
+owner removed (§2) has lost the room; if it is still paired it is a NEW
+member whose floor is now, and the past's pictures are as invisible to
+it as the past's words. Refusals: `404 media_not_found` (no such blob
+here), `403 media_forbidden` (not yours to see).
+
+### The AI and media
+
+When the computer calls the AI, it asks the engine's `/props` — once
+per turn, never cached. When the engine's `modalities.vision` is
+exactly `true`, the room's pictures ride on that turn: each member
+message's parts carry its images (a video's frames, at most 4) as
+`image_url` data-URI parts, newest first, at most 8 images a turn,
+each priced at 560 tokens out of the turn's budget — the same budget
+§8's transcript shares. A blind engine sees the text alone, the
+fallback word included; video never reaches the engine as video.
 
 ## 6. My name — `PUT /kalsa/room/name`
 
@@ -368,11 +477,15 @@ answer ever enters history.
 
 | Thing | Limit | Refusal |
 |---|---|---|
-| message text | 1–8000 UTF-8 bytes | `413 too_large` (empty: `400`) |
+| message text | 1–8000 UTF-8 bytes | `413 too_large` (empty: `400`, or §5b's fallback when media ride) |
 | request body | 16 KiB whole, any room route | `413 too_large`: the text may be legal and the escaped body not |
+| media, one blob | image ≤4 MiB, video ≤100 MiB | `413 too_large`, at the reserve |
+| media, one room | 2 GiB, published plus in-flight | `413 room_media_full`: nothing is ever deleted to make room |
+| media, one chunk | ≤4 MiB, raw bytes | `413 too_large`, refused before its bytes are read |
+| media, one post | 1–8 blob ids, the poster's own uploads | `400 bad_request` (shape), `403 media_not_yours` (someone else's) |
 | display name | §6 | `400` / `413` / `409 name_taken` |
 | client_msg_id | 1–64 chars ASCII 0x21–0x7E | `400 bad_request` |
-| client_msg_id reuse | same id, different content | `409 client_msg_id_reused` |
+| client_msg_id reuse | same id, different content (words, flag or media) | `409 client_msg_id_reused` |
 | a second call of one member | while one waits or runs | `ai_call: "refused"`, `refusal: "already_pending"` |
 | nothing of yours to withdraw | `DELETE /kalsa/room/call` | `404 no_call` |
 | history limit | 1–200 | `400 bad_request` |
@@ -390,6 +503,13 @@ Every error carries a stable machine `code` and its English fallback in
 |---|---|
 | `bad_request` | The room reads a JSON body of the shape its route defines. |
 | `too_large` | The message or name is too long. |
+| `media_incomplete` | Not all of the upload has arrived yet. |
+| `media_bad_sha` | The upload arrived damaged. Send it again. |
+| `media_bad_magic` | That file is not the kind it said it was. |
+| `room_media_full` | This room's media shelf is full. |
+| `media_not_found` | That media is not in this room. |
+| `media_not_yours` | Only the device that uploaded media may attach it. |
+| `media_forbidden` | You were not in the room when that was posted. |
 | `client_msg_id_reused` | This message id was already used for different content. |
 | `name_taken` | Someone in this room already uses that name. Pick another. |
 | `name_reserved` | Kalsa is the assistant's name. Pick another. |
@@ -407,7 +527,9 @@ Every error carries a stable machine `code` and its English fallback in
 Error bodies (except the empty 401) use
 `{"error": {"code": "...", "message": "<English fallback>"}}`;
 `name_taken`, `client_msg_id_reused` and `epoch_changed` are 409;
-`no_call`/`not_found` are 404, `too_large` is 413,
+`no_call`/`not_found`/`media_not_found` are 404,
+`media_forbidden`/`media_not_yours` are 403,
+`too_large`/`room_media_full` are 413,
 `no_room`/`read_only` are 503, `internal` is 500, and the rest are 400.
 
 The `ai_status` note codes and English fallbacks are:
@@ -438,9 +560,10 @@ No delivery while the host is down; nothing lost, nothing promised early.
 
 ## 10. Not in v1
 
-Direct messages between members; files, images, voice; end-to-end
+Direct messages between members; voice messages and media beyond §5b's
+four kinds; end-to-end
 encryption beyond the transport (the host sees plaintext — a family room
 on the family's own computer, said plainly); a second room on one
 computer; typing indicators and read receipts; editing or deleting posted
-messages; delivery while the host is off; retention limits (the transcript
-grows unbounded in v1); calls and meetings.
+messages or media; delivery while the host is off; retention limits (the
+transcript and the media shelf grow unbounded in v1); calls and meetings.

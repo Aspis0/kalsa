@@ -28,11 +28,12 @@ use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use kalsa_room::{AiEvent, Entry, MemberId};
+use kalsa_room::{AiEvent, Entry, MediaKind, MemberId};
 use serde_json::json;
 
 use crate::devices::DeviceId;
 use crate::proxy::{self, Shared};
+use crate::response;
 use crate::room::answers::name_of;
 use crate::room::prefill::Prefill;
 use crate::room::RoomDoor;
@@ -51,6 +52,16 @@ const BUDGET_SHARE: u64 = 60;
 /// The smallest transcript a too-large retry will carry: the newest
 /// message alone. Below this there is nothing to halve.
 const MIN_TRANSCRIPT: usize = 1;
+
+/// The most images one turn may carry to the model, and the token cost of
+/// each — the engine's own `--image-max-tokens`, estimated at four bytes a
+/// token like the transcript's budget. The transcript shrinks by the same
+/// bytes the images spend.
+const MAX_TURN_IMAGES: usize = 8;
+const IMAGE_TOKEN_BYTES: usize = 560 * 4;
+/// The most still frames one video may lend the turn, the same cap its
+/// upload was held to.
+const FRAMES_PER_VIDEO: usize = 4;
 
 /// How long a turn waits between looks for a free seat before it says so
 /// again.
@@ -221,6 +232,11 @@ enum Exchange {
 /// publish calls along the way said.
 fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'static str {
     publish(door.room.clone(), "thinking", None);
+    // Read once per turn, never cached across turns: whether the model can
+    // see is the engine's own answer, and a model switch is believed at
+    // the very next call. An engine that does not answer is blind — the
+    // honest default.
+    let vision = engine_vision(shared.port);
     let mut budget = budget_of(shared.slot_context);
     // One free retry for an engine problem: a stream that broke, a socket
     // that died, an error that is not about size. The second failure is
@@ -230,7 +246,7 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
         if !door.room.turn_alive(turn) {
             return "cancelled";
         }
-        let (messages, read) = transcript(door, shared, budget);
+        let (messages, read) = transcript(door, shared, budget, vision);
         let mut said_waiting = false;
         let waiting_since = Instant::now();
         let lease = loop {
@@ -259,7 +275,13 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
                         {
                             Ok(saved) => log::info!(
                                 "{}",
-                                crate::audit::line::handover_line(lease.slot(), evicted, to, saved, None)
+                                crate::audit::line::handover_line(
+                                    lease.slot(),
+                                    evicted,
+                                    to,
+                                    saved,
+                                    None
+                                )
                             ),
                             Err(error) => {
                                 log::warn!(
@@ -555,21 +577,136 @@ fn halve_budget(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> Op
 /// reversed to speaking order: the oldest messages are the ones that fall
 /// off, and `read` is the honest count of what stayed. The AI's view has
 /// no member's join floor — the room it answers in is one room.
-fn transcript(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> (serde_json::Value, u32) {
-    let (mut kept, _) = window(door, shared, budget);
+///
+/// With vision, the room's own pictures ride beside the words: each
+/// member's message becomes a text part and `image_url` parts, the images
+/// chosen newest first (a video lends its still frames), the whole set
+/// capped, and the transcript budget shrunk by the tokens they spend. A
+/// blob the shelf cannot produce does not ride — the text part still says
+/// what was said.
+fn transcript(
+    door: &Arc<RoomDoor>,
+    shared: &Arc<Shared>,
+    budget: usize,
+    vision: bool,
+) -> (serde_json::Value, u32) {
+    let (windowed, _) = window(door, shared, budget);
+    let images = if vision {
+        turn_images(&windowed, budget)
+    } else {
+        Vec::new()
+    };
+    let (mut kept, _) = window(door, shared, budget - images.len() * IMAGE_TOKEN_BYTES);
     let devices = shared.set.current();
     kept.reverse();
     let read = kept.len() as u32;
     let mut messages = vec![json!({"role": "system", "content": SYSTEM_PROMPT})];
     for entry in kept {
         let name = frame_name(&door.room, &devices, entry.member);
+        let text = format!("[{name}] {}", entry.text);
+        let mut parts = Vec::new();
+        if vision {
+            for image in images.iter().filter(|image| image.seq == entry.seq) {
+                if let Some(uri) = data_uri(&door.room, &image.id) {
+                    parts.push(json!({"type": "image_url", "image_url": {"url": uri}}));
+                }
+            }
+        }
         if entry.member == MemberId::Ai {
             messages.push(json!({"role": "assistant", "content": entry.text}));
+        } else if parts.is_empty() {
+            messages.push(json!({"role": "user", "content": text}));
         } else {
-            messages.push(json!({"role": "user", "content": format!("[{name}] {}", entry.text)}));
+            let mut content = vec![json!({"type": "text", "text": text})];
+            content.extend(parts);
+            messages.push(json!({"role": "user", "content": content}));
         }
     }
     (json!(messages), read)
+}
+
+/// One image the turn may carry: the transcript entry it belongs to, and
+/// the blob that holds its bytes.
+struct TurnImage {
+    seq: u64,
+    id: String,
+}
+
+/// The turn's images, newest first: every member entry's own pictures, a
+/// video lending its still frames, all under the turn's cap and the
+/// budget's room. The first entry the window always keeps is protected —
+/// the images never eat the message the turn is about.
+fn turn_images(windowed: &[Entry], budget: usize) -> Vec<TurnImage> {
+    let mut out: Vec<TurnImage> = Vec::new();
+    for entry in windowed {
+        if entry.member == MemberId::Ai {
+            continue;
+        }
+        for asset in &entry.media {
+            let frames: Box<dyn Iterator<Item = &String>> = match asset.kind {
+                MediaKind::Image => Box::new(std::iter::once(&asset.id)),
+                MediaKind::Video => Box::new(asset.frames.iter().take(FRAMES_PER_VIDEO)),
+            };
+            for id in frames {
+                let spent = (out.len() + 1) * IMAGE_TOKEN_BYTES;
+                if out.len() >= MAX_TURN_IMAGES || spent + SYSTEM_PROMPT.len() > budget {
+                    return out;
+                }
+                out.push(TurnImage {
+                    seq: entry.seq,
+                    id: id.clone(),
+                });
+            }
+        }
+    }
+    out
+}
+
+/// The data: URI one image rides in on, read from the shelf the room
+/// keeps. The room's own reader — no join floor binds the AI's turn, the
+/// same rule its transcript runs on.
+fn data_uri(room: &kalsa_room::Room, id: &str) -> Option<String> {
+    use base64::Engine as _;
+    let (mime, bytes) = room.media_bytes(id)?;
+    Some(format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    ))
+}
+
+/// Whether the engine can see: its `/props` says so, `modalities` naming
+/// the media it takes. Absent, or not exactly true, is cannot — the same
+/// rule every reader of that answer runs. Five seconds, once a turn.
+fn engine_vision(port: u16) -> bool {
+    let address = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let Ok(mut engine) = TcpStream::connect_timeout(&address, Duration::from_secs(5)) else {
+        return false;
+    };
+    let head =
+        format!("GET /props HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
+    if proxy::write_with_deadline(&mut engine, head.as_bytes(), deadline).is_err() {
+        return false;
+    }
+    let Ok(head) = response::read_upstream_head(&mut engine, deadline, crate::PATIENCE, None)
+    else {
+        return false;
+    };
+    if !head.raw.starts_with(b"HTTP/1.1 200") {
+        return false;
+    }
+    let Ok(body) = response::read_body(&mut engine, &head, deadline) else {
+        return false;
+    };
+    serde_json::from_slice::<serde_json::Value>(&body)
+        .ok()
+        .and_then(|props| {
+            props
+                .get("modalities")
+                .and_then(|modalities| modalities.get("vision"))
+                .and_then(|vision| vision.as_bool())
+        })
+        .unwrap_or(false)
 }
 
 /// The name as the model reads it: the brackets that frame a speaker are

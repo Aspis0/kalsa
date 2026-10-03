@@ -63,6 +63,10 @@ pub(super) struct UnsealedHead {
     /// The client's `Kalsa-Room-Epoch`: the transcript epoch its cached
     /// seqs belong to. The door's own header, never forwarded.
     pub(super) room_epoch: Option<Vec<u8>>,
+    /// The client's `Range`, for the one route that serves bytes (the
+    /// room's media download). Taken out of the forwarded bytes — a range
+    /// is this door's business, never an upstream's.
+    pub(super) range: Option<Vec<u8>>,
 }
 
 /// A head sealed with the door's private headers. Producing it consumes the
@@ -171,6 +175,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
     let mut authorization = None;
     let mut last_event_id = None;
     let mut room_epoch = None;
+    let mut range = None;
     let mut origin: Option<Vec<u8>> = None;
     let mut origin_twice = false;
     let mut asks_for_method = false;
@@ -182,7 +187,10 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
     let mut candidates: Vec<(Vec<u8>, &[u8])> = Vec::new();
     for line in lines {
         let line = line.strip_suffix(b"\r").ok_or(HeadError::Malformed)?;
-        let colon = line.iter().position(|byte| *byte == b':').ok_or(HeadError::Malformed)?;
+        let colon = line
+            .iter()
+            .position(|byte| *byte == b':')
+            .ok_or(HeadError::Malformed)?;
         let name = &line[..colon];
         let value = &line[colon + 1..];
         if !valid_name(name) || !valid_value(value) {
@@ -207,6 +215,12 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
                     return Err(HeadError::Malformed);
                 }
                 room_epoch = Some(trim_ows(value).to_vec());
+            }
+            b"range" => {
+                if range.is_some() {
+                    return Err(HeadError::Malformed);
+                }
+                range = Some(trim_ows(value).to_vec());
             }
             // Kept in `origin` and forwarded: the upstream echoes this back as
             // its own `Access-Control-Allow-Origin`, which is the header the
@@ -274,6 +288,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
             && lower.as_slice() != b"authorization"
             && lower.as_slice() != b"last-event-id"
             && lower.as_slice() != b"kalsa-room-epoch"
+            && lower.as_slice() != b"range"
             && lower.as_slice() != b"x-kalsa-slot"
             && lower.as_slice() != b"x-kalsa-cache-salt";
         if kept {
@@ -297,6 +312,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
         method,
         last_event_id,
         room_epoch,
+        range,
     })
 }
 
@@ -412,7 +428,9 @@ mod tests {
             super::MAX_BODY
         );
         assert_eq!(
-            parse(at_cap.as_bytes()).expect("the cap itself is a body the door reads").body_length,
+            parse(at_cap.as_bytes())
+                .expect("the cap itself is a body the door reads")
+                .body_length,
             super::MAX_BODY
         );
     }
@@ -514,7 +532,10 @@ mod tests {
             "the salt is the lowercase hex of the bytes given: {text:?}"
         );
         // The request line still opens the head exactly once.
-        assert_eq!(text.matches("POST /v1/chat/completions HTTP/1.1").count(), 1);
+        assert_eq!(
+            text.matches("POST /v1/chat/completions HTTP/1.1").count(),
+            1
+        );
         assert!(text.starts_with("POST /v1/chat/completions HTTP/1.1\r\n"));
     }
 
@@ -534,7 +555,10 @@ mod tests {
             !lower.contains("x-kalsa-slot") && !lower.contains("x-kalsa-cache-salt"),
             "a client private header survived into the forwarded head: {forwarded}"
         );
-        assert!(!forwarded.contains("999"), "the client slot value survived: {forwarded}");
+        assert!(
+            !forwarded.contains("999"),
+            "the client slot value survived: {forwarded}"
+        );
         assert!(
             !forwarded.contains("deadbeef"),
             "the client salt value survived: {forwarded}"
@@ -549,7 +573,10 @@ mod tests {
             b"POST / HTTP/1.1\r\nHost: x\r\n\
                X-Kalsa-Cache-Salt: 0\r\nX-Kalsa-Cache-Salt: 1\r\n\r\n",
         );
-        assert!(duplicate_salt.is_err(), "a repeated salt header is ambiguous");
+        assert!(
+            duplicate_salt.is_err(),
+            "a repeated salt header is ambiguous"
+        );
 
         // A private name the client puts in its own `Connection` line dies
         // with the connection, value included.

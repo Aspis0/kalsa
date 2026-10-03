@@ -47,11 +47,11 @@ fn an_idempotent_retry_survives_the_restart_that_separated_it() {
     let reopened = reopen(&dir).expect("the room opens again");
     let member = reopened.member_of(3).expect("the roster survived too");
     let replay = reopened
-        .post(member, "retry-me", "posted before the restart", false)
+        .post(member, "retry-me", "posted before the restart", false, &[])
         .expect("the retry after the restart is answered");
     assert_eq!(replay, first);
     assert!(
-        matches!(reopened.post(member, "retry-me", "different words", false), Err(PostError::ClientIdReused)),
+        matches!(reopened.post(member, "retry-me", "different words", false, &[]), Err(PostError::ClientIdReused)),
         "and the reused-id rule survives with it"
     );
     assert_eq!(reopened.newest_page(1, 100).unwrap().messages.len(), 1);
@@ -212,7 +212,7 @@ fn an_injected_append_failure_that_stored_nothing_reports_io_and_the_room_contin
     let (_dir, room) = open("durability_inject_clean");
     say(&room, 3, "m1", "the first entry");
     crate::append::inject_append_failure();
-    let refused = room.post(phone(&room, 3), "m2", "the second entry", false);
+    let refused = room.post(phone(&room, 3), "m2", "the second entry", false, &[]);
     crate::append::clear_append_failure();
     assert!(
         matches!(refused, Err(PostError::Io(_))),
@@ -230,14 +230,14 @@ fn a_reopened_file_the_room_cannot_explain_stops_the_writes() {
     // disagrees with memory by more than the one entry being posted.
     std::fs::write(log_path(&dir), b"").unwrap();
     crate::append::inject_append_failure();
-    let refused = room.post(phone(&room, 3), "m2", "never lands", false);
+    let refused = room.post(phone(&room, 3), "m2", "never lands", false, &[]);
     crate::append::clear_append_failure();
     assert!(
         matches!(refused, Err(PostError::ReadOnly)),
         "a transcript the room cannot explain is not adopted"
     );
     assert!(
-        matches!(room.post(phone(&room, 3), "m3", "also refused", false), Err(PostError::ReadOnly)),
+        matches!(room.post(phone(&room, 3), "m3", "also refused", false, &[]), Err(PostError::ReadOnly)),
         "and the room stays read-only, not just for the one post"
     );
 }

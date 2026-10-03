@@ -173,8 +173,13 @@ fn status_of(bytes: &[u8]) -> Option<u16> {
 /// write anything of its own into the line through this field.
 fn method_of(method: &[u8]) -> String {
     let token: String = method.iter().map(|byte| *byte as char).collect();
-    let known = !token.is_empty() && token.len() <= 16 && token.bytes().all(|b| b.is_ascii_uppercase());
-    if known { token } else { "?".to_string() }
+    let known =
+        !token.is_empty() && token.len() <= 16 && token.bytes().all(|b| b.is_ascii_uppercase());
+    if known {
+        token
+    } else {
+        "?".to_string()
+    }
 }
 
 /// The forwarded spellings the product sends. The door forwards every path to
@@ -214,6 +219,10 @@ pub(crate) fn route_of(target: &[u8]) -> String {
             b"/kalsa/room/call" => "/kalsa/room/call",
             b"/kalsa/room/name" => "/kalsa/room/name",
             b"/kalsa/room/events" => "/kalsa/room/events",
+            b"/kalsa/room/media" => "/kalsa/room/media",
+            // The upload and download paths carry ids only; the template
+            // says so and echoes none of them.
+            _ if path.starts_with(b"/kalsa/room/media/") => "/kalsa/room/media/<id>",
             _ => "other",
         }
         .to_string();
@@ -269,8 +278,7 @@ mod tests {
     fn a_request_line_carries_the_route_and_never_the_query_or_a_body() {
         // The target of a real request, with a credential-shaped query: the
         // line must keep the path and nothing after it.
-        let target = format!("/v1/chat/completions?api_key=sk-secret&q={MESSAGE}")
-            .into_bytes();
+        let target = format!("/v1/chat/completions?api_key=sk-secret&q={MESSAGE}").into_bytes();
         let line = request_line(&RequestLog {
             started: Instant::now(),
             method: RefCell::new(method_of(b"POST")),
@@ -318,10 +326,25 @@ mod tests {
     fn the_route_is_a_closed_vocabulary_and_never_the_clients_bytes() {
         // The door's own routes, by its own routers.
         assert_eq!(route_of(b"/kalsa/chat/activate"), "/kalsa/chat/activate");
-        assert_eq!(route_of(b"/kalsa/chat/activate?token=SECRET"), "/kalsa/chat/activate");
+        assert_eq!(
+            route_of(b"/kalsa/chat/activate?token=SECRET"),
+            "/kalsa/chat/activate"
+        );
         assert_eq!(route_of(b"/kalsa/chat/erase"), "/kalsa/chat/erase");
         assert_eq!(route_of(b"/kalsa/room/history"), "/kalsa/room/history");
-        assert_eq!(route_of(b"/kalsa/room/events?after=9#frag"), "/kalsa/room/events");
+        assert_eq!(
+            route_of(b"/kalsa/room/events?after=9#frag"),
+            "/kalsa/room/events"
+        );
+        assert_eq!(route_of(b"/kalsa/room/media"), "/kalsa/room/media");
+        assert_eq!(
+            route_of(b"/kalsa/room/media/5f1e2d3c4b5a69788796a5b4c3d2e1f0"),
+            "/kalsa/room/media/<id>"
+        );
+        assert_eq!(
+            route_of(b"/kalsa/room/media/5f1e2d3c4b5a69788796a5b4c3d2e1f0/complete"),
+            "/kalsa/room/media/<id>"
+        );
         // The engine's refused ones, decoded by the door's own matcher.
         assert_eq!(route_of(b"/slots"), "/slots");
         assert_eq!(route_of(b"/slots/3"), "/slots/<id>");
@@ -373,7 +396,10 @@ mod tests {
         assert_eq!(method_of(b"get"), "?");
         assert_eq!(method_of(b"GET\r\nX: y"), "?");
         assert_eq!(method_of(b""), "?");
-        assert_eq!(status_of(b"HTTP/1.1 503 Service Unavailable\r\n"), Some(503));
+        assert_eq!(
+            status_of(b"HTTP/1.1 503 Service Unavailable\r\n"),
+            Some(503)
+        );
         assert_eq!(status_of(b"POST /x HTTP/1.1"), None);
     }
 

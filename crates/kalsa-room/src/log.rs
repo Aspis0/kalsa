@@ -33,6 +33,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::media::MediaAsset;
 use crate::recovery;
 use crate::{MemberId, RoomError};
 
@@ -75,6 +76,11 @@ struct Record {
     /// read" for an entry nobody made.
     #[serde(default)]
     read: u32,
+    /// The media a member's entry carries, descriptors whole. Absent on
+    /// every line written before media existed — none in the world, the
+    /// same never-released rule `read` rides on.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    media: Vec<MediaAsset>,
 }
 
 /// One transcript entry, in memory. Not the public shape: the door never
@@ -92,6 +98,8 @@ pub(crate) struct Message {
     pub(crate) call_ai: bool,
     /// How many messages the AI read for this entry; 0 on members' lines.
     pub(crate) read: u32,
+    /// The media this entry carries; empty on the AI's own lines.
+    pub(crate) media: Vec<MediaAsset>,
 }
 
 impl std::fmt::Debug for Message {
@@ -123,6 +131,7 @@ impl Message {
             time: self.time,
             call_ai: self.call_ai,
             read: self.read,
+            media: self.media.clone(),
         }
     }
 }
@@ -251,10 +260,11 @@ fn parse_prefix(bytes: &[u8], complete: usize) -> (Vec<Message>, usize) {
     let mut checker = Checker::of(&[]);
     let mut start = 0;
     while start < complete {
-        let end = start + bytes[start..complete]
-            .iter()
-            .position(|byte| *byte == b'\n')
-            .expect("the complete region ends at a newline");
+        let end = start
+            + bytes[start..complete]
+                .iter()
+                .position(|byte| *byte == b'\n')
+                .expect("the complete region ends at a newline");
         match serde_json::from_slice::<Record>(&bytes[start..end])
             .ok()
             .and_then(|record| checker.check(record, messages.len() as u64 + 1))
@@ -300,9 +310,17 @@ impl Checker {
         {
             return None;
         }
+        // A media descriptor must be one the store would have written:
+        // the same rules the poster's request passed, or the line is a
+        // hand edit and takes the middle-damage road with the rest.
+        for asset in &record.media {
+            if asset.check().is_err() || !is_client_msg_id(&asset.id) {
+                return None;
+            }
+        }
         match record.kind {
             LineKind::Ai => {
-                if !record.client_msg_id.is_empty() {
+                if !record.client_msg_id.is_empty() || !record.media.is_empty() {
                     return None;
                 }
             }
@@ -324,6 +342,7 @@ impl Checker {
             time: record.time,
             call_ai: record.call_ai,
             read: record.read,
+            media: record.media,
         })
     }
 }

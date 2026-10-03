@@ -34,6 +34,10 @@ pub(super) fn entry_json(room: &Room, devices: &Devices, entry: &kalsa_room::Ent
     if room.is_former(entry.member) {
         value["former"] = json!(true);
     }
+    if !entry.media.is_empty() {
+        value["media"] =
+            serde_json::to_value(&entry.media).expect("a media descriptor always serializes");
+    }
     // The AI's answer says how much of the room it was built on: the
     // honest number behind the older messages that fell off the budget.
     if entry.member == kalsa_room::MemberId::Ai {
@@ -100,9 +104,11 @@ pub(super) fn json_ok_no_content(origin: Option<&[u8]>) -> Vec<u8> {
 pub(super) fn json_error(status: u16, origin: Option<&[u8]>, code: &str, message: &str) -> Vec<u8> {
     let reason = match status {
         400 => "Bad Request",
+        403 => "Forbidden",
         404 => "Not Found",
         409 => "Conflict",
         413 => "Payload Too Large",
+        416 => "Range Not Satisfiable",
         500 => "Internal Server Error",
         _ => "Service Unavailable",
     };

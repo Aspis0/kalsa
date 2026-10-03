@@ -59,6 +59,20 @@ impl Engine {
     /// Starts the fake with a script; each accepted connection takes the
     /// next reply, and `Hang` is served forever once the script runs out.
     pub(super) fn start(replies: Vec<Reply>) -> Self {
+        Self::build(replies, serde_json::json!({}))
+    }
+
+    /// The same fake, whose `/props` names this model's media: the shape
+    /// the room turn's vision probe reads, `modalities.vision` true meaning
+    /// the room's pictures ride.
+    pub(super) fn with_vision(replies: Vec<Reply>) -> Self {
+        Self::build(
+            replies,
+            serde_json::json!({ "modalities": { "vision": true } }),
+        )
+    }
+
+    fn build(replies: Vec<Reply>, props: serde_json::Value) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let seen = Arc::new(Mutex::new(Vec::new()));
@@ -69,7 +83,15 @@ impl Engine {
         let thread_writes = Arc::clone(&writes_failed);
         thread::Builder::new()
             .name("room-fake-engine".into())
-            .spawn(move || accept(listener, thread_seen, thread_replies, thread_writes))
+            .spawn(move || {
+                accept(
+                    listener,
+                    thread_seen,
+                    thread_replies,
+                    thread_writes,
+                    Arc::new(Mutex::new(props)),
+                )
+            })
             .unwrap();
         Self {
             port: address.port(),
@@ -109,45 +131,64 @@ fn accept(
     seen: Arc<Mutex<Vec<Seen>>>,
     replies: Arc<Mutex<Vec<Reply>>>,
     writes_failed: Arc<AtomicUsize>,
+    props: Arc<Mutex<serde_json::Value>>,
 ) {
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else {
             continue;
         };
-        // Each connection consumes the next reply, except the two that
-        // describe a standing engine (a size cap, a stall) — those apply
-        // to every connection until the script moves past them. Past the
-        // script's end the engine says nothing, forever.
-        let standing = matches!(
-            replies.lock().unwrap().first(),
-            Some(Reply::RefuseIfOver(_)) | Some(Reply::Stall) | Some(Reply::KeepAlive)
-        );
-        let reply = replies
-            .lock()
-            .unwrap()
-            .first()
-            .cloned()
-            .unwrap_or(Reply::Hang);
-        if !standing && !replies.lock().unwrap().is_empty() {
-            replies.lock().unwrap().remove(0);
-        }
         let seen = Arc::clone(&seen);
         let writes = Arc::clone(&writes_failed);
-        thread::spawn(move || serve(&mut stream, reply, seen, writes));
+        let replies = Arc::clone(&replies);
+        let props = Arc::clone(&props);
+        thread::spawn(move || serve(&mut stream, replies, props, seen, writes));
     }
 }
 
 fn serve(
     stream: &mut TcpStream,
-    reply: Reply,
+    replies: Arc<Mutex<Vec<Reply>>>,
+    props: Arc<Mutex<serde_json::Value>>,
     seen: Arc<Mutex<Vec<Seen>>>,
     writes_failed: Arc<AtomicUsize>,
 ) {
     let request = read_request(stream);
+    // The vision probe is a standing answer, never a script line: the
+    // turn reads /props once before each completion, and the script is
+    // the completions' own. It is not recorded in `seen`, which is the
+    // completions' ledger — the tests' counts and bodies stay completion
+    // counts and bodies.
+    if request.head.starts_with("GET /props") {
+        let body = props.lock().unwrap().to_string();
+        let answer = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+             Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let _ = stream.write_all(answer.as_bytes());
+        return;
+    }
     // The size-capped refusal reads the body before choosing, so the
     // record keeps it and the cap borrows it back.
     let body_length = request.body.len();
     seen.lock().unwrap().push(request.clone());
+    // Each connection consumes the next reply, except the two that
+    // describe a standing engine (a size cap, a stall) — those apply
+    // to every connection until the script moves past them. Past the
+    // script's end the engine says nothing, forever.
+    let standing = matches!(
+        replies.lock().unwrap().first(),
+        Some(Reply::RefuseIfOver(_)) | Some(Reply::Stall) | Some(Reply::KeepAlive)
+    );
+    let reply = replies
+        .lock()
+        .unwrap()
+        .first()
+        .cloned()
+        .unwrap_or(Reply::Hang);
+    if !standing && !replies.lock().unwrap().is_empty() {
+        replies.lock().unwrap().remove(0);
+    }
     match reply {
         Reply::SseBroken(piece) => {
             let head =
@@ -180,20 +221,24 @@ fn serve(
                 if stream.write_all(head.as_bytes()).is_err() {
                     return;
                 }
-                let _ = stream.write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"fitted\"}}]}\n\n");
+                let _ = stream
+                    .write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"fitted\"}}]}\n\n");
                 let _ = stream.write_all(b"data: [DONE]\n\n");
             }
         }
         Reply::Stall => {
-            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            let head =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
             if stream.write_all(head.as_bytes()).is_err() {
                 return;
             }
-            let _ = stream.write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"then nothing\"}}]}\n\n");
+            let _ = stream
+                .write_all(b"data: {\"choices\":[{\"delta\":{\"content\":\"then nothing\"}}]}\n\n");
             thread::sleep(Duration::from_secs(120));
         }
         Reply::Prefill { reports, gap, then } => {
-            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            let head =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
             if stream.write_all(head.as_bytes()).is_err() {
                 return;
             }
@@ -225,7 +270,8 @@ fn serve(
             }
         }
         Reply::KeepAlive => {
-            let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            let head =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
             if stream.write_all(head.as_bytes()).is_err() {
                 return;
             }

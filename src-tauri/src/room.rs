@@ -9,23 +9,28 @@ use kalsa_door::{DeviceId, Devices};
 use kalsa_room::{Entry, MemberEvent, MemberId, Room};
 use std::collections::HashMap;
 
-/// The host posts to their own room. The `client_msg_id` is the caller's to
-/// mint and keep stable across retries, exactly as a phone's is.
+/// The host posts to their own room. The `client_msg_id` is the caller's
+/// to mint and keep stable across retries, exactly as a phone's is; the
+/// media are ids of blobs the host uploaded to the room's own shelf.
 pub fn host_post(
     room: &Room,
     client_msg_id: &str,
     text: &str,
     call_ai: bool,
+    media: &[String],
 ) -> Result<Entry, kalsa_room::PostError> {
-    room.post(kalsa_room::MemberId::Host, client_msg_id, text, call_ai)
+    room.post(
+        kalsa_room::MemberId::Host,
+        client_msg_id,
+        text,
+        call_ai,
+        media,
+    )
 }
 
 /// The host's own display name — the one path that sets it. Phones reach
 /// theirs through the door; the host is on this computer.
-pub fn set_host_display_name(
-    room: &Room,
-    name: &str,
-) -> Result<String, kalsa_room::NameError> {
+pub fn set_host_display_name(room: &Room, name: &str) -> Result<String, kalsa_room::NameError> {
     room.set_host_name(name)
 }
 
@@ -114,9 +119,7 @@ pub(crate) fn device_labels(desk: &crate::Desk) -> Labels {
 pub(crate) fn display_name(room: &Room, labels: &Labels, member: kalsa_room::MemberId) -> String {
     match member {
         kalsa_room::MemberId::Ai => "Kalsa".to_string(),
-        kalsa_room::MemberId::Host => {
-            room.name_of(member).unwrap_or_else(|| labels.host.clone())
-        }
+        kalsa_room::MemberId::Host => room.name_of(member).unwrap_or_else(|| labels.host.clone()),
         kalsa_room::MemberId::Member(_) => room.name_of(member).unwrap_or_else(|| {
             room.device_of(member)
                 .and_then(|device| labels.by_device.get(&device).cloned())
@@ -302,7 +305,7 @@ mod tests {
     fn the_host_posts_and_names_itself_through_the_iron_paths() {
         let dir = scratch("host-api");
         let room = Room::open(&dir).unwrap();
-        let posted = host_post(&room, "host-1", "from this computer", false).unwrap();
+        let posted = host_post(&room, "host-1", "from this computer", false, &[]).unwrap();
         assert_eq!(posted.member, kalsa_room::MemberId::Host);
         assert_eq!(set_host_display_name(&room, "Studio").unwrap(), "Studio");
         assert!(set_host_display_name(&room, "Kalsa").is_err());

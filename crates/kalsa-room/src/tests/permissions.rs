@@ -84,7 +84,7 @@ fn a_recovery_that_cannot_write_serves_reads_and_refuses_posts() {
     assert_eq!(room.newest_page(1, 10).unwrap().messages.len(), 1, "reads serve");
     let member = room.member_of(3).expect("the roster reads too");
     assert!(
-        matches!(room.post(member, "m2", "refused", false), Err(PostError::ReadOnly)),
+        matches!(room.post(member, "m2", "refused", false, &[]), Err(PostError::ReadOnly)),
         "posts are refused, never appended after garbage"
     );
 

@@ -48,7 +48,7 @@ fn house(dir: &Path) -> (crate::RunningDoor, Arc<Room>, tier::Engine, String) {
 /// The host calls @Kalsa the way the desktop drives it: the message lands,
 /// the call is taken, the app's own door drives the turn.
 fn host_calls(door: &crate::RunningDoor, room: &Room, id: &str, text: &str) {
-    room.post(MemberId::Host, id, text, true)
+    room.post(MemberId::Host, id, text, true, &[])
         .expect("the host's message lands");
     let turn = match room.submit_call(MemberId::Host, id) {
         Ok(CallTaken::Starts(turn)) => turn,

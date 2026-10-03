@@ -27,6 +27,7 @@ mod pairing;
 mod room;
 mod room_commands;
 mod room_events;
+mod room_media;
 mod placement;
 mod report;
 mod road;
@@ -2150,6 +2151,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             room_commands::brain_room_post,
             room_commands::brain_room_set_name,
             room_commands::brain_room_stop,
+            room_media::brain_room_media_create,
+            room_media::brain_room_media_chunk,
+            room_media::brain_room_media_complete,
+            room_media::brain_room_media_read,
             invites::brain_invite_create,
             invites::brain_invite_list,
             invites::brain_invite_link,

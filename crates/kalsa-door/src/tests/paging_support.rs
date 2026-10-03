@@ -136,6 +136,18 @@ fn answer(
     if read_until(&mut stream, b"\r\n\r\n", &mut head).is_err() {
         return;
     }
+    // The room turn's vision probe: a standing answer, never a script
+    // line and never a ledger entry — `sent` is the slot actions' log.
+    if String::from_utf8_lossy(&head).starts_with("GET /props") {
+        let body = "{}";
+        let _ = write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
+             Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        return;
+    }
     let length: usize = header_values(&head, "content-length")
         .first()
         .and_then(|value| value.parse().ok())
@@ -151,7 +163,11 @@ fn answer(
         .unwrap_or_default()
         .to_string();
     let sent = Sent {
-        action: target.split("action=").nth(1).unwrap_or_default().to_string(),
+        action: target
+            .split("action=")
+            .nth(1)
+            .unwrap_or_default()
+            .to_string(),
         slot: header_values(&head, "x-kalsa-slot")
             .first()
             .cloned()
@@ -170,7 +186,11 @@ fn answer(
             .to_string(),
     };
     log.lock().unwrap().push(sent.clone());
-    let reply = replies.lock().unwrap().pop_front().unwrap_or(Reply::Answered(1));
+    let reply = replies
+        .lock()
+        .unwrap()
+        .pop_front()
+        .unwrap_or(Reply::Answered(1));
     let delay = delays.lock().unwrap().pop_front().unwrap_or_default();
     if !delay.is_zero() {
         thread::sleep(delay);
@@ -185,11 +205,18 @@ fn answer(
             Reply::Answered(tokens) => tokens,
             _ => 1,
         };
-        let _ = fs::write(dir.join(&sent.filename), format!("state:{tokens}:{}", sent.filename));
+        let _ = fs::write(
+            dir.join(&sent.filename),
+            format!("state:{tokens}:{}", sent.filename),
+        );
     }
     let (status, body) = match reply {
         Reply::Answered(tokens) => {
-            let field = if sent.action == "restore" { "n_restored" } else { "n_saved" };
+            let field = if sent.action == "restore" {
+                "n_restored"
+            } else {
+                "n_saved"
+            };
             (
                 "200 OK",
                 format!("{{\"id_slot\":{},\"{field}\":{tokens}}}", sent.slot),
@@ -241,7 +268,13 @@ pub(super) fn door_of_with_save(
     tokens: &[&str],
     idle_save: Duration,
 ) -> (RunningDoor, SocketAddr) {
-    door_with(engine_port, Some(slot_dir), Some(hash), tokens, Some(idle_save))
+    door_with(
+        engine_port,
+        Some(slot_dir),
+        Some(hash),
+        tokens,
+        Some(idle_save),
+    )
 }
 
 fn door_with(
@@ -273,12 +306,7 @@ fn door_with(
     (door.start().unwrap(), address)
 }
 
-pub(super) fn post(
-    address: SocketAddr,
-    token: Option<&str>,
-    path: &str,
-    body: &str,
-) -> Vec<u8> {
+pub(super) fn post(address: SocketAddr, token: Option<&str>, path: &str, body: &str) -> Vec<u8> {
     post_for(address, token, path, body, Duration::from_secs(5))
 }
 
@@ -310,11 +338,21 @@ pub(super) fn post_for(
 }
 
 pub(super) fn activate(address: SocketAddr, token: Option<&str>, id: &str) -> Vec<u8> {
-    post(address, token, "/kalsa/chat/activate", &format!("{{\"id\":\"{id}\"}}"))
+    post(
+        address,
+        token,
+        "/kalsa/chat/activate",
+        &format!("{{\"id\":\"{id}\"}}"),
+    )
 }
 
 pub(super) fn erase(address: SocketAddr, token: Option<&str>, id: &str) -> Vec<u8> {
-    post(address, token, "/kalsa/chat/erase", &format!("{{\"id\":\"{id}\"}}"))
+    post(
+        address,
+        token,
+        "/kalsa/chat/erase",
+        &format!("{{\"id\":\"{id}\"}}"),
+    )
 }
 
 pub(super) fn status_of(response: &[u8]) -> u16 {
@@ -327,7 +365,9 @@ pub(super) fn status_of(response: &[u8]) -> u16 {
 
 pub(super) fn body_text(response: &[u8]) -> String {
     let text = String::from_utf8_lossy(response).to_string();
-    text.split_once("\r\n\r\n").map(|(_, body)| body.to_string()).unwrap_or_default()
+    text.split_once("\r\n\r\n")
+        .map(|(_, body)| body.to_string())
+        .unwrap_or_default()
 }
 
 /// The name the door must build for device 0.
@@ -347,7 +387,11 @@ pub(super) fn wait_for(engine: &Engine, count: usize) {
     while engine.sent().len() < count && Instant::now() < deadline {
         thread::sleep(Duration::from_millis(2));
     }
-    assert_eq!(engine.sent().len(), count, "the engine never saw the request");
+    assert_eq!(
+        engine.sent().len(),
+        count,
+        "the engine never saw the request"
+    );
 }
 
 /// The quiet the tests let a slot have. Nothing sleeps through it: every tick
@@ -373,4 +417,3 @@ pub(super) fn complete(address: SocketAddr, token: &str) {
     );
     assert_eq!(status_of(&answer), 200, "{}", body_text(&answer));
 }
-

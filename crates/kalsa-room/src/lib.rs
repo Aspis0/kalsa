@@ -34,6 +34,12 @@
 //! the `kind` field existed: none can be, this crate was unwired until it
 //! gained the field. The version must be bumped the day that assumption
 //! stops being true.
+//!
+//! Members post media beside their words: the shelf (`media`) stores each
+//! blob under the room's own directory, verified against what its upload
+//! declared, and a transcript entry carries the descriptors whole. The
+//! server never transcodes — the sender compresses — and nothing of a
+//! media request but opaque ids, sizes and verdicts ever reaches a log.
 
 use std::fmt;
 
@@ -41,24 +47,27 @@ mod append;
 mod events;
 mod history;
 mod identity;
-mod names;
 mod log;
+mod media;
 mod members;
 mod mention;
+mod names;
 mod queue;
 mod recovery;
-mod roster;
 mod room;
+mod roster;
+mod shelf;
 
 #[cfg(test)]
 mod tests;
 
 pub use events::{AiEvent, Event, MemberEvent, Take};
-pub use mention::{calls_ai, calls_ai_at};
-pub use queue::{CallRefused, CallTaken, Withdrawn};
 pub use history::{Page, PageError};
-pub use room::{PostError, Room};
+pub use media::{MediaAsset, MediaError, MediaKind, MediaSpec, POST_MEDIA_MAX};
+pub use mention::{calls_ai, calls_ai_at};
 pub use names::NameError;
+pub use queue::{CallRefused, CallTaken, Withdrawn};
+pub use room::{PostError, Room};
 
 /// A room member: the host, the AI, or a member the room's roster minted.
 /// The host and the AI are their own variants so a device id can never
@@ -113,6 +122,10 @@ pub struct Entry {
     /// the honest number behind "the room must say so" when older
     /// messages fell off the context budget. Zero on members' entries.
     pub read: u32,
+    /// The media this entry carries, descriptors whole; empty on the AI's
+    /// own entries. The bytes live behind the ids, in the room's media
+    /// shelf.
+    pub media: Vec<MediaAsset>,
 }
 
 impl Entry {
@@ -124,6 +137,7 @@ impl Entry {
             time: message.time,
             call_ai: message.call_ai,
             read: message.read,
+            media: message.media.clone(),
         }
     }
 }

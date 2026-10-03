@@ -22,14 +22,14 @@ fn a_post_gets_the_next_seq_and_the_time_of_the_computer() {
 fn an_empty_or_oversized_text_is_refused_before_anything_is_stored() {
     let (_dir, room) = open("post_text");
     assert!(matches!(
-        room.post(phone(&room, 3), "a", "", false),
+        room.post(phone(&room, 3), "a", "", false, &[]),
         Err(PostError::EmptyText)
     ));
     assert!(matches!(
-        room.post(phone(&room, 3), "a", &"x".repeat(8001), false),
+        room.post(phone(&room, 3), "a", &"x".repeat(8001), false, &[]),
         Err(PostError::TextTooLong)
     ));
-    assert!(room.post(phone(&room, 3), "a", &"x".repeat(8000), false).is_ok());
+    assert!(room.post(phone(&room, 3), "a", &"x".repeat(8000), false, &[]).is_ok());
 }
 
 #[test]
@@ -37,22 +37,22 @@ fn a_client_msg_id_must_be_short_ascii_graphic_characters() {
     let (_dir, room) = open("post_client_id");
     let member = phone(&room, 3);
     assert!(matches!(
-        room.post(member, "", "text", false),
+        room.post(member, "", "text", false, &[]),
         Err(PostError::BadClientMsgId)
     ));
     assert!(matches!(
-        room.post(member, &"a".repeat(65), "text", false),
+        room.post(member, &"a".repeat(65), "text", false, &[]),
         Err(PostError::BadClientMsgId)
     ));
     assert!(matches!(
-        room.post(member, "has space", "text", false),
+        room.post(member, "has space", "text", false, &[]),
         Err(PostError::BadClientMsgId)
     ));
     assert!(matches!(
-        room.post(member, "héllo", "text", false),
+        room.post(member, "héllo", "text", false, &[]),
         Err(PostError::BadClientMsgId)
     ));
-    assert!(room.post(member, "b3f1c2", "text", false).is_ok());
+    assert!(room.post(member, "b3f1c2", "text", false, &[]).is_ok());
 }
 
 #[test]
@@ -65,7 +65,8 @@ fn the_same_id_and_content_replay_the_same_entry_with_no_second_post() {
             "retry-me",
             "queued while the host slept",
             false,
-        )
+            &[],
+            )
         .expect("the retry is answered");
     assert_eq!(replay, first, "the retry sees the stored entry, not a new one");
     assert_eq!(
@@ -81,11 +82,11 @@ fn the_same_id_with_different_text_or_flag_is_refused() {
     let member = phone(&room, 3);
     say(&room, 3, "one-id", "the first words");
     assert!(
-        matches!(room.post(member, "one-id", "different words", false), Err(PostError::ClientIdReused)),
+        matches!(room.post(member, "one-id", "different words", false, &[]), Err(PostError::ClientIdReused)),
         "one id, one message: different text is a disagreement, not a retry"
     );
     assert!(
-        matches!(room.post(member, "one-id", "the first words", true), Err(PostError::ClientIdReused)),
+        matches!(room.post(member, "one-id", "the first words", true, &[]), Err(PostError::ClientIdReused)),
         "a different flag is a different message too"
     );
     assert_eq!(
@@ -107,7 +108,7 @@ fn two_members_may_use_the_same_client_msg_id() {
 fn the_call_flag_is_derived_from_the_text_not_trusted_from_the_caller() {
     let (_dir, room) = open("post_call_ai");
     let explicit = room
-        .post(phone(&room, 3), "calling", "over to you", true)
+        .post(phone(&room, 3), "calling", "over to you", true, &[])
         .expect("the post lands");
     assert!(explicit.call_ai, "the explicit flag is one way to call");
     let by_token = say(&room, 4, "by-mention", "hey @Kalsa, what time is it?");
@@ -123,15 +124,15 @@ fn the_call_flag_is_derived_from_the_text_not_trusted_from_the_caller() {
 fn a_member_nobody_enrolled_and_the_ai_cannot_post_here() {
     let (_dir, room) = open("post_membership");
     assert!(matches!(
-        room.post(MemberId::Member(999), "x", "text", false),
+        room.post(MemberId::Member(999), "x", "text", false, &[]),
         Err(PostError::NotAMember)
     ));
     assert!(
-        matches!(room.post(MemberId::Ai, "x", "text", false), Err(PostError::NotAMember)),
+        matches!(room.post(MemberId::Ai, "x", "text", false, &[]), Err(PostError::NotAMember)),
         "the AI speaks through post_ai, never as a member"
     );
     let host = room
-        .post(MemberId::Host, "host-one", "from this computer", false)
+        .post(MemberId::Host, "host-one", "from this computer", false, &[])
         .expect("the host is always a member");
     assert_eq!(host.member, MemberId::Host);
 }

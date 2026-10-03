@@ -12,6 +12,9 @@ serde_json = "1"
 # The room's own identity and its transcript epochs are random once and
 # kept: 16 bytes from the operating system's entropy pool each.
 getrandom = "0.3"
+# A media upload is verified whole, against the digest it declared, before
+# it is published: the same sha2 the door holds.
+sha2 = "0.10"
 # The names file rides the pairing store's owner-only atomic publication
 # (temp beside the target, restricted, flushed, renamed) rather than growing
 # a second one whose permissions could drift apart from the credential's.

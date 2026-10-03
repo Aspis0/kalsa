@@ -32,6 +32,8 @@ mod revocation;
 mod room_engine;
 mod room_handover;
 mod room_reopen;
+mod room_media;
+mod room_media_turn;
 mod room_routes;
 mod room_seat;
 mod room_support;
