@@ -17,8 +17,9 @@ type Props = {
   fields: PairingFields;
   busy: boolean;
   waiting: boolean;
-  /** The typed door address is valid; without it the ceremony has no door. */
-  doorReady: boolean;
+  /** The square in hand can start: a valid door address, or a node on the
+   *  iroh road, which needs no address. */
+  readyToPair: boolean;
   diagnosticsEnabled: boolean;
   onChange: (key: keyof PairingFields, value: string) => void;
   onToggleDiagnostics: () => void;
@@ -29,7 +30,7 @@ export function PairingManualForm({
   fields,
   busy,
   waiting,
-  doorReady,
+  readyToPair,
   diagnosticsEnabled,
   onChange,
   onToggleDiagnostics,
@@ -96,8 +97,8 @@ export function PairingManualForm({
           testID="pairing.submit"
           accessibilityRole="button"
           accessibilityLabel={t("pairing.submit")}
-          accessibilityState={{ disabled: busy || !doorReady }}
-          disabled={busy || !doorReady}
+          accessibilityState={{ disabled: busy || !readyToPair }}
+          disabled={busy || !readyToPair}
           onPress={onSubmit}
           style={({ pressed }) => ({
             minHeight: 48,
@@ -105,7 +106,7 @@ export function PairingManualForm({
             alignItems: "center" as const,
             justifyContent: "center" as const,
             backgroundColor: pressed ? colors.brandDeep : colors.brand,
-            opacity: busy || !doorReady ? 0.6 : 1,
+            opacity: busy || !readyToPair ? 0.6 : 1,
           })}
         >
           <Text style={[type.bodyStrong, { color: colors.onBrand }]}>
@@ -113,7 +114,7 @@ export function PairingManualForm({
           </Text>
         </Pressable>
       )}
-      {doorReady ? null : (
+      {readyToPair ? null : (
         <Text testID="pairing.door-required" style={[type.secondary, { color: colors.danger }]}>
           {t("pairing.doorRequired")}
         </Text>

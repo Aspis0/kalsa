@@ -24,7 +24,7 @@ import {
   type ConfirmationPhase,
 } from "../pairing/pairingConfirmation";
 import { bytesToHex } from "../pairing/sha256";
-import { isAllowedPairingUrl, pairingUrlPrefill } from "../pairing/pairingUrls";
+import { isAllowedPairingUrl, IROH_TUNNEL_URL, pairingUrlPrefill } from "../pairing/pairingUrls";
 import type { PairingPhoneDeclaration } from "../pairing/pairingWire";
 import { PairingQrScanner } from "./PairingQrScanner";
 import { PairingInvitePaste } from "./PairingInvitePaste";
@@ -116,10 +116,14 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
   const [pairHosts, setPairHosts] = useState<{ claim: string; confirm: string } | null>(null);
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
   const [failureStage, setFailureStage] = useState<PairingFailStage | null>(null);
-  // The typed address is Start's one blocking input: without a door the
-  // ceremony cannot even name who to ask. (A missing phone model is not a
-  // block — the zero declaration says "none" on the wire.)
+  // The typed address is the HTTPS road's one blocking input: without a
+  // door that road cannot even name who to ask. A node-bearing square on
+  // the iroh road needs no address — it dials the desktop by its node id.
+  // (A missing phone model is not a block — the zero declaration says
+  // "none" on the wire.)
   const doorReady = isAllowedPairingUrl(fields.doorUrl);
+  const readyToPair =
+    doorReady || chooseRoad(fields.node, irohModulePresent).road === "iroh";
   const sessionRef = useRef<PairingSession | null>(null);
   const deskAbortRef = useRef<AbortController | null>(null);
   // Setters past unmount are the race the async ceremony always risks: the
@@ -240,16 +244,21 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
         ? pairingUrlPrefill(scanned.tailnet)
         : prefill
       : null;
+    const square = scanned ?? fields;
+    // The road decides whether an address is required at all: a valid node
+    // with the native module dials desk and door directly, while a square
+    // with no node is only a validate failure away from the address gates.
+    const viaIroh = chooseRoad(square.node, irohModulePresent).road === "iroh";
     const doorUrl = scannedUrls ? scannedUrls.doorUrl : fields.doorUrl;
     const deskUrl = scannedUrls ? scannedUrls.deskUrl : fields.deskUrl;
-    if (!isAllowedPairingUrl(doorUrl)) {
+    if (!viaIroh && !isAllowedPairingUrl(doorUrl)) {
       // A fresh install has no door URL yet: the reason line already shows
       // it (button disabled beside it); logcat still owes the stage line.
       logPairingFail("validate", null);
       setFailureStage("validate");
       return;
     }
-    if (!isAllowedPairingUrl(deskUrl)) {
+    if (!viaIroh && !isAllowedPairingUrl(deskUrl)) {
       logPairingFail("validate", null);
       setFailureStage("validate");
       setState("refused");
@@ -273,19 +282,23 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
             : null,
         );
       }
-      const square = scanned ?? fields;
       const existing = sessionRef.current;
       const retryingCompletion = existing?.needsCompletionRetry() === true;
       // The desk lane replaces the HTTPS desk only when the square names a
       // node and the native module is there; claim/complete keep the same
       // wire and failure stages either way. This is also what the saved
       // credential records as pairedVia: the road the ceremony rode.
-      const useIrohDesk = chooseRoad(square.node, irohModulePresent).road === "iroh";
+      const useIrohDesk = viaIroh;
+      // On the iroh road the desk URL only names the request line's path —
+      // the tunnel bridges to the desk's loopback server, which never reads
+      // the host — so a ceremony with no address still builds /pair URLs.
+      const deskUrlForSession =
+        viaIroh && !isAllowedPairingUrl(deskUrl) ? IROH_TUNNEL_URL : deskUrl;
       const signal = deskSignal();
       const session = retryingCompletion
         ? existing
         : new PairingSession({
-            deskUrl,
+            deskUrl: deskUrlForSession,
             square,
             phone: declarationForModel(currentModelId),
             signal,
@@ -398,7 +411,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
           // disabled button inside the form — never both: one placement per view.
           : state === "refused"
             ? { testID: "pairing.refused", text: t("pairing.refused"), error: true }
-            : !doorReady && !showManual
+            : !readyToPair && !showManual
               ? { testID: "pairing.door-required", text: t("pairing.doorRequired"), error: true }
               : state === "not-confirmed"
                 ? { testID: "pairing.notConfirmed", text: t("pairing.notConfirmed"), error: true }
@@ -555,7 +568,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
               fields={fields}
               busy={busy}
               waiting={state === "waiting"}
-              doorReady={doorReady}
+              readyToPair={readyToPair}
               diagnosticsEnabled={diagnosticsEnabled}
               onChange={update}
               onToggleDiagnostics={() => setDiagnosticsEnabled((value) => !value)}

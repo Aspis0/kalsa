@@ -12,6 +12,7 @@
 
 import { canSendAuthorization, joinRemoteApiUrl } from "../engine/remote/remoteUrl";
 import type { SavedPairingCredential } from "./pairingRecord";
+import { IROH_TUNNEL_URL } from "./pairingUrls";
 import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../remote/doorRoad";
 
 export type ConfirmationResponse = { status: number; bodyEmpty: boolean };
@@ -153,7 +154,13 @@ export function pairedPropsProbe(
       road = await establishDoorRoad(paired, signal);
       fetcher = doorFetchFor(road);
     }
-    const url = joinRemoteApiUrl(paired.doorUrl, "/props");
+    // An iroh-only pairing saved no door address: on the tunnel the URL
+    // only names the request line's path, so the stand-in origin carries
+    // the /props request and its bearer (https reads as safe to sign).
+    const url = joinRemoteApiUrl(
+      paired.doorUrl === "" ? IROH_TUNNEL_URL : paired.doorUrl,
+      "/props",
+    );
     const headers: Record<string, string> = { Accept: "application/json" };
     if (canSendAuthorization(url)) headers.Authorization = `Bearer ${paired.credential}`;
     const response = await fetcher(url, { method: "GET", headers, signal });

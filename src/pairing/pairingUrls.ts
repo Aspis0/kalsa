@@ -1,5 +1,14 @@
 export type PairingUrlPrefill = { doorUrl: string; deskUrl: string };
 
+/**
+ * The URL string a request carries when it rides an iroh tunnel: the tunnel
+ * bridges to the desk's or door's loopback server verbatim and neither reads
+ * the host, so the string only names the request line's path. The .invalid
+ * domain cannot resolve, so a bug that ever routed one of these to the
+ * network fetch fails closed instead of leaking the request.
+ */
+export const IROH_TUNNEL_URL = "https://iroh.kalsa.invalid";
+
 export function isAllowedPairingUrl(value: string): boolean {
   try {
     const parsed = new URL(value.trim());

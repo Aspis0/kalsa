@@ -394,6 +394,59 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("a node-bearing invite with no computer address pairs over iroh and saves no door", async () => {
+    const node = "ab".repeat(32);
+    (irohModulePresent as jest.Mock).mockReturnValue(true);
+    const claimTunnel = fakeDeskTunnel([cannedResponse("200 OK", "")]);
+    const completeTunnel = fakeDeskTunnel([cannedResponse("200 OK", JSON.stringify(SEAL))]);
+    (openIrohTunnel as jest.Mock)
+      .mockResolvedValueOnce(claimTunnel)
+      .mockResolvedValueOnce(completeTunnel);
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    // Fresh install: no configured address, and the square brings no
+    // tailnet — the gates that refuse this today must not fire.
+    const renderer = await render("local-model", "");
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:8134",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(renderer.root.findAllByProps({ testID: "pairing.failure.stage" })).toHaveLength(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(openIrohTunnel).toHaveBeenCalledTimes(2);
+    expect(openIrohTunnel).toHaveBeenNthCalledWith(1, node, "desk");
+    expect(requestText(claimTunnel.writes[0])).toContain("POST /pair/claim HTTP/1.1\r\n");
+    expect(requestText(completeTunnel.writes[0])).toContain("POST /pair/complete HTTP/1.1\r\n");
+    expect(saveCredentialMock).toHaveBeenCalledWith(
+      new Uint8Array(32).fill(0xab),
+      "",
+      { node, pairedVia: "iroh" },
+    );
+    // The Allow wait rides the same iroh road, against the doorless record.
+    const { pairedPropsProbe } = jest.requireMock("../pairing/pairingConfirmation") as {
+      pairedPropsProbe: jest.Mock;
+    };
+    expect(pairedPropsProbe).toHaveBeenCalledWith({
+      credential: "ab".repeat(32),
+      doorUrl: "",
+      node,
+      pairedVia: "iroh",
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    await act(async () => renderer.unmount());
+  });
+
   test("a scanned tailnet with a node pairs over iroh and saves the tailnet door", async () => {
     const node = "ab".repeat(32);
     const tailnet = "https://paired.example.ts.net";
@@ -720,6 +773,34 @@ describe("PairingScreen", () => {
     expect(fails).toHaveLength(1);
     expect(JSON.parse(String(fails[0][1]))).toEqual({ stage: "validate", status: null });
     log.mockRestore();
+    await act(async () => renderer.unmount());
+  });
+
+  test("a typed node enables Start on a fresh install — the iroh road needs no address", async () => {
+    (irohModulePresent as jest.Mock).mockReturnValue(true);
+    const renderer = await render("local-model", "");
+
+    expect(renderer.root.findByProps({ testID: "pairing.submit" }).props.disabled).toBe(true);
+    expect(
+      renderer.root.findByProps({ testID: "pairing.door-required" }).props.children,
+    ).toBe("pairing.doorRequired");
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.node" }).props.onChangeText("ab".repeat(32));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.submit" }).props.disabled).toBe(false);
+    expect(renderer.root.findAllByProps({ testID: "pairing.door-required" })).toHaveLength(0);
+    await act(async () => renderer.unmount());
+  });
+
+  test("a typed node without the iroh module still needs the address", async () => {
+    const renderer = await render("local-model", "");
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.node" }).props.onChangeText("ab".repeat(32));
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.submit" }).props.disabled).toBe(true);
+    expect(
+      renderer.root.findByProps({ testID: "pairing.door-required" }).props.children,
+    ).toBe("pairing.doorRequired");
     await act(async () => renderer.unmount());
   });
 

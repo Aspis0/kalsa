@@ -71,6 +71,26 @@ describe("the confirmation poll over the iroh road", () => {
   });
   afterEach(() => log.mockRestore());
 
+  test("an iroh-only pairing with no saved door address still probes /props with the bearer", async () => {
+    const tunnel = new FakeTunnel([response("200 OK", "{}")]);
+    (openIrohTunnel as jest.Mock).mockResolvedValueOnce(tunnel);
+
+    const outcome = pollForAllowance({
+      probe: pairedPropsProbe({ ...PAIRED, doorUrl: "" }),
+      intervalMs: 1,
+      deadlineMs: 60_000,
+      perProbeTimeoutMs: 10_000,
+      unreachableAfter: 3,
+    });
+
+    expect(await outcome).toEqual({ result: "paired" });
+    expect(tunnel.writes).toHaveLength(1);
+    const request = text(tunnel.writes[0]);
+    expect(request).toContain("GET /props HTTP/1.1\r\n");
+    expect(request).toContain("Host: iroh.kalsa.invalid\r\n");
+    expect(request).toContain(`Authorization: Bearer ${PAIRED.credential}\r\n`);
+  });
+
   test("401, 401, 200 → paired: every tick rides its own fresh tunnel, never a closed one", async () => {
     const tunnel1 = new FakeTunnel([response("401 Unauthorized", "")]);
     const tunnel2 = new FakeTunnel([response("401 Unauthorized", "")]);
