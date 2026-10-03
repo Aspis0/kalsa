@@ -43,6 +43,8 @@ function bridge() {
 
 /// A door answering `plan` per request: the status and the body the route
 /// answers with, so a coded refusal and a plain success are one server.
+const servers = [];
+
 function door(plan) {
   const requests = [];
   const server = createServer((request, response) => {
@@ -55,6 +57,7 @@ function door(plan) {
       response.end(payload === null ? "" : payload);
     });
   });
+  servers.push(server);
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       resolve({ server, port: server.address().port, requests });
@@ -63,85 +66,92 @@ function door(plan) {
 }
 
 const bridgeCalls = bridge();
-const { dir, app } = await loadApp();
+let dir = null;
+try {
+  const loaded = await loadApp();
+  dir = loaded.dir;
+  const app = loaded.app;
 
-// The door's own coded refusal, with the sentence and the chat's UUID in the
-// body: the code is the only thing the page may forward.
-const coded = await door(() => ({
-  status: 502,
-  payload: JSON.stringify({ code: "door.restore_failed", text: `${SENTENCE} (${UUID})` }),
-}));
-const refusal = await app.activateChat(`http://127.0.0.1:${coded.port}`, TOKEN, UUID);
-check("a coded refusal is reported as refused", refusal.kind === "refused", refusal.message);
-check(
-  "the door's sentence is what the page shows",
-  refusal.message.includes(SENTENCE),
-  refusal.message,
-);
-// The invoke is fire-and-forget: let its promise settle.
-await new Promise((resolve) => setTimeout(resolve, 20));
-const logged = bridgeCalls.filter((call) => call.command === "brain_log_event");
-check(
-  "the page logged exactly one code for the refusal",
-  logged.length === 1,
-  JSON.stringify(logged),
-);
-check(
-  "the code names the route and the door's own code",
-  logged[0]?.args?.code === "chat.activate.door.restore_failed",
-  JSON.stringify(logged[0] ?? null),
-);
-check(
-  "the sentence and the chat id never reached the log call",
-  !logged.some((call) => JSON.stringify(call.args ?? {}).includes(SENTENCE)) &&
-    !logged.some((call) => JSON.stringify(call.args ?? {}).includes(UUID)),
-  JSON.stringify(logged),
-);
+  // The door's own coded refusal, with the sentence and the chat's UUID in the
+  // body: the code is the only thing the page may forward.
+  const coded = await door(() => ({
+    status: 502,
+    payload: JSON.stringify({ code: "door.restore_failed", text: `${SENTENCE} (${UUID})` }),
+  }));
+  const refusal = await app.activateChat(`http://127.0.0.1:${coded.port}`, TOKEN, UUID);
+  check("a coded refusal is reported as refused", refusal.kind === "refused", refusal.message);
+  check(
+    "the door's sentence is what the page shows",
+    refusal.message.includes(SENTENCE),
+    refusal.message,
+  );
+  // The invoke is fire-and-forget: let its promise settle.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const logged = bridgeCalls.filter((call) => call.command === "brain_log_event");
+  check(
+    "the page logged exactly one code for the refusal",
+    logged.length === 1,
+    JSON.stringify(logged),
+  );
+  check(
+    "the code names the route and the door's own code",
+    logged[0]?.args?.code === "chat.activate.door.restore_failed",
+    JSON.stringify(logged[0] ?? null),
+  );
+  check(
+    "the sentence and the chat id never reached the log call",
+    !logged.some((call) => JSON.stringify(call.args ?? {}).includes(SENTENCE)) &&
+      !logged.some((call) => JSON.stringify(call.args ?? {}).includes(UUID)),
+    JSON.stringify(logged),
+  );
 
-// A door that never answered: the page's own unknown-slot sentence, and the
-// code that says the network was the failure.
-coded.server.close();
-bridgeCalls.length = 0;
-const unreachable = await app.activateChat(`http://127.0.0.1:${coded.port}`, TOKEN, UUID);
-check("a dead door is reported as refused", unreachable.kind === "refused" && unreachable.silent === true);
-await new Promise((resolve) => setTimeout(resolve, 20));
-const dead = bridgeCalls.filter((call) => call.command === "brain_log_event");
-check(
-  "a dead door logs the unreachable code",
-  dead[0]?.args?.code === "chat.activate.unreachable",
-  JSON.stringify(dead),
-);
+  // A door that never answered: the page's own unknown-slot sentence, and the
+  // code that says the network was the failure.
+  coded.server.close();
+  bridgeCalls.length = 0;
+  const unreachable = await app.activateChat(`http://127.0.0.1:${coded.port}`, TOKEN, UUID);
+  check("a dead door is reported as refused", unreachable.kind === "refused" && unreachable.silent === true);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const dead = bridgeCalls.filter((call) => call.command === "brain_log_event");
+  check(
+    "a dead door logs the unreachable code",
+    dead[0]?.args?.code === "chat.activate.unreachable",
+    JSON.stringify(dead),
+  );
 
-// A door with the tier unwired: a status, not an error, and its own code.
-bridgeCalls.length = 0;
-const noTier = await door(() => ({
-  status: 501,
-  payload: "The engine could not be reached for this chat.",
-}));
-const plain = await app.activateChat(`http://127.0.0.1:${noTier.port}`, TOKEN, UUID);
-check("a 501 is a no-tier answer", plain.kind === "no-tier", plain.kind);
-await new Promise((resolve) => setTimeout(resolve, 20));
-const tierless = bridgeCalls.filter((call) => call.command === "brain_log_event");
-check(
-  "a tierless door logs its own code",
-  tierless[0]?.args?.code === "chat.activate.no_tier",
-  JSON.stringify(tierless),
-);
-noTier.server.close();
+  // A door with the tier unwired: a status, not an error, and its own code.
+  bridgeCalls.length = 0;
+  const noTier = await door(() => ({
+    status: 501,
+    payload: "The engine could not be reached for this chat.",
+  }));
+  const plain = await app.activateChat(`http://127.0.0.1:${noTier.port}`, TOKEN, UUID);
+  check("a 501 is a no-tier answer", plain.kind === "no-tier", plain.kind);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const tierless = bridgeCalls.filter((call) => call.command === "brain_log_event");
+  check(
+    "a tierless door logs its own code",
+    tierless[0]?.args?.code === "chat.activate.no_tier",
+    JSON.stringify(tierless),
+  );
+  noTier.server.close();
 
-// Success: an answer that is not a failure logs nothing at all.
-bridgeCalls.length = 0;
-const open = await door(() => ({ status: 204, payload: null }));
-const ok = await app.activateChat(`http://127.0.0.1:${open.port}`, TOKEN, UUID);
-check("a 204 opens", ok.kind === "ok", ok.kind);
-await new Promise((resolve) => setTimeout(resolve, 20));
-check(
-  "a success writes no ui line",
-  bridgeCalls.length === 0,
-  JSON.stringify(bridgeCalls),
-);
-open.server.close();
-await rm(dir, { recursive: true, force: true });
+  // Success: an answer that is not a failure logs nothing at all.
+  bridgeCalls.length = 0;
+  const open = await door(() => ({ status: 204, payload: null }));
+  const ok = await app.activateChat(`http://127.0.0.1:${open.port}`, TOKEN, UUID);
+  check("a 204 opens", ok.kind === "ok", ok.kind);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  check(
+    "a success writes no ui line",
+    bridgeCalls.length === 0,
+    JSON.stringify(bridgeCalls),
+  );
+} finally {
+  for (const server of servers) server.close();
+  await rm(dir, { recursive: true, force: true });
+}
+
 
 if (failures > 0) {
   console.log(`\n${failures} check(s) failed`);

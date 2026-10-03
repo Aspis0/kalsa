@@ -30,194 +30,201 @@ function equal(label, actual, expected) {
   );
 }
 
-const dir = await mkdtemp(join(tmpdir(), "kalsa-system-prompt-"));
-const outfile = join(dir, "app.mjs");
-await build({
-  stdin: {
-    contents: `
-      export { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, wireTokens } from "../src/lib/attachments.ts";
-      export { streamChatCompletion } from "../src/lib/toolLoop.ts";
-      export { TOOL_DEFINITIONS } from "../src/lib/tools/definitions.ts";
-    `,
-    resolveDir: fileURLToPath(new URL(".", import.meta.url)),
-    loader: "ts",
-  },
-  bundle: true,
-  format: "esm",
-  platform: "node",
-  target: "node20",
-  outfile,
-  logLevel: "silent",
-  plugins: [
-    {
-      // attachments.ts imports the pdf.js worker as a vite `?url` asset; the
-      // worker only matters when a PDF is extracted, which this never does.
-      name: "vite-url-asset",
-      setup(build) {
-        build.onResolve({ filter: /\?url$/ }, (args) => ({ path: args.path, namespace: "url-asset" }));
-        build.onLoad({ filter: /.*/, namespace: "url-asset" }, () => ({
-          contents: 'export default "";',
-          loader: "js",
-        }));
-      },
+let dir = null;
+let server = null;
+try {
+  dir = await mkdtemp(join(tmpdir(), "kalsa-system-prompt-"));
+  const outfile = join(dir, "app.mjs");
+  await build({
+    stdin: {
+      contents: `
+        export { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, wireTokens } from "../src/lib/attachments.ts";
+        export { streamChatCompletion } from "../src/lib/toolLoop.ts";
+        export { TOOL_DEFINITIONS } from "../src/lib/tools/definitions.ts";
+      `,
+      resolveDir: fileURLToPath(new URL(".", import.meta.url)),
+      loader: "ts",
     },
-  ],
-});
-
-// streamRound's idle timer is a browser one.
-globalThis.window = { setTimeout, clearTimeout };
-
-const app = await import(pathToFileURL(outfile).href);
-const { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, wireTokens, streamChatCompletion } = app;
-
-const MESSAGES = [{ id: "u1", role: "user", content: "Look at my picture.", createdAt: 1 }];
-const ATTACHMENT = {
-  id: "a1",
-  name: "report.txt",
-  kind: "txt",
-  chars: 5,
-  tokens: 2,
-  text: "HELLO",
-  attachedAt: 1,
-  active: true,
-};
-
-// The wire carries ONE system message — several chat templates render only
-// the one at index 0 — and it is the fixed prompt with the pinned documents
-// appended to the same content, which keeps the prompt as the byte prefix the
-// engine's cache holds onto.
-const withDocs = buildPinnedContext(MESSAGES, [ATTACHMENT], null);
-equal(
-  "one system message with documents attached",
-  withDocs.wire.filter((m) => m.role === "system").length,
-  1,
-);
-equal("the system message is first", withDocs.wire[0], withDocs.wire.find((m) => m.role === "system"));
-check(
-  "it starts with the fixed prompt, byte for byte",
-  (withDocs.wire[0]?.content ?? "").startsWith(SYSTEM_PROMPT.content),
-  JSON.stringify((withDocs.wire[0]?.content ?? "").slice(0, 70)),
-);
-check(
-  "the pinned documents ride in the same message",
-  (withDocs.wire[0]?.content ?? "").includes("Attached documents") &&
-    (withDocs.wire[0]?.content ?? "").includes("report.txt") &&
-    (withDocs.wire[0]?.content ?? "").includes("HELLO"),
-  JSON.stringify((withDocs.wire[0]?.content ?? "").slice(-90)),
-);
-check(
-  "the prompt is followed by a blank line, then the block",
-  (withDocs.wire[0]?.content ?? "").includes(`${SYSTEM_PROMPT.content}\n\nAttached documents`),
-);
-check(
-  "the turn follows the one system message",
-  withDocs.wire[1]?.role === "user" && withDocs.wire[1]?.content === "Look at my picture.",
-  JSON.stringify(withDocs.wire[1] ?? null).slice(0, 120),
-);
-
-const withoutDocs = buildPinnedContext(MESSAGES, [], null);
-equal(
-  "one system message without documents",
-  withoutDocs.wire.filter((m) => m.role === "system").length,
-  1,
-);
-equal("without documents the content is the prompt itself", withoutDocs.wire[0], SYSTEM_PROMPT);
-check(
-  "without documents no block is appended",
-  !(withoutDocs.wire[0]?.content ?? "").includes("Attached documents"),
-);
-
-// The fit counts it: what the wire costs for a conversation is the stored
-// history plus the fixed prompt, and the difference is exactly the prompt.
-equal(
-  "the budget counts the prompt",
-  wireTokens(MESSAGES) - historyTokens(MESSAGES),
-  SYSTEM_PROMPT_TOKENS,
-);
-check(
-  "the prompt costs more than nothing",
-  SYSTEM_PROMPT_TOKENS > 0 && SYSTEM_PROMPT_TOKENS < 80,
-  `${SYSTEM_PROMPT_TOKENS} tokens`,
-);
-check(
-  "the prompt's own cost is the wire cost",
-  SYSTEM_PROMPT_TOKENS === Math.max(1, Math.ceil(SYSTEM_PROMPT.content.length / 4)),
-  `${SYSTEM_PROMPT_TOKENS} tokens for ${SYSTEM_PROMPT.content.length} chars`,
-);
-
-// One turn through the tool loop: round one asks for a call, round two
-// answers after the result, and both requests carry the one system message,
-// first, still whole.
-const bodies = [];
-const server = createServer((request, response) => {
-  let raw = "";
-  request.on("data", (chunk) => (raw += chunk));
-  request.on("end", () => {
-    bodies.push(JSON.parse(raw));
-    response.writeHead(200, { "Content-Type": "text/event-stream" });
-    if (bodies.length === 1) {
-      const delta = {
-        tool_calls: [
-          {
-            index: 0,
-            id: "call-1",
-            type: "function",
-            function: { name: "web_search", arguments: '{"query":"x"}' },
-          },
-        ],
-      };
-      response.write(
-        `data: ${JSON.stringify({ choices: [{ delta, finish_reason: "tool_calls" }] })}\n\n`,
-      );
-    } else {
-      response.write(
-        `data: ${JSON.stringify({ choices: [{ delta: { content: "Done." }, finish_reason: "stop" }] })}\n\n`,
-      );
-    }
-    response.write("data: [DONE]\n\n");
-    response.end();
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    target: "node20",
+    outfile,
+    logLevel: "silent",
+    plugins: [
+      {
+        // attachments.ts imports the pdf.js worker as a vite `?url` asset; the
+        // worker only matters when a PDF is extracted, which this never does.
+        name: "vite-url-asset",
+        setup(build) {
+          build.onResolve({ filter: /\?url$/ }, (args) => ({ path: args.path, namespace: "url-asset" }));
+          build.onLoad({ filter: /.*/, namespace: "url-asset" }, () => ({
+            contents: 'export default "";',
+            loader: "js",
+          }));
+        },
+      },
+    ],
   });
-});
-await new Promise((ready) => server.listen(0, "127.0.0.1", ready));
-const port = server.address().port;
 
-await streamChatCompletion({
-  endpoint: `http://127.0.0.1:${port}/v1`,
-  token: "",
-  model: "test-model",
-  messages: withDocs.wire,
-  sampling: {},
-  signal: new AbortController().signal,
-  onToken: () => {},
-  onReasoning: () => {},
-  tools: app.TOOL_DEFINITIONS,
-  runTool: async () => ({ ok: true, text: "SEARCH RESULT" }),
-});
-server.close();
+  // streamRound's idle timer is a browser one.
+  globalThis.window = { setTimeout, clearTimeout };
 
-equal("the tool round asked twice", bodies.length, 2);
-for (const [index, body] of bodies.entries()) {
-  const round = index + 1;
-  const systems = body.messages.filter((m) => m.role === "system");
-  equal(`round ${round}: exactly one system message`, systems.length, 1);
-  equal(`round ${round}: it is the first message`, body.messages[0], systems[0]);
+  const app = await import(pathToFileURL(outfile).href);
+  const { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, wireTokens, streamChatCompletion } = app;
+
+  const MESSAGES = [{ id: "u1", role: "user", content: "Look at my picture.", createdAt: 1 }];
+  const ATTACHMENT = {
+    id: "a1",
+    name: "report.txt",
+    kind: "txt",
+    chars: 5,
+    tokens: 2,
+    text: "HELLO",
+    attachedAt: 1,
+    active: true,
+  };
+
+  // The wire carries ONE system message — several chat templates render only
+  // the one at index 0 — and it is the fixed prompt with the pinned documents
+  // appended to the same content, which keeps the prompt as the byte prefix the
+  // engine's cache holds onto.
+  const withDocs = buildPinnedContext(MESSAGES, [ATTACHMENT], null);
+  equal(
+    "one system message with documents attached",
+    withDocs.wire.filter((m) => m.role === "system").length,
+    1,
+  );
+  equal("the system message is first", withDocs.wire[0], withDocs.wire.find((m) => m.role === "system"));
   check(
-    `round ${round}: it still starts with the fixed prompt`,
-    (body.messages[0]?.content ?? "").startsWith(SYSTEM_PROMPT.content),
-    JSON.stringify((body.messages[0]?.content ?? "").slice(0, 70)),
+    "it starts with the fixed prompt, byte for byte",
+    (withDocs.wire[0]?.content ?? "").startsWith(SYSTEM_PROMPT.content),
+    JSON.stringify((withDocs.wire[0]?.content ?? "").slice(0, 70)),
   );
   check(
-    `round ${round}: the documents still ride in it`,
-    (body.messages[0]?.content ?? "").includes("Attached documents"),
+    "the pinned documents ride in the same message",
+    (withDocs.wire[0]?.content ?? "").includes("Attached documents") &&
+      (withDocs.wire[0]?.content ?? "").includes("report.txt") &&
+      (withDocs.wire[0]?.content ?? "").includes("HELLO"),
+    JSON.stringify((withDocs.wire[0]?.content ?? "").slice(-90)),
   );
+  check(
+    "the prompt is followed by a blank line, then the block",
+    (withDocs.wire[0]?.content ?? "").includes(`${SYSTEM_PROMPT.content}\n\nAttached documents`),
+  );
+  check(
+    "the turn follows the one system message",
+    withDocs.wire[1]?.role === "user" && withDocs.wire[1]?.content === "Look at my picture.",
+    JSON.stringify(withDocs.wire[1] ?? null).slice(0, 120),
+  );
+
+  const withoutDocs = buildPinnedContext(MESSAGES, [], null);
+  equal(
+    "one system message without documents",
+    withoutDocs.wire.filter((m) => m.role === "system").length,
+    1,
+  );
+  equal("without documents the content is the prompt itself", withoutDocs.wire[0], SYSTEM_PROMPT);
+  check(
+    "without documents no block is appended",
+    !(withoutDocs.wire[0]?.content ?? "").includes("Attached documents"),
+  );
+
+  // The fit counts it: what the wire costs for a conversation is the stored
+  // history plus the fixed prompt, and the difference is exactly the prompt.
+  equal(
+    "the budget counts the prompt",
+    wireTokens(MESSAGES) - historyTokens(MESSAGES),
+    SYSTEM_PROMPT_TOKENS,
+  );
+  check(
+    "the prompt costs more than nothing",
+    SYSTEM_PROMPT_TOKENS > 0 && SYSTEM_PROMPT_TOKENS < 80,
+    `${SYSTEM_PROMPT_TOKENS} tokens`,
+  );
+  check(
+    "the prompt's own cost is the wire cost",
+    SYSTEM_PROMPT_TOKENS === Math.max(1, Math.ceil(SYSTEM_PROMPT.content.length / 4)),
+    `${SYSTEM_PROMPT_TOKENS} tokens for ${SYSTEM_PROMPT.content.length} chars`,
+  );
+
+  // One turn through the tool loop: round one asks for a call, round two
+  // answers after the result, and both requests carry the one system message,
+  // first, still whole.
+  const bodies = [];
+  server = createServer((request, response) => {
+    let raw = "";
+    request.on("data", (chunk) => (raw += chunk));
+    request.on("end", () => {
+      bodies.push(JSON.parse(raw));
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      if (bodies.length === 1) {
+        const delta = {
+          tool_calls: [
+            {
+              index: 0,
+              id: "call-1",
+              type: "function",
+              function: { name: "web_search", arguments: '{"query":"x"}' },
+            },
+          ],
+        };
+        response.write(
+          `data: ${JSON.stringify({ choices: [{ delta, finish_reason: "tool_calls" }] })}\n\n`,
+        );
+      } else {
+        response.write(
+          `data: ${JSON.stringify({ choices: [{ delta: { content: "Done." }, finish_reason: "stop" }] })}\n\n`,
+        );
+      }
+      response.write("data: [DONE]\n\n");
+      response.end();
+    });
+  });
+  await new Promise((ready) => server.listen(0, "127.0.0.1", ready));
+  const port = server.address().port;
+
+  await streamChatCompletion({
+    endpoint: `http://127.0.0.1:${port}/v1`,
+    token: "",
+    model: "test-model",
+    messages: withDocs.wire,
+    sampling: {},
+    signal: new AbortController().signal,
+    onToken: () => {},
+    onReasoning: () => {},
+    tools: app.TOOL_DEFINITIONS,
+    runTool: async () => ({ ok: true, text: "SEARCH RESULT" }),
+  });
+  server.close();
+
+  equal("the tool round asked twice", bodies.length, 2);
+  for (const [index, body] of bodies.entries()) {
+    const round = index + 1;
+    const systems = body.messages.filter((m) => m.role === "system");
+    equal(`round ${round}: exactly one system message`, systems.length, 1);
+    equal(`round ${round}: it is the first message`, body.messages[0], systems[0]);
+    check(
+      `round ${round}: it still starts with the fixed prompt`,
+      (body.messages[0]?.content ?? "").startsWith(SYSTEM_PROMPT.content),
+      JSON.stringify((body.messages[0]?.content ?? "").slice(0, 70)),
+    );
+    check(
+      `round ${round}: the documents still ride in it`,
+      (body.messages[0]?.content ?? "").includes("Attached documents"),
+    );
+  }
+  check(
+    "round two carries the tool's answer",
+    bodies[1].messages.some((m) => m.role === "tool" && m.content === "SEARCH RESULT"),
+    JSON.stringify(bodies[1].messages.map((m) => m.role)),
+  );
+
+} finally {
+  if (server) server.close();
+  if (dir) await rm(dir, { recursive: true, force: true });
 }
-check(
-  "round two carries the tool's answer",
-  bodies[1].messages.some((m) => m.role === "tool" && m.content === "SEARCH RESULT"),
-  JSON.stringify(bodies[1].messages.map((m) => m.role)),
-);
 
-await rm(dir, { recursive: true, force: true });
 
 if (fail > 0) {
   console.log(`\n${fail} check(s) failed`);
