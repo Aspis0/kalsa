@@ -37,6 +37,7 @@ mod tune_step;
 mod ticker;
 mod transport;
 mod ui_event;
+mod verified;
 mod web;
 
 use std::io;

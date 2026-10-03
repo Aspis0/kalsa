@@ -1332,17 +1332,20 @@ pub(crate) fn ram_bytes() -> u64 {
     }
 }
 
-/// Size first, then the digest: the cheap check decides whether the expensive
-/// one is worth running.
+/// Size first, then the record, then the digest: the cheap checks decide
+/// whether the expensive one is worth running.
 pub(crate) fn file_digest_is(path: &Path, size: u64, sha: &str) -> bool {
     file_digest_checked(path, size, sha).unwrap_or(false)
 }
 
 /// The same check with its answer's honesty: `Err` when the file was never
 /// read whole — absent, not the promised size, or the disk said no — which
-/// is not an answer. `Ok(true)` is the pinned file; `Ok(false)` is read whole
-/// and not it, the one answer a caller may treat as final.
+/// is not an answer. `Ok(true)` is the pinned file, proven by reading it
+/// whole once (the record beside it then answers for the launches after)
+/// or by that record alone; `Ok(false)` is read whole and not it, the one
+/// answer a caller may treat as final.
 pub(crate) fn file_digest_checked(path: &Path, size: u64, sha: &str) -> std::io::Result<bool> {
+    let started = std::time::Instant::now();
     let mut file = std::fs::File::open(path)?;
     let meta = file.metadata()?;
     if meta.len() != size {
@@ -1350,6 +1353,25 @@ pub(crate) fn file_digest_checked(path: &Path, size: u64, sha: &str) -> std::io:
             std::io::ErrorKind::InvalidData,
             "the file is not the size the pin promises",
         ));
+    }
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "the file".to_string());
+    // A file that was read whole once and has not moved since (same size,
+    // same time, same file id) is answered from its record: the read that
+    // ended in a match is the expensive part, and repeating it every launch
+    // is the minute of silence this record exists to end.
+    let stamp = crate::verified::Stamp::of(&meta);
+    if stamp
+        .as_ref()
+        .is_some_and(|stamp| crate::verified::unchanged(path, sha, stamp))
+    {
+        log::info!(
+            "model check: {name}: unchanged, sha256 skipped ({size} bytes, {:.2}s)",
+            started.elapsed().as_secs_f64()
+        );
+        return Ok(true);
     }
     let mut hasher = Sha256::new();
     let mut buf = [0u8; 64 * 1024];
@@ -1361,7 +1383,20 @@ pub(crate) fn file_digest_checked(path: &Path, size: u64, sha: &str) -> std::io:
         }
     }
     let digest = format!("{:x}", hasher.finalize());
-    Ok(digest.eq_ignore_ascii_case(sha))
+    let matched = digest.eq_ignore_ascii_case(sha);
+    log::info!(
+        "model check: {name}: sha256 {} ({size} bytes, {:.1}s)",
+        if matched { "verified" } else { "mismatch" },
+        started.elapsed().as_secs_f64()
+    );
+    if matched {
+        // Only a match is worth writing down; a mismatch must be read again
+        // next launch, because the bytes may be replaced in between.
+        if let Some(stamp) = stamp {
+            crate::verified::record(path, sha, &stamp);
+        }
+    }
+    Ok(matched)
 }
 
 #[cfg(test)]
@@ -1473,6 +1508,70 @@ mod tests {
 
     fn digest_of(bytes: &[u8]) -> String {
         format!("{:x}", Sha256::digest(bytes))
+    }
+
+    /// One modification time on an existing file, where the file handle is
+    /// opened for writing because the platform's own setter wants that much
+    /// permission.
+    fn set_mtime(path: &Path, at: std::time::SystemTime) {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(path)
+            .expect("open")
+            .set_modified(at)
+            .expect("set the time");
+    }
+
+    /// The check reads a file whole once and writes the record beside it;
+    /// the launch after that answers from the record without reading the
+    /// file — the minute of silence a 22 GB model used to cost every start.
+    /// The other half is the security property: a change on disk (a byte
+    /// under a new time, a size that moved, a pin the record does not name)
+    /// is read again and answered on its bytes, never on the stamp.
+    #[test]
+    fn a_proven_file_is_answered_by_its_record_until_something_moves() {
+        let dir = scratch("digest-record");
+        let path = dir.join("model.gguf");
+        let pinned = b"the pinned bytes";
+        std::fs::write(&path, pinned).expect("write");
+        let sha = digest_of(pinned);
+        let size = pinned.len() as u64;
+        assert!(file_digest_checked(&path, size, &sha).expect("the first read"));
+        // Same size, another byte under it, the time put back: the record
+        // answers true — proof that no read happened. This is the trade the
+        // record makes, stated in its own module.
+        let at = std::fs::metadata(&path)
+            .expect("stat")
+            .modified()
+            .expect("mtime");
+        std::fs::write(&path, b"XXXXXXXXXXXXXXXX").expect("write");
+        set_mtime(&path, at);
+        assert_eq!(
+            file_digest_checked(&path, size, &sha).expect("the record's answer"),
+            true,
+            "the record answered, not the bytes"
+        );
+        // The time moved: the bytes are read again, and they are not the
+        // pinned ones after all.
+        set_mtime(&path, at + std::time::Duration::from_secs(1));
+        assert_eq!(
+            file_digest_checked(&path, size, &sha).expect("the second read"),
+            false,
+            "a moved time re-reads"
+        );
+        // The pinned bytes back, and a pin the record does not name: the
+        // match re-records, the other pin reads again and disagrees.
+        std::fs::write(&path, pinned).expect("write");
+        assert!(file_digest_checked(&path, size, &sha).expect("the third read"));
+        let other = digest_of(b"another model entirely");
+        assert_eq!(
+            file_digest_checked(&path, size, &other).expect("the fourth read"),
+            false,
+            "a moved pin re-reads"
+        );
+        // A size that is not the pin's is refused before any read at all.
+        assert!(file_digest_checked(&path, size + 1, &sha).is_err());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

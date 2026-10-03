@@ -311,6 +311,15 @@ fn fetch_file(
                 "download done: {name} ({bytes} bytes in {:.1}s)",
                 started.elapsed().as_secs_f64()
             );
+            // The download's own publish step just read these bytes whole
+            // and matched the pin, so the record beside the file spares the
+            // next launch the same read.
+            if let Some(stamp) = std::fs::metadata(path)
+                .ok()
+                .and_then(|meta| crate::verified::Stamp::of(&meta))
+            {
+                crate::verified::record(path, sha256, &stamp);
+            }
             Ok(())
         }
         Err(fault) => {
