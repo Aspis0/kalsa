@@ -14,6 +14,12 @@ export const BENCH_GOVERNOR_FORCE_KEY = "kalsa.bench.governor_force";
  *  engine degrades to GPU when the device does not resolve). Production never
  *  writes this key. */
 export const BENCH_NPU_LANE_KEY = "kalsa.bench.npu_lane";
+/** Bench-only decode-hop cadence: when > 0 the engine alternates CPU / NPU
+ *  decode every N generated tokens — and only on a load whose NPU lane
+ *  resolved, so the hops never appear on a CPU/GPU load. This is the S23
+ *  measurement knob for heat per token (CPU-only vs hopping); production
+ *  never writes this key, and absent or invalid reads 0 = off. */
+export const BENCH_DECODE_HOP_KEY = "kalsa.bench.decode_hop";
 
 export type BenchNpuLanePref = "off" | "on" | "auto";
 
@@ -299,6 +305,7 @@ export function buildGovernorParams(
   force = false,
   benchNoRepack: boolean | undefined = undefined,
   npu?: NpuLaneInputs,
+  decodeHopTokens = 0,
 ) {
   const generation = generationFor(deviceProfile);
   const lane = gpuFit(modelEntry, memory, benchNoRepack);
@@ -352,6 +359,10 @@ export function buildGovernorParams(
     // When the NPU lane is on, its own fit decides — the HTP copy costs
     // +219 MiB, so an 8 GB device falls to no-repack exactly like today.
     decode_repack: laneEnabled ? npuLane.decodeRepack : lane.decodeRepack,
+    // Binding param governor.decode_hop_tokens (default 0): the bench cadence
+    // from kalsa.bench.decode_hop. Omitted when off so the default params
+    // object stays byte-identical to production.
+    ...(decodeHopTokens > 0 ? { decode_hop_tokens: decodeHopTokens } : {}),
     // V73 carries the owner's 2026-09-21 enablement decision, not a measurement.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
     gpu_prefill_measured:
@@ -391,6 +402,17 @@ export async function readBenchNpuLane(): Promise<BenchNpuLanePref | undefined> 
     return raw === "off" || raw === "on" || raw === "auto" ? raw : undefined;
   } catch {
     return undefined;
+  }
+}
+
+/** A positive integer is the hop cadence; absent or invalid reads 0 = off
+ *  (Number(null) is 0, so the absent key needs no branch of its own). */
+export async function readBenchDecodeHop(): Promise<number> {
+  try {
+    const value = Number(await AsyncStorage.getItem(BENCH_DECODE_HOP_KEY));
+    return Number.isInteger(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
   }
 }
 

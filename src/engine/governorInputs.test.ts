@@ -33,6 +33,7 @@ import { effectiveCacheTypes } from "./engineParams";
 import {
   buildGovernorParams,
   npuLaneCacheTypes,
+  readBenchDecodeHop,
   readBenchGovernorForce,
   readBenchNpuLane,
   readGovernorThermo,
@@ -768,6 +769,43 @@ describe("governor inputs", () => {
       plugged: false,
       thermo_source: "battery",
     });
+  });
+});
+
+describe("kalsa.bench.decode_hop", () => {
+  const hopAt = (value: string | null) => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(value);
+  };
+
+  test("readBenchDecodeHop: a positive integer is the cadence, everything else is 0", async () => {
+    hopAt("64");
+    await expect(readBenchDecodeHop()).resolves.toBe(64);
+    hopAt("1");
+    await expect(readBenchDecodeHop()).resolves.toBe(1);
+    hopAt(null);
+    await expect(readBenchDecodeHop()).resolves.toBe(0);
+    hopAt("0");
+    await expect(readBenchDecodeHop()).resolves.toBe(0);
+    hopAt("abc");
+    await expect(readBenchDecodeHop()).resolves.toBe(0);
+    hopAt("-4");
+    await expect(readBenchDecodeHop()).resolves.toBe(0);
+    hopAt("3.5");
+    await expect(readBenchDecodeHop()).resolves.toBe(0);
+  });
+
+  test("buildGovernorParams emits decode_hop_tokens only when > 0", () => {
+    const s23 = device("SM8750");
+    // Default and explicit off: the params stay byte-identical to production.
+    expect(buildGovernorParams(model, s23, memory)).not.toHaveProperty(
+      "decode_hop_tokens",
+    );
+    expect(
+      buildGovernorParams(model, s23, memory, false, undefined, undefined, 0),
+    ).not.toHaveProperty("decode_hop_tokens");
+    expect(
+      buildGovernorParams(model, s23, memory, false, undefined, undefined, 64),
+    ).toMatchObject({ decode_hop_tokens: 64 });
   });
 });
 
