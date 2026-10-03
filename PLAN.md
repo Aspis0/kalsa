@@ -1116,6 +1116,19 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   q8_0/q8_0: tg128 t1 118.5 / t2 123.3 / t4 122.3 tok/s (r=5); pp512 ~1227 at t2 and t4, 1196 at t8. With full Metal
   offload the thread count does not move decode or prefill, so no per-chip thread table. Unmeasured on an iPhone
   (A17 Pro = 2P+4E); recheck there only if a real device shows CPU-bound time.
+  **OWNER DECISION 2026-10-03 (relayed by kalsa-brain via 1d714246): phone <-> PC media.** The phone sends images in
+  1:1 chat with the PC over iroh, and images + videos in Room; the phone's own on-device model stays TEXT-ONLY until
+  after alpha. Phone lane owner: iOS session (shared JS, Android + iOS). Contract: 1:1 = GET /props
+  modalities.{vision,audio,video} gates the attach button (re-read after PC restart/model switch); OpenAI content
+  parts with data:image/...;base64 only (http/file/raw base64 -> 400 media_source_refused, any video part -> 400
+  media_kind_refused); phone compresses to long side <=1536 px, JPEG ~q0.8, re-encode strips EXIF/GPS; body <=16 MiB
+  (413), oldest history images -> text placeholder to stay <=12 MiB; budget <=560 prompt tokens per image.
+  Room = kalsa-brain docs/ROOM-PROTOCOL.md section 5b (73a92703): optional `media` on messages (old phones show
+  [Image]/[Video]); upload POST /kalsa/room/media -> PUT .../{upload}/{index} 4 MiB chunks -> POST .../complete
+  (sha256 + magic bytes; jpeg/png/webp/mp4); download GET /kalsa/room/media/{id} with Range, members only, post-join
+  only; caps image 4 MiB, video 100 MiB, room 2 GiB (room_media_full); video compressed by the sender to ~720p H.264
+  ~2 Mbps + AAC (react-native-compressor) with up to 4 still frames uploaded as images in `frames`.
+  Order: after the iOS background fix lands: (1) 1:1 images, (2) Room images, (3) Room video.
   **Apple Foundation Models measured 2026-10-03 (M1 Max, macOS 26.6.2; `ios-engine-choice/REPORT.md` AFM section):**
   contextSize 4096 total; decode ~33-46 tok/s, TTFT 0.5-0.7 s short / ~7 s on long prompts; no refusals. Quality: IT
   and ES grammar slips, ZH code-switches to English, 3-turn chat degrades (hallucination), reasoning cell correct.
