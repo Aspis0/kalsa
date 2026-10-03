@@ -83,8 +83,34 @@ first time.
 
 ## 6. When something goes wrong
 
-<!-- LOG-FILE: filled in when the app writes its log file -->
+Kalsa keeps a log: a record of what the app did. It is the first thing we need when
+something goes wrong.
+
+**To send it from inside Kalsa:** open the **AI** page (on the home page, under
+**This computer**) and find **Report a problem** at the bottom. Press **Send the log**.
+Kalsa answers with a report number — send that number to the person who gave you Kalsa.
 Tell us what you were doing and when.
+
+The screen says, in Kalsa's own words, what the log holds and what it never holds:
+
+> The log never contains your messages, Kalsa's answers, your files, or any code or key.
+>
+> It holds what Kalsa did and what this computer has: versions, processor, graphics card, memory, errors.
+
+**If Kalsa says "Your network (e.g. a company network) blocks the upload."**, the log
+could not be sent automatically. Press **Open the log folder** instead: a folder opens
+on your computer. Send the file **kalsa-brain.log** by email to the person who gave you
+Kalsa. If you also see **kalsa-brain.1.log**, send that file too.
+
+The log folder is:
+
+- **Mac:** `~/Library/Logs/ai.kalsa.brain/`
+- **Windows:** `%LOCALAPPDATA%\ai.kalsa.brain\logs\`
+
+**If Kalsa did not close normally last time**, the next time you open it a card says
+**Kalsa did not close normally last time** and offers to send the log: press **Send the
+log**, or **Not now** to skip it. Nothing is sent unless you press the button. The same
+card appears if something goes wrong while Kalsa is running.
 
 ## 7. Download
 
