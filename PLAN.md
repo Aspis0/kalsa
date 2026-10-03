@@ -948,6 +948,19 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   guarded only by the governor's estimate-based fit (two contexts priced) - device evidence pending; V75 enablement
   rests on one board. Next: debuggable APK run 37089802965 -> QDC on every available Snapdragon board, governor ON
   (default) vs OFF ("0"), interleaved.
+  **QDC ON vs OFF DONE 2026-10-03 night** (Sonnet 5.5 fb102e57, APK run 37090151989 = app 1d51f196,
+  `scratchpad/agents/qdc-governor-on-off-1d51f196/`; QRD8650 rows + 60 HTP0 chunks re-read by me). Available boards
+  only (QRD7675, QRD8635, QRD8550, HDK8550 Unavailable all night). **QRD8650 (8 Gen 3, v75): ON prefill 884.6 / 858.7
+  tok/s (short/long, HTP0) vs OFF 70.3 (CPU) = 12.6x; decode same (13-18 vs 17).** QRD8750 (8 Elite, v79): as
+  provisioned ON = CPU because the rack battery is a stub fixed at 42.0 C (`temperature: 420` on every read) -> the
+  plugged latch is 42.0 -> engine rule idle+1 < 42 refuses = correct for a real phone, a QDC artifact here; with
+  `dumpsys battery unplug` the lane runs HTP0 at 1105.9 / 1032.4 tok/s (~10x). SM8850 (8 Elite Gen 5, v81): governor
+  never loads - `gpu-prefill-incorrect-Unknown`: the app's generation map (governorInputs.ts:127-137) has no SM8850,
+  and laneFit returns NoFit for Unknown (:190) - explains the "NoFit with 18.9 GB" the agent could not. 0 crashes, 0
+  LMK beyond our force-stops; all completed answers correct. QDC skin HAL unreliable (two `skin` zones, one frozen;
+  boards idle at 45-46 C) -> stop raised to 48.0 on QDC only (coordinator call), 44.0 stays for our phones.
+  Minutes: SM8850 985->940, QRD8750 632->579, QRD8650 472->422. OPEN for the owner: add SM8850/v81 to the generation
+  map (needs a GPU-prefill correctness check on v81 first, like V73/V75/V79 had).
   **S23 Expo-57 smoke BLOCKED 2026-10-02 ~04:00 EDT** (GLM 5e5aaf19, `s23-expo57-smoke/REPORT.md`, 0/7 run): a 5-s
   airplane-mode drill killed One UI's wireless-debugging adbd (re-checked by the coordinator: 192.168.1.152, announced
   port 45119 refused). Needs the owner: Developer options -> Wireless debugging OFF/ON. Left on the phone: bench keys
