@@ -128,6 +128,12 @@ pub fn memory_budget(backend: Backend, ram_bytes: u64) -> MemoryBudget {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Footprint {
     pub weights_bytes: u64,
+    /// The vision projector's bytes — charged only by the LAUNCHER, which
+    /// knows whether the verified file is on disk and being passed
+    /// ([`crate::manifest::DownloadableEntry`]'s pin is an on-demand
+    /// download). [`footprint_bytes`] leaves it at zero: a user who never
+    /// accepted the projector does not pay it, and the chooser's fit is
+    /// about the files a pick actually moves.
     pub mmproj_bytes: u64,
     pub buffer_bytes: u64,
     pub kv_bytes: u64,
@@ -162,7 +168,9 @@ pub fn footprint_bytes(entry: &ModelEntry, context_tokens: u64) -> Footprint {
         .unwrap_or(ASSUMED_KV_BYTES_PER_TOKEN);
     Footprint {
         weights_bytes: entry.weights_bytes,
-        mmproj_bytes: entry.mmproj_bytes.unwrap_or(0),
+        // The projector is an on-demand download: the chooser never prices
+        // it (see `Footprint::mmproj_bytes`).
+        mmproj_bytes: 0,
         buffer_bytes: COMPUTE_BUFFER_BYTES,
         kv_bytes: per_token.saturating_mul(context_tokens),
         // The row's own file only: a drafter rides beside the row; the two
@@ -235,7 +243,6 @@ mod tests {
             parameters: crate::parameters::Parameters::dense(8_000_000_000),
             quant: "Q4_K_M",
             weights_bytes,
-            mmproj_bytes: None,
             kv_bytes_per_token: None,
             slot_cache: SlotCache::None,
             kv_assumption_undercounts: false,
@@ -279,6 +286,29 @@ mod tests {
         let footprint = footprint_bytes(&row, 8192);
         assert_eq!(footprint.kv_bytes, 16 * KIB * 8192);
         assert!(!footprint.kv_is_assumed(&row));
+    }
+
+    /// The projector is an on-demand download, so the chooser's arithmetic
+    /// never prices it: `footprint_bytes` leaves the term at zero even for a
+    /// row that carries a pin — a user who never accepted does not pay it.
+    /// The launcher, which knows the verified file is on disk and being
+    /// passed, is the one caller that sets the term (pinned in kalsa-launch,
+    /// where the charge is made).
+    #[test]
+    fn the_chooser_never_charges_the_projector_the_launcher_does() {
+        let row = dense_row(4 * GIB);
+        assert_eq!(
+            footprint_bytes(&row, 8192).mmproj_bytes,
+            0,
+            "no projector is priced at choice time"
+        );
+        // When the launcher does charge it, the term is part of the sum.
+        let mut charged = footprint_bytes(&row, 8192);
+        charged.mmproj_bytes = 600 * MIB;
+        assert_eq!(
+            charged.total_bytes(),
+            4 * GIB + 600 * MIB + COMPUTE_BUFFER_BYTES + 96 * KIB * 8192
+        );
     }
 
     #[test]

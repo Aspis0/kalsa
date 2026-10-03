@@ -67,6 +67,7 @@ fn the_placement_stops_when_the_model_is_not_consented() {
     let (url, requests) = serve(PLAN_BODY, "stories260K.gguf");
     let root = scratch("ask-placement");
     let plan = DownloadPlan {
+        mmproj: None,
         url: url.clone(),
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -106,6 +107,7 @@ fn a_stale_choice_places_nothing_not_even_a_copy_that_is_already_here() {
     let models = root.join("models");
     std::fs::create_dir_all(&models).expect("mkdir");
     let plan = DownloadPlan {
+        mmproj: None,
         url,
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -138,6 +140,7 @@ fn a_plan_downloads_the_weights_and_verifies_the_digest() {
     let (url, requests) = serve(PLAN_BODY, "stories260K.gguf");
     let root = scratch("plan");
     let plan = DownloadPlan {
+        mmproj: None,
         url,
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -168,6 +171,7 @@ fn a_weights_download_that_does_not_match_the_digest_is_thrown_away() {
     let (url, _addr) = serve(body, "stories260K.gguf");
     let root = scratch("corrupt");
     let plan = DownloadPlan {
+        mmproj: None,
         url,
         bytes: body.len() as u64,
         sha256: "0000000000000000000000000000000000000000000000000000000000000000",
@@ -216,3 +220,111 @@ fn a_query_or_fragment_never_reaches_the_file_name() {
 
 mod drafter;
 mod reuse;
+
+// The loopback projector body and its digest — the same shape the plan's
+// own fixtures use, because the pin's digest field is 'static like a row's.
+const MMPROJ_BODY: &[u8] = b"kalsa-brain loopback projector for the vision test";
+const MMPROJ_SHA256: &str = "017520b58c80770d13874570200e546798ff8b24b0b8fd714d06a663b26966a0";
+
+fn mmproj_pin(url: String) -> DownloadFile {
+    DownloadFile {
+        url,
+        bytes: MMPROJ_BODY.len() as u64,
+        sha256: MMPROJ_SHA256,
+    }
+}
+
+/// Two publishers name their projector files alike (`mmproj-F16.gguf` in
+/// both unsloth Qwen rows), so the local name carries the repo: one row's
+/// projector can never be found holding another row's bytes, and both land
+/// inside the models directory whatever the pin's URL looks like.
+#[test]
+fn a_projector_lands_under_its_repo_prefixed_name_inside_the_models_directory() {
+    let root = scratch("mmproj-destination");
+    let qwen36 = mmproj_pin(
+        "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/a483e9e6/mmproj-F16.gguf"
+            .to_string(),
+    );
+    let qwen38 = mmproj_pin(
+        "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4ca72078/mmproj-F16.gguf"
+            .to_string(),
+    );
+    let a = projector_destination(&qwen36, &root).expect("the address names a file");
+    let b = projector_destination(&qwen38, &root).expect("the address names a file");
+    assert_ne!(a, b, "two repos, one file name: the prefix separates them");
+    for path in [&a, &b] {
+        assert!(path.starts_with(root.join("models")), "{path:?}");
+        assert!(path.to_string_lossy().contains("mmproj-F16.gguf"));
+    }
+    assert!(a.to_string_lossy().contains("Qwen3.6"));
+    assert!(b.to_string_lossy().contains("Qwen3.8"));
+}
+
+/// The on-demand fetch behaves like every pinned fetch: the bytes land
+/// digest-verified under the repo-prefixed name, a second ask places
+/// nothing (the file answers), and once placed the launch-time check —
+/// `proven_projector`, the one the walk runs every start — finds the file
+/// without a fetch. The verified record is written beside it by the fetch,
+/// so the next launch's answer comes from the sample, not the file.
+#[test]
+fn a_projector_downloads_once_verifies_and_is_then_found_without_a_fetch() {
+    let (url, requests) = serve(MMPROJ_BODY, "mmproj-F16.gguf");
+    // The pin's address carries the repo path — the prefix the local name
+    // is derived from; the loopback answers any path with the body.
+    let url = url
+        .trim_end_matches("mmproj-F16.gguf")
+        .to_string()
+        + "unsloth/Qwen3.6-35B-A3B-GGUF/resolve/a483e9e6/mmproj-F16.gguf";
+    let root = scratch("mmproj-place");
+    let pin = mmproj_pin(url);
+    assert!(
+        proven_projector(&pin, &root).is_none(),
+        "nothing on disk yet: the launch leaves the offer up"
+    );
+    let placed = place_projector(&pin, &root, &mut |_| {}).expect("the owner's yes fetches");
+    assert_eq!(std::fs::read(&placed).expect("read"), MMPROJ_BODY);
+    assert_eq!(requests_of(&requests), 1, "one fetch");
+    let found = proven_projector(&pin, &root).expect("the file answers its pin");
+    assert_eq!(found, placed);
+    assert_eq!(
+        requests_of(&requests),
+        1,
+        "the launch-time check fetches nothing"
+    );
+    // A second enable re-asks the fetch path and still downloads nothing.
+    let again = place_projector(&pin, &root, &mut |_| {}).expect("already there");
+    assert_eq!(again, placed);
+    assert_eq!(requests_of(&requests), 1, "a kept file is never re-fetched");
+}
+
+/// The projector is never part of a model download: the plan carries the
+/// pin, but `acquire_model` moves only the weights and the drafter — a
+/// row whose projector was never accepted starts without any projector
+/// file on disk at all.
+#[test]
+fn the_model_download_moves_no_projector_bytes() {
+    let (url, requests) = serve(PLAN_BODY, "weights.gguf");
+    let root = scratch("mmproj-not-with-model");
+    let plan = DownloadPlan {
+        url,
+        bytes: PLAN_BODY.len() as u64,
+        sha256: PLAN_SHA256,
+        mmproj: Some(mmproj_pin(
+            "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/a483e9e6/mmproj-F16.gguf"
+                .to_string(),
+        )),
+        drafter: None,
+    };
+    let placed = place_model(&plan, &root, true, &mut |_| {}).expect("the weights place");
+    assert!(placed.drafter.is_none());
+    assert!(placed.weights.exists());
+    assert!(
+        !root.join("models").join("mmproj-F16.gguf").exists()
+            && !root
+                .join("models")
+                .join("unsloth__Qwen3.6-35B-A3B-GGUF__mmproj-F16.gguf")
+                .exists(),
+        "no projector file was fetched with the model"
+    );
+    assert_eq!(requests_of(&requests), 1, "only the weights were asked");
+}

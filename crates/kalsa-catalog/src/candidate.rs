@@ -82,6 +82,10 @@ pub(crate) struct Candidate<'a> {
     /// and this machine holds it beside them: charged to the footprint
     /// below, carried into the download plan.
     pub(crate) drafter: Option<&'a GgufSource>,
+    /// The pinned projector beside the weights, when the row ships with
+    /// one: carried into the download plan for the on-demand fetch, never
+    /// charged here — a start that has not accepted it does not pay it.
+    pub(crate) mmproj: Option<&'a GgufSource>,
     pub(crate) footprint: Footprint,
     /// Decode throughput as a range, never as a point.
     pub(crate) decode: Prediction,
@@ -127,6 +131,7 @@ pub fn candidate_footprint(entry: UsableEntry<'_>, input: &ChoiceInput) -> Footp
 pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Candidate<'a> {
     let source = entry.source();
     let mut drafter = entry.drafter();
+    let entry_mmproj = entry.mmproj();
     let entry = entry.entry();
     let mut footprint = footprint_bytes(entry, input.context_tokens);
     // Resident wherever the row runs, so the fit charges it; not in the
@@ -227,6 +232,7 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
         entry,
         source,
         drafter,
+        mmproj: entry_mmproj,
         footprint,
         decode,
         // Prefill is an estimate, and says so: the compute probe counts the
@@ -320,7 +326,6 @@ mod tests {
             },
             quant: "Q4_K_M",
             weights_bytes: (weights_gib * GIB as f64) as u64,
-            mmproj_bytes: None,
             kv_bytes_per_token: None,
             slot_cache: SlotCache::None,
             kv_assumption_undercounts: false,

@@ -115,6 +115,7 @@ fn launch_args(
         slot_save_path: std::env::temp_dir(),
         sampling: kalsa_catalog::Sampling::default(),
         draft: None,
+        mmproj: None,
     }
 }
 
@@ -267,6 +268,7 @@ fn the_rendered_argv_starts_a_server_that_answers() {
         slot_save_path: std::env::temp_dir(),
         sampling: kalsa_catalog::Sampling::default(),
         draft: None,
+        mmproj: None,
     };
     let argv = args.argv();
     eprintln!("argv: {argv:?}");

@@ -34,7 +34,6 @@ fn plain_row(weights_bytes: u64) -> ModelEntry {
         parameters: kalsa_catalog::Parameters::dense(1_000_000_000),
         quant: "Q4_K_M",
         weights_bytes,
-        mmproj_bytes: None,
         kv_bytes_per_token: None,
         slot_cache: SlotCache::None,
         dense_equivalent: None,

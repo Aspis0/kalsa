@@ -24,6 +24,13 @@ pub struct LaunchInput<'a> {
     /// The proven drafter's bytes, resident beside the weights: the window,
     /// the cache roof and the reported total are what is left after them.
     pub drafter_bytes: u64,
+    /// The verified projector's bytes, when the row ships with one, its
+    /// owner accepted the download and the file answered for itself on
+    /// disk: resident beside the weights like the drafter, so the window,
+    /// the roof and the total are what is left after it. Zero when the
+    /// projector was never downloaded or is not being passed — a user who
+    /// never accepted does not pay it.
+    pub mmproj_bytes: u64,
     /// (threads, bytes per second) pairs, as measured. The plateau of this
     /// ramp is the thread count, capped to `physical_cores` when the
     /// machine's physical count is known: hyperthreading's extra logical
@@ -102,6 +109,7 @@ fn funded_ceiling(input: &LaunchInput) -> Option<(u64, u64, u64)> {
         input.model,
         spendable,
         input.drafter_bytes,
+        input.mmproj_bytes,
         input.kv_cache,
         slots,
         u64::from(input.ubatch_size),
@@ -152,10 +160,11 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         parallel,
         slot_save_path: input.slot_save_path.clone(),
         sampling: input.model.sampling,
-        // The window above is already sized around [`LaunchInput::drafter_bytes`];
-        // the drafter itself rides only a file the caller has proven on disk,
-        // so it is the caller's to set.
+        // The window above is already sized around [`LaunchInput::drafter_bytes`]
+        // and [`LaunchInput::mmproj_bytes`]; the files themselves ride only what
+        // the caller has proven on disk, so both are the caller's to set.
         draft: None,
+        mmproj: None,
     };
     let footprint = footprint_bytes(input.model, context_tokens);
     // The catalog's footprint is q8_0 arithmetic; the cache the server will
@@ -179,7 +188,7 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         kv_per_token_assumed: footprint.kv_is_assumed(input.model),
         total_bytes: footprint
             .weights_bytes
-            .saturating_add(footprint.mmproj_bytes)
+            .saturating_add(input.mmproj_bytes)
             .saturating_add(footprint.buffer_bytes)
             .saturating_add(kv_bytes)
             .saturating_add(input.drafter_bytes)
@@ -267,6 +276,9 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
         // Nothing charged here: the caller has already taken the drafter's
         // bytes out of `usable_bytes` and, on a card's budget, added the
         // row's `uncharged_host_bytes` — the same terms [`plan`] is given.
+        // The projector is the same seam: its bytes ride `usable_bytes`
+        // only when the caller knows the file is on disk and being passed.
+        0,
         0,
         KvCache::Q8_0,
         slots,
@@ -321,6 +333,7 @@ fn context_and_prompt_cache_roof(
     model: &ModelEntry,
     usable_bytes: u64,
     drafter_bytes: u64,
+    mmproj_bytes: u64,
     kv_cache: KvCache,
     slots: u64,
     ubatch_size: u64,
@@ -335,7 +348,7 @@ fn context_and_prompt_cache_roof(
     .saturating_mul(kv_cache.bytes_per_element());
     let fixed = model
         .weights_bytes
-        .saturating_add(model.mmproj_bytes.unwrap_or(0))
+        .saturating_add(mmproj_bytes)
         .saturating_add(COMPUTE_BUFFER_BYTES)
         // The drafter is resident beside the weights, so the window is
         // funded from what is left only after it.
@@ -586,7 +599,7 @@ mod solve;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kalsa_catalog::footprint::{fits, memory_budget, GIB, KIB, MIB};
+    use kalsa_catalog::footprint::{fits, memory_budget, GIB, MIB};
     use kalsa_catalog::rows;
     use kalsa_probe::Backend;
 
@@ -617,7 +630,6 @@ mod tests {
             parameters: kalsa_catalog::Parameters::dense(8_000_000_000),
             quant: "Q4_K_M",
             weights_bytes,
-            mmproj_bytes: None,
             kv_bytes_per_token: Some(0),
             slot_cache: SlotCache::None,
             kv_assumption_undercounts: false,
@@ -644,7 +656,6 @@ mod tests {
             parameters: kalsa_catalog::Parameters::dense(70_000_000_000),
             quant: "Q4_K_M",
             weights_bytes,
-            mmproj_bytes: None,
             kv_bytes_per_token: Some(163_840),
             slot_cache: SlotCache::None,
             kv_assumption_undercounts: true,
@@ -679,6 +690,7 @@ mod tests {
             model,
             budget,
             drafter_bytes: 0,
+            mmproj_bytes: 0,
             thread_ramp: ramp,
             physical_cores: None,
             model_path: PathBuf::from("/models/chosen.gguf"),
@@ -735,7 +747,6 @@ mod tests {
         let leftover = budget.usable_bytes
             - model
                 .weights_bytes
-                .saturating_add(model.mmproj_bytes.unwrap_or(0))
                 .saturating_add(COMPUTE_BUFFER_BYTES);
         let roof = leftover / PROMPT_CACHE_ROOF_SHARE;
         assert!(
@@ -1031,6 +1042,58 @@ mod tests {
         assert_eq!(with, 68_937, "the window with one");
     }
 
+    /// The projector's two cases, both pinned: its bytes are charged ONLY
+    /// when the file is on disk and being passed (`LaunchInput::mmproj_bytes`
+    /// set — the window shrinks and the report carries the file), and never
+    /// when the owner has not accepted it (bytes zero — the window is the
+    /// no-projector window to the token, and the report names no file).
+    #[test]
+    fn a_projector_is_charged_only_when_it_is_present_and_passed() {
+        let model = shipped_row(LFM);
+        let budget = memory_budget(Backend::Cpu, 7 * GIB);
+        let without = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
+            .expect("the row is fundable without a projector");
+        let footprint = footprint_bytes(model, without.args.context_tokens);
+        assert_eq!(
+            without.memory.total_bytes,
+            footprint.weights_bytes + footprint.buffer_bytes + without.memory.kv_cache_bytes,
+            "nothing but the row's own file and the cache is charged"
+        );
+        // Present and passed: the bytes come out of the budget before a
+        // single token is bought, so the window — and with it the cache the
+        // report prices — shrinks, while the file itself enters the total.
+        // The 12B pin's size, as a stand-in: the Qwen F16 pin would sink
+        // this budget outright, which is the fit refusal's own case.
+        let accepted = 158_987_616u64;
+        let with = plan(&LaunchInput {
+            mmproj_bytes: accepted,
+            ..input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP)
+        })
+        .expect("the row is fundable beside the projector");
+        assert!(
+            with.args.context_tokens < without.args.context_tokens,
+            "the projector's bytes come out of the window: {} vs {}",
+            with.args.context_tokens,
+            without.args.context_tokens
+        );
+        assert!(
+            with.memory.kv_cache_bytes < without.memory.kv_cache_bytes,
+            "a smaller window prices a smaller cache"
+        );
+        assert!(
+            with.memory.total_bytes > without.memory.total_bytes,
+            "the report carries the file"
+        );
+        // And the plan with the projector still keeps its whole reservation
+        // inside the budget it was sized against.
+        let reserved = with.memory.total_bytes + u64::from(with.args.cache_ram_mib) * MIB;
+        assert!(
+            reserved <= budget.usable_bytes,
+            "reserved {reserved} over {}",
+            budget.usable_bytes
+        );
+    }
+
     #[test]
     fn yesterdays_chat_starts_warm_because_the_server_runs_one_classic_slot() {
         // With the default slot count this build runs a unified KV buffer
@@ -1266,10 +1329,7 @@ mod tests {
         );
         assert_eq!(
             f16.memory.total_bytes,
-            model.weights_bytes
-                + model.mmproj_bytes.unwrap_or(0)
-                + COMPUTE_BUFFER_BYTES
-                + f16.memory.kv_cache_bytes,
+            model.weights_bytes + COMPUTE_BUFFER_BYTES + f16.memory.kv_cache_bytes,
             "the total must carry the cache the plan reports"
         );
     }

@@ -37,6 +37,7 @@ mod tune_step;
 mod ticker;
 mod transport;
 mod ui_event;
+mod vision;
 mod verified;
 mod web;
 
@@ -486,6 +487,29 @@ impl Brain {
             display_name,
             reason,
         }
+    }
+
+    /// The launch record as an owned snapshot: the panel and the vision
+    /// command read it outside the lock. `None` before any accepted start
+    /// and after a stop, exactly what `model_dto` reads.
+    pub(crate) fn launch_record(&self) -> Option<startup::LaunchInfo> {
+        self.launch
+            .lock()
+            .ok()
+            .and_then(|stored| stored.as_ref().cloned())
+    }
+
+    /// Whether a walk holds the single-walk claim: the vision command asks
+    /// before downloading, so an accept during a start is refused with the
+    /// same words a second Turn on gets, before any bytes move.
+    pub(crate) fn walk_in_progress(&self) -> bool {
+        self.turning_on.load(Ordering::SeqCst)
+    }
+
+    /// The kept measurement, for the fit question a command asks outside a
+    /// walk: the same reading the last walk planned with.
+    pub(crate) fn kept_measurement(&self) -> Option<Measurement> {
+        self.measurement.lock().ok().and_then(|stored| stored.clone())
     }
 
     fn door_port(&self) -> Option<u16> {
@@ -965,9 +989,15 @@ impl From<failure::StartupFailure> for CommandError {
 
 impl CommandError {
     fn new(code: &str, text: &str) -> Self {
+        Self::coded(code, serde_json::Value::Null, text)
+    }
+
+    /// The same refusal carrying the values its sentence names (a byte
+    /// size), so the webview can render the figure in the owner's words.
+    fn coded(code: &str, params: serde_json::Value, text: &str) -> Self {
         Self {
             code: code.into(),
-            params: serde_json::Value::Null,
+            params,
             text: text.into(),
         }
     }
@@ -1030,6 +1060,12 @@ enum StateDto {
         /// still serving — the door answers and the model comes back on
         /// demand — so this says nothing about `kind`.
         asleep: Option<bool>,
+        /// What this launch can see, as the chat reads it: the row ships no
+        /// projector (`none`), or one the owner has not accepted yet
+        /// (`offer`, carrying the download's byte size), or a verified
+        /// projector this launch passes (`on`). The chat offers vision from
+        /// `offer` and sends images only under `on`.
+        vision: crate::vision::VisionState,
         metrics: metrics::RuntimeMetricsDto,
     },
     Failed {
@@ -1071,6 +1107,7 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
             let active_devices = brain.active_devices();
             let tier = brain.tier();
             let model = brain.model_dto();
+            let launch = brain.launch_record();
             StateDto::Running {
                 port,
                 endpoint: brain
@@ -1079,6 +1116,7 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
                 model: model.display_name,
                 reason: model.reason,
                 asleep: brain.supervisor.model_asleep(),
+                vision: crate::vision::state(launch.as_ref()),
                 metrics: brain.metrics.snapshot(active_devices, tier),
             }
         }
@@ -1350,7 +1388,18 @@ async fn brain_test(
 
 #[tauri::command]
 async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), CommandError> {
-    let state_file = state_file(&app)?;
+    walk_and_settle(&app, &brain).await
+}
+
+/// The walk `brain_start` runs, shared with vision's enable: the owner's
+/// accept downloads a projector and then restarts the engine through THIS
+/// path, so the launch that follows is planned, tuned and settled exactly
+/// as a Turn on is — one walk, never a second way to start.
+pub(crate) async fn walk_and_settle(
+    app: &tauri::AppHandle,
+    brain: &Brain,
+) -> Result<(), CommandError> {
+    let state_file = state_file(app)?;
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
     first_run::require_choice(&state_file, server_override.is_some() || model_override.is_some())
@@ -1363,7 +1412,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     };
     // Every `?` below returns through this: the claim (and the door's
     // raise) must not stay stuck behind a fallible call.
-    let _walk = WalkGuard(&brain);
+    let _walk = WalkGuard(brain);
     brain.metrics.reset();
     let kept = brain
         .measurement
@@ -1372,12 +1421,12 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
         .and_then(|stored| stored.clone());
     let ram_bytes = startup::ram_bytes();
     let runtime_root = kalsa_runtime::runtime_root();
-    let slot_save_path = slots_dir(&app)?;
-    let phone = phone(&app)?;
+    let slot_save_path = slots_dir(app)?;
+    let phone = phone(app)?;
     // How many seats the door must hold: this computer and every paired
     // phone. A seat is reserved per stored device for as long as it is
     // stored, so this is the enrolled set, not who is talking right now.
-    let devices = enrolled_devices(&pairing_file(&app)?);
+    let devices = enrolled_devices(&pairing_file(app)?);
     let emitter = app.clone();
 
     let outcome = tauri::async_runtime::spawn_blocking(move || {
@@ -1433,7 +1482,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
 
     let record_dir = app.path().app_data_dir().ok();
     let result = match outcome {
-        Ok(walked) => settle_walk(&brain, walked, record_dir.as_deref(), stops_seen),
+        Ok(walked) => settle_walk(brain, walked, record_dir.as_deref(), stops_seen),
         // The blocking task itself died and nothing came back: nothing to
         // keep, and the standing sentence for it.
         Err(_) => Err(CommandError::new(
@@ -1789,7 +1838,7 @@ pub(crate) fn speed_check(
 /// Where this instance announces itself. It is locked while our server runs and
 /// the lock is inherited by the server, so the next start can tell our own
 /// orphan from somebody else's program instead of guessing from a pid.
-fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_data_dir()
@@ -2086,6 +2135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing_allow_device,
             brain_pairing_forget,
             brain_host_credential,
+            vision::brain_vision_enable,
             room_commands::brain_room,
             room_commands::brain_room_history,
             room_commands::brain_room_post,

@@ -1963,6 +1963,7 @@ mod tests {
             model: Some("a row".to_string()),
             reason: Some("a reason".to_string()),
             asleep: Some(false),
+            vision: crate::vision::VisionState::None,
             metrics,
         };
         let state_json = serde_json::to_string(&state).unwrap();

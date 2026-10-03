@@ -339,11 +339,20 @@ pub struct DownloadPlan {
     /// The row's drafter, fetched and verified beside the weights when the
     /// row ships with one. `None` on every row that runs alone.
     pub drafter: Option<DownloadFile>,
+    /// The row's vision projector pin, for the ON-DEMAND fetch the owner's
+    /// explicit yes triggers — never for placement, which must not touch
+    /// this field: a projector that arrived unasked would charge a memory
+    /// plan the user never agreed to spend. `None` on every row with no
+    /// projector, and absent from [`Self::total_bytes`] for the same reason:
+    /// the plan's total is what a model download moves, and this file is
+    /// not part of it.
+    pub mmproj: Option<DownloadFile>,
 }
 
 impl DownloadPlan {
-    /// The one total a download costs: the weights and everything fetched
-    /// beside them.
+    /// The one total a model download costs: the weights and everything
+    /// fetched beside them. The projector is deliberately absent — it is
+    /// fetched on demand, never with the model.
     pub fn total_bytes(&self) -> u64 {
         self.bytes
             .saturating_add(self.drafter.as_ref().map(|file| file.bytes).unwrap_or(0))
@@ -811,14 +820,20 @@ fn row(candidate: &Candidate<'static>, budget: MemoryBudget) -> RunnableRow {
     }
 }
 
-/// The pick's fetch plan: the weights file, and the drafter beside it when
-/// the row ships with one — each with its own address, size and digest.
+/// The pick's fetch plan: the weights file, the drafter beside it when the
+/// row ships with one — each with its own address, size and digest — and
+/// the projector's pin, which travels but is never fetched here.
 fn download_plan(candidate: &Candidate<'_>) -> DownloadPlan {
     DownloadPlan {
         url: candidate.source.url(),
         bytes: candidate.source.bytes,
         sha256: candidate.source.sha256,
         drafter: candidate.drafter.map(|file| DownloadFile {
+            url: file.url(),
+            bytes: file.bytes,
+            sha256: file.sha256,
+        }),
+        mmproj: candidate.mmproj.map(|file| DownloadFile {
             url: file.url(),
             bytes: file.bytes,
             sha256: file.sha256,

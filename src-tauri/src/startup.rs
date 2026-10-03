@@ -27,7 +27,7 @@ use std::time::Duration;
 
 use kalsa_catalog::{
     fits, memory_budget, rows, usable, usable_with_q8, ChoiceInput, Decision, DownloadPlan,
-    ModelEntry, PhoneModel, CHOOSER_CONTEXT_TOKENS,
+    MemoryBudget, ModelEntry, PhoneModel, CHOOSER_CONTEXT_TOKENS,
 };
 use kalsa_download::default_roots;
 // The cheap first pass over stores that name blobs by digest; find_local
@@ -175,9 +175,36 @@ pub(crate) struct DrafterLaunch {
     pub(crate) bytes: u64,
 }
 
+/// The row's vision projector as this launch knows it: the pin (for the
+/// chat's offer and the on-demand download) and where its verified file
+/// belongs. `proven` is `Some` only when the file answered for itself on
+/// disk before the plan ran — the fact that decides both the argv's
+/// `--mmproj` and whether the memory plan charges the file at all.
+#[derive(Clone, Debug)]
+pub(crate) struct MmprojLaunch {
+    pub(crate) url: String,
+    pub(crate) sha256: &'static str,
+    pub(crate) bytes: u64,
+    /// The verified file this launch passes to the engine, when it was on
+    /// disk. `None` renders no vision flags and leaves the chat an offer.
+    pub(crate) proven: Option<PathBuf>,
+}
+
+/// The plan's own seams, kept beside the launch record so a later question
+/// about this launch — vision's fit check is the one today — re-asks the
+/// ONE arithmetic ([`kalsa_launch::plan`]) with the same inputs the walk
+/// used, never a recomputation beside it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LaunchSizing {
+    pub(crate) backend: ServerBackend,
+    pub(crate) budget: MemoryBudget,
+    pub(crate) row: &'static ModelEntry,
+    pub(crate) drafter_bytes: u64,
+}
+
 /// The exact launch data kept by the shell after the supervisor receives it.
 /// The UI reads this rather than reconstructing values from argv strings.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct LaunchInfo {
     pub(crate) args: ServerArgs,
     pub(crate) maximum_context: ContextMaxima,
@@ -217,6 +244,15 @@ pub(crate) struct LaunchInfo {
     /// launch without one never reuses a record that had it. `None` on the
     /// development path and when placement fell back to target-only.
     pub(crate) drafter_sha256: Option<String>,
+    /// The row's projector: its pin, where its verified file belongs, and
+    /// whether that file was proven this launch. `None` on the development
+    /// path and on every row with no projector — there is nothing to offer
+    /// and nothing to enable.
+    pub(crate) mmproj: Option<MmprojLaunch>,
+    /// The walk's own sizing seams, for the fit question a later command
+    /// asks about this launch. `None` on the development path, where there
+    /// is no row and no budget to re-ask the arithmetic with.
+    pub(crate) sizing: Option<LaunchSizing>,
 }
 
 #[derive(Debug)]
@@ -373,12 +409,44 @@ pub(crate) fn run(
                     sha256: file.sha256,
                     bytes: file.bytes,
                 });
+            // The projector is checked, never fetched: the chat offers it
+            // while the pin has no verified file, and the owner's explicit
+            // yes is the only thing that downloads one. A proven file takes
+            // the fast road — size, then the record beside the file, then
+            // the digest — exactly as the weights do. A pin whose address
+            // does not name a plain file is no offer at all, like a
+            // drafter's.
+            let mmproj = plan.mmproj.as_ref().and_then(|pin| {
+                // A pin whose address does not name a plain file builds no
+                // destination and so is no offer at all, like a drafter's.
+                if crate::placement::projector_destination(pin, root).is_none() {
+                    log::warn!("the projector's address does not name a plain file; no vision");
+                    return None;
+                }
+                let proven = crate::placement::proven_projector(pin, root);
+                if let Some(verified) = &proven {
+                    log::info!(
+                        "projector: {} verified on disk, passing it",
+                        verified
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("mmproj")
+                    );
+                }
+                Some(crate::startup::MmprojLaunch {
+                    url: pin.url.clone(),
+                    sha256: pin.sha256,
+                    bytes: pin.bytes,
+                    proven,
+                })
+            });
             let mut prepared = planned_config_with_overrides(
                 build,
                 exe,
                 device,
                 placed.weights,
                 drafter,
+                mmproj,
                 row,
                 reason,
                 // The digest of the row whose file was just placed: the
@@ -919,7 +987,7 @@ fn planned_config(
     backend: ServerBackend,
     exe: PathBuf,
     model: PathBuf,
-    row: &ModelEntry,
+    row: &'static ModelEntry,
     machine: &Machine,
     state_file: PathBuf,
 ) -> Result<PreparedStart, StartupFailure> {
@@ -928,6 +996,7 @@ fn planned_config(
         exe,
         None,
         model,
+        None,
         None,
         row,
         TEST_REASON.to_string(),
@@ -991,7 +1060,8 @@ fn planned_config_with_overrides(
     device: Option<String>,
     model: PathBuf,
     drafter: Option<DrafterLaunch>,
-    row: &ModelEntry,
+    mmproj: Option<MmprojLaunch>,
+    row: &'static ModelEntry,
     reason: String,
     model_sha256: &str,
     machine: &Machine,
@@ -1008,21 +1078,33 @@ fn planned_config_with_overrides(
         budget_backend(backend, machine.measurement.will_run_on),
         machine.ram_bytes,
     );
-    let build = |cache: KvCache, context_limit: Option<u64>, parallel: u32| LaunchInput {
-        backend,
-        model: row,
-        budget,
-        drafter_bytes: drafter.as_ref().map_or(0, |drafter| drafter.bytes),
-        thread_ramp: &machine.measurement.ramp,
-        physical_cores: kalsa_probe::physical_cores(),
-        model_path: model.clone(),
-        port: PORT,
-        context_limit,
-        batch_size,
-        ubatch_size,
-        kv_cache: cache,
-        parallel,
-        slot_save_path: slot_save_path.clone(),
+    // The projector is charged only while it is being passed: `mmproj_bytes`
+    // is the proven file's cost, zero the moment the drop rule below takes
+    // the file out of the launch.
+    let mut mmproj = mmproj;
+    let mmproj_bytes = |m: Option<&MmprojLaunch>| {
+        m.as_ref()
+            .and_then(|m| m.proven.as_ref().map(|_| m.bytes))
+            .unwrap_or(0)
+    };
+    let build = |cache: KvCache, context_limit: Option<u64>, parallel: u32, charged: u64| {
+        LaunchInput {
+            backend,
+            model: row,
+            budget,
+            drafter_bytes: drafter.as_ref().map_or(0, |drafter| drafter.bytes),
+            mmproj_bytes: charged,
+            thread_ramp: &machine.measurement.ramp,
+            physical_cores: kalsa_probe::physical_cores(),
+            model_path: model.clone(),
+            port: PORT,
+            context_limit,
+            batch_size,
+            ubatch_size,
+            kv_cache: cache,
+            parallel,
+            slot_save_path: slot_save_path.clone(),
+        }
     };
     // The requested count is the ENROLLED devices — this computer and every
     // paired phone — because the door reserves a slot per stored device for
@@ -1034,7 +1116,13 @@ fn planned_config_with_overrides(
     // the smaller number rather than refusing to start.
     let requested_parallel = devices.max(1);
     let affordable = funded_parallel(requested_parallel, |slots| {
-        kalsa_launch::plan(&build(kv_cache, overrides.context_tokens, slots)).is_some()
+        kalsa_launch::plan(&build(
+            kv_cache,
+            overrides.context_tokens,
+            slots,
+            mmproj_bytes(mmproj.as_ref()),
+        ))
+        .is_some()
     });
     // The engine's path is known here, before any `LaunchInput` exists: the
     // walk decides the build first and hands its exe in. Probe it now, so the
@@ -1063,6 +1151,30 @@ fn planned_config_with_overrides(
     if kalsa_launch::trained_context_unreadable(row) {
         return Err(StartupFailure::ChosenModelContextUnreadable);
     }
+    // The drafter's rule, applied to the projector: a proven file whose
+    // bytes would sink the launch is dropped, never the row — a start that
+    // cannot fund the projector runs without it (the chat sees an offer
+    // again), and one whose row cannot be funded at all is refused as it
+    // always was. Settled BEFORE the maxima, so every panel figure below is
+    // the arithmetic of the launch that actually runs.
+    if mmproj_bytes(mmproj.as_ref()) > 0
+        && kalsa_launch::plan(&build(
+            kv_cache,
+            overrides.context_tokens,
+            parallel,
+            mmproj_bytes(mmproj.as_ref()),
+        ))
+        .is_none()
+    {
+        if kalsa_launch::plan(&build(kv_cache, overrides.context_tokens, parallel, 0)).is_some() {
+            if let Some(pin) = mmproj.as_mut() {
+                pin.proven = None;
+            }
+            log::info!("the projector does not fit the plan beside the row; starting without it");
+        } else {
+            return Err(StartupFailure::ChosenModelUnfundable);
+        }
+    }
     // The funded maximum for each cache type: f16 costs twice per token and
     // therefore funds a smaller context. Either may be absent — the row can
     // be unfundable under one cache and fine under the other — so this is not
@@ -1071,8 +1183,18 @@ fn planned_config_with_overrides(
     // choice answers the smaller chat default where the machine funds it, so
     // the guards and the panel read the ceiling from `funded_maximum`.
     let maxima = ContextMaxima {
-        q8_0: kalsa_launch::funded_maximum(&build(KvCache::Q8_0, None, parallel)),
-        f16: kalsa_launch::funded_maximum(&build(KvCache::F16, None, parallel)),
+        q8_0: kalsa_launch::funded_maximum(&build(
+            KvCache::Q8_0,
+            None,
+            parallel,
+            mmproj_bytes(mmproj.as_ref()),
+        )),
+        f16: kalsa_launch::funded_maximum(&build(
+            KvCache::F16,
+            None,
+            parallel,
+            mmproj_bytes(mmproj.as_ref()),
+        )),
     };
     if let (Some(context), Some(maximum)) = (overrides.context_tokens, maxima.for_cache(kv_cache)) {
         // The guard reads the maximum FOR THE CHOSEN CACHE TYPE: a context
@@ -1084,8 +1206,13 @@ fn planned_config_with_overrides(
             });
         }
     }
-    let mut plan = kalsa_launch::plan(&build(kv_cache, overrides.context_tokens, parallel))
-        .ok_or(StartupFailure::ChosenModelUnfundable)?;
+    let mut plan = kalsa_launch::plan(&build(
+        kv_cache,
+        overrides.context_tokens,
+        parallel,
+        mmproj_bytes(mmproj.as_ref()),
+    ))
+    .ok_or(StartupFailure::ChosenModelUnfundable)?;
     if let Some(seconds) = overrides.idle_unload_seconds {
         plan.args.idle_unload_seconds = seconds;
     }
@@ -1098,16 +1225,29 @@ fn planned_config_with_overrides(
         n_max: kalsa_launch::DEFAULT_DRAFT_N_MAX,
     });
     plan.args.device = device;
+    // The projector rides the launch only as a proven file, the drafter's
+    // rule: acquire's check answered for these bytes before this ran.
+    plan.args.mmproj = mmproj.as_ref().and_then(|pin| pin.proven.clone());
     let args = plan.args;
     // What the panel shows beside the context control: the context the
     // launcher picks with no owner choice, and the launcher's own two KV
     // terms for pricing any length the owner types. All of it is the
     // launcher's arithmetic, computed here where the row is known.
     let automatic_context = ContextMaxima {
-        q8_0: kalsa_launch::plan(&build(KvCache::Q8_0, None, parallel))
-            .map(|plan| plan.args.context_tokens),
-        f16: kalsa_launch::plan(&build(KvCache::F16, None, parallel))
-            .map(|plan| plan.args.context_tokens),
+        q8_0: kalsa_launch::plan(&build(
+            KvCache::Q8_0,
+            None,
+            parallel,
+            mmproj_bytes(mmproj.as_ref()),
+        ))
+        .map(|plan| plan.args.context_tokens),
+        f16: kalsa_launch::plan(&build(
+            KvCache::F16,
+            None,
+            parallel,
+            mmproj_bytes(mmproj.as_ref()),
+        ))
+        .map(|plan| plan.args.context_tokens),
     };
     let context_prices = ContextPrices {
         q8_0: kalsa_launch::context_price(row, KvCache::Q8_0, u64::from(ubatch_size), parallel),
@@ -1121,6 +1261,8 @@ fn planned_config_with_overrides(
         ready_timeout: READY_TIMEOUT,
         stop_grace: STOP_GRACE.max(DEFAULT_STOP_GRACE / 2),
     };
+    let drafter_sha256 = drafter.as_ref().map(|drafter| drafter.sha256.to_string());
+    let drafter_bytes = drafter.as_ref().map_or(0, |drafter| drafter.bytes);
     Ok(PreparedStart {
         server,
         rule_launch: None,
@@ -1133,7 +1275,14 @@ fn planned_config_with_overrides(
             display_name: Some(row.display_name.to_owned()),
             reason: Some(reason),
             model_sha256: Some(model_sha256.to_string()),
-            drafter_sha256: drafter.map(|drafter| drafter.sha256.to_string()),
+            drafter_sha256,
+            mmproj,
+            sizing: Some(LaunchSizing {
+                backend,
+                budget,
+                row,
+                drafter_bytes,
+            }),
             tune: None,
             checked: None,
         },
@@ -1211,8 +1360,10 @@ fn dev_config_with_overrides(
         // so it renders no sampling flags and the engine keeps its own
         // defaults.
         sampling: kalsa_catalog::Sampling::default(),
-        // And no drafter: the developer pinned one file and owns its bytes.
+        // And no drafter and no projector: the developer pinned one file
+        // and owns its bytes.
         draft: None,
+        mmproj: None,
     };
     if let Some(context) = overrides.context_tokens {
         args.context_tokens = context;
@@ -1251,6 +1402,8 @@ fn dev_config_with_overrides(
             // A pinned file no catalog row named: there is no pinned digest
             // to carry, and none is computed from the file.
             model_sha256: None,
+            mmproj: None,
+            sizing: None,
             tune: None,
             checked: None,
         },
@@ -1629,6 +1782,7 @@ mod tests {
             None,
             PathBuf::from("/models/chosen.gguf"),
             None,
+            None,
             row,
             reason,
             plan.sha256,
@@ -1671,6 +1825,7 @@ mod tests {
             PathBuf::from("/server/kalsa-server"),
             Some("Vulkan0".to_string()),
             PathBuf::from("/models/chosen.gguf"),
+            None,
             None,
             row,
             reason,
@@ -1758,6 +1913,7 @@ mod tests {
                 sha256: TEST_SHA256,
                 bytes: 98_653_280,
             }),
+            None,
             chosen,
             reason,
             plan.sha256,
@@ -2693,6 +2849,7 @@ mod tests {
             model: row,
             budget,
             drafter_bytes: 0,
+            mmproj_bytes: 0,
             thread_ramp: ramp,
             physical_cores: None,
             model_path: PathBuf::from("/models/chosen.gguf"),
@@ -2783,6 +2940,7 @@ mod tests {
                 None,
                 PathBuf::from("/models/chosen.gguf"),
                 None,
+                None,
                 row,
                 TEST_REASON.to_string(),
                 TEST_SHA256,
@@ -2847,6 +3005,7 @@ mod tests {
             fork.clone(),
             None,
             PathBuf::from("/models/chosen.gguf"),
+            None,
             None,
             row,
             TEST_REASON.to_string(),
@@ -3006,6 +3165,7 @@ mod tests {
             None,
             PathBuf::from("/models/chosen.gguf"),
             None,
+            None,
             row,
             TEST_REASON.to_string(),
             TEST_SHA256,
@@ -3046,6 +3206,7 @@ mod tests {
                 PathBuf::from("/server/llama-server"),
                 None,
                 PathBuf::from("/models/chosen.gguf"),
+                None,
                 None,
                 row,
                 TEST_REASON.to_string(),
@@ -3111,6 +3272,7 @@ mod tests {
             None,
             PathBuf::from("/models/chosen.gguf"),
             None,
+            None,
             row,
             TEST_REASON.to_string(),
             TEST_SHA256,
@@ -3140,6 +3302,7 @@ mod tests {
             PathBuf::from("/server/llama-server"),
             None,
             PathBuf::from("/models/chosen.gguf"),
+            None,
             None,
             row,
             TEST_REASON.to_string(),
@@ -3201,6 +3364,9 @@ mod tests {
             .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         row.trained_context_tokens = Some(0);
+        // The record keeps its row for the whole launch, so the mutated
+        // copy is leaked here — a test-only immortal, never the catalog's.
+        let row: &'static ModelEntry = Box::leak(Box::new(row));
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
             ram_bytes: 32 * 1024 * 1024 * 1024,
@@ -3375,6 +3541,7 @@ mod tests {
             None,
             PathBuf::from("/models/chosen.gguf"),
             drafter,
+            None,
             row,
             TEST_REASON.to_string(),
             TEST_SHA256,

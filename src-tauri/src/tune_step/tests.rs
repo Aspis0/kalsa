@@ -59,6 +59,7 @@ fn rule_args() -> ServerArgs {
         slot_save_path: PathBuf::from("/slots"),
         sampling: kalsa_catalog::Sampling::default(),
         draft: None,
+        mmproj: None,
     }
 }
 
@@ -118,6 +119,8 @@ fn prepared_with(main: &str, args: ServerArgs) -> PreparedStart {
             tune: None,
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
     }
 }
@@ -134,6 +137,26 @@ fn scratch(name: &str) -> PathBuf {
 fn with_drafter(mut prepared: PreparedStart) -> PreparedStart {
     prepared.info.drafter_sha256 = Some("cafe1234".to_string());
     prepared
+}
+
+/// The projector is not a tune parameter, pinned from the walk's own
+/// composition: a launch that passes a verified projector and the same
+/// launch before the projector arrived answer to the SAME record key, so a
+/// kept tune answers the start on which vision turned on — the owner's
+/// accept must never cost a re-measure. (The key's inputs are the model
+/// digest, the per-slot window, the cores, the engine builds and the
+/// drafter digest; `args.mmproj` is read by none of them.)
+#[test]
+fn a_projector_appearing_does_not_move_the_tune_key() {
+    let machine = machine(Backend::Cpu);
+    let plain = prepared("/engines/main");
+    let mut seeing = prepared("/engines/main");
+    seeing.info.args.mmproj = Some(PathBuf::from("/models/mmproj.gguf"));
+    let plain_key =
+        tune_fingerprint(&machine, &plain.info, ServerBackend::Cpu, CORES).expect("the key composes");
+    let seeing_key = tune_fingerprint(&machine, &seeing.info, ServerBackend::Cpu, CORES)
+        .expect("the key composes");
+    assert_eq!(plain_key, seeing_key);
 }
 
 const CORES: (Option<usize>, Option<usize>) = (Some(10), Some(10));

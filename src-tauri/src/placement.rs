@@ -255,6 +255,53 @@ fn drafter_of<'a>(
     }
 }
 
+/// Where a row's projector lands: the models directory, the publisher's
+/// file name prefixed with its repo. The prefix is load-bearing — two
+/// publishers name their files alike (`mmproj-F16.gguf` in both unsloth
+/// Qwen rows), and one model's projector must never be found holding the
+/// other one's bytes. The weights and the drafter need no prefix: their
+/// catalog pins are one stem each, and the weights' name is what the disk
+/// tier's reuse search already matches.
+pub(crate) fn projector_destination(pin: &DownloadFile, root: &Path) -> Option<PathBuf> {
+    let name = plan_file_name(&pin.url).ok()?;
+    // `https:/<host>/<owner>/<repo>/resolve/<commit>/<file>`: the owner and
+    // repo name the pin's repo, which is what the local prefix carries.
+    let parts: Vec<&str> = pin.url.split('/').filter(|part| !part.is_empty()).collect();
+    let repo = parts.get(2..4)?;
+    Some(
+        root.join("models")
+            .join(format!("{}__{name}", repo.join("__"))),
+    )
+}
+
+/// The row's projector, when its verified file is already on disk: the
+/// cheap checks first (size, then the record beside the file, then the
+/// digest — the same path every launch gives the weights). `None` is the
+/// ordinary no-yet answer, never fetched here: the projector is an
+/// on-demand download, and a start that finds nothing launches without it.
+pub(crate) fn proven_projector(pin: &DownloadFile, root: &Path) -> Option<PathBuf> {
+    let path = projector_destination(pin, root)?;
+    file_digest_is(&path, pin.bytes, pin.sha256).then_some(path)
+}
+
+/// One on-demand projector fetched and proven: the owner accepted, so the
+/// download runs like any other pinned fetch — digest-checked before it is
+/// called placed, the verified-record written beside it so the next launch
+/// re-reads a sample instead of the file. The path is the one
+/// [`proven_projector`] answers for.
+pub(crate) fn place_projector(
+    pin: &DownloadFile,
+    root: &Path,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<PathBuf, StartupFailure> {
+    let path = projector_destination(pin, root).ok_or(StartupFailure::WeightsUnverified)?;
+    if file_digest_is(&path, pin.bytes, pin.sha256) {
+        return Ok(path);
+    }
+    fetch_file(&pin.url, &path, pin.bytes, pin.sha256, 0, pin.bytes, progress)?;
+    Ok(path)
+}
+
 /// The file name a pinned address must end with — a plain name: no path
 /// separator and no `..`, so a plan's address cannot write outside the
 /// models directory. A `?query` or `#fragment` is the address's, not the

@@ -332,6 +332,17 @@ pub struct Draft {
 /// sweep peaks at 3 (24.7 tok/s on en_code against 22.7 at 4 and 18.1 at 2).
 pub const DEFAULT_DRAFT_N_MAX: u32 = 3;
 
+/// The prompt budget one image may cost, in tokens, rendered as
+/// `--image-max-tokens` beside `--mmproj`. It bounds what a single image can
+/// take out of the context window — the engine otherwise lets a picture
+/// spend as many tokens as its resolution expands to — so the chat can
+/// budget a vision turn like any other prompt: a full image is this many
+/// tokens of the window, never an unbounded surprise. One number for every
+/// model, because the bound is the product's promise about a picture, not a
+/// property of the row; 560 keeps a typical photo well under a tenth of the
+/// 65 536-token chat window.
+pub const IMAGE_MAX_TOKENS: u32 = 560;
+
 /// The exact arguments the server is started with, as data: a test asserts
 /// "the context is N" here, and the sentinel hands back a reduced
 /// configuration by writing fields, not by editing strings.
@@ -401,6 +412,12 @@ pub struct ServerArgs {
     /// cells with a drafter whose KV type differs). `None` renders no draft
     /// flags at all.
     pub draft: Option<Draft>,
+    /// The verified vision projector, when the row ships with one and its
+    /// owner accepted the download: rendered as `--mmproj` beside
+    /// `--image-max-tokens` ([`IMAGE_MAX_TOKENS`]). `None` renders no vision
+    /// flags at all — a model that was never offered a projector, or whose
+    /// owner has not accepted one, launches exactly as it always did.
+    pub mmproj: Option<PathBuf>,
 }
 
 /// The settings the UI may show after the command line has been built.

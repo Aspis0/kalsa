@@ -281,7 +281,6 @@ fn every_row_passes_the_axes_and_the_floor() {
         );
         assert!(active <= total, "{} has active > total", entry.repo);
         assert!(entry.weights_bytes > 0);
-        assert!(entry.mmproj_bytes.is_none_or(|bytes| bytes > 0));
     }
 }
 
@@ -383,6 +382,9 @@ fn every_source_is_pinned_and_consistent_with_its_row() {
         }
         if let Some(drafter) = row.drafter {
             check(row.model.repo, drafter, None);
+        }
+        if let Some(mmproj) = row.mmproj {
+            check(row.model.repo, mmproj, None);
         }
     }
 }
@@ -617,6 +619,83 @@ fn the_two_gemma_rows_carry_a_drafter_and_no_other_row_does() {
 }
 
 #[test]
+fn the_vision_rows_carry_a_projector_and_lfm_has_none() {
+    // The pins of 2026-10-03, verbatim, from each row's own repo where that
+    // repo ships a projector (the two unsloth Qwen rows, Google's 26B QAT
+    // repo) and from the official ggml-org build where only it has one (the
+    // two Gemma rows' own repos ship the projector only at F16/BF16/F32;
+    // ggml-org's q8_0 build sits at the drafter's own commit). Sizes and
+    // digests are the Hugging Face tree API's `lfs.size`/`lfs.oid` at the
+    // pinned commits; the quant each file carries was read from the file's
+    // own GGUF header, not from its name. ON DEMAND: a projector is never
+    // fetched with the model, so its bytes are in no download total.
+    let projectors: Vec<(&str, &GgufSource)> = DOWNLOADABLE
+        .iter()
+        .filter_map(|row| row.mmproj.as_ref().map(|pin| (row.model.repo, pin)))
+        .collect();
+    assert_eq!(projectors.len(), 5, "five rows see; LFM has no vision stack");
+    let for_row = |repo: &str| {
+        projectors
+            .iter()
+            .find(|(owner, _)| *owner == repo)
+            .unwrap_or_else(|| panic!("{repo} ships a projector"))
+            .1
+    };
+    let pin = for_row("google/gemma-4-26B-A4B-it");
+    assert_eq!(pin.repo, "google/gemma-4-26B-A4B-it-qat-q4_0-gguf");
+    assert_eq!(pin.commit, "d1c082be9cf3c8a514acf63b8761f4b41935842e");
+    assert_eq!(pin.file, "gemma-4-26B-it-mmproj.gguf");
+    assert_eq!(pin.bytes, 1_194_828_160);
+    assert_eq!(
+        pin.sha256,
+        "a359953a076b877db30c31dbbb4c6d93b4a6e017ee5db5784247e4d4c0dd4f3b"
+    );
+    let pin = for_row("google/gemma-4-E4B-it");
+    assert_eq!(pin.repo, "ggml-org/gemma-4-E4B-it-GGUF");
+    assert_eq!(pin.commit, "b8093469224f83f5c38f691eb906c380e9e63114");
+    assert_eq!(pin.file, "mmproj-gemma-4-E4B-it-Q8_0.gguf");
+    assert_eq!(pin.bytes, 559_874_816);
+    assert_eq!(
+        pin.sha256,
+        "197f49a93027f9843772bd24a6a9e0be2a32a788de5a3def330e9c585d86edd1"
+    );
+    let pin = for_row("google/gemma-4-12B-it");
+    assert_eq!(pin.repo, "ggml-org/gemma-4-12B-it-GGUF");
+    assert_eq!(pin.commit, "e3e681731089efaa3f0917336944ac64752db8ba");
+    assert_eq!(pin.file, "mmproj-gemma-4-12B-it-Q8_0.gguf");
+    assert_eq!(pin.bytes, 158_987_616);
+    assert_eq!(
+        pin.sha256,
+        "59e62255435dda870e2d1de97cc031330b31a898bac12b38a182cecff9cd3738"
+    );
+    let pin = for_row("Qwen/Qwen3.6-35B-A3B");
+    assert_eq!(pin.repo, "unsloth/Qwen3.6-35B-A3B-GGUF");
+    assert_eq!(pin.commit, "a483e9e6cbd595906af30beda3187c2663a1118c");
+    assert_eq!(pin.file, "mmproj-F16.gguf");
+    assert_eq!(pin.bytes, 899_283_680);
+    assert_eq!(
+        pin.sha256,
+        "8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f"
+    );
+    let pin = for_row("Qwen/Qwen3.8-27B");
+    assert_eq!(pin.repo, "unsloth/Qwen3.8-27B-GGUF");
+    assert_eq!(pin.commit, "4ca720788d1e01f1bff70c033e0d0028fd02e502");
+    assert_eq!(pin.file, "mmproj-F16.gguf");
+    assert_eq!(pin.bytes, 927_607_488);
+    assert_eq!(
+        pin.sha256,
+        "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e"
+    );
+    // Two publishers name their files alike (`mmproj-F16.gguf`): the local
+    // name a projector lands under is placement's repo-prefixed derivation,
+    // not the URL's — that rule and its test live beside the download.
+    let mut names: Vec<&str> = projectors.iter().map(|(_, pin)| pin.file).collect();
+    names.sort();
+    names.dedup();
+    assert_eq!(names.len(), 4, "two unsloth files share a URL name");
+}
+
+#[test]
 fn the_12b_row_carries_a_q8_file_and_no_other_row_does() {
     // The variant pin of 2026-09-29, verbatim, and its uniqueness: one row
     // in the menu has a second compression, never a placeholder.
@@ -656,7 +735,6 @@ fn a_q8_variant_is_its_row_except_for_the_bigger_file() {
         assert_eq!(up.last_modified, base.last_modified, "{}", base.repo);
         assert_eq!(up.licence, base.licence, "{}", base.repo);
         assert_eq!(up.parameters, base.parameters, "{}", base.repo);
-        assert_eq!(up.mmproj_bytes, base.mmproj_bytes, "{}", base.repo);
         assert_eq!(
             up.kv_bytes_per_token, base.kv_bytes_per_token,
             "{}",

@@ -192,6 +192,8 @@ fn the_model_page_reads_the_name_from_the_launch_record() {
             tune: None,
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
         StartOutcome::Accepted,
     );
@@ -227,6 +229,7 @@ fn a_running_state_says_where_the_local_server_answers_and_what_it_launched() {
         model: Some("Liquid LFM 2.5".to_string()),
         reason: Some("It is the more capable of the two.".to_string()),
         asleep: Some(true),
+        vision: crate::vision::VisionState::None,
         metrics: metrics::RuntimeMetricsDto {
             decode_tokens_per_second: None,
             active_devices: None,
@@ -267,6 +270,7 @@ fn a_running_engine_without_a_door_publishes_no_endpoint() {
         model: Some("Liquid LFM 2.5".to_string()),
         reason: None,
         asleep: None,
+        vision: crate::vision::VisionState::None,
         metrics: metrics::RuntimeMetricsDto {
             decode_tokens_per_second: None,
             active_devices: None,
@@ -296,6 +300,7 @@ fn an_unknown_residency_crosses_as_an_absence_not_as_a_fact() {
         model: None,
         reason: None,
         asleep: None,
+        vision: crate::vision::VisionState::None,
         metrics: metrics::RuntimeMetricsDto {
             decode_tokens_per_second: None,
             active_devices: None,
@@ -337,6 +342,7 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
         slot_save_path: PathBuf::from("/slots"),
         sampling: kalsa_catalog::Sampling::default(),
         draft: None,
+        mmproj: None,
     };
     if let Ok(mut launch) = brain.launch.lock() {
         *launch = Some(startup::LaunchInfo {
@@ -356,6 +362,8 @@ fn starting_keeps_the_launch_record_until_the_server_is_running() {
             tune: None,
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         });
     }
     brain.clear_launch_for_state(&ServerState::Starting);
@@ -390,6 +398,8 @@ fn a_drain_takes_the_launch_record_down_with_it() {
             tune: None,
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
         StartOutcome::Accepted,
     );
@@ -423,6 +433,8 @@ fn a_refused_start_never_publishes_its_record() {
         tune: None,
         checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         };
     let rejected = startup::LaunchInfo {
         args: launch_args("/models/rejected.gguf", 8138),
@@ -441,6 +453,8 @@ fn a_refused_start_never_publishes_its_record() {
         tune: None,
         checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         };
     brain.record_launch(running, StartOutcome::Accepted);
     brain.record_launch(rejected, StartOutcome::Refused);
@@ -470,6 +484,7 @@ fn launch_args(model: &str, port: u16) -> kalsa_launch::ServerArgs {
         slot_save_path: PathBuf::from("/slots"),
         sampling: kalsa_catalog::Sampling::default(),
         draft: None,
+        mmproj: None,
     }
 }
 
@@ -1229,6 +1244,8 @@ fn a_store_holding_only_the_host_starts_the_door() {
             tune: None,
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
         StartOutcome::Accepted,
     );
@@ -1319,6 +1336,8 @@ fn the_door_the_app_builds_carries_the_model_identity_and_the_slot_directory() {
             tune: None,
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
         StartOutcome::Accepted,
     );
@@ -1386,6 +1405,8 @@ fn a_model_with_no_catalog_identity_leaves_the_door_serving_and_the_route_says_w
             tune: None,
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
         StartOutcome::Accepted,
     );
@@ -1442,6 +1463,8 @@ fn a_digest_the_door_refuses_builds_no_door_rather_than_one_that_cannot_name_a_c
                 tune: None,
                 checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
             StartOutcome::Accepted,
         );
@@ -2526,6 +2549,8 @@ fn a_stop_during_the_tune_prevents_the_start_after_it() {
             tune: None,
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
         rule_launch: None,
         processor: None,
@@ -2796,6 +2821,8 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
             tune: Some(tune_step::Tune::Measured(record)),
             checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         },
         processor: Some((processor, processor_args)),
         rule_launch: None,

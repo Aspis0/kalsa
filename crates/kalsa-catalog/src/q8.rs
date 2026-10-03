@@ -242,7 +242,6 @@ mod tests {
             parameters: Parameters::dense(12_000_000_000),
             quant,
             weights_bytes: weights,
-            mmproj_bytes: None,
             kv_bytes_per_token: Some(8_704),
             slot_cache: crate::manifest::SlotCache::None,
             dense_equivalent: None,
@@ -263,6 +262,7 @@ mod tests {
             model: model("Q4_K_M", 8 * GIB),
             source: source(8 * GIB),
             drafter: None,
+            mmproj: None,
             q8: Some(Q8Variant {
                 model: model("Q8_0", 16 * GIB),
                 source: source(16 * GIB),

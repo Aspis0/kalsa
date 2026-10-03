@@ -25,6 +25,7 @@ they are promoted.
 - A closed job's producer notices only after its current upstream read returns (≤10 s when the engine is silent) (`stream.rs` producer loop).
 
 ## App / tooling
+- `brain_vision_enable` is registered engine-side but has no invoke site in `chat/src` yet — `chat/scripts/command-contract.mjs` fails on it until the chat calls it (the vision state shape to consume: `brain_state` running arm carries `vision: {"state":"none"} | {"state":"offer","bytes":N} | {"state":"on"}`).
 - `lib/tauri.ts` unwraps Tauri event envelopes by sniffing for `payload`; no unit test.
 - `command-contract.mjs`'s type-argument group can span lines.
 - `chat/src/surfaces/useChat.ts` is 652 lines — declared, not split.

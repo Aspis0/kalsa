@@ -43,7 +43,6 @@ fn section_7_row() -> ModelEntry {
         parameters: kalsa_catalog::Parameters::mixture(6_000_000_000, 1_000_000_000),
         quant: "Q4_K_M",
         weights_bytes: 3_786_957_088,
-        mmproj_bytes: None,
         kv_bytes_per_token: None,
         slot_cache: SlotCache::SlidingWindow {
             window_tokens: 2048,

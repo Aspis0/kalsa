@@ -136,6 +136,18 @@ impl ServerArgs {
         if let Some(value) = self.sampling.repeat_penalty {
             argv.extend(["--repeat-penalty".to_string(), value.to_string()]);
         }
+        // The verified vision projector, rendered with the image budget
+        // beside it: the engine only sees images when a projector was both
+        // shipped by the row and accepted by the owner, so `None` renders
+        // nothing and the argv of a vision-less launch never changes.
+        if let Some(path) = &self.mmproj {
+            argv.extend([
+                "--mmproj".to_string(),
+                path.display().to_string(),
+                "--image-max-tokens".to_string(),
+                crate::args::IMAGE_MAX_TOKENS.to_string(),
+            ]);
+        }
         argv.extend([
             "--sleep-idle-seconds".to_string(),
             self.idle_unload_seconds.to_string(),
@@ -245,6 +257,7 @@ mod tests {
             slot_save_path: PathBuf::from("/slots"),
             sampling: kalsa_catalog::Sampling::default(),
             draft: None,
+            mmproj: None,
         }
     }
 
@@ -481,6 +494,42 @@ mod tests {
         assert_eq!(settings.batch_size, 1024);
         assert_eq!(settings.ubatch_size, 256);
         assert_eq!(settings.kv_cache_type, "f16");
+    }
+
+    /// The projector block, exactly and only when a verified projector
+    /// rides the launch: the file, then the image budget — the one named
+    /// constant, asserted as the literal `"560"` because asserting the
+    /// constant would stay green if the constant itself drifted. Without a
+    /// projector neither flag renders: a vision-less launch must be
+    /// byte-identical to one a renderer that never knew this flag would
+    /// build.
+    #[test]
+    fn the_projector_renders_with_its_image_budget_and_nothing_renders_without_one() {
+        let mut vision = some_args();
+        vision.mmproj = Some(PathBuf::from("/models/mmproj-gemma-4-12B-it-Q8_0.gguf"));
+        let argv = vision.argv();
+        assert_eq!(
+            rendered_value(&argv, "--mmproj"),
+            "/models/mmproj-gemma-4-12B-it-Q8_0.gguf",
+            "{argv:?}"
+        );
+        assert_eq!(rendered_value(&argv, "--image-max-tokens"), "560", "{argv:?}");
+        // One projector, one budget: no doubled flags in a single argv.
+        for flag in ["--mmproj", "--image-max-tokens"] {
+            assert_eq!(
+                argv.iter().filter(|arg| *arg == flag).count(),
+                1,
+                "{flag} renders exactly once: {argv:?}"
+            );
+        }
+        for argv in [some_args().argv()] {
+            for flag in ["--mmproj", "--image-max-tokens"] {
+                assert!(
+                    !argv.contains(&flag.to_string()),
+                    "{flag} must not render without a projector: {argv:?}"
+                );
+            }
+        }
     }
 
     /// `--swa-full` is not this tier's flag. The committed round-trip

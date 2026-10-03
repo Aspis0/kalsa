@@ -196,8 +196,6 @@ pub struct ModelEntry {
     pub parameters: Parameters,
     pub quant: &'static str,
     pub weights_bytes: u64,
-    /// Separate vision projector, when the model needs one.
-    pub mmproj_bytes: Option<u64>,
     /// Measured per the plan. None until it is measured: the chooser then says
     /// out loud that it assumed a figure.
     pub kv_bytes_per_token: Option<u64>,
@@ -299,6 +297,16 @@ pub struct DownloadableEntry {
     /// decoder's drafter), pinned like every other file. `None` on every row
     /// that runs alone — there is no placeholder pin.
     pub drafter: Option<GgufSource>,
+    /// The row's vision projector, pinned like every other file, from the
+    /// row's own GGUF repo where that repo ships one and from the official
+    /// ggml-org build of the same model where only it has one. `None` on
+    /// every row with no projector — there is no placeholder pin.
+    ///
+    /// ON DEMAND, and a trap to name: the projector is never fetched with
+    /// the model. Placement must not touch this pin; only the owner's
+    /// explicit yes downloads it, which is why it is charged to the memory
+    /// plan only once its verified file is on disk and being passed.
+    pub mmproj: Option<GgufSource>,
     /// The same model at Q8_0, served by the chooser's bandwidth rule where
     /// it applies. `None` on every row with one compression.
     pub q8: Option<Q8Variant>,
@@ -319,6 +327,11 @@ pub struct UsableEntry<'a> {
     /// wherever the row goes, because a pick that starts a drafter must
     /// fetch it.
     drafter: Option<&'a GgufSource>,
+    /// The row's projector pin, when it ships with one: it travels with the
+    /// row so the offer and the on-demand download can be built wherever the
+    /// row goes. Never fetched by a start — see
+    /// [`DownloadableEntry::mmproj`].
+    mmproj: Option<&'a GgufSource>,
 }
 
 impl<'a> UsableEntry<'a> {
@@ -336,6 +349,11 @@ impl<'a> UsableEntry<'a> {
     pub fn drafter(&self) -> Option<&'a GgufSource> {
         self.drafter
     }
+
+    /// The pinned projector beside the weights, when the row ships with one.
+    pub fn mmproj(&self) -> Option<&'a GgufSource> {
+        self.mmproj
+    }
 }
 
 #[cfg(test)]
@@ -349,6 +367,7 @@ impl<'a> UsableEntry<'a> {
             entry,
             source: &TEST_ONLY_SOURCE,
             drafter: None,
+            mmproj: None,
         }
     }
 }
@@ -385,7 +404,6 @@ pub const CATALOG: &[ModelEntry] = &[
         parameters: Parameters::dense(5_100_000_000),
         quant: "Q4_K_M",
         weights_bytes: gigabytes(3, 22),
-        mmproj_bytes: None,
         // The growing half, read 2026-09-26 from Google's own QAT file
         // (`google/gemma-4-E2B-it-qat-q4_0-gguf@675cff42`, file
         // `gemma-4-E2B_q4_0-it.gguf`) — this row still carries no pinned file
@@ -429,7 +447,6 @@ pub const CATALOG: &[ModelEntry] = &[
         parameters: Parameters::dense(4_000_000_000),
         quant: "Q4_K_M",
         weights_bytes: gigabytes(2, 81),
-        mmproj_bytes: None,
         kv_bytes_per_token: None,
         slot_cache: SlotCache::None,
         dense_equivalent: None,
@@ -514,9 +531,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             parameters: Parameters::mixture(25_200_000_000, 3_800_000_000),
             quant: "Q4_0",
             weights_bytes: 14_439_363_584,
-            // The vision projector ships beside it (1.11 GiB) and is not
-            // fetched: nothing here sends the model an image.
-            mmproj_bytes: None,
             // The growing half, from this file's own header (read by range
             // request 2026-09-26): `block_count 30`, `sliding_window_pattern`
             // five windowed layers then one full, repeated — 5 full layers,
@@ -565,6 +579,18 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 14_439_363_584,
             sha256: "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
         },
+        // The row's own projector, same repo and same commit as the weights —
+        // the one mmproj the repo ships, BF16 (190 BF16 tensors beside the
+        // F32 norms, read from the file's own GGUF header; no q8_0 build
+        // exists of it). ON DEMAND: never fetched with the model — see
+        // [`DownloadableEntry::mmproj`].
+        mmproj: Some(GgufSource {
+            repo: "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+            commit: "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+            file: "gemma-4-26B-it-mmproj.gguf",
+            bytes: 1_194_828_160,
+            sha256: "a359953a076b877db30c31dbbb4c6d93b4a6e017ee5db5784247e4d4c0dd4f3b",
+        }),
         drafter: None,
         q8: None,
     },
@@ -592,7 +618,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             parameters: Parameters::dense(8_000_000_000),
             quant: "Q4_K_M",
             weights_bytes: 4_977_171_584,
-            mmproj_bytes: None,
             // The growing half, from THIS pinned file's header (read by
             // range request 2026-09-26): `shared_kv_layers 18` gives
             // `n_layer_kv_from_start = 24`, so layers 0..23 hold KV — among
@@ -655,6 +680,19 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 98_653_280,
             sha256: "f38ae62962657c7a6303c49bbb147e9ae23634e911cfa532fac0818c2e18b665",
         }),
+        // The projector, from the official ggml-org build of the model — the
+        // row's own unsloth repo ships it only at BF16/F16/F32, and this
+        // Q8_0 (half the F16's bytes; 247 q8_0 tensors beside the F32
+        // norms, read from the file's own GGUF header) sits at the same
+        // commit the drafter is pinned to. ON DEMAND: see
+        // [`DownloadableEntry::mmproj`].
+        mmproj: Some(GgufSource {
+            repo: "ggml-org/gemma-4-E4B-it-GGUF",
+            commit: "b8093469224f83f5c38f691eb906c380e9e63114",
+            file: "mmproj-gemma-4-E4B-it-Q8_0.gguf",
+            bytes: 559_874_816,
+            sha256: "197f49a93027f9843772bd24a6a9e0be2a32a788de5a3def330e9c585d86edd1",
+        }),
         q8: None,
     },
     // ── Alibaba Qwen 3.6, verified against Hugging Face on 2026-09-16 ───────
@@ -671,7 +709,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             parameters: Parameters::mixture(35_000_000_000, 3_000_000_000),
             quant: "Q4_K_M",
             weights_bytes: 22_134_528_992,
-            mmproj_bytes: None,
             // Measured 2026-09-18 from THIS pinned file's GGUF header, by
             // range-requesting its first 64 KiB: `qwen35moe.block_count 40`,
             // `attention.head_count_kv 2`, `attention.key_length 256`,
@@ -737,6 +774,17 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 22_134_528_992,
             sha256: "ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61",
         },
+        // The row's own projector, same repo and same commit as the weights:
+        // F16 (112 F16 tensors beside the F32 norms, read from the file's
+        // own GGUF header; the repo ships BF16/F32 beside it and no q8_0).
+        // ON DEMAND: see [`DownloadableEntry::mmproj`].
+        mmproj: Some(GgufSource {
+            repo: "unsloth/Qwen3.6-35B-A3B-GGUF",
+            commit: "a483e9e6cbd595906af30beda3187c2663a1118c",
+            file: "mmproj-F16.gguf",
+            bytes: 899_283_680,
+            sha256: "8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f",
+        }),
         drafter: None,
         q8: None,
     },
@@ -781,7 +829,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             parameters: Parameters::dense(11_950_000_000),
             quant: "Q4_K_M",
             weights_bytes: 7_662_533_088,
-            mmproj_bytes: None,
             // The GROWING half only: the fixed SWA half sits in
             // `slot_cache` below, so the two halves never double-charge
             // each other. From THIS pinned file's header (read by range
@@ -848,6 +895,18 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 465_109_152,
             sha256: "16c90eb9f2b2891cc138f3d2b3bf11e23b2ced2aeab9a9d39d90fe446f2f0610",
         }),
+        // The projector, from the official ggml-org build of the model — the
+        // row's own bartowski repo ships it only at F16/BF16, and this Q8_0
+        // (read from the file's own GGUF header: two q8_0 projection
+        // tensors beside the F32 norms) sits at the same commit the drafter
+        // is pinned to. ON DEMAND: see [`DownloadableEntry::mmproj`].
+        mmproj: Some(GgufSource {
+            repo: "ggml-org/gemma-4-12B-it-GGUF",
+            commit: "e3e681731089efaa3f0917336944ac64752db8ba",
+            file: "mmproj-gemma-4-12B-it-Q8_0.gguf",
+            bytes: 158_987_616,
+            sha256: "59e62255435dda870e2d1de97cc031330b31a898bac12b38a182cecff9cd3738",
+        }),
         q8: Some(Q8Variant {
             model: ModelEntry {
                 repo: "google/gemma-4-12B-it",
@@ -857,8 +916,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
                 parameters: Parameters::dense(11_950_000_000),
                 quant: "Q8_0",
                 weights_bytes: 12_669_647_328,
-                mmproj_bytes: None,
-                kv_bytes_per_token: Some(8_704),
+                    kv_bytes_per_token: Some(8_704),
                 slot_cache: SlotCache::SlidingWindow {
                     window_tokens: 1024,
                     width_per_cell: 163_840,
@@ -926,7 +984,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             parameters: Parameters::dense(2_697_198_592),
             quant: "Q8_0",
             weights_bytes: 2_874_779_648,
-            mmproj_bytes: None,
             // From THIS pinned file's header: `lfm2.attention.head_count_kv`
             // is per layer — 30 entries, 22 zeros and 8 eights — so 8 of the
             // 30 blocks hold attention, with 8 KV heads each.
@@ -972,6 +1029,9 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 2_874_779_648,
             sha256: "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
         },
+        // No projector: the repo ships no mmproj at any quant — the model
+        // has no vision stack (checked in the repo tree at this commit).
+        mmproj: None,
         drafter: None,
         q8: None,
     },
@@ -1017,7 +1077,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             parameters: Parameters::dense(2_697_198_592),
             quant: "F16",
             weights_bytes: 5_403_158_528,
-            mmproj_bytes: None,
             kv_bytes_per_token: Some(8_704),
             slot_cache: SlotCache::Recurrent {
                 bytes_per_slot: 360_448,
@@ -1052,6 +1111,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 5_403_158_528,
             sha256: "e041c231351185eb390f9c417d3bfd1815869a50a8589f3f86e5b9add3c529f1",
         },
+        mmproj: None,
         drafter: None,
         q8: None,
     },
@@ -1083,8 +1143,7 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // 2 x 16 x 128) + 128 x 6144 = 817_152 F32 elements a layer
     // (`llama-hparams.cpp:229,257`), one row per sequence — 48 x 817_152 x 4
     // = 156_893_184 B per slot at every context. The vision projector ships
-    // beside the weights and is not fetched: nothing here sends the model an
-    // image.
+    // beside the weights (pinned below) and is fetched only on demand.
     //
     // Apache-2.0 from the repo's card and the header's own `general.license`.
     // It reaches a page only where this machine can still drive it: the big
@@ -1099,7 +1158,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             parameters: Parameters::dense(27_781_427_952),
             quant: "Q4_K_M",
             weights_bytes: 16_464_440_224,
-            mmproj_bytes: None,
             kv_bytes_per_token: Some(34_816),
             slot_cache: SlotCache::Recurrent {
                 bytes_per_slot: 156_893_184,
@@ -1132,6 +1190,17 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             bytes: 16_464_440_224,
             sha256: "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482",
         },
+        // The row's own projector, same repo and same commit as the weights:
+        // F16 (112 F16 tensors beside the F32 norms, read from the file's
+        // own GGUF header; the repo ships BF16 beside it and no q8_0). ON
+        // DEMAND: see [`DownloadableEntry::mmproj`].
+        mmproj: Some(GgufSource {
+            repo: "unsloth/Qwen3.8-27B-GGUF",
+            commit: "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+            file: "mmproj-F16.gguf",
+            bytes: 927_607_488,
+            sha256: "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+        }),
         drafter: None,
         q8: None,
     },
@@ -1169,12 +1238,14 @@ pub(crate) fn usable_with_q8_in(
                 entry: &variant.model,
                 source: &variant.source,
                 drafter: row.drafter.as_ref(),
+                mmproj: row.mmproj.as_ref(),
             });
         (
             UsableEntry {
                 entry: &row.model,
                 source: &row.source,
                 drafter: row.drafter.as_ref(),
+                mmproj: row.mmproj.as_ref(),
             },
             variant,
         )
@@ -1190,6 +1261,7 @@ fn usable_in(rows: &[DownloadableEntry]) -> impl Iterator<Item = UsableEntry<'_>
             entry: &row.model,
             source: &row.source,
             drafter: row.drafter.as_ref(),
+            mmproj: row.mmproj.as_ref(),
         })
 }
 

@@ -623,6 +623,7 @@ mod tests {
             slot_save_path: PathBuf::from("/slots"),
             sampling: kalsa_catalog::Sampling::default(),
             draft: None,
+            mmproj: None,
         };
         let maxima = ContextMaxima {
             // The real machine's figures for the row on disk: a maximum well
@@ -666,6 +667,8 @@ mod tests {
                 tune: None,
                 checked: None,
             drafter_sha256: None,
+            mmproj: None,
+            sizing: None,
         }),
             Some(8130),
             "The internet road is open.".to_string(),

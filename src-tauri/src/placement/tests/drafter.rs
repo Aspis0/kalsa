@@ -10,6 +10,7 @@ fn a_drafter_that_does_not_fit_is_skipped_and_the_weights_place() {
     let (url, requests) = serve(PLAN_BODY, "weights.gguf");
     let root = scratch("space-skip");
     let plan = DownloadPlan {
+        mmproj: None,
         url,
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -59,6 +60,7 @@ fn a_drafter_that_fails_its_digest_is_skipped_without_a_part() {
     let (wrong_drafter, _ignored) = serve(b"not the drafter the pin promised", "mtp.gguf");
     let root = scratch("drafter-corrupt");
     let plan = DownloadPlan {
+        mmproj: None,
         url,
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -118,6 +120,7 @@ fn a_failed_digest_is_not_retried_for_a_day() {
     // failed" never answers for another.
     const WRONG_SHA256: &str = "1111111111111111111111111111111111111111111111111111111111111111";
     let failing = |drafter_url: String| DownloadPlan {
+        mmproj: None,
         url: url.clone(),
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -186,6 +189,7 @@ fn a_failed_digest_is_not_retried_for_a_day() {
     std::fs::write(models.join("weights.gguf"), PLAN_BODY).expect("weights proven");
     let (good_drafter, good_requests) = serve(DRAFTER_BODY, "mtp.gguf");
     let good = DownloadPlan {
+        mmproj: None,
         url,
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -216,6 +220,7 @@ fn a_missing_drafter_beside_present_weights_is_fetched_alone() {
     std::fs::write(models.join("weights.gguf"), PLAN_BODY).expect("the weights are here");
     let (drafter_url, drafter_requests) = serve(DRAFTER_BODY, "mtp-weights.gguf");
     let plan = DownloadPlan {
+        mmproj: None,
         url: "https://unused.invalid/weights.gguf".to_string(),
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -264,6 +269,7 @@ fn a_fully_proven_plan_reports_no_bytes() {
     let (url, requests) = serve(PLAN_BODY, "weights.gguf");
     let (drafter_url, drafter_requests) = serve(DRAFTER_BODY, "mtp.gguf");
     let plan = DownloadPlan {
+        mmproj: None,
         url,
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -292,6 +298,7 @@ fn the_plan_reports_one_total_for_both_files() {
     let (drafter_url, _drafter_requests) = serve(DRAFTER_BODY, "mtp-weights.gguf");
     let root = scratch("one-total");
     let plan = DownloadPlan {
+        mmproj: None,
         url,
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,

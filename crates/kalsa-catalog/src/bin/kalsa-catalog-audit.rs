@@ -90,10 +90,12 @@ fn print_tier(tier: u64, base: ChoiceInput) {
                 bytes,
                 sha256,
                 drafter,
+                mmproj,
             } = &selection.download;
             println!("  download: {url}");
             println!("            {bytes} bytes, sha256 {sha256}");
             print_drafter(drafter, &selection.download);
+            print_mmproj(mmproj);
             Some((selection.repo, selection.quant, selection.weights_bytes))
         }
         // No phone is not no choice: the page answers "what can this
@@ -190,10 +192,12 @@ fn print_winner(row: &RunnableRow) {
         bytes,
         sha256,
         drafter,
+        mmproj,
     } = &row.download;
     println!("  download: {url}");
     println!("            {bytes} bytes, sha256 {sha256}");
     print_drafter(drafter, &row.download);
+    print_mmproj(mmproj);
 }
 
 /// The drafter beside the winner's weights, with the one total both cost —
@@ -207,6 +211,15 @@ fn print_drafter(drafter: &Option<DownloadFile>, plan: &DownloadPlan) {
             drafter.sha256,
             gibs(plan.total_bytes())
         );
+    }
+}
+
+/// The row's projector pin, when one exists — an offer, never part of the
+/// download: its bytes move only when the owner accepts it.
+fn print_mmproj(mmproj: &Option<DownloadFile>) {
+    if let Some(mmproj) = mmproj {
+        println!("  mmproj:   {} (on demand)", mmproj.url);
+        println!("            {} bytes, sha256 {}", mmproj.bytes, mmproj.sha256);
     }
 }
 

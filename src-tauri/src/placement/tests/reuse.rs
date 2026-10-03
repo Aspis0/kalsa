@@ -37,6 +37,7 @@ fn a_digest_named_store_is_reused_before_the_generic_scan_answers() {
     );
     let root = scratch("reuse-plan");
     let plan = DownloadPlan {
+        mmproj: None,
         url: "https://huggingface.co/example/resolve/0123/weights.gguf".to_string(),
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
@@ -88,6 +89,7 @@ fn a_failed_fast_pass_falls_through_to_the_generic_scan() {
     );
     let root = scratch("reuse-fallthrough");
     let plan = DownloadPlan {
+        mmproj: None,
         url: "https://huggingface.co/example/resolve/0123/weights.gguf".to_string(),
         bytes: PLAN_BODY.len() as u64,
         sha256: PLAN_SHA256,
