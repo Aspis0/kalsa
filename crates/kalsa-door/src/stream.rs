@@ -33,6 +33,7 @@ pub(super) fn produce_and_serve(
     clocks: &Clocks,
     cancel: &Cancel,
     observer: Option<&Observed>,
+    never_resumes: bool,
 ) {
     // The revocation check and the head write are one step under the shared
     // gate: a `swap` that lands here waits, so a head is never written for a
@@ -58,6 +59,10 @@ pub(super) fn produce_and_serve(
     // sent: the producer finishes an answer nobody is listening to so a phone
     // can resume it, but not for ever (see `detached_grace`), and not past a
     // long silence from the engine (`idle`).
+    // The devices whose answers are never kept for a resume — the host's
+    // desktop above all: the moment their client detaches, the answer is
+    // abandoned and the engine connection dropped, so a Stop frees the CPU
+    // and the seat at once instead of holding both for the grace.
     let mut detached_since: Option<Instant> = None;
     let mut last_byte = Instant::now();
     let mut dechunker = Dechunker::new();
@@ -67,6 +72,12 @@ pub(super) fn produce_and_serve(
     let mut body = Vec::new();
     let mut raw_events: Vec<Vec<u8>> = Vec::new();
     loop {
+        // A job closed by another path (a supersede from the same device)
+        // ends the read: the answer nobody wants must not keep the engine
+        // generating, and dropping `upstream` is what stops it.
+        if job.finished().is_some() {
+            break;
+        }
         if cancel.stopped() {
             // The door closed, or the device was revoked mid-answer. The
             // job fails with the shutdown words: the only device that could
@@ -78,6 +89,13 @@ pub(super) fn produce_and_serve(
         if attached {
             detached_since = None;
         } else {
+            // A never-resuming device's answer is abandoned the moment its
+            // client detaches: the producer drops the engine connection, so
+            // a Stop frees the CPU and the seat at once.
+            if never_resumes {
+                job.close(Status::Failed(Failure::Abandoned));
+                break;
+            }
             let since = *detached_since.get_or_insert_with(Instant::now);
             if job.has_readers() {
                 detached_since = Some(Instant::now());
@@ -211,6 +229,10 @@ pub(super) fn serve_resume(
     let mut cursor = from;
     let mut out = Vec::new();
     loop {
+        // A finished job — a superseded answer among them — is not
+        // special-cased: replaying what the log already holds is the point
+        // of a resume, and take ends the read with the job's own verdict
+        // once the tail is out.
         if cancel.stopped() {
             return;
         }

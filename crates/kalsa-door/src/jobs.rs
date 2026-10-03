@@ -148,6 +148,11 @@ impl Job {
         self.readers.load(Ordering::SeqCst) > 0
     }
 
+    /// The device that started the answer.
+    pub(super) fn owner(&self) -> DeviceId {
+        self.owner
+    }
+
     pub(super) fn token(&self) -> &Token {
         &self.token
     }

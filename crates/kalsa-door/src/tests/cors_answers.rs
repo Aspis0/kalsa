@@ -262,7 +262,10 @@ fn the_busy_answer_to_a_read_request_names_the_origin_that_asked() {
     // This branch cannot be reached through a running door: four workers can
     // run four answers, and the registry refuses a new job only while all of
     // its sixty-four are still running. The registry is filled by hand and
-    // `handle` is called directly, as the revocation tests do.
+    // `handle` is called directly, as the revocation tests do. The filler
+    // jobs belong to ANOTHER device: a completion supersedes its own
+    // device's detached answers before it asks for a seat, so a house full
+    // of the requester's own answers could never refuse it.
     let (upstream_port, upstream_stop, upstream_thread) = sse_head_upstream();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
@@ -271,7 +274,7 @@ fn the_busy_answer_to_a_read_request_names_the_origin_that_asked() {
     let registry = Registry::new();
     for _ in 0..crate::MAX_JOBS {
         registry
-            .start(DeviceId::new(0), b"HTTP/1.1 200 OK\r\n\r\n".to_vec())
+            .start(DeviceId::new(1), b"HTTP/1.1 200 OK\r\n\r\n".to_vec())
             .unwrap();
     }
     let server = thread::spawn(move || {

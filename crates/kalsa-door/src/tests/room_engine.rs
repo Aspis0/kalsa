@@ -4,6 +4,7 @@
 
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -49,6 +50,7 @@ pub(super) struct Seen {
 pub(super) struct Engine {
     pub(super) port: u16,
     seen: Arc<Mutex<Vec<Seen>>>,
+    writes_failed: Arc<AtomicUsize>,
     listener: TcpListener,
     replies: Arc<Mutex<Vec<Reply>>>,
 }
@@ -61,18 +63,27 @@ impl Engine {
         let address = listener.local_addr().unwrap();
         let seen = Arc::new(Mutex::new(Vec::new()));
         let replies = Arc::new(Mutex::new(replies));
+        let writes_failed = Arc::new(AtomicUsize::new(0));
         let thread_seen = Arc::clone(&seen);
         let thread_replies = Arc::clone(&replies);
+        let thread_writes = Arc::clone(&writes_failed);
         thread::Builder::new()
             .name("room-fake-engine".into())
-            .spawn(move || accept(listener, thread_seen, thread_replies))
+            .spawn(move || accept(listener, thread_seen, thread_replies, thread_writes))
             .unwrap();
         Self {
             port: address.port(),
             seen,
+            writes_failed,
             listener: TcpListener::bind("127.0.0.1:0").unwrap(),
             replies,
         }
+    }
+
+    /// How many of the fake's SSE piece writes failed — nonzero when the
+    /// door dropped the upstream while the answer was still streaming.
+    pub(super) fn writes_failed(&self) -> usize {
+        self.writes_failed.load(Ordering::SeqCst)
     }
 
     /// The requests the fake has served, in order.
@@ -93,7 +104,12 @@ impl Drop for Engine {
     }
 }
 
-fn accept(listener: TcpListener, seen: Arc<Mutex<Vec<Seen>>>, replies: Arc<Mutex<Vec<Reply>>>) {
+fn accept(
+    listener: TcpListener,
+    seen: Arc<Mutex<Vec<Seen>>>,
+    replies: Arc<Mutex<Vec<Reply>>>,
+    writes_failed: Arc<AtomicUsize>,
+) {
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else {
             continue;
@@ -116,11 +132,17 @@ fn accept(listener: TcpListener, seen: Arc<Mutex<Vec<Seen>>>, replies: Arc<Mutex
             replies.lock().unwrap().remove(0);
         }
         let seen = Arc::clone(&seen);
-        thread::spawn(move || serve(&mut stream, reply, seen));
+        let writes = Arc::clone(&writes_failed);
+        thread::spawn(move || serve(&mut stream, reply, seen, writes));
     }
 }
 
-fn serve(stream: &mut TcpStream, reply: Reply, seen: Arc<Mutex<Vec<Seen>>>) {
+fn serve(
+    stream: &mut TcpStream,
+    reply: Reply,
+    seen: Arc<Mutex<Vec<Seen>>>,
+    writes_failed: Arc<AtomicUsize>,
+) {
     let request = read_request(stream);
     // The size-capped refusal reads the body before choosing, so the
     // record keeps it and the cap borrows it back.
@@ -235,6 +257,7 @@ fn serve(stream: &mut TcpStream, reply: Reply, seen: Arc<Mutex<Vec<Seen>>>) {
                     "data: {{\"choices\":[{{\"delta\":{{\"content\":\"{escaped}\"}}}}]}}\n\n"
                 );
                 if stream.write_all(frame.as_bytes()).is_err() {
+                    writes_failed.fetch_add(1, Ordering::SeqCst);
                     return;
                 }
                 // Slow enough for a test to act between pieces, fast

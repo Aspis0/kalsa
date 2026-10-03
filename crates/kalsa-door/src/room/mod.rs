@@ -38,6 +38,14 @@ pub(crate) struct RoomDoor {
     seats: Arc<stream::Seats>,
 }
 
+impl RoomDoor {
+    /// The device id this door seats the host at — the desktop webview's
+    /// own seat, the one device whose answers are never kept for a resume.
+    pub(crate) fn host(&self) -> DeviceId {
+        self.host
+    }
+}
+
 /// The AI guest's entry in the device set: the reserved top device id, a
 /// label of its own name, and a credential derived from the host's — a
 /// labeled SHA-256, the same shape as the door's own cache salts. Derived,

@@ -35,6 +35,7 @@ mod room_seat;
 mod room_support;
 mod room_turn;
 mod room_turn_wire;
+mod stop_frees_seat;
 mod slot_routes;
 mod slots;
 mod support;

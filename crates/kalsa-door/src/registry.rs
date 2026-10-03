@@ -75,6 +75,22 @@ impl Registry {
         self.lock().get(&token.key()).cloned()
     }
 
+    /// Closes every running, readerless job of one device — a superseded
+    /// answer. The producer sees the closure and drops the engine
+    /// connection, which stops the generation. Answers with an attached
+    /// reader are left alone, and so are finished ones.
+    pub(super) fn abandon_detached(&self, owner: DeviceId) -> usize {
+        let mut abandoned = 0;
+        for (_, job) in self.lock().iter() {
+            if job.owner() != owner || job.finished().is_some() || job.has_readers() {
+                continue;
+            }
+            job.close(crate::jobs::Status::Failed(crate::jobs::Failure::Abandoned));
+            abandoned += 1;
+        }
+        abandoned
+    }
+
     /// Drops kept answers whose retention ran out. Runs on the reaper
     /// thread, so a door nobody talks to still forgets on time.
     pub(super) fn reap(&self) {

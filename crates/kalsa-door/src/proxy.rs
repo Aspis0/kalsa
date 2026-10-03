@@ -293,6 +293,16 @@ pub(super) fn handle(
         let _ = answer_to(&mut client, &answer, deadline);
         return;
     }
+    // A new completion from device D supersedes D's DETACHED answer (a Stop
+    // the owner followed by a new message): the abandoned generation is
+    // closed and its engine connection dropped before the seat is leased,
+    // so the engine stops the old generation instead of queueing the new
+    // one behind it. Attached answers and finished ones are left alone. A
+    // Last-Event-ID is the opposite intent — the device came BACK for the
+    // answer — so a resume is never a supersede.
+    if is_completion(&head.target) && head.last_event_id.is_none() {
+        registry.abandon_detached(device);
+    }
     // The device's engine slot, under a lease that lasts the whole request.
     // Membership and allocation are one critical section: a device revoked
     // in the window between authentication and here is refused with the 401
@@ -609,6 +619,11 @@ pub(super) fn handle(
             return;
         }
     };
+    let never_resumes = shared
+        .room
+        .as_ref()
+        .map(|room| device == room.host() || device.value() == crate::ROOM_DEVICE)
+        .unwrap_or(device.value() == crate::ROOM_DEVICE);
     stream::produce_and_serve(
         &job,
         upstream,
@@ -619,6 +634,7 @@ pub(super) fn handle(
         &shared.clocks,
         &cancel,
         observer,
+        never_resumes,
     );
 }
 
@@ -657,15 +673,13 @@ fn resume(
 ) {
     let words = match parse_resume(last_event_id) {
         Some(resume) => match registry.find(&resume.token) {
-            Some(job) => match job.resume_decision(resume.seen, device) {
-                ResumeDecision::Serve => {
-                    // The client saw `seen`; the next byte of the answer it
-                    // is owed is the event after it.
-                    stream::serve_resume(&job, client, resume.seen + 1, observer, deadline, cancel);
-                    return;
-                }
-                ResumeDecision::Refused(words) => words,
-            },
+        Some(job) => match job.resume_decision(resume.seen, device) {
+            ResumeDecision::Serve => {
+                stream::serve_resume(&job, client, resume.seen + 1, observer, deadline, cancel);
+                return;
+            }
+            ResumeDecision::Refused(words) => words,
+        },
             None => "That answer is no longer kept here.",
         },
         None => "The door cannot resume an answer from that id.",
