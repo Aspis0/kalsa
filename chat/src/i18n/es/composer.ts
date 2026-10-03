@@ -12,7 +12,9 @@ export const COMPOSER = {
     "hintOpening": "Abriendo el chat…",
     "thinkingOnTitle": "Pensamiento: el modelo razona antes de responder. Apágalo para que responda al instante.",
     "thinkingOffTitle": "Pensamiento apagado: el modelo responde al instante, sin razonar antes.",
-    "attachTitle": "Adjuntar un archivo (texto, markdown, CSV, PDF, Word, PowerPoint)"
+    "attachTitle": "Adjuntar un archivo (texto, markdown, CSV, PDF, Word, PowerPoint)",
+    "attachTitleImages": "Adjuntar un archivo o imagen (texto, markdown, CSV, PDF, Word, PowerPoint, imágenes)",
+    "removeImage": "Quitar esta imagen"
   };
 
 export const BRAIN_BAR = {

@@ -38,7 +38,7 @@ try {
   await build({
     stdin: {
       contents: `
-        export { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, wireTokens } from "../src/lib/attachments.ts";
+        export { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, systemPrompt, wireTokens } from "../src/lib/attachments.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { TOOL_DEFINITIONS } from "../src/lib/tools/definitions.ts";
       `,
@@ -71,7 +71,7 @@ try {
   globalThis.window = { setTimeout, clearTimeout };
 
   const app = await import(pathToFileURL(outfile).href);
-  const { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, wireTokens, streamChatCompletion } = app;
+  const { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, systemPrompt, wireTokens, streamChatCompletion } = app;
 
   const MESSAGES = [{ id: "u1", role: "user", content: "Look at my picture.", createdAt: 1 }];
   const ATTACHMENT = {
@@ -146,6 +146,29 @@ try {
     "the prompt's own cost is the wire cost",
     SYSTEM_PROMPT_TOKENS === Math.max(1, Math.ceil(SYSTEM_PROMPT.content.length / 4)),
     `${SYSTEM_PROMPT_TOKENS} tokens for ${SYSTEM_PROMPT.content.length} chars`,
+  );
+
+  // The prompt is fixed PER MODEL: the vision sentence follows /props, and
+  // the capability changes only with the model, which restarts the engine's
+  // cache anyway. Blind keeps today's bytes; seeing names the images and
+  // still refuses audio and video.
+  equal("blind is the prompt as always", systemPrompt(false), SYSTEM_PROMPT);
+  const seeing = systemPrompt(true);
+  check(
+    "seeing says the images arrive as images",
+    seeing.content.includes("Images the user attaches reach you as images."),
+    JSON.stringify(seeing.content.slice(0, 140)),
+  );
+  check(
+    "seeing still refuses audio and video",
+    seeing.content.includes("You cannot see audio or video.") &&
+      !seeing.content.includes("cannot see images"),
+    JSON.stringify(seeing.content.slice(0, 160)),
+  );
+  check(
+    "seeing costs a few tokens more, and the wire says so",
+    wireTokens([], true) > wireTokens([], false),
+    `${wireTokens([], true)} vs ${wireTokens([], false)}`,
   );
 
   // One turn through the tool loop: round one asks for a call, round two

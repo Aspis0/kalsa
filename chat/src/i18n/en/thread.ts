@@ -30,4 +30,6 @@ export const THREAD = {
   hide: "Hide ▲",
   showThinking: "Show thinking ▼",
   thinkingAria: "Kalsa's thoughts",
+  // The box where a picture's bytes are gone (storage cleared elsewhere).
+  imageMissing: "Picture unavailable",
 };

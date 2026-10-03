@@ -35,6 +35,18 @@ export interface ToolRun {
   state: "running" | "ok" | "failed" | "refused";
 }
 
+/**
+ * One picture a user message carries: the reference only. The bytes live in
+ * IndexedDB under `id` (lib/imageStore), so the conversation store never
+ * holds pixels. Audio rides the same shape later, as another mime.
+ */
+export interface MessageImage {
+  id: string;
+  width: number;
+  height: number;
+  mime: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: Role;
@@ -48,6 +60,8 @@ export interface ChatMessage {
   reasoningMs?: number;
   /** Tools this answer used, in the order they were called. */
   toolRuns?: ToolRun[];
+  /** Pictures attached to this user turn, in attach order. */
+  images?: MessageImage[];
   /** The failure this turn ended in, so a reload can show its sentence and
       Retry again; absent on every turn that did not fail. */
   failed?: ChatErrorKind;

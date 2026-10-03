@@ -5,6 +5,7 @@ import type { ChatErrorKind } from "../lib/chat";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { Markdown } from "./Markdown";
+import { MessageImages } from "./MessageImages";
 import { ThoughtCloud } from "./ThoughtCloud";
 import { ToolActivity } from "./ToolActivity";
 import "./Thread.css";
@@ -180,9 +181,10 @@ export function Thread({
           {messages.map((message) =>
             message.role === "user" ? (
               <div className="row row-user" key={message.id} title={stamp(message.createdAt, tag)}>
-                <div className="user-bubble" data-message-id={message.id}>
-                  {message.content}
-                </div>
+              <div className="user-bubble" data-message-id={message.id}>
+                <MessageImages images={message.images} />
+                {message.content}
+              </div>
               </div>
             ) : (
               <AssistantRow

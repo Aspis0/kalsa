@@ -5,6 +5,7 @@
 
 import { Composer } from "../components/Composer";
 import { EmptyState } from "../components/EmptyState";
+import { IMAGE_TOKENS } from "../lib/attachments";
 import { Panel } from "../components/Panel";
 import { Sidebar } from "../components/Sidebar";
 import { Thread } from "../components/Thread";
@@ -37,6 +38,9 @@ export function ChatSurface({ chat }: { chat: Chat }) {
     thinking,
     thinkingSupported,
     saveThinking,
+    vision,
+    pendingImages,
+    removeImage,
     draft,
     setDraft,
     send,
@@ -138,6 +142,9 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           onSend={send}
           onStop={stop}
           onAttach={(files) => void attachFiles(files)}
+          acceptsImages={vision}
+          images={pendingImages.map(({ id, url }) => ({ id, url }))}
+          onRemoveImage={removeImage}
         />
       </div>
       <Panel
@@ -145,6 +152,8 @@ export function ChatSurface({ chat }: { chat: Chat }) {
         attachments={attachments}
         contextTokens={ctxInfo && ctxInfo.endpoint === effectiveSettings.endpoint ? ctxInfo.nctx : null}
         historyTokens={convoTokens}
+        imageCount={pendingImages.length}
+        imageTokens={pendingImages.length * IMAGE_TOKENS}
         onRemove={removeAttachment}
         onReattach={(id) => {
           if (!activeId) return;

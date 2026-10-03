@@ -1,7 +1,17 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { ClipboardEvent, KeyboardEvent } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import "./Composer.css";
+
+/** One pending picture, chip-shaped: the reference and the object URL the
+    chip shows (the pixels are IndexedDB's, the URL's life is the chip's). */
+export interface ComposerImage {
+  id: string;
+  url: string;
+}
+
+const DOCUMENT_ACCEPT = ".txt,.md,.markdown,.csv,.json,.log,.pdf,.docx,.pptx";
+const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp,.gif,.heic,.heif";
 
 interface ComposerProps {
   streaming: boolean;
@@ -20,6 +30,12 @@ interface ComposerProps {
   // Absent where attachments have no route: the button and its hidden
   // input are not rendered at all (the Room carries words only).
   onAttach?: (files: FileList) => void;
+  // Whether the model can see: the picker then offers pictures, and paste
+  // and drop take them. Blind, nothing about images shows here at all.
+  acceptsImages?: boolean;
+  // Pictures attached but not yet sent, removable like documents.
+  images?: ComposerImage[];
+  onRemoveImage?: (id: string) => void;
   /** Null when this model's own template cannot read a thinking switch, in
       which case no control is shown: a switch that moves while nothing changes
       is worse than none. */
@@ -42,6 +58,9 @@ export function Composer({
   onSend,
   onStop,
   onAttach,
+  acceptsImages = false,
+  images,
+  onRemoveImage,
   thinking = null,
   onThinking,
   ask,
@@ -57,7 +76,10 @@ export function Composer({
   const sendingNow = useRef(false);
   const [held, setHeld] = useState(false);
   const text = draft;
-  const ready = text.trim().length > 0 && !opening;
+  const pendingImages = images ?? [];
+  // An empty box sends when pictures ride with it: the pictures are the
+  // message. Words alone still need words.
+  const ready = (text.trim().length > 0 || pendingImages.length > 0) && !opening;
   const canSend = ready && !streaming && !held;
 
   // Grow with the text up to MAX_HEIGHT, then scroll. Height only ever
@@ -75,7 +97,9 @@ export function Composer({
   // one post, not two.
   async function deliver(give: (value: string) => boolean | Promise<boolean>): Promise<void> {
     const value = text.trim();
-    if (!value || streaming || opening || sendingNow.current) return;
+    if ((!value && pendingImages.length === 0) || streaming || opening || sendingNow.current) {
+      return;
+    }
     sendingNow.current = true;
     setHeld(true);
     try {
@@ -108,8 +132,34 @@ export function Composer({
     }
   }
 
+  // A picture on the clipboard is an attach, not a paste: the same road the
+  // picker and the drop take. Text pastes as it always did.
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>): void {
+    const files = event.clipboardData?.files;
+    if (!files || files.length === 0) return;
+    event.preventDefault();
+    onAttach?.(files);
+  }
+
   return (
     <div className="composer">
+      {pendingImages.length > 0 && onRemoveImage ? (
+        <div className="composer-images">
+          {pendingImages.map((image) => (
+            <figure key={image.id} className="composer-image">
+              <img src={image.url} alt="" />
+              <button
+                type="button"
+                className="composer-image-remove"
+                aria-label={composer.removeImage}
+                onClick={() => onRemoveImage(image.id)}
+              >
+                ×
+              </button>
+            </figure>
+          ))}
+        </div>
+      ) : null}
       <div className="composer-box">
         <textarea
           ref={areaRef}
@@ -118,6 +168,7 @@ export function Composer({
           value={text}
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={composer.placeholder}
           aria-label={composer.messageAria}
         />
@@ -128,7 +179,7 @@ export function Composer({
               type="file"
               className="visually-hidden"
               multiple
-              accept=".txt,.md,.markdown,.csv,.json,.log,.pdf,.docx,.pptx"
+              accept={acceptsImages ? `${DOCUMENT_ACCEPT},${IMAGE_ACCEPT}` : DOCUMENT_ACCEPT}
               aria-hidden="true"
               tabIndex={-1}
               onChange={(event) => {
@@ -140,7 +191,7 @@ export function Composer({
               type="button"
               className="composer-action composer-attach"
               aria-label={composer.attachAria}
-              title={composer.attachTitle}
+              title={acceptsImages ? composer.attachTitleImages : composer.attachTitle}
               onClick={() => fileRef.current?.click()}
             >
               <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">

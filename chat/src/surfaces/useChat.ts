@@ -16,7 +16,16 @@ import { loadThinking, saveThinking, thinkingSupport } from "../lib/thinking";
 import type { ChatSettings, Conversation, ConversationMeta } from "../lib/types";
 import type { FailedState } from "../components/Thread";
 import type { Attachment } from "../lib/attachments";
-import { AttachmentError, buildPinnedContext, extractAttachment, wireTokens } from "../lib/attachments";
+import {
+  AttachmentError,
+  buildPinnedContext,
+  extractAttachment,
+  IMAGE_TOKENS,
+  wireTokens,
+} from "../lib/attachments";
+import { isImageFile, prepareImage } from "../lib/images";
+import type { PreparedImage } from "../lib/images";
+import { deleteConversationImages, deleteImage, putImage } from "../lib/imageStore";
 import { filesRead } from "../lib/files";
 import type { SurfaceKey } from "../app/surfaces";
 import { arrivingIn, handoff, leavingGhost } from "../app/handoff";
@@ -45,6 +54,12 @@ interface Refusal {
   historyTokens: number;
   need: number;
   have: number;
+}
+
+/** A picture attached but not yet sent: the stored reference plus the object
+    URL the chip shows, which dies the moment the chip does. */
+interface PendingImage extends PreparedImage {
+  url: string;
 }
 
 /** What the chat needs from the room around it: the shell's navigation (a
@@ -118,6 +133,10 @@ export function useChat(shell: ChatShell) {
   // draft must survive that round trip, so it lives in the hook the shell
   // holds — the hook does not unmount when the chat does.
   const [draft, setDraft] = useState("");
+  // Pictures attached but not yet sent, per conversation. The bytes are in
+  // IndexedDB the moment the chip exists; this map holds only the reference
+  // and the chip's object URL, and follows the draft's own durability.
+  const [pendingImages, setPendingImages] = useState<Record<string, PendingImage[]>>({});
 
   useEffect(() => {
     // Whether the last write failure was already reported: the subscription
@@ -190,7 +209,15 @@ export function useChat(shell: ChatShell) {
   // The model's own chat template decides whether a thinking switch may be
   // offered at all, and it is read from the one road to `/props`
   // (`useServerFacts`) — the sampler panel reads the same fact the same way.
-  const { chatTemplate } = useServerFacts(effectiveSettings.endpoint, effectiveSettings.token);
+  // The same body says what the model can receive: vision gates every image
+  // road below, and the read follows the model (`useServerFacts` re-asks when
+  // it changes).
+  const { chatTemplate, modalities } = useServerFacts(
+    effectiveSettings.endpoint,
+    effectiveSettings.token,
+    effectiveSettings.model,
+  );
+  const vision = modalities.vision;
   const thinkingSupported = thinkingSupport(chatTemplate).enableThinking;
   // Per model, and it follows the model this request will name: the brain's own
   // fills the blank while the machine is serving.
@@ -223,7 +250,10 @@ export function useChat(shell: ChatShell) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations, activeId, live]);
 
-  const convoTokens = useMemo(() => wireTokens(active?.messages ?? []), [active]);
+  const convoTokens = useMemo(
+    () => wireTokens(active?.messages ?? [], vision),
+    [active, vision],
+  );
 
   const tails = useMemo(() => {
     const out: Record<string, string> = {};
@@ -301,6 +331,20 @@ export function useChat(shell: ChatShell) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panelOpen, activeId, effectiveSettings.endpoint, conversations]);
 
+  // Chips of one conversation leave (send, remove, delete): their object
+  // URLs die with them. The bytes themselves are the caller's to place or
+  // drop in IndexedDB.
+  function releasePending(convId: string): void {
+    setPendingImages((prev) => {
+      const chips = prev[convId];
+      if (!chips) return prev;
+      for (const chip of chips) URL.revokeObjectURL(chip.url);
+      const next = { ...prev };
+      delete next[convId];
+      return next;
+    });
+  }
+
   async function attachFiles(files: FileList | File[]): Promise<void> {
     const list = Array.from(files);
     if (list.length === 0) return;
@@ -330,18 +374,39 @@ export function useChat(shell: ChatShell) {
       convId = fresh.id;
     }
     const target = convId;
+    // Pictures take the image road only under a seeing model: blind, they are
+    // files like any other, and the extractor gives the honest not-readable
+    // refusal rather than silently eating pixels.
+    const imageFiles = vision ? list.filter(isImageFile) : [];
+    const docFiles = list.filter((file) => !imageFiles.includes(file));
     setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
+    const prepared: PendingImage[] = [];
     try {
       const extracted: Attachment[] = [];
-      for (const file of list) {
+      for (const file of docFiles) {
         extracted.push(await extractAttachment(file));
+      }
+      for (const file of imageFiles) {
+        const image = await prepareImage(file);
+        prepared.push({ ...image, url: URL.createObjectURL(image.blob) });
       }
       const nctx = await ensureCtx();
       const history = store.get(target)?.messages ?? [];
-      const trial = buildPinnedContext(history, extracted, nctx);
+      const pendingTokens =
+        IMAGE_TOKENS * ((pendingImages[target]?.length ?? 0) + prepared.length);
+      const trial = buildPinnedContext(
+        history,
+        extracted,
+        nctx,
+        { vision, url: () => null },
+        pendingTokens,
+      );
       if (trial.status === "refused") {
+        // The banner names the batch as the picker saw it; a picture keeps
+        // the name of the file it came from, since none is stored.
+        const names = [...extracted.map((a) => a.name), ...imageFiles.map((f) => f.name)];
         setRefusal({
-          names: extracted.map((a) => a.name).join(", "),
+          names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
           docTokens: trial.docTokens,
           historyTokens: trial.historyTokens,
           need: trial.need,
@@ -350,15 +415,28 @@ export function useChat(shell: ChatShell) {
         setAttachStatus(null);
         logUiEvent("chat.attach_refused");
         announce(t.tooMuchAtOnce);
+        for (const chip of prepared) URL.revokeObjectURL(chip.url);
         return;
       }
+      // Bytes first, chip second: a refusal from IndexedDB is an attach
+      // failure, not a chip that shows a picture nothing can send.
+      for (const chip of prepared) await putImage(target, chip.id, chip.mime, chip.blob);
       for (const attachment of extracted) store.putAttachment(target, attachment);
+      if (prepared.length > 0) {
+        setPendingImages((prev) => ({
+          ...prev,
+          [target]: [...(prev[target] ?? []), ...prepared],
+        }));
+      }
       setAttachStatus(null);
-      setPanelOpen(true);
+      if (extracted.length > 0) setPanelOpen(true);
       announce(
-        extracted.length === 1 ? t.attachedOne(extracted[0].name) : t.attachedMany(extracted.length),
+        prepared.length + extracted.length === 1
+          ? t.attachedOne(list[0].name)
+          : t.attachedMany(prepared.length + extracted.length),
       );
     } catch (error) {
+      for (const chip of prepared) URL.revokeObjectURL(chip.url);
       setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
       logUiEvent(
         error instanceof AttachmentError
@@ -434,21 +512,35 @@ export function useChat(shell: ChatShell) {
     }
     const assistantId = uid();
     const userId = uid();
+    // Whatever chips this conversation holds ride the new user turn as
+    // references; the pixels stay in IndexedDB under their own ids.
+    const images = pendingImages[conv.id] ?? [];
     const updated: Conversation = {
       ...conv,
       title: conv.messages.length === 0 ? titleFor(text, t.newConversation) : conv.title,
       updatedAt: Date.now(),
       messages: [
         ...conv.messages,
-        { id: userId, role: "user", content: text, createdAt: Date.now() },
+        {
+          id: userId,
+          role: "user",
+          content: text,
+          createdAt: Date.now(),
+          ...(images.length > 0
+            ? {
+                images: images.map(({ id, width, height, mime }) => ({ id, width, height, mime })),
+              }
+            : {}),
+        },
         { id: assistantId, role: "assistant", content: "", createdAt: Date.now() },
       ],
     };
     store.put(updated);
+    if (images.length > 0) releasePending(conv.id);
     // Writing from the brain's bar lands here too: the chat opens with the
     // text already in the thread.
     openSurface("chat");
-    void turns.runAssistant(updated.id, assistantId, effectiveSettings);
+    void turns.runAssistant(updated.id, assistantId, effectiveSettings, vision);
     return userId;
   }
 
@@ -565,12 +657,16 @@ export function useChat(shell: ChatShell) {
           : m,
       ),
     });
-    void turns.runAssistant(active.id, messageId, effectiveSettings);
+    void turns.runAssistant(active.id, messageId, effectiveSettings, vision);
   }
 
   function removeConversation(id: string): void {
     turns.stopFor(id);
     store.remove(id);
+    // The conversation's pictures go with it: nothing names their bytes after
+    // this, so leaving them in IndexedDB would be weight nobody can reach.
+    void deleteConversationImages(id);
+    releasePending(id);
     // The gate's own active chat, not the rendered one: an open of this chat can
     // be in flight, and the render still names the previous chat while it is.
     gate.clearIf(id);
@@ -587,6 +683,20 @@ export function useChat(shell: ChatShell) {
   function newConversation(): void {
     gate.clear();
     setDrawerOpen(false);
+  }
+
+  // A chip removed before its send: the bytes it named leave IndexedDB too.
+  function removePendingImage(imageId: string): void {
+    if (!activeId) return;
+    const target = activeId;
+    setPendingImages((prev) => {
+      const chips = prev[target];
+      if (!chips) return prev;
+      const chip = chips.find((c) => c.id === imageId);
+      if (chip) URL.revokeObjectURL(chip.url);
+      return { ...prev, [target]: chips.filter((c) => c.id !== imageId) };
+    });
+    void deleteImage(imageId);
   }
 
   // The disk tier's one seam: the door is told which chat this device is
@@ -676,6 +786,11 @@ export function useChat(shell: ChatShell) {
     effectiveSettings,
     thinkingSupported,
     thinking,
+    // The served model's own word about itself: every image road below it.
+    vision,
+    // This conversation's attached-but-unsent pictures, chip-ready.
+    pendingImages: activeId ? (pendingImages[activeId] ?? []) : [],
+    removeImage: removePendingImage,
     saveThinking: (enabled: boolean) => {
       // Saved at once and read at send time: the next message uses
       // it, with no reload.

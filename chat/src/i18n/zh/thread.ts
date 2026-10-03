@@ -26,4 +26,5 @@ export const THREAD = {
     "hide": "收起 ▲",
     "showThinking": "展开思考 ▼",
     "thinkingAria": "Kalsa 的思考",
+    "imageMissing": "图片不可用",
   };

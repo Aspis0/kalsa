@@ -3,7 +3,7 @@ import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { strFromU8, unzipSync } from "fflate";
 import { TOOL_STOPPED } from "./types";
 import type { ChatMessage } from "./types";
-import type { WireMessage } from "./chat";
+import type { WireContentPart, WireMessage } from "./chat";
 
 export type AttachmentKind = "txt" | "md" | "csv" | "pdf" | "docx" | "pptx";
 
@@ -27,6 +27,13 @@ export interface Attachment {
 export const MAX_FILE_BYTES = 32 * 1024 * 1024;
 /** Completion headroom kept free whenever the context size is known. */
 export const CONTEXT_RESERVE_TOKENS = 512;
+/** What one attached picture costs the window, whatever its pixels — the
+    engine is launched with `--image-max-tokens` 560, its ceiling. */
+export const IMAGE_TOKENS = 560;
+
+/** The one sentence where the pictures would have been, when the turn goes
+    to a model that cannot see them. */
+export const IMAGE_PLACEHOLDER = "[an image the current AI cannot see]";
 
 export type AttachmentFailure = "unsupported" | "too-big" | "unreadable" | "empty" | "no-text";
 
@@ -74,7 +81,8 @@ export function messageTokens(message: ChatMessage): number {
       sum + estTokens(run.arguments) + estTokens(wireResult(run.result)),
     0,
   );
-  return estTokens(message.content) + estTokens(message.reasoning ?? "") + toolTokens;
+  const imageTokens = (message.images?.length ?? 0) * IMAGE_TOKENS;
+  return estTokens(message.content) + estTokens(message.reasoning ?? "") + toolTokens + imageTokens;
 }
 
 /** Same formula the pinning uses: one place where history is weighed. */
@@ -374,27 +382,43 @@ export async function extractAttachment(file: File): Promise<Attachment> {
  * turns (a date, a model name, a count) would re-prefill the conversation. It
  * answers the two questions a model left to guess gets wrong — what it can
  * receive, and what it may claim — and it is the same words in every language:
- * the wire language is English whatever the interface speaks.
+ * the wire language is English whatever the interface speaks. Fixed PER MODEL:
+ * the vision sentence follows `/props`, and the capability changes only when
+ * the model does, which restarts the engine and its cache with it.
  */
-export const SYSTEM_PROMPT: WireMessage = {
-  role: "system",
-  content:
+function promptBytes(vision: boolean): string {
+  return (
     "You are Kalsa, a private assistant running on this computer. " +
-    "You cannot see images, audio or video. " +
+    (vision
+      ? "Images the user attaches reach you as images. You cannot see audio or video. "
+      : "You cannot see images, audio or video. ") +
     "Attached files reach you as plain text in a message; if no text is there, " +
     "no file reached you. " +
     "Use only the tools you are given; never claim an ability you do not have. " +
-    "Reply in the language the user writes in.",
+    "Reply in the language the user writes in."
+  );
+}
+
+/** The prompt as it has always been sent: the words for a model without
+    eyes, byte for byte. */
+export const SYSTEM_PROMPT: WireMessage = {
+  role: "system",
+  content: promptBytes(false),
 };
+
+/** The prompt for the model now being served. */
+export function systemPrompt(vision: boolean): WireMessage {
+  return vision ? { role: "system", content: promptBytes(true) } : SYSTEM_PROMPT;
+}
 
 /** What the fixed prompt costs the window: every request pays it, so the fit
     and the meter count it too. */
-export const SYSTEM_PROMPT_TOKENS = estTokens(SYSTEM_PROMPT.content);
+export const SYSTEM_PROMPT_TOKENS = estTokens(promptBytes(false));
 
 /** What the wire spends on a conversation: the stored messages plus the fixed
     system prompt — the whole of it that is not documents. */
-export function wireTokens(messages: ChatMessage[]): number {
-  return historyTokens(messages) + SYSTEM_PROMPT_TOKENS;
+export function wireTokens(messages: ChatMessage[], vision = false): number {
+  return historyTokens(messages) + estTokens(promptBytes(vision));
 }
 
 /** The pinned-documents text, for the tail of the one system message: the
@@ -416,9 +440,9 @@ function docBlockText(docs: Attachment[]): string {
  * the engine's cache holds onto; the documents' own weight is the fit's
  * `docTokens`, so nothing is counted twice.
  */
-function systemMessage(docs: Attachment[]): WireMessage {
-  if (docs.length === 0) return SYSTEM_PROMPT;
-  return { role: "system", content: `${SYSTEM_PROMPT.content}\n\n${docBlockText(docs)}` };
+function systemMessage(docs: Attachment[], vision = false): WireMessage {
+  if (docs.length === 0) return systemPrompt(vision);
+  return { role: "system", content: `${systemPrompt(vision).content}\n\n${docBlockText(docs)}` };
 }
 
 /**
@@ -434,13 +458,44 @@ function wireResult(result: string): string {
   return result === TOOL_STOPPED ? "Stopped before this finished." : result;
 }
 
-function wireFor(message: ChatMessage): WireMessage[] {
+/**
+ * How the model now being served sees pictures: `vision` says whether it can
+ * look at all, and `url` hands back the data URI of a stored image — null
+ * when its bytes are gone. Absent (harnesses, attach trials) is the same as
+ * a model without eyes.
+ */
+export interface MediaView {
+  vision: boolean;
+  url: (id: string) => string | null;
+}
+
+/** A user turn's content on the wire. Pictures ride as parts, text first;
+    for a model that cannot see them the turn goes as text with one honest
+    sentence where the pictures would have been — the engine errors on image
+    parts without a projector. A turn whose blobs all came back missing has
+    no media left and stays a plain string. */
+function userWireContent(message: ChatMessage, media: MediaView | undefined): string | WireContentPart[] {
+  const images = message.role === "user" ? (message.images ?? []) : [];
+  if (images.length === 0) return message.content;
+  if (!media?.vision) {
+    return message.content ? `${message.content}\n${IMAGE_PLACEHOLDER}` : IMAGE_PLACEHOLDER;
+  }
+  const parts: WireContentPart[] = [];
+  if (message.content.trim()) parts.push({ type: "text", text: message.content });
+  for (const image of images) {
+    const url = media.url(image.id);
+    if (url !== null) parts.push({ type: "image_url", image_url: { url } });
+  }
+  return parts.some((part) => part.type === "image_url") ? parts : message.content;
+}
+
+function wireFor(message: ChatMessage, media: MediaView | undefined): WireMessage[] {
   // A refused run never happened as far as the server is concerned: it was
   // never sent back as a call, and an unnamed one would be a malformed request.
   // It stays in the transcript for the reader and out of the wire.
   const runs = (message.toolRuns ?? []).filter((run) => run.state !== "refused");
   if (message.role !== "assistant" || runs.length === 0) {
-    return [{ role: message.role, content: message.content }];
+    return [{ role: message.role, content: userWireContent(message, media) }];
   }
   const asked: WireMessage = {
     role: "assistant",
@@ -472,32 +527,40 @@ export type PinnedContext =
  * Assemble what is actually sent: the one system message first — the fixed
  * prompt with the pinned documents appended to it when any are active — then
  * turns newest-kept, oldest turns dropping first when the known context fills.
- * With unknown size nothing is pruned or refused.
+ * With unknown size nothing is pruned or refused. `media` decides how stored
+ * pictures ride (parts under a seeing model, the placeholder sentence
+ * otherwise); `pendingImageTokens` is the weight of pictures attached but not
+ * yet sent — the fit answers for them before the send does.
  */
 export function buildPinnedContext(
   messages: ChatMessage[],
   docs: Attachment[],
   nctx: number | null,
+  media?: MediaView,
+  pendingImageTokens = 0,
 ): PinnedContext {
   const actives = docs.filter((d) => d.active);
   const docTokens = actives.reduce((sum, d) => sum + d.tokens, 0);
   const turns = [...messages];
-  let histTokens = wireTokens(turns);
+  let histTokens = wireTokens(turns, media?.vision ?? false);
   let dropped = 0;
   if (nctx !== null) {
-    while (docTokens + histTokens + CONTEXT_RESERVE_TOKENS > nctx && turns.length > 1) {
+    while (
+      docTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS > nctx &&
+      turns.length > 1
+    ) {
       const shed = turns.shift();
       if (shed) {
         histTokens -= messageTokens(shed);
         dropped++;
       }
     }
-    const need = docTokens + histTokens + CONTEXT_RESERVE_TOKENS;
+    const need = docTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS;
     if (need > nctx) {
       return { status: "refused", need, have: nctx, docTokens, historyTokens: histTokens };
     }
   }
-  const wire = turns.flatMap(wireFor);
-  wire.unshift(systemMessage(actives));
+  const wire = turns.flatMap((message) => wireFor(message, media));
+  wire.unshift(systemMessage(actives, media?.vision ?? false));
   return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
 }

@@ -464,3 +464,28 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+
+/* The pictures a user turn carries: thumbnails in the bubble, or the one
+   honest box where a picture's bytes are gone. */
+.user-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.user-image {
+  display: block;
+  max-width: 240px;
+  max-height: 240px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.user-image-missing {
+  padding: 0.5rem 0.75rem;
+  color: var(--silence);
+  font-size: 0.8rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+}

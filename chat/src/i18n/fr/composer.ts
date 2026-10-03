@@ -12,7 +12,9 @@ export const COMPOSER = {
     "hintOpening": "Ouverture de la conversation…",
     "thinkingOnTitle": "Réflexion : le modèle raisonne avant de répondre. Désactive-la pour être répondu aussitôt.",
     "thinkingOffTitle": "Réflexion désactivée : le modèle répond aussitôt, sans réfléchir d'abord.",
-    "attachTitle": "Joindre un fichier (texte, markdown, CSV, PDF, Word, PowerPoint)"
+    "attachTitle": "Joindre un fichier (texte, markdown, CSV, PDF, Word, PowerPoint)",
+    "attachTitleImages": "Joindre un fichier ou une image (texte, markdown, CSV, PDF, Word, PowerPoint, images)",
+    "removeImage": "Retirer cette image"
   };
 
 export const BRAIN_BAR = {

@@ -15,6 +15,9 @@ import type { LiveSettings, ToolRun } from "../lib/types";
 import type { ConversationStore } from "../lib/store";
 import { uid } from "../lib/store";
 import { buildPinnedContext } from "../lib/attachments";
+import type { MediaView } from "../lib/attachments";
+import { getImage } from "../lib/imageStore";
+import { blobToDataUrl } from "../lib/images";
 import { executeToolCall, offeredTools } from "../lib/tools/registry";
 import type { GateCheck } from "../lib/tools/registry";
 import type { FailedState } from "../components/Thread";
@@ -135,7 +138,12 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
   }
 
   const runAssistant = useCallback(
-    async (conversationId: string, assistantId: string, currentSettings: LiveSettings) => {
+    async (
+      conversationId: string,
+      assistantId: string,
+      currentSettings: LiveSettings,
+      vision: boolean,
+    ) => {
       const shell = words.current.shell;
       const conv = store.get(conversationId);
       if (!conv) return;
@@ -149,10 +157,24 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
         .filter((m) => !(m.role === "assistant" && m.content === ""))
         .filter((m) => m.content.length > 0 || m.role === "user");
       const docs = store.getAttachments(conversationId).filter((a) => a.active);
+      // The pictures the wire will carry, read out of IndexedDB as data URIs.
+      // Only under a seeing model: placeholders need no pixels. A blob that
+      // is gone simply rides as nothing — the turn's text stands alone.
+      const urlMap = new Map<string, string>();
+      if (vision) {
+        for (const message of turns) {
+          for (const image of message.images ?? []) {
+            if (urlMap.has(image.id)) continue;
+            const blob = await getImage(image.id);
+            if (blob) urlMap.set(image.id, await blobToDataUrl(blob));
+          }
+        }
+      }
+      const media: MediaView = { vision, url: (id) => urlMap.get(id) ?? null };
       // Send-time never fetches: the cached size (or unknown) decides, so a
       // request never waits on /props. Unknown means unpruned, never refused.
       const known = contextSizes.current.get(currentSettings.endpoint) ?? null;
-      const ctx = buildPinnedContext(turns, docs, known);
+      const ctx = buildPinnedContext(turns, docs, known, media);
       if (ctx.status === "refused") {
         // History outgrew the context after attaching: keep the empty
         // placeholder so the error has a place to live, and say the numbers.

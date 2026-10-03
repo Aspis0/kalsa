@@ -1,5 +1,7 @@
 import { SAMPLING_KNOBS } from "./knobs/sampling";
 import { parseContextSize } from "./contextSize";
+import { parseModalities, NO_MODALITIES } from "./modalities";
+import type { Modalities } from "./modalities";
 import { logUiEvent } from "./uiLog";
 import type { Sampling } from "./sampling";
 import type { ToolDefinition } from "./tools/definitions";
@@ -40,9 +42,22 @@ export class ChatRequestError extends Error {
   }
 }
 
+/**
+ * One content part of a multipart message: a user turn with pictures goes as
+ * text parts and image parts, the OpenAI-compatible shape the engine's
+ * multimodal path reads. Only `data:` URIs ride in `url` — the engine reads
+ * nothing but the bytes in the request. Audio joins as another part kind
+ * later, without rework.
+ */
+export type WireContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export interface WireMessage {
   role: string;
-  content: string;
+  /** A plain string for every turn without media — byte-identical to what
+      the app has always sent; parts only where pictures ride along. */
+  content: string | WireContentPart[];
   /** Present on the assistant message that asked for tools. */
   tool_calls?: WireToolCall[];
   /** Present on a `tool` message: the call whose result this carries. */
@@ -330,6 +345,9 @@ export interface SamplingDefaultsResult {
   /** The model's own chat template, as `/props` reports it — empty if absent.
       It says which switches the model can read (see `thinking.ts`). */
   chatTemplate: string;
+  /** What the served model can receive, from the same `/props` body — all
+      false unless the engine said so (see `modalities.ts`). */
+  modalities: Modalities;
 }
 
 function blankSampling(): Sampling {
@@ -350,27 +368,30 @@ export async function fetchSamplingDefaultsWithStatus(
       signal: controller.signal,
       ...(cleanToken ? { headers: { Authorization: `Bearer ${cleanToken}` } } : {}),
     });
-    if (!response.ok) return { values: defaults, status: "refused", chatTemplate: "" };
+    if (!response.ok) return { values: defaults, status: "refused", chatTemplate: "", modalities: NO_MODALITIES };
     const data: unknown = await response.json();
-    if (typeof data !== "object" || data === null) return { values: defaults, status: "invalid", chatTemplate: "" };
+    if (typeof data !== "object" || data === null) {
+      return { values: defaults, status: "invalid", chatTemplate: "", modalities: NO_MODALITIES };
+    }
+    const modalities = parseModalities(data);
     const template = (data as { chat_template?: unknown }).chat_template;
     const chatTemplate = typeof template === "string" ? template : "";
     const settings = (data as { default_generation_settings?: unknown }).default_generation_settings;
     if (typeof settings !== "object" || settings === null) {
-      return { values: defaults, status: "invalid", chatTemplate };
+      return { values: defaults, status: "invalid", chatTemplate, modalities };
     }
     const params = (settings as { params?: unknown }).params;
     if (typeof params !== "object" || params === null) {
-      return { values: defaults, status: "invalid", chatTemplate };
+      return { values: defaults, status: "invalid", chatTemplate, modalities };
     }
     const values = params as Record<string, unknown>;
     for (const { wire } of SAMPLING_KNOBS) {
       const value = values[wire];
       defaults[wire] = typeof value === "number" && Number.isFinite(value) ? value : null;
     }
-    return { values: defaults, status: "reported", chatTemplate };
+    return { values: defaults, status: "reported", chatTemplate, modalities };
   } catch {
-    return { values: defaults, status: "unavailable", chatTemplate: "" };
+    return { values: defaults, status: "unavailable", chatTemplate: "", modalities: NO_MODALITIES };
   } finally {
     clearTimeout(timer);
   }

@@ -13,6 +13,9 @@ export const COMPOSER = {
   thinkingOnTitle: "Thinking: the model reasons before answering. Turn it off to be answered at once.",
   thinkingOffTitle: "Thinking off: the model answers at once, without reasoning first.",
   attachTitle: "Attach a file (text, markdown, CSV, PDF, Word, PowerPoint)",
+  attachTitleImages:
+    "Attach a file or picture (text, markdown, CSV, PDF, Word, PowerPoint, images)",
+  removeImage: "Remove this picture",
 };
 
 export const BRAIN_BAR = {

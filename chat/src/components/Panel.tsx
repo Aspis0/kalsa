@@ -11,6 +11,9 @@ interface PanelProps {
   attachments: Attachment[];
   contextTokens: number | null;
   historyTokens: number;
+  /** Pictures pending in the composer, counted with the files in the fit. */
+  imageCount: number;
+  imageTokens: number;
   onRemove: (id: string) => void;
   onReattach: (id: string) => void;
   /** Attach a file from the computer: the Rust side reads the bytes, the
@@ -35,6 +38,8 @@ export function Panel({
   attachments,
   contextTokens,
   historyTokens,
+  imageCount,
+  imageTokens,
   onRemove,
   onReattach,
   onAttachFile,
@@ -90,6 +95,8 @@ export function Panel({
               fileCount={active.length}
               docTokens={fileTokens}
               historyTokens={historyTokens}
+              imageCount={imageCount}
+              imageTokens={imageTokens}
             />
 
             {active.length === 0 ? (

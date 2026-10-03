@@ -1,18 +1,22 @@
 import { useEffect, useState } from "react";
 import { fetchSamplingDefaultsWithStatus, serverBase } from "../lib/chat";
 import type { SamplingDefaultsStatus } from "../lib/chat";
+import type { Modalities } from "../lib/modalities";
+import { NO_MODALITIES } from "../lib/modalities";
 import type { Sampling } from "../lib/sampling";
 import { SAMPLING_KNOBS } from "../lib/knobs/sampling";
 
 /**
  * The server's own facts about the model it is serving, read once and shared:
- * the sampler values it reports and the model's chat template, which `/props`
- * answers in the same breath.
+ * the sampler values it reports, the model's chat template, and whether the
+ * model can see — all three from the one `/props` body.
  *
- * One road to a fact. The sampling panel reads this for the defaults, and the
- * chat's thinking control reads it for the template — they mount this rather
- * than each opening their own way to `/props`, because two readers of one fact
- * that disagree is the defect this exists to prevent.
+ * One road to a fact. The sampling panel reads this for the defaults, the
+ * chat's thinking control for the template, and the composer for vision —
+ * they mount this rather than each opening their own way to `/props`, because
+ * two readers of one fact that disagree is the defect this exists to prevent.
+ * The read follows the MODEL as well as the endpoint: a model switch restarts
+ * the engine, and the new one's answers belong to the new read.
  */
 
 export type FactsStatus = SamplingDefaultsStatus | "loading" | "not-configured";
@@ -23,6 +27,8 @@ export interface ServerFacts {
   status: FactsStatus;
   /** The model's chat template, empty until the server has answered. */
   chatTemplate: string;
+  /** What the served model can receive, all false until the server says. */
+  modalities: Modalities;
 }
 
 function blankDefaults(): Sampling {
@@ -41,14 +47,17 @@ const RETRY_FIRST_MS = 1000;
 const RETRY_MAX_MS = 16_000;
 const RETRY_BUDGET_MS = 60_000;
 
-export function useServerFacts(endpoint: string, token: string): ServerFacts {
+export function useServerFacts(endpoint: string, token: string, model: string): ServerFacts {
   const [defaults, setDefaults] = useState<Sampling>(() => blankDefaults());
   const [status, setStatus] = useState<FactsStatus>("not-configured");
   const [chatTemplate, setChatTemplate] = useState("");
+  const [modalities, setModalities] = useState<Modalities>(() => NO_MODALITIES);
 
   useEffect(() => {
     if (!endpoint) {
       setStatus("not-configured");
+      setChatTemplate("");
+      setModalities(NO_MODALITIES);
       return undefined;
     }
     let alive = true;
@@ -65,6 +74,7 @@ export function useServerFacts(endpoint: string, token: string): ServerFacts {
         setDefaults(result.values);
         setStatus(result.status);
         setChatTemplate(result.chatTemplate);
+        setModalities(result.modalities);
         return;
       }
       retry = setTimeout(() => void read(Math.min(delay * 2, RETRY_MAX_MS)), delay);
@@ -78,7 +88,7 @@ export function useServerFacts(endpoint: string, token: string): ServerFacts {
       alive = false;
       clearTimeout(retry);
     };
-  }, [endpoint, token]);
+  }, [endpoint, token, model]);
 
-  return { defaults, status, chatTemplate };
+  return { defaults, status, chatTemplate, modalities };
 }

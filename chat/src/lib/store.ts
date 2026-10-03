@@ -1,6 +1,6 @@
 import { TOOL_STOPPED } from "./types";
 import type { ChatErrorKind } from "./chat";
-import type { ChatMessage, Conversation, ConversationMeta, ToolRun } from "./types";
+import type { ChatMessage, Conversation, ConversationMeta, MessageImage, ToolRun } from "./types";
 import type { Attachment, AttachmentKind } from "./attachments";
 
 /**
@@ -155,7 +155,24 @@ function cleanMessage(value: unknown): ChatMessage | null {
       ? { failed: value.failed as ChatErrorKind }
       : {}),
     ...(Array.isArray(value.toolRuns) ? cleanToolRuns(value.toolRuns) : {}),
+    ...(Array.isArray(value.images) ? cleanImages(value.images) : {}),
   };
+}
+
+/** Image references read back whole or not at all: a half one would render a
+    thumbnail with no shape. The bytes they name live in IndexedDB; a missing
+    blob is the UI's placeholder, never a dropped message. */
+function cleanImages(value: unknown[]): { images?: MessageImage[] } {
+  const images: MessageImage[] = [];
+  for (const image of value) {
+    if (typeof image !== "object" || image === null) continue;
+    const i = image as Record<string, unknown>;
+    if (typeof i.id !== "string" || !i.id) continue;
+    if (typeof i.width !== "number" || typeof i.height !== "number") continue;
+    if (typeof i.mime !== "string" || !i.mime) continue;
+    images.push({ id: i.id, width: i.width, height: i.height, mime: i.mime });
+  }
+  return images.length > 0 ? { images } : {};
 }
 
 /** Tool runs read back from disk are kept only if whole: a half-written run

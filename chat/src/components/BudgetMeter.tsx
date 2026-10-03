@@ -8,6 +8,10 @@ interface BudgetMeterProps {
   fileCount: number;
   docTokens: number;
   historyTokens: number;
+  /** Attached pictures: 560 tokens each (IMAGE_TOKENS), counted with the
+      files until the send moves them into history. */
+  imageCount: number;
+  imageTokens: number;
 }
 
 /**
@@ -16,11 +20,24 @@ interface BudgetMeterProps {
  * bar at a made-up scale. Static widths, no animation: it re-renders, never
  * moves by itself.
  */
-export function BudgetMeter({ contextTokens, fileCount, docTokens, historyTokens }: BudgetMeterProps) {
+export function BudgetMeter({
+  contextTokens,
+  fileCount,
+  docTokens,
+  historyTokens,
+  imageCount,
+  imageTokens,
+}: BudgetMeterProps) {
   const { table } = useLanguage();
   const t = table.files;
   const reserve = CONTEXT_RESERVE_TOKENS;
-  const view = fitView(contextTokens, fileCount, docTokens, historyTokens, reserve);
+  const view = fitView(
+    contextTokens,
+    fileCount + imageCount,
+    docTokens + imageTokens,
+    historyTokens,
+    reserve,
+  );
   if (view === "hidden") return null;
   // `contextTokens === null` is exactly the two views above, and the check is
   // what lets the code below use the number.
@@ -30,7 +47,7 @@ export function BudgetMeter({ contextTokens, fileCount, docTokens, historyTokens
   return (
     <div className="budget">
       <div className="budget-bar" aria-hidden="true">
-        <span className="budget-docs" style={{ width: pct(docTokens) }} />
+        <span className="budget-docs" style={{ width: pct(docTokens + imageTokens) }} />
         <span className="budget-history" style={{ width: pct(historyTokens) }} />
         <span className="budget-reserve" style={{ width: pct(reserve) }} />
       </div>

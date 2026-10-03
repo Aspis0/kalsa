@@ -143,3 +143,44 @@
   font-size: 0.72rem;
   text-align: center;
 }
+
+/* Pictures attached but not yet sent: chips above the box, removable like
+   the panel's documents. */
+.composer-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.composer-image {
+  position: relative;
+  margin: 0;
+}
+
+.composer-image img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+
+.composer-image-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}

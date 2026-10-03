@@ -26,4 +26,5 @@ export const THREAD = {
     "hide": "Masquer ▲",
     "showThinking": "Montrer la réflexion ▼",
     "thinkingAria": "Les réflexions de Kalsa",
+    "imageMissing": "Image indisponible",
   };

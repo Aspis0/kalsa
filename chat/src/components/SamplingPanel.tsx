@@ -63,7 +63,7 @@ export function SamplingPanel(): JSX.Element {
   const token = settings.token;
 
   const [sampling, setSampling] = useState<Sampling>(() => loadSampling());
-  const { defaults, status: defaultsStatus } = useServerFacts(endpoint, token);
+  const { defaults, status: defaultsStatus } = useServerFacts(endpoint, token, settings.model);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const groups = useMemo(
