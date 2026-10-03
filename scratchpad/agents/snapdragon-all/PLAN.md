@@ -64,3 +64,7 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   27.9/25.4/23.6. Part B: logit oracle on Adreno 840 FAIL R2 on both valid pairs (R1 clean; R5 still unmet, arm A
   truncated by the 48 C stop) -> V81 GPU stays OFF (owner's call under R6). Heat data (S23/8 Elite) also rank GPU
   last in prefill and decode, so the NPU-first order needs no GPU on V81.
+- 2026-10-03 S23 sustained decode heat (tg1024, `s23-decode-heat-sustained/REPORT.md`): GPU 7.8 tok/s, 0.35-0.42
+  battery C·s/token; NPU 21.7 tok/s, 0.15-0.17; CPU 19.9 tok/s, 0.30 (n=1, the CPU-2 arm hit thermal status 3).
+  GPU decode is last on speed AND heat; NPU decode beats CPU on both when sustained. Owner question "when GPU?" ->
+  only where no NPU lane is usable.
