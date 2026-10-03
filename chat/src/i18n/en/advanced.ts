@@ -43,7 +43,7 @@ export const ADVANCED = {
   // The values line and the connection note. The engine's own words (a tune
   // line, a cache type) pass through as they arrive.
   valuesInForce: (parts: { lead: string; context: string; batch: string; ubatch: string; kv: string; flash: string; gpu: string; threads: string; idle: string; tune: string | null }) =>
-    `${parts.lead}: context ${parts.context}; batch ${parts.batch}; micro-batch ${parts.ubatch}; KV ${parts.kv}; flash attention ${parts.flash}; GPU layers ${parts.gpu}; threads ${parts.threads}; idle unload ${parts.idle} seconds.${parts.tune}`,
+    `${parts.lead}: context ${parts.context}; batch ${parts.batch}; micro-batch ${parts.ubatch}; KV ${parts.kv}; flash attention ${parts.flash}; GPU layers ${parts.gpu}; threads ${parts.threads}; idle unload ${parts.idle}.${parts.tune}`,
   valuesWaiting: "The values in force will appear here when the app is open.",
   inForce: "In force",
   nextStart: "Next start",
