@@ -57,6 +57,13 @@ fn legacy_path(dir: &Path) -> PathBuf {
 /// new engine build, a new driver or a different card moves the key even
 /// when the model and the context stand still.
 ///
+/// `context_per_slot` is the window ONE SLOT is given, not the launch's
+/// total: the engine divides `--ctx-size` by `--parallel`, so the per-slot
+/// window is the shape a candidate is measured at, and a device paired or
+/// forgotten — a seat more or fewer at the same window — must not move the
+/// key. A record written before the split at one slot carries the same
+/// number this argument does, so it still answers.
+///
 /// The version inside the key counts the SCORING RULE, not the file
 /// grammar: the decode-first tie-break and the no-dominated-winners rule
 /// chose different winners over identical lines, so a record saved before
@@ -66,14 +73,14 @@ fn legacy_path(dir: &Path) -> PathBuf {
 /// and simply miss the new key — never read as foreign and lost blind.
 pub fn fingerprint(
     model_digest: &str,
-    context_tokens: u64,
+    context_per_slot: u64,
     physical_cores: Option<usize>,
     logical_cores: Option<usize>,
     engine_builds: (&str, &str),
     drafter: Option<&str>,
 ) -> String {
     format!(
-        "kalsa-tune fp v4|model={model_digest}|ctx={context_tokens}|physical={physical_cores:?}|\
+        "kalsa-tune fp v4|model={model_digest}|ctx={context_per_slot}|physical={physical_cores:?}|\
          logical={logical_cores:?}|graphics={}|processor={}|draft={}",
         engine_builds.0,
         engine_builds.1,

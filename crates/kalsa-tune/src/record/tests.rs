@@ -693,7 +693,7 @@ fn an_unloadable_record_is_refused_before_anything_is_written() {
 }
 
 /// The key moves with every part that must force a re-tune: the model,
-/// the context, both core counts, and either engine build.
+/// the per-slot window, both core counts, and either engine build.
 #[test]
 fn the_fingerprint_moves_with_every_part_that_matters() {
     use super::fingerprint;

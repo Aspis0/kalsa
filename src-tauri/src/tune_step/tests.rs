@@ -72,6 +72,17 @@ fn draft_args() -> ServerArgs {
     }
 }
 
+/// The rule's args at `seats` slots holding `total` context — the pair
+/// `kalsa_launch::plan` builds, `total` being the per-slot window times the
+/// seats.
+fn seats(slots: u32, total: u64) -> ServerArgs {
+    ServerArgs {
+        context_tokens: total,
+        parallel: slots,
+        ..rule_args()
+    }
+}
+
 /// A prepared start exactly as `planned_config_with_overrides` leaves it:
 /// the rule's exe and argv, a full info, nothing tuned yet.
 fn prepared(main: &str) -> PreparedStart {
@@ -365,6 +376,146 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// The owner's own case: the same machine and model with one seat, then
+/// two — a phone paired — is the same tune. The first start measures; the
+/// second answers from that record and launches the SECOND plan,
+/// `--parallel 2` with the doubled total context, never the first plan's
+/// args. The key carries the per-slot window, so a seat count is not a
+/// shape.
+#[test]
+fn a_second_seat_keeps_the_record_and_launches_the_new_plan() {
+    let dir = scratch("seats");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut progress = |_: Progress| {};
+    let stubbed = || Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut one_seat = prepared_with("/main-gpu", seats(1, 8192));
+    tune_launch(
+        &mut one_seat,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut stubbed(),
+        &mut progress,
+        |resolved, _, counts| {
+            counts(all_done(resolved.len()));
+            let best = resolved[0].0;
+            tuned(
+                vec![replied(best, 900.0, 40.0)],
+                Some(kalsa_tune::Winner {
+                    candidate: best,
+                    reply: reply(900.0, 40.0),
+                }),
+            )
+        },
+    );
+    assert!(
+        matches!(one_seat.info.tune, Some(Tune::Measured(_))),
+        "the first seat's start measures: {:?}",
+        one_seat.info.tune
+    );
+
+    // Two seats at the same window each: the total doubles, the key does not.
+    let mut two_seats = prepared_with("/main-gpu", seats(2, 16384));
+    tune_launch(
+        &mut two_seats,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut stubbed(),
+        &mut progress,
+        |_, _, _| panic!("the second seat's start must answer from the record"),
+    );
+    assert!(
+        matches!(two_seats.info.tune, Some(Tune::Measured(_))),
+        "the kept record is what the second start shows: {:?}",
+        two_seats.info.tune
+    );
+    assert_eq!(two_seats.info.args.parallel, 2, "the launch is the new plan's");
+    assert_eq!(two_seats.info.args.context_tokens, 16384);
+    let has = |flag: &str, value: &str| {
+        two_seats
+            .server
+            .argv
+            .windows(2)
+            .any(|pair| pair[0] == flag && pair[1] == value)
+    };
+    assert!(
+        has("--parallel", "2") && has("--ctx-size", "16384"),
+        "the record's winner rides the current plan's own slots and window, \
+         never the args it was measured with: {:?}",
+        two_seats.server.argv
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The window itself is still the key's: two seats with HALF the per-slot
+/// context is a different shape, and the record does not answer for it.
+#[test]
+fn a_smaller_per_slot_window_still_misses_the_record() {
+    let dir = scratch("narrower");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut progress = |_: Progress| {};
+    let stubbed = || Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut wide = prepared_with("/main-gpu", seats(2, 16384));
+    tune_launch(
+        &mut wide,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut stubbed(),
+        &mut progress,
+        |resolved, _, counts| {
+            counts(all_done(resolved.len()));
+            let best = resolved[0].0;
+            tuned(
+                vec![replied(best, 900.0, 40.0)],
+                Some(kalsa_tune::Winner {
+                    candidate: best,
+                    reply: reply(900.0, 40.0),
+                }),
+            )
+        },
+    );
+
+    let measured = std::cell::Cell::new(false);
+    let mut narrower = prepared_with("/main-gpu", seats(2, 8192));
+    tune_launch(
+        &mut narrower,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut stubbed(),
+        &mut progress,
+        |resolved, _, counts| {
+            measured.set(true);
+            counts(all_done(resolved.len()));
+            let best = resolved[0].0;
+            tuned(
+                vec![replied(best, 500.0, 20.0)],
+                Some(kalsa_tune::Winner {
+                    candidate: best,
+                    reply: reply(500.0, 20.0),
+                }),
+            )
+        },
+    );
+    assert!(
+        measured.get(),
+        "half the per-slot window is another shape: the record must not answer"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// A tune where every shape refused: this start saves no verdict — a
 /// reusable record of refusals would keep an iGPU start on its rule
 /// launch with no processor fallback — only the marker that makes the
@@ -588,7 +739,18 @@ fn the_fingerprint_follows_the_launch_and_the_machine() {
         tune_fingerprint(&machine, &other_context, ServerBackend::Vulkan, CORES)
             .expect("this walk has a platform and a digest"),
         base,
-        "the context is part of the key"
+        "the per-slot window is part of the key"
+    );
+    // A seat more with the window each seat keeps is the same shape: the
+    // key must not move — pairing a phone is not a reason to measure again.
+    let mut two_seats = prepared("/main-gpu").info;
+    two_seats.args.parallel = 2;
+    two_seats.args.context_tokens *= 2;
+    assert_eq!(
+        tune_fingerprint(&machine, &two_seats, ServerBackend::Vulkan, CORES)
+            .expect("this walk has a platform and a digest"),
+        base,
+        "a seat count does not move the key"
     );
     // The engine strings are the two engine identities: on this machine
     // the Metal build has a published digest and there is no MacArm64 CPU

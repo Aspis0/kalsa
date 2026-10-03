@@ -142,9 +142,15 @@ pub(crate) fn tune_fingerprint(
     let platform = kalsa_runtime::Platform::current()?;
     let detected = machine.measurement.will_run_on;
     let engine = |backend: ServerBackend| kalsa_runtime::fingerprint(platform, backend, detected);
+    // The key carries the PER-SLOT window, not the launch's total: the engine
+    // divides `--ctx-size` by `--parallel`, so the per-slot number is the
+    // shape a candidate is measured at, and a seat more — a phone paired — is
+    // not a different shape. `kalsa_launch::plan` builds the total as
+    // `per_slot * slots`, so this division is exact.
+    let per_slot = info.args.context_tokens / u64::from(info.args.parallel.max(1));
     Some(kalsa_tune::fingerprint(
         info.model_sha256.as_deref()?,
-        info.args.context_tokens,
+        per_slot,
         cores.0,
         cores.1,
         (&engine(main), &engine(ServerBackend::Cpu)),
