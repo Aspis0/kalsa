@@ -1,0 +1,14 @@
+  mWakefulness=Awake
+      showing=false
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 82
+  temperature: 394
+Thermal Status: 2
+0
+0
+    topResumedActivity=ActivityRecord{60259969 u0 com.samsung.android.dialer/.DialtactsActivity t149}
+    versionName=0.1.0
+    lastUpdateTime=2026-10-02 18:13:29

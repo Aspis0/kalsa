@@ -1,0 +1,6 @@
+  mWakefulness=Awake
+  level: 82
+  temperature: 405
+Thermal Status: 2
+	Temperature{mValue=41.1, mType=3, mName=SKIN, mStatus=2}
+	Temperature{mValue=40.5, mType=2, mName=BAT, mStatus=0}

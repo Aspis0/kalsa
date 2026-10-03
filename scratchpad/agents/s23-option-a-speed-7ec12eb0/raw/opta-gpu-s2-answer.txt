@@ -1,0 +1,9 @@
+LFM2.5 2.6B
+Su questo telefono
+Describe in your own words what happens to a phone's battery percentage reading when the device is used heavily on a hot day, and why the operating system may throttle the processor. Answer in exactly three short sentences, with no lists, no headings, and no jargon beyond what a typical phone user would know.
+Copia
+Thinking
+Mostra il pensiero ▼
+Quando usi il telefono molto in una giornata calda, la batteria mostra una percentuale che scende più velocemente. Il sistema ralenta il processore per evitare che il telefono si surriscaldi troppo. Questo rallentamento protegge le parti interne e prolunga la durata della carica.
+Copia
+Leggi ad alta voce

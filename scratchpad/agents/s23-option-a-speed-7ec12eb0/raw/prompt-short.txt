@@ -1,0 +1,1 @@
+Describe in your own words what happens to a phone's battery percentage reading when the device is used heavily on a hot day, and why the operating system may throttle the processor. Answer in exactly three short sentences, with no lists, no headings, and no jargon beyond what a typical phone user would know.

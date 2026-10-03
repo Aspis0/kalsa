@@ -1,0 +1,9 @@
+LFM2.5 2.6B
+Su questo telefono
+Describe in your own words what happens to a phone's battery percentage reading when the device is used heavily on a hot day, and why the operating system may throttle the processor. Answer in exactly three short sentences, with no lists, no headings, and no jargon beyond what a typical phone user would know.
+Copia
+Thinking
+Mostra il pensiero ▼
+When you use your phone a lot on a hot day, the battery percentage shows a lower number because the phone is working harder to keep itself cool. The phone also slows down some tasks to protect important functions from overheating. This combination helps keep the device from shutting down or getting damaged by extreme heat.
+Copia
+Leggi ad alta voce

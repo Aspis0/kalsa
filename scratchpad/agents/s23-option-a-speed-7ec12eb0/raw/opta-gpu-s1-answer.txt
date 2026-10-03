@@ -1,0 +1,9 @@
+LFM2.5 2.6B
+Su questo telefono
+Describe in your own words what happens to a phone's battery percentage reading when the device is used heavily on a hot day, and why the operating system may throttle the processor. Answer in exactly three short sentences, with no lists, no headings, and no jargon beyond what a typical phone user would know.
+Copia
+Thinking
+Mostra il pensiero ▼
+When you use your phone a lot on a hot day, the battery drains quickly and the screen might seem to lose charge faster than usual. To protect the battery from overheating, the phone's operating system slows down the processor automatically. This helps keep the device running smoothly while preventing the battery from overheating or dying too fast.
+Copia
+Leggi ad alta voce

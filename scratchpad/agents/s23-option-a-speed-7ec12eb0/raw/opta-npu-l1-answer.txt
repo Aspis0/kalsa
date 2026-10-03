@@ -1,0 +1,8 @@
+LFM2.5 2.6B
+Su questo telefono
+Copia
+Thinking
+Mostra il pensiero ▼
+Smartphones store energy in lithium‑ion cells that perform best between 15 °C and 40 °C, where voltage sag and capacity loss are minimized. Heat is the main limitation because the phone has no fan and must keep its surface below about 43 °C, causing the OS to throttle cores when temperature rises. The system‑on‑chip combines four performance cores, four efficiency cores, a GPU with hundreds of ALUs, and a DSP optimized for quantized integer arithmetic, each handling different parts of the neural network. Memory bandwidth becomes the bottleneck because quantized models require streaming billions of parameters from RAM, and the fastest engines are often limited by how quickly data can be delivered. The dominant factor is the thermal ceiling that caps sustained on‑device inference on a passively cooled phone.
+Copia
+Leggi ad alta voce

@@ -1,0 +1,8 @@
+LFM2.5 2.6B
+Su questo telefono
+Copia
+Thinking
+Mostra il pensiero ▼
+Lithium-ion cells in modern phones store energy via lithium-ion chemistry and require careful thermal management to maintain voltage and capacity. The phone's thermal design limits how fast cores can run, forcing the OS to throttle when the silicon approaches skin temperature. A system-on-chip combines four performance cores, four efficiency cores, a graphics processor with many ALUs, and a digital signal processor for specialized arithmetic. Memory bandwidth becomes the other limiting factor because moving quantized model weights across the RAM-to-engine path can become the bottleneck. The dominant factor is the phone's thermal ceiling.
+Copia
+Leggi ad alta voce

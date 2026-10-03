@@ -1,0 +1,9 @@
+  mWakefulness=Awake
+      showing=false
+  level: 91
+  temperature: 334
+Thermal Status: 0
+	Temperature{mValue=34.9, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=34.4, mType=2, mName=BAT, mStatus=0}
+traced=0
+low_power=0

@@ -1,0 +1,8 @@
+label	prompt	thermal_state	plat_thermal	lvl	temp_pre_c	tmax_c	chunks	actual_counts	layers_counts	engine_prefill	prefill_kv	cache_k	cache_v	attempt	failed	prefill_tok_s	prompt_n	n_common	decode_tok_s	npu_device	tokens_predicted	interrupted
+opta-gpu-s1	short	FAST	0	91	34.4	37.4	6	gpux6	GPUOpenCLx6	GPU	device	q8_0	q4_0	1	false	116.7	1735	0	10.694112753061088	null	574	false
+opta-gpu-s2	short	COOLMODE	2	87	39.7	41.0	15	gpux15	GPUOpenCLx15	GPU	device	q8_0	q4_0	1	false	105.3	1735	0	10.128204895143215	null	546	false
+opta-npu-l1	long	WARM	1	88	38.3	40.2	11	gpux11	HTP0x11	GPU	device	q8_0	q8_0	1	false	662.4	3145	0	9.253738568732494	HTP0	674	false
+opta-npu-l2	long	FAST	1	85	37.5	40.7	11	gpux11	HTP0x11	NPU	device	q8_0	q8_0	1	false	660.4	3145	0	8.940922199565698	HTP0	626	false
+opta-npu-s1	short	FAST	0	93	29.6	32.9	6	gpux6	HTP0x6	NPU	device	q8_0	q8_0	1	false	706.7	1735	0	11.101716359047405	HTP0	593	false
+opta-npu-s2	short	FAST	0	90	36.0	37.4	6	gpux6	HTP0x6	NPU	device	q8_0	q8_0	1	false	709.0	1735	0	10.576233534220272	HTP0	493	false
+opta-npu-s3	short	FAST	1	83	37.4	39.1	6	gpux6	HTP0x6	NPU	device	q8_0	q8_0	1	false	706.6	1735	0	9.89196307794986	HTP0	581	false

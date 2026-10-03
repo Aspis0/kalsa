@@ -1,0 +1,3 @@
+    topResumedActivity=ActivityRecord{127815138 u0 com.kalsa.app/.MainActivity t177}
+  mWakefulness=Awake
+10-02 20:18:40.205 30491 30517 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4518.12,"required_mib_without_repack":2998.06,"available_mib":4360.43,"bench_norepack_forced":null,"npu_device":null,"npu_fallback":null,"npu_lane":"off","npu_fit":"Fit","available_src":"fresh"}
