@@ -8,9 +8,15 @@
 //! here ever uploads anything, and nothing here may stop the app: a folder
 //! that cannot be opened or written degrades to stderr for the whole run.
 //!
-//! Every message passes through one redaction before it is written, so a
-//! path that starts with the user's home directory is logged with `~` in
-//! its place — in the file and on stderr alike.
+//! Every message passes through one redaction before it is written — in
+//! the file and on stderr alike: a path that starts with the user's home
+//! directory is logged with `~` in its place, a signed URL loses its
+//! query, and an IP literal that is not loopback (this machine's own
+//! address, a peer's, a relay's) becomes `<addr>`.
+//!
+//! The crates that log per packet (the iroh stack and the tracing mirror
+//! over it) are held at WARN: their INFO is not the app's story, it is
+//! every datagram sent with the peer's address in the line.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -208,9 +214,37 @@ impl Sink {
     }
 }
 
+/// Crate roots whose INFO is not the app's story. The iroh stack logs
+/// every datagram it sends (`poll_send`) with the peer's address in the
+/// line — through the QUIC layer beneath it — and the tracing mirror under
+/// both adds a record per span; together they filled ~98% of one
+/// reporter's log. What a report wants from these crates is their WARN: a
+/// relay that would not connect.
+const QUIET_BELOW_WARN: &[&str] = &[
+    "iroh",
+    "iroh_relay",
+    "noq",
+    "noq_proto",
+    "noq_udp",
+    "netwatch",
+    "portmapper",
+    "tracing",
+];
+
+/// Whether one record is the quiet crates' below-warn chatter. INFO is the
+/// deepest level this sink writes, so that is the level refused here; the
+/// crate ROOT decides, so `iroh::socket` and `iroh_relay::client` are both
+/// covered without silencing a name that merely starts with the same
+/// letters.
+fn quiet_below_warn(target: &str, level: Level) -> bool {
+    level == Level::Info
+        && QUIET_BELOW_WARN.contains(&target.split("::").next().unwrap_or(target))
+}
+
 impl Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
         metadata.level() <= Level::Info
+            && !quiet_below_warn(metadata.target(), metadata.level())
     }
 
     fn log(&self, record: &Record) {
@@ -543,19 +577,17 @@ fn extends_name(c: char) -> bool {
     c.is_alphanumeric() || matches!(c, '_' | '-' | '.')
 }
 
-/// The one redaction, in three passes over the message: the temp-folder
-/// tree first (it contains the user's name in its own structure), then the
-/// home directory as a whole path, then the account name where it stands as
-/// a path component of its own.
+/// The one redaction, in passes over the message: the URL query first (a
+/// signed query can carry the very path and name the later passes redact),
+/// then the temp tree, the home directory, the account name as a path
+/// component, and the IP literals last.
 fn redact(message: &str, r: &Redactions) -> String {
     let chars: Vec<char> = message.chars().collect();
-    // The URL pass first: a signed query can carry the very path and name
-    // the later passes would redact, and a shorter URL is easier for them
-    // to reason over besides.
     let chars = redact_urls(&chars);
     let chars = redact_tmp(&chars);
     let chars = redact_path(&chars, r);
-    redact_component(&chars, r).into_iter().collect()
+    let chars = redact_component(&chars, r);
+    redact_addresses(&chars).into_iter().collect()
 }
 
 /// Characters that end a URL printed inside free text: whitespace, or a
@@ -714,6 +746,175 @@ fn redact_component(text: &[char], r: &Redactions) -> Vec<char> {
         }
     }
     out
+}
+
+/// IP literals that name this machine or the peers it talks to become
+/// `<addr>`: a report is read by the person who was given it, and the
+/// address a laptop dials from is none of their business. Loopback stays —
+/// it names this computer to itself, which is what the report is read for —
+/// and a port beside a literal stays too, so a line still says where Kalsa
+/// listened.
+fn redact_addresses(text: &[char]) -> Vec<char> {
+    let mut out = Vec::with_capacity(text.len());
+    let mut at = 0;
+    while at < text.len() {
+        let found = starts_literal(text, at)
+            .then(|| ipv4_at(text, at).or_else(|| ipv6_at(text, at)))
+            .flatten();
+        match found {
+            Some(end) => {
+                let literal: String = text[at..end].iter().collect();
+                if is_loopback(&literal) {
+                    out.extend(text[at..end].iter().copied());
+                } else {
+                    out.extend("<addr>".chars());
+                }
+                at = end;
+            }
+            None => {
+                out.push(text[at]);
+                at += 1;
+            }
+        }
+    }
+    out
+}
+
+/// Where a literal may begin: the character before it must not be part of a
+/// name or of a longer dotted run, or a version's tail (`1.2.3.4.5` holds
+/// no address) would be taken for one. A colon before it is allowed —
+/// `peer:fe80::1` is how a line names a peer — unless that colon closes a
+/// hex group too, so the tail of a longer fingerprint is not an address.
+fn starts_literal(text: &[char], at: usize) -> bool {
+    match at.checked_sub(1).and_then(|before| text.get(before)) {
+        None => true,
+        Some(':') => at
+            .checked_sub(2)
+            .and_then(|before| text.get(before))
+            .is_none_or(|c| !(c.is_ascii_hexdigit() || matches!(c, ':' | '.'))),
+        Some(c) => !(c.is_ascii_alphanumeric() || matches!(c, '.' | '%' | '_')),
+    }
+}
+
+/// Whether a literal is loopback, any zone behind `%` ignored. The standard
+/// parser is the authority here; a literal it refuses is redacted.
+fn is_loopback(literal: &str) -> bool {
+    literal
+        .split('%')
+        .next()
+        .and_then(|addr| addr.parse::<std::net::IpAddr>().ok())
+        .is_some_and(|addr| addr.is_loopback())
+}
+
+/// An IPv4 literal at `at`, or `None`: four dotted decimal octets of one to
+/// three digits, no leading zero and none above 255 — so `1.2.3.4` is an
+/// address and `10.0.19045.4046` is a version. A fifth group or a decimal
+/// tail behind it is a longer run, not an address.
+fn ipv4_at(text: &[char], at: usize) -> Option<usize> {
+    let mut cursor = at;
+    for group in 0..4 {
+        let octet_start = cursor;
+        let mut octet = 0u32;
+        while let Some(digit) = text.get(cursor).and_then(|c| c.to_digit(10)) {
+            if cursor - octet_start == 3 {
+                // A fourth digit is not an octet, whatever it spells; the
+                // run is refused before the arithmetic can overflow on it.
+                return None;
+            }
+            octet = octet * 10 + digit;
+            cursor += 1;
+        }
+        let digits = cursor - octet_start;
+        if digits == 0 || octet > 255 {
+            return None;
+        }
+        if digits > 1 && text[octet_start] == '0' {
+            return None;
+        }
+        if group < 3 {
+            if text.get(cursor) != Some(&'.') {
+                return None;
+            }
+            cursor += 1;
+        }
+    }
+    match text.get(cursor) {
+        Some(c) if c.is_ascii_digit() || *c == '.' => None,
+        _ => Some(cursor),
+    }
+}
+
+/// An IPv6 literal at `at`, or `None`: groups of one to four hex digits
+/// joined by single colons, at most one `::` standing for the groups left
+/// out, an optional zone behind `%`, and the dotted tail of a mapped
+/// address. Without a `::` all eight groups are required, so a clock time
+/// (`10:17:57`) is not an address; a lone `::` is not one either — every
+/// Rust path in a log carries one.
+fn ipv6_at(text: &[char], at: usize) -> Option<usize> {
+    let mut cursor = at;
+    let mut groups = 0usize;
+    let mut compressed = false;
+    if text.get(cursor) == Some(&':') {
+        if text.get(cursor + 1) != Some(&':') {
+            return None;
+        }
+        compressed = true;
+        cursor += 2;
+    }
+    loop {
+        let group_start = cursor;
+        while text.get(cursor).is_some_and(|c| c.is_ascii_hexdigit()) {
+            cursor += 1;
+        }
+        if cursor == group_start || cursor - group_start > 4 {
+            // The `::` already taken is the only empty group there is: a
+            // second one, or a trailing colon, is not an address.
+            return None;
+        }
+        if text.get(cursor) == Some(&'.') {
+            // The dotted tail of a mapped address (`::ffff:10.0.0.7`): it
+            // is redacted with the address it maps, as two groups.
+            cursor = ipv4_at(text, group_start)?;
+            groups += 2;
+            break;
+        }
+        groups += 1;
+        if groups > 8 {
+            // More than the eight a full address has: not an address, and
+            // the scan stops rather than reading the rest of a digest.
+            return None;
+        }
+        match text.get(cursor) {
+            Some(&':') => {
+                if text.get(cursor + 1) == Some(&':') {
+                    if compressed {
+                        return None;
+                    }
+                    compressed = true;
+                    cursor += 2;
+                } else {
+                    cursor += 1;
+                }
+            }
+            _ => break,
+        }
+    }
+    if text.get(cursor) == Some(&'%') {
+        let zone = cursor + 1;
+        let mut end = zone;
+        while text
+            .get(end)
+            .is_some_and(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-'))
+        {
+            end += 1;
+        }
+        if end == zone {
+            return None;
+        }
+        cursor = end;
+    }
+    let complete = if compressed { groups < 8 } else { groups == 8 };
+    (complete && groups > 0).then_some(cursor)
 }
 
 /// One line as it will be written: never longer than [`LINE_CHAR_CAP`]

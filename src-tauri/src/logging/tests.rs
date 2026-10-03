@@ -164,6 +164,107 @@ fn the_per_user_temp_tree_becomes_tmp() {
     }
 }
 
+/// The addresses a report must not carry: this machine's LAN IPv4 and a
+/// peer's global IPv6, in the compressed, zoned and bracketed-with-port
+/// shapes a line prints them. Loopback stays — it names this computer to
+/// itself — and so do the version-shaped numbers the session header is
+/// made of, which a looser redactor would eat.
+#[test]
+fn the_machine_addresses_are_redacted_and_loopback_and_versions_survive() {
+    let redactions = Redactions::new(None, None, false);
+    let line = "peer=192.168.1.5 v6=[2001:db8:85a3::8a2e:370:7334]:7842 link=fe80::1c2b:3d4e%en0 mapped=::ffff:10.0.0.7 door=127.0.0.1:8131 self=::1";
+    let redacted = redact(line, &redactions);
+    for gone in [
+        "192.168.1.5",
+        "2001:db8:85a3::8a2e:370:7334",
+        "fe80::1c2b:3d4e",
+        "::ffff:10.0.0.7",
+    ] {
+        assert!(!redacted.contains(gone), "{gone} survived: {redacted}");
+    }
+    assert_eq!(redacted.matches("<addr>").count(), 4, "{redacted}");
+    assert!(redacted.contains("[<addr>]:7842"), "the port stays: {redacted}");
+    assert!(redacted.contains("127.0.0.1:8131"), "{redacted}");
+    assert!(redacted.contains("self=::1"), "{redacted}");
+    let versions = "kalsa-brain 1.1.5 · macos 25.6.0 · windows 10.0.19045 (build 26200.9457)";
+    assert_eq!(redact(versions, &redactions), versions);
+    // A MAC and a clock time are neither of them addresses.
+    let other = "aa:bb:cc:dd:ee:ff at 09:41:05";
+    assert_eq!(redact(other, &redactions), other);
+    // A long numeric run is not an address, and reading it must not
+    // overflow: digests and hashes are long runs of them.
+    let digest = "digest 0123456789012345678901234567890123456789";
+    assert_eq!(redact(digest, &redactions), digest);
+    // Nor is a colon-separated fingerprint, whose tail holds eight
+    // groups that would otherwise read as one.
+    let fingerprint = "fp 00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff";
+    assert_eq!(redact(fingerprint, &redactions), fingerprint);
+    // A literal right behind a label's colon is still an address.
+    let labelled = redact("peer:fe80::1", &redactions);
+    assert_eq!(labelled, "peer:<addr>");
+}
+
+/// The sink enforces the rule, not the caller: a message carrying this
+/// machine's LAN address and a peer's global IPv6 reaches the file with
+/// neither, and the loopback door beside them is still legible.
+#[test]
+fn a_line_through_the_sink_carries_no_address_but_loopback() {
+    let dir = scratch("addresses");
+    let sink = Sink::open(&dir, CAP_BYTES);
+    logged(
+        &sink,
+        "peer 192.168.1.5 answered from 2001:db8::5; this door is 127.0.0.1:8131",
+    );
+    let line = &live_lines(&dir)[0];
+    assert!(!line.contains("192.168.1.5"), "{line}");
+    assert!(!line.contains("2001:db8::5"), "{line}");
+    assert!(line.contains("127.0.0.1:8131"), "{line}");
+    assert_eq!(line.matches("<addr>").count(), 2, "{line}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// The crates that log per packet are held at WARN: their INFO — the
+/// datagram lines with a peer's address on them, the mirror's span
+/// records — never reaches the file, while their WARN and the app's own
+/// crates' INFO do. The crate ROOT decides, so `kalsa_iroh` is not caught
+/// by the `iroh` entry.
+#[test]
+fn the_flooding_crates_are_quiet_below_warn_through_the_logger() {
+    let dir = scratch("quiet");
+    let logger = Logger {
+        sink: std::sync::Arc::new(Sink::open(&dir, CAP_BYTES)),
+    };
+    for (level, target, message) in [
+        (Level::Info, "iroh::socket::transports", "poll_send; remote=192.168.1.5:7842"),
+        (Level::Info, "tracing::span", "portmapper.service;"),
+        (Level::Info, "netwatch::actor", "route change"),
+        (Level::Info, "noq_proto::connection", "packet received"),
+        (Level::Info, "kalsa_iroh::transport", "the road is open"),
+        (
+            Level::Warn,
+            "iroh::socket::transports::relay::actor",
+            "Lost connection to relay server: Ping timeout",
+        ),
+        (Level::Info, "kalsa_brain::report", "sending the log report"),
+    ] {
+        logger.log(
+            &Record::builder()
+                .level(level)
+                .target(target)
+                .args(format_args!("{message}"))
+                .build(),
+        );
+    }
+    let joined = live_lines(&dir).join("\n");
+    for quiet in ["poll_send", "portmapper.service;", "route change", "packet received"] {
+        assert!(!joined.contains(quiet), "{quiet} reached the file: {joined}");
+    }
+    assert!(joined.contains("the road is open"), "{joined}");
+    assert!(joined.contains("Lost connection to relay server"), "{joined}");
+    assert!(joined.contains("sending the log report"), "{joined}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 /// A line past [`LINE_CHAR_CAP`] characters is cut at the cap with the
 /// marker behind it, so one runaway message cannot eat the file cap.
 #[test]
