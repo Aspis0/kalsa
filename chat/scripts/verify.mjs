@@ -1454,8 +1454,10 @@ const tests = {
       { timeout: 20000 },
     );
     const body = await lastBody(page);
-    const sys = (body?.messages ?? []).find((m) => m.role === "system");
-    check("attachtxt: wire has pinned block", (sys?.content ?? "").includes("Report body.") && (sys?.content ?? "").includes("report.txt"));
+    const pinned = (body?.messages ?? []).find(
+      (m) => m.role === "system" && (m.content ?? "").includes("Attached documents"),
+    );
+    check("attachtxt: wire has pinned block", (pinned?.content ?? "").includes("Report body.") && (pinned?.content ?? "").includes("report.txt"));
     await browser.close();
   },
 
@@ -2142,8 +2144,8 @@ const tests = {
     const banner = page.locator(".refusal-banner");
     check("refusefit: refusal shown", (await banner.count()) === 1);
     const text = ((await banner.count()) === 1 ? await banner.textContent() : null) ?? "";
-    // 1194 chars -> 299 tokens; 299 + 0 + 512 reserve = 811 > 256.
-    check("refusefit: real numbers", text.includes("256") && text.includes("811"), text.slice(0, 120));
+    // 1194 chars -> 299 tokens; 299 + 78 prompt + 0 docs + 512 reserve = 889 > 256.
+    check("refusefit: real numbers", text.includes("256") && text.includes("889"), text.slice(0, 120));
     check("refusefit: never attached", (await page.locator(".panel-row").count()) === 0);
     await shot(page, "shots/62-refusal.png");
     await browser.close();
@@ -2173,16 +2175,17 @@ const tests = {
   },
 
   // Tight context: old turns drop from the wire, the document stays.
-  // Exact arithmetic (estTokens = ceil(chars/4)):
-  // attach: doc 100 + hist 377 + 512 reserve = 989 <= 1024.
-  // send:   doc 100 + hist 477 + 512 reserve = 1089 > 1024 -> prune 3.
+  // Exact arithmetic (estTokens = ceil(chars/4), plus the prompt's 78 and
+  // the 1 every message pays for its empty reasoning):
+  // attach: doc 100 + hist 325 + prompt 78 + 512 reserve = 1015 <= 1024.
+  // send:   doc 100 + hist 425 + prompt 78 + 512 reserve = 1115 > 1024 -> prune 4.
   async prunekeep() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     const messages = [];
     for (let i = 0; i < 13; i++) {
       const tag = `Q${String(i).padStart(2, "0")}`;
-      messages.push({ id: `u${i}`, role: "user", content: `${tag} ${"q".repeat(112)}`, createdAt: i });
+      messages.push({ id: `u${i}`, role: "user", content: `${tag} ${"q".repeat(90)}`, createdAt: i });
     }
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
@@ -2242,8 +2245,8 @@ const tests = {
   },
 
   // Growth after attaching can still overflow: the send is refused aloud.
-  // Exact arithmetic: doc 500 + newest 25 + 512 reserve = 1037 > 1024,
-  // while attach time (500 + 0 + 512 = 1012) fit.
+  // Exact arithmetic: doc 420 + prompt 78 + newest 26 + 512 reserve = 1036
+  // > 1024, while attach time (420 + 78 + 512 = 1010) fit.
   async oversizesend() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -2253,7 +2256,7 @@ const tests = {
     await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator('.composer input[type="file"]').setInputFiles([
-      { name: "anchor.txt", mimeType: "text/plain", buffer: Buffer.from(`ANCHOR ${"n".repeat(1993)}`) },
+      { name: "anchor.txt", mimeType: "text/plain", buffer: Buffer.from(`ANCHOR ${"n".repeat(1673)}`) },
     ]);
     await page.waitForTimeout(1500);
     check("oversizesend: attached first", ((await page.locator(".panel-list").textContent()) ?? "").includes("anchor.txt"));

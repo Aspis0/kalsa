@@ -273,6 +273,35 @@ export async function extractAttachment(file: File): Promise<Attachment> {
   };
 }
 
+/**
+ * The one system message every request carries, first in the wire. Fixed on
+ * purpose: the engine caches the prompt's prefix, so a byte that moves between
+ * turns (a date, a model name, a count) would re-prefill the conversation. It
+ * answers the two questions a model left to guess gets wrong — what it can
+ * receive, and what it may claim — and it is the same words in every language:
+ * the wire language is English whatever the interface speaks.
+ */
+export const SYSTEM_PROMPT: WireMessage = {
+  role: "system",
+  content:
+    "You are Kalsa, a private assistant running on this computer. " +
+    "You cannot see images, audio or video. " +
+    "Attached files reach you as plain text in a message; if no text is there, " +
+    "no file reached you. " +
+    "Use only the tools you are given; never claim an ability you do not have. " +
+    "Reply in the language the user writes in.",
+};
+
+/** What the fixed prompt costs the window: every request pays it, so the fit
+    and the meter count it too. */
+export const SYSTEM_PROMPT_TOKENS = estTokens(SYSTEM_PROMPT.content);
+
+/** What the wire spends on a conversation: the stored messages plus the fixed
+    system prompt — the whole of it that is not documents. */
+export function wireTokens(messages: ChatMessage[]): number {
+  return historyTokens(messages) + SYSTEM_PROMPT_TOKENS;
+}
+
 function docBlockFor(docs: Attachment[]): WireMessage {
   const parts = docs.map(
     (d) =>
@@ -332,9 +361,10 @@ export type PinnedContext =
   | { status: "refused"; need: number; have: number; docTokens: number; historyTokens: number };
 
 /**
- * Assemble what is actually sent: the pinned documents first (they are never
- * pruned), then turns newest-kept — oldest turns drop first when the known
- * context fills. With unknown size nothing is pruned or refused.
+ * Assemble what is actually sent: the fixed system prompt first, then the
+ * pinned documents (they are never pruned), then turns newest-kept — oldest
+ * turns drop first when the known context fills. With unknown size nothing is
+ * pruned or refused.
  */
 export function buildPinnedContext(
   messages: ChatMessage[],
@@ -344,7 +374,7 @@ export function buildPinnedContext(
   const actives = docs.filter((d) => d.active);
   const docTokens = actives.reduce((sum, d) => sum + d.tokens, 0);
   const turns = [...messages];
-  let histTokens = historyTokens(turns);
+  let histTokens = wireTokens(turns);
   let dropped = 0;
   if (nctx !== null) {
     while (docTokens + histTokens + CONTEXT_RESERVE_TOKENS > nctx && turns.length > 1) {
@@ -361,5 +391,6 @@ export function buildPinnedContext(
   }
   const wire = turns.flatMap(wireFor);
   if (actives.length > 0) wire.unshift(docBlockFor(actives));
+  wire.unshift(SYSTEM_PROMPT);
   return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
 }

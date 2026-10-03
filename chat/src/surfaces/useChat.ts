@@ -16,7 +16,7 @@ import { loadThinking, saveThinking, thinkingSupport } from "../lib/thinking";
 import type { ChatSettings, Conversation, ConversationMeta } from "../lib/types";
 import type { FailedState } from "../components/Thread";
 import type { Attachment } from "../lib/attachments";
-import { AttachmentError, buildPinnedContext, extractAttachment, historyTokens } from "../lib/attachments";
+import { AttachmentError, buildPinnedContext, extractAttachment, wireTokens } from "../lib/attachments";
 import { filesRead } from "../lib/files";
 import type { SurfaceKey } from "../app/surfaces";
 import { arrivingIn, handoff, leavingGhost } from "../app/handoff";
@@ -223,7 +223,7 @@ export function useChat(shell: ChatShell) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations, activeId, live]);
 
-  const convoTokens = useMemo(() => historyTokens(active?.messages ?? []), [active]);
+  const convoTokens = useMemo(() => wireTokens(active?.messages ?? []), [active]);
 
   const tails = useMemo(() => {
     const out: Record<string, string> = {};
