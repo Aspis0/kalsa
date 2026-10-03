@@ -1077,6 +1077,14 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   prebuild byte-identical. Tailscale road needs no app change (HTTPS door/desk, ATS default OK). NOT verified:
   end-to-end pairing/chat with a Brain (asked kalsa-brain d4e57ba1 how to pair the sim with this Mac's Brain), and
   anything on a physical iPhone (Tailscale VPN, Local Network prompt, NAT, suspension).
+  **iOS 2026-10-02 night:** (1) owner "accendi tutto" (governor + npu_lane default ON, 1d714246 2a079bd2) left a
+  SECOND unguarded `n_gpu_layers = 0` in LlamaService -> every default iOS load ran 0/31 on CPU (M1 Max, Run 4).
+  Fixed on app main `c7bee6db` (both sites Android-only, scope test checks every site): 31/31 on Metal. (2) Pairing:
+  Marco's invite (v3, reachable 127.0.0.1, node, no tailnet) refused on the sim BEFORE the claim (code not consumed)
+  by the phone's "set your computer's address" gate - same on Android (`ios-desktop-link/PAIRING-VALIDATE-DIAG.md`).
+  Desktop contract (kalsa-brain d4e57ba1): an invite with `node` must pair with no door address, via iroh; keep the
+  gate only for node-less invites. Fix on iOS+Android delegated (GLM f4537e6b). (3) AFM: Apple Intelligence enabled,
+  model still downloading; probe ready (GLM cf5629bf, to be re-prompted when ready).
   **Phone log -> `POST kalsa.io/report` (owner decision 2026-10-02, relayed by kalsa-brain d4e57ba1):** one endpoint
   for desktop and phone (Worker `workers/report/`, app main de52fdf1; header `<version>/android/arm64`; 201 -> 8-char
   id). UX mirrors the desktop: upload only on the tester's press, crash prompt (Send / Not now) after an unclean exit,

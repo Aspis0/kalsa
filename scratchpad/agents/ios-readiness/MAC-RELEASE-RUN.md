@@ -415,3 +415,151 @@ confirmed end to end (compile + link + run + GPU offload).
   `id=<mac-udid>`; worth remembering for campaign scripts.
 - Stale LaunchServices leftovers: the half-deleted old wrapper dir (system-managed) and my
   `lsregister -f` of the /tmp bundle (harmless; the installed record won every lookup).
+
+---
+
+# Run 4 (main 2a079bd2, governor default ON) — 2026-10-02, ~22:15–23:50 autonomous
+
+Scope: prove a DEFAULT iOS load still offloads to Metal on app main `2a079bd2` (governor flag
+defaults ON, npu_lane defaults "auto", the `n_gpu_layers = 0` CPU fallback scoped to Android).
+Fresh local branch `ios/verify` at `origin/main` `2a079bd2` in `~/Projects/kalsa-ios`. Worked
+headless the whole run (caffeinate up; the AppleScript/open recipes worked on the locked session;
+nothing needed the desktop). Nothing pushed, nothing committed anywhere.
+
+## Verdict in one line
+
+**FAIL on shipped 2a079bd2 — PASS after a one-site fix (left uncommitted for review).** The first
+default load offloaded **0/31 layers** (CPU) on an M1 Max with Metal fully available:
+`LlamaService` carried a SECOND, unscoped copy of the "governor enabled but not loaded →
+`n_gpu_layers = 0`" zero — 2a079bd2 scoped the first copy to Android and missed this one. With the
+flag defaulting ON and `governorLoad` always null on iOS, every default iOS load dropped to CPU.
+After guarding the second site with the same `Platform.OS === "android"` check, the default load
+offloads **31/31 layers to Metal**. AsyncStorage held no `kalsa.governor.enabled` and no npu_lane
+pref before and after (defaults only).
+
+## Verification gates (all real exit codes, node 22)
+
+| step | exit | note |
+|---|---|---|
+| `git fetch origin` + `git switch -C ios/verify origin/main` | 0 | `2a079bd2` tip verified |
+| `npm ci` | **0** | /tmp/kalsa4-npmci.log |
+| `bash scripts/assert-engine-provenance.sh` | **0** | 1154 files @ `kalsa.rn@6b87db16`, engine `5b596ce` == pin |
+| `npx expo prebuild --platform ios --clean` | **0** | /tmp/kalsa4-prebuild.log |
+| `pod install` (explicit) | **0** | 1× LLAMA_RN_CXX20, 1× KALSA_EXCLUDED_ARCHS_X86_64 |
+| xcodebuild Release, `id=00006001-001828DC029A801E` | **0**, BUILD SUCCEEDED | /tmp/kalsa4-macrelease.log, TeamIdentifier=MH9XLJ79Q9, `codesign --verify --deep --strict` EXIT=0 |
+| `npx tsc --noEmit` (after fix) | **0** | /tmp/kalsa4-tsc.log |
+| targeted jest, 4 engine suites (after fix) | **0**, 66/66 | LlamaService, engineParams, governorRuntime, governorPlanLog |
+
+Run-3 deltas re-applied after `--clean` (all gitignored): `ios/.xcode.env.local`
+(node@22), scheme LaunchAction → Release, `DEVELOPMENT_TEAM = MH9XLJ79Q9` in both app-target
+configs, `KalsaAIChat.entitlements` emptied to `<dict/>` (backup of the regenerated version at
+`/tmp/kalsa4-entitlements-backup.plist`; CLI builds used `CODE_SIGN_ENTITLEMENTS=/tmp/kalsa-mac-entitlements.plist`).
+
+## The trap of this run: Xcode auto-picked the SIMULATOR as run destination
+
+`prebuild --clean` wipes xcuserdata, so after `killall -9 Xcode` + reopen + `run workspace
+document 1` Xcode chose the booted iPhone 18 Pro simulator: the 22:45 activity log reads
+"Destination iPhone 18 Pro | SDK Simulator", and the Mac `.XCInstall` wrapper kept its 16:13
+Run-3 mtimes — the Mac app was NOT reinstalled by that run. **Always verify the destination line
+of the newest `Logs/Build/*.xcactivitylog` (gunzip + grep).** `simctl shutdown all` was NOT
+enough (Xcode boots a sim on demand). What worked headlessly:
+`set active run destination of workspace document 1 to run destination "My Mac (Designed for
+iPad)" of workspace document 1` — the property is write-only (reading it errors -1728; the set
+returns 0). The 23:05 and 23:20 builds then read "Destination My Mac (Designed for iPad) |
+SDK iOS 27.0". (`xcrun simctl launch --stderr F` also does not exist in Xcode 27 — only
+`--console-pty`.)
+
+## Install identity (hashes)
+
+- Installed wrapper (fresh UUIDs `0C44F1C2-…` pre-fix, `B7E44F1E-…` post-fix under
+  `/private/var/folders/7v/…/X/`) md5 == the Xcode product of the same build, binary and
+  main.jsbundle, byte-for-byte.
+- Pre-fix build: binary `8879600a…`, jsbundle `0d4e0de7…` — differs from Run 3's wrapper
+  (`087614c6…`/`3cdfcab3…`, hashed before it was overwritten) and from this run's CLI build
+  (`2f52faa0…`/`897fca0c…`; Xcode embeds its own paths). Not an older install.
+- Post-fix build: binary `2bcbd5dc…`, jsbundle `2ca7f262…`, installed == product.
+
+## The failure — pre-fix default load (/tmp/kalsa4-final-stderr.log:130-131)
+
+```
+:130 load_tensors: offloading 0 repeating layers to GPU
+:131 load_tensors: offloaded 0/31 layers to GPU
+```
+
+with `:10 GPU name: MTL0 (Apple M1 Max)` and `:20 recommendedMaxWorkingSetSize = 55662.79 MB`
+present — Metal was fine; the JS side requested 0. Root cause (src/engine/LlamaService.ts as
+shipped at 2a079bd2): the zero at the FIRST site was Android-scoped by 2a079bd2 (its comment even
+says "Not iOS: … this would silently drop every iOS load to CPU"), but a second copy ~20 lines
+below (`if (governorFeatureEnabled && !governorLoad) { params.n_gpu_layers = 0; }` right after
+`applyEngineOverride`) was left unscoped. On iOS `governorLoad` is always null, so the plain
+`initLlama(params)` path carried the zero.
+
+Fix (UNCOMMITTED, `src/engine/LlamaService.ts`, +8/−1): the second site gets the same
+`Platform.OS === "android"` guard as the first. tsc 0, 66/66 targeted jest.
+
+## The pass — post-fix default load (/tmp/kalsa4-final2-stderr.log:10-20,67,130-134)
+
+```
+:10  ggml_metal_device_init: GPU name:   MTL0 (Apple M1 Max)
+:15  ggml_metal_device_init: has unified memory    = true
+:20  ggml_metal_device_init: recommendedMaxWorkingSetSize  = 55662.79 MB
+:67  llama_prepare_model_devices: using device MTL0 (Apple M1 Max) (unknown id) - 53083 MiB free
+:130 load_tensors: offloading output layer to GPU
+:131 load_tensors: offloading 29 repeating layers to GPU
+:132 load_tensors: offloaded 31/31 layers to GPU
+:133 load_tensors:   CPU_Mapped model buffer size =   205.08 MiB
+:134 load_tensors:  MTL0_Mapped model buffer size =  1512.20 MiB
+```
+
+**31/31 on Metal, default load, no stored prefs.** Governor/plan/fallback JS lines
+(`KALSA_NATIVE_VARIANT`, `KALSA_GOVERNOR_PLAN`) are NOT in the capture: JS `console.log` does not
+reach `open --stderr` in a Release build (same as runs 2/3), and no native governor line fires
+because the governor path is not taken on iOS. The offload lines are the behavioral proof either
+way: pre-fix 0/31 (flag ON zeroing the request), post-fix 31/31. No load-time perf line this run
+(no generation attempted).
+
+## Governor override check (AsyncStorage) — clean, before and after
+
+`~/Library/Containers/1F508ED9-9C94-4040-992C-5340682FACE8/Data/Library/Application
+Support/com.kalsa.app/RCTAsyncLocalStorage_V1/` — manifest keys are only model/session/chat state
+(`kalsa.model.lastGoodId`, `kalsa.session.*`, `kalsa.chat.compactor.*`,
+`kalsa.engine.backend: "local"`, `kalsa.device.bandwidth.v1`); no `kalsa.governor.enabled`, no
+npu_lane/npuLane key anywhere in the container (grep over `Library/`), before any launch and again
+after all runs. The load ran on pure defaults. Nothing deleted.
+
+## Simulator Debug build (CPU expected, recorded)
+
+`xcodebuild -configuration Debug -destination 'generic/platform=iOS Simulator'` exit **0**, BUILD
+SUCCEEDED (/tmp/kalsa4-dd-sim). Fresh install on the iPhone 18 Pro sim (data container
+`5C920FF7-…`), model placed byte-exact (1_593_894_944 B), sim AsyncStorage clean. Debug JS
+console lines do not reach the `--console-pty` capture either (only the engine's native
+`KALSA_KVPREFIX` line lands), so the JS-side requested value is not visible in logs; at the
+engine boundary the load requested **0** and stayed on CPU as expected
+(/tmp/kalsa4-sim-console.log:11,20,132-133):
+
+```
+:11  ggml_metal_device_init: GPU name:   MTL0 (Apple iOS simulator GPU)
+:20  ggml_metal_device_init: recommendedMaxWorkingSetSize  =     0.00 MB
+:132 load_tensors: offloading 0 repeating layers to GPU
+:133 load_tensors: offloaded 0/31 layers to GPU
+```
+
+Warm load 858.10 ms, KV prefix probe ran, app functional. Metro note: the Debug app probes port
+8081 (connection-refused lines in the sim log), but expo's Debug scheme embeds the bundle, so
+Metro was never actually needed.
+
+## Left in the tree / end state
+
+- `src/engine/LlamaService.ts` — the fix, UNCOMMITTED on local `ios/verify` (nothing added to the
+  index, nothing pushed). Reviewer: the shipped `2a079bd2` still CPU-drops every default iOS load
+  until this is committed and main moves.
+- Regenerated gitignored `ios/` + run-3 deltas as listed above. Build products `/tmp/kalsa4-dd-mac`
+  (Release, Mac destination) and `/tmp/kalsa4-dd-sim` (Debug, simulator); logs `/tmp/kalsa4-*.log`.
+- End state: Mac app instance stopped, simulators shut down, Metro stopped, Xcode closed.
+
+## Open
+
+- The simulator's JS-side request value has no observable log line in this build (why the engine
+  receives 0 there despite the `gpu-metal` mapping is not answerable from logs alone; CPU is the
+  expected sim outcome either way).
+- Decode tok/s and cold-load wall time: not re-measured this run (not asked).
