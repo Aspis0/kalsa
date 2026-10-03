@@ -37,6 +37,7 @@ import {
   checkRoomText,
 } from "./roomBounds";
 import {
+  IROH_MISSING_MESSAGE,
   malformedRoomResponse,
   removedRoomError,
   roomErrorFromResponse,
@@ -126,10 +127,20 @@ export async function roomDoorForCall(
   }
   // The request line names the saved address, or the iroh stand-in for a
   // pairing that saved none — a road this phone may no longer have, which
-  // reads as an unusable door before anything dials.
+  // reads as an unusable door before anything dials. The iroh code maps
+  // to its sentence here: no raw code crosses to a caller.
   const resolved = doorRequestBase(door);
   if (!resolved.ok) {
-    return { ok: false, error: { code: "door_unusable", message: resolved.error } };
+    return {
+      ok: false,
+      error: {
+        code: "door_unusable",
+        message:
+          resolved.error === "remote_brain_iroh_missing"
+            ? IROH_MISSING_MESSAGE
+            : resolved.error,
+      },
+    };
   }
   const gate = remoteUrlGateError(resolved.base);
   if (gate !== null) return { ok: false, error: { code: "door_unusable", message: gate } };

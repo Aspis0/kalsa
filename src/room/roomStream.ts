@@ -17,7 +17,7 @@ import { markPairingRemoved } from "../pairing/pairingCredentialStore";
 import { isPairingStoreDamaged } from "../pairing/pairingMap";
 import { roomDoorForCall } from "./roomApi";
 import { cachedRoomEpoch, forgetRoomEpoch, noteRoomEpoch } from "./roomEpochs";
-import type { RoomError } from "./roomError";
+import { IROH_MISSING_MESSAGE, type RoomError } from "./roomError";
 import { backoffDelayMs } from "./roomBackoff";
 import { createRoomFrameDispatch, type RoomFrameEvent } from "./roomStreamDispatch";
 import { flushRoomQueue } from "./roomQueue";
@@ -56,6 +56,10 @@ export type RoomStreamEvent =
   /** The open wire ended — the door cut it or the transport failed — and
    *  a reconnect follows; the UI's cue to say so. */
   | { type: "disconnected" }
+  /** The door can't be dialed at all right now (a doorless pairing whose
+   *  iroh road is gone): the message is user copy, and a reconnect
+   *  follows — the road can come back, so this is not a stop. */
+  | { type: "door_unusable"; message: string }
   /** A terminal stop with no retry behind it. */
   | { type: "error"; code: RoomStreamStopCode; message: string };
 
@@ -137,18 +141,25 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
   };
 
   /** One terminal verdict: 401 (or a record that no longer exists) is
-   *  "removed" — mark, forget the epoch, tell the listener, stop.
-   *  Anything else terminal (an unusable door) stops silently: only the
+   *  "removed" — mark, forget the epoch, tell the listener, stop. A
+   *  doorless door whose iroh road is gone tells the listener why and
+   *  comes back through the backoff (the module load retries, so the
+   *  road can heal); anything else terminal stops silently: only the
    *  room's refusal has a verdict the listener must see. */
   const refuse = (error: RoomError): void => {
-    if (error.code !== "removed") {
+    if (error.code === "removed") {
+      forgetRoomEpoch(roomLocalId);
+      void markPairingRemoved(roomLocalId).catch(() => undefined);
       stop();
+      emit({ type: "removed" });
       return;
     }
-    forgetRoomEpoch(roomLocalId);
-    void markPairingRemoved(roomLocalId).catch(() => undefined);
+    if (error.code === "door_unusable" && error.message === IROH_MISSING_MESSAGE) {
+      emit({ type: "door_unusable", message: error.message });
+      scheduleReconnect();
+      return;
+    }
     stop();
-    emit({ type: "removed" });
   };
 
   const scheduleReconnect = (): void => {

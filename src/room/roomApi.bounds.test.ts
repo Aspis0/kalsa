@@ -5,7 +5,13 @@
  * escape past 16 KiB) and is its own local code, never the server's
  * too_large. Fixture source lines are documented in roomApi.routes.test.ts.
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({
   getRemoteDoorConfig: jest.fn(),
   getRemoteDoorToken: jest.fn(),

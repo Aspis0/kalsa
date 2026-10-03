@@ -51,6 +51,16 @@ export type RoomError = { code: RoomErrorCode; message: string };
 
 export type RoomResult<T> = { ok: true; value: T } | { ok: false; error: RoomError };
 
+/**
+ * The sentence for the one doorless-door failure — the iroh road this
+ * pairing rides is gone on this phone — kept in step with en.ts's
+ * settings.remoteBrainFailIrohMissing (the room layer has no translator).
+ * Room calls show it instead of the raw code, and the stream knows the
+ * case by it: the one unusable door that can heal, so it is retried.
+ */
+export const IROH_MISSING_MESSAGE =
+  "This app can't reach a computer paired without an address. Update Kalsa on this phone, or pair again using the computer's address.";
+
 /** Every code the door sends with its own sentence (§9). */
 const SERVER_CODES = [
   "bad_request",

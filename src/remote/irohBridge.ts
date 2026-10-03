@@ -12,17 +12,17 @@ import { irohDialReason, logIrohDial } from "./road";
 
 type IrohModule = typeof import("../../modules/kalsa-iroh/src/index");
 
-let cached: IrohModule | null | undefined;
-
 function loadModule(): IrohModule | null {
-  if (cached !== undefined) return cached;
   try {
-    cached = require("../../modules/kalsa-iroh/src/index") as IrohModule;
+    // require() memoizes on success, so this is cheap after the first
+    // call; a FAILED require must not be remembered — the module may
+    // answer on the next call (late unpack, hot reload), and this
+    // predicate decides whether the iroh road exists at all.
+    return require("../../modules/kalsa-iroh/src/index") as IrohModule;
   } catch {
-    // Unresolvable or unloadable module: the HTTPS road, remembered.
-    cached = null;
+    // Unloadable right now: the HTTPS road for this call, retryable.
+    return null;
   }
-  return cached;
 }
 
 /** Whether the iroh road exists on this install at all. */

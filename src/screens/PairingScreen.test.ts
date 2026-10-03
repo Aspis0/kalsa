@@ -447,6 +447,57 @@ describe("PairingScreen", () => {
     await act(async () => renderer.unmount());
   });
 
+  test("a node invite with a DISALLOWED tailnet address pairs doorless over iroh", async () => {
+    const node = "ab".repeat(32);
+    // A LAN http address the prefill keeps but the URL gate refuses: on
+    // the iroh road it counts as absent, so nothing unvalidated is saved.
+    (irohModulePresent as jest.Mock).mockReturnValue(true);
+    const claimTunnel = fakeDeskTunnel([cannedResponse("200 OK", "")]);
+    const completeTunnel = fakeDeskTunnel([cannedResponse("200 OK", JSON.stringify(SEAL))]);
+    (openIrohTunnel as jest.Mock)
+      .mockResolvedValueOnce(claimTunnel)
+      .mockResolvedValueOnce(completeTunnel);
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const renderer = await render();
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound({
+        reachable: "http://127.0.0.1:9500",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        node,
+        tailnet: "http://192.168.1.20:8080",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(renderer.root.findAllByProps({ testID: "pairing.failure.stage" })).toHaveLength(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(openIrohTunnel).toHaveBeenCalledTimes(2);
+    expect(saveCredentialMock).toHaveBeenCalledWith(
+      new Uint8Array(32).fill(0xab),
+      "",
+      { node, pairedVia: "iroh" },
+    );
+    // The confirmation polls the doorless record: iroh only, no address.
+    const { pairedPropsProbe } = jest.requireMock("../pairing/pairingConfirmation") as {
+      pairedPropsProbe: jest.Mock;
+    };
+    expect(pairedPropsProbe).toHaveBeenCalledWith({
+      credential: "ab".repeat(32),
+      doorUrl: "",
+      node,
+      pairedVia: "iroh",
+    });
+    expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
+    await act(async () => renderer.unmount());
+  });
+
   test("a scanned tailnet with a node pairs over iroh and saves the tailnet door", async () => {
     const node = "ab".repeat(32);
     const tailnet = "https://paired.example.ts.net";

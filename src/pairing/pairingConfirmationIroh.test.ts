@@ -121,6 +121,33 @@ describe("the confirmation poll over the iroh road", () => {
   });
 });
 
+describe("a doorless record without a usable node fails closed before any dial", () => {
+  let log: jest.SpyInstance;
+
+  beforeEach(() => {
+    (openIrohTunnel as jest.Mock).mockReset();
+    log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+  });
+  afterEach(() => log.mockRestore());
+
+  test("a malformed doorless record probes nothing: no tunnel, no network fetch", async () => {
+    // Damaged in storage: the node is gone while pairedVia still says iroh
+    // and no address was saved. The base verdict fails closed, so the
+    // fresh bearer never leaves.
+    const original = globalThis.fetch;
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    try {
+      const probe = pairedPropsProbe({ ...PAIRED, doorUrl: "", node: null });
+      await expect(probe()).rejects.toThrow("remote_brain_iroh_missing");
+    } finally {
+      globalThis.fetch = original;
+    }
+    expect(openIrohTunnel).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("the dial race carries the poll's deadline", () => {
   let log: jest.SpyInstance;
 

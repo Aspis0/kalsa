@@ -264,6 +264,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
       setState("refused");
       return;
     }
+    // On the iroh road a disallowed address counts as absent — the pairing
+    // is doorless and dials the node — so an unchecked string (a typed
+    // LAN host, a tailnet the QR named) never becomes the saved door.
+    const savedDoorUrl = viaIroh && !isAllowedPairingUrl(doorUrl) ? "" : doorUrl.trim();
     setFailureStage(null);
     setState("ready");
     setBusy(true);
@@ -324,7 +328,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
       // The paired URL, credential, node and pairing road are the active
       // door configuration — the road decides what fallbacks exist later.
       try {
-        await savePairingCredential(credential, doorUrl.trim(), {
+        await savePairingCredential(credential, savedDoorUrl, {
           node: square.node,
           pairedVia: useIrohDesk ? "iroh" : "https",
         });
@@ -346,7 +350,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
       if (!aliveRef.current || signal.aborted) return;
       const paired: SavedPairingCredential = {
         credential: bytesToHex(credential),
-        doorUrl: doorUrl.trim(),
+        doorUrl: savedDoorUrl,
         node: isValidNodeHex(square.node) ? square.node : null,
         pairedVia: useIrohDesk ? "iroh" : "https",
       };

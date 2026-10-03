@@ -29,7 +29,13 @@
  *   refusal token "already_pending" from routes.rs:220 (shape:225).
  * name.json — §6's answer example, the same keys as routes.rs:263.
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({
   getRemoteDoorConfig: jest.fn(),
   getRemoteDoorToken: jest.fn(),

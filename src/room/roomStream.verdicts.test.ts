@@ -7,7 +7,17 @@
  * Status shapes: 401 an empty body (§1), not_found (mod.rs:72 via
  * mod.rs:195), internal (answers.rs:69 via mod.rs:135).
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
+jest.mock("../remote/irohBridge", () => ({
+  irohModulePresent: jest.fn(() => true),
+  openIrohTunnel: jest.fn(),
+}));
 jest.mock("../pairing/pairingCredentialStore", () => ({
   getPairingCredential: jest.fn(),
   getPairing: jest.fn(),
@@ -21,6 +31,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 jest.mock("../engine/remote/remoteSecret", () => ({ getRemoteBrainToken: jest.fn() }));
 
 import { establishDoorRoad } from "../remote/doorRoad";
+import { irohModulePresent } from "../remote/irohBridge";
 import {
   bindPairingRoom,
   getPairing,
@@ -29,6 +40,7 @@ import {
 } from "../pairing/pairingCredentialStore";
 import { FakeRoomXhr, installFakeRoomXhr } from "../../test-support/fakeRoomXhr";
 import { cachedRoomEpoch, noteRoomEpoch, resetRoomEpochs } from "./roomEpochs";
+import { IROH_MISSING_MESSAGE } from "./roomError";
 import { openRoomStream, type RoomStreamEvent } from "./roomStream";
 
 const CREDENTIAL = "ab".repeat(32);
@@ -191,5 +203,28 @@ test("503 no_room retries with the same backoff — the room may yet open", asyn
   await jest.advanceTimersByTimeAsync(500);
   await settle();
   expect(FakeRoomXhr.instances).toHaveLength(2);
+  handle.close();
+});
+
+test("a doorless pairing whose iroh road is gone says why and keeps retrying until it heals", async () => {
+  const localId = "p-lid-iroh-gone";
+  (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue(
+    pairingRecord(localId, { doorUrl: "", node: "ab".repeat(32), pairedVia: "iroh" }),
+  );
+  (irohModulePresent as jest.Mock).mockReturnValue(false);
+  const events: RoomStreamEvent[] = [];
+  const handle = openRoomStream(localId, (event) => events.push(event));
+  await settle();
+
+  // The refusal is user copy, not the raw code — and not a silent stop:
+  // the backoff dials again.
+  expect(events).toEqual([{ type: "door_unusable", message: IROH_MISSING_MESSAGE }]);
+  expect(FakeRoomXhr.instances).toHaveLength(0);
+
+  // The road heals (the module answers again): the next cycle connects.
+  (irohModulePresent as jest.Mock).mockReturnValue(true);
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  expect(FakeRoomXhr.instances).toHaveLength(1);
   handle.close();
 });

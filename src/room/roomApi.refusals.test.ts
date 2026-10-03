@@ -27,7 +27,13 @@
  * once the local bounds and the encoded-body check have run, no P2 route
  * can provoke the server's 413s.
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
 jest.mock("../engine/remote/remoteDoorConfig", () => ({
   getRemoteDoorConfig: jest.fn(),
   getRemoteDoorToken: jest.fn(),

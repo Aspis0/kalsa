@@ -60,6 +60,20 @@ describe("doorRequestBase", () => {
     });
   });
 
+  test("a doorless https-paired record fails closed: the road could still fall back to the network", () => {
+    expect(doorRequestBase(pairedDoor({ pairedVia: "https" }))).toEqual({
+      ok: false,
+      error: "remote_brain_iroh_missing",
+    });
+  });
+
+  test("a doorless record whose node is gone fails closed even paired over iroh", () => {
+    expect(doorRequestBase(pairedDoor({ node: null, pairedVia: "iroh" }))).toEqual({
+      ok: false,
+      error: "remote_brain_iroh_missing",
+    });
+  });
+
   test("a manual door with no address keeps the url-missing code", () => {
     const door = pairedDoor({
       url: "",

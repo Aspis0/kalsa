@@ -10,9 +10,9 @@
  * ANY other status — 403 with a body included — = allowed.
  */
 
-import { canSendAuthorization, joinRemoteApiUrl } from "../engine/remote/remoteUrl";
+import { canSendAuthorization, joinRemoteApiUrl, remoteUrlGateError } from "../engine/remote/remoteUrl";
+import { doorRequestBase } from "../engine/remote/doorRequestBase";
 import type { SavedPairingCredential } from "./pairingRecord";
-import { IROH_TUNNEL_URL } from "./pairingUrls";
 import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../remote/doorRoad";
 
 export type ConfirmationResponse = { status: number; bodyEmpty: boolean };
@@ -150,17 +150,24 @@ export function pairedPropsProbe(
   let road: DoorRoad | null = null;
   let fetcher: DoorFetch | null = null;
   return async (signal) => {
+    // The same pre-request verdicts the three door paths run: the base is
+    // the saved address or the shared iroh verdict — never the stand-in
+    // named by hand — and the URL gate runs on whichever base resulted.
+    // Re-read per tick: the iroh road can come back between ticks.
+    const resolved = doorRequestBase({
+      url: paired.doorUrl,
+      node: paired.node,
+      pairedVia: paired.pairedVia,
+      source: "pairing",
+    });
+    if (!resolved.ok) throw new Error(resolved.error);
+    const gate = remoteUrlGateError(resolved.base);
+    if (gate !== null) throw new Error(gate);
     if (road === null || fetcher === null) {
       road = await establishDoorRoad(paired, signal);
       fetcher = doorFetchFor(road);
     }
-    // An iroh-only pairing saved no door address: on the tunnel the URL
-    // only names the request line's path, so the stand-in origin carries
-    // the /props request and its bearer (https reads as safe to sign).
-    const url = joinRemoteApiUrl(
-      paired.doorUrl === "" ? IROH_TUNNEL_URL : paired.doorUrl,
-      "/props",
-    );
+    const url = joinRemoteApiUrl(resolved.base, "/props");
     const headers: Record<string, string> = { Accept: "application/json" };
     if (canSendAuthorization(url)) headers.Authorization = `Bearer ${paired.credential}`;
     const response = await fetcher(url, { method: "GET", headers, signal });

@@ -10,7 +10,13 @@
  * epoch_changed (mod.rs:126-127), bad_cursor (mod.rs:77 via
  * stream.rs:136).
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
 jest.mock("../pairing/pairingCredentialStore", () => ({
   getPairingCredential: jest.fn(),
   getPairing: jest.fn(),

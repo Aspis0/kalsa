@@ -4,7 +4,10 @@
  * and that the probe rides the paired door's road exactly once.
  */
 
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
 jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
   establishDoorRoad: jest.fn(),
   doorFetchFor: jest.fn(),
 }));

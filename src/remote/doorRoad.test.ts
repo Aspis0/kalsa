@@ -13,6 +13,7 @@ jest.mock("./irohBridge", () => ({
 
 import { irohModulePresent, openIrohTunnel } from "./irohBridge";
 import { doorFetchFor, establishDoorRoad } from "./doorRoad";
+import { IROH_TUNNEL_URL } from "../pairing/pairingUrls";
 import type { IrohTunnel } from "./irohHttp";
 
 const NODE = "ab".repeat(32);
@@ -235,6 +236,23 @@ describe("the probe fetcher on each road", () => {
       expect(response).toMatchObject({ ok: true, status: 200 });
       await expect(response.json()).resolves.toEqual({ saved: true });
       await expect(response.isBodyEmpty()).resolves.toBe(true);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  test("the https road refuses the iroh stand-in host before any socket", async () => {
+    const original = globalThis.fetch;
+    const fetchSpy = jest.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    try {
+      await expect(
+        doorFetchFor({ road: "https" })(`${IROH_TUNNEL_URL}/props`, {
+          method: "GET",
+          headers: { Authorization: "Bearer abab" },
+        }),
+      ).rejects.toThrow("remote_brain_iroh_missing");
+      expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       globalThis.fetch = original;
     }

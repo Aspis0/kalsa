@@ -7,7 +7,13 @@
  * info.json used as a 200 body: ROOM-PROTOCOL.md §3's example, verbatim
  * (keys at crates/kalsa-door/src/room/routes.rs:61-66, HEAD c40c6a12).
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
 jest.mock("../remote/irohBridge", () => ({
   irohModulePresent: jest.fn(() => true),
   openIrohTunnel: jest.fn(),
@@ -24,6 +30,7 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
 import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../remote/doorRoad";
 import { irohModulePresent } from "../remote/irohBridge";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "../engine/remote/remoteDoorConfig";
+import { IROH_MISSING_MESSAGE } from "./roomError";
 import { fetchRoomInfo } from "./roomApi";
 import infoFixture from "./fixtures/info.json";
 
@@ -154,7 +161,7 @@ test("a doorless pairing whose iroh module is gone is an unusable door", async (
 
   await expect(fetchRoomInfo()).resolves.toEqual({
     ok: false,
-    error: { code: "door_unusable", message: "remote_brain_iroh_missing" },
+    error: { code: "door_unusable", message: IROH_MISSING_MESSAGE },
   });
   expect(establishDoorRoad).not.toHaveBeenCalled();
   expect(fetcher).not.toHaveBeenCalled();

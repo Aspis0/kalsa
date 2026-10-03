@@ -11,7 +11,13 @@
  * with the ai_state payload of routes.rs:92-100, `: ping` from
  * stream.rs:282, entries in the answers.rs:26-33 shape.
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
 jest.mock("../pairing/pairingCredentialStore", () => ({
   getPairingCredential: jest.fn(),
   getPairing: jest.fn(),

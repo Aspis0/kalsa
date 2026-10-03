@@ -9,7 +9,13 @@
  * with the door's entry keys (answers.rs:26-33, routes.rs:61-66; HEAD
  * c40c6a12).
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
 jest.mock("@react-native-async-storage/async-storage", () => ({
   getItem: async () => null,
   setItem: async () => undefined,

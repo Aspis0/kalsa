@@ -5,7 +5,13 @@
  * AppState source injects, so no test — and no import — ever loads
  * react-native.
  */
-jest.mock("../remote/doorRoad", () => ({ establishDoorRoad: jest.fn(), doorFetchFor: jest.fn() }));
+// The establishment is mocked; the road decision (`pairedIrohRoad`)
+// stays real — doorRequestBase and establishDoorRoad must read one verdict.
+jest.mock("../remote/doorRoad", () => ({
+  ...jest.requireActual("../remote/doorRoad"),
+  establishDoorRoad: jest.fn(),
+  doorFetchFor: jest.fn(),
+}));
 jest.mock("../pairing/pairingCredentialStore", () => ({
   getPairingCredential: jest.fn(),
   getPairing: jest.fn(),
