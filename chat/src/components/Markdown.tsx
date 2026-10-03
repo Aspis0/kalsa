@@ -4,8 +4,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import type { English } from "../i18n/en/all";
 import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Streamdown, type Components } from "streamdown";
 
 function languageOf(className?: string): string {
   const match = /language-([\w+-]+)/.exec(className ?? "");
@@ -84,8 +83,8 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
 }
 
 function Pre({ children }: { children?: ReactNode }) {
-  // react-markdown v9 renders fenced blocks as <pre><code class="language-x">.
-  // Unwrap the pre: block code becomes a CodeBlock, which owns its scroll.
+  // Fenced blocks arrive as <pre><code class="language-x">; the pre is
+  // unwrapped so the block code below owns its own box, scroll and header.
   return <>{children}</>;
 }
 
@@ -99,28 +98,57 @@ function Code({ children, className }: { children?: ReactNode; className?: strin
   return <CodeBlock language={language} code={text.replace(/\n$/, "")} />;
 }
 
-/** Assistant prose. GFM tables/lists/quotes, code fenced with copy header. */
-export const Markdown = memo(function Markdown({ text }: { text: string }) {
+// Ours, not Streamdown's defaults: those carry Tailwind utility classes and
+// control chrome this app has no Tailwind for, and a table of ours is already
+// scrolled by `.markdown table`. Stable identities (a fresh object each render
+// would defeat the per-block memo); the assertion is the one prop type
+// Streamdown's two `Components` branches cannot agree on.
+const COMPONENTS = {
+  pre: Pre,
+  code: Code,
+  img: BlockedImage,
+  // A real <strong>: Streamdown's own is a span carrying a Tailwind weight
+  // class, and with no Tailwind here that text would not be bold at all.
+  strong: ({ children }: { children?: ReactNode }) => <strong>{children}</strong>,
+  table: ({ children }: { children?: ReactNode }) => <table>{children}</table>,
+  // An address the gate refuses is text, not something to click:
+  // `publicUrl.ts` is the one place that decides, and the click itself
+  // goes through Rust. A model writes these addresses; a Tauri webview
+  // cannot follow an `href` anyway.
+  a: ({ children, href }: { children?: ReactNode; href?: string }) => {
+    const url = publicHttpUrl(href);
+    return url ? <Openable url={url}>{children}</Openable> : <>{children}</>;
+  },
+} as Components;
+
+// The switch that keeps raw HTML out of the DOM: Streamdown turns every html
+// node into its literal text unless the rehype list names rehype-raw, and this
+// list names nothing. An empty, stable list — a new array each render would
+// defeat the per-block memo.
+const NO_RAW_HTML: never[] = [];
+
+/** Assistant prose. GFM tables/lists/quotes, code fenced with copy header.
+    Streamdown (Apache-2.0) parses an answer as it arrives: an unterminated
+    fence, a half-written table or a bold run still open render as the element
+    they are heading for, and every block that has settled is memoized. */
+export const Markdown = memo(function Markdown({
+  text,
+  streaming = false,
+}: {
+  text: string;
+  /** While true the text is still arriving, so a partial answer is parsed. */
+  streaming?: boolean;
+}) {
   return (
-    <div className="markdown">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          pre: Pre,
-          code: Code,
-          img: BlockedImage,
-          // An address the gate refuses is text, not something to click:
-          // `publicUrl.ts` is the one place that decides, and the click itself
-          // goes through Rust. A model writes these addresses; a Tauri webview
-          // cannot follow an `href` anyway.
-          a: ({ children, href }) => {
-            const url = publicHttpUrl(href);
-            return url ? <Openable url={url}>{children}</Openable> : <>{children}</>;
-          },
-        }}
-      >
-        {text}
-      </ReactMarkdown>
-    </div>
+    <Streamdown
+      className="markdown"
+      mode={streaming ? "streaming" : "static"}
+      components={COMPONENTS}
+      // An `<img src=x onerror=…>` or a `<script>` is shown as the characters
+      // it is; naming rehype-raw here is the one line that would build it.
+      rehypePlugins={NO_RAW_HTML}
+    >
+      {text}
+    </Streamdown>
   );
 });

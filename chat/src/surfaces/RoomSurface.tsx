@@ -5,9 +5,9 @@
 // codes its keys); a state the user can neither understand nor fix is not
 // shown at all.
 
-import { useLayoutEffect, useRef, useState } from "react";
-import type { UIEvent } from "react";
+import { useState } from "react";
 import { available } from "../lib/tauri";
+import { useStickToBottom } from "../lib/stickToBottom";
 import { RoomText } from "../lib/roomMention";
 import { assignNameColors, assignNameTints, KALSA_NAME_COLOR, KALSA_TINT } from "../lib/roomColors";
 import { Composer } from "../components/Composer";
@@ -59,17 +59,7 @@ export function RoomSurface() {
 
   // Glued to the bottom while the answer arrives, unless the reader
   // scrolled up — the thread's own rule.
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [pinned, setPinned] = useState(true);
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el && pinned) el.scrollTop = el.scrollHeight;
-  });
-
-  function handleScroll(event: UIEvent<HTMLDivElement>): void {
-    const el = event.currentTarget;
-    setPinned(el.scrollHeight - el.scrollTop - el.clientHeight < 48);
-  }
+  const { ref: scrollRef, following, toBottom } = useStickToBottom();
 
   // Both sends ride the one composer: the store adds the call itself when
   // the words name @Kalsa, and the quiet button names it outright. A bare
@@ -165,7 +155,6 @@ export function RoomSurface() {
         <div
           ref={scrollRef}
           className="thread"
-          onScroll={handleScroll}
           aria-busy={turnRunning}
           aria-live="polite"
         >
@@ -200,7 +189,7 @@ export function RoomSurface() {
                   style={{ "--room-bubble-color": KALSA_NAME_COLOR, "--room-bubble-tint": KALSA_TINT } as React.CSSProperties}
                 >
                   {live !== null && live.text !== "" ? (
-                    <Markdown text={live.text} />
+                    <Markdown text={live.text} streaming />
                   ) : (
                     <Thinking />
                   )}
@@ -208,15 +197,11 @@ export function RoomSurface() {
               </div>
             ) : null}
           </div>
-          {!pinned ? (
+          {!following ? (
             <button
               type="button"
               className="jump-bottom"
-              onClick={() => {
-                const el = scrollRef.current;
-                if (el) el.scrollTop = el.scrollHeight;
-                setPinned(true);
-              }}
+              onClick={toBottom}
             >
               {table.thread.backToLatest}
             </button>

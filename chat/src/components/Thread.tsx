@@ -1,9 +1,8 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import type { UIEvent } from "react";
 import type { ChatMessage } from "../lib/types";
 import type { ChatErrorKind } from "../lib/chat";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
+import { useStickToBottom } from "../lib/stickToBottom";
 import { Markdown } from "./Markdown";
 import { MessageImages } from "./MessageImages";
 import { ThoughtCloud } from "./ThoughtCloud";
@@ -108,7 +107,7 @@ function AssistantRow({
             <span className="visually-hidden">{t.waitingFirstWord}</span>
           </>
         ) : message.content ? (
-          <Markdown text={message.content} />
+          <Markdown text={message.content} streaming={streaming} />
         ) : null}
         {message.stopped && failedHere === null ? (
           <p className="row-note">{t.stoppedEarly}</p>
@@ -145,35 +144,13 @@ export function Thread({
   onRetry,
 }: ThreadProps) {
   const { table, tag } = useLanguage();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [pinned, setPinned] = useState(true);
-
-  function handleScroll(event: UIEvent<HTMLDivElement>): void {
-    const el = event.currentTarget;
-    setPinned(el.scrollHeight - el.scrollTop - el.clientHeight < 48);
-  }
-
-  // Stay glued to the bottom while responses arrive — unless the reader
-  // scrolled up, in which case hold position and offer a way back.
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el && pinned) el.scrollTop = el.scrollHeight;
-  });
-
-  function jumpToBottom(): void {
-    const el = scrollRef.current;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-      setPinned(true);
-    }
-  }
+  const { ref: scrollRef, following, toBottom } = useStickToBottom();
 
   return (
     <div className="thread-wrap">
       <div
         ref={scrollRef}
         className="thread"
-        onScroll={handleScroll}
         aria-busy={streaming}
         aria-label={table.thread.threadAria}
       >
@@ -199,8 +176,8 @@ export function Thread({
           )}
         </div>
       </div>
-      {!pinned ? (
-        <button type="button" className="jump-bottom" onClick={jumpToBottom}>
+      {!following ? (
+        <button type="button" className="jump-bottom" onClick={toBottom}>
           {table.thread.backToLatest}
         </button>
       ) : null}
