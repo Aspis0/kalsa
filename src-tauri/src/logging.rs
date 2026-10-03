@@ -591,24 +591,20 @@ fn redact(message: &str, r: &Redactions) -> String {
 }
 
 /// Characters that end a URL printed inside free text: whitespace, or a
-/// bracketing punctuation a sentence might wrap it in. Everything between
-/// the scheme and the first `?`/`#` is the URL's own address and stays;
+/// bracketing punctuation a sentence might wrap it in. Any scheme is
+/// covered (`http://`, `wss://`, and the rest of `://`), and everything
+/// between it and the first `?`/`#` is the URL's own address and stays;
 /// the query and fragment go, because a downloader's redirect answers with
 /// signed URLs whose query is a credential (`?X-Amz-Signature=…` from a
 /// Hugging Face `/resolve/` redirect, printed verbatim inside a transport
 /// error's Display).
 fn redact_urls(text: &[char]) -> Vec<char> {
     const MARK: &str = "?…";
-    let http: Vec<char> = "http://".chars().collect();
-    let https: Vec<char> = "https://".chars().collect();
     let ends_url = |c: char| c.is_whitespace() || matches!(c, ')' | ']' | '}' | '>' | '"' | '\'');
     let mut out = Vec::with_capacity(text.len());
     let mut at = 0;
     while at < text.len() {
-        let scheme = [&https, &http]
-            .iter()
-            .find_map(|prefix| match_path_at(text, at, prefix, true));
-        match scheme {
+        match scheme_at(text, at) {
             Some(end_of_scheme) => {
                 // The address runs to the first ?/# (kept up to, not
                 // including); the query and fragment run to the URL's end.
@@ -640,6 +636,36 @@ fn redact_urls(text: &[char]) -> Vec<char> {
         }
     }
     out
+}
+
+/// The scheme in front of `://` at `at` — `http`, `https`, `ws`, `wss`,
+/// any RFC 3986 scheme — or `None` where no `://` closes one. A Windows
+/// path is not a scheme: `C:\` and `C:/` carry no `//`, which is the whole
+/// test.
+fn scheme_at(text: &[char], at: usize) -> Option<usize> {
+    if !text.get(at).is_some_and(|c| c.is_ascii_alphabetic()) {
+        return None;
+    }
+    // A word longer than any scheme bounds one attempt, so a line with no
+    // `://` in it is scanned once, not once per character.
+    const CAP: usize = 32;
+    let mut cursor = at + 1;
+    while text
+        .get(cursor)
+        .is_some_and(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+    {
+        cursor += 1;
+        if cursor - at > CAP {
+            return None;
+        }
+    }
+    if text.get(cursor) != Some(&':')
+        || text.get(cursor + 1) != Some(&'/')
+        || text.get(cursor + 2) != Some(&'/')
+    {
+        return None;
+    }
+    Some(cursor + 3)
 }
 
 /// `/var/folders/ab/…` and `/private/var/folders/ab/…` become `<tmp>/ab/…`'s
@@ -846,19 +872,24 @@ fn ipv4_at(text: &[char], at: usize) -> Option<usize> {
 
 /// An IPv6 literal at `at`, or `None`: groups of one to four hex digits
 /// joined by single colons, at most one `::` standing for the groups left
-/// out, an optional zone behind `%`, and the dotted tail of a mapped
-/// address. Without a `::` all eight groups are required, so a clock time
-/// (`10:17:57`) is not an address; a lone `::` is not one either — every
-/// Rust path in a log carries one.
+/// out — the ones at the end included, so `fe80::` and `fe80::%en0` are
+/// addresses — an optional zone behind `%`, and the dotted tail of a
+/// mapped address. Without a `::` all eight groups are required, so a
+/// clock time (`10:17:57`) is not an address; a lone `::` is not one
+/// either — every Rust path in a log carries one.
 fn ipv6_at(text: &[char], at: usize) -> Option<usize> {
     let mut cursor = at;
     let mut groups = 0usize;
     let mut compressed = false;
+    // Whether the cursor sits right behind a `::`, which may stand for the
+    // groups at the end of the address rather than in front of some.
+    let mut just_opened = false;
     if text.get(cursor) == Some(&':') {
         if text.get(cursor + 1) != Some(&':') {
             return None;
         }
         compressed = true;
+        just_opened = true;
         cursor += 2;
     }
     loop {
@@ -866,11 +897,18 @@ fn ipv6_at(text: &[char], at: usize) -> Option<usize> {
         while text.get(cursor).is_some_and(|c| c.is_ascii_hexdigit()) {
             cursor += 1;
         }
-        if cursor == group_start || cursor - group_start > 4 {
-            // The `::` already taken is the only empty group there is: a
-            // second one, or a trailing colon, is not an address.
+        if cursor == group_start {
+            if just_opened && text.get(cursor) != Some(&':') {
+                break;
+            }
+            // A second empty group, or a trailing single colon, is not an
+            // address.
             return None;
         }
+        if cursor - group_start > 4 {
+            return None;
+        }
+        just_opened = false;
         if text.get(cursor) == Some(&'.') {
             // The dotted tail of a mapped address (`::ffff:10.0.0.7`): it
             // is redacted with the address it maps, as two groups.
@@ -891,6 +929,7 @@ fn ipv6_at(text: &[char], at: usize) -> Option<usize> {
                         return None;
                     }
                     compressed = true;
+                    just_opened = true;
                     cursor += 2;
                 } else {
                     cursor += 1;

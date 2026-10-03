@@ -188,6 +188,24 @@ fn the_machine_addresses_are_redacted_and_loopback_and_versions_survive() {
     assert!(redacted.contains("self=::1"), "{redacted}");
     let versions = "kalsa-brain 1.1.5 · macos 25.6.0 · windows 10.0.19045 (build 26200.9457)";
     assert_eq!(redact(versions, &redactions), versions);
+    // A `::` may stand for the groups at the END of the address — a
+    // link-local is usually spelled that way — zone and bracketed port
+    // included.
+    let trailing = "to=fe80:: zone=fe80::%en0 any=2001:db8:: port=[fe80::]:8131";
+    assert_eq!(
+        redact(trailing, &redactions),
+        "to=<addr> zone=<addr> any=<addr> port=[<addr>]:8131"
+    );
+    // The lone `::` of a Rust path is still not an address.
+    let path = "tracing::span and a crate::b path";
+    assert_eq!(redact(path, &redactions), path);
+    // Eight colon-joined groups IS a valid IPv6 address, and it goes: no
+    // format this app prints writes one (its hashes are bare hex, its
+    // versions dotted), so the shape costs nothing here.
+    assert_eq!(
+        redact("fp aa:bb:cc:dd:ee:ff:00:11", &redactions),
+        "fp <addr>"
+    );
     // A MAC and a clock time are neither of them addresses.
     let other = "aa:bb:cc:dd:ee:ff at 09:41:05";
     assert_eq!(redact(other, &redactions), other);
@@ -437,6 +455,61 @@ fn a_signed_url_loses_its_query_and_fragment_but_not_its_address() {
     let plain = redact("at https://example.invalid/plain/path next", &redactions);
     assert!(plain.contains("https://example.invalid/plain/path"), "{plain}");
     assert!(!plain.contains("?…"), "{plain}");
+}
+
+/// Every scheme's query goes, not only the downloader's two: a relay URL
+/// carries a token just as well, and the schemes Kalsa names today are not
+/// the schemes a line may hold. A Windows path is not one of them — `C:\`
+/// and `C:/` carry no `//`, which is the whole test the scheme scan makes —
+/// and neither is a plain path.
+#[test]
+fn every_scheme_loses_its_query_and_windows_paths_stay_whole() {
+    let redactions = Redactions::new(None, None, false);
+    for line in [
+        "relay wss://relay.example.com/x?token=deadbeef1234 done",
+        "relay ws://relay.example.com/x?token=deadbeef1234 done",
+        "asset ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/x?key=deadbeef1234 done",
+        "odd scheme+ext.more://host/p?q=deadbeef1234 done",
+    ] {
+        let redacted = redact(line, &redactions);
+        assert!(!redacted.contains("deadbeef"), "{line} -> {redacted}");
+        assert!(redacted.contains("?…"), "{line} -> {redacted}");
+    }
+    assert!(
+        redact("at wss://relay.example.com/x?token=zz end", &redactions)
+            .contains("wss://relay.example.com/x?…"),
+        "the URL keeps its address"
+    );
+    for path in [
+        r"C:\Users\x\models\a.gguf",
+        "C:/Users/x/models/a.gguf",
+        r"\\server\share\a.gguf",
+        "/Users/x/a.gguf",
+    ] {
+        assert_eq!(redact(path, &redactions), path);
+    }
+}
+
+/// The versions, builds and hashes this app really prints, through the same
+/// redaction: the GPU driver line (four dotted parts, `31.0.101.2125`), the
+/// macOS and Windows build lines, the engine line, a model row, and the two
+/// 64-character hashes of a digest mismatch. None is an address, and a
+/// redaction that ate one would eat the facts a report is read for.
+#[test]
+fn the_versions_builds_and_hashes_the_app_logs_survive() {
+    let redactions = Redactions::new(None, None, false);
+    for line in [
+        "adapter: Intel(R) Arc(TM) Graphics (discrete, driver 31.0.101.2125, 8.0 GiB)",
+        "adapter: Apple M3 Pro (integrated, driver the OS's own, 18.0 GiB)",
+        "memory bandwidth: 196.6 GiB/s (measured)",
+        "windows 11 25H2 (build 26200.4652)",
+        "macos 26.6.2 (build 25G83)",
+        "engine: kalsa-server v1.1.5 · metal build",
+        "model row: qwen3-8b · Qwen3-8B-Q4_K_M.gguf · context 32768 tokens · drafter on",
+        "download failed: model.gguf: wrong sha256: expected 9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0, got 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    ] {
+        assert_eq!(redact(line, &redactions), line);
+    }
 }
 
 /// A panic while the sink's mutex is held (the report builder holds it over
