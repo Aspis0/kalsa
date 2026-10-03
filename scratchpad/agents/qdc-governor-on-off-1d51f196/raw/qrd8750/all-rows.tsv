@@ -1,3 +1,4 @@
+NO_DEVICE on 6037
 board	label	arm	prompt	plan_npu_lane	plan_npu_fit	plan_gpu_fit	plan_avail_mib	plan_avail_src	gov_lines	thermal_state	chunks	layers_counts	engine_prefill	prefill_kv	cache_k	cache_v	failed	prefill_tok_s	prompt_n	n_common	decode_tok_s	tokens_predicted	skin_start	skin_peak	batt_peak	fallbacks	crash_lines	lmk_lines	correct
 qrd8750	r1-off-long	OFF	long						0									NA		1889			39.894	48.3	42.0	0	0	17	NA
 qrd8750	r1-off-short	OFF	short						0									107.5	1566	1889	23.299846094437136	497	39.925	47.3	42.0	0	0	14	sent=3

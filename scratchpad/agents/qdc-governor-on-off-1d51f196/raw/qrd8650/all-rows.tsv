@@ -1,0 +1,8 @@
+NO_DEVICE on 6037
+board	label	arm	prompt	plan_npu_lane	plan_npu_fit	plan_gpu_fit	plan_avail_mib	plan_avail_src	gov_lines	thermal_state	chunks	layers_counts	engine_prefill	prefill_kv	cache_k	cache_v	failed	prefill_tok_s	prompt_n	n_common	decode_tok_s	tokens_predicted	skin_start	skin_peak	batt_peak	fallbacks	crash_lines	lmk_lines	correct
+qrd8650	r1-off-long	OFF	long						0									NA		1889			41.469	48.8	25.0	0	0	7	NA
+qrd8650	r1-off-short	OFF	short						0									70.3	2113	1889	16.9622572280641	572	39.826	46.5	25.0	0	0	4	sent=3
+qrd8650	r1-on-long	ON	long	auto	Fit	Fit	8437.88	fresh	1	FAST	5	HTP0x5	NPU	device	q8_0	q8_0	NA	858.7	2135	1889	15.545092682635833	640	35.453	41.4	25.0	0	0	4	yes
+qrd8650	r1-on-short	ON	short	auto	Fit	Fit	8474.47	fresh	1	FAST	8	HTP0x8	NPU	device	q8_0	q8_0	NA	884.6	1964	0	18.00525451245674	572	30.147	36.6	25.0	0	0	3	sent=3
+qrd8650	r2-on-long	ON	long	auto	Fit	Fit	8488.06	fresh	1	FAST	10	HTP0x10	NPU	device	q8_0	q8_0	NA	769.1	4664	1889	12.985282501262333	635	41.793	48.2	25.0	0	0	10	NA
+qrd8650	r2-on-short	ON	short	auto	Fit	Fit	8448.82	fresh	1	FAST	7	HTP0x7	NPU	device	q8_0	q8_0	NA	830.6	2763	1889	14.96765970746597	413	41.482	45.2	25.0	0	0	7	sent=3

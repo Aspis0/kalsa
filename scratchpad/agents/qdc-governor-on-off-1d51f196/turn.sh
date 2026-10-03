@@ -8,7 +8,7 @@ note() { echo "$LABEL $*"; }
 t0=$(date +%s); sk=$(skin_c)
 while [ -n "$sk" ] && awk "BEGIN{exit !($sk > $COOL_TARGET)}" && [ $(( $(date +%s) - t0 )) -lt $COOL_CAP ]; do sleep 15; sk=$(skin_c); done
 echo "cool_wait_s=$(( $(date +%s) - t0 )) skin_start=${sk:-NA} batt=$(batt_c)" > $P-cool.txt; cat $P-cool.txt
-[ -n "$sk" ] && awk "BEGIN{exit !($sk > $COOL_TARGET)}" && { echo "VOID hot: skin $sk > $COOL_TARGET after ${COOL_CAP}s" > $P-void.txt; note "VOID hot skin=$sk"; exit 11; }
+[ -n "$sk" ] && awk "BEGIN{exit !($sk > ${VOID_ABOVE:-$COOL_TARGET})}" && { echo "VOID hot: skin $sk > ${VOID_ABOVE:-$COOL_TARGET} after ${COOL_CAP}s" > $P-void.txt; note "VOID hot skin=$sk"; exit 11; }
 # --- preflight/state ---
 { ad shell 'dumpsys battery' | tr -d '\r' | grep -E "^  (AC|USB|Wireless) powered|^  status|^  level|^  temperature"; } > $P-battery-pre.txt
 ad shell "input keyevent 224; wm dismiss-keyguard; svc power stayon true; settings put system screen_off_timeout 1800000" >/dev/null 2>&1; sleep 1
