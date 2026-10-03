@@ -1,12 +1,15 @@
-// PDF attachment, against the real build config: `vite build` emits the
+// Attachment extraction, against the real build config: `vite build` emits the
 // `pdf.worker.min.mjs?url` asset exactly as the app ships it, and the page is
 // served under the app's own CSP (read from src-tauri/tauri.conf.json). The
-// page then extracts a generated text PDF through the real `extractAttachment`.
+// page then extracts real files through the real `extractAttachment`.
 //
-// Two things are pinned here. The cause: pdf.js considers a tauri:// page
-// cross-origin (the URL API gives a custom scheme an opaque origin), wraps its
-// worker in a blob:, and the CSP refuses that blob. The fix: the worker is
-// handed over as a port, so no blob is ever minted and the file reads.
+// Three things are pinned here. The cause of the PDF failures: pdf.js considers
+// a tauri:// page cross-origin (the URL API gives a custom scheme an opaque
+// origin), wraps its worker in a blob:, and the CSP refuses that blob. The fix:
+// the worker is handed over as a port, so no blob is ever minted and the file
+// reads. And the refusal vocabulary: an empty file is `empty` (every table's
+// own sentence), a damaged PDF is `unreadable` with the reader's own error name
+// as its stable token — never a file name.
 //
 // Run: node scripts/pdf-attach.mjs   (from chat/)
 
@@ -198,6 +201,41 @@ check(
   "the extraction adds no CSP refusal",
   !messages.slice(before).some((line) => line.includes("Content Security Policy")),
   messages.slice(before).join(" | "),
+);
+
+// 3. The refusal's own reason: an empty file is empty; a damaged PDF is
+//    unreadable with the reader's error name, and no file name leaks into the
+//    token the log event carries.
+const refusals = await page.evaluate(async () => {
+  const { extractAttachment } = window.__PDF__;
+  const empty = new File([], "secret-name.txt", { type: "text/plain" });
+  const damaged = new File([new TextEncoder().encode("not a pdf at all")], "secret-name.pdf", {
+    type: "application/pdf",
+  });
+  const read = async (file) => {
+    try {
+      await extractAttachment(file);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, failure: error.failure, reason: error.reason };
+    }
+  };
+  return { empty: await read(empty), damaged: await read(damaged) };
+});
+check(
+  "an empty file is refused as empty, not unreadable",
+  refusals.empty.failure === "empty" && refusals.empty.reason === "empty",
+  JSON.stringify(refusals.empty),
+);
+check(
+  "a damaged PDF is unreadable with the reader's own token",
+  refusals.damaged.failure === "unreadable" && /^pdf_[a-z0-9_]+$/.test(refusals.damaged.reason ?? ""),
+  JSON.stringify(refusals.damaged),
+);
+check(
+  "no file name reaches a refusal token",
+  !JSON.stringify(refusals).includes("secret-name"),
+  JSON.stringify(refusals),
 );
 
 await browser.close();

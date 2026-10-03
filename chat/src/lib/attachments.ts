@@ -286,8 +286,8 @@ export async function extractAttachment(file: File): Promise<Attachment> {
   text = cleanText(text);
   if (!text) {
     throw new AttachmentError(
-      "unreadable",
-      `“${file.name}” holds no readable text (a scan without a text layer reads as blank).`,
+      "empty",
+      `“${file.name}” holds no readable text (an empty file, or a scan without a text layer).`,
     );
   }
   return {
