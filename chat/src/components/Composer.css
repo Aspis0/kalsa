@@ -70,6 +70,35 @@
   cursor: default;
 }
 
+/* The Think toggle: a word, not an icon, so it takes the width it needs and
+   carries the chip treatment the AI page's presets use — quiet at rest, the
+   accent fill when it is on. */
+.composer-thinking {
+  width: auto;
+  padding: 0 0.75rem;
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border: 1px solid transparent;
+  font-size: 0.76rem;
+}
+
+.composer-thinking:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--surface-muted);
+  border-color: var(--border-strong);
+}
+
+.composer-thinking.is-on,
+.composer-thinking.is-on:hover {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.composer-thinking.is-on:hover {
+  background: var(--accent-hover);
+}
+
 .composer-stop {
   background: var(--surface-muted);
   border: 1px solid var(--border-strong);
