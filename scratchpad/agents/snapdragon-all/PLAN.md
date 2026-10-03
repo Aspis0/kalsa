@@ -46,3 +46,12 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   the prefill context sits on the default GPU - an unqualified Adreno 840 on V81); backend_devices_info gains
   `description` ("Hexagon v<NN>") so the app can read the runtime arch.
 - Step 3 inputs: SM8850 = ro.soc.model SM8850, board.platform / product.model "canoe" (QDC logs).
+- 2026-10-03 step 2 PUSHED: binding feat/governor-platform-status e3ee58d7 (697b6971 vendor+skels, 42af2e08 V81,
+  e6bc1fbe unresolved lane off in the policy, 37b05a60 device description, e3ee58d7 test comment). Audit luna
+  f718f7ec: 1 fixed (comment), rest pre-existing/bench -> BACKLOG-LOW-PRIORITY.
+- 2026-10-03 step 3 PUSHED: app main ac04c939 (0cf38a79 GLM: V81 SM8850/CANOE GPU false, htpRuntimeArch.ts,
+  laneFit memory-only, enabled = force || gpu-qualified || lane; 300609e5 pin kalsa.rn e3ee58d7 + kalsallama.pin
+  0917c693, cast removed; ac04c939 keep only a read arch). Audit luna b044597d: first-read race REFUTED (loadNative
+  sets ADSP_LIBRARY_PATH before JSI), memoized null FIXED, bench paths -> backlog. Gates: provenance EXIT=0, tsc 0,
+  jest targeted, apk.yml harness block EXIT=0.
+- APK run 37135421002 (debuggable, ac04c939) building -> S23 v73 regression check, then step 4 QDC SM8850.

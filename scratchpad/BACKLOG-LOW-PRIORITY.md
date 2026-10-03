@@ -41,3 +41,14 @@ One line per item: area - finding - source audit. Pick from here only when a rel
   remote_brain_token_required for doorless doors - security P2-7
 - engine/remote imports from pairing/pairingUrls (layering); self-pinning literal at remoteEngineDoorless.test.ts:273;
   stale doorRequired copy - security P3
+
+## Every-Snapdragon governor (2026-10-03, session 1d714246; audits 9ec5d8e8 engine, f718f7ec binding, b044597d app)
+- Binding loads the prefill model at n_gpu_layers 99 even when the lane did not resolve and the policy can only pick
+  CPU (rn-llama.cpp ~:235): wasted GPU memory on a double-failure path (HTP0 seen by the app, unresolved at load).
+- A resolved HTP0 pins the one prefill context; a WARM-state "GPU" route then runs on HTP while stats say GPU.
+- Runtime HTP failures with rc -2 (alloc) do not set KALSA_HTP_FALLBACK for later loads (rn-governor-params.cpp:204).
+- Bench route "gpu" / bench_force_gpu_prefill / npu lane "on" bypass the GPU qualification list (bench-only, by
+  design); bench force + bench thermo can make an iOS load a two-context Metal governor.
+- KALSA_GOVERNOR has no TAG_SCHEMAS entry: a sent log carries the planned lane, not the resolved route.
+- Four HTP skel lists (engine skel_archs, CMake build_htp_skel, binding HTP_DSP_VERSIONS, example gradle) with no
+  check tying the C++ list to the others.
