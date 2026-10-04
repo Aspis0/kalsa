@@ -7,6 +7,12 @@
 //! refused outright instead of racing the fetch, and a Turn off is
 //! answered by a generation read before anything began.
 //!
+//! The restart itself is a real one: the running engine is stopped first —
+//! a start while the supervisor still owns a server is refused as "already
+//! on", which would leave the projector downloaded and nothing changed —
+//! and the state passes through a non-running state before the new engine
+//! comes up with the projector on its argv.
+//!
 //! Two things can land while the bytes move, and each wins over the
 //! restart — the projector file is KEPT (the owner paid for the bytes; the
 //! next start finds it verified) and nothing is started:
@@ -252,6 +258,22 @@ pub(crate) async fn brain_vision_enable(
                     Ok(state(brain.launch_record().as_ref()))
                 }
                 After::Restart => {
+                    // THE RESTART'S FIRST ACT IS THE ENGINE'S OWN STOP. The
+                    // supervisor answers a start while it still owns a server
+                    // with `Refused` — "already on: the switch is not a
+                    // restart button" (kalsa-supervisor supervisor.rs, the
+                    // worker's Start arm) — which is right for a Turn on and
+                    // fatal here: the projector would sit on disk, no argv
+                    // would change, and nothing would ever say so. The
+                    // supervisor's own `stop`, NOT `brain_stop`: no stops
+                    // generation is bumped (a Turn off during the download
+                    // stays the only veto), and the door and the square are
+                    // left to the `brain_state` poll, which reconciles them
+                    // on the non-running states this passes through. Command
+                    // order does the rest: the Stop is queued before the
+                    // walk's Start, so the worker drains first and then takes
+                    // the start instead of refusing it.
+                    brain.supervisor.stop();
                     // The restart runs on this command's own claim and the
                     // generation it took: every stop check inside the
                     // settlement still answers to the pre-download number.

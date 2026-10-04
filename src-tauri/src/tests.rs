@@ -1935,6 +1935,158 @@ fn stand_in_engine() -> (
     (port, log, handle, stop)
 }
 
+/// THE P1 OF WALK-MAC-VISION-2026-10-04, reproduced: the vision restart
+/// queues its start while the supervisor still owns the running engine, and
+/// the worker answers `Refused` — "already on: the switch is not a restart
+/// button" — so the projector sat on disk, no argv changed, nothing logged
+/// (log_engine is Once per process) and the UI read a 16-minute "hang" that
+/// was an idle app. The restart must STOP the engine first: the state then
+/// passes through a non-running state, the new start is taken, and the
+/// Turn-on rule stands for everything that is not a restart.
+///
+/// The engine is real: the supervisor test fixture's `fake_server.sh`
+/// child, with a health listener that binds once the child's pid file
+/// appears — the same shape kalsa-supervisor's own tests use, so the
+/// handshake, the ownership and the stop rungs all execute for real.
+#[test]
+fn the_vision_restart_stops_the_running_engine_before_starting_again() {
+    let brain = Brain::new();
+    let exe = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../crates/kalsa-supervisor/tests/fixtures/fake_server.sh");
+    assert!(exe.is_file(), "the supervisor's fake server fixture is missing");
+    let port = {
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        probe.local_addr().unwrap().port()
+    };
+    // The fixture's own pid file, whose appearance gates the health
+    // listener: `kalsa-fake-$port.pid` under $TMPDIR.
+    let pid_file = std::env::temp_dir().join(format!("kalsa-fake-{port}.pid"));
+    let _ = std::fs::remove_file(&pid_file);
+    let state_file = std::env::temp_dir().join(format!(
+        "kalsa-vision-restart-{}-{port}.state",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&state_file);
+    let config = |port: u16| kalsa_supervisor::ServerConfig {
+        exe: exe.clone(),
+        argv: vec![
+            "--host".into(),
+            "127.0.0.1".into(),
+            "--port".into(),
+            port.to_string(),
+        ],
+        state_file: state_file.clone(),
+        port,
+        ready_timeout: Duration::from_secs(10),
+        stop_grace: Duration::from_secs(2),
+    };
+    // The health listener binds only once the child's pid file exists, so
+    // the supervisor's pre-spawn port check sees a free port — the same
+    // gate kalsa-supervisor's FakeHealth uses. It stops with the engine: a
+    // real server's port goes away when it is stopped, and the restart's
+    // second start must find the port free.
+    let health_on = |pid_file: &std::path::Path| {
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let handle = {
+            let gate = std::sync::Arc::clone(&stop);
+            let pid_file = pid_file.to_path_buf();
+            std::thread::spawn(move || {
+                while !pid_file.exists() && !gate.load(Ordering::SeqCst) {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                if gate.load(Ordering::SeqCst) {
+                    return;
+                }
+                let listener =
+                    std::net::TcpListener::bind(("127.0.0.1", port)).expect("health bind");
+                listener
+                    .set_nonblocking(true)
+                    .expect("health nonblocking");
+                while !gate.load(Ordering::SeqCst) {
+                    match listener.accept() {
+                        Ok((mut socket, _)) => {
+                            let mut scratch = [0u8; 512];
+                            let _ = std::io::Read::read(&mut socket, &mut scratch);
+                            let _ = std::io::Write::write_all(
+                                &mut socket,
+                                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                            );
+                        }
+                        Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            std::thread::sleep(Duration::from_millis(2))
+                        }
+                        Err(_) => return,
+                    }
+                }
+            })
+        };
+        (stop, handle)
+    };
+    let (health_stop, _health) = health_on(&pid_file);
+
+    let up = |deadline_secs: u64, wanted: &str| {
+        let deadline = Instant::now() + Duration::from_secs(deadline_secs);
+        loop {
+            let state = brain.supervisor.state();
+            let name = match &state {
+                ServerState::Running { .. } => "running",
+                ServerState::Starting => "starting",
+                ServerState::Stopping => "stopping",
+                ServerState::Stopped => "stopped",
+                ServerState::Failed { .. } => "failed",
+            };
+            if name == wanted {
+                return;
+            }
+            if Instant::now() >= deadline {
+                panic!("the engine never reached {wanted} (at {name}: {state:?})");
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    };
+
+    // A genuinely running, owned engine — the state the vision restart
+    // finds on the real Mac.
+    let first = brain.supervisor.start(config(port));
+    assert_eq!(first.outcome(), crate::StartOutcome::Accepted);
+    up(15, "running");
+
+    // What the vision restart does once the projector is on disk: STOP,
+    // then queue the start the walk built. With the stop dropped (the
+    // bug), the start below is refused and the final wait times out.
+    brain.supervisor.stop();
+    let passed_through_non_running =
+        !matches!(brain.supervisor.state(), ServerState::Running { .. });
+    // The old server's port goes away with it, and the new child writes a
+    // fresh pid file for the new health listener to wait on.
+    health_stop.store(true, Ordering::SeqCst);
+    let _ = std::fs::remove_file(&pid_file);
+    let (health_stop, _health) = health_on(&pid_file);
+    let stops_seen = brain.stops.load(Ordering::SeqCst);
+    let second = queue_start(&brain, stops_seen, config(port), || ())
+        .expect("the restart's start is queued");
+    assert_eq!(
+        second.outcome(),
+        crate::StartOutcome::Accepted,
+        "a restart must not be refused as 'already on'"
+    );
+    assert!(
+        passed_through_non_running,
+        "the restart must pass through a non-running state, which is what the chat renders"
+    );
+    up(15, "running");
+    // And the Turn-on rule itself stands: a start while a server is owned
+    // is still refused — only a RESTART stops first.
+    let switch = brain.supervisor.start(config(port));
+    assert_eq!(switch.outcome(), crate::StartOutcome::Refused);
+
+    // Clean up: stop the engine and the health listener.
+    brain.supervisor.stop();
+    health_stop.store(true, Ordering::SeqCst);
+    let _ = std::fs::remove_file(&pid_file);
+    let _ = std::fs::remove_file(&state_file);
+}
+
 /// One activate of the door's own route, the way a client sends it.
 fn activate_chat(address: std::net::SocketAddr, token: &str, id: &str) -> u16 {
     let body = format!("{{\"id\":\"{id}\"}}");
