@@ -53,3 +53,43 @@ a translation of two upstream ones — chat/src/lib/stickToBottom.ts, from
 `packages/store/src/utils/viewport-scroll.ts` — and its header states what was
 kept, what was left out, and where it came from. Everything the hook drives
 (the thread's viewport, the way back) is this app's own.
+
+mediabunny
+----------
+
+    package:   mediabunny v1.61.1 (npm, `chat/package.json`)
+    licence:   MPL-2.0
+    copyright: Copyright (c) 2026-present, Vanilagy and contributors
+    url:       https://mediabunny.dev (source: https://github.com/Vanilagy/mediabunny)
+    used by:   chat/src/lib/video.ts compresses a room video in the webview
+               through it (H.264 MP4 over WebCodecs) and reads its frames
+               for the stills the AI sees.
+
+Used unmodified, as an installed dependency. The full licence text ships in
+the installed package at `chat/node_modules/mediabunny/LICENSE` (Mozilla
+Public License Version 2.0); its notice:
+
+    This Source Code Form is subject to the terms of the Mozilla Public
+    License, v. 2.0. If a copy of the MPL was not distributed with this
+    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+llama.cpp, the attachment preview
+---------------------------------
+
+    project:   llama.cpp, `tools/ui` web UI
+    licence:   MIT
+    copyright: Copyright (c) the llama.cpp authors (Georgi Gerganov and the
+               ggml contributors)
+    url:       https://github.com/ggml-org/llama.cpp
+    commit:    b23efaa2ef147f547ee75cbf0c621d61904de80e (2026-09-20)
+    files:     tools/ui/src/lib/components/app/chat/ChatAttachments/
+               ChatAttachmentsPreview/ChatAttachmentsPreview.svelte and
+               .../ChatAttachmentsPreviewCurrentItem/
+               ChatAttachmentsPreviewCurrentItemVideo.svelte
+
+Ported, not installed: chat/src/components/MediaViewer.tsx is a
+Svelte-to-React translation of those two components — the full-view
+lightbox with wrap-around previous/next, the thumbnail strip, and the
+video item — and states the same attribution in its header. The
+navigation model and layout are upstream's; the React translation, the
+keyboard handling, the close affordance and this app's data shape are new.

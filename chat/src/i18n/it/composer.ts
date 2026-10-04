@@ -14,6 +14,7 @@ export const COMPOSER = {
     "thinkingOffTitle": "Riflessione spenta: il modello risponde subito, senza ragionare prima.",
     "attachTitle": "Allega un file (testo, markdown, CSV, PDF, Word, PowerPoint)",
     "attachTitleImages": "Allega un file o un'immagine (testo, markdown, CSV, PDF, Word, PowerPoint, immagini)",
+    "attachTitleMedia": "Allega un'immagine o un video",
     "removeImage": "Rimuovi questa immagine"
   };
 

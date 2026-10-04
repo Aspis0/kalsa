@@ -14,6 +14,7 @@ export const COMPOSER = {
     "thinkingOffTitle": "Réflexion désactivée : le modèle répond aussitôt, sans réfléchir d'abord.",
     "attachTitle": "Joindre un fichier (texte, markdown, CSV, PDF, Word, PowerPoint)",
     "attachTitleImages": "Joindre un fichier ou une image (texte, markdown, CSV, PDF, Word, PowerPoint, images)",
+    "attachTitleMedia": "Joindre une image ou une vidéo",
     "removeImage": "Retirer cette image"
   };
 

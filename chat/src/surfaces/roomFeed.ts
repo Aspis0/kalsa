@@ -3,6 +3,20 @@
 // these directly, which is how a merge that must not wipe a live page and
 // an epoch that must replace stay proven.
 
+/** One blob a message carries, the descriptor whole (§5b): the id names
+    it, the rest says what it is. */
+export interface RoomEntryMedia {
+  id: string;
+  kind: "image" | "video";
+  mime: string;
+  bytes: number;
+  sha256: string;
+  width: number;
+  height: number;
+  duration_ms: number | null;
+  frames: string[];
+}
+
 export interface RoomMember {
   member_id: number;
   name: string;
@@ -35,6 +49,8 @@ export interface RoomEntry {
   time: number;
   call_ai: boolean;
   read: number | null;
+  /** The blobs this post carries, absent when it carries none. */
+  media?: RoomEntryMedia[];
 }
 
 export type RoomEvent =

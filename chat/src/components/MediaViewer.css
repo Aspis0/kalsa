@@ -1,0 +1,127 @@
+/* The full-view lightbox: a dark field over the page, the item centered,
+   the strip beneath. */
+
+.media-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  background: rgba(0, 0, 0, 0.88);
+}
+
+.media-viewer-stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.media-viewer-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 4rem 1rem;
+}
+
+.media-viewer-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.media-viewer-video {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.media-viewer-nav {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  border: 0;
+  border-radius: 999px;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.media-viewer-nav:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.media-viewer-prev {
+  left: 1rem;
+}
+
+.media-viewer-next {
+  right: 1rem;
+}
+
+.media-viewer-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  border: 0;
+  border-radius: 999px;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.media-viewer-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.media-viewer-strip {
+  display: flex;
+  flex: none;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0.75rem 1rem 1.25rem;
+  overflow-x: auto;
+}
+
+.media-viewer-thumb {
+  flex: none;
+  width: 56px;
+  height: 42px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.media-viewer-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-viewer-thumb.is-current {
+  border-color: rgba(255, 255, 255, 0.85);
+}
+
+.media-viewer-thumb-glyph {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.9rem;
+}

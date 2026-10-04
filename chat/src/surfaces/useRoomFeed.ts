@@ -137,14 +137,17 @@ export function useRoomFeed() {
   }, [load]);
 
   const send = useCallback(
-    async (text: string, withCall: boolean): Promise<boolean> => {
-      if (!text || !available()) return false;
+    async (text: string, withCall: boolean, media?: string[]): Promise<boolean> => {
+      if ((!text && (media === undefined || media.length === 0)) || !available()) return false;
       setSending(true);
       try {
         const answer = await invoke<RoomPostAnswer>("brain_room_post", {
           clientMsgId: `host-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
           text,
           callAi: withCall,
+          // The ids of blobs this member published itself; the shelf
+          // refuses anyone else's (§5b).
+          media: media && media.length > 0 ? media : null,
         });
         setFeed((current) =>
           reduceEvent(current, { kind: "message", epoch: current.epoch, ...answer }),

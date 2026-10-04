@@ -41,4 +41,22 @@ export const ROOM: RoomTable = {
     "name_mixed_scripts": "Utilise les lettres d'un seul alphabet dans ton nom.",
     "name_too_long": "Ce nom est trop long. Essaie-en un plus court."
   },
+  media: {
+    compressing: (pct) => `Compression… ${pct} %`,
+    uploading: (pct) => `Envoi… ${pct} %`,
+    cancel: "Annuler",
+    remove: "Retirer",
+    videoLabel: "Vidéo",
+    videoUnavailable: "Vidéo indisponible",
+    imageUnavailable: "Image indisponible",
+    enlarge: "Voir en plein écran",
+    notMedia: "Seules les images et les vidéos se joignent ici.",
+    tooLargeImage: "Cette image est trop grande pour le salon (4 MB au plus).",
+    imageUnreadable: "Cette image n'a pas pu être lue. Essaie-en une autre.",
+    tooLargeVideo: "Cette vidéo est trop grande pour le salon (plus de 100 MB).",
+    undecodableVideo: "Cette vidéo n'a pas pu être lue. Convertis-la en MP4 et réessaie.",
+    full: "Le salon est plein (2 Go). Demande à l'hôte de le vider.",
+    uploadBroken: "Le fichier n'est pas arrivé entier. Réessaie.",
+    uploadFailed: "L'envoi n'a pas abouti. Réessaie.",
+  },
 };

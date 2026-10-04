@@ -5,6 +5,7 @@ import { COMPOSER, BRAIN_BAR } from "./composer";
 import { ADVANCED } from "./advanced";
 import { ROOM } from "./room";
 import { THREAD } from "./thread";
+import { VIEWER } from "./viewer";
 import { TOOLS } from "./tools";
 import { SIDEBAR } from "./sidebar";
 import { FILES } from "./files";
@@ -34,6 +35,7 @@ export const FRENCH: English = {
   advanced: ADVANCED,
   room: ROOM,
   thread: THREAD,
+  viewer: VIEWER,
   tools: TOOLS,
   sidebar: SIDEBAR,
   files: FILES,

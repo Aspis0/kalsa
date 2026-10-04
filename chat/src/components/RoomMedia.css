@@ -1,0 +1,105 @@
+/* The room's media: what a message carries, and what waits in the
+   composer to become it. */
+
+.room-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.room-media-thumb {
+  flex: none;
+  max-width: 240px;
+  max-height: 180px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: zoom-in;
+}
+
+.room-media-thumb img {
+  display: block;
+  max-width: 240px;
+  max-height: 180px;
+  object-fit: cover;
+}
+
+.room-media-video {
+  display: block;
+  max-width: 320px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.room-media-missing {
+  display: grid;
+  width: 120px;
+  height: 84px;
+  place-items: center;
+  color: var(--silence);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  font-size: 1.2rem;
+}
+
+/* The composer's pending chips: picture or video on its way in. */
+
+.room-media-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.room-media-chip {
+  position: relative;
+  margin: 0;
+}
+
+.room-media-chip img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+
+.room-media-chip-glyph {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+
+.room-media-chip-label {
+  max-width: 72px;
+  margin-top: 0.2rem;
+  color: var(--silence);
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+.room-media-chip-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}

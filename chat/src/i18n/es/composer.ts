@@ -14,6 +14,7 @@ export const COMPOSER = {
     "thinkingOffTitle": "Pensamiento apagado: el modelo responde al instante, sin razonar antes.",
     "attachTitle": "Adjuntar un archivo (texto, markdown, CSV, PDF, Word, PowerPoint)",
     "attachTitleImages": "Adjuntar un archivo o imagen (texto, markdown, CSV, PDF, Word, PowerPoint, imágenes)",
+    "attachTitleMedia": "Adjuntar una imagen o vídeo",
     "removeImage": "Quitar esta imagen"
   };
 

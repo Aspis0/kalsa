@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { ClipboardEvent, KeyboardEvent } from "react";
+import type { ClipboardEvent, KeyboardEvent, ReactNode } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { downloadBytes } from "../lib/downloadBytes";
 import "./Composer.css";
@@ -13,6 +13,7 @@ export interface ComposerImage {
 
 const DOCUMENT_ACCEPT = ".txt,.md,.markdown,.csv,.json,.log,.pdf,.docx,.pptx";
 const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp,.gif,.heic,.heif";
+const VIDEO_ACCEPT = ".mp4,.m4v,.mov";
 
 interface ComposerProps {
   streaming: boolean;
@@ -34,6 +35,18 @@ interface ComposerProps {
   // Whether the model can see: the picker then offers pictures, and paste
   // and drop take them. Blind, nothing about images shows here at all.
   acceptsImages?: boolean;
+  // The Room's picker: videos ride beside the pictures (the accept list
+  // grows the kinds; the paste and drop route is the same onAttach).
+  acceptsVideos?: boolean;
+  // The room's pending media, chips the room page owns whole — this
+  // component only places them above the box.
+  mediaChips?: ReactNode;
+  // True while something pending is still on its way (a video
+  // compressing): both sends hold until the chips settle.
+  sendBlocked?: boolean;
+  // An empty box may send because media ride with it (the room's
+  // media-only post); the chat's empty box still needs words.
+  allowsMediaOnly?: boolean;
   /** The projector the brain has on the shelf, in bytes: the one quiet
       affordance beside the attach button. Null (or absent) when there is
       nothing to offer, and while the offer, the download or a refusal is
@@ -66,6 +79,10 @@ export function Composer({
   onStop,
   onAttach,
   acceptsImages = false,
+  acceptsVideos = false,
+  mediaChips = null,
+  sendBlocked = false,
+  allowsMediaOnly = false,
   visionOfferBytes = null,
   onOfferVision,
   images,
@@ -87,10 +104,11 @@ export function Composer({
   const [held, setHeld] = useState(false);
   const text = draft;
   const pendingImages = images ?? [];
-  // An empty box sends when pictures ride with it: the pictures are the
+  // An empty box sends when something rides with it: the pictures are the
   // message. Words alone still need words.
-  const ready = (text.trim().length > 0 || pendingImages.length > 0) && !opening;
-  const canSend = ready && !streaming && !held;
+  const ready =
+    (text.trim().length > 0 || pendingImages.length > 0 || allowsMediaOnly) && !opening;
+  const canSend = ready && !streaming && !held && !sendBlocked;
 
   // Grow with the text up to MAX_HEIGHT, then scroll. Height only ever
   // derives from scrollHeight so the box never jumps while typing.
@@ -107,7 +125,13 @@ export function Composer({
   // one post, not two.
   async function deliver(give: (value: string) => boolean | Promise<boolean>): Promise<void> {
     const value = text.trim();
-    if ((!value && pendingImages.length === 0) || streaming || opening || sendingNow.current) {
+    if (
+      (!value && pendingImages.length === 0 && !allowsMediaOnly) ||
+      streaming ||
+      opening ||
+      sendBlocked ||
+      sendingNow.current
+    ) {
       return;
     }
     sendingNow.current = true;
@@ -153,6 +177,7 @@ export function Composer({
 
   return (
     <div className="composer">
+      {mediaChips}
       {pendingImages.length > 0 && onRemoveImage ? (
         <div className="composer-images">
           {pendingImages.map((image) => (
@@ -189,7 +214,11 @@ export function Composer({
               type="file"
               className="visually-hidden"
               multiple
-              accept={acceptsImages ? `${DOCUMENT_ACCEPT},${IMAGE_ACCEPT}` : DOCUMENT_ACCEPT}
+              accept={
+                acceptsImages
+                  ? `${DOCUMENT_ACCEPT},${IMAGE_ACCEPT}${acceptsVideos ? `,${VIDEO_ACCEPT}` : ""}`
+                  : DOCUMENT_ACCEPT
+              }
               aria-hidden="true"
               tabIndex={-1}
               onChange={(event) => {
@@ -201,7 +230,13 @@ export function Composer({
               type="button"
               className="composer-action composer-attach"
               aria-label={composer.attachAria}
-              title={acceptsImages ? composer.attachTitleImages : composer.attachTitle}
+              title={
+                acceptsImages && acceptsVideos
+                  ? composer.attachTitleMedia
+                  : acceptsImages
+                    ? composer.attachTitleImages
+                    : composer.attachTitle
+              }
               onClick={() => fileRef.current?.click()}
             >
               <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">

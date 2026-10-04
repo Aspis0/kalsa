@@ -25,6 +25,26 @@ export interface RoomTable {
       computer itself, in the household's language. */
   defaultHostName: string;
   notes: Record<string, string>;
+  /** Pictures and videos: the composer's chips, and the shelf's refusal
+      codes (§5b) in the household's words. */
+  media: {
+    compressing: (pct: number) => string;
+    uploading: (pct: number) => string;
+    cancel: string;
+    remove: string;
+    videoLabel: string;
+    videoUnavailable: string;
+    imageUnavailable: string;
+    enlarge: string;
+    notMedia: string;
+    tooLargeImage: string;
+    imageUnreadable: string;
+    tooLargeVideo: string;
+    undecodableVideo: string;
+    full: string;
+    uploadBroken: string;
+    uploadFailed: string;
+  };
 }
 
 export const ROOM: RoomTable = {
@@ -64,5 +84,23 @@ export const ROOM: RoomTable = {
     name_framing: "Names can't use [ or ].",
     name_mixed_scripts: "Use letters from one alphabet in your name.",
     name_too_long: "That name is too long. Try a shorter one.",
+  },
+  media: {
+    compressing: (pct) => `Compressing… ${pct}%`,
+    uploading: (pct) => `Uploading… ${pct}%`,
+    cancel: "Cancel",
+    remove: "Remove",
+    videoLabel: "Video",
+    videoUnavailable: "Video unavailable",
+    imageUnavailable: "Picture unavailable",
+    enlarge: "View full size",
+    notMedia: "Only pictures and videos can be attached here.",
+    tooLargeImage: "That picture is too large for the room (4 MB at most).",
+    imageUnreadable: "That picture can't be read here. Try another one.",
+    tooLargeVideo: "That video is too large for the room (over 100 MB).",
+    undecodableVideo: "That video can't be read here. Convert it to MP4 and try again.",
+    full: "The Room is full (2 GB). Ask the host to clear it.",
+    uploadBroken: "The file didn't survive the upload whole. Try again.",
+    uploadFailed: "The upload didn't go through. Try again.",
   },
 };

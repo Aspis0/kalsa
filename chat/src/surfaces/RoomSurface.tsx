@@ -5,11 +5,20 @@
 // codes its keys); a state the user can neither understand nor fix is not
 // shown at all.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { available } from "../lib/tauri";
 import { useStickToBottom } from "../lib/stickToBottom";
 import { RoomText } from "../lib/roomMention";
 import { assignNameColors, assignNameTints, KALSA_NAME_COLOR, KALSA_TINT } from "../lib/roomColors";
+import { isImageFile, prepareImage } from "../lib/images";
+import type { PreparedImage } from "../lib/images";
+import { AttachmentError } from "../lib/attachments";
+import { prepareVideo, VideoCanceled } from "../lib/video";
+import { RoomMediaError, ROOM_IMAGE_MAX_BYTES, ROOM_VIDEO_MAX_BYTES, uploadRoomMedia } from "../lib/roomMedia";
+import type { RoomMediaDescriptor } from "../lib/roomMedia";
+import { uid } from "../lib/store";
+import { isFallbackText, RoomMediaGrid } from "../components/RoomMediaGrid";
+import { RoomMediaChips } from "../components/RoomMediaChips";
 import { Composer } from "../components/Composer";
 import { Markdown } from "../components/Markdown";
 import { stamp, Thinking } from "../components/Thread";
@@ -32,16 +41,41 @@ export function queueLine(queue: string[], table: { queueNext: (a: string) => st
   return table.queueThen(next, restPart);
 }
 
+/** One picture or video on its way into the room: prepared here (a video
+    compressed, its frames pulled), uploaded at send, then posted by id.
+    The object URL is this chip's own and dies when the chip does. */
+interface RoomPendingMedia {
+  id: string;
+  kind: "image" | "video";
+  state: "compressing" | "ready" | "uploading";
+  progress: number;
+  url: string | null;
+  blob: Blob | null;
+  width: number;
+  height: number;
+  durationMs: number | null;
+  frames: PreparedImage[];
+  /** The descriptor of an upload that already landed: a retried post
+      reuses it instead of writing a second blob to the shelf. */
+  uploaded: RoomMediaDescriptor | null;
+}
+
 export function RoomSurface() {
   const feed = useRoomFeed();
   const { table, tag } = useLanguage();
   const room = table.room;
+  const mediaWords = room.media;
   const { info, note, entries, live } = feed;
   // The backend leaves an UNNAMED host's name empty — the computer's own
   // label is English words nobody chose — and the page renders the
   // household's words for it. A set name crosses as itself.
   const localName = (name: string): string => (name === "" ? room.defaultHostName : name);
   const [draft, setDraft] = useState("");
+  // The media on their way in, and the one sentence an attach or an
+  // upload refused with. Both live here, with the draft's own durability.
+  const [pendingMedia, setPendingMedia] = useState<RoomPendingMedia[]>([]);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const cancelers = useRef(new Map<string, { canceled: boolean }>());
 
   // The header's name affordance exists only while there is a name to
   // show: a bare "You are …" is noise, and the placeholder copy is not
@@ -68,8 +102,238 @@ export function RoomSurface() {
   // for exactly as long as it leaves them nowhere else.
   async function post(text: string, withCall: boolean): Promise<boolean> {
     const body = text.trim();
-    if (!body || body === "@") return false;
-    return feed.send(body, withCall);
+    if ((!body && pendingMedia.length === 0) || body === "@") return false;
+    if (pendingMedia.length === 0) return feed.send(body, withCall);
+    return postWithMedia(body, withCall);
+  }
+
+  function patchMedia(id: string, patch: Partial<RoomPendingMedia>): void {
+    setPendingMedia((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+  }
+
+  function dropMedia(id: string): void {
+    setPendingMedia((current) => {
+      const chip = current.find((item) => item.id === id);
+      if (chip?.url) URL.revokeObjectURL(chip.url);
+      return current.filter((item) => item.id !== id);
+    });
+    cancelers.current.delete(id);
+  }
+
+  // Attach: pictures are prepared at once (one road as the chat's); a
+  // video compresses here in the webview with its progress on the chip,
+  // cancelable, and its frames pulled beside it. A file that is neither is
+  // a sentence, never a silence.
+  async function attachMedia(files: FileList | File[]): Promise<void> {
+    setMediaError(null);
+    for (const file of Array.from(files)) {
+      if (isImageFile(file)) {
+        const id = uid();
+        const gate = { canceled: false };
+        cancelers.current.set(id, gate);
+        setPendingMedia((current) => [
+          ...current,
+          {
+            id,
+            kind: "image",
+            state: "compressing",
+            progress: 0,
+            url: null,
+            blob: null,
+            width: 0,
+            height: 0,
+            durationMs: null,
+            frames: [],
+            uploaded: null,
+          },
+        ]);
+        try {
+          const image = await prepareImage(file);
+          patchMedia(id, {
+            state: "ready",
+            url: URL.createObjectURL(image.blob),
+            blob: image.blob,
+            width: image.width,
+            height: image.height,
+          });
+        } catch (error) {
+          if (gate.canceled) {
+            dropMedia(id);
+            continue;
+          }
+          setMediaError(
+            error instanceof AttachmentError && error.failure === "too-big"
+              ? mediaWords.tooLargeImage
+              : mediaWords.imageUnreadable,
+          );
+          dropMedia(id);
+        } finally {
+          cancelers.current.delete(id);
+        }
+        continue;
+      }
+      if (file.type.startsWith("video/") || /\.(mp4|m4v|mov)$/i.test(file.name)) {
+        const id = uid();
+        const gate = { canceled: false };
+        cancelers.current.set(id, gate);
+        setPendingMedia((current) => [
+          ...current,
+          {
+            id,
+            kind: "video",
+            state: "compressing",
+            progress: 0,
+            url: null,
+            blob: null,
+            width: 0,
+            height: 0,
+            durationMs: null,
+            frames: [],
+            uploaded: null,
+          },
+        ]);
+        try {
+          const video = await prepareVideo(
+            file,
+            (progress) => patchMedia(id, { progress }),
+            gate,
+          );
+          patchMedia(id, {
+            state: "ready",
+            progress: 1,
+            url: URL.createObjectURL(video.blob),
+            blob: video.blob,
+            width: video.width,
+            height: video.height,
+            durationMs: video.durationMs,
+            frames: video.frames,
+          });
+        } catch (error) {
+          dropMedia(id);
+          if (error instanceof VideoCanceled || gate.canceled) continue;
+          setMediaError(
+            error instanceof AttachmentError && error.failure === "too-big"
+              ? mediaWords.tooLargeVideo
+              : mediaWords.undecodableVideo,
+          );
+        } finally {
+          cancelers.current.delete(id);
+        }
+        continue;
+      }
+      setMediaError(mediaWords.notMedia);
+    }
+  }
+
+  function cancelMedia(id: string): void {
+    const gate = cancelers.current.get(id);
+    if (gate) gate.canceled = true;
+    dropMedia(id);
+  }
+
+  /** §5b's refusal codes, in the household's words. */
+  function mediaSentence(code: string): string {
+    switch (code) {
+      case "too_large":
+        return mediaWords.tooLargeVideo;
+      case "room_media_full":
+        return mediaWords.full;
+      case "media_bad_sha":
+      case "media_incomplete":
+      case "media_bad_magic":
+        return mediaWords.uploadBroken;
+      default:
+        return mediaWords.uploadFailed;
+    }
+  }
+
+  /** The upload road for one pending item: images direct; a video's frames
+      first (the shelf checks the video's ids against them), then the video
+      itself. An upload that already landed rides again by its id. */
+  async function uploadPending(item: RoomPendingMedia): Promise<RoomMediaDescriptor> {
+    if (item.uploaded) return item.uploaded;
+    if (!item.blob) throw new RoomMediaError("internal");
+    const bytes = new Uint8Array(await item.blob.arrayBuffer());
+    if (item.kind === "image" && bytes.byteLength > ROOM_IMAGE_MAX_BYTES) {
+      throw new RoomMediaError("too_large");
+    }
+    if (item.kind === "video" && bytes.byteLength > ROOM_VIDEO_MAX_BYTES) {
+      throw new RoomMediaError("too_large");
+    }
+    const frames: string[] = [];
+    for (const frame of item.frames) {
+      const descriptor = await uploadRoomMedia(
+        {
+          kind: "image",
+          mime: frame.mime,
+          width: frame.width,
+          height: frame.height,
+          durationMs: null,
+          frames: [],
+        },
+        new Uint8Array(await frame.blob.arrayBuffer()),
+        () => {},
+        cancelers.current.get(item.id),
+      );
+      frames.push(descriptor.id);
+    }
+    const descriptor = await uploadRoomMedia(
+      {
+        kind: item.kind,
+        mime: item.kind === "video" ? "video/mp4" : item.blob.type,
+        width: Math.max(1, item.width),
+        height: Math.max(1, item.height),
+        durationMs: item.durationMs,
+        frames,
+      },
+      bytes,
+      (progress) => patchMedia(item.id, { state: "uploading", progress }),
+      cancelers.current.get(item.id),
+    );
+    patchMedia(item.id, { uploaded: descriptor, state: "ready", progress: 1 });
+    return descriptor;
+  }
+
+  async function postWithMedia(body: string, withCall: boolean): Promise<boolean> {
+    setMediaError(null);
+    const items = [...pendingMedia];
+    // The room's order: images first, then videos — a video's frames must
+    // be on the shelf before its own reserve names them.
+    const order = [...items.filter((item) => item.kind === "image"), ...items.filter((item) => item.kind === "video")];
+    const ids: string[] = [];
+    let inFlight: string | null = null;
+    try {
+      for (const item of order) {
+        inFlight = item.id;
+        setPendingMedia((current) =>
+          current.map((held) => (held.id === item.id ? { ...held, state: "uploading", progress: 0 } : held)),
+        );
+        const descriptor = await uploadPending(item);
+        ids.push(descriptor.id);
+        inFlight = null;
+      }
+    } catch (error) {
+      if (error instanceof RoomMediaError && error.code === "canceled") {
+        return false;
+      }
+      setMediaError(
+        error instanceof RoomMediaError ? mediaSentence(error.code) : mediaWords.uploadFailed,
+      );
+      // The chip whose upload failed leaves; everything that already
+      // landed stays for the next send, under its own id.
+      if (inFlight !== null) dropMedia(inFlight);
+      setPendingMedia((current) =>
+        current.map((held) => (held.state === "uploading" ? { ...held, state: "ready", progress: 1 } : held)),
+      );
+      return false;
+    }
+    const sent = await feed.send(body, withCall, ids);
+    if (sent) {
+      for (const item of items) dropMedia(item.id);
+    }
+    return sent;
   }
 
   async function saveName(): Promise<void> {
@@ -220,6 +484,11 @@ export function RoomSurface() {
             {sendErrorLine}
           </p>
         ) : null}
+        {mediaError ? (
+          <p className="surface-quiet room-send-error" role="alert">
+            {mediaError}
+          </p>
+        ) : null}
         <Composer
           streaming={turnRunning}
           opening={false}
@@ -227,6 +496,19 @@ export function RoomSurface() {
           onDraftChange={setDraft}
           onSend={(text) => post(text, false)}
           onStop={() => void feed.stop()}
+          onAttach={(files) => void attachMedia(files)}
+          acceptsImages
+          acceptsVideos
+          mediaChips={
+            <RoomMediaChips
+              items={pendingMedia}
+              words={mediaWords}
+              onCancel={cancelMedia}
+              onRemove={dropMedia}
+            />
+          }
+          sendBlocked={pendingMedia.some((item) => item.state === "compressing")}
+          allowsMediaOnly={pendingMedia.length > 0}
           ask={
             ai
               ? {
@@ -292,11 +574,34 @@ function RoomRow({
       ) : null}
       <div className="room-bubble" style={style}>
         {entry.call_ai && !isKalsa ? <span className="room-asked">{asked} </span> : null}
-        {isKalsa ? <Markdown text={entry.text} /> : <RoomText text={entry.text} />}
+        <RoomMediaInBubble entry={entry} />
+        {!(entry.media && entry.media.length > 0 && isFallbackText(entry.text)) ? (
+          isKalsa ? <Markdown text={entry.text} /> : <RoomText text={entry.text} />
+        ) : null}
         {entry.read !== null && entry.read !== undefined ? (
           <span className="room-read">{readLast(entry.read)}</span>
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** A media post's blobs, above (or instead of) its words. The computer's
+    fallback words — "[Image]", "[Video]" — belong to the pixels: they show
+    only when the blobs themselves would not come. */
+function RoomMediaInBubble({ entry }: { entry: RoomEntry }) {
+  const { table } = useLanguage();
+  if (!entry.media || entry.media.length === 0) return null;
+  const words = table.room.media;
+  return (
+    <RoomMediaGrid
+      media={entry.media}
+      words={{
+        videoUnavailable: words.videoUnavailable,
+        imageUnavailable: words.imageUnavailable,
+        videoLabel: words.videoLabel,
+        enlarge: words.enlarge,
+      }}
+    />
   );
 }

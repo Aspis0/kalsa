@@ -15,6 +15,7 @@ export const COMPOSER = {
   attachTitle: "Attach a file (text, markdown, CSV, PDF, Word, PowerPoint)",
   attachTitleImages:
     "Attach a file or picture (text, markdown, CSV, PDF, Word, PowerPoint, images)",
+  attachTitleMedia: "Attach a picture or video",
   removeImage: "Remove this picture",
 };
 

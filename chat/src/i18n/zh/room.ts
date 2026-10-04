@@ -40,4 +40,22 @@ export const ROOM: RoomTable = {
     "name_mixed_scripts": "名字请使用同一种文字的字母。",
     "name_too_long": "这个名字太长了。试试短一点的。"
   },
+  media: {
+    compressing: (pct) => `压缩中… ${pct}%`,
+    uploading: (pct) => `上传中… ${pct}%`,
+    cancel: "取消",
+    remove: "移除",
+    videoLabel: "视频",
+    videoUnavailable: "视频不可用",
+    imageUnavailable: "图片不可用",
+    enlarge: "查看原尺寸",
+    notMedia: "这里只能附加图片和视频。",
+    tooLargeImage: "这张图片对房间来说太大了（最多 4 MB）。",
+    imageUnreadable: "无法读取这张图片。换一张试试。",
+    tooLargeVideo: "这个视频对房间来说太大了（超过 100 MB）。",
+    undecodableVideo: "无法读取这个视频。转换成 MP4 再试一次。",
+    full: "房间已满（2 GB）。请房主清理后再试。",
+    uploadBroken: "文件没有完整到达。请重试。",
+    uploadFailed: "上传没有完成。请重试。",
+  },
 };

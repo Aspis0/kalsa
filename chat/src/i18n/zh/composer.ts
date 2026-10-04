@@ -14,6 +14,7 @@ export const COMPOSER = {
     "thinkingOffTitle": "思考已关闭：模型立刻回答，不先推理。",
     "attachTitle": "附加文件（文本、markdown、CSV、PDF、Word、PowerPoint）",
     "attachTitleImages": "附加文件或图片（文本、markdown、CSV、PDF、Word、PowerPoint、图片）",
+    "attachTitleMedia": "附加图片或视频",
     "removeImage": "移除这张图片"
   };
 
