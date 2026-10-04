@@ -1150,7 +1150,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   **iOS performance track (owner 2026-10-04: smooth, low RAM, never crashes).** Recon luna bb728e4f ->
   scratchpad/agents/ios-perf/RECON.md. Batch 1 (Coder, branch ios/perf-1): memoryWarning -> release the idle local
   context (deferred while generating), mlock off on iOS only (pins GBs of wired memory = jetsam risk), root error
-  boundary. Batch 2 after measuring: transcript is a non-virtualized ScrollView and the 33 ms coalescer re-renders
+  boundary. LANDED on app main 2e5e13cd (2026-10-04; c269d7be+34745efc+2e5e13cd; review luna 977ec3c3, P2s fixed:
+  poisoned dispose resets the hash, owed release honoured on native-work settle and never under a claimed send,
+  idle embedder released too, boundary outermost; full jest 3519 green). Batch 2 after measuring: transcript is a
+  non-virtualized ScrollView and the 33 ms coalescer re-renders
   it per token. Simulator/Mac numbers are not iPhone numbers; jetsam needs a real device (partner 15 Pro, ask).
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
