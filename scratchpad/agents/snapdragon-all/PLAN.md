@@ -90,3 +90,7 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   lifetimes, hybrid hop test), binding c3f982b5 (vendor + param + JSI stats + NPU decode-hop HTP failure attribution,
   audit luna 6f261cdd), app 3238e1bb. Host: all governor tests green on the ship model (hybrid), hop scenario greedy-
   identical. APK run 37160382939 -> S23 measurement: CPU-only vs hop N (tok/s, battery/skin area, CPU/NSP zone peaks).
+- 2026-10-03 S23 in-app decode hop (`s23-decode-hop-3238e1bb`): hop works on real HTP (40 hops/turn, 17-19 ms total
+  KV commit); decode 11.47/11.30 tok/s with hop vs 10.25 -> 8.09 CPU-only as the phone heats (CPU-only -21 %, hop
+  -1.5 %); the only thermal status 3 was a CPU-only arm. Heat/token lower with hop in both pairs but confounded by
+  hotter hop starts -> matched-start heat run still to do.
