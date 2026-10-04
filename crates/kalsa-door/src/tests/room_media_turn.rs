@@ -344,7 +344,9 @@ fn a_failed_exchange_names_its_class_in_one_line() {
             .filter(|line| line.contains("room turn exchange failed"))
             .cloned()
             .collect();
-        if mine.iter().any(|line| line.contains("class stall")) || std::time::Instant::now() >= deadline {
+        if mine.iter().any(|line| line.contains("class stall"))
+            || std::time::Instant::now() >= deadline
+        {
             break mine;
         }
         std::thread::sleep(Duration::from_millis(50));
@@ -364,5 +366,65 @@ fn a_failed_exchange_names_its_class_in_one_line() {
         assert!(std::time::Instant::now() < deadline, "the turn never ended");
         std::thread::sleep(Duration::from_millis(50));
     }
+    door.shutdown();
+}
+
+#[test]
+fn a_media_stall_that_burned_the_floor_is_not_retried() {
+    // The confirmed review of the floor fix: a media turn that stays
+    // silent pays the whole media patience, and the automatic retry would
+    // pay it AGAIN — twenty minutes of one member's turn while the room
+    // queues. The turn fails after ONE floor, having sent once.
+    let forever = Duration::from_secs(120);
+    let engine = Engine::with_vision(vec![
+        Reply::SseAfterImages {
+            silence: forever,
+            pieces: vec!["never".to_string()],
+        },
+        // Only the old, retrying behavior ever reaches this one.
+        Reply::SseAfterImages {
+            silence: forever,
+            pieces: vec!["neither".to_string()],
+        },
+    ]);
+    let (door, room, engine, [_, one, _]) = turn_room(engine);
+    let address = door.address();
+    // The stall clock shrunk: the media floor follows at ten times it.
+    let _stall = crate::room::turn::stall_for(Duration::from_millis(300));
+    let bearer = format!("Bearer {one}");
+    let media = upload_image(address, &one, &jpeg_bytes(), "image/jpeg", None);
+    post(
+        address,
+        Some(&bearer),
+        "/kalsa/room/messages",
+        &format!(r#"{{"client_msg_id":"m1","text":"@Kalsa look","media":["{media}"]}}"#),
+    );
+    // The turn ends refused, after one floor — not two.
+    let begun = std::time::Instant::now();
+    let deadline = begun + Duration::from_secs(15);
+    while room.turn_state().running.is_some() || engine.seen().is_empty() {
+        assert!(std::time::Instant::now() < deadline, "the turn never ended");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    // No answer ever landed, and the seat is free for whoever waits.
+    assert!(
+        room.newest_page(1, 10)
+            .unwrap()
+            .messages
+            .iter()
+            .all(|entry| entry.member != kalsa_room::MemberId::Ai),
+        "a stalled media turn stores nothing"
+    );
+    assert_eq!(
+        engine.seen().len(),
+        1,
+        "one send: the floor is not paid twice"
+    );
+    let elapsed = begun.elapsed();
+    assert!(
+        // One floor (3 s) plus the turn's own overhead — well under two.
+        elapsed < Duration::from_secs(5),
+        "one floor, not two: {elapsed:?}"
+    );
     door.shutdown();
 }

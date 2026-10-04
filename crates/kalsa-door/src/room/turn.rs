@@ -86,6 +86,12 @@ const STALL_PATIENCE: Duration = Duration::from_secs(60);
 /// the two share.
 const MEDIA_PREFILL_FACTOR: u32 = 10;
 
+/// The class of a stall that burned that whole floor: an image-carrying
+/// exchange still silent after the media patience is not retried — a
+/// second attempt would re-encode every image and burn the floor again,
+/// twenty minutes of one member's turn while the room queues behind it.
+const MEDIA_PREFILL_STALL: &str = "media_prefill_stall";
+
 /// The stall seam: a process-wide override in milliseconds, because the
 /// test sets it on its own thread and the driver reads it on its. Zero
 /// means the constant.
@@ -377,6 +383,13 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
                 // first media turn died twice with nothing but
                 // `engine_problem` to show for it.
                 log::info!("room turn exchange failed: turn {turn} class {class}");
+                if class == MEDIA_PREFILL_STALL {
+                    // The floor was the wait; a retry would only pay it
+                    // twice. The turn fails now, with the same honest
+                    // note every unrecoverable engine failure gives.
+                    publish(door.room.clone(), "refused", Some(ENGINE_PROBLEM));
+                    return "engine_problem";
+                }
                 if engine_retries > 0 {
                     engine_retries -= 1;
                     continue;
@@ -393,6 +406,17 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
 /// slot for the stream (it selects by the door's private header and holds
 /// the slot through generation), and the door's accounting stays true for
 /// as long as the engine's does.
+/// The stall's class: an image-carrying exchange that has not reached its
+/// first answer word burned the media-prefill floor — the wait that is not
+/// worth paying twice. Everything else is an ordinary stall.
+fn stall_class(images: bool, answered: bool) -> &'static str {
+    if images && !answered {
+        MEDIA_PREFILL_STALL
+    } else {
+        "stall"
+    }
+}
+
 fn ask_the_engine(
     door: &Arc<RoomDoor>,
     shared: &Arc<Shared>,
@@ -477,7 +501,7 @@ fn ask_the_engine(
                     || error.kind() == std::io::ErrorKind::TimedOut =>
             {
                 if last_work.elapsed() >= allowed {
-                    return Exchange::Failed("stall");
+                    return Exchange::Failed(stall_class(image_count > 0, answered));
                 }
                 continue;
             }
@@ -538,7 +562,7 @@ fn ask_the_engine(
         if worked {
             last_work = Instant::now();
         } else if last_work.elapsed() >= allowed {
-            return Exchange::Failed("stall");
+            return Exchange::Failed(stall_class(image_count > 0, answered));
         }
     }
 }
