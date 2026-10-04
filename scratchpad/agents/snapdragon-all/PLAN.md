@@ -116,3 +116,11 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   0.53-0.71); gap = 96 zips/tile (M1 ablation). GPU tiled v1 correct on the real dma-buf but 0.41-0.52 of the engine
   SoA path (uncoalesced lane mapping); v2 (32 lanes per contiguous tile) running, GLM ad6bb146. Audit luna e13768da:
   3 must-fix fixed before timing. Side finding: the shipped Adreno Q4_0 decode fails fp16-denormal scales.
+- 2026-10-04 one copy for three legs - GPU DONE as a spike (`onecopy-three-legs/REPORT.md`, engine
+  `spike/onecopy-gpu-rawq4` e3d3c32f4, S23 unplugged): GPU mat-vec v4 reads the NPU tiled layout zero-copy from the
+  rpcmem dma-buf (alias check PASS), cache-fair, both arm orders: sum of the 4 model shapes 0.710-0.718 ms vs the
+  engine Adreno path 0.750-0.757 (per shape 0.86-1.44x), errors 1000x smaller, denormal scales correct (engine path
+  flushes them). Path v1 0.48 -> v2 coalesced 0.54-0.60 -> v3 image 0.55-0.63 -> v4 native scale convert (ALU was
+  the limit). Audits luna e13768da, 3a6510f3. Three legs on one copy: NPU 1.0, GPU ~1.0, CPU 0.71-0.87.
+  Next: owner go for the integration (HTP buffer = the single copy; CPU and GPU dispatch tiled readers; governor
+  drops the second model load; no-mmap load).
