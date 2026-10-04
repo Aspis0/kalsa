@@ -89,8 +89,8 @@
   font-size: 0.95rem;
   line-height: 1.55;
   overflow-wrap: anywhere;
-  /* The clock floats inside; a flow root counts it in the bubble's height. */
-  display: flow-root;
+  /* The clock is absolute inside, so the bubble must be its origin. */
+  position: relative;
 }
 
 /* This computer's own words stand on the right, mirrored: the edge faces
@@ -108,14 +108,56 @@
 }
 
 /* The moment of a message, WhatsApp-like: bottom-right inside the bubble,
-   muted, out of the words' way. */
+   muted, out of the words' way. Absolute, so it adds no line; the corner
+   it takes stays free through the twins below. */
 .room-time {
-  float: right;
-  margin: 0.2rem 0 0 0.7rem;
+  position: absolute;
+  right: 0.9rem;
+  bottom: 0.74rem;
   color: var(--silence);
   font-size: 0.72rem;
   line-height: 1.3;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  /* The pixels under it may be a media tile whose click opens the lightbox. */
+  pointer-events: none;
+}
+
+/* The clock's invisible twin, in the words' own last line: it holds exactly
+   the clock's width, so the last line ends where the clock begins. */
+.room-time-reserve {
+  visibility: hidden;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A markdown answer's last block keeps the same gap; the clock's own text
+   rides the CSS variable the bubble carries. */
+.room-bubble .markdown > :is(p, h1, h2, h3, h4, h5, h6, pre):last-child::after,
+.room-bubble .markdown > :is(ul, ol):last-child > li:last-child::after,
+.room-bubble .markdown > blockquote:last-child > p:last-child::after,
+.room-bubble .markdown > table:last-child tr:last-child > td:last-child::after {
+  content: var(--room-clock, "");
+  visibility: hidden;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Over a picture the clock needs ground of its own: white on the dark pill
+   clears 6:1 whatever pixel sits behind it. Inset so the pill stands on
+   the picture, not on the bubble's padding. */
+.room-bubble .room-time-over-media {
+  right: 1rem;
+  /* The media grid carries a bottom margin of its own; this clears it. */
+  bottom: 1.25rem;
+  padding: 0.05rem 0.4rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.62);
+  border-radius: 8px;
 }
 
 /* The member's mark: a small dot of the name's own color, in the thread

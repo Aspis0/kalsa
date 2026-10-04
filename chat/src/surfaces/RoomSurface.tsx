@@ -5,7 +5,7 @@
 // codes its keys); a state the user can neither understand nor fix is not
 // shown at all.
 
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { available } from "../lib/tauri";
 import { useStickToBottom } from "../lib/stickToBottom";
 import { RoomText } from "../lib/roomMention";
@@ -29,7 +29,7 @@ import { RoomMediaChips } from "../components/RoomMediaChips";
 import { Composer } from "../components/Composer";
 import { Markdown } from "../components/Markdown";
 import { Thinking } from "../components/Thread";
-import { clockTime, dayLabel, fullStamp, sameLocalDay } from "./roomTime";
+import { clockTime, dayLabel, fullStamp, msUntilNextLocalMidnight, sameLocalDay } from "./roomTime";
 import type { RoomEntry, RoomInfo } from "./roomFeed";
 import { useRoomFeed } from "./useRoomFeed";
 import { useLanguage } from "../i18n/useLanguage";
@@ -106,6 +106,25 @@ export function RoomSurface() {
   // Glued to the bottom while the answer arrives, unless the reader
   // scrolled up — the thread's own rule.
   const { ref: scrollRef, following, toBottom } = useStickToBottom();
+
+  // The day labels stand on this reading; a timer moves it when the local
+  // day does, so an idle Room cannot keep yesterday's "Today".
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    let timer = 0;
+    const arm = (): void => {
+      // A zone whose midnight the clock skipped can put the arithmetic
+      // midnight behind the reading; the floor keeps the re-arm from
+      // becoming a busy loop.
+      const wait = Math.max(msUntilNextLocalMidnight(Date.now()), 1_000);
+      timer = window.setTimeout(() => {
+        setNow(Date.now());
+        arm();
+      }, wait);
+    };
+    arm();
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Both sends ride the one composer: the store adds the call itself when
   // the words name @Kalsa, and the quiet button names it outright. A bare
@@ -415,9 +434,6 @@ export function RoomSurface() {
   // the same hue every message of theirs washes with.
   const colors = assignNameColors(info?.members ?? []);
   const tints = assignNameTints(info?.members ?? []);
-  // One clock reading for the whole render, so every day label in a frame
-  // names the same "today".
-  const now = Date.now();
 
   return (
     <div className="surface-page room-page">
@@ -500,9 +516,14 @@ export function RoomSurface() {
               const when = entry.time * 1000;
               const newDay =
                 index === 0 || !sameLocalDay(entries[index - 1].time * 1000, when);
+              const label = dayLabel(when, now, tag);
               return (
                 <Fragment key={entry.seq}>
-                  {newDay ? <div className="room-day">{dayLabel(when, now, tag)}</div> : null}
+                  {newDay ? (
+                    <div className="room-day" role="separator" aria-label={label}>
+                      {label}
+                    </div>
+                  ) : null}
                   <RoomRow
                     mediaEpoch={mediaEpoch}
                     entry={entry}
@@ -651,7 +672,17 @@ function RoomRow({
   const own = info !== null && entry.member_id === info.you;
   const aiId = info?.members.find((member) => member.kind === "ai")?.member_id;
   const isKalsa = entry.member_id === aiId;
-  const style = { "--room-bubble-color": color, "--room-bubble-tint": tint } as React.CSSProperties;
+  const media = entry.media !== undefined && entry.media.length > 0;
+  // The words that actually render: a media post's "[Image]" fallback
+  // belongs to the pixels, not to the text flow.
+  const words = entry.text !== "" && !(media && isFallbackText(entry.text));
+  const overMedia = !words && media;
+  const style = {
+    "--room-bubble-color": color,
+    "--room-bubble-tint": tint,
+    // Quoted: the invisible markdown spacer reads it as a CSS string.
+    "--room-clock": `"${clock}"`,
+  } as React.CSSProperties;
   return (
     <div className={`row room-row${own ? " room-row-own" : ""}${grouped ? " room-row-grouped" : ""}`} title={when}>
       {!grouped ? (
@@ -665,13 +696,26 @@ function RoomRow({
       <div className="room-bubble" style={style}>
         {entry.call_ai && !isKalsa ? <span className="room-asked">{asked} </span> : null}
         <RoomMediaInBubble key={mediaEpoch} entry={entry} />
-        {!(entry.media && entry.media.length > 0 && isFallbackText(entry.text)) ? (
+        {words ? (
           isKalsa ? <Markdown text={entry.text} /> : <RoomText text={entry.text} />
         ) : null}
         {entry.read !== null && entry.read !== undefined ? (
           <span className="room-read">{readLast(entry.read)}</span>
         ) : null}
-        {clock ? <span className="room-time">{clock}</span> : null}
+        {clock ? (
+          <>
+            {/* A markdown answer reserves inside its last block (the ::after
+                rule); plain words reserve with this twin on the last line. */}
+            {words && !isKalsa ? (
+              <span className="room-time-reserve" aria-hidden="true">
+                {clock}
+              </span>
+            ) : null}
+            <span className={`room-time${overMedia ? " room-time-over-media" : ""}`}>
+              {clock}
+            </span>
+          </>
+        ) : null}
       </div>
     </div>
   );

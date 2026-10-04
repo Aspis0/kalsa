@@ -1099,8 +1099,8 @@ async function probeApp(engineName, origin, mp4B64) {
         name: "",
         former: false,
         text: at % 5 === 0 ? "[Image]" : `seed ${at}`,
-        // The last two entries fall on the next calendar day (this fixture's
-        // second day): the feed must break the run and stamp the day there.
+        // The last two here and the video below fall on the next calendar
+        // day: the feed must break the run and stamp the day there.
         time: 1700000000 + (at < 28 ? at : 86_400 + at),
         call_ai: false,
         read: null,
@@ -1145,6 +1145,41 @@ async function probeApp(engineName, origin, mp4B64) {
         },
       ],
     });
+    // The three bubble shapes the clock may not reshape: a short Kalsa
+    // answer, a longer one whose last line would run under the clock, and
+    // plain host words with no media at all.
+    seedEntries.push(
+      {
+        seq: 531,
+        member_id: 2,
+        name: "Kalsa",
+        former: false,
+        text: "Ok.",
+        time: 1700000000 + 86_400 + 50,
+        call_ai: true,
+        read: null,
+      },
+      {
+        seq: 532,
+        member_id: 2,
+        name: "Kalsa",
+        former: false,
+        text: "x".repeat(60),
+        time: 1700000000 + 86_400 + 60,
+        call_ai: true,
+        read: null,
+      },
+      {
+        seq: 533,
+        member_id: 1,
+        name: "",
+        former: false,
+        text: "plain words",
+        time: 1700000000 + 86_400 + 70,
+        call_ai: false,
+        read: null,
+      },
+    );
     await page.addInitScript((seed) => {
       window.__STUB_SEED_IDS__ = seed.ids;
       window.__STUB_HISTORY__ = seed.entries;
@@ -1154,10 +1189,12 @@ async function probeApp(engineName, origin, mp4B64) {
     await openRoom();
     await page.waitForTimeout(400);
 
-    // The owner's stamps (2026-10-04): every bubble carries its clock, and a
-    // day separator stands before the first entry and at each calendar-day
-    // change — with the author's run broken there, so their name shows again.
+    // Every bubble carries its clock; a day pill stands before the first
+    // entry and at each calendar-day change, and the run breaks there so
+    // the author's name shows again.
     const stamps = await page.evaluate(() => {
+      const tag = document.documentElement.lang || "en";
+      const medium = new Intl.DateTimeFormat(tag, { dateStyle: "medium" });
       const bubbles = [...document.querySelectorAll(".room-row .room-bubble")];
       const clocks = bubbles.filter((bubble) =>
         /\d{1,2}:\d{2}/u.test(bubble.querySelector(".room-time")?.textContent ?? ""),
@@ -1166,11 +1203,16 @@ async function probeApp(engineName, origin, mp4B64) {
       return {
         bubbles: bubbles.length,
         clocks,
-        days: days.length,
-        labelled: days.every((day) => (day.textContent ?? "").trim() !== ""),
-        ungrouped: days.every((day) =>
-          Boolean(day.nextElementSibling?.querySelector(".room-author")),
-        ),
+        days: days.map((day) => (day.textContent ?? "").trim()),
+        roles: days.map((day) => day.getAttribute("role")),
+        labels: days.map((day) => day.getAttribute("aria-label")),
+        expected: [
+          medium.format(1700000000 * 1000),
+          medium.format((1700000000 + 86_400 + 28) * 1000),
+        ],
+        // The first day's first row is index 0 and would not group in any
+        // case; only the day CHANGE can prove the run broke there.
+        changed: Boolean(days[1]?.nextElementSibling?.querySelector(".room-author")),
       };
     });
     check(
@@ -1179,9 +1221,177 @@ async function probeApp(engineName, origin, mp4B64) {
       JSON.stringify(stamps),
     );
     check(
-      "a day separator stands at each day change, breaking the run",
-      stamps.days >= 2 && stamps.labelled && stamps.ungrouped,
+      "two day pills, each named for its day and announced as a separator",
+      stamps.days.length === 2 &&
+        stamps.days[0] === stamps.expected[0] &&
+        stamps.days[1] === stamps.expected[1] &&
+        stamps.roles.every((role) => role === "separator") &&
+        stamps.labels[0] === stamps.days[0] &&
+        stamps.labels[1] === stamps.days[1],
       JSON.stringify(stamps),
+    );
+    check(
+      "the day change breaks the author's run",
+      stamps.changed === true,
+      JSON.stringify({ changed: stamps.changed }),
+    );
+
+    // The clock costs no line in any bubble shape. Each bubble is measured
+    // as it stands, then with the clock hidden AND its corner reserve
+    // gone (the CSS variable carries the markdown reserve; the twin span
+    // carries the words' one).
+    const shapes = await page.evaluate(() => {
+      const bubbles = [...document.querySelectorAll(".room-row .room-bubble")];
+      const pick = (sel, last) => {
+        const found = bubbles.filter((bubble) => bubble.querySelector(sel));
+        return (last ? found[found.length - 1] : found[0]) ?? null;
+      };
+      const measure = (bubble) => {
+        if (bubble === null) return null;
+        const clock = bubble.querySelector(".room-time");
+        const reserve = bubble.querySelector(".room-time-reserve");
+        const height = () => Math.round(bubble.getBoundingClientRect().height * 10) / 10;
+        const withClock = height();
+        const held = bubble.style.getPropertyValue("--room-clock");
+        clock.style.visibility = "hidden";
+        if (reserve) reserve.style.visibility = "hidden";
+        bubble.style.setProperty("--room-clock", '\"\"');
+        const intrinsic = height();
+        bubble.style.setProperty("--room-clock", held);
+        if (reserve) reserve.style.visibility = "";
+        clock.style.visibility = "";
+        return { withClock, intrinsic };
+      };
+      return {
+        words: measure(pick(".room-text", true)),
+        answer: measure(pick(".markdown", false)),
+        media: measure(pick(".room-media", false)),
+      };
+    });
+    check(
+      "the clock adds no line to a bubble of words, an answer or media",
+      ["words", "answer", "media"].every(
+        (shape) => shapes[shape] !== null && shapes[shape].withClock === shapes[shape].intrinsic,
+      ),
+      JSON.stringify(shapes),
+    );
+
+    // The reserve must keep the clock off a last line that would run under
+    // it: the paragraph is grown until the unreserved layout really
+    // collides, then the reserved one must not — either the last line ends
+    // left of the clock, or the reserved line dropped below it.
+    const cover = await page.evaluate(() => {
+      const bubble = [...document.querySelectorAll(".room-row .room-bubble")]
+        .reverse()
+        .find((held) => held.querySelector(".markdown p"));
+      if (bubble === undefined) return { found: false };
+      const paragraph = bubble.querySelector(".markdown p");
+      const held = bubble.style.getPropertyValue("--room-clock");
+      const original = paragraph.textContent;
+      const probe = () => {
+        const range = document.createRange();
+        range.selectNodeContents(paragraph);
+        const boxes = [...range.getClientRects()];
+        const last = boxes[boxes.length - 1];
+        const clock = bubble.querySelector(".room-time").getBoundingClientRect();
+        const round = (value) => Math.round(value * 10) / 10;
+        return {
+          right: round(last.right),
+          bottom: round(last.bottom),
+          clockLeft: round(clock.left),
+          clockTop: round(clock.top),
+          covered:
+            last.right > clock.left + 0.5 &&
+            last.bottom > clock.top + 0.5 &&
+            last.top < clock.bottom - 0.5,
+        };
+      };
+      let found = false;
+      let bare = null;
+      let reserved = null;
+      for (let n = 40; n <= 4000 && !found; n += 20) {
+        paragraph.textContent = "x".repeat(n);
+        bubble.style.setProperty("--room-clock", '\"\"');
+        bare = probe();
+        bubble.style.setProperty("--room-clock", held);
+        reserved = probe();
+        found = bare.covered;
+      }
+      paragraph.textContent = original;
+      bubble.style.setProperty("--room-clock", held);
+      return { found, bare, reserved, kept: !reserved.covered };
+    });
+    check(
+      "the clock never covers a markdown answer's last line",
+      cover.found === true && cover.kept === true,
+      JSON.stringify(cover),
+    );
+
+    // Over a picture the clock stands on its own scrim; under the words it
+    // stands on the bubble's wash — both must clear AA in either theme.
+    const contrast = await page.evaluate(() => {
+      const muted = [...document.querySelectorAll(".room-time")].find(
+        (clock) => !clock.classList.contains("room-time-over-media"),
+      );
+      const onMedia = document.querySelector(".room-time-over-media");
+      const root = document.documentElement;
+      const heldTheme = root.dataset.theme;
+      const pair = (fg, bg) => ({ color: fg.color, background: bg.backgroundColor });
+      const read = (theme) => {
+        root.dataset.theme = theme;
+        return {
+          muted: pair(getComputedStyle(muted), getComputedStyle(muted.closest(".room-bubble"))),
+          scrim: pair(getComputedStyle(onMedia), getComputedStyle(onMedia)),
+        };
+      };
+      const light = read("light");
+      const dark = read("dark");
+      root.dataset.theme = heldTheme ?? "";
+      return { light, dark, bubbles: muted.closest(".room-bubble") !== null };
+    });
+    const rgba = (value) => (value.match(/[\d.]+/g) ?? []).map(Number);
+    const channel = (value) => {
+      const x = value / 255;
+      return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = ([r, g, b]) => 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    const ratio = (fg, bg) => {
+      const [hi, lo] = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const scrimRatio = (pair, pixel) => {
+      const [r, g, b, a = 1] = rgba(pair.scrim.background);
+      const under = [r, g, b].map((value, at) => value * a + pixel[at] * (1 - a));
+      return ratio(rgba(pair.scrim.color), under);
+    };
+    const worstScrim = Math.min(
+      Math.min(scrimRatio(contrast.light, [255, 255, 255]), scrimRatio(contrast.light, [0, 0, 0])),
+      Math.min(scrimRatio(contrast.dark, [255, 255, 255]), scrimRatio(contrast.dark, [0, 0, 0])),
+    );
+    check(
+      "the clock clears AA on the wash and on the picture's scrim, both themes",
+      contrast.bubbles &&
+        ratio(rgba(contrast.light.muted.color), rgba(contrast.light.muted.background)) >= 4.5 &&
+        ratio(rgba(contrast.dark.muted.color), rgba(contrast.dark.muted.background)) >= 4.5 &&
+        worstScrim >= 4.5,
+      JSON.stringify({ contrast, worstScrim: Math.round(worstScrim * 100) / 100 }),
+    );
+    const mediaCorner = await page.evaluate(() => {
+      const bubble = [...document.querySelectorAll(".room-row .room-bubble")].find(
+        (held) => held.querySelector(".room-media") && !held.querySelector(".room-text, .markdown"),
+      );
+      if (bubble === undefined) return null;
+      const clock = bubble.querySelector(".room-time").getBoundingClientRect();
+      const media = bubble.querySelector(".room-media").getBoundingClientRect();
+      return {
+        scrim: bubble.querySelector(".room-time").classList.contains("room-time-over-media"),
+        inside: clock.right <= media.right + 0.5 && clock.bottom <= media.bottom + 0.5 && clock.top >= media.top - 0.5,
+      };
+    });
+    check(
+      "a media bubble's clock stands on the media's bottom-right",
+      mediaCorner !== null && mediaCorner.scrim && mediaCorner.inside,
+      JSON.stringify(mediaCorner),
     );
 
     // The room loads GLUED TO THE BOTTOM (stick-to-bottom): the near rows
@@ -1293,6 +1503,72 @@ async function probeApp(engineName, origin, mp4B64) {
         nineSentence.includes("8"),
       JSON.stringify(nineSentence),
     );
+
+    // 9. An idle Room across midnight: the day pills follow the calendar,
+    //    not the render that preceded it.
+    const midnight = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+    const midnightErrors = [];
+    midnight.on("pageerror", (error) => midnightErrors.push(String(error)));
+    try {
+      await midnight.clock.install({ time: new Date(2026, 0, 15, 23, 59, 40).getTime() });
+      installAppStub(midnight);
+      // The brain's own props read, as the main page's stub answers it: an
+      // unrouted fetch to the dead endpoint is a WebKit page error.
+      await midnight.route("**/props", (route) =>
+        route.fulfill({
+          json: {
+            default_generation_settings: { n_ctx: 8192 },
+            modalities: { vision: true, audio: false, video: false },
+            chat_template: "",
+          },
+        }),
+      );
+      await midnight.goto(`${origin}/`);
+      await midnight.waitForTimeout(1200);
+      const midnightBar = midnight.locator(".brain-bar-action").nth(2);
+      if ((await midnightBar.count()) > 0) await midnightBar.first().click();
+      else {
+        await midnight.locator(".nav-point").first().click();
+        await midnight.locator(".nav-point").getByText(/room/i).first().click();
+      }
+      await midnight.waitForSelector(".room-page", { timeout: 9000 });
+      await midnight.locator(".composer textarea").fill("midnight");
+      await midnight.locator(".composer-send").click();
+      await midnight.waitForSelector(".room-day", { timeout: 9000 });
+      const midnightTag = await midnight.evaluate(() => document.documentElement.lang || "en");
+      const relative = new Intl.RelativeTimeFormat(midnightTag, { numeric: "auto" });
+      const cap = (text) => text.charAt(0).toLocaleUpperCase(midnightTag) + text.slice(1);
+      const beforePill = (await midnight.locator(".room-day").first().textContent()).trim();
+      const beforeClock = (await midnight.locator(".room-time").first().textContent()).trim();
+      await midnight.clock.fastForward(90_000);
+      // A missing timer is a failed check, not a lost run: the wait gives
+      // the pill its chance and the assertion below speaks.
+      await midnight
+        .waitForFunction(
+          (was) => (document.querySelector(".room-day")?.textContent ?? "").trim() !== was,
+          beforePill,
+          { timeout: 9000 },
+        )
+        .catch(() => {});
+      const afterPill = (await midnight.locator(".room-day").first().textContent()).trim();
+      const afterClock = (await midnight.locator(".room-time").first().textContent()).trim();
+      check(
+        "an idle Room crosses midnight: the pill moves, the clock does not",
+        beforePill === cap(relative.format(0, "day")) &&
+          afterPill === cap(relative.format(-1, "day")) &&
+          afterClock === beforeClock &&
+          midnightErrors.length === 0,
+        JSON.stringify({
+          beforePill,
+          afterPill,
+          beforeClock,
+          afterClock,
+          errors: midnightErrors.slice(0, 2),
+        }),
+      );
+    } finally {
+      await midnight.close();
+    }
 
     check(
       "no filename and no image bytes reached the console",

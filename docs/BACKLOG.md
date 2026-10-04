@@ -92,3 +92,8 @@ they are promoted.
 - P2: a clear ignores every `remove_file` failure (`crates/kalsa-room/src/shelf.rs:439`) and the open sweep covers only `uploads` (`:100-106`), so a delete that fails leaves an orphan blob no index names — charged to nobody and reclaimed by nothing.
 - P2: the heal's frame pruning touches only the shelf's copy of a video's descriptor — transcript entries loaded before it (`crates/kalsa-room/src/room.rs:121-126`) still name dead frames, which the door counts against the image budget (`crates/kalsa-door/src/room/turn.rs:652`) and then skips when the bytes are gone (`:663-665`), so phones ask and get a 404.
 - P3: the ghost test does not assert the dropped record's charge came back: `used` and MAX_PUBLISHED are not checked (`crates/kalsa-room/src/tests/media.rs:1065-1101`).
+
+## Room time (review of 67de9929)
+- P2, plausible: a server clock that steps backwards across midnight gives the later `seq` the earlier day while every label follows seq (`chat/src/surfaces/roomFeed.ts:88,120` sorts by seq; `chat/src/surfaces/roomTime.ts:111` labels each entry by its own time) — one calendar day can take a second pill, "Today" after "Yesterday".
+- P3: Intl failures are swallowed to "" (`chat/src/surfaces/roomTime.ts:93-95`, `:102-104`, `:117-119`), so a runtime that cannot format the tag or the zone blanks the clock and the pill with no signal and no fallback.
+- P3: `chat/scripts/room-time.mjs` pins exact CLDR strings for en/it (an ICU upgrade could red the run) and covers no es/fr/zh; the zone section adds a Rome spring-forward hour, a 23-hour day and a zone switch, but no fall-back hour and no other zone.
