@@ -1052,7 +1052,7 @@ mod tests {
         let model = shipped_row(LFM);
         // 7 GiB funds past the row's 32_768-token trained cap, where the
         // projector's bytes could not move the window; 7.0 GB on the CPU
-        // path funds 31_590 — below the cap, where the charge is visible.
+        // path funds 31_592 — below the cap, where the charge is visible.
         let budget = memory_budget(Backend::Cpu, 7_000_000_000);
         let without = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the row is fundable without a projector");
@@ -1067,7 +1067,7 @@ mod tests {
         // report prices — shrinks, while the file itself enters the total.
         // The 12B pin's size, as a stand-in: the Qwen F16 pin would sink
         // this budget outright, which is the fit refusal's own case.
-        // (31_590 funded here; the stand-in still leaves the row fundable.)
+        // (31_592 funded here; the stand-in still leaves the row fundable.)
         let accepted = 158_987_616u64;
         let with = plan(&LaunchInput {
             mmproj_bytes: accepted,
@@ -1258,11 +1258,11 @@ mod tests {
     /// binds (6144 MiB); at f16 the same two chats are priced twice and the
     /// quarter-of-the-leftover rule caps them. The roof the argv carries
     /// follows the cache type, which is the promise being pinned here. Both
-    /// automatic contexts are the 65 536 chat default, and both FUNDED
-    /// maxima sit on the row's trained 32_768 — the cap binds before the
-    /// roof at this size, so the roof's own figure above is where the cache
-    /// type still decides; the budget-funded half of the arithmetic is
-    /// pinned in `the_cache_type_halves_the_context_the_budget_funds`.
+    /// automatic contexts sit on the row's trained 32_768 — the 65 536 chat
+    /// default lies past the cap — and both FUNDED maxima are that same cap
+    /// at this size, so the roof's own figure above is where the cache type
+    /// still decides; the budget-funded half of the arithmetic is pinned in
+    /// `the_cache_type_halves_the_context_the_budget_funds`.
     #[test]
     fn the_prompt_cache_roof_keeps_its_two_chat_promise_at_f16() {
         let model = shipped_row(LFM);

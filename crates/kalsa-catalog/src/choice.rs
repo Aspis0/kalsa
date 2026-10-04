@@ -67,10 +67,12 @@ pub struct ChoiceInput {
 }
 
 /// The context the desktop pick is priced at, everywhere the chooser is
-/// asked: 65_536 tokens, the chat default this product launches with. One
+/// asked: 65_536 tokens, the chat default this product launches with, and
+/// never past a row's own trained cap ([`ModelEntry::priced_context`]). One
 /// machine serves several users, so a model that only holds a small window
-/// is not a suggestion — a row must FIT at 65_536 tokens to be offered, and
-/// the cache that window costs is part of every footprint measured here.
+/// is not a suggestion — a row must FIT at the window it is priced at to be
+/// offered, and the cache that window costs is part of every footprint
+/// measured here.
 pub const CHOOSER_CONTEXT_TOKENS: u64 = 65_536;
 
 /// The PC must beat the phone, not match it. The bar is a proxy, and says so:
@@ -370,6 +372,9 @@ pub struct Selection {
     /// The budget this was sized against: which memory, and whether the GPU is
     /// accounted for.
     pub budget: MemoryBudget,
+    /// The window this pick was priced at: the input's, lowered to the row's
+    /// own trained cap ([`ModelEntry::priced_context`]). The footprint and
+    /// the decode band beside it are this context's numbers.
     pub context_tokens: u64,
     /// Decode throughput as a band: a range, never a point.
     pub decode: Prediction,
@@ -1075,7 +1080,7 @@ fn selection(
         weights_bytes: chosen.entry.weights_bytes,
         footprint: chosen.footprint,
         budget,
-        context_tokens: input.context_tokens,
+        context_tokens: chosen.entry.priced_context(input.context_tokens),
         decode: chosen.decode,
         prefill: chosen.prefill,
         licence: chosen.entry.licence,

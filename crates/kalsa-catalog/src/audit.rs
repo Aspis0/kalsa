@@ -76,7 +76,7 @@ fn assessed(
         None => RowAssessment {
             entry,
             standing: entry.standing(),
-            footprint: footprint_bytes(entry, input.context_tokens),
+            footprint: footprint_bytes(entry, entry.priced_context(input.context_tokens)),
             decode: None,
             too_slow: false,
             dense_line: dense_speed_floor(entry),

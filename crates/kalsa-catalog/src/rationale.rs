@@ -65,6 +65,9 @@ pub(crate) fn details(
     budget: MemoryBudget,
     justification: Justification,
 ) -> String {
+    // The context this working is about: the row's own priced window, so
+    // every sentence about the cache names the context it was charged at.
+    let context = chosen.entry.priced_context(input.context_tokens);
     // The head names the model as the user knows it, never by repo or quant:
     // those are ours, and this sentence is the user's. The shape of the
     // number decides the shape of the sentence: a floor gets words only —
@@ -104,7 +107,7 @@ pub(crate) fn details(
             // the page's own headline is priced at a real exchange and is
             // lower, and two speeds for one model that do not say which is
             // which read as one of them being wrong.
-            let cache = if input.context_tokens <= 1 {
+            let cache = if context <= 1 {
                 " with an empty conversation"
             } else {
                 ""
@@ -223,8 +226,8 @@ pub(crate) fn details(
         parts.push(format!(
             "Memory is an estimate: the cache per token for this model has not been measured \
              yet, so {} per token was assumed, and a {}-token context costs {}.",
-            size_text(chosen.footprint.kv_bytes / input.context_tokens.max(1)),
-            input.context_tokens,
+            size_text(chosen.footprint.kv_bytes / context.max(1)),
+            context,
             size_text(chosen.footprint.kv_bytes)
         ));
     }

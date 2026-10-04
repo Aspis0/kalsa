@@ -264,6 +264,17 @@ impl ModelEntry {
     pub fn is_usable(&self) -> bool {
         self.standing().is_usable()
     }
+
+    /// The window this row is priced at: the one the caller asks for, never
+    /// more than the row's own trained cap. The engine serves at most the
+    /// cap — the launcher funds `min(funded, trained)` — so a cache priced
+    /// past it is memory for a window the model cannot attend over, and
+    /// charging it refuses machines the row would run on. A row with no
+    /// header to read has no cap, and the caller's window stands.
+    pub fn priced_context(&self, context_tokens: u64) -> u64 {
+        self.trained_context_tokens
+            .map_or(context_tokens, |trained| context_tokens.min(trained))
+    }
 }
 
 /// A row's other compression: the same model — same header, same licence,

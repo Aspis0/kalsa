@@ -126,7 +126,7 @@ fn main() {
                     "        {} of weights, {} in memory at the {}-token pricing context",
                     gibs(row.entry.weights_bytes),
                     gibs(row.footprint.total_bytes()),
-                    input.context_tokens
+                    row.entry.priced_context(input.context_tokens)
                 );
                 print_fetch(&row.download);
                 match quicker_alternative(&input, &row.decode) {

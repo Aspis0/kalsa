@@ -83,10 +83,10 @@ they are promoted.
 - P3: `getBrainRead()` is exported for the harness and hands out the mutable singleton snapshot (`chat/src/surfaces/useBrain.ts:380`).
 
 ## LFM2.5-VL-3B row (review of eb825f00)
-- P2, waits on the owner's 32k call: the chooser prices LFM2.5-VL-3B at `CHOOSER_CONTEXT_TOKENS` 65_536 (`crates/kalsa-catalog/src/choice.rs:74`) while the launcher serves its trained 32_768 (`crates/kalsa-launch/src/policy.rs:227`) — a ~7 GB machine is refused by 203 MB though the launcher would fund ~31_592 tokens.
+- Done (owner accepted the 32k window, 2026-10-04): the chooser prices each row at `min(CHOOSER_CONTEXT_TOKENS, trained_context_tokens)` (`crates/kalsa-catalog/src/manifest.rs:274`, `crates/kalsa-catalog/src/candidate.rs:139`), so the ~7 GB machine the item named starts Liquid LFM 2.5 (3.4 GiB in memory at the 32 768-token pricing context, was refused by 203 MB). What remains: the menu's `speed_context_tokens` still reports 65 536 for a capped row whose speed was priced at the cap (`src-tauri/src/capability.rs:294`, `:326`, `:389`, `:564`, `:586`; nothing renders it today).
 - P2, plausible: `host_bytes_on_gpu` 278_528_000 B was measured on the M1 Max (unified memory) and is subtracted from discrete-GPU budgets (`crates/kalsa-catalog/src/footprint.rs:187`, `:209-210`); unmeasured on Vulkan.
 - P2: the default tests pin only the Q8 projector and model; the F16 projector (`crates/kalsa-catalog/src/manifest.rs:1112`) and the F16 model sha are pinned only in ignored suites (`crates/kalsa-catalog/src/manifest/tests.rs:645` picks the first pin).
-- P3: stale comments — `crates/kalsa-launch/src/policy.rs:1054` and `:1070` say 31_590 (the arithmetic gives 31_592), and `:1261` says "65 536 chat default"; `src-tauri/src/startup.rs:2769` says "trained 131_072".
+- P3: Done — the four stale comments are corrected: `crates/kalsa-launch/src/policy.rs:1055`/`:1070` now say 31_592, `:1261` no longer claims the automatic contexts are the 65 536 default, and `src-tauri/src/startup.rs:2769` no longer says "trained 131_072".
 
 ## Room media shelf (review of 388b23c2)
 - P2: a clear ignores every `remove_file` failure (`crates/kalsa-room/src/shelf.rs:439`) and the open sweep covers only `uploads` (`:100-106`), so a delete that fails leaves an orphan blob no index names — charged to nobody and reclaimed by nothing.

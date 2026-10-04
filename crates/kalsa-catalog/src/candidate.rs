@@ -133,12 +133,15 @@ pub(crate) fn candidate<'a>(entry: UsableEntry<'a>, input: &ChoiceInput) -> Cand
     let mut drafter = entry.drafter();
     let entry_mmproj = entry.mmproj();
     let entry = entry.entry();
-    let mut footprint = footprint_bytes(entry, input.context_tokens);
+    // The row's own trained cap prices the fit and the cache traffic: a
+    // model the engine serves 32 768 tokens of cannot use a 65 536-token
+    // cache, and charging it for one refuses machines it would run on.
+    let mut footprint = footprint_bytes(entry, entry.priced_context(input.context_tokens));
     // Resident wherever the row runs, so the fit charges it; not in the
     // decode traffic — the anchors are no-spec target-only rates.
     footprint.drafter_bytes = drafter.map(|file| file.bytes).unwrap_or(0);
     // The owner's rule: drop the drafter that pushes this row over the budget, keep the row.
-    // Fixed at the chooser's 65_536-token fit — a smaller window could hold it, a band no real RAM lands in (accepted).
+    // Fixed at this row's priced fit — a smaller window could hold it, a band no real RAM lands in (accepted).
     if footprint.drafter_bytes > 0 {
         let budget = memory_budget(input.backend, input.ram_bytes);
         if !fits_footprint(entry, &footprint, &budget) {

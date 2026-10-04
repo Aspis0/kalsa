@@ -4,10 +4,10 @@
 //! remembers to prove.
 
 use kalsa_catalog::{
-    capability_basis, choose, decode_prediction, dense_speed_floor, footprint_bytes,
-    largest_that_runs_well, quicker_alternative, runnable_row, usable_bytes, Backend,
-    CapabilityBasis, ChoiceInput, Decision, Justification, Parameters, PhoneModel, Prediction,
-    RefusalReason, RunnableRow, CHOOSER_CONTEXT_TOKENS, DOWNLOADABLE, GIB,
+    capability_basis, candidate_footprint, choose, decode_prediction, dense_speed_floor,
+    footprint_bytes, largest_that_runs_well, quicker_alternative, runnable_row, usable_bytes,
+    Backend, CapabilityBasis, ChoiceInput, Decision, Justification, Parameters, PhoneModel,
+    Prediction, RefusalReason, RunnableRow, CHOOSER_CONTEXT_TOKENS, DOWNLOADABLE, GIB,
     LARGE_MOE_TOTAL_PARAMETERS, MINIMUM_DENSE_TOKENS_PER_SECOND,
     MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND, QUICK_SPEED_ADVANTAGE, SAME_CLASS_BAND,
 };
@@ -28,7 +28,8 @@ fn phone(battery_powered: Option<bool>) -> PhoneModel {
 
 /// Numbers from the probe on the development machine, at the product's own
 /// pricing window: the chooser prices every candidate at
-/// [`CHOOSER_CONTEXT_TOKENS`], so the arithmetic in the expectations is the
+/// [`CHOOSER_CONTEXT_TOKENS`] — lowered to a row's own trained cap where
+/// that is shorter — so the arithmetic in the expectations is the
 /// arithmetic the product would do.
 fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
     ChoiceInput {
@@ -912,6 +913,64 @@ fn a_machine_too_small_says_so_without_inventing_a_candidate() {
     assert!(explanation.contains("GiB"), "{explanation}");
 }
 
+/// A ~7.0 GB machine, decimal gigabytes, as a Windows box reports its own
+/// RAM: after the 3 GiB margin its budget is 3.52 GiB.
+const SEVEN_GB: u64 = 7_000_000_000;
+
+#[test]
+fn a_machine_seven_gb_short_is_priced_at_the_rows_own_trained_cap() {
+    // Liquid LFM 2.5's Q8 file with a 65 536-token cache comes to 3.71 GiB —
+    // 203 MB past the 3.52 GiB this machine can give — but the engine
+    // serves the row at its header's own 32 768 tokens, so a chooser
+    // pricing the flat window refuses a machine the row would run on.
+    let machine = ChoiceInput {
+        ram_bytes: SEVEN_GB,
+        ..input(7, false)
+    };
+    let lfm = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "LiquidAI/LFM2.5-VL-3B" && row.entry().quant == "Q8_0")
+        .expect("the Q8 row is on the menu");
+    assert_eq!(lfm.entry().trained_context_tokens, Some(32_768));
+    // The premise, so this test is about the cap and not about the budget:
+    // at the flat window the row is over, at its own cap it is under.
+    let usable = usable_bytes(SEVEN_GB);
+    assert!(
+        footprint_bytes(lfm.entry(), CHOOSER_CONTEXT_TOKENS).total_bytes() > usable,
+        "the row must be over the budget at the flat window, or this proves nothing"
+    );
+    assert!(footprint_bytes(lfm.entry(), 32_768).total_bytes() <= usable);
+    // And the chooser prices it there: the row is the answer, carrying the
+    // capped footprint — not the flat one this machine cannot fund.
+    let row = largest_that_runs_well(&machine).expect("the machine runs this row");
+    assert_eq!(row.entry.repo, "LiquidAI/LFM2.5-VL-3B");
+    assert_eq!(row.entry.quant, "Q8_0");
+    assert_eq!(
+        row.footprint.total_bytes(),
+        footprint_bytes(lfm.entry(), 32_768).total_bytes()
+    );
+}
+
+#[test]
+fn a_row_trained_past_the_window_pays_the_flat_cache_price() {
+    // The other half of the rule: the cap only ever lowers the price. Gemma
+    // 4 E4B trains at 131 072 tokens — past the chooser's window — so its
+    // candidate is priced exactly where it always was.
+    let e4b = kalsa_catalog::usable()
+        .find(|row| row.entry().repo == "google/gemma-4-E4B-it")
+        .expect("the Gemma row is on the menu");
+    assert!(
+        e4b.entry()
+            .trained_context_tokens
+            .is_some_and(|trained| trained > CHOOSER_CONTEXT_TOKENS),
+        "the premise: this row trains past the chooser's window"
+    );
+    assert_eq!(
+        candidate_footprint(e4b, &input(16, false)).kv_bytes,
+        footprint_bytes(e4b.entry(), CHOOSER_CONTEXT_TOKENS).kv_bytes,
+        "a row trained past the window must pay the window's cache, not its own cap"
+    );
+}
+
 #[test]
 fn without_the_phone_there_is_no_decision_to_make() {
     // `choose` answers "is this computer an upgrade?" — with no phone that
@@ -1298,9 +1357,9 @@ fn a_refused_machine_offers_no_second_option_either() {
     let lfm = kalsa_catalog::usable()
         .find(|row| row.entry().repo == "LiquidAI/LFM2.5-VL-3B")
         .expect("the fast row beside the refusal is on the menu");
+    let priced = footprint_bytes(lfm.entry(), lfm.entry().priced_context(machine.context_tokens));
     assert!(
-        footprint_bytes(lfm.entry(), machine.context_tokens).total_bytes()
-            <= usable_bytes(machine.ram_bytes),
+        priced.total_bytes() <= usable_bytes(machine.ram_bytes),
         "the row must be a candidate at all, or this test proves nothing about the gate"
     );
     assert!(
@@ -1348,9 +1407,9 @@ fn a_pick_is_not_offered_a_second_option_that_earns_nothing() {
             row.entry().repo == "LiquidAI/LFM2.5-VL-3B" && row.entry().quant == "Q8_0"
         })
         .expect("the row beside the pick is on the menu");
+    let priced = footprint_bytes(lfm.entry(), lfm.entry().priced_context(machine.context_tokens));
     assert!(
-        footprint_bytes(lfm.entry(), machine.context_tokens).total_bytes()
-            <= usable_bytes(machine.ram_bytes),
+        priced.total_bytes() <= usable_bytes(machine.ram_bytes),
         "the row must be a candidate at all, or this test proves nothing about the gate"
     );
     assert!(

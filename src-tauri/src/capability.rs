@@ -1018,8 +1018,9 @@ mod tests {
         // which the CLI truncates to 15 GiB (`number(..) as u64 * GIB`) —
         // reproduced here exactly so the card and the CLI are read off the
         // same machine. Nothing clears its line there, so both cards are
-        // speed-ranked, and both quote the chooser's 65_536-token band:
-        // LFM Q8 9.0–13.1 and the E4B 5.6–8.1, the CLI's own figures.
+        // speed-ranked: LFM Q8 9.8–14.3, priced at its own 32 768-token
+        // trained cap, and the E4B 5.6–8.1 at the chooser's 65 536 — the
+        // CLI's own figures.
         let surface = Measurement {
             decode_bytes_per_second: Some(45.1e9),
             ..measured(Backend::Cpu)
@@ -1034,7 +1035,7 @@ mod tests {
             ("Liquid LFM 2.5", "Q8_0")
         );
         assert_eq!(model.speed_context_tokens, CHOOSER_CONTEXT_TOKENS);
-        assert_eq!(band(&model.speed), "9.0\u{2013}13.1");
+        assert_eq!(band(&model.speed), "9.8\u{2013}14.3");
         let second = quicker.expect("a second card beside it");
         assert_eq!(second.name, "Google Gemma 4 E4B");
         assert_eq!(second.speed_context_tokens, CHOOSER_CONTEXT_TOKENS);

@@ -2766,10 +2766,9 @@ mod tests {
     fn the_server_starts_with_the_launch_plan_not_the_supervisor_constants() {
         // The product path: the context comes from the chosen row's cache
         // geometry against the real budget. Liquid LFM 2.5 on 8 GiB funds
-        // up to its trained 131_072 at q8_0, and the launch takes the
-        // automatic window — the row's trained 32_768, the cap its header
-        // sets on the 65_536 chat default — with the plan's own cache roof
-        // of 466 MiB. The flags are still the launch
+        // its trained 32_768 at q8_0 — the same figure the row's header
+        // caps the launch's 65_536 chat default at — with the plan's own
+        // cache roof of 466 MiB. The flags are still the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
         let row = rows()
