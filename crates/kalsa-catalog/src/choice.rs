@@ -693,11 +693,11 @@ pub const QUICK_SPEED_ADVANTAGE: f64 = 1.5;
 pub const ROOMY_RAM_BYTES: u64 = 32 * GIB;
 
 /// The row this exception is about: LiquidAI's full-precision (F16) file of
-/// LFM2.5-2.6B. Named by repo and quant rather than by size so the rule
+/// LFM2.5-VL-3B. Named by repo and quant rather than by size so the rule
 /// cannot drift onto whichever row happens to be biggest — exact repo, not
 /// the [`LFM_FAMILY`] prefix: one file of one model, not the family.
 pub fn full_precision_file(entry: &ModelEntry) -> bool {
-    entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "F16"
+    entry.repo == "LiquidAI/LFM2.5-VL-3B" && entry.quant == "F16"
 }
 
 /// Every LiquidAI row in the manifest hangs off this prefix — a future

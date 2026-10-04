@@ -261,8 +261,8 @@ fn every_row_has_a_name_a_person_can_say() {
             // One name for the two compressions of one model: the name rule
             // above bans the quantisation from it, and the card tells the
             // two apart by the file's size.
-            ("LiquidAI/LFM2.5-2.6B", "Liquid LFM 2.5"),
-            ("LiquidAI/LFM2.5-2.6B", "Liquid LFM 2.5"),
+            ("LiquidAI/LFM2.5-VL-3B", "Liquid LFM 2.5"),
+            ("LiquidAI/LFM2.5-VL-3B", "Liquid LFM 2.5"),
             ("Qwen/Qwen3.8-27B", "Alibaba Qwen 3.8"),
         ]
     );
@@ -276,7 +276,7 @@ fn every_row_passes_the_axes_and_the_floor() {
         assert!(
             total >= 2_500_000_000,
             "{} is under the 2.5B floor — the smallest row the catalog ships \
-             is LFM2.5-2.6B at 2.69B dense",
+             is LFM2.5-VL-3B at 2.69B dense",
             entry.repo
         );
         assert!(active <= total, "{} has active > total", entry.repo);
@@ -309,8 +309,8 @@ fn only_the_download_rows_know_where_their_files_live() {
             "bartowski/gemma-4-12B-it-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
             "ggml-org/gemma-4-12B-it-GGUF",
-            "LiquidAI/LFM2.5-2.6B-GGUF",
-            "LiquidAI/LFM2.5-2.6B-GGUF",
+            "LiquidAI/LFM2.5-VL-3B-GGUF",
+            "LiquidAI/LFM2.5-VL-3B-GGUF",
             "unsloth/Qwen3.8-27B-GGUF",
         ]
     );
@@ -396,17 +396,17 @@ fn a_source_serves_its_exact_file_at_its_commit() {
     // publisher renames a file in a later commit.
     let urls: Vec<String> = DOWNLOADABLE
         .iter()
-        .filter(|row| row.model.repo == "LiquidAI/LFM2.5-2.6B")
+        .filter(|row| row.model.repo == "LiquidAI/LFM2.5-VL-3B")
         .map(|row| row.source.url())
         .collect();
     assert_eq!(urls.len(), 2, "the row's two files are pinned");
     assert_eq!(
         urls[0],
-        "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q8_0.gguf"
+        "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/6f730e9a2c454e8af9adc29db58e638e01e5957f/LFM2.5-VL-3B-Q8_0.gguf"
     );
     assert_eq!(
         urls[1],
-        "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-F16.gguf"
+        "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/6f730e9a2c454e8af9adc29db58e638e01e5957f/LFM2.5-VL-3B-F16.gguf"
     );
 }
 
@@ -434,8 +434,8 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("Qwen/Qwen3.6-35B-A3B", 22_134_528_992),
             ("google/gemma-4-12B-it", 7_662_533_088),
             ("google/gemma-4-12B-it", 12_669_647_328),
-            ("LiquidAI/LFM2.5-2.6B", 2_874_779_648),
-            ("LiquidAI/LFM2.5-2.6B", 5_403_158_528),
+            ("LiquidAI/LFM2.5-VL-3B", 2_874_779_680),
+            ("LiquidAI/LFM2.5-VL-3B", 5_403_158_560),
             ("Qwen/Qwen3.8-27B", 16_464_440_224),
         ]
     );
@@ -478,7 +478,7 @@ fn dense_equivalents_carry_only_published_comparisons() {
 fn the_lfm_row_is_usable_and_carries_its_condition() {
     let lfm = DOWNLOADABLE
         .iter()
-        .find(|row| row.model.repo == "LiquidAI/LFM2.5-2.6B")
+        .find(|row| row.model.repo == "LiquidAI/LFM2.5-VL-3B")
         .expect("the LFM row is pinned");
     assert!(
         lfm.model.is_usable(),
@@ -490,7 +490,7 @@ fn the_lfm_row_is_usable_and_carries_its_condition() {
         lfm.model.licence.condition(),
         Some("commercial use only for entities under $10M annual revenue"),
     );
-    assert!(usable().any(|entry| entry.entry().repo == "LiquidAI/LFM2.5-2.6B"));
+    assert!(usable().any(|entry| entry.entry().repo == "LiquidAI/LFM2.5-VL-3B"));
 }
 
 #[test]
@@ -558,8 +558,8 @@ fn every_usable_file_stem_is_distinct() {
     assert_eq!(
         stems,
         vec![
-            "LFM2.5-2.6B-F16",
-            "LFM2.5-2.6B-Q8_0",
+            "LFM2.5-VL-3B-F16",
+            "LFM2.5-VL-3B-Q8_0",
             "Qwen3.6-35B-A3B-UD-Q4_K_M",
             "Qwen3.8-27B-UD-Q4_K_M",
             "gemma-4-12B-it-Q4_K_M",
@@ -619,21 +619,26 @@ fn the_two_gemma_rows_carry_a_drafter_and_no_other_row_does() {
 }
 
 #[test]
-fn the_vision_rows_carry_a_projector_and_lfm_has_none() {
-    // The pins of 2026-10-03, verbatim, from each row's own repo where that
-    // repo ships a projector (the two unsloth Qwen rows, Google's 26B QAT
-    // repo) and from the official ggml-org build where only it has one (the
-    // two Gemma rows' own repos ship the projector only at F16/BF16/F32;
-    // ggml-org's q8_0 build sits at the drafter's own commit). Sizes and
-    // digests are the Hugging Face tree API's `lfs.size`/`lfs.oid` at the
-    // pinned commits; the quant each file carries was read from the file's
-    // own GGUF header, not from its name. ON DEMAND: a projector is never
-    // fetched with the model, so its bytes are in no download total.
+fn the_vision_rows_carry_a_projector() {
+    // The pins, verbatim, from each row's own repo where that repo ships a
+    // projector (the two unsloth Qwen rows, Google's 26B QAT repo, LiquidAI's
+    // LFM2.5-VL-3B repo) and from the official ggml-org build where only it
+    // has one (the two Gemma rows' own repos ship the projector only at
+    // F16/BF16/F32; ggml-org's q8_0 build sits at the drafter's own commit).
+    // Sizes and digests are the Hugging Face tree API's
+    // `lfs.size`/`lfs.oid` at the pinned commits; the quant each file
+    // carries was read from the file's own GGUF header, not from its name.
+    // ON DEMAND: a projector is never fetched with the model, so its bytes
+    // are in no download total.
     let projectors: Vec<(&str, &GgufSource)> = DOWNLOADABLE
         .iter()
         .filter_map(|row| row.mmproj.as_ref().map(|pin| (row.model.repo, pin)))
         .collect();
-    assert_eq!(projectors.len(), 5, "five rows see; LFM has no vision stack");
+    assert_eq!(
+        projectors.len(),
+        7,
+        "six models see; LiquidAI's two files each carry their own projector"
+    );
     let for_row = |repo: &str| {
         projectors
             .iter()
@@ -677,6 +682,15 @@ fn the_vision_rows_carry_a_projector_and_lfm_has_none() {
         pin.sha256,
         "8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f"
     );
+    let pin = for_row("LiquidAI/LFM2.5-VL-3B");
+    assert_eq!(pin.repo, "LiquidAI/LFM2.5-VL-3B-GGUF");
+    assert_eq!(pin.commit, "6f730e9a2c454e8af9adc29db58e638e01e5957f");
+    assert_eq!(pin.file, "mmproj-LFM2.5-VL-3B-Q8_0.gguf");
+    assert_eq!(pin.bytes, 583_109_984);
+    assert_eq!(
+        pin.sha256,
+        "ecbbe7097f696dba67172738d79c9f01132cdb6c0b457606315e268df3d67e64"
+    );
     let pin = for_row("Qwen/Qwen3.8-27B");
     assert_eq!(pin.repo, "unsloth/Qwen3.8-27B-GGUF");
     assert_eq!(pin.commit, "4ca720788d1e01f1bff70c033e0d0028fd02e502");
@@ -692,7 +706,7 @@ fn the_vision_rows_carry_a_projector_and_lfm_has_none() {
     let mut names: Vec<&str> = projectors.iter().map(|(_, pin)| pin.file).collect();
     names.sort();
     names.dedup();
-    assert_eq!(names.len(), 4, "two unsloth files share a URL name");
+    assert_eq!(names.len(), 6, "two unsloth files share a URL name");
 }
 
 #[test]

@@ -26,11 +26,11 @@ use std::time::Instant;
 /// file, bytes, sha256), copied from `crates/kalsa-catalog/src/manifest.rs`,
 /// which is where it lives and the only place it may be corrected.
 const ROW: (&str, &str, &str, u64, &str) = (
-    "LiquidAI/LFM2.5-2.6B-GGUF",
-    "e7caca5d835a3901a8e0d63e94009429bafafdfc",
-    "LFM2.5-2.6B-Q8_0.gguf",
-    2_874_779_648,
-    "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
+    "LiquidAI/LFM2.5-VL-3B-GGUF",
+    "6f730e9a2c454e8af9adc29db58e638e01e5957f",
+    "LFM2.5-VL-3B-Q8_0.gguf",
+    2_874_779_680,
+    "69b49ceddf61c65cce4a8938a0791c364a8d38cd2d87db2ca7ea359232a8b17e",
 );
 
 /// Where the first leg is killed: far enough in that resuming is real work,

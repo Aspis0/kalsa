@@ -718,7 +718,7 @@ mod tests {
 
     #[test]
     fn the_context_fits_after_the_chat_reserve_and_never_one_token_into_it() {
-        // Liquid LFM 2.5 (the Q8_0 file, 2_874_779_648 bytes) on a 6.7 GB
+        // Liquid LFM 2.5 (the Q8_0 file, 2_874_779_680 bytes) on a 6.7 GB
         // CPU machine: the margin leaves 3_478_774_528 bytes, minus the
         // weights and 512 MiB of compute buffers. The sleeping-chat reserve
         // takes a quarter of what is left, and the row's own per-slot conv
@@ -1050,7 +1050,10 @@ mod tests {
     #[test]
     fn a_projector_is_charged_only_when_it_is_present_and_passed() {
         let model = shipped_row(LFM);
-        let budget = memory_budget(Backend::Cpu, 7 * GIB);
+        // 7 GiB funds past the row's 32_768-token trained cap, where the
+        // projector's bytes could not move the window; 7.0 GB on the CPU
+        // path funds 31_590 — below the cap, where the charge is visible.
+        let budget = memory_budget(Backend::Cpu, 7_000_000_000);
         let without = plan(&input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP))
             .expect("the row is fundable without a projector");
         let footprint = footprint_bytes(model, without.args.context_tokens);
@@ -1064,6 +1067,7 @@ mod tests {
         // report prices — shrinks, while the file itself enters the total.
         // The 12B pin's size, as a stand-in: the Qwen F16 pin would sink
         // this budget outright, which is the fit refusal's own case.
+        // (31_590 funded here; the stand-in still leaves the row fundable.)
         let accepted = 158_987_616u64;
         let with = plan(&LaunchInput {
             mmproj_bytes: accepted,
@@ -1210,16 +1214,16 @@ mod tests {
     /// the cache type stopped reaching the arithmetic, both plans would
     /// carry the same context and this goes RED.
     ///
-    /// Row and budget: Liquid LFM 2.5 (the Q8_0 file) on 7 GiB of CPU. The
-    /// memory funds 76_071 tokens at q8_0, below its 131_072-token trained
-    /// cap, so the cap does not bind and the halving is visible: 76_071 at
-    /// q8_0 and 38_035 at f16, which is `76_071 / 2` floored. The row's F32 per-slot
-    /// conv state is charged first and does NOT double with the cache type,
-    /// so the equality is the floored one the assertion states.
+    /// Row and budget: Liquid LFM 2.5 (the Q8_0 file) on 6.95 GB of CPU —
+    /// small enough that the memory, not the row's 32_768-token trained
+    /// cap, sets the figure: 27_284 tokens at q8_0 and 13_642 at f16, which
+    /// is `27_284 / 2`. The row's F32 per-slot conv state is charged first
+    /// and does NOT double with the cache type, so the equality is the
+    /// floored one the assertion states.
     #[test]
     fn the_cache_type_halves_the_context_the_budget_funds() {
         let model = shipped_row(LFM);
-        let budget = memory_budget(Backend::Cpu, 7 * GIB);
+        let budget = memory_budget(Backend::Cpu, 6_950_000_000);
         let q8_0_input = input(ServerBackend::Cpu, budget, model, M1_MAX_RAMP);
         let f16_input = LaunchInput {
             kv_cache: KvCache::F16,
@@ -1229,14 +1233,14 @@ mod tests {
         let f16 = plan(&f16_input).expect("the model is fundable");
         assert_eq!(q8_0.args.kv_cache, KvCache::Q8_0);
         assert_eq!(f16.args.kv_cache, KvCache::F16);
-        // The plan takes the chat default where the budget funds more of it,
-        // and the budget's own smaller figure where it does not.
-        assert_eq!(q8_0.args.context_tokens, 65_536);
-        assert_eq!(f16.args.context_tokens, 38_035);
+        // Both budgets fund less than the chat default, so both plans take
+        // the memory's own figure.
+        assert_eq!(q8_0.args.context_tokens, 27_284);
+        assert_eq!(f16.args.context_tokens, 13_642);
         let q8_funded = funded_maximum(&q8_0_input).expect("a funded maximum");
         let f16_funded = funded_maximum(&f16_input).expect("a funded maximum");
-        assert_eq!(q8_funded, 76_071);
-        assert_eq!(f16_funded, 38_035);
+        assert_eq!(q8_funded, 27_284);
+        assert_eq!(f16_funded, 13_642);
         assert_eq!(
             f16_funded,
             q8_funded / 2,
@@ -1255,7 +1259,7 @@ mod tests {
     /// quarter-of-the-leftover rule caps them. The roof the argv carries
     /// follows the cache type, which is the promise being pinned here. Both
     /// automatic contexts are the 65 536 chat default, and both FUNDED
-    /// maxima sit on the row's trained 131_072 — the cap binds before the
+    /// maxima sit on the row's trained 32_768 — the cap binds before the
     /// roof at this size, so the roof's own figure above is where the cache
     /// type still decides; the budget-funded half of the arithmetic is
     /// pinned in `the_cache_type_halves_the_context_the_budget_funds`.
@@ -1278,13 +1282,15 @@ mod tests {
             f16.args.cache_ram_mib,
             q8_0.args.cache_ram_mib,
         );
-        assert_eq!(q8_0.args.context_tokens, DEFAULT_CONTEXT_TOKENS);
-        assert_eq!(f16.args.context_tokens, DEFAULT_CONTEXT_TOKENS);
+        // The chat default would be 65 536, but the row is trained to
+        // 32_768 and the plan never funds a window past that.
+        assert_eq!(q8_0.args.context_tokens, 32_768);
+        assert_eq!(f16.args.context_tokens, 32_768);
         let q8_0_funded = funded_maximum(&q8_0_input).expect("a funded maximum");
         let f16_funded = funded_maximum(&f16_input).expect("a funded maximum");
-        assert_eq!(q8_0_funded, 131_072, "the trained cap binds first at this size");
+        assert_eq!(q8_0_funded, 32_768, "the trained cap binds first at this size");
         assert_eq!(
-            f16_funded, 131_072,
+            f16_funded, 32_768,
             "and it binds for both caches: the roof's effect lives in the roof above"
         );
     }
@@ -1497,7 +1503,7 @@ mod tests {
     fn a_small_machine_is_still_limited_by_its_memory() {
         // The cap is a ceiling, not a floor: where the memory funds less than
         // the model was trained for, the memory still decides. 8 GiB funds
-        // LFM2.5-2.6B a quarter of a million tokens — well under the fake
+        // LFM2.5-VL-3B a quarter of a million tokens — well under the fake
         // million-token cap the row is handed here.
         let mut model = *shipped_row(LFM);
         model.trained_context_tokens = Some(1_000_000);
@@ -1537,16 +1543,20 @@ mod tests {
         // The card's values become the engine's defaults for this model, and
         // a misspelled or missing flag would die in silence on the engine's
         // side — so the built args are what is asserted, flag by flag. The
-        // row's own values: LiquidAI's README says temperature 0.1, top_k 50,
-        // repetition penalty 1.1, and no top_p at all.
+        // row's own values: the file's general.sampling and LiquidAI's README
+        // agree on temperature 0.2 and top_k 50, the README adds repetition
+        // penalty 1.0, and no top_p is published at all.
         let model = shipped_row(LFM);
         let budget = memory_budget(Backend::Metal, 64 * GIB);
         let launched = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
             .expect("the row is fundable here");
         let line = launched.args.argv().join(" ");
-        assert!(line.contains("--temp 0.1"), "{line}");
+        assert!(line.contains("--temp 0.2"), "{line}");
         assert!(line.contains("--top-k 50"), "{line}");
-        assert!(line.contains("--repeat-penalty 1.1"), "{line}");
+        assert!(
+            line.contains("--repeat-penalty 1 --sleep-idle-seconds"),
+            "the card's 1.0 renders as the bare 1: {line}"
+        );
         assert!(
             !line.contains("--top-p"),
             "no card published a top_p for this row, so no flag: {line}"

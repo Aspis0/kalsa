@@ -125,16 +125,17 @@ const OFFERS: &[Offer] = &[
         swa: true,
         measured_kv: true,
     },
-    // The smallest shipped row, at its own per-token figure (8192 bytes,
-    // read from its header) plus its 360 448-byte conv state a slot: the
-    // trained 131_072 binds every slot count on a 64 GiB Mac, and the two
+    // The smallest shipped row, at its own per-token figure (8_704 bytes —
+    // 8_192 elements at the q8_0 the launcher pins — read from its header)
+    // plus its 360 448-byte conv state a slot: the
+    // trained 32_768 binds every slot count on a 64 GiB Mac, and the two
     // compressions of the row share this one name — `menu()` answers with
-    // the first (Q4_K_M).
+    // the first (Q8_0).
     Offer {
         name: "Liquid LFM 2.5",
-        n1: (131_072, Bind::Trained),
-        n2: (131_072, Bind::Trained),
-        n4: (131_072, Bind::Trained),
+        n1: (32_768, Bind::Trained),
+        n2: (32_768, Bind::Trained),
+        n4: (32_768, Bind::Trained),
         swa: false,
         measured_kv: true,
     },

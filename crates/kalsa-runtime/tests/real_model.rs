@@ -47,14 +47,14 @@ const SOURCED_ROWS: &[(&str, u64, &str)] = &[
         "3962624dcd25b947d889dc9ae1bf275b61db6cd4dbe694057f34fffef1671509",
     ),
     (
-        "LFM2.5-2.6B-Q8_0.gguf",
-        2_874_779_648,
-        "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
+        "LFM2.5-VL-3B-Q8_0.gguf",
+        2_874_779_680,
+        "69b49ceddf61c65cce4a8938a0791c364a8d38cd2d87db2ca7ea359232a8b17e",
     ),
     (
-        "LFM2.5-2.6B-F16.gguf",
-        5_403_158_528,
-        "e041c231351185eb390f9c417d3bfd1815869a50a8589f3f86e5b9add3c529f1",
+        "LFM2.5-VL-3B-F16.gguf",
+        5_403_158_560,
+        "918937840fcb0ca6b984e107059557754a4a6076b127cc269970d30917e4cf8b",
     ),
     (
         "Qwen3.8-27B-UD-Q4_K_M.gguf",

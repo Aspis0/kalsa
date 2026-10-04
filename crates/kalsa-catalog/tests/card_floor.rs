@@ -90,7 +90,7 @@ fn the_processor_floor_never_excludes_a_row_that_lives_on_the_card() {
     // before LFM, LFM only against LFM — beside the pick the bar clears is
     // the family the owner ranks last.
     let second = quicker_alternative(&input, &pick.decode).expect("a second card beside it");
-    assert_eq!(second.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(second.entry.repo, "LiquidAI/LFM2.5-VL-3B");
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn metal_and_processor_machines_keep_todays_gates() {
         "the premise: a floor on a Mac"
     );
     let mac_pick = largest_that_runs_well(&mac).expect("a Mac runs something");
-    assert_eq!(mac_pick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(mac_pick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     assert_eq!(mac_pick.entry.quant, "Q8_0");
     assert!(matches!(mac_pick.decode, Prediction::Floor(_)));
     let mac_budget = memory_budget(mac.backend, mac.ram_bytes);
@@ -163,7 +163,7 @@ fn metal_and_processor_machines_keep_todays_gates() {
         "the premise: on the processor the figure is the path itself"
     );
     let cpu_pick = largest_that_runs_well(&cpu).expect("a processor runs something");
-    assert_eq!(cpu_pick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(cpu_pick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     assert_eq!(cpu_pick.entry.quant, "Q8_0");
     assert!(matches!(cpu_pick.decode, Prediction::Range { .. }));
 }

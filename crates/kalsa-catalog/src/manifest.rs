@@ -948,170 +948,174 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             },
         }),
     },
-    // ── LiquidAI LFM2.5-2.6B, verified against the Hugging Face API on 2026-09-26 ──
-    // The same model the phone app ships, pinned at commit
-    // `e7caca5d835a3901a8e0d63e94009429bafafdfc`, one file: Q8_0, the less
-    // compressed quant the owner wants on PCs. At 2.87 GB of weights it still
-    // fits the 8 GB tier at the chooser's 65_536-token window — 3.71 GiB of
-    // footprint (weights + 512 MiB of compute buffers + 65_536 tokens at
-    // 8_704 bytes) against a 5.0 GiB budget — so the smaller compression
-    // earns no tier of its own.
+    // ── LiquidAI LFM2.5-VL-3B, verified against the Hugging Face API on 2026-10-04 ──
+    // Pinned at commit `6f730e9a2c454e8af9adc29db58e638e01e5957f` ("Update
+    // GGUFs", the repo's last), one weights file: Q8_0. `curl -sIL` on the
+    // resolve URL returned exactly the `x-linked-size` 2_874_779_680 and the
+    // `x-linked-etag` below, and `shasum -a 256` of the downloaded file
+    // equals that etag. At 2.87 GB of weights it fits the 8 GB tier at the
+    // chooser's 65_536-token pricing window — 3.71 GiB of footprint
+    // (weights + 512 MiB of compute buffers + 65_536 tokens at 8_704 bytes)
+    // against a 5.0 GiB budget — and the window the launcher funds is the
+    // header's own 32_768 (`trained_context_tokens` below), so the real
+    // footprint is smaller still.
     //
-    // `general.architecture` was read from THIS pinned file's own GGUF
-    // header by range-requesting its first bytes: `lfm2` — found in
-    // llama-arch.cpp at b10950, quoting that file:
-    // `{ LLM_ARCH_LFM2, "lfm2" }` line 127. `curl -sIL` on the resolve URL
-    // returned exactly the `x-linked-size` 2_874_779_648 and the
-    // `x-linked-etag` below.
+    // The header facts are from THIS pinned file, parsed whole:
+    // `general.architecture` `lfm2` (llama-arch.cpp:127 at b10950,
+    // `{ LLM_ARCH_LFM2, "lfm2" }`); `lfm2.block_count 30` with
+    // `lfm2.attention.head_count_kv` per layer — 30 entries, 22 zeros and 8
+    // eights — so 8 of the 30 blocks hold attention, with 8 KV heads each;
+    // `lfm2.embedding_length 2048`, `attention.head_count 32`, and
+    // `attention.key_length`/`value_length` ABSENT — the engine defaults
+    // them to n_embd / n_head = 2048 / 32 = 64 (llama-model.cpp:1344-1349
+    // at b10950). So 8 x 8 x (64 + 64) = 8_192 elements a token — 8_704
+    // bytes at the q8_0 cache the launcher pins (34 bytes per 32 elements).
+    // The engine's own load log of this exact file on the owner's M1 Max
+    // (fork b11596) prints the arithmetic back: `llama_kv_cache: size =
+    // 544.00 MiB ( 65536 cells, 8 layers, 1/1 seqs), K (q8_0): 272.00 MiB,
+    // V (q8_0): 272.00 MiB` — 8_704 x 65_536 to the byte. The other 22
+    // blocks are shortconv-recurrent (`src/models/lfm2.cpp:12`) and hold a
+    // per-slot F32 conv state of 22 x 2_048 x (`lfm2.shortconv.l_cache` 3
+    // − 1) x 4 = 360_448 B (`llama-hparams.cpp:216`; the same log:
+    // `RS buffer size = 0.34 MiB`).
     //
-    // Licence `lfm1.0` (read from this repo's own LICENSE), as a condition
-    // and not a refusal: §1 Definitions — `"Threshold" shall mean annual
-    // revenue of 10 million United States dollars ($10,000,000) or more` —
-    // and §5 Commercial Use Limitation: (a) the rights for Commercial Use
-    // are `conditioned upon You or Your Legal Entity not exceeding the
-    // Threshold`, (b) commercial use by an entity that exceeds it `is not
-    // licensed under this Agreement`, (c) the Threshold does not apply to a
-    // Qualified Non-Profit's non-commercial or research use.
+    // `lfm2.context_length` is 32_768, and the engine warns
+    // `n_ctx_seq (65536) > n_ctx_train (32768) -- possible training context
+    // overflow` when started past it — the trained figure is what the
+    // launcher's per-slot ceiling funds, never a bigger window.
+    //
+    // Parameters are this file's own tensor-element sum: 2_696_937_472 in
+    // q8_0 tensors and 261_120 in f32 = 2_697_198_592. The header itself
+    // names the text stack (`general.base_model.0`: LFM2.5 2.6B Base); the
+    // "3B" of its `general.size_label` is the vision tower, which ships in
+    // the projector below, not here. `lfm2.vocab_size` is 128_000 — the
+    // token embedding is the file's one 265.62 MiB tensor (see
+    // `host_bytes_on_gpu`).
+    //
+    // Licence `lfm1.0`, read from THIS repo's own LICENSE — §1:
+    // `"Threshold" shall mean annual revenue of 10 million United States
+    // dollars ($10,000,000) or more`, §5: commercial use conditioned on
+    // staying under it, a Qualified Non-Profit's non-commercial use exempt —
+    // and the header's own `general.license.name` agrees. Sampling: the
+    // header carries `general.sampling.temp 0.2` and `top_k 50`, and the
+    // card's README example repeats both plus `--repeat-penalty 1.0`; no
+    // top_p is published, so that field stays None.
     DownloadableEntry {
         model: ModelEntry {
-            repo: "LiquidAI/LFM2.5-2.6B",
+            repo: "LiquidAI/LFM2.5-VL-3B",
             display_name: "Liquid LFM 2.5",
-            last_modified: "2026-09-22T20:42:43.000Z",
+            last_modified: "2026-08-31T22:26:13.000Z",
             licence: Licence::Conditional {
                 id: "lfm1.0",
                 condition: "commercial use only for entities under $10M annual revenue",
             },
             parameters: Parameters::dense(2_697_198_592),
             quant: "Q8_0",
-            weights_bytes: 2_874_779_648,
-            // From THIS pinned file's header: `lfm2.attention.head_count_kv`
-            // is per layer — 30 entries, 22 zeros and 8 eights — so 8 of the
-            // 30 blocks hold attention, with 8 KV heads each.
-            // `attention.key_length` / `value_length` are ABSENT from the
-            // header, and the engine defaults them to n_embd / n_head =
-            // 2048 / 32 = 64 (llama-model.cpp:1344-1349 at b10950, where the
-            // default is set before the key is looked up). So:
-            // 8 x 8 x (64 + 64) = 8_192 elements a token — 8_704 bytes at
-            // the q8_0 cache the launcher pins (34 bytes per 32 elements,
-            // the same 34/32 every other row is priced in).
+            weights_bytes: 2_874_779_680,
             kv_bytes_per_token: Some(8_704),
-            // The hybrid half: 22 of the 30 blocks are shortconv-recurrent
-            // (`src/models/lfm2.cpp:12` at b10950:
-            // `hparams.is_recr_impl[il] = hparams.n_head_kv(il) == 0`) and
-            // hold no per-token KV. Their conv history is per slot: F32, one
-            // row per sequence, `n_embd x (l_cache - 1)` elements
-            // (`llama-hparams.cpp:216` at b10950), read here as
-            // `lfm2.embedding_length 2048` and `lfm2.shortconv.l_cache 3` —
-            // 22 x 4_096 x 4 = 360_448 B per slot at every context.
             slot_cache: SlotCache::Recurrent {
                 bytes_per_slot: 360_448,
             },
             dense_equivalent: None,
             kv_assumption_undercounts: false,
             measured_decode: None,
-            trained_context_tokens: Some(131_072),
+            trained_context_tokens: Some(32_768),
             stale: None,
-            // LiquidAI's README, "Generation parameters": temperature 0.1, top_k 50,
-            // repetition penalty 1.1 — no top_p is published, so that field stays
-            // None. The pinned file's own `general.sampling` agrees on temp 0.1 and
-            // top_k 50 (read 2026-09-26).
             sampling: Sampling {
-                temperature: Some(0.1),
+                temperature: Some(0.2),
                 top_p: None,
                 top_k: Some(50),
-                repeat_penalty: Some(1.1),
+                repeat_penalty: Some(1.0),
             },
         },
         source: GgufSource {
-            repo: "LiquidAI/LFM2.5-2.6B-GGUF",
-            commit: "e7caca5d835a3901a8e0d63e94009429bafafdfc",
-            file: "LFM2.5-2.6B-Q8_0.gguf",
-            bytes: 2_874_779_648,
-            sha256: "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9",
+            repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
+            commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",
+            file: "LFM2.5-VL-3B-Q8_0.gguf",
+            bytes: 2_874_779_680,
+            sha256: "69b49ceddf61c65cce4a8938a0791c364a8d38cd2d87db2ca7ea359232a8b17e",
         },
-        // No projector: the repo ships no mmproj at any quant — the model
-        // has no vision stack (checked in the repo tree at this commit).
-        mmproj: None,
+        // The row's own projector, same repo and same commit as the weights:
+        // the q8_0 build — `general.file_type 7` (mostly q8_0), 137 q8_0
+        // tensors beside the f32 norms, read from the file's own GGUF
+        // header. ON DEMAND: see [`DownloadableEntry::mmproj`].
+        mmproj: Some(GgufSource {
+            repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
+            commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",
+            file: "mmproj-LFM2.5-VL-3B-Q8_0.gguf",
+            bytes: 583_109_984,
+            sha256: "ecbbe7097f696dba67172738d79c9f01132cdb6c0b457606315e268df3d67e64",
+        }),
         drafter: None,
         q8: None,
     },
-    // ── LiquidAI LFM2.5-2.6B, the full-precision file, same repo and commit ──
+    // ── LiquidAI LFM2.5-VL-3B, the full-precision file, same repo and commit ──
     // F16, and why not BF16: M1/M2 have no hardware BF16 and llama.cpp
     // emulates it, so F16 is the full-precision file that is actually fast.
-    // Measured 2026-09-26 on the owner's M1 Max (llama-bench, fork b10950,
-    // flash-attention on, q8_0 KV): BF16 tg128 50.8/48.1 at depth 8192,
-    // F16 56.2/52.7, Q8_0 81.0/75.2 — the tables are
-    // docs/quiz-2026-09-26/speed-bench-LFM2.5-2.6B-*.md, and this row
-    // carries its own F16 rate below. `curl -sIL` on the resolve URL
-    // returned exactly the `x-linked-size` 5_403_158_528 and the
-    // `x-linked-etag` below, at the same commit as the Q8 file.
+    // The repo ships both, at one size. `curl -sIL` on the resolve URL
+    // returned exactly the `x-linked-size` 5_403_158_560 and the
+    // `x-linked-etag` below, and `shasum -a 256` of the downloaded file
+    // equals that etag, at the same commit as the Q8 file.
     //
     // Same header — same repo, same commit — so the derivations are the
-    // same ones: `general.architecture` `lfm2` (llama-arch.cpp:127 at
-    // b10950); `lfm2.attention.head_count_kv` is per layer (30 entries,
-    // 22 zeros, 8 eights), so 8 of the 30 blocks hold attention with 8 KV
-    // heads each, and `attention.key_length`/`value_length` are absent —
-    // the engine defaults them to n_embd / n_head = 2048 / 32 = 64
-    // (llama-model.cpp:1344-1349 at b10950): 8 x 8 x (64 + 64) = 8_192
-    // elements a token, 8_704 bytes at the q8_0 cache the launcher pins
-    // (34 per 32). The other 22 blocks are shortconv-recurrent
-    // (src/models/lfm2.cpp:12) and hold a per-slot F32 conv state of
-    // 22 x 4_096 x 4 = 360_448 B (llama-hparams.cpp:216).
+    // same ones: `lfm2`, 30 blocks with 8 attention layers at 8 KV heads of
+    // 64 (key/value_length absent, defaulted to 2048/32) — 8_704 bytes a
+    // token at the q8_0 cache the launcher pins; 22 shortconv-recurrent
+    // blocks at 360_448 B per slot; `context_length` 32_768; tensor-element
+    // sum 2_697_198_592. Licence `lfm1.0`, this repo's own LICENSE, same
+    // text as the Q8 row. Sampling per the header and the card's README:
+    // temperature 0.2, top_k 50, repetition penalty 1.0, no top_p.
     //
-    // Licence `lfm1.0` (this repo's own LICENSE): §1 — `"Threshold" shall
-    // mean annual revenue of 10 million United States dollars ($10,000,000)
-    // or more` — and §5 conditions commercial use on staying under it, with
-    // a Qualified Non-Profit's non-commercial use exempt. Trained context
-    // 131_072; sampling per LiquidAI's README "Generation parameters":
-    // temperature 0.1, top_k 50, repetition penalty 1.1 (no top_p
-    // published).
+    // No measured decode: nobody has run this file through llama-bench, and
+    // the row refuses to inherit another file's rate — the bandwidth floor
+    // does the gating until a real measurement exists.
     DownloadableEntry {
         model: ModelEntry {
-            repo: "LiquidAI/LFM2.5-2.6B",
+            repo: "LiquidAI/LFM2.5-VL-3B",
             display_name: "Liquid LFM 2.5",
-            last_modified: "2026-09-22T20:42:43.000Z",
+            last_modified: "2026-08-31T22:26:13.000Z",
             licence: Licence::Conditional {
                 id: "lfm1.0",
                 condition: "commercial use only for entities under $10M annual revenue",
             },
             parameters: Parameters::dense(2_697_198_592),
             quant: "F16",
-            weights_bytes: 5_403_158_528,
+            weights_bytes: 5_403_158_560,
             kv_bytes_per_token: Some(8_704),
             slot_cache: SlotCache::Recurrent {
                 bytes_per_slot: 360_448,
             },
             dense_equivalent: None,
             kv_assumption_undercounts: false,
-            // The row's own rate, on the path it decodes on; the bandwidth
-            // is what keeps it on that machine class (see MeasuredDecode).
-            measured_decode: Some(MeasuredDecode {
-                tokens_per_second: 56.19,
-                backend: Backend::Metal,
-                bandwidth_bytes_per_second: 400.0e9,
-                measured_on: "M1 Max (llama-bench, fork b10950, flash-attention, q8_0 KV \
-                              cache, tg128; 52.71 at depth 8192), 2026-09-26",
-            }),
-            trained_context_tokens: Some(131_072),
+            measured_decode: None,
+            trained_context_tokens: Some(32_768),
             stale: None,
-            // LiquidAI's README, "Generation parameters": temperature 0.1,
-            // top_k 50, repetition penalty 1.1 — no top_p is published, so
-            // that field stays None. Same values as the Q8 row: same model.
             sampling: Sampling {
-                temperature: Some(0.1),
+                temperature: Some(0.2),
                 top_p: None,
                 top_k: Some(50),
-                repeat_penalty: Some(1.1),
+                repeat_penalty: Some(1.0),
             },
         },
         source: GgufSource {
-            repo: "LiquidAI/LFM2.5-2.6B-GGUF",
-            commit: "e7caca5d835a3901a8e0d63e94009429bafafdfc",
-            file: "LFM2.5-2.6B-F16.gguf",
-            bytes: 5_403_158_528,
-            sha256: "e041c231351185eb390f9c417d3bfd1815869a50a8589f3f86e5b9add3c529f1",
+            repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
+            commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",
+            file: "LFM2.5-VL-3B-F16.gguf",
+            bytes: 5_403_158_560,
+            sha256: "918937840fcb0ca6b984e107059557754a4a6076b127cc269970d30917e4cf8b",
         },
-        mmproj: None,
+        // The row's own projector, same repo and same commit as the weights:
+        // the F16 build — `general.file_type 1`, 165 f16 tensors beside the
+        // f32 norms, read from the file's own GGUF header; the repo's q8_0
+        // projector rides on the Q8 row. ON DEMAND: see
+        // [`DownloadableEntry::mmproj`].
+        mmproj: Some(GgufSource {
+            repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
+            commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",
+            file: "mmproj-LFM2.5-VL-3B-F16.gguf",
+            bytes: 853_993_952,
+            sha256: "74c4b2c095913be3cccce10aefe3b5d6f73aa7b4a15d49a8b68d97c229f8b922",
+        }),
         drafter: None,
         q8: None,
     },

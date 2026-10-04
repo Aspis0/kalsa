@@ -136,7 +136,7 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
                 selection.justification,
                 Justification::Relief { same_class: true }
             );
-            assert_eq!(selection.repo, "LiquidAI/LFM2.5-2.6B");
+            assert_eq!(selection.repo, "LiquidAI/LFM2.5-VL-3B");
             assert_eq!(selection.display_name, "Liquid LFM 2.5");
             assert_eq!(selection.quant, "Q8_0", "the tier's own file");
             assert!(
@@ -183,17 +183,17 @@ fn every_pick_carries_its_pinned_plan() {
     // unverified gets past.
     match choose(&input(8, true)) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "LiquidAI/LFM2.5-2.6B");
+            assert_eq!(selection.repo, "LiquidAI/LFM2.5-VL-3B");
             assert_eq!(selection.quant, "Q8_0");
             let plan = &selection.download;
             assert_eq!(
                 plan.url,
-                "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q8_0.gguf"
+                "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/6f730e9a2c454e8af9adc29db58e638e01e5957f/LFM2.5-VL-3B-Q8_0.gguf"
             );
-            assert_eq!(plan.bytes, 2_874_779_648);
+            assert_eq!(plan.bytes, 2_874_779_680);
             assert_eq!(
                 plan.sha256,
-                "1e22128dfa128bdfb684da167e74e072d0a056baa7d06d9f280291e2839b0fc9"
+                "69b49ceddf61c65cce4a8938a0791c364a8d38cd2d87db2ca7ea359232a8b17e"
             );
         }
         other => panic!("expected a pick, got {other:?}"),
@@ -594,7 +594,7 @@ fn the_revenue_conditional_licence_is_visible_and_does_not_close_the_door() {
     let lfm = DOWNLOADABLE
         .iter()
         .map(|row| &row.model)
-        .find(|entry| entry.repo == "LiquidAI/LFM2.5-2.6B")
+        .find(|entry| entry.repo == "LiquidAI/LFM2.5-VL-3B")
         .expect("the LFM row exists");
     match lfm.licence {
         kalsa_catalog::Licence::Conditional { id, condition } => {
@@ -959,7 +959,7 @@ fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
         "the research row does fit, which is what makes this test meaningful"
     );
     let pick = chosen(&input(8, true));
-    assert_eq!(pick, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(pick, "LiquidAI/LFM2.5-VL-3B");
     let chosen_row = kalsa_catalog::usable()
         .find(|entry| entry.entry().repo == pick)
         .expect("the pick is on the menu");
@@ -1110,7 +1110,7 @@ fn a_gemma_row_wins_the_bar_against_a_bigger_lfm_row() {
             .expect("the row is on the menu")
     };
     let gemma = row_of("google/gemma-4-E4B-it", "Q4_K_M");
-    let lfm = row_of("LiquidAI/LFM2.5-2.6B", "F16");
+    let lfm = row_of("LiquidAI/LFM2.5-VL-3B", "F16");
     let big_gemma = row_of("google/gemma-4-26B-A4B-it", "Q4_0");
     let budget = kalsa_catalog::memory_budget(machine.backend, machine.ram_bytes).usable_bytes;
     assert!(
@@ -1180,7 +1180,7 @@ fn the_bigger_row_wins_the_bar_when_lfm_is_not_the_rival() {
     // demotion is what keeps them off the card, not their missing the bar.
     for quant in ["Q8_0", "F16"] {
         let lfm = kalsa_catalog::usable()
-            .find(|row| row.entry().repo == "LiquidAI/LFM2.5-2.6B" && row.entry().quant == quant)
+            .find(|row| row.entry().repo == "LiquidAI/LFM2.5-VL-3B" && row.entry().quant == quant)
             .expect("the LFM file is on the menu");
         assert!(
             decode_prediction(lfm, &machine).floor() >= wanted,
@@ -1211,7 +1211,7 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     let only_lfm_clears = |machine: &ChoiceInput, wanted: f64| {
         let budget = kalsa_catalog::memory_budget(machine.backend, machine.ram_bytes).usable_bytes;
         for row in kalsa_catalog::usable() {
-            if row.entry().repo == "LiquidAI/LFM2.5-2.6B" {
+            if row.entry().repo == "LiquidAI/LFM2.5-VL-3B" {
                 continue;
             }
             let floor = decode_prediction(row, machine).floor();
@@ -1227,7 +1227,7 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
     only_lfm_clears(&roomy, wanted);
     let quick = quicker_alternative(&roomy, &first.decode).expect("a second card");
-    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     assert_eq!(quick.entry.quant, "F16", "the roomy exception still hands it the full-precision file");
 
     let small = metal(16, 200.0e9);
@@ -1235,7 +1235,7 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
     only_lfm_clears(&small, wanted);
     let quick = quicker_alternative(&small, &first.decode).expect("a second card");
-    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     assert_eq!(quick.entry.quant, "Q8_0", "below the roomy line the Q8 file is the card");
 }
 
@@ -1296,7 +1296,7 @@ fn a_refused_machine_offers_no_second_option_either() {
         .expect("a 16 GiB machine runs something")
         .decode;
     let lfm = kalsa_catalog::usable()
-        .find(|row| row.entry().repo == "LiquidAI/LFM2.5-2.6B")
+        .find(|row| row.entry().repo == "LiquidAI/LFM2.5-VL-3B")
         .expect("the fast row beside the refusal is on the menu");
     assert!(
         footprint_bytes(lfm.entry(), machine.context_tokens).total_bytes()
@@ -1345,7 +1345,7 @@ fn a_pick_is_not_offered_a_second_option_that_earns_nothing() {
     // defect at all.
     let lfm = kalsa_catalog::usable()
         .find(|row| {
-            row.entry().repo == "LiquidAI/LFM2.5-2.6B" && row.entry().quant == "Q8_0"
+            row.entry().repo == "LiquidAI/LFM2.5-VL-3B" && row.entry().quant == "Q8_0"
         })
         .expect("the row beside the pick is on the menu");
     assert!(
@@ -1397,7 +1397,7 @@ fn without_a_phone_the_second_option_keeps_the_only_bar_there_is() {
     let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
     let quick = quicker_alternative(&machine, &first.decode)
         .expect("fit and the speed bar are the whole of the rule with no phone");
-    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
 }
 
 #[test]
@@ -1416,7 +1416,7 @@ fn a_phone_on_battery_still_earns_the_quicker_row_its_place() {
     assert_eq!(chosen(&machine), "google/gemma-4-12B-it");
     let first = largest_that_runs_well(&machine).expect("a 16 GiB machine runs something");
     let quick = quicker_alternative(&machine, &first.decode).expect("relief earns it a place");
-    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     assert_eq!(quick.entry.quant, "Q8_0", "the bigger file is the one in the phone's class");
     assert!(
         capability_basis(
@@ -1546,7 +1546,7 @@ fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
     // the tier starts the Q8 file.
     let tier = metal(8, 40.0e9);
     let pick = largest_that_runs_well(&tier).expect("the 8 GiB tier starts the LFM file");
-    assert_eq!(pick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(pick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     assert_eq!(pick.entry.quant, "Q8_0");
 
     // And the refusal sentence is about the READING floor, and only fires
@@ -1579,7 +1579,7 @@ fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
 fn stand_down_cards(machine: &ChoiceInput) -> (RunnableRow, RunnableRow) {
     let first = largest_that_runs_well(machine).expect("the tier starts something");
     let second = quicker_alternative(machine, &first.decode).expect("a second card");
-    assert_eq!(first.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_eq!(first.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     assert_eq!(first.entry.quant, "Q8_0");
     assert_eq!(second.entry.repo, "google/gemma-4-E4B-it");
     assert!(
@@ -1611,7 +1611,7 @@ fn the_surface_that_clears_no_line_starts_the_two_fastest_rows() {
         ..input(16, false)
     };
     for repo in [
-        "LiquidAI/LFM2.5-2.6B",
+        "LiquidAI/LFM2.5-VL-3B",
         "google/gemma-4-E4B-it",
         "google/gemma-4-12B-it",
     ] {
@@ -1643,7 +1643,7 @@ fn a_standing_down_tier_with_a_phone_leads_with_speed_not_size() {
         ..input(16, true)
     };
     for repo in [
-        "LiquidAI/LFM2.5-2.6B",
+        "LiquidAI/LFM2.5-VL-3B",
         "google/gemma-4-E4B-it",
         "google/gemma-4-12B-it",
     ] {
@@ -1672,7 +1672,7 @@ fn a_standing_down_tier_with_a_phone_leads_with_speed_not_size() {
     // and Gemma 12B (3.8–5.5) are both slower, and only size put 12B first.
     assert_eq!(
         pick.repo,
-        "LiquidAI/LFM2.5-2.6B",
+        "LiquidAI/LFM2.5-VL-3B",
         "justified as {:?}",
         pick.justification
     );
@@ -1801,7 +1801,7 @@ fn the_full_precision_file_leads_no_card_and_no_pair_shares_a_model() {
         ..input(64, false)
     };
     let first = largest_that_runs_well(&small_card).expect("the card runs something");
-    assert_ne!(first.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_ne!(first.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     let second = quicker_alternative(&small_card, &first.decode).expect("a second card");
     assert_ne!(second.entry.repo, first.entry.repo);
     assert_ne!(second.entry.display_name, first.entry.display_name);
@@ -1817,7 +1817,7 @@ fn the_full_precision_file_leads_no_card_and_no_pair_shares_a_model() {
         ..input(64, false)
     };
     let first = largest_that_runs_well(&card).expect("the card runs something");
-    assert_ne!(first.entry.repo, "LiquidAI/LFM2.5-2.6B");
+    assert_ne!(first.entry.repo, "LiquidAI/LFM2.5-VL-3B");
     let second = quicker_alternative(&card, &first.decode).expect("a second card");
     assert_ne!(second.entry.repo, first.entry.repo);
     assert_ne!(second.entry.display_name, first.entry.display_name);

@@ -341,7 +341,7 @@ mod tests {
             ..mac(8, 85.0)
         })
         .expect("the 8 GiB tier runs the LFM file");
-        assert_eq!(lfm_pick.entry.repo, "LiquidAI/LFM2.5-2.6B");
+        assert_eq!(lfm_pick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
         assert!(lfm_pick.download.drafter.is_none());
         assert_eq!(lfm_pick.download.total_bytes(), lfm_pick.download.bytes);
     }

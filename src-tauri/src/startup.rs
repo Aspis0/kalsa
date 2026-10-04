@@ -2767,7 +2767,8 @@ mod tests {
         // The product path: the context comes from the chosen row's cache
         // geometry against the real budget. Liquid LFM 2.5 on 8 GiB funds
         // up to its trained 131_072 at q8_0, and the launch takes the
-        // automatic chat default — 65_536 — with the plan's own cache roof
+        // automatic window — the row's trained 32_768, the cap its header
+        // sets on the 65_536 chat default — with the plan's own cache roof
         // of 466 MiB. The flags are still the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
@@ -2790,7 +2791,7 @@ mod tests {
         let joined = config.server.argv.join(" ");
         assert_eq!(
             rendered_value(&config.server.argv, "--ctx-size"),
-            "65536",
+            "32768",
             "{joined}"
         );
         assert_eq!(
@@ -3252,19 +3253,20 @@ mod tests {
 
     #[test]
     fn a_context_only_q8_0_funds_is_refused_when_f16_is_chosen() {
-        // Liquid LFM 2.5 (the Q8_0 file, 2.87 GB) on 7 GiB of CPU funds
-        // 65_536 tokens at q8_0 and 38_035 at f16: the halved per-token
-        // price is what moves the f16 maximum. 65_536 fits the q8_0 cache
-        // and not the f16 one — choosing f16 must refuse it, not start a
-        // server whose f16 cache would oversubscribe the machine. If the
-        // guard read the q8_0 maximum instead of the chosen cache's, this
-        // would be accepted.
+        // Liquid LFM 2.5 (the Q8_0 file, 2.87 GB) on 6.95 GB of CPU funds
+        // 27_284 tokens at q8_0 and 13_642 at f16: the halved per-token
+        // price is what moves the f16 maximum (both below the row's
+        // 32_768 trained cap, which would otherwise level them). 20_000
+        // fits the q8_0 cache and not the f16 one — choosing f16 must
+        // refuse it, not start a server whose f16 cache would
+        // oversubscribe the machine. If the guard read the q8_0 maximum
+        // instead of the chosen cache's, this would be accepted.
         let row = rows()
             .find(|entry| entry.display_name == "Liquid LFM 2.5")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
-            ram_bytes: 7 * 1024 * 1024 * 1024,
+            ram_bytes: 6_950_000_000,
         };
         let err = planned_config_with_overrides(
             ServerBackend::Cpu,
@@ -3282,13 +3284,13 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides {
-                context_tokens: Some(65_536),
+                context_tokens: Some(20_000),
                 idle_unload_seconds: Some(600),
                 kv_cache: Some(KvCache::F16),
                 ..LaunchOverrides::default()
             },
         )
-        .expect_err("65536 is beyond the f16 funded maximum of 38035");
+        .expect_err("20000 is beyond the f16 funded maximum of 13642");
         assert!(
             matches!(err, StartupFailure::ContextTooLarge { .. }),
             "{err:?}"
@@ -3313,8 +3315,10 @@ mod tests {
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
         )
-        .expect("65536 fits the q8_0 cache");
-        assert_eq!(fits_q8.info.args.context_tokens, 65_536);
+        .expect("20000 fits the q8_0 cache");
+        // The override is a ceiling, not a target: below the funded maximum
+        // the plan starts the window the machine funds.
+        assert_eq!(fits_q8.info.args.context_tokens, 27_284);
         assert_eq!(
             crate::failure::words(&err),
             "This conversation length is too long for this AI. Choose a smaller one in \
@@ -3322,7 +3326,7 @@ mod tests {
         );
         match err {
             StartupFailure::ContextTooLarge { maximum_tokens, cache } => {
-                assert_eq!(maximum_tokens, 38_035, "the funded maximum travels");
+                assert_eq!(maximum_tokens, 13_642, "the funded maximum travels");
                 assert!(matches!(cache, Some(KvCache::F16)), "{cache:?}");
             }
             other => panic!("{other:?}"),
@@ -3513,9 +3517,9 @@ mod tests {
             Some((4_977_171_584 + 98_653_280, true))
         );
         let lfm = rows()
-            .find(|entry| entry.repo == "LiquidAI/LFM2.5-2.6B" && entry.quant == "Q8_0")
+            .find(|entry| entry.repo == "LiquidAI/LFM2.5-VL-3B" && entry.quant == "Q8_0")
             .expect("the row is in the catalog");
-        assert_eq!(entry_download(lfm), Some((2_874_779_648, false)));
+        assert_eq!(entry_download(lfm), Some((2_874_779_680, false)));
     }
 
     /// The machine this window pair is planned on: 9.5 GB is where this row

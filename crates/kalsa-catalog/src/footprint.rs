@@ -181,19 +181,20 @@ pub fn footprint_bytes(entry: &ModelEntry, context_tokens: u64) -> Footprint {
 }
 
 /// Bytes of this row that never enter a discrete card: the engine's
-/// `CPU_Mapped` buffer. The load logs on the owner's Lenovo print them for
-/// two rows, quoted in docs/VRAM-LENOVO-2026-09-28.md §3 — Gemma 4 E4B
-/// Q4_K_M leaves **2 208.00 MiB** (2_315_556_864 bytes) of its per-layer
-/// embeddings in host memory while "offloaded 43/43 layers to GPU", and
-/// LFM2.5-2.6B Q8_0 leaves **265.62 MiB** (278_527_367 bytes — the log
-/// prints two decimals) of its output weight. The sizes are measured; what
-/// the tensors are is the report's INFERRED reading of them. `None` on
-/// every row nobody has measured this way — nothing is guessed, and such a
-/// row is charged whole, exactly as before.
+/// `CPU_Mapped` buffer. The load logs print them for two rows — Gemma 4 E4B
+/// on the owner's Lenovo (quoted in docs/VRAM-LENOVO-2026-09-28.md §3:
+/// **2 208.00 MiB**, 2_315_556_864 bytes, of its per-layer embeddings while
+/// "offloaded 43/43 layers to GPU"), and LFM2.5-VL-3B on the owner's M1 Max
+/// (fork b11596, `--lv 6`, 2026-10-04: **265.62 MiB** — 278_528_000 bytes,
+/// the file's own 128_000-vocab `token_embd.weight`, the only tensor of
+/// that size, so the identity is the size's reading and the bytes are the
+/// tensor's own). What the tensors are is inferred in both cases; the sizes
+/// are measured. `None` on every row nobody has measured this way — nothing
+/// is guessed, and such a row is charged whole, exactly as before.
 pub fn host_bytes_on_gpu(entry: &ModelEntry) -> Option<u64> {
     match (entry.repo, entry.quant) {
         ("google/gemma-4-E4B-it", "Q4_K_M") => Some(2_315_556_864),
-        ("LiquidAI/LFM2.5-2.6B", "Q8_0") => Some(278_527_367),
+        ("LiquidAI/LFM2.5-VL-3B", "Q8_0") => Some(278_528_000),
         _ => None,
     }
 }
@@ -376,22 +377,23 @@ mod tests {
 
     #[test]
     fn a_row_that_keeps_weights_in_host_memory_is_charged_to_the_card_they_never_enter() {
-        // The Lenovo's load logs, as the report quotes them
-        // (docs/VRAM-LENOVO-2026-09-28.md §3): Gemma 4 E4B leaves
+        // Two load logs: the Lenovo's, as the report quotes it
+        // (docs/VRAM-LENOVO-2026-09-28.md §3) — Gemma 4 E4B leaves
         // 2 208.00 MiB of its per-layer embeddings in a CPU_Mapped buffer
-        // while all 43 layers are offloaded; LFM2.5 leaves 265.62 MiB of
-        // its output weight there. Only those two rows carry a figure —
-        // measured sizes, on rows the log printed — and nothing else
-        // guesses one.
+        // while all 43 layers are offloaded — and the M1 Max's (fork
+        // b11596, `--lv 6`, 2026-10-04) — LFM2.5-VL-3B leaves 265.62 MiB,
+        // its 128_000-vocab token embedding, there. Only those two rows
+        // carry a figure — measured sizes, on rows the log printed — and
+        // nothing else guesses one.
         let find = |repo: &str| {
             rows()
                 .find(|entry| entry.repo == repo)
                 .expect("the row is in the catalog")
         };
         let e4b = find("google/gemma-4-E4B-it");
-        let lfm = find("LiquidAI/LFM2.5-2.6B");
+        let lfm = find("LiquidAI/LFM2.5-VL-3B");
         assert_eq!(host_bytes_on_gpu(e4b), Some(2_315_556_864), "2 208.00 MiB");
-        assert_eq!(host_bytes_on_gpu(lfm), Some(278_527_367), "265.62 MiB");
+        assert_eq!(host_bytes_on_gpu(lfm), Some(278_528_000), "265.62 MiB");
         assert_eq!(
             host_bytes_on_gpu(find("google/gemma-4-12B-it")),
             None,
@@ -418,7 +420,7 @@ mod tests {
             "the card holds the 3 594 MiB that actually enter it"
         );
         let lfm_fp = footprint_bytes(lfm, 65_536);
-        assert_eq!(lfm_fp.total_bytes(), 3_982_075_904, "the report's estimate");
+        assert_eq!(lfm_fp.total_bytes(), 3_982_075_936, "the report's estimate");
         assert!(fits_footprint(lfm, &lfm_fp, &card));
 
         // The host bytes are not dropped: on a budget sized in RAM the whole

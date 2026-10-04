@@ -594,12 +594,12 @@ mod tests {
     #[test]
     fn the_alias_is_the_file_stem_and_never_a_path() {
         let served = ServerArgs {
-            model_path: PathBuf::from("/models/LFM2.5-2.6B-Q8_0.gguf"),
+            model_path: PathBuf::from("/models/LFM2.5-VL-3B-Q8_0.gguf"),
             ..some_args()
         };
         let served_argv = served.argv();
         let q8 = rendered_value(&served_argv, "--alias");
-        assert_eq!(q8, "LFM2.5-2.6B-Q8_0");
+        assert_eq!(q8, "LFM2.5-VL-3B-Q8_0");
         assert!(!q8.contains('/') && !q8.contains('\\'), "{q8}");
 
         // An override path, directories and all: the stem only.
@@ -612,7 +612,7 @@ mod tests {
 
         // One model, two files — the LFM Q8 and F16 rows — different ids.
         let f16 = ServerArgs {
-            model_path: PathBuf::from("/models/LFM2.5-2.6B-F16.gguf"),
+            model_path: PathBuf::from("/models/LFM2.5-VL-3B-F16.gguf"),
             ..some_args()
         };
         let f16_argv = f16.argv();
