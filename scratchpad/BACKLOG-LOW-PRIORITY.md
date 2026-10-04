@@ -71,3 +71,11 @@ One line per item: area - finding - source audit. Pick from here only when a rel
   unbounded on waitForInFlightChatLoad / a hung native-op FIFO (no "withheld" then); (c) a CPU-only embed op in the
   shared native-op FIFO marks the CHAT context -> one needless chat reload after an app switch; (d) duplicate "active"
   events can queue duplicate releases, and a release after another owner's dispose can report "released".
+
+## Phone 1:1 images to the PC (branch phone/remote-images; review luna 684b7cfd, 2026-10-04)
+- P2: rendered PDF pages ride at JPEG q0.8 (PdfToImages.tsx:711 toDataURL 0.8) while photos use 0.85; in-cap JPEGs
+  skip the remote encoder. Documents are refused in remote mode, so only history pages are affected.
+- P2: the remote picker probe can open the native picker after the host unmounts (remoteAttachmentGate.ts:46-48 has
+  no lifetime check; useAttachments checks mountedRef only afterwards).
+- P2: dev-only: openaiTransport.ts:106 logs a 160-char redacted excerpt of a server error; the redactor does not mask
+  data: URIs or prompt text if the server echoes them. Production logs code + length only.
