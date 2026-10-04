@@ -34,3 +34,16 @@ DEVICE_POWER permission, nor the current VrListener.` Not usable by a normal app
 The per-component temperature input that the "three-legged surfer" needs (CPU / GPU / NSP each) is readable
 in-app on the S23 at no permission cost. Open: other vendors (Jelly/MediaTek, Xiaomi 14, 8 Elite QRD) may
 label the zones differently or deny them - the probe answers that per device in one launch.
+
+## Jelly Star (MediaTek mt6789, Android 13), same APK, 2026-10-04
+
+Process `u:r:untrusted_app:s0`. Result: **no per-component temperature at all.**
+
+- sysfs: `zones: 0` with no exception - `File.list()` returns null on a denied directory read. From `adb shell`
+  the directory lists (33 entries, label `sysfs`) but `thermal_zone0/type` and `/temp` are `Permission denied`
+  even to shell; `run-as` cannot list the directory.
+- HardwarePropertiesManager: the same SecurityException (DEVICE_POWER) for CPU/GPU/SKIN.
+
+So per-component zones are a per-device capability: present on the S23 (Qualcomm/Samsung), absent on the Jelly
+(MediaTek). A zone-driven rule needs a fallback for phones without zones (battery temperature, PowerManager
+thermal status/headroom, or a time-based hop).

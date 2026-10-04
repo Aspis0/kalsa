@@ -97,4 +97,5 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
 - 2026-10-03 S23 in-app zone probe (`s23-zone-probe-202a1370`, app 202a1370): the app process (untrusted_app) READS
   /sys/class/thermal - 86/95 temps, every cpu*/gpuss-*/nspss-* zone; 9 EINVAL (disabled zones, not SELinux).
   HardwarePropertiesManager: SecurityException (DEVICE_POWER) for CPU/GPU/SKIN. Per-component temperature input
-  for the governor is available in-app on the S23; other vendors still to probe.
+  for the governor is available in-app on the S23. Jelly (MediaTek, A13): zones denied even to shell; HPM
+  denied -> zone rule needs a no-zone fallback.
