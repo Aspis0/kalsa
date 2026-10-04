@@ -34,6 +34,7 @@ they are promoted.
 - Opening chat B while chat A streams waits for A to finish (one seat) with only "Opening the chat…" on screen (27 s on the Mac walk).
 - The last attachment error stays under the composer across chat switches until relaunch.
 - With Kalsa already off, a failed row still advises "Turn Kalsa off and on again from Home".
+- Engine lines (`engine:`, `engine device:`, argv) are logged once per process (`system.rs:222` `Once`), so an in-process restart (vision enable, model switch) leaves no trace of the new start in the log.
 - On Windows the log-folder opener logs a WARN because explorer.exe always exits 1.
 - Windows on ARM prints no `cpu:` line (CPUID path is x86 only).
 - Attach preflight fits the new files against history only, not the documents already pinned to the chat; send can then refuse what attach accepted (`useChat.ts:334` vs `useChatTurns.ts:145`).
