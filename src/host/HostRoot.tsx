@@ -12,13 +12,14 @@
 import { useMemo, useState, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { sendingInFlightRef } from "../engine/regenState";
-import { getActiveModelId, getRemoteVision, isEngineReady, type EngineTool } from "../engine/engineBackend";
+import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/engineBackend";
 import { useLocale } from "../i18n";
 import { useHostTurnRefs, type TouchedRef } from "./turnRefs";
 import { useComposerArms } from "./composerArms";
 import { useToolCapture } from "./toolCapture";
 import { useToolFlags } from "./toolFlags";
 import { useHostEngine } from "./useHostEngine";
+import { hostVision } from "./hostVision";
 import { useMemoryHost } from "./memoryHost";
 import { usePersonasHost } from "./personasHost";
 import { useLibraryHost } from "./libraryHost";
@@ -80,22 +81,11 @@ export function HostRoot() {
     library,
   });
 
+  const { liveCapable, sendCapable, remoteVision } = hostVision(modelHost);
   // One-slot notice first: the attach flow's picker refusals speak through it.
   const { notice, showNotice, showNoticeKey } = useNotice();
   // The attach flow (D1 row 43): the rows, the live PDF conversion, the pickers.
-  const attachments = useAttachments({
-    t,
-    locale,
-    showNotice,
-    addDocument: library.addDocument,
-    // The live capability of whichever brain is answering: the phone's own
-    // mmproj locally, the desk's last /props verdict remotely. Read at each
-    // notice, never captured — a model switch must not leave a stale answer.
-    visionCapable: () =>
-      modelHost.remoteActiveRef.current
-        ? getRemoteVision()
-        : Boolean(modelHost.currentModel.mmproj),
-  });
+  const attachments = useAttachments({ t, locale, showNotice, addDocument: library.addDocument, visionCapable: liveCapable });
 
   const handleConversationEnter = useCallback(() => {
     setDraft("");
@@ -150,11 +140,7 @@ export function HostRoot() {
     clearDraft,
     draft,
     showNoticeKey,
-    arms,
-    attachments,
-    visionCapable: modelHost.remoteActive
-      ? getRemoteVision()
-      : Boolean(modelHost.currentModel.mmproj),
+    arms, attachments, visionCapable: sendCapable,
   });
 
   useHistoryFlushes({
@@ -214,10 +200,7 @@ export function HostRoot() {
     translating: messageActions.translating,
     modelState: modelHost.modelState,
     engineResident: isEngineReady() && getActiveModelId() === modelHost.currentModel.id,
-    remoteActive: modelHost.remoteActive,
-    // The same verdict the chip row and the wire read: a remote turn carries
-    // pictures only while it is true, and the transcript shows what went.
-    remoteVision: modelHost.remoteActive ? getRemoteVision() : false,
+    remoteActive: modelHost.remoteActive, remoteVision,
     attachments: attachments.items,
     converting: attachments.converting !== null,
   });
