@@ -76,3 +76,14 @@ they are promoted.
 - Small tool-calling model beside a bigger writer — Lab.
 - Advanced "every AI" list, BYO GGUF.
 - All translation/copy polish.
+
+## First-run progress (review of 7fc7d0d7)
+- P2: a paced download still starts one `brain_state` read per gated event (~6.7/s) whenever the previous read has finished — the coalescing removes overlap, not rate; byte-carrying events could skip the read entirely (`chat/src/surfaces/useBrain.ts:329` `void poll();`, `src-tauri/src/progress.rs:20`).
+- P3: `publish()` allocates and `JSON.stringify`-compares two snapshots on every event (`chat/src/surfaces/useBrain.ts:187-188`).
+- P3: `getBrainRead()` is exported for the harness and hands out the mutable singleton snapshot (`chat/src/surfaces/useBrain.ts:380`).
+
+## LFM2.5-VL-3B row (review of eb825f00)
+- P2, waits on the owner's 32k call: the chooser prices LFM2.5-VL-3B at `CHOOSER_CONTEXT_TOKENS` 65_536 (`crates/kalsa-catalog/src/choice.rs:74`) while the launcher serves its trained 32_768 (`crates/kalsa-launch/src/policy.rs:227`) — a ~7 GB machine is refused by 203 MB though the launcher would fund ~31_592 tokens.
+- P2, plausible: `host_bytes_on_gpu` 278_528_000 B was measured on the M1 Max (unified memory) and is subtracted from discrete-GPU budgets (`crates/kalsa-catalog/src/footprint.rs:187`, `:209-210`); unmeasured on Vulkan.
+- P2: the default tests pin only the Q8 projector and model; the F16 projector (`crates/kalsa-catalog/src/manifest.rs:1112`) and the F16 model sha are pinned only in ignored suites (`crates/kalsa-catalog/src/manifest/tests.rs:645` picks the first pin).
+- P3: stale comments — `crates/kalsa-launch/src/policy.rs:1054` and `:1070` say 31_590 (the arithmetic gives 31_592), and `:1261` says "65 536 chat default"; `src-tauri/src/startup.rs:2769` says "trained 131_072".
