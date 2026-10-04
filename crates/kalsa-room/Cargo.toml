@@ -19,4 +19,8 @@ sha2 = "0.10"
 # (temp beside the target, restricted, flushed, renamed) rather than growing
 # a second one whose permissions could drift apart from the credential's.
 kalsa-pairing = { path = "../kalsa-pairing" }
+# The app's log facade: a media clear and a healed index are the shelf's own
+# events, and the owner's report reads them from the one log file the shell
+# installs the logger for. This crate only writes lines.
+log = "0.4"
 unicode-properties = { version = "0.1.4", features = ["general-category"] }

@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use crate::media::{
     MediaError, MediaKind, CHUNK_MAX_BYTES, IMAGE_MAX_BYTES, MIN_CHARGE, QUOTA_BYTES,
+    VIDEO_MAX_BYTES,
 };
 use crate::{Entry, Event, MediaAsset, MediaEvent, MediaSpec, MemberId, PostError, Room};
 
@@ -933,4 +934,170 @@ fn a_media_post_is_one_line_like_any_other() {
         .unwrap();
     assert_eq!(said.text, "[Image]");
     assert_eq!(said.media[0].sha256.len(), 64);
+}
+
+/// The records the index file holds, as the next open reads them — parsed
+/// as plain JSON, because the file itself is what the repair is about.
+fn index_records(dir: &std::path::Path) -> Vec<serde_json::Value> {
+    let bytes = std::fs::read(dir.join("media").join("index.json")).unwrap_or_default();
+    let stored: serde_json::Value = serde_json::from_slice(&bytes).expect("the index is JSON");
+    stored["media"].as_array().cloned().unwrap_or_default()
+}
+
+#[test]
+fn a_cleared_shelf_reopens_empty_and_with_its_quota_whole() {
+    let (dir, room) = open("media_clear_reopen");
+    let member = phone(&room, 1);
+    let asset = image_asset(&room, member);
+    room.post(
+        member,
+        "p1",
+        "gone soon",
+        false,
+        std::slice::from_ref(&asset.id),
+    )
+    .unwrap();
+    room.media_clear(MemberId::Host).unwrap();
+    // The file the next open reads holds nothing: the clear writes the
+    // index before it deletes a blob, so a clear that dies between the
+    // two cannot leave records naming bytes that are about to be gone.
+    assert_eq!(
+        index_records(&dir).len(),
+        0,
+        "the cleared index must hold no record"
+    );
+    drop(room);
+    let room = super::reopen(&dir).expect("the cleared room reopens");
+    let member = room.member_of(1).unwrap();
+    // Nothing of the past is published: the answer is "not in this room",
+    // not an io failure over a file that is not there.
+    assert!(room.media_bytes(&asset.id).is_none());
+    assert!(matches!(
+        room.media_resolve(member, &asset.id),
+        Err(MediaError::Unknown)
+    ));
+    // A new publish takes the shelf: the bytes arrive and are served.
+    let fresh = image_asset(&room, member);
+    assert!(room.media_bytes(&fresh.id).is_some());
+    // The quota starts from zero, to the byte: twenty videos at the
+    // per-blob cap, then the remainder the fresh image's floor charge
+    // left, arrive exactly at the quota. A single ghost charge
+    // (MIN_CHARGE) would have refused the remainder, and one byte past it
+    // is refused now.
+    let cap = VIDEO_MAX_BYTES;
+    for _ in 0..20 {
+        room.media_create(
+            member,
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                cap,
+                &sha256_of(&jpeg_bytes(640, 480)),
+            ),
+        )
+        .expect("the cleared quota takes the whole shelf again");
+    }
+    let remainder = QUOTA_BYTES - 20 * cap - MIN_CHARGE;
+    assert!(remainder <= cap, "the probe is a size the room takes");
+    room.media_create(
+        member,
+        spec_for(
+            MediaKind::Video,
+            "video/mp4",
+            remainder,
+            &sha256_of(&jpeg_bytes(640, 480)),
+        ),
+    )
+    .expect("the remainder fits only with no ghost charged");
+    assert!(matches!(
+        room.media_create(
+            member,
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                1,
+                &sha256_of(&jpeg_bytes(640, 480))
+            )
+        ),
+        Err(MediaError::Full)
+    ));
+}
+
+#[test]
+fn an_index_record_whose_blob_is_gone_is_dropped_and_the_index_rewritten() {
+    let (dir, room) = open("media_ghost_record");
+    let member = phone(&room, 1);
+    let asset = image_asset(&room, member);
+    room.post(
+        member,
+        "p1",
+        "whose bytes are gone",
+        false,
+        std::slice::from_ref(&asset.id),
+    )
+    .unwrap();
+    // The damage a clear that wrote its index first and died before its
+    // deletes leaves behind: the record survives, the blob does not.
+    std::fs::remove_file(dir.join("media").join("blobs").join(&asset.id)).unwrap();
+    drop(room);
+    let room = super::reopen(&dir).expect("the damaged room opens");
+    // The ghost is not published again: the shelf says the media is not in
+    // this room rather than failing over a file that is not there, and the
+    // index on disk no longer names it for the next open to charge.
+    assert!(room.media_bytes(&asset.id).is_none());
+    let member = room.member_of(1).unwrap();
+    assert!(matches!(
+        room.media_resolve(member, &asset.id),
+        Err(MediaError::Unknown)
+    ));
+    assert_eq!(
+        index_records(&dir).len(),
+        0,
+        "the ghost must be out of the index"
+    );
+    // The shelf is whole for what is really there.
+    let fresh = image_asset(&room, member);
+    assert!(room.media_bytes(&fresh.id).is_some());
+    assert_eq!(index_records(&dir).len(), 1, "only the live record is left");
+}
+
+#[test]
+fn a_missing_frame_blob_leaves_its_video_without_naming_it() {
+    let (dir, room) = open("media_frame_ghost");
+    let member = phone(&room, 1);
+    let frame = image_asset(&room, member);
+    let video = upload_bytes(
+        &room,
+        member,
+        MediaKind::Video,
+        "video/mp4",
+        &video_bytes(),
+        std::slice::from_ref(&frame.id),
+    )
+    .unwrap();
+    // The frame's blob goes, the video's own bytes stay: the video is
+    // still published — its file is there — and stops naming a frame the
+    // room can no longer produce, so a later post of it references only
+    // what a download can answer for.
+    std::fs::remove_file(dir.join("media").join("blobs").join(&frame.id)).unwrap();
+    drop(room);
+    let room = super::reopen(&dir).expect("the room opens");
+    assert!(
+        room.media_bytes(&video.id).is_some(),
+        "the video's own blob is there"
+    );
+    assert!(room.media_bytes(&frame.id).is_none());
+    let records = index_records(&dir);
+    assert_eq!(records.len(), 1, "only the video's record survives");
+    assert_eq!(records[0]["id"].as_str(), Some(video.id.as_str()));
+    assert!(
+        records[0].get("frames").is_none(),
+        "the dead frame must not be named: {}",
+        records[0]
+    );
+    let member = room.member_of(1).unwrap();
+    let posted = room
+        .post(member, "p1", "", false, std::slice::from_ref(&video.id))
+        .unwrap();
+    assert!(posted.media[0].frames.is_empty());
 }

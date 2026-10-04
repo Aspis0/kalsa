@@ -81,7 +81,8 @@ pub(crate) struct MediaState {
 
 impl MediaState {
     /// Opens the shelf inside the room's own directory: the directories,
-    /// the index, and the sweep of uploads the last process left behind.
+    /// the index — healed of records whose blob is gone — and the sweep of
+    /// uploads the last process left behind.
     pub(crate) fn open(room_dir: &Path) -> Result<Self, RoomError> {
         let media_dir = room_dir.join("media");
         let uploads_dir = media_dir.join(UPLOADS_DIR);
@@ -89,7 +90,11 @@ impl MediaState {
         let blobs = media_dir.join(BLOBS_DIR);
         std::fs::create_dir_all(&blobs).map_err(RoomError::Io)?;
         let index = media_dir.join(INDEX_NAME);
-        let published = load_index(&index)?;
+        let mut published = load_index(&index)?;
+        // The blobs are the shelf's truth: a record whose file is not on
+        // disk is a ghost the quota must not charge and a download cannot
+        // produce, so it is dropped here and the index rewritten below.
+        let (dropped, pruned) = drop_ghosts(&mut published, &blobs);
         // An upload in flight died with the process; its bytes are the
         // sender's to send again, and the directory is the sweep's start.
         for left in std::fs::read_dir(&uploads_dir).map_err(RoomError::Io)? {
@@ -106,7 +111,7 @@ impl MediaState {
             .values()
             .map(|(asset, _)| asset.bytes.max(MIN_CHARGE))
             .sum();
-        Ok(Self {
+        let state = Self {
             published,
             refs: HashMap::new(),
             uploads: HashMap::new(),
@@ -115,7 +120,20 @@ impl MediaState {
             blobs,
             uploads_dir,
             index,
-        })
+        };
+        if dropped > 0 || pruned > 0 {
+            // Counts only: what the heal drops is the shelf's bookkeeping,
+            // never the owner's content.
+            log::info!(
+                "media: {dropped} index records had no blob ({pruned} frame references pruned)"
+            );
+            // A repair that cannot be written is not a failed open: the
+            // memory is already honest, and the next open heals again.
+            if let Err(error) = state.write_index(state.stored_records()) {
+                log::warn!("media: the healed index could not be rewritten ({error})");
+            }
+        }
+        Ok(state)
     }
 
     /// Reserves an upload. The item's charge — its declared bytes or
@@ -286,7 +304,12 @@ impl MediaState {
         // The index is part of the publish: a write that fails leaves the
         // blob unpublished, the file removed and the charge returned —
         // never a success the next restart cannot explain.
-        if let Err(error) = self.write_index(Some((&asset, state.owner))) {
+        let mut index = self.stored_records();
+        index.push(StoredRecord {
+            asset: asset.clone(),
+            owner: state.owner.wire(),
+        });
+        if let Err(error) = self.write_index(index) {
             let _ = std::fs::remove_file(&blob);
             return Err(abandoned(self, &state, MediaError::Io(error)));
         }
@@ -387,44 +410,36 @@ impl MediaState {
         }
     }
 
-    /// Empties the shelf: the index first — a write that fails changes
-    /// nothing — then the files, then the memory. Transcript entries keep
-    /// their descriptors; the blobs behind them are gone, and the quota
-    /// starts from zero.
+    /// Empties the shelf: an empty index first — a write that fails
+    /// changes nothing — then the files, then the memory. The index is the
+    /// record of what the blobs are, so it must hold nothing before the
+    /// first blob is deleted; the next open then finds the shelf this left.
+    /// Transcript entries keep their descriptors; the blobs behind them are
+    /// gone, and the quota starts from zero.
     pub(crate) fn clear(&mut self) -> Result<(), MediaError> {
-        self.write_index(None).map_err(MediaError::Io)?;
+        self.write_index(Vec::new()).map_err(MediaError::Io)?;
         let published = std::mem::take(&mut self.published);
         let uploads = std::mem::take(&mut self.uploads);
         self.completed.clear();
         self.refs.clear();
         self.used = 0;
+        let removed = published.len();
+        let uploads_removed = uploads.len();
         for (id, _) in published {
             let _ = std::fs::remove_file(self.blobs.join(id));
         }
         for (_, upload) in uploads {
             let _ = std::fs::remove_file(upload.path);
         }
+        // Counts only: the log says the shelf is empty, never what it held.
+        log::info!("media: cleared {removed} published items, {uploads_removed} uploads in flight");
         Ok(())
     }
 
-    /// Publishes the index, atomically, beside whatever the shelf already
-    /// holds plus the one record about to land: the same file-leads-memory
-    /// rule the roster runs on. The caller is told when it fails.
-    fn write_index(&self, arriving: Option<(&MediaAsset, MemberId)>) -> Result<(), std::io::Error> {
-        let mut media: Vec<StoredRecord> = self
-            .published
-            .values()
-            .map(|(asset, owner)| StoredRecord {
-                asset: asset.clone(),
-                owner: owner.wire(),
-            })
-            .collect();
-        if let Some((asset, owner)) = arriving {
-            media.push(StoredRecord {
-                asset: asset.clone(),
-                owner: owner.wire(),
-            });
-        }
+    /// Publishes the index, atomically, from the records given alone: the
+    /// same file-leads-memory rule the roster runs on. The caller is told
+    /// when it fails.
+    fn write_index(&self, media: Vec<StoredRecord>) -> Result<(), std::io::Error> {
         let stored = StoredMedia {
             v: INDEX_VERSION,
             media,
@@ -433,6 +448,17 @@ impl MediaState {
             .map_err(|_| std::io::Error::other("the media index cannot serialize"))?;
         kalsa_pairing::store::write_owner_only(&self.index, &bytes)
     }
+
+    /// Every published record as the index stores it.
+    fn stored_records(&self) -> Vec<StoredRecord> {
+        self.published
+            .values()
+            .map(|(asset, owner)| StoredRecord {
+                asset: asset.clone(),
+                owner: owner.wire(),
+            })
+            .collect()
+    }
 }
 
 /// What a dead upload owes: its temp file gone, its charge back.
@@ -440,6 +466,33 @@ fn abandoned(shelf: &mut MediaState, upload: &Upload, error: MediaError) -> Medi
     let _ = std::fs::remove_file(&upload.path);
     shelf.used -= upload.charged;
     error
+}
+
+/// Drops the records whose blob file is not on disk, and stops the
+/// surviving videos from naming a dropped frame: what a restart publishes
+/// is what a download can produce, and the quota charges only bytes that
+/// are there. Answers the records dropped and the frame references pruned,
+/// so the caller rewrites the index once and says both in one line.
+fn drop_ghosts(
+    published: &mut HashMap<String, (MediaAsset, MemberId)>,
+    blobs: &Path,
+) -> (usize, usize) {
+    let held = published.len();
+    published.retain(|id, _| blobs.join(id).is_file());
+    let dropped = held - published.len();
+    // A frame is a blob of its own, published before the video that names
+    // it: the drop above takes its record, and this takes its name out of
+    // the video that survived.
+    let live: HashSet<String> = published.keys().cloned().collect();
+    let mut pruned = 0;
+    for (asset, _) in published.values_mut() {
+        asset.frames.retain(|frame| {
+            let keep = live.contains(frame);
+            pruned += usize::from(!keep);
+            keep
+        });
+    }
+    (dropped, pruned)
 }
 
 /// The shelf a fresh room reads: every record the index holds, or — where
