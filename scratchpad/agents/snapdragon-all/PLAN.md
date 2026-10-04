@@ -99,3 +99,8 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   HardwarePropertiesManager: SecurityException (DEVICE_POWER) for CPU/GPU/SKIN. Per-component temperature input
   for the governor is available in-app on the S23. Jelly (MediaTek, A13): zones denied even to shell; HPM
   denied -> zone rule needs a no-zone fallback.
+- 2026-10-04 S23 decode hop v1 by thermal headroom (`s23-decode-hop-auto-57e4d979`, app 57e4d979, engine bc5f0207c):
+  the rule runs in-app (cpu=18/npu=4 zones, 37/37 windows by headroom, 12 ms commit/turn). Cool phone: hops almost
+  every window; warm phone: 78 % of tokens on CPU (NSP nearer its 95 C trip than CPU to 108 C) -> 9.0 tok/s vs
+  11.3-11.5 for the 03/10 fixed alternation; CPU arm killed at 43 C. Block-trip headroom is the wrong objective on
+  the S23 (skin binds, trips never reached); v2 = NPU first, CPU only as NSP relief - owner decision.
