@@ -1138,6 +1138,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   long side 1536, q0.85, EXIF stripped by a fail-closed byte walk (re-encode, else refuse); 12 MiB phone budget,
   560 tokens per image; documents still refused remotely; on-device model stays text-only until after alpha.
   Reviewed once (luna), P0/P1 + user P2 fixed; Simulator re-test PASS with the owner; Jelly test on CI run 37223652768.
+  Follow-up `ac457508` (2026-10-04): 3908f2a0 left notes/library-document attach rows ungated while remote and broke
+  ci.yml (src/host/fileSize.test.ts: HostRoot 258>241). Fixed: one remote allow-list per attach row (pictures +
+  templates only), notes never ride the desk (send rule + arm cleared on switch), document/PDF pages never ride
+  the desk (current turn and history corpus), HostRoot back to 241 via hostVision.ts. Reviewed (luna 9aa0420c);
+  full jest 331/3485 + harness green before push. Lesson: pre-push now includes fileSize.test.ts + ci.yml check.
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
