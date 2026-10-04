@@ -2,8 +2,12 @@
 //! it, and the access rule that ties a blob to the transcript entry that
 //! posted it.
 
-use crate::media::{MediaError, MediaKind, CHUNK_MAX_BYTES, IMAGE_MAX_BYTES, QUOTA_BYTES};
-use crate::{Entry, MediaAsset, MemberId, PostError, Room};
+use std::time::{Duration, Instant};
+
+use crate::media::{
+    MediaError, MediaKind, CHUNK_MAX_BYTES, IMAGE_MAX_BYTES, MIN_CHARGE, QUOTA_BYTES,
+};
+use crate::{Entry, Event, MediaAsset, MediaEvent, MediaSpec, MemberId, PostError, Room};
 
 use super::{open, phone};
 
@@ -13,25 +17,73 @@ fn sha256_of(bytes: &[u8]) -> String {
     digest.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-/// An image a phone might have compressed: a JPEG's first words, small
-/// enough to hold, long enough to chunk.
-fn jpeg_bytes() -> Vec<u8> {
-    let mut bytes = vec![0xff, 0xd8, 0xff, 0xe0];
-    bytes.extend(std::iter::repeat_n(0xa5u8, 5000));
+/// A JPEG that carries a real SOF0 frame: the room reads an image's pixels
+/// from the file's own header, so a fixture of magic bytes alone is not an
+/// image to this store.
+fn jpeg_bytes(width: u16, height: u16) -> Vec<u8> {
+    let mut bytes = vec![0xff, 0xd8]; // SOI
+    bytes.extend_from_slice(&[0xff, 0xe0, 0x00, 0x10]); // APP0, length 16
+    bytes.extend_from_slice(b"JFIF\0");
+    bytes.extend(std::iter::repeat_n(0x00u8, 9)); // the APP0 payload, padded
+    bytes.extend_from_slice(&[0xff, 0xc0, 0x00, 0x11, 0x08]); // SOF0, length 17, 8-bit
+    bytes.extend_from_slice(&height.to_be_bytes());
+    bytes.extend_from_slice(&width.to_be_bytes());
+    bytes.extend_from_slice(&[0x03]); // three components
+    bytes.extend(std::iter::repeat_n(0x00u8, 9)); // their triples
+    bytes.extend(std::iter::repeat_n(0xa5u8, 200)); // entropy-ish tail
+    bytes
+}
+
+/// A PNG whose IHDR names the given frame.
+fn png_bytes(width: u32, height: u32) -> Vec<u8> {
+    let mut bytes = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
+    bytes.extend_from_slice(&[0x00, 0x00, 0x00, 0x0d]); // IHDR, length 13
+    bytes.extend_from_slice(b"IHDR");
+    bytes.extend_from_slice(&width.to_be_bytes());
+    bytes.extend_from_slice(&height.to_be_bytes());
+    bytes.extend_from_slice(&[0x08, 0x06, 0x00, 0x00, 0x00]);
+    bytes.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]); // CRC, unchecked
+    bytes.extend(std::iter::repeat_n(0xa5u8, 40));
+    bytes
+}
+
+/// A lossless WebP whose VP8L chunk packs the frame into its first bits.
+fn webp_bytes(width: u32, height: u32) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"RIFF");
+    bytes.extend_from_slice(&9u32.to_le_bytes()); // the chunk's own size
+    bytes.extend_from_slice(b"WEBP");
+    bytes.extend_from_slice(b"VP8L");
+    bytes.extend_from_slice(&9u32.to_le_bytes());
+    bytes.push(0x2f); // VP8L's signature
+    let bits = (width - 1) | ((height - 1) << 14);
+    bytes.extend_from_slice(&bits.to_le_bytes());
+    bytes.extend(std::iter::repeat_n(0x00u8, 5));
+    bytes
+}
+
+/// An MP4 past its size floor, its pixels the sender's own (the room never
+/// parses a video's box tree).
+fn video_bytes() -> Vec<u8> {
+    let mut bytes = vec![0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p'];
+    bytes.extend(std::iter::repeat_n(0x21u8, 1208));
     bytes
 }
 
 /// A video too big for one chunk: two chunks, the second short. (An image
 /// never gets here: its cap is one chunk.)
 fn big_video() -> Vec<u8> {
-    let mut bytes = vec![0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p'];
-    bytes.extend(std::iter::repeat_n(0x5au8, CHUNK_MAX_BYTES + 1000 - bytes.len()));
+    let mut bytes = video_bytes();
+    bytes.extend(std::iter::repeat_n(
+        0x5au8,
+        CHUNK_MAX_BYTES + 1000 - bytes.len(),
+    ));
     bytes
 }
 
-/// Uploads one blob the honest way — reserve, feed, publish — and answers
-/// its descriptor.
-fn upload(
+/// Uploads one blob the honest way — reserve, feed, publish — declaring
+/// the pixels a sender's screen would claim, whatever the file says.
+fn upload_bytes(
     room: &Room,
     member: MemberId,
     kind: MediaKind,
@@ -39,16 +91,29 @@ fn upload(
     bytes: &[u8],
     frames: &[String],
 ) -> Result<MediaAsset, MediaError> {
+    upload_as(room, member, mime, bytes, kind, (640, 480), frames)
+}
+
+fn upload_as(
+    room: &Room,
+    member: MemberId,
+    mime: &str,
+    bytes: &[u8],
+    kind: MediaKind,
+    dims: (u32, u32),
+    frames: &[String],
+) -> Result<MediaAsset, MediaError> {
+    let (width, height) = dims;
     let upload = room.media_create(
         member,
-        crate::MediaSpec {
+        MediaSpec {
             kind,
             mime: mime.to_string(),
             bytes: bytes.len() as u64,
             sha256: sha256_of(bytes),
-            width: 640,
-            height: 480,
-            duration_ms: None,
+            width,
+            height,
+            duration_ms: (kind == MediaKind::Video).then_some(30_000),
             frames: frames.to_vec(),
         },
     )?;
@@ -58,9 +123,21 @@ fn upload(
     room.media_complete(member, &upload)
 }
 
-/// The one shape the flat create tests need, over the common JPEG.
-fn spec_for(kind: MediaKind, mime: &str, bytes: u64, sha256: &str) -> crate::MediaSpec {
-    crate::MediaSpec {
+fn image_asset(room: &Room, member: MemberId) -> MediaAsset {
+    upload_bytes(
+        room,
+        member,
+        MediaKind::Image,
+        "image/jpeg",
+        &jpeg_bytes(640, 480),
+        &[],
+    )
+    .expect("the image uploads")
+}
+
+/// The one shape the flat create tests need, over any bytes' digest.
+fn spec_for(kind: MediaKind, mime: &str, bytes: u64, sha256: &str) -> MediaSpec {
+    MediaSpec {
         kind,
         mime: mime.to_string(),
         bytes,
@@ -72,30 +149,24 @@ fn spec_for(kind: MediaKind, mime: &str, bytes: u64, sha256: &str) -> crate::Med
     }
 }
 
-fn image_asset(room: &Room, member: MemberId) -> MediaAsset {
-    upload(
-        room,
-        member,
-        MediaKind::Image,
-        "image/jpeg",
-        &jpeg_bytes(),
-        &[],
-    )
-    .expect("the image uploads")
-}
-
 #[test]
 fn an_upload_becomes_a_blob_the_post_names_and_the_room_serves() {
     let (room_dir, room) = open("media_round_trip");
     let member = phone(&room, 1);
-    let bytes = jpeg_bytes();
-    let asset = upload(&room, member, MediaKind::Image, "image/jpeg", &bytes, &[]).unwrap();
+    let bytes = jpeg_bytes(640, 480);
+    let asset = upload_bytes(&room, member, MediaKind::Image, "image/jpeg", &bytes, &[]).unwrap();
     assert_eq!(asset.bytes, bytes.len() as u64);
     assert_eq!(asset.kind, MediaKind::Image);
 
     // The post carries the descriptor whole.
     let said = room
-        .post(member, "p1", "look at this", false, std::slice::from_ref(&asset.id))
+        .post(
+            member,
+            "p1",
+            "look at this",
+            false,
+            std::slice::from_ref(&asset.id),
+        )
         .unwrap();
     assert_eq!(said.media.len(), 1);
     assert_eq!(said.media[0].id, asset.id);
@@ -120,9 +191,15 @@ fn a_chunk_sent_twice_is_answered_not_written_twice() {
     let (_dir, room) = open("media_chunk_twice");
     let member = phone(&room, 1);
     let bytes = big_video();
-    let upload = room.media_create(
+    let upload = room
+        .media_create(
             member,
-            spec_for(MediaKind::Video, "video/mp4", bytes.len() as u64, &sha256_of(&bytes)),
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                bytes.len() as u64,
+                &sha256_of(&bytes),
+            ),
         )
         .unwrap();
     let (head, tail) = bytes.split_at(CHUNK_MAX_BYTES);
@@ -149,12 +226,18 @@ fn a_chunk_sent_twice_is_answered_not_written_twice() {
 fn an_upload_that_lied_is_refused_whole() {
     let (_dir, room) = open("media_lied");
     let member = phone(&room, 1);
-    let bytes = jpeg_bytes();
+    let bytes = jpeg_bytes(640, 480);
 
     // The digest is wrong: refused, nothing published, the upload gone.
-    let upload = room.media_create(
+    let upload = room
+        .media_create(
             member,
-            spec_for(MediaKind::Image, "image/jpeg", bytes.len() as u64, &"a".repeat(64)),
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                bytes.len() as u64,
+                &"a".repeat(64),
+            ),
         )
         .unwrap();
     room.media_chunk(member, &upload, 0, &bytes).unwrap();
@@ -165,11 +248,16 @@ fn an_upload_that_lied_is_refused_whole() {
     assert!(room.media_bytes(&upload).is_none());
 
     // The magic bytes are wrong for the mime: refused the same way.
-    let mut png = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
-    png.extend(std::iter::repeat_n(0x00u8, 100));
-    let lying = room.media_create(
+    let png = png_bytes(640, 480);
+    let lying = room
+        .media_create(
             member,
-            spec_for(MediaKind::Image, "image/jpeg", png.len() as u64, &sha256_of(&png)),
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                png.len() as u64,
+                &sha256_of(&png),
+            ),
         )
         .unwrap();
     room.media_chunk(member, &lying, 0, &png).unwrap();
@@ -179,11 +267,16 @@ fn an_upload_that_lied_is_refused_whole() {
     ));
 
     // Not every chunk arrived: incomplete, and still nothing published.
-    // (A video, because an image is one chunk by its cap.)
     let whole = big_video();
-    let short = room.media_create(
+    let short = room
+        .media_create(
             member,
-            spec_for(MediaKind::Video, "video/mp4", whole.len() as u64, &sha256_of(&whole)),
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                whole.len() as u64,
+                &sha256_of(&whole),
+            ),
         )
         .unwrap();
     let (head, _) = whole.split_at(CHUNK_MAX_BYTES);
@@ -195,13 +288,112 @@ fn an_upload_that_lied_is_refused_whole() {
 }
 
 #[test]
+fn a_file_below_its_kinds_floor_is_not_that_kind() {
+    let (_dir, room) = open("media_floors");
+    let member = phone(&room, 1);
+    // Three bytes of JPEG magic: no room for a frame, no record, and the
+    // reservation died with it.
+    let tiny = vec![0xff, 0xd8, 0xff];
+    assert!(matches!(
+        upload_bytes(&room, member, MediaKind::Image, "image/jpeg", &tiny, &[]),
+        Err(MediaError::BadMagic)
+    ));
+    // Past the floor but with no frame the parser can read: still not a
+    // JPEG, whatever its first three bytes say.
+    let mut frameless = vec![0xff, 0xd8, 0xff, 0xe0];
+    frameless.extend(std::iter::repeat_n(0xa5u8, 300));
+    assert!(matches!(
+        upload_bytes(
+            &room,
+            member,
+            MediaKind::Image,
+            "image/jpeg",
+            &frameless,
+            &[]
+        ),
+        Err(MediaError::BadMagic)
+    ));
+    // An MP4 under its own floor, magic and all.
+    let mut short_video = vec![0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p'];
+    short_video.extend(std::iter::repeat_n(0x21u8, 100));
+    assert!(matches!(
+        upload_bytes(
+            &room,
+            member,
+            MediaKind::Video,
+            "video/mp4",
+            &short_video,
+            &[]
+        ),
+        Err(MediaError::BadMagic)
+    ));
+    // Every failure gave its charge back: the shelf is as empty as it
+    // began, and the whole of it is reservable again.
+    for _ in 0..20 {
+        room.media_create(
+            member,
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                100 * 1024 * 1024,
+                &sha256_of(&tiny),
+            ),
+        )
+        .expect("nothing the liars left is charged");
+    }
+}
+
+#[test]
+fn each_item_costs_the_shelf_at_least_sixty_four_kib() {
+    let (_dir, room) = open("media_floor_charge");
+    let member = phone(&room, 1);
+    let big = 64 * 1024 * 1024;
+    for _ in 0..31 {
+        room.media_create(
+            member,
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                big,
+                &sha256_of(&jpeg_bytes(640, 480)),
+            ),
+        )
+        .expect("the big reservations fit");
+    }
+    // A tiny item — 1216 real bytes of MP4 — publishes like any other,
+    // and costs the shelf the floor's 64 KiB, not its bytes.
+    let video = video_bytes();
+    upload_bytes(&room, member, MediaKind::Video, "video/mp4", &video, &[])
+        .expect("the tiny video publishes");
+    // What would exactly fit if the charge were the bare bytes does not:
+    // the floor is what the shelf counted.
+    let probe = QUOTA_BYTES - 31 * big - video.len() as u64;
+    assert!(
+        matches!(
+            room.media_create(
+                member,
+                spec_for(MediaKind::Video, "video/mp4", probe, &sha256_of(&video))
+            ),
+            Err(MediaError::Full)
+        ),
+        "the tiny item cost {MIN_CHARGE} bytes, not {}",
+        video.len()
+    );
+}
+
+#[test]
 fn the_caps_hold_before_a_byte_moves() {
     let (_dir, room) = open("media_caps");
     let member = phone(&room, 1);
     assert!(matches!(
         room.media_create(
             member,
-            spec_for(MediaKind::Image, "image/jpeg", IMAGE_MAX_BYTES + 1, &sha256_of(&jpeg_bytes())),
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                IMAGE_MAX_BYTES + 1,
+                &sha256_of(&jpeg_bytes(640, 480))
+            ),
         ),
         Err(MediaError::TooLarge)
     ));
@@ -212,20 +404,35 @@ fn the_caps_hold_before_a_byte_moves() {
     let video_cap = room
         .media_create(
             member,
-            spec_for(MediaKind::Video, "video/mp4", QUOTA_BYTES / 21, &sha256_of(&jpeg_bytes())),
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                QUOTA_BYTES / 21,
+                &sha256_of(&jpeg_bytes(640, 480)),
+            ),
         )
         .expect("the first reservation is taken");
     for _ in 0..20 {
         room.media_create(
             member,
-            spec_for(MediaKind::Video, "video/mp4", QUOTA_BYTES / 21, &sha256_of(&jpeg_bytes())),
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                QUOTA_BYTES / 21,
+                &sha256_of(&jpeg_bytes(640, 480)),
+            ),
         )
         .expect("the shelf fills");
     }
     assert!(matches!(
         room.media_create(
             member,
-            spec_for(MediaKind::Image, "image/jpeg", 10, &sha256_of(&jpeg_bytes())),
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                10,
+                &sha256_of(&jpeg_bytes(640, 480))
+            ),
         ),
         Err(MediaError::Full)
     ));
@@ -234,7 +441,12 @@ fn the_caps_hold_before_a_byte_moves() {
     assert!(
         room.media_create(
             member,
-            spec_for(MediaKind::Image, "image/jpeg", 10, &sha256_of(&jpeg_bytes())),
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                10,
+                &sha256_of(&jpeg_bytes(640, 480))
+            ),
         )
         .is_ok(),
         "the dead upload's place is free again"
@@ -242,15 +454,167 @@ fn the_caps_hold_before_a_byte_moves() {
 }
 
 #[test]
+fn a_pixel_bomb_is_refused_whole() {
+    let (_dir, room) = open("media_pixel_bomb");
+    let member = phone(&room, 1);
+    let bombs = [
+        (jpeg_bytes(9000, 100), "image/jpeg", "a side past 8192"),
+        (
+            jpeg_bytes(100, 9000),
+            "image/jpeg",
+            "the other side past 8192",
+        ),
+        (png_bytes(7000, 7000), "image/png", "forty-nine megapixels"),
+        (webp_bytes(9000, 9000), "image/webp", "a webp bomb"),
+    ];
+    for (bytes, mime, why) in bombs {
+        assert!(
+            matches!(
+                upload_bytes(&room, member, MediaKind::Image, mime, &bytes, &[]),
+                Err(MediaError::TooManyPixels)
+            ),
+            "{why} is refused: {mime}"
+        );
+    }
+}
+
+#[test]
+fn the_recorded_pixels_are_the_files_own_words() {
+    let (_dir, room) = open("media_real_pixels");
+    let member = phone(&room, 1);
+    // Declared 999x999; the file's own SOF0 says 8192x100 — inside the
+    // caps, and the descriptor that lands says what the file said.
+    let asset = upload_as(
+        &room,
+        member,
+        "image/jpeg",
+        &jpeg_bytes(8192, 100),
+        MediaKind::Image,
+        (999, 999),
+        &[],
+    )
+    .expect("an honest frame publishes");
+    assert_eq!((asset.width, asset.height), (8192, 100));
+    // A PNG's IHDR is read the same way.
+    let png = upload_as(
+        &room,
+        member,
+        "image/png",
+        &png_bytes(320, 200),
+        MediaKind::Image,
+        (1, 1),
+        &[],
+    )
+    .expect("the png publishes");
+    assert_eq!((png.width, png.height), (320, 200));
+    // And a video's pixels stay its sender's declared ones: the room
+    // never opens a box tree.
+    let video = upload_as(
+        &room,
+        member,
+        "video/mp4",
+        &video_bytes(),
+        MediaKind::Video,
+        (1280, 720),
+        &[],
+    )
+    .expect("the video publishes");
+    assert_eq!((video.width, video.height), (1280, 720));
+}
+
+#[test]
+fn a_completed_upload_answers_its_descriptor_again() {
+    let (_dir, room) = open("media_complete_twice");
+    let member = phone(&room, 1);
+    let bytes = jpeg_bytes(640, 480);
+    let upload = room
+        .media_create(
+            member,
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                bytes.len() as u64,
+                &sha256_of(&bytes),
+            ),
+        )
+        .unwrap();
+    room.media_chunk(member, &upload, 0, &bytes).unwrap();
+    let first = room.media_complete(member, &upload).unwrap();
+    // The retry a lost answer owes: the same descriptor, not an error and
+    // not a second blob.
+    let again = room.media_complete(member, &upload).unwrap();
+    assert_eq!(again, first);
+    let third = room.media_complete(member, &upload).unwrap();
+    assert_eq!(third, first);
+    // Nobody else may retry it, either.
+    let other = phone(&room, 2);
+    assert!(matches!(
+        room.media_complete(other, &upload),
+        Err(MediaError::NotYours)
+    ));
+    // And the bytes it named are served exactly as they arrived.
+    assert_eq!(room.media_bytes(&first.id).unwrap().1, bytes);
+}
+
+#[test]
+fn an_index_write_that_fails_fails_the_publish() {
+    let (dir, room) = open("media_index_fail");
+    let member = phone(&room, 1);
+    let bytes = jpeg_bytes(640, 480);
+    let upload = room
+        .media_create(
+            member,
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                bytes.len() as u64,
+                &sha256_of(&bytes),
+            ),
+        )
+        .unwrap();
+    room.media_chunk(member, &upload, 0, &bytes).unwrap();
+    // Break the index where the publish must write it: a directory where
+    // the atomic rename cannot land.
+    let index = dir.join("media").join("index.json");
+    let _ = std::fs::remove_file(&index);
+    std::fs::create_dir(&index).unwrap();
+    assert!(matches!(
+        room.media_complete(member, &upload),
+        Err(MediaError::Io(_))
+    ));
+    // The failure rolled the reservation back and left no blob: the
+    // shelf's whole quota is still reservable, and nothing is served.
+    for _ in 0..20 {
+        room.media_create(
+            member,
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                100 * 1024 * 1024,
+                &sha256_of(&bytes),
+            ),
+        )
+        .expect("the failed publish charged nothing");
+    }
+    let page = room.newest_page(1, 10).unwrap();
+    assert!(page.messages.is_empty(), "no entry ever landed");
+}
+
+#[test]
 fn an_upload_belongs_to_its_uploader_alone() {
     let (_dir, room) = open("media_upload_owner");
     let uploader = phone(&room, 1);
     let other = phone(&room, 2);
-    let bytes = jpeg_bytes();
+    let bytes = jpeg_bytes(640, 480);
     let upload = room
         .media_create(
             uploader,
-            spec_for(MediaKind::Image, "image/jpeg", bytes.len() as u64, &sha256_of(&bytes)),
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                bytes.len() as u64,
+                &sha256_of(&bytes),
+            ),
         )
         .unwrap();
     assert!(matches!(
@@ -265,7 +629,13 @@ fn an_upload_belongs_to_its_uploader_alone() {
     let asset = room.media_complete(uploader, &upload).unwrap();
     // And nobody posts another's blob.
     assert!(matches!(
-        room.post(other, "o1", "mine now", false, std::slice::from_ref(&asset.id)),
+        room.post(
+            other,
+            "o1",
+            "mine now",
+            false,
+            std::slice::from_ref(&asset.id)
+        ),
         Err(PostError::Media(MediaError::NotYours))
     ));
 }
@@ -277,29 +647,44 @@ fn frames_belong_to_videos_and_to_their_sender() {
     let stranger = phone(&room, 2);
     let frame = image_asset(&room, member);
     let foreign = image_asset(&room, stranger);
-    let video = vec![0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p'];
+    let video = video_bytes();
 
     // An image carries no frames.
-    let with_frames = crate::MediaSpec {
+    let with_frames = MediaSpec {
         frames: vec![frame.id.clone()],
-        ..spec_for(MediaKind::Image, "image/jpeg", video.len() as u64, &sha256_of(&video))
+        ..spec_for(
+            MediaKind::Image,
+            "image/jpeg",
+            video.len() as u64,
+            &sha256_of(&video),
+        )
     };
     assert!(matches!(
         room.media_create(member, with_frames),
         Err(MediaError::BadRequest)
     ));
     // A video's frames are the uploader's own published images.
-    let foreign_frames = crate::MediaSpec {
+    let foreign_frames = MediaSpec {
         frames: vec![foreign.id.clone()],
-        ..spec_for(MediaKind::Video, "video/mp4", video.len() as u64, &sha256_of(&video))
+        ..spec_for(
+            MediaKind::Video,
+            "video/mp4",
+            video.len() as u64,
+            &sha256_of(&video),
+        )
     };
     assert!(matches!(
         room.media_create(member, foreign_frames),
         Err(MediaError::BadRequest)
     ));
-    let own_frames = crate::MediaSpec {
+    let own_frames = MediaSpec {
         frames: vec![frame.id.clone()],
-        ..spec_for(MediaKind::Video, "video/mp4", video.len() as u64, &sha256_of(&video))
+        ..spec_for(
+            MediaKind::Video,
+            "video/mp4",
+            video.len() as u64,
+            &sha256_of(&video),
+        )
     };
     let with_frames = room
         .media_create(member, own_frames)
@@ -343,7 +728,13 @@ fn the_join_floor_guards_the_blobs() {
         Err(MediaError::Forbidden)
     ));
     let said = room
-        .post(first, "p1", "for everyone", false, std::slice::from_ref(&image.id))
+        .post(
+            first,
+            "p1",
+            "for everyone",
+            false,
+            std::slice::from_ref(&image.id),
+        )
         .unwrap();
     // A member the room enrolled AFTER the post has the post below their
     // floor, and its blob with it.
@@ -365,8 +756,14 @@ fn a_removed_member_loses_the_rooms_past_media() {
     let (_dir, room) = open("media_removed");
     let member = phone(&room, 1);
     let image = image_asset(&room, member);
-    room.post(member, "p1", "here today", false, std::slice::from_ref(&image.id))
-        .unwrap();
+    room.post(
+        member,
+        "p1",
+        "here today",
+        false,
+        std::slice::from_ref(&image.id),
+    )
+    .unwrap();
     // The owner forgets the device: its member retires, and the road in
     // refuses before any floor is even asked.
     room.forget_device(1).unwrap();
@@ -388,10 +785,16 @@ fn a_removed_member_loses_the_rooms_past_media() {
 fn a_reopened_room_serves_the_blobs_it_named() {
     let (dir, room) = open("media_reopen");
     let member = phone(&room, 1);
-    let bytes = jpeg_bytes();
-    let asset = upload(&room, member, MediaKind::Image, "image/jpeg", &bytes, &[]).unwrap();
-    room.post(member, "p1", "still there?", false, std::slice::from_ref(&asset.id))
-        .unwrap();
+    let bytes = jpeg_bytes(640, 480);
+    let asset = upload_bytes(&room, member, MediaKind::Image, "image/jpeg", &bytes, &[]).unwrap();
+    room.post(
+        member,
+        "p1",
+        "still there?",
+        false,
+        std::slice::from_ref(&asset.id),
+    )
+    .unwrap();
     drop(room);
     let reopened = super::reopen(&dir).expect("the room reopens");
     // The index carried the blob's record; the transcript rebuilt the
@@ -412,19 +815,31 @@ fn a_reopened_room_serves_the_blobs_it_named() {
 fn the_sweep_takes_what_the_hour_forgot() {
     let (_dir, room) = open("media_sweep");
     let member = phone(&room, 1);
-    let bytes = jpeg_bytes();
-    let upload = room.media_create(
+    let bytes = jpeg_bytes(640, 480);
+    let upload = room
+        .media_create(
             member,
-            spec_for(MediaKind::Image, "image/jpeg", bytes.len() as u64, &sha256_of(&bytes)),
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                bytes.len() as u64,
+                &sha256_of(&bytes),
+            ),
         )
         .unwrap();
     room.media_chunk(member, &upload, 0, &bytes).unwrap();
     room.expire_uploads_for_test();
     // The next create is also the sweep; the aged upload is gone, its
     // reservation with it.
-    assert!(room.media_create(
+    assert!(room
+        .media_create(
             member,
-            spec_for(MediaKind::Image, "image/jpeg", bytes.len() as u64, &sha256_of(&bytes)),
+            spec_for(
+                MediaKind::Image,
+                "image/jpeg",
+                bytes.len() as u64,
+                &sha256_of(&bytes)
+            ),
         )
         .is_ok());
     assert!(matches!(
@@ -448,6 +863,62 @@ fn a_post_names_its_media_only_once() {
         )
         .unwrap_err();
     assert!(matches!(refused, PostError::Media(MediaError::BadRequest)));
+}
+
+#[test]
+fn the_host_clears_the_shelf_whole_and_tells_the_room() {
+    let (_dir, room) = open("media_clear");
+    let member = phone(&room, 1);
+    let asset = image_asset(&room, member);
+    room.post(
+        member,
+        "p1",
+        "gone soon",
+        false,
+        std::slice::from_ref(&asset.id),
+    )
+    .unwrap();
+    let before = room.next_cursor();
+    // A phone cannot clear the shelf; no member but the host may.
+    assert!(matches!(
+        room.media_clear(member),
+        Err(MediaError::Forbidden)
+    ));
+    room.media_clear(MemberId::Host).unwrap();
+    // Every blob is gone and the shelf serves nothing of the past.
+    assert!(room.media_bytes(&asset.id).is_none());
+    assert!(matches!(
+        room.media_resolve(member, &asset.id),
+        Err(MediaError::Unknown)
+    ));
+    // The transcript is untouched: the words and the descriptors stay.
+    let page = room.newest_page(1, 10).unwrap();
+    assert_eq!(page.messages[0].text, "gone soon");
+    assert_eq!(page.messages[0].media.len(), 1);
+    // The stream said so, unnumbered.
+    let mut events = Vec::new();
+    let mut cursor = before;
+    room.read_since(
+        &mut cursor,
+        Instant::now() + Duration::from_secs(1),
+        &mut events,
+    );
+    assert!(events
+        .iter()
+        .any(|event| matches!(event, Event::Media(MediaEvent::Cleared))));
+    // And the quota starts over: the whole shelf is reservable again.
+    for _ in 0..20 {
+        room.media_create(
+            member,
+            spec_for(
+                MediaKind::Video,
+                "video/mp4",
+                100 * 1024 * 1024,
+                &sha256_of(&jpeg_bytes(640, 480)),
+            ),
+        )
+        .expect("the shelf is empty again");
+    }
 }
 
 #[test]

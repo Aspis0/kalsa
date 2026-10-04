@@ -61,7 +61,7 @@ mod shelf;
 #[cfg(test)]
 mod tests;
 
-pub use events::{AiEvent, Event, MemberEvent, Take};
+pub use events::{AiEvent, Event, MediaEvent, MemberEvent, Take};
 pub use history::{Page, PageError};
 pub use media::{MediaAsset, MediaError, MediaKind, MediaSpec, POST_MEDIA_MAX};
 pub use mention::{calls_ai, calls_ai_at};

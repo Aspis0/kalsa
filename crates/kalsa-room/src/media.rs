@@ -83,12 +83,23 @@ pub const VIDEO_MAX_BYTES: u64 = 100 * 1024 * 1024;
 /// The whole room's shelf: published blobs plus in-flight uploads. Full is
 /// full — nothing is ever deleted to make room.
 pub const QUOTA_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+/// What one item costs the quota whatever its real size: a shelf of tiny
+/// files is a shelf of index records, and the record is the cost.
+pub const MIN_CHARGE: u64 = 64 * 1024;
+/// The most items the shelf will ever publish: the index is read whole at
+/// open, and this is the roof on that read.
+pub const MAX_PUBLISHED: usize = 10_000;
 /// The most one chunk request may carry (the last may be smaller).
 pub const CHUNK_MAX_BYTES: usize = 4 * 1024 * 1024;
 /// The most still frames one video may carry.
 pub const FRAMES_MAX: usize = 4;
 /// The most blobs one post may attach.
 pub const POST_MEDIA_MAX: usize = 8;
+/// The pixel bomb rule: no side over this, and no frame over
+/// [`MAX_PIXELS`] — an image the engine would have to decode into a
+/// framebuffersized hole.
+pub const MAX_SIDE: u32 = 8192;
+pub const MAX_PIXELS: u64 = 40_000_000;
 
 /// Why a media request was refused. The sentences are all a client sees;
 /// the io error stays in the value for the app's local log.
@@ -101,6 +112,8 @@ pub enum MediaError {
     BadSha,
     /// The bytes on disk do not open like the mime they declared.
     BadMagic,
+    /// The image's own frame is larger than the room reads: a pixel bomb.
+    TooManyPixels,
     /// The declared size is past the cap for its kind.
     TooLarge,
     /// The room's shelf is at its quota.
@@ -121,6 +134,7 @@ impl std::fmt::Display for MediaError {
             Self::Incomplete => f.write_str("not all of the upload has arrived yet"),
             Self::BadSha => f.write_str("the upload arrived damaged; send it again"),
             Self::BadMagic => f.write_str("that file is not the kind it said it was"),
+            Self::TooManyPixels => f.write_str("that image has too many pixels for this room"),
             Self::TooLarge => f.write_str("the media is larger than this room takes"),
             Self::Full => f.write_str("this room's media shelf is full"),
             Self::Unknown => f.write_str("that media is not in this room"),
@@ -185,8 +199,6 @@ impl MediaSpec {
     }
 }
 
-/// The index file's stored record: the wire asset plus the owner the wire
-/// must never see.
 /// The create-time rules: a mime the room serves, agreeing with the kind,
 /// a size within the kind's cap, a digest shaped like a sha256, and the
 /// frames field only where a video carries it. The frames themselves are
@@ -236,6 +248,126 @@ pub(crate) fn opens_like(bytes: &[u8], mime: &str, kind: MediaKind) -> bool {
         "image/webp" => bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP",
         "video/mp4" => bytes.len() >= 8 && &bytes[4..8] == b"ftyp",
         _ => false,
+    }
+}
+
+/// The smallest file each kind can plausibly be: below this there is no
+/// room for the header that proves the kind, let alone a frame. Chosen as
+/// size floors rather than a deeper parse because the frame parse below
+/// already proves structure — this only refuses the absurd early.
+pub(crate) fn size_floor(mime: &str) -> u64 {
+    match mime {
+        "image/jpeg" => 125,
+        "image/png" => 67,
+        "image/webp" => 30,
+        "video/mp4" => 1024,
+        _ => 0,
+    }
+}
+
+/// The pixels an image file itself declares: JPEG's SOFn, PNG's IHDR,
+/// WebP's VP8X/VP8/VP8L. `None` when the frame cannot be found — a file
+/// whose own header cannot be read is not plausibly the kind it claimed.
+/// A video's pixels stay the sender's declared ones: the box tree that
+/// carries them is a parser of its own, and the room never decodes video.
+pub(crate) fn dimensions(bytes: &[u8], mime: &str) -> Option<(u32, u32)> {
+    match mime {
+        "image/jpeg" => jpeg_dimensions(bytes),
+        "image/png" => png_dimensions(bytes),
+        "image/webp" => webp_dimensions(bytes),
+        _ => None,
+    }
+}
+
+/// Walks the JPEG's marker segments to the first SOFn (any of C0–CF but
+/// the four that are not frames: DHT, JPG, DAC) and reads the frame's own
+/// height then width, both big-endian, three bytes past the segment
+/// header.
+fn jpeg_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    let mut at = 2;
+    while at + 4 <= bytes.len() {
+        if bytes[at] != 0xff {
+            // Lost sync between markers: not a JPEG's body.
+            return None;
+        }
+        let marker = bytes[at + 1];
+        if marker == 0x01 || (0xd0..=0xd9).contains(&marker) {
+            at += 2;
+            continue;
+        }
+        let length = u16::from_be_bytes([bytes[at + 2], bytes[at + 3]]) as usize;
+        let frame =
+            (0xc0..=0xcf).contains(&marker) && marker != 0xc4 && marker != 0xc8 && marker != 0xcc;
+        if frame {
+            if at + 9 > bytes.len() {
+                return None;
+            }
+            let height = u16::from_be_bytes([bytes[at + 5], bytes[at + 6]]);
+            let width = u16::from_be_bytes([bytes[at + 7], bytes[at + 8]]);
+            return (width > 0 && height > 0).then_some((width as u32, height as u32));
+        }
+        at += 2 + length;
+    }
+    None
+}
+
+/// PNG's first chunk is IHDR by definition, its payload the width then
+/// height, both big-endian, at fixed offsets from the file's start.
+fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if bytes.len() < 24 || &bytes[12..16] != b"IHDR" {
+        return None;
+    }
+    let width = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
+    let height = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
+    (width > 0 && height > 0).then_some((width, height))
+}
+
+/// WebP's frame sits in the first chunk after the RIFF header: VP8X names
+/// the canvas directly (two 24-bit little-endian values, minus one), VP8
+/// carries it past the lossy frame tag and sync code (two 14-bit values),
+/// VP8L packs width-1 and height-1 into the first 28 bits after its
+/// signature.
+fn webp_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if bytes.len() < 12 || &bytes[..4] != b"RIFF" || &bytes[8..12] != b"WEBP" {
+        return None;
+    }
+    let tag = bytes.get(12..16)?;
+    let le24 = |at: usize| -> u32 {
+        u32::from(bytes[at]) | (u32::from(bytes[at + 1]) << 8) | (u32::from(bytes[at + 2]) << 16)
+    };
+    match tag {
+        b"VP8X" if bytes.len() >= 30 => {
+            let width = 1 + le24(24);
+            let height = 1 + le24(27);
+            Some((width, height))
+        }
+        b"VP8 " if bytes.len() >= 30 => {
+            if bytes[23..26] != [0x9d, 0x01, 0x2a] {
+                return None;
+            }
+            let width = u16::from_le_bytes([bytes[26], bytes[27]]) & 0x3fff;
+            let height = (u16::from_le_bytes([bytes[28], bytes[29]]) >> 2) & 0x3fff;
+            (width > 0 && height > 0).then_some((width as u32, height as u32))
+        }
+        b"VP8L" if bytes.len() >= 25 => {
+            if bytes[20] != 0x2f {
+                return None;
+            }
+            let bits = u32::from_le_bytes([bytes[21], bytes[22], bytes[23], bytes[24]]);
+            let width = (bits & 0x3fff) + 1;
+            let height = ((bits >> 14) & 0x3fff) + 1;
+            Some((width, height))
+        }
+        _ => None,
+    }
+}
+
+/// The pixel bomb verdict for a frame the file itself declared.
+pub(crate) fn pixel_error(width: u32, height: u32) -> Option<MediaError> {
+    if width > MAX_SIDE || height > MAX_SIDE || u64::from(width) * u64::from(height) > MAX_PIXELS {
+        Some(MediaError::TooManyPixels)
+    } else {
+        None
     }
 }
 
@@ -307,6 +439,29 @@ impl Room {
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .bytes_of(id)
+    }
+
+    /// The host clears the shelf from the computer itself — no phone
+    /// route exists for this, and no member but the host may call it.
+    /// Every blob and in-flight upload is deleted, the quota starts from
+    /// zero, and the transcript is untouched: its media descriptors stay,
+    /// and a download of a cleared blob answers `media_not_found` from
+    /// that moment. One `media_cleared` event tells every listener.
+    pub fn media_clear(&self, member: MemberId) -> Result<(), MediaError> {
+        if member != MemberId::Host {
+            return Err(MediaError::Forbidden);
+        }
+        let cleared = {
+            let mut media = self.media.lock().unwrap_or_else(|p| p.into_inner());
+            media.clear().is_ok()
+        };
+        if !cleared {
+            return Err(MediaError::Io(std::io::Error::other(
+                "the media index could not be rewritten",
+            )));
+        }
+        self.publish_media(crate::MediaEvent::Cleared);
+        Ok(())
     }
 
     /// Records what a landed entry references — after the entry is on

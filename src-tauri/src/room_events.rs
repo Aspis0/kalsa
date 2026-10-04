@@ -154,6 +154,10 @@ fn event_json(
         kalsa_room::Event::Ai(kalsa_room::AiEvent::Delta { turn, text }) => {
             serde_json::json!({ "kind": "ai_delta", "turn": turn, "text": text })
         }
+        // The shelf's news: the host cleared it. Nothing of any member's
+        // rides the event — a read that answers media_not_found says the
+        // rest.
+        kalsa_room::Event::Media(_) => serde_json::json!({ "kind": "media_cleared" }),
     })
 }
 

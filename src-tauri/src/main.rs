@@ -2155,6 +2155,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             room_media::brain_room_media_chunk,
             room_media::brain_room_media_complete,
             room_media::brain_room_media_read,
+            room_media::brain_room_media_clear,
             invites::brain_invite_create,
             invites::brain_invite_list,
             invites::brain_invite_link,

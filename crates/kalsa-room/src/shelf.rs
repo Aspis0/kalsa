@@ -11,8 +11,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use crate::media::{
-    check_declared, opens_like, MediaAsset, MediaError, MediaKind, MediaSpec, CHUNK_MAX_BYTES,
-    QUOTA_BYTES,
+    check_declared, dimensions, opens_like, pixel_error, size_floor, MediaAsset, MediaError,
+    MediaKind, MediaSpec, CHUNK_MAX_BYTES, MAX_PUBLISHED, MIN_CHARGE, QUOTA_BYTES,
 };
 
 /// How long an in-flight upload may sit before its place is swept.
@@ -43,10 +43,14 @@ struct StoredRecord {
 use crate::{MemberId, RoomError};
 
 /// One upload in flight: reserved at create, fed chunk by chunk at
-/// `index * CHUNK_MAX_BYTES`, verified whole at complete.
+/// `index * CHUNK_MAX_BYTES`, verified whole at complete. `charged` is
+/// what the reservation actually took from the quota — the declared size
+/// or [`MIN_CHARGE`], whichever is larger — and it is what every failure
+/// gives back.
 pub(crate) struct Upload {
     pub(crate) owner: MemberId,
     pub(crate) spec: MediaSpec,
+    pub(crate) charged: u64,
     pub(crate) received: HashSet<u32>,
     pub(crate) received_bytes: u64,
     pub(crate) created: Instant,
@@ -65,6 +69,10 @@ pub(crate) struct MediaState {
     /// at open; posting adds to it.
     refs: HashMap<String, Vec<u64>>,
     uploads: HashMap<String, Upload>,
+    /// Upload id → the blob it became: the retry a lost complete answer
+    /// owes, answered with the same descriptor. Memory only — a restart
+    /// forgets it, and a retry past one is honestly `Unknown`.
+    completed: HashMap<String, (MediaAsset, MemberId)>,
     used: u64,
     blobs: PathBuf,
     uploads_dir: PathBuf,
@@ -92,11 +100,17 @@ impl MediaState {
                 let _ = std::fs::remove_file(left);
             }
         }
-        let used = published.values().map(|(asset, _)| asset.bytes).sum();
+        // The quota a reopened room charges itself is the quota it ran
+        // with: each item at its charge, never its bare size.
+        let used = published
+            .values()
+            .map(|(asset, _)| asset.bytes.max(MIN_CHARGE))
+            .sum();
         Ok(Self {
             published,
             refs: HashMap::new(),
             uploads: HashMap::new(),
+            completed: HashMap::new(),
             used,
             blobs,
             uploads_dir,
@@ -104,8 +118,11 @@ impl MediaState {
         })
     }
 
-    /// Reserves an upload. The declared bytes count against the quota from
+    /// Reserves an upload. The item's charge — its declared bytes or
+    /// [`MIN_CHARGE`], whichever is larger — counts against the quota from
     /// this moment, so parallel creates cannot promise the shelf twice.
+    /// The fallible disk work happens before any state moves: a failed
+    /// write leaves the quota exactly as it was.
     pub(crate) fn create(
         &mut self,
         member: MemberId,
@@ -123,23 +140,31 @@ impl MediaState {
                 }
             }
         }
-        if self.used + spec.bytes > QUOTA_BYTES {
+        if self.published.len() >= MAX_PUBLISHED {
+            return Err(MediaError::Full);
+        }
+        let charge = spec.bytes.max(MIN_CHARGE);
+        if self.used + charge > QUOTA_BYTES {
             return Err(MediaError::Full);
         }
         let id = mint_id()?;
-        self.used += spec.bytes;
         let path = self.uploads_dir.join(&id);
         std::fs::write(&path, []).map_err(MediaError::Io)?;
-        std::fs::File::options()
+        if let Err(error) = std::fs::File::options()
             .write(true)
             .open(&path)
             .and_then(|file| file.set_len(spec.bytes))
-            .map_err(MediaError::Io)?;
+        {
+            let _ = std::fs::remove_file(&path);
+            return Err(MediaError::Io(error));
+        }
+        self.used += charge;
         self.uploads.insert(
             id.clone(),
             Upload {
                 owner: member,
                 spec,
+                charged: charge,
                 received: HashSet::new(),
                 received_bytes: 0,
                 created: Instant::now(),
@@ -197,40 +222,78 @@ impl MediaState {
     }
 
     /// Verifies the upload whole — every declared byte present, the digest
-    /// right, the magic bytes like the mime — and publishes it.
+    /// right, the file plausibly the kind and size it declared, an image's
+    /// own pixels read and bounded — and publishes it. A repeat of a
+    /// completed upload by its owner is answered with the same descriptor:
+    /// the retry a lost answer owes. Every failure gives the reservation
+    /// back and takes the temp file with it.
     pub(crate) fn complete(
         &mut self,
         member: MemberId,
         upload: &str,
     ) -> Result<MediaAsset, MediaError> {
-        let state = self.uploads.remove(upload).ok_or(MediaError::Unknown)?;
+        if let Some((asset, owner)) = self.completed.get(upload) {
+            return if *owner == member {
+                Ok(asset.clone())
+            } else {
+                Err(MediaError::NotYours)
+            };
+        }
+        let Some(mut state) = self.uploads.remove(upload) else {
+            return Err(MediaError::Unknown);
+        };
         if state.owner != member {
             self.uploads.insert(upload.to_string(), state);
             return Err(MediaError::NotYours);
         }
-        let mut finish = |result: Result<MediaAsset, MediaError>| {
-            if result.is_err() {
-                let _ = std::fs::remove_file(&state.path);
-                self.used -= state.spec.bytes;
-            }
-            result
-        };
         if state.received_bytes != state.spec.bytes {
-            return finish(Err(MediaError::Incomplete));
+            return Err(abandoned(self, &state, MediaError::Incomplete));
         }
-        let bytes = std::fs::read(&state.path).map_err(MediaError::Io)?;
+        let bytes = match std::fs::read(&state.path) {
+            Ok(bytes) => bytes,
+            Err(error) => return Err(abandoned(self, &state, MediaError::Io(error))),
+        };
         if sha256_hex(&bytes) != state.spec.sha256 {
-            return finish(Err(MediaError::BadSha));
+            return Err(abandoned(self, &state, MediaError::BadSha));
         }
-        if !opens_like(&bytes, &state.spec.mime, state.spec.kind) {
-            return finish(Err(MediaError::BadMagic));
+        if !opens_like(&bytes, &state.spec.mime, state.spec.kind)
+            || (bytes.len() as u64) < size_floor(&state.spec.mime)
+        {
+            return Err(abandoned(self, &state, MediaError::BadMagic));
+        }
+        if state.spec.kind == MediaKind::Image {
+            // The pixels are the file's own words or they are nothing: a
+            // header the room cannot read is a file that lied about its
+            // kind, and a frame past the caps is a bomb.
+            let Some((width, height)) = dimensions(&bytes, &state.spec.mime) else {
+                return Err(abandoned(self, &state, MediaError::BadMagic));
+            };
+            if let Some(error) = pixel_error(width, height) {
+                return Err(abandoned(self, &state, error));
+            }
+            state.spec.width = width;
+            state.spec.height = height;
+        }
+        if self.published.len() >= MAX_PUBLISHED {
+            return Err(abandoned(self, &state, MediaError::Full));
         }
         let id = mint_id()?;
         let blob = self.blobs.join(&id);
-        std::fs::rename(&state.path, &blob).map_err(MediaError::Io)?;
-        let asset = state.spec.asset(id.clone());
-        self.published.insert(id, (asset.clone(), state.owner));
-        self.publish_index();
+        if let Err(error) = std::fs::rename(&state.path, &blob) {
+            return Err(abandoned(self, &state, MediaError::Io(error)));
+        }
+        let asset = state.spec.clone().asset(id);
+        // The index is part of the publish: a write that fails leaves the
+        // blob unpublished, the file removed and the charge returned —
+        // never a success the next restart cannot explain.
+        if let Err(error) = self.write_index(Some((&asset, state.owner))) {
+            let _ = std::fs::remove_file(&blob);
+            return Err(abandoned(self, &state, MediaError::Io(error)));
+        }
+        self.published
+            .insert(asset.id.clone(), (asset.clone(), state.owner));
+        self.completed
+            .insert(upload.to_string(), (asset.clone(), state.owner));
         Ok(asset)
     }
 
@@ -307,8 +370,8 @@ impl MediaState {
         }
     }
 
-    /// Sweeps uploads the hour forgot: their reserved bytes go back, their
-    /// temp files go with them. Called beside each create.
+    /// Sweeps uploads the hour forgot: their charge goes back, their temp
+    /// files go with them. Called beside each create.
     pub(crate) fn sweep(&mut self) {
         let stale: Vec<String> = self
             .uploads
@@ -319,29 +382,64 @@ impl MediaState {
         for id in stale {
             if let Some(upload) = self.uploads.remove(&id) {
                 let _ = std::fs::remove_file(upload.path);
-                self.used -= upload.spec.bytes;
+                self.used -= upload.charged;
             }
         }
     }
 
-    /// The whole shelf, atomically, before the caller is told it published:
-    /// the same file-leads-memory rule the roster runs on.
-    fn publish_index(&self) {
+    /// Empties the shelf: the index first — a write that fails changes
+    /// nothing — then the files, then the memory. Transcript entries keep
+    /// their descriptors; the blobs behind them are gone, and the quota
+    /// starts from zero.
+    pub(crate) fn clear(&mut self) -> Result<(), MediaError> {
+        self.write_index(None).map_err(MediaError::Io)?;
+        let published = std::mem::take(&mut self.published);
+        let uploads = std::mem::take(&mut self.uploads);
+        self.completed.clear();
+        self.refs.clear();
+        self.used = 0;
+        for (id, _) in published {
+            let _ = std::fs::remove_file(self.blobs.join(id));
+        }
+        for (_, upload) in uploads {
+            let _ = std::fs::remove_file(upload.path);
+        }
+        Ok(())
+    }
+
+    /// Publishes the index, atomically, beside whatever the shelf already
+    /// holds plus the one record about to land: the same file-leads-memory
+    /// rule the roster runs on. The caller is told when it fails.
+    fn write_index(&self, arriving: Option<(&MediaAsset, MemberId)>) -> Result<(), std::io::Error> {
+        let mut media: Vec<StoredRecord> = self
+            .published
+            .values()
+            .map(|(asset, owner)| StoredRecord {
+                asset: asset.clone(),
+                owner: owner.wire(),
+            })
+            .collect();
+        if let Some((asset, owner)) = arriving {
+            media.push(StoredRecord {
+                asset: asset.clone(),
+                owner: owner.wire(),
+            });
+        }
         let stored = StoredMedia {
             v: INDEX_VERSION,
-            media: self
-                .published
-                .values()
-                .map(|(asset, owner)| StoredRecord {
-                    asset: asset.clone(),
-                    owner: owner.wire(),
-                })
-                .collect(),
+            media,
         };
-        if let Ok(bytes) = serde_json::to_vec(&stored) {
-            let _ = kalsa_pairing::store::write_owner_only(&self.index, &bytes);
-        }
+        let bytes = serde_json::to_vec(&stored)
+            .map_err(|_| std::io::Error::other("the media index cannot serialize"))?;
+        kalsa_pairing::store::write_owner_only(&self.index, &bytes)
     }
+}
+
+/// What a dead upload owes: its temp file gone, its charge back.
+fn abandoned(shelf: &mut MediaState, upload: &Upload, error: MediaError) -> MediaError {
+    let _ = std::fs::remove_file(&upload.path);
+    shelf.used -= upload.charged;
+    error
 }
 
 /// The shelf a fresh room reads: every record the index holds, or — where

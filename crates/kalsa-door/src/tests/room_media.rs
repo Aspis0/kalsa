@@ -11,7 +11,9 @@ use std::time::Duration;
 use kalsa_room::Room;
 use sha2::{Digest, Sha256};
 
-use super::room_support::{body_json, devices_labeled, get, post, raw, read_all, scratch, text_of};
+use super::room_support::{
+    body_json, devices_labeled, get, post, raw, read_all, scratch, stream_get, text_of,
+};
 use super::support::response_body;
 use super::*;
 
@@ -42,9 +44,30 @@ fn media_room() -> (crate::RunningDoor, Arc<Room>, [String; 3]) {
     (door, room, [host, one, two])
 }
 
+/// A JPEG that carries a real SOF0 frame: the room reads an image's pixels
+/// from the file's own header, so magic bytes alone are not an image to
+/// this store.
 pub(super) fn jpeg_bytes() -> Vec<u8> {
-    let mut bytes = vec![0xff, 0xd8, 0xff, 0xe0];
-    bytes.extend(std::iter::repeat_n(0xa5u8, 3000));
+    let mut bytes = vec![0xff, 0xd8]; // SOI
+    bytes.extend_from_slice(&[0xff, 0xe0, 0x00, 0x10]); // APP0, length 16
+    bytes.extend_from_slice(b"JFIF\0");
+    bytes.extend(std::iter::repeat_n(0x00u8, 9));
+    bytes.extend_from_slice(&[0xff, 0xc0, 0x00, 0x11, 0x08]); // SOF0
+    bytes.extend_from_slice(&480u16.to_be_bytes());
+    bytes.extend_from_slice(&640u16.to_be_bytes());
+    bytes.extend_from_slice(&[0x03]);
+    bytes.extend(std::iter::repeat_n(0x00u8, 9));
+    bytes.extend(std::iter::repeat_n(0xa5u8, 200));
+    bytes
+}
+
+/// A JPEG whose own frame is a bomb: one side far past the room's cap.
+pub(super) fn bomb_jpeg_bytes() -> Vec<u8> {
+    let mut bytes = jpeg_bytes();
+    // The SOF0's height and width sit at fixed offsets inside the fixture.
+    let sof = 2 + 18 + 5;
+    bytes[sof..sof + 2].copy_from_slice(&100u16.to_be_bytes());
+    bytes[sof + 2..sof + 4].copy_from_slice(&9000u16.to_be_bytes());
     bytes
 }
 
@@ -500,5 +523,166 @@ fn a_textless_post_stores_the_fallback_and_the_idempotent_retry_sees_it() {
     assert_eq!(landed.len(), 1);
     assert_eq!(landed[0].text, "[Image]");
     assert_eq!(landed[0].media.len(), 1);
+    door.shutdown();
+}
+
+#[test]
+fn a_multi_range_request_is_answered_as_the_whole_blob() {
+    let (door, _room, [_, one, two]) = media_room();
+    let address = door.address();
+    let bytes = jpeg_bytes();
+    get(address, Some(&format!("Bearer {two}")), "/kalsa/room/info");
+    let media = upload_image(address, &one, &bytes, "image/jpeg", None);
+    post(
+        address,
+        Some(&format!("Bearer {one}")),
+        "/kalsa/room/messages",
+        &format!(r#"{{"client_msg_id":"m1","text":"look","media":["{media}"]}}"#),
+    );
+    // Several ranges in one header is a multipart answer this route does
+    // not make: the whole blob, 200, no Content-Range.
+    let answer = raw_bytes(
+        address,
+        &two,
+        "GET",
+        &format!("/kalsa/room/media/{media}"),
+        &[],
+        &["Range: bytes=0-1,3-4"],
+    );
+    let whole = text_of(&answer);
+    assert!(whole.starts_with("HTTP/1.1 200"), "{whole}");
+    assert!(!whole.contains("Content-Range"), "{whole}");
+    assert_eq!(response_body(&answer), &bytes);
+    door.shutdown();
+}
+
+#[test]
+fn an_oversized_chunk_is_refused_without_holding_the_worker() {
+    let (door, _room, [_, one, _]) = media_room();
+    let address = door.address();
+    let bearer = format!("Bearer {one}");
+    // The reserve is honest and small; the CHUNK is the oversized thing.
+    let create = format!(
+        r#"{{"kind":"image","mime":"image/jpeg","bytes":{},"sha256":"{}","width":640,"height":480}}"#,
+        4096,
+        sha256_of(&jpeg_bytes())
+    );
+    let upload = body_json(&post(address, Some(&bearer), "/kalsa/room/media", &create))["upload"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    // A chunk that declares more than the cap, with only a fraction of it
+    // ever sent and the write side still open: the answer must come fast
+    // — the drain is bounded, not the connection's lifetime.
+    let mut head = format!(
+        "PUT /kalsa/room/media/{upload}/0 HTTP/1.1\r\nHost: localhost\r\n\
+         Authorization: {bearer}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        5 * 1024 * 1024
+    )
+    .into_bytes();
+    head.extend(std::iter::repeat_n(0xa5u8, 64 * 1024));
+    let mut stream = TcpStream::connect(address).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(6)))
+        .unwrap();
+    stream.write_all(&head).unwrap();
+    let begun = std::time::Instant::now();
+    let mut answer = Vec::new();
+    let _ = stream.read_to_end(&mut answer);
+    let waited = begun.elapsed();
+    let whole = text_of(&answer);
+    assert!(
+        whole.starts_with("HTTP/1.1 413"),
+        "the refusal arrived: {whole}"
+    );
+    assert!(
+        waited < Duration::from_secs(6),
+        "and it arrived in {:?}, not the connection's lifetime",
+        waited
+    );
+    let _ = stream.shutdown(Shutdown::Both);
+    door.shutdown();
+}
+
+#[test]
+fn a_pixel_bomb_is_refused_under_its_own_code() {
+    let (door, _room, [_, one, _]) = media_room();
+    let address = door.address();
+    let bytes = bomb_jpeg_bytes();
+    // The reserve is honest; the publish reads the file's own frame and
+    // refuses it by name.
+    let create = format!(
+        r#"{{"kind":"image","mime":"image/jpeg","bytes":{},"sha256":"{}","width":640,"height":480}}"#,
+        bytes.len(),
+        sha256_of(&bytes)
+    );
+    let upload = body_json(&post(
+        address,
+        Some(&format!("Bearer {one}")),
+        "/kalsa/room/media",
+        &create,
+    ))["upload"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    raw_bytes(
+        address,
+        &one,
+        "PUT",
+        &format!("/kalsa/room/media/{upload}/0"),
+        &bytes,
+        &[],
+    );
+    let done = text_of(&read_all(&mut raw(
+        address,
+        Some(&format!("Bearer {one}")),
+        "POST",
+        &format!("/kalsa/room/media/{upload}/complete"),
+        "",
+        &[],
+    )));
+    assert!(done.contains("media_too_many_pixels"), "{done}");
+    door.shutdown();
+}
+
+#[test]
+fn the_stream_says_when_the_host_clears_the_shelf() {
+    let (door, room, [_, one, _]) = media_room();
+    let address = door.address();
+    let bearer = format!("Bearer {one}");
+    let bytes = jpeg_bytes();
+    let media = upload_image(address, &one, &bytes, "image/jpeg", None);
+    // The follower opens BEFORE the post: a fresh stream starts from now,
+    // and the message frame must arrive on it.
+    let mut follower = stream_get(address, &bearer, "/kalsa/room/events", None);
+    post(
+        address,
+        Some(&bearer),
+        "/kalsa/room/messages",
+        &format!(r#"{{"client_msg_id":"m1","text":"look","media":["{media}"]}}"#),
+    );
+    let heard = super::room_support::Reader::until(
+        &mut follower,
+        b"event: message",
+        Duration::from_secs(6),
+    );
+    assert!(heard.contains("event: message"), "{heard}");
+    // The host clears from the computer itself; the phone's stream says
+    // so, unnumbered, and the next download of the cleared blob 404s.
+    room.media_clear(kalsa_room::MemberId::Host).unwrap();
+    let cleared =
+        super::room_support::Reader::until(&mut follower, b"media_cleared", Duration::from_secs(6));
+    assert!(
+        cleared.contains("event: media_cleared"),
+        "the cleared frame arrived: {cleared}"
+    );
+    let answer = text_of(&get(
+        address,
+        Some(&bearer),
+        &format!("/kalsa/room/media/{media}"),
+    ));
+    assert!(answer.starts_with("HTTP/1.1 404"), "{answer}");
+    assert!(answer.contains("media_not_found"), "{answer}");
+    let _ = follower.shutdown(Shutdown::Both);
     door.shutdown();
 }

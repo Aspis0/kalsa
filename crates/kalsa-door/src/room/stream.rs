@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use kalsa_room::{AiEvent, Event, MemberEvent, MemberId, Room, Take};
+use kalsa_room::{AiEvent, Event, MediaEvent, MemberEvent, MemberId, Room, Take};
 
 use super::answers::{entry_json, json_error};
 use super::BAD_LAST_EVENT_ID;
@@ -355,5 +355,9 @@ fn frame(room: &Room, devices: &Devices, you: MemberId, event: &Event) -> Vec<u8
                 }),
             )
         }
+        // The shelf's news carries nothing a member did: the event says
+        // the shelf changed, and a download that answers media_not_found
+        // says the rest.
+        Event::Media(MediaEvent::Cleared) => frame_of(b"media_cleared", &serde_json::json!({})),
     }
 }

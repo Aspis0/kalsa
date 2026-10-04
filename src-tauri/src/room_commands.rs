@@ -110,6 +110,7 @@ pub(crate) fn media_command_error(error: kalsa_room::MediaError) -> RoomCommandE
         kalsa_room::MediaError::Incomplete => "media_incomplete",
         kalsa_room::MediaError::BadSha => "media_bad_sha",
         kalsa_room::MediaError::BadMagic => "media_bad_magic",
+        kalsa_room::MediaError::TooManyPixels => "media_too_many_pixels",
         kalsa_room::MediaError::TooLarge => "too_large",
         kalsa_room::MediaError::Full => "room_media_full",
         kalsa_room::MediaError::Unknown => "media_not_found",

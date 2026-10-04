@@ -1,8 +1,7 @@
 //! The host's own media commands: the room's shelf driven from this
-//! computer — reserve, feed, publish, read — the same caps and checks a
-//! phone's upload road runs through the door, with no door hop. The host
-//! is [`kalsa_room::MemberId::Host`], who sees the whole room; the read
-//! command serves the webview its pixels.
+//! computer — reserve, feed, publish, read, clear — the same caps and
+//! checks a phone's upload road runs through the door, with no door hop.
+//! The host is [`kalsa_room::MemberId::Host`], who sees the whole room.
 
 use serde::Serialize;
 use std::sync::Arc;
@@ -46,14 +45,6 @@ fn kind_of(kind: MediaKind) -> &'static str {
         MediaKind::Image => "image",
         MediaKind::Video => "video",
     }
-}
-
-/// A blob's bytes for the page: the mime it was published with, and the
-/// body the shelf verified.
-#[derive(Serialize)]
-pub struct RoomMediaBytesDto {
-    pub mime: String,
-    pub data: Vec<u8>,
 }
 
 fn room_of(brain: &crate::Brain) -> Result<Arc<Room>, RoomCommandError> {
@@ -133,16 +124,125 @@ pub fn brain_room_media_complete(
         .map_err(media_command_error)
 }
 
-/// A published blob's bytes, for the page's own rendering. The host sees
-/// the whole room; there is no floor on this read.
+/// A published blob's raw bytes, for the page's own rendering — binary
+/// over IPC, no JSON wrapping. The mime lives in the message's media
+/// descriptor; this answers only the bytes the shelf verified. The host
+/// sees the whole room; there is no floor on this read.
 #[tauri::command]
 pub fn brain_room_media_read(
     brain: tauri::State<'_, crate::Brain>,
     id: String,
-) -> Result<RoomMediaBytesDto, RoomCommandError> {
+) -> Result<tauri::ipc::Response, RoomCommandError> {
     let room = room_of(&brain)?;
-    let (mime, data) = room.media_bytes(&id).ok_or(RoomCommandError {
-        code: "media_not_found",
-    })?;
-    Ok(RoomMediaBytesDto { mime, data })
+    let bytes = media_read(&room, &id)?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// The read's body, split out for the tests: the shelf's bytes or the
+/// stable not-found code.
+pub(crate) fn media_read(room: &Room, id: &str) -> Result<Vec<u8>, RoomCommandError> {
+    room.media_bytes(id)
+        .map(|(_, bytes)| bytes)
+        .ok_or(RoomCommandError {
+            code: "media_not_found",
+        })
+}
+
+/// The host clears the shelf: every blob and in-flight upload is deleted,
+/// the quota starts from zero, the transcript stays as it is — its media
+/// descriptors remain, and a read of a cleared blob answers
+/// `media_not_found`. Every listener is told through the room's
+/// `media_cleared` event. No phone route exists for this.
+#[tauri::command]
+pub fn brain_room_media_clear(
+    brain: tauri::State<'_, crate::Brain>,
+) -> Result<(), RoomCommandError> {
+    let room = room_of(&brain)?;
+    room.media_clear(kalsa_room::MemberId::Host)
+        .map_err(media_command_error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-brain-room-media-{name}-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::SeqCst)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    /// A JPEG with a real SOF0 frame — the shelf reads an image's pixels
+    /// from the file's own header.
+    fn jpeg_bytes() -> Vec<u8> {
+        let mut bytes = vec![0xff, 0xd8];
+        bytes.extend_from_slice(&[0xff, 0xe0, 0x00, 0x10]);
+        bytes.extend_from_slice(b"JFIF\0");
+        bytes.extend(std::iter::repeat_n(0x00u8, 9));
+        bytes.extend_from_slice(&[0xff, 0xc0, 0x00, 0x11, 0x08]);
+        bytes.extend_from_slice(&480u16.to_be_bytes());
+        bytes.extend_from_slice(&640u16.to_be_bytes());
+        bytes.extend_from_slice(&[0x03]);
+        bytes.extend(std::iter::repeat_n(0x00u8, 9));
+        bytes.extend(std::iter::repeat_n(0xa5u8, 200));
+        bytes
+    }
+
+    fn upload(room: &Room) -> kalsa_room::MediaAsset {
+        use sha2::{Digest, Sha256};
+        let digest: [u8; 32] = Sha256::digest(jpeg_bytes()).into();
+        let sha256: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
+        let upload = room
+            .media_create(
+                kalsa_room::MemberId::Host,
+                kalsa_room::MediaSpec {
+                    kind: MediaKind::Image,
+                    mime: "image/jpeg".to_string(),
+                    bytes: jpeg_bytes().len() as u64,
+                    sha256,
+                    width: 640,
+                    height: 480,
+                    duration_ms: None,
+                    frames: Vec::new(),
+                },
+            )
+            .unwrap();
+        room.media_chunk(kalsa_room::MemberId::Host, &upload, 0, &jpeg_bytes())
+            .unwrap();
+        room.media_complete(kalsa_room::MemberId::Host, &upload)
+            .unwrap()
+    }
+
+    /// The read command's body: the shelf's raw bytes — no JSON, no mime,
+    /// the descriptor carries that — or the stable not-found code, before
+    /// and after the host clears the shelf.
+    #[test]
+    fn the_read_answers_the_raw_bytes_or_the_code() {
+        let dir = scratch("read");
+        let room = Room::open(&dir).unwrap();
+        let asset = upload(&room);
+        assert_eq!(
+            media_read(&room, &asset.id).unwrap_or_default(),
+            jpeg_bytes()
+        );
+        assert_eq!(
+            media_read(&room, &"0".repeat(32))
+                .err()
+                .map(|error| error.code),
+            Some("media_not_found")
+        );
+        room.media_clear(kalsa_room::MemberId::Host).unwrap();
+        assert_eq!(
+            media_read(&room, &asset.id).err().map(|error| error.code),
+            Some("media_not_found")
+        );
+    }
 }

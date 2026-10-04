@@ -13,7 +13,7 @@ fn messages(events: &[Event]) -> Vec<u64> {
         .iter()
         .filter_map(|event| match event {
             Event::Message(entry) => Some(entry.seq),
-            Event::Member(_) | Event::Ai(_) => None,
+            Event::Member(_) | Event::Ai(_) | Event::Media(_) => None,
         })
         .collect()
 }

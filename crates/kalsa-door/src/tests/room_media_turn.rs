@@ -110,7 +110,10 @@ fn a_video_rides_only_through_its_frames() {
     // Two frames, then the video that names them.
     let frame_one = upload_image(address, &one, &jpeg_bytes(), "image/jpeg", None);
     let frame_two = upload_image(address, &one, &jpeg_bytes(), "image/jpeg", None);
-    let video = vec![0x00u8, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p', 0x01, 0x02];
+    // An MP4 past its size floor (ten bytes of ftyp alone is not an MP4
+    // to this store).
+    let mut video = vec![0x00u8, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p'];
+    video.extend(std::iter::repeat_n(0x21u8, 1208));
     let create = format!(
         r#"{{"kind":"video","mime":"video/mp4","bytes":{},"sha256":"{}","width":1280,"height":720,
             "duration_ms":30000,"frames":["{frame_one}","{frame_two}"]}}"#,

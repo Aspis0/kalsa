@@ -203,11 +203,23 @@ bytes to everyone.
 
 - Kinds and mimes: `image/jpeg`, `image/png`, `image/webp`, `video/mp4`.
   Nothing else is stored. The computer checks the file's magic bytes
-  against the mime on publish and refuses a mismatch
-  (`400 media_bad_magic`).
+  against the mime on publish — and that the file is at least plausibly
+  its kind (a JPEG under 125 B, a PNG under 67 B, a WebP under 30 B, an
+  MP4 under 1 KiB, or a header the computer cannot read, is
+  `400 media_bad_magic`).
+- For an image, the computer reads the pixels from the file's own header
+  (JPEG SOFn, PNG IHDR, WebP VP8X/VP8/VP8L) and records THOSE — the
+  declared ones are advisory. A frame over 8192 on either side or over
+  40 megapixels is refused whole: `400 media_too_many_pixels`. A video's
+  pixels stay its sender's declared ones; the computer never opens a
+  video's box tree.
 - A video may carry up to 4 still frames its sender extracted and
   uploaded first (each an image of its own). The frames ride the video's
   descriptor; THE AI SEES VIDEO ONLY AS THOSE FRAMES.
+- The shelf holds at most 10 000 published items, and every item —
+  published or in flight — costs the 2 GiB quota at least 64 KiB,
+  whatever its real size: a shelf of tiny files is a shelf of records,
+  and the record is the cost. Both refusals are `413 room_media_full`.
 - No filename, no path, no mime+filename pair exists anywhere in the
   protocol. A blob is named by an opaque `id` (32 lowercase hex).
 
@@ -254,7 +266,14 @@ answering with the blob's descriptor:
 ```
 
 (`duration_ms` and `frames` are absent on the wire when empty.) An
-upload the hour left unfinished is swept and its place in the quota
+image's `width`/`height` in the answer are the file's own, read from its
+header. The publish is idempotent: a repeated `complete` of the same
+upload by its owner is answered with the same descriptor — the retry a
+lost response owes — until the computer restarts, where an unknown
+upload is simply sent again. A failed complete (bad digest, bad magic,
+too many pixels) takes the upload with it and gives its quota back.
+
+An upload the hour left unfinished is swept and its place in the quota
 returned; the sender sends it again. An upload does not survive the
 computer restarting — the same rule with a shorter fuse.
 
@@ -274,8 +293,10 @@ The blob's bytes, `Content-Type` the stored mime, `Cache-Control:
 private`, `Accept-Ranges: bytes`. A single `Range: bytes=a-b` (or
 `bytes=a-`, or the suffix form `bytes=-n`) is answered `206` with
 `Content-Range`; a start past the end is `416` with
-`Content-Range: bytes */<len>`; anything else in the header is ignored
-and the whole blob is served.
+`Content-Range: bytes */<len>`; anything else in the header — other
+units, several ranges, a malformed line — is ignored and the whole blob
+is served (`200`): a multipart answer is a promise this route does not
+make.
 
 WHO MAY READ: any active member, and a blob only where the transcript
 entry that posted it is one the caller may see — the entry's `seq` at
@@ -285,6 +306,24 @@ owner removed (§2) has lost the room; if it is still paired it is a NEW
 member whose floor is now, and the past's pictures are as invisible to
 it as the past's words. Refusals: `404 media_not_found` (no such blob
 here), `403 media_forbidden` (not yours to see).
+
+### Clearing the shelf — the host only
+
+The host may clear the shelf from the computer itself: every blob and
+in-flight upload is deleted, the quota starts from zero, and the
+transcript is untouched — its media descriptors stay, and a download of
+a cleared blob answers `404 media_not_found` from that moment. There is
+no phone route for this, and no code exists on the wire for asking.
+Phones learn of it through one unnumbered `media_cleared` event on the
+stream:
+
+```
+event: media_cleared
+data: {}
+```
+
+The event carries nothing else — no count, no ids — and a download that
+404s says the same thing to anyone who missed it.
 
 ### The AI and media
 
@@ -480,7 +519,9 @@ answer ever enters history.
 | message text | 1–8000 UTF-8 bytes | `413 too_large` (empty: `400`, or §5b's fallback when media ride) |
 | request body | 16 KiB whole, any room route | `413 too_large`: the text may be legal and the escaped body not |
 | media, one blob | image ≤4 MiB, video ≤100 MiB | `413 too_large`, at the reserve |
-| media, one room | 2 GiB, published plus in-flight | `413 room_media_full`: nothing is ever deleted to make room |
+| media, one item's plausibility | JPEG ≥125 B, PNG ≥67 B, WebP ≥30 B, MP4 ≥1 KiB, header readable | `400 media_bad_magic`, at the publish |
+| media, one image's frame | ≤8192 a side, ≤40 MP — the file's own header | `400 media_too_many_pixels`, at the publish |
+| media, one room | 2 GiB quota (each item ≥64 KiB of it), 10 000 items | `413 room_media_full`: nothing is ever deleted to make room |
 | media, one chunk | ≤4 MiB, raw bytes | `413 too_large`, refused before its bytes are read |
 | media, one post | 1–8 blob ids, the poster's own uploads | `400 bad_request` (shape), `403 media_not_yours` (someone else's) |
 | display name | §6 | `400` / `413` / `409 name_taken` |
@@ -506,6 +547,7 @@ Every error carries a stable machine `code` and its English fallback in
 | `media_incomplete` | Not all of the upload has arrived yet. |
 | `media_bad_sha` | The upload arrived damaged. Send it again. |
 | `media_bad_magic` | That file is not the kind it said it was. |
+| `media_too_many_pixels` | That image has too many pixels for this room. |
 | `room_media_full` | This room's media shelf is full. |
 | `media_not_found` | That media is not in this room. |
 | `media_not_yours` | Only the device that uploaded media may attach it. |

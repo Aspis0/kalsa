@@ -13,7 +13,7 @@
 
 use std::io::Read;
 use std::net::TcpStream;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use kalsa_room::{MediaError, MemberId, Room};
 use serde_json::{json, Value};
@@ -94,11 +94,7 @@ pub(super) fn create(
     let Ok(value) = serde_json::from_slice::<Value>(&body) else {
         return json_error(400, origin, "bad_request", MALFORMED);
     };
-    let Some(kind) = value
-        .get("kind")
-        .and_then(Value::as_str)
-        .and_then(kind_of)
-    else {
+    let Some(kind) = value.get("kind").and_then(Value::as_str).and_then(kind_of) else {
         return json_error(400, origin, "bad_request", MALFORMED);
     };
     let dim = |field: &str| {
@@ -136,6 +132,35 @@ pub(super) fn create(
     }
 }
 
+/// How long the door keeps reading a chunk body it has already refused,
+/// and how long a silence may last inside that read — the same bounds the
+/// door's own global 413 runs by, so a handful of oversized chunks cannot
+/// hold the workers for a connection's lifetime.
+const CHUNK_DRAIN: Duration = Duration::from_secs(2);
+const CHUNK_SILENCE: Duration = Duration::from_millis(250);
+
+/// Answers a chunk body past the cap, then half-closes and reads what the
+/// client is still sending, briefly. Nothing read here is kept.
+fn refuse_chunk_too_large(client: &mut TcpStream, origin: Option<&[u8]>, deadline: Instant) {
+    let _ = proxy::answer_to(
+        client,
+        &json_error(413, origin, "too_large", "A chunk is at most 4 MiB."),
+        deadline,
+    );
+    let _ = client.shutdown(std::net::Shutdown::Write);
+    let stop_at = Instant::now() + CHUNK_DRAIN;
+    let mut buffer = [0u8; 16 * 1024];
+    while Instant::now() < stop_at {
+        if proxy::set_read_deadline_within(client, deadline, CHUNK_SILENCE).is_err() {
+            return;
+        }
+        match client.read(&mut buffer) {
+            Ok(0) | Err(_) => return,
+            Ok(_) => {}
+        }
+    }
+}
+
 /// One chunk, bounded before it is read: a body past the chunk cap is
 /// refused without its bytes, and an idempotent re-send of an index the
 /// shelf already holds is answered from what is there. `rest` is the
@@ -164,8 +189,8 @@ fn chunk(
         return json_error(400, origin, "bad_request", MALFORMED);
     };
     if head.body_length > CHUNK_MAX {
-        let _ = proxy::discard_request_body(client, head.body_length, deadline);
-        return json_error(413, origin, "too_large", "A chunk is at most 4 MiB.");
+        refuse_chunk_too_large(client, origin, deadline);
+        return Vec::new();
     }
     let mut bytes = vec![0u8; head.body_length];
     if proxy::set_read_deadline(client, deadline).is_err() || client.read_exact(&mut bytes).is_err()
@@ -284,15 +309,15 @@ fn stream_blob(
 }
 
 /// One `bytes=a-b` / `bytes=a-` / `bytes=-s` range, inclusive at both
-/// ends, clamped to the blob. Anything else — other units, several ranges,
-/// a malformed line — is no range at all: the whole blob is served, which
+/// ends, clamped to the blob. Anything else — other units, several ranges
+/// (a multipart answer is a promise this route does not make), a
+/// malformed line — is no range at all: the whole blob is served, which
 /// is what a client that cannot follow its own range request needs. A
 /// start past the end, and an empty suffix, are unsatisfiable.
 fn parse_range(header: &[u8], len: u64) -> Option<Result<(u64, u64), ()>> {
     let header = std::str::from_utf8(header).ok()?;
-    let spec = header.strip_prefix("bytes=")?;
-    let spec = spec.split(',').next()?.trim();
-    if spec.is_empty() {
+    let spec = header.strip_prefix("bytes=")?.trim();
+    if spec.contains(',') || spec.is_empty() {
         return None;
     }
     let (start, end) = spec.split_once('-')?;
@@ -323,6 +348,7 @@ pub(super) fn refusal(origin: Option<&[u8]>, error: &MediaError) -> Vec<u8> {
         MediaError::Incomplete => (400, "media_incomplete"),
         MediaError::BadSha => (400, "media_bad_sha"),
         MediaError::BadMagic => (400, "media_bad_magic"),
+        MediaError::TooManyPixels => (400, "media_too_many_pixels"),
         MediaError::TooLarge => (413, "too_large"),
         MediaError::Full => (413, "room_media_full"),
         MediaError::Unknown => (404, "media_not_found"),

@@ -22,6 +22,7 @@ pub enum Event {
     Message(Entry),
     Member(MemberEvent),
     Ai(AiEvent),
+    Media(MediaEvent),
 }
 
 /// The AI guest's unnumbered news: a status change (the word says which),
@@ -44,6 +45,17 @@ pub enum AiEvent {
         turn: u64,
         text: String,
     },
+}
+
+/// The shelf's unnumbered news: it is not a member and it carries no seq,
+/// so it rides the same road the member news does — re-derivable by
+/// anyone who missed it, because a download that answers `media_not_found`
+/// says the same thing.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MediaEvent {
+    /// The host cleared the shelf: every blob and in-flight upload is
+    /// gone, the quota starts from zero, the transcript is untouched.
+    Cleared,
 }
 
 /// The unnumbered news: who appeared, who is called what now, who left.
@@ -73,6 +85,7 @@ pub(crate) enum StoredEvent {
     Message(Arc<Message>),
     Member(MemberEvent),
     Ai(AiEvent),
+    Media(MediaEvent),
 }
 
 /// What a blocking read got.
@@ -103,6 +116,15 @@ impl Room {
         {
             let mut state = self.lock_state();
             state.events.push(StoredEvent::Ai(event));
+        }
+        self.notify();
+    }
+
+    /// The shelf's news, the same road again: one push, one order, no seq.
+    pub fn publish_media(&self, event: MediaEvent) {
+        {
+            let mut state = self.lock_state();
+            state.events.push(StoredEvent::Media(event));
         }
         self.notify();
     }
@@ -155,6 +177,7 @@ impl Room {
                     StoredEvent::Message(message) => Event::Message(Entry::of(message)),
                     StoredEvent::Member(event) => Event::Member(event.clone()),
                     StoredEvent::Ai(event) => Event::Ai(event.clone()),
+                    StoredEvent::Media(event) => Event::Media(event.clone()),
                 }));
                 *cursor = state.events.len();
                 return Take::Events;
