@@ -79,3 +79,7 @@ One line per item: area - finding - source audit. Pick from here only when a rel
   no lifetime check; useAttachments checks mountedRef only afterwards).
 - P2: dev-only: openaiTransport.ts:106 logs a 160-char redacted excerpt of a server error; the redactor does not mask
   data: URIs or prompt text if the server echoes them. Production logs code + length only.
+- P2 (review luna 9aa0420c on phone/attach-gate): useShareIn.ts:81 a file share accepted locally can finish
+  importing after a switch to the PC; its library row id+name then appear in the remote document hint (metadata
+  only, remote tools are off). Recheck remote mode after the await.
+- P3: remoteAttachmentGate.test.ts:20 pins source text (regex count) instead of exercising row presses.
