@@ -75,3 +75,18 @@ with the owner's ok (daily driver). No row before its report.
   the leg context lacks.
 - Order: env -> setter (step 2) before any APK run of the one-copy path. R2 negative controls: Jelly (non-Snapdragon)
   AND an untested Snapdragon with no row (stronger) - Xiaomi 14 only with the owner's ok.
+
+## Revision 2 (gate G result, 2026-10-04) - G PASSED
+
+S23 ABBA (REPORT.md "Gate G"): one copy B/A pp512 0.995, tg128 1.002, KLD identical. Carried into later steps:
+- Placement (step 2): only the Q4_0 matrices in the HOST buft; f32 norm/conv weights in a host buft fall to the
+  CPU at batch 1 (198 splits). The CPU leg will need them readable: decide in step 2 (device buft is rpcmem too).
+- Routing (steps 1/3): the fork scheduler's "1.host" rule sends any host-buffer-weight op to the CPU unless a
+  device opts in via `offload_op`. `b9543b6e4` is an experiment-flag stopgap; the TILE32 contract must replace it.
+- From luna's audit (04de184d), out of gate-G scope, required by the TILE32 contract (steps 1-3): get_tensor and
+  `ggml_backend_tensor_copy` read tiles as native bytes; the scheduler's offload loop does not check
+  `supports_buft` (CUDA-style batch offload could take a tiled op; OpenCL `offload_op` is NULL today);
+  `set_tensor_2d`/partial writes abort; `extra->flags` unsynchronised; `ggml_backend_buffer_i` grew a member
+  (in-tree safe, out-of-tree ABI break); altitude: a HOST buft that is `is_host` but not CPU-readable is the core
+  mismatch - the TILE32 marker must make every read/copy path layout-aware or the buft non-host for the CPU.
+- Release skel for every timed run (debug skel halves pp and decode).

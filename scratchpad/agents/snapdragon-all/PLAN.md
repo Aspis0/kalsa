@@ -130,3 +130,8 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   (b1fb0210, owner-requested, `FABLE-DESIGN.md`). Plan `onecopy-three-legs/PLAN-INTEGRATION.md`: gate G first (NPU from
   the tiled HOST buffer >= 0.95 of two-copy), then steps 0-6, capability table with ONE row (SM8550/v73/Adreno 740/
   E031.41/dotprod), everything else = today's loads.
+- 2026-10-04 gate G PASSED (S23 ABBA, unplugged, release skel): NPU from the shared tiled HOST copy = two-copy speed,
+  pp512 B/A 0.995, tg128 1.002 (A 894.6 / 22.60, B 890.1 / 22.63), KLD identical. Engine `feat/governor-onecopy`
+  7460d6210 + b9543b6e4 + 16b2a093d (loader set_tensor path, tiled ops HTP-only, luna audit 04de184d fixes). Lessons
+  and the audit items for the TILE32 contract: `onecopy-three-legs/REPORT.md` "Gate G", `PLAN-INTEGRATION.md` rev 2.
+  Next: step 0 (shared tile header + packer).

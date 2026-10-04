@@ -140,3 +140,39 @@ shared NPU-layout copy, zero-copy, at aggregate parity with its own path (per sh
 | NPU | 1.00 | its native layout (two-copy speed by construction) |
 | GPU | ~1.0 aggregate (0.84-1.44 per shape) | v4, zero-copy proved, more precise than the engine path |
 | CPU | 0.71-0.73 (cpu3) / 0.80-0.87 (cpu3-7) | sdot + 96 zips per tile; bit-identical |
+
+## Gate G: NPU from the tiled HOST buffer (2026-10-04, S23 unplugged, `gate-g/`)
+
+Engine `feat/governor-onecopy` (`~/Projects/kalsallama-gov-onecopy`): `7460d6210` (loader: buffers with
+`requires_set_tensor` go through `set_tensor`, not `read_raw`), `b9543b6e4` (ops on tiled weights are HTP-only:
+`offload_op` claims them at batch 1, an unsupported one aborts), `16b2a093d` (luna audit fixes: tiled = HOST
+buffer + REPACK so flag-off is unchanged, views to root, opfilter through the abort, WEIGHTS-only repack, no
+async chunks). Binaries sha256 `186447a7...` (llama-bench), `10c229ce...` (llama-perplexity); skel release
+`61c8d6f5...` (timed arms), debug `d40e98c6...` (HMX proof only).
+
+What it took to make arm B real (each caught by the script's proof gates, not by the numbers):
+1. `GGML_HEXAGON_HOSTBUF=1` alone leaves `-ngl 99` weights in the HTP0 device buft; `-ot` must place them.
+2. The fork scheduler sends a host-buffer-weight op to the CPU unless the device's `offload_op` opts in, and
+   Hexagon opts in only above a batch threshold: decode ran on the CPU reading tiles (214 splits, 2.25 tok/s,
+   wrong output) until `b9543b6e4`.
+3. Small f32 norm/conv weights in a host buft fall to the CPU the same way (198 splits): arm B places only the
+   Q4_0 matrices (`-ot proj.weight|ffn_gate|ffn_up|ffn_down|attn_q.weight|attn_k.weight|attn_v.weight|attn_output=HTP0-HOST`).
+4. The first timed sessions ran a debug skel (`HTP_DEBUG=1`, no `NDEBUG`): both arms at pp512 503 / tg128 9.1
+   (ratio 1.00, `raw/session2-t5-debugskel.grep`). Release skel restores the reference.
+
+Proofs (both arms, `raw/session3-t5-releaseskel.grep`): A no HOST-REPACK, no HTP0-HOST buffer; B 166 HOST-REPACK
+tensors = 1369571328 bytes, HTP0-HOST model buffer, both 2 graph splits, 3993 tiled MUL_MAT tags, 0 flat,
+`hmx-mm-2d` on prefill (220 / 238 lines).
+
+| arm | pp512 | tg128 | mean KLD | max KLD | same top p |
+|---|---:|---:|---:|---:|---:|
+| A two copies | 899.12 | 22.73 | 0.005313 | 0.094590 | 97.059 % |
+| B one copy (tiled HOST) | 891.14 | 22.61 | 0.005313 | 0.094590 | 97.059 % |
+| B2 | 888.96 | 22.65 | 0.005313 | 0.094590 | 97.059 % |
+| A2 | 890.14 | 22.46 | 0.005313 | 0.094590 | 97.059 % |
+
+`-t 5 -r 3 -ub 512`, every arm started <= 33.0 C battery, thermal status 0. **B/A: pp512 0.995, tg128 1.002;
+KLD identical to the last digit. Gate G PASS:** the NPU reads the shared tiled copy at two-copy speed.
+Per-op check (profiled, debug skel): blk.5.ffn_gate 659 vs 658 us, ffn_down 431 vs 430 us.
+Not measured here: memory saving (max RSS does not count dma-buf: A 287 MB, B 294 MB) - step 2 measures PSS
+and dma-buf.
