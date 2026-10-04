@@ -63,3 +63,6 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - (audit luna 225ef274, binding 6752f659) JSI completion params mutate ctx->params thread counts
   (JSIParams.cpp:701) but no llama_set_n_threads reaches the governor contexts; the eval-failure log then reports the
   mutated count (rn-completion.cpp:1728), not the context's. No test pins the per-context thread counts.
+- P2 copy: a turn the iOS guard stopped on background shows "Stopped by you" (shell.phase.stoppedByUser, chosen from
+  the persisted `interrupted` flag in messageMapper/composerState). Needs a persisted interruption cause + 5-language
+  copy ("Stopped when Kalsa left the screen"). Seen live on the Simulator 2026-10-04.
