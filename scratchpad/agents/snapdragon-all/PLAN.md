@@ -104,3 +104,10 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   every window; warm phone: 78 % of tokens on CPU (NSP nearer its 95 C trip than CPU to 108 C) -> 9.0 tok/s vs
   11.3-11.5 for the 03/10 fixed alternation; CPU arm killed at 43 C. Block-trip headroom is the wrong objective on
   the S23 (skin binds, trips never reached); v2 = NPU first, CPU only as NSP relief - owner decision.
+- 2026-10-04 owner: v2 hop approved (NPU first, CPU as NSP relief) AND the GPU must be a third leg on ONE shared
+  weight copy read by all three ("fondamentale"). Recon (luna a20aa92e, 3995e49a) + web research (luna 7703fab6):
+  no published layout is near-native on NEON+HVX+Adreno; raw Q4_0 one-copy costs every leg (NPU 70 %, CPU 60-64 %,
+  GPU GEMV ~1.75x slower). Design (`onecopy-three-legs/DESIGN.md`): the shared copy is the NPU's own tiled layout
+  (32x32 tiles, rows contiguous per K pair, scales after) - NPU at two-copy speed by construction, CPU and GPU get
+  tiled mat-vec readers. Step 1 running: CPU NEON tiled mat-vec vs repack 4x8 vs raw (Coder deepseek afef390d,
+  `spike/onecopy-cpu-gemv`).
