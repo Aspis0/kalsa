@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchSamplingDefaultsWithStatus, serverBase } from "../lib/chat";
 import type { SamplingDefaultsStatus } from "../lib/chat";
-import { rememberContextSize } from "../lib/contextSize";
+import { forgetContextSize, rememberContextSize } from "../lib/contextSize";
 import type { Modalities } from "../lib/modalities";
 import { NO_MODALITIES } from "../lib/modalities";
 import type { Sampling } from "../lib/sampling";
@@ -28,11 +28,15 @@ import { useBrainState } from "./useBrain";
  *
  * The same body's window is stored on the way, through the ONE rule
  * (`contextSize.ts`): `contextSizes` is the chat's per-endpoint cache, and the
- * endpoint written is THIS read's own, never a later render's — a restarted
- * engine that changes `n_ctx` heals the cache with its new answer, and a
- * number is never filed under an endpoint it did not come from. The sample
- * read is the one that feeds it, so a text-only chat (no attach, no panel)
- * knows its window without a second GET.
+ * endpoint written is THIS read's own, never a later render's — a number is
+ * never filed under an endpoint it did not come from. And the endpoint's old
+ * number is FORGOTTEN first (`forgetContextSize`), because this read runs
+ * again exactly when the model or the engine changed and the new window may
+ * differ; unknown while the new answer is on its way is pruned by nothing and
+ * guarded by the engine's overflow recovery, while a stale larger number
+ * would be spent as if it were the new model's. The sample read is the one
+ * that feeds it, so a text-only chat (no attach, no panel) knows its window
+ * without a second GET.
  */
 
 export type FactsStatus = SamplingDefaultsStatus | "loading" | "not-configured";
@@ -88,6 +92,12 @@ export function useServerFacts(
     let alive = true;
     let retry: ReturnType<typeof setTimeout> | undefined;
     setStatus("loading");
+    // The old window dies with the old read: a model switch or an engine
+    // restart can change `n_ctx` at the same endpoint, so this endpoint's
+    // number is forgotten before the new one is asked. Unknown in between is
+    // the honest state — the send prunes nothing on it, and the engine's
+    // overflow answer is the guard.
+    if (contextSizes) forgetContextSize(contextSizes.current, endpoint);
     // The old capability dies with the old model: until the new `/props`
     // answers, this model is one this window has no word about, and "no
     // word" is blindness — the previous answer standing through the pending

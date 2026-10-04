@@ -32,7 +32,7 @@ function check(name, ok, detail = "") {
 
 const { app, dir } = await loadApp();
 try {
-  const { parseContextSize, ensureContextSize, rememberContextSize, hasContextSize } = app;
+  const { parseContextSize, ensureContextSize, rememberContextSize, forgetContextSize, hasContextSize } = app;
   const EP = "http://127.0.0.1:8130";
 
   // The contract's own shape: /props → default_generation_settings.n_ctx,
@@ -137,6 +137,39 @@ try {
       String(hasContextSize({ endpoint: EP, nctx: null }, EP)),
     );
     check("the guard: a number for this endpoint → settled", hasContextSize({ endpoint: EP, nctx: 4096 }, EP) === true);
+
+    // The forget rule: a restarted read (model or engine change) drops the
+    // number it can no longer vouch for, and only its own endpoint's.
+    {
+      const cache = new Map();
+      rememberContextSize(cache, EP, 4096);
+      rememberContextSize(cache, "other", 1024);
+      forgetContextSize(cache, EP);
+      check("forget: the endpoint's number goes", !cache.has(EP), JSON.stringify([...cache]));
+      check("forget: another endpoint keeps its own", cache.get("other") === 1024, String(cache.get("other")));
+      // The healing rule is untouched: an unknown still writes nothing, and
+      // the next number is remembered again.
+      rememberContextSize(cache, EP, null);
+      check("forget: a late unknown writes nothing back", !cache.has(EP), JSON.stringify([...cache]));
+      rememberContextSize(cache, EP, 8192);
+      check("forget: the new answer is remembered", cache.get(EP) === 8192, String(cache.get(EP)));
+
+      let asks = 0;
+      const asked = await ensureContextSize(cache, "forgotten", async () => {
+        asks++;
+        return 2048;
+      });
+      forgetContextSize(cache, "forgotten");
+      const askedAgain = await ensureContextSize(cache, "forgotten", async () => {
+        asks++;
+        return 2048;
+      });
+      check(
+        "forget: the next ensure asks the server again",
+        asked === 2048 && asks === 2 && askedAgain === 2048,
+        `asks=${asks}`,
+      );
+    }
   }
 } finally {
   await rm(dir, { recursive: true, force: true });

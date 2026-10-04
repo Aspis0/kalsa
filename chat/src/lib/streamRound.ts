@@ -110,6 +110,36 @@ function contextOverflow(body: string): boolean {
   );
 }
 
+/** The most of a non-stream answer this client reads. Only a 400's body is
+    ever read here, and only to classify it: an engine's error text is short,
+    and a server that sends more must not be buffered whole. */
+const ERROR_BODY_LIMIT = 8 * 1024;
+
+/**
+ * The first bytes of a refused answer, read to the ceiling above and then
+ * cancelled — a body that keeps coming past it is not this turn's to carry,
+ * and one that never ends must not hold the turn open either. The text is
+ * classified, never shown or logged.
+ */
+async function readErrorBody(response: Response): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let bytes = 0;
+  try {
+    while (bytes < ERROR_BODY_LIMIT) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    void reader.cancel().catch(() => {});
+  }
+  return text;
+}
+
 /**
  * One request, streamed to the caller's sinks, reported as a [`Round`].
  * `messages` is the conversation as it stands *for this round* — the loop
@@ -194,9 +224,13 @@ export async function runRound(
     // A 400 may be the engine's own overflow answer, and the two need
     // different handling: an overflow can shrink and be retried, an ordinary
     // 400 cannot. Reading the body is the only way to tell them apart, and it
-    // is read for that decision alone.
-    const overflow = response.status === 400 && contextOverflow(await response.text().catch(() => ""));
+    // is read (bounded) for that decision alone.
+    const overflow =
+      response.status === 400 && contextOverflow(await readErrorBody(response).catch(() => ""));
     finish();
+    // Stop pressed while that body was being read ends the turn as a Stop,
+    // not as the server's 400: the person's word outranks the refusal.
+    if (signal.aborted) throw new ChatRequestError("aborted", "Stopped", undefined, url);
     if (overflow) throw new ChatRequestError("oversize", "Context exceeded", response.status, url);
     throw new ChatRequestError("http", `HTTP ${response.status}`, response.status, url);
   }

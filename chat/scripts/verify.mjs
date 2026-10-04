@@ -4160,17 +4160,22 @@ const tests = {
   // The window reaches the send even when nothing was ever attached: the
   // shell's own /props read fills the cache, so a text-only chat on the tight
   // window prunes its oldest turns with no attach and no panel open — the
-  // road that used to leave the size unknown and send the whole history.
+  // road that used to leave the size unknown and send the whole history. The
+  // history is realistic (user/assistant pairs), because the cut must take
+  // WHOLE turns: an assistant kept without the user it answers is refused by
+  // templates that require alternation, with a 400 this fit exists to prevent.
   // Arithmetic (estTokens = ceil(chars/4), the prompt's 78, and the 1 every
-  // message pays for its empty reasoning): 20 turns of 98 chars are 26 each;
-  // 20*26 + 25 + 78 = 623, and 623 + 512 > 1024, so the five oldest turns
-  // fall before the wire fits at 493.
+  // message pays for its empty reasoning): 10 pairs of 98 chars are 26 each;
+  // 20*26 + 25 + 78 = 623, and 623 + 512 > 1024, so the three oldest pairs
+  // (u0..a2) fall and the wire fits at 467, starting at u3.
   async textprune() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     const messages = [];
-    for (let i = 0; i < 20; i++) {
-      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(94)}`, createdAt: i });
+    for (let i = 0; i < 10; i++) {
+      const tag = String(i).padStart(2, "0");
+      messages.push({ id: `u${i}`, role: "user", content: `Q${tag} ${"q".repeat(94)}`, createdAt: i * 2 });
+      messages.push({ id: `a${i}`, role: "assistant", content: `R${tag} ${"r".repeat(94)}`, createdAt: i * 2 + 1 });
     }
     await seedHomeChat(page, { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" }, [
       { id: "tp", title: "Text only", createdAt: 1, updatedAt: 1, messages },
@@ -4194,9 +4199,11 @@ const tests = {
     }
     const body = await lastBody(page);
     const wire = JSON.stringify(body?.messages ?? []);
+    const roles = (body?.messages ?? []).map((m) => m.role);
     check("textprune: the answer arrived", ((await page.locator(".thread").textContent()) ?? "").includes("line is open"));
-    check("textprune: the oldest turns fell", !wire.includes("Q00") && !wire.includes("Q04"), wire.slice(0, 120));
-    check("textprune: the newest stayed", wire.includes("Q05") && wire.includes("Q19"));
+    check("textprune: the wire starts at a user turn", roles[0] === "system" && roles[1] === "user", JSON.stringify(roles.slice(0, 4)));
+    check("textprune: the oldest turns fell whole", !wire.includes("Q00") && !wire.includes("R00") && !wire.includes("R02"), wire.slice(0, 120));
+    check("textprune: the kept turns stay paired", wire.includes("Q03") && wire.includes("R03") && wire.includes("Q09") && wire.includes("R09"));
     await browser.close();
   },
 
@@ -4204,15 +4211,22 @@ const tests = {
   // prompt over 400 estimated tokens while /props says 1024, so the first
   // request is refused and the turn only lands after the app sheds the older
   // half of the history and asks again. The reader sees the answer, not the
-  // generic retry sentence. Arithmetic: 13 turns of 94 chars are 25 each;
-  // app 13*25 + 35 + 78 = 438 fits its 1024 window, the mock reads 424 > 400
-  // and refuses, and one halving leaves 7*25 + 35 + 78 = 288.
+  // generic retry sentence. The history is user/assistant pairs, and BOTH
+  // cuts must land on a user: a wire starting with an orphan assistant is
+  // refused by templates that require alternation — a non-overflow 400 that
+  // would end the turn in the generic retry text this test refuses to see.
+  // Arithmetic: 10 pairs of 94 chars are 25 each; 20*25 + 35 + 78 = 613, so
+  // the three oldest pairs fall before the send (463), the mock reads
+  // 14*24 + 34 + 78 = 448 > 400 and refuses, and the recovery's halving
+  // walks forward from a6 to u7, leaving three pairs at 256.
   async overflowrecover() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     const messages = [];
-    for (let i = 0; i < 13; i++) {
-      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(90)}`, createdAt: i });
+    for (let i = 0; i < 10; i++) {
+      const tag = String(i).padStart(2, "0");
+      messages.push({ id: `u${i}`, role: "user", content: `Q${tag} ${"q".repeat(90)}`, createdAt: i * 2 });
+      messages.push({ id: `a${i}`, role: "assistant", content: `R${tag} ${"r".repeat(90)}`, createdAt: i * 2 + 1 });
     }
     await seedHomeChat(page, { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "overcontext-demo" }, [
       { id: "oc", title: "Overflow", createdAt: 1, updatedAt: 1, messages },
@@ -4237,8 +4251,13 @@ const tests = {
     check("overflowrecover: refused once, then answered", bodies.length === 2, String(bodies.length));
     const first = JSON.stringify(bodies[0]?.messages ?? []);
     const second = JSON.stringify(bodies[1]?.messages ?? []);
-    check("overflowrecover: the refused first carried the old turns", first.includes("Q00"));
-    check("overflowrecover: the retry shed them", !second.includes("Q00") && second.includes("Q12") && second.includes("detail you can hold"));
+    const firstRoles = (bodies[0]?.messages ?? []).map((m) => m.role);
+    const retryRoles = (bodies[1]?.messages ?? []).map((m) => m.role);
+    check("overflowrecover: the refused first carried the kept turns", first.includes("Q03") && first.includes("R03"));
+    check("overflowrecover: the refused first starts at a user turn", firstRoles[1] === "user", JSON.stringify(firstRoles.slice(0, 4)));
+    check("overflowrecover: the retry shed the older turns", !second.includes("Q03") && !second.includes("R03"));
+    check("overflowrecover: the retry starts at a user turn", retryRoles[1] === "user", JSON.stringify(retryRoles.slice(0, 4)));
+    check("overflowrecover: the retry keeps the newest pair and the turn", second.includes("Q09") && second.includes("R09") && second.includes("detail you can hold"));
     const thread = (await page.locator(".thread").textContent()) ?? "";
     check("overflowrecover: the answer is in the thread", thread.includes("line is open"));
     check("overflowrecover: no generic retry text", !thread.includes("Wait a moment, then try again"), thread.slice(0, 120));
@@ -4321,6 +4340,105 @@ const tests = {
     check("toolfit: the first round carried the older turns", first.includes("Q05"));
     check("toolfit: the follow-up round shed them", !second.includes("Q05") && second.includes("Q19"), second.slice(0, 120));
     check("toolfit: the tool's words still ride", second.includes("Lisbon weekend forecast"));
+    await browser.close();
+  },
+
+  // A restarted facts read must not carry the old model's window into the new
+  // one: when the model changes, that endpoint's number is forgotten before
+  // the new /props is asked. Here the new read answers 500 (unknown), so the
+  // old 256 must not survive — with it, the tight history is refused before
+  // the send; forgotten, the size is unknown, nothing is pruned, and the
+  // engine gets the whole history.
+  async stalenctx() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await fetch("http://127.0.0.1:18081/__props-nctx?value=256");
+    const messages = [];
+    for (let i = 0; i < 10; i++) {
+      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(90)}`, createdAt: i });
+    }
+    await seedHomeChat(page, { endpoint: "http://127.0.0.1:18081/move", token: "t", model: "x" }, [
+      { id: "sn", title: "Stale", createdAt: 1, updatedAt: 1, messages },
+    ]);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Stale");
+    // The new model switch, and a /props that cannot answer it: the old 256
+    // is the stale number this test is about.
+    await fetch("http://127.0.0.1:18081/__props-nctx?value=fail");
+    await page.evaluate(() => {
+      window.__STUB_BRAIN__.state.model = "y";
+    });
+    // The brain poll (2 s) hands the new model over; the facts read that
+    // follows answers 500 at once.
+    await page.waitForTimeout(2600);
+    await page.getByRole("textbox", { name: "Message" }).fill(`One last thing, briefly. ${"z".repeat(40)}`);
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    try {
+      await page.waitForFunction(
+        () => document.querySelector(".thread")?.textContent?.includes("line is open"),
+        null,
+        { timeout: 20000 },
+      );
+    } catch {
+      check("stalenctx: answered with an unknown new window", false, "wait timed out");
+    }
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("stalenctx: the answer arrived", thread.includes("line is open"));
+    check("stalenctx: no refusal from the old number", !thread.includes("too much for Kalsa at once"), thread.slice(0, 160));
+    const body = await lastBody(page);
+    const wire = JSON.stringify(body?.messages ?? []);
+    check("stalenctx: the whole history rode", wire.includes("Q00") && wire.includes("Q09"));
+    await browser.close();
+  },
+
+  // The 400 body is read to classify it, not to carry it: a server that keeps
+  // sending past the read ceiling must be left mid-body. The mock's /hold400
+  // writes more than the ceiling and never ends, so a client that waits for
+  // the whole body never reaches the sentence at all — it appears only
+  // because the read stops on its own.
+  async hold400() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seedHomeChat(page, { endpoint: "http://127.0.0.1:18081/hold400", token: "t", model: "x" });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Say something.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    try {
+      await page.waitForFunction(
+        () => document.querySelector(".thread")?.textContent?.includes("Wait a moment, then try again"),
+        null,
+        { timeout: 20000 },
+      );
+    } catch {
+      check("hold400: the 400 was classified past the ceiling", false, "wait timed out");
+    }
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("hold400: the 400 was classified past the ceiling", thread.includes("Wait a moment, then try again"), thread.slice(0, 160));
+    check("hold400: an ordinary 400, never the oversize text", !thread.includes("too much for Kalsa at once"));
+    await browser.close();
+  },
+
+  // Stop during the refusal's own body read is the person's word, not the
+  // server's: the turn says it stopped, never that Kalsa could not answer.
+  async stop400() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await seedHomeChat(page, { endpoint: "http://127.0.0.1:18081/stall400", token: "t", model: "x" });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Say something.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.getByRole("button", { name: "Stop generating" }).waitFor({ timeout: 8000 });
+    // The 400's headers are in and its short body is held open: this Stop
+    // lands inside the read.
+    await page.waitForTimeout(400);
+    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.waitForTimeout(800);
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("stop400: stopped honestly", thread.includes("Stopped early"), thread.slice(0, 160));
+    check("stop400: never the generic retry text", !thread.includes("Wait a moment, then try again"));
     await browser.close();
   },
 

@@ -171,6 +171,11 @@ let lastBody = null;
 /// Every chat body this run has received, oldest first. A tool round trip is a
 /// sequence, and `__last-body` can only show its end; an oracle needs all of it.
 const chatBodies = [];
+/// `/move`'s window, under test control (`/__props-nctx`): a number, or
+/// "fail" for a /props that answers 500. The fixed routes keep their numbers;
+/// this one exists so a test can move `n_ctx` under the app's feet the way a
+/// model restart does.
+let movingNctx = "32768";
 
 const server = http.createServer((req, res) => {
   if (req.method === "OPTIONS") {
@@ -213,6 +218,7 @@ const server = http.createServer((req, res) => {
     req.resume();
     chatBodies.length = 0;
     lastBody = null;
+    movingNctx = "32768";
     res.writeHead(200, { "Content-Type": "application/json", ...CORS });
     res.end(JSON.stringify({ ok: true }));
     return;
@@ -248,6 +254,24 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ default_generation_settings: { n_ctx: 1024 } }));
     return;
   }
+  // Test-only: the `/move` window's value. `value=fail` makes the next
+  // `/move/props` answer 500 — a restarted read that cannot know the size.
+  if (req.method === "GET" && req.url.startsWith("/__props-nctx")) {
+    movingNctx = new URL(req.url, "http://mock").searchParams.get("value") ?? "32768";
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ value: movingNctx }));
+    return;
+  }
+  if (req.method === "GET" && req.url === "/move/props") {
+    if (movingNctx === "fail") {
+      res.writeHead(500, CORS);
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ default_generation_settings: { n_ctx: Number(movingNctx) } }));
+    return;
+  }
   if (req.method !== "POST") {
     res.writeHead(404, CORS).end();
     return;
@@ -264,12 +288,23 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ error: { message: "Forbidden", type: "invalid_request_error" } }));
     return;
   }
+  // A 400 whose body never ends. `hold400` sends more than the client's read
+  // ceiling and then holds; `stall400` sends less and holds. Either way the
+  // client must stop reading on its own — at the bound, or on Stop.
+  if (req.url === "/hold400/v1/chat/completions" || req.url === "/stall400/v1/chat/completions") {
+    req.resume();
+    res.writeHead(400, { "Content-Type": "application/json", ...CORS });
+    const padding = "x".repeat(req.url.startsWith("/hold400") ? 9000 : 1000);
+    res.write(`{"error":{"type":"invalid_request_error","message":"${padding}"`);
+    return;
+  }
   // /ok streams the scenarios; /tight and /small behave the same (their
   // /props is what differs). Every chat body is remembered for __last-body.
   if (
     req.url === "/ok/v1/chat/completions" ||
     req.url === "/tight/v1/chat/completions" ||
-    req.url === "/small/v1/chat/completions"
+    req.url === "/small/v1/chat/completions" ||
+    req.url === "/move/v1/chat/completions"
   ) {
     // Hard cases first: split frames, cuts, wrong shapes. Each exercises a
     // client branch the happy path never touches.

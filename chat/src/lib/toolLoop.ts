@@ -194,14 +194,17 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
  * large: the older half of the history before this turn's last user message
  * goes, so the current turn and its own tool results are never the thing
  * dropped. The Room's recovery halves its budget the same way
- * (crates/kalsa-door/src/room/turn.rs:364); here the unit is a message.
+ * (crates/kalsa-door/src/room/turn.rs:364); here the unit is a turn, not a
+ * message.
  *
- * A cut through a tool exchange would leave a `tool` message whose
- * `assistant` tool_calls is gone — a malformed request, refused for the wrong
- * reason — so the cut backs up to the exchange's first message: the whole
- * exchange leaves or stays. False means there is nothing left to shed: the
- * newest user message alone is the floor, and a prompt that cannot fit it
- * cannot shrink.
+ * The cut walks forward to the next `user` message, which keeps two
+ * invariants in one rule: the kept history starts at a user (an assistant
+ * with no user prompt is refused by templates that require alternation —
+ * Gemma's family), and a tool exchange travels whole (an `assistant`
+ * tool_calls and its `tool` results are inside the same turn, so the walk
+ * past them never leaves an orphan). False means there is nothing left to
+ * shed: the newest user message alone is the floor, and a prompt that cannot
+ * fit it cannot shrink.
  */
 function shedOlderHalf(conversation: WireMessage[]): boolean {
   let lastUser = -1;
@@ -213,8 +216,7 @@ function shedOlderHalf(conversation: WireMessage[]): boolean {
   }
   if (lastUser <= 1) return false;
   let drop = Math.max(1, Math.floor((lastUser - 1) / 2));
-  while (drop > 0 && conversation[1 + drop]?.role === "tool") drop -= 1;
-  if (drop === 0) return false;
+  while (drop < lastUser - 1 && conversation[1 + drop]?.role !== "user") drop += 1;
   conversation.splice(1, drop);
   return true;
 }

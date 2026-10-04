@@ -92,6 +92,19 @@ export function rememberContextSize(
 }
 
 /**
+ * Forgets one endpoint's number because the read that produced it is being
+ * restarted: a model switch or an engine restart can change `n_ctx` under the
+ * same endpoint, and the old model's window must not be spent on the new one
+ * (`rememberContextSize` would only overwrite it once the new answer lands).
+ * Unknown is the honest state in between — the send prunes nothing on it, and
+ * the engine's own overflow answer is the guard. Only the endpoint named
+ * loses its number: another server's answer is still that server's.
+ */
+export function forgetContextSize(cache: Map<string, number>, endpoint: string): void {
+  cache.delete(endpoint);
+}
+
+/**
  * The panel refresh guard (`App.tsx`, the effect over pinned files): ask
  * again unless THIS endpoint has a NUMBER. An endpoint's stored unknown is
  * not settlement — it is precisely the state that must re-ask, which is the

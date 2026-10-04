@@ -587,11 +587,14 @@ export type PinnedContext =
 /**
  * Assemble what is actually sent: the one system message first — the fixed
  * prompt with the pinned documents appended to it when any are active — then
- * turns newest-kept, oldest turns dropping first when the known context fills.
- * With unknown size nothing is pruned or refused. `media` decides how stored
- * pictures ride (parts under a seeing model, the placeholder sentence
- * otherwise); `pendingImageTokens` is the weight of pictures attached but not
- * yet sent — the fit answers for them before the send does.
+ * whole turns newest-kept, oldest turns dropping first when the known context
+ * fills. The cut never leaves an assistant at the front of the kept history:
+ * an assistant whose user was dropped is refused by templates that require
+ * user/assistant alternation (see the walk below). With unknown size nothing
+ * is pruned or refused. `media` decides how stored pictures ride (parts under
+ * a seeing model, the placeholder sentence otherwise); `pendingImageTokens` is
+ * the weight of pictures attached but not yet sent — the fit answers for them
+ * before the send does.
  */
 export function buildPinnedContext(
   messages: ChatMessage[],
@@ -605,16 +608,25 @@ export function buildPinnedContext(
   const turns = [...messages];
   let histTokens = wireTokens(turns, media?.vision ?? false);
   let dropped = 0;
+  const shedOne = (): void => {
+    const shed = turns.shift();
+    if (shed) {
+      histTokens -= messageTokens(shed);
+      dropped++;
+    }
+  };
   if (nctx !== null) {
     while (
       docTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS > nctx &&
       turns.length > 1
     ) {
-      const shed = turns.shift();
-      if (shed) {
-        histTokens -= messageTokens(shed);
-        dropped++;
-      }
+      shedOne();
+      // Whole turns, not single messages: the kept history must start at a
+      // `user` message. An assistant left at the front has lost the user it
+      // answers, and a template that requires user/assistant alternation
+      // (Gemma's family: "Conversation roles must alternate") refuses that
+      // wire with its own 400 — the one this fit exists to prevent.
+      while (turns.length > 1 && turns[0]?.role !== "user") shedOne();
     }
     const need = docTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS;
     if (need > nctx) {
