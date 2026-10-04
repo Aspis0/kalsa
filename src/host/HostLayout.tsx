@@ -108,6 +108,7 @@ export function HostLayout({
         conv={conv}
         actions={conversationActions}
         onOpenConversations={() => setActiveOverlay({ kind: "conversations" })}
+        onOpenRoom={(localId) => setActiveOverlay({ kind: "room", localId })}
       />
 
       <HostFurniture

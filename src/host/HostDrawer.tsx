@@ -1,6 +1,9 @@
 /** The v2 menu: global destinations, search and a compact route to conversations. */
 import { Keyboard } from "react-native";
-import { Drawer } from "../theme/components/Drawer";
+import { MessagesSquare } from "lucide-react-native";
+import { useLocale } from "../i18n";
+import { useRoomPairing } from "../room/useRoomPairing";
+import { Drawer, type DrawerItem } from "../theme/components/Drawer";
 import type { createConversationActions } from "./conversationActions";
 import type { useConversationHost } from "./useConversationHost";
 
@@ -13,6 +16,9 @@ export interface HostDrawerProps {
   conv: ConversationHost;
   actions: ConversationActions;
   onOpenConversations: () => void;
+  /** Open one paired computer's room. The entry is offered only while a
+   *  usable pairing exists, and v1 has no picker: the newest one. */
+  onOpenRoom: (localId: string) => void;
 }
 
 /** Keep the search query while moving from the menu into the full-screen list. */
@@ -26,7 +32,16 @@ export function openConversationListFromDrawer(
   openList();
 }
 
-export function HostDrawer({ open, setOpen, conv, actions, onOpenConversations }: HostDrawerProps) {
+export function HostDrawer({
+  open,
+  setOpen,
+  conv,
+  actions,
+  onOpenConversations,
+  onOpenRoom,
+}: HostDrawerProps) {
+  const { t } = useLocale();
+  const room = useRoomPairing();
   const closeDrawer = () => {
     Keyboard.dismiss();
     setOpen(false);
@@ -38,12 +53,26 @@ export function HostDrawer({ open, setOpen, conv, actions, onOpenConversations }
     onOpenConversations,
   );
 
+  const items: DrawerItem[] = actions.drawerItems();
+  if (room.localId !== null) {
+    const localId = room.localId;
+    items.push({
+      id: "room",
+      label: t("room.title"),
+      Icon: MessagesSquare,
+      onPress: () => {
+        closeDrawer();
+        onOpenRoom(localId);
+      },
+    });
+  }
+
   return (
     <Drawer
       open={open}
       onClose={closeDrawer}
       brand="Kalsa"
-      items={actions.drawerItems()}
+      items={items}
       searchValue={conv.chatSearch}
       onSearchChange={conv.handleChatSearchChange}
       onConversationsPress={openConversations}

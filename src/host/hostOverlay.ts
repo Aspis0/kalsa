@@ -25,6 +25,8 @@ export type HostOverlay =
   | { kind: "notes"; focusId?: string }
   | { kind: "personas" }
   | { kind: "miniapp"; miniapp: AskAssistantMiniapp }
+  /** The one paired computer's room (v1: no picker — see `useRoomPairing`). */
+  | { kind: "room"; localId: string }
   | null;
 
 /**

@@ -33,6 +33,7 @@ import {
   enqueueRoomMessage,
   flushRoomQueue,
   getRoomQueue,
+  retryRoomQueueItem,
   subscribeRoomQueue,
   type RoomQueueEvent,
 } from "./roomQueue";
@@ -78,6 +79,52 @@ beforeEach(() => {
 afterEach(() => {
   randomSpy.mockRestore();
   jest.useRealTimers();
+});
+
+test("the user's retry revives a failed item with the SAME id (§5)", async () => {
+  const events: RoomQueueEvent[] = [];
+  const leave = subscribeRoomQueue(LOCAL, (event) => events.push(event));
+  (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>)
+    .mockResolvedValueOnce(
+      errorResult("too_large", "The room reads a JSON body of the shape its route defines."),
+    )
+    .mockResolvedValueOnce(sentResult(46));
+
+  await enqueueRoomMessage(LOCAL, { text: "one word too many" });
+  await settle();
+  await expect(getRoomQueue(LOCAL)).resolves.toMatchObject([
+    { state: "failed", error: { code: "too_large" } },
+  ]);
+  expect(postRoomMessage).toHaveBeenCalledTimes(1);
+
+  await retryRoomQueueItem(LOCAL, "7e".repeat(16));
+  await settle();
+
+  const attempts = (postRoomMessage as jest.Mock).mock.calls.map(
+    (call) => (call as unknown[])[0] as { clientMsgId: string },
+  );
+  expect(attempts).toHaveLength(2); // a terminal refusal burns the id; this tap un-burns it
+  expect(attempts[0].clientMsgId).toBe(attempts[1].clientMsgId);
+  expect(events.filter((event) => event.type === "sent")).toHaveLength(1);
+  await expect(getRoomQueue(LOCAL)).resolves.toEqual([]);
+  leave();
+});
+
+test("the user's retry drops an owed backoff and goes at once", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
+  (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>)
+    .mockResolvedValueOnce(errorResult("unreachable", "remote_brain_network"))
+    .mockResolvedValueOnce(sentResult(47));
+
+  await enqueueRoomMessage(LOCAL, { text: "the host is asleep" });
+  await settle();
+  expect(postRoomMessage).toHaveBeenCalledTimes(1);
+
+  await retryRoomQueueItem(LOCAL, "7e".repeat(16));
+  await settle(); // no timer advanced: the tap is the trigger
+  expect(postRoomMessage).toHaveBeenCalledTimes(2);
+  await expect(getRoomQueue(LOCAL)).resolves.toEqual([]);
+  leave();
 });
 
 test("a lost response retries the same id — the door's same seq sends once, not twice", async () => {

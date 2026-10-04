@@ -13,6 +13,7 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { notifyStaticPrefixInputs, type EngineTool } from "../engine/engineBackend";
+import { bindRoomStreamsToAppState } from "../room/roomAppState";
 import { createStaticPrefixNotifier } from "./staticPrefixNotify";
 import { notifyNativeWorkSettled } from "../engine/nativeWorkSettle";
 import { idleDiscardAbortRef } from "./foregroundIdle";
@@ -114,6 +115,11 @@ export function useHostEffects(params: HostEffectParams): void {
   // takes the process (`iosMemoryGuard.ts`); a turn in flight is never killed,
   // its release is owed until it finishes.
   useIosMemoryGuard();
+
+  // Mounted once for the process: the room streams follow the app's lifecycle
+  // — background closes every wire, active dials each room back — beside the
+  // iOS guard above.
+  useEffect(() => bindRoomStreamsToAppState(), []);
 
   // Unmount: flush the partial from the ref BEFORE aborting — updateMessage
   // no-ops once unmounted and the turn's finally may never rewrite state.

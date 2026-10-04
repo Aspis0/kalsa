@@ -29,7 +29,7 @@ export function DrawerContent({
   const { t } = useLocale();
   const colors = modes[mode];
   const itemById = new Map(items.map((item) => [item.id, item]));
-  const destinations = ["documents", "notes", "settings", "account", "personas"]
+  const destinations = ["documents", "notes", "room", "settings", "account", "personas"]
     .map((id) => itemById.get(id))
     .filter((item): item is DrawerItem => item !== undefined);
 

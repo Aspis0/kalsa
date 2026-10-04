@@ -199,6 +199,23 @@ export async function discardRoomQueueItem(localId: string, clientMsgId: string)
   await announce(localId);
 }
 
+/** The user's own retry of an item the shelf is holding: a terminal
+ *  refusal burns the id, and this is the one caller allowed to un-burn
+ *  it — the same words, the same id, so the door's idempotence still
+ *  makes the second POST one message (§5). The wait is over by fiat:
+ *  drop any owed backoff and go. */
+export async function retryRoomQueueItem(localId: string, clientMsgId: string): Promise<void> {
+  await mutateRoomQueue(localId, (items) => {
+    const item = items.find((held) => held.clientMsgId === clientMsgId);
+    if (item === undefined) return false;
+    item.state = "queued";
+    delete item.error;
+    return true;
+  });
+  await announce(localId);
+  await flushRoomQueue(localId);
+}
+
 /** After an enqueue: go now unless a backoff is already owed — the owed
  *  round picks this message up with the rest of the shelf (§9). */
 async function kick(localId: string): Promise<void> {

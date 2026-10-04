@@ -28,6 +28,7 @@ import { DocumentsScreen } from "../screens/DocumentsScreen";
 import { NotesScreen } from "../screens/NotesScreen";
 import { PersonasScreen } from "../screens/PersonasScreen";
 import { HelpScreen } from "../screens/HelpScreen";
+import { RoomScreen } from "../screens/RoomScreen";
 import {
   EMBEDDING_MODEL,
   MODEL_REGISTRY,
@@ -343,5 +344,6 @@ export function HostOverlays(props: OverlaysProps) {
       />
     );
   }
+  if (overlay?.kind === "room") return <RoomScreen localId={overlay.localId} onBack={() => setOverlay(null)} />;
   return null;
 }
