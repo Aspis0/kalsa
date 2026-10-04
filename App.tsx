@@ -31,6 +31,7 @@ import {
 } from "./src/theme/typography";
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
 import { ShellPreview } from "./src/ui/shell/ShellPreview";
+import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
 import { UncleanExitPrompt } from "./src/components/UncleanExitPrompt";
 import { HostRoot } from "./src/host/HostRoot";
 import { FOREGROUND_IDLE_PROTOCOL_MARKER } from "./src/app/foregroundIdleProvenance";
@@ -223,7 +224,12 @@ export default function App() {
             height either way. */}
         <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
           <LocaleProvider>
-            <AppContent />
+            {/* Inside the locale provider on purpose: the fallback replaces the
+                tree, and it needs t() — the theme is one of the things below
+                this boundary, so a crashed render cannot take the copy with it. */}
+            <AppErrorBoundary>
+              <AppContent />
+            </AppErrorBoundary>
           </LocaleProvider>
         </KeyboardProvider>
       </SafeAreaProvider>

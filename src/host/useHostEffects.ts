@@ -16,6 +16,7 @@ import { notifyStaticPrefixInputs, type EngineTool } from "../engine/engineBacke
 import { createStaticPrefixNotifier } from "./staticPrefixNotify";
 import { idleDiscardAbortRef } from "./foregroundIdle";
 import { useIosBackgroundGuard } from "./iosBackgroundGuard";
+import { useIosMemoryGuard } from "./iosMemoryGuard";
 import type { TurnFence } from "./turnGuards";
 
 export interface HostEffectParams {
@@ -105,6 +106,11 @@ export function useHostEffects(params: HostEffectParams): void {
   // the context it poisoned (`iosBackgroundGuard.ts`) — the same controller
   // this file bridges to the idle governor.
   useIosBackgroundGuard({ abortRef });
+
+  // iOS memory pressure: give the resident local context back before jetsam
+  // takes the process (`iosMemoryGuard.ts`); a turn in flight is never killed,
+  // its release is owed until it finishes.
+  useIosMemoryGuard();
 
   // Unmount: flush the partial from the ref BEFORE aborting — updateMessage
   // no-ops once unmounted and the turn's finally may never rewrite state.

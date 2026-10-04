@@ -1452,6 +1452,12 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       sizeNotLive: "Fisso {pinned} in {live} dp",
     },
   },
+  /** The root render-error fallback (mirrors `errorBoundary` in en.ts). */
+  errorBoundary: {
+    title: "Qualcosa è andato storto",
+    body: "Kalsa non è riuscita a disegnare questa schermata. Ricarica per riprovare.",
+    reload: "Ricarica",
+  },
   report: {
     privacy: "Il log non contiene mai i tuoi messaggi, le risposte di Kalsa, i tuoi file, né codici o chiavi.",
     send: "Invia il log",

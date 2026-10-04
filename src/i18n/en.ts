@@ -1509,6 +1509,14 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       sizeNotLive: "Pinned {pinned} in {live} dp",
     },
   },
+  /** The root render-error fallback (`components/AppErrorBoundary.tsx`) — the
+   *  screen the app shows when React could not draw the app, so it must not
+   *  depend on the theme or on anything below the boundary. */
+  errorBoundary: {
+    title: "Something went wrong",
+    body: "Kalsa could not draw this screen. Reload to try again.",
+    reload: "Reload",
+  },
   report: {
     privacy: "The log never contains your messages, Kalsa's answers, your files, or any code or key.",
     send: "Send the log",

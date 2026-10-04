@@ -134,6 +134,12 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
   KALSA_IOS_BG: {
     op: enumOf("abort", "reload"),
   },
+  // iosMemoryGuard.ts — one line per iOS memory warning. `reason` rides on the
+  // skip ops only (iosMemoryWarningPlan.ts: IosMemoryWarningSkipReason).
+  KALSA_IOS_MEM: {
+    op: enumOf("release", "deferred", "skip"),
+    reason: enumOrNull("platform", "remote", "no-engine"),
+  },
   // engineLoad.ts:160-167; verdict sets at loadGate.ts:105-115; the only
   // caller passes source "ensure" (engineEnsureLoad.ts:98).
   KALSA_LOAD: {

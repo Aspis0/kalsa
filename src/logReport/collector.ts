@@ -3,7 +3,8 @@
  * at the app entry: wraps console.log/info/warn/error WITHOUT changing what
  * they print, chains the previous global error handler, and persists every
  * line that passes the schema and the final safety pass. One read function
- * for the step-2 sender.
+ * for the step-2 sender, and one record function for errors React catches
+ * before `ErrorUtils` ever sees them (the root error boundary).
  */
 import { finalizeLine } from "./normalize";
 import { appendLine, readReportText } from "./logStore";
@@ -98,12 +99,7 @@ function installJsErrorHandler(): (() => void) | null {
   const previous = current;
   errorUtils.setGlobalHandler(
     markInstall((error: unknown, isFatal?: boolean) => {
-      try {
-        const line = finalizeLine(formatJsErrorLine(error));
-        if (line !== null) appendLine(line);
-      } catch {
-        // the record must never replace the crash itself
-      }
+      recordJsError(error);
       if (previous !== undefined) return previous(error, isFatal);
       // No previous handler: a fatal error must still reach the native crash
       // reporter instead of dying silently in our capture.
@@ -112,6 +108,21 @@ function installJsErrorHandler(): (() => void) | null {
     }, previous),
   );
   return () => errorUtils.setGlobalHandler?.(previous);
+}
+
+/**
+ * Record a JS error as the same `js_error` line the global handler writes:
+ * name + first frame, never the message (`jsErrorLine.ts`). Exported for the
+ * root error boundary, whose render errors React catches before the global
+ * handler ever sees them.
+ */
+export function recordJsError(error: unknown): void {
+  try {
+    const line = finalizeLine(formatJsErrorLine(error));
+    if (line !== null) appendLine(line);
+  } catch {
+    // the record must never replace the crash itself
+  }
 }
 
 /** Install the collector; returns an uninstall for tests. A second install —

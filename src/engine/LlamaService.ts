@@ -115,6 +115,7 @@ import type { EngineOverrideFields } from "./engineParams";
 import { shouldStreamModel } from "./modelGateRAM";
 import { modelAtKvProfile } from "./kvQuantCost";
 import { resolveKvCacheProfile } from "./kvCacheProfile";
+import { resolveUseMlock } from "./mlockPolicy";
 import { resolveLoadPolicy } from "./loadPolicy";
 import {
   createToolCallDeltaStripper,
@@ -2614,7 +2615,8 @@ export function initEngine(
 
     const params: ContextParams = {
       model: modelPath,
-      use_mlock: true,
+      // iOS pins nothing: wired weights count against the jetsam footprint (mlockPolicy.ts).
+      use_mlock: resolveUseMlock(Platform.OS),
       // Per-model load policy (loadPolicy.ts): mmap keeps the weights mapped on
       // file — page-cache backed, kernel-reclaimable. A bench:engine useMmap
       // still wins below (applyEngineOverride overwrites when present).

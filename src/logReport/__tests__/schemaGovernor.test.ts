@@ -218,3 +218,25 @@ describe("KALSA_IOS_BG (iosBackgroundGuard.ts)", () => {
     expect(record("KALSA_IOS_BG", '{"op":"stop"}')).toEqual({});
   });
 });
+
+describe("KALSA_IOS_MEM (iosMemoryGuard.ts)", () => {
+  it("keeps the three ops, with a reason only on skip", () => {
+    expect(record("KALSA_IOS_MEM", '{"op":"release"}')).toEqual({ op: "release" });
+    expect(record("KALSA_IOS_MEM", '{"op":"deferred"}')).toEqual({ op: "deferred" });
+    expect(record("KALSA_IOS_MEM", '{"op":"skip","reason":"remote"}')).toEqual({
+      op: "skip",
+      reason: "remote",
+    });
+    expect(record("KALSA_IOS_MEM", '{"op":"skip","reason":"no-engine"}')).toEqual({
+      op: "skip",
+      reason: "no-engine",
+    });
+  });
+
+  it("drops an op or reason the plan never returns", () => {
+    expect(record("KALSA_IOS_MEM", '{"op":"defer"}')).toEqual({});
+    expect(record("KALSA_IOS_MEM", '{"op":"skip","reason":"because"}')).toEqual({
+      op: "skip",
+    });
+  });
+});
