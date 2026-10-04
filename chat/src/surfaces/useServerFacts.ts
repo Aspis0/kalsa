@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchSamplingDefaultsWithStatus, serverBase } from "../lib/chat";
 import type { SamplingDefaultsStatus } from "../lib/chat";
+import { rememberContextSize } from "../lib/contextSize";
 import type { Modalities } from "../lib/modalities";
 import { NO_MODALITIES } from "../lib/modalities";
 import type { Sampling } from "../lib/sampling";
@@ -10,7 +11,8 @@ import { useBrainState } from "./useBrain";
 /**
  * The server's own facts about the model it is serving, read once and shared:
  * the sampler values it reports, the model's chat template, and whether the
- * model can see — all three from the one `/props` body.
+ * model can see — all from the one `/props` body, whose window is stored on
+ * the way (see below).
  *
  * One road to a fact. The sampling panel reads this for the defaults, the
  * chat's thinking control for the template, and the composer for vision —
@@ -23,6 +25,14 @@ import { useBrainState } from "./useBrain";
  * comes back to `running` under the same endpoint and the same name, so
  * neither input above would ask again — the vision offer's restart is that
  * case, and the projector's arrival is exactly what `/props` then says.
+ *
+ * The same body's window is stored on the way, through the ONE rule
+ * (`contextSize.ts`): `contextSizes` is the chat's per-endpoint cache, and the
+ * endpoint written is THIS read's own, never a later render's — a restarted
+ * engine that changes `n_ctx` heals the cache with its new answer, and a
+ * number is never filed under an endpoint it did not come from. The sample
+ * read is the one that feeds it, so a text-only chat (no attach, no panel)
+ * knows its window without a second GET.
  */
 
 export type FactsStatus = SamplingDefaultsStatus | "loading" | "not-configured";
@@ -53,7 +63,15 @@ const RETRY_FIRST_MS = 1000;
 const RETRY_MAX_MS = 16_000;
 const RETRY_BUDGET_MS = 60_000;
 
-export function useServerFacts(endpoint: string, token: string, model: string): ServerFacts {
+export function useServerFacts(
+  endpoint: string,
+  token: string,
+  model: string,
+  /** When given, the window the same read reports is stored here through the
+      one rule; a surface with no chat window to remember (the sampling panel)
+      omits it and reads the other facts. */
+  contextSizes?: { current: Map<string, number> },
+): ServerFacts {
   const [defaults, setDefaults] = useState<Sampling>(() => blankDefaults());
   const [status, setStatus] = useState<FactsStatus>("not-configured");
   const [chatTemplate, setChatTemplate] = useState("");
@@ -87,6 +105,7 @@ export function useServerFacts(endpoint: string, token: string, model: string): 
         setStatus(result.status);
         setChatTemplate(result.chatTemplate);
         setModalities(result.modalities);
+        if (contextSizes) rememberContextSize(contextSizes.current, endpoint, result.nctx);
         return;
       }
       retry = setTimeout(() => void read(Math.min(delay * 2, RETRY_MAX_MS)), delay);

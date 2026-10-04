@@ -94,6 +94,23 @@ function readComplete(payload: unknown): {
 // ignored (see pickReasoning): never merged into content.
 
 /**
+ * The engine's own answer when a prompt does not fit its window — the only
+ * thing a 400 body is ever read for. llama.cpp's server answers with the
+ * structured `type` and the sentence (upstream added the type in #15780;
+ * this repo's own engine was measured saying "request (4225 tokens) exceeds
+ * the available context size (4096 tokens), try increasing it" —
+ * docs/MULTI-DEVICE-SHAPE.md:129). Matching it is what lets the caller shed
+ * history and ask again; any other 400 stays an ordinary HTTP failure. The
+ * body's words are never logged, shown, or carried in the error.
+ */
+function contextOverflow(body: string): boolean {
+  return (
+    body.includes("exceed_context_size_error") ||
+    body.includes("exceeds the available context size")
+  );
+}
+
+/**
  * One request, streamed to the caller's sinks, reported as a [`Round`].
  * `messages` is the conversation as it stands *for this round* — the loop
  * appends the tool exchange to its own copy between rounds.
@@ -174,7 +191,13 @@ export async function runRound(
     throw new ChatRequestError("unauthorized", "Unauthorized", response.status, url);
   }
   if (!response.ok) {
+    // A 400 may be the engine's own overflow answer, and the two need
+    // different handling: an overflow can shrink and be retried, an ordinary
+    // 400 cannot. Reading the body is the only way to tell them apart, and it
+    // is read for that decision alone.
+    const overflow = response.status === 400 && contextOverflow(await response.text().catch(() => ""));
     finish();
+    if (overflow) throw new ChatRequestError("oversize", "Context exceeded", response.status, url);
     throw new ChatRequestError("http", `HTTP ${response.status}`, response.status, url);
   }
   // A 200 with an empty body is not an error status — it is simply not a

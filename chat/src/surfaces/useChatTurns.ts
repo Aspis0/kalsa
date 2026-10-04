@@ -14,7 +14,7 @@ import { loadThinking } from "../lib/thinking";
 import type { LiveSettings, ToolRun } from "../lib/types";
 import type { ConversationStore } from "../lib/store";
 import { uid } from "../lib/store";
-import { buildPinnedContext } from "../lib/attachments";
+import { buildPinnedContext, CONTEXT_RESERVE_TOKENS, wireSize } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
 import { getImage } from "../lib/imageStore";
 import { blobToDataUrl } from "../lib/images";
@@ -350,6 +350,15 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           token: currentSettings.token,
           model: currentSettings.model,
           messages: history,
+          // The same room `buildPinnedContext` fit this wire to: the window
+          // less the answer's reserve, and the one estimator that measures
+          // it. The tool loop re-checks each follow-up round against both
+          // (`toolLoop.ts`); unknown stays null, and nothing is pruned on a
+          // guess.
+          contextFit:
+            known === null
+              ? null
+              : { budget: Math.max(0, known - CONTEXT_RESERVE_TOKENS), size: wireSize },
           sampling: samplingWire(loadSampling()),
           signal: controller.signal,
           tools: offeredTools(currentSettings.webTools),

@@ -354,6 +354,14 @@ const server = http.createServer((req, res) => {
         return;
       }
       if (model.includes("think-demo")) return streamThink(res, THINK_A, 25, "content");
+      // The engine's own overflow answer, then the same prompt smaller goes
+      // through: the mock refuses by a TRUE window below the /props figure,
+      // the way the engine's real count of a prompt can exceed this side's
+      // chars/4 estimate — so only a client that re-prunes on the refusal
+      // gets an answer, and one that sends the same body again meets the same
+      // 400. `overhard-demo` refuses every prompt, down to the floor.
+      if (model.includes("overcontext-demo")) return streamOverflow(res, bodyPeek, 400);
+      if (model.includes("overhard-demo")) return streamOverflow(res, bodyPeek, 0);
       streamNormal(res, bodyPeek);
     });
     return;
@@ -502,6 +510,52 @@ function toolSequenceProblem(bodyText) {
     }
   }
   return null;
+}
+
+/**
+ * The mock's own window arithmetic, and the answer a real engine gives when a
+ * prompt does not fit its `-c`: HTTP 400 with the structured type and the
+ * sentence, verbatim from the engine (upstream added the type in llama.cpp
+ * #15780; the message is the one measured against this repo's own engine in
+ * docs/MULTI-DEVICE-SHAPE.md:129). Pictures are not used by these scenarios.
+ */
+function estimateWireTokens(bodyText) {
+  let tokens = 0;
+  let messages;
+  try {
+    messages = JSON.parse(bodyText).messages ?? [];
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+  for (const message of messages) {
+    const content = message.content;
+    if (typeof content === "string") tokens += Math.max(1, Math.ceil(content.length / 4));
+    else if (Array.isArray(content)) {
+      for (const part of content) {
+        tokens +=
+          part?.type === "image_url" ? 560 : Math.max(1, Math.ceil(String(part?.text ?? "").length / 4));
+      }
+    }
+    for (const call of message.tool_calls ?? []) {
+      tokens += Math.max(1, Math.ceil(String(call?.function?.arguments ?? "").length / 4));
+    }
+  }
+  return tokens;
+}
+
+function streamOverflow(res, bodyText, windowTokens) {
+  const prompt = estimateWireTokens(bodyText);
+  if (prompt <= windowTokens) return streamNormal(res, bodyText);
+  res.writeHead(400, { "Content-Type": "application/json", ...CORS });
+  res.end(
+    JSON.stringify({
+      error: {
+        code: 400,
+        message: `request (${prompt} tokens) exceeds the available context size (${windowTokens} tokens), try increasing it`,
+        type: "exceed_context_size_error",
+      },
+    }),
+  );
 }
 
 function refuseWire(res, problem) {

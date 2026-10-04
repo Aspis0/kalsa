@@ -1,6 +1,7 @@
 import { ChatRequestError, completionsUrl } from "./chat";
-import type { StreamOptions, ToolPhrases } from "./chat";
+import type { StreamOptions, ToolPhrases, WireMessage } from "./chat";
 import { runRound } from "./streamRound";
+import type { Round } from "./streamRound";
 import { readArguments } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
 import type { ToolRun } from "./types";
@@ -47,6 +48,29 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   const url = completionsUrl(options.endpoint);
   const conversation = [...options.messages];
   const toolRounds = tools.length > 0 && runTool ? MAX_TOOL_ROUNDS : 0;
+  // The token room the wire may spend, when the caller knows the window: the
+  // engine's size less the answer's own reserve, which is what the first wire
+  // was built to fit. Round 0 is already fit by the caller; the rounds after
+  // it are this loop's to check, because the tool exchange grows the
+  // conversation after that fit was answered.
+  const fit = options.contextFit ?? null;
+
+  // One round, with the engine's refusal-for-size handled the way the Room
+  // handles it (crates/kalsa-door/src/room/turn.rs:364): shed the older half
+  // of the history and ask again, down to the current turn alone. Only an
+  // overflow is retried — every other failure, and an overflow with nothing
+  // left to shed, leaves as it came, and the caller shows the oversize
+  // sentence for that one.
+  async function askRound(toolChoice: "auto" | "none", hideInventedCalls: boolean): Promise<Round> {
+    for (;;) {
+      try {
+        return await runRound(options, conversation, tools, toolChoice, hideInventedCalls);
+      } catch (error) {
+        if (!(error instanceof ChatRequestError) || error.kind !== "oversize") throw error;
+        if (!shedOlderHalf(conversation)) throw error;
+      }
+    }
+  }
 
   let forceWords = false;
   for (let round = 0; round <= toolRounds; round += 1) {
@@ -55,13 +79,17 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // a silent model for words can be answering "show me the tags", and eating
     // that is how the answer disappeared in the first place.
     const hideInventedCalls = tools.length > 0 && round >= toolRounds;
-    const answered = await runRound(
-      options,
-      conversation,
-      tools,
-      last ? "none" : "auto",
-      hideInventedCalls,
-    );
+    // The current turn's own tool results stay: a page the model reads in a
+    // silently truncated form is worse than a smaller window, so only the
+    // history before this turn's last user message falls. The engine remains
+    // the authority on what fits — this only spares the round trip when the
+    // estimator already knows the answer.
+    if (round > 0 && fit !== null) {
+      while (fit.size(conversation) > fit.budget && shedOlderHalf(conversation)) {
+        // Each pass re-measures what is left.
+      }
+    }
+    const answered = await askRound(last ? "none" : "auto", hideInventedCalls);
     // The server numbers its calls per response, so round two can hand back the
     // id round one used. The transcript replaces a run by id and the wire pairs
     // a result to its call by id, so an id has to be unique for the whole turn:
@@ -159,6 +187,36 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       conversation.push({ role: "tool", content: results[index], tool_call_id: call.id });
     });
   }
+}
+
+/**
+ * The working conversation shrinks when the engine refuses the prompt as too
+ * large: the older half of the history before this turn's last user message
+ * goes, so the current turn and its own tool results are never the thing
+ * dropped. The Room's recovery halves its budget the same way
+ * (crates/kalsa-door/src/room/turn.rs:364); here the unit is a message.
+ *
+ * A cut through a tool exchange would leave a `tool` message whose
+ * `assistant` tool_calls is gone — a malformed request, refused for the wrong
+ * reason — so the cut backs up to the exchange's first message: the whole
+ * exchange leaves or stays. False means there is nothing left to shed: the
+ * newest user message alone is the floor, and a prompt that cannot fit it
+ * cannot shrink.
+ */
+function shedOlderHalf(conversation: WireMessage[]): boolean {
+  let lastUser = -1;
+  for (let at = conversation.length - 1; at >= 1; at -= 1) {
+    if (conversation[at].role === "user") {
+      lastUser = at;
+      break;
+    }
+  }
+  if (lastUser <= 1) return false;
+  let drop = Math.max(1, Math.floor((lastUser - 1) / 2));
+  while (drop > 0 && conversation[1 + drop]?.role === "tool") drop -= 1;
+  if (drop === 0) return false;
+  conversation.splice(1, drop);
+  return true;
 }
 
 /**

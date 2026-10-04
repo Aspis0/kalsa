@@ -97,6 +97,14 @@ export interface StreamOptions {
   /** The reader's thinking choice for this model: `false` asks the model's own
       template not to think. `undefined` leaves it to the template. */
   thinking?: boolean;
+  /** The window's own room, when it is known: the token budget the wire may
+      spend and the estimator that measures it (`attachments.ts` → `wireSize`
+      in the app). The tool loop re-checks its growing conversation against
+      both before each follow-up round; `null` or absent means unknown, and
+      nothing is pruned. Injected, not imported, because the estimator lives
+      beside the attachment code the tool loop has no business pulling in —
+      the same reason `runTool` is a parameter. */
+  contextFit?: { budget: number; size: (messages: WireMessage[]) => number } | null;
   /** The sentences a tool round can end in, in the owner's language. They are
       both shown and sent back as the call's answer, so the model reads them
       too. Absent means English. */
@@ -348,6 +356,12 @@ export interface SamplingDefaultsResult {
   /** What the served model can receive, from the same `/props` body — all
       false unless the engine said so (see `modalities.ts`). */
   modalities: Modalities;
+  /** The window the same body reports, through the ONE parse
+      (`contextSize.ts` → `parseContextSize`): the chat's send-time fit reads
+      this so a text-only chat knows the size without an attach ever asking.
+      Anything missing or unreadable is `null` — unknown, never an invented
+      limit. */
+  nctx: number | null;
 }
 
 function blankSampling(): Sampling {
@@ -368,30 +382,31 @@ export async function fetchSamplingDefaultsWithStatus(
       signal: controller.signal,
       ...(cleanToken ? { headers: { Authorization: `Bearer ${cleanToken}` } } : {}),
     });
-    if (!response.ok) return { values: defaults, status: "refused", chatTemplate: "", modalities: NO_MODALITIES };
+    if (!response.ok) return { values: defaults, status: "refused", chatTemplate: "", modalities: NO_MODALITIES, nctx: null };
     const data: unknown = await response.json();
     if (typeof data !== "object" || data === null) {
-      return { values: defaults, status: "invalid", chatTemplate: "", modalities: NO_MODALITIES };
+      return { values: defaults, status: "invalid", chatTemplate: "", modalities: NO_MODALITIES, nctx: null };
     }
+    const nctx = parseContextSize(data);
     const modalities = parseModalities(data);
     const template = (data as { chat_template?: unknown }).chat_template;
     const chatTemplate = typeof template === "string" ? template : "";
     const settings = (data as { default_generation_settings?: unknown }).default_generation_settings;
     if (typeof settings !== "object" || settings === null) {
-      return { values: defaults, status: "invalid", chatTemplate, modalities };
+      return { values: defaults, status: "invalid", chatTemplate, modalities, nctx };
     }
     const params = (settings as { params?: unknown }).params;
     if (typeof params !== "object" || params === null) {
-      return { values: defaults, status: "invalid", chatTemplate, modalities };
+      return { values: defaults, status: "invalid", chatTemplate, modalities, nctx };
     }
     const values = params as Record<string, unknown>;
     for (const { wire } of SAMPLING_KNOBS) {
       const value = values[wire];
       defaults[wire] = typeof value === "number" && Number.isFinite(value) ? value : null;
     }
-    return { values: defaults, status: "reported", chatTemplate, modalities };
+    return { values: defaults, status: "reported", chatTemplate, modalities, nctx };
   } catch {
-    return { values: defaults, status: "unavailable", chatTemplate: "", modalities: NO_MODALITIES };
+    return { values: defaults, status: "unavailable", chatTemplate: "", modalities: NO_MODALITIES, nctx: null };
   } finally {
     clearTimeout(timer);
   }

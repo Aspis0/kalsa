@@ -4157,7 +4157,222 @@ const tests = {
     check("walkProgress: no average means no share", tuneShare(at(1, 4, 2), 50, 0) === 0);
   },
 
+  // The window reaches the send even when nothing was ever attached: the
+  // shell's own /props read fills the cache, so a text-only chat on the tight
+  // window prunes its oldest turns with no attach and no panel open — the
+  // road that used to leave the size unknown and send the whole history.
+  // Arithmetic (estTokens = ceil(chars/4), the prompt's 78, and the 1 every
+  // message pays for its empty reasoning): 20 turns of 98 chars are 26 each;
+  // 20*26 + 25 + 78 = 623, and 623 + 512 > 1024, so the five oldest turns
+  // fall before the wire fits at 493.
+  async textprune() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const messages = [];
+    for (let i = 0; i < 20; i++) {
+      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(94)}`, createdAt: i });
+    }
+    await seedHomeChat(page, { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" }, [
+      { id: "tp", title: "Text only", createdAt: 1, updatedAt: 1, messages },
+    ]);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Text only");
+    // Nothing is attached and the panel is never opened: this send must
+    // still know the window.
+    check("textprune: no chip, no panel", (await page.locator(".panel-row").count()) === 0);
+    await page.getByRole("textbox", { name: "Message" }).fill(`And now the last question, with words enough to matter. ${"z".repeat(40)}`);
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    try {
+      await page.waitForFunction(
+        () => document.querySelector(".thread")?.textContent?.includes("line is open"),
+        null,
+        { timeout: 20000 },
+      );
+    } catch {
+      check("textprune: answered", false, "wait timed out");
+    }
+    const body = await lastBody(page);
+    const wire = JSON.stringify(body?.messages ?? []);
+    check("textprune: the answer arrived", ((await page.locator(".thread").textContent()) ?? "").includes("line is open"));
+    check("textprune: the oldest turns fell", !wire.includes("Q00") && !wire.includes("Q04"), wire.slice(0, 120));
+    check("textprune: the newest stayed", wire.includes("Q05") && wire.includes("Q19"));
+    await browser.close();
+  },
+
+  // The engine's own overflow answer, and the recovery: the mock refuses any
+  // prompt over 400 estimated tokens while /props says 1024, so the first
+  // request is refused and the turn only lands after the app sheds the older
+  // half of the history and asks again. The reader sees the answer, not the
+  // generic retry sentence. Arithmetic: 13 turns of 94 chars are 25 each;
+  // app 13*25 + 35 + 78 = 438 fits its 1024 window, the mock reads 424 > 400
+  // and refuses, and one halving leaves 7*25 + 35 + 78 = 288.
+  async overflowrecover() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const messages = [];
+    for (let i = 0; i < 13; i++) {
+      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(90)}`, createdAt: i });
+    }
+    await seedHomeChat(page, { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "overcontext-demo" }, [
+      { id: "oc", title: "Overflow", createdAt: 1, updatedAt: 1, messages },
+    ]);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Overflow");
+    await resetMock(page);
+    const asked = `One more thing about the whole story so far, if you would, with all the detail you can hold in one answer at once. ${"w".repeat(20)}`;
+    await page.getByRole("textbox", { name: "Message" }).fill(asked);
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    try {
+      await page.waitForFunction(
+        () => document.querySelector(".thread")?.textContent?.includes("line is open"),
+        null,
+        { timeout: 20000 },
+      );
+    } catch {
+      check("overflowrecover: the retry answered", false, "wait timed out");
+    }
+    const bodies = await allBodies(page);
+    check("overflowrecover: refused once, then answered", bodies.length === 2, String(bodies.length));
+    const first = JSON.stringify(bodies[0]?.messages ?? []);
+    const second = JSON.stringify(bodies[1]?.messages ?? []);
+    check("overflowrecover: the refused first carried the old turns", first.includes("Q00"));
+    check("overflowrecover: the retry shed them", !second.includes("Q00") && second.includes("Q12") && second.includes("detail you can hold"));
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("overflowrecover: the answer is in the thread", thread.includes("line is open"));
+    check("overflowrecover: no generic retry text", !thread.includes("Wait a moment, then try again"), thread.slice(0, 120));
+    check("overflowrecover: no oversize text", !thread.includes("too much for Kalsa at once"));
+    await browser.close();
+  },
+
+  // A refusal standing still cannot fix: the same overflow answer for every
+  // prompt, down to the newest message alone. Once the halving reaches the
+  // floor, the thread must say the turn is too much — never the generic
+  // retry sentence.
+  async overflowfloor() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const messages = [];
+    for (let i = 0; i < 3; i++) {
+      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(90)}`, createdAt: i });
+    }
+    await seedHomeChat(page, { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "overhard-demo" }, [
+      { id: "of", title: "Floor", createdAt: 1, updatedAt: 1, messages },
+    ]);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Floor");
+    await resetMock(page);
+    await page.getByRole("textbox", { name: "Message" }).fill(`A short question. ${"v".repeat(60)}`);
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    try {
+      await page.waitForFunction(
+        () => document.querySelector(".thread")?.textContent?.includes("too much for Kalsa at once"),
+        null,
+        { timeout: 20000 },
+      );
+    } catch {
+      check("overflowfloor: oversize arrived", false, "wait timed out");
+    }
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("overflowfloor: oversize said aloud", thread.includes("too much for Kalsa at once"), thread.slice(0, 160));
+    check("overflowfloor: never the generic retry text", !thread.includes("Wait a moment, then try again"), thread.slice(0, 160));
+    const bodies = await allBodies(page);
+    const last = bodies.at(-1)?.messages ?? [];
+    check(
+      "overflowfloor: shed down to the newest message",
+      bodies.length === 4 && last.length === 2 && last[0]?.role === "system" && last[1]?.role === "user",
+      JSON.stringify(last.map((m) => m.role)),
+    );
+    await browser.close();
+  },
+
+  // The tool loop's own fit, checked before the follow-up round that carries
+  // the tool exchange: the same budget the first wire was built to, and the
+  // history it no longer needs falls before the request leaves. The mock
+  // answers an over-budget round either way, so the wire is the only witness —
+  // without the check the second body still carries the turns the first was
+  // already at the edge with.
+  async toolfit() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    const messages = [];
+    for (let i = 0; i < 20; i++) {
+      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(94)}`, createdAt: i });
+    }
+    await seed(page, {
+      settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "tools-demo" },
+      convos: [{ id: "tf", title: "Tool fit", createdAt: 1, updatedAt: 1, messages }],
+    });
+    // A search big enough that the round carrying its result overruns the
+    // tight window's budget even though the first wire fit it.
+    await stubDoor(page, { search: `${LISBON} ${"x".repeat(300)}` });
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await openSidebar(page, "Tool fit");
+    await resetMock(page);
+    await sendAndWait(page, "What is the weather in Lisbon this weekend?", "mild");
+    const bodies = await allBodies(page);
+    const first = JSON.stringify(bodies[0]?.messages ?? []);
+    const second = JSON.stringify(bodies.at(-1)?.messages ?? []);
+    check("toolfit: two rounds", bodies.length === 2, String(bodies.length));
+    check("toolfit: the first round carried the older turns", first.includes("Q05"));
+    check("toolfit: the follow-up round shed them", !second.includes("Q05") && second.includes("Q19"), second.slice(0, 120));
+    check("toolfit: the tool's words still ride", second.includes("Lisbon weekend forecast"));
+    await browser.close();
+  },
+
 };
+
+/**
+ * The home the appended cases need. The shared `seed` answers `brain_state`
+ * and the credential, but BrainSurface also asks `brain_capability` and stays
+ * blank without it (the pre-existing harness gap declared in `efc338d3`), so
+ * these cases answer that read too — measured and chosen, so the home renders
+ * its bar and the chat is one click away. Nothing the cases assert passes
+ * through it.
+ */
+const HOME_CAPABILITY = {
+  kind: "measured",
+  chosen: true,
+  machine: {
+    ram_bytes: 17 * 1024 ** 3,
+    budget_bytes: 12.75 * 1024 ** 3,
+    gpu_accounted_for: true,
+    runs_on: "the graphics chip",
+    bandwidth_bytes_per_second: 110e9,
+    bandwidth_basis: "chip",
+  },
+  model: {
+    id: "0f3e5d7c9b1a2468",
+    name: "Test",
+    quant: "Q8_0",
+    weights_bytes: 2874779648,
+    context_tokens: 32768,
+    speed_context_tokens: 8192,
+    speed: { shape: "range", low: 12, high: 21 },
+    measured: null,
+  },
+  quicker: null,
+  refusal: null,
+};
+
+/** Wraps whatever Tauri stub the page already has so the home's capability
+    read answers; every other command keeps its own stub's answer. */
+function answerCapabilityInit(capability) {
+  const core = window.__TAURI__ && window.__TAURI__.core;
+  if (!core) return;
+  const base = core.invoke;
+  core.invoke = (command, args) =>
+    command === "brain_capability" ? Promise.resolve(capability) : base(command, args);
+}
+
+async function seedHomeChat(page, settings, convos = []) {
+  await seed(page, { settings, convos });
+  await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+}
 
 /**
  * A model the shared mock cannot script: this test's own tool calls and

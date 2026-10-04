@@ -442,6 +442,30 @@ export function wireTokens(messages: ChatMessage[], vision = false): number {
   return historyTokens(messages) + estTokens(promptBytes(vision));
 }
 
+/**
+ * What a built wire spends, for the tool loop's own fit check between rounds.
+ * The same estimator as the stored shapes (`estTokens`), read back at the
+ * shapes `buildPinnedContext` produced: a picture part costs IMAGE_TOKENS
+ * whatever its data URI's length, and a tool call's arguments count where they
+ * ride.
+ */
+export function wireSize(messages: WireMessage[]): number {
+  return messages.reduce((sum, message) => sum + wireMessageTokens(message), 0);
+}
+
+function wireMessageTokens(message: WireMessage): number {
+  let tokens = 0;
+  if (typeof message.content === "string") {
+    tokens += estTokens(message.content);
+  } else {
+    for (const part of message.content) {
+      tokens += part.type === "image_url" ? IMAGE_TOKENS : estTokens(part.text);
+    }
+  }
+  for (const call of message.tool_calls ?? []) tokens += estTokens(call.function.arguments);
+  return tokens;
+}
+
 /** The pinned-documents text, for the tail of the one system message: the
     block, then one section per document. */
 function docBlockText(docs: Attachment[]): string {

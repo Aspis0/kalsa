@@ -239,11 +239,13 @@ export function useChat(shell: ChatShell) {
   // (`useServerFacts`) — the sampler panel reads the same fact the same way.
   // The same body says what the model can receive: vision gates every image
   // road below, and the read follows the model (`useServerFacts` re-asks when
-  // it changes).
+  // it changes). The same answer fills the context cache above, so the send's
+  // fit knows the window even in a chat that never attached anything.
   const { chatTemplate, modalities } = useServerFacts(
     effectiveSettings.endpoint,
     effectiveSettings.token,
     effectiveSettings.model,
+    nctxCache,
   );
   const vision = modalities.vision;
   // The projector offer: what the brain has on the shelf, the ask, the
