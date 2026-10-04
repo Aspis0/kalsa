@@ -1129,6 +1129,16 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   only; caps image 4 MiB, video 100 MiB, room 2 GiB (room_media_full); video compressed by the sender to ~720p H.264
   ~2 Mbps + AAC (react-native-compressor) with up to 4 still frames uploaded as images in `frames`.
   Order: after the iOS background fix lands: (1) 1:1 images, (2) Room images, (3) Room video.
+  **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
+  pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
+  `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
+  "background" with a local send in flight -> abort via the send's AbortController (partial kept, interrupted); any
+  local native work / chat load in flight -> context marked poisoned (epoch); poisoned KV never saved
+  (shouldSaveSession kv_poisoned); on "active" and in the ensure path a poisoned context is released and reloaded
+  fresh; prewarm skips it; a fresh initEngine clears the mark. Android unchanged (plan gated on Platform.OS).
+  Writer deepseek (Coder), reviews luna x2 (db7af22b, 9a5fa3ee); P1s fixed, rare cases in BACKLOG. Simulator check:
+  background mid-answer stopped it, next local message answered "ok" (the Simulator may not enforce the GPU ban;
+  the real Metal failure needs an iPhone). Pre-push: npm ci, provenance, harness block, targeted jest 106 - all 0.
   **Apple Foundation Models measured 2026-10-03 (M1 Max, macOS 26.6.2; `ios-engine-choice/REPORT.md` AFM section):**
   contextSize 4096 total; decode ~33-46 tok/s, TTFT 0.5-0.7 s short / ~7 s on long prompts; no refusals. Quality: IT
   and ES grammar slips, ZH code-switches to English, 3-turn chat degrades (hallucination), reasoning cell correct.

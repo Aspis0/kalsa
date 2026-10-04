@@ -825,6 +825,7 @@ Doorless iroh pairing landed on app main f4f3696c (2026-10-03): scan/tap pairs o
 iOS sim <-> Mac Brain over iroh 2026-10-03: LIVE PASS - paired (owner Allow) and one chat answered by the Brain, all roads iroh.
 iOS threads 2026-10-03: with full Metal offload 1/2/4 threads give the same decode (118/123/122 tok/s, Mac) - no change.
 Owner 2026-10-03: phone sends images (1:1 with PC) and images+video (Room) over iroh; on-device model text-only until after alpha.
+iOS background generation landed on app main 30038004 (2026-10-04): stop + release the Metal-poisoned context, no poisoned KV saved.
 Apple FM 2026-10-03: 4k context, ~35-46 tok/s, weaker IT/ES/ZH and multi-turn than needed -> optional fallback at most.
 S23 2026-10-01: the governor runs prefill on NPU, GPU and CPU in the app (APK 07476dae), all arms PASS, AUTO
 picks NPU; NPU 171 vs GPU 115 vs CPU 22 tok/s prefill on short prompts; heat is the limit. Audit pending.
