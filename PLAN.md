@@ -1129,6 +1129,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   only; caps image 4 MiB, video 100 MiB, room 2 GiB (room_media_full); video compressed by the sender to ~720p H.264
   ~2 Mbps + AAC (react-native-compressor) with up to 4 still frames uploaded as images in `frames`.
   Order: after the iOS background fix lands: (1) 1:1 images, (2) Room images, (3) Room video.
+  **Owner 2026-10-04: the phone has NO Room screen** (src/room/ is only the protocol layer P1-P4: api, stream, queue;
+  nothing mounts it). Order approved: (1) finish 1:1 images, (2) phone Room screen TEXT-ONLY (join the PC's room,
+  name yourself, members, messages, post; contract kalsa-brain docs/ROOM-PROTOCOL.md, desktop Room UI as prior art),
+  (3) Room images, (4) Room video.
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
