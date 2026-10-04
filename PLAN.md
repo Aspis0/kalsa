@@ -1147,6 +1147,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   with its history, including ones attached while the phone model answered. Reason: the person sees the photo in
   the chat and expects the PC to know it; the text of those turns already goes; the PC is their own paired one;
   pictures ride only when the desk sees and always EXIF-stripped. Document/PDF pages never ride.
+  **iOS performance track (owner 2026-10-04: smooth, low RAM, never crashes).** Recon luna bb728e4f ->
+  scratchpad/agents/ios-perf/RECON.md. Batch 1 (Coder, branch ios/perf-1): memoryWarning -> release the idle local
+  context (deferred while generating), mlock off on iOS only (pins GBs of wired memory = jetsam risk), root error
+  boundary. Batch 2 after measuring: transcript is a non-virtualized ScrollView and the 33 ms coalescer re-renders
+  it per token. Simulator/Mac numbers are not iPhone numbers; jetsam needs a real device (partner 15 Pro, ask).
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
