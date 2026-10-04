@@ -66,3 +66,8 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P2 copy: a turn the iOS guard stopped on background shows "Stopped by you" (shell.phase.stoppedByUser, chosen from
   the persisted `interrupted` flag in messageMapper/composerState). Needs a persisted interruption cause + 5-language
   copy ("Stopped when Kalsa left the screen"). Seen live on the Simulator 2026-10-04.
+- Re-audit luna 9a5fa3ee (fix round eb7935b3), rare cases not fixed: (a) prewarm gap between its isActive check
+  (LlamaService ~1097) and the job enqueue (~1152) can cross background unmarked; (b) releaseLocalContext waits
+  unbounded on waitForInFlightChatLoad / a hung native-op FIFO (no "withheld" then); (c) a CPU-only embed op in the
+  shared native-op FIFO marks the CHAT context -> one needless chat reload after an app switch; (d) duplicate "active"
+  events can queue duplicate releases, and a release after another owner's dispose can report "released".
