@@ -176,3 +176,11 @@ KLD identical to the last digit. Gate G PASS:** the NPU reads the shared tiled c
 Per-op check (profiled, debug skel): blk.5.ffn_gate 659 vs 658 us, ffn_down 431 vs 430 us.
 Not measured here: memory saving (max RSS does not count dma-buf: A 287 MB, B 294 MB) - step 2 measures PSS
 and dma-buf.
+
+## Step 0 check: shared tile header (engine `474ca75fe`, `raw/session4-step0-474ca75fe.grep`, S23 unplugged)
+
+`ggml/src/ggml-q4_0-tile32.h` (layout constants, packer, scalar ref dot); Hexagon calls it; host test byte-identical
+to the old packer on 8 shapes + IQ4_NL (`cc777fd12`, luna audit c9af7460: no byte difference; release skel hash
+unchanged `61c8d6f5...` after the 576 -> named constant). Same ABBA script as gate G (binaries `d2738237...`,
+`b80e4324...`): A 897.87 / 22.68, B 892.80 / 22.57, B2 893.67 / 22.36, A2 892.64 / 22.62 (pp512 / tg128); B/A pp
+0.998, tg 0.992; KLD 0.005313 all four. NPU numbers unchanged: step 0 PASS.

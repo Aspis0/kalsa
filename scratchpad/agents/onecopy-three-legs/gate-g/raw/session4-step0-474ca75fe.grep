@@ -1,0 +1,28 @@
+== gate-G session start Sun Oct  4 17:03:49 EDT 2026 [lvl=66 ac=false usb=false wl=false batT=303 skin=30.0 wake=Awake thermal=0 traced=0]
+proof A: exit=0/0 HOST-REPACK=0 (0 bytes) HTP0-HOST-buf=0 splits=2 mm=kern-tiled:3993 flat:0 hmx-mm-2d=249 load=3736.00ms errors=[] [lvl=66 ac=false usb=false wl=false batT=303 skin=30.5 wake=Awake thermal=0 traced=0]
+proof A: hmx-mm-2d: m 512 k 2048 n 6144 wtype 2 mc 512 nc 480 vtcm 8243200/8388608
+proof A: PASS
+proof B: exit=0/0 HOST-REPACK=166 (1369571328 bytes) HTP0-HOST-buf=1 splits=2 mm=kern-tiled:3993 flat:0 hmx-mm-2d=237 load=3509.65ms errors=[] [lvl=66 ac=false usb=false wl=false batT=297 skin=30.9 wake=Awake thermal=0 traced=0]
+proof B: hmx-mm-2d: m 512 k 2048 n 6144 wtype 2 mc 512 nc 480 vtcm 8243200/8388608
+proof B: PASS
+== A bench start 1791147990 [lvl=66 ac=false usb=false wl=false batT=297 skin=30.7 wake=Awake thermal=0 traced=0]
+A bench: exit=0 pp512=897.87 tg128=22.68 maxRSS=287288kB errors=0
+== A kld start 1791148107 [lvl=65 ac=false usb=false wl=false batT=316 skin=31.3 wake=Awake thermal=0 traced=0]
+A kld: exit=0 meanKLD=0.005313 errors=0
+A kld sig: Mean PPL(Q)                   :  33.994233 ±   5.169415;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   1.051248 ±   0.006721;Mean PPL(Q)-PPL(base)         :   1.657202 ±   0.364124;Mean    KLD:   0.005313 ±   0.000383;Maximum KLD:   0.094590;Same top p: 97.059 ± 0.749 %;
+== B bench start 1791148248 [lvl=64 ac=false usb=false wl=false batT=327 skin=32.9 wake=Awake thermal=0 traced=0]
+B bench: exit=0 pp512=892.80 tg128=22.57 maxRSS=294268kB errors=0
+== B kld start 1791148365 [lvl=64 ac=false usb=false wl=false batT=328 skin=32.9 wake=Awake thermal=0 traced=0]
+B kld: exit=0 meanKLD=0.005313 errors=0
+B kld sig: Mean PPL(Q)                   :  33.994233 ±   5.169415;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   1.051248 ±   0.006721;Mean PPL(Q)-PPL(base)         :   1.657202 ±   0.364124;Mean    KLD:   0.005313 ±   0.000383;Maximum KLD:   0.094590;Same top p: 97.059 ± 0.749 %;
+== B2 bench start 1791148597 [lvl=63 ac=false usb=false wl=false batT=332 skin=33.0 wake=Awake thermal=0 traced=0]
+B2 bench: exit=0 pp512=893.67 tg128=22.36 maxRSS=294336kB errors=0
+== B2 kld start 1791148743 [lvl=62 ac=false usb=false wl=false batT=336 skin=33.1 wake=Awake thermal=0 traced=0]
+B2 kld: exit=0 meanKLD=0.005313 errors=0
+B2 kld sig: Mean PPL(Q)                   :  33.994233 ±   5.169415;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   1.051248 ±   0.006721;Mean PPL(Q)-PPL(base)         :   1.657202 ±   0.364124;Mean    KLD:   0.005313 ±   0.000383;Maximum KLD:   0.094590;Same top p: 97.059 ± 0.749 %;
+== A2 bench start 1791149035 [lvl=61 ac=false usb=false wl=false batT=329 skin=32.9 wake=Awake thermal=0 traced=0]
+A2 bench: exit=0 pp512=892.64 tg128=22.62 maxRSS=287296kB errors=0
+== A2 kld start 1791149181 [lvl=61 ac=false usb=false wl=false batT=333 skin=33.0 wake=Awake thermal=0 traced=0]
+A2 kld: exit=0 meanKLD=0.005313 errors=0
+A2 kld sig: Mean PPL(Q)                   :  33.994233 ±   5.169415;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   1.051248 ±   0.006721;Mean PPL(Q)-PPL(base)         :   1.657202 ±   0.364124;Mean    KLD:   0.005313 ±   0.000383;Maximum KLD:   0.094590;Same top p: 97.059 ± 0.749 %;
+== gate-G session end Sun Oct  4 17:28:10 EDT 2026 [lvl=60 ac=false usb=false wl=false batT=349 skin=34.8 wake=Awake thermal=0 traced=0]
