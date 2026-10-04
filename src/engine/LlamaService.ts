@@ -521,29 +521,45 @@ let disposing = false;
 let contextHung = false;
 
 /**
- * True while the resident context's GPU state is known-broken: an iOS
- * suspension latches `has_error` inside ggml-metal, and only a newly created
- * context clears it. Set by the iOS background guard
- * (`src/host/iosBackgroundGuard.ts`), cleared when that context is released.
- * While it is set the context's KV is never written to disk
- * (`shouldSaveSession` in sessionPersistence.ts) — a cache whose compute path
- * is broken must not outlive the context it was decoded on.
+ * Epoch of the current "the resident context's GPU state is known-broken"
+ * mark, 0 when unmarked: an iOS suspension latches `has_error` inside
+ * ggml-metal, and only a newly created context clears it. Set by the iOS
+ * background guard (`src/host/iosBackgroundGuard.ts`), cleared when that
+ * context is released or replaced by a fresh `initEngine`. While it is set the
+ * context's KV is never written to disk (`shouldSaveSession` in
+ * sessionPersistence.ts) — a cache whose compute path is broken must not
+ * outlive the context it was decoded on.
  */
-let contextPoisoned = false;
+let contextPoisonEpoch = 0;
+/**
+ * Monotonic source for the epochs above. Never reset, so a mark can never
+ * reuse an epoch after a clear: a release holds the epoch it started with and
+ * must not clear a later suspension's mark.
+ */
+let contextPoisonSeq = 0;
 
-/** Mark the resident context as GPU-poisoned; see `contextPoisoned`. */
+/** Mark the resident context as GPU-poisoned; see `contextPoisonEpoch`. */
 export function markContextPoisoned(): void {
-  contextPoisoned = true;
+  contextPoisonEpoch = ++contextPoisonSeq;
 }
 
 /** Whether the resident context's GPU state is known-broken. */
 export function isContextPoisoned(): boolean {
-  return contextPoisoned;
+  return contextPoisonEpoch !== 0;
+}
+
+/**
+ * The epoch of the current mark (0 = unmarked). A release reads it before its
+ * first await and clears only while it is unchanged, so a second suspension's
+ * mark survives the first suspension's release.
+ */
+export function contextPoisonMark(): number {
+  return contextPoisonEpoch;
 }
 
 /** The poisoned context is gone (released): the next load builds a fresh one. */
 export function clearContextPoison(): void {
-  contextPoisoned = false;
+  contextPoisonEpoch = 0;
 }
 
 /**
@@ -2775,6 +2791,11 @@ export function initEngine(
       } else {
         context = await initLlama(params);
       }
+      // A freshly created context has a clean ggml-metal `has_error`, whatever
+      // the suspension did to the previous one: the mark dies with the context
+      // it described. This also self-heals a mark whose "active" release never
+      // finished (the poisoned KV stays unwritten until here).
+      clearContextPoison();
       // Which .so actually loaded. RNLlama.java tries the CPU-feature variants
       // in order and tryLoadLibrary swallows UnsatisfiedLinkError silently, so
       // a phone can quietly run a different kernel than the one being measured
@@ -3513,7 +3534,7 @@ export async function saveEngineSession(
         kvHoldsChatSession,
         kvReproducible: kvReproState.reproducible,
         kvDivergesAtLastExchange: kvReproState.divergesAtLastExchange,
-        kvPoisoned: contextPoisoned,
+        kvPoisoned: isContextPoisoned(),
       });
       if (!gate.save) {
         log(false, { reason: gate.reason ?? "no_context" });

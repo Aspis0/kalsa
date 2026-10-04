@@ -12,6 +12,9 @@ export interface ForegroundPrewarmSnapshot {
   tools?: EngineTool[];
   engineReady: boolean;
   activeModelId: string | null;
+  /** The resident context's GPU state is broken (iOS suspension): a prefill on
+   *  it would fail, and the background guard is about to release it. */
+  enginePoisoned: boolean;
 }
 
 export interface ForegroundPrewarmPorts {
@@ -30,6 +33,12 @@ export function subscribeForegroundPrewarm(ports: ForegroundPrewarmPorts): () =>
     void (async () => {
       const current = ports.read();
       if (current.remote) return;
+      // The suspension latched the resident context's Metal state: the prefill
+      // below would run on it and fail, and the guard is about to release it.
+      if (current.enginePoisoned) {
+        ports.logSkip("poisoned");
+        return;
+      }
       if (current.thermalBlocked) {
         ports.logSkip("thermal_gate");
         return;

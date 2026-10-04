@@ -193,10 +193,11 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
       "empty_prompt",
       "fail",
       "prefix_miss",
-      // foregroundPrewarm.ts:34-45
+      // foregroundPrewarm.ts:36-55
       "thermal_gate",
       "no_model",
       "model_changed",
+      "poisoned",
       // snapshot restore/save outcomes, staticPrefixSnapshot.ts:126-179, :204-320
       // (the composites meta_mismatch:<field> and tokens_loaded:0 do not pass)
       "no_session_key",

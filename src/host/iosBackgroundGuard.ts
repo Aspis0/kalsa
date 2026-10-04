@@ -2,50 +2,39 @@
  * The iOS half of the local engine lifecycle: stop the send the phone's
  * suspension is about to break, mark the context that suspension poisons, and
  * release that context once the app is back. `src/app/iosBackgroundPlan.ts`
- * holds the decisions; this file holds the reads, the release and the log line.
+ * holds the decisions; this file holds the reads, the wiring and the log line.
  *
  * The stop aborts the send's own AbortController — the signal the stop handler
  * aborts (`sendStop.ts:76`) and the same bridge the idle discard aborts through
  * (`foregroundIdle.idleDiscardAbortRef`). The send classifies its result off
  * that signal, so the partial is kept and marked interrupted exactly as a user
  * Stop leaves it, while the mark keeps that dead context's KV off disk
- * (`shouldSaveSession`, `LlamaService.contextPoisoned`).
+ * (`shouldSaveSession`, `LlamaService.isContextPoisoned`).
  *
  * The release waits out a load another owner holds (`loadSettle`, the same
  * machinery the send path uses): that load is building the very context the
  * suspension poisoned, so it has to exist before it can be released. The
- * dispose itself is the idle discard's own sequence
- * (`foregroundIdle.ts:162-188`): dispose through the native-op FIFO, reset the
- * boot history hash so the reload cannot compare a stale H0 against the .kvs,
- * release the chat slot the disposed context held. The reload needs no code
- * here — the ensure path every send already runs reloads a disposed engine.
+ * release itself is `./poisonedContext.ts` — the same one the ensure path runs
+ * when a turn arrives before the guard's "active" does; the reload needs no
+ * code here, the ensure path every send already runs reloads a released engine.
  */
 import { useEffect, useState } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import {
   iosBackgroundMarkAfterRelease,
   iosBackgroundPlan,
-  type LocalReleaseOutcome,
 } from "../app/iosBackgroundPlan";
 import { isRemoteEngineBackend } from "../engine/engineBackend";
 import {
   clearContextPoison,
-  disposeEngine,
+  contextPoisonMark,
   isContextPoisoned,
-  isEngineHung,
-  isEngineReady,
   markContextPoisoned,
   nativeEngineWorkInFlight,
 } from "../engine/LlamaService";
-import {
-  getChatGeneration,
-  getState as getLlamaContextGateState,
-  markChatReleased,
-  runNativeOp,
-} from "../engine/llamaContextGate";
+import { getState as getLlamaContextGateState } from "../engine/llamaContextGate";
 import { sendClaimRef, sendingInFlightRef } from "../engine/regenState";
-import { resetBootHistoryHash } from "../engine/sessionPersistence";
-import { waitForInFlightChatLoad } from "./loadSettle";
+import { releasePoisonedContext } from "./poisonedContext";
 
 /** Mounted by `useHostEffects` with the send's own controller ref: that ref is
  *  stable for the process, so the subscription mounts once (the port pattern
@@ -78,12 +67,18 @@ export function useIosBackgroundGuard(ports: {
         log("abort");
       }
       if (plan.release) {
-        void releaseLocalContext()
+        // The mark this release answers: a later suspension that re-marks while
+        // it runs owns the mark, and its own "active" releases again.
+        const mark = contextPoisonMark();
+        void releasePoisonedContext()
           .then((outcome) => {
-            const after = iosBackgroundMarkAfterRelease(outcome);
-            if (after.keepMark) return; // nothing released: next active retries
-            clearContextPoison();
-            if (!after.released) return; // no context was there to release
+            const after = iosBackgroundMarkAfterRelease({
+              outcome,
+              markEpochAtStart: mark,
+              markEpochNow: contextPoisonMark(),
+            });
+            if (after.clearMark) clearContextPoison();
+            if (!after.released) return; // nothing released: nothing to log
             log("reload");
             if (active) setReleasedTick((n) => n + 1);
           })
@@ -106,34 +101,6 @@ export function useIosBackgroundGuard(ports: {
  */
 function loadInProgress(): boolean {
   return getLlamaContextGateState() === "chat_loading";
-}
-
-/**
- * Release what the suspension poisoned, reporting what really happened
- * (`released` / `absent` / `withheld`). Runs at "active", once per marked
- * period.
- */
-async function releaseLocalContext(): Promise<LocalReleaseOutcome> {
-  // Ownership token captured BEFORE any await: a stale release must not idle a
-  // newer load's gate (`foregroundIdle.ts:103`). After the wait, a changed
-  // token means a newer owner disposed what was poisoned and built its own
-  // context — in the foreground, so nothing here is left to release.
-  const chatGen = getChatGeneration();
-  await waitForInFlightChatLoad();
-  if (getChatGeneration() !== chatGen || !isEngineReady()) return "absent";
-  try {
-    await runNativeOp(() => disposeEngine());
-  } catch {
-    // A dispose that threw leaves the engine hung (initEngine refuses);
-    // the mark has to stay so its KV is never written out.
-    return "withheld";
-  }
-  // The 60 s safety timeout with native work still active refuses the release
-  // and requires a restart (`LlamaService.ts:3123`): not released, mark kept.
-  if (isEngineHung()) return "withheld";
-  resetBootHistoryHash();
-  markChatReleased(chatGen);
-  return "released";
 }
 
 function log(op: "abort" | "reload"): void {

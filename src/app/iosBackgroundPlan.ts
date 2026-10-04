@@ -69,12 +69,21 @@ export type LocalReleaseOutcome = "released" | "absent" | "withheld";
  * means there is nothing poisoned left, and keeping the mark would refuse
  * every later KV save (`shouldSaveSession`). `withheld` keeps it — a dispose
  * that timed out with native work still active never released the context
- * (`LlamaService.ts:3123`), so the poisoned KV must stay unwritten and the
- * next "active" retries.
+ * (`LlamaService.ts:3144`), so the poisoned KV must stay unwritten and the
+ * next "active" retries. A mark epoch that MOVED while the release ran is a
+ * later suspension's (`LlamaService.contextPoisonMark`): it owns the mark, so
+ * this release leaves it alone either way.
  */
-export function iosBackgroundMarkAfterRelease(outcome: LocalReleaseOutcome): {
-  keepMark: boolean;
-  released: boolean;
-} {
-  return { keepMark: outcome === "withheld", released: outcome === "released" };
+export function iosBackgroundMarkAfterRelease(args: {
+  outcome: LocalReleaseOutcome;
+  /** The mark this release was for, read before its first await. */
+  markEpochAtStart: number;
+  /** The mark now — moved means a later suspension re-marked. */
+  markEpochNow: number;
+}): { clearMark: boolean; released: boolean } {
+  return {
+    clearMark:
+      args.outcome !== "withheld" && args.markEpochAtStart === args.markEpochNow,
+    released: args.outcome === "released",
+  };
 }

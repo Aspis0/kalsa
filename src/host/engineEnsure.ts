@@ -20,6 +20,7 @@ import { getBenchNCtx, getBenchNoRepack, getEngineOverride } from "../bench/benc
 import {
   isEngineReady,
   getActiveModelId,
+  isContextPoisoned,
   queueStaticPrefixPrewarm,
 } from "../engine/LlamaService";
 import { getCachedDeviceProfile, getFreeDiskBytes } from "../engine/deviceProfile";
@@ -34,6 +35,7 @@ import { loadMarkerStore } from "./engineLoad";
 import { performEngineLoad } from "./engineEnsureLoad";
 import type { EngineLoadDeps } from "./engineLoad";
 import { runLocalEnsureGate } from "./localEnsureGate";
+import { releasePoisonedContext } from "./poisonedContext";
 
 export function ensureEngineForModel(
   deps: EngineLoadDeps,
@@ -81,6 +83,13 @@ async function ensureLocalEngineForModel(
       generation === engineGenerationRef.current &&
       MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
+    // A context the iOS suspension poisoned decodes nothing until it is
+    // replaced, so "already ready" is a lie: release it through the very
+    // release the guard runs on "active" (`poisonedContext.ts`) and fall
+    // through to a real load instead of the shortcut below.
+    if (isContextPoisoned()) {
+      await releasePoisonedContext();
+    }
     if (isEngineReady() && getActiveModelId() === model.id) {
       queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
       return true;

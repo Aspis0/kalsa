@@ -12,7 +12,7 @@ import {
   isEngineReady,
   isRemoteEngineBackend,
 } from "../engine/engineBackend";
-import { queueStaticPrefixPrewarm } from "../engine/LlamaService";
+import { isContextPoisoned, queueStaticPrefixPrewarm } from "../engine/LlamaService";
 import type { ConversationsState } from "../conversations/ConversationsStore";
 import type { Locale, TranslateFn } from "../i18n";
 import { buildAgentDeps, buildTurnDeps } from "./hostDeps";
@@ -137,6 +137,7 @@ export function useHostEngine(params: HostEngineParams) {
           tools: agentOptionsRef.current.tools,
           engineReady: isEngineReady(),
           activeModelId: getActiveModelId(),
+          enginePoisoned: isContextPoisoned(),
         }),
         queue: queueStaticPrefixPrewarm,
         logSkip: (reason) => console.info("KALSA_PREWARM", JSON.stringify({ op: "skip", reason })),

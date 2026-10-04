@@ -42,6 +42,7 @@ describe("foreground static-prefix prewarm", () => {
       tools,
       engineReady: true,
       activeModelId: model.id,
+      enginePoisoned: false,
     });
 
     h.fire("background");
@@ -62,6 +63,7 @@ describe("foreground static-prefix prewarm", () => {
       locale: "en",
       engineReady: true,
       activeModelId: model.id,
+      enginePoisoned: false,
     });
     thermal.fire("active");
     expect(thermal.logSkip).toHaveBeenCalledWith("thermal_gate");
@@ -74,10 +76,26 @@ describe("foreground static-prefix prewarm", () => {
       locale: "en",
       engineReady: true,
       activeModelId: model.id,
+      enginePoisoned: false,
     });
     remote.fire("active");
     expect(remote.queue).not.toHaveBeenCalled();
     expect(remote.logSkip).not.toHaveBeenCalled();
+  });
+
+  test("a poisoned context queues nothing: the prefill would fail on it", () => {
+    const poisoned = harness({
+      thermalBlocked: false,
+      remote: false,
+      model,
+      locale: "en",
+      engineReady: true,
+      activeModelId: model.id,
+      enginePoisoned: true,
+    });
+    poisoned.fire("active");
+    expect(poisoned.queue).not.toHaveBeenCalled();
+    expect(poisoned.logSkip).toHaveBeenCalledWith("poisoned");
   });
 
   test.each([
@@ -92,6 +110,7 @@ describe("foreground static-prefix prewarm", () => {
       locale: "en",
       engineReady: ready,
       activeModelId: activeId,
+      enginePoisoned: false,
     });
     h.fire("active");
     expect(h.queue).not.toHaveBeenCalled();

@@ -74,7 +74,7 @@ describe("iosBackgroundPlan", () => {
     ).toEqual(none);
   });
 
-  test("releases the marked context on the way back — once", () => {
+  test("releases while the mark is set", () => {
     expect(
       plan({
         event: "active",
@@ -83,8 +83,13 @@ describe("iosBackgroundPlan", () => {
         reloadPending: true,
       }),
     ).toEqual({ stop: false, mark: false, release: true });
-    // The caller consumes the mark before the (async) release, so the next
-    // active event (iOS may emit more than one) finds nothing pending.
+  });
+
+  test("a later active with the mark already gone does nothing", () => {
+    // The mark is not consumed here: it survives until the release lands and
+    // clears it (`iosBackgroundGuard.ts`, epoch-guarded). An active event before
+    // that starts a second release, which finds nothing resident and changes
+    // nothing — this input is that state, after the clear.
     expect(
       plan({
         event: "active",
@@ -101,17 +106,26 @@ describe("iosBackgroundPlan", () => {
 });
 
 describe("iosBackgroundMarkAfterRelease", () => {
-  const after = (outcome: LocalReleaseOutcome) => iosBackgroundMarkAfterRelease(outcome);
+  const after = (
+    outcome: LocalReleaseOutcome,
+    markEpochAtStart = 7,
+    markEpochNow = 7,
+  ) => iosBackgroundMarkAfterRelease({ outcome, markEpochAtStart, markEpochNow });
 
   test("a real release ends the mark and is the only thing logged", () => {
-    expect(after("released")).toEqual({ keepMark: false, released: true });
+    expect(after("released")).toEqual({ clearMark: true, released: true });
   });
 
   test("no context left to release ends the mark silently", () => {
-    expect(after("absent")).toEqual({ keepMark: false, released: false });
+    expect(after("absent")).toEqual({ clearMark: true, released: false });
   });
 
   test("a withheld release keeps the mark for the next active retry", () => {
-    expect(after("withheld")).toEqual({ keepMark: true, released: false });
+    expect(after("withheld")).toEqual({ clearMark: false, released: false });
+  });
+
+  test("a mark that moved while the release ran is the later suspension's", () => {
+    expect(after("released", 7, 8)).toEqual({ clearMark: false, released: true });
+    expect(after("absent", 7, 8)).toEqual({ clearMark: false, released: false });
   });
 });
