@@ -113,3 +113,30 @@ sub-buffer of the import, but no check that the driver reads the same physical m
 runs after four arms reading the same bytes (warm caches), and the warmup iteration entered the minimum; (c) a
 view with nonzero offset inside the import. Fixes in progress (GLM 2504ca07): alias check, cache eviction +
 reversed order, warmup excluded, nonzero-offset shape. Until then this table is a direction.
+
+## GPU v4 after the audit fixes (engine `e3d3c32f4`, `raw/s23-gpu-v4-final-{normal,v4first}.grep`, unplugged, 92 %, 27.6 C)
+
+- **Zero-copy proved on the real import:** after both v4 views exist and a GPU dispatch has read them, the CPU
+  writes a pattern through the dma-buf mapping (+ `DMA_BUF_IOCTL_SYNC`) and the GPU reads it back through both
+  views: `INFO alias quant=PASS scale=PASS` in both runs.
+- Timing: 64 MiB cache eviction before every arm, warmup excluded from the minimum, run twice (normal order and
+  v4 timed first). New `off_nudge` shape: v4 view at a non-aligned offset (`poff 7`) PASS.
+
+| shape | SoA normal / v4-first | v4 normal / v4-first |
+|---|---:|---:|
+| ffn_gate_up | 0.240 / 0.239 | 0.265 / 0.279 |
+| conv_in_proj | 0.131 / 0.130 | 0.152 / 0.150 |
+| ffn_down | 0.334 / 0.329 | 0.256 / 0.253 |
+| attn_k | 0.052 / 0.052 | 0.037 / 0.036 |
+| sum of the four | 0.757 / 0.750 | 0.710 / 0.718 |
+
+Only failure: the engine SoA path on fp16-denormal scales (expected, its flush). **Result: the GPU decodes from the
+shared NPU-layout copy, zero-copy, at aggregate parity with its own path (per shape 0.84-1.44x).**
+
+## Where the three legs stand on ONE copy (NPU tiled layout), S23
+
+| leg | decode mat-vec vs its own layout | note |
+|---|---|---|
+| NPU | 1.00 | its native layout (two-copy speed by construction) |
+| GPU | ~1.0 aggregate (0.84-1.44 per shape) | v4, zero-copy proved, more precise than the engine path |
+| CPU | 0.71-0.73 (cpu3) / 0.80-0.87 (cpu3-7) | sdot + 96 zips per tile; bit-identical |
