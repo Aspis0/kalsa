@@ -3,7 +3,9 @@
  * has not delivered yet, and the answer still being written — one list, in
  * seq order, with each writer named. A message on its way out carries the
  * two things the reader can tell it (retry, discard); a live turn carries
- * no clock, because the room holds no moment for it yet.
+ * no clock, because the room holds no moment for it yet. Older words are
+ * one tap away until the room has none: the window is what the reader
+ * asked for, never the whole transcript.
  */
 import { useRef } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
@@ -19,6 +21,15 @@ type Props = {
   live: string | null;
   /** The AI member's own name; the room calls it Kalsa. */
   kalsaName: string;
+  /** The room's turn is running: Kalsa is named before its first word.
+   *  (The desktop's live row, whose dots are its own copy.) Absent where
+   *  there is no live room to name — a removed one, or a failed read. */
+  kalsaRunning?: boolean;
+  /** The room holds entries older than this window; `onLoadOlder` asks for
+   *  that page, and `loadingOlder` says it is on its way. */
+  hasOlder?: boolean;
+  loadingOlder?: boolean;
+  onLoadOlder?: () => void;
   /** Offered only where a retry could still post: never for a room this
    *  phone was removed from. */
   onRetry?: (clientMsgId: string) => void;
@@ -38,12 +49,21 @@ export function RoomTranscript({
   pending,
   live,
   kalsaName,
+  kalsaRunning = false,
+  hasOlder = false,
+  loadingOlder = false,
+  onLoadOlder,
   onRetry,
   onDiscard,
 }: Props) {
   const { t } = useLocale();
   const list = useRef<FlatList<RoomRow> | null>(null);
-  if (rows.length === 0 && pending.length === 0 && live === null) {
+  // Scrolling to the end follows the newest words — but a page loaded ABOVE
+  // the reader's place moves the floor down, and jumping to the bottom after
+  // "load earlier" would undo the tap.
+  const floor = rows[0]?.seq ?? null;
+  const seenFloor = useRef<number | null>(null);
+  if (rows.length === 0 && pending.length === 0 && live === null && !kalsaRunning) {
     return (
       <View style={{ flex: 1, padding: space.lg }}>
         <Text style={{ color: colors.ink3, fontFamily: families.sans, fontSize: 14 }}>
@@ -59,15 +79,41 @@ export function RoomTranscript({
       contentContainerStyle={{ paddingHorizontal: space.md, paddingBottom: space.sm }}
       data={rows}
       keyExtractor={(row) => `seq:${row.seq}`}
-      // The newest words stay in sight: a row arriving or growing scrolls
-      // the list to its end, which is where a chat's reader already is.
-      onContentSizeChange={() => list.current?.scrollToEnd({ animated: false })}
+      onContentSizeChange={() => {
+        const prepended = seenFloor.current !== null && floor !== null && floor < seenFloor.current;
+        seenFloor.current = floor;
+        if (!prepended) list.current?.scrollToEnd({ animated: false });
+      }}
       renderItem={({ item }) => (
         <MessageRow colors={colors} row={item} kalsaName={kalsaName} />
       )}
+      ListHeaderComponent={
+        hasOlder && onLoadOlder ? (
+          <Pressable
+            testID="room.loadOlder"
+            accessibilityRole="button"
+            accessibilityLabel={t("room.loadEarlier")}
+            disabled={loadingOlder}
+            onPress={onLoadOlder}
+            style={({ pressed }) => ({
+              alignSelf: "center",
+              marginTop: space.xs,
+              paddingHorizontal: space.sm,
+              paddingVertical: space.xxs,
+              borderRadius: radius.chip,
+              backgroundColor: pressed ? colors.tint : "transparent",
+              opacity: loadingOlder ? 0.45 : 1,
+            })}
+          >
+            <Text style={{ color: colors.brand, fontFamily: families.sansSemi, fontSize: 12.5 }}>
+              {loadingOlder ? t("room.loadingEarlier") : t("room.loadEarlier")}
+            </Text>
+          </Pressable>
+        ) : null
+      }
       ListFooterComponent={
         <>
-          {live !== null ? (
+          {live !== null || kalsaRunning ? (
             <View style={{ marginTop: space.xs, maxWidth: "85%" }}>
               <Text style={{ color: colors.brand, fontFamily: families.sansSemi, fontSize: 12.5 }}>
                 {kalsaName}
@@ -83,7 +129,7 @@ export function RoomTranscript({
                 }}
               >
                 <Text style={{ color: colors.ink, fontFamily: families.sans, fontSize: 15, lineHeight: 21 }}>
-                  {live}
+                  {live ?? t("chat.thinking")}
                 </Text>
               </View>
             </View>

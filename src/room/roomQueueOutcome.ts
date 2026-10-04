@@ -10,7 +10,9 @@ import { type RoomError, type RoomResult } from "./roomError";
 import type { RoomPostAck } from "./roomWire";
 
 export type RoomQueueAttempt =
-  | { kind: "sent"; seq: number; time: number }
+  /** §5's ack: the entry, and the code of a call the room refused (null
+   *  when the call — if any — was queued). */
+  | { kind: "sent"; seq: number; time: number; refusal: string | null }
   /** Terminal: this client_msg_id never posts again (§5). */
   | { kind: "failed"; error: RoomError }
   /** Stop now with everything still queued; a trigger retries later. */
@@ -27,7 +29,14 @@ const HOLDS = ["removed", "pairing_store_damaged", "door_unusable"];
 const NOT_A_MEMBER = "that member cannot post in this room";
 
 export function roomQueueAttempt(result: RoomResult<RoomPostAck>): RoomQueueAttempt {
-  if (result.ok) return { kind: "sent", seq: result.value.seq, time: result.value.time };
+  if (result.ok) {
+    return {
+      kind: "sent",
+      seq: result.value.seq,
+      time: result.value.time,
+      refusal: result.value.refusal,
+    };
+  }
   const error = result.error;
   // NotAMember rides400 with EmptyText and BadClientMsgId, but it means
   // what401 means: the id is NOT burned — enrollment is re-earned, and

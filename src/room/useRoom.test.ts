@@ -1,8 +1,9 @@
 /**
  * The hook's wiring: the reads fill the page, the stream folds into it
  * while it is up, a read that fails is the error state (a 401 the removed
- * one), a reload is the way out, and leaving unsubscribes both the stream
- * and the shelf and aborts the read in flight.
+ * one), a read that lost the race changes nothing, older pages are asked
+ * for by cursor, a reload is the way out, and leaving unsubscribes both the
+ * stream and the shelf and aborts the read in flight.
  */
 jest.mock("./roomApi", () => ({
   fetchRoomInfo: jest.fn(),
@@ -95,6 +96,10 @@ beforeEach(() => {
     pairedVia: null,
     roomId: null,
   });
+  // mockReset, not just clearAllMocks: a once-queue a case left unconsumed
+  // would otherwise answer the next case's first read.
+  (fetchRoomInfo as jest.Mock).mockReset();
+  (fetchRoomHistory as jest.Mock).mockReset();
   (fetchRoomInfo as jest.Mock).mockResolvedValue(infoOk);
   (fetchRoomHistory as jest.Mock).mockResolvedValue(historyOk);
 });
@@ -185,6 +190,97 @@ describe("reading the room", () => {
     expect(now().feed.status).toBe("ready");
     expect(now().feed.error).toBeNull();
     expect(now().rows.map((row) => row.text)).toEqual(["m1"]);
+  });
+
+  test("a read that lands after the room removed this phone cannot bring it back", async () => {
+    let release: (value: unknown) => void = () => undefined;
+    (fetchRoomInfo as jest.Mock).mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    await mount();
+    expect(now().feed.info).toBeNull(); // the read is still out
+
+    await act(async () => {
+      listeners[0]({ type: "removed" });
+    });
+    expect(now().feed.status).toBe("removed");
+
+    await act(async () => {
+      release(infoOk);
+    });
+    await settle();
+    expect(now().feed.status).toBe("removed");
+    expect(now().feed.info).toBeNull();
+  });
+
+  test("loadOlder asks for the page before the floor and merges overlapping pages once", async () => {
+    (fetchRoomHistory as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { messages: [entry(11, "newer"), entry(12)], hasOlder: true, hasNewer: false },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { messages: [entry(9, "older"), entry(10)], hasOlder: true, hasNewer: true },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { messages: [entry(8), entry(9, "older")], hasOlder: false, hasNewer: true },
+      });
+    await mount();
+    expect(now().rows.map((row) => row.seq)).toEqual([11, 12]);
+    expect(now().feed.hasOlder).toBe(true);
+
+    await act(async () => {
+      await now().loadOlder();
+    });
+    expect(fetchRoomHistory).toHaveBeenLastCalledWith(
+      { before: 11, limit: 200 },
+      { roomLocalId: LOCAL },
+    );
+    expect(now().rows.map((row) => row.seq)).toEqual([9, 10, 11, 12]);
+    expect(now().loadingOlder).toBe(false);
+    expect(now().pageErrorCode).toBeNull();
+
+    // The floor moved down with the page, so the second cursor is the new
+    // floor; a page that overlaps what the reader holds adds no row, and
+    // the room's oldest page ends the paging.
+    await act(async () => {
+      await now().loadOlder();
+    });
+    expect(fetchRoomHistory).toHaveBeenLastCalledWith(
+      { before: 9, limit: 200 },
+      { roomLocalId: LOCAL },
+    );
+    expect(now().rows.map((row) => row.seq)).toEqual([8, 9, 10, 11, 12]);
+    expect(now().feed.hasOlder).toBe(false);
+  });
+
+  test("a page that would not load is a sentence, and the same tap retries", async () => {
+    (fetchRoomHistory as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { messages: [entry(1)], hasOlder: true, hasNewer: false },
+      })
+      .mockResolvedValueOnce({ ok: false, error: { code: "unreachable", message: "network" } })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { messages: [entry(0)], hasOlder: false, hasNewer: true },
+      });
+    await mount();
+    await act(async () => {
+      await now().loadOlder();
+    });
+    expect(now().pageErrorCode).toBe("unreachable");
+    expect(now().feed.hasOlder).toBe(true); // nothing was lost
+
+    await act(async () => {
+      await now().loadOlder();
+    });
+    expect(now().pageErrorCode).toBeNull();
+    expect(now().rows.map((row) => row.seq)).toEqual([0, 1]);
   });
 
   test("a read that fails is the error state; a reload is the way out", async () => {

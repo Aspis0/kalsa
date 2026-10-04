@@ -7,7 +7,9 @@
  * discard is P5's removal path, an orphaned pairing's shelf is deleted
  * when its record is gone, an enqueue respects an owed backoff, and the
  * last unsubscribe kills the session's timer — no POST for a room
- * nobody watches; the next subscribe probes again.
+ * nobody watches; the next subscribe probes again. Two listeners on one
+ * shelf are one attempt per round: the session's own start kicks, a
+ * listener joining it rides.
  */
 const stored: Record<string, string> = {};
 /** Distinct ids per mint (the contract's one-id-per-message rule makes
@@ -229,6 +231,41 @@ test("an enqueue during an owed backoff waits its turn — no extra POST now", a
   expect(texts.map((entry) => entry.text)).toEqual(["first", "first", "second"]);
   await expect(shelf()).resolves.toEqual([]);
   leave();
+});
+
+test("two listeners on one shelf are one attempt per round, not one per join", async () => {
+  const KEY = roomQueueKey(LOCAL);
+  stored[KEY] = JSON.stringify({
+    items: [
+      {
+        clientMsgId: "held-from-last-run",
+        text: "written before the screen opened",
+        callAi: false,
+        createdAt: 1_791_000_000,
+        state: "queued",
+      },
+    ],
+  });
+  (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValue(
+    errorResult("unreachable", "remote_brain_network"),
+  );
+
+  // The app's own wiring: the stream subscribes for its ack floor, the
+  // screen's hook subscribes for the waiting list.
+  const leaveStream = subscribeRoomQueue(LOCAL, () => undefined);
+  const leaveScreen = subscribeRoomQueue(LOCAL, () => undefined);
+  await settle();
+
+  // One attempt, and the backoff it just owed is not jumped by the second
+  // join: a rerun would have posted again in the same tick.
+  expect(postRoomMessage).toHaveBeenCalledTimes(1);
+
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+  expect(postRoomMessage).toHaveBeenCalledTimes(2);
+
+  leaveScreen();
+  leaveStream();
 });
 
 test("the last unsubscribe takes the session — timer included — and the next subscribe probes", async () => {

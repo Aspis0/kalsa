@@ -104,6 +104,7 @@ export function getRoomQueue(localId: string): Promise<RoomQueueItem[]> {
 
 export function subscribeRoomQueue(localId: string, listener: Listener): () => void {
   let room = sessions.get(localId);
+  const created = room === undefined;
   if (room === undefined) {
     room = { listeners: new Set(), inFlight: false, pendingRerun: false, retryTimer: null, attempt: 0 };
     sessions.set(localId, room);
@@ -111,9 +112,11 @@ export function subscribeRoomQueue(localId: string, listener: Listener): () => v
   const held = room;
   held.listeners.add(listener);
   let live = true;
-  // The next subscribe probes: an owed backoff is respected (kick's own
-  // rule), and a fresh session starts at the floor.
-  void kick(localId);
+  // The session's OWN start is what probes; a listener joining one already
+  // running rides it. The app wires two listeners for one room (the stream's
+  // ack floor, the screen's waiting list) and a second kick would land as a
+  // pendingRerun on the attempt in flight — one POST per message, not two.
+  if (created) void kick(localId);
   return () => {
     if (!live) return;
     live = false;
@@ -311,7 +314,13 @@ async function runAttempt(localId: string): Promise<void> {
         await announce(localId);
         emit(localId, {
           type: "sent",
-          item: { ...head, state: "sent", seq: verdict.seq, time: verdict.time },
+          item: {
+            ...head,
+            state: "sent",
+            seq: verdict.seq,
+            time: verdict.time,
+            refusal: verdict.refusal,
+          },
         });
         room.attempt = 0;
         continue; // the FIFO moves on
@@ -349,7 +358,9 @@ async function runAttempt(localId: string): Promise<void> {
     room.inFlight = false;
     if (room.pendingRerun) {
       room.pendingRerun = false;
-      void runAttempt(localId);
+      // A rerun owed by a trigger that arrived mid-flight must not outrun a
+      // backoff this run just scheduled: the timer owns the next attempt.
+      if (room.retryTimer === null) void runAttempt(localId);
     }
   }
 }

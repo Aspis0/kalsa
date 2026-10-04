@@ -12,7 +12,6 @@ import type { RoomError } from "./roomError";
 import {
   emptyRoomFeed,
   failRoom,
-  foldEvent,
   foldHistory,
   foldInfo,
   foldQueue,
@@ -22,6 +21,7 @@ import {
   type RoomQueueRow,
   type RoomRow,
 } from "./roomFeed";
+import { foldEvent } from "./roomFrames";
 import {
   discardRoomQueueItem,
   enqueueRoomMessage,
@@ -43,11 +43,18 @@ export type RoomView = {
   /** The code of the last compose the shelf refused, before anything was
    *  stored — the words stay in the composer. */
   sendErrorCode: string | null;
+  /** The code of a page that would not load (`feed.hasOlder` still says
+   *  the room holds one: the same tap is the retry). */
+  pageErrorCode: string | null;
+  loadingOlder: boolean;
   setName: (name: string) => Promise<void>;
   /** Post the words; true when the shelf took them. */
   send: (text: string, askKalsa: boolean) => Promise<boolean>;
   retry: (clientMsgId: string) => Promise<void>;
   discard: (clientMsgId: string) => Promise<void>;
+  /** §4's `before` cursor: the page immediately older than the window's
+   *  floor, merged by seq (a page the reader already holds adds nothing). */
+  loadOlder: () => Promise<void>;
   /** Read info and history again and resubscribe: the error state's way out. */
   reload: () => void;
 };
@@ -57,9 +64,14 @@ export function useRoom(localId: string): RoomView {
   const [nameErrorCode, setNameErrorCode] = useState<string | null>(null);
   const [sendErrorCode, setSendErrorCode] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [pageErrorCode, setPageErrorCode] = useState<string | null>(null);
   // An action's answer may land after the screen is gone: the state it would
   // set must not.
   const liveRef = useRef(true);
+  const feedRef = useRef(feed);
+  feedRef.current = feed;
+  const olderInFlight = useRef(false);
   useEffect(() => {
     liveRef.current = true;
     return () => {
@@ -75,6 +87,7 @@ export function useRoom(localId: string): RoomView {
     setFeed(emptyRoomFeed());
     setNameErrorCode(null);
     setSendErrorCode(null);
+    setPageErrorCode(null);
 
     // The listeners attach before the reads: nothing the room announces
     // while the page loads is lost.
@@ -172,6 +185,33 @@ export function useRoom(localId: string): RoomView {
     [localId],
   );
 
+  const loadOlder = useCallback(async (): Promise<void> => {
+    const current = feedRef.current;
+    // The window's floor is the cursor; without one (or without older
+    // entries) there is no page to ask for.
+    if (olderInFlight.current || !current.hasOlder || current.entries.length === 0) return;
+    olderInFlight.current = true;
+    setLoadingOlder(true);
+    try {
+      const page = await fetchRoomHistory(
+        { before: current.entries[0].seq, limit: HISTORY_LIMIT },
+        { roomLocalId: localId },
+      );
+      if (!liveRef.current) return;
+      if (!page.ok) {
+        // A dead epoch is not the reader's to fix: the stream's resync reads
+        // the room again. Every other refusal is a sentence.
+        setPageErrorCode(page.error.code === "epoch_changed" ? null : page.error.code);
+        return;
+      }
+      setPageErrorCode(null);
+      setFeed((held) => foldHistory(held, page.value));
+    } finally {
+      olderInFlight.current = false;
+      if (liveRef.current) setLoadingOlder(false);
+    }
+  }, [localId]);
+
   const reload = useCallback(() => setAttempt((current) => current + 1), []);
 
   const rows = useMemo(() => roomRows(feed), [feed]);
@@ -181,10 +221,13 @@ export function useRoom(localId: string): RoomView {
     pending: feed.queue,
     nameErrorCode,
     sendErrorCode,
+    pageErrorCode,
+    loadingOlder,
     setName,
     send,
     retry,
     discard,
+    loadOlder,
     reload,
   };
 }

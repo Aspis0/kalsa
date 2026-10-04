@@ -2,7 +2,8 @@
  * How the pairing map changes: a room info files its room under the
  * record whose LOCAL id made the call (never under whatever pairing is
  * active by the time the answer lands), the newer pairing wins a room
- * contested by a re-pair, a 401 marks instead of deletes, and two
+ * contested by a re-pair, a 401 marks instead of deletes — and tells the
+ * subscribers once, so an entry offering that computer can go — and two
  * mutations racing still leave one consistent map with one write each.
  */
 const stored: Record<string, string> = {};
@@ -24,6 +25,7 @@ import {
   listPairings,
   markPairingRemoved,
   savePairingCredential,
+  subscribePairingRemoved,
 } from "./pairingCredentialStore";
 
 const DOOR_A = "https://desk-a.example";
@@ -132,6 +134,20 @@ describe("the 401 mark", () => {
     await markPairingRemoved(localA);
     await markPairingRemoved("p-ghost");
     expect(setItem).not.toHaveBeenCalled();
+  });
+
+  test("a mark tells the subscribers once, and leaving stops it", async () => {
+    const localA = await pair(0xab, DOOR_A);
+    const heard: string[] = [];
+    const leave = subscribePairingRemoved((localId) => heard.push(localId));
+
+    await markPairingRemoved(localA);
+    await markPairingRemoved(localA); // already marked: no second event
+
+    expect(heard).toEqual([localA]);
+    leave();
+    await markPairingRemoved("p-ghost");
+    expect(heard).toEqual([localA]);
   });
 });
 

@@ -1,19 +1,13 @@
 /**
  * The stream's own moves, folded: a rename recolors the rows already held,
- * a member leaves the list, a turn's note and its assembly follow the
- * frames, a resync drops the floor, and the endings — removed, a cut wire,
- * a door that cannot be dialed, a terminal stop — read as the screen's
- * states. Queue events fold beside them.
+ * a member leaving is marked on their words, a refetch resolves what the
+ * client slept through, a turn's note and its assembly follow the frames, a
+ * resync drops the floor, and the endings — removed, a cut wire, a door
+ * that cannot be dialed, a terminal stop — read as the screen's states.
  */
 import infoFixture from "./fixtures/info.json";
-import {
-  emptyRoomFeed,
-  foldEvent,
-  foldInfo,
-  foldQueue,
-  foldResync,
-  type RoomFeed,
-} from "./roomFeed";
+import { emptyRoomFeed, foldInfo, foldResync, type RoomFeed } from "./roomFeed";
+import { foldEvent } from "./roomFrames";
 import { parseRoomInfo, type RoomHistoryMessage, type RoomInfo } from "./roomWire";
 
 const INFO: RoomInfo = parseRoomInfo(infoFixture) as RoomInfo;
@@ -69,6 +63,36 @@ describe("member news", () => {
       member: { action: "left", memberId: 9, name: "Paired phone 3" },
     });
     expect(left.info?.members.some((member) => member.memberId === 9)).toBe(false);
+  });
+
+  test("a member who left keeps their words, marked as a former member", () => {
+    const state = foldEvent(withHistory([1, 2]), {
+      type: "member",
+      member: { action: "left", memberId: 3, name: "Marco" },
+    });
+    expect(state.entries.map((held) => [held.name, held.former])).toEqual([
+      ["Marco", true],
+      ["Marco", true],
+    ]);
+  });
+
+  test("the reconnect's own info resolves the rows it slept through", () => {
+    const renamed = foldEvent(withHistory([1, 2]), {
+      type: "refetched",
+      info: {
+        ...INFO,
+        members: INFO.members.map((member) =>
+          member.memberId === 3 ? { ...member, name: "Marco Rossi" } : member,
+        ),
+      },
+    });
+    expect(renamed.entries.map((held) => held.name)).toEqual(["Marco Rossi", "Marco Rossi"]);
+
+    const gone = foldEvent(withHistory([1, 2]), {
+      type: "refetched",
+      info: { ...INFO, members: INFO.members.filter((member) => member.memberId !== 3) },
+    });
+    expect(gone.entries.every((held) => held.former)).toBe(true);
   });
 });
 
@@ -163,44 +187,5 @@ describe("the endings", () => {
     expect(stopped.error?.message).toBe("three attempts");
     const removed = foldEvent(feed(), { type: "removed" });
     expect(removed.status).toBe("removed");
-  });
-});
-
-describe("the shelf", () => {
-  test("folds to the waiting list with the door's last word on each item", () => {
-    const state = foldQueue(feed(), [
-      {
-        clientMsgId: "b".repeat(32),
-        text: "waiting",
-        callAi: true,
-        createdAt: 1,
-        state: "queued",
-        error: { code: "read_only", message: "later" },
-      },
-      {
-        clientMsgId: "c".repeat(32),
-        text: "failed",
-        callAi: false,
-        createdAt: 2,
-        state: "failed",
-        error: { code: "too_large", message: "no" },
-      },
-    ]);
-    expect(state.queue).toEqual([
-      {
-        clientMsgId: "b".repeat(32),
-        text: "waiting",
-        callAi: true,
-        state: "queued",
-        errorCode: "read_only",
-      },
-      {
-        clientMsgId: "c".repeat(32),
-        text: "failed",
-        callAi: false,
-        state: "failed",
-        errorCode: "too_large",
-      },
-    ]);
   });
 });

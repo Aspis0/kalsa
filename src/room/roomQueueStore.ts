@@ -48,6 +48,9 @@ export type RoomQueueSent = {
   createdAt: number;
   state: "sent";
   seq: number;
+  /** §5's refused call, when the room took the message but not its call
+   *  (`already_pending`), null when it took both. */
+  refusal: string | null;
   time: number;
 };
 

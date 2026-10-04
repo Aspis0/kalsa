@@ -10,6 +10,20 @@ import { isValidNodeHex, type Road } from "../remote/road";
 import { mintLocalId, mutatePairingMap, readPairingMap } from "./pairingMap";
 import type { PairingRecord } from "./pairingRecord";
 
+type PairingRemovalListener = (localId: string) => void;
+
+/** Single-purpose subscription, like the completed pairing's own: the only
+ *  event is "a room refused this pairing". The shelf that offers a computer
+ *  is what listens — an entry whose room already answered 401 must go. */
+const removalListeners = new Set<PairingRemovalListener>();
+
+export function subscribePairingRemoved(listener: PairingRemovalListener): () => void {
+  removalListeners.add(listener);
+  return () => {
+    removalListeners.delete(listener);
+  };
+}
+
 /**
  * Save a completed pairing: appended to the map and made the active one
  * (chat's door). The v3 key is only ever read as the migration source.
@@ -95,10 +109,21 @@ export async function bindPairingRoom(localId: string, roomId: string): Promise<
  *  history with P5) but is marked, so no room call sends its bearer
  *  there again. A record already dropped or marked changes nothing. */
 export async function markPairingRemoved(localId: string): Promise<void> {
+  let marked = false;
   await mutatePairingMap((state) => {
     const record = state.records.find((candidate) => candidate.localId === localId);
     if (record === undefined || record.removed === true) return false;
     record.removed = true;
+    marked = true;
     return true;
   });
+  if (!marked) return;
+  // A listener throwing must not fail the mark that already stands.
+  for (const listener of [...removalListeners]) {
+    try {
+      listener(localId);
+    } catch {
+      // ignore
+    }
+  }
 }

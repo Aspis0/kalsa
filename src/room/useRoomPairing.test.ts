@@ -1,16 +1,20 @@
 /**
  * The one Room entry's own question: which pairing it opens. The newest
  * record the room has not refused wins (the map keeps no last-used stamp),
- * a completed pairing is picked up without a restart, and a store that
- * cannot be read holds no room at all.
+ * a completed pairing is picked up without a restart, a room refusing this
+ * phone (401) takes its entry away again, and a store that cannot be read
+ * holds no room at all.
  */
-jest.mock("../pairing/pairingCredentialStore", () => ({ listPairings: jest.fn() }));
+jest.mock("../pairing/pairingCredentialStore", () => ({
+  listPairings: jest.fn(),
+  subscribePairingRemoved: jest.fn(),
+}));
 jest.mock("../pairing/pairingCompletedAt", () => ({ subscribePairingCompleted: jest.fn() }));
 
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { subscribePairingCompleted } from "../pairing/pairingCompletedAt";
-import { listPairings } from "../pairing/pairingCredentialStore";
+import { listPairings, subscribePairingRemoved } from "../pairing/pairingCredentialStore";
 import type { PairingRecord } from "../pairing/pairingRecord";
 import { pickRoomPairing, useRoomPairing } from "./useRoomPairing";
 
@@ -60,12 +64,18 @@ describe("useRoomPairing", () => {
   let renderer: ReactTestRenderer;
   let hook: { current: { localId: string | null } | null } = { current: null };
   let completions: Array<() => void>;
+  let removals: Array<() => void>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     completions = [];
+    removals = [];
     (subscribePairingCompleted as jest.Mock).mockImplementation((listener: () => void) => {
       completions.push(listener);
+      return jest.fn();
+    });
+    (subscribePairingRemoved as jest.Mock).mockImplementation((listener: () => void) => {
+      removals.push(listener);
       return jest.fn();
     });
     (listPairings as jest.Mock).mockResolvedValue([record("p1"), record("p2")]);
@@ -102,6 +112,23 @@ describe("useRoomPairing", () => {
       completions[0]();
     });
     expect(now().localId).toBe("p3");
+  });
+
+  test("a room that refused this phone takes its entry away", async () => {
+    expect(now().localId).toBe("p2");
+    // The room answered 401 and the record was marked: the drawer must stop
+    // offering that computer, without a restart.
+    (listPairings as jest.Mock).mockResolvedValue([record("p1"), record("p2", true)]);
+    await act(async () => {
+      removals[0]();
+    });
+    expect(now().localId).toBe("p1");
+
+    (listPairings as jest.Mock).mockResolvedValue([record("p1", true), record("p2", true)]);
+    await act(async () => {
+      completions[0]();
+    });
+    expect(now().localId).toBeNull();
   });
 
   test("a pairing the room refused, or a store that cannot be read, holds no room", async () => {

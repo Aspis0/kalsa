@@ -183,6 +183,26 @@ test.each([["client_msg_id_reused"], ["not_found"], ["too_large"]])(
   },
 );
 
+test("a call the room refused rides the ack: the sent event carries its code", async () => {
+  const events: RoomQueueEvent[] = [];
+  const leave = subscribeRoomQueue(LOCAL, (event) => events.push(event));
+  (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValueOnce({
+    ok: true,
+    value: { seq: 48, time: 1_791_000_048, aiCall: "refused", refusal: "already_pending" },
+  });
+
+  await enqueueRoomMessage(LOCAL, { text: "@Kalsa again", callAi: true });
+  await settle();
+
+  const sent = events.find((event) => event.type === "sent");
+  expect(sent).toMatchObject({
+    item: { text: "@Kalsa again", callAi: true, refusal: "already_pending" },
+  });
+  // The message itself posted: the refusal is about the call alone (§5).
+  await expect(shelf()).resolves.toEqual([]);
+  leave();
+});
+
 test("401 holds the whole shelf: items stay waiting, the sentence stored, nothing retries", async () => {
   const leave = subscribeRoomQueue(LOCAL, () => undefined);
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValue(
