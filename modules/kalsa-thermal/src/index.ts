@@ -16,6 +16,7 @@ export interface PlatformThermalRead {
 
 type NativeKalsaThermalModule = {
   getCurrentThermalStateAsync?: () => Promise<unknown>;
+  probeThermalZonesAsync?: () => Promise<unknown>;
   addListener?: (
     eventName: string,
     listener: (snapshot: unknown) => void,
@@ -69,6 +70,27 @@ export function addPlatformThermalListener(
 /** True when the native module is linked; individual API calls can still fail. */
 export function isPlatformThermalModuleAvailable(): boolean {
   return typeof getNativeModule()?.getCurrentThermalStateAsync === "function";
+}
+
+/** Raw Android probe payload; the shape is owned by the Kotlin module. */
+export type ThermalZoneProbe = Record<string, unknown>;
+
+/**
+ * Bench-only diagnostic: per-component thermal zones and HardwarePropertiesManager
+ * temperatures read from inside the app process. Android-only by construction —
+ * the iOS module never defines the native function, so a missing method reads
+ * as unavailable. Null means unavailable (no module, iOS, or a failed call).
+ */
+export async function probeThermalZones(): Promise<ThermalZoneProbe | null> {
+  const module = getNativeModule();
+  if (!module?.probeThermalZonesAsync) return null;
+  try {
+    const probe = await module.probeThermalZonesAsync();
+    if (!probe || typeof probe !== "object" || Array.isArray(probe)) return null;
+    return probe as ThermalZoneProbe;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeSnapshot(value: unknown): PlatformThermalRead | null {

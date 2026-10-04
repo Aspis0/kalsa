@@ -35,6 +35,7 @@ import { UncleanExitPrompt } from "./src/components/UncleanExitPrompt";
 import { HostRoot } from "./src/host/HostRoot";
 import { FOREGROUND_IDLE_PROTOCOL_MARKER } from "./src/app/foregroundIdleProvenance";
 import { getDevModelsEnabled } from "./src/bench/benchConfig";
+import { maybeRunZoneProbe } from "./src/bench/zoneProbe";
 import { MODEL_REGISTRY, configureModelRegistry } from "./src/engine/ModelRegistry";
 import { LocaleProvider, useLocale } from "./src/i18n";
 import { installLogReportCollector } from "./src/logReport/collector";
@@ -183,6 +184,9 @@ function ModelCatalogBoot() {
 
   useEffect(() => {
     let mounted = true;
+    // Bench-only thermal-zone probe (kalsa.bench.zone_probe), fired and
+    // forgotten beside the other boot-time bench keys.
+    void maybeRunZoneProbe();
     void getDevModelsEnabled()
       .then((enabled) => {
         configureModelRegistry(enabled);
