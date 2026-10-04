@@ -12,10 +12,16 @@
  *
  * The caller passes its own reason for the release, re-read AFTER the wait:
  * a load that finished while we waited built a fresh context, and a send that
- * claimed the engine in that window is a turn this must not kill. What is NOT
- * here is each owner's bookkeeping around the release — the poison mark and
- * the boot-history reset belong to the background release, not to every
- * dispose. The reload belongs to the ensure path every send already runs.
+ * claimed the engine in that window is a turn this must not kill.
+ *
+ * Every successful dispose resets the boot-history hash, never optionally: the
+ * next load must compare the .kvs against the history as it is NOW (the idle
+ * discard's rule), and a POISONED context's session must not be restorable at
+ * all. The reset lives HERE rather than in `poisonedContext.ts` so that no
+ * caller can skip it — a memory release that disposed a poisoned context
+ * without it would leave the background guard clearing the poison mark against
+ * a stale hash (`iosBackgroundPlan.ts`). The reload belongs to the ensure path
+ * every send already runs.
  */
 import type { LocalReleaseOutcome } from "../app/iosBackgroundPlan";
 import { disposeEngine, isEngineHung, isEngineReady } from "../engine/LlamaService";
@@ -24,6 +30,7 @@ import {
   markChatReleased,
   runNativeOp,
 } from "../engine/llamaContextGate";
+import { resetBootHistoryHash } from "../engine/sessionPersistence";
 import { waitForInFlightChatLoad } from "./loadSettle";
 
 export async function releaseResidentContext(
@@ -45,6 +52,7 @@ export async function releaseResidentContext(
   // The 60 s safety timeout with native work still active refuses the release
   // and requires a restart (`LlamaService.ts:3144`): not released, mark kept.
   if (isEngineHung()) return "withheld";
+  resetBootHistoryHash();
   markChatReleased(chatGen);
   return "released";
 }

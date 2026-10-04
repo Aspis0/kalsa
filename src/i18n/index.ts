@@ -85,7 +85,10 @@ export function makeT(locale: Locale) {
 
 export type TranslateFn = ReturnType<typeof makeT>;
 
-function parseLocale(raw: string | null | undefined): Locale {
+/** The one normalization rule for a stored locale: "it", else the default.
+ *  Exported for the root error fallback, which reads the preference without the
+ *  provider (`components/AppErrorBoundary.tsx`). */
+export function parseLocale(raw: string | null | undefined): Locale {
   return raw === "it" ? "it" : "en";
 }
 

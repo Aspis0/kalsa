@@ -1,15 +1,19 @@
 /**
  * The iOS memory-warning half of the local engine lifecycle: hand the resident
- * model context back to the OS before jetsam takes the process, without ever
- * breaking a turn.
+ * model contexts back to the OS before jetsam takes the process, without ever
+ * breaking a turn or an embed.
  *
- * The decision is `src/app/iosMemoryWarningPlan.ts`. An owed (`deferred`)
- * release waits here for the native work to drain — a warning is not a
- * generation stop, and a release that lands mid-turn would be exactly the kill
- * the immediate path refuses. The release itself is
- * `./residentContextRelease.ts`, the same dispose the iOS background release
- * runs; the reload needs no code here, the ensure path every send already runs
- * reloads a released engine.
+ * The decision is `src/app/iosMemoryWarningPlan.ts`. A turn in flight is never
+ * killed: the warning sets an OWED release, and the release runs on the next
+ * notification that a unit of native engine work ended
+ * (`src/engine/nativeWorkSettle.ts` — the settle points behind
+ * `nativeEngineWorkInFlight()`), so a long generation is followed out to its
+ * real end instead of polled for. The flag survives until that notification or
+ * the next warning and is cleared on unmount. The releases themselves are the
+ * app's own dispose paths — `./residentContextRelease.ts` for the chat context
+ * and `releaseEmbedder` for an idle embedder — and neither touches work that is
+ * still running. The reload needs no code here: the ensure path every send
+ * already runs reloads a released engine.
  *
  * RN 0.86 emits `memoryWarning` on iOS only: `RCTAppState.mm`'s
  * `supportedEvents` carries it, while Android's `AppStateModule.kt` emits
@@ -25,60 +29,85 @@ import {
   iosMemoryWarningPlan,
   type IosMemoryWarningAction,
 } from "../app/iosMemoryWarningPlan";
+import { isEmbedderActive, releaseEmbedder } from "../engine/EmbeddingService";
 import { isRemoteEngineBackend } from "../engine/engineBackend";
 import { isEngineReady, nativeEngineWorkInFlight } from "../engine/LlamaService";
 import { getState as getLlamaContextGateState } from "../engine/llamaContextGate";
+import { subscribeNativeWorkSettled } from "../engine/nativeWorkSettle";
 import { sendClaimRef, sendingInFlightRef } from "../engine/regenState";
 import { releaseResidentContext } from "./residentContextRelease";
 
-/**
- * How long an owed release waits for the work to drain. A generation can run
- * for minutes and the release is worth having whenever it ends; this bound
- * exists so a native op that never settles cannot leave a timer alive for the
- * life of the process. A dropped release is not lost: iOS repeats the warning
- * while it still wants memory back, and the idle discard releases the context
- * anyway.
- */
-const DEFERRED_RELEASE_MAX_MS = 5 * 60_000;
-const DEFERRED_RELEASE_TICK_MS = 250;
-
 export function useIosMemoryGuard(): void {
   const [, setReleasedTick] = useState(0);
-  /** One drain at a time: a second warning changes nothing while the first
-   *  release is still owed, and two drains would race for the same dispose. */
-  const drainInFlightRef = useRef(false);
+  /** The release a warning asked for and the work owes: kept across a turn,
+   *  honoured by the next settle notification or the next warning, cleared on
+   *  unmount. A flag, not a timer — no poll can tell a long generation from a
+   *  hung op. */
+  const owedRef = useRef(false);
+  /** One release at a time: a settle storm must not submit two disposes. */
+  const releasingRef = useRef(false);
 
   useEffect(() => {
     if (Platform.OS !== "ios") return;
     let active = true;
 
-    const localWorkInFlight = (): boolean =>
+    /**
+     * What a release has to wait for. The host's own turn refs
+     * (`sendingInFlightRef` / `streamInFlightRef`) are deliberately NOT here:
+     * they outlive the native work by a host tail that touches no engine, and
+     * every post-turn engine call (the landing-keyed KV save) is itself a
+     * native job, which does show up. `sendClaimRef` stays: a send that has
+     * claimed but not yet reached native work is one this must not break.
+     */
+    const nativeWorkInFlight = (): boolean =>
       nativeEngineWorkInFlight() ||
       sendClaimRef.current ||
-      sendingInFlightRef.current ||
       getLlamaContextGateState() === "chat_loading";
 
-    const releaseNow = async (): Promise<void> => {
-      // The predicate closes the window between the check and the dispose: a
-      // send that claimed the engine while we waited makes this "absent", not
-      // a killed turn.
-      const outcome = await releaseResidentContext(() => !localWorkInFlight());
+    const bumpReleased = (): void => {
       // A real release changes what HostRoot renders (`engineResident` is read
-      // at render): one tick is how the face learns, as the background
-      // guard does.
-      if (outcome === "released" && active) setReleasedTick((n) => n + 1);
+      // at render): one tick is how the face learns, as the background guard
+      // does.
+      if (active) setReleasedTick((n) => n + 1);
     };
 
-    const drainThenRelease = async (): Promise<void> => {
-      const startedAt = Date.now();
-      while (localWorkInFlight() && Date.now() - startedAt < DEFERRED_RELEASE_MAX_MS) {
-        await new Promise<void>((resolve) => setTimeout(resolve, DEFERRED_RELEASE_TICK_MS));
-        if (!active) return;
+    /** The memory release itself: the chat context, then an idle embedder. */
+    const releaseLocalContexts = async (): Promise<void> => {
+      if (isEngineReady()) {
+        const outcome = await releaseResidentContext(() => !nativeWorkInFlight());
+        if (outcome === "released") bumpReleased();
+        else if (nativeWorkInFlight()) {
+          // A turn claimed the engine while we asked: still owed.
+          owedRef.current = true;
+          return;
+        }
       }
-      if (!active) return;
-      await releaseNow();
+      // An embed in USE is native work and deferred this warning; reaching here
+      // means the embedder is idle, and the re-check closes the last instant.
+      if (isEmbedderActive() && !nativeWorkInFlight()) {
+        await releaseEmbedder();
+        bumpReleased();
+      }
     };
 
+    const startRelease = (): void => {
+      if (!active || releasingRef.current) return;
+      owedRef.current = false;
+      releasingRef.current = true;
+      void releaseLocalContexts()
+        .catch(() => undefined)
+        .finally(() => {
+          releasingRef.current = false;
+        });
+    };
+
+    /** A settle: run the release a warning owed, if its work has ended. Work
+     *  still running keeps it owed for the next settle. */
+    const releaseWhenSettled = (): void => {
+      if (owedRef.current && !nativeWorkInFlight()) startRelease();
+    };
+
+    const unsubscribeSettled = subscribeNativeWorkSettled(releaseWhenSettled);
     const sub = AppState.addEventListener("memoryWarning", () => {
       const plan = iosMemoryWarningPlan({
         platform: Platform.OS,
@@ -86,7 +115,7 @@ export function useIosMemoryGuard(): void {
         sending: sendClaimRef.current || sendingInFlightRef.current,
         nativeWork: nativeEngineWorkInFlight(),
         loadInProgress: getLlamaContextGateState() === "chat_loading",
-        resident: isEngineReady(),
+        resident: isEngineReady() || isEmbedderActive(),
       });
       // "platform" cannot occur here (the subscription is iOS-only), so any
       // skip is a real answer under pressure and is recorded like the others.
@@ -95,19 +124,17 @@ export function useIosMemoryGuard(): void {
         return;
       }
       logMemoryWarning(plan);
-      if (plan.op === "release") {
-        void releaseNow();
+      if (plan.op === "deferred") {
+        owedRef.current = true;
         return;
       }
-      if (drainInFlightRef.current) return;
-      drainInFlightRef.current = true;
-      void drainThenRelease().finally(() => {
-        drainInFlightRef.current = false;
-      });
+      startRelease();
     });
 
     return () => {
       active = false;
+      owedRef.current = false;
+      unsubscribeSettled();
       sub.remove();
     };
   }, []);

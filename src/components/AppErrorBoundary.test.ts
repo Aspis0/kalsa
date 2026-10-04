@@ -1,13 +1,15 @@
 /**
  * The root render-error boundary, driven through the rendered tree: a thrown
- * render shows the plain fallback instead of an empty window, the throw is
- * recorded through the js_error path, and "Reload" brings the subtree back
- * instead of leaving the crashed one in place.
+ * render (of a child OR of a provider below the root) shows the plain fallback
+ * instead of an empty window, the throw is recorded through the js_error path,
+ * and "Reload" mounts the subtree again rather than leaving the crashed one in
+ * place. The catalogs are the real ones; only storage and the host components
+ * are mocked.
  */
 jest.mock("../logReport/collector", () => ({ recordJsError: jest.fn() }));
 
-jest.mock("../i18n", () => ({
-  useLocale: () => ({ t: (key: string) => key }),
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  default: { getItem: async () => null, setItem: async () => undefined },
 }));
 
 jest.mock("react-native", () => {
@@ -34,7 +36,12 @@ import { recordJsError } from "../logReport/collector";
 
 const record = recordJsError as jest.Mock;
 
-const FALLBACK_KEYS = ["errorBoundary.title", "errorBoundary.body", "errorBoundary.reload"];
+/** The stored locale is unset in this test, so the fallback speaks English. */
+const FALLBACK_TEXTS = [
+  "Something went wrong",
+  "Kalsa could not draw this screen. Reload to try again.",
+  "Reload",
+];
 /** The subtree's poison for the recovery case: the mount AFTER the crash has
  *  to render, while every render attempt of the crashed mount threw. */
 let poisoned = false;
@@ -96,15 +103,31 @@ describe("the root render-error boundary", () => {
     poisoned = true;
     const renderer = await render(React.createElement(Boom));
 
-    expect(texts(renderer)).toEqual(FALLBACK_KEYS);
+    expect(texts(renderer)).toEqual(FALLBACK_TEXTS);
     expect(record).toHaveBeenCalledTimes(1);
     expect(record.mock.calls[0][0]).toBeInstanceOf(Error);
+  });
+
+  it("catches a throw from a provider below the root, not just from a leaf", async () => {
+    function BrokenProvider(): React.ReactElement {
+      throw new Error("provider blew up");
+    }
+    const renderer = await render(
+      React.createElement(
+        BrokenProvider,
+        null,
+        React.createElement(Text, null, "never rendered"),
+      ),
+    );
+
+    expect(texts(renderer)).toEqual(FALLBACK_TEXTS);
+    expect(record).toHaveBeenCalledTimes(1);
   });
 
   it("mounts the subtree again after Reload, once the crash cause is gone", async () => {
     poisoned = true;
     const renderer = await render(React.createElement(Boom));
-    expect(texts(renderer)).toEqual(FALLBACK_KEYS);
+    expect(texts(renderer)).toEqual(FALLBACK_TEXTS);
 
     poisoned = false;
     await pressReload(renderer);

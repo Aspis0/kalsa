@@ -43,7 +43,9 @@ export function iosMemoryWarningPlan(args: {
    *  `initLlama` has not registered a native op yet, and the context it is
    *  building is the one a release would have to take away. */
   loadInProgress: boolean;
-  /** A local context is loaded (`isEngineReady`). */
+  /** A local context is loaded and idle (`isEngineReady()` for the chat
+   *  engine, `isEmbedderActive()` for the embedder). An embed in USE is
+   *  `nativeWork` and defers this warning instead. */
   resident: boolean;
 }): IosMemoryWarningAction {
   if (args.platform !== "ios") return { op: "skip", reason: "platform" };

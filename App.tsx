@@ -210,29 +210,29 @@ function ModelCatalogBoot() {
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        {/* statusBar/navigationBarTranslucent: the lib's documented props for
-            edge-to-edge windows; no-op on API>=35 where the provider forces
-            them true. NOTE: they were expected to close the API<=34 nav-bar
-            shortfall (~40px composer under-lift, source-traced to
-            getCurrentKeyboardHeight subtracting navigationBars.bottom) but an
-            emulator A/B (runs 31219016159 vs 31221427122, identical geometry)
-            refuted that — API<=34 keeps the shortfall regardless. Kept because
-            harmless and correct for the edge-to-edge window the lib enforces;
-            the target device class (Android 15/16) computes the full IME
-            height either way. */}
-        <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
-          <LocaleProvider>
-            {/* Inside the locale provider on purpose: the fallback replaces the
-                tree, and it needs t() — the theme is one of the things below
-                this boundary, so a crashed render cannot take the copy with it. */}
-            <AppErrorBoundary>
+    /* Outermost on purpose: a throw inside any provider below — the gesture and
+       keyboard providers, the locale provider, the theme — must land on the
+       fallback too, and the fallback therefore reads the stored locale itself. */
+    <AppErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          {/* statusBar/navigationBarTranslucent: the lib's documented props for
+              edge-to-edge windows; no-op on API>=35 where the provider forces
+              them true. NOTE: they were expected to close the API<=34 nav-bar
+              shortfall (~40px composer under-lift, source-traced to
+              getCurrentKeyboardHeight subtracting navigationBars.bottom) but an
+              emulator A/B (runs 31219016159 vs 31221427122, identical geometry)
+              refuted that — API<=34 keeps the shortfall regardless. Kept because
+              harmless and correct for the edge-to-edge window the lib enforces;
+              the target device class (Android 15/16) computes the full IME
+              height either way. */}
+          <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
+            <LocaleProvider>
               <AppContent />
-            </AppErrorBoundary>
-          </LocaleProvider>
-        </KeyboardProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+            </LocaleProvider>
+          </KeyboardProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </AppErrorBoundary>
   );
 }

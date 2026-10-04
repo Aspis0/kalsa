@@ -6,11 +6,10 @@
  * the ensure path when a turn arrives first (`src/host/engineEnsure.ts`) —
  * because a poisoned context is not ready however `isEngineReady()` reads.
  *
- * The dispose itself is the shared `./residentContextRelease.ts`; what stays
- * here is what makes this release the POISONED one: the mark decides whether
- * there is anything to release at all, and the boot-history reset keeps the
- * reload from comparing a stale H0 against the .kvs. The reload belongs to the
- * caller: a released engine is reloaded by the ensure path every send runs.
+ * The dispose itself is the shared `./residentContextRelease.ts`; all this
+ * caller adds is the reason: a poisoned context is one the callers want gone
+ * and one whose session must not be restored (that reset is the dispose's, so
+ * the memory release cannot bypass it).
  *
  * Clearing the mark is NOT here: a fresh `initEngine` clears it (a new context
  * has a clean `has_error`), and the guard clears it for the release that is not
@@ -19,15 +18,11 @@
  */
 import type { LocalReleaseOutcome } from "../app/iosBackgroundPlan";
 import { isContextPoisoned } from "../engine/LlamaService";
-import { resetBootHistoryHash } from "../engine/sessionPersistence";
 import { releaseResidentContext } from "./residentContextRelease";
 
 export async function releasePoisonedContext(): Promise<LocalReleaseOutcome> {
   // The poison check is the "still wanted" predicate, so it is re-read after
   // the load wait: a load that finished while we waited built a fresh context
   // and cleared the mark, and this must not kill the fresh context.
-  const outcome = await releaseResidentContext(() => isContextPoisoned());
-  if (outcome !== "released") return outcome;
-  resetBootHistoryHash();
-  return "released";
+  return releaseResidentContext(() => isContextPoisoned());
 }

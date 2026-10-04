@@ -32,6 +32,7 @@
  */
 
 import { getModelById } from "./ModelRegistry";
+import { notifyNativeWorkSettled } from "./nativeWorkSettle";
 
 export type LlamaContextState =
   | "idle"
@@ -148,6 +149,8 @@ export function markChatReady(gen: number): void {
   if (gen !== currentChatGeneration) return;
   if (state === "chat_loading" || state === "chat_ready") {
     state = "chat_ready";
+    // The load a memory release was waiting for is over.
+    notifyNativeWorkSettled();
   }
 }
 
@@ -162,6 +165,8 @@ export function markChatReleased(gen: number): void {
   if (gen !== currentChatGeneration) return;
   if (state === "chat_loading" || state === "chat_ready") {
     state = embedHeld ? "embed_active" : "idle";
+    // A failed or cancelled load ends here too: same settle, same listeners.
+    notifyNativeWorkSettled();
   }
 }
 
@@ -356,18 +361,18 @@ export function runNativeOp<T>(fn: () => Promise<T>): Promise<T> {
     () => undefined,
   );
   void run.then(
-    () => {
-      if (gen === nativeOpGeneration) {
-        nativeOpPendingCount = Math.max(0, nativeOpPendingCount - 1);
-      }
-    },
-    () => {
-      if (gen === nativeOpGeneration) {
-        nativeOpPendingCount = Math.max(0, nativeOpPendingCount - 1);
-      }
-    },
+    () => settleNativeOp(gen),
+    () => settleNativeOp(gen),
   );
   return run;
+}
+
+/** One FIFO op settled: drop the pending count and tell the settle listeners
+ *  (`nativeWorkSettle.ts`). Stale generations were discarded by a test reset. */
+function settleNativeOp(gen: number): void {
+  if (gen !== nativeOpGeneration) return;
+  nativeOpPendingCount = Math.max(0, nativeOpPendingCount - 1);
+  notifyNativeWorkSettled();
 }
 
 async function executeNativeOp<T>(

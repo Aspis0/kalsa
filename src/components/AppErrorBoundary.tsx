@@ -2,20 +2,30 @@
  * The root render-error boundary: without one, a throw during render took the
  * whole React tree down to a blank window, and the global `ErrorUtils` handler
  * (`logReport/collector.ts`) can only RECORD that — it cannot put a screen
- * back. This catches the throw, records it through the same `js_error` path,
- * and shows a plain recoverable screen whose one action remounts the subtree.
+ * back. This is App.tsx's OUTERMOST element, so a throw inside any provider
+ * below it is caught too.
  *
  * A class because React has no hook form for error boundaries. The fallback
- * cannot use the app's theme (`ThemeContext` is one of the things below this
- * boundary), so it reads the system colour scheme and uses two plain pairs.
+ * cannot read the locale from `LocaleProvider` (that context is one of the
+ * things below this boundary), so it reads the same stored preference the
+ * provider reads, with the same normalization rule, and speaks the default
+ * catalog until that read lands. It cannot use the app's theme either, so it
+ * reads the system colour scheme and uses two plain pairs.
  *
  * The key IS the recovery: changing it unmounts the crashed subtree and mounts
  * a fresh one, so no state from the failed render survives — a relaunch
  * without the process.
  */
-import React from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
-import { useLocale } from "../i18n";
+import {
+  DEFAULT_LOCALE,
+  LOCALE_KEY,
+  parseLocale,
+  translate,
+  type Locale,
+} from "../i18n";
 import { recordJsError } from "../logReport/collector";
 
 type FallbackPalette = {
@@ -69,13 +79,41 @@ export class AppErrorBoundary extends React.Component<
   }
 }
 
+/** The locale the fallback speaks: the stored preference the provider would
+ *  have resolved, read without the provider because the provider is below this
+ *  boundary. A storage failure is not an error of its own — the default
+ *  catalog is already showing. */
+function useStoredLocale(): Locale {
+  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+  useEffect(() => {
+    let mounted = true;
+    try {
+      AsyncStorage.getItem(LOCALE_KEY)
+        .then((raw) => {
+          if (mounted) setLocale(parseLocale(raw));
+        })
+        .catch(() => undefined);
+    } catch {
+      // storage unavailable: keep the default
+    }
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  return locale;
+}
+
 function BoundaryFallback({ onReload }: { onReload: () => void }): React.ReactElement {
-  const { t } = useLocale();
+  const locale = useStoredLocale();
   const palette = useColorScheme() === "dark" ? DARK : LIGHT;
   return (
     <View style={[styles.root, { backgroundColor: palette.background }]}>
-      <Text style={[styles.title, { color: palette.ink }]}>{t("errorBoundary.title")}</Text>
-      <Text style={[styles.body, { color: palette.muted }]}>{t("errorBoundary.body")}</Text>
+      <Text style={[styles.title, { color: palette.ink }]}>
+        {translate(locale, "errorBoundary.title")}
+      </Text>
+      <Text style={[styles.body, { color: palette.muted }]}>
+        {translate(locale, "errorBoundary.body")}
+      </Text>
       <Pressable
         accessibilityRole="button"
         testID="errorBoundary.reload"
@@ -83,7 +121,7 @@ function BoundaryFallback({ onReload }: { onReload: () => void }): React.ReactEl
         style={[styles.button, { backgroundColor: palette.button }]}
       >
         <Text style={[styles.buttonLabel, { color: palette.buttonInk }]}>
-          {t("errorBoundary.reload")}
+          {translate(locale, "errorBoundary.reload")}
         </Text>
       </Pressable>
     </View>

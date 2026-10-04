@@ -280,6 +280,7 @@ import {
   type AssembleBoundaryOutcome,
 } from "./windowKvInvariant";
 import { getModelById } from "./ModelRegistry";
+import { notifyNativeWorkSettled } from "./nativeWorkSettle";
 import type { ModelInfo } from "./ModelRegistry";
 import type { DecodeMeasurement } from "./deviceThroughput";
 import { getDecodeTokPerSec, recordDecodeSample } from "./decodeSpeed";
@@ -883,14 +884,17 @@ function withEngineJob<T>(fn: () => Promise<T>): Promise<T> {
   );
   engineJobChain = run.catch(() => undefined);
   void run.then(
-    () => {
-      engineJobPendingCount = Math.max(0, engineJobPendingCount - 1);
-    },
-    () => {
-      engineJobPendingCount = Math.max(0, engineJobPendingCount - 1);
-    },
+    () => settleEngineJob(),
+    () => settleEngineJob(),
   );
   return run;
+}
+
+/** One engine job settled: drop the pending count and tell the settle
+ *  listeners (`nativeWorkSettle.ts`). */
+function settleEngineJob(): void {
+  engineJobPendingCount = Math.max(0, engineJobPendingCount - 1);
+  notifyNativeWorkSettled();
 }
 
 /**
