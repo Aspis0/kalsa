@@ -53,7 +53,7 @@ they are promoted.
 - One model switch's tune on the Surface ended "verdict unfinished … withheld once — the next start measures again" (18 min, 2026-10-03 11:36Z).
 - The mixed (iGPU prefill + CPU decode) shape is measured only at the physical-core thread count (`crates/kalsa-tune/src/candidates.rs:69`).
 
-## Vision (review of 1801cbdd..fb30130a)
+## Vision (reviews of 1801cbdd..fb30130a and ..7d1c7626)
 - Four concurrent 16 MiB bodies hold ~128 MiB in the door (buffered body + parsed JSON strings) (`proxy.rs:795`, `media.rs:88`, `lib.rs:97`).
 - An image small on disk but huge in pixels is decoded whole before the 1536 px resize; dimensions are checked after `createImageBitmap` (`images.ts:126-136`).
 - Image bytes can be orphaned in IndexedDB when a chat is deleted while an attach is writing, or when a later `putImage` in a batch fails (`useChat.ts:423`, `imageStore.ts:81`).
@@ -61,6 +61,11 @@ they are promoted.
 - Two attach batches started at once can each pass preflight against the same image count; send-time catches it as a failed turn (`useChat.ts:395-428`).
 - The door refuses raw-base64 `image_url.url` (llama-server accepts it); clients must send `data:image/…;base64,` (`media.rs:246`) — stated in the phone contract.
 - `scripts/image-attach.mjs` deletes a fixed `.image-attach-dist` dir before and after a run.
+
+- Animated GIFs are accepted but become still images after the canvas re-encode (`images.ts:36,191`).
+- The stick-to-bottom hook can miss the first scroll-up when content grew since the last scroll event (`stickToBottom.ts:40,90`).
+- `scripts/room-media.mjs` deletes fixed `.room-media-dist` / `.room-media-probe` dirs before a run.
+- A video kept in its original codec (remux fallback) records the client-declared pixels; the room never parses MP4 boxes.
 
 ## Post-alpha features (owner decisions)
 - Small tool-calling model beside a bigger writer — Lab.
