@@ -2,6 +2,7 @@
 //! it, and the access rule that ties a blob to the transcript entry that
 //! posted it.
 
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::media::{
@@ -938,15 +939,52 @@ fn a_media_post_is_one_line_like_any_other() {
 
 /// The records the index file holds, as the next open reads them — parsed
 /// as plain JSON, because the file itself is what the repair is about.
-fn index_records(dir: &std::path::Path) -> Vec<serde_json::Value> {
-    let bytes = std::fs::read(dir.join("media").join("index.json")).unwrap_or_default();
+fn index_records(dir: &Path) -> Vec<serde_json::Value> {
+    let bytes = std::fs::read(index_path(dir)).unwrap_or_default();
     let stored: serde_json::Value = serde_json::from_slice(&bytes).expect("the index is JSON");
     stored["media"].as_array().cloned().unwrap_or_default()
+}
+
+fn index_path(dir: &Path) -> PathBuf {
+    dir.join("media").join("index.json")
+}
+
+/// Replaces the index with the records given: the forged-index tests write
+/// what a bug or a hand could have written.
+fn craft_index(dir: &Path, records: &[serde_json::Value]) {
+    let stored = serde_json::json!({ "v": crate::shelf::INDEX_VERSION, "media": records });
+    let bytes = serde_json::to_vec(&stored).expect("the index serializes");
+    std::fs::write(index_path(dir), bytes).expect("the index is written");
+}
+
+/// Removes a test's scratch tree when the test ends, however it ends: the
+/// shared `scratch` (tests.rs) removes only before a run, so a test that
+/// does not clean up leaves its tree — and any locked subdirectory — for
+/// the next run to trip over.
+struct Scratch(PathBuf);
+
+impl Scratch {
+    /// The tree a room directory hangs in.
+    fn of(room_dir: &Path) -> Self {
+        Self(
+            room_dir
+                .parent()
+                .expect("a room dir has a parent")
+                .to_path_buf(),
+        )
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 #[test]
 fn a_cleared_shelf_reopens_empty_and_with_its_quota_whole() {
     let (dir, room) = open("media_clear_reopen");
+    let _scratch = Scratch::of(&dir);
     let member = phone(&room, 1);
     let asset = image_asset(&room, member);
     room.post(
@@ -1026,6 +1064,7 @@ fn a_cleared_shelf_reopens_empty_and_with_its_quota_whole() {
 #[test]
 fn an_index_record_whose_blob_is_gone_is_dropped_and_the_index_rewritten() {
     let (dir, room) = open("media_ghost_record");
+    let _scratch = Scratch::of(&dir);
     let member = phone(&room, 1);
     let asset = image_asset(&room, member);
     room.post(
@@ -1064,6 +1103,7 @@ fn an_index_record_whose_blob_is_gone_is_dropped_and_the_index_rewritten() {
 #[test]
 fn a_missing_frame_blob_leaves_its_video_without_naming_it() {
     let (dir, room) = open("media_frame_ghost");
+    let _scratch = Scratch::of(&dir);
     let member = phone(&room, 1);
     let frame = image_asset(&room, member);
     let video = upload_bytes(
@@ -1100,4 +1140,138 @@ fn a_missing_frame_blob_leaves_its_video_without_naming_it() {
         .post(member, "p1", "", false, std::slice::from_ref(&video.id))
         .unwrap();
     assert!(posted.media[0].frames.is_empty());
+}
+
+#[test]
+fn an_index_id_that_could_leave_the_blobs_dir_is_refused() {
+    let (dir, room) = open("media_forged_id");
+    let _scratch = Scratch::of(&dir);
+    let member = phone(&room, 1);
+    image_asset(&room, member);
+    drop(room);
+    // The file a forged id would name: `blobs/../kept.txt` is this one,
+    // and both the clear and the heal join an index id onto `blobs`.
+    let victim = dir.join("media").join("kept.txt");
+    std::fs::write(&victim, b"not media").unwrap();
+    let mut records = index_records(&dir);
+    assert_eq!(records.len(), 1, "the honest record is the one to forge");
+    records[0]["id"] = serde_json::json!("../kept.txt");
+    craft_index(&dir, &records);
+    // The index is refused whole, as it already is for a record the store
+    // would not take: the id is not one the shelf could have minted, so no
+    // path outside `blobs` is ever joined, read or deleted.
+    assert!(matches!(
+        super::reopen(&dir),
+        Err(crate::RoomError::Corrupt(_))
+    ));
+    assert_eq!(
+        std::fs::read(&victim).unwrap(),
+        b"not media",
+        "nothing outside blobs may be touched"
+    );
+}
+
+#[test]
+fn a_frame_id_that_is_not_a_media_id_is_refused() {
+    let (dir, room) = open("media_forged_frame");
+    let _scratch = Scratch::of(&dir);
+    let member = phone(&room, 1);
+    let frame = image_asset(&room, member);
+    upload_bytes(
+        &room,
+        member,
+        MediaKind::Video,
+        "video/mp4",
+        &video_bytes(),
+        std::slice::from_ref(&frame.id),
+    )
+    .unwrap();
+    drop(room);
+    let mut records = index_records(&dir);
+    assert_eq!(records.len(), 2, "the frame and the video that names it");
+    let video = records
+        .iter_mut()
+        .find(|record| record["kind"] == "video")
+        .expect("the video's record");
+    // A frame id is joined onto `blobs` too, when its still is asked for.
+    video["frames"] = serde_json::json!(["../kept.txt"]);
+    craft_index(&dir, &records);
+    assert!(matches!(
+        super::reopen(&dir),
+        Err(crate::RoomError::Corrupt(_))
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_blob_the_shelf_cannot_check_is_kept_not_dropped() {
+    use std::os::unix::fs::PermissionsExt;
+    let (dir, room) = open("media_unchecked_blob");
+    let _scratch = Scratch::of(&dir);
+    let member = phone(&room, 1);
+    let blob = image_asset(&room, member);
+    drop(room);
+    let blobs = dir.join("media").join("blobs");
+    {
+        let _restore = Restore(
+            blobs.clone(),
+            std::fs::metadata(&blobs).unwrap().permissions(),
+        );
+        std::fs::set_permissions(&blobs, std::fs::Permissions::from_mode(0o000)).unwrap();
+        // A check that fails for a reason that is not absence — here a
+        // permission wall over the whole blobs directory — is not an
+        // answer about the file: the record stays and the index is not
+        // rewritten from it.
+        let room = super::reopen(&dir).expect("the room opens");
+        assert_eq!(
+            index_records(&dir).len(),
+            1,
+            "an uncheckable record must be kept"
+        );
+        drop(room);
+    }
+    // The wall down: the same record is served, never dropped.
+    let room = super::reopen(&dir).expect("the room opens again");
+    let (mime, bytes) = room.media_bytes(&blob.id).expect("the blob was kept");
+    assert_eq!(mime, "image/jpeg");
+    assert_eq!(bytes, jpeg_bytes(640, 480));
+}
+
+/// Puts the blobs directory's permissions back however the test ends: an
+/// assertion that panics must not leave the scratch tree unwritable.
+#[cfg(unix)]
+struct Restore(PathBuf, std::fs::Permissions);
+
+#[cfg(unix)]
+impl Drop for Restore {
+    fn drop(&mut self) {
+        let _ = std::fs::set_permissions(&self.0, self.1.clone());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlink_where_the_blob_should_be_is_not_published() {
+    let (dir, room) = open("media_blob_symlink");
+    let _scratch = Scratch::of(&dir);
+    let member = phone(&room, 1);
+    let blob = image_asset(&room, member);
+    drop(room);
+    // The shelf only ever renames a plain file into place; a link is not
+    // its blob, and following it would serve whatever it points at.
+    let target = dir.parent().unwrap().join("outside.txt");
+    std::fs::write(&target, b"not media").unwrap();
+    let path = dir.join("media").join("blobs").join(&blob.id);
+    std::fs::remove_file(&path).unwrap();
+    std::os::unix::fs::symlink(&target, &path).unwrap();
+    let room = super::reopen(&dir).expect("the room opens");
+    assert!(
+        room.media_bytes(&blob.id).is_none(),
+        "the link's target must not be served"
+    );
+    assert_eq!(
+        index_records(&dir).len(),
+        0,
+        "the record goes with the blob"
+    );
 }

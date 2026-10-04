@@ -87,3 +87,8 @@ they are promoted.
 - P2, plausible: `host_bytes_on_gpu` 278_528_000 B was measured on the M1 Max (unified memory) and is subtracted from discrete-GPU budgets (`crates/kalsa-catalog/src/footprint.rs:187`, `:209-210`); unmeasured on Vulkan.
 - P2: the default tests pin only the Q8 projector and model; the F16 projector (`crates/kalsa-catalog/src/manifest.rs:1112`) and the F16 model sha are pinned only in ignored suites (`crates/kalsa-catalog/src/manifest/tests.rs:645` picks the first pin).
 - P3: stale comments — `crates/kalsa-launch/src/policy.rs:1054` and `:1070` say 31_590 (the arithmetic gives 31_592), and `:1261` says "65 536 chat default"; `src-tauri/src/startup.rs:2769` says "trained 131_072".
+
+## Room media shelf (review of 388b23c2)
+- P2: a clear ignores every `remove_file` failure (`crates/kalsa-room/src/shelf.rs:439`) and the open sweep covers only `uploads` (`:100-106`), so a delete that fails leaves an orphan blob no index names — charged to nobody and reclaimed by nothing.
+- P2: the heal's frame pruning touches only the shelf's copy of a video's descriptor — transcript entries loaded before it (`crates/kalsa-room/src/room.rs:121-126`) still name dead frames, which the door counts against the image budget (`crates/kalsa-door/src/room/turn.rs:652`) and then skips when the bytes are gone (`:663-665`), so phones ask and get a 404.
+- P3: the ghost test does not assert the dropped record's charge came back: `used` and MAX_PUBLISHED are not checked (`crates/kalsa-room/src/tests/media.rs:1065-1101`).

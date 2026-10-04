@@ -94,7 +94,7 @@ impl MediaState {
         // The blobs are the shelf's truth: a record whose file is not on
         // disk is a ghost the quota must not charge and a download cannot
         // produce, so it is dropped here and the index rewritten below.
-        let (dropped, pruned) = drop_ghosts(&mut published, &blobs);
+        let heal = heal_index(&mut published, &blobs);
         // An upload in flight died with the process; its bytes are the
         // sender's to send again, and the directory is the sweep's start.
         for left in std::fs::read_dir(&uploads_dir).map_err(RoomError::Io)? {
@@ -121,17 +121,27 @@ impl MediaState {
             uploads_dir,
             index,
         };
-        if dropped > 0 || pruned > 0 {
+        if heal.dropped > 0 || heal.pruned > 0 {
             // Counts only: what the heal drops is the shelf's bookkeeping,
             // never the owner's content.
             log::info!(
-                "media: {dropped} index records had no blob ({pruned} frame references pruned)"
+                "media: {} index records had no blob ({} frame references pruned)",
+                heal.dropped,
+                heal.pruned
             );
             // A repair that cannot be written is not a failed open: the
             // memory is already honest, and the next open heals again.
             if let Err(error) = state.write_index(state.stored_records()) {
                 log::warn!("media: the healed index could not be rewritten ({error})");
             }
+        }
+        if heal.unchecked > 0 {
+            // A check that failed is not an absence: these records stay
+            // published and charged, and the next open tries them again.
+            log::warn!(
+                "media: {} index records could not be checked; kept for the next open",
+                heal.unchecked
+            );
         }
         Ok(state)
     }
@@ -468,31 +478,68 @@ fn abandoned(shelf: &mut MediaState, upload: &Upload, error: MediaError) -> Medi
     error
 }
 
-/// Drops the records whose blob file is not on disk, and stops the
-/// surviving videos from naming a dropped frame: what a restart publishes
-/// is what a download can produce, and the quota charges only bytes that
-/// are there. Answers the records dropped and the frame references pruned,
-/// so the caller rewrites the index once and says both in one line.
-fn drop_ghosts(
-    published: &mut HashMap<String, (MediaAsset, MemberId)>,
-    blobs: &Path,
-) -> (usize, usize) {
-    let held = published.len();
-    published.retain(|id, _| blobs.join(id).is_file());
-    let dropped = held - published.len();
+/// What one heal of the loaded index did: the records dropped because their
+/// blob is provably not there, the frame references pruned with them, and
+/// the records whose blob could not be checked at all.
+struct Heal {
+    dropped: usize,
+    pruned: usize,
+    unchecked: usize,
+}
+
+/// Checks the loaded index against the blobs and drops what is provably not
+/// there, taking each dropped id out of the videos that named it as a
+/// frame. Only absence drops a record: a blob path that is not a regular
+/// file is not the blob the shelf writes (nothing else is ever renamed into
+/// `blobs`, and following a symlink there would serve whatever it points
+/// at), and `NotFound` is the file's own answer. Any other failure — a
+/// permission, a lock — keeps the record, because it is not an answer about
+/// the file. Answers the counts, so the caller rewrites the index once and
+/// says them in the log.
+fn heal_index(published: &mut HashMap<String, (MediaAsset, MemberId)>, blobs: &Path) -> Heal {
+    let mut heal = Heal {
+        dropped: 0,
+        pruned: 0,
+        unchecked: 0,
+    };
+    published.retain(|id, _| match std::fs::symlink_metadata(blobs.join(id)) {
+        Ok(meta) if meta.is_file() => true,
+        Ok(_) => {
+            heal.dropped += 1;
+            false
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            heal.dropped += 1;
+            false
+        }
+        Err(_) => {
+            heal.unchecked += 1;
+            true
+        }
+    });
     // A frame is a blob of its own, published before the video that names
     // it: the drop above takes its record, and this takes its name out of
     // the video that survived.
     let live: HashSet<String> = published.keys().cloned().collect();
-    let mut pruned = 0;
     for (asset, _) in published.values_mut() {
         asset.frames.retain(|frame| {
             let keep = live.contains(frame);
-            pruned += usize::from(!keep);
+            heal.pruned += usize::from(!keep);
             keep
         });
     }
-    (dropped, pruned)
+    heal
+}
+
+/// The one shape [`mint_id`] writes and the index may hold: 32 lowercase hex
+/// characters, so an id is a plain file name under `blobs` and never a path.
+/// `identity`'s own reader takes either case and reads identities; this one
+/// is the stricter shape a media id is minted and served with.
+fn is_media_id(id: &str) -> bool {
+    id.len() == 32
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 /// The shelf a fresh room reads: every record the index holds, or — where
@@ -520,6 +567,18 @@ pub(crate) fn load_index(
     }
     let mut published = HashMap::new();
     for record in stored.media {
+        // The id becomes a file name under `blobs` — the heal, a clear and
+        // both readers join it — so it must be the one shape `mint_id`
+        // writes. A store that took a `../` id from a crafted index would
+        // read, and a clear would delete, outside the shelf; a frame id is
+        // joined the same way when its still is asked for.
+        if !is_media_id(&record.asset.id)
+            || record.asset.frames.iter().any(|frame| !is_media_id(frame))
+        {
+            return Err(RoomError::Corrupt(
+                "the media index holds an id the store would not mint",
+            ));
+        }
         if record.asset.check().is_err() {
             return Err(RoomError::Corrupt(
                 "the media index holds a record the store would not take",
