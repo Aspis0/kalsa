@@ -1811,12 +1811,15 @@ async function emitGovernorTelemetry(
         prefill_kv: npuStats.prefill_kv ?? null,
         // Decode-hop evidence (kalsa.bench.decode_hop): hops this turn, the
         // tokens each device generated, and what the hops cost in KV commit
-        // traffic. All 0 while the cadence is off.
+        // traffic. All 0 while the cadence is off. headroom_windows counts the
+        // windows the thermal-headroom rule decided (0 = alternation fallback,
+        // e.g. a phone whose thermal zones are unreadable).
         decode_hops: stats.decode_hops,
         decode_tokens_cpu: stats.decode_tokens_cpu,
         decode_tokens_npu: stats.decode_tokens_npu,
         decode_hop_commit_bytes: stats.decode_hop_commit_bytes,
         decode_hop_commit_ms: stats.decode_hop_commit_ms,
+        decode_hop_headroom_windows: stats.decode_hop_headroom_windows,
         fallback_reason: activeGovernorFallbackReason,
         // A latched governor failure is sticky: every later turn dies on it.
         // Surface it here so it is visible in telemetry, not just in the
