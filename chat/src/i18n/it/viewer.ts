@@ -7,5 +7,7 @@ export const VIEWER = {
   next: "Successivo",
   goTo: (index: number) => `Mostra l'elemento ${index}`,
   enlarge: "Vedi a dimensione intera",
+  loading: "Caricamento…",
+  imageUnavailable: "Non è stato possibile caricare quell'immagine.",
   videoUnsupported: "Il tuo browser non supporta l'elemento video.",
 };

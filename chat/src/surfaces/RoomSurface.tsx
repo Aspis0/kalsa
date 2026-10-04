@@ -14,8 +14,15 @@ import { isImageFile, prepareImage } from "../lib/images";
 import type { PreparedImage } from "../lib/images";
 import { AttachmentError } from "../lib/attachments";
 import { prepareVideo, VideoCanceled } from "../lib/video";
-import { RoomMediaError, ROOM_IMAGE_MAX_BYTES, ROOM_VIDEO_MAX_BYTES, uploadRoomMedia } from "../lib/roomMedia";
+import {
+  clearRoomMedia,
+  RoomMediaError,
+  ROOM_IMAGE_MAX_BYTES,
+  ROOM_VIDEO_MAX_BYTES,
+  uploadRoomMedia,
+} from "../lib/roomMedia";
 import type { RoomMediaDescriptor } from "../lib/roomMedia";
+import { forgetAllRoomMediaUrls } from "../lib/roomMediaCache";
 import { uid } from "../lib/store";
 import { isFallbackText, RoomMediaGrid } from "../components/RoomMediaGrid";
 import { RoomMediaChips } from "../components/RoomMediaChips";
@@ -76,6 +83,10 @@ export function RoomSurface() {
   const [pendingMedia, setPendingMedia] = useState<RoomPendingMedia[]>([]);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const cancelers = useRef(new Map<string, { canceled: boolean }>());
+  // The shelf's broom: the confirm it asks with, and the epoch a cleared
+  // shelf bumps so every row's media re-asks a shelf that now says nothing.
+  const [clearing, setClearing] = useState(false);
+  const [mediaEpoch, setMediaEpoch] = useState(0);
 
   // The header's name affordance exists only while there is a name to
   // show: a bare "You are …" is noise, and the placeholder copy is not
@@ -125,11 +136,19 @@ export function RoomSurface() {
   // Attach: pictures are prepared at once (one road as the chat's); a
   // video compresses here in the webview with its progress on the chip,
   // cancelable, and its frames pulled beside it. A file that is neither is
-  // a sentence, never a silence.
+  // a sentence, never a silence. Eight ride one message — the shelf's own
+  // post cap (§5b) — and the ninth is a sentence too.
+  const MEDIA_PER_POST = 8;
   async function attachMedia(files: FileList | File[]): Promise<void> {
     setMediaError(null);
+    let room = MEDIA_PER_POST - pendingMedia.length;
     for (const file of Array.from(files)) {
+      if (room <= 0) {
+        setMediaError(mediaWords.tooManyMedia);
+        continue;
+      }
       if (isImageFile(file)) {
+        room -= 1;
         const id = uid();
         const gate = { canceled: false };
         cancelers.current.set(id, gate);
@@ -151,6 +170,10 @@ export function RoomSurface() {
         ]);
         try {
           const image = await prepareImage(file);
+          if (gate.canceled) {
+            dropMedia(id);
+            continue;
+          }
           patchMedia(id, {
             state: "ready",
             url: URL.createObjectURL(image.blob),
@@ -175,6 +198,7 @@ export function RoomSurface() {
         continue;
       }
       if (file.type.startsWith("video/") || /\.(mp4|m4v|mov)$/i.test(file.name)) {
+        room -= 1;
         const id = uid();
         const gate = { canceled: false };
         cancelers.current.set(id, gate);
@@ -200,6 +224,12 @@ export function RoomSurface() {
             (progress) => patchMedia(id, { progress }),
             gate,
           );
+          // A cancel that landed while the last frames were drawn leaves
+          // the prepared bytes unwanted: no URL for a chip already gone.
+          if (gate.canceled) {
+            dropMedia(id);
+            continue;
+          }
           patchMedia(id, {
             state: "ready",
             progress: 1,
@@ -231,6 +261,25 @@ export function RoomSurface() {
     const gate = cancelers.current.get(id);
     if (gate) gate.canceled = true;
     dropMedia(id);
+  }
+
+  // The host's own broom. The full-shelf sentence points here because this
+  // is the only thing that can make room; after it the shelf answers every
+  // read with media_not_found and the rows meet that with the fallback
+  // words, which is what §5b stored them for.
+  async function clearRoomMediaNow(): Promise<void> {
+    setClearing(false);
+    try {
+      await clearRoomMedia();
+      // No URL may outlive the blobs it names; the epoch remounts the
+      // rows' media so nothing renders bytes that are no longer there.
+      forgetAllRoomMediaUrls();
+      setMediaEpoch((epoch) => epoch + 1);
+    } catch (error) {
+      setMediaError(
+        error instanceof RoomMediaError ? mediaSentence(error.code) : mediaWords.clearFailed,
+      );
+    }
   }
 
   /** §5b's refusal codes, in the household's words. */
@@ -413,6 +462,23 @@ export function RoomSurface() {
             {nameLine ? <span className="room-name-error">{nameLine}</span> : null}
           </form>
         ) : null}
+        {clearing ? (
+          <div className="room-clear" role="alertdialog" aria-label={mediaWords.clearAction}>
+            <span className="room-clear-ask">{mediaWords.clearConfirm}</span>
+            <span className="room-clear-actions">
+              <button type="button" className="room-clear-delete" onClick={() => void clearRoomMediaNow()}>
+                {mediaWords.clearDelete}
+              </button>
+              <button type="button" onClick={() => setClearing(false)}>
+                {mediaWords.clearKeep}
+              </button>
+            </span>
+          </div>
+        ) : (
+          <button type="button" className="room-clear-chip" onClick={() => setClearing(true)}>
+            {mediaWords.clearAction}
+          </button>
+        )}
       </header>
 
       <div className="thread-wrap">
@@ -429,6 +495,7 @@ export function RoomSurface() {
             {entries.map((entry, index) => (
               <RoomRow
                 key={entry.seq}
+                mediaEpoch={mediaEpoch}
                 entry={entry}
                 info={info ?? null}
                 color={colors.get(entry.member_id)}
@@ -533,6 +600,7 @@ export function RoomSurface() {
     the page's muted surface. */
 function RoomRow({
   entry,
+  mediaEpoch,
   info,
   color,
   tint,
@@ -544,6 +612,9 @@ function RoomRow({
   when,
 }: {
   entry: RoomEntry;
+  /** Bumped when the shelf was cleared: the bubble's media remounts and
+      re-asks a shelf that now refuses every read. */
+  mediaEpoch: number;
   info: RoomInfo | null;
   /** The author's palette color, absent for a member no longer in the
       room: they hold no slot, and their name wears the page's own ink. */
@@ -574,7 +645,7 @@ function RoomRow({
       ) : null}
       <div className="room-bubble" style={style}>
         {entry.call_ai && !isKalsa ? <span className="room-asked">{asked} </span> : null}
-        <RoomMediaInBubble entry={entry} />
+        <RoomMediaInBubble key={mediaEpoch} entry={entry} />
         {!(entry.media && entry.media.length > 0 && isFallbackText(entry.text)) ? (
           isKalsa ? <Markdown text={entry.text} /> : <RoomText text={entry.text} />
         ) : null}
@@ -601,6 +672,9 @@ function RoomMediaInBubble({ entry }: { entry: RoomEntry }) {
         imageUnavailable: words.imageUnavailable,
         videoLabel: words.videoLabel,
         enlarge: words.enlarge,
+        playVideo: words.playVideo,
+        fallbackImage: words.fallbackImage,
+        fallbackVideo: words.fallbackVideo,
       }}
     />
   );

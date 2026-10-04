@@ -103,3 +103,157 @@
   line-height: 1;
   cursor: pointer;
 }
+
+/* A picture whose turn has not come: the box it will fill, held in place
+   before anything is read. */
+.room-media-thumb-placeholder {
+  display: grid;
+  width: 120px;
+  height: 84px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.room-media-loading {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: room-media-spin 0.9s linear infinite;
+}
+
+@keyframes room-media-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The video's poster pieces: frame, length, play. */
+.room-media-poster-tile {
+  display: grid;
+  place-items: center;
+}
+
+.room-media-poster-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.room-media-poster-length {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 1px 6px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: 6px;
+  font-size: 0.72rem;
+}
+
+.room-media-play {
+  position: relative;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.room-media-play:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+/* The fallback words (§5b), shown where a blob cannot be. */
+.room-media-fallback {
+  padding: 0.2rem 0.5rem;
+  color: var(--silence);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  font-size: 0.78rem;
+}
+
+/* The host's broom: one quiet affordance in the header, one confirm. */
+.room-clear-chip {
+  flex: none;
+  align-self: baseline;
+  padding: 0.15rem 0.6rem;
+  color: var(--silence);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.room-clear-chip:hover {
+  color: var(--ink-soft);
+  border-color: var(--border-strong);
+}
+
+.room-clear {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+
+.room-clear-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.room-clear-actions button {
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.room-clear-delete {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* One media item's stable wrapper: the layout unit of the row, observed
+   whatever the item currently renders. */
+.room-media-item {
+  display: flex;
+  flex: none;
+  max-width: 240px;
+}
+
+.room-media-item-tile {
+  position: relative;
+  display: grid;
+  width: 224px;
+  height: 126px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.room-media-item-tile .room-media-poster-tile {
+  display: contents;
+}

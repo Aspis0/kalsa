@@ -18,7 +18,7 @@ import { buildPinnedContext } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
 import { getImage } from "../lib/imageStore";
 import { blobToDataUrl } from "../lib/images";
-import { selectWireImages, WIRE_BODY_BUDGET } from "../lib/wireBudget";
+import { selectWireImages, wireBodyBytes, WIRE_BODY_BUDGET } from "../lib/wireBudget";
 import type { WireImage } from "../lib/wireBudget";
 import { executeToolCall, offeredTools } from "../lib/tools/registry";
 import type { GateCheck } from "../lib/tools/registry";
@@ -222,8 +222,9 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           loadThinking(currentSettings.model),
         ),
       );
-      const pick = selectWireImages(wire, dryBody.length, currentTurnImages.length);
-      if (dryBody.length + pick.imageBytes > WIRE_BODY_BUDGET) {
+      const dryBytes = wireBodyBytes(dryBody);
+      const pick = selectWireImages(wire, dryBytes, currentTurnImages.length);
+      if (dryBytes + pick.imageBytes > WIRE_BODY_BUDGET) {
         refuseOversize("chat.wire_oversize");
         return;
       }

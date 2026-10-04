@@ -36,7 +36,9 @@ export interface RoomTable {
     videoUnavailable: string;
     imageUnavailable: string;
     enlarge: string;
+    playVideo: string;
     notMedia: string;
+    tooManyMedia: string;
     tooLargeImage: string;
     imageUnreadable: string;
     tooLargeVideo: string;
@@ -44,6 +46,13 @@ export interface RoomTable {
     full: string;
     uploadBroken: string;
     uploadFailed: string;
+    clearAction: string;
+    clearConfirm: string;
+    clearDelete: string;
+    clearKeep: string;
+    clearFailed: string;
+    fallbackImage: string;
+    fallbackVideo: string;
   };
 }
 
@@ -94,13 +103,24 @@ export const ROOM: RoomTable = {
     videoUnavailable: "Video unavailable",
     imageUnavailable: "Picture unavailable",
     enlarge: "View full size",
+    playVideo: "Play video",
     notMedia: "Only pictures and videos can be attached here.",
+    tooManyMedia: "Up to 8 photos and videos can ride one message.",
     tooLargeImage: "That picture is too large for the room (4 MB at most).",
     imageUnreadable: "That picture can't be read here. Try another one.",
     tooLargeVideo: "That video is too large for the room (over 100 MB).",
     undecodableVideo: "That video can't be read here. Convert it to MP4 and try again.",
-    full: "The Room is full (2 GB). Ask the host to clear it.",
+    full: "The Room is full (2 GB). Use Clear Room photos and videos to make room.",
     uploadBroken: "The file didn't survive the upload whole. Try again.",
     uploadFailed: "The upload didn't go through. Try again.",
+    clearAction: "Clear Room photos and videos",
+    clearConfirm: "Delete all photos and videos in this Room for everyone? Messages stay.",
+    clearDelete: "Delete",
+    clearKeep: "Keep",
+    clearFailed: "Couldn't clear the Room's media. Try again.",
+    // The computer's stored fallback tokens (§5b), shown again when the
+    // blob itself cannot be shown: the same words every reader sees.
+    fallbackImage: "[Image]",
+    fallbackVideo: "[Video]",
   },
 };

@@ -24,6 +24,16 @@ export function wireImageBytes(byteLength: number): number {
   return Math.ceil((byteLength * 4) / 3) + 64;
 }
 
+const utf8 = new TextEncoder();
+
+/** The body's real weight on the wire: UTF-8 BYTES, not UTF-16 code units.
+    The door caps bytes, and a conversation in Chinese or emoji carries
+    three of four bytes a character — `String.length` would undercount it
+    by that much and the 413 would come as a surprise. */
+export function wireBodyBytes(json: string): number {
+  return utf8.encode(json).byteLength;
+}
+
 export interface WireImage {
   id: string;
   /** The stored blob's size in bytes. */

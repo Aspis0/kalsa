@@ -123,8 +123,28 @@ export async function uploadRoomMedia(
   });
 }
 
-/** One published blob's bytes, for the page's own rendering. */
-export async function readRoomMedia(id: string): Promise<{ mime: string; data: Uint8Array }> {
-  const answer = await invoke<{ mime: string; data: number[] }>("brain_room_media_read", { id });
-  return { mime: answer.mime, data: Uint8Array.from(answer.data) };
+/** One published blob's bytes, for the page's own rendering. The MIME is
+    the caller's to know — the entry's media descriptor says it — because
+    the command answers RAW BYTES over binary IPC (`tauri::ipc::Response`,
+    an ArrayBuffer here); a view or a number array is the same answer in
+    another envelope, and none of them carries a mime. */
+export async function readRoomMedia(id: string): Promise<Uint8Array> {
+  const answer = await invoke<unknown>("brain_room_media_read", { id });
+  if (answer instanceof ArrayBuffer) return new Uint8Array(answer);
+  if (ArrayBuffer.isView(answer)) {
+    const view = answer as ArrayBufferView;
+    return new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+  }
+  if (Array.isArray(answer)) return Uint8Array.from(answer as number[]);
+  throw new RoomMediaError("media_not_found");
+}
+
+/** The host's own broom: every blob on the shelf, gone. Downloads answer
+    `media_not_found` after it, which the rows meet with the fallback
+    words; the page forgets its object URLs beside it
+    (`roomMediaCache.forgetAll`). */
+export async function clearRoomMedia(): Promise<void> {
+  await invoke("brain_room_media_clear").catch((error) => {
+    throw new RoomMediaError(codeOf(error));
+  });
 }

@@ -102,11 +102,14 @@ async function buildProbe() {
     join(probeDir, "main.ts"),
     `
 import { Conversion, Input, Output, Mp4OutputFormat, BufferTarget, BlobSource, CanvasSource, ALL_FORMATS } from "mediabunny";
-import { prepareVideo, VideoCanceled } from "../src/lib/video";
+import { estimatedVideoBytes, prepareVideo, remuxOriginal, VideoCanceled } from "../src/lib/video";
 import { uploadRoomMedia, sha256Hex, ROOM_VIDEO_MAX_BYTES } from "../src/lib/roomMedia";
+import { wireBodyBytes } from "../src/lib/wireBudget";
+import { acquireRoomMediaUrl, holdRoomMediaUrl, releaseRoomMediaUrl, forgetAllRoomMediaUrls } from "../src/lib/roomMediaCache";
 (window as unknown as { __MEDIA__: unknown }).__MEDIA__ = {
   Conversion, Input, Output, Mp4OutputFormat, BufferTarget, BlobSource, CanvasSource, ALL_FORMATS,
-  prepareVideo, VideoCanceled, uploadRoomMedia, sha256Hex, ROOM_VIDEO_MAX_BYTES,
+  prepareVideo, remuxOriginal, estimatedVideoBytes, VideoCanceled, uploadRoomMedia, sha256Hex, ROOM_VIDEO_MAX_BYTES,
+  wireBodyBytes, acquireRoomMediaUrl, holdRoomMediaUrl, releaseRoomMediaUrl, forgetAllRoomMediaUrls,
 };
 `,
   );
@@ -125,6 +128,133 @@ import { uploadRoomMedia, sha256Hex, ROOM_VIDEO_MAX_BYTES } from "../src/lib/roo
       rollupOptions: { input: join(probeDir, "index.html") },
     },
   });
+}
+
+// --- MP4 boxes, enough to plant and find a location atom --------------------
+
+/** Every box's type under `moov`, plus whether udta/\xA9xyz exist anywhere. */
+function mp4Boxes(buffer) {
+  const types = { top: [], underMoov: [] };
+  let udta = false;
+  let xyz = false;
+  const walk = (at, end, under) => {
+    while (at + 8 <= end) {
+      const size = buffer.readUInt32BE(at);
+      const type = buffer.toString("latin1", at + 4, at + 8);
+      if (size < 8 || at + size > end) return;
+      if (under) types.underMoov.push(type);
+      else types.top.push(type);
+      if (type === "udta") udta = true;
+      if (type === "\u00a9xyz" || buffer.subarray(at, at + size).includes(Buffer.from("\u00a9xyz", "latin1"))) xyz = true;
+      if (type === "moov") walk(at + 8, at + size, true);
+      at += size;
+    }
+  };
+  walk(0, buffer.length, false);
+  return { ...types, udta, xyz };
+}
+
+/** A udta holding ©xyz (the QuickTime GPS tag), appended INSIDE the
+    trailing moov — the shape a phone's recorder writes. */
+function withLocationAtom(mp4) {
+  const xyz = Buffer.alloc(8 + 16);
+  xyz.writeUInt32BE(8 + 16, 0);
+  xyz.write("\u00a9xyz", 4, "latin1");
+  xyz.write("37.33/+/-122.03", 8, "latin1");
+  const udta = Buffer.alloc(8 + xyz.length);
+  udta.writeUInt32BE(8 + xyz.length, 0);
+  udta.write("udta", 4, "latin1");
+  xyz.copy(udta, 8);
+  // The moov, by a proper top-level walk. Growing it shifts whatever
+  // follows, so every stco chunk offset inside it moves by the same delta —
+  // the one edit a real muxer would make.
+  let moovAt = -1;
+  let walk = 0;
+  while (walk + 8 <= mp4.length) {
+    const size = mp4.readUInt32BE(walk);
+    if (size < 8) break;
+    if (mp4.toString("latin1", walk + 4, walk + 8) === "moov") moovAt = walk;
+    walk += size;
+  }
+  if (moovAt === -1) throw new Error("fixture: no moov box");
+  const moovSize = mp4.readUInt32BE(moovAt);
+  const delta = udta.length;
+  const grown = Buffer.alloc(moovSize + delta);
+  mp4.subarray(moovAt, moovAt + moovSize).copy(grown);
+  grown.writeUInt32BE(moovSize + delta, 0);
+  udta.copy(grown, moovSize);
+  // stco entries (absolute file offsets) under this moov move by delta.
+  const patchStco = (at, end) => {
+    while (at + 8 <= end) {
+      const size = grown.readUInt32BE(at);
+      const type = grown.toString("latin1", at + 4, at + 8);
+      if (size < 8 || at + size > end) return;
+      if (type === "stco") {
+        const count = grown.readUInt32BE(at + 12);
+        for (let entry = 0; entry < count && at + 16 + entry * 4 <= end; entry += 1) {
+          const slot = at + 16 + entry * 4;
+          grown.writeUInt32BE(grown.readUInt32BE(slot) + delta, slot);
+        }
+      } else if (size > 8 && type !== "mdat") {
+        patchStco(at + 8, at + size);
+      }
+      at += size;
+    }
+  };
+  patchStco(8, grown.length);
+  return Buffer.concat([mp4.subarray(0, moovAt), grown, mp4.subarray(moovAt + moovSize)]);
+}
+
+/** The remux fallback's own proof: the ©xyz-carrying original goes in, a
+    file without it comes out, still a video, with frames. */
+async function remuxProbe(page, mp4B64) {
+  const fixture = withLocationAtom(Buffer.from(mp4B64, "base64"));
+  const before = mp4Boxes(fixture);
+  const result = await page.evaluate(async (b64) => {
+    const { remuxOriginal } = window.__MEDIA__;
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const file = new File([bytes], "located.mp4", { type: "video/mp4" });
+    const video = await remuxOriginal(file);
+    let binary = "";
+    const out = new Uint8Array(await video.blob.arrayBuffer());
+    for (let at = 0; at < out.length; at += 0x8000) {
+      binary += String.fromCharCode(...out.subarray(at, at + 0x8000));
+    }
+    return {
+      b64: btoa(binary),
+      mime: video.blob.type,
+      width: video.width,
+      height: video.height,
+      compressed: video.compressed,
+      frames: video.frames.length,
+    };
+  }, fixture.toString("base64"));
+  const after = mp4Boxes(Buffer.from(result.b64, "base64"));
+  return {
+    lines: [],
+    checks: [
+      {
+        label: "the fixture really carries udta with a ©xyz location atom",
+        ok: before.udta === true && before.xyz === true,
+        detail: JSON.stringify(before.underMoov),
+      },
+      {
+        label: "the remux drops the ©xyz location atom whole",
+        ok: after.xyz === false && !Buffer.from(result.b64, "base64").includes(Buffer.from("37.33", "latin1")),
+        detail: JSON.stringify({ xyz: after.xyz, underMoov: after.underMoov }),
+      },
+      {
+        label: "the remuxed file is still an mp4 with its pixels",
+        ok: result.mime === "video/mp4" && result.width > 0 && result.height > 0 && result.compressed === false,
+        detail: JSON.stringify({ mime: result.mime, width: result.width, height: result.height }),
+      },
+      {
+        label: "the remuxed fallback still carries frames for the AI",
+        ok: result.frames >= 1,
+        detail: JSON.stringify(result.frames),
+      },
+    ],
+  };
 }
 
 async function probeEngine(engineName, origin) {
@@ -158,6 +288,11 @@ async function probeEngine(engineName, origin) {
               }
               held.parts[args.index] = args.bytes;
               return { received: (args.index + 1) * 4194304 };
+            }
+            if (command === "brain_room_media_read") {
+              shelf.reads = shelf.reads ?? {};
+              shelf.reads[args.id] = (shelf.reads[args.id] ?? 0) + 1;
+              return new Uint8Array([1, 2, 3, 4]);
             }
             if (command === "brain_room_media_complete") {
               const held = shelf.chunks[args.upload];
@@ -302,7 +437,168 @@ async function probeEngine(engineName, origin) {
     );
     check("the failed chunk retried and the upload completed", pageErrors.length === 0, JSON.stringify(pageErrors));
 
-    // 3. Over the cap: a video past 100 MiB is refused before any work.
+    // 3. The wire's weight is UTF-8 bytes, not UTF-16 code units: a CJK
+    //    conversation is three bytes a character, and the door caps bytes.
+    const utf8 = await page.evaluate(() => {
+      const cjk = "\u56fe".repeat(10000);
+      return { wireBodyBytes: window.__MEDIA__.wireBodyBytes(cjk), length: cjk.length };
+    });
+    check(
+      "the body's weight is its UTF-8 bytes",
+      utf8.wireBodyBytes === utf8.length * 3,
+      JSON.stringify(utf8),
+    );
+
+    // 4. Early refusal: a video whose duration x bitrate cannot fit the cap
+    //    is refused BEFORE the encoder spends its minutes.
+    const estimate = await page.evaluate(() => {
+      const { estimatedVideoBytes, ROOM_VIDEO_MAX_BYTES } = window.__MEDIA__;
+      return { at400s: estimatedVideoBytes(400, true), at100s: estimatedVideoBytes(100, true), cap: ROOM_VIDEO_MAX_BYTES };
+    });
+    check(
+      "the estimate itself crosses the cap where the encoding would",
+      estimate.at400s > estimate.cap && estimate.at100s < estimate.cap,
+      JSON.stringify(estimate),
+    );
+    const longB64 = await page.evaluate(async () => {
+      const { Conversion, Input, Output, Mp4OutputFormat, BufferTarget, BlobSource, CanvasSource } = window.__MEDIA__;
+      const canvas = document.createElement("canvas");
+      canvas.width = 320;
+      canvas.height = 180;
+      const ctx = canvas.getContext("2d");
+      const source = new CanvasSource(canvas, { codec: "avc", bitrate: 500_000 });
+      const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
+      output.addVideoTrack(source, { frameRate: 10 });
+      await output.start();
+      // Sparse timestamps: a few frames, a six-minute duration — the demux
+      // reads the duration without ever encoding six minutes of video.
+      const stamps = [0, 0.5, 1, 1.5, 2, 400.5];
+      for (const at of stamps) {
+        ctx.fillStyle = `hsl(${at}, 70%, 50%)`;
+        ctx.fillRect(0, 0, 320, 180);
+        await source.add(at, 0.1);
+      }
+      await output.finalize();
+      const bytes = new Uint8Array(output.target.buffer);
+      let binary = "";
+      for (let walk = 0; walk < bytes.length; walk += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(walk, walk + 0x8000));
+      }
+      return btoa(binary);
+    });
+    const earlyRefusal = await page.evaluate(async (b64) => {
+      const { prepareVideo } = window.__MEDIA__;
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const file = new File([bytes], "long.mp4", { type: "video/mp4" });
+      const progressCalls = [];
+      try {
+        await prepareVideo(file, (fraction) => progressCalls.push(fraction));
+        return { refused: false, progressCalls: progressCalls.length };
+      } catch (error) {
+        return { refused: true, failure: error.failure, reason: error.reason, progressCalls: progressCalls.length };
+      }
+    }, longB64);
+    check(
+      "a seven-minute video is refused before the encoder runs",
+      earlyRefusal.refused === true &&
+        earlyRefusal.failure === "too-big" &&
+        earlyRefusal.reason === "video_estimate" &&
+        earlyRefusal.progressCalls === 0,
+      JSON.stringify(earlyRefusal),
+    );
+
+    // 5. Cancel: the conversion stops where it is, not at the end.
+    const cancelRun = await page.evaluate(async (b64) => {
+      const { prepareVideo } = window.__MEDIA__;
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const file = new File([bytes], "cancel.mp4", { type: "video/mp4" });
+      const gate = { canceled: false };
+      let afterCancel = 0;
+      let canceled = false;
+      const run = prepareVideo(
+        file,
+        () => {
+          if (gate.canceled) afterCancel += 1;
+          if (!gate.canceled && performance.now() % 3 < 1) gate.canceled = true;
+        },
+        gate,
+      ).then(
+        () => "resolved",
+        (error) => {
+          canceled = error.name === "VideoCanceled";
+          return "rejected";
+        },
+      );
+      const answer = await run;
+      return { answer, canceled, afterCancel };
+    }, mp4B64);
+    check(
+      "a cancel mid-encode rejects the run and stops the work",
+      cancelRun.answer === "rejected" && cancelRun.canceled === true && cancelRun.afterCancel <= 4,
+      JSON.stringify(cancelRun),
+    );
+
+    // 6. The remux fallback: a ©xyz location atom does not survive the copy.
+    const remux = await remuxProbe(page, mp4B64);
+    for (const line of remux.lines) console.log(`     ${line}`);
+    for (const one of remux.checks) check(one.label, one.ok, one.detail);
+
+    // 7. The LRU: past its cap the oldest unheld URL is revoked (a fetch
+    //    of it fails), a held one survives, and a re-acquire re-reads.
+    const lru = await page.evaluate(async () => {
+      const { acquireRoomMediaUrl, holdRoomMediaUrl, releaseRoomMediaUrl, forgetAllRoomMediaUrls } = window.__MEDIA__;
+      forgetAllRoomMediaUrls();
+      const reads = () => Object.values(window.__shelf.reads ?? {}).reduce((sum, n) => sum + n, 0);
+      const ids = Array.from({ length: 24 }, (_, at) => `l${at}`);
+      const urls = [];
+      for (const id of ids) {
+        urls.push(await acquireRoomMediaUrl(id, "image/png"));
+      }
+      const readsAfterFirstPass = reads();
+      // The second URL is held BEFORE anything pushes past the cap.
+      holdRoomMediaUrl(ids[1]);
+      for (const id of ["m0", "m1", "m2"]) await acquireRoomMediaUrl(id, "image/png");
+      // The first URL, unheld and oldest, was revoked by the overflow.
+      let firstRevoked = false;
+      try {
+        await fetch(urls[0]);
+      } catch {
+        firstRevoked = true;
+      }
+      let heldSurvives = true;
+      try {
+        await fetch(urls[1]);
+      } catch {
+        heldSurvives = false;
+      }
+      // Re-acquiring the evicted one reads again; the held one does not.
+      const before = reads();
+      await acquireRoomMediaUrl(ids[0], "image/png");
+      const reRead = reads() - before;
+      releaseRoomMediaUrl(ids[1]);
+      const heldBefore = reads();
+      await acquireRoomMediaUrl(ids[1], "image/png");
+      const heldReRead = reads() - heldBefore;
+      forgetAllRoomMediaUrls();
+      return { readsAfterFirstPass, firstRevoked, heldSurvives, reRead, heldReRead };
+    });
+    check(
+      "the LRU revoked the oldest unheld url past its cap",
+      lru.firstRevoked === true,
+      JSON.stringify(lru),
+    );
+    check(
+      "a held url survives past the cap",
+      lru.heldSurvives === true,
+      JSON.stringify(lru),
+    );
+    check(
+      "an evicted url re-reads, a held one does not",
+      lru.reRead === 1 && lru.heldReRead === 0,
+      JSON.stringify(lru),
+    );
+
+    // 8. Over the cap: a video past 100 MiB is refused before any work.
     const tooBig = await page.evaluate(async (cap) => {
       const { prepareVideo } = window.__MEDIA__;
       const file = new File([new Uint8Array(cap + 1024)], "big.mp4", { type: "video/mp4" });
@@ -330,7 +626,14 @@ async function probeEngine(engineName, origin) {
 function installAppStub(page) {
   void page.addInitScript(() => {
     window.__logEvents = [];
-    window.__shelf = { specs: [], chunks: {}, blobs: {}, failArm: false, failIndex: -1, dropNextBlob: false, posts: [] };
+    window.__shelf = { specs: [], chunks: {}, blobs: {}, reads: {}, clears: 0, failArm: false, failIndex: -1, dropNextBlob: false, posts: [] };
+    // History and blobs a test plants before a reload: the page's own reads
+    // answer from here, so lazy loading is observable against them.
+    window.__STUB_SEED_IDS__ = null;
+    window.__STUB_HISTORY__ = [];
+    const SEED_PNG = Uint8Array.from(atob(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    ), (c) => c.charCodeAt(0));
     let uploadSeq = 0;
     let blobSeq = 0;
     let postSeq = 100;
@@ -361,7 +664,7 @@ function installAppStub(page) {
               ai: { state: "idle", running: null, queue: [], you_pending: false },
             };
           }
-          if (command === "brain_room_history") return [];
+          if (command === "brain_room_history") return window.__STUB_HISTORY__;
           if (command === "brain_room_set_name") return { member_id: 1, name: args.name };
           if (command === "brain_room_stop") return null;
           if (command === "brain_room_media_create") {
@@ -411,13 +714,25 @@ function installAppStub(page) {
             return descriptor;
           }
           if (command === "brain_room_media_read") {
-            const blob = shelf.blobs[args.id];
-            if (blob === undefined) throw { code: "media_not_found" };
-            const whole = new Uint8Array(blob.bytes);
-            for (const [index, part] of Object.entries(blob.parts)) {
-              whole.set(part, Number(index) * CHUNK);
+            shelf.reads[args.id] = (shelf.reads[args.id] ?? 0) + 1;
+            if (shelf.blobs[args.id] !== undefined) {
+              const blob = shelf.blobs[args.id];
+              const whole = new Uint8Array(blob.bytes);
+              for (const [index, part] of Object.entries(blob.parts)) {
+                whole.set(part, Number(index) * CHUNK);
+              }
+              return whole;
             }
-            return { mime: blob.mime, data: Array.from(whole) };
+            if (window.__STUB_SEED_IDS__ !== null && window.__STUB_SEED_IDS__.includes(args.id)) {
+              return SEED_PNG;
+            }
+            throw { code: "media_not_found" };
+          }
+          if (command === "brain_room_media_clear") {
+            shelf.clears += 1;
+            shelf.blobs = {};
+            window.__STUB_SEED_IDS__ = null;
+            return null;
           }
           if (command === "brain_room_post") {
             postSeq += 1;
@@ -490,6 +805,16 @@ async function probeApp(engineName, origin, mp4B64) {
     await page.waitForSelector(".room-page", { timeout: 6000 });
     await page.waitForTimeout(600);
 
+    async function openRoom() {
+      const roomBar = page.locator(".brain-bar-action").nth(2);
+      if ((await roomBar.count()) > 0) await roomBar.first().click();
+      else {
+        await page.locator(".nav-point").first().click();
+        await page.locator(".nav-point").getByText(/room/i).first().click();
+      }
+      await page.waitForSelector(".room-page", { timeout: 9000 });
+      await page.waitForTimeout(600);
+    }
     async function attach(files) {
       const chooserPromise = page.waitForEvent("filechooser");
       await page.locator(".composer-attach").click();
@@ -620,8 +945,31 @@ async function probeApp(engineName, origin, mp4B64) {
         typeof videoPost.text === "string" && videoPost.text.length === 0,
         JSON.stringify(videoPost.text),
       );
+      const videoId = videoSpecs[0] ? null : null; // ids are opaque; count reads another way
+      void videoId;
+      await page.waitForSelector(".room-media-item-tile", { timeout: 9000 });
+      const readsBeforePlay = await page.evaluate(() => {
+        const reads = window.__shelf.reads;
+        return { total: Object.values(reads).reduce((sum, n) => sum + n, 0) };
+      });
+      const videoPostReads = await page.evaluate(() => {
+        // The video's own blob id is the one its descriptor carries.
+        const videoPost = window.__shelf.posts.filter((post) => post.text !== undefined).at(-1);
+        const id = videoPost.media[0];
+        return window.__shelf.reads[id] ?? 0;
+      });
+      check(
+        "the video reads nothing until the reader presses play",
+        videoPostReads === 0,
+        JSON.stringify({ videoPostReads, readsBeforePlay }),
+      );
+      await page.locator(".room-media-play").last().click();
       await page.waitForSelector(".room-media-video", { timeout: 9000 });
-      check("the video renders inline", (await page.locator(".room-media-video").count()) === 1);
+      const videoPostReadsAfter = await page.evaluate(() => {
+        const videoPost = window.__shelf.posts.filter((post) => post.text !== undefined).at(-1);
+        return window.__shelf.reads[videoPost.media[0]] ?? 0;
+      });
+      check("play reads the video exactly once", videoPostReadsAfter === 1, String(videoPostReadsAfter));
       const videoRow = await page.locator(".room-row").last().locator(".room-bubble").textContent();
       check("no fallback word stands beside the video", !videoRow.includes("[Video]"), JSON.stringify(videoRow));
     }
@@ -672,11 +1020,191 @@ async function probeApp(engineName, origin, mp4B64) {
     await page.waitForSelector(".room-media-chip", { timeout: 9000 });
     await page.locator(".composer-send").click();
     await waitForPost(mp4B64 !== null ? 4 : 3);
-    await page.waitForSelector(".room-media-missing", { timeout: 9000 });
+    await page.waitForSelector(".room-media-fallback", { timeout: 9000 });
+    const fallbackText = await page.locator(".room-media-fallback").first().textContent();
     check(
-      "a blob that will not come renders the neutral placeholder",
-      (await page.locator(".room-media-missing").count()) === 1 && pageErrors.length === 0,
-      JSON.stringify(pageErrors),
+      "a blob that will not come renders the fallback words",
+      (await page.locator(".room-media-fallback").count()) >= 1 &&
+        fallbackText === "[Image]" &&
+        pageErrors.length === 0,
+      JSON.stringify(fallbackText),
+    );
+
+    // 6. Lazy and bounded: thirty seeded picture rows and one video read
+    //    only what is near the viewport, and the LRU revokes — an evicted
+    //    picture re-reads when it comes back.
+    const seedIds = [];
+    const seedEntries = [];
+    for (let at = 0; at < 30; at += 1) {
+      const id = `s${at.toString().padStart(2, "0")}${"0".repeat(28)}`;
+      seedIds.push(id);
+      seedEntries.push({
+        seq: 500 + at,
+        member_id: 1,
+        name: "",
+        former: false,
+        text: at % 5 === 0 ? "[Image]" : `seed ${at}`,
+        time: 1700000000 + at,
+        call_ai: false,
+        read: null,
+        media: [
+          {
+            id,
+            kind: "image",
+            mime: "image/png",
+            bytes: 91,
+            sha256: "0".repeat(64),
+            width: 1,
+            height: 1,
+            duration_ms: null,
+            frames: [],
+          },
+        ],
+      });
+    }
+    const videoSeedId = `sv${"0".repeat(29)}`;
+    const frameSeedId = `sf${"0".repeat(29)}`;
+    seedIds.push(videoSeedId, frameSeedId);
+    seedEntries.push({
+      seq: 530,
+      member_id: 1,
+      name: "",
+      former: false,
+      text: "",
+      time: 1700000040,
+      call_ai: false,
+      read: null,
+      media: [
+        {
+          id: videoSeedId,
+          kind: "video",
+          mime: "video/mp4",
+          bytes: 91,
+          sha256: "0".repeat(64),
+          width: 1,
+          height: 1,
+          duration_ms: 83000,
+          frames: [frameSeedId],
+        },
+      ],
+    });
+    await page.addInitScript((seed) => {
+      window.__STUB_SEED_IDS__ = seed.ids;
+      window.__STUB_HISTORY__ = seed.entries;
+    }, { ids: seedIds, entries: seedEntries });
+    await page.reload();
+    await page.waitForTimeout(1200);
+    await openRoom();
+    await page.waitForTimeout(400);
+
+    // The room loads GLUED TO THE BOTTOM (stick-to-bottom): the near rows
+    // are the newest, and the video is among them.
+    const initialReads = await page.evaluate(() => window.__shelf.reads);
+    const initialDistinct = Object.keys(initialReads).length;
+    check(
+      "only the near-viewport rows were read",
+      initialDistinct >= 1 && initialDistinct <= 16,
+      JSON.stringify({ distinct: initialDistinct }),
+    );
+    check(
+      "the seeded video read nothing, its poster frame did",
+      initialReads[videoSeedId] === undefined && initialReads[frameSeedId] === 1,
+      JSON.stringify({ video: initialReads[videoSeedId], frame: initialReads[frameSeedId] }),
+    );
+
+    // To the top: the oldest rows come near and read; the bottom's leave
+    // the LRU and are revoked.
+    await page.locator(".thread").evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    await page.waitForTimeout(1000);
+    const topReads = await page.evaluate(() => window.__shelf.reads);
+    check(
+      "the top of the history read once it came near",
+      Object.keys(topReads).length > initialDistinct + 4 && (topReads[seedIds[0]] ?? 0) >= 1,
+      JSON.stringify({ distinct: Object.keys(topReads).length, initialDistinct, first: topReads[seedIds[0]] }),
+    );
+    // Sweep the middle in steps so every row comes near and reads: past
+    // the LRU's cap the oldest are revoked — and read again on the way back.
+    const steps = await page.locator(".thread").evaluate((el) => {
+      const total = el.scrollHeight - el.clientHeight;
+      const step = el.clientHeight * 0.7;
+      return { total, step, viewport: el.clientHeight };
+    });
+    for (let top = 0; top < steps.total; top += steps.step) {
+      await page.locator(".thread").evaluate((el, at) => {
+        el.scrollTop = at;
+      }, top);
+      await page.waitForTimeout(160);
+    }
+    await page.locator(".thread").evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await page.waitForTimeout(800);
+    const sweptReads = await page.evaluate(() => window.__shelf.reads);
+    check(
+      "the whole history read as it was swept",
+      Object.keys(sweptReads).length >= seedIds.length - 2,
+      JSON.stringify({ distinct: Object.keys(sweptReads).length, of: seedIds.length }),
+    );
+    // The release grace expires, the far holds go back, the LRU trims.
+    await page.waitForTimeout(2600);
+    await page.locator(".thread").evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    await page.waitForTimeout(600);
+
+    // 7. The host's broom: confirm, clear, and the rows fall back to words.
+    await page.locator(".room-clear-chip").click();
+    await page.waitForSelector(".room-clear", { timeout: 4000 });
+    const confirmWords = await page.locator(".room-clear-ask").textContent();
+    check(
+      "the clear action asks first, and says what stays",
+      typeof confirmWords === "string" &&
+        confirmWords.includes("for everyone") &&
+        confirmWords.includes("Messages stay"),
+      JSON.stringify(confirmWords),
+    );
+    await page.locator(".room-clear-delete").click();
+    await page.waitForFunction(() => window.__shelf.clears >= 1, null, { timeout: 6000 }).catch(() => {});
+    await page.waitForTimeout(900);
+    const clears = await page.evaluate(() => window.__shelf.clears);
+    const fallbacksAfterClear = await page.locator(".room-media-fallback").count();
+    check(
+      "the clear ran, and after it the rows show the fallback words",
+      clears >= 1 && fallbacksAfterClear >= 1,
+      JSON.stringify({ clears, fallbacksAfterClear }),
+    );
+    const readsAfterClear = await page.evaluate(
+      () => Object.values(window.__shelf.reads).reduce((sum, n) => sum + n, 0),
+    );
+    await page.waitForTimeout(400);
+    const readsLater = await page.evaluate(
+      () => Object.values(window.__shelf.reads).reduce((sum, n) => sum + n, 0),
+    );
+    check("a cleared shelf answers nothing new", readsLater === readsAfterClear, `${readsAfterClear} → ${readsLater}`);
+
+    // 8. Eight per message: the ninth is a sentence, eight chips stand.
+    await page.evaluate(() => {
+      window.__STUB_HISTORY__ = [];
+    });
+    await page.reload();
+    await page.waitForTimeout(1200);
+    await openRoom();
+    const nine = Array.from({ length: 9 }, (_, at) => ({
+      name: `nine-${at}.png`,
+      mimeType: "image/png",
+      buffer: pngA,
+    }));
+    await attach(nine);
+    await page.waitForFunction(() => document.querySelectorAll(".room-media-chip").length === 8, null, { timeout: 12000 });
+    const nineSentence = await page.locator(".room-send-error").textContent().catch(() => null);
+    check(
+      "eight ride one message and the ninth is a sentence",
+      (await page.locator(".room-media-chip").count()) === 8 &&
+        typeof nineSentence === "string" &&
+        nineSentence.includes("8"),
+      JSON.stringify(nineSentence),
     );
 
     check(

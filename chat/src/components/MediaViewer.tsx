@@ -18,22 +18,25 @@
  *   https://github.com/ggml-org/llama.cpp/blob/master/LICENSE
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import "./MediaViewer.css";
 
-/** One thing the viewer shows: the bytes are already a URL the caller
-    keeps alive for the viewer's life. */
+/** One thing the viewer shows: identified by id, its bytes fetched through
+    the caller's own `load` — the viewer never holds a URL the caller does
+    not own. */
 export interface ViewerItem {
   id: string;
   kind: "image" | "video";
-  url: string;
 }
 
 interface MediaViewerProps {
   items: ViewerItem[];
   index: number;
+  /** The current item's URL, fetched on entry and navigation; null means
+      the bytes did not come. */
+  load: (item: ViewerItem) => Promise<string | null>;
   onNavigate: (index: number) => void;
   onClose: () => void;
 }
@@ -41,10 +44,28 @@ interface MediaViewerProps {
 /** The full-screen preview: one item at a time over a dark field, the
     strip of everything in the message below, wrap-around at both ends —
     the shape ChatAttachmentsPreview.svelte lays out in Tailwind. */
-export function MediaViewer({ items, index, onNavigate, onClose }: MediaViewerProps) {
+export function MediaViewer({ items, index, load, onNavigate, onClose }: MediaViewerProps) {
   const { table } = useLanguage();
   const words = table.viewer;
   const current = items[index] ?? null;
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setUrl(null);
+    setFailed(false);
+    if (current !== null) {
+      void load(current).then((answer) => {
+        if (!alive) return;
+        if (answer === null) setFailed(true);
+        else setUrl(answer);
+      });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [current?.id, load]);
 
   const prev = (): void => {
     if (items.length === 0) return;
@@ -85,12 +106,22 @@ export function MediaViewer({ items, index, onNavigate, onClose }: MediaViewerPr
           {current?.kind === "video" ? (
             // ChatAttachmentsPreviewCurrentItemVideo: the controls, the
             // caption — a video plays right here, nothing else opens.
-            <video className="media-viewer-video" controls src={current.url}>
-              <track kind="captions" />
-              {words.videoUnsupported}
-            </video>
+            url ? (
+              <video className="media-viewer-video" controls src={url}>
+                <track kind="captions" />
+                {words.videoUnsupported}
+              </video>
+            ) : (
+              <p className="media-viewer-missing">
+                {failed ? words.videoUnsupported : words.loading}
+              </p>
+            )
           ) : current ? (
-            <img className="media-viewer-image" src={current.url} alt="" />
+            url ? (
+              <img className="media-viewer-image" src={url} alt="" />
+            ) : (
+              <p className="media-viewer-missing">{failed ? words.imageUnavailable : words.loading}</p>
+            )
           ) : null}
         </div>
         {items.length > 1 ? (
@@ -117,7 +148,13 @@ export function MediaViewer({ items, index, onNavigate, onClose }: MediaViewerPr
                 aria-current={at === index}
                 onClick={() => onNavigate(at)}
               >
-                {item.kind === "video" ? <span className="media-viewer-thumb-glyph">▶</span> : <img src={item.url} alt="" />}
+                {item.kind === "video" ? (
+                  <span className="media-viewer-thumb-glyph">▶</span>
+                ) : (
+                  <span className="media-viewer-thumb-glyph" aria-hidden="true">
+                    ▣
+                  </span>
+                )}
               </button>
             ))}
           </div>

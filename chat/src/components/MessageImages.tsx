@@ -55,7 +55,7 @@ export function MessageImages({ images }: { images?: MessageImage[] }) {
   if (!images || images.length === 0 || !settled) return null;
   const items: ViewerItem[] = images
     .filter((image) => urls[image.id])
-    .map((image) => ({ id: image.id, kind: "image", url: urls[image.id] }));
+    .map((image) => ({ id: image.id, kind: "image" }));
   return (
     <div className="user-images">
       {images.map((image) =>
@@ -79,6 +79,7 @@ export function MessageImages({ images }: { images?: MessageImage[] }) {
         <MediaViewer
           items={items}
           index={Math.min(viewing, items.length - 1)}
+          load={(item) => Promise.resolve(urls[item.id] ?? null)}
           onNavigate={setViewing}
           onClose={() => setViewing(null)}
         />

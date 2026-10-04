@@ -8,5 +8,7 @@ export const VIEWER = {
   next: "Next",
   goTo: (index: number) => `Show item ${index}`,
   enlarge: "View full size",
+  loading: "Loading…",
+  imageUnavailable: "Couldn't load this picture.",
   videoUnsupported: "Your browser does not support the video element.",
 };

@@ -7,5 +7,7 @@ export const VIEWER = {
   next: "Suivant",
   goTo: (index: number) => `Afficher l'élément ${index}`,
   enlarge: "Voir en plein écran",
+  loading: "Chargement…",
+  imageUnavailable: "Cette image n'a pas pu être chargée.",
   videoUnsupported: "Ton navigateur ne prend pas en charge l'élément vidéo.",
 };

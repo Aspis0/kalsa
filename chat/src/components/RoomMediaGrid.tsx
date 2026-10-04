@@ -1,95 +1,58 @@
-// The room's media on screen: a message's pictures as thumbnails, its video
-// inline, every blob read from the shelf through the host's read command and
-// held as an object URL. A blob that will not come (gone, or not this
-// member's to see) is a neutral placeholder, never a broken element.
+// The room's media on screen: pictures as thumbnails that read their blob
+// only when NEAR the viewport, the video behind a poster until the reader
+// presses play — no entry costs a read nobody looks at, and the reads that
+// do happen live in one small LRU (lib/roomMediaCache). A blob that will
+// not come — gone, cleared, or not this member's to see — renders the
+// computer's own fallback words, which is what a phone from before this
+// section would show.
 
-import { useEffect, useState } from "react";
-import { readRoomMedia } from "../lib/roomMedia";
+import { useEffect, useRef, useState } from "react";
+import { acquireRoomMediaUrl, holdRoomMediaUrl, releaseRoomMediaUrl } from "../lib/roomMediaCache";
 import type { RoomMediaDescriptor } from "../lib/roomMedia";
 import { MediaViewer } from "./MediaViewer";
-import type { ViewerItem } from "./MediaViewer";
 import "./RoomMedia.css";
-
-/**
- * Blob URLs live as long as the session does: a revoke under a mounted row
- * would break an element that still shows the bytes, and the room's window
- * holds at most the feed's own 200 entries. The cost of that choice is
- * memory — a video read for the bubble stays resident — declared here, and
- * the reason chunked reads are the shape a future host should grow.
- */
-const urlCache = new Map<string, string>();
-
-function cachedUrl(id: string): string | null {
-  return urlCache.get(id) ?? null;
-}
-
-/** One blob's object URL, read once per session. */
-function useMediaUrl(id: string): { url: string | null; missing: boolean } {
-  const [url, setUrl] = useState<string | null>(() => cachedUrl(id));
-  const [missing, setMissing] = useState(false);
-  useEffect(() => {
-    const held = cachedUrl(id);
-    if (held) {
-      setUrl(held);
-      setMissing(false);
-      return undefined;
-    }
-    let alive = true;
-    setUrl(null);
-    setMissing(false);
-    void readRoomMedia(id)
-      .then(({ mime, data }) => {
-        if (!alive) return;
-        const created = URL.createObjectURL(new Blob([data], { type: mime }));
-        urlCache.set(id, created);
-        setUrl(created);
-      })
-      .catch(() => {
-        if (alive) setMissing(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [id]);
-  return { url, missing };
-}
 
 interface MediaWords {
   videoUnavailable: string;
   imageUnavailable: string;
   videoLabel: string;
   enlarge: string;
+  playVideo: string;
+  /** The computer's stored fallback tokens (§5b), shown again when the
+      blob itself cannot be shown: the same words every reader sees. */
+  fallbackImage: string;
+  fallbackVideo: string;
 }
 
-/** The viewer's list: every blob of this message that is on screen, in post
-    order, and where one post index lands in it. */
-function viewerItemsOf(media: RoomMediaDescriptor[]): {
-  items: ViewerItem[];
-  indexOf: (postIndex: number) => number;
-} {
-  const items: ViewerItem[] = [];
-  const at = new Map<number, number>();
-  media.forEach((item, postIndex) => {
-    const url = cachedUrl(item.id);
-    if (url) {
-      at.set(postIndex, items.length);
-      items.push({ id: item.id, kind: item.kind, url });
-    }
-  });
-  return { items, indexOf: (postIndex) => at.get(postIndex) ?? 0 };
+/** Near enough to read: the margin the observer is given, so a thumbnail
+    is ready a screen before it is looked at. */
+const NEAR_VIEWPORT = "300px";
+/** How long a gone-far item keeps its URL before handing it back. */
+const RELEASE_GRACE_MS = 2000;
+
+function durationLabel(durationMs: number | null): string {
+  if (durationMs === null || durationMs <= 0) return "";
+  const total = Math.round(durationMs / 1000);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 /** A message's media, laid out as it was attached. Clicking a picture
     opens the one viewer over the whole message — pictures and the video
-    together. The viewer's index counts the items that made it into the
-    list (every blob on screen has), so it opens and navigates in that
-    space. */
+    together, each loaded through the room's bounded cache. */
 export function RoomMediaGrid({ media, words }: { media: RoomMediaDescriptor[]; words: MediaWords }) {
   const [viewing, setViewing] = useState<number | null>(null);
+  // What the viewer is showing right now, held against the LRU.
+  const viewerHold = useRef<string | null>(null);
+  useEffect(
+    () => () => {
+      if (viewerHold.current !== null) releaseRoomMediaUrl(viewerHold.current);
+    },
+    [],
+  );
   if (media.length === 0) return null;
-  const openAt = (postIndex: number): void =>
-    setViewing(viewerItemsOf(media).indexOf(postIndex));
-  const viewer = viewing === null ? null : viewerItemsOf(media);
+  const openAt = (postIndex: number): void => setViewing(postIndex);
   return (
     <>
       <div className="room-media">
@@ -98,14 +61,27 @@ export function RoomMediaGrid({ media, words }: { media: RoomMediaDescriptor[]; 
             key={item.id}
             item={item}
             words={words}
-            onOpen={item.kind === "image" ? () => openAt(postIndex) : undefined}
+            onOpen={() => openAt(postIndex)}
           />
         ))}
       </div>
-      {viewer !== null && viewer.items.length > 0 ? (
+      {viewing !== null ? (
         <MediaViewer
-          items={viewer.items}
-          index={Math.min(viewing ?? 0, viewer.items.length - 1)}
+          items={media.map((item) => ({ id: item.id, kind: item.kind }))}
+          index={Math.min(viewing, media.length - 1)}
+          load={async (entry) => {
+            const found = media.find((one) => one.id === entry.id);
+            if (found === undefined) return null;
+            const answer = await acquireRoomMediaUrl(found.id, found.mime);
+            if (answer !== null) {
+              if (viewerHold.current !== null && viewerHold.current !== found.id) {
+                releaseRoomMediaUrl(viewerHold.current);
+              }
+              holdRoomMediaUrl(found.id);
+              viewerHold.current = found.id;
+            }
+            return answer;
+          }}
           onNavigate={setViewing}
           onClose={() => setViewing(null)}
         />
@@ -121,32 +97,147 @@ function RoomMediaItem({
 }: {
   item: RoomMediaDescriptor;
   words: MediaWords;
-  onOpen?: () => void;
+  onOpen: () => void;
 }) {
-  const { url, missing } = useMediaUrl(item.id);
-  if (missing) {
-    return (
-      <span
-        className="room-media-missing"
-        title={item.kind === "video" ? words.videoUnavailable : words.imageUnavailable}
-      >
-        {item.kind === "video" ? "▶" : "🖼"}
+  const holder = useRef<HTMLDivElement | null>(null);
+  const [near, setNear] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    if (playing) return undefined;
+    const el = holder.current;
+    if (el === null) return undefined;
+    if (typeof IntersectionObserver === "undefined") {
+      setNear(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => setNear(entries.some((entry) => entry.isIntersecting)),
+      { rootMargin: NEAR_VIEWPORT },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [playing]);
+
+  useEffect(() => {
+    // A video reads NOTHING until the reader presses play — nearness arms
+    // the poster (a frame, a length), not the blob.
+    if (item.kind === "video" && !playing) return undefined;
+    if (!near || url !== null || failed) return undefined;
+    let alive = true;
+    void acquireRoomMediaUrl(item.id, item.mime).then((answer) => {
+      if (!alive) return;
+      if (answer === null) setFailed(true);
+      else setUrl(answer);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [near, url, failed, item.id, item.mime, item.kind, playing]);
+
+  // The url this item holds is held exactly while it shows it: one effect
+  // takes the hold and its own cleanup gives it back, so no acquire/release
+  // cycle can drift the count. Going far or unmounting hands the URL to
+  // the LRU — which may then revoke it, and a later return reads the blob
+  // again. That is the memory contract.
+  useEffect(() => {
+    if (url === null) return undefined;
+    holdRoomMediaUrl(item.id);
+    return () => releaseRoomMediaUrl(item.id);
+  }, [url, item.id]);
+
+  // Going far hands the URL back — but not on the flicker of a scroll
+  // adjustment: intersection can report false for a frame while the
+  // thread's own stick-to-bottom settles, and an item that dropped its
+  // picture for a frame would flicker a placeholder into the reader's eye.
+  useEffect(() => {
+    if (near || url === null) return undefined;
+    const timer = setTimeout(() => setUrl(null), RELEASE_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [near, url]);
+
+  // One stable wrapper, observed across every branch: the ref must not
+  // follow the content it watches, or a branch change leaves the observer
+  // on a detached node and nearness is stuck forever.
+  let body: JSX.Element;
+  if (item.kind === "video") {
+    // Nothing of a video is read until the reader asks for it: the poster
+    // is a still the sender uploaded, or a quiet tile with the length.
+    if (!playing) {
+      body = (
+        <>
+          {item.frames.length > 0 ? (
+            <VideoPoster frameId={item.frames[0]} near={near} />
+          ) : null}
+          <span className="room-media-poster-length">{durationLabel(item.duration_ms)}</span>
+          <button
+            type="button"
+            className="room-media-play"
+            aria-label={words.playVideo}
+            onClick={() => setPlaying(true)}
+          >
+            ▶
+          </button>
+          {failed ? <span className="room-media-fallback">{words.fallbackVideo}</span> : null}
+        </>
+      );
+    } else {
+      body = url ? (
+        <video className="room-media-video" controls autoPlay src={url} aria-label={words.videoLabel} />
+      ) : (
+        <>
+          {failed ? (
+            <span className="room-media-fallback">{words.fallbackVideo}</span>
+          ) : (
+            <span className="room-media-loading" />
+          )}
+        </>
+      );
+    }
+  } else if (failed) {
+    body = (
+      <span className="room-media-fallback" title={words.imageUnavailable}>
+        {words.fallbackImage}
       </span>
     );
-  }
-  if (!url) return null;
-  if (item.kind === "video") {
-    // The inline player: controls, metadata on open — the bytes stay put
-    // until the reader presses play.
-    return (
-      <video className="room-media-video" controls preload="metadata" src={url} aria-label={words.videoLabel} />
+  } else if (!url) {
+    body = (
+      <div className="room-media-thumb-placeholder" aria-hidden={!near}>
+        {near ? <span className="room-media-loading" /> : null}
+      </div>
+    );
+  } else {
+    body = (
+      <button type="button" className="room-media-thumb" onClick={onOpen} aria-label={words.enlarge}>
+        <img src={url} alt="" />
+      </button>
     );
   }
+  const tiled = item.kind === "video" && !playing;
   return (
-    <button type="button" className="room-media-thumb" onClick={onOpen} aria-label={words.enlarge}>
-      <img src={url} alt="" />
-    </button>
+    <div ref={holder} className={`room-media-item${tiled ? " room-media-item-tile" : ""}`}>
+      {body}
+    </div>
   );
+}
+
+/** The video's poster: the sender's first uploaded frame, read through the
+    same bounded cache as any picture. */
+function VideoPoster({ frameId, near }: { frameId: string; near: boolean }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!near) return undefined;
+    let alive = true;
+    void acquireRoomMediaUrl(frameId, "image/jpeg").then((answer) => {
+      if (alive && answer !== null) setUrl(answer);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [near, frameId]);
+  return url ? <img className="room-media-poster-frame" src={url} alt="" /> : null;
 }
 
 /** The fallback words the computer stores for a media-only post (§5b):
