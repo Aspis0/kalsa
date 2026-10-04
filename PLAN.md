@@ -1143,6 +1143,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   templates only), notes never ride the desk (send rule + arm cleared on switch), document/PDF pages never ride
   the desk (current turn and history corpus), HostRoot back to 241 via hostVision.ts. Reviewed (luna 9aa0420c);
   full jest 331/3485 + harness green before push. Lesson: pre-push now includes fileSize.test.ts + ci.yml check.
+  Decision (owner delegated to this session, 2026-10-04): earlier photos of the SAME conversation ride to the PC
+  with its history, including ones attached while the phone model answered. Reason: the person sees the photo in
+  the chat and expects the PC to know it; the text of those turns already goes; the PC is their own paired one;
+  pictures ride only when the desk sees and always EXIF-stripped. Document/PDF pages never ride.
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
