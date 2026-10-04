@@ -1,8 +1,10 @@
 /**
  * The composer's one-shot mode arms — research and notes (D1 row 14): the
  * state + draft-empty auto-clear, the toggles, the capture-and-clear inside a
- * send (`sendHost.ts` through `armsSendOptions`) and the clear on
- * conversation change (the root's `onConversationEnter`).
+ * send (`sendHost.ts` through `armsSendOptions`), the clear on conversation
+ * change (the root's `onConversationEnter`) and the clear when the remote
+ * brain takes over — whose notes half the send drops itself
+ * (`notesIntentForBackend`), so a surviving arm never reaches the desk.
  *
  * The third chip of that row — the library document — is not here: the
  * attach flow landed and its ENTRY moved to the attach sheet
@@ -22,6 +24,13 @@ export function armsShouldClearOnDraft(draft: string, hadContent: boolean): bool
 
 /** The research branch invokes app-side tools, so it is local-only. */
 export function researchIntentForBackend(remoteBackend: boolean, requested: boolean): boolean {
+  return !remoteBackend && requested;
+}
+
+/** The notes branch splices the phone's Notes store into the prompt, so the
+ *  desk must never receive it. The surface clears the arm when the desk takes
+ *  over; this rule is the send's own guarantee, independent of any render. */
+export function notesIntentForBackend(remoteBackend: boolean, requested: boolean): boolean {
   return !remoteBackend && requested;
 }
 

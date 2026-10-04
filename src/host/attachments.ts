@@ -110,6 +110,16 @@ export function attachmentImageUris(
   return uris.slice(0, MAX_IMAGES_PER_TURN);
 }
 
+/** The same rule narrowed to what a REMOTE wire may carry: pictures chosen as
+ *  pictures. A PDF's rendered pages were produced by a document row, and
+ *  document content never crosses to the desk — a pick or conversion still in
+ *  flight when the phone connected must not leak them. */
+export function remoteAttachmentImageUris(
+  items: readonly LocalAttachment[] | undefined,
+): string[] {
+  return attachmentImageUris(items?.filter((item) => item.kind === "image"));
+}
+
 /**
  * The pictures a REMOTE prompt prices: this turn's staged rows plus the ones
  * inside the messages the image-turn window keeps. Anything older is demoted

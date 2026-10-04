@@ -12,6 +12,7 @@ import { join } from "path";
 import {
   armsSendOptions,
   armsShouldClearOnDraft,
+  notesIntentForBackend,
   researchChipVisible,
   researchIntentForBackend,
   shouldRefuseRemoteResearch,
@@ -107,7 +108,31 @@ describe("the send's options and its capture-and-clear (Chat:2454-2463)", () => 
     expect(SEND).toContain("shouldRefuseRemoteResearch(remoteBackend");
     expect(SEND).toContain('params.showNoticeKey("settings.remoteGated")');
     expect(SURFACE).toContain("researchChipVisible(modelHost.remoteActive, arms.research)");
-    expect(SURFACE).toContain("arms.clearResearch()");
+    expect(SURFACE).toContain("if (modelHost.remoteActive) arms.clear();");
+  });
+
+  it("notes never ride the desk, whatever the arm says", () => {
+    // Locally the arm is honoured; on the desk the send drops it even if no
+    // render ran to clear it while the phone connected.
+    expect(notesIntentForBackend(false, true)).toBe(true);
+    expect(notesIntentForBackend(false, false)).toBe(false);
+    expect(notesIntentForBackend(true, true)).toBe(false);
+    expect(
+      armsSendOptions(
+        researchIntentForBackend(true, true),
+        notesIntentForBackend(true, true),
+        false,
+      ),
+    ).toBeNull();
+    expect(
+      armsSendOptions(
+        researchIntentForBackend(false, true),
+        notesIntentForBackend(false, true),
+        false,
+      ),
+    ).toEqual({ research: true, notes: true });
+    // The live send must consult the rule; otherwise the drop above is moot.
+    expect(SEND).toContain("notesIntentForBackend(remoteBackend, params.arms.notesRef.current)");
   });
 
   it("arms notes on its own — the branch engineTurn:246-257 was unreachable until this", () => {

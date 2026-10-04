@@ -19,7 +19,7 @@ import { streamHostTurn } from "./engineBackendStream";
 import { hostStreamErrorText } from "./remoteEngineError";
 import { applyPersonaTail } from "../engine/personaTail";
 import { boundMemoryFacts } from "../memory/dnaBounding";
-import { attachmentImageUris } from "./attachments";
+import { attachmentImageUris, remoteAttachmentImageUris } from "./attachments";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
 import * as MemoryStore from "../memory/MemoryStore";
 import { mapSearchSourcesToChat } from "../agent/webSearchTool";
@@ -194,9 +194,13 @@ export async function streamEngineTurn(
               return msg;
             });
 
-            // Pictures attached to the last user message (cap 5): direct
-            // images + rendered PDF pages, the same rule history rows keep.
-            const images = attachmentImageUris(attachments);
+            // Pictures attached to the last user message (cap 5): the
+            // phone's own engine takes direct pictures and rendered PDF
+            // pages; the desk is handed pictures only — a document's pages
+            // never cross (`remoteAttachmentImageUris`).
+            const images = remoteBackend
+              ? remoteAttachmentImageUris(attachments)
+              : attachmentImageUris(attachments);
             // Last-user composition (engine, format B):
             //   factsBlock + "\n\n" + applyPersonaTail(userText, persona)
             // Persona applied here; facts are prefixed in streamAssistantTurn

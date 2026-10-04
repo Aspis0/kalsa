@@ -14,6 +14,7 @@ import {
   attachmentImageUris,
   documentHints,
   pdfErrorNotice,
+  remoteAttachmentImageUris,
   remotePictureCount,
   removeAttachment,
   routePickedKind,
@@ -155,6 +156,18 @@ describe("the URIs a turn puts on a wire", () => {
     expect(attachmentImageUris([item({ kind: "pdf", pages })])).toEqual(
       pages.slice(0, MAX_IMAGES_PER_TURN),
     );
+  });
+
+  it("a remote wire takes pictures chosen as pictures, never a document's pages", () => {
+    const rows = [
+      item({ id: "i1", uri: "file:///one.jpg" }),
+      item({ id: "d", kind: "document", name: "notes.docx", uri: "", libraryDocId: "doc" }),
+      item({ id: "p", kind: "pdf", name: "p.pdf", uri: "file:///p.pdf", pages: ["file:///p1.jpg", "file:///p2.jpg"] }),
+      item({ id: "i2", uri: "file:///two.jpg" }),
+    ];
+    expect(remoteAttachmentImageUris(rows)).toEqual(["file:///one.jpg", "file:///two.jpg"]);
+    expect(remoteAttachmentImageUris(undefined)).toEqual([]);
+    expect(remoteAttachmentImageUris([])).toEqual([]);
   });
 });
 

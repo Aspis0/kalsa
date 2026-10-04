@@ -179,9 +179,12 @@ export function HostChatSurface({
   // One row of the attach sheet: each press runs the hook's flow and closes
   // only when the controller did (cancel and refusals keep the sheet up).
   const refuseRemoteAttachment = () => showNoticeKey("settings.remoteGated");
+  // Neither arm survives the desk taking over: research invokes app-side
+  // tools and notes splices the phone's Notes store into the prompt, and a
+  // survivor could not be turned off from here (the remote rows are refused).
   useEffect(() => {
-    if (modelHost.remoteActive) arms.clearResearch();
-  }, [modelHost.remoteActive, arms.clearResearch]);
+    if (modelHost.remoteActive) arms.clear();
+  }, [modelHost.remoteActive, arms.clear]);
   // A picture the desk's model cannot see is refused before the picker opens,
   // against the verdict read at that moment: this is the one attach entry
   // whose permission is live rather than decided by the phone's own model.

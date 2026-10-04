@@ -22,7 +22,7 @@ import {
 } from "../context/compactor";
 import { RetrieverIndex } from "../context/retriever";
 import { readModelEmittedText } from "../engine/modelEmittedText";
-import { attachmentImageUris } from "./attachments";
+import { remoteAttachmentImageUris } from "./attachments";
 import type { LocalAttachment } from "./hostMessage";
 
 export const compactorStateByChat = new Map<string, CompactorState>();
@@ -237,11 +237,12 @@ export function validateHistoryMessages(
       const rawSource = (m as { emissionSource?: unknown }).emissionSource;
       const emissionSource =
         rawSource === "parsed" || rawSource === "raw" ? rawSource : undefined;
-      // The pictures this turn was sent with, as the stored URIs they are:
-      // only a send that can hand them to a model ever reads the files.
+      // The pictures this turn was sent with, as the stored URIs they are.
+      // Only a REMOTE send reads them, and it may carry pictures chosen as
+      // pictures — a document's pages never cross, so they are not stored.
       const images =
         role === "user"
-          ? attachmentImageUris((m as { attachments?: LocalAttachment[] }).attachments)
+          ? remoteAttachmentImageUris((m as { attachments?: LocalAttachment[] }).attachments)
           : [];
       const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
       if (images.length > 0) rec.images = images;

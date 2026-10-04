@@ -31,7 +31,7 @@ import {
 import type { HistoryWriteTicket } from "../chat/historyWriteGuard";
 import { classifyChatContent } from "../domain/contentFilter";
 import { runSendStream, type SendUiHandlers } from "./sendStream";
-import { armsSendOptions, researchIntentForBackend, shouldRefuseRemoteResearch } from "./composerArms";
+import { armsSendOptions, notesIntentForBackend, researchIntentForBackend, shouldRefuseRemoteResearch } from "./composerArms";
 import { sendClearsDraft } from "./sendDraft";
 import { composeSendText } from "./sendComposition";
 import { contentFilterMessage } from "./contentFilterCopy";
@@ -203,7 +203,7 @@ export function useSendHost(params: SendHostParams): SendHost {
       // mode, as the controller did.
       const armsOptions = armsSendOptions(
         researchIntentForBackend(remoteBackend, params.arms.researchRef.current),
-        params.arms.notesRef.current,
+        notesIntentForBackend(remoteBackend, params.arms.notesRef.current),
         useResearch,
       );
       if (params.arms.researchRef.current || params.arms.notesRef.current) {

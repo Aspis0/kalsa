@@ -22,9 +22,11 @@ describe("history pictures ride the remote wire only", () => {
     // Local mode must not grow pictures on history messages: `hasImages`
     // would flip and the phone's KV replay would stop being text-only.
     expect(ENGINE_TURN).toContain('if (remoteBackend && m.role === "user" && m.images?.length)');
-    // The current turn's pictures, whichever backend is answering, come from
-    // the one rule that turns stored rows into URIs.
-    expect(ENGINE_TURN).toContain("const images = attachmentImageUris(attachments)");
+    // The current turn's pictures come from the one rule that turns stored
+    // rows into URIs, narrowed for the desk: pictures chosen as pictures,
+    // never the pages a document rendered.
+    expect(ENGINE_TURN).toContain("? remoteAttachmentImageUris(attachments)");
+    expect(ENGINE_TURN).toContain(": attachmentImageUris(attachments)");
   });
 
   test("the local engine takes parts from the current user message alone", () => {
