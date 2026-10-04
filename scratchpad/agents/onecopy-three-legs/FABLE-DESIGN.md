@@ -46,7 +46,9 @@ name matching, or ggml-cpu looking up a Hexagon proc address (cross-backend depe
 unchanged. R1 placement is the default, not an `-ot` string: `token_embd` (Q6_K, tied, 205 MiB) in the CPU buffer,
 norms and shortconv weights in HOST native layout (CPU and HTP both read them; HTP via admission `MUL_WEIGHT`/`SSM_CONV`).
 `get_alloc_size` already pads (:2100-2110). Loader passes `use_mmap = false` (loader :1264 would otherwise move the
-weights to plain CPU memory). The env knobs `GGML_HEXAGON_HOSTBUF`/`HOSTBUF_REPACK`/`RAW_HMX` become one setter reached
+weights to plain CPU memory) AND must call `ggml_backend_tensor_set` for a host buft with a non-native layout: today
+the no-mmap path writes host buffers with `file->read_raw(cur->data, n_size)` (`llama-model-loader.cpp:1668-1670`),
+bypassing `set_tensor`, so the pack never runs and the HOST buffer holds raw bytes flagged as nothing. The env knobs `GGML_HEXAGON_HOSTBUF`/`HOSTBUF_REPACK`/`RAW_HMX` become one setter reached
 by proc address, `ggml_backend_hexagon_set_shared_weights(bool)`, called by the binding before the model load; env
 stays as a seed for the CLI tools only. Reason: env is parsed once at registry creation (`ggml_hexagon_init`), a
 process that already loaded a model cannot flip it.
@@ -77,8 +79,9 @@ only). Fork guard: in `ggml_backend_sched_split_graph`, a split input whose buff
 that reserve failure into "one-copy unavailable, fall back".
 
 **A6. OpenCL import (the only new backend plumbing).** Per shared *buffer* (not per tensor) one dma-buf import, the
-mechanism the spike proved (`tests/opencl-q4_0-raw/dmabuf.c`, S23 884 MB per `cl_mem`: assert Hexagon
-`max_bufsize` <= `CL_DEVICE_MAX_MEM_ALLOC_SIZE`, else the GPU leg is off). The import is created lazily at
+mechanism the spike proved (`tests/opencl-q4_0-raw/dmabuf.c`, S23 884 MB per `cl_mem`). Hexagon `opt_mbuf` defaults
+to 1 GiB (`ggml-hexagon.cpp:96`), above that cap: the binding sets the HOST buffer max to `CL_DEVICE_MAX_MEM_ALLOC_SIZE`
+(or the GPU leg is off) before load; the loader then splits the weights into several HOST buffers, one import each. The import is created lazily at
 `supports_buft` time? No: at the first `set_tensor`-free event the backend sees, i.e. a reg proc-address call from the
 binding after load, `ggml_backend_opencl_import_shared(buffer)`, which also publishes the CPU writes once
 (`DMA_BUF_IOCTL_SYNC` end-write, `dmabuf_publish`) and runs the spike's alias check; failure = import released, GPU leg
@@ -143,9 +146,10 @@ Xiaomi 14 adds the v75 point and HyperOS memory pressure under one model; same r
 
 - e1 NPU speed from the tiled HOST buffer (never executed). Step 2's first number; if < 0.95 of two-copy, try
   `RPCMEM_FLAG_UNCACHED` on the HOST alloc (one env, one run) before any kernel work.
-- e2 HMX on v75/v79 from the tiled HOST: does the HMX path consume the same 32x32 tiles? Read `htp/matmul-ops.c` HMX
-  entry on main (not done here), then one QDC pp512 arm. If HMX needs its own layout, one-copy on HMX SoCs is NPU-flat
-  only and those rows stay out of the table.
+- e2 HMX from the tiled HOST buffer (the S23 v73 has HMX: raw one-copy pp512 851.5 vs 876.4, ALIVE ~885). Layout is
+  not the risk: the HMX path DMAs weights at `dma_src_stride = tile_size` (576) and
+  `dequantize_tiled_weight_to_fp16_task_q4_0` reads the scales at `tile_src + 512` (`hmx-mm-kernels-tiled.h:48`), the
+  same tile `repack_q4_0_tiled` writes. The risk is the memory path (host-cacheable rpcmem) and is e1's measurement.
 - e3 GPU leg end to end: how much of a token runs on the CPU (attention, lm_head 205 MiB read, norms, conv) and does the
   CPU actually rest (03/10: GPU arm kept CPU zones ~90 C). Step 4 tg128 with per-op timing (`profile-op`) and zone
   temps. If the CPU share dominates: KV to OpenCL memory and commit via `ggml_backend_tensor_get/set` (step 5b), then
@@ -172,3 +176,8 @@ Xiaomi 14 adds the v75 point and HyperOS memory pressure under one model; same r
 Not verified by me: the HMX weight path on main, `opt_mbuf`, `graph_get_cb` and `llama-kv-cache.cpp` buft selection on
 bc5f0207c (quoted from memory of upstream, must be read before step 4), the exact import extension the spike used
 (`dmabuf.c` not opened), and whether the KV commit copies through host pointers or `ggml_backend_tensor_*`.
+
+## Changelog
+- 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
+  `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
+  884 MB import cap; e2 corrected: the S23 has HMX and the HMX dequantizer consumes the same 576 B tiles.

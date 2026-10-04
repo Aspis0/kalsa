@@ -53,3 +53,25 @@ with the owner's ok (daily driver). No row before its report.
 - e4 CPU prefill on tiles (LOWBAT route) may collapse: step 1 pp512; owner decision if it does.
 - e6/e7 rpcmem buffer split vs the 884 MB CL cap; no-mmap load time and peak RSS: step 2.
 - dma-buf / PSS accounting per vendor (LMK risk): step 6 measures PSS + dma-buf sysfs on the S23.
+
+## Revision 1 (Fable critique, b1fb0210, 2026-10-04) - adopted
+
+- HMX consumes the same tiles (`hmx_mm_2d_f32` DMAs `tile_size` 576 B; dequant reads scales at `tile_src + 512`,
+  `hmx-mm-kernels-tiled.h:37,48`): layout is not the HMX risk on any generation; the memory path is (gate G).
+- Gate G needs a loader change: non-mmap host buffers are filled by `read_raw` (`llama-model-loader.cpp:1668-1670`),
+  never `set_tensor`, so the tiled-HOST pack never ran. G = loader routes packing host bufts through set_tensor +
+  three non-verbose proof lines in one log (HOST buffer size, DSP `q4_0_tiled-f32` profile tag on decode,
+  `hmx-mm-2d` on prefill). Forwarded to GLM 1ca4c880.
+- Step 2 adds an MBUF cap: Hexagon `opt_mbuf` is 1 GiB (`ggml-hexagon.cpp:96`) > the S23's 884 MB CL max alloc; the
+  binding caps the Hexagon buffer size to the CL max before load so every HOST buffer is importable.
+- Self-tests test the PATH, not a row: per leg at load - GPU alias check after the publish sync; a 32-token decode on
+  each leg with KLD against the CPU leg; a tok/s floor recorded in the table row (e.g. GPU leg >= 0.8x two-copy GPU
+  decode). Below the floor = leg off for the session.
+- The table is the ONLY allow-list: the engine's generation list (`llama-governor-policy.cpp:301-307`) and the app's
+  (`governorInputs.ts:117-120`) read from it or are deleted in step 6. The GPU driver match gates the GPU leg only.
+- A2's CPU refusal must exist before any HTP admission gate is used (`ggml_hexagon_op_htp_only` treats HOST as
+  CPU-readable and could release a tiled op to a CPU that cannot read tiles).
+- Step 5 host test: no norm-pinned node (`llama-context.cpp:2637-2638`, keyed on `dev_layer(il)`) lands on a backend
+  the leg context lacks.
+- Order: env -> setter (step 2) before any APK run of the one-copy path. R2 negative controls: Jelly (non-Snapdragon)
+  AND an untested Snapdragon with no row (stronger) - Xiaomi 14 only with the owner's ok.
