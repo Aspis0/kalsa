@@ -104,6 +104,12 @@ Quants via the CL_RGBA/UINT32 image1d_buffer view, scales via a second CL_HALF_F
 | pad_rows | 0.064 / 0.064 | 0.055 / 0.056 | 1.14-1.16 |
 
 v4 errors 6-9e-7 of output RMS (SoA 6-8e-4) and v4 PASSes the fp16-denormal shape (the texture unit converts
-denormals exactly; SoA flushes them). Sum over the four model shapes: SoA 0.751 ms, v4 0.717 ms. **GPU decode on
-the shared NPU-layout copy is at parity with the engine's own Adreno path** - pending the hostile audit (luna
-3a6510f3: zero-copy proof of the image views, timing fairness, real engine path at these shapes).
+denormals exactly; SoA flushes them). Sum over the four model shapes: SoA 0.751 ms, v4 0.717 ms - parity in
+aggregate, NOT per shape (ffn_gate_up and conv_in_proj 13-19 % slower, the other three faster).
+
+Hostile audit (luna 3a6510f3): kernel correct, SoA arm is the engine's real path at these shapes (the four
+shape-specialised gemv programs match none of them). NOT yet proved: (a) zero-copy - the views sit on a
+sub-buffer of the import, but no check that the driver reads the same physical memory; (b) timing fairness - v4
+runs after four arms reading the same bytes (warm caches), and the warmup iteration entered the minimum; (c) a
+view with nonzero offset inside the import. Fixes in progress (GLM 2504ca07): alias check, cache eviction +
+reversed order, warmup excluded, nonzero-offset shape. Until then this table is a direction.
