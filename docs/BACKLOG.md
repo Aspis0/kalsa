@@ -68,6 +68,8 @@ they are promoted.
 - `scripts/room-media.mjs` deletes fixed `.room-media-dist` / `.room-media-probe` dirs before a run.
 - A video kept in its original codec (remux fallback) records the client-declared pixels; the room never parses MP4 boxes.
 
+- Mac vision walk anomalies, unverified: one chat image turn (2026-10-04 05:12Z) reportedly answered on screen with no door line; two sends died before the POST with "stopped responding" right after a `chat activate … ok 11991ms` on a reloading engine (activate slower than the chat's 10 s patience?).
+
 ## Post-alpha features (owner decisions)
 - Small tool-calling model beside a bigger writer — Lab.
 - Advanced "every AI" list, BYO GGUF.
