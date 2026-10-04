@@ -177,7 +177,89 @@ Not verified by me: the HMX weight path on main, `opt_mbuf`, `graph_get_cb` and 
 bc5f0207c (quoted from memory of upstream, must be read before step 4), the exact import extension the spike used
 (`dmabuf.c` not opened), and whether the KV commit copies through host pointers or `ggml_backend_tensor_*`.
 
+## Amendment A (2026-10-04, after gate G): step-1 spec, A2/A3 revised
+
+Facts this rests on (read on `feat/governor-onecopy` cc777fd12 and main bc5f0207c):
+- Scheduler: a WEIGHTS src that `ggml_backend_buffer_is_host` enters the opt-in loop ("1.off": first backend with
+  `supports_op && offload_op`, no `supports_buft` check) then "1.host" (CPU); a NON-host src goes straight to
+  `src_backend_id` = first backend in priority order with `supports_buft && supports_op` (`ggml-backend.cpp:894-898`,
+  `:970-985`). So "host" is what drags tiled ops to the CPU; the stopgap fights that with `offload_op` (`:6920-6925`).
+- Hexagon tiled-ness is per tensor today (`ggml_hexagon_tensor_is_tiled`: HOST buffer + `extra->flags & REPACK`).
+- ggml-cpu learns about a foreign layout only through `op->src[i]->buffer->buft` (`ggml-cpu.cpp:434-439`,
+  `traits.cpp:13-19`, `supports_buft :489-491`); it has no per-tensor channel that is not its own `extra`.
+- Loader: non-host buffers are written with `ggml_backend_tensor_set` (`llama-model-loader.cpp:1663`); the async
+  chunk path applies only to the device's default buft (`:1540`); host bufts under mmap are moved to CPU (`:1264`).
+- `ggml_backend_tensor_copy` treats a host src as native bytes (`ggml-backend.cpp:495-496`); the unpacker
+  `repack_tiled_q4_0` already exists (`ggml-hexagon.cpp:889`).
+
+**(1) Marker = a dedicated buffer type, not a per-tensor flag.** Hexagon gets a third buft `HTP0-TILE32`: rpcmem
+like HOST, `is_host = false`, `get_weight_layout = TILE32` (the optional hook from A2, in `ggml-backend-impl.h`,
+accessor `ggml_backend_buft_weight_layout`), `get_alloc_size = ggml_q4_0_tile32_nbytes`, `set_tensor` packs via
+`ggml_q4_0_tile32_pack` (full tensor or whole slices only, else abort with the tensor name), `get_tensor` unpacks via
+the existing inverse so every reader of native bytes stays correct, `set_tensor_2d = NULL`, `cpy_tensor = NULL`.
+Every WEIGHTS tensor in it is tiled Q4_0 by construction, so `ggml_hexagon_tensor_is_tiled` collapses to
+"buffer->buft is TILE32" and the REPACK flag is no longer a cross-backend fact. The CPU learns it with one call,
+`ggml_backend_buft_weight_layout(src0->buffer->buft) == GGML_WEIGHT_LAYOUT_Q4_0_TILE32`, zero Hexagon symbols.
+HOST keeps native layout and `is_host = true` (norms, conv). Placement by the stock probe, no `-ot`: llama's buft
+list gains a device's extra bufts before its default buft, via the same `ggml_backend_dev_get_extra_bufts`
+proc-address lookup it already does for the CPU (`llama-model.cpp:1095-1100`); Hexagon returns `{TILE32}` only in
+shared-weights mode; `select_weight_buft` asks Hexagon `supports_op`, which says yes for a 2-D Q4_0 MUL_MAT weight
+with ne0 % 32 == 0 and no for anything else, so f32 norms and Q6_K `token_embd` fall through to the next buft.
+
+**(2) What replaces b9543b6e4/16b2a093d.** Revert both (the `offload_op` tiled bypass, the abort in `supports_op`,
+`op_htp_only`'s tiled clause). With TILE32 non-host, tiled ops never enter "1.off"/"1.host"; `backend_from_buffer`
+gives them to the first leg backend that supports the buft and the op: NPU leg `{HTP0, CPU}` -> HTP (its own buft,
+`:8018-8021` extended to TILE32), CPU leg `{CPU}` -> CPU (`supports_buft` gains `|| layout == TILE32 &&
+ggml_cpu_has_dotprod()`), GPU leg later -> OpenCL for ne11 == 1, else CPU. The one generic guard is A5 (a WEIGHTS
+split input aborts naming tensor and op); add `supports_buft` to the "1.off" loop (luna's CUDA-style item). The
+native CPU mul_mat asserts `layout == NATIVE` on src0 (mirrors `traits.cpp:21-25`). `requires_set_tensor`
+(7460d6210) becomes unused once TILE32 is non-host: delete it, the ABI item goes with it.
+
+**(3) Norms and conv weights.** HOST native (not the device buft: the CPU leg has no HTP backend and
+`supports_buft(HTP0)` is false, so a device-buft norm aborts the CPU leg's reserve). The 198 splits were admission,
+not placement: the default `offload_min` is the 32-token batch threshold, so at batch 1 the HTP declined them. The
+NPU leg sets S1's admission once at context creation (`offload_min 1`, `offload_ops OPS_ALL`,
+`llama_set_backend_admission`, `llama-ext.h:163-175`); "1.off" then hands norm MUL and SSM_CONV to the HTP at any
+batch, zero extra splits. The CPU and GPU legs have no HTP backend and read HOST natively. Untested: the DSP reading
+~1 MiB of f32 from HOST; re-run the gate-G ABBA script once after this lands (same gates: 2 splits, 0 flat, HOST-TILE32
+bytes = 1369571328). If it costs > 2 %, duplicating the 1 MiB into the device buft is the fallback, logged.
+
+**(4) Luna items.** Close in step 1: get_tensor (unpack), tensor_copy (non-host path + unpack), set_tensor_2d/partial
+(NULL/abort with name), offload loop `supports_buft`, the is_host mismatch (gone), the ABI member (deleted). Defer with a
+comment: `extra->flags` unsynchronised (written at load before any graph; no runtime writer remains).
+
+**(5) Kernel port.** From `spike/onecopy-cpu-gemv` 4e6c75252 take only `ggml_gemv_tiled_q4_0_q8_0`
+(`arch/arm/gemv-tiled-q4_0.cpp`: `tiled_dot_block`, `tiled_scale_block`, asserts `nrows % 32 == 0`), renamed
+`ggml_gemv_tile32_q4_0_q8_0`, same file path, not mac8/mac16. Dispatch in new `ggml-cpu/tile32.cpp` (< 200 lines):
+`supports_op` = MUL_MAT, 2-D Q4_0 src0 in a TILE32 buft, f32 src1 in a host buft, dotprod at runtime; `work_size` =
+`ggml_row_size(Q8_0, ne10) * ne11`; `compute_forward` = quantize src1 rows to q8_0 across threads as
+`repack.cpp` `forward_mul_mat` does (`from_float` per row), barrier, then 32-row tiles split across threads, the
+last partial tile computed into a 32-float scratch and only `ne01 % 32` rows stored (the buffer holds the padded
+rows, dst does not). Batch > 1: loop over the ne11 columns calling the gemv - correctness only; each column re-reads
+the weights, so pp512 will be far below today's CPU prefill. That is e4 and it is measured, not fixed, in step 1;
+no GEMM over tiles until the owner decides the LOWBAT route. Hooks: `ggml-cpu.cpp:434-439` and `traits.cpp:13,37`
+each gain one layout-keyed branch to `tile32.cpp`; no new entry in `ggml_backend_cpu_get_extra_buffer_types`
+(TILE32 is not a CPU-allocated buft).
+
+**(6) Proof.** Host `tests/test-tile32-cpu.cpp`: a test-only buft (malloc, layout TILE32, pack on set, unpack on
+get, non-host, alignment 128) vs the native CPU buffer, same random Q4_0 weights and f32 input; graphs: two layers of
+MUL_MAT + ADD at 10752x2048 / 2048x10752 and one ne1 % 32 != 0 shape, ubatch 1 and 7; gates: max |tiled - native|
+<= 1e-4 * rms(native); on a dotprod ARM host additionally bit-identical to the CPU_REPACK result (the spike's claim);
+`supports_op` false for GET_ROWS on the tiled tensor; `tensor_get` and `tensor_copy` round-trip to native bytes; x86
+host returns 77 (SKIP, no dotprod). S23 (release build, unplugged, >= 30 %): same model load as gate G arm B but with
+`GGML_HEXAGON_OPFILTER` refusing MUL_MAT, so `backend_from_buffer` lands tiled MUL_MATs on the CPU; gates: log shows
+the `HTP0-TILE32` buffer line and no `profile-op` MUL_MAT; tg128 at 1 and 5 threads vs two-copy CPU no-repack
+(the shipped S23 path) and vs repack; pp128 (e4 number); KLD equal to gate G's CPU arm.
+
+**Wrong or risky in PLAN-INTEGRATION Revision 2:** "decide in step 2 (device buft is rpcmem too)" for norms - rpcmem is
+not the question, `supports_buft` is; the CPU leg cannot read the device buft at all. Step 2's placement, no-mmap and
+setter now shrink to R1 default + setter, because the probe places tiles and non-host weights are `tensor_set` under
+mmap too (`:1663`), so no-mmap is a memory-accounting choice to measure, not a correctness requirement. Gate G's
+measured graph (norms on the device buft) differs from the shipped one (norms in HOST, HTP by admission): re-measure.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
   884 MB import cap; e2 corrected: the S23 has HMX and the HMX dequantizer consumes the same 576 B tiles.
+- 2026-10-04 v3: Amendment A appended (step-1 spec: TILE32 as its own non-host buft, stopgap revert, norms in HOST
+  with admission, kernel port, host test and S23 check; plan corrections).
