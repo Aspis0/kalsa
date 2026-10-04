@@ -67,6 +67,18 @@
   margin-top: -0.6rem;
 }
 
+/* The day a run of messages begins: a quiet pill on the feed's spine. Its
+   gap is tighter below, where the day it names starts. */
+.room-day {
+  align-self: center;
+  margin-bottom: -0.9rem;
+  padding: 0.1rem 0.7rem;
+  color: var(--silence);
+  background: var(--surface-muted);
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
 .room-bubble {
   max-width: min(42rem, 85%);
   padding: 0.6rem 0.9rem;
@@ -77,6 +89,8 @@
   font-size: 0.95rem;
   line-height: 1.55;
   overflow-wrap: anywhere;
+  /* The clock floats inside; a flow root counts it in the bubble's height. */
+  display: flow-root;
 }
 
 /* This computer's own words stand on the right, mirrored: the edge faces
@@ -91,6 +105,17 @@
 .room-bubble .room-asked,
 .room-bubble .room-read {
   color: var(--silence);
+}
+
+/* The moment of a message, WhatsApp-like: bottom-right inside the bubble,
+   muted, out of the words' way. */
+.room-time {
+  float: right;
+  margin: 0.2rem 0 0 0.7rem;
+  color: var(--silence);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
 }
 
 /* The member's mark: a small dot of the name's own color, in the thread

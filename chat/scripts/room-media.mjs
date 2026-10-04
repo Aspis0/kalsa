@@ -1099,7 +1099,9 @@ async function probeApp(engineName, origin, mp4B64) {
         name: "",
         former: false,
         text: at % 5 === 0 ? "[Image]" : `seed ${at}`,
-        time: 1700000000 + at,
+        // The last two entries fall on the next calendar day (this fixture's
+        // second day): the feed must break the run and stamp the day there.
+        time: 1700000000 + (at < 28 ? at : 86_400 + at),
         call_ai: false,
         read: null,
         media: [
@@ -1126,7 +1128,7 @@ async function probeApp(engineName, origin, mp4B64) {
       name: "",
       former: false,
       text: "",
-      time: 1700000040,
+      time: 1700000000 + 86_400 + 40,
       call_ai: false,
       read: null,
       media: [
@@ -1151,6 +1153,36 @@ async function probeApp(engineName, origin, mp4B64) {
     await page.waitForTimeout(1200);
     await openRoom();
     await page.waitForTimeout(400);
+
+    // The owner's stamps (2026-10-04): every bubble carries its clock, and a
+    // day separator stands before the first entry and at each calendar-day
+    // change — with the author's run broken there, so their name shows again.
+    const stamps = await page.evaluate(() => {
+      const bubbles = [...document.querySelectorAll(".room-row .room-bubble")];
+      const clocks = bubbles.filter((bubble) =>
+        /\d{1,2}:\d{2}/u.test(bubble.querySelector(".room-time")?.textContent ?? ""),
+      ).length;
+      const days = [...document.querySelectorAll(".thread-column > .room-day")];
+      return {
+        bubbles: bubbles.length,
+        clocks,
+        days: days.length,
+        labelled: days.every((day) => (day.textContent ?? "").trim() !== ""),
+        ungrouped: days.every((day) =>
+          Boolean(day.nextElementSibling?.querySelector(".room-author")),
+        ),
+      };
+    });
+    check(
+      "every bubble carries the message's clock",
+      stamps.bubbles > 0 && stamps.clocks === stamps.bubbles,
+      JSON.stringify(stamps),
+    );
+    check(
+      "a day separator stands at each day change, breaking the run",
+      stamps.days >= 2 && stamps.labelled && stamps.ungrouped,
+      JSON.stringify(stamps),
+    );
 
     // The room loads GLUED TO THE BOTTOM (stick-to-bottom): the near rows
     // are the newest, and the video is among them.

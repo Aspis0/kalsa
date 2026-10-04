@@ -5,7 +5,7 @@
 // codes its keys); a state the user can neither understand nor fix is not
 // shown at all.
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { available } from "../lib/tauri";
 import { useStickToBottom } from "../lib/stickToBottom";
 import { RoomText } from "../lib/roomMention";
@@ -28,7 +28,8 @@ import { isFallbackText, RoomMediaGrid } from "../components/RoomMediaGrid";
 import { RoomMediaChips } from "../components/RoomMediaChips";
 import { Composer } from "../components/Composer";
 import { Markdown } from "../components/Markdown";
-import { stamp, Thinking } from "../components/Thread";
+import { Thinking } from "../components/Thread";
+import { clockTime, dayLabel, fullStamp, sameLocalDay } from "./roomTime";
 import type { RoomEntry, RoomInfo } from "./roomFeed";
 import { useRoomFeed } from "./useRoomFeed";
 import { useLanguage } from "../i18n/useLanguage";
@@ -414,6 +415,9 @@ export function RoomSurface() {
   // the same hue every message of theirs washes with.
   const colors = assignNameColors(info?.members ?? []);
   const tints = assignNameTints(info?.members ?? []);
+  // One clock reading for the whole render, so every day label in a frame
+  // names the same "today".
+  const now = Date.now();
 
   return (
     <div className="surface-page room-page">
@@ -492,23 +496,34 @@ export function RoomSurface() {
             {entries.length === 0 && live === null && !turnRunning ? (
               <p className="surface-quiet">{room.emptyRoom}</p>
             ) : null}
-            {entries.map((entry, index) => (
-              <RoomRow
-                key={entry.seq}
-                mediaEpoch={mediaEpoch}
-                entry={entry}
-                info={info ?? null}
-                color={colors.get(entry.member_id)}
-                tint={tints.get(entry.member_id)}
-                grouped={index > 0 && entries[index - 1].member_id === entry.member_id}
-                defaultHostName={room.defaultHostName}
-                asked={room.askedKalsa}
-                left={room.left}
-                readLast={room.readLast}
-                when={stamp(entry.time * 1000, tag)}
-              />
-            ))}
+            {entries.map((entry, index) => {
+              const when = entry.time * 1000;
+              const newDay =
+                index === 0 || !sameLocalDay(entries[index - 1].time * 1000, when);
+              return (
+                <Fragment key={entry.seq}>
+                  {newDay ? <div className="room-day">{dayLabel(when, now, tag)}</div> : null}
+                  <RoomRow
+                    mediaEpoch={mediaEpoch}
+                    entry={entry}
+                    info={info ?? null}
+                    color={colors.get(entry.member_id)}
+                    tint={tints.get(entry.member_id)}
+                    grouped={!newDay && entries[index - 1].member_id === entry.member_id}
+                    defaultHostName={room.defaultHostName}
+                    asked={room.askedKalsa}
+                    left={room.left}
+                    readLast={room.readLast}
+                    when={fullStamp(when, tag)}
+                    clock={clockTime(when, tag)}
+                  />
+                </Fragment>
+              );
+            })}
             {live !== null || turnRunning ? (
+              // No clock on the live turn: the feed holds no moment for it,
+              // and an invented one would be a lie. The message's own time
+              // arrives with the message.
               <div className="row room-row">
                 <div className="room-author">
                   <span className="room-author-name" style={{ color: KALSA_NAME_COLOR }}>
@@ -610,6 +625,7 @@ function RoomRow({
   left,
   readLast,
   when,
+  clock,
 }: {
   entry: RoomEntry;
   /** Bumped when the shelf was cleared: the bubble's media remounts and
@@ -627,7 +643,10 @@ function RoomRow({
   asked: string;
   left: string;
   readLast: (count: number) => string;
+  /** The whole moment, for the hover. */
   when: string;
+  /** The hour and minute shown in the bubble's corner. */
+  clock: string;
 }) {
   const own = info !== null && entry.member_id === info.you;
   const aiId = info?.members.find((member) => member.kind === "ai")?.member_id;
@@ -652,6 +671,7 @@ function RoomRow({
         {entry.read !== null && entry.read !== undefined ? (
           <span className="room-read">{readLast(entry.read)}</span>
         ) : null}
+        {clock ? <span className="room-time">{clock}</span> : null}
       </div>
     </div>
   );
