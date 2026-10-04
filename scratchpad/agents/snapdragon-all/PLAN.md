@@ -124,3 +124,9 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   the limit). Audits luna e13768da, 3a6510f3. Three legs on one copy: NPU 1.0, GPU ~1.0, CPU 0.71-0.87.
   Next: owner go for the integration (HTP buffer = the single copy; CPU and GPU dispatch tiled readers; governor
   drops the second model load; no-mmap load).
+- 2026-10-04 owner GO: integrate one copy for three legs; R1 works on the tested phones (same CPU/GPU/NPU), R2 legs OFF
+  on untested phones. Inputs: code recon (luna b737b01b, `RECON-CODE.md`), web prior art (luna 249cf9c4,
+  `WEB-PRIOR-ART.md`: nobody shares ONE weight copy - HeteroInfer shares operator I/O only), architect Fable 5.1 high
+  (b1fb0210, owner-requested, `FABLE-DESIGN.md`). Plan `onecopy-three-legs/PLAN-INTEGRATION.md`: gate G first (NPU from
+  the tiled HOST buffer >= 0.95 of two-copy), then steps 0-6, capability table with ONE row (SM8550/v73/Adreno 740/
+  E031.41/dotprod), everything else = today's loads.
