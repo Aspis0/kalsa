@@ -71,3 +71,21 @@ Coalescing moved v2 only 5-12 %. Every arm reading weights through plain buffer 
 22-30 GB/s; the engine's SoA path reads them through an image1d_buffer (texture path) with half math at 37-55 GB/s.
 Next (GLM 4205db7f): v3i = v2 + image1d_buffer view on the same imported cl_mem; v3h = v3i + half math. Splits
 memory path vs ALU.
+
+## GPU v3: image1d_buffer reads (engine `83541c1b1`, `raw/s23-gpu-v3-unplugged.grep`, unplugged, 96 %, 27.9 C)
+
+First v3 build (`f97c8bd59`) reported "views unsupported" on S23 and Mac: the probe queried
+`CL_DEVICE_IMAGE_MAX_BUFFER_SIZE` (a `size_t`) into a `cl_uint`, the query failed and the ignored rc left 0.
+Fixed in `83541c1b1` (every device query now rc-checked). S23 limit: 134217728 px.
+
+| shape | engine SoA | tiled v2 | v3i (image) | v3h (image + engine expr) | v3i vs SoA |
+|---|---:|---:|---:|---:|---:|
+| ffn_gate_up | 0.240 | 0.440 | 0.414 | 0.414 | 0.58 |
+| conv_in_proj | 0.132 | 0.258 | 0.240 | 0.238 | 0.55 |
+| ffn_down | 0.333 | 0.558 | 0.526 | 0.523 | 0.63 |
+| attn_k | 0.052 | 0.089 | 0.089 | 0.090 | 0.58 |
+
+The image path gives 5-7 %, not the gap. Op count of v2/v3: per 32x32 K-tile a lane does 32 MACs but converts its
+16 fp16 row scales with exact bit math (~160 ops) - the kernel is ALU-bound (~0.38 ms predicted for ffn_gate_up
+at ~1 T fp32 op/s vs 0.41 measured). The engine converts scales natively and flushes fp16 denormals (its
+scales_denorm FAIL). Next: v4 with native scale conversion and a cheaper per-weight path (GLM cd71bdf3).

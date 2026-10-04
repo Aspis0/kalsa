@@ -1,0 +1,70 @@
+INFO model-shapes alloc rc 0 fd 9 size 805306368 capacity 805310464
+INFO model-shapes imported 805306368 bytes via cl_qcom_dmabuf_host_ptr
+INFO model-shapes import policy ioc
+INFO image_max_buffer_size 134217728
+INFO model-shapes image1d_buffer views supported
+INFO model-shapes ffn_gate_up off 792920064 bytes 12386304 publish rc 0
+INFO build mul_mm_q4_0_f32_l4_lm_raw.cl opts '-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+RESULT ffn_gate_up                  gemm     mem=dmabuf        PASS err=1.089e-05 ms=1193.027 weights_GB/s=0.0
+INFO build mul_mv_q4_0_f32_v.cl opts '-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+RESULT ffn_gate_up                  gemv1    mem=dmabuf        PASS err=4.810e-07 ms=0.405 weights_GB/s=30.6
+INFO build cvt.cl opts '-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+INFO build transpose.cl opts '-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+INFO build gemv_noshuffle_q4_0_f32.cl opts '-cl-std=CL3.0 -cl-mad-enable -DSIMDGROUP_WIDTH=64'
+RESULT ffn_gate_up                  soav     mem=dmabuf        PASS err=7.581e-04 ms=0.240 weights_GB/s=51.6
+INFO model-shapes ffn_gate_up tiled off 792920064 bytes 12386304 publish rc 0
+INFO build mul_mv_q4_0_f32_tiled.cl opts '-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+RESULT ffn_gate_up                  tiledv1  mem=dmabuf        PASS err=6.413e-07 ms=0.499 weights_GB/s=24.8
+INFO build mul_mv_q4_0_f32_tiled_v2.cl opts '-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+RESULT ffn_gate_up                  tiledv2  mem=dmabuf        PASS err=6.413e-07 ms=0.440 weights_GB/s=28.1
+INFO build mul_mv_q4_0_f32_tiled_v3i.cl opts '-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+RESULT ffn_gate_up                  tiledv3i mem=dmabuf        PASS err=6.413e-07 ms=0.414 weights_GB/s=29.9
+INFO build mul_mv_q4_0_f32_tiled_v3h.cl opts '-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+RESULT ffn_gate_up                  tiledv3h mem=dmabuf        PASS err=6.413e-07 ms=0.414 weights_GB/s=29.9
+INFO model-shapes conv_in_proj off 798228480 bytes 7077888 publish rc 0
+RESULT conv_in_proj                 gemm     mem=dmabuf        PASS err=1.086e-05 ms=677.005 weights_GB/s=0.0
+RESULT conv_in_proj                 gemv1    mem=dmabuf        PASS err=3.148e-07 ms=0.236 weights_GB/s=30.0
+RESULT conv_in_proj                 soav     mem=dmabuf        PASS err=7.743e-04 ms=0.132 weights_GB/s=53.6
+INFO model-shapes conv_in_proj tiled off 798228480 bytes 7077888 publish rc 0
+RESULT conv_in_proj                 tiledv1  mem=dmabuf        PASS err=4.722e-07 ms=0.272 weights_GB/s=26.0
+RESULT conv_in_proj                 tiledv2  mem=dmabuf        PASS err=9.443e-07 ms=0.258 weights_GB/s=27.4
+RESULT conv_in_proj                 tiledv3i mem=dmabuf        PASS err=9.443e-07 ms=0.240 weights_GB/s=29.5
+RESULT conv_in_proj                 tiledv3h mem=dmabuf        PASS err=9.443e-07 ms=0.238 weights_GB/s=29.7
+INFO model-shapes ffn_down off 792920064 bytes 12386304 publish rc 0
+RESULT ffn_down                     gemm     mem=dmabuf        PASS err=1.727e-05 ms=1167.107 weights_GB/s=0.0
+RESULT ffn_down                     gemv1    mem=dmabuf        PASS err=4.254e-07 ms=0.372 weights_GB/s=33.3
+RESULT ffn_down                     soav     mem=dmabuf        PASS err=8.010e-04 ms=0.333 weights_GB/s=37.2
+INFO model-shapes ffn_down tiled off 792920064 bytes 12386304 publish rc 0
+RESULT ffn_down                     tiledv1  mem=dmabuf        PASS err=5.673e-07 ms=0.633 weights_GB/s=19.6
+RESULT ffn_down                     tiledv2  mem=dmabuf        PASS err=8.509e-07 ms=0.558 weights_GB/s=22.2
+RESULT ffn_down                     tiledv3i mem=dmabuf        PASS err=8.509e-07 ms=0.526 weights_GB/s=23.5
+RESULT ffn_down                     tiledv3h mem=dmabuf        PASS err=8.509e-07 ms=0.523 weights_GB/s=23.7
+INFO model-shapes attn_k off 804716544 bytes 589824 publish rc 0
+RESULT attn_k                       gemm     mem=dmabuf        PASS err=7.379e-06 ms=54.943 weights_GB/s=0.0
+RESULT attn_k                       gemv1    mem=dmabuf        PASS err=3.161e-07 ms=0.031 weights_GB/s=19.0
+RESULT attn_k                       soav     mem=dmabuf        PASS err=5.693e-04 ms=0.052 weights_GB/s=11.3
+INFO model-shapes attn_k tiled off 804716544 bytes 589824 publish rc 0
+RESULT attn_k                       tiledv1  mem=dmabuf        PASS err=6.322e-07 ms=0.126 weights_GB/s=4.7
+RESULT attn_k                       tiledv2  mem=dmabuf        PASS err=6.322e-07 ms=0.089 weights_GB/s=6.6
+RESULT attn_k                       tiledv3i mem=dmabuf        PASS err=6.322e-07 ms=0.089 weights_GB/s=6.6
+RESULT attn_k                       tiledv3h mem=dmabuf        PASS err=6.322e-07 ms=0.090 weights_GB/s=6.6
+INFO model-shapes pad_rows off 802928640 bytes 2377728 publish rc 0
+RESULT pad_rows                     gemm     mem=dmabuf        PASS err=9.959e-06 ms=228.757 weights_GB/s=0.0
+RESULT pad_rows                     gemv1    mem=dmabuf        PASS err=4.649e-07 ms=0.085 weights_GB/s=28.0
+RESULT pad_rows                     soav     mem=dmabuf        PASS err=6.050e-04 ms=0.064 weights_GB/s=37.2
+INFO model-shapes pad_rows tiled off 802910208 bytes 2396160 publish rc 0
+RESULT pad_rows                     tiledv1  mem=dmabuf        PASS err=4.649e-07 ms=0.147 weights_GB/s=16.3
+RESULT pad_rows                     tiledv2  mem=dmabuf        PASS err=6.199e-07 ms=0.132 weights_GB/s=18.2
+RESULT pad_rows                     tiledv3i mem=dmabuf        PASS err=6.199e-07 ms=0.126 weights_GB/s=19.0
+RESULT pad_rows                     tiledv3h mem=dmabuf        PASS err=6.199e-07 ms=0.125 weights_GB/s=19.1
+INFO model-shapes scales_denorm off 804716544 bytes 589824 publish rc 0
+RESULT scales_denorm                gemm     mem=dmabuf        PASS err=6.745e-06 ms=54.869 weights_GB/s=0.0
+RESULT scales_denorm                gemv1    mem=dmabuf        PASS err=4.222e-07 ms=0.031 weights_GB/s=19.0
+RESULT scales_denorm                soav     mem=dmabuf        FAIL err=3.054e+00 ms=0.051 weights_GB/s=11.6
+INFO model-shapes scales_denorm tiled off 804716544 bytes 589824 publish rc 0
+RESULT scales_denorm                tiledv1  mem=dmabuf        PASS err=3.166e-07 ms=0.156 weights_GB/s=3.8
+RESULT scales_denorm                tiledv2  mem=dmabuf        PASS err=4.222e-07 ms=0.163 weights_GB/s=3.6
+RESULT scales_denorm                tiledv3i mem=dmabuf        PASS err=4.222e-07 ms=0.166 weights_GB/s=3.6
+RESULT scales_denorm                tiledv3h mem=dmabuf        PASS err=4.222e-07 ms=0.165 weights_GB/s=3.6
+INFO model-shapes failures 1
+PROBE_EXIT=1
