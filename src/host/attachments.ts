@@ -110,6 +110,26 @@ export function attachmentImageUris(
   return uris.slice(0, MAX_IMAGES_PER_TURN);
 }
 
+/**
+ * The pictures a REMOTE prompt prices: this turn's staged rows plus the ones
+ * inside the messages the image-turn window keeps. Anything older is demoted
+ * before it reaches a prompt, and pricing the whole history starved the text
+ * budget for pictures nobody would see; what actually rides is capped again,
+ * in bytes, by the wire budget at send.
+ */
+export function remotePictureCount(
+  items: readonly LocalAttachment[] | undefined,
+  history: readonly { images?: string[] }[],
+  windowMessages: number,
+): number {
+  const window = windowMessages > 0 ? history.slice(-windowMessages) : [];
+  const inWindow = window.reduce(
+    (sum, message) => sum + (message.images?.length ?? 0),
+    0,
+  );
+  return attachmentImageUris(items).length + inWindow;
+}
+
 /** The model-facing annotation for library documents (controller
  *  `Chat:2450-2455`), so `document_chat` can select the right entry. */
 export function documentHints(items: readonly LocalAttachment[]): string {

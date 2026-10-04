@@ -33,6 +33,7 @@ function input(over: Partial<ComposerViewInput> = {}): ComposerViewInput {
     modelState: "ready" as ModelPipelineState,
     engineResident: true,
     remoteActive: false,
+    remoteVision: false,
     attachments: [],
     converting: false,
     ...over,
@@ -147,5 +148,28 @@ describe("the chips are `composerState`'s shape, one per row (§2.7)", () => {
       params: { name: "shot.jpg" },
     });
     expect(composerView(input()).composer.attachment).toBeNull();
+  });
+
+  it("the transcript carries a remote turn's pictures, and only while the desk can see", () => {
+    const sent: Message = {
+      id: "u1",
+      role: "user",
+      text: "look",
+      createdAt: 1,
+      attachments: [shot],
+    };
+    const shown = input({ messages: [sent], remoteActive: true, remoteVision: true });
+    expect(composerView(shown).transcript[0].images).toEqual([
+      { id: "i", name: "shot.jpg", uri: "file:///s" },
+    ]);
+    // Local mode and a blind desk keep the text-only capsule.
+    expect(
+      composerView(input({ messages: [sent], remoteActive: false, remoteVision: true })).transcript[0]
+        .images,
+    ).toBeUndefined();
+    expect(
+      composerView(input({ messages: [sent], remoteActive: true, remoteVision: false })).transcript[0]
+        .images,
+    ).toBeUndefined();
   });
 });

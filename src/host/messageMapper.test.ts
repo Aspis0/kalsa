@@ -321,6 +321,39 @@ describe("CTA chips (D1 row 26): label + kind + id cross; the outputs-system fie
   });
 });
 
+describe("the pictures a user turn was sent with", () => {
+  const withRows = base({
+    attachments: [
+      { id: "i", kind: "image", name: "a.jpg", uri: "file:///a.jpg" },
+      { id: "d", kind: "document", name: "n.docx", uri: "", libraryDocId: "doc" },
+      { id: "p", kind: "pdf", name: "p.pdf", uri: "file:///p.pdf", pages: ["file:///p1.jpg", "file:///p2.jpg"] },
+    ],
+  });
+
+  test("crosses only when the host says they rode, images and PDF pages in row order", () => {
+    expect(toTranscriptMessage(withRows, opts()).images).toBeUndefined();
+    expect(toTranscriptMessage(withRows, opts({ showImages: true })).images).toEqual([
+      { id: "i", name: "a.jpg", uri: "file:///a.jpg" },
+      { id: "p-0", name: "p.pdf", uri: "file:///p1.jpg" },
+      { id: "p-1", name: "p.pdf", uri: "file:///p2.jpg" },
+    ]);
+  });
+
+  test("a restored row keeps its name and no URI: nothing is drawn, never an empty source", () => {
+    const restored = base({
+      attachments: [{ id: "i", kind: "image", name: "a.jpg", uri: "" }],
+    });
+    expect(toTranscriptMessage(restored, opts({ showImages: true })).images).toBeUndefined();
+  });
+
+  test("the mapping cache is keyed on the flag: flipping it re-maps the same message", () => {
+    const shown = toTranscriptMessages([withRows], opts({ showImages: true }))[0];
+    const hidden = toTranscriptMessages([withRows], opts({ showImages: false }))[0];
+    expect(shown.images).toHaveLength(3);
+    expect(hidden.images).toBeUndefined();
+  });
+});
+
 describe("toolNameFromActionsPayload", () => {
   test("extracts the name from the bridge's tool payload", () => {
     expect(

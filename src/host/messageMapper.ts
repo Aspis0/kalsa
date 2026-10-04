@@ -21,11 +21,13 @@
  *   fields are dropped here because no renderer reads them.
  */
 import type { MessageSource } from "./hostMessage";
-import type { Message } from "./hostMessage";
+import type { LocalAttachment, Message } from "./hostMessage";
+import { MAX_IMAGES_PER_TURN } from "./attachments";
 import { stopOutcome } from "../ui/shell/composerState";
 import { caretVisible } from "../ui/shell/caretSpec";
 import type {
   TranscriptCta,
+  TranscriptImage,
   TranscriptMessage,
   TranscriptSource,
   TranscriptStop,
@@ -38,6 +40,10 @@ export type MapperOptions = {
   thinkingStatus: string;
   /** Volatile tool rows captured this session, keyed by assistant message id. */
   toolsById?: ReadonlyMap<string, readonly { name: string }[]>;
+  /** Whether this session's user turns carry their pictures to the model
+   *  (remote vision): the capsule then shows what was actually sent. A local
+   *  turn keeps the text-only capsule it has always had. */
+  showImages?: boolean;
 };
 
 /** One persisted source → the chip's `{url, title}` pair. An older record may
@@ -110,6 +116,29 @@ function mapStop(message: Message): TranscriptStop | undefined {
   return undefined;
 }
 
+/**
+ * The pictures a sent user turn carries: its image rows and the rendered PDF
+ * pages beside them, in the order they went out, capped the way the wire
+ * caps one turn. A URI that did not survive (a reload empties every one of
+ * them, `historyMessages.ts`) is not drawn — an empty `Image` source would be
+ * a broken box, not a picture.
+ */
+function mapImages(attachments: readonly LocalAttachment[] | undefined): TranscriptImage[] {
+  if (!attachments || attachments.length === 0) return [];
+  const images: TranscriptImage[] = [];
+  for (const item of attachments) {
+    if (images.length >= MAX_IMAGES_PER_TURN) break;
+    if (item.kind === "image" && item.uri) {
+      images.push({ id: item.id, name: item.name, uri: item.uri });
+    } else if (item.kind === "pdf") {
+      (item.pages ?? []).forEach((uri, page) => {
+        if (uri) images.push({ id: `${item.id}-${page}`, name: item.name, uri });
+      });
+    }
+  }
+  return images;
+}
+
 export function toTranscriptMessage(message: Message, opts: MapperOptions): TranscriptMessage {
   const tools = message.role === "assistant" ? opts.toolsById?.get(message.id) : undefined;
   const mapped: TranscriptMessage = {
@@ -120,6 +149,10 @@ export function toTranscriptMessage(message: Message, opts: MapperOptions): Tran
   };
   const thinking = mapThinking(message, opts);
   if (thinking) mapped.thinking = thinking;
+  if (message.role === "user") {
+    const images = opts.showImages ? mapImages(message.attachments) : [];
+    if (images.length > 0) mapped.images = images;
+  }
   if (message.role === "assistant") {
     if (caretVisible(message.streaming, message.text)) mapped.caret = true;
     const stop = mapStop(message);
@@ -158,19 +191,30 @@ export function toTranscriptMessages(
     if (
       cached &&
       cached.thinkingStatus === opts.thinkingStatus &&
-      cached.tools === tools
+      cached.tools === tools &&
+      cached.showImages === opts.showImages
     ) {
       return cached.transcript;
     }
     const transcript = toTranscriptMessage(message, opts);
-    mappedMessages.set(message, { thinkingStatus: opts.thinkingStatus, tools, transcript });
+    mappedMessages.set(message, {
+      thinkingStatus: opts.thinkingStatus,
+      tools,
+      showImages: opts.showImages,
+      transcript,
+    });
     return transcript;
   });
 }
 
 const mappedMessages = new WeakMap<
   Message,
-  { thinkingStatus: string; tools: readonly { name: string }[] | undefined; transcript: TranscriptMessage }
+  {
+    thinkingStatus: string;
+    tools: readonly { name: string }[] | undefined;
+    showImages: boolean | undefined;
+    transcript: TranscriptMessage;
+  }
 >();
 
 /**

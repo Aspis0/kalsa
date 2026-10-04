@@ -1,10 +1,14 @@
 /**
- * The one place a stored picture becomes bytes for the remote door: read the
- * file, cap the LONG side (a portrait's height is a side too) by re-encoding
- * at the desktop's JPEG quality when the frame is over it, strip the
- * encoder's metadata with the pure sanitizer, and dress the result as the
- * `data:` URI the wire carries. Nothing is cached: the file stays the app's
- * own artifact, and history keeps URIs, never base64.
+ * The one place a stored picture becomes bytes for the remote door: the
+ * stored sizes decide what can ride (the planner reads no byte of a picture
+ * it will not send), then each rider is read, capped on the LONG side — a
+ * portrait's height is a side too — stripped by the pure sanitizer and
+ * dressed as the `data:` URI the wire carries. Nothing is cached: the file
+ * stays the app's own artifact, and history keeps URIs, never base64.
+ *
+ * A picture this app cannot walk itself, or whose walk fails, is re-encoded
+ * through the platform encoder and sanitized again; if that fails too the
+ * picture is refused rather than sent as it came.
  *
  * Both expo modules load lazily, so the remote engine — and every node-side
  * test that imports it — stays importable without an expo runtime; only a
@@ -16,16 +20,44 @@ import type { RemotePicture } from "./openaiMessages";
 
 /** The long side a picture keeps: past it the model reads detail nobody
     gains and the data URI only grows (the desktop's own cap). */
-export const REMOTE_IMAGE_LONG_SIDE = 1536;
+const REMOTE_IMAGE_LONG_SIDE = 1536;
 /** The desktop's first-pass quality. */
-export const REMOTE_IMAGE_QUALITY = 0.85;
+const REMOTE_IMAGE_QUALITY = 0.85;
 
 const JPEG_MIME = "image/jpeg";
 const DATA_URI_PREFIX = `data:${JPEG_MIME};base64,`;
 
-/** Read every staged picture once, in the order the turn carries it. A URI
-    that repeats keeps one entry; a file that is gone or unreadable is simply
-    absent, and the caller turns it into the wire's placeholder sentence. */
+/** What each URI weighs on disk, without reading a byte of it — the planner
+    chooses on these, so only pictures that can ride are ever read. A URI
+    whose file is gone (or is not a file) is simply absent. */
+export async function storedPictureSizes(
+  uris: readonly string[],
+): Promise<Map<string, number>> {
+  const sizes = new Map<string, number>();
+  if (uris.length === 0) return sizes;
+  try {
+    const FileSystem = await import("expo-file-system/legacy");
+    for (const uri of uris) {
+      if (sizes.has(uri)) continue;
+      try {
+        const info = await FileSystem.getInfoAsync(uri);
+        if (info.exists && info.isDirectory !== true && Number.isFinite(info.size)) {
+          sizes.set(uri, info.size);
+        }
+      } catch {
+        // One unreadable file must not cost the others their sizes.
+      }
+    }
+  } catch {
+    return sizes;
+  }
+  return sizes;
+}
+
+/** Read every picture once, in the order the turn carries it, and prepare
+    exactly the URIs handed over. A URI that repeats keeps one entry; a file
+    that cannot be prepared is absent, and the caller decides what that means
+    for the turn. */
 export async function readRemotePictures(
   uris: readonly string[],
 ): Promise<Map<string, RemotePicture>> {
@@ -38,6 +70,36 @@ export async function readRemotePictures(
   return out;
 }
 
+function asPicture(uri: string, clean: Uint8Array): RemotePicture {
+  return {
+    uri,
+    bytes: clean.length,
+    dataUri: `${DATA_URI_PREFIX}${uint8ArrayToBase64(clean)}`,
+  };
+}
+
+async function readRemotePicture(uri: string): Promise<RemotePicture | null> {
+  let stored: Uint8Array | null = null;
+  try {
+    stored = base64ToUint8Array(await readStoredBase64(uri));
+  } catch {
+    stored = null;
+  }
+  const size = stored === null ? null : jpegSize(stored);
+  // A picture this walk can read whole and that is already inside the cap
+  // goes out as stored — no second generation of compression for nothing.
+  const clean =
+    stored !== null && size !== null && Math.max(size.width, size.height) <= REMOTE_IMAGE_LONG_SIDE
+      ? sanitizeJpegBytes(stored)
+      : null;
+  if (clean !== null) return asPicture(uri, clean);
+  // HEIC, PNG, a truncated file, a frame over the cap: the platform encoder
+  // writes a JPEG, and its own output is sanitized before it may ride.
+  const encoded = await encodeJpegAtCap(uri, size);
+  const reClean = encoded === null ? null : sanitizeJpegBytes(encoded);
+  return reClean === null ? null : asPicture(uri, reClean);
+}
+
 async function readStoredBase64(uri: string): Promise<string> {
   const FileSystem = await import("expo-file-system/legacy");
   return FileSystem.readAsStringAsync(uri, {
@@ -45,34 +107,22 @@ async function readStoredBase64(uri: string): Promise<string> {
   });
 }
 
-async function readRemotePicture(uri: string): Promise<RemotePicture | null> {
+async function discardEncoded(uri: string | undefined): Promise<void> {
+  if (uri === undefined || uri.length === 0) return;
   try {
-    const stored = base64ToUint8Array(await readStoredBase64(uri));
-    const size = jpegSize(stored);
-    // A JPEG the walk can read and that is already inside the cap goes out
-    // as stored — no second generation of compression for nothing.
-    const body =
-      size !== null && Math.max(size.width, size.height) <= REMOTE_IMAGE_LONG_SIDE
-        ? stored
-        : await encodeJpegAtCap(uri, size);
-    if (body === null) return null;
-    const clean = sanitizeJpegBytes(body);
-    return {
-      uri,
-      bytes: clean.length,
-      dataUri: `${DATA_URI_PREFIX}${uint8ArrayToBase64(clean)}`,
-    };
+    const FileSystem = await import("expo-file-system/legacy");
+    await FileSystem.deleteAsync(uri, { idempotent: true });
   } catch {
-    return null;
+    // A cache file this app could not remove is the platform's to reap; the
+    // picture itself is already in memory and is not lost with it.
   }
 }
 
 /** The platform encoder at the remote cap: resize the long side and save at
-    JPEG 0.85 with the bytes inline — one native round trip, and the cache
-    file the encoder writes is the platform's own to reap. A source that is
-    not a JPEG this walk can read (or carries no frame header) is re-encoded
-    whatever its size, which is also what turns HEIC into something the door
-    accepts. */
+    JPEG 0.85 with the bytes inline — one native round trip. The file it
+    writes is deleted on the way out, success or failure, because nothing
+    here ever reads it back and one UUID per picture per send would grow the
+    cache for nothing. */
 async function encodeJpegAtCap(
   uri: string,
   size: { width: number; height: number } | null,
@@ -98,7 +148,11 @@ async function encodeJpegAtCap(
       format: SaveFormat.JPEG,
       base64: true,
     });
-    return typeof saved.base64 === "string" ? base64ToUint8Array(saved.base64) : null;
+    try {
+      return typeof saved.base64 === "string" ? base64ToUint8Array(saved.base64) : null;
+    } finally {
+      await discardEncoded(saved.uri);
+    }
   } catch {
     return null;
   }

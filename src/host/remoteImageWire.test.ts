@@ -3,6 +3,7 @@
  * stateless, so it is shown the pictures the window still remembers; the
  * phone's own engine keeps replaying text only, takes pictures from the
  * current user turn alone, and must never be handed a part for an older one.
+ * The same three seams decide what the person SEES was sent.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -11,6 +12,10 @@ import type { EngineMessage } from "../engine/LlamaService";
 
 const ENGINE_TURN = readFileSync(join(__dirname, "engineTurnStream.ts"), "utf8");
 const LLAMA_SERVICE = readFileSync(join(__dirname, "../engine/LlamaService.ts"), "utf8");
+const COMPOSER_VIEW = readFileSync(join(__dirname, "composerView.ts"), "utf8");
+const WINDOW = readFileSync(join(__dirname, "engineTurnWindow.ts"), "utf8");
+const TURNS = readFileSync(join(__dirname, "../ui/shell/TranscriptTurns.tsx"), "utf8");
+const ROW = readFileSync(join(__dirname, "../ui/shell/TranscriptRow.tsx"), "utf8");
 
 describe("history pictures ride the remote wire only", () => {
   test("the engine turn attaches them behind the remote guard, from one URI rule", () => {
@@ -34,5 +39,24 @@ describe("history pictures ride the remote wire only", () => {
     for (const message of toOpenAiMessages(messages)) {
       expect(typeof message.content).toBe("string");
     }
+  });
+
+  test("only a remote turn prices pictures into its window budget", () => {
+    // A local image turn is sized by count alone (`windowProfile.ts`) and must
+    // not start paying a token price for pictures it already accounted for.
+    expect(WINDOW).toContain("isRemoteEngineBackend()");
+    expect(WINDOW).toContain(
+      "remotePictureCount(attachments, validatedHistory, WINDOW_MAX_MESSAGES_IMAGES)",
+    );
+  });
+
+  test("the bubble draws the pictures the same mode decided to send", () => {
+    // One flag decides both: what the mapper carries to the transcript and
+    // what the composer's chips claim. The band itself only draws it.
+    expect(COMPOSER_VIEW).toContain(
+      "showImages: input.remoteActive && input.remoteVision",
+    );
+    expect(ROW).toContain("images={message.images}");
+    expect(TURNS).toContain("<UserImages colors={colors} images={images} />");
   });
 });

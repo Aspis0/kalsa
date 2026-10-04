@@ -22,6 +22,14 @@ function picture(uri: string, bytes = 3): RemotePicture {
 const bodyBytes = (messages: readonly OpenAiChatMessage[]) =>
   wireBodyBytes(remoteChatBodyJson({ model: "m", messages, maxTokens: 512, temperature: 0.7 }));
 
+/** Prepares whatever it is handed, at the size the test declared. */
+function reader(sizes: ReadonlyMap<string, number>, prepared: Map<string, RemotePicture>) {
+  return async (uris: readonly string[]): Promise<Map<string, RemotePicture>> => {
+    for (const uri of uris) prepared.set(uri, picture(uri, sizes.get(uri) ?? 3));
+    return prepared;
+  };
+}
+
 describe("toOpenAiMessages", () => {
   test("maps user and assistant, prefers modelEmittedText", () => {
     const messages: EngineMessage[] = [
@@ -77,34 +85,17 @@ describe("planRemoteTurn", () => {
   const history: EngineMessage = { role: "user", content: "older", images: ["file:///old.jpg"] };
   const current: EngineMessage = { role: "user", content: "look", images: ["file:///now.jpg"] };
 
-  test("no seeing desk: every picture is the sentence, and no part is built", () => {
-    const plan = planRemoteTurn({
-      messages: [history, current],
-      vision: false,
-      pictures: new Map([
-        ["file:///old.jpg", picture("file:///old.jpg")],
-        ["file:///now.jpg", picture("file:///now.jpg")],
-      ]),
-      bodyBytes,
-    });
-    expect(plan).toEqual({
-      ok: true,
-      messages: [
-        { role: "user", content: `older\n${IMAGE_PLACEHOLDER}` },
-        { role: "user", content: `look\n${IMAGE_PLACEHOLDER}` },
-      ],
-    });
-  });
-
-  test("with vision both pictures ride, against the body the transport will send", () => {
-    const plan = planRemoteTurn({
+  test("with vision both pictures ride, against the body the transport will send", async () => {
+    const sizes = new Map([
+      ["file:///old.jpg", 3],
+      ["file:///now.jpg", 3],
+    ]);
+    const plan = await planRemoteTurn({
       messages: [history, current],
       system: "sys",
       vision: true,
-      pictures: new Map([
-        ["file:///old.jpg", picture("file:///old.jpg")],
-        ["file:///now.jpg", picture("file:///now.jpg")],
-      ]),
+      sizes,
+      readPictures: reader(sizes, new Map()),
       bodyBytes,
     });
     expect(plan).toEqual({
@@ -129,18 +120,27 @@ describe("planRemoteTurn", () => {
     });
   });
 
-  test("a body already at the ceiling demotes the oldest first, never the current turn", () => {
-    // The port stands in for the serializer: what this case needs is a body
-    // whose weight leaves room for the current turn's small picture only.
-    const plan = planRemoteTurn({
+  test("a body at the ceiling demotes the oldest first — and never reads it", async () => {
+    const sizes = new Map([
+      ["file:///old.jpg", 4 * 1024 * 1024],
+      ["file:///now.jpg", 3],
+    ]);
+    const read: string[][] = [];
+    const prepared = new Map<string, RemotePicture>();
+    const plan = await planRemoteTurn({
       messages: [history, current],
       vision: true,
-      pictures: new Map([
-        ["file:///old.jpg", picture("file:///old.jpg", 4 * 1024 * 1024)],
-        ["file:///now.jpg", picture("file:///now.jpg")],
-      ]),
+      sizes,
+      readPictures: async (uris) => {
+        read.push([...uris]);
+        return reader(sizes, prepared)(uris);
+      },
+      // The port stands in for the serializer: what this case needs is a body
+      // whose weight leaves room for the current turn's small picture only.
       bodyBytes: () => WIRE_BODY_BUDGET - 1_000,
     });
+    // Only the rider was read, and the current turn came first.
+    expect(read).toEqual([["file:///now.jpg"]]);
     expect(plan).toEqual({
       ok: true,
       messages: [
@@ -156,28 +156,64 @@ describe("planRemoteTurn", () => {
     });
   });
 
-  test("the current turn's own picture alone too heavy: the send is refused, not trimmed", () => {
-    const heavy = picture("file:///now.jpg", 12 * 1024 * 1024);
-    expect(wireImageBytes(heavy.bytes)).toBeGreaterThan(WIRE_BODY_BUDGET);
-    const plan = planRemoteTurn({
+  test("the current turn's own picture alone too heavy: refused before anything is read", async () => {
+    const sizes = new Map([["file:///now.jpg", 12 * 1024 * 1024]]);
+    expect(wireImageBytes(12 * 1024 * 1024)).toBeGreaterThan(WIRE_BODY_BUDGET);
+    const readPictures = jest.fn(async () => new Map<string, RemotePicture>());
+    const plan = await planRemoteTurn({
       messages: [current],
       vision: true,
-      pictures: new Map([["file:///now.jpg", heavy]]),
+      sizes,
+      readPictures,
       bodyBytes,
     });
+    expect(readPictures).not.toHaveBeenCalled();
     expect(plan).toEqual({ ok: false, reason: "images_too_big" });
   });
 
-  test("a picture whose file is gone is a placeholder, never an empty part", () => {
-    const plan = planRemoteTurn({
+  test("a picture of this turn that cannot be read refuses the send, never text-only", async () => {
+    const gone = await planRemoteTurn({
       messages: [current],
       vision: true,
-      pictures: new Map(),
+      sizes: new Map(),
+      readPictures: jest.fn(async () => new Map<string, RemotePicture>()),
       bodyBytes,
     });
-    expect(plan).toEqual({
+    // The file was there when it was attached, and the bytes are gone now.
+    expect(gone).toEqual({ ok: false, reason: "image_unreadable" });
+    const failed = await planRemoteTurn({
+      messages: [current],
+      vision: true,
+      sizes: new Map([["file:///now.jpg", 3]]),
+      readPictures: jest.fn(async () => new Map<string, RemotePicture>()),
+      bodyBytes,
+    });
+    expect(failed).toEqual({ ok: false, reason: "image_unreadable" });
+  });
+
+  test("a seeing model or a readable file is required for THIS turn, not for the past", async () => {
+    const blind = await planRemoteTurn({
+      messages: [history, current],
+      vision: false,
+      sizes: new Map([["file:///now.jpg", 3]]),
+      readPictures: jest.fn(async () => new Map<string, RemotePicture>()),
+      bodyBytes,
+    });
+    expect(blind).toEqual({ ok: false, reason: "vision_off" });
+
+    const past = await planRemoteTurn({
+      messages: [history, { role: "user", content: "and now" }],
+      vision: false,
+      sizes: new Map(),
+      readPictures: jest.fn(async () => new Map<string, RemotePicture>()),
+      bodyBytes,
+    });
+    expect(past).toEqual({
       ok: true,
-      messages: [{ role: "user", content: `look\n${IMAGE_PLACEHOLDER}` }],
+      messages: [
+        { role: "user", content: `older\n${IMAGE_PLACEHOLDER}` },
+        { role: "user", content: "and now" },
+      ],
     });
   });
 });

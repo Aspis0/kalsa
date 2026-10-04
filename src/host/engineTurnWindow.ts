@@ -32,9 +32,13 @@ import {
   LEGACY_MAX_CHARS_IMAGES,
   resolveBoundaryIndex,
 } from "../context/compactor";
-import { resolveWindowProfile, windowStartIndex } from "../context/windowProfile";
+import {
+  resolveWindowProfile,
+  WINDOW_MAX_MESSAGES_IMAGES,
+  windowStartIndex,
+} from "../context/windowProfile";
 import { isRemoteEngineBackend } from "../engine/engineBackend";
-import { attachmentImageUris } from "./attachments";
+import { remotePictureCount } from "./attachments";
 import type { EngineTurnDeps, TurnInputs } from "./engineTurnDeps";
 
 export async function prepareEngineWindow(
@@ -51,16 +55,12 @@ export async function prepareEngineWindow(
     activePersonaIdRef,
     currentModel,
   } = deps;
-            // Pictures a remote prompt will carry: this turn's rows plus the
-            // ones the history still remembers (the wire shows the window's
-            // pictures, and the server charges for each). An upper bound is
-            // the safe side — it only ever tightens the window.
-            const remotePictureCount = isRemoteEngineBackend()
-              ? attachmentImageUris(attachments).length +
-                validatedHistory.reduce(
-                  (sum, message) => sum + (message.images?.length ?? 0),
-                  0,
-                )
+            // Pictures a remote prompt prices: this turn's own, plus the ones
+            // inside the stretch the image-turn window keeps (the rule itself
+            // lives in `attachments.ts`). What actually rides is capped again,
+            // in bytes, by the wire budget at send.
+            const remoteImageCount = isRemoteEngineBackend()
+              ? remotePictureCount(attachments, validatedHistory, WINDOW_MAX_MESSAGES_IMAGES)
               : 0;
             const retrievalOn = contextMode === "ciswire";
             const anchoredOn = contextMode === "anchored";
@@ -118,10 +118,11 @@ export async function prepareEngineWindow(
                     hasImages,
                     hasDigest,
                     // The remote door charges every picture real prompt tokens
-                    // the char budget cannot see: the current turn's rows plus
-                    // the pictures the history still remembers. The phone's own
-                    // engine passes nothing and keeps its count-only image rule.
-                    imageCount: remotePictureCount,
+                    // the char budget cannot see: this turn's own rows plus the
+                    // ones inside the image-turn window (`attachments.ts`
+                    // prices the count). The phone's own engine passes nothing
+                    // and keeps its count-only image rule.
+                    imageCount: remoteImageCount,
                   });
             // The turn being sent is appended AFTER this walk, so it must be
             // charged here or a long message would ride entirely outside the

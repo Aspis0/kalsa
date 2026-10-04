@@ -14,6 +14,7 @@ import {
   attachmentImageUris,
   documentHints,
   pdfErrorNotice,
+  remotePictureCount,
   removeAttachment,
   routePickedKind,
   visionInputPresent,
@@ -154,6 +155,20 @@ describe("the URIs a turn puts on a wire", () => {
     expect(attachmentImageUris([item({ kind: "pdf", pages })])).toEqual(
       pages.slice(0, MAX_IMAGES_PER_TURN),
     );
+  });
+});
+
+describe("the pictures a remote prompt prices", () => {
+  it("counts this turn's rows plus the ones inside the window, and no further back", () => {
+    const history = [
+      { images: ["file:///old1.jpg", "file:///old2.jpg"] },
+      { images: ["file:///mid.jpg"] },
+      { images: ["file:///new1.jpg", "file:///new2.jpg"] },
+    ];
+    // Three messages of window: the oldest turn is outside it.
+    expect(remotePictureCount([item()], history, 2)).toBe(1 + 3);
+    expect(remotePictureCount([item()], history, 0)).toBe(1);
+    expect(remotePictureCount(undefined, [], 8)).toBe(0);
   });
 });
 

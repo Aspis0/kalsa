@@ -72,6 +72,13 @@ export type TranscriptMessage = {
    */
   edited?: boolean;
   /**
+   * The pictures this user turn was sent with, drawn under the capsule.
+   * VOLATILE BY CONSTRUCTION: the history path stores attachment names but
+   * never their URIs (`historyMessages.ts`: caches do not survive a reload),
+   * so a restored turn carries none and the mapper decides per send.
+   */
+  images?: readonly TranscriptImage[];
+  /**
    * The action chips under an answer (D1 row 26). Drawn as STATIC chips:
    * the controller's press handler was a stub (`AppShell.tsx:7047`) and this
    * build has no outputs view behind `target: "outputs"`, so a button here
@@ -98,6 +105,15 @@ export type TranscriptCta = {
   id?: string;
 };
 
+/**
+ * One picture of a user turn: what the capsule thumbnails. The URI is a live
+ * cache path, so it is never persisted; the name is the a11y label.
+ */
+export type TranscriptImage = {
+  id: string;
+  name: string;
+  uri: string;
+};
 /**
  * §2.8's stop line, as data: one catalogue key, the engine's own reason when
  * one interpolates, and the design's tone. The band draws the line and never

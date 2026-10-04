@@ -207,6 +207,8 @@ export const en = {
       "Your computer answered but does not offer that model. Check the id.",
     remoteBrainImagesTooBig:
       "Those pictures are too large to send to your computer. Remove one and try again.",
+    remoteBrainImageUnreadable:
+      "One of the pictures you attached could not be read. Attach it again.",
     remoteBrainNoVision:
       "The model on your computer cannot see images. Pick one that can, or attach the picture in a chat on this phone.",
     remoteBrainSaveFailed:

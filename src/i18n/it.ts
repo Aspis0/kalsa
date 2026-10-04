@@ -206,6 +206,8 @@ export const it: typeof en = {
       "Il tuo computer ha risposto ma non offre quel modello. Controlla l'id.",
     remoteBrainImagesTooBig:
       "Quelle immagini sono troppo grandi per essere inviate al tuo computer. Togline una e riprova.",
+    remoteBrainImageUnreadable:
+      "Non è stato possibile leggere una delle immagini allegate. Allegala di nuovo.",
     remoteBrainNoVision:
       "Il modello sul tuo computer non può vedere le immagini. Scegline uno che possa, oppure allega l'immagine in una chat su questo telefono.",
     remoteBrainSaveFailed:

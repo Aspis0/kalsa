@@ -53,6 +53,7 @@ export const TranscriptRow = memo(function TranscriptRow({
       colors={colors}
       edited={message.edited}
       id={message.id}
+      images={message.images}
       layout={layout}
       onCopy={onCopy}
       onLongPress={onMessageLongPress ? onLongPress : undefined}

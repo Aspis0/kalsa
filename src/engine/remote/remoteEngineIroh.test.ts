@@ -24,11 +24,16 @@ jest.mock("../../remote/irohBridge", () => ({
   irohModulePresent: jest.fn(() => true),
   openIrohTunnel: jest.fn(),
 }));
+jest.mock("./remoteImageBytes", () => ({
+  readRemotePictures: jest.fn(async () => new Map()),
+  storedPictureSizes: jest.fn(async () => new Map()),
+}));
 
 import { disposeRemoteEngine, initRemoteEngine, streamRemoteAssistantTurn } from "./RemoteEngine";
 import { openIrohTunnel } from "../../remote/irohBridge";
 import { getPairingCredential } from "../../pairing/pairingCredentialStore";
 import { setRemoteServerModelId } from "./remoteSettings";
+import { readRemotePictures, storedPictureSizes } from "./remoteImageBytes";
 import type { IrohTunnel } from "../../remote/irohHttp";
 
 const NODE = "ab".repeat(32);
@@ -181,6 +186,39 @@ describe("the iroh road through RemoteEngine", () => {
       .map((args) => args[1] as string);
     expect(lines).toEqual([]);
     expect(lines.join("")).not.toContain(NODE);
+    log.mockRestore();
+  });
+
+  test("a refused picture turn releases the establishment tunnel it dialled", async () => {
+    const propsTunnel = new FakeTunnel([jsonResponse("{}")]);
+    const modelsTunnel = new FakeTunnel([jsonResponse('{"data":[{"id":"ornith"}]}')]);
+    // The turn's own dial — what the refusal must close — and the /props read
+    // the picture path opens for itself rather than stealing that tunnel.
+    const turnTunnel = new FakeTunnel([jsonResponse("{}")]);
+    const pictureProbe = new FakeTunnel([jsonResponse('{"modalities":{"vision":true}}')]);
+    (openIrohTunnel as jest.Mock)
+      .mockResolvedValueOnce(propsTunnel)
+      .mockResolvedValueOnce(modelsTunnel)
+      .mockResolvedValueOnce(turnTunnel)
+      .mockResolvedValueOnce(pictureProbe);
+    (storedPictureSizes as jest.Mock).mockResolvedValue(
+      new Map([["file:///a.jpg", 12 * 1024 * 1024]]),
+    );
+    const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const onError = jest.fn();
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "look", images: ["file:///a.jpg"] }],
+      { onDelta: () => undefined, onDone: () => undefined, onError },
+      undefined,
+      { locale: "en", turnId: "t-iroh-refusal" },
+    );
+
+    expect((onError.mock.calls[0][0] as Error).message).toBe("remote_brain_images_too_big");
+    expect(readRemotePictures).not.toHaveBeenCalled();
+    // A tunnel nobody shut would outlive the turn it was dialled for.
+    expect(turnTunnel.shutdowns).toBeGreaterThan(0);
     log.mockRestore();
   });
 });

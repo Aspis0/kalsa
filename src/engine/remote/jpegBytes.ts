@@ -1,12 +1,15 @@
 /**
  * A JPEG's own structure, read on the bytes themselves: the frame's size, and
  * the sanitized picture this app is allowed to send. The camera and the OS
- * write EXIF, GPS and everything else anyone cares to record into APP1–APP15;
- * an allow-list drops each segment a decoder does not need, so a segment
- * invented next year is dropped by default rather than kept through
- * ignorance. Bytes that are not a JPEG at all come back untouched; a walk
- * that breaks mid-file stops there and drops what follows, so nothing the
- * allow-list refused can ride past the break.
+ * write EXIF, GPS and everything else anyone cares to record into APP1–APP15
+ * and COM; those are dropped wherever they sit — including between the two
+ * scans of a progressive picture — so no metadata segment survives a walk.
+ *
+ * The walk is strict. `sanitizeJpegBytes` answers null when it cannot follow
+ * the bytes to the end of image, and a caller must NEVER fall back to the
+ * input: it re-encodes through the platform encoder and sanitizes that, or it
+ * refuses the picture. A sanitizer that passes unknown bytes through is a
+ * privacy hole with a comment about enthusiasm.
  */
 
 /** The JPEG segments a decoded picture still needs: the frame and its tables. */
@@ -22,14 +25,23 @@ const JPEG_KEEP = new Set<number>([
   0xcd, 0xce, 0xcf, // SOF13–SOF15
 ]);
 
-function isJpeg(bytes: Uint8Array): boolean {
-  return bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8;
+/** Markers that carry no length: TEM, SOI, EOI and the restart markers. */
+function isStandalone(marker: number): boolean {
+  return marker === 0x01 || marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7);
 }
 
 /** SOF0–SOF15 minus the three markers that share the range but are not frames
  *  (DHT, JPG, DAC). */
 function isStartOfFrame(marker: number): boolean {
   return marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+}
+
+/** A segment's own length field, two of its bytes included; null when it is
+    not even there or says something impossible. */
+function segmentLength(bytes: Uint8Array, at: number): number | null {
+  if (at + 4 > bytes.length) return null;
+  const length = 2 + (bytes[at + 2] << 8) + bytes[at + 3];
+  return length >= 2 ? length : null;
 }
 
 function joinBytes(parts: readonly Uint8Array[]): Uint8Array {
@@ -45,45 +57,90 @@ function joinBytes(parts: readonly Uint8Array[]): Uint8Array {
 }
 
 /**
- * SOI, then only the segments above in their original order, then everything
- * from SOS to the end (the entropy data and EOI). Not a JPEG: the input
- * itself, unchanged. A JPEG whose walk breaks keeps nothing past the break.
+ * SOI, the frames and tables a decoder needs in their original order, every
+ * scan header with its entropy-coded data, then EOI. Null for anything this
+ * walk cannot follow to the end — including bytes that are not a JPEG.
  */
-export function sanitizeJpegBytes(bytes: Uint8Array): Uint8Array {
-  if (!isJpeg(bytes)) return bytes;
+export function sanitizeJpegBytes(bytes: Uint8Array): Uint8Array | null {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
   const parts: Uint8Array[] = [bytes.subarray(0, 2)];
   let at = 2;
-  while (at + 4 <= bytes.length) {
-    if (bytes[at] !== 0xff) return bytes;
+  while (at < bytes.length) {
+    if (bytes[at] !== 0xff) return null;
     const marker = bytes[at + 1];
-    // From SOS on there is no structure left to walk: the entropy data and
-    // EOI ride as they are.
-    if (marker === 0xda || marker === 0xd9) {
-      parts.push(bytes.subarray(at));
+    if (marker === undefined) return null;
+    // A fill byte (0xFF 0xFF): padding before a marker, never one itself.
+    if (marker === 0xff) {
+      at += 1;
+      continue;
+    }
+    if (marker === 0xd9) {
+      // End of image: carry the pair and stop. Bytes after it belong to no
+      // picture this app sends.
+      parts.push(bytes.subarray(at, at + 2));
       return joinBytes(parts);
     }
-    const length = 2 + (bytes[at + 2] << 8) + bytes[at + 3];
+    if (marker === 0xda) {
+      const length = segmentLength(bytes, at);
+      if (length === null || at + length > bytes.length) return null;
+      parts.push(bytes.subarray(at, at + length));
+      at += length;
+      // Entropy-coded data, up to the next real marker: 0xFF 0x00 is a
+      // stuffed byte, 0xFF D0–D7 a restart marker, 0xFF 0xFF a fill byte.
+      const start = at;
+      while (at < bytes.length) {
+        if (bytes[at] !== 0xff) {
+          at += 1;
+          continue;
+        }
+        const next = bytes[at + 1];
+        if (next === undefined) return null;
+        if (next === 0xff) {
+          at += 1;
+          continue;
+        }
+        if (next === 0x00 || (next >= 0xd0 && next <= 0xd7)) {
+          at += 2;
+          continue;
+        }
+        break;
+      }
+      parts.push(bytes.subarray(start, at));
+      continue;
+    }
+    // A marker with no length outside a scan is not a picture this walk can
+    // trust, and neither is a segment running past the bytes.
+    if (isStandalone(marker)) return null;
+    const length = segmentLength(bytes, at);
+    if (length === null || at + length > bytes.length) return null;
     if (JPEG_KEEP.has(marker)) parts.push(bytes.subarray(at, at + length));
     at += length;
   }
-  return joinBytes(parts);
+  // Ran out of bytes before EOI: the picture is not whole.
+  return null;
 }
 
 /** The frame's own size, from its first frame header. Null for bytes that are
  *  not a JPEG this walk can read — the caller re-encodes those instead. */
 export function jpegSize(bytes: Uint8Array): { width: number; height: number } | null {
-  if (!isJpeg(bytes)) return null;
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
   let at = 2;
   while (at + 9 <= bytes.length) {
     if (bytes[at] !== 0xff) return null;
     const marker = bytes[at + 1];
-    if (marker === 0xda || marker === 0xd9) return null;
+    if (marker === 0xff) {
+      at += 1;
+      continue;
+    }
+    if (marker === 0xda || isStandalone(marker)) return null;
     if (isStartOfFrame(marker)) {
       const height = (bytes[at + 5] << 8) | bytes[at + 6];
       const width = (bytes[at + 7] << 8) | bytes[at + 8];
       return width > 0 && height > 0 ? { width, height } : null;
     }
-    at += 2 + (bytes[at + 2] << 8) + bytes[at + 3];
+    const length = segmentLength(bytes, at);
+    if (length === null) return null;
+    at += length;
   }
   return null;
 }

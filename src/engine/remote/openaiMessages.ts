@@ -9,6 +9,12 @@ export type OpenAiContentPart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } };
 
+/** A picture the wire may carry: what it weighs, and the stored URI the
+    messages and the reader name it by. */
+interface WireImageCandidate extends WireImage {
+  uri: string;
+}
+
 export type OpenAiChatMessage = {
   role: "user" | "assistant" | "system";
   content: string | OpenAiContentPart[];
@@ -116,22 +122,22 @@ export function toOpenAiMessages(
  * Every picture a turn's messages carry, in the order the mapper reaches them
  * (message by message, URI by URI), and how many trailing ones are THIS
  * turn's own — the last message's — which a budget is never allowed to
- * demote. A URI without prepared bytes is not a candidate: it can only be a
- * placeholder.
+ * demote. `sizeOf` answers what the picture weighs; a URI it cannot answer
+ * for is not a candidate: it can only be a placeholder.
  */
 export function collectWireImages(
   messages: readonly EngineMessage[],
-  pictures: ReadonlyMap<string, RemotePicture>,
-): { images: WireImage[]; protect: number } {
-  const images: WireImage[] = [];
+  sizeOf: (uri: string) => number | undefined,
+): { images: WireImageCandidate[]; protect: number } {
+  const images: WireImageCandidate[] = [];
   let protect = 0;
   messages.forEach((msg, index) => {
     if (msg.role !== "user") return;
     let here = 0;
     for (const uri of msg.images ?? []) {
-      const picture = pictures.get(uri);
-      if (picture === undefined) continue;
-      images.push({ bytes: picture.bytes });
+      const bytes = sizeOf(uri);
+      if (bytes === undefined) continue;
+      images.push({ uri, bytes });
       here += 1;
     }
     if (index === messages.length - 1) protect = here;
@@ -139,31 +145,78 @@ export function collectWireImages(
   return { images, protect };
 }
 
+/** The pictures of the turn being sent — the last message's own, which the
+    person is waiting on and which may not be dropped in silence. */
+function currentTurnImages(messages: readonly EngineMessage[]): readonly string[] {
+  const last = messages[messages.length - 1];
+  return last?.role === "user" ? last.images ?? [] : [];
+}
+
+/** Why a turn's pictures cannot go as they are: the body ceiling, a picture
+    this phone could not read, or a desk whose model cannot see. */
+export type RemoteImageRefusal = "images_too_big" | "image_unreadable" | "vision_off";
+
 export type RemoteTurnPlan =
   | { ok: true; messages: OpenAiChatMessage[] }
-  | { ok: false; reason: "images_too_big" };
+  | { ok: false; reason: RemoteImageRefusal };
 
 /**
- * The turn's messages with the pictures the door can take, chosen against the
- * body's REAL weight (`bodyBytes` measures the very JSON the transport will
- * send): newest first, the current turn's own never demoted, and a refusal
- * when even those cannot fit. A picture that was demoted, whose file is gone,
- * or that faces a model which cannot see becomes the placeholder sentence.
+ * The turn's messages with the pictures the door can take. The STORED sizes
+ * decide first, so a picture the budget would demote is never read or
+ * encoded; the prepared sizes decide again, because encoding can change a
+ * picture's weight. The current turn's own pictures are read first and are
+ * never demoted — a turn that cannot carry them is refused instead, because
+ * the person attached them and would otherwise send blind.
+ *
+ * `bodyBytes` measures the very JSON the transport will send, and `readPictures`
+ * prepares exactly the URIs it is handed, in the order it receives them.
  */
-export function planRemoteTurn(args: {
+export async function planRemoteTurn(args: {
   messages: readonly EngineMessage[];
   system?: string;
+  /** The fresh /props verdict: a text-only desk keeps the past as sentences
+      and refuses a picture attached to THIS turn. */
   vision: boolean;
-  pictures: ReadonlyMap<string, RemotePicture>;
+  /** What each stored picture weighs, by URI, without reading any bytes. */
+  sizes: ReadonlyMap<string, number>;
+  readPictures: (uris: readonly string[]) => Promise<ReadonlyMap<string, RemotePicture>>;
   bodyBytes: (messages: OpenAiChatMessage[]) => number;
-}): RemoteTurnPlan {
-  const { messages, system, vision, pictures, bodyBytes } = args;
+}): Promise<RemoteTurnPlan> {
+  const { messages, system, vision, sizes, readPictures, bodyBytes } = args;
   const textOnly = toOpenAiMessages(messages, system);
-  if (!vision) return { ok: true, messages: textOnly };
-  const { images, protect } = collectWireImages(messages, pictures);
-  if (images.length === 0) return { ok: true, messages: textOnly };
+  const currentTurn = currentTurnImages(messages);
+  if (!vision) {
+    // A model that cannot see may keep the past as sentences, but the picture
+    // the person just attached must not vanish without a word.
+    return currentTurn.length > 0
+      ? { ok: false, reason: "vision_off" }
+      : { ok: true, messages: textOnly };
+  }
+  const wanted = collectWireImages(messages, (uri) => sizes.get(uri));
+  if (wanted.images.length === 0) {
+    return currentTurn.length > 0
+      ? { ok: false, reason: "image_unreadable" }
+      : { ok: true, messages: textOnly };
+  }
   const nonImageBytes = bodyBytes(textOnly);
-  const pick = selectWireImages(images, nonImageBytes, protect);
+  const guarded = selectWireImages(wanted.images, nonImageBytes, wanted.protect);
+  // The current turn's own pictures alone over the ceiling: refused here, on
+  // their stored weight, so nobody reads bytes that cannot be sent anyway.
+  if (!fitsWireBody(nonImageBytes, guarded.imageBytes)) {
+    return { ok: false, reason: "images_too_big" };
+  }
+  // Read the riders newest-first — this turn's own before any of the past —
+  // and only them: a picture the budget demoted is never read at all.
+  const riding: string[] = [];
+  for (let index = wanted.images.length - 1; index >= 0; index -= 1) {
+    if (guarded.rides.has(index)) riding.push(wanted.images[index].uri);
+  }
+  const pictures = await readPictures(riding);
+  if (currentTurn.some((uri) => !pictures.has(uri))) {
+    return { ok: false, reason: "image_unreadable" };
+  }
+  const settled = collectWireImages(messages, (uri) => pictures.get(uri)?.bytes);
+  const pick = selectWireImages(settled.images, nonImageBytes, settled.protect);
   if (!fitsWireBody(nonImageBytes, pick.imageBytes)) {
     return { ok: false, reason: "images_too_big" };
   }

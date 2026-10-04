@@ -12,7 +12,7 @@ import {
   applyMemoryFactsToLastUser,
   buildMemoryFactsBlock,
 } from "../memoryFactsTail";
-import { planRemoteTurn, remoteChatBodyJson } from "./openaiMessages";
+import { planRemoteTurn, remoteChatBodyJson, type RemoteImageRefusal } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
@@ -42,7 +42,7 @@ import {
 import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
 import { parseServerContext } from "./serverContext";
 import { parseModalities, setRemoteVision, type RemoteVisionVerdict } from "./modalities";
-import { readRemotePictures } from "./remoteImageBytes";
+import { readRemotePictures, storedPictureSizes } from "./remoteImageBytes";
 import { wireBodyBytes } from "./wireBudget";
 import { logRemoteBrainFailure, type RemoteBrainFailureRoad } from "./remoteBrainFailureLog";
 import type { Road } from "../../remote/road";
@@ -54,6 +54,10 @@ let lastRequestId: string | null = null;
 let activeStream: { abort: () => void } | null = null;
 let initGeneration = 0;
 let streamGeneration = 0;
+/** Bumped by the config hook below: the door's address or model changed, so
+ *  every verdict read under the previous config describes a server this phone
+ *  no longer talks to. A turn compares it across its own awaits. */
+let configEpoch = 0;
 
 // A URL/model edit invalidates readiness: the next ensure must re-probe the
 // server it will actually talk to, not inherit the ready short-circuit's
@@ -64,6 +68,7 @@ setRemoteConfigChangedHook(() => {
   // mark ready against the previous server (re-audit 2, R2-2).
   ready = false;
   initGeneration += 1;
+  configEpoch += 1;
   // The capability belonged to the server just edited away: until a probe
   // speaks for the new one, no picture may be sent.
   setRemoteVision(false);
@@ -302,6 +307,19 @@ export async function refreshRemoteVision(): Promise<RemoteVisionVerdict> {
     clearTimeout(probeTimer);
   }
 }
+
+/**
+ * What each picture refusal the plan can reach says to the user: the body
+ * ceiling, a picture this phone could not read, and a model that cannot see
+ * the one just attached. The last two are the turn's own picture failing —
+ * the user is looking at it in the composer and must be told, not sent
+ * blind.
+ */
+const PICTURE_REFUSAL_CODES: Record<RemoteImageRefusal, string> = {
+  images_too_big: "remote_brain_images_too_big",
+  image_unreadable: "remote_brain_image_unreadable",
+  vision_off: "remote_brain_no_vision",
+};
 
 export async function initRemoteEngine(
   _modelPath: string,
@@ -615,12 +633,16 @@ export async function streamRemoteAssistantTurn(
   streamStarted = true;
   // The desk's own word on seeing, re-read for a turn that carries pictures:
   // it may have restarted or switched model since the picker's probe, and a
-  // picture handed to a model without a projector fails the turn. The read
-  // must not steal the establishment tunnel the chat request rides, so on the
-  // iroh road it opens its own; a read that cannot answer is "cannot".
+  // picture handed to a model without a projector fails the turn. The read is
+  // bounded by its own deadline as well as the turn's signal — a desk that
+  // accepts the connection and then says nothing must not hold the send — and
+  // it never steals the establishment tunnel the chat request rides: on the
+  // iroh road it opens its own.
+  const configEpochAtProbe = configEpoch;
   const pictureUris = turnMessages.flatMap((message) => message.images ?? []);
-  let vision = false;
-  let pictures: Awaited<ReturnType<typeof readRemotePictures>> = new Map();
+  const currentTurn = turnMessages[turnMessages.length - 1];
+  const currentTurnPictures = currentTurn?.role === "user" ? currentTurn.images ?? [] : [];
+  let verdict: RemoteVisionVerdict = "unreachable";
   if (pictureUris.length > 0) {
     const probeFetch: DoorFetch =
       road.road === "https"
@@ -630,29 +652,51 @@ export async function streamRemoteAssistantTurn(
               timeoutMs: PROBE_JSON_TIMEOUT_MS,
               signal: init.signal,
             });
+    const probe = new AbortController();
+    const probeTimer = setTimeout(() => probe.abort(), PROBE_JSON_TIMEOUT_MS);
+    const onTurnAbort = () => probe.abort();
+    signal?.addEventListener("abort", onTurnAbort);
     try {
-      const props = await jsonGet(base, "/props", token, probeFetch, signal);
-      vision = props.ok && parseModalities(props.body).vision;
+      const props = await jsonGet(base, "/props", token, probeFetch, probe.signal);
+      verdict = !props.ok ? "unreachable" : parseModalities(props.body).vision ? "sees" : "cannot";
     } catch {
-      vision = false;
+      verdict = "unreachable";
+    } finally {
+      clearTimeout(probeTimer);
+      signal?.removeEventListener("abort", onTurnAbort);
     }
-    setRemoteVision(vision);
-    if (vision) pictures = await readRemotePictures(pictureUris);
-    if (!stillMine()) {
+    if (signal?.aborted) {
+      const err = new Error(strings.chat.interrupted);
+      (err as { code?: string; preservePartial?: boolean }).code = "interrupted";
+      (err as { preservePartial?: boolean }).preservePartial = true;
+      finishOnce(err);
+      return;
+    }
+    if (verdict === "unreachable" && currentTurnPictures.length > 0) {
+      // The picture the person is waiting on cannot be verified as
+      // deliverable: the send is refused rather than made blind.
       releaseTurnTunnel();
+      reportPreStreamError(new Error("remote_brain_network"));
       return;
     }
   }
   const maxTokens = getRemoteMaxTokens();
   const temperature = getRemoteTemperature();
-  const plan = planRemoteTurn({
+  // The stored sizes cost one stat per picture and are only worth asking for
+  // when the desk can actually be shown one.
+  const sizes =
+    verdict === "sees"
+      ? await storedPictureSizes(pictureUris)
+      : new Map<string, number>();
+  const plan = await planRemoteTurn({
     messages: turnMessages,
     system: buildRemoteSystemPrompt({
       locale,
       operativeContext: options.operativeContext,
     }),
-    vision,
-    pictures,
+    vision: verdict === "sees",
+    sizes,
+    readPictures: readRemotePictures,
     // The budget measures the very JSON the transport sends: one constructor
     // for both, so the two cannot drift apart.
     bodyBytes: (mapped) =>
@@ -660,8 +704,24 @@ export async function streamRemoteAssistantTurn(
         remoteChatBodyJson({ model: serverModel, messages: mapped, maxTokens, temperature }),
       ),
   });
+  // The door may have been edited while /props was read and the pictures were
+  // prepared: that verdict, and this plan, describe a server the turn has no
+  // business posting pictures to now — and the verdict must not be remembered
+  // as this phone's capability either. A text-only turn is left alone: it has
+  // no verdict to be wrong about.
+  if (pictureUris.length > 0 && configEpoch !== configEpochAtProbe) {
+    releaseTurnTunnel();
+    reportPreStreamError(new Error("remote_brain_stale_init"));
+    return;
+  }
+  if (!stillMine()) {
+    releaseTurnTunnel();
+    return;
+  }
+  if (pictureUris.length > 0) setRemoteVision(verdict === "sees");
   if (!plan.ok) {
-    reportPreStreamError(new Error("remote_brain_images_too_big"));
+    releaseTurnTunnel();
+    reportPreStreamError(new Error(PICTURE_REFUSAL_CODES[plan.reason]));
     return;
   }
   await new Promise<void>((resolve) => {

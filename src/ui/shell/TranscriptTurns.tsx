@@ -28,7 +28,8 @@ import { StreamCaret } from "./StreamCaret";
 import type { TranscriptStyles } from "./TranscriptParts";
 import { TranslationUnder } from "./TranslationBlock";
 import type { TranscriptLayout } from "./transcriptLayout";
-import type { TranscriptCta, TranscriptMiniapp, TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall, TranscriptTranslateAction } from "./transcriptTypes";
+import { UserImages } from "./UserImages";
+import type { TranscriptCta, TranscriptImage, TranscriptMiniapp, TranscriptSource, TranscriptStop, TranscriptThinking, TranscriptToolCall, TranscriptTranslateAction } from "./transcriptTypes";
 
 /** The pressable's label: the message itself, cut at 200 characters. */
 function pressLabel(text: string): string {
@@ -53,6 +54,7 @@ function UserTurnView({
   colors,
   edited,
   id,
+  images,
   layout,
   onCopy,
   onLongPress,
@@ -64,6 +66,8 @@ function UserTurnView({
   /** The edit modal's save stamped this bubble (D1 row 17). */
   edited?: boolean;
   id: string;
+  /** The pictures this turn was sent with, when they reached the model. */
+  images?: readonly TranscriptImage[];
   layout: TranscriptLayout;
   onCopy?: (text: string) => Promise<boolean>;
   onLongPress?: () => void;
@@ -80,6 +84,7 @@ function UserTurnView({
       <Pressable {...press} style={[styles.userCapsule]} testID={`transcript.user.${id}`}>
         <Text style={styles.userText}>{text}</Text>
       </Pressable>
+      {images && images.length > 0 ? <UserImages colors={colors} images={images} /> : null}
       {chips && onCopy ? (
         <ChipRow align="right" styles={styles}>
           <CopyChip colors={colors} id={id} onCopy={onCopy} styles={styles} text={text} />

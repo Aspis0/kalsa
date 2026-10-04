@@ -37,6 +37,9 @@ export interface ComposerViewInput {
   engineResident: boolean;
   /** Computer mode: the phone's model lifecycle may not hold this composer. */
   remoteActive: boolean;
+  /** The desk's last /props verdict. Remote turns carry pictures only while
+   *  it is true, so the transcript shows what actually went. */
+  remoteVision: boolean;
   /** The composer's staged rows (D1 row 43): counted for the send control
    *  (an attachment-only send is a send) and named for the chip row. */
   attachments: readonly LocalAttachment[];
@@ -102,6 +105,7 @@ export function composerView(input: ComposerViewInput): ComposerView {
     transcript: toTranscriptMessages(input.messages, {
       thinkingStatus: input.thinkingStatus,
       toolsById: input.toolsById,
+      showImages: input.remoteActive && input.remoteVision,
     }),
     historyLoaded: input.historyLoaded,
   };

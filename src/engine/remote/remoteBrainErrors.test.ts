@@ -38,6 +38,12 @@ describe("humanRemoteBrainError", () => {
     expect(humanRemoteBrainError("remote_brain_images_too_big", t)).toBe(
       "settings.remoteBrainImagesTooBig",
     );
+    expect(humanRemoteBrainError("remote_brain_image_unreadable", t)).toBe(
+      "settings.remoteBrainImageUnreadable",
+    );
+    expect(humanRemoteBrainError("remote_brain_no_vision", t)).toBe(
+      "settings.remoteBrainNoVision",
+    );
     expect(humanRemoteBrainError("remote_brain_network", t)).toBe(
       "settings.remoteBrainFailNetwork",
     );

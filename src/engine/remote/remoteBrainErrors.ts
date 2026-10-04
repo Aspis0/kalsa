@@ -26,6 +26,12 @@ const CODE_KEYS: Record<string, TranslationKey> = {
   // Pictures the door cannot take: the current turn's own are over the body
   // ceiling, and the user is the only one who can drop one.
   remote_brain_images_too_big: "settings.remoteBrainImagesTooBig",
+  // A picture the phone could not read or prepare. The user is looking at it
+  // in the composer, so the turn says so instead of sending text only.
+  remote_brain_image_unreadable: "settings.remoteBrainImageUnreadable",
+  // The desk answered, and its model cannot see: the picker's own refusal,
+  // reached again when the model changed between picking and sending.
+  remote_brain_no_vision: "settings.remoteBrainNoVision",
   remote_brain_timeout: "settings.remoteBrainFailTimeout",
   remote_brain_busy: "settings.remoteBrainFailBusy",
   invalid_url: "settings.remoteBrainUrlInvalid",

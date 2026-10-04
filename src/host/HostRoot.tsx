@@ -215,6 +215,9 @@ export function HostRoot() {
     modelState: modelHost.modelState,
     engineResident: isEngineReady() && getActiveModelId() === modelHost.currentModel.id,
     remoteActive: modelHost.remoteActive,
+    // The same verdict the chip row and the wire read: a remote turn carries
+    // pictures only while it is true, and the transcript shows what went.
+    remoteVision: modelHost.remoteActive ? getRemoteVision() : false,
     attachments: attachments.items,
     converting: attachments.converting !== null,
   });
