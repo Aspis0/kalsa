@@ -255,6 +255,16 @@ impl ModelEntry {
                          longer refuses it.",
             };
         }
+        // A header that was there and read as zero is broken data about the
+        // model, not a model with no context: the launcher refuses to fund a
+        // window of nothing, so the chooser must not offer one either.
+        if self.trained_context_tokens == Some(0) {
+            return Standing::Excluded {
+                reason: "its context length was read as zero, and a window of nothing is not \
+                         a window: the header is broken data about the model, and no start \
+                         can fund it.",
+            };
+        }
         match self.stale {
             Some(reason) => Standing::Excluded { reason },
             None => Standing::Usable,
@@ -266,11 +276,13 @@ impl ModelEntry {
     }
 
     /// The window this row is priced at: the one the caller asks for, never
-    /// more than the row's own trained cap. The engine serves at most the
-    /// cap — the launcher funds `min(funded, trained)` — so a cache priced
-    /// past it is memory for a window the model cannot attend over, and
-    /// charging it refuses machines the row would run on. A row with no
-    /// header to read has no cap, and the caller's window stands.
+    /// more than the row's own trained cap. The cap bounds ONE slot — the
+    /// launcher funds `min(funded, trained)` per slot and multiplies the slots
+    /// back — and the chooser prices one slot, the only slot count it has ever
+    /// modelled. A cache priced past the cap is memory for a window the model
+    /// cannot attend over, and charging it refuses machines the row would run
+    /// on. A row with no header to read has no cap, and the caller's window
+    /// stands.
     pub fn priced_context(&self, context_tokens: u64) -> u64 {
         self.trained_context_tokens
             .map_or(context_tokens, |trained| context_tokens.min(trained))
@@ -965,11 +977,10 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // resolve URL returned exactly the `x-linked-size` 2_874_779_680 and the
     // `x-linked-etag` below, and `shasum -a 256` of the downloaded file
     // equals that etag. At 2.87 GB of weights it fits the 8 GB tier at the
-    // chooser's 65_536-token pricing window — 3.71 GiB of footprint
-    // (weights + 512 MiB of compute buffers + 65_536 tokens at 8_704 bytes)
-    // against a 5.0 GiB budget — and the window the launcher funds is the
-    // header's own 32_768 (`trained_context_tokens` below), so the real
-    // footprint is smaller still.
+    // window it is priced at — the header's own 32 768 (`trained_context_tokens`
+    // below), which is also the window the launcher funds: 3.4 GiB of
+    // footprint (weights + 512 MiB of compute buffers + 32 768 tokens at
+    // 8_704 bytes) against a 5.0 GiB budget.
     //
     // The header facts are from THIS pinned file, parsed whole:
     // `general.architecture` `lfm2` (llama-arch.cpp:127 at b10950,

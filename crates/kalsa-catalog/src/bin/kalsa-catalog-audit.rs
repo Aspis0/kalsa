@@ -2,7 +2,7 @@
 //!
 //! Defaults describe a CPU machine with a paired, battery-powered dense 4B
 //! phone, 80 GB/s bandwidth, 100 GFLOP/s compute and the chooser's own
-//! 65_536-token pricing window.
+//! pricing window — 65_536 tokens, lowered to each row's trained cap.
 //! Use --tiers and the other flags to inspect a different machine.
 //!
 //! ```text

@@ -575,15 +575,16 @@ fn choose_model(
         if !on_the_menu {
             return Err(StartupFailure::AwaitingChoice);
         }
-        // On the menu and refused here: the catalog's own fit predicate, so
-        // "over budget" is the same fact `runnable_on` refused on — not a
+        // On the menu and refused here: the catalog's own fit predicate, at
+        // the window the row is priced at (`priced_context`, the same figure
+        // `runnable_on` judged), so "over budget" is the same fact — not a
         // recomputation beside it. A row that fits but does not run is the
         // floors' verdict. Both keep the choice; the card arm hands the
         // over-budget case to the processor budget.
         return Err(
             if fits(
                 row,
-                input.context_tokens,
+                row.priced_context(input.context_tokens),
                 &memory_budget(input.backend, input.ram_bytes),
             ) {
                 StartupFailure::NothingFastEnough
@@ -1936,6 +1937,45 @@ mod tests {
     }
 
     #[test]
+    fn a_stored_choice_on_a_slow_seven_gb_machine_fails_for_speed_not_for_memory() {
+        // The band where the walk's two predicates used to disagree: the
+        // budget sits between what LFM's Q8 file costs at its 32 768-token
+        // cap and what a flat 65 536-token window would cost. The row fits
+        // the window it is priced at, and at this bandwidth its pessimistic
+        // end is below reading speed — the floors' verdict. Pricing the
+        // flat window answered "over budget" for a machine that funds the
+        // row and only refuses its speed.
+        let machine = Machine {
+            measurement: measured(5.0e9, Backend::Cpu),
+            ram_bytes: 7_000_000_000,
+        };
+        let row = rows()
+            .find(|entry| entry.repo == "LiquidAI/LFM2.5-VL-3B" && entry.quant == "Q8_0")
+            .expect("the Q8 row is in the catalog");
+        let budget = memory_budget(Backend::Cpu, machine.ram_bytes);
+        assert!(
+            kalsa_catalog::footprint_bytes(row, row.priced_context(CHOOSER_CONTEXT_TOKENS))
+                .total_bytes()
+                <= budget.usable_bytes,
+            "the premise: the row fits the window it is priced at"
+        );
+        assert!(
+            kalsa_catalog::footprint_bytes(row, CHOOSER_CONTEXT_TOKENS).total_bytes()
+                > budget.usable_bytes,
+            "the premise: the flat window is what this budget cannot hold"
+        );
+        let token = model_token(row);
+        let failure = match choose_model(ServerBackend::Cpu, &machine, None, Some(&token)) {
+            Err(failure) => failure,
+            Ok((_, row, _)) => panic!("{} must not run at 5 GB/s", row.repo),
+        };
+        assert!(
+            matches!(failure, StartupFailure::NothingFastEnough),
+            "{failure:?}"
+        );
+    }
+
+    #[test]
     fn a_choice_the_catalog_does_not_know_stops_the_walk() {
         // A token from a build whose catalog has moved on: the walk stops
         // with AwaitingChoice. It never picks a model itself — no plan, so
@@ -2719,15 +2759,17 @@ mod tests {
 
     #[test]
     fn a_row_that_cannot_fund_the_sixty_four_k_window_is_not_offered() {
-        // The chooser prices every candidate at its own window — 65_536 —
-        // so a row the machine cannot fund at that window is not offered at
-        // all, however well it funds a smaller one: the pick comes from rows
-        // that hold the window they will be served at. At 11 GiB the dense
-        // 12B funds 8192 tokens and not 65_536, and the tier goes to the
-        // row that funds the window — never to the smallest row on the menu
-        // just because it fits. The bandwidth is the fixture's raised to
-        // 150 GB/s so the row that does fund the window also clears its
-        // speed line: the window is the only thing deciding here.
+        // The chooser prices this row at the window it serves it at — the
+        // dense 12B trains past 65_536, so the chooser's window is its
+        // price — and a row the machine cannot fund at that window is not
+        // offered at all, however well it funds a smaller one: the pick
+        // comes from rows that hold the window they will be served at. At
+        // 11 GiB the dense 12B funds 8192 tokens and not 65_536, and the
+        // tier goes to the row that funds the window — never to the
+        // smallest row on the menu just because it fits. The bandwidth is
+        // the fixture's raised to 150 GB/s so the row that does fund the
+        // window also clears its speed line: the window is the only thing
+        // deciding here.
         let mut measurement = measured(80.0e9, Backend::Cpu);
         measurement.decode_bytes_per_second = Some(150.0e9);
         let machine = Machine {

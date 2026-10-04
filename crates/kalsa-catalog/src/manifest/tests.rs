@@ -2,6 +2,7 @@ use super::{
     excluded, excluded_in, rows, usable, usable_in, usable_with_q8, usable_with_q8_in,
     DenseEquivalent, GgufSource, Licence, Q8Variant, Standing, CATALOG, DOWNLOADABLE,
 };
+use crate::choice::CHOOSER_CONTEXT_TOKENS;
 use crate::footprint::ASSUMED_KV_BYTES_PER_TOKEN;
 
 /// Every entry a table-wide invariant must cover: the rows of both tables
@@ -798,4 +799,54 @@ fn a_gated_variant_never_reaches_the_chooser_even_where_its_row_does() {
     assert_eq!(pairs.len(), 1, "the row itself stays on the menu");
     assert!(pairs[0].1.is_none(), "the gated variant does not");
     assert_eq!(pairs[0].0.entry().quant, "Q4_K_M");
+}
+
+#[test]
+fn a_window_inside_the_cap_is_the_window_itself() {
+    // The min direction: the cap is a ceiling, never a floor. A caller
+    // asking for less than the row trains gets exactly what it asked for —
+    // and the shipped LFM row shows the other side, its 32 768-token cap
+    // below the chooser's window.
+    let lfm = DOWNLOADABLE
+        .iter()
+        .find(|row| row.model.repo == "LiquidAI/LFM2.5-VL-3B" && row.model.quant == "Q8_0")
+        .expect("the Q8 row is on the menu");
+    assert_eq!(lfm.model.trained_context_tokens, Some(32_768));
+    assert_eq!(lfm.model.priced_context(8_192), 8_192);
+    assert_eq!(lfm.model.priced_context(32_768), 32_768);
+}
+
+#[test]
+fn a_cap_between_the_caller_and_the_chooser_lowers_the_price() {
+    // A fixture, because no shipped row's cap sits between 8 192 and the
+    // chooser's 65 536: this header reads 16 384, and both windows are
+    // lowered to it — crossing the cap is what loses the caller's window.
+    let mut fixture = DOWNLOADABLE[0];
+    fixture.model.trained_context_tokens = Some(16_384);
+    assert_eq!(fixture.model.priced_context(CHOOSER_CONTEXT_TOKENS), 16_384);
+    assert_eq!(fixture.model.priced_context(8_192), 8_192);
+}
+
+#[test]
+fn a_header_that_reads_zero_context_is_refused_the_way_the_launcher_refuses_it() {
+    // The launcher will not fund a window of nothing; a chooser that offered
+    // such a row would hand the start a pick it must refuse. The row stays
+    // off the menu, with its reason, exactly like every other unstandable
+    // row.
+    let mut broken = DOWNLOADABLE[0];
+    broken.model.repo = "test/zero-context";
+    broken.model.trained_context_tokens = Some(0);
+    assert!(matches!(broken.model.standing(), Standing::Excluded { .. }));
+    let menu: Vec<&str> = usable_in(std::slice::from_ref(&broken))
+        .map(|row| row.entry().repo)
+        .collect();
+    assert!(
+        menu.is_empty(),
+        "a zero-token row reached the chooser: {menu:?}"
+    );
+    let reasons: Vec<(&str, &str)> = excluded_in(std::iter::once(&broken.model))
+        .map(|(entry, reason)| (entry.repo, reason))
+        .collect();
+    assert_eq!(reasons.len(), 1);
+    assert!(reasons[0].1.contains("zero"), "{}", reasons[0].1);
 }

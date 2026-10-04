@@ -23,9 +23,11 @@ export interface ModelOption {
   // chosen row fits the budget with nothing left for a window. There is
   // then no context to show — not an unknown one.
   context_tokens: number | null;
-  // The conversation length `speed` is priced at. A speed without it is the
-  // empty-cache best case wearing a general claim: the cache is re-read on
-  // every token, so a longer conversation is a slower one.
+  // The conversation length `speed` is priced at: the chooser's window,
+  // lowered to the row's own trained cap where that is shorter. A speed
+  // without it is the empty-cache best case wearing a general claim: the
+  // cache is re-read on every token, so a longer conversation is a slower
+  // one.
   speed_context_tokens: number;
   speed:
     | { shape: "range"; low: number; high: number }

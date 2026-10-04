@@ -4,7 +4,7 @@
 //! remembers to prove.
 
 use kalsa_catalog::{
-    capability_basis, candidate_footprint, choose, decode_prediction, dense_speed_floor,
+    candidate_footprint, capability_basis, choose, decode_prediction, dense_speed_floor,
     footprint_bytes, largest_that_runs_well, quicker_alternative, runnable_row, usable_bytes,
     Backend, CapabilityBasis, ChoiceInput, Decision, Justification, Parameters, PhoneModel,
     Prediction, RefusalReason, RunnableRow, CHOOSER_CONTEXT_TOKENS, DOWNLOADABLE, GIB,
@@ -415,9 +415,10 @@ fn capability_does_not_need_a_battery() {
 fn a_small_card_is_not_bypassed_by_the_system_ram() {
     // 32 GiB of RAM would fit the 20.6 GiB MoE; the 4 GiB card gives a
     // 3 GiB budget after its one-GiB floor ([`VRAM_MARGIN_BYTES`]), and the
-    // smallest row in the catalog needs 3.7 GiB at the chooser's 65_536-token
-    // window, so nothing fits. The machine is refused — a model sized to its
-    // RAM would spill across both memories, and the spill is a loss.
+    // smallest row in the catalog needs 3.4 GiB at the window it is priced
+    // at — the Q8 LFM row's own 32 768-token cap — so nothing fits. The
+    // machine is refused — a model sized to its RAM would spill across both
+    // memories, and the spill is a loss.
     let biggest_on_ram = kalsa_catalog::rows()
         .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
         .expect("the 35B row exists");
@@ -1357,7 +1358,10 @@ fn a_refused_machine_offers_no_second_option_either() {
     let lfm = kalsa_catalog::usable()
         .find(|row| row.entry().repo == "LiquidAI/LFM2.5-VL-3B")
         .expect("the fast row beside the refusal is on the menu");
-    let priced = footprint_bytes(lfm.entry(), lfm.entry().priced_context(machine.context_tokens));
+    let priced = footprint_bytes(
+        lfm.entry(),
+        lfm.entry().priced_context(machine.context_tokens),
+    );
     assert!(
         priced.total_bytes() <= usable_bytes(machine.ram_bytes),
         "the row must be a candidate at all, or this test proves nothing about the gate"
@@ -1407,7 +1411,10 @@ fn a_pick_is_not_offered_a_second_option_that_earns_nothing() {
             row.entry().repo == "LiquidAI/LFM2.5-VL-3B" && row.entry().quant == "Q8_0"
         })
         .expect("the row beside the pick is on the menu");
-    let priced = footprint_bytes(lfm.entry(), lfm.entry().priced_context(machine.context_tokens));
+    let priced = footprint_bytes(
+        lfm.entry(),
+        lfm.entry().priced_context(machine.context_tokens),
+    );
     assert!(
         priced.total_bytes() <= usable_bytes(machine.ram_bytes),
         "the row must be a candidate at all, or this test proves nothing about the gate"

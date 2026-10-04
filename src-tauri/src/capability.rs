@@ -172,9 +172,10 @@ pub(crate) struct ModelChoiceDto {
     /// cannot fund even one token; the page shows nothing rather than a
     /// number that lies.
     context_tokens: Option<u64>,
-    /// The conversation length the `speed` above is priced at:
-    /// [`CHOOSER_CONTEXT_TOKENS`], the window the chooser judged this row
-    /// in, so the number on the page and the number in the rule are one
+    /// The conversation length the `speed` above is priced at: the chooser's
+    /// window, lowered to the row's own trained cap
+    /// ([`ModelEntry::priced_context`]) — the window the rule judged this
+    /// row in, so the number on the page and the number in the rule are one
     /// number. It travels as a number so the page can say it: a speed
     /// without the length it was priced at is the empty-cache best case
     /// wearing a general claim.
@@ -291,7 +292,7 @@ pub(crate) fn dto(
                             DEFAULT_PARALLEL,
                         )
                     }),
-                    speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
+                    speed_context_tokens: selection.context_tokens,
                     speed: speed(&selection.decode),
                     measured: row.and_then(|row| measured_speed(root, row)),
                     reason: selection.plain_reason.clone(),
@@ -323,7 +324,7 @@ pub(crate) fn dto(
                                 window_budget(budget, row.entry, &row.download),
                                 DEFAULT_PARALLEL,
                             ),
-                            speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
+                            speed_context_tokens: row.entry.priced_context(CHOOSER_CONTEXT_TOKENS),
                             speed: speed(&row.decode),
                             measured: measured_speed(root, row.entry),
                             reason: PHONE_FREE_REASON.to_string(),
@@ -386,7 +387,7 @@ pub(crate) fn dto(
                     window_budget(budget, row.entry, &row.download),
                     DEFAULT_PARALLEL,
                 ),
-                speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
+                speed_context_tokens: row.entry.priced_context(CHOOSER_CONTEXT_TOKENS),
                 speed: speed(&row.decode),
                 measured,
                 reason: reason.to_string(),
@@ -561,7 +562,8 @@ mod tests {
                 quant: "Q4_K_M".to_string(),
                 download_bytes: 4_000_000_000,
                 context_tokens: Some(4584),
-                speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
+                // The LFM family's own cap: the window the chooser prices it at.
+                speed_context_tokens: 32_768,
                 speed: SpeedDto::Range {
                     low: 12.0,
                     high: 21.0,
@@ -583,6 +585,8 @@ mod tests {
                 quant: "Q4_K_M".to_string(),
                 download_bytes: 4_977_171_584,
                 context_tokens: Some(8192),
+                // Trained past the chooser's window, so the chooser's window
+                // is this row's priced context too.
                 speed_context_tokens: CHOOSER_CONTEXT_TOKENS,
                 speed: SpeedDto::Measured {
                     value: 62.7,
@@ -993,8 +997,16 @@ mod tests {
                     panic!("{ram} GiB: a measured machine answers Measured");
                 };
                 for option in [model, quicker].into_iter().flatten() {
+                    // The name is all the card carries, and every row the
+                    // menu can put here has one display name per cap (the
+                    // LFM family's two files share theirs), so the lookup is
+                    // the row the card means.
+                    let row = rows()
+                        .find(|row| row.display_name == option.name.as_str())
+                        .expect("the card names a row the catalog holds");
                     assert_eq!(
-                        option.speed_context_tokens, CHOOSER_CONTEXT_TOKENS,
+                        option.speed_context_tokens,
+                        row.priced_context(CHOOSER_CONTEXT_TOKENS),
                         "{ram} GiB: {} was priced at a window the rule did not judge",
                         option.name
                     );
@@ -1034,7 +1046,7 @@ mod tests {
             (model.name.as_str(), model.quant.as_str()),
             ("Liquid LFM 2.5", "Q8_0")
         );
-        assert_eq!(model.speed_context_tokens, CHOOSER_CONTEXT_TOKENS);
+        assert_eq!(model.speed_context_tokens, 32_768);
         assert_eq!(band(&model.speed), "9.8\u{2013}14.3");
         let second = quicker.expect("a second card beside it");
         assert_eq!(second.name, "Google Gemma 4 E4B");

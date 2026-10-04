@@ -631,13 +631,15 @@ pub struct RunnableRow {
 }
 
 /// The catalog row this machine should run, phone or no phone: it fits the
-/// budget at [`CHOOSER_CONTEXT_TOKENS`] and even its pessimistic speed
-/// clears the usability floor — see [`leading_candidate`] for which of them
-/// takes the first card: the big dense row that cleared its line while some
-/// row clears one, and the fastest row there is while the lines stand down,
-/// never the biggest on a tier where no line can speak. No phone is
-/// involved, because "what can this computer run" does not need one — the
-/// phone decides whether the computer is an *upgrade*, which is [`choose`].
+/// budget at the window it is priced at ([`ModelEntry::priced_context`], the
+/// chooser's window lowered to the row's own trained cap) and even its
+/// pessimistic speed clears the usability floor — see [`leading_candidate`]
+/// for which of them takes the first card: the big dense row that cleared
+/// its line while some row clears one, and the fastest row there is while
+/// the lines stand down, never the biggest on a tier where no line can
+/// speak. No phone is involved, because "what can this computer run" does
+/// not need one — the phone decides whether the computer is an *upgrade*,
+/// which is [`choose`].
 /// `Err` exactly when `choose` would refuse without ever reaching the
 /// comparison: the machine was not measured, nothing fits, or everything
 /// that fits is provably too slow — the refusal's own words travel, because
