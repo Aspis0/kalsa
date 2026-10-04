@@ -10,7 +10,7 @@
  * room refusing one (the drawer must stop offering a computer that already
  * answered 401).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { subscribePairingCompleted } from "../pairing/pairingCompletedAt";
 import {
   listPairings,
@@ -30,26 +30,27 @@ export function pickRoomPairing(records: readonly PairingRecord[]): PairingRecor
  *  stays hidden. */
 export function useRoomPairing(): { localId: string | null } {
   const [localId, setLocalId] = useState<string | null>(null);
-  const live = useRef(true);
-  const read = useCallback(() => {
-    void listPairings()
-      .then((records) => {
-        if (live.current) setLocalId(pickRoomPairing(records)?.localId ?? null);
-      })
-      .catch(() => {
-        if (live.current) setLocalId(null);
-      });
-  }, []);
   useEffect(() => {
-    live.current = true;
+    // The reads and both subscriptions share one lifetime flag: nothing this
+    // hook started may set state after it left.
+    let live = true;
+    const read = (): void => {
+      void listPairings()
+        .then((records) => {
+          if (live) setLocalId(pickRoomPairing(records)?.localId ?? null);
+        })
+        .catch(() => {
+          if (live) setLocalId(null);
+        });
+    };
     read();
     const leaveCompleted = subscribePairingCompleted(read);
     const leaveRemoved = subscribePairingRemoved(read);
     return () => {
-      live.current = false;
+      live = false;
       leaveCompleted();
       leaveRemoved();
     };
-  }, [read]);
+  }, []);
   return { localId };
 }

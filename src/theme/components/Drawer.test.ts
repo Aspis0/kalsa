@@ -59,9 +59,9 @@ describe("the full-height v2 menu", () => {
     expect(list).not.toContain("delayLongPress");
   });
 
-  it("shows the six unboxed global footer destinations in the specified order", () => {
+  it("shows the five unboxed global footer destinations in the specified order", () => {
     const code = CODE(CONTENT);
-    expect(code).toContain('["documents", "notes", "room", "settings", "account", "personas"]');
+    expect(code).toContain('["documents", "notes", "settings", "account", "personas"]');
     expect(code).not.toContain('"export"');
     expect(code).toContain('testID={`drawer.item.${id}`}');
     expect(code).toContain("minHeight: 56");

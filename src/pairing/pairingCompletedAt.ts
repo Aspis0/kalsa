@@ -11,8 +11,15 @@
  * does not re-run the history load — the conversation never changed). A
  * single-purpose subscription on this one module, not a general bus: the
  * only event is "a pairing just completed".
+ *
+ * The keystore is required on first use, as the pairing map's own is:
+ * importing this module — a subscriber list, no bytes — must never load a
+ * native store, and the drawer's route suites import it through the shelf
+ * that offers the Room.
  */
-import * as SecureStore from "expo-secure-store";
+function keystore(): typeof import("expo-secure-store") {
+  return require("expo-secure-store") as typeof import("expo-secure-store");
+}
 
 const STORAGE_KEY = "kalsa.pairing.completedAt.v1";
 
@@ -34,7 +41,7 @@ export function subscribePairingCompleted(
  *  must not fail the pairing: the caller fire-and-forgets, and an absent
  *  stamp only means nothing is ever marked stale. */
 export async function markPairingCompleted(at: number = Date.now()): Promise<void> {
-  await SecureStore.setItemAsync(STORAGE_KEY, String(at));
+  await keystore().setItemAsync(STORAGE_KEY, String(at));
   // A listener throwing must not break the pairing that already succeeded.
   for (const listener of [...listeners]) {
     try {
@@ -48,7 +55,7 @@ export async function markPairingCompleted(at: number = Date.now()): Promise<voi
 /** The stored stamp, or null when absent, corrupt or unreadable. */
 export async function getPairingCompletedAt(): Promise<number | null> {
   try {
-    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+    const raw = await keystore().getItemAsync(STORAGE_KEY);
     if (raw === null) return null;
     const value = Number(raw);
     return Number.isFinite(value) && value > 0 ? value : null;

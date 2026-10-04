@@ -1,4 +1,6 @@
-/** The v2 menu contents: brand, new chat, search, a chat-list entry and five destinations. */
+/** The v2 menu contents: brand, new chat, search, a chat-list entry and five
+ *  destinations — plus the Room, which is only a destination while a usable
+ *  pairing exists and so is not one of the five. */
 import { Image, Keyboard, Pressable, Text, TextInput, View } from "react-native";
 import { ChevronLeft, ChevronRight, MessageSquare, Plus, Search, X } from "lucide-react-native";
 import { useLocale } from "../../i18n";
@@ -29,9 +31,13 @@ export function DrawerContent({
   const { t } = useLocale();
   const colors = modes[mode];
   const itemById = new Map(items.map((item) => [item.id, item]));
-  const destinations = ["documents", "notes", "room", "settings", "account", "personas"]
+  const destinations = ["documents", "notes", "settings", "account", "personas"]
     .map((id) => itemById.get(id))
     .filter((item): item is DrawerItem => item !== undefined);
+  // The Room is a destination too, but a conditional one: it leads the foot
+  // only while a usable pairing exists.
+  const room = itemById.get("room");
+  const foot = room === undefined ? destinations : [room, ...destinations];
 
   return (
     <View style={{ flex: 1, paddingHorizontal: measure.gutter, gap: space.sm }}>
@@ -147,7 +153,7 @@ export function DrawerContent({
       ) : null}
 
       <View style={{ borderTopWidth: 1, borderTopColor: colors.line, paddingTop: space.xs }}>
-        {destinations.map(({ id, label, Icon, onPress }) => (
+        {foot.map(({ id, label, Icon, onPress }) => (
           <Pressable
             key={id}
             testID={`drawer.item.${id}`}

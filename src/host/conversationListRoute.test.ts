@@ -37,6 +37,7 @@ jest.mock("lucide-react-native", () => ({
   ChevronRight: "ChevronRight",
   EllipsisVertical: "EllipsisVertical",
   MessageSquare: "MessageSquare",
+  MessagesSquare: "MessagesSquare",
   Plus: "Plus",
   Search: "Search",
   X: "X",

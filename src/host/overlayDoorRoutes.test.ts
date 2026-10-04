@@ -18,6 +18,7 @@ jest.mock("../screens/DocumentsScreen", () => ({ DocumentsScreen: "DocumentsScre
 jest.mock("../screens/NotesScreen", () => ({ NotesScreen: "NotesScreen" }));
 jest.mock("../screens/PersonasScreen", () => ({ PersonasScreen: "PersonasScreen" }));
 jest.mock("../screens/HelpScreen", () => ({ HelpScreen: "HelpScreen" }));
+jest.mock("../screens/RoomScreen", () => ({ RoomScreen: "RoomScreen" }));
 jest.mock("./HostMiniappSheet", () => ({ HostMiniappSheet: "HostMiniappSheet" }));
 jest.mock("./HostConversations", () => ({ HostConversations: "HostConversations" }));
 jest.mock("../engine/ModelRegistry", () => ({
@@ -120,6 +121,16 @@ describe("Settings and Account overlay doors", () => {
       [{ kind: "help" }],
       [{ kind: "pro", returnTo: "settings" }],
     ]);
+  });
+
+  it("mounts the Room with the pairing it was opened for, and back closes it", () => {
+    const setOverlay = jest.fn();
+    const room = renderOverlay({ kind: "room", localId: "p-lid-1" }, setOverlay);
+
+    expect(room?.type).toBe("RoomScreen");
+    expect(room?.props).toMatchObject({ localId: "p-lid-1" });
+    room?.props.onBack();
+    expect(setOverlay).toHaveBeenCalledWith(null);
   });
 
   it("preserves Account's Pro route and returns Pro to its originating overlay", () => {
