@@ -29,6 +29,7 @@ mod room_commands;
 mod room_events;
 mod room_media;
 mod placement;
+mod progress;
 mod report;
 mod road;
 mod startup;
@@ -1444,8 +1445,15 @@ pub(crate) async fn settle(
     let emitter = app.clone();
 
     let outcome = tauri::async_runtime::spawn_blocking(move || {
+        // Every reading the walk makes on its way to the page — the runtime
+        // build, the weights, the drafter, the tune — passes this one gate:
+        // a download reports per chunk, and the page gets a bounded handful
+        // of events a second instead. See `progress`.
+        let mut gate = progress::Gate::new();
         let mut progress = |step: startup::Progress| {
-            let _ = emitter.emit("brain_progress", step);
+            if gate.allows(&step, Instant::now()) {
+                let _ = emitter.emit("brain_progress", step);
+            }
         };
         // A machine nobody has measured yet is measured here, once: turning
         // on must not dead-end on a button the user has to find elsewhere.

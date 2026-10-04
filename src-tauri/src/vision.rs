@@ -28,6 +28,7 @@
 
 use std::path::Path;
 use std::sync::atomic::Ordering;
+use std::time::Instant;
 
 use serde::Serialize;
 use tauri::{Emitter, State};
@@ -238,10 +239,14 @@ pub(crate) async fn brain_vision_enable(
             let emitter = app.clone();
             // The fetch is the one blocking stretch; it runs off the async
             // runtime like every other download, progress on the same
-            // `brain_progress` events the model download uses.
+            // `brain_progress` events the model download uses — through the
+            // same gate, because the projector reports per chunk too.
             tauri::async_runtime::spawn_blocking(move || {
+                let mut gate = crate::progress::Gate::new();
                 crate::placement::place_projector(&pin, &root, &mut |step| {
-                    let _ = emitter.emit("brain_progress", step);
+                    if gate.allows(&step, Instant::now()) {
+                        let _ = emitter.emit("brain_progress", step);
+                    }
                 })
             })
             .await

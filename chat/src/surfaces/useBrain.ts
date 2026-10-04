@@ -211,7 +211,39 @@ function publish(): void {
   for (const listener of listeners) listener();
 }
 
-async function poll(): Promise<void> {
+/** One `brain_state` read in flight, and the one trailing read a caller
+    arriving during it asks for. A walk's progress events arrive hundreds of
+    times a second, and a read per event is what pinned the renderer's core
+    during a real download: every caller that arrives mid-read shares this
+    promise and marks the trailing read, so a batch of events is never a
+    queue of reads. */
+let pollRead: Promise<void> | null = null;
+let pollTrailing = false;
+
+/** Reads now, or joins the read already in flight and asks for exactly one
+    more after it. An `await poll()` therefore never resolves against a
+    state the call predates — `act` reads the state after its command. */
+function poll(): Promise<void> {
+  if (pollRead !== null) {
+    pollTrailing = true;
+    return pollRead;
+  }
+  const read = (async () => {
+    try {
+      do {
+        pollTrailing = false;
+        await readBrainState();
+      } while (pollTrailing);
+    } finally {
+      pollRead = null;
+    }
+  })();
+  pollRead = read;
+  return read;
+}
+
+/** One read of `brain_state` and the credential behind it, published. */
+async function readBrainState(): Promise<void> {
   // A poll that does not answer keeps what this window already knows. Writing
   // `null` here — "not known" flattened into "no brain" — threw away exactly
   // the information that a door exists, and the next open in that second was
@@ -291,6 +323,9 @@ function startProgress(): void {
   try {
     registration = listen("brain_progress", (step: unknown) => {
       currentStep = (step as ProgressStep) || null;
+      // The step IS the bar's motion: it renders from the event itself, not
+      // from the read below, which is coalesced and may be a while behind.
+      publish();
       void poll();
     });
   } catch {
@@ -339,7 +374,10 @@ export function subscribeBrainRead(listener: () => void): () => void {
   };
 }
 
-function getBrainRead(): BrainRead {
+/** The current read, for the harness that drives this module without React
+    (`scripts/brain-poll-coalescing.mjs`): the same snapshot the hooks hand
+    React. */
+export function getBrainRead(): BrainRead {
   return readSnapshot;
 }
 
