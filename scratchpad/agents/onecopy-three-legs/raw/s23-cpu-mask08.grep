@@ -1,0 +1,19 @@
+=== 10752 x 2048 (rows x K), 11.8 MiB of weights, 336 row tiles, ref scale -61.8 ===
+arm          t1 ms   t1 GB/s     t5 ms   t5 GB/s     err abs  rel(scale)   row/lim
+raw         1.5104      8.20    1.8431      6.72   1.144e-05   1.851e-07     0.006
+repack8     0.8255     15.01    1.1798     10.50   2.289e-05   3.703e-07     0.012
+repack4     0.8054     15.38    1.1531     10.74   2.289e-05   3.703e-07     0.012
+tiled       1.1628     10.65    1.4764      8.39   2.289e-05   3.703e-07     0.012
+mac8        1.3611      9.10    1.6882      7.34   2.289e-05   3.703e-07     0.012
+mac16       2.4280      5.10    2.7981      4.43   2.289e-05   3.703e-07     0.012
+bit-identical to repack8: raw=no repack4=yes tiled=yes mac8=yes mac16=yes
+=== 2048 x 10752 (rows x K), 11.8 MiB of weights, 64 row tiles, ref scale -123.7 ===
+arm          t1 ms   t1 GB/s     t5 ms   t5 GB/s     err abs  rel(scale)   row/lim
+raw         1.5918      7.78    1.9870      6.23   5.341e-05   4.318e-07     0.001
+repack8     0.8448     14.66    1.1835     10.47   6.866e-05   5.552e-07     0.001
+repack4     0.8120     15.25    1.1563     10.71   6.866e-05   5.552e-07     0.001
+tiled       1.1622     10.66    1.4935      8.29   6.866e-05   5.552e-07     0.001
+mac8        1.3694      9.04    1.6820      7.36   6.866e-05   5.552e-07     0.001
+mac16       2.4303      5.10    2.7448      4.51   6.866e-05   5.552e-07     0.001
+bit-identical to repack8: raw=no repack4=yes tiled=yes mac8=yes mac16=yes
+BIN_EXIT=0

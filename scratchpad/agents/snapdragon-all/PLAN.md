@@ -111,3 +111,8 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   (32x32 tiles, rows contiguous per K pair, scales after) - NPU at two-copy speed by construction, CPU and GPU get
   tiled mat-vec readers. Step 1 running: CPU NEON tiled mat-vec vs repack 4x8 vs raw (Coder deepseek afef390d,
   `spike/onecopy-cpu-gemv`).
+- 2026-10-04 one copy for three legs, S23 (`onecopy-three-legs/REPORT.md`, unplugged, 28 C): CPU mat-vec on the NPU
+  tiled layout is bit-identical to repack 4x8 and runs at 0.71-0.73 of it pinned to cpu3 (0.80-0.87 on cpu3-7; raw
+  0.53-0.71); gap = 96 zips/tile (M1 ablation). GPU tiled v1 correct on the real dma-buf but 0.41-0.52 of the engine
+  SoA path (uncoalesced lane mapping); v2 (32 lanes per contiguous tile) running, GLM ad6bb146. Audit luna e13768da:
+  3 must-fix fixed before timing. Side finding: the shipped Adreno Q4_0 decode fails fp16-denormal scales.

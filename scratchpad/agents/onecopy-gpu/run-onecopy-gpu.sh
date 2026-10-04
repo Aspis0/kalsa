@@ -54,6 +54,11 @@ push() {
     adb -s "$serial" push "$build/q4raw-probe" $dev/probe/ || exit 23
     adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mm_q4_0_f32_l4_lm_raw.cl" $dev/kernels/ || exit 24
     adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_v.cl" $dev/kernels/ || exit 25
+    adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_tiled.cl" $dev/kernels/ || exit 26
+    # SoA baseline arm: the engine's own convert + decode-gemv sources
+    adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/cvt.cl" $dev/kernels/ || exit 27
+    adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/gemv_noshuffle_q4_0_f32.cl" $dev/kernels/ || exit 28
+    adb -s "$serial" push "$eng/ggml/src/ggml-opencl/kernels/transpose.cl" $dev/kernels/ || exit 29
     adb -s "$serial" shell "sha256sum $dev/bin/llama-perplexity $dev/dsp/libggml-htp-v73.so $dev/probe/q4raw-probe $dev/kernels/*.cl $root/input/kld_english_fixture.txt $root/input/cause-cpu-base.logits" | tee "$out/payload-sha256.log"
 }
 

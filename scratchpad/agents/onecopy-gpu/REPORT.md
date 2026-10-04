@@ -645,3 +645,72 @@ Speed: prefill GEMM ~91x slower than normal (518.30 / 5.70), decode GEMV ~1.75x 
 Next: a real raw-layout GEMM kernel (prefill is the blocker), then the decode GEMV.
 Wrapper defect: `kld` and `kld-decode` returned 1 because the final pull used a mutated log name
 (`*.pre.log`); binaries exited 0. Fix before the next run.
+
+### 2026-10-04 — decode spike: GPU GEMV reading the NPU tiled Q4_0 layout directly (engine `940d98e07`)
+
+Question: can the Adreno GPU do the batch-1 decode mat-vec **on the HTP's native tiled Q4_0
+weights, zero-copy from the shared dma-buf**, close enough to the Adreno SoA path that one
+weight copy serves NPU, CPU and GPU? Worktree `spike/onecopy-gpu-rawq4`, one commit
+`0285aae40` -> `940d98e07` (no push, no tag). No phone/adb touched.
+
+**Kernel** `ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_tiled.cl` (149 lines). Layout is the
+FIXED HMX format of `repack_q4_0_tiled` (ggml/src/ggml-hexagon/ggml-hexagon.cpp:843-869: tile
+`ct*n_k_tiles + kt`; `tile[cp*32+row] = (q[2cp+1]<<4)|q[2cp]`; 32 fp16 scales at tile+512; pad
+quant 8 / pad scale 0). Lane mapping: **one lane owns 16 rows of a 32-row tile, so each K-pair
+read is a uint4 (128-bit, Qualcomm's guidance); local size 64 = one Adreno 740 "half" subgroup
+per work-group** (`qcom_reqd_sub_group_size("half")` where available). Lanes `2*S` per row tile
+(S ∈ {1,2,4,8}, host picks ≥ ~2048 lanes, `K % (32*S) == 0`) K-split and reduce once in local
+memory, so small-M tensors still fill the machine like the SoA GEMV's 4-subgroup split
+(ggml-opencl.cpp:20972-20974). No subgroup builtins → runs on any OpenCL 1.2 device (Mac check).
+Probe host packer: `tests/opencl-q4_0-raw/tiled.c:15-53`, a named copy of the hexagon tile loop.
+
+**Probe** (`--model-shapes`): per shape the existing raw `gemm`/`gemv1` rows are now joined by
+- `soav`: the engine's OWN kernels — `kernel_convert_block_q4_0_noshuffle` (cvt.cl:305) then
+  `kernel_gemv_noshuffle_q4_0_f32` with the engine's image setup and launch shape
+  (ggml-opencl.cpp:20905-20923, 20973-20974) — zero layout drift on the baseline;
+- `tiledv`: NPU-tiled bytes packed into the SAME import at the SAME offset (sizes equal when
+  M % 32 == 0: both 0.5625 B/weight), checked against the same CPU double reference with the
+  probe's 1e-3-of-RMS gate (fp32 accumulation sits ~100x below it on every arm; NaN counts).
+Timing is now **min of N after warm-up** (`q4raw_time`, tests/opencl-q4_0-raw/q4raw.c:201-218),
+GEMV arms at 8 iters. New host-buffer fallback lets the whole `--model-shapes` flow run on the
+Mac (publish = blocking clEnqueueWriteBuffer instead of DMA_BUF_IOCTL_SYNC).
+
+**Mac (M1 Max, OpenCL 1.2) — correctness only, its ms are not meaningful:**
+`clang -x cl -cl-std=CL1.2 -fsyntax-only -Werror` EXIT=0; probe build EXIT=0, no warnings;
+`--model-shapes --sweep-mb 128` EXIT=0, failures 0: gemm PASS 7.4e-6..1.7e-5, **tiledv PASS
+3.1e-7..6.4e-7** (per-tile scaling is friendlier than full-K fp32 accumulation); gemv1/soav
+UNAVAILABLE (no subgroup extension on Apple). Two Apple traps are documented in the kernel:
+`convert_float2(as_half2(u))` fails pipeline creation (CL_INVALID_KERNEL_DEFINITION), and
+`exp2(negative)` miscompiles under `-cl-mad-enable` (every decode scale landed NaN) — the
+kernel converts fp16 scales by pure bit shifts instead. Deterministic single-tile tests
+(per-tile-distinct content) validated rt/kt addressing and the S=2 reduce exactly.
+
+**Android**: `q4raw-probe` rebuilt in `ghcr.io/snapdragon-toolchain/arm64-android:v0.7` with the
+REPORT §5 clang command plus `tiled.c soa.c`: EXIT=0, zero warnings
+(`raw/probe_build_android_r5.log`). Engine binaries untouched. `run-onecopy-gpu.sh push` now
+also pushes `mul_mv_q4_0_f32_tiled.cl`, `cvt.cl`, `gemv_noshuffle_q4_0_f32.cl` (the soav arm
+loads them from `--kernels`).
+
+Device command (Marco runs):
+```sh
+sh run-onecopy-gpu.sh push      # 8 pushes incl. the 3 new .cl, sha256 on device
+sh run-onecopy-gpu.sh probe     # out/probe-model.log: gemm/gemv1/soav/tiledv per shape
+# i.e.: adb -s adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp shell \
+#   "cd /data/local/tmp/govhtp/onecopy-gpu && export LD_LIBRARY_PATH=/data/local/tmp/govhtp/lib \
+#    && ./probe/q4raw-probe --kernels /data/local/tmp/govhtp/onecopy-gpu/kernels --model-shapes"
+```
+Read it as: `RESULT <shape> tiledv PASS ... weights_GB/s=X` vs `soav` on the same shape —
+tiledv within ~10-20% of soav at the FFN shapes means one-copy weights are viable for GPU
+decode; a large gap on `ffn_down` (M=2048, the K-split case) means the lane mapping needs work.
+
+| Artifact | SHA-256 (2026-10-04, `940d98e07`) |
+|---|---|
+| `build-onecopy-gpu/q4raw-probe` (AArch64 PIE) | `72c3db3c7646047729a623bcb503223fa4faf8b0fd690706324ebcec75d5723d` |
+| `kernels/mul_mv_q4_0_f32_tiled.cl` | `1afaf6eeabe29d46119aa8b4906ac44304c8f6c912d4660a6b32060e849d0dc2` |
+
+**Not verified (needs the S23):** every Adreno number — tiledv/soav/gemv1 ms and GB/s, soav
+numerics on-device, the `reqd_sub_group_size("half")` effect, and the tiled arm reading the real
+rpcmem dma-buf import (Mac used the host fallback). Probe timing is direction only; unplugged
+for real numbers per the project rule.
+
+S23 results for this spike and its follow-ups (253aaad1d): `../onecopy-three-legs/REPORT.md`.
