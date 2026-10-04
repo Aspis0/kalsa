@@ -57,3 +57,17 @@ layout a 32-row band is ONE contiguous stream, so v2 maps 32 lanes onto one tile
 - NPU: native layout, two-copy speed by construction.
 - CPU: 0.71-0.87 of its own layout on the S23 (vs 0.53-0.71 for raw). Correct; the gap is instruction count.
 - GPU: v1 0.41-0.52 of the engine path; the layout is not the cause yet, the mapping is - v2 decides.
+
+## GPU v2: coalesced mapping (engine `f6259c835`, `raw/s23-gpu-v2-unplugged.grep`, same session, 100 %, 27.7 C)
+
+| shape | engine SoA | raw GEMV | tiled v1 | tiled v2 | v2 vs SoA |
+|---|---:|---:|---:|---:|---:|
+| ffn_gate_up | 0.238 | 0.407 | 0.486 | 0.441 | 0.54 |
+| conv_in_proj | 0.129 | 0.238 | 0.267 | 0.257 | 0.50 |
+| ffn_down | 0.332 | 0.369 | 0.632 | 0.557 | 0.60 |
+| attn_k | 0.052 | 0.031 | 0.121 | 0.088 | 0.59 |
+
+Coalescing moved v2 only 5-12 %. Every arm reading weights through plain buffer loads (raw GEMV, v1, v2) sits at
+22-30 GB/s; the engine's SoA path reads them through an image1d_buffer (texture path) with half math at 37-55 GB/s.
+Next (GLM 4205db7f): v3i = v2 + image1d_buffer view on the same imported cl_mem; v3h = v3i + half math. Splits
+memory path vs ALU.
