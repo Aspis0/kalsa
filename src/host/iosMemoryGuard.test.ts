@@ -1,10 +1,10 @@
 /**
  * The memory guard's behaviour, driven through a real mount: the subscription
  * registers on iOS, a warning releases the resident contexts through their own
- * dispose paths, a warning that finds work in flight leaves the release OWED
- * and the settle notification runs it when the work ends, and unmounting both
- * removes the listener and forgets the debt. The settle bus is the real one;
- * only the engine modules it reports about are mocked.
+ * dispose paths, a warning that finds work (or a send) in flight leaves the
+ * release OWED and the settle notification runs it when that work ends, and
+ * unmounting both removes the listener and forgets the debt. The settle bus is
+ * the real one; only the engine modules it reports about are mocked.
  */
 const mockWarningHandlers: Array<() => void> = [];
 const mockRemoveListener = jest.fn();
@@ -108,9 +108,15 @@ async function warn(): Promise<void> {
   });
 }
 
-async function settle(): Promise<void> {
+/** One settle, with the guard's queued reaction flushed. `duringNotify` runs
+ *  after the notification and before the flush — the microtask window the
+ *  engine turn's own bookkeeping clears its refs in. */
+async function settle(duringNotify?: () => void): Promise<void> {
   await act(async () => {
     notifyNativeWorkSettled();
+    duringNotify?.();
+    // The guard's reaction is queued as a macrotask, never run inline.
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }
 
@@ -150,6 +156,30 @@ describe("useIosMemoryGuard", () => {
     nativeWork.mockReturnValue(false);
     await settle();
     expect(releaseEmbedding).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the release owed while a send owns the engine — the warning's own plan decides", async () => {
+    residentChat.mockReturnValue(true);
+    nativeWork.mockReturnValue(true);
+    await mount();
+    await warn();
+    expect(releaseChat).not.toHaveBeenCalled();
+
+    // An unrelated settle (a prewarm or an embed) lands after the claim and the
+    // ensure, before the completion registers: the send still owns the turn.
+    nativeWork.mockReturnValue(false);
+    sendClaimRef.current = true;
+    sendingInFlightRef.current = true;
+    await settle();
+    expect(releaseChat).not.toHaveBeenCalled();
+
+    // The turn's finish notifies while its refs are still set; `sendHost` clears
+    // them in the send's microtask continuation, before the queued check runs.
+    await settle(() => {
+      sendClaimRef.current = false;
+      sendingInFlightRef.current = false;
+    });
+    expect(releaseChat).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a deferred chat release owed until the native work really ends", async () => {

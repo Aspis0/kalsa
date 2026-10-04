@@ -3,17 +3,21 @@
  * model contexts back to the OS before jetsam takes the process, without ever
  * breaking a turn or an embed.
  *
- * The decision is `src/app/iosMemoryWarningPlan.ts`. A turn in flight is never
- * killed: the warning sets an OWED release, and the release runs on the next
- * notification that a unit of native engine work ended
- * (`src/engine/nativeWorkSettle.ts` — the settle points behind
- * `nativeEngineWorkInFlight()`), so a long generation is followed out to its
- * real end instead of polled for. The flag survives until that notification or
- * the next warning and is cleared on unmount. The releases themselves are the
- * app's own dispose paths — `./residentContextRelease.ts` for the chat context
- * and `releaseEmbedder` for an idle embedder — and neither touches work that is
- * still running. The reload needs no code here: the ensure path every send
- * already runs reloads a released engine.
+ * The decision is `src/app/iosMemoryWarningPlan.ts`, and the owed release is
+ * gated by the SAME plan re-read from the live state: a send that claimed the
+ * engine since the warning, native work that started, or a load that began all
+ * keep it owed. It runs on the next notification that a unit of native engine
+ * work ended (`src/engine/nativeWorkSettle.ts` — the settle points behind
+ * `nativeEngineWorkInFlight()`, plus the turn's own finish in
+ * `engineTurnFinish.ts`, the wedged-stop unlock in `sendStop.ts` and the
+ * conversation-change abort in `useHostEffects.ts`), so a long generation is
+ * followed out to its real end instead of polled for. The
+ * flag survives until that notification or the next warning and is cleared on
+ * unmount. The releases themselves are the app's own dispose paths —
+ * `./residentContextRelease.ts` for the chat context and `releaseEmbedder` for
+ * an idle embedder — and neither touches work that is still running. The
+ * reload needs no code here: the ensure path every send already runs reloads a
+ * released engine.
  *
  * RN 0.86 emits `memoryWarning` on iOS only: `RCTAppState.mm`'s
  * `supportedEvents` carries it, while Android's `AppStateModule.kt` emits
@@ -50,19 +54,24 @@ export function useIosMemoryGuard(): void {
   useEffect(() => {
     if (Platform.OS !== "ios") return;
     let active = true;
+    /** A queued settle reaction (see `scheduleOwedCheck`). */
+    let pendingCheck: ReturnType<typeof setTimeout> | null = null;
 
     /**
-     * What a release has to wait for. The host's own turn refs
-     * (`sendingInFlightRef` / `streamInFlightRef`) are deliberately NOT here:
-     * they outlive the native work by a host tail that touches no engine, and
-     * every post-turn engine call (the landing-keyed KV save) is itself a
-     * native job, which does show up. `sendClaimRef` stays: a send that has
-     * claimed but not yet reached native work is one this must not break.
+     * The warning's decision, re-read from the live state. The owed release runs
+     * on the SAME plan as the warning that owed it — a send that claimed the
+     * engine since, native work that started, or a load that began keeps the
+     * release owed — so there is no second condition to drift from it.
      */
-    const nativeWorkInFlight = (): boolean =>
-      nativeEngineWorkInFlight() ||
-      sendClaimRef.current ||
-      getLlamaContextGateState() === "chat_loading";
+    const currentPlan = (): IosMemoryWarningAction =>
+      iosMemoryWarningPlan({
+        platform: Platform.OS,
+        remote: isRemoteEngineBackend(),
+        sending: sendClaimRef.current || sendingInFlightRef.current,
+        nativeWork: nativeEngineWorkInFlight(),
+        loadInProgress: getLlamaContextGateState() === "chat_loading",
+        resident: isEngineReady() || isEmbedderActive(),
+      });
 
     const bumpReleased = (): void => {
       // A real release changes what HostRoot renders (`engineResident` is read
@@ -74,17 +83,21 @@ export function useIosMemoryGuard(): void {
     /** The memory release itself: the chat context, then an idle embedder. */
     const releaseLocalContexts = async (): Promise<void> => {
       if (isEngineReady()) {
-        const outcome = await releaseResidentContext(() => !nativeWorkInFlight());
+        // The predicate re-reads the plan after the load wait: a send that
+        // claimed the engine in that window makes this "absent", not a killed
+        // turn.
+        const outcome = await releaseResidentContext(() => currentPlan().op === "release");
         if (outcome === "released") bumpReleased();
-        else if (nativeWorkInFlight()) {
+        else if (outcome === "absent" && currentPlan().op === "deferred") {
           // A turn claimed the engine while we asked: still owed.
           owedRef.current = true;
           return;
         }
       }
-      // An embed in USE is native work and deferred this warning; reaching here
-      // means the embedder is idle, and the re-check closes the last instant.
-      if (isEmbedderActive() && !nativeWorkInFlight()) {
+      // An embed in USE is native work, so the plan defers it; a plan that says
+      // "release" here means the embedder is idle, and the re-read closes the
+      // last instant.
+      if (isEmbedderActive() && currentPlan().op === "release") {
         await releaseEmbedder();
         bumpReleased();
       }
@@ -104,19 +117,28 @@ export function useIosMemoryGuard(): void {
     /** A settle: run the release a warning owed, if its work has ended. Work
      *  still running keeps it owed for the next settle. */
     const releaseWhenSettled = (): void => {
-      if (owedRef.current && !nativeWorkInFlight()) startRelease();
+      if (owedRef.current && currentPlan().op === "release") startRelease();
     };
 
-    const unsubscribeSettled = subscribeNativeWorkSettled(releaseWhenSettled);
+    /**
+     * Never react inside the notifier's stack: `notifyNativeWorkSettled` fires
+     * synchronously inside engine transitions (`llamaContextGate.markChatReady`
+     * can run before `LlamaService` assigns the context), and a release started
+     * there would re-enter the engine mid-transition. The check is queued as a
+     * macrotask and re-reads every condition when it runs; one pending check at
+     * a time, however many settles arrive.
+     */
+    const scheduleOwedCheck = (): void => {
+      if (!owedRef.current || pendingCheck !== null) return;
+      pendingCheck = setTimeout(() => {
+        pendingCheck = null;
+        releaseWhenSettled();
+      }, 0);
+    };
+
+    const unsubscribeSettled = subscribeNativeWorkSettled(scheduleOwedCheck);
     const sub = AppState.addEventListener("memoryWarning", () => {
-      const plan = iosMemoryWarningPlan({
-        platform: Platform.OS,
-        remote: isRemoteEngineBackend(),
-        sending: sendClaimRef.current || sendingInFlightRef.current,
-        nativeWork: nativeEngineWorkInFlight(),
-        loadInProgress: getLlamaContextGateState() === "chat_loading",
-        resident: isEngineReady() || isEmbedderActive(),
-      });
+      const plan = currentPlan();
       // "platform" cannot occur here (the subscription is iOS-only), so any
       // skip is a real answer under pressure and is recorded like the others.
       if (plan.op === "skip") {
@@ -134,6 +156,7 @@ export function useIosMemoryGuard(): void {
     return () => {
       active = false;
       owedRef.current = false;
+      if (pendingCheck !== null) clearTimeout(pendingCheck);
       unsubscribeSettled();
       sub.remove();
     };

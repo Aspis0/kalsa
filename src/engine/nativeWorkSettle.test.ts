@@ -36,4 +36,15 @@ describe("nativeWorkSettle", () => {
     expect(() => notifyNativeWorkSettled()).not.toThrow();
     expect(later).toHaveBeenCalledTimes(1);
   });
+
+  it("isolates a throwing listener: the engine's settle path and the others survive", () => {
+    const after = jest.fn();
+    subscribeNativeWorkSettled(() => {
+      throw new Error("a subscriber blew up");
+    });
+    subscribeNativeWorkSettled(after);
+
+    expect(() => notifyNativeWorkSettled()).not.toThrow();
+    expect(after).toHaveBeenCalledTimes(1);
+  });
 });

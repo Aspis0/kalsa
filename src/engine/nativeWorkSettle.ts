@@ -26,5 +26,12 @@ export function subscribeNativeWorkSettled(listener: () => void): () => void {
 
 export function notifyNativeWorkSettled(): void {
   // Snapshot: a listener is free to subscribe/unsubscribe from its callback.
-  for (const listener of [...listeners]) listener();
+  for (const listener of [...listeners]) {
+    try {
+      listener();
+    } catch {
+      // Never let a subscriber break the engine's settle path: the notifiers
+      // run inside the bookkeeping of a finished native op / engine job.
+    }
+  }
 }

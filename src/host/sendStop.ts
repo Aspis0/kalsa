@@ -18,6 +18,7 @@ import {
 } from "../engine/regenState";
 import type { Message } from "./hostMessage";
 import type { TurnFence } from "./turnGuards";
+import { notifyNativeWorkSettled } from "../engine/nativeWorkSettle";
 
 export interface StopDeps {
   fence: TurnFence;
@@ -123,6 +124,9 @@ export function handleStop(deps: StopDeps): void {
       deps.regenHandleSendPassRef.current = false;
       deps.stopRequestedRef.current = false;
       deps.onSendingChange(false);
+      // A wedged send ends HERE, not in its own finish: the settle the memory
+      // guard owes its release to has to fire on this path too.
+      notifyNativeWorkSettled();
     }
   }, 3000);
 }

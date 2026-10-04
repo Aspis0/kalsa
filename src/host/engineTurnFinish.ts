@@ -1,4 +1,5 @@
 import type { LocalAttachment } from "./hostMessage";
+import { notifyNativeWorkSettled } from "../engine/nativeWorkSettle";
 
 export interface EngineTurnFinishDeps {
   isTurnOwner: () => boolean;
@@ -24,5 +25,10 @@ export function createEngineTurnFinish(deps: EngineTurnFinishDeps): () => void {
     }
     // Resolve the retired invocation even when it no longer owns host state.
     deps.onFinished();
+    // The turn's end is a settle point: a release a memory warning owed must not
+    // wait for the next native job. The host's own turn refs
+    // (`sendHost.releaseOwned`) clear in the send's microtask continuation after
+    // this, before the memory guard's queued check runs.
+    notifyNativeWorkSettled();
   };
 }

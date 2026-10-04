@@ -14,6 +14,7 @@ import {
 } from "../engine/regenState";
 import { notifyStaticPrefixInputs, type EngineTool } from "../engine/engineBackend";
 import { createStaticPrefixNotifier } from "./staticPrefixNotify";
+import { notifyNativeWorkSettled } from "../engine/nativeWorkSettle";
 import { idleDiscardAbortRef } from "./foregroundIdle";
 import { useIosBackgroundGuard } from "./iosBackgroundGuard";
 import { useIosMemoryGuard } from "./iosMemoryGuard";
@@ -91,6 +92,8 @@ export function useHostEffects(params: HostEffectParams): void {
       stopWatchdogRef.current = null;
     }
     clearTools();
+    // This turn ends here rather than in its own finish: same settle.
+    notifyNativeWorkSettled();
   }, [
     conversationId,
     fence,
