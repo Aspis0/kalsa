@@ -13,7 +13,7 @@ use std::sync::{Mutex, Once, OnceLock};
 use std::time::{Duration, Instant};
 
 use super::paging_support::{activate, door_of, file_name, status_of, temp_dir, Engine, Reply, HASH};
-use super::support::{door, exchanged, RecordingUpstream, ORIGIN};
+use super::support::{chat_post, device_set, door, exchanged, RecordingUpstream, ORIGIN};
 use super::*;
 use crate::audit::line::id_hash;
 
@@ -377,4 +377,52 @@ fn a_refused_media_source_is_not_in_the_answer_or_the_line() {
         "the refused source reached the log: {lines:?}"
     );
     door.shutdown();
+}
+
+/// The app restarts its door in place when the engine restarts under it — the
+/// vision enable stops the first door and starts the next in the same process.
+/// The log belongs to the process, not to the instance: the second door's
+/// authorized traffic must be on the record as the first door's was.
+#[test]
+fn a_second_door_in_the_same_process_still_audits_an_authorized_request() {
+    capture();
+    let upstream = RecordingUpstream::start();
+    let token = credential();
+    // A device id of this test's own: the line it waits for cannot be another
+    // door's, in the capture the whole test binary shares.
+    let marker = "door request: POST /v1/chat/completions device 41 status 200";
+    let door_of = |token: &str| {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let door = Door::new(listener, upstream.port, device_set(&[(41, token)]), 1)
+            .unwrap()
+            .start()
+            .unwrap();
+        (door, address)
+    };
+    let request = chat_post(ORIGIN, Some(&format!("Bearer {token}")), None);
+
+    let (first, first_address) = door_of(&token);
+    let since = line_count();
+    let served = exchanged(first_address, &request);
+    assert_eq!(status_of(&served), 200, "{}", String::from_utf8_lossy(&served));
+    let lines = wait_for_new(marker, since);
+    assert!(
+        lines.iter().skip(since).any(|line| line.contains(marker)),
+        "the first door audited nothing: {lines:?}"
+    );
+    first.shutdown();
+
+    // The same process starts the next door, as the app does when the engine
+    // it forwards to is replaced under it.
+    let (second, second_address) = door_of(&token);
+    let since = line_count();
+    let served = exchanged(second_address, &request);
+    assert_eq!(status_of(&served), 200, "{}", String::from_utf8_lossy(&served));
+    let lines = wait_for_new(marker, since);
+    assert!(
+        lines.iter().skip(since).any(|line| line.contains(marker)),
+        "the second door audited nothing: {lines:?}"
+    );
+    second.shutdown();
 }

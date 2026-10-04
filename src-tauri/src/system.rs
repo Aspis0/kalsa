@@ -218,14 +218,13 @@ pub(crate) fn log_machine(machine: &Machine, host: &str) {
     });
 }
 
-/// Writes the engine's half, once per session, the same rule.
+/// Writes the engine's half on every start: these lines describe the engine
+/// the walk launched, and the vision enable stops that one and launches
+/// another in the same process — the first start's facts are not the second's.
 pub(crate) fn log_engine(engine: &Engine, host: &str) {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        for line in engine_lines(engine, host) {
-            log::info!("{line}");
-        }
-    });
+    for line in engine_lines(engine, host) {
+        log::info!("{line}");
+    }
 }
 
 /// The machine's own name for itself, for the defensive strip: the kernel's
@@ -819,6 +818,72 @@ mod tests {
         assert!(
             adapter.chars().count() < 160,
             "the name and driver are clipped to 80 each: {adapter}"
+        );
+    }
+
+    /// The lines `log_engine` wrote, as the one global logger of this test
+    /// binary captured them. The app installs its own logger; a test binary
+    /// installs this one, and the fixtures below write a release string no
+    /// other test can match.
+    fn captured() -> &'static std::sync::Mutex<Vec<String>> {
+        static LINES: std::sync::OnceLock<std::sync::Mutex<Vec<String>>> =
+            std::sync::OnceLock::new();
+        LINES.get_or_init(|| std::sync::Mutex::new(Vec::new()))
+    }
+
+    struct Capture;
+
+    impl log::Log for Capture {
+        fn enabled(&self, _: &log::Metadata) -> bool {
+            true
+        }
+
+        fn log(&self, record: &log::Record) {
+            if let Ok(mut lines) = captured().lock() {
+                lines.push(record.args().to_string());
+            }
+        }
+
+        fn flush(&self) {}
+    }
+
+    fn capture() {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            let _ = log::set_logger(&Capture);
+            log::set_max_level(log::LevelFilter::Info);
+        });
+    }
+
+    /// The engine's half is written on EVERY engine start. The vision enable
+    /// stops the engine and starts another in the same process, and a second
+    /// start that writes nothing is what the Mac walk read as "engine lines
+    /// missing after the in-process restart" — the `Once` this test bites on.
+    #[test]
+    fn the_engine_facts_are_written_on_every_start() {
+        capture();
+        let engine = Engine {
+            release: "kalsa-server (test, every start)",
+            build: "cpu",
+            listed_devices: Vec::new(),
+            device: None,
+            model: None,
+            row: None,
+            context_tokens: 4096,
+            drafter: false,
+        };
+        for _ in 0..2 {
+            log_engine(&engine, "");
+        }
+        let lines = captured().lock().unwrap();
+        let seen = lines
+            .iter()
+            .filter(|line| line.contains("kalsa-server (test, every start)"))
+            .count();
+        assert_eq!(
+            seen, 2,
+            "the engine's facts were written {seen} time(s): a start after an \
+             in-process restart must write them again"
         );
     }
 }
