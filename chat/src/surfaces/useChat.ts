@@ -79,6 +79,10 @@ interface PendingVideo {
   frames: PreparedImage[];
   blob: Blob | null;
   url: string | null;
+  /** True while the compress road is still running: the chip shows its
+      progress and its × cancels the work. */
+  compressing: boolean;
+  progress: number;
 }
 
 type PendingChip = PendingImage | PendingVideo;
@@ -363,6 +367,20 @@ export function useChat(shell: ChatShell) {
   // Chips of one conversation leave (send, remove, delete): their object
   // URLs die with them. The bytes themselves are the caller's to place or
   // drop in IndexedDB.
+  /** Releases the chips NAMED — the ones a send carried. Their object URLs
+      die with them; bytes stay (the message references them now). */
+  function releasePendingIds(convId: string, ids: string[]): void {
+    if (ids.length === 0) return;
+    setPendingImages((prev) => {
+      const chips = prev[convId];
+      if (!chips) return prev;
+      for (const chip of chips) {
+        if (ids.includes(chip.id) && chip.url) URL.revokeObjectURL(chip.url);
+      }
+      return { ...prev, [convId]: chips.filter((chip) => !ids.includes(chip.id)) };
+    });
+  }
+
   function releasePending(convId: string): void {
     setPendingImages((prev) => {
       const chips = prev[convId];
@@ -433,13 +451,67 @@ export function useChat(shell: ChatShell) {
         const image = await prepareImage(file);
         prepared.push({ ...image, kind: "image", url: URL.createObjectURL(image.blob) });
       }
+      // The chip appears the moment the work starts, not when it ends: its
+      // × is the cancel the compress road reads between frames — a chip
+      // that only exists afterwards can never be canceled.
+      const patchChip = (id: string, patch: Partial<PendingVideo>): void => {
+        setPendingImages((prev) => ({
+          ...prev,
+          [target]: (prev[target] ?? []).map((chip) =>
+            chip.kind === "video" && chip.id === id ? { ...chip, ...patch } : chip,
+          ),
+        }));
+      };
+      const dropChip = (id: string): void => {
+        setPendingImages((prev) => ({
+          ...prev,
+          [target]: (prev[target] ?? []).filter((chip) => chip.id !== id),
+        }));
+      };
+      const videoChipIds = new Set<string>();
       for (const file of videoFiles) {
         const gate = { canceled: false };
         const id = uid();
         cancelGates.current.set(id, gate);
+        videoChipIds.add(id);
+        setPendingImages((prev) => ({
+          ...prev,
+          [target]: [
+            ...(prev[target] ?? []),
+            {
+              kind: "video",
+              id,
+              width: 0,
+              height: 0,
+              durationMs: 0,
+              notKept: false,
+              frames: [],
+              blob: null,
+              url: null,
+              compressing: true,
+              progress: 0,
+            },
+          ],
+        }));
         try {
-          const video = await prepareVideo(file, () => {}, gate);
-          if (gate.canceled) continue;
+          const video = await prepareVideo(
+            file,
+            (fraction) => patchChip(id, { progress: fraction }),
+            gate,
+          );
+          if (gate.canceled) {
+            dropChip(id);
+            continue;
+          }
+          patchChip(id, {
+            width: video.width,
+            height: video.height,
+            durationMs: video.durationMs,
+            frames: video.frames,
+            blob: video.blob,
+            compressing: false,
+            progress: 1,
+          });
           preparedVideos.push({
             kind: "video",
             id,
@@ -450,8 +522,11 @@ export function useChat(shell: ChatShell) {
             frames: video.frames,
             blob: video.blob,
             url: null,
+            compressing: false,
+            progress: 1,
           });
         } catch (error) {
+          dropChip(id);
           // The chip's × is the owner's own word: it leaves quietly.
           if (error instanceof VideoCanceled || gate.canceled) continue;
           throw error;
@@ -495,6 +570,7 @@ export function useChat(shell: ChatShell) {
         logUiEvent("chat.attach_refused");
         announce(t.tooMuchAtOnce);
         for (const chip of prepared) URL.revokeObjectURL(chip.url);
+        for (const id of videoChipIds) dropChip(id);
         return;
       }
       // The door's own ceiling, asked while the chips are still only these
@@ -529,6 +605,7 @@ export function useChat(shell: ChatShell) {
         logUiEvent("chat.attach_wire_refused");
         announce(t.tooMuchAtOnce);
         for (const chip of prepared) URL.revokeObjectURL(chip.url);
+        for (const id of videoChipIds) dropChip(id);
         return;
       }
       // Bytes first, chip second: a refusal from IndexedDB is an attach
@@ -544,20 +621,21 @@ export function useChat(shell: ChatShell) {
         if (video.blob !== null) {
           try {
             await putImage(target, video.id, "video/mp4", video.blob);
-            video.url = URL.createObjectURL(video.blob);
           } catch {
             video.notKept = true;
-            video.url = null;
           }
         } else {
           video.notKept = true;
         }
+        // The chip's face is the glyph, so no object URL is minted here —
+        // the bubble reads the bytes back when it renders.
+        patchChip(video.id, { notKept: video.notKept });
       }
       for (const attachment of extracted) store.putAttachment(target, attachment);
-      if (prepared.length > 0 || preparedVideos.length > 0) {
+      if (prepared.length > 0) {
         setPendingImages((prev) => ({
           ...prev,
-          [target]: [...(prev[target] ?? []), ...prepared, ...preparedVideos],
+          [target]: [...(prev[target] ?? []), ...prepared],
         }));
       }
       setAttachStatus(null);
@@ -643,7 +721,9 @@ export function useChat(shell: ChatShell) {
     const userId = uid();
     // Whatever chips this conversation holds ride the new user turn as
     // references; the pixels stay in IndexedDB under their own ids.
-    const chips = pendingImages[conv.id] ?? [];
+    const chips = (pendingImages[conv.id] ?? []).filter(
+      (chip) => chip.kind === "image" || !chip.compressing,
+    );
     const images = chips.flatMap((chip) =>
       chip.kind === "image" ? [{ id: chip.id, width: chip.width, height: chip.height, mime: chip.mime }] : [],
     );
@@ -679,7 +759,16 @@ export function useChat(shell: ChatShell) {
       ],
     };
     store.put(updated);
-    if (images.length > 0) releasePending(conv.id);
+    // Everything that rode is released — a video-only send as surely as a
+    // picture one: a chip left pending could be sent again, and its × would
+    // delete bytes this SENT message now references. A chip still
+    // compressing did not ride and stays for the next send.
+    if (images.length > 0 || videos.length > 0) {
+      releasePendingIds(
+        conv.id,
+        chips.map((chip) => chip.id),
+      );
+    }
     // Writing from the brain's bar lands here too: the chat opens with the
     // text already in the thread.
     openSurface("chat");

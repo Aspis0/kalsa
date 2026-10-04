@@ -12,6 +12,7 @@ export const COMPOSER = {
   hintOpening: "Opening the chat…",
   thinkingOnTitle: "Thinking: the model reasons before answering. Turn it off to be answered at once.",
   thinkingOffTitle: "Thinking off: the model answers at once, without reasoning first.",
+  compressing: (pct: number) => `Compressing… ${pct}%`,
   attachTitle: "Attach a file (text, markdown, CSV, PDF, Word, PowerPoint)",
   attachTitleImages:
     "Attach a file or picture (text, markdown, CSV, PDF, Word, PowerPoint, images)",

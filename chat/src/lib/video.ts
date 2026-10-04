@@ -387,7 +387,12 @@ export async function prepareVideo(
     // effect within a report, not at the end of the whole encode.
     conversion.onProgress = (progress) => {
       if (canceled?.canceled) {
-        void conversion.cancel();
+        void conversion.cancel().finally(() => {
+          // WebKit answers a canceled conversion's in-flight blob read
+          // with an unhandled NotReadableError nobody is left to catch;
+          // disposing the input closes the stream at its root instead.
+          input.dispose();
+        });
         return;
       }
       onProgress(progress * 0.9);

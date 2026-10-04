@@ -12,6 +12,7 @@ export const COMPOSER = {
     "hintOpening": "Ouverture de la conversation…",
     "thinkingOnTitle": "Réflexion : le modèle raisonne avant de répondre. Désactive-la pour être répondu aussitôt.",
     "thinkingOffTitle": "Réflexion désactivée : le modèle répond aussitôt, sans réfléchir d'abord.",
+    "compressing": (pct: number) => `Compression… ${pct} %`,
     "attachTitle": "Joindre un fichier (texte, markdown, CSV, PDF, Word, PowerPoint)",
     "attachTitleImages": "Joindre un fichier ou une image (texte, markdown, CSV, PDF, Word, PowerPoint, images)",
     "attachTitleMedia": "Joindre une image ou une vidéo",

@@ -10,6 +10,8 @@ export interface ComposerImage {
   id: string;
   url: string | null;
   kind?: "image" | "video";
+  /** The work line a compressing video chip carries ("Compressing… 42%"). */
+  label?: string;
 }
 
 const DOCUMENT_ACCEPT = ".txt,.md,.markdown,.csv,.json,.log,.pdf,.docx,.pptx";
@@ -183,6 +185,9 @@ export function Composer({
         <div className="composer-images">
           {pendingImages.map((image) => (
             <figure key={image.id} className="composer-image">
+              {image.label !== undefined ? (
+                <figcaption className="composer-image-label">{image.label}</figcaption>
+              ) : null}
               {image.url && image.kind !== "video" ? (
                 <img
                   src={image.url}

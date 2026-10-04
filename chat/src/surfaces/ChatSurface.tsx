@@ -166,6 +166,9 @@ export function ChatSurface({ chat }: { chat: Chat }) {
             id: chip.id,
             url: chip.url,
             kind: chip.kind,
+            ...(chip.kind === "video" && chip.compressing
+              ? { label: table.composer.compressing(Math.round(chip.progress * 100)) }
+              : {}),
           }))}
           onRemoveImage={removeImage}
         />

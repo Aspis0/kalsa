@@ -12,6 +12,7 @@ export const COMPOSER = {
     "hintOpening": "正在打开对话…",
     "thinkingOnTitle": "思考：模型先推理再回答。关掉它就会立刻得到回答。",
     "thinkingOffTitle": "思考已关闭：模型立刻回答，不先推理。",
+    "compressing": (pct: number) => `压缩中… ${pct}%`,
     "attachTitle": "附加文件（文本、markdown、CSV、PDF、Word、PowerPoint）",
     "attachTitleImages": "附加文件或图片（文本、markdown、CSV、PDF、Word、PowerPoint、图片）",
     "attachTitleMedia": "附加图片或视频",

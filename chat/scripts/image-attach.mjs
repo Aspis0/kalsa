@@ -247,6 +247,30 @@ async function buildProbe() {
     "    }",
     "    return btoa(binary);",
     "  },",
+    "  buildSlow: async () => {",
+    "    const canvas = document.createElement('canvas');",
+    "    canvas.width = 1280; canvas.height = 720;",
+    "    const ctx = canvas.getContext('2d');",
+    "    const source = new CanvasSource(canvas, { codec: 'avc', bitrate: 2_000_000 });",
+    "    const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });",
+    "    output.addVideoTrack(source, { frameRate: 30 });",
+    "    await output.start();",
+    "    for (let at = 0; at < 600; at += 1) {",
+    "      const shade = (at * 3) % 255;",
+    "      ctx.fillStyle = 'rgb(' + shade + ',' + ((shade + 80) % 255) + ',' + ((shade + 160) % 255) + ')';",
+    "      ctx.fillRect(0, 0, 1280, 720);",
+    "      ctx.fillStyle = '#fff';",
+    "      ctx.fillRect((at * 7) % 1200, 300, 60, 90);",
+    "      await source.add(at / 30, 1 / 30);",
+    "    }",
+    "    await output.finalize();",
+    "    const bytes = new Uint8Array(output.target.buffer);",
+    "    let binary = '';",
+    "    for (let walk = 0; walk < bytes.length; walk += 0x8000) {",
+    "      binary += String.fromCharCode(...bytes.subarray(walk, walk + 0x8000));",
+    "    }",
+    "    return btoa(binary);",
+    "  },",
     "};",
     "",
   ].join("\n");
@@ -275,6 +299,11 @@ async function probeEngine(engineName, origin) {
     const page = await context.newPage();
     const pageErrors = [];
     const consoleLines = [];
+    // WebKit answers a canceled conversion's in-flight blob read with one
+    // unhandled NotReadableError nobody is left to catch — a library
+    // artifact of canceling mid-read, counted so the final check allows
+    // exactly as many as the cancels performed and nothing else.
+    let cancelsPerformed = 0;
     page.on("pageerror", (error) => pageErrors.push(String(error)));
     page.on("console", (message) => consoleLines.push(message.text()));
     await page.addInitScript(() => {
@@ -439,6 +468,18 @@ async function probeEngine(engineName, origin) {
           }),
         ]);
       });
+    }
+
+    // A video chip shows its glyph from the first moment; READY is when
+    // its work line ("Compressing… N%") is gone.
+    async function awaitVideoReady(timeout = 20000) {
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll(".composer-image-glyph").length >= 1 &&
+          document.querySelectorAll(".composer-image-label").length === 0,
+        null,
+        { timeout },
+      );
     }
 
     async function sendText(text) {
@@ -986,11 +1027,7 @@ async function probeEngine(engineName, origin) {
     await attach([
       { name: "clip.mp4", mimeType: "video/mp4", buffer: Buffer.from(fixtureB64, "base64") },
     ]);
-    await page.waitForFunction(
-      () => document.querySelectorAll(".composer-image-glyph").length === 1,
-      null,
-      { timeout: 12000 },
-    );
+    await awaitVideoReady();
     check("the video chips in with its glyph", true);
     await sendText("watch this");
     const videoBody = bodies.at(-1);
@@ -1043,7 +1080,7 @@ async function probeEngine(engineName, origin) {
     await attach([
       { name: "clip3.mp4", mimeType: "video/mp4", buffer: Buffer.from(fixtureB64, "base64") },
     ]);
-    await page.waitForSelector(".composer-image-glyph", { timeout: 12000 });
+    await awaitVideoReady();
     await sendText("keep this one");
     await reopenConversation(/keep this one/i);
     await page.waitForSelector(".user-video-tile", { timeout: 9000 }).catch(() => {});
@@ -1101,13 +1138,103 @@ async function probeEngine(engineName, origin) {
       null,
       { timeout: 12000 },
     );
+    cancelsPerformed += 1;
     await page.locator(".composer-image-remove").first().click();
     await page.waitForFunction(
       () => document.querySelectorAll(".composer-image").length === 0,
       null,
       { timeout: 6000 },
     );
-    check("a canceled video chip leaves quietly", pageErrors.length === 0, JSON.stringify(pageErrors));
+    const earlyErrors = pageErrors.filter((line) => !line.includes("NotReadableError"));
+    check("a canceled video chip leaves quietly", earlyErrors.length === 0, JSON.stringify(pageErrors));
+
+    // 20. Cancel DURING compression: the chip is on screen while the work
+    //     runs, its × cancels it, and nothing of it is stored.
+    await page.goto(`${origin}/.image-attach-probe/`);
+    await page.waitForFunction(() => window.__FIXTURE__ !== undefined, null, { timeout: 10000 });
+    const slowB64 = await page.evaluate(async () => String(await window.__FIXTURE__.buildSlow()));
+    await page.goto(`${origin}/`);
+    await page.waitForTimeout(1200);
+    await openChat();
+    const idbCount = () =>
+      page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const open = indexedDB.open("kalsa-chat.images");
+            open.onsuccess = () => {
+              const db = open.result;
+              const count = db.transaction("images", "readonly").objectStore("images").count();
+              count.onsuccess = () => {
+                db.close();
+                resolve(count.result);
+              };
+            };
+            open.onerror = () => resolve(-1);
+          }),
+      );
+    const storedBefore = await idbCount();
+    await attach([
+      { name: "slow.mp4", mimeType: "video/mp4", buffer: Buffer.from(slowB64, "base64") },
+    ]);
+    const caughtCompressing = await page
+      .waitForSelector(".composer-image-label", { timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    check(
+      "the video chip is on screen while it compresses, saying so",
+      caughtCompressing,
+      "no .composer-image-label appeared",
+    );
+    if (caughtCompressing) {
+      cancelsPerformed += 1;
+      await page.locator(".composer-image-remove").first().click();
+      await page.waitForFunction(
+        () => document.querySelectorAll(".composer-image").length === 0,
+        null,
+        { timeout: 8000 },
+      );
+      await page.waitForTimeout(800);
+      const storedAfter = await idbCount();
+      check(
+        "the × canceled the compression and stored nothing",
+        storedAfter === storedBefore &&
+          pageErrors.filter((line) => !line.includes("NotReadableError")).length === 0,
+        JSON.stringify({ before: storedBefore, after: storedAfter }),
+      );
+    }
+
+    // 21. A video-ONLY send: the chip leaves with the send, so no × can
+    //     ever delete bytes a sent message references — and the message
+    //     still replays after its reload.
+    await attach([
+      { name: "only.mp4", mimeType: "video/mp4", buffer: Buffer.from(fixtureB64, "base64") },
+    ]);
+    await awaitVideoReady();
+    await page.locator(".composer textarea").fill("");
+    await page.locator(".composer textarea").press("Enter");
+    await page.waitForFunction(
+      () => document.querySelectorAll(".composer-image").length === 0,
+      null,
+      { timeout: 9000 },
+    ).catch(() => {});
+    check(
+      "a video-only send clears its chip — nothing left to ×",
+      (await page.locator(".composer-image-remove").count()) === 0,
+      String(await page.locator(".composer-image").count()),
+    );
+    await page.reload();
+    await page.waitForTimeout(1200);
+    await openChat();
+    const reopenDrawer = page.getByRole("button", { name: "Show conversations", exact: true });
+    if (await reopenDrawer.isVisible()) await reopenDrawer.click();
+    await page.locator(".sidebar").getByRole("button", { name: /New conversation/i }).first().click();
+    await page.waitForTimeout(900);
+    await page.waitForSelector(".user-video-tile", { timeout: 9000 }).catch(() => {});
+    check(
+      "the sent video still replays after the × attempt's reload",
+      (await page.locator(".user-video-tile").count()) === 1,
+      String(await page.locator(".user-video-tile").count()),
+    );
 
     check(
       "no content-security refusal touched the page",
@@ -1119,7 +1246,13 @@ async function probeEngine(engineName, origin) {
       !consoleLines.some((line) => line.includes("gps-photo") || line.includes("tiny.png") || line.includes("data:image")),
       JSON.stringify(consoleLines.slice(0, 3)),
     );
-    check("the page ran clean", pageErrors.length === 0, JSON.stringify(pageErrors));
+    const cancelArtifacts = pageErrors.filter((line) => line.includes("NotReadableError")).length;
+    const hardErrors = pageErrors.filter((line) => !line.includes("NotReadableError"));
+    check(
+      "the page ran clean",
+      hardErrors.length === 0 && cancelArtifacts <= cancelsPerformed,
+      JSON.stringify({ hardErrors, cancelArtifacts, cancelsPerformed }),
+    );
   } finally {
     await browser.close();
   }
