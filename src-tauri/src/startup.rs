@@ -481,9 +481,9 @@ pub(crate) fn run(
                     crate::tune_step::measure_with_rule(root, resolved, rule, inner)
                 },
             );
-            // The session's engine facts, once, as the walk settled them.
-            // The tune's winner is logged by the tune itself and is not
-            // repeated here.
+            // The engine's facts, as the walk settles them — on every start,
+            // an in-process restart included. The tune's winner is logged by
+            // the tune itself and is not repeated here.
             crate::system::log_engine(
                 &crate::system::Engine {
                     release: kalsa_runtime::RELEASE,
