@@ -18,7 +18,7 @@
 
 import { deflateSync } from "node:zlib";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +30,13 @@ const CHAT_DIR = fileURLToPath(new URL("..", import.meta.url));
 const outDir = join(CHAT_DIR, ".room-media-dist");
 const probeDir = join(CHAT_DIR, ".room-media-probe");
 const MIB = 1024 * 1024;
+// The pages are served under the PACKAGED policy, read at run time: a CSP
+// regression (an object URL the policy refuses) renders every chip, tile and
+// poster as nothing while element-count checks keep passing — the walk at
+// fb477ddd shipped exactly that because these harnesses ran without it.
+const csp = JSON.parse(
+  await readFile(join(CHAT_DIR, "..", "src-tauri", "tauri.conf.json"), "utf8"),
+).app.security.csp;
 
 let fail = 0;
 function check(label, condition, detail) {
@@ -214,7 +221,13 @@ async function remuxProbe(page, mp4B64) {
     const { remuxOriginal } = window.__MEDIA__;
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     const file = new File([bytes], "located.mp4", { type: "video/mp4" });
-    const video = await remuxOriginal(file);
+    // A page whose policy refuses the app's own object URLs fails HERE
+    // first (the source is a blob); the error rides back as a failed check
+    // instead of an unhandled throw.
+    const video = await remuxOriginal(file).catch((error) => ({
+      blob: { type: "error", arrayBuffer: async () => new ArrayBuffer(0) },
+      error: String(error?.message ?? error),
+    }));
     let binary = "";
     const out = new Uint8Array(await video.blob.arrayBuffer());
     for (let at = 0; at < out.length; at += 0x8000) {
@@ -223,10 +236,11 @@ async function remuxProbe(page, mp4B64) {
     return {
       b64: btoa(binary),
       mime: video.blob.type,
-      width: video.width,
-      height: video.height,
-      compressed: video.compressed,
-      frames: video.frames.length,
+      width: video.width ?? 0,
+      height: video.height ?? 0,
+      compressed: video.compressed ?? false,
+      frames: video.frames?.length ?? 0,
+      error: video.error ?? null,
     };
   }, fixture.toString("base64"));
   const after = mp4Boxes(Buffer.from(result.b64, "base64"));
@@ -245,8 +259,13 @@ async function remuxProbe(page, mp4B64) {
       },
       {
         label: "the remuxed file is still an mp4 with its pixels",
-        ok: result.mime === "video/mp4" && result.width > 0 && result.height > 0 && result.compressed === false,
-        detail: JSON.stringify({ mime: result.mime, width: result.width, height: result.height }),
+        ok:
+          result.error === null &&
+          result.mime === "video/mp4" &&
+          result.width > 0 &&
+          result.height > 0 &&
+          result.compressed === false,
+        detail: JSON.stringify({ error: result.error, mime: result.mime, width: result.width, height: result.height }),
       },
       {
         label: "the remuxed fallback still carries frames for the AI",
@@ -268,6 +287,7 @@ async function probeEngine(engineName, origin) {
     page.on("pageerror", (error) => pageErrors.push(String(error)));
     page.on("console", (message) => probeConsole.push(message.text()));
     page.on("pageerror", (error) => probeConsole.push(String(error)));
+    const probeRefusals = () => probeConsole.filter((line) => line.includes("Content Security Policy"));
     await page.addInitScript(() => {
       window.__shelf = { specs: [], chunks: {}, fails: [] };
       window.__TAURI__ = {
@@ -292,7 +312,11 @@ async function probeEngine(engineName, origin) {
             if (command === "brain_room_media_read") {
               shelf.reads = shelf.reads ?? {};
               shelf.reads[args.id] = (shelf.reads[args.id] ?? 0) + 1;
-              return new Uint8Array([1, 2, 3, 4]);
+              // Real pixels: the LRU probe settles alive-vs-revoked with an
+              // Image, and an Image errors on bytes it cannot decode.
+              return Uint8Array.from(atob(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+              ), (c) => c.charCodeAt(0));
             }
             if (command === "brain_room_media_complete") {
               const held = shelf.chunks[args.upload];
@@ -558,19 +582,19 @@ async function probeEngine(engineName, origin) {
       // The second URL is held BEFORE anything pushes past the cap.
       holdRoomMediaUrl(ids[1]);
       for (const id of ["m0", "m1", "m2"]) await acquireRoomMediaUrl(id, "image/png");
-      // The first URL, unheld and oldest, was revoked by the overflow.
-      let firstRevoked = false;
-      try {
-        await fetch(urls[0]);
-      } catch {
-        firstRevoked = true;
-      }
-      let heldSurvives = true;
-      try {
-        await fetch(urls[1]);
-      } catch {
-        heldSurvives = false;
-      }
+      // The first URL, unheld and oldest, was revoked by the overflow. An
+      // Image answers alive-or-not under img-src, the policy the pixels
+      // live under — fetch() would ask connect-src, which this app (and
+      // its policy) never widens for blob:.
+      const shows = (url) =>
+        new Promise((resolve) => {
+          const probe = new Image();
+          probe.onload = () => resolve(true);
+          probe.onerror = () => resolve(false);
+          probe.src = url;
+        });
+      const firstRevoked = !(await shows(urls[0]));
+      const heldSurvives = await shows(urls[1]);
       // Re-acquiring the evicted one reads again; the held one does not.
       const before = reads();
       await acquireRoomMediaUrl(ids[0], "image/png");
@@ -615,6 +639,7 @@ async function probeEngine(engineName, origin) {
       JSON.stringify(tooBig),
     );
     check("the probe ran clean", pageErrors.length === 0, JSON.stringify(pageErrors));
+    check("no content-security refusal touched the probe", probeRefusals().length === 0, JSON.stringify(probeRefusals().slice(0, 2)));
   } finally {
     await browser.close();
   }
@@ -869,15 +894,35 @@ async function probeApp(engineName, origin, mp4B64) {
     );
 
     await page.waitForSelector(".room-media-thumb", { timeout: 9000 });
+    const roomPixels = await page.locator(".room-media-thumb img").first().evaluate(
+      (img) => img.naturalWidth,
+    );
     check(
-      "both posted pictures render as thumbnails",
-      (await page.locator(".room-media-thumb").count()) === 2,
+      "both posted pictures render as thumbnails, painted",
+      (await page.locator(".room-media-thumb").count()) === 2 && roomPixels > 0,
+      `naturalWidth=${roomPixels}`,
     );
     const rowText = await page.locator(".room-row").last().locator(".room-bubble").textContent();
     check(
       "the words stand and no fallback word rides beside the pixels",
       rowText.includes("look at these") === true && !rowText.includes("[Image]"),
       JSON.stringify(rowText),
+    );
+
+    // The walk's sixth finding: an item that stops rendering must say so.
+    // A blob URL nothing ever minted: WebKit serves revoked URLs from its
+    // memory cache, but no cache answers a URL that never existed — the
+    // element errors and the item becomes its fallback word, not an
+    // invisible slot.
+    await page.locator(".room-media-thumb img").first().evaluate((img) => {
+      img.src = `blob:${location.origin}/never-minted`;
+    });
+    await page.waitForSelector(".room-media-fallback", { timeout: 5000 });
+    const brokenWord = await page.locator(".room-media-fallback").first().textContent();
+    check(
+      "a picture that stops rendering becomes its fallback word",
+      brokenWord === "[Image]" && (await page.locator(".room-media-thumb").count()) === 1,
+      JSON.stringify(brokenWord),
     );
 
     await page.locator(".room-media-thumb").first().click();
@@ -963,6 +1008,16 @@ async function probeApp(engineName, origin, mp4B64) {
         videoPostReads === 0,
         JSON.stringify({ videoPostReads, readsBeforePlay }),
       );
+      // The walk's fourth finding: the tile answered clicks with nothing
+      // while the ▶ beside it played. The tile now opens the viewer.
+      await page.locator(".room-media-item-tile").last().click();
+      await page.waitForSelector(".media-viewer", { timeout: 5000 });
+      check(
+        "clicking the video tile opens the lightbox",
+        (await page.locator(".media-viewer").count()) === 1,
+      );
+      await page.locator(".media-viewer-close").click();
+      await page.waitForFunction(() => document.querySelector(".media-viewer") === null, null, { timeout: 4000 });
       await page.locator(".room-media-play").last().click();
       await page.waitForSelector(".room-media-video", { timeout: 9000 });
       const videoPostReadsAfter = await page.evaluate(() => {
@@ -1213,6 +1268,11 @@ async function probeApp(engineName, origin, mp4B64) {
       JSON.stringify(consoleLines.slice(0, 3)),
     );
     check("the room ran clean", pageErrors.length === 0, JSON.stringify(pageErrors));
+    check(
+      "no content-security refusal touched the room",
+      !consoleLines.some((line) => line.includes("Content Security Policy")),
+      JSON.stringify(consoleLines.filter((line) => line.includes("Content Security Policy")).slice(0, 2)),
+    );
   } finally {
     await browser.close();
   }
@@ -1240,7 +1300,10 @@ try {
       response.end("not found");
       return;
     }
-    response.writeHead(200, { "Content-Type": MIME[extname(file)] ?? "application/octet-stream" });
+    response.writeHead(200, {
+      "Content-Type": MIME[extname(file)] ?? "application/octet-stream",
+      "Content-Security-Policy": csp,
+    });
     response.end(readFileSync(file));
   });
   await new Promise((ready) => server.listen(0, "127.0.0.1", ready));

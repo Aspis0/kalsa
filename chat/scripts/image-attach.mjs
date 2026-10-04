@@ -14,7 +14,7 @@
 // Run: node scripts/image-attach.mjs [chromium|webkit ...]   (from chat/)
 
 import { existsSync, readFileSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +25,13 @@ import { build } from "vite";
 const ENGINES = { chromium, webkit };
 const CHAT_DIR = fileURLToPath(new URL("..", import.meta.url));
 const outDir = join(CHAT_DIR, ".image-attach-dist");
+// The page is served under the PACKAGED policy, read at run time: a CSP
+// regression (an object URL the policy refuses) renders every blob: image
+// as nothing while element-count checks keep passing — the walk at fb477ddd
+// shipped exactly that because these harnesses ran without the policy.
+const csp = JSON.parse(
+  await readFile(join(CHAT_DIR, "..", "src-tauri", "tauri.conf.json"), "utf8"),
+).app.security.csp;
 
 let fail = 0;
 function check(label, condition, detail) {
@@ -463,6 +470,14 @@ async function probeEngine(engineName, origin) {
       "the attached picture chips in the composer",
       (await page.locator(".composer-image").count()) === 1,
     );
+    const chipPixels = await page.locator(".composer-image img").evaluate(
+      (img) => img.naturalWidth,
+    );
+    check(
+      "the chip's thumbnail really renders (the policy admits it)",
+      chipPixels > 0,
+      `naturalWidth=${chipPixels}`,
+    );
 
     // 3. Send: the wire carries text part + image part with a data: URI.
     await sendText("Look at my picture.");
@@ -516,9 +531,13 @@ async function probeEngine(engineName, origin) {
     );
 
     // 5. The bubble shows the picture; its bytes are in IndexedDB.
+    const bubblePixels = await page.locator(".user-bubble img").evaluate(
+      (img) => img.naturalWidth,
+    );
     check(
-      "the user bubble shows the thumbnail",
-      (await page.locator(".user-bubble img").count()) === 1,
+      "the user bubble shows the thumbnail, painted",
+      (await page.locator(".user-bubble img").count()) === 1 && bubblePixels > 0,
+      `naturalWidth=${bubblePixels}`,
     );
     const stored = await page.evaluate(
       () =>
@@ -896,6 +915,11 @@ async function probeEngine(engineName, origin) {
     check("the road returns when the new model answers", seeingAgain, await picker());
 
     check(
+      "no content-security refusal touched the page",
+      !consoleLines.some((line) => line.includes("Content Security Policy")),
+      JSON.stringify(consoleLines.filter((line) => line.includes("Content Security Policy")).slice(0, 2)),
+    );
+    check(
       "no file name and no image bytes reached the console",
       !consoleLines.some((line) => line.includes("gps-photo") || line.includes("tiny.png") || line.includes("data:image")),
       JSON.stringify(consoleLines.slice(0, 3)),
@@ -926,7 +950,10 @@ try {
       response.end("not found");
       return;
     }
-    response.writeHead(200, { "Content-Type": MIME[extname(file)] ?? "application/octet-stream" });
+    response.writeHead(200, {
+      "Content-Type": MIME[extname(file)] ?? "application/octet-stream",
+      "Content-Security-Policy": csp,
+    });
     response.end(readFileSync(file));
   });
   await new Promise((ready) => server.listen(0, "127.0.0.1", ready));

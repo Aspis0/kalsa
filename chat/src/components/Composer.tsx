@@ -182,7 +182,13 @@ export function Composer({
         <div className="composer-images">
           {pendingImages.map((image) => (
             <figure key={image.id} className="composer-image">
-              <img src={image.url} alt="" />
+              <img
+                src={image.url}
+                alt=""
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
               <button
                 type="button"
                 className="composer-image-remove"

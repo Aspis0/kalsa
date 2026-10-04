@@ -118,7 +118,12 @@ export function MediaViewer({ items, index, load, onNavigate, onClose }: MediaVi
             )
           ) : current ? (
             url ? (
-              <img className="media-viewer-image" src={url} alt="" />
+              <img
+                className="media-viewer-image"
+                src={url}
+                alt=""
+                onError={() => setFailed(true)}
+              />
             ) : (
               <p className="media-viewer-missing">{failed ? words.imageUnavailable : words.loading}</p>
             )

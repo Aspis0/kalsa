@@ -103,6 +103,10 @@ function RoomMediaItem({
   const [near, setNear] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  // The read succeeded and the element still did not show: a CSP refusal or
+  // a dead URL renders nothing, and the reader must not be left guessing
+  // which of "blocked" and "gone" they are looking at.
+  const [renderFailed, setRenderFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
@@ -176,7 +180,10 @@ function RoomMediaItem({
             type="button"
             className="room-media-play"
             aria-label={words.playVideo}
-            onClick={() => setPlaying(true)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setPlaying(true);
+            }}
           >
             ▶
           </button>
@@ -196,7 +203,7 @@ function RoomMediaItem({
         </>
       );
     }
-  } else if (failed) {
+  } else if (failed || renderFailed) {
     body = (
       <span className="room-media-fallback" title={words.imageUnavailable}>
         {words.fallbackImage}
@@ -211,13 +218,35 @@ function RoomMediaItem({
   } else {
     body = (
       <button type="button" className="room-media-thumb" onClick={onOpen} aria-label={words.enlarge}>
-        <img src={url} alt="" />
+        <img src={url} alt="" onError={() => setRenderFailed(true)} />
       </button>
     );
   }
-  const tiled = item.kind === "video" && !playing;
+  if (item.kind === "video" && !playing) {
+    // The whole tile opens the viewer, as a picture's thumbnail does: the
+    // walk's finding — the tile answered four clicks with nothing while the
+    // ▶ beside it played. The ▶ keeps its inline play.
+    return (
+      <div
+        ref={holder}
+        className="room-media-item room-media-item-tile"
+        role="button"
+        tabIndex={0}
+        aria-label={words.playVideo}
+        onClick={() => onOpen()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpen();
+          }
+        }}
+      >
+        {body}
+      </div>
+    );
+  }
   return (
-    <div ref={holder} className={`room-media-item${tiled ? " room-media-item-tile" : ""}`}>
+    <div ref={holder} className="room-media-item">
       {body}
     </div>
   );
@@ -227,6 +256,7 @@ function RoomMediaItem({
     same bounded cache as any picture. */
 function VideoPoster({ frameId, near }: { frameId: string; near: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
   useEffect(() => {
     if (!near) return undefined;
     let alive = true;
@@ -237,7 +267,12 @@ function VideoPoster({ frameId, near }: { frameId: string; near: boolean }) {
       alive = false;
     };
   }, [near, frameId]);
-  return url ? <img className="room-media-poster-frame" src={url} alt="" /> : null;
+  // A frame that will not render (blocked, dead) leaves the quiet tile with
+  // the length — never a broken image on a video nobody has asked for.
+  if (gone || url === null) return null;
+  return (
+    <img className="room-media-poster-frame" src={url} alt="" onError={() => setGone(true)} />
+  );
 }
 
 /** The fallback words the computer stores for a media-only post (§5b):

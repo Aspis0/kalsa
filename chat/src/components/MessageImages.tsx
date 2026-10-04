@@ -15,6 +15,9 @@ import type { ViewerItem } from "./MediaViewer";
 export function MessageImages({ images }: { images?: MessageImage[] }) {
   const { table } = useLanguage();
   const [urls, setUrls] = useState<Record<string, string>>({});
+  // The element's own failure — a URL the policy refuses or one that died
+  // between the read and the pixel — is the placeholder's case too.
+  const [broken, setBroken] = useState<Record<string, boolean>>({});
   const [settled, setSettled] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
   // The ids, joined: the load re-runs when the set changes, not on every
@@ -25,6 +28,7 @@ export function MessageImages({ images }: { images?: MessageImage[] }) {
     const wanted = idKey ? idKey.split(",") : [];
     if (wanted.length === 0) {
       setUrls({});
+      setBroken({});
       setSettled(true);
       return undefined;
     }
@@ -54,12 +58,12 @@ export function MessageImages({ images }: { images?: MessageImage[] }) {
 
   if (!images || images.length === 0 || !settled) return null;
   const items: ViewerItem[] = images
-    .filter((image) => urls[image.id])
+    .filter((image) => urls[image.id] && !broken[image.id])
     .map((image) => ({ id: image.id, kind: "image" }));
   return (
     <div className="user-images">
       {images.map((image) =>
-        urls[image.id] ? (
+        urls[image.id] && !broken[image.id] ? (
           <button
             key={image.id}
             type="button"
@@ -67,7 +71,12 @@ export function MessageImages({ images }: { images?: MessageImage[] }) {
             onClick={() => setViewing(items.findIndex((item) => item.id === image.id))}
             aria-label={table.viewer.enlarge}
           >
-            <img className="user-image" src={urls[image.id]} alt="" />
+            <img
+              className="user-image"
+              src={urls[image.id]}
+              alt=""
+              onError={() => setBroken((current) => ({ ...current, [image.id]: true }))}
+            />
           </button>
         ) : (
           <span key={image.id} className="user-image user-image-missing">

@@ -157,6 +157,14 @@ function show(sources) {
 /// present (the bundle's files are same-origin), no widening source may be
 /// (a permission the code never asks for, inert only while the other policy
 /// still narrows it), and the chain must resolve at all.
+/// The app's own object URLs: pictures and video this computer
+/// re-encoded, minted in-page with `URL.createObjectURL` and shown in
+/// chips, thumbnails, posters and the viewer. `blob:` is the one
+/// scheme-source these directives carry — and the walk at fb477ddd is the
+/// bug this gate exists for: `img-src 'self'` alone rendered every one of
+/// them as nothing while the bytes were stored and sent whole.
+const OBJECT_URL_DIRECTIVES = ["img-src", "media-src"];
+
 const GATED = [
   {
     directive: "script-src",
@@ -253,6 +261,34 @@ for (const { directive, chain, loads } of GATED) {
   }
 }
 
+for (const directive of OBJECT_URL_DIRECTIVES) {
+  for (const { label, found } of policies) {
+    const sources = effectiveSources(found, [directive, "default-src"]);
+    if (sources === null) {
+      problems.push(
+        `${label}: the ${directive} chain resolves to nothing — unrestricted is not confined`,
+      );
+      continue;
+    }
+    if (!admitsSelf(sources) || !sources.some((source) => source.toLowerCase() === "blob:")) {
+      problems.push(
+        `${label}: the effective ${directive} (${show(sources)}) must allow 'self' and blob: — the app's ` +
+          `own object URLs (re-encoded pictures and video, minted in-page); without blob: every chip, ` +
+          `thumbnail, poster and player renders as nothing in a built binary`,
+      );
+    }
+    for (const source of sources) {
+      const value = source.toLowerCase();
+      if (value !== "blob:" && widening(source)) {
+        problems.push(
+          `${label}: the effective ${directive} allows "${source}" — a scheme-wide or wildcard source ` +
+            `beyond the in-page object URLs this app mints; narrow it`,
+        );
+      }
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.log("CONTENT SECURITY POLICY FAILURES:");
   for (const problem of problems) console.log(`  - ${problem}`);
@@ -260,8 +296,9 @@ if (problems.length > 0) {
 } else {
   console.log(
     `ok: both policies admit the local server and Tauri's IPC channel in their effective connect-src ` +
-      `(the intersection is what the webview enforces), and every gated chain (script-src, ` +
+      `(the intersection is what the webview enforces), every gated chain (script-src, ` +
       `script-src-elem, worker-src) resolves to a list that allows 'self' for the bundle's own files ` +
-      `and carries no scheme-wide or wildcard source`,
+      `and carries no scheme-wide or wildcard source, and img-src/media-src both allow 'self' and ` +
+      `blob: for the app's own object URLs`,
   );
 }
