@@ -28,7 +28,9 @@ Brain (cannot message us; Marco relays).
      Simulator (DeviceHub.app in Xcode 27), `xcrun simctl openurl booted 'kalsa://pair#<payload>'`, tap Open.
    - Then send one chat over iroh and check the reply comes from the Brain. Tailscale road only with Marco's OK.
 1b. DONE 2026-10-04: iOS background generation guard on app main 30038004 (see PLAN). This session is also the UX
-   session and owns the Jelly (owner 04/10). NEXT: phone<->PC media (PLAN, owner decision 03/10): 1:1 images first.
+   session and owns the Jelly (owner 04/10).
+1c. DONE 2026-10-04: phone 1:1 images to the PC on app main 3908f2a0 (PLAN). NEXT: phone Room v1 text-only
+   (scratchpad/agents/phone-room/RECON.md), then Room images, then Room video.
 2. Real iPhone test: the partner's iPhone 15 Pro only, ask Marco first.
 3. iOS gaps: share extension, battery/energy readings unavailable on iOS, TestFlight needs the $99 program
    (export-compliance note in BACKLOG-LOW-PRIORITY.md).

@@ -1133,6 +1133,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   nothing mounts it). Order approved: (1) finish 1:1 images, (2) phone Room screen TEXT-ONLY (join the PC's room,
   name yourself, members, messages, post; contract kalsa-brain docs/ROOM-PROTOCOL.md, desktop Room UI as prior art),
   (3) Room images, (4) Room video.
+  **Phone 1:1 images LANDED on app main `3908f2a0`** (2026-10-04; 17b9f556 + 3908f2a0, Android + iOS shared JS).
+  Remote turns carry JPEG parts only when the PC /props says vision (re-read at send, bounded, epoch-checked);
+  long side 1536, q0.85, EXIF stripped by a fail-closed byte walk (re-encode, else refuse); 12 MiB phone budget,
+  560 tokens per image; documents still refused remotely; on-device model stays text-only until after alpha.
+  Reviewed once (luna), P0/P1 + user P2 fixed; Simulator re-test PASS with the owner; Jelly test on CI run 37223652768.
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
