@@ -83,3 +83,7 @@ One line per item: area - finding - source audit. Pick from here only when a rel
   importing after a switch to the PC; its library row id+name then appear in the remote document hint (metadata
   only, remote tools are off). Recheck remote mode after the await.
 - P3: remoteAttachmentGate.test.ts:20 pins source text (regex count) instead of exercising row presses.
+
+## Phone Room v1 text (branch phone/room-v1; review luna a4cf6816, 2026-10-04)
+- P3: src/room/roomQueue.ts is 355 lines and owns sessions, persistence coordination, retries and posting; split by
+  responsibility next time it is touched.
