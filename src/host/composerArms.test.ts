@@ -185,7 +185,10 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
     expect(ATTACH_SHEET).toContain('action: "research"');
     expect(ATTACH_SHEET).toContain('action: "notes"');
     expect(ATTACH_SHEET).toContain('role: "switch"');
-    expect(SURFACE).toContain("runHostLocalAction(modelHost.remoteActiveRef.current, refuseRemoteAttachment, arms.toggleResearch)");
+    // Both arms sit behind the attach gate now: the surface checks the brain
+    // before either toggle can run.
+    expect(SURFACE).toContain("!canRunAttachAction(modelHost.remoteActiveRef.current, action)");
+    expect(SURFACE).toContain("arms.toggleResearch()");
     expect(SURFACE).toContain("arms.toggleNotes()");
     expect(OVERLAYS).toContain("researchActive={props.researchActive}");
     expect(OVERLAYS).toContain("notesActive={props.notesActive}");

@@ -46,10 +46,9 @@ import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 import { useModelBar } from "./useModelBar";
 import { WelcomeBlock } from "./welcomeBlock";
 import { welcomeVisible } from "./welcomeGate";
-import { runHostAttachment, runRemoteImagePick } from "./remoteAttachmentGate";
+import { canRunAttachAction, runHostAttachment, runRemoteImagePick } from "./remoteAttachmentGate";
 import { hostModelLocation } from "./hostModelLocation";
 import { researchChipVisible } from "./composerArms";
-import { runHostLocalAction } from "./remoteLocalAction";
 import { remoteAttachmentChips } from "./remoteAttachmentChips";
 import { applyTemplateSelection } from "./templateSelection";
 
@@ -204,29 +203,23 @@ export function HostChatSurface({
       },
     });
   };
+  // The sheet's one rule for what a remote brain may run is
+  // `canRunAttachAction`: the picture roads (each pick gated live by the
+  // desk's own verdict) and templates, which fill the composer's text. Every
+  // other row is refused here — the notice the attach control itself spoke
+  // while the sheet was unreachable remotely.
   const handleAttachAction = (action: AttachAction) => {
-    if (action === "templates") {
-      setAttachSheetOpen(false);
-      setQuickSheetVisible(true);
+    if (!canRunAttachAction(modelHost.remoteActiveRef.current, action)) {
+      refuseRemoteAttachment();
       return;
     }
-    if (action === "research") {
-      runHostLocalAction(modelHost.remoteActiveRef.current, refuseRemoteAttachment, arms.toggleResearch);
-      return;
-    }
-    if (action === "notes") {
-      arms.toggleNotes();
-      return;
-    }
-    if (action === "library" || action === "camera") {
-      beginImageAttach(action);
-      return;
-    }
+    if (action === "templates") { setAttachSheetOpen(false); setQuickSheetVisible(true); return; }
+    if (action === "research") { arms.toggleResearch(); return; }
+    if (action === "notes") { arms.toggleNotes(); return; }
+    if (action === "library" || action === "camera") { beginImageAttach(action); return; }
     if (action === "document") {
-      runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => {
-        void attachments.beginDocumentPick().then((close) => {
-          if (close) setAttachSheetOpen(false);
-        });
+      void attachments.beginDocumentPick().then((close) => {
+        if (close) setAttachSheetOpen(false);
       });
       return;
     }

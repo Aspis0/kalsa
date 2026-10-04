@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { runHostAttachment, runRemoteImagePick } from "./remoteAttachmentGate";
+import type { AttachAction } from "./HostAttachSheet";
+import { canRunAttachAction, runHostAttachment, runRemoteImagePick } from "./remoteAttachmentGate";
 
 const SURFACE = readFileSync(join(__dirname, "HostChatSurface.tsx"), "utf8");
 const SHARES = readFileSync(join(__dirname, "useShareIn.ts"), "utf8");
@@ -13,13 +14,27 @@ describe("remote attachment refusals guard every host entry", () => {
     expect(runHostAttachment(true, notice, picker)).toBeUndefined();
     expect(picker).not.toHaveBeenCalled();
     expect(notice).toHaveBeenCalledTimes(1);
-    // The document row and the library-document row on the surface; the
-    // attach button itself opens the sheet in both modes (a picture may
-    // cross to a seeing desk).
-    expect(SURFACE.match(/runHostAttachment\(modelHost\.remoteActiveRef\.current/g)).toHaveLength(2);
+    // The sheet's rows are decided by the one table; the nested library
+    // picker keeps the plain door. The attach button itself opens the sheet
+    // in both modes (a picture may cross to a seeing desk).
+    expect(SURFACE.match(/canRunAttachAction\(modelHost\.remoteActiveRef\.current/g)).toHaveLength(1);
+    expect(SURFACE.match(/runHostAttachment\(modelHost\.remoteActiveRef\.current/g)).toHaveLength(1);
     expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
     expect(SHARES).toContain("runHostAttachment(");
     expect(SHARES.indexOf('if (payload.kind === "text")')).toBeLessThan(SHARES.indexOf("runHostAttachment("));
+  });
+
+  test("every sheet row's permission by brain, all seven actions in both modes", () => {
+    const allowedRemotely: AttachAction[] = ["library", "camera", "templates"];
+    const refusedRemotely: AttachAction[] = ["document", "libraryDocument", "research", "notes"];
+    const every: AttachAction[] = ["library", "camera", "document", "libraryDocument", "templates", "research", "notes"];
+
+    // The two lists must name the whole type, or a row could go unjudged.
+    expect([...allowedRemotely, ...refusedRemotely]).toHaveLength(every.length);
+    for (const action of every) {
+      expect(canRunAttachAction(true, action)).toBe(allowedRemotely.includes(action));
+      expect(canRunAttachAction(false, action)).toBe(true);
+    }
   });
 
   test("the picture road asks the desk BEFORE the picker opens", async () => {

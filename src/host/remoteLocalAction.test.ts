@@ -22,26 +22,21 @@ describe("local-only controls explain remote mode without pretending to run", ()
   });
 
   test("local mode still runs the selected action exactly once", () => {
-    const surface = read("HostChatSurface.tsx");
     const refuse = jest.fn();
     const toggleResearch = jest.fn(() => true);
 
-    expect(surface).toContain("runHostLocalAction(modelHost.remoteActiveRef.current");
     expect(runHostLocalAction(false, refuse, toggleResearch)).toBe(true);
     expect(toggleResearch).toHaveBeenCalledTimes(1);
     expect(refuse).not.toHaveBeenCalled();
-    expect(surface).toContain('const refuseRemoteAttachment = () => showNoticeKey("settings.remoteGated")');
   });
 
-  test("remote research tap gives its reason and never arms the chip", () => {
-    const surface = read("HostChatSurface.tsx");
+  test("a remote-mode press gives its reason and never runs the action", () => {
     const notice = jest.fn();
-    const toggleResearch = jest.fn();
+    const action = jest.fn();
 
-    runHostLocalAction(true, () => notice("settings.remoteGated"), toggleResearch);
+    runHostLocalAction(true, () => notice("settings.remoteGated"), action);
 
     expect(notice).toHaveBeenCalledWith("settings.remoteGated");
-    expect(toggleResearch).not.toHaveBeenCalled();
-    expect(surface).toMatch(/runHostLocalAction\(modelHost\.remoteActiveRef\.current,\s*refuseRemoteAttachment,\s*arms\.toggleResearch\)/);
+    expect(action).not.toHaveBeenCalled();
   });
 });

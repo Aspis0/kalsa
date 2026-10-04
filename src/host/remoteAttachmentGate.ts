@@ -6,8 +6,33 @@
  * (`runRemoteImagePick`), so a model without eyes is never handed one. Local
  * mode is untouched by both rules; the phone model's own mmproj gate decides
  * there, upstream of this file.
+ *
+ * The attach sheet's ROWS are decided by `canRunAttachAction` below: while the
+ * desk answers, the picture roads and templates are the only ones that may
+ * run. A template fills the composer's own text, which the user sees and may
+ * edit before any send; a document, a library row, research or notes would
+ * carry content the user never chose to send to the computer.
  */
 import type { RemoteVisionVerdict } from "../engine/remote/modalities";
+import type { AttachAction } from "./HostAttachSheet";
+
+/** What the desk may run, row by row. Exhaustive on purpose: a new sheet
+ *  action must be listed here before it can run remotely. */
+const REMOTE_ALLOWED_ATTACH_ACTIONS: Record<AttachAction, boolean> = {
+  library: true,
+  camera: true,
+  templates: true,
+  document: false,
+  libraryDocument: false,
+  research: false,
+  notes: false,
+};
+
+/** The sheet's one rule, read at the moment of the press: local mode runs
+ *  every row, remote mode only the picture roads and templates. */
+export function canRunAttachAction(remoteActive: boolean, action: AttachAction): boolean {
+  return !remoteActive || REMOTE_ALLOWED_ATTACH_ACTIONS[action];
+}
 
 export function runHostAttachment<T>(
   remoteActive: boolean,
