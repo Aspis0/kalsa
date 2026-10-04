@@ -12,7 +12,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { sendingInFlightRef } from "../engine/regenState";
-import { getActiveModelId, isEngineReady, type EngineTool } from "../engine/engineBackend";
+import { getActiveModelId, getRemoteVision, isEngineReady, type EngineTool } from "../engine/engineBackend";
 import { useLocale } from "../i18n";
 import { useHostTurnRefs, type TouchedRef } from "./turnRefs";
 import { useComposerArms } from "./composerArms";
@@ -83,7 +83,19 @@ export function HostRoot() {
   // One-slot notice first: the attach flow's picker refusals speak through it.
   const { notice, showNotice, showNoticeKey } = useNotice();
   // The attach flow (D1 row 43): the rows, the live PDF conversion, the pickers.
-  const attachments = useAttachments({ t, locale, showNotice, addDocument: library.addDocument, visionCapable: () => Boolean(modelHost.currentModel.mmproj) });
+  const attachments = useAttachments({
+    t,
+    locale,
+    showNotice,
+    addDocument: library.addDocument,
+    // The live capability of whichever brain is answering: the phone's own
+    // mmproj locally, the desk's last /props verdict remotely. Read at each
+    // notice, never captured — a model switch must not leave a stale answer.
+    visionCapable: () =>
+      modelHost.remoteActiveRef.current
+        ? getRemoteVision()
+        : Boolean(modelHost.currentModel.mmproj),
+  });
 
   const handleConversationEnter = useCallback(() => {
     setDraft("");
@@ -140,7 +152,9 @@ export function HostRoot() {
     showNoticeKey,
     arms,
     attachments,
-    visionCapable: Boolean(modelHost.currentModel.mmproj),
+    visionCapable: modelHost.remoteActive
+      ? getRemoteVision()
+      : Boolean(modelHost.currentModel.mmproj),
   });
 
   useHistoryFlushes({

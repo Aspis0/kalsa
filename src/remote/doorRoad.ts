@@ -24,7 +24,7 @@ import { IROH_TUNNEL_URL } from "../pairing/pairingUrls";
 import type { IrohTunnel } from "./irohHttp";
 
 /** Probe reads answer inside the probe's own 10 s abort window. */
-const PROBE_JSON_TIMEOUT_MS = 8_000;
+export const PROBE_JSON_TIMEOUT_MS = 8_000;
 
 export type DoorRoad =
   | { road: "https" }

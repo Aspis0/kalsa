@@ -12,14 +12,15 @@ import {
   applyMemoryFactsToLastUser,
   buildMemoryFactsBlock,
 } from "../memoryFactsTail";
-import { toOpenAiMessages } from "./openaiMessages";
+import { planRemoteTurn, remoteChatBodyJson } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
 import { streamOpenAiChat } from "./openaiTransport";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
 import type { RemoteDoorConfig } from "./remoteDoorConfig";
 import { doorRequestBase } from "./doorRequestBase";
 import { removedRoomError } from "../../room/roomError";
-import { doorFetchFor, establishDoorRoad, type DoorFetch, type DoorRoad } from "../../remote/doorRoad";
+import { doorFetchFor, establishDoorRoad, PROBE_JSON_TIMEOUT_MS, type DoorFetch, type DoorRoad } from "../../remote/doorRoad";
+import { fetchJsonOverTunnel } from "../../remote/tunnelFetch";
 import { createIrohChatXhr } from "../../remote/irohChatXhr";
 import type { IrohTunnel } from "../../remote/irohHttp";
 import {
@@ -40,6 +41,9 @@ import {
 } from "./remoteSettings";
 import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
 import { parseServerContext } from "./serverContext";
+import { parseModalities, setRemoteVision, type RemoteVisionVerdict } from "./modalities";
+import { readRemotePictures } from "./remoteImageBytes";
+import { wireBodyBytes } from "./wireBudget";
 import { logRemoteBrainFailure, type RemoteBrainFailureRoad } from "./remoteBrainFailureLog";
 import type { Road } from "../../remote/road";
 
@@ -60,6 +64,9 @@ setRemoteConfigChangedHook(() => {
   // mark ready against the previous server (re-audit 2, R2-2).
   ready = false;
   initGeneration += 1;
+  // The capability belonged to the server just edited away: until a probe
+  // speaks for the new one, no picture may be sent.
+  setRemoteVision(false);
 });
 
 /**
@@ -179,6 +186,10 @@ export async function testRemoteConnection(): Promise<{
     // something the user cannot act on. Best effort and backend-agnostic: a
     // server that does not expose /props keeps our conservative default.
     const props = await jsonGet(base, "/props", token, doorFetch, probe.signal);
+    // The desk's own word on what it can receive, kept for the composer's
+    // chips. It describes THIS server, so a probe that could not read it
+    // leaves "cannot" standing.
+    setRemoteVision(props.ok ? parseModalities(props.body).vision : false);
     const serverContext = props.ok ? parseServerContext(props.body) : null;
     if (serverContext !== null && serverContext !== getRemoteContextSize()) {
       await setRemoteContextSize(serverContext);
@@ -256,6 +267,42 @@ export async function testRemoteConnection(): Promise<{
   }
 }
 
+/**
+ * The desk's `/props`, re-read NOW: the image picker asks before it opens and
+ * a send that carries pictures asks again, because the computer may have
+ * restarted or switched model since the last probe. "cannot" and
+ * "unreachable" are kept apart — the picker's refusal says which one it is —
+ * and BOTH leave the remembered verdict false: a capability that could not be
+ * read never lets a picture through. The answer replaces the remembered one,
+ * so the chips read what the last look at the desk saw.
+ */
+export async function refreshRemoteVision(): Promise<RemoteVisionVerdict> {
+  const probe = new AbortController();
+  const probeTimer = setTimeout(() => probe.abort(), PROBE_TIMEOUT_MS);
+  const answer = (verdict: RemoteVisionVerdict) => {
+    setRemoteVision(verdict === "sees");
+    return verdict;
+  };
+  try {
+    const door = await getRemoteDoorConfig();
+    if (door.pairing?.removed) return answer("unreachable");
+    const resolvedBase = doorRequestBase(door);
+    if (!resolvedBase.ok) return answer("unreachable");
+    const base = resolvedBase.base;
+    if (remoteUrlGateError(base)) return answer("unreachable");
+    const token = await getRemoteDoorToken(door);
+    if (isNonLoopback(base) && !token) return answer("unreachable");
+    const road = await establishDoorRoad(door, probe.signal);
+    const props = await jsonGet(base, "/props", token, doorFetchFor(road), probe.signal);
+    if (!props.ok) return answer("unreachable");
+    return answer(parseModalities(props.body).vision ? "sees" : "cannot");
+  } catch {
+    return answer("unreachable");
+  } finally {
+    clearTimeout(probeTimer);
+  }
+}
+
 export async function initRemoteEngine(
   _modelPath: string,
   modelId: string,
@@ -304,6 +351,10 @@ export async function disposeRemoteEngine(): Promise<void> {
   ready = false;
   activeId = null;
   inFlight = false;
+  // Leaving the remote brain leaves its capability behind: a local model's
+  // own mmproj decides from here on, and the chips must not read a stale
+  // verdict about a door this engine no longer talks to.
+  setRemoteVision(false);
 }
 
 export function isRemoteEngineReady(): boolean {
@@ -562,6 +613,57 @@ export async function streamRemoteAssistantTurn(
     ? applyMemoryFactsToLastUser(messages, factsTail)
     : messages;
   streamStarted = true;
+  // The desk's own word on seeing, re-read for a turn that carries pictures:
+  // it may have restarted or switched model since the picker's probe, and a
+  // picture handed to a model without a projector fails the turn. The read
+  // must not steal the establishment tunnel the chat request rides, so on the
+  // iroh road it opens its own; a read that cannot answer is "cannot".
+  const pictureUris = turnMessages.flatMap((message) => message.images ?? []);
+  let vision = false;
+  let pictures: Awaited<ReturnType<typeof readRemotePictures>> = new Map();
+  if (pictureUris.length > 0) {
+    const probeFetch: DoorFetch =
+      road.road === "https"
+        ? doorFetchFor(road)
+        : async (url, init) =>
+            fetchJsonOverTunnel(await road.openTunnel(init.signal), url, init, {
+              timeoutMs: PROBE_JSON_TIMEOUT_MS,
+              signal: init.signal,
+            });
+    try {
+      const props = await jsonGet(base, "/props", token, probeFetch, signal);
+      vision = props.ok && parseModalities(props.body).vision;
+    } catch {
+      vision = false;
+    }
+    setRemoteVision(vision);
+    if (vision) pictures = await readRemotePictures(pictureUris);
+    if (!stillMine()) {
+      releaseTurnTunnel();
+      return;
+    }
+  }
+  const maxTokens = getRemoteMaxTokens();
+  const temperature = getRemoteTemperature();
+  const plan = planRemoteTurn({
+    messages: turnMessages,
+    system: buildRemoteSystemPrompt({
+      locale,
+      operativeContext: options.operativeContext,
+    }),
+    vision,
+    pictures,
+    // The budget measures the very JSON the transport sends: one constructor
+    // for both, so the two cannot drift apart.
+    bodyBytes: (mapped) =>
+      wireBodyBytes(
+        remoteChatBodyJson({ model: serverModel, messages: mapped, maxTokens, temperature }),
+      ),
+  });
+  if (!plan.ok) {
+    reportPreStreamError(new Error("remote_brain_images_too_big"));
+    return;
+  }
   await new Promise<void>((resolve) => {
     const settle = (err?: Error) => {
       try {
@@ -579,15 +681,9 @@ export async function streamRemoteAssistantTurn(
       {
         completionsUrl: joinRemoteApiUrl(base, "/v1/chat/completions"),
         model: serverModel,
-        messages: toOpenAiMessages(
-          turnMessages,
-          buildRemoteSystemPrompt({
-            locale,
-            operativeContext: options.operativeContext,
-          }),
-        ),
-        maxTokens: getRemoteMaxTokens(),
-        temperature: getRemoteTemperature(),
+        messages: plan.messages,
+        maxTokens,
+        temperature,
         token: token && canSendAuthorization(base) ? token : null,
         signal,
       },

@@ -205,6 +205,10 @@ export const en = {
       "Set the model id your computer offers before connecting.",
     remoteBrainFailModelMissing:
       "Your computer answered but does not offer that model. Check the id.",
+    remoteBrainImagesTooBig:
+      "Those pictures are too large to send to your computer. Remove one and try again.",
+    remoteBrainNoVision:
+      "The model on your computer cannot see images. Pick one that can, or attach the picture in a chat on this phone.",
     remoteBrainSaveFailed:
       "These settings were not saved on this phone. Try again.",
     remoteBrainUrlInvalid:

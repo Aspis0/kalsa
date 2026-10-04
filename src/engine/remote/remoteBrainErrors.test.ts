@@ -35,6 +35,9 @@ describe("humanRemoteBrainError", () => {
   });
 
   test("transport failures get actionable copy, never the status code", () => {
+    expect(humanRemoteBrainError("remote_brain_images_too_big", t)).toBe(
+      "settings.remoteBrainImagesTooBig",
+    );
     expect(humanRemoteBrainError("remote_brain_network", t)).toBe(
       "settings.remoteBrainFailNetwork",
     );

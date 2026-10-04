@@ -7,11 +7,13 @@
  */
 
 import {
+  IMAGE_TOKENS,
   WINDOW_CHARS_PER_TOKEN,
   WINDOW_MAX_MESSAGES,
   WINDOW_MAX_MESSAGES_IMAGES,
   WINDOW_MIN_MESSAGES,
   WINDOW_RESERVE_TOKENS,
+  WINDOW_SHARE_NO_DIGEST,
   charBudgetReserveTokens,
   conservativeWindowTokens,
   projectedWindowTokens,
@@ -189,6 +191,25 @@ describe("resolveWindowProfile", () => {
     expect(p.maxMessages).toBe(WINDOW_MAX_MESSAGES_IMAGES);
     expect(p.charBudget).toBe(Number.POSITIVE_INFINITY);
     expect(p.source).toBe("images");
+  });
+
+  it("prices a remote turn's pictures (560 tokens each) instead of ignoring them", () => {
+    const bare = resolveWindowProfile({ nCtx: 8192, hasImages: true, hasDigest: false });
+    const priced = resolveWindowProfile({
+      nCtx: 8192,
+      hasImages: true,
+      hasDigest: false,
+      imageCount: 3,
+    });
+    // The count-only cap survives; the token budget now sees the pictures.
+    expect(priced.maxMessages).toBe(WINDOW_MAX_MESSAGES_IMAGES);
+    expect(bare.charBudget).toBe(Number.POSITIVE_INFINITY);
+    const tokens = (8192 - WINDOW_RESERVE_TOKENS - 3 * IMAGE_TOKENS) * WINDOW_SHARE_NO_DIGEST;
+    expect(priced.charBudget).toBe(Math.floor(tokens * WINDOW_CHARS_PER_TOKEN));
+    expect(priced.charBudget).toBeLessThan(
+      resolveWindowProfile({ nCtx: 8192, hasImages: false, hasDigest: false }).charBudget,
+    );
+    expect(priced.source).toBe("nctx:8192/bare/img:1680");
   });
 
   it("does not invent a budget when no engine has loaded yet", () => {

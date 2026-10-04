@@ -15,18 +15,22 @@ const items: LocalAttachment[] = [
   { id: "d", kind: "document", name: "manual.docx", uri: "file:///manual", libraryDocId: "doc" },
 ];
 
-describe("remote vision attachment chips disclose the serializer's text-only behavior", () => {
-  test("remote image and rendered PDF chips say they will not be sent; documents keep their label", () => {
+describe("remote vision attachment chips disclose what the wire will carry", () => {
+  test("without vision remotely, image and rendered PDF chips say they will not be sent", () => {
     const surface = readFileSync(join(__dirname, "HostChatSurface.tsx"), "utf8");
-    expect(remoteAttachmentChips(chips, items, true)).toEqual([
+    expect(remoteAttachmentChips(chips, items, true, false)).toEqual([
       { key: "shell.composer.remoteImageNotSent", params: { name: "photo.jpg" } },
       { key: "shell.composer.remoteImageNotSent", params: { name: "pages.pdf" } },
       chips[2],
     ]);
-    expect(surface).toContain("remoteAttachmentChips(view.attachmentChips, attachments.items, modelHost.remoteActive)");
+    expect(surface).toContain("getRemoteVision()");
+  });
+
+  test("a seeing desk carries them, so the chips keep their normal labels", () => {
+    expect(remoteAttachmentChips(chips, items, true, true)).toEqual(chips);
   });
 
   test("local chips retain their normal attachment labels", () => {
-    expect(remoteAttachmentChips(chips, items, false)).toEqual(chips);
+    expect(remoteAttachmentChips(chips, items, false, false)).toEqual(chips);
   });
 });

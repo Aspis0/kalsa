@@ -6,10 +6,12 @@
 import {
   ATTACHMENT_CAP_NOTICE,
   MAX_ATTACHMENT_ITEMS,
+  MAX_IMAGES_PER_TURN,
   PDF_CAP_NOTICE,
   addAttachment,
   addLibraryDocument,
   atAttachmentCap,
+  attachmentImageUris,
   documentHints,
   pdfErrorNotice,
   removeAttachment,
@@ -126,6 +128,32 @@ describe("the doc-hint annotation (Chat:2450-2455)", () => {
     // A document without a library id cannot be hinted — and must not
     // fabricate one.
     expect(documentHints([item({ kind: "document", uri: "" })])).toBe("");
+  });
+});
+
+describe("the URIs a turn puts on a wire", () => {
+  it("takes pictures and rendered pages in row order, and never base64", () => {
+    const rows = [
+      item({ id: "i1", uri: "file:///one.jpg" }),
+      item({ id: "d", kind: "document", name: "notes.docx", uri: "", libraryDocId: "doc" }),
+      item({ id: "p", kind: "pdf", name: "p.pdf", uri: "file:///p.pdf", pages: ["file:///p1.jpg", "file:///p2.jpg"] }),
+      item({ id: "i2", uri: "file:///two.jpg" }),
+    ];
+    expect(attachmentImageUris(rows)).toEqual([
+      "file:///one.jpg",
+      "file:///p1.jpg",
+      "file:///p2.jpg",
+      "file:///two.jpg",
+    ]);
+    expect(attachmentImageUris(undefined)).toEqual([]);
+    expect(attachmentImageUris([])).toEqual([]);
+  });
+
+  it("caps one turn at the engine's own picture limit, however many pages a PDF has", () => {
+    const pages = Array.from({ length: MAX_IMAGES_PER_TURN + 3 }, (_, i) => `file:///p${i}.jpg`);
+    expect(attachmentImageUris([item({ kind: "pdf", pages })])).toEqual(
+      pages.slice(0, MAX_IMAGES_PER_TURN),
+    );
   });
 });
 

@@ -78,6 +78,10 @@ export function removeAttachment(
   return items.filter((_, i) => i !== index);
 }
 
+/** The engine's own per-turn picture cap (`LlamaService` MAX_IMAGES_PER_TURN) —
+ *  a turn never puts more than this many pictures on a wire. */
+export const MAX_IMAGES_PER_TURN = 5;
+
 /** Whether the snapshot carries VISION input (the controller's
  *  `hasVisionInput`, `Chat:2441-2446`): images and rendered PDF pages — a
  *  library document is a retrieval source, never vision. */
@@ -85,6 +89,25 @@ export function visionInputPresent(items: readonly LocalAttachment[]): boolean {
   return items.some(
     (item) => item.kind === "image" || (item.kind === "pdf" && (item.pages?.length ?? 0) > 0),
   );
+}
+
+/** The stored URIs a turn's staged rows put on a wire: direct pictures and
+ *  rendered PDF pages, in row order, capped like the live turn. URIs only —
+ *  base64 never enters a history message. */
+export function attachmentImageUris(
+  items: readonly LocalAttachment[] | undefined,
+): string[] {
+  if (!items?.length) return [];
+  const uris: string[] = [];
+  for (const item of items) {
+    if (uris.length >= MAX_IMAGES_PER_TURN) break;
+    if (item.kind === "image" && item.uri) {
+      uris.push(item.uri);
+    } else if (item.kind === "pdf") {
+      for (const page of item.pages ?? []) uris.push(page);
+    }
+  }
+  return uris.slice(0, MAX_IMAGES_PER_TURN);
 }
 
 /** The model-facing annotation for library documents (controller

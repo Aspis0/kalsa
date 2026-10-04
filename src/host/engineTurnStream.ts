@@ -19,6 +19,7 @@ import { streamHostTurn } from "./engineBackendStream";
 import { hostStreamErrorText } from "./remoteEngineError";
 import { applyPersonaTail } from "../engine/personaTail";
 import { boundMemoryFacts } from "../memory/dnaBounding";
+import { attachmentImageUris } from "./attachments";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
 import * as MemoryStore from "../memory/MemoryStore";
 import { mapSearchSourcesToChat } from "../agent/webSearchTool";
@@ -89,6 +90,11 @@ export async function streamEngineTurn(
     promptFacts,
   } = run;
 
+  // The backend this turn is committed to, read once: the picture rule below
+  // (and the static-prefix prewarm, which belongs to the phone's own engine)
+  // must not disagree with the engine the send actually reaches.
+  const remoteBackend = isRemoteEngineBackend();
+
             // A slide's clearCache does not spare the static prefix — same
             // native cache — so without this the send below re-prefills ~1832
             // tokens of system prompt and tool schemas it already paid for.
@@ -99,7 +105,7 @@ export async function streamEngineTurn(
             // must sit in front of this send's completion in the FIFO, or the
             // completion arrives first and the prewarm is skipped for holding
             // chat KV.
-            if (nativeClearedForAssemble && !isRemoteEngineBackend()) {
+            if (nativeClearedForAssemble && !remoteBackend) {
               try {
                 await queueStaticPrefixPrewarm(
                   locale,
@@ -179,23 +185,18 @@ export async function streamEngineTurn(
                   msg.emissionSource = m.emissionSource;
                 }
               }
+              // The remote door is stateless: it can be shown the pictures
+              // this window still remembers. The phone's own engine keeps its
+              // KV replay text-only, with pictures on the current turn alone.
+              if (remoteBackend && m.role === "user" && m.images?.length) {
+                msg.images = [...m.images];
+              }
               return msg;
             });
 
-            // Images attached to the last user message (cap 5): direct
-            // images + rendered PDF pages.
-            const images: string[] = [];
-            for (const attachment of attachments ?? []) {
-              if (images.length >= 5) break;
-              if (attachment.kind === "image" && attachment.uri) {
-                images.push(attachment.uri);
-              } else if (attachment.kind === "pdf" && attachment.pages?.length) {
-                for (const page of attachment.pages) {
-                  if (images.length >= 5) break;
-                  images.push(page);
-                }
-              }
-            }
+            // Pictures attached to the last user message (cap 5): direct
+            // images + rendered PDF pages, the same rule history rows keep.
+            const images = attachmentImageUris(attachments);
             // Last-user composition (engine, format B):
             //   factsBlock + "\n\n" + applyPersonaTail(userText, persona)
             // Persona applied here; facts are prefixed in streamAssistantTurn

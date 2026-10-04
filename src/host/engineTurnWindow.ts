@@ -33,13 +33,15 @@ import {
   resolveBoundaryIndex,
 } from "../context/compactor";
 import { resolveWindowProfile, windowStartIndex } from "../context/windowProfile";
+import { isRemoteEngineBackend } from "../engine/engineBackend";
+import { attachmentImageUris } from "./attachments";
 import type { EngineTurnDeps, TurnInputs } from "./engineTurnDeps";
 
 export async function prepareEngineWindow(
   deps: EngineTurnDeps,
   input: TurnInputs,
 ) {
-  const { chatId, hasImages, validatedHistory, contextMode, promptText } = input;
+  const { chatId, hasImages, validatedHistory, contextMode, promptText, attachments } = input;
   const {
     t,
     locale,
@@ -49,6 +51,17 @@ export async function prepareEngineWindow(
     activePersonaIdRef,
     currentModel,
   } = deps;
+            // Pictures a remote prompt will carry: this turn's rows plus the
+            // ones the history still remembers (the wire shows the window's
+            // pictures, and the server charges for each). An upper bound is
+            // the safe side — it only ever tightens the window.
+            const remotePictureCount = isRemoteEngineBackend()
+              ? attachmentImageUris(attachments).length +
+                validatedHistory.reduce(
+                  (sum, message) => sum + (message.images?.length ?? 0),
+                  0,
+                )
+              : 0;
             const retrievalOn = contextMode === "ciswire";
             const anchoredOn = contextMode === "anchored";
             const legacyWindowMode =
@@ -104,6 +117,11 @@ export async function prepareEngineWindow(
                     nCtx: getActiveEngineNCtx(),
                     hasImages,
                     hasDigest,
+                    // The remote door charges every picture real prompt tokens
+                    // the char budget cannot see: the current turn's rows plus
+                    // the pictures the history still remembers. The phone's own
+                    // engine passes nothing and keeps its count-only image rule.
+                    imageCount: remotePictureCount,
                   });
             // The turn being sent is appended AFTER this walk, so it must be
             // charged here or a long message would ride entirely outside the

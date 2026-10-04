@@ -23,6 +23,9 @@ const CODE_KEYS: Record<string, TranslationKey> = {
   remote_brain_stale_init: "settings.remoteBrainFailStaleInit",
   remote_brain_model_required: "settings.remoteBrainFailModelRequired",
   remote_brain_model_missing: "settings.remoteBrainFailModelMissing",
+  // Pictures the door cannot take: the current turn's own are over the body
+  // ceiling, and the user is the only one who can drop one.
+  remote_brain_images_too_big: "settings.remoteBrainImagesTooBig",
   remote_brain_timeout: "settings.remoteBrainFailTimeout",
   remote_brain_busy: "settings.remoteBrainFailBusy",
   invalid_url: "settings.remoteBrainUrlInvalid",

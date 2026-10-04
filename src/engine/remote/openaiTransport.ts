@@ -20,13 +20,14 @@ import {
 import { isDevBuild } from "../../util/devBuild";
 import { redactForLog } from "./redactForLog";
 import { canSendAuthorization, remoteUrlGateError } from "./remoteUrl";
+import { remoteChatBodyJson, type OpenAiChatMessage } from "./openaiMessages";
 
 export type RemoteChatRequest = {
   /** @deprecated T6 replaces this with joinRemoteApiUrl */
   baseUrl?: string;
   completionsUrl?: string;
   model: string;
-  messages: Array<{ role: string; content: string }>;
+  messages: OpenAiChatMessage[];
   maxTokens: number;
   temperature: number;
   token?: string | null;
@@ -361,11 +362,10 @@ export function streamOpenAiChat(
 
   try {
     xhr.send(
-      JSON.stringify({
+      remoteChatBodyJson({
         model: req.model,
         messages: req.messages,
-        stream: true,
-        max_tokens: req.maxTokens,
+        maxTokens: req.maxTokens,
         temperature: req.temperature,
       }),
     );

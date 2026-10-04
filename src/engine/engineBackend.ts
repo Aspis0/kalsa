@@ -88,8 +88,10 @@ export { REMOTE_COMPUTER_MODEL, REMOTE_COMPUTER_MODEL_ID } from "./remote/remote
 export {
   disposeRemoteEngine,
   isSupersededRemoteOp,
+  refreshRemoteVision,
   testRemoteConnection,
 } from "./remote/RemoteEngine";
+export { getRemoteVision } from "./remote/modalities";
 
 export function isEngineReady(): boolean {
   return isRemoteEngineBackend() ? isRemoteEngineReady() : localIsEngineReady();

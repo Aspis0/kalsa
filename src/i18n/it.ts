@@ -204,6 +204,10 @@ export const it: typeof en = {
       "Imposta l'id del modello che offre il tuo computer prima di collegarti.",
     remoteBrainFailModelMissing:
       "Il tuo computer ha risposto ma non offre quel modello. Controlla l'id.",
+    remoteBrainImagesTooBig:
+      "Quelle immagini sono troppo grandi per essere inviate al tuo computer. Togline una e riprova.",
+    remoteBrainNoVision:
+      "Il modello sul tuo computer non può vedere le immagini. Scegline uno che possa, oppure allega l'immagine in una chat su questo telefono.",
     remoteBrainSaveFailed:
       "Queste impostazioni non sono state salvate su questo telefono. Riprova.",
     remoteBrainUrlInvalid:

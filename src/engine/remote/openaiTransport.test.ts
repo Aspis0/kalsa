@@ -1,4 +1,5 @@
 import { streamOpenAiChat, type RemoteFinish, type XhrLike } from "./openaiTransport";
+import type { OpenAiChatMessage } from "./openaiMessages";
 
 function fakeXhr(): XhrLike & { _body?: string; _headers: Record<string, string> } {
   const xhr = {
@@ -712,7 +713,7 @@ describe("streamOpenAiChat", () => {
       {
         completionsUrl: "http://127.0.0.1:8000/v1/chat/completions",
         model: "ornith",
-        messages: [circular as { role: string; content: string }],
+        messages: [circular as unknown as OpenAiChatMessage],
         maxTokens: 8,
         temperature: 0,
         inactivityMs: 0,

@@ -199,7 +199,11 @@ describe("the quick-templates sheet is CALLED, not rebuilt (D1 row 13)", () => {
     // (`HostAttachSheet.tsx` — the row cannot hold a third chip,
     // `composerToolbarWidth.test.ts`); the attach BUTTON opens that sheet:
     expect(SURFACE).not.toMatch(/onDocumentPress/);
-    expect(SURFACE).toContain("runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => setAttachSheetOpen(true))");
+    // The button opens the sheet in BOTH modes: the remote gate lives on the
+    // rows now, because a picture may cross to a seeing desk (a document
+    // never can). The fresh /props ask sits on the picture row.
+    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    expect(SURFACE).toContain("runRemoteImagePick({");
     const open = jest.fn();
     expect(runHostAttachment(false, jest.fn(), open)).toBeUndefined();
     expect(open).toHaveBeenCalledTimes(1);

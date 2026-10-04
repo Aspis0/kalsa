@@ -40,12 +40,13 @@ import type { useMessageActions } from "./messageActions";
 import type { SendHost } from "./sendHost";
 import type { AttachmentsHost } from "./useAttachments";
 import { useHostEngine } from "./useHostEngine";
+import { getRemoteVision, refreshRemoteVision } from "../engine/engineBackend";
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 import { useModelBar } from "./useModelBar";
 import { WelcomeBlock } from "./welcomeBlock";
 import { welcomeVisible } from "./welcomeGate";
-import { runHostAttachment } from "./remoteAttachmentGate";
+import { runHostAttachment, runRemoteImagePick } from "./remoteAttachmentGate";
 import { hostModelLocation } from "./hostModelLocation";
 import { researchChipVisible } from "./composerArms";
 import { runHostLocalAction } from "./remoteLocalAction";
@@ -182,6 +183,27 @@ export function HostChatSurface({
   useEffect(() => {
     if (modelHost.remoteActive) arms.clearResearch();
   }, [modelHost.remoteActive, arms.clearResearch]);
+  // A picture the desk's model cannot see is refused before the picker opens,
+  // against the verdict read at that moment: this is the one attach entry
+  // whose permission is live rather than decided by the phone's own model.
+  const beginImageAttach = (source: "library" | "camera") => {
+    void runRemoteImagePick({
+      remoteActive: modelHost.remoteActiveRef.current,
+      probeVision: refreshRemoteVision,
+      // A desk that answers "cannot see" and one that never answered are
+      // different problems: one is a model to change, the other a computer
+      // to reach.
+      onRefusal: (verdict) =>
+        showNoticeKey(
+          verdict === "cannot" ? "settings.remoteBrainNoVision" : "settings.remoteGated",
+        ),
+      run: () => {
+        void attachments.beginImagePick(source).then((close) => {
+          if (close) setAttachSheetOpen(false);
+        });
+      },
+    });
+  };
   const handleAttachAction = (action: AttachAction) => {
     if (action === "templates") {
       setAttachSheetOpen(false);
@@ -197,11 +219,7 @@ export function HostChatSurface({
       return;
     }
     if (action === "library" || action === "camera") {
-      runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => {
-        void attachments.beginImagePick(action).then((close) => {
-          if (close) setAttachSheetOpen(false);
-        });
-      });
+      beginImageAttach(action);
       return;
     }
     if (action === "document") {
@@ -244,12 +262,17 @@ export function HostChatSurface({
       onMenuPress={onMenuPress}
       onModelPress={modelBar.onPress}
       modelBar={modelBar.view}
-      onAttachPress={() => runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => setAttachSheetOpen(true))}
+      onAttachPress={() => setAttachSheetOpen(true)}
       attachDisabled={view.composer.face !== "send" || attachments.converting !== null}
       onMicPress={() => showNoticeKey("shell.notice.mic")}
       fieldRef={fieldRef}
       attachments={{
-        chips: remoteAttachmentChips(view.attachmentChips, attachments.items, modelHost.remoteActive),
+        chips: remoteAttachmentChips(
+          view.attachmentChips,
+          attachments.items,
+          modelHost.remoteActive,
+          getRemoteVision(),
+        ),
         onRemove: attachments.removeIndex,
         // The controller's `PdfToImages` mount (`Chat:4174-4185`), keyed on
         // the URI so a re-selection never reuses a finished conversion.

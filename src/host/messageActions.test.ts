@@ -298,8 +298,8 @@ describe("the wiring: root composes through the layout, surface mounts, both kee
     expect(SURFACE_OVERLAYS).toMatch(/onRequestClose=\{props\.actions\.closeMenu\}/);
   });
 
-  it("the attach button OPENS the sheet — the stub notice retired with the flow", () => {
-    expect(SURFACE).toContain("runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => setAttachSheetOpen(true))");
+  it("the attach button OPENS the sheet in both modes — the stub notice retired with the flow", () => {
+    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
     const open = jest.fn();
     expect(require("./remoteAttachmentGate").runHostAttachment(false, jest.fn(), open)).toBeUndefined();
     expect(open).toHaveBeenCalledTimes(1);

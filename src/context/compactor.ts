@@ -108,6 +108,10 @@ export interface DigestIndex {
 export type HistoryRoleMessage = {
   role: "user" | "assistant";
   text: string;
+  /** Stored URIs of the pictures this user turn carried. Text-only consumers
+   *  (the local engine's KV replay) ignore them; the remote wire turns each
+   *  one into an image part at send time. Never base64. */
+  images?: string[];
   /** Terminal partial kept after kill/abort — exclude from BM25/summary corpus. */
   interrupted?: boolean;
   /**
@@ -127,6 +131,8 @@ export type HistoryRoleMessage = {
 export type EngineHistoryMessage = {
   role: "user" | "assistant";
   content: string;
+  /** See HistoryRoleMessage.images — carried into EngineMessage. */
+  images?: string[];
   /** See HistoryRoleMessage.modelEmittedText — carried into EngineMessage. */
   modelEmittedText?: string;
   /** See HistoryRoleMessage.emissionSource — carried into EngineMessage. */
@@ -985,6 +991,9 @@ function toEngineHistoryMessage(
     role: m.role,
     content: m.text.slice(0, maxChars),
   };
+  // Pictures travel as the URIs they are stored under; nothing reads the
+  // bytes until a send that can carry them.
+  if (m.role === "user" && m.images?.length) out.images = [...m.images];
   // Replay field must stay byte-identical to what fed the KV. Cap bounds
   // prompt *content* only; generation already ceilings emission length.
   if (

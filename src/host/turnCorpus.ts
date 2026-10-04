@@ -22,6 +22,8 @@ import {
 } from "../context/compactor";
 import { RetrieverIndex } from "../context/retriever";
 import { readModelEmittedText } from "../engine/modelEmittedText";
+import { attachmentImageUris } from "./attachments";
+import type { LocalAttachment } from "./hostMessage";
 
 export const compactorStateByChat = new Map<string, CompactorState>();
 /** Last known history length per chat — clearChat detection (shrink). */
@@ -235,7 +237,14 @@ export function validateHistoryMessages(
       const rawSource = (m as { emissionSource?: unknown }).emissionSource;
       const emissionSource =
         rawSource === "parsed" || rawSource === "raw" ? rawSource : undefined;
+      // The pictures this turn was sent with, as the stored URIs they are:
+      // only a send that can hand them to a model ever reads the files.
+      const images =
+        role === "user"
+          ? attachmentImageUris((m as { attachments?: LocalAttachment[] }).attachments)
+          : [];
       const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
+      if (images.length > 0) rec.images = images;
       if (interrupted !== undefined) rec.interrupted = interrupted;
       if (edited !== undefined) rec.edited = edited;
       if (modelEmittedText !== undefined) {

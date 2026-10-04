@@ -280,16 +280,32 @@ export type WindowProfile = {
  * receive, and inventing a parameter nobody can fill would be worse than
  * naming the gap here.
  */
+/**
+ * What one picture costs the prompt, whatever its pixels: the engine is
+ * launched with `--image-max-tokens` 560, its ceiling, and the remote door
+ * charges exactly that for each one it is handed. The character budget cannot
+ * see this cost, so a caller that knows the prompt will carry pictures prices
+ * them here (`imageCount`).
+ */
+export const IMAGE_TOKENS = 560;
+
 export function resolveWindowProfile(input: {
   nCtx: number | null | undefined;
   hasImages: boolean;
   hasDigest: boolean;
+  /** Pictures this prompt will carry. The phone's own engine passes nothing —
+      its image turns are sized by count alone — while a remote turn passes
+      the pictures the wire will hold, which the server charges for. */
+  imageCount?: number;
 }): WindowProfile {
   const { hasImages, hasDigest } = input;
+  const imageTokens = Math.max(0, Math.floor(input.imageCount ?? 0)) * IMAGE_TOKENS;
 
-  if (hasImages) {
+  if (hasImages && imageTokens === 0) {
     // Image turns keep their own tight cap: an image turn's cost is dominated
-    // by image tokens, which this budget cannot see.
+    // by image tokens, which this budget cannot see. A caller that CAN see
+    // them (the remote door, which charges each picture real prompt tokens)
+    // passes `imageCount` and gets a token budget instead.
     //
     // ⚠️ Callers pass `hasImages` as "the turn has attachments", and a
     // document-only attachment carries no image at all — so a document turn
@@ -311,9 +327,10 @@ export function resolveWindowProfile(input: {
 
   if (nCtx === 0) {
     // No engine yet (lazy init): fall back to the count-only legacy behaviour
-    // rather than guessing a budget from a context that does not exist.
+    // rather than guessing a budget from a context that does not exist. An
+    // image turn keeps its own cap here too.
     return {
-      maxMessages: WINDOW_MAX_MESSAGES / 2,
+      maxMessages: hasImages ? WINDOW_MAX_MESSAGES_IMAGES : WINDOW_MAX_MESSAGES / 2,
       charBudget: Number.POSITIVE_INFINITY,
       source: "no-engine",
     };
@@ -327,13 +344,15 @@ export function resolveWindowProfile(input: {
   // retrieval, which is what the caller uses it to bound.
   const share = hasDigest ? WINDOW_SHARE_WITH_DIGEST : WINDOW_SHARE_NO_DIGEST;
   const budgetTokens =
-    Math.max(0, nCtx - charBudgetReserveTokens(nCtx)) * share;
+    Math.max(0, nCtx - charBudgetReserveTokens(nCtx) - imageTokens) * share;
   const charBudget = Math.floor(budgetTokens * WINDOW_CHARS_PER_TOKEN);
 
   return {
-    maxMessages: WINDOW_MAX_MESSAGES,
+    maxMessages: hasImages ? WINDOW_MAX_MESSAGES_IMAGES : WINDOW_MAX_MESSAGES,
     charBudget,
-    source: `nctx:${nCtx}/${hasDigest ? "digest" : "bare"}`,
+    source: `nctx:${nCtx}/${hasDigest ? "digest" : "bare"}${
+      imageTokens > 0 ? `/img:${imageTokens}` : ""
+    }`,
   };
 }
 

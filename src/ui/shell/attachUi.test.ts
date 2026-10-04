@@ -149,7 +149,10 @@ describe("the attach control carries the controller's disabled rule (Chat:4810)"
     expect(SURFACE).toContain(
       "attachDisabled={view.composer.face !== \"send\" || attachments.converting !== null}",
     );
-    expect(SURFACE).toContain("runHostAttachment(modelHost.remoteActiveRef.current, refuseRemoteAttachment, () => setAttachSheetOpen(true))");
+    // The sheet opens in both modes and the rows carry the gate: documents
+    // stay refused remotely, pictures ask the desk's /props first.
+    expect(SURFACE).toContain("onAttachPress={() => setAttachSheetOpen(true)}");
+    expect(SURFACE).toContain("runRemoteImagePick({");
     const open = jest.fn();
     const refuse = jest.fn();
     runHostAttachment(false, refuse, open);
