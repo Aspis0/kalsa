@@ -223,6 +223,10 @@ pub(crate) fn log_machine(machine: &Machine, host: &str) {
 /// another in the same process — the first start's facts are not the second's.
 pub(crate) fn log_engine(engine: &Engine, host: &str) {
     for line in engine_lines(engine, host) {
+        // The seam: the process-wide logger may belong to another test in this
+        // binary, so a test counts what came through here.
+        #[cfg(test)]
+        tests::wrote(&line);
         log::info!("{line}");
     }
 }
@@ -821,38 +825,22 @@ mod tests {
         );
     }
 
-    /// The lines `log_engine` wrote, as the one global logger of this test
-    /// binary captured them. The app installs its own logger; a test binary
-    /// installs this one, and the fixtures below write a release string no
-    /// other test can match.
-    fn captured() -> &'static std::sync::Mutex<Vec<String>> {
+    /// Every line `log_engine` put through its write seam, in this test
+    /// binary. The logger itself cannot be counted on: another test in this
+    /// binary installs the app's own (`logging::install`), so `log::set_logger`
+    /// fails silently and a capture installed once sees nothing in the full
+    /// suite — while passing alone.
+    fn written() -> &'static std::sync::Mutex<Vec<String>> {
         static LINES: std::sync::OnceLock<std::sync::Mutex<Vec<String>>> =
             std::sync::OnceLock::new();
         LINES.get_or_init(|| std::sync::Mutex::new(Vec::new()))
     }
 
-    struct Capture;
-
-    impl log::Log for Capture {
-        fn enabled(&self, _: &log::Metadata) -> bool {
-            true
+    /// The seam `log_engine` calls for every line it is about to write.
+    pub(super) fn wrote(line: &str) {
+        if let Ok(mut lines) = written().lock() {
+            lines.push(line.to_string());
         }
-
-        fn log(&self, record: &log::Record) {
-            if let Ok(mut lines) = captured().lock() {
-                lines.push(record.args().to_string());
-            }
-        }
-
-        fn flush(&self) {}
-    }
-
-    fn capture() {
-        static ONCE: std::sync::Once = std::sync::Once::new();
-        ONCE.call_once(|| {
-            let _ = log::set_logger(&Capture);
-            log::set_max_level(log::LevelFilter::Info);
-        });
     }
 
     /// The engine's half is written on EVERY engine start. The vision enable
@@ -861,7 +849,6 @@ mod tests {
     /// missing after the in-process restart" — the `Once` this test bites on.
     #[test]
     fn the_engine_facts_are_written_on_every_start() {
-        capture();
         let engine = Engine {
             release: "kalsa-server (test, every start)",
             build: "cpu",
@@ -875,7 +862,7 @@ mod tests {
         for _ in 0..2 {
             log_engine(&engine, "");
         }
-        let lines = captured().lock().unwrap();
+        let lines = written().lock().unwrap();
         let seen = lines
             .iter()
             .filter(|line| line.contains("kalsa-server (test, every start)"))
