@@ -89,3 +89,21 @@ The image path gives 5-7 %, not the gap. Op count of v2/v3: per 32x32 K-tile a l
 16 fp16 row scales with exact bit math (~160 ops) - the kernel is ALU-bound (~0.38 ms predicted for ffn_gate_up
 at ~1 T fp32 op/s vs 0.41 measured). The engine converts scales natively and flushes fp16 denormals (its
 scales_denorm FAIL). Next: v4 with native scale conversion and a cheaper per-weight path (GLM cd71bdf3).
+
+## GPU v4: native scale conversion (engine `381948fa2`, `raw/s23-gpu-v4-unplugged*.grep`, unplugged, 94 %, 27.6-28.6 C)
+
+Quants via the CL_RGBA/UINT32 image1d_buffer view, scales via a second CL_HALF_FLOAT view of the same region
+(`read_imagef` converts; Apple rejects `half*` kernels). ~162 ALU ops per lane per K-tile vs ~416 in v3i.
+
+| shape | engine SoA (r1/r2) | tiled v4 (r1/r2) | v4 speed vs SoA |
+|---|---:|---:|---:|
+| ffn_gate_up | 0.239 / 0.239 | 0.269 / 0.267 | 0.89 |
+| conv_in_proj | 0.128 / 0.129 | 0.152 / 0.148 | 0.84-0.87 |
+| ffn_down | 0.332 / 0.331 | 0.257 / 0.255 | 1.29-1.30 |
+| attn_k | 0.052 / 0.052 | 0.039 / 0.040 | 1.30-1.33 |
+| pad_rows | 0.064 / 0.064 | 0.055 / 0.056 | 1.14-1.16 |
+
+v4 errors 6-9e-7 of output RMS (SoA 6-8e-4) and v4 PASSes the fp16-denormal shape (the texture unit converts
+denormals exactly; SoA flushes them). Sum over the four model shapes: SoA 0.751 ms, v4 0.717 ms. **GPU decode on
+the shared NPU-layout copy is at parity with the engine's own Adreno path** - pending the hostile audit (luna
+3a6510f3: zero-copy proof of the image views, timing fairness, real engine path at these shapes).
