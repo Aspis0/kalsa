@@ -1,6 +1,13 @@
 import { TOOL_STOPPED } from "./types";
 import type { ChatErrorKind } from "./chat";
-import type { ChatMessage, Conversation, ConversationMeta, MessageImage, ToolRun } from "./types";
+import type {
+  ChatMessage,
+  Conversation,
+  ConversationMeta,
+  MessageImage,
+  MessageVideo,
+  ToolRun,
+} from "./types";
 import type { Attachment, AttachmentKind } from "./attachments";
 
 /**
@@ -156,7 +163,32 @@ function cleanMessage(value: unknown): ChatMessage | null {
       : {}),
     ...(Array.isArray(value.toolRuns) ? cleanToolRuns(value.toolRuns) : {}),
     ...(Array.isArray(value.images) ? cleanImages(value.images) : {}),
+    ...(Array.isArray(value.videos) ? cleanVideos(value.videos) : {}),
   };
+}
+
+/** Video references read back whole or not at all: a half one would offer a
+    player with no shape. The frames are image references of their own; a
+    missing frame blob is the wire's business, never a dropped video. */
+function cleanVideos(value: unknown[]): { videos?: MessageVideo[] } {
+  const videos: MessageVideo[] = [];
+  for (const video of value) {
+    if (typeof video !== "object" || video === null) continue;
+    const v = video as Record<string, unknown>;
+    if (typeof v.id !== "string" || !v.id) continue;
+    if (typeof v.width !== "number" || typeof v.height !== "number") continue;
+    if (typeof v.durationMs !== "number") continue;
+    const frames = Array.isArray(v.frames) ? cleanImages(v.frames).images : undefined;
+    videos.push({
+      id: v.id,
+      width: v.width,
+      height: v.height,
+      durationMs: v.durationMs,
+      ...(v.notKept === true ? { notKept: true } : {}),
+      frames: frames ?? [],
+    });
+  }
+  return videos.length > 0 ? { videos } : {};
 }
 
 /** Image references read back whole or not at all: a half one would render a

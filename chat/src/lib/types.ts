@@ -47,6 +47,23 @@ export interface MessageImage {
   mime: string;
 }
 
+/**
+ * One video a user message carries: the reference only. The compressed MP4
+ * lives in IndexedDB under `id` (when it was kept — a full shelf keeps the
+ * frames and says so in `notKept`), and `frames` are the stills the AI
+ * actually sees, each an image reference of its own.
+ */
+export interface MessageVideo {
+  id: string;
+  width: number;
+  height: number;
+  durationMs: number;
+  /** True when the video's own bytes could not be stored (shelf full): the
+      frames stay, the bubble says the video itself wasn't kept. */
+  notKept?: boolean;
+  frames: MessageImage[];
+}
+
 export interface ChatMessage {
   id: string;
   role: Role;
@@ -62,6 +79,8 @@ export interface ChatMessage {
   toolRuns?: ToolRun[];
   /** Pictures attached to this user turn, in attach order. */
   images?: MessageImage[];
+  /** Videos attached to this user turn, in attach order. */
+  videos?: MessageVideo[];
   /** The failure this turn ended in, so a reload can show its sentence and
       Retry again; absent on every turn that did not fail. */
   failed?: ChatErrorKind;

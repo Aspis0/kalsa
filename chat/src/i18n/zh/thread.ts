@@ -26,5 +26,9 @@ export const THREAD = {
     "hide": "收起 ▲",
     "showThinking": "展开思考 ▼",
     "thinkingAria": "Kalsa 的思考",
+    "videoPlay": "播放视频",
+    "videoLabel": "视频",
+    "videoMissing": "视频不可用",
+    "videoNotKept": "视频本身未保留——Kalsa 看到的是它的帧。",
     "imageMissing": "图片不可用",
   };

@@ -65,6 +65,12 @@ function isMp4(file: File): boolean {
   return file.type === "video/mp4" || /\.m(4v|p4)$/i.test(file.name);
 }
 
+/** The picker's own kinds: MP4 and QuickTime are everything the compress
+    road reads. */
+export function isVideoFile(file: File): boolean {
+  return file.type.startsWith("video/") || /\.(mp4|m4v|mov)$/i.test(file.name);
+}
+
 /** The size the encoder is expected to write, before it writes anything:
     duration times the bitrates the config asks for, plus a little for the
     container. A video that cannot fit the cap is refused HERE, before

@@ -30,6 +30,10 @@ export const THREAD = {
   hide: "Hide ▲",
   showThinking: "Show thinking ▼",
   thinkingAria: "Kalsa's thoughts",
+  videoPlay: "Play video",
+  videoLabel: "Video",
+  videoMissing: "Video unavailable",
+  videoNotKept: "The video itself wasn't kept — Kalsa saw its frames.",
   // The box where a picture's bytes are gone (storage cleared elsewhere).
   imageMissing: "Picture unavailable",
 };

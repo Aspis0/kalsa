@@ -26,5 +26,9 @@ export const THREAD = {
     "hide": "Masquer ▲",
     "showThinking": "Montrer la réflexion ▼",
     "thinkingAria": "Les réflexions de Kalsa",
+    "videoPlay": "Lire la vidéo",
+    "videoLabel": "Vidéo",
+    "videoMissing": "Vidéo indisponible",
+    "videoNotKept": "La vidéo elle-même n'a pas été gardée — Kalsa a vu ses images.",
     "imageMissing": "Image indisponible",
   };

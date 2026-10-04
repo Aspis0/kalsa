@@ -5,6 +5,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import { useStickToBottom } from "../lib/stickToBottom";
 import { Markdown } from "./Markdown";
 import { MessageImages } from "./MessageImages";
+import { MessageVideos } from "./MessageVideos";
 import { ThoughtCloud } from "./ThoughtCloud";
 import { ToolActivity } from "./ToolActivity";
 import "./Thread.css";
@@ -160,6 +161,7 @@ export function Thread({
               <div className="row row-user" key={message.id} title={stamp(message.createdAt, tag)}>
               <div className="user-bubble" data-message-id={message.id}>
                 <MessageImages images={message.images} />
+                <MessageVideos videos={message.videos} />
                 {message.content}
               </div>
               </div>

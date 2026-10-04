@@ -502,3 +502,53 @@
   border-radius: 10px;
   cursor: zoom-in;
 }
+
+/* A video in the chat's bubble: the poster tile that opens the viewer. */
+.user-videos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+}
+
+.user-video-tile {
+  position: relative;
+  flex: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: zoom-in;
+}
+
+.user-video-tile img {
+  display: block;
+  max-width: 240px;
+  max-height: 180px;
+  object-fit: cover;
+}
+
+.user-video-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 1.1rem;
+}
+
+.user-video {
+  display: block;
+  max-width: 320px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.user-video-note {
+  padding: 0.2rem 0.5rem;
+  color: var(--silence);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  font-size: 0.78rem;
+}

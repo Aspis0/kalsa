@@ -4,11 +4,12 @@ import { useLanguage } from "../i18n/useLanguage";
 import { downloadBytes } from "../lib/downloadBytes";
 import "./Composer.css";
 
-/** One pending picture, chip-shaped: the reference and the object URL the
-    chip shows (the pixels are IndexedDB's, the URL's life is the chip's). */
+/** One pending chip: the reference and the object URL it shows — null for a
+    video whose bytes were not kept, or while they are still being made. */
 export interface ComposerImage {
   id: string;
-  url: string;
+  url: string | null;
+  kind?: "image" | "video";
 }
 
 const DOCUMENT_ACCEPT = ".txt,.md,.markdown,.csv,.json,.log,.pdf,.docx,.pptx";
@@ -182,13 +183,19 @@ export function Composer({
         <div className="composer-images">
           {pendingImages.map((image) => (
             <figure key={image.id} className="composer-image">
-              <img
-                src={image.url}
-                alt=""
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-              />
+              {image.url && image.kind !== "video" ? (
+                <img
+                  src={image.url}
+                  alt=""
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <span className="composer-image-glyph" aria-hidden="true">
+                  ▶
+                </span>
+              )}
               <button
                 type="button"
                 className="composer-image-remove"

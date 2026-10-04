@@ -25,6 +25,7 @@ import {
 } from "../lib/attachments";
 import { isImageFile, prepareImage } from "../lib/images";
 import type { PreparedImage } from "../lib/images";
+import { isVideoFile, prepareVideo, VideoCanceled } from "../lib/video";
 import { deleteConversationImages, deleteImage, putImage } from "../lib/imageStore";
 import { ATTACH_IMAGE_CEILING, wireImageBytes } from "../lib/wireBudget";
 import { filesRead } from "../lib/files";
@@ -61,8 +62,26 @@ interface Refusal {
 /** A picture attached but not yet sent: the stored reference plus the object
     URL the chip shows, which dies the moment the chip does. */
 interface PendingImage extends PreparedImage {
+  kind: "image";
   url: string;
 }
+
+/** A video attached but not yet sent: the frames (stored, sendable), the
+    compressed MP4 (stored when the shelf had room — `notKept` says when it
+    did not), and the chip's own object URL when there is one to show. */
+interface PendingVideo {
+  kind: "video";
+  id: string;
+  width: number;
+  height: number;
+  durationMs: number;
+  notKept: boolean;
+  frames: PreparedImage[];
+  blob: Blob | null;
+  url: string | null;
+}
+
+type PendingChip = PendingImage | PendingVideo;
 
 /** What the chat needs from the room around it: the shell's navigation (a
     send lands the owner on the chat), the shell's status line, the shell's
@@ -138,7 +157,10 @@ export function useChat(shell: ChatShell) {
   // Pictures attached but not yet sent, per conversation. The bytes are in
   // IndexedDB the moment the chip exists; this map holds only the reference
   // and the chip's object URL, and follows the draft's own durability.
-  const [pendingImages, setPendingImages] = useState<Record<string, PendingImage[]>>({});
+  const [pendingImages, setPendingImages] = useState<Record<string, PendingChip[]>>({});
+  // A compression in flight can be canceled from its chip: the gate is the
+  // word the chip's × writes and the video road reads between frames.
+  const cancelGates = useRef(new Map<string, { canceled: boolean }>());
 
   useEffect(() => {
     // Whether the last write failure was already reported: the subscription
@@ -345,7 +367,7 @@ export function useChat(shell: ChatShell) {
     setPendingImages((prev) => {
       const chips = prev[convId];
       if (!chips) return prev;
-      for (const chip of chips) URL.revokeObjectURL(chip.url);
+      for (const chip of chips) if (chip.url) URL.revokeObjectURL(chip.url);
       const next = { ...prev };
       delete next[convId];
       return next;
@@ -356,10 +378,10 @@ export function useChat(shell: ChatShell) {
     const list = Array.from(files);
     if (list.length === 0) return;
     setRefusal(null);
-    // A picture while this model is blind and a projector is only an offer:
-    // the ask comes instead of the extractor's not-readable sentence, which
-    // would state a limit the owner can lift in one press.
-    if (visionOffer.offerBytes !== null && !vision && list.some(isImageFile)) {
+    // A picture or a video while this model is blind and a projector is
+    // only an offer: the ask comes instead of the extractor's not-readable
+    // sentence, which would state a limit the owner can lift in one press.
+    if (visionOffer.offerBytes !== null && !vision && list.some((file) => isImageFile(file) || isVideoFile(file))) {
       visionOffer.ask();
       return;
     }
@@ -388,13 +410,20 @@ export function useChat(shell: ChatShell) {
       convId = fresh.id;
     }
     const target = convId;
-    // Pictures take the image road only under a seeing model: blind, they are
-    // files like any other, and the extractor gives the honest not-readable
-    // refusal rather than silently eating pixels.
+    // Pictures and videos take their roads only under a seeing model: VISION
+    // is the gate for both because a video reaches the model as FRAMES —
+    // images — and a `video` modality would matter only to an engine taking
+    // video parts, which this app never sends. Blind, they are files like
+    // any other, and the extractor gives the honest not-readable refusal
+    // rather than silently eating pixels.
     const imageFiles = vision ? list.filter(isImageFile) : [];
-    const docFiles = list.filter((file) => !imageFiles.includes(file));
+    const videoFiles = vision ? list.filter((file) => !imageFiles.includes(file) && isVideoFile(file)) : [];
+    const docFiles = list.filter(
+      (file) => !imageFiles.includes(file) && !videoFiles.includes(file),
+    );
     setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
     const prepared: PendingImage[] = [];
+    const preparedVideos: PendingVideo[] = [];
     try {
       const extracted: Attachment[] = [];
       for (const file of docFiles) {
@@ -402,12 +431,43 @@ export function useChat(shell: ChatShell) {
       }
       for (const file of imageFiles) {
         const image = await prepareImage(file);
-        prepared.push({ ...image, url: URL.createObjectURL(image.blob) });
+        prepared.push({ ...image, kind: "image", url: URL.createObjectURL(image.blob) });
+      }
+      for (const file of videoFiles) {
+        const gate = { canceled: false };
+        const id = uid();
+        cancelGates.current.set(id, gate);
+        try {
+          const video = await prepareVideo(file, () => {}, gate);
+          if (gate.canceled) continue;
+          preparedVideos.push({
+            kind: "video",
+            id,
+            width: video.width,
+            height: video.height,
+            durationMs: video.durationMs,
+            notKept: false,
+            frames: video.frames,
+            blob: video.blob,
+            url: null,
+          });
+        } catch (error) {
+          // The chip's × is the owner's own word: it leaves quietly.
+          if (error instanceof VideoCanceled || gate.canceled) continue;
+          throw error;
+        } finally {
+          cancelGates.current.delete(id);
+        }
       }
       const nctx = await ensureCtx();
       const history = store.get(target)?.messages ?? [];
+      // A video weighs as its frames — four stills of IMAGE_TOKENS each —
+      // plus whatever pictures sit beside it.
+      const heldTokens = (chip: PendingChip): number =>
+        chip.kind === "image" ? IMAGE_TOKENS : chip.frames.length * IMAGE_TOKENS;
       const pendingTokens =
-        IMAGE_TOKENS * ((pendingImages[target]?.length ?? 0) + prepared.length);
+        IMAGE_TOKENS * prepared.length +
+        preparedVideos.reduce((sum, chip) => sum + chip.frames.length * IMAGE_TOKENS, 0) +        (pendingImages[target] ?? []).reduce((sum, chip) => sum + heldTokens(chip), 0);
       const trial = buildPinnedContext(
         history,
         extracted,
@@ -416,9 +476,14 @@ export function useChat(shell: ChatShell) {
         pendingTokens,
       );
       if (trial.status === "refused") {
-        // The banner names the batch as the picker saw it; a picture keeps
-        // the name of the file it came from, since none is stored.
-        const names = [...extracted.map((a) => a.name), ...imageFiles.map((f) => f.name)];
+        // The banner names the batch as the picker saw it; a picture or a
+        // video keeps the name of the file it came from, since none is
+        // stored.
+        const names = [
+          ...extracted.map((a) => a.name),
+          ...imageFiles.map((f) => f.name),
+          ...videoFiles.map((f) => f.name),
+        ];
         setRefusal({
           names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
           docTokens: trial.docTokens,
@@ -437,11 +502,21 @@ export function useChat(shell: ChatShell) {
       // already sat plus these) must fit the wire as one body, or the send
       // that carries them would leave refused — better refused here, where
       // nothing has landed in storage yet.
-      const names = [...extracted.map((a) => a.name), ...imageFiles.map((f) => f.name)];
-      const pendingWireBytes = [...(pendingImages[target] ?? []), ...prepared].reduce(
-        (sum, chip) => sum + wireImageBytes(chip.blob.size),
-        0,
-      );
+      const names = [
+        ...extracted.map((a) => a.name),
+        ...imageFiles.map((f) => f.name),
+        ...videoFiles.map((f) => f.name),
+      ];
+      // The wire carries the frames, never the video itself: the bytes that
+      // count are every still this conversation would send.
+      const heldBytes = (chip: PendingChip): number =>
+        chip.kind === "image"
+          ? wireImageBytes(chip.blob.size)
+          : chip.frames.reduce((sum, frame) => sum + wireImageBytes(frame.blob.size), 0);
+      const pendingWireBytes =
+        (pendingImages[target] ?? []).reduce((sum, chip) => sum + heldBytes(chip), 0) +
+        prepared.reduce((sum, chip) => sum + wireImageBytes(chip.blob.size), 0) +
+        preparedVideos.reduce((sum, chip) => sum + heldBytes(chip), 0);
       if (pendingWireBytes > ATTACH_IMAGE_CEILING) {
         setRefusal({
           names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
@@ -457,22 +532,38 @@ export function useChat(shell: ChatShell) {
         return;
       }
       // Bytes first, chip second: a refusal from IndexedDB is an attach
-      // failure, not a chip that shows a picture nothing can send.
+      // failure, not a chip that shows a picture nothing can send. A video's
+      // own bytes are the one thing a full shelf may refuse: the frames are
+      // the message to the model, so they must land — the video is kept for
+      // replay when it can be, and the chip says so when it cannot.
       for (const chip of prepared) await putImage(target, chip.id, chip.mime, chip.blob);
+      for (const video of preparedVideos) {
+        for (const frame of video.frames) {
+          await putImage(target, frame.id, frame.mime, frame.blob);
+        }
+        if (video.blob !== null) {
+          try {
+            await putImage(target, video.id, "video/mp4", video.blob);
+            video.url = URL.createObjectURL(video.blob);
+          } catch {
+            video.notKept = true;
+            video.url = null;
+          }
+        } else {
+          video.notKept = true;
+        }
+      }
       for (const attachment of extracted) store.putAttachment(target, attachment);
-      if (prepared.length > 0) {
+      if (prepared.length > 0 || preparedVideos.length > 0) {
         setPendingImages((prev) => ({
           ...prev,
-          [target]: [...(prev[target] ?? []), ...prepared],
+          [target]: [...(prev[target] ?? []), ...prepared, ...preparedVideos],
         }));
       }
       setAttachStatus(null);
       if (extracted.length > 0) setPanelOpen(true);
-      announce(
-        prepared.length + extracted.length === 1
-          ? t.attachedOne(list[0].name)
-          : t.attachedMany(prepared.length + extracted.length),
-      );
+      const chipCount = prepared.length + preparedVideos.length + extracted.length;
+      announce(chipCount === 1 ? t.attachedOne(list[0].name) : t.attachedMany(chipCount));
     } catch (error) {
       for (const chip of prepared) URL.revokeObjectURL(chip.url);
       setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
@@ -552,7 +643,24 @@ export function useChat(shell: ChatShell) {
     const userId = uid();
     // Whatever chips this conversation holds ride the new user turn as
     // references; the pixels stay in IndexedDB under their own ids.
-    const images = pendingImages[conv.id] ?? [];
+    const chips = pendingImages[conv.id] ?? [];
+    const images = chips.flatMap((chip) =>
+      chip.kind === "image" ? [{ id: chip.id, width: chip.width, height: chip.height, mime: chip.mime }] : [],
+    );
+    const videos = chips.flatMap((chip) =>
+      chip.kind === "video"
+        ? [
+            {
+              id: chip.id,
+              width: chip.width,
+              height: chip.height,
+              durationMs: chip.durationMs,
+              ...(chip.notKept ? { notKept: true as const } : {}),
+              frames: chip.frames.map(({ id, width, height, mime }) => ({ id, width, height, mime })),
+            },
+          ]
+        : [],
+    );
     const updated: Conversation = {
       ...conv,
       title: conv.messages.length === 0 ? titleFor(text, t.newConversation) : conv.title,
@@ -564,11 +672,8 @@ export function useChat(shell: ChatShell) {
           role: "user",
           content: text,
           createdAt: Date.now(),
-          ...(images.length > 0
-            ? {
-                images: images.map(({ id, width, height, mime }) => ({ id, width, height, mime })),
-              }
-            : {}),
+          ...(images.length > 0 ? { images } : {}),
+          ...(videos.length > 0 ? { videos } : {}),
         },
         { id: assistantId, role: "assistant", content: "", createdAt: Date.now() },
       ],
@@ -723,18 +828,27 @@ export function useChat(shell: ChatShell) {
     setDrawerOpen(false);
   }
 
-  // A chip removed before its send: the bytes it named leave IndexedDB too.
+  // A chip removed before its send: a compression still running is canceled
+  // through its gate, and the bytes a stored chip named — its own, and a
+  // video's frames' — leave IndexedDB too.
   function removePendingImage(imageId: string): void {
     if (!activeId) return;
     const target = activeId;
+    const gate = cancelGates.current.get(imageId);
+    if (gate) gate.canceled = true;
+    let stored: string[] = [imageId];
     setPendingImages((prev) => {
       const chips = prev[target];
       if (!chips) return prev;
       const chip = chips.find((c) => c.id === imageId);
-      if (chip) URL.revokeObjectURL(chip.url);
+      if (chip === undefined) return prev;
+      if (chip.url) URL.revokeObjectURL(chip.url);
+      if (chip.kind === "video") {
+        stored = [imageId, ...chip.frames.map((frame) => frame.id)];
+      }
       return { ...prev, [target]: chips.filter((c) => c.id !== imageId) };
     });
-    void deleteImage(imageId);
+    for (const id of stored) void deleteImage(id);
   }
 
   // The disk tier's one seam: the door is told which chat this device is

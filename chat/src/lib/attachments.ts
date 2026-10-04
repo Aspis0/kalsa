@@ -35,6 +35,15 @@ export const IMAGE_TOKENS = 560;
     to a model that cannot see them. */
 export const IMAGE_PLACEHOLDER = "[an image the current AI cannot see]";
 
+/** The short line that tells a seeing model what the stills beside it are:
+    a video, how many frames of it, how long it runs. */
+export function videoMarker(durationMs: number, frames: number): string {
+  const total = Math.max(0, Math.round(durationMs / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `[video, ${frames} frames, ${minutes}:${seconds.toString().padStart(2, "0")}]`;
+}
+
 export type AttachmentFailure = "unsupported" | "too-big" | "unreadable" | "empty" | "no-text";
 
 /** The one part a refusal sentence still names: the app an old format
@@ -81,8 +90,20 @@ export function messageTokens(message: ChatMessage): number {
       sum + estTokens(run.arguments) + estTokens(wireResult(run.result)),
     0,
   );
+  // A video rides the window as its FRAMES: each still costs what a picture
+  // costs, whether it rides or not — the same rule the fit answers by.
+  const frameTokens = (message.videos ?? []).reduce(
+    (sum, video) => sum + video.frames.length * IMAGE_TOKENS,
+    0,
+  );
   const imageTokens = (message.images?.length ?? 0) * IMAGE_TOKENS;
-  return estTokens(message.content) + estTokens(message.reasoning ?? "") + toolTokens + imageTokens;
+  return (
+    estTokens(message.content) +
+    estTokens(message.reasoning ?? "") +
+    toolTokens +
+    imageTokens +
+    frameTokens
+  );
 }
 
 /** Same formula the pinning uses: one place where history is weighed. */
@@ -470,27 +491,39 @@ export interface MediaView {
 }
 
 /** A user turn's content on the wire. Pictures ride as parts, text first;
-    for a model that cannot see them the turn goes as text with one honest
-    sentence where the pictures would have been — the engine errors on image
-    parts without a projector. A picture the wire budget demoted, or whose
-    bytes are gone, becomes that same sentence in the text: one per picture,
-    so the model knows a picture was there and that it cannot see this one. */
+    a video rides as its MARKER line and its frames' image parts — the
+    engine never gets video, and a seeing model reads a video exactly as
+    the stills plus one honest line saying what they are. For a model that
+    cannot see, media of either kind become one sentence in the text: the
+    engine errors on image parts without a projector. A picture the wire
+    budget demoted, or whose bytes are gone, becomes that same sentence per
+    picture; a demoted FRAME simply does not ride — the marker already told
+    the model the video has more of them than this. */
 function userWireContent(message: ChatMessage, media: MediaView | undefined): string | WireContentPart[] {
   const images = message.role === "user" ? (message.images ?? []) : [];
-  if (images.length === 0) return message.content;
+  const videos = message.role === "user" ? (message.videos ?? []) : [];
+  if (images.length === 0 && videos.length === 0) return message.content;
   if (!media?.vision) {
     return message.content ? `${message.content}\n${IMAGE_PLACEHOLDER}` : IMAGE_PLACEHOLDER;
   }
-  const imageParts: WireContentPart[] = [];
+  const parts: WireContentPart[] = [];
+  const lines: string[] = [];
   const dropped: string[] = [];
   for (const image of images) {
     const url = media.url(image.id);
-    if (url !== null) imageParts.push({ type: "image_url", image_url: { url } });
+    if (url !== null) parts.push({ type: "image_url", image_url: { url } });
     else dropped.push(IMAGE_PLACEHOLDER);
   }
-  const text = [message.content, ...dropped].filter(Boolean).join("\n");
-  if (imageParts.length === 0) return text;
-  return [...(text ? [{ type: "text", text } as const] : []), ...imageParts];
+  for (const video of videos) {
+    lines.push(videoMarker(video.durationMs, video.frames.length));
+    for (const frame of video.frames) {
+      const url = media.url(frame.id);
+      if (url !== null) parts.push({ type: "image_url", image_url: { url } });
+    }
+  }
+  const text = [message.content, ...dropped, ...lines].filter(Boolean).join("\n");
+  if (parts.length === 0) return text;
+  return [...(text ? [{ type: "text", text } as const] : []), ...parts];
 }
 
 function wireFor(message: ChatMessage, media: MediaView | undefined): WireMessage[] {

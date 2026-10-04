@@ -159,9 +159,14 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           onStop={stop}
           onAttach={(files) => void attachFiles(files)}
           acceptsImages={vision}
+          acceptsVideos={vision}
           visionOfferBytes={visionOfferBytes}
           onOfferVision={askVision}
-          images={pendingImages.map(({ id, url }) => ({ id, url }))}
+          images={pendingImages.map((chip) => ({
+            id: chip.id,
+            url: chip.url,
+            kind: chip.kind,
+          }))}
           onRemoveImage={removeImage}
         />
       </div>
@@ -170,8 +175,21 @@ export function ChatSurface({ chat }: { chat: Chat }) {
         attachments={attachments}
         contextTokens={ctxInfo && ctxInfo.endpoint === effectiveSettings.endpoint ? ctxInfo.nctx : null}
         historyTokens={convoTokens}
-        imageCount={pendingImages.length}
-        imageTokens={pendingImages.length * IMAGE_TOKENS}
+        imageCount={
+          pendingImages.length +
+          pendingImages.reduce(
+            (sum, chip) => sum + (chip.kind === "video" ? chip.frames.length : 0),
+            0,
+          )
+        }
+        imageTokens={
+          (pendingImages.length +
+            pendingImages.reduce(
+              (sum, chip) => sum + (chip.kind === "video" ? chip.frames.length : 0),
+              0,
+            )) *
+          IMAGE_TOKENS
+        }
         onRemove={removeAttachment}
         onReattach={(id) => {
           if (!activeId) return;

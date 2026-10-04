@@ -14,7 +14,7 @@
 // Run: node scripts/image-attach.mjs [chromium|webkit ...]   (from chat/)
 
 import { existsSync, readFileSync } from "node:fs";
-import { readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +32,7 @@ const outDir = join(CHAT_DIR, ".image-attach-dist");
 const csp = JSON.parse(
   await readFile(join(CHAT_DIR, "..", "src-tauri", "tauri.conf.json"), "utf8"),
 ).app.security.csp;
+const probeDir = join(CHAT_DIR, ".image-attach-probe");
 
 let fail = 0;
 function check(label, condition, detail) {
@@ -208,6 +209,60 @@ function withGpsExif(jpeg) {
     at += 2 + jpeg.readUInt16BE(at + 2);
   }
   return Buffer.concat([jpeg.subarray(0, at), segment, jpeg.subarray(at)]);
+}
+
+
+/** A one-page fixture builder: mediabunny mints the MP4 the app phase
+    attaches — the same tiny clip room-media's probe makes. */
+async function buildProbe() {
+  await rm(probeDir, { recursive: true, force: true });
+  await mkdir(probeDir, { recursive: true });
+  await writeFile(
+    join(probeDir, "index.html"),
+    '<!doctype html><html><head><meta charset="utf-8"><title>video fixture</title></head><body><script type="module" src="./main.ts"></script></body></html>',
+  );
+  const main = [
+    'import { Output, Mp4OutputFormat, BufferTarget, CanvasSource } from "mediabunny";',
+    "(window as unknown as { __FIXTURE__: unknown }).__FIXTURE__ = {",
+    "  build: async () => {",
+    "    const canvas = document.createElement('canvas');",
+    "    canvas.width = 640; canvas.height = 360;",
+    "    const ctx = canvas.getContext('2d');",
+    "    const source = new CanvasSource(canvas, { codec: 'avc', bitrate: 1_000_000 });",
+    "    const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });",
+    "    output.addVideoTrack(source, { frameRate: 30 });",
+    "    await output.start();",
+    "    for (let at = 0; at < 45; at += 1) {",
+    "      ctx.fillStyle = 'hsl(' + (at * 8) + ', 70%, 50%)';",
+    "      ctx.fillRect(0, 0, 640, 360);",
+    "      ctx.fillStyle = '#fff';",
+    "      ctx.fillRect(at * 14, 150, 40, 60);",
+    "      await source.add(at / 30, 1 / 30);",
+    "    }",
+    "    await output.finalize();",
+    "    const bytes = new Uint8Array(output.target.buffer);",
+    "    let binary = '';",
+    "    for (let walk = 0; walk < bytes.length; walk += 0x8000) {",
+    "      binary += String.fromCharCode(...bytes.subarray(walk, walk + 0x8000));",
+    "    }",
+    "    return btoa(binary);",
+    "  },",
+    "};",
+    "",
+  ].join("\n");
+  await writeFile(join(probeDir, "main.ts"), main);
+  await build({
+    root: CHAT_DIR,
+    configFile: false,
+    base: "./",
+    logLevel: "silent",
+    build: {
+      outDir: join(CHAT_DIR, ".image-attach-dist"),
+      emptyOutDir: false,
+      target: "es2022",
+      rollupOptions: { input: join(probeDir, "index.html") },
+    },
+  });
 }
 
 async function probeEngine(engineName, origin) {
@@ -914,6 +969,146 @@ async function probeEngine(engineName, origin) {
     );
     check("the road returns when the new model answers", seeingAgain, await picker());
 
+    // 15. Video in the 1:1 chat: the fixture from the probe page, through
+    //     the same compress road the Room uses, to the wire as FRAMES.
+    await page.goto(`${origin}/.image-attach-probe/`);
+    await page.waitForFunction(() => window.__FIXTURE__ !== undefined, null, { timeout: 10000 });
+    const fixtureB64 = await page.evaluate(async () => String(await window.__FIXTURE__.build()));
+    // Back to the app: the video phases attach against a fresh chat.
+    await page.goto(`${origin}/`);
+    await page.waitForTimeout(1200);
+    await openChat();
+    check(
+      "the video fixture was built",
+      typeof fixtureB64 === "string" && fixtureB64.length > 1000,
+      String(fixtureB64?.length),
+    );
+    await attach([
+      { name: "clip.mp4", mimeType: "video/mp4", buffer: Buffer.from(fixtureB64, "base64") },
+    ]);
+    await page.waitForFunction(
+      () => document.querySelectorAll(".composer-image-glyph").length === 1,
+      null,
+      { timeout: 12000 },
+    );
+    check("the video chips in with its glyph", true);
+    await sendText("watch this");
+    const videoBody = bodies.at(-1);
+    const videoParts = videoBody?.messages?.[1]?.content;
+    const videoText = Array.isArray(videoParts) ? videoParts[0]?.text : null;
+    const markerMatch = typeof videoText === "string" ? videoText.match(/\[video, (\d+) frames, 0:0\d\]/) : null;
+    check(
+      "the turn carries the video marker line",
+      markerMatch !== null && videoText === "watch this\n" + markerMatch[0],
+      JSON.stringify(videoText),
+    );
+    const frameParts = Array.isArray(videoParts)
+      ? videoParts.filter((part) => part?.type === "image_url")
+      : [];
+    check(
+      "the frames ride as image parts, as many as the marker says",
+      frameParts.length === Number(markerMatch?.[1] ?? 0) &&
+        frameParts.length >= 1 &&
+        frameParts.every((part) => String(part.image_url.url).startsWith("data:image/jpeg;base64,")),
+      JSON.stringify({ parts: frameParts.length, marker: markerMatch?.[1] }),
+    );
+    check(
+      "no video bytes ride the wire",
+      !JSON.stringify(videoBody ?? {}).includes("data:video"),
+      "searched the whole body",
+    );
+
+    // 16. The budget: frames cost IMAGE_TOKENS each — a window that fits
+    //     the words alone refuses the video.
+    await wipeStorage();
+    state.nctx = 700;
+    await page.reload();
+    await page.waitForTimeout(1200);
+    await openChat();
+    await attach([
+      { name: "clip2.mp4", mimeType: "video/mp4", buffer: Buffer.from(fixtureB64, "base64") },
+    ]);
+    await page.waitForSelector(".refusal-banner", { timeout: 12000 }).catch(() => {});
+    check(
+      "a video is refused at a window only its frames' cost overflows",
+      (await page.locator(".refusal-banner").count()) === 1,
+    );
+    state.nctx = 65536;
+    await page.reload();
+    await page.waitForTimeout(1200);
+    await openChat();
+
+    // 17. Replay: the sent video survives its own reload as a tile that
+    //     opens the viewer.
+    await attach([
+      { name: "clip3.mp4", mimeType: "video/mp4", buffer: Buffer.from(fixtureB64, "base64") },
+    ]);
+    await page.waitForSelector(".composer-image-glyph", { timeout: 12000 });
+    await sendText("keep this one");
+    await reopenConversation(/keep this one/i);
+    await page.waitForSelector(".user-video-tile", { timeout: 9000 }).catch(() => {});
+    const tileImg = page.locator(".user-video-tile img");
+    const posterPixels = (await tileImg.count()) > 0 ? await tileImg.evaluate((img) => img.naturalWidth) : 0;
+    check(
+      "the reloaded bubble shows the video tile, poster painted",
+      posterPixels > 0,
+      `naturalWidth=${posterPixels}`,
+    );
+    await page.locator(".user-video-tile").first().click();
+    await page.waitForSelector(".media-viewer video", { timeout: 5000 });
+    check("the tile opens the viewer, video and all", true);
+    await page.locator(".media-viewer-close").click();
+    await page.waitForFunction(() => document.querySelector(".media-viewer") === null, null, { timeout: 4000 });
+
+    // 18. Blind: the same placeholder road as pictures.
+    state.vision = false;
+    await reopenConversation(/keep this one/i);
+    await sendText("and now, blind");
+    const blindVideo = bodies.at(-1);
+    const blindAsked = (blindVideo?.messages ?? [])
+      .filter((m) => m.role === "user")
+      .map((m) => (Array.isArray(m.content) ? "parts" : m.content));
+    check(
+      "a blind model meets the video as the placeholder",
+      blindAsked[0] === "keep this one one\n[an image the current AI cannot see]" ||
+        blindAsked[0] === "keep this one\n[an image the current AI cannot see]" ||
+        (typeof blindAsked[0] === "string" && blindAsked[0].endsWith("[an image the current AI cannot see]")),
+      JSON.stringify(blindAsked),
+    );
+    const blindVideoBody = JSON.stringify(blindVideo ?? {});
+    check(
+      "nothing image- or video-shaped leaves for a blind model",
+      !blindVideoBody.includes("image_url") && !blindVideoBody.includes("data:image") && !blindVideoBody.includes("data:video"),
+      "searched the whole body",
+    );
+    state.vision = true;
+    // The page still holds the blind answer; a model flip is the re-read.
+    await page.evaluate(() => {
+      window.__model = "video-cancel-walk";
+    });
+    await page.waitForFunction(
+      () => (document.querySelector('.composer input[type="file"]')?.getAttribute("accept") ?? "").includes(".mp4"),
+      null,
+      { timeout: 9000 },
+    );
+
+    // 19. Cancel: the chip's × mid-work leaves quietly.
+    await attach([
+      { name: "gone.mp4", mimeType: "video/mp4", buffer: Buffer.from(fixtureB64, "base64") },
+    ]);
+    await page.waitForFunction(
+      () => document.querySelectorAll(".composer-image").length >= 1,
+      null,
+      { timeout: 12000 },
+    );
+    await page.locator(".composer-image-remove").first().click();
+    await page.waitForFunction(
+      () => document.querySelectorAll(".composer-image").length === 0,
+      null,
+      { timeout: 6000 },
+    );
+    check("a canceled video chip leaves quietly", pageErrors.length === 0, JSON.stringify(pageErrors));
+
     check(
       "no content-security refusal touched the page",
       !consoleLines.some((line) => line.includes("Content Security Policy")),
@@ -940,6 +1135,7 @@ try {
     logLevel: "silent",
     build: { outDir, emptyOutDir: true, target: "es2022" },
   });
+  await buildProbe();
 
   const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css" };
   server = createServer((request, response) => {
@@ -966,6 +1162,7 @@ try {
 } finally {
   if (server) server.close();
   await rm(outDir, { recursive: true, force: true });
+  await rm(probeDir, { recursive: true, force: true });
 }
 
 if (fail > 0) {

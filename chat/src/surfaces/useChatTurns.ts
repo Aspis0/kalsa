@@ -193,22 +193,36 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       // out silently.
       const blobs = new Map<string, Blob>();
       const wire: WireImage[] = [];
+      // A video's frames are images to this road — loaded, budgeted and
+      // demoted by the same rules — and the current turn's own frames are
+      // as protected as its own pictures.
       let currentTurnImages: string[] = [];
       if (vision) {
         for (const message of turns) {
           if (message.role !== "user") continue;
           const found: string[] = [];
-          for (const image of message.images ?? []) {
-            if (blobs.has(image.id)) {
-              found.push(image.id);
-              continue;
-            }
-            const blob = await getImage(image.id);
-            if (!blob) continue;
-            blobs.set(image.id, blob);
-            wire.push({ id: image.id, bytes: blob.size });
-            found.push(image.id);
+          const wanted = [
+            ...(message.images ?? []).map((image) => image.id),
+            ...(message.videos ?? []).flatMap((video) => video.frames.map((frame) => frame.id)),
+          ];
+          const pendingLoads = new Map<string, Blob>();
+          for (const id of wanted) {
+            if (blobs.has(id) || pendingLoads.has(id)) continue;
+            const blob = await getImage(id);
+            if (blob) pendingLoads.set(id, blob);
           }
+          const admit = (id: string): void => {
+            if (blobs.has(id)) {
+              found.push(id);
+              return;
+            }
+            const blob = pendingLoads.get(id);
+            if (blob === undefined) return;
+            blobs.set(id, blob);
+            wire.push({ id, bytes: blob.size });
+            found.push(id);
+          };
+          for (const id of wanted) admit(id);
           currentTurnImages = found;
         }
       }
