@@ -87,3 +87,8 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 ## Phone Room v1 text (branch phone/room-v1; review luna a4cf6816, 2026-10-04)
 - P3: src/room/roomQueue.ts is 355 lines and owns sessions, persistence coordination, retries and posting; split by
   responsibility next time it is touched.
+
+## iOS perf batch 1 (branch ios/perf-1; review luna 977ec3c3, 2026-10-04)
+- P3: AppErrorBoundary Reload only remounts the React tree; module-level singletons (engine, refs) survive, so a
+  failure rooted there can reproduce after Reload. A full JS reload (DevSettings/expo-updates reloadAsync) would be
+  the stronger recovery; decide when a real crash report shows the need.
