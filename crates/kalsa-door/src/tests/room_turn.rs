@@ -151,6 +151,11 @@ fn a_call_is_served_deltas_assemble_into_the_answer_that_lands() {
 
 #[test]
 fn one_turn_at_a_time_and_the_queue_is_fair_between_people() {
+    // Eleven of those pieces are empty deltas — a second of quiet that is
+    // NOT work to the stall clock — so this test holds the seam at the
+    // default patience: a concurrent test's shrunk override must not read
+    // into this stream, kill the turn and reorder the answers.
+    let _stall = crate::room::turn::stall_for(Duration::from_secs(60));
     // The first answer is slow — a dozen pieces, the engine's fake pacing them
     // 100 ms apart, the words only in the last — so it is still running when
     // the third call arrives however loaded the machine is.

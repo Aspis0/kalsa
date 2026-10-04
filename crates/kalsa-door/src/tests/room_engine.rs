@@ -30,6 +30,14 @@ pub(super) enum Reply {
     Stall,
     /// SSE comments at a steady pace without ever sending answer content.
     KeepAlive,
+    /// A request that carries images answers only after `silence` has
+    /// passed with no frame at all — the projector's first encode, which
+    /// reports nothing while it works — and a request without images
+    /// answers at once. In both cases the answer is `pieces`, streamed.
+    SseAfterImages {
+        silence: Duration,
+        pieces: Vec<String>,
+    },
     /// A prompt being read: `reports` prefill frames (`prompt_progress`, empty
     /// delta) one `gap` apart, timed the way the engine times them, and then
     /// the answer `then` — or silence for ever when there is none.
@@ -268,6 +276,30 @@ fn serve(
                 }
                 None => thread::sleep(Duration::from_secs(120)),
             }
+        }
+        Reply::SseAfterImages { silence, pieces } => {
+            if request.body.contains("\"image_url\"") {
+                thread::sleep(silence);
+            }
+            let head =
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+            if stream.write_all(head.as_bytes()).is_err() {
+                return;
+            }
+            for piece in pieces {
+                let escaped = piece
+                    .replace('\\', "\\\\")
+                    .replace('"', "\\\"")
+                    .replace('\n', "\\n");
+                let frame = format!(
+                    "data: {{\"choices\":[{{\"delta\":{{\"content\":\"{escaped}\"}}}}]}}\n\n"
+                );
+                if stream.write_all(frame.as_bytes()).is_err() {
+                    return;
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+            let _ = stream.write_all(b"data: [DONE]\n\n");
         }
         Reply::KeepAlive => {
             let head =

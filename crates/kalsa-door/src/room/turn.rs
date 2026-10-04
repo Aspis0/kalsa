@@ -76,6 +76,16 @@ const READ_SLICE: Duration = Duration::from_secs(1);
 /// transport keep-alives are not. Tests shrink it through [`stall_for`].
 const STALL_PATIENCE: Duration = Duration::from_secs(60);
 
+/// How long a request that carries images may stay silent before its
+/// first sign of work: the projector's first use on this machine — the
+/// vision tower paged in, the Metal pipelines compiled, and the encode of
+/// up to eight images — reports NOTHING while it runs, and on a cold
+/// small computer that is minutes, not one stall patience (the walk's
+/// first media turn: two 60 s stalls killed both the encode and its
+/// retry). Ten times the stall patience; the tests shrink the one clock
+/// the two share.
+const MEDIA_PREFILL_FACTOR: u32 = 10;
+
 /// The stall seam: a process-wide override in milliseconds, because the
 /// test sets it on its own thread and the driver reads it on its. Zero
 /// means the constant.
@@ -223,8 +233,9 @@ enum Exchange {
     /// heals this itself, and the `read` count on the answer that lands
     /// says what the healing cost.
     TooLarge,
-    /// Any other engine error, or a stream that broke. Retried once.
-    Failed,
+    /// Any other engine error, or a stream that broke, under its reason
+    /// class — the one word the log line carries, never the content.
+    Failed(&'static str),
 }
 
 /// One turn, from the thinking frame to its end. The `&'static str` is the
@@ -246,7 +257,7 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
         if !door.room.turn_alive(turn) {
             return "cancelled";
         }
-        let (messages, read) = transcript(door, shared, budget, vision);
+        let (messages, read, image_count) = transcript(door, shared, budget, vision);
         let mut said_waiting = false;
         let waiting_since = Instant::now();
         let lease = loop {
@@ -330,7 +341,7 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
             publish(door.room.clone(), "refused", Some(UNAVAILABLE));
             return "unavailable";
         };
-        match ask_the_engine(door, shared, turn, &lease, &salt, &messages) {
+        match ask_the_engine(door, shared, turn, &lease, &salt, &messages, image_count) {
             Exchange::Answered(answer) => {
                 if answer.is_empty() {
                     publish(door.room.clone(), "refused", Some(EMPTY_ANSWER));
@@ -360,7 +371,12 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
                 }
             },
             Exchange::Abandoned => return "cancelled",
-            Exchange::Failed => {
+            Exchange::Failed(class) => {
+                // The one line a failed exchange owes the log: the class
+                // of the failure and nothing of its content. The walk's
+                // first media turn died twice with nothing but
+                // `engine_problem` to show for it.
+                log::info!("room turn exchange failed: turn {turn} class {class}");
                 if engine_retries > 0 {
                     engine_retries -= 1;
                     continue;
@@ -384,6 +400,7 @@ fn ask_the_engine(
     lease: &crate::slots::SlotLease<'_>,
     salt: &[u8; 32],
     messages: &serde_json::Value,
+    image_count: usize,
 ) -> Exchange {
     let body = json!({
         "model": "kalsa-room",
@@ -397,7 +414,7 @@ fn ask_the_engine(
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, shared.port));
     let mut engine = match TcpStream::connect_timeout(&address, Duration::from_secs(5)) {
         Ok(engine) => engine,
-        Err(_) => return Exchange::Failed,
+        Err(_) => return Exchange::Failed("connect"),
     };
     let mut head = Vec::with_capacity(512);
     head.extend_from_slice(
@@ -416,18 +433,28 @@ fn ask_the_engine(
     if proxy::write_with_deadline(&mut engine, &head, Instant::now() + Duration::from_secs(30))
         .is_err()
     {
-        return Exchange::Failed;
+        return Exchange::Failed("send");
     }
     log::info!("room turn request sent: turn {turn}");
     let mut reader = BufReader::new(engine);
     let mut answer = String::new();
     let mut answered = false;
-    // The stall clock follows work — answer content, and prefill reports while
-    // the prompt is being read — not transport keep-alives. There is no clock
-    // on the whole answer: a long, live answer is never cut.
+    // The stall clock follows work — answer content, and prefill reports
+    // while the prompt is being read — not transport keep-alives. There is
+    // no clock on the whole answer: a long, live answer is never cut. One
+    // silence is not like the others: a request that carries images may
+    // open with the projector's first encode, which reports nothing while
+    // it runs, so its floor is the media patience until the work itself
+    // sets the pace — killing that silence is what re-sent the walk's
+    // first media turn into a doubled, failed encode.
     let mut last_work = Instant::now();
     let stall = stall_patience();
-    let mut allowed = stall;
+    let media_floor = if image_count > 0 {
+        stall * MEDIA_PREFILL_FACTOR
+    } else {
+        stall
+    };
+    let mut allowed = media_floor;
     let mut prefill = Prefill::new();
     loop {
         if !door.room.turn_alive(turn) {
@@ -443,33 +470,35 @@ fn ask_the_engine(
             // truncated — the desktop chat reports a stream that ends
             // without [DONE] and never announces it complete, and neither
             // does the room.
-            Ok(0) => return Exchange::Failed,
+            Ok(0) => return Exchange::Failed("truncated"),
             Ok(_) => {}
             Err(error)
                 if error.kind() == std::io::ErrorKind::WouldBlock
                     || error.kind() == std::io::ErrorKind::TimedOut =>
             {
                 if last_work.elapsed() >= allowed {
-                    return Exchange::Failed;
+                    return Exchange::Failed("stall");
                 }
                 continue;
             }
-            Err(_) => return Exchange::Failed,
+            Err(_) => return Exchange::Failed("read"),
         }
         let mut worked = false;
         if let Some(payload) = line.strip_prefix("data: ") {
             let payload = payload.trim_end();
             if payload == "[DONE]" {
-                // The terminal event was seen: the answer's own end, and the
-                // socket's close after it changes nothing.
+                // The terminal event was seen: the answer's own end, and
+                // the socket's close after it changes nothing.
                 return Exchange::Answered(answer);
             }
             if let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) {
                 // A prefill report is work: it restarts the clock with the
-                // gap the engine's own pace allows, and carries no words.
+                // gap the engine's own pace allows — never below the media
+                // floor while images may still be encoding — and carries
+                // no words.
                 if let Some(progress) = value.get("prompt_progress").filter(|p| !p.is_null()) {
                     worked = true;
-                    allowed = prefill.report(progress, stall);
+                    allowed = prefill.report(progress, stall).max(media_floor);
                 }
                 // Content only: reasoning is the computer's own channel — the
                 // desktop chat shows it beside the answer, the room carries the
@@ -502,14 +531,14 @@ fn ask_the_engine(
                     return Exchange::TooLarge;
                 }
                 if code != "200" {
-                    return Exchange::Failed;
+                    return Exchange::Failed("status");
                 }
             }
         }
         if worked {
             last_work = Instant::now();
         } else if last_work.elapsed() >= allowed {
-            return Exchange::Failed;
+            return Exchange::Failed("stall");
         }
     }
 }
@@ -589,7 +618,7 @@ fn transcript(
     shared: &Arc<Shared>,
     budget: usize,
     vision: bool,
-) -> (serde_json::Value, u32) {
+) -> (serde_json::Value, u32, usize) {
     let (windowed, _) = window(door, shared, budget);
     let images = if vision {
         turn_images(&windowed, budget)
@@ -622,7 +651,7 @@ fn transcript(
             messages.push(json!({"role": "user", "content": content}));
         }
     }
-    (json!(messages), read)
+    (json!(messages), read, images.len())
 }
 
 /// One image the turn may carry: the transcript entry it belongs to, and

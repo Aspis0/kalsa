@@ -28,7 +28,7 @@ const ROUTE: &str = "/v1/chat/completions";
 const CHAT: &str = "0f1e2d3c-5a6b-4c7d-8e9f-0011logleakcanary";
 
 /// Every line the door wrote in this run.
-fn lines() -> &'static Mutex<Vec<String>> {
+pub(super) fn lines() -> &'static Mutex<Vec<String>> {
     static LINES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
     LINES.get_or_init(|| Mutex::new(Vec::new()))
 }
@@ -55,7 +55,7 @@ impl log::Log for Capture {
 
 /// Installs the capture once for the test binary. The whole binary's lines go
 /// through it; every assertion below is by a marker only its own test writes.
-fn capture() {
+pub(super) fn capture() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         let _ = log::set_logger(&CAPTURE);
@@ -87,7 +87,7 @@ fn wait_for(marker: &str) -> Vec<String> {
 
 /// The lines written so far, as a count: what a test captures before its own
 /// request, so [`wait_for_new`] can tell its line from an earlier test's.
-fn line_count() -> usize {
+pub(super) fn line_count() -> usize {
     lines().lock().unwrap().len()
 }
 

@@ -245,3 +245,124 @@ fn the_images_never_eat_the_message_the_turn_is_about() {
     );
     door.shutdown();
 }
+
+/// Waits for the AI's landed answer with a deadline the caller names —
+/// the slow-first-image turn needs more than [`await_answer`]'s window.
+fn wait_answer(room: &Room, within: Duration) -> kalsa_room::Entry {
+    let deadline = std::time::Instant::now() + within;
+    loop {
+        if let Some(entry) = room
+            .newest_page(1, 10)
+            .unwrap()
+            .messages
+            .iter()
+            .rev()
+            .find(|entry| entry.member == kalsa_room::MemberId::Ai)
+        {
+            return entry.clone();
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the AI's answer never landed"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[test]
+fn a_slow_first_image_prefill_is_waited_out_not_killed_and_resent() {
+    // The walk's first media turn (fb477ddd, 2026-10-04 03:28Z): the
+    // projector's first encode reports nothing while it runs, the clock
+    // read that silence as a stall, killed the request mid-encode and
+    // re-sent it — doubling the engine's work and, cold, failing twice
+    // into engine_problem. The turn must wait the silence out on ONE
+    // request.
+    let silence = Duration::from_secs(3);
+    let engine = Engine::with_vision(vec![
+        Reply::SseAfterImages {
+            silence,
+            pieces: vec!["seen".to_string()],
+        },
+        // Only the old, killing behavior ever reaches this one.
+        Reply::SseAfterImages {
+            silence,
+            pieces: vec!["resent".to_string()],
+        },
+    ]);
+    let (door, room, engine, [_, one, _]) = turn_room(engine);
+    let address = door.address();
+    // The stall clock shrunk: the media floor follows at ten times it, so
+    // three seconds of image silence is a wait, not a stall.
+    let _stall = crate::room::turn::stall_for(Duration::from_millis(400));
+    let bearer = format!("Bearer {one}");
+    let media = upload_image(address, &one, &jpeg_bytes(), "image/jpeg", None);
+    post(
+        address,
+        Some(&bearer),
+        "/kalsa/room/messages",
+        &format!(r#"{{"client_msg_id":"m1","text":"@Kalsa look","media":["{media}"]}}"#),
+    );
+    let landed = wait_answer(&room, Duration::from_secs(12));
+    assert_eq!(landed.text, "seen");
+    // ONE completion reached the engine: no duplicate send while the
+    // first was still encoding.
+    assert_eq!(
+        engine.seen().len(),
+        1,
+        "the first request was waited out, not killed and re-sent"
+    );
+    door.shutdown();
+}
+
+#[test]
+fn a_failed_exchange_names_its_class_in_one_line() {
+    // The walk could not tell why the turn died; now every failed
+    // exchange leaves one line behind, naming the class and nothing of
+    // the content. A silent engine is a stall.
+    super::logging::capture();
+    let before = super::logging::line_count();
+    let engine = Engine::start(vec![Reply::Hang, Reply::Hang]);
+    let (door, room, _engine, [_, one, _]) = turn_room(engine);
+    let address = door.address();
+    let _stall = crate::room::turn::stall_for(Duration::from_millis(300));
+    post(
+        address,
+        Some(&format!("Bearer {one}")),
+        "/kalsa/room/messages",
+        r#"{"client_msg_id":"n1","text":"@Kalsa nope"}"#,
+    );
+    // Wait for MY line: the capture is one for the whole test binary and
+    // other turns fail under other classes, so the marker is the class
+    // itself, not the generic word.
+    let deadline = std::time::Instant::now() + Duration::from_secs(8);
+    let mine = loop {
+        let mine: Vec<String> = super::logging::lines()
+            .lock()
+            .unwrap()
+            .iter()
+            .skip(before)
+            .filter(|line| line.contains("room turn exchange failed"))
+            .cloned()
+            .collect();
+        if mine.iter().any(|line| line.contains("class stall")) || std::time::Instant::now() >= deadline {
+            break mine;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    assert!(
+        mine.iter().any(|line| line.contains("class stall")),
+        "the stall is named: {mine:?}"
+    );
+    // And the line carries no content: the class is the whole story.
+    assert!(
+        mine.iter().all(|line| line.matches('"').count() == 0),
+        "no quoted content rides the line: {mine:?}"
+    );
+    // The room was still told the honest word.
+    let deadline = std::time::Instant::now() + Duration::from_secs(6);
+    while room.turn_state().running.is_some() {
+        assert!(std::time::Instant::now() < deadline, "the turn never ended");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    door.shutdown();
+}
