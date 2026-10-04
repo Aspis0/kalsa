@@ -94,3 +94,7 @@ Evidence: QDC SM8850 (8 Elite Gen 5, Hexagon v81, Adreno 840) never loads the go
   KV commit); decode 11.47/11.30 tok/s with hop vs 10.25 -> 8.09 CPU-only as the phone heats (CPU-only -21 %, hop
   -1.5 %); the only thermal status 3 was a CPU-only arm. Heat/token lower with hop in both pairs but confounded by
   hotter hop starts -> matched-start heat run still to do.
+- 2026-10-03 S23 in-app zone probe (`s23-zone-probe-202a1370`, app 202a1370): the app process (untrusted_app) READS
+  /sys/class/thermal - 86/95 temps, every cpu*/gpuss-*/nspss-* zone; 9 EINVAL (disabled zones, not SELinux).
+  HardwarePropertiesManager: SecurityException (DEVICE_POWER) for CPU/GPU/SKIN. Per-component temperature input
+  for the governor is available in-app on the S23; other vendors still to probe.
