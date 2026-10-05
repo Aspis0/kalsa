@@ -169,3 +169,8 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - F5 (P2 plausible): a second HTP device's HOST-W is claimable (no owner-device check); the foreign-device test mock is non-host.
 - F6 (P2 plausible): a failed init_tensor leaves buffer/data set, so the scheduler retry can skip re-init.
 - P3: `test-tile32-host-ops` calls the pure scan directly and would pass with `.offload_op` reverted to NULL.
+
+## Room queue storage fix (branch phone/room-queue-storage; review space-bunny 0014d477, 2026-10-05)
+- P2 (E3/A3): 62 suites hand-roll the AsyncStorage jest mock in two shapes; the package's own `jest/async-storage-mock.js` has no `default`. One shared `test-support` factory (or moduleNameMapper wrapping the shipped mock as `{__esModule, default}`) would stop a wrong-shape mock hiding a device-only bug again.
+- P2 (F2): `roomQueue.ts:401-404` treats any load throw as a "damaged shelf" hold; an adapter fault (TypeError) should be logged distinctly from corrupt data.
+- P3 (E4/F1): no comment at `roomQueueStore.ts:66` that the package exports only a default.
