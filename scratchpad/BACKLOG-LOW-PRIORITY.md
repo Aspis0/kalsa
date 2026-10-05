@@ -128,3 +128,5 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - F8/F10: `ggml_backend_opencl_release_imports` has no caller in-tree; stale-import warning is NDEBUG-silent and fd/base/size can collide after recycling. Wiring is step 6 (binding); revisit the detector there.
 - F9: only a tied lm_head lands in HOST; an untied output in shared mode is unaddressed.
 - F12/F13: per-op mutex/env cost on the compute path; discarded bool return; test covers little runtime decision surface beyond what the fixes add.
+- P3 UX (Jelly 2026-10-05): a remote picture's composer chip reads "Reading from <file>" with a document icon; it
+  should look like a picture chip (thumbnail or image icon, no "Reading from").

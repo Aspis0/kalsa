@@ -1137,7 +1137,7 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   Remote turns carry JPEG parts only when the PC /props says vision (re-read at send, bounded, epoch-checked);
   long side 1536, q0.85, EXIF stripped by a fail-closed byte walk (re-encode, else refuse); 12 MiB phone budget,
   560 tokens per image; documents still refused remotely; on-device model stays text-only until after alpha.
-  Reviewed once (luna), P0/P1 + user P2 fixed; Simulator re-test PASS with the owner; Jelly test on CI run 37223652768.
+  Reviewed once (luna), P0/P1 + user P2 fixed; Simulator re-test PASS with the owner; Jelly LIVE PASS 2026-10-05 (APK 3908f2a0, read "JELLY 42").
   Follow-up `ac457508` (2026-10-04): 3908f2a0 left notes/library-document attach rows ungated while remote and broke
   ci.yml (src/host/fileSize.test.ts: HostRoot 258>241). Fixed: one remote allow-list per attach row (pictures +
   templates only), notes never ride the desk (send rule + arm cleared on switch), document/PDF pages never ride
