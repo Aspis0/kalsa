@@ -1,0 +1,30 @@
+INVALID H kld: kld-exit=134 no-meanKLD
+SESSION ABORTED: H timed failed
+== NPU+GPU-lm_head session start Mon Oct  5 15:35:25 EDT 2026 [lvl=58 ac=false usb=false wl=false batT=350 skin=34.6 wake=Awake thermal=0 traced=0]
+binaries: 1c5e468cdf9e 6f791706c04f 9455871f0673 (bench ppl skel)
+proof H: exit=0 splits=3 lm_head_on_htp=0 gpu_selfcheck_pass=1 errors=0 [lvl=58 ac=false usb=false wl=false batT=350 skin=34.5 wake=Awake thermal=0 traced=0]
+proof H: shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+proof H: load_tensors:  HTP0-HOST-W model buffer size =   219.75 MiB
+proof H: load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+proof H: shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+proof H: ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+proof H: ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+proof H: sched_reserve:       HTP0 compute buffer size =     2.22 MiB
+proof H: sched_reserve:  HTP0-HOST compute buffer size =     8.06 MiB
+proof H: ~llama_context:       HTP0 compute buffer size is   2.2188 MiB, matches expectation of   2.2188 MiB
+proof H: ~llama_context:     OpenCL compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+proof H: ~llama_context:  HTP0-HOST compute buffer size is   8.0626 MiB, matches expectation of   8.0626 MiB
+proof H: PASS
+== A bench start 1791229179 [lvl=58 ac=false usb=false wl=false batT=337 skin=32.9 wake=Awake thermal=0 traced=0]
+A bench: exit=0 pp512=942.64 tg128=22.62 maxRSS=316408kB errors=0
+== A kld start 1791229325 [lvl=58 ac=false usb=false wl=false batT=333 skin=33.1 wake=Awake thermal=0 traced=0]
+A kld: exit=0 meanKLD=0.044953 errors=0
+A kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  27.092975 ±   3.946555;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   0.837831 ±   0.015796;Mean PPL(Q)-PPL(base)         :  -5.244057 ±   1.068490;Mean    KLD:   0.044953 ±   0.004217;Maximum KLD:   0.998282;Same top p: 88.627 ± 1.407 %;
+== H bench start 1791229586 [lvl=57 ac=false usb=false wl=false batT=335 skin=33.1 wake=Awake thermal=0 traced=0]
+H bench: exit=0 pp512=903.42 tg128=16.95 maxRSS=124340kB errors=0
+== H kld start 1791229768 [lvl=56 ac=false usb=false wl=false batT=334 skin=33.0 wake=Awake thermal=0 traced=0]
+H kld: exit=134 meanKLD=none errors=0
+INVALID H kld: kld-exit=134 no-meanKLD
+SESSION ABORTED: H timed failed
+
+[exited with code 0]

@@ -1524,6 +1524,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   orders of magnitude (the n2 audit's P1 flagged it). S KLD killed (hours). n_prefetch guard fix `23dbab22f` (GLM)
   restored HMX prefill. Fable Amendment J requested (raw-layout HVX mat-vec vs vectorised conversion vs fallbacks:
   option 2 duplicate, lm_head on the GPU leg, lm_head on the CPU); owner decides after it.
+- **Fable Amendment J** (committed): 9.2 s = scalar byte read-modify-write into VTCM; any converting design loses; an
+  HVX dot over the raw GGUF Q6_K layout would reach 0.95-1.0 but is weeks of DSP work. Ranked: (1) lm_head on the GPU
+  inside the NPU decode (est. 0.92-0.96, 1.75 GB, no DSP work), (2) option 2 duplicate (1.00, ~1.96 GB), (3) HVX raw
+  dot, (4) CPU lm_head (0.74-0.77).
+- **J(1) arm, first S23 run (15:35, `step4b-s23/raw/gpulm-session1-5e9b355fd.grep`)**: the lm_head did NOT go to the
+  GPU (OpenCL compute buffer 0 MiB, splits 3, H tg128 16.95 vs A 22.62 = the CPU lm_head) and H's KLD aborted on
+  `GGML_ASSERT(buffer)`. Cause of the first, verified: OpenCL's `offload_op` is NULL, and for a weight in a host
+  buffer the scheduler only hands the op to a backend that opts in (`1.off`), else to the CPU (`1.host`) - so step
+  4b's HOST leg (lm_head, norms, conv) never received an op; that is also why the GPU leg stayed at 197 splits.
+  Fix + the null-buffer abort dispatched to deepseek (opencode-go Coder).
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
