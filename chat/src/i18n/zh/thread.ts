@@ -15,7 +15,7 @@ export const THREAD = {
     "stoppedHalfwayBody": "连接在结束前断开了 —— 已到达的内容在上方。再试一次可获得完整回答。",
     "tryAgain": "再试一次",
     "waitingFirstWord": "等待第一个字",
-    "readingMessage": "正在读你的消息 —— Kalsa 很快会回答。",
+    "readingMessage": "Kalsa 正在阅读你的消息，很快就会回复。",
     "stoppedEarly": "提前中断 —— 显示已到达的内容。",
     "noAnswer": "Kalsa 想完了却没有给出回答。换个方式问问。",
     "backToLatest": "回到最新 ↓",

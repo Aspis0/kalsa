@@ -15,7 +15,7 @@ export const THREAD = {
     "stoppedHalfwayBody": "La connessione si è chiusa prima della fine — quello che è arrivato è qui sopra. Riprova per la risposta completa.",
     "tryAgain": "Riprova",
     "waitingFirstWord": "In attesa della prima parola",
-    "readingMessage": "Sto leggendo il tuo messaggio — Kalsa ti risponderà presto.",
+    "readingMessage": "Kalsa sta leggendo il tuo messaggio e risponderà presto.",
     "stoppedEarly": "Interrotta prima del tempo — ecco quello che era arrivato.",
     "noAnswer": "Kalsa ha finito di pensare senza dare una risposta. Prova a chiedere in un altro modo.",
     "backToLatest": "Torna all'ultimo ↓",

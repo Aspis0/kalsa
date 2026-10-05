@@ -74,7 +74,11 @@ function WaitingRow({ text, spoken }: { text: string; spoken: string }) {
     <>
       <span className="waiting-row">
         <Thinking />
-        {slow ? <span className="row-note">{text}</span> : null}
+        {slow ? (
+          <span className="row-note" role="status">
+            {text}
+          </span>
+        ) : null}
       </span>
       <span className="visually-hidden">{spoken}</span>
     </>

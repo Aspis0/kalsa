@@ -9,7 +9,7 @@ export const ROOM: RoomTable = {
   },
   closedRoom: "打开 Kalsa 才能使用房间。",
   emptyRoom: "还没有消息。说点什么，或者问问 Kalsa。",
-  readingRoom: "正在读房间里的内容 —— Kalsa 很快会回答。",
+  readingRoom: "Kalsa 正在阅读对话，很快就会回复。",
   queueNext: (name: string) => `Kalsa 将先回答${name}。`,
   queueThen: (name: string, rest: string) => `Kalsa 将先回答${name}，然后回答${rest}。`,
   askKalsa: "问 Kalsa",

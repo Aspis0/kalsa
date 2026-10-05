@@ -4717,15 +4717,25 @@ const tests = {
     await page.waitForTimeout(500);
 
     await page.evaluate(() => {
-      window.__emitRoom({ kind: "ai_status", state: "thinking", note_code: null, note: null, running: "Kalsa", queue: [], you_pending: true });
+      window.__emitRoom({ kind: "ai_status", state: "thinking", note_code: null, note: null, running: "This computer", queue: [], you_pending: true });
     });
     await page.waitForTimeout(300);
     const thinkingText = await page.locator(".room-bubble").innerText();
     check("roomwaiting: a thinking turn says Kalsa is reading", thinkingText.includes("Reading the room — Kalsa will answer soon."), thinkingText);
     check("roomwaiting: the dots are beside the line", (await page.locator(".room-bubble .thinking").count()) === 1);
+    check("roomwaiting: the line is a live status", (await page.locator('.room-bubble [role="status"]').count()) === 1);
+
+    // Another member enqueues behind the running turn: `queued` is not the
+    // engine giving this turn up, so the line must stay.
+    await page.evaluate(() => {
+      window.__emitRoom({ kind: "ai_status", state: "queued", note_code: null, note: null, running: "This computer", queue: ["Sofia"], you_pending: true });
+    });
+    await page.waitForTimeout(300);
+    const queuedText = await page.locator(".room-bubble").innerText();
+    check("roomwaiting: a queued call behind the turn keeps the line", queuedText.includes("Reading the room"), queuedText);
 
     await page.evaluate(() => {
-      window.__emitRoom({ kind: "ai_status", state: "waiting", note_code: "busy_waiting", note: "Kalsa is busy.", running: "Kalsa", queue: [], you_pending: true });
+      window.__emitRoom({ kind: "ai_status", state: "waiting", note_code: "busy_waiting", note: "Kalsa is busy.", running: "This computer", queue: [], you_pending: true });
     });
     await page.waitForTimeout(300);
     const waitingText = await page.locator(".room-bubble").innerText();
@@ -4733,12 +4743,27 @@ const tests = {
     const pageText = await page.evaluate(() => document.body.innerText);
     check("roomwaiting: the busy note still shows under the thread", pageText.includes("Kalsa is busy with another conversation"), pageText.slice(0, 300));
 
+    // A reconnect mid-answer: the snapshot says `answering` but no live text
+    // has reached this page yet, so the dots stay alone — the answer has
+    // begun, and the next delta is what shows it.
+    await page.evaluate(() => {
+      window.__emitRoom({ kind: "ai_status", state: "answering", note_code: null, note: null, running: "This computer", queue: [], you_pending: true });
+    });
+    await page.waitForTimeout(300);
+    const answeringText = await page.locator(".room-bubble").innerText();
+    check("roomwaiting: a bare answering snapshot does not say reading", !answeringText.includes("Reading the room"), answeringText);
+
+    await page.evaluate(() => {
+      window.__emitRoom({ kind: "ai_status", state: "thinking", note_code: null, note: null, running: "This computer", queue: [], you_pending: true });
+    });
+    await page.waitForTimeout(300);
+    check("roomwaiting: a thinking turn says reading again", ((await page.locator(".room-bubble").innerText()) ?? "").includes("Reading the room"));
     await page.evaluate(() => {
       window.__emitRoom({ kind: "ai_delta", turn: 7, text: "First words." });
     });
     await page.waitForTimeout(300);
     const answeredText = await page.locator(".room-bubble").innerText();
-    check("roomwaiting: the first delta takes the waiting line away", !answeredText.includes("Reading the room") && answeredText.includes("First words."), answeredText);
+    check("roomwaiting: the first delta takes the reading line away", !answeredText.includes("Reading the room") && answeredText.includes("First words."), answeredText);
 
     await browser.close();
   },
@@ -4771,6 +4796,7 @@ const tests = {
       ((await page.locator(".waiting-row .row-note").innerText()) ?? "").includes("Reading your message — Kalsa will answer soon."),
       await page.locator(".waiting-row .row-note").innerText(),
     );
+    check("waitfirst: the sentence is a live status", (await page.locator('.waiting-row [role="status"]').count()) === 1);
 
     try {
       await page.waitForFunction(

@@ -9,7 +9,7 @@ export const ROOM: RoomTable = {
   },
   closedRoom: "Allume Kalsa pour utiliser le salon.",
   emptyRoom: "Pas encore de messages. Dis quelque chose, ou demande à Kalsa.",
-  readingRoom: "Je lis la pièce — Kalsa répondra bientôt.",
+  readingRoom: "Kalsa lit la conversation et répondra bientôt.",
   queueNext: (name: string) => `Kalsa répondra d'abord à ${name}.`,
   queueThen: (name: string, rest: string) => `Kalsa répondra d'abord à ${name}, puis ${rest}.`,
   askKalsa: "Demande à Kalsa",
