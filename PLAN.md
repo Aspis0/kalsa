@@ -1155,6 +1155,9 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   idle embedder released too, boundary outermost; full jest 3519 green). Batch 2 after measuring: transcript is a
   non-virtualized ScrollView and the 33 ms coalescer re-renders
   it per token. Simulator/Mac numbers are not iPhone numbers; jetsam needs a real device (partner 15 Pro, ask).
+  **Owner 2026-10-05 UX: quick phone/PC switch in the chat pill.** Unpaired: the pill shows only the phone model, no
+  fake picker chevron. Paired: tap opens two rows (On this phone / Your computer) and switches through the same path
+  as Settings > Where it runs; refused while a turn generates. Coder on branch ux/model-bar-switch.
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
