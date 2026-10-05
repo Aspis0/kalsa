@@ -1355,14 +1355,18 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   CPU reads them with a dotprod gemv (`53db71525`..`e9d7a9f45`). S23: NPU one-copy by automatic placement = two-copy
   (pp 0.991, tg 1.004, KLD equal); CPU decode on tiles +34 % (-t 1) / +21 % (-t 5) over shipped no-repack, 0.83-0.86
   of repack; CPU prefill on tiles 1.06x native at -t 1 but **0.88x at -t 5** (open, with the GEMM over tiles).
-- **Step 2 (engine done, S23 pending)**: spec = Fable Amendment B (`FABLE-DESIGN.md` B1-B5). Hexagon proc-address
-  setter `ggml_backend_hexagon_set_shared_weights({enabled, max_buffer_bytes})` and extra bufts `{TILE32, HOST}` in
-  shared mode, so llama's probe puts Q4_0 matmuls in TILE32 and norms/conv in HOST with no `-ot` (`80206f9b3`, GLM;
-  luna audit: pin fired too late - fixed by latching at the buft read, `93fb3c097`; caller contract: call before any
-  model load). S23 session `step2-s23/` ready: two-copy placement diff vs step 1, proofs, NPU ABBA with the shipped
-  placement (step-1 arm T had norms on the device buft), PSS + dma-buf RAM table (A, C, S).
-- Next: step 3 (no hidden second copy: fail by
-  name), step 4 (GPU leg), step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
+- **Step 2 measured** (`REPORT.md` "Step 2 check"): setter + `{TILE32, HOST}` placement (`80206f9b3`,
+  `93fb3c097`); two-copy placement byte-identical; cap splits the tiles 827 + 479 MiB; RAM one copy 1.98 GB vs
+  today's app ~3.70 GB (NPU model 1.96 + CPU model 1.74). NPU prefill 0.986 of two-copy but **decode 0.766**
+  (17.0-17.4 vs 22.4-22.6 tok/s): LFM2's tied output (a duplicate of token_embd, Q6_K 205 MiB) lands in HOST and its
+  lm_head runs on the CPU; today's two-copy NPU model keeps that duplicate on the HTP. **Owner decision pending**:
+  205 MiB output duplicate on the HTP (keeps NPU decode) vs no duplicate (decode 0.77) vs engine work so the NPU reads
+  the one copy (Fable asked for options, 2026-10-05).
+- **Step 3 (code in, audit running)**: `be1781cee`..`79f72bb16` (GLM): pin = live TILE32/HOST buffer count (R2
+  fallback), scheduler + CPU-compute guards for non-native weights, loader rule "a duplicated tensor reuses the
+  original from a host buffer or the load fails" (this rule fixes the lm_head on the CPU - it depends on the decision
+  above), post-load buffer audit. Fable's scheduler guard found unreachable by the coder (an earlier assert fires).
+- Next: step 4 (GPU leg), step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
   load, R2 negative control on Jelly/untested Snapdragon).
 
 Open: GEMM over tiles for CPU prefill (deferred, owner 2026-10-04); GPU leg may not rest the CPU (attention,

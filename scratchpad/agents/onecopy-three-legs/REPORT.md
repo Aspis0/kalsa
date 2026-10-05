@@ -213,3 +213,31 @@ the CPU base logits).
 Resume 1 (23:08): the C-repack KLD spun 43 min on ~4 cores without finishing its first pass (normal ~21 s), killed.
 Bisect, one chunk: step-0 and step-1 binaries both 47-48 s, KLD 0.001262 identical; resume 2 with a stack-dumping
 watchdog ran clean. A sporadic hang in the shipped-default CPU repack path, not a step-1 regression; no stacks yet.
+
+## Step 2 check: shared-weights setter + {TILE32, HOST} placement (engine `93fb3c097`, S23 unplugged)
+
+Raw: `step2-s23/raw/session1-93fb3c097-proofs.grep` (proofs only; stopped by the HOST gate) and
+`step2-s23/raw/session2-93fb3c097.grep` (full, 01:01-01:41). Binaries `851ef182...` / `d615d418...`, release skel
+`61c8d6f5...`. Shared mode by env (`GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_HOSTBUF_REPACK=1 GGML_HEXAGON_MBUF=832
+GGML_OP_OFFLOAD_MIN_BATCH=1 GGML_HEXAGON_ADMIT_OPS=7`), no `-ot`.
+
+- B1 gate: two-copy placement lines (NPU `-ngl 99` and CPU `-ngl 0 -nr`) byte-identical to the step-1 binary.
+- Placement by the probe: CPU 205.08 MiB (token_embd), HTP0-HOST 219.75 MiB, HTP0-TILE32 1306.12 MiB; no HTP0
+  device buffer. Two-copy A: CPU 205.08 + HTP0 1525.87 MiB. **HOST holds the tied output**: LFM2 has no
+  `output.weight`, the loader duplicates token_embd (Q6_K, 205 MiB) for the output role; in shared mode the dup lands
+  in HOST (Fable predicted HTP0), and HTP0 cannot read Q6_K from a host buffer, so the **lm_head runs on the CPU**:
+  3 graph splits instead of 2 and 33 fewer HTP MUL_MAT in the 33-token proof. Every other op (norms, conv, attention)
+  stays on the HTP: op-name multiset otherwise identical to A.
+- NPU ABBA, `-t 5 -r 3 -ub 512`: A 890.1 / 22.58, S 877.2 / 17.01, S2 883.4 / 17.39, A2 892.5 / 22.40.
+  **S/A pp512 0.986, tg128 0.766**; KLD A 0.005313, S 0.005329 (lm_head numerics on the CPU).
+  The decode loss is the per-token CPU lm_head (65536 x 2048 Q6_K at -t 5), not the tiles.
+- Cap: TILE32 arrives as two dma-bufs, 867635200 B (827.4 MiB <= 832) + 501944320 B; HOST 230424576 B.
+- RAM, max during a `-p 512 -n 128 -r 1 -t 5` run, Pss_Anon + Pss_File + dma-buf (kB): A two-copy NPU model
+  1960087 (dma-buf 1677532), C the CPU model of today's app (`-ngl 0 -nr`) 1742192 (anon 1689732), S one copy
+  1978156 (dma-buf 1696152, including the 205 MiB output duplicate). Today's app holds A + C ~= 3.70 GB; one copy
+  ~= 1.98 GB, ~1.77 GB once step 3 drops the duplicate (plus the second leg's KV and compute buffers, step 5).
+
+Verdict: placement, cap and memory as designed; **NPU decode with one copy is 0.77 of two-copy because the tied
+output cannot stay on the NPU without a second copy**. This is the open decision of step 2 (owner): a 205 MiB
+duplicate of the output on the HTP (today's two-copy NPU model already carries it), or the NPU learning to read the
+output (or the embedding lookup) from the one copy.

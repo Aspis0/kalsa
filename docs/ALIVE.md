@@ -976,6 +976,11 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Step 2 engine (`80206f9b3` + audit fix `93fb3c097`, pushed to the fork): shared-weights setter and `{TILE32,
   HOST}` extra bufts per Fable Amendment B. Luna audit: the pin was set on alloc but the placement probe's 0-byte
   allocs never reach the backend, so it fired after placement - now latched when the buffer types are read.
+- Step 2 on the S23 (01:01-01:41, `step2-s23/raw/session2-93fb3c097.grep`): two-copy placement byte-identical;
+  shared mode (env, no `-ot`) = CPU 205 + HTP0-HOST 220 + HTP0-TILE32 1306 MiB, tiles split 827 + 479 MiB by the
+  832 MiB cap. NPU A 890.1 / 22.58, S 877.2 / **17.01**, S2 883.4 / **17.39**, A2 892.5 / 22.40; KLD 0.005313 vs
+  0.005329. Cause: the tied output (token_embd duplicate, Q6_K 205 MiB) sits in HOST and its lm_head runs on the CPU.
+  RAM (Pss anon + file + dma-buf): NPU model 1.96 GB, CPU model 1.74 GB, one copy 1.98 GB (incl. the duplicate).
 
 ## Engine release pipeline (`kalsa-server`)
 
