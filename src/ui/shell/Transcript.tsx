@@ -6,8 +6,7 @@
  * engine or the governor. Tool rows and source chips arrive as two optional
  * message fields drawn inside the same entry by `TranscriptEvidence`. The
  * arithmetic lives in `./transcriptLayout.ts` (rhythm, day markers) and
- * `./transcriptWindow.ts` (how much of a long conversation the list holds);
- * this file only places the boxes they return.
+ * `./transcriptWindow.ts` (how much of a long conversation the list holds).
  *
  * The conversation draws in a FlatList, not a ScrollView that maps every
  * message: only a window of rows mounts, and the frame cost of a streaming
@@ -62,8 +61,7 @@ export type {
 import type { TranscriptMessage, TranscriptProps } from "./transcriptTypes";
 
 /** The reader's place through a prepend is the scroll view's own job, native
- *  on both platforms; the module-level constant keeps the prop identity stable
- *  so the list's pure-component check still holds. */
+ *  on both platforms; the constant keeps the prop identity stable. */
 const KEEP_PLACE = { minIndexForVisible: 0 };
 
 function TranscriptContent({
@@ -91,20 +89,21 @@ function TranscriptContent({
   );
 
   const { settled, streaming } = useStreamingSplit(messages);
-  const { listData, prependIfNearTop, trimToTail, windowStart } = useTranscriptWindow(settled);
+  // The pin the window follows: a turn landing while the reader rides the
+  // bottom re-arms the slice at the tail (see `useTranscriptWindow`).
+  const pinnedRef = useRef(true);
+  const { listData, prependIfNearTop, trimToTail, windowStart } = useTranscriptWindow(settled, pinnedRef);
 
   // ── Where the view sits. The rules live in ./transcriptScroll.ts; this only
-  // obeys them. Refs decide; the two states exist only to draw the control,
-  // because a state update per token would re-render the transcript per token.
+  // obeys them. Refs decide; the two states exist only to draw the control.
   const scrollRef = useRef<FlatList | null>(null);
   const contentHeightRef = useRef(0);
   const offsetRef = useRef(0);
-  // The messages count at the last content-size event, and at this render: the
-  // stable content-size callback compares the two to tell an append from growth.
+  // The message count at the last content-size event and at this render:
+  // compared, they tell an append from growth.
   const countRef = useRef(messages.length);
   const renderedCountRef = useRef(messages.length);
   renderedCountRef.current = messages.length;
-  const pinnedRef = useRef(true);
   // The first-layout-done FACT, reported into the machine as `placedBefore`:
   // `onLayout` fires for every re-layout and the event itself is identical for
   // the first layout and the hundredth. A ref, not state: it decides a scroll,
@@ -182,7 +181,12 @@ function TranscriptContent({
 
   // One entry per message is what keeps an answer from being written above
   // itself and then below it: two entries for one answer is how it starts.
-  const duplicated = useMemo(() => duplicateMessageIds(messages), [messages]);
+  // Scanned only when the settled part or the streaming id changes — a flush
+  // changes neither (see `useStreamingSplit`), so the scan is not per token.
+  const duplicated = useMemo(
+    () => duplicateMessageIds(messages),
+    [settled, streaming?.id],
+  );
   useEffect(() => {
     if (duplicated.length > 0) {
       console.warn(`[transcript] duplicate message ids: ${duplicated.join(", ")}`);
@@ -200,9 +204,9 @@ function TranscriptContent({
     [t],
   );
 
-  // The view inputs every row draws with — one memo, so each callback below is
-  // a stable identity between user actions, the list (a pure component) skips
-  // a token flush entirely, and only the footer, fed by context, re-renders.
+  // The view inputs every row draws with — one memo, so the callbacks stay
+  // stable between user actions and the list (a pure component) skips a token
+  // flush entirely; only the footer, fed by context, re-renders.
   const view = useMemo<RowView>(
     () => ({
       colors,
@@ -218,17 +222,8 @@ function TranscriptContent({
       translate,
     }),
     [
-      colors,
-      cloudLabels,
-      layout,
-      now,
-      onCopy,
-      onMessageLongPress,
-      onMiniappOpen,
-      onSpeak,
-      speakingId,
-      styles,
-      translate,
+      colors, cloudLabels, layout, now, onCopy,
+      onMessageLongPress, onMiniappOpen, onSpeak, speakingId, styles, translate,
     ],
   );
   const feed = useStreamingFeed(view, settled, streaming);
@@ -258,8 +253,7 @@ function TranscriptContent({
 
   const renderItem = useCallback(
     ({ index, item }: ListRenderItemInfo<TranscriptMessage>) => {
-      // The gap and marker read the row's real predecessor, which may sit one
-      // page above the drawn slice.
+      // The gap and marker read the row's real predecessor, which may sit a page above the slice.
       const absolute = windowStart + index;
       const previous = absolute > 0 ? settled[absolute - 1] : null;
       return (

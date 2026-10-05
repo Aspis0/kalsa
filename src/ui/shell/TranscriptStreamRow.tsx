@@ -30,30 +30,53 @@ export function splitStreaming(messages: readonly TranscriptMessage[]): Transcri
   return { settled: messages, streaming: null };
 }
 
-function sameSettled(
-  previous: readonly TranscriptMessage[],
-  next: readonly TranscriptMessage[],
-): boolean {
-  return previous.length === next.length && previous.every((message, index) => message === next[index]);
-}
+/**
+ * Test seam: how many times the split fell back to the elementwise recompute.
+ * A token flush must never enter it, whatever the conversation's length —
+ * `transcriptRenderCount.test.ts` holds that against N.
+ */
+export const splitRecomputes = { count: 0 };
 
 /**
- * The split, with the settled array kept STABLE across flushes: a flush
- * replaces the streaming object and leaves the settled prefix alone, so the
- * list's data does not change while the tokens arrive. (A fresh slice per
- * render would be elementwise equal and still a new array — enough to wake
- * the whole list.)
+ * The split, with the settled array kept STABLE across flushes — in O(1).
+ *
+ * A flush replaces ONLY the last message object: the coalescer's `setMessages`
+ * maps the array touching the assistant row alone (`sendHost.ts`, the stream
+ * coalescer), and the mapper memoizes per engine message (`messageMapper.ts`,
+ * a WeakMap), so every settled row keeps its `TranscriptMessage` identity.
+ * Same length plus the same object one-from-the-end therefore means the whole
+ * settled prefix is untouched, and the previous settled array is reused. Every
+ * other updater changes the length or swaps the array whole, so it lands in
+ * the recompute below — a cost paid on structure changes, not per token.
  */
 export function useStreamingSplit(messages: readonly TranscriptMessage[]): TranscriptSplit {
-  const cache = useRef<TranscriptSplit | null>(null);
-  const split = splitStreaming(messages);
+  const cache = useRef<{ source: readonly TranscriptMessage[]; split: TranscriptSplit } | null>(null);
   const previous = cache.current;
-  if (previous !== null && sameSettled(previous.settled, split.settled)) {
-    const kept = { settled: previous.settled, streaming: split.streaming };
-    cache.current = kept;
-    return kept;
+  if (
+    previous !== null &&
+    messages.length === previous.source.length &&
+    (messages.length < 2 ||
+      messages[messages.length - 2] === previous.source[previous.source.length - 2])
+  ) {
+    const last = messages[messages.length - 1];
+    if (last === undefined || last === previous.source[previous.source.length - 1]) {
+      return previous.split;
+    }
+    // A caret on a row the settled list already holds cannot happen today
+    // (rows are born with their caret); recompute rather than risk one answer
+    // drawn twice — once as a cell, once as the footer.
+    if (!(last.caret === true && previous.split.settled.length === messages.length)) {
+      const reused: TranscriptSplit =
+        last.caret === true
+          ? { settled: previous.split.settled, streaming: last }
+          : { settled: messages, streaming: null };
+      cache.current = { source: messages, split: reused };
+      return reused;
+    }
   }
-  cache.current = split;
+  splitRecomputes.count += 1;
+  const split = splitStreaming(messages);
+  cache.current = { source: messages, split };
   return split;
 }
 

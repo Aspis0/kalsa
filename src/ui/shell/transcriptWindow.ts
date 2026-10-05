@@ -4,14 +4,18 @@
  * The list no longer mounts every message, so the slice it draws needs its own
  * small arithmetic: a conversation arms the window at a tail of settled rows;
  * the reader nearing the top of that window prepends one page of history at a
- * time. Keeping the reader's place through a prepend is the scroll view's own
- * job (`maintainVisibleContentPosition`), not this module's — this decides
- * only which rows are drawn.
+ * time; a turn landing while the reader is PINNED to the bottom re-arms at the
+ * tail so chatting never grows the mounted set. Keeping the reader's place
+ * through a prepend is the scroll view's own job
+ * (`maintainVisibleContentPosition`), not this module's — this decides only
+ * which rows are drawn.
  *
- * The window is anchored to the id of the row it starts on. A conversation
- * replaced wholesale (a history load, a wipe to the welcome block) fails the
- * anchor check and re-arms at the new tail, so a stale offset can never slice
- * a different conversation into invisibility.
+ * The window is anchored to the ids of the row it starts on and of the
+ * conversation's first row: deletions are followed instead of falling back to
+ * the tail (which would yank a reader in old history to the end), and only a
+ * conversation whose first row changed — a wholesale replace — re-arms at the
+ * new tail, so a stale offset can never slice a different conversation into
+ * invisibility.
  */
 
 /**
@@ -49,9 +53,12 @@ export const PREPEND_MIN_INTERVAL_MS = 150;
 export type TranscriptWindow = {
   /** Index into the settled messages where the drawn slice starts. */
   start: number;
-  /** The id of `settled[start]` as the window was armed; the anchor the
-   *  armed window is checked against. */
+  /** The id of `settled[start]` as the window was armed; the anchor a
+   *  deletion is followed by. */
   anchorId: string | null;
+  /** The id of `settled[0]` as the window was armed: the one row whose
+   *  replacement means this is a different conversation, not an edit. */
+  firstId: string | null;
 };
 
 type Identifiable = { readonly id: string };
@@ -59,16 +66,42 @@ type Identifiable = { readonly id: string };
 /** The tail window: the conversation's last TAIL rows, or all of it. */
 export function tailWindow(settled: readonly Identifiable[]): TranscriptWindow {
   const start = Math.max(0, settled.length - TRANSCRIPT_WINDOW_TAIL);
-  return { anchorId: settled[start]?.id ?? null, start };
+  return { anchorId: settled[start]?.id ?? null, firstId: settled[0]?.id ?? null, start };
 }
 
-/** False when the list's row at `start` is no longer the anchored one — a
- *  different conversation under a stale window. */
-export function windowIsAnchored(
+/**
+ * The window to use against `settled` now. Unchanged while its anchor still
+ * sits at its start; FOLLOWING the anchor when rows above it were deleted
+ * (everything shifts up, the reader's rows stay); clamped to the nearest
+ * surviving row when the anchor itself was deleted — a reader in old history
+ * keeps their place, not a trip to the tail; back to the tail when the
+ * conversation's first row changed, the one sign of a wholesale replace.
+ */
+export function reanchor(
   window: TranscriptWindow,
   settled: readonly Identifiable[],
-): boolean {
-  return (settled[window.start]?.id ?? null) === window.anchorId;
+): TranscriptWindow {
+  if (window.anchorId !== null && settled[window.start]?.id === window.anchorId) return window;
+  if (window.anchorId === null) return tailWindow(settled);
+  const followed = settled.findIndex((row) => row.id === window.anchorId);
+  if (followed >= 0) return { anchorId: window.anchorId, firstId: window.firstId, start: followed };
+  if (settled[0]?.id !== window.firstId) return tailWindow(settled);
+  const start = Math.min(window.start, Math.max(0, settled.length - 1));
+  return { anchorId: settled[start]?.id ?? null, firstId: window.firstId, start };
+}
+
+/**
+ * On a settled change while the reader is PINNED to the bottom: hold the
+ * slice at tail size, so chatting never grows the mounted set. Only a reader
+ * who pages up widens the slice (and one reading away while turns land keeps
+ * theirs — the slice may grow downward until they jump back, which trims).
+ */
+export function advanceToTail(
+  window: TranscriptWindow,
+  settled: readonly Identifiable[],
+): TranscriptWindow {
+  const tail = tailWindow(settled);
+  return tail.start > window.start ? tail : window;
 }
 
 /** One page further back, or the same window once the conversation's first
@@ -79,5 +112,5 @@ export function prependPage(
 ): TranscriptWindow {
   if (window.start === 0) return window;
   const start = Math.max(0, window.start - TRANSCRIPT_WINDOW_PAGE);
-  return { anchorId: settled[start]?.id ?? null, start };
+  return { anchorId: settled[start]?.id ?? null, firstId: window.firstId, start };
 }

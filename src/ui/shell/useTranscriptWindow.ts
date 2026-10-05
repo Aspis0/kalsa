@@ -5,10 +5,9 @@
  * A conversation arms the window at its tail; the reader nearing the slice's
  * top prepends one page of history at a time (their place through the prepend
  * is the scroll view's own job); the jump-to-end control trims back to the
- * tail. The window is anchored to the id of the row it starts on, so a
- * conversation replaced wholesale (history load, wipe to the welcome block)
- * re-arms here, in the same pass — a stale offset can never slice a different
- * conversation into invisibility.
+ * tail, and so does every settled change while the reader is pinned to the
+ * bottom. Re-anchoring on structural changes lives in `transcriptWindow.ts`;
+ * this hook only applies it.
  */
 import { useCallback, useMemo, useRef, useState } from "react";
 
@@ -16,16 +15,26 @@ import type { TranscriptMessage } from "./transcriptTypes";
 import {
   PREPEND_MIN_INTERVAL_MS,
   PREPEND_TRIGGER_DP,
+  advanceToTail,
   prependPage,
+  reanchor,
   tailWindow,
-  windowIsAnchored,
   type TranscriptWindow,
 } from "./transcriptWindow";
 
-export function useTranscriptWindow(settled: readonly TranscriptMessage[]) {
+export function useTranscriptWindow(
+  settled: readonly TranscriptMessage[],
+  pinned: { readonly current: boolean },
+) {
   const [listWindow, setListWindow] = useState<TranscriptWindow>(() => tailWindow(settled));
-  const anchored = windowIsAnchored(listWindow, settled);
-  const effective = anchored ? listWindow : tailWindow(settled);
+  const settledSeenRef = useRef(settled);
+  let effective = reanchor(listWindow, settled);
+  if (settledSeenRef.current !== settled) {
+    settledSeenRef.current = settled;
+    // Unpinned, the reader is somewhere in history and the slice must not
+    // move under them; pinned, it holds the tail (see `advanceToTail`).
+    if (pinned.current) effective = advanceToTail(effective, settled);
+  }
   // Render-phase alignment: the current pass already draws the corrected
   // slice; the state update only spares the next pass the same check.
   if (effective !== listWindow) setListWindow(effective);
@@ -52,12 +61,9 @@ export function useTranscriptWindow(settled: readonly TranscriptMessage[]) {
     setListWindow(next);
   }, []);
 
-  // The trim's own content-size event re-runs the scroll machine as growth,
-  // re-targeting the smaller end while pinned.
   const trimToTail = useCallback(() => {
-    const current = windowRef.current;
     const next = tailWindow(settledRef.current);
-    if (next.start !== current.start) {
+    if (next.start !== windowRef.current.start) {
       windowRef.current = next;
       setListWindow(next);
     }

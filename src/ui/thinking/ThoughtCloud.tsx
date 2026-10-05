@@ -23,6 +23,7 @@ import {
   BASE_PERIOD_S, SETTLE_DURATION_MS, SETTLE_STAGGER_MS, createTimingState,
   onMode, onToken, phaseAt, thinkingSummary, tickerText, type ThinkingPhase, type TimingState,
 } from "./thinkingTiming";
+import { cloudInitiallyOpen, rememberCloudOpen } from "./cloudDisclosure";
 
 /** The green family the owner fixed. A theme module owns the real values. */
 export type ThoughtCloudColors = {
@@ -149,7 +150,10 @@ function ThoughtCloudView({
 }: ThoughtCloudProps) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const rising = working && !answered;
-  const [open, setOpen] = useState(false);
+  // Seeded from the disclosure store, not `false`: this component remounts
+  // when a streaming row settles into the list and whenever the render window
+  // pages past it, and the reader's choice must survive both (`./cloudDisclosure`).
+  const [open, setOpen] = useState(() => cloudInitiallyOpen(messageId));
   const [phase, setPhase] = useState<ThinkingPhase>(rising ? "rise" : "rest");
   const [reduced, setReduced] = useState(false);
   const timing = useRef<TimingState>(createTimingState());
@@ -279,7 +283,13 @@ function ThoughtCloudView({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((was) => !was)}
+        onPress={() =>
+          setOpen((was) => {
+            // Idempotent, so React's double-invoked updaters in dev are safe.
+            rememberCloudOpen(messageId, !was);
+            return !was;
+          })
+        }
         style={styles.head}
         testID={`thought-${messageId}-head`}
       >
