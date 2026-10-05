@@ -90,3 +90,15 @@ S23 ABBA (REPORT.md "Gate G"): one copy B/A pp512 0.995, tg128 1.002, KLD identi
   (in-tree safe, out-of-tree ABI break); altitude: a HOST buft that is `is_host` but not CPU-readable is the core
   mismatch - the TILE32 marker must make every read/copy path layout-aware or the buft non-host for the CPU.
 - Release skel for every timed run (debug skel halves pp and decode).
+
+## Revision 3 (step 1 audit, luna 42724653, 2026-10-04)
+
+Step 1 (`cc777fd12..53db71525`, Fable Amendment A) audited. Fixed now (GLM 260572e2): revert `supports_buft` in the
+scheduler "1.off" loop (it changed flag-off placement: the shipped NPU admission uses "1.off" for host CPU weights);
+non-contiguous src1 and TILE32 views rejected; TILE32 `get_tensor` whole tensor/slices only; the inverse moves into
+the shared header and the host tests use it; honest tiled-vs-native tolerance (no waiver); test split; dead code.
+Carried to step 3 (A5 guard): native-layout guard for CPU GET_ROWS / MUL_MAT_ID on a TILE32 src (today only the
+scheduler's supports_op keeps them away); the scheduler's weight-copy fallback (`ggml-backend.cpp` ~912, ~1239,
+assert ~1311) must fail by name instead of silently making a second native copy. Logged, not planned: runtime
+dotprod check (compile-time today, fine for the S23 build); `GGML_BACKEND_API_VERSION` bump for the buft interface
+member (static in-tree builds only).
