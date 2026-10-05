@@ -48,4 +48,5 @@ export const TOOLS = {
   stopped: "You stopped this before Kalsa finished.",
   argumentsTooLong: "That was too long for Kalsa to check. Try a shorter search or address.",
   argumentsNotValid: "Kalsa couldn't finish checking. Ask again.",
+  notOffered: "That tool is not available now. Answer without it.",
 };

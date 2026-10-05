@@ -42,4 +42,5 @@ export const TOOLS = {
     "stopped": "你在 Kalsa 完成前停止了她。",
     "argumentsTooLong": "内容太长，Kalsa 无法核查。请用更短的搜索词或地址再试。",
     "argumentsNotValid": "Kalsa 没有核查完。请再问一次。",
+    "notOffered": "该工具当前不可用。请直接回答。",
   };

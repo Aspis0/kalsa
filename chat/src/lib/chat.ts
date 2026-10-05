@@ -120,6 +120,8 @@ export interface ToolPhrases {
   stopped: string;
   argumentsTooLong: string;
   argumentsNotValid: string;
+  /** The answer a call gets when this request never offered its tool. */
+  notOffered: string;
 }
 
 /** What a tool answered, and whether that answer is a result or a refusal.

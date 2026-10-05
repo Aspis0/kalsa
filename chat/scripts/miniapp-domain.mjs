@@ -73,6 +73,10 @@ try {
         fields: [{ id: "a", label: "A", value: 1 }, { id: "a", label: "A2", value: 2 }],
       }),
     ], [null, null]);
+    const fields24 = Array.from({ length: 24 }, (_, i) => ({ id: `f${i}`, label: `F${i}`, value: i }));
+    const fields25 = Array.from({ length: 25 }, (_, i) => ({ id: `f${i}`, label: `F${i}`, value: i }));
+    check("quick_calculator accepts the 24-field cap", buildMiniappV1("quick_calculator", { formula: "f0 + f23", fields: fields24 }) !== null);
+    equal("quick_calculator rejects a field past the renderer's cap", buildMiniappV1("quick_calculator", { formula: "f0 + f24", fields: fields25 }), null);
   }
 
   // ── reading_quiz ──────────────────────────────────────────────────────────

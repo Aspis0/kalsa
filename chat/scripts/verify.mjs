@@ -4494,6 +4494,18 @@ const tests = {
               },
             }),
           },
+          {
+            id: "m3",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "compare_data",
+              slots: {
+                title: "Wide",
+                columns: Array.from({ length: 14 }, (_, i) => `Column ${i + 1}`),
+                rows: [Object.fromEntries(Array.from({ length: 14 }, (_, i) => [`Column ${i + 1}`, String(i + 1)]))],
+              },
+            }),
+          },
         ],
       ],
       "Built it.",
@@ -4515,16 +4527,19 @@ const tests = {
     const results = (last.messages ?? []).filter((m) => m.role === "tool").map((m) => m.content);
     check(
       "miniapp: the model reads one short text per call",
-      results.length === 2 && results[0] === "Miniapp created: Loan" && results[1] === "Miniapp created: Quiz",
+      results.length === 3 &&
+        results[0] === "Miniapp created: Loan" &&
+        results[1] === "Miniapp created: Quiz" &&
+        results[2] === "Miniapp created: Wide",
       JSON.stringify(results),
     );
     check("miniapp: the wire never carries the envelope", !JSON.stringify(last).includes("miniapp_v1"));
 
-    check("miniapp: both views are drawn", (await page.locator(".miniapp").count()) === 2);
+    check("miniapp: all three views are drawn", (await page.locator(".miniapp").count()) === 3);
     const rows = await page.locator(".tool-run > summary").allTextContents();
     check(
       "miniapp: the tool row says what happened",
-      rows.filter((row) => row.includes("interactive view")).length === 2,
+      rows.filter((row) => row.includes("interactive view")).length === 3,
       JSON.stringify(rows),
     );
 
@@ -4541,6 +4556,12 @@ const tests = {
     check("miniapp: the quiz shows the explanation", graded.includes("Two and two."));
     await quiz.locator(".miniapp-button").click();
     check("miniapp: retry clears the grade", !((await quiz.textContent()) ?? "").includes("Two and two."));
+
+    // A table the model asked for with more columns than the renderer draws:
+    // the cap holds and the cut is said aloud, not silent.
+    const wide = page.locator(".miniapp").nth(2);
+    check("miniapp: a 14-column table draws the 12-column cap", (await wide.locator("th").count()) === 12, String(await wide.locator("th").count()));
+    check("miniapp: the cut columns are said aloud", ((await wide.textContent()) ?? "").includes("12 columns"), ((await wide.textContent()) ?? "").slice(0, 200));
 
     await page
       .waitForFunction(
@@ -4561,10 +4582,12 @@ const tests = {
     const runs = assistant?.toolRuns ?? [];
     check(
       "miniapp: the stored run carries the normalized envelope",
-      runs.length === 2 &&
+      runs.length === 3 &&
         runs.every((run) => run.miniapp?.schema === "miniapp_v1") &&
         runs[0].miniapp.blocks[0]?.type === "calculator" &&
-        runs[1].miniapp.blocks[0]?.type === "quiz",
+        runs[1].miniapp.blocks[0]?.type === "quiz" &&
+        runs[2].miniapp.blocks[0]?.type === "data_table" &&
+        runs[2].miniapp.blocks[0]?.columns.length === 14,
       JSON.stringify(runs.map((run) => run.miniapp?.kind)),
     );
 
@@ -4574,7 +4597,46 @@ const tests = {
     if ((await chat.count()) > 0) await chat.first().click();
     await page.waitForTimeout(800);
     await openSidebar(page, "Work out the interest");
-    check("miniapp: reload draws both views again", (await page.locator(".miniapp").count()) === 2);
+    check("miniapp: reload draws all three views again", (await page.locator(".miniapp").count()) === 3);
+
+    await browser.close();
+  },
+
+  // The switch is off, so web_search is not offered. A model can still ask
+  // for it from its training priors; the call must not reach the network. It
+  // becomes a refused run that reads why, and the turn goes on to an answer.
+  async unoffered() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, { search: LISBON });
+    await seedOnce(page, toolSettings("unoffered-demo", false));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    const bodies = [];
+    await scriptModel(
+      page,
+      [{ id: "w1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' }],
+      "Answered without searching.",
+      bodies,
+    );
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "What is the weather?", "Answered without searching.");
+
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
+    check("unoffered: the web command never ran", calls.length === 0, JSON.stringify(calls));
+    const parsed = bodies.map((raw) => JSON.parse(raw ?? "{}"));
+    const last = parsed[parsed.length - 1] ?? {};
+    const asked = (last.messages ?? []).filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls));
+    const results = (last.messages ?? []).filter((m) => m.role === "tool");
+    check(
+      "unoffered: the exchange is whole and the result says why",
+      asked.length === 1 && asked[0].tool_calls.length === 1 && results.length === 1 && String(results[0].content).includes("not available"),
+      JSON.stringify({ asked: asked.length, calls: asked[0]?.tool_calls?.length, results: results.map((r) => r.content) }),
+    );
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("unoffered: the thread shows the call was refused", thread.includes("not available"), thread.slice(0, 200));
+    check("unoffered: the turn still answered", thread.includes("Answered without searching."));
 
     await browser.close();
   },

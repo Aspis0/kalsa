@@ -42,4 +42,5 @@ export const TOOLS = {
     "stopped": "Hai fermato Kalsa prima che finisse.",
     "argumentsTooLong": "Era troppo lungo perché Kalsa potesse controllarlo. Prova con una ricerca o un indirizzo più corto.",
     "argumentsNotValid": "Kalsa non è riuscita a finire il controllo. Chiedi di nuovo.",
+    "notOffered": "Quello strumento non è disponibile ora. Rispondi senza.",
   };

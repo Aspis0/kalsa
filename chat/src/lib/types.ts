@@ -30,11 +30,13 @@ export interface ToolRun {
       with the conversation; the wire only ever carries `result`. */
   miniapp?: Miniapp;
   /**
-   * `refused` is a call that never became an exchange on the wire: one the
-   * stream never named, one whose turn ended for another reason, or one with no
-   * round left to run in. It is shown to the reader and must never be rebuilt
-   * into an assistant `tool_calls` message — the server never saw it, and an
-   * unnamed one is a malformed request.
+   * `refused` is a call this app would not run: one the stream never named,
+   * one whose tool the request did not offer (a model can ask for
+   * `web_search` with the switch off), one whose turn ended for another
+   * reason, or one with no round left to run in. It is shown to the reader,
+   * and the wire rebuilt from the transcript leaves it out — a call the
+   * request did not offer is not replayed as history, and an unnamed one is
+   * a malformed request.
    */
   state: "running" | "ok" | "failed" | "refused";
 }

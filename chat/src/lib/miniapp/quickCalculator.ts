@@ -8,6 +8,11 @@ import { evaluateCalculatorFormula } from "./calculator";
 import { asString, asStringCapped, envelope, isPlainObject } from "./slots";
 import type { Miniapp } from "./types";
 
+/** The renderer draws at most this many inputs (the phone's MAX_CHILD_BLOCKS).
+ *  A formula referencing a field past it would render as a dead calculator,
+ *  so a longer field list is rejected here instead. */
+export const MAX_CALCULATOR_FIELDS = 24;
+
 function buildCalculatorFields(
   value: unknown,
 ): Record<string, unknown>[] | null | undefined {
@@ -64,6 +69,7 @@ export function buildQuickCalculator(slots: Record<string, unknown>): Miniapp | 
 
   const fields = buildCalculatorFields(slots.fields);
   if (fields === null) return null; // provided but invalid
+  if (fields && fields.length > MAX_CALCULATOR_FIELDS) return null;
 
   // Validate the formula exactly as the renderer's evaluator does (length /
   // charset gate + field-id substitution). A formula that references an unknown

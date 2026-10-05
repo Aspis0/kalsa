@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { evaluateCalculatorFormula } from "../../lib/miniapp/calculator";
+import { MAX_CALCULATOR_FIELDS } from "../../lib/miniapp/quickCalculator";
 import { asArray, asNumber, asRecord, asText, formatNumber } from "./values";
 
 /**
  * A `calculator` block: one numeric input per field, and the result evaluated
- * live through the ported parser — never eval, never Function.
+ * live through the ported parser — never eval, never Function. The field cap
+ * is the builder's own, so a formula can never reference a field this refuses
+ * to draw.
  */
 
-const MAX_FIELDS = 24;
-
 export function Calculator({ block }: { block: Record<string, unknown> }) {
-  const fields = asArray(block.fields, MAX_FIELDS).map(asRecord);
+  const fields = asArray(block.fields, MAX_CALCULATOR_FIELDS).map(asRecord);
   const [values, setValues] = useState<Record<string, number>>(() => {
     const seed: Record<string, number> = {};
     fields.forEach((field, index) => {

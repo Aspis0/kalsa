@@ -39,6 +39,7 @@ const ENGLISH_PHRASES: ToolPhrases = {
   stopped: "You stopped this before Kalsa finished.",
   argumentsTooLong: "That was too long for Kalsa to check. Try a shorter search or address.",
   argumentsNotValid: "Kalsa couldn't finish checking. Ask again.",
+  notOffered: "That tool is not available now. Answer without it.",
 };
 
 export async function streamChatCompletion(options: StreamOptions): Promise<void> {
@@ -134,15 +135,33 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // A call the stream never named cannot be run and must not go back on the
     // wire: `function.name: ""` is a malformed request. It is still recorded,
     // so the thread says what happened rather than showing nothing.
-    const runnable = calls.filter((call) => call.name !== "");
+    const named = calls.filter((call) => call.name !== "");
     refuse(options, calls.filter((call) => call.name === ""), say.nameNeverArrived);
-    if (runnable.length === 0) return;
+    if (named.length === 0) return;
+
+    // Only a tool this request offered may run. A model can ask for one from
+    // its training priors — `web_search` with the switch off — and running it
+    // would send the very query the switch withholds. Such a call is answered
+    // with the reason instead of dropped, so the round after it is a whole
+    // exchange (and a real engine accepts it).
+    const offered = new Set(tools.map((tool) => tool.function.name));
 
     // Serial on purpose, like the phone (LlamaService.ts:5030): two searches at
     // once would cost more for no answer a model can use, and the results have
     // to be paired with their calls in order anyway.
     const results: string[] = [];
-    for (const call of runnable) {
+    for (const call of named) {
+      if (!offered.has(call.name)) {
+        options.onToolRun?.({
+          id: call.id,
+          name: call.name,
+          arguments: call.arguments,
+          result: say.notOffered,
+          state: "refused",
+        });
+        results.push(say.notOffered);
+        continue;
+      }
       const { args, problem } = readArguments(call.name, call.arguments, call.cut, {
         tooLong: say.argumentsTooLong,
         notValid: () => say.argumentsNotValid,
@@ -176,17 +195,19 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     }
 
     // What the model asked for, then what it got. Both go back on the wire as
-    // an ordinary turn, matched by id, before it is asked again.
+    // an ordinary turn, matched by id, before it is asked again. `named` is
+    // what the assistant message carries: a call the app did not answer must
+    // not appear there, or the server is sent a call with no result.
     conversation.push({
       role: "assistant",
       content: "",
-      tool_calls: calls.map((call) => ({
+      tool_calls: named.map((call) => ({
         id: call.id,
         type: "function" as const,
         function: { name: call.name, arguments: call.arguments },
       })),
     });
-    runnable.forEach((call, index) => {
+    named.forEach((call, index) => {
       conversation.push({ role: "tool", content: results[index], tool_call_id: call.id });
     });
   }

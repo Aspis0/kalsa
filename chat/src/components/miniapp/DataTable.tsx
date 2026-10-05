@@ -18,8 +18,11 @@ function normalizeTable(block: Record<string, unknown>): {
   hasMoreColumns: boolean;
 } {
   const sourceRows = Array.isArray(block.rows) ? block.rows : [];
+  // The source lengths are read before the slice: the overflow notice must
+  // know what was cut, or a table past the cap says nothing about it.
+  const sourceColumns = Array.isArray(block.columns) ? block.columns : [];
   const rawRows = sourceRows.slice(0, MAX_TABLE_ROWS);
-  const rawColumns = asArray(block.columns, MAX_TABLE_COLUMNS);
+  const rawColumns = sourceColumns.slice(0, MAX_TABLE_COLUMNS);
   const firstRowRecord = asRecord(
     rawRows.find((row) => row && typeof row === "object" && !Array.isArray(row)),
   );
@@ -49,7 +52,7 @@ function normalizeTable(block: Record<string, unknown>): {
     columns,
     rows: cappedRows,
     hasMoreRows: sourceRows.length > MAX_TABLE_ROWS,
-    hasMoreColumns: rawColumns.length > MAX_TABLE_COLUMNS,
+    hasMoreColumns: sourceColumns.length > MAX_TABLE_COLUMNS,
   };
 }
 
