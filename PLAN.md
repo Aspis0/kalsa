@@ -1169,6 +1169,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   other members ("tell us what you know about him"); small phone model on long room context. Proposed shape: never
   autonomous; owner taps "Ask my Kalsa", gets a private draft, edits, then chooses to post it labelled as his
   Kalsa. Needs a new author kind in ROOM-PROTOCOL and the reserved-name rule updated. Not before alpha.
+  **Owner 2026-10-05: FEATURE FREEZE for the alpha after the three open jobs** (pill switch, Room reachability +
+  dark Settings, virtualized transcript). Then only tests and bug fixes: scripted real-world pass on Jelly/Simulator
+  (+ partner iPhone only if allowed), phone perf (frames, startup, idle RAM/battery), desktop Brain idle RAM/CPU/
+  energy measured read-only and handed to kalsa-brain via Marco, crash logs after every pass. P0/P1 fixed at once,
+  the rest to BACKLOG. Room images and Room video move to after the alpha unless the owner says otherwise.
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
