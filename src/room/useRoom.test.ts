@@ -14,9 +14,12 @@ jest.mock("./roomApi", () => ({
 jest.mock("./roomSubscriptions", () => ({ subscribeRoomEvents: jest.fn() }));
 jest.mock("../pairing/pairingCredentialStore", () => ({ getPairing: jest.fn() }));
 jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: async () => null,
-  setItem: async () => undefined,
-  removeItem: async () => undefined,
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async () => null),
+    setItem: jest.fn(async () => undefined),
+    removeItem: jest.fn(async () => undefined),
+  },
 }));
 jest.mock("expo-crypto", () => ({
   getRandomBytes: jest.fn((length: number) => new Uint8Array(length).fill(0x7e)),
@@ -24,6 +27,7 @@ jest.mock("expo-crypto", () => ({
 
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getPairing } from "../pairing/pairingCredentialStore";
 import { fetchRoomHistory, fetchRoomInfo } from "./roomApi";
 import type { RoomStreamEvent } from "./roomStream";
@@ -145,6 +149,8 @@ describe("reading the room", () => {
     expect(now().feed.status).toBe("ready");
     expect(now().feed.reconnecting).toBe(false);
     expect(now().rows.map((row) => row.text)).toEqual(["m1"]);
+    expect((AsyncStorage as unknown as { getItem: jest.Mock }).getItem)
+      .toHaveBeenCalledWith(`kalsa.roomqueue.${LOCAL}`);
 
     await act(async () => {
       listeners[0]({

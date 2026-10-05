@@ -8,8 +8,11 @@
  */
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: async () => null,
-  setItem: async () => undefined,
+  __esModule: true,
+  default: {
+    getItem: async () => null,
+    setItem: async () => undefined,
+  },
 }));
 jest.mock("../engine/remote/remoteSecret", () => ({
   getRemoteBrainToken: jest.fn(async () => null),
