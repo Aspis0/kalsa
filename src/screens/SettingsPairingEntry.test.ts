@@ -218,6 +218,21 @@ const embedding: SettingsEmbeddingProps = {
  *  from: a literal (or a light-only token) can never be one of these. */
 const DARK_TOKENS: string[] = Object.values(modes.dark);
 
+/** WCAG 2.x relative luminance, for the boundary's own floor. */
+function luminance(hex: string): number {
+  const value = hex.replace("#", "");
+  const channels = [0, 2, 4].map((at) => parseInt(value.slice(at, at + 2), 16) / 255);
+  const [r, g, b] = channels.map((unit) =>
+    unit <= 0.03928 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(a: string, b: string): number {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
 /** Every colour-valued style property under one node. */
 function coloursUnder(node: ReactTestInstance): Array<{ where: string; colour: string }> {
   const found: Array<{ where: string; colour: string }> = [];
@@ -315,6 +330,28 @@ describe("the settings rows under the dark theme", () => {
     expect(pair.findAll((node) => String(node.type) === "ChevronRight")[0].props.color).toBe(
       modes.dark.ink3,
     );
+
+    // The row separators and the group's own underline are plain Views, so a
+    // Pressable-only selection would never see them: each one paints the dark
+    // boundary token, and that boundary clears WCAG 1.4.11 on the card it
+    // sits on (3.42:1 at this token's value).
+    const dividers = renderer.root.findAll((node) => {
+      const styles = [].concat(node.props?.style ?? []).filter(Boolean);
+      return styles.some(
+        (style) =>
+          (style as { height?: number }).height === 1 &&
+          typeof (style as { backgroundColor?: unknown }).backgroundColor === "string",
+      );
+    });
+    expect(dividers.length).toBeGreaterThanOrEqual(5);
+    for (const divider of dividers) {
+      const styles = [].concat(divider.props.style).filter(Boolean) as Array<{
+        backgroundColor?: string;
+      }>;
+      const painted = styles.filter((style) => typeof style.backgroundColor === "string");
+      expect(painted.map((style) => style.backgroundColor)).toEqual([modes.dark.borderStrong]);
+    }
+    expect(contrastRatio(modes.dark.borderStrong, modes.dark.surface)).toBeGreaterThanOrEqual(3);
 
     await act(async () => renderer.unmount());
   });

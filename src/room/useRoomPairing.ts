@@ -45,18 +45,39 @@ export function pickRoomPairing(records: readonly PairingRecord[]): PairingRecor
 export function useRoomPairing(open: boolean): { localId: string | null } {
   const [localId, setLocalId] = useState<string | null>(null);
   useEffect(() => {
-    // Nobody can see the answer while the menu is closed: nothing is asked.
-    if (!open) return;
+    // A closed menu offers nothing: the last answer belonged to a moment
+    // nobody is looking at, and a reopen shows nothing until the probe for
+    // THAT open answers.
+    if (!open) {
+      setLocalId(null);
+      return;
+    }
     // The reads and both subscriptions share one lifetime flag: nothing this
     // hook started may set state after it left.
     let live = true;
+    /** The newest question's number: an older answer must never win. */
+    let latest = 0;
+    /** The probe in flight, so a newer question — or leaving — can abort it. */
+    let inFlight: { controller: AbortController; timer: ReturnType<typeof setTimeout> } | null =
+      null;
     const ask = (): void => {
-      const probe = new AbortController();
-      const timer = setTimeout(() => probe.abort(), ENTRY_PROBE_TIMEOUT_MS);
+      if (inFlight !== null) {
+        inFlight.controller.abort();
+        clearTimeout(inFlight.timer);
+      }
+      const controller = new AbortController();
+      const held = {
+        controller,
+        timer: setTimeout(() => controller.abort(), ENTRY_PROBE_TIMEOUT_MS),
+      };
+      inFlight = held;
+      const request = (latest += 1);
+      /** This probe's answer may land: nothing newer asked, nobody aborted it. */
+      const current = (): boolean => live && request === latest && !controller.signal.aborted;
       void (async () => {
         try {
           const chosen = pickRoomPairing(await listPairings());
-          if (!live) return;
+          if (!current()) return;
           if (chosen === null) {
             setLocalId(null);
             return;
@@ -67,15 +88,16 @@ export function useRoomPairing(open: boolean): { localId: string | null } {
           // re-asks this question with a shorter list of computers.
           const info = await probeRoom({
             roomLocalId: chosen.localId,
-            signal: probe.signal,
+            signal: controller.signal,
           });
-          if (live) setLocalId(info.ok ? chosen.localId : null);
+          if (current()) setLocalId(info.ok ? chosen.localId : null);
         } catch {
           // A keystore read that fails, or a probe that could not dial: no
-          // room is offered, and the next open asks again.
-          if (live) setLocalId(null);
+          // room is offered, and the next ask tries again.
+          if (current()) setLocalId(null);
         } finally {
-          clearTimeout(timer);
+          clearTimeout(held.timer);
+          if (inFlight === held) inFlight = null;
         }
       })();
     };
@@ -84,6 +106,11 @@ export function useRoomPairing(open: boolean): { localId: string | null } {
     const leaveRemoved = subscribePairingRemoved(ask);
     return () => {
       live = false;
+      if (inFlight !== null) {
+        inFlight.controller.abort();
+        clearTimeout(inFlight.timer);
+        inFlight = null;
+      }
       leaveCompleted();
       leaveRemoved();
     };

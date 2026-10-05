@@ -86,7 +86,10 @@ const dark: DesignColors = {
   surfaceMuted: "#1d2722",
   bubbleUser: "#25423a",
   border: "#26302b",
-  borderStrong: "#35433b",
+  // 3.42:1 on the dark card (surface #161d19) and 3.07:1 on the tint:
+  // a boundary has to clear 3:1 (WCAG 1.4.11), and #35433b's 1.65:1
+  // disappeared on a dark screen — the owner's Settings report.
+  borderStrong: "#63736a",
   inkSoft: "#ccd7d1",
   silence: "#96a49c",
   accentHover: "#91cbb2",

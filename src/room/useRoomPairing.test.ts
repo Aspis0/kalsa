@@ -68,18 +68,38 @@ describe("useRoomPairing", () => {
   let completions: Array<() => void>;
   let removals: Array<() => void>;
 
+  /** The menu's own open flag: a case may flip it on the same instance. */
+  let openFlag = true;
+  let box: { current: { localId: string | null } | null } = { current: null };
+
+  const Probe = () => {
+    box.current = useRoomPairing(openFlag);
+    return null;
+  };
+
   async function mount(open: boolean): Promise<void> {
     // Listeners belong to the mount that made them: the arrays index the
     // live menu, not every mount this file ever ran.
     completions = [];
     removals = [];
-    const box = (hook = { current: null } as { current: { localId: string | null } | null });
-    const Probe = () => {
-      box.current = useRoomPairing(open);
-      return null;
-    };
+    openFlag = open;
+    box = { current: null };
+    hook = box;
     await act(async () => {
       renderer = create(React.createElement(Probe));
+    });
+    await act(async () => undefined);
+  }
+
+  /** Close or reopen the SAME instance: the hook must not carry an answer
+   *  across the menu's own open/close. */
+  async function setOpen(open: boolean): Promise<void> {
+    // The effect run that is leaving takes its listeners with it.
+    completions = [];
+    removals = [];
+    openFlag = open;
+    await act(async () => {
+      renderer.update(React.createElement(Probe));
     });
     await act(async () => undefined);
   }
@@ -129,14 +149,93 @@ describe("useRoomPairing", () => {
     expect(now().localId).toBe("p3");
   });
 
-  test("a closed menu asks nothing — no list read, no probe", async () => {
-    await act(async () => renderer.unmount());
+  test("a closed menu asks nothing, and closing drops the entry it showed", async () => {
+    expect(now().localId).toBe("p2");
+
+    await setOpen(false);
+    expect(now().localId).toBeNull();
     (listPairings as jest.Mock).mockClear();
     (fetchRoomInfo as jest.Mock).mockClear();
-
-    await mount(false);
+    await act(async () => undefined);
     expect(listPairings).not.toHaveBeenCalled();
     expect(fetchRoomInfo).not.toHaveBeenCalled();
+
+    // Reopen with a probe that answers LATER: nothing is offered until it
+    // does — never the entry the previous open had verified.
+    let release: (value: unknown) => void = () => undefined;
+    (fetchRoomInfo as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    await setOpen(true);
+    expect(now().localId).toBeNull();
+    await act(async () => {
+      release({
+        ok: true,
+        value: { roomName: "This computer", roomId: "r1", epoch: "e1", you: 3, members: [], ai: {} },
+      });
+    });
+    expect(now().localId).toBe("p2");
+  });
+
+  test("an older probe can never overwrite a newer one", async () => {
+    const resolvers: Array<(value: unknown) => void> = [];
+    (fetchRoomInfo as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    // The open probes p2; the completion's ask supersedes it with p3.
+    await setOpen(false);
+    await setOpen(true);
+    (listPairings as jest.Mock).mockResolvedValue([record("p1"), record("p2"), record("p3")]);
+    await act(async () => {
+      completions[0]();
+    });
+    expect(resolvers).toHaveLength(2);
+
+    // The newer answer lands…
+    await act(async () => {
+      resolvers[1]({
+        ok: true,
+        value: { roomName: "This computer", roomId: "r1", epoch: "e1", you: 3, members: [], ai: {} },
+      });
+    });
+    expect(now().localId).toBe("p3");
+
+    // …and the older one, arriving after it, is ignored — even a refusal
+    // from it cannot take the newer answer away.
+    await act(async () => {
+      resolvers[0]({ ok: false, error: { code: "unreachable", message: "remote_brain_network" } });
+    });
+    expect(now().localId).toBe("p3");
+  });
+
+  test("closing the menu aborts the probe, and its late answer is not accepted", async () => {
+    let release: (value: unknown) => void = () => undefined;
+    (fetchRoomInfo as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    await setOpen(false);
+    await setOpen(true);
+    const calls = (fetchRoomInfo as jest.Mock).mock.calls;
+    const signal = calls[calls.length - 1][0].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+
+    await setOpen(false);
+    expect(signal.aborted).toBe(true);
+
+    // The probe answers after the menu is gone: the hook takes nothing.
+    await act(async () => {
+      release({
+        ok: true,
+        value: { roomName: "This computer", roomId: "r1", epoch: "e1", you: 3, members: [], ai: {} },
+      });
+    });
     expect(now().localId).toBeNull();
   });
 

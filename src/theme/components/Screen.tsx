@@ -27,9 +27,7 @@ export function Screen({
   const { colors } = useLabTheme<any>();
   const Root = safe ? SafeAreaView : View;
   const rootStyle: ViewStyle = {
-    // The legacy palette's page token — `bg` was never one of its colours,
-    // which left this screen transparent.
-    backgroundColor: colors.shell,
+    backgroundColor: colors.bg,
     flex: 1,
   };
   const contentBase: ViewStyle = {
