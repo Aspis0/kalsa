@@ -17,7 +17,7 @@ export interface HostDrawerProps {
   actions: ConversationActions;
   onOpenConversations: () => void;
   /** Open one paired computer's room. The entry is offered only while a
-   *  usable pairing exists, and v1 has no picker: the newest one. */
+   *  usable, reachable pairing exists, and v1 has no picker: the newest. */
   onOpenRoom: (localId: string) => void;
 }
 
@@ -41,7 +41,9 @@ export function HostDrawer({
   onOpenRoom,
 }: HostDrawerProps) {
   const { t } = useLocale();
-  const room = useRoomPairing();
+  // The menu's own question, asked while it is open — and answered only by a
+  // room that is reachable right now.
+  const room = useRoomPairing(open);
   const closeDrawer = () => {
     Keyboard.dismiss();
     setOpen(false);

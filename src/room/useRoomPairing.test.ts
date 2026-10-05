@@ -9,6 +9,7 @@ jest.mock("../pairing/pairingCredentialStore", () => ({
   listPairings: jest.fn(),
   subscribePairingRemoved: jest.fn(),
 }));
+jest.mock("./roomApi", () => ({ fetchRoomInfo: jest.fn() }));
 jest.mock("../pairing/pairingCompletedAt", () => ({ subscribePairingCompleted: jest.fn() }));
 
 import React from "react";
@@ -16,6 +17,7 @@ import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { subscribePairingCompleted } from "../pairing/pairingCompletedAt";
 import { listPairings, subscribePairingRemoved } from "../pairing/pairingCredentialStore";
 import type { PairingRecord } from "../pairing/pairingRecord";
+import { fetchRoomInfo } from "./roomApi";
 import { pickRoomPairing, useRoomPairing } from "./useRoomPairing";
 
 // Save what we replace: a test that mutates the environment must put it back.
@@ -66,6 +68,22 @@ describe("useRoomPairing", () => {
   let completions: Array<() => void>;
   let removals: Array<() => void>;
 
+  async function mount(open: boolean): Promise<void> {
+    // Listeners belong to the mount that made them: the arrays index the
+    // live menu, not every mount this file ever ran.
+    completions = [];
+    removals = [];
+    const box = (hook = { current: null } as { current: { localId: string | null } | null });
+    const Probe = () => {
+      box.current = useRoomPairing(open);
+      return null;
+    };
+    await act(async () => {
+      renderer = create(React.createElement(Probe));
+    });
+    await act(async () => undefined);
+  }
+
   beforeEach(async () => {
     jest.clearAllMocks();
     completions = [];
@@ -79,15 +97,11 @@ describe("useRoomPairing", () => {
       return jest.fn();
     });
     (listPairings as jest.Mock).mockResolvedValue([record("p1"), record("p2")]);
-    const box = (hook = { current: null } as { current: { localId: string | null } | null });
-    const Probe = () => {
-      box.current = useRoomPairing();
-      return null;
-    };
-    await act(async () => {
-      renderer = create(React.createElement(Probe));
+    (fetchRoomInfo as jest.Mock).mockResolvedValue({
+      ok: true,
+      value: { roomName: "This computer", roomId: "r1", epoch: "e1", you: 3, members: [], ai: {} },
     });
-    await act(async () => undefined);
+    await mount(true);
   });
 
   afterEach(async () => {
@@ -107,11 +121,66 @@ describe("useRoomPairing", () => {
 
   test("the newest pairing is the room, and a completed pairing takes over", async () => {
     expect(now().localId).toBe("p2");
+    expect(fetchRoomInfo).toHaveBeenCalledTimes(1);
     (listPairings as jest.Mock).mockResolvedValue([record("p1"), record("p2"), record("p3")]);
     await act(async () => {
       completions[0]();
     });
     expect(now().localId).toBe("p3");
+  });
+
+  test("a closed menu asks nothing — no list read, no probe", async () => {
+    await act(async () => renderer.unmount());
+    (listPairings as jest.Mock).mockClear();
+    (fetchRoomInfo as jest.Mock).mockClear();
+
+    await mount(false);
+    expect(listPairings).not.toHaveBeenCalled();
+    expect(fetchRoomInfo).not.toHaveBeenCalled();
+    expect(now().localId).toBeNull();
+  });
+
+  test("a room that does not answer is not offered: one probe, and the entry is gone", async () => {
+    expect(now().localId).toBe("p2");
+    expect(fetchRoomInfo).toHaveBeenCalledTimes(1);
+    expect((fetchRoomInfo as jest.Mock).mock.calls[0][0]).toMatchObject({
+      roomLocalId: "p2",
+    });
+
+    // The computer is off (or its road is gone): the same open, the same
+    // question, and this time the entry stays hidden.
+    await act(async () => renderer.unmount());
+    (fetchRoomInfo as jest.Mock).mockResolvedValue({
+      ok: false,
+      error: { code: "unreachable", message: "remote_brain_network" },
+    });
+    await mount(true);
+    expect(now().localId).toBeNull();
+  });
+
+  test("the room's own 401 hides the entry — the mark then hides it for good", async () => {
+    await act(async () => renderer.unmount());
+    // Only the newest computer refuses this phone: its own 401, and the one
+    // the door answers for the older record is fine.
+    (fetchRoomInfo as jest.Mock).mockImplementation((options: { roomLocalId: string }) =>
+      Promise.resolve(
+        options.roomLocalId === "p2"
+          ? {
+              ok: false,
+              error: { code: "removed", message: "This phone is no longer a member of the room." },
+            }
+          : { ok: true, value: { roomName: "This computer", roomId: "r1", epoch: "e1", you: 3, members: [], ai: {} } },
+      ),
+    );
+    await mount(true);
+    expect(now().localId).toBeNull();
+    // roomApi marked p2 on that 401; the store's notice re-asks, and the
+    // refused computer is not offered again — the older one is.
+    (listPairings as jest.Mock).mockResolvedValue([record("p1"), record("p2", true)]);
+    await act(async () => {
+      removals[0]();
+    });
+    expect(now().localId).toBe("p1");
   });
 
   test("a room that refused this phone takes its entry away", async () => {

@@ -331,6 +331,10 @@ export function openRoomStream(roomLocalId: string, listener: Listener): RoomStr
       if (isPairingStoreDamaged(error)) {
         stop();
       } else if (!closed && !paused) {
+        // The dial itself failed (the computer is off, the road is gone):
+        // the same cue a cut wire gives, so the screen can say it, and the
+        // backoff redials.
+        emit({ type: "disconnected" });
         scheduleReconnect();
       }
     } finally {

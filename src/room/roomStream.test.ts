@@ -228,6 +228,30 @@ test("every ping — four virtual minutes of them — keeps the one wire alive; 
   handle.close();
 });
 
+test("a dial that cannot even start says so, and its retries back off", async () => {
+  const events: RoomStreamEvent[] = [];
+  (establishDoorRoad as jest.MockedFunction<typeof establishDoorRoad>).mockRejectedValue(
+    new Error("fetch failed"),
+  );
+  const handle = openRoomStream(LOCAL_ID, (event) => events.push(event));
+  await settle();
+
+  // The dial threw before any wire existed: the same cue a cut wire gives,
+  // once per try.
+  expect(events).toEqual([{ type: "disconnected" }]);
+  const dialsAfterFirstTry = (establishDoorRoad as jest.Mock).mock.calls.length;
+  expect(dialsAfterFirstTry).toBe(1);
+
+  // A minute of a computer that is off: the retries grow with the backoff and
+  // never become a loop.
+  await jest.advanceTimersByTimeAsync(60_000);
+  await settle();
+  const dials = (establishDoorRoad as jest.Mock).mock.calls.length;
+  expect(dials).toBeLessThanOrEqual(9);
+  expect(events.filter((event) => event.type === "disconnected")).toHaveLength(dials);
+  handle.close();
+});
+
 test("the backoff restarts only on health — a delivered entry, never the bare head", async () => {
   const handle = openRoomStream(LOCAL_ID, () => undefined);
   await settle();
