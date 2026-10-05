@@ -589,6 +589,58 @@ because the NPU leg is the sole HTP context: write that down, add no per-context
 context; three contexts add two KV plus compute sets; (d) the v2 weighting is the owner's call: land the three-leg
 plumbing with v1's rule generalised, the heat weight as a parameter defaulting to v1 behaviour.
 
+## Amendment G (2026-10-05): making the GPU leg a real decode leg
+
+Read at 0e7109fdf. The leg claims only TILE32 (`ggml-opencl.cpp:14668-14677`); its import map is keyed by buffer with
+per-tensor views (`ggml-opencl-tile32-internal.h:8-10, 29-33`). Every OpenCL op reads a source through
+`ggml_tensor_extra_cl { data_device, offset }` (`:7565-7569`). What OpenCL already supports: MUL f32 (`:9746+`),
+RMS_NORM (`:9813`), SSM_CONV f32 (`:9835-9836`), ROPE (`:9964`), GLU (`:9791`), SET_ROWS into Q8_0 (`:9938+`),
+flash attention (`:10009+` region, `flash_attn_f32_q8_0.cl` present), GET_ROWS for F32/F16 only (`:9923-9935`), and a
+PLAIN-layout Q6_K mat-vec: `kernel_mul_mv_q6_K_f32(global void * src0, ulong offset0, ...)`
+(`kernels/mul_mv_q6_k_f32.cl:80-88`), dispatched with `extra0->data_device` + `offset0` (`:26112+14..19`); the ql/qh
+plane split happens only for tensors uploaded into OpenCL's own buffers (`:12977`). LFM2 per layer: norm MUL, shortconv
+in_proj / MUL / concat with the recurrent state / SSM_CONV / MUL / out_proj (`lfm2.cpp:176-227`), attention layers with
+q/k norms, ROPE, SET_ROWS, FA, ffn gate/up/down, GET_ROWS at the top (`:236`), tied lm_head at the bottom. Step-4 log:
+`graph splits = 1 (bs=32), 197 (bs=1)`; G 3.50 tok/s vs two-copy OpenCL 11.51 at `-t 1`.
+
+**G1. What must move, and what each needs.** The 197 splits are every boundary where an op touches a tensor OpenCL
+cannot claim: the f32 weights in HOST (norms, q/k norms, conv kernels, output norm), the KV and recurrent state in
+CPU memory (`-nkvo`), and the Q6_K lm_head in the CPU buffer. Three moves, no new kernel:
+- HOST through the same import. `supports_buft(HOST)` true once the HOST dma-buf is imported (same route and map as
+  TILE32, one more buffer), and a fake `ggml_tensor_extra_cl {cl_mem, data - base}` per native-layout tensor served
+  from the map, so `ggml_cl_mul`, `ggml_cl_ssm_conv` and the Q6_K mat-vec read the HOST bytes in place. Not a copy: the
+  alternative, uploading 1 MiB of f32 into OpenCL memory, is a third copy of 0.07 % of the weights and buys nothing
+  measurable; the import is the mechanism the owner already accepted for the 1.3 GB, so there is nothing to argue.
+- KV and recurrent state on OpenCL for the GPU-leg context: a per-context buft choice (`llama-kv-cache.cpp:313-317`
+  follows the leg's first device, F1), not a weight. Then SET_ROWS, FA, concat and SSM_CONV run where their inputs are.
+- lm_head on the GPU: the plain Q6_K kernel reads an imported buffer, so `token_embd` must live in HOST (rpcmem),
+  not the CPU buffer where step 3 put it: a placement rule for the input-role tensor in shared mode. GET_ROWS stays on
+  the CPU (OpenCL has no quantized GET_ROWS, `:9925-9935`): one input boundary, the same one two-copy OpenCL has.
+
+**G2. The tied output, re-ranked.** Option 2 (205 MiB duplicate on HTP0) serves the NPU only; the GPU leg still needs
+`token_embd` in HOST for its lm_head, so option 2 costs 205 MiB and leaves the GPU reading the HOST copy anyway. Option
+3 (HTP reads flat Q6_K from HOST) makes the ONE HOST copy serve all three legs: CPU native dot, HTP flat reader (the
+new DSP code of D), GPU plain kernel through the import. Ranking of D becomes 3 > 2; option 1 is refuted by KLD.
+
+**G3. Placement without OPFILTER.** With F's `leg_devices = {GPUOpenCL}` the GPU-leg context has backends
+`[OpenCL, CPU]`, its KV on OpenCL, and `backend_from_buffer` hands every weight op to OpenCL because it is first and
+now supports TILE32 and HOST; non-weight ops follow their inputs; the HTP0 placement probe is a load-time matter of
+the model's own list and never sees this context. Before step 5 there is no way to put the KV on OpenCL from the CLI:
+`-dev GPUOpenCL,HTP0 -ts 0,1` gives OpenCL priority without OPFILTER or `-ot` (weights placed by HTP0's list, OpenCL
+first in the backend order), but `dev_layer` is HTP0, so the KV lands on the HTP buft unless `-nkvo` keeps it on the
+CPU. That arm measures G1's first and third moves with attention and conv still on the CPU.
+
+**G4. Expected splits and the measurement.** Today ~12 per layer. HOST import + lm_head on GPU, KV on CPU: about two
+per layer (state and attention boundaries) plus the input boundary. KV on OpenCL as well: 1-2 like two-copy OpenCL.
+Measure the `graph splits` line at bs=1, tg64 at `-t 1` against the two-copy OpenCL 11.51, per-op OpenCL times, and
+the CPU zone peak; the leg is real when splits <= 2 and tok/s >= 0.9 x 11.51.
+
+**G5. Step 4b now, the rest in step 5.** HOST import, the fake extras, `token_embd` in HOST and the Q6_K plain path are
+OpenCL and placement work on the current branch, measurable with the `-ts 0,1 -nkvo` arm: step 4b, gate "two splits
+per layer and lm_head on the GPU". KV on OpenCL needs `leg_devices`, which needs the merge of main (F4 commit zero):
+step 5. Wrong in the plan: the GPU leg was declared "ON and correct" on mat-vec parity; a leg is a token, and the
+token was 70 % CPU.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
@@ -606,3 +658,5 @@ plumbing with v1's rule generalised, the heat weight as a parameter defaulting t
   self-check, CLI arm with OPFILTER, import release on unload).
 - 2026-10-05 v8: Amendment F appended (step-5: legs as contexts over one model, pairwise commit unchanged for N legs,
   hop v2 in the existing select_decode rule 4 + one execution site, merge main first, owner's weighting as a parameter).
+- 2026-10-05 v9: Amendment G appended (GPU leg: HOST through the same import, KV on OpenCL per leg, lm_head via the plain
+  Q6_K kernel with token_embd in HOST; D re-ranked 3 > 2; step 4b now, KV in step 5).
