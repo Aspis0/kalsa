@@ -107,3 +107,16 @@ One line per item: area - finding - source audit. Pick from here only when a rel
   `llama_model_free` of a shared-mode model; there is no automatic hook on the Hexagon buffer free.
 - P3: OpenCL `supports_op` walks every src for the TILE32 layout before the op switch; a cheap op prefilter would
   save a little on placement. Not measured.
+
+## One copy, main merge (engine `6a937f6db`; review luna 6982f590, 2026-10-05)
+- Merge resolutions: all 13 conflict hunks refuted as lossy; the raw-Q4_0 640-byte stride is the aligned stride, fine.
+- REFUTED by the coordinator: "explicit mmap bypasses TILE32 packing" - a TILE32 context is allocated by
+  `ggml_backend_alloc_ctx_tensors_from_buft` (llama-model.cpp ~1942), so `cur->data` is set and load_all_data takes
+  `ggml_backend_tensor_set` (llama-model-loader.cpp ~1703), which packs.
+- P1 known: the scheduler's 1.off loop does not ask `supports_buft` (adding it was reverted in 915d10b51 because it
+  changed shipped admission behaviour). Revisit with the leg contexts (step 5), where each context's device list is
+  explicit.
+- P3: ROW split mode puts the split buft before the extra bufts, so a shared load with split_mode=ROW fails its
+  post-load audit (loud, by name). The app never uses ROW split.
+- P2 plausible: a CPU extra-buffer kernel claiming an op whose OTHER src is TILE32 would skip the native-read guard;
+  no such op in LFM2.
