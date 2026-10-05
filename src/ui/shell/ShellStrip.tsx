@@ -24,6 +24,7 @@ export function ShellStrip({
   mode,
   modelBar,
   locationRows = [],
+  onRefreshLocations = async () => undefined,
   onMenuPress,
   onModelAction,
 }: {
@@ -36,6 +37,9 @@ export function ShellStrip({
   /** The pill's where-choices; empty when one place can answer and the pill
    *  must claim no picker (`modelBarChoices.ts`). */
   locationRows?: readonly AttachSheetRowData[];
+  /** Re-read pairing usability and the switch guard as the pill opens, so the
+   *  rows are the store's and the engine's answer at that moment. */
+  onRefreshLocations?: () => Promise<void>;
   onMenuPress?: () => void;
   onModelAction?: () => void;
 }) {
@@ -92,7 +96,12 @@ export function ShellStrip({
               ? t("shell.a11y.modelSwitcher", { model: modelName, where: locationLabel })
               : t("shell.a11y.modelStatus", { model: modelName, where: locationLabel })
           }
-          onPress={() => setSheetVisible(true)}
+          onPress={() => {
+            // A removal lands with no event on this branch and the guard reads
+            // refs: the sheet opens on the read this press triggers, never on
+            // the last render's rows.
+            void onRefreshLocations().then(() => setSheetVisible(true));
+          }}
           style={({ pressed }) => ({
             height: 48,
             flex: 1,

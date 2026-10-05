@@ -64,8 +64,8 @@ describe("the strip's two controls", () => {
     expect(shell).not.toContain("shell.notice");
   });
 
-  it("opens the status sheet from the pill instead of starting a model action", () => {
-    expect(strip).toMatch(/onPress=\{\(\) => setSheetVisible\(true\)\}/);
+  it("opens the status sheet from the pill, on a fresh read of the store", () => {
+    expect(strip).toContain("void onRefreshLocations().then(() => setSheetVisible(true))");
     expect(strip).toContain("onRetryPress={onModelAction}");
   });
 

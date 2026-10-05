@@ -5,7 +5,10 @@ import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 jest.mock("./remoteModelTransition", () => ({ switchHostToRemoteComputer: jest.fn() }));
 jest.mock("./useModelDownload", () => ({ downloadInFlightRef: { current: false } }));
 jest.mock("./modelSwitchState", () => ({ modelSwitchInFlightRef: { current: false } }));
-jest.mock("../engine/regenState", () => ({ regenInFlightRef: { current: false } }));
+jest.mock("../engine/regenState", () => ({
+  regenInFlightRef: { current: false },
+  sendClaimRef: { current: false },
+}));
 jest.mock("../documents/docOpGate", () => ({ isDeleteActive: jest.fn(() => false) }));
 jest.mock("./useNotice", () => ({ noticePort: { current: null } }));
 const makePorts = (overrides: Record<string, unknown> = {}) => ({
@@ -17,6 +20,8 @@ const makePorts = (overrides: Record<string, unknown> = {}) => ({
   setRemoteActive: jest.fn(),
   modelStateRef: { current: "ready" as const },
   streamInFlightRef: { current: false },
+  memoryExtractRef: { current: null as Promise<void> | null },
+  remoteErrorRef: { current: null as string | null },
   setModelState: jest.fn(),
   setModelError: jest.fn(),
   setModelErrorKind: jest.fn(),
@@ -28,7 +33,10 @@ const makePorts = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("the settings remote row uses the live host refusal route", () => {
-  const regen = jest.requireMock("../engine/regenState") as { regenInFlightRef: { current: boolean } };
+  const regen = jest.requireMock("../engine/regenState") as {
+    regenInFlightRef: { current: boolean };
+    sendClaimRef: { current: boolean };
+  };
   const deletion = jest.requireMock("../documents/docOpGate") as { isDeleteActive: jest.Mock };
   const download = jest.requireMock("./useModelDownload") as { downloadInFlightRef: { current: boolean } };
   const notice = jest.requireMock("./useNotice") as { noticePort: { current: jest.Mock | null } };
@@ -36,6 +44,7 @@ describe("the settings remote row uses the live host refusal route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     regen.regenInFlightRef.current = false;
+    regen.sendClaimRef.current = false;
     deletion.isDeleteActive.mockReturnValue(false);
     download.downloadInFlightRef.current = false;
     notice.noticePort.current = jest.fn();
@@ -120,4 +129,52 @@ describe("the settings remote row uses the live host refusal route", () => {
       expect(state.selectLocalModel).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("the pre-await send claim and the running extract hold the switch too", () => {
+  const regen = jest.requireMock("../engine/regenState") as {
+    sendClaimRef: { current: boolean };
+  };
+  const notice = jest.requireMock("./useNotice") as { noticePort: { current: jest.Mock | null } };
+  const deletion = jest.requireMock("../documents/docOpGate") as { isDeleteActive: jest.Mock };
+
+  beforeEach(() => {
+    notice.noticePort.current = jest.fn();
+    regen.sendClaimRef.current = false;
+    deletion.isDeleteActive.mockReturnValue(false);
+  });
+
+  test("a held send claim refuses both routes with the turn notice", () => {
+    regen.sendClaimRef.current = true;
+    const state = makePorts();
+    const actions = createRemoteModelHostActions(state as never);
+
+    actions.routeModelById(REMOTE_COMPUTER_MODEL_ID);
+    expect(switchHostToRemoteComputer).not.toHaveBeenCalled();
+    expect(notice.noticePort.current).toHaveBeenCalledWith("settings.whereSwitchTurnBusy");
+    expect(actions.selectLocation("remote", "lfm-local")).toBe(false);
+    expect(switchHostToRemoteComputer).not.toHaveBeenCalled();
+    expect(actions.locationSwitchBlocked()).toBe(true);
+  });
+
+  test("a running memory extract refuses with the model-operation notice", () => {
+    const state = makePorts({ memoryExtractRef: { current: Promise.resolve() } });
+    const actions = createRemoteModelHostActions(state as never);
+
+    expect(actions.selectLocation("remote", "lfm-local")).toBe(false);
+    expect(switchHostToRemoteComputer).not.toHaveBeenCalled();
+    expect(notice.noticePort.current).toHaveBeenCalledWith("settings.whereSwitchBusy");
+    expect(actions.locationSwitchBlocked()).toBe(true);
+  });
+
+  test("the pill's blocked flag is the same verdict the press gets, idle included", () => {
+    const idle = createRemoteModelHostActions(makePorts() as never);
+    expect(idle.locationSwitchBlocked()).toBe(false);
+
+    const state = makePorts();
+    const actions = createRemoteModelHostActions(state as never);
+    state.streamInFlightRef.current = true;
+    expect(actions.locationSwitchBlocked()).toBe(true);
+    expect(actions.selectLocation("remote", "lfm-local")).toBe(false);
+  });
 });

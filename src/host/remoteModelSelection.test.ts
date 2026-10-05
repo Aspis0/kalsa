@@ -9,6 +9,8 @@ const READY = {
   modelState: "ready" as const,
   streaming: false,
   regenerating: false,
+  sendClaim: false,
+  memoryExtract: false,
   semanticRebuildBusy: false,
   documentDeleteBusy: false,
 };
@@ -20,6 +22,10 @@ describe("remote selection respects the main-shell refusals", () => {
     ["download state", { modelState: "downloading" }, "busy"],
     ["stream", { streaming: true }, "turn-active"],
     ["regenerate", { regenerating: true }, "turn-active"],
+    // The pre-await send claim: the turn has begun, `streamInFlightRef` not yet.
+    ["send claim", { sendClaim: true }, "turn-active"],
+    // The turn-end extract owns the engine with no stream of its own.
+    ["memory extract", { memoryExtract: true }, "busy"],
     ["delete", { documentDeleteBusy: true }, "documents-busy"],
     ["rebuild", { semanticRebuildBusy: true }, "documents-busy"],
   ] as const)("a %s in flight never dispatches a remote switch", (_name, override, refusal) => {

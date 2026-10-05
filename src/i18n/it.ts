@@ -1461,6 +1461,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       /** The pill's second line while a hard RAM/tier refusal stands
        *  (`pillWhereLabel`): the claim must stay true in the failure state. */
       notRunning: "Non gira qui",
+      /** Computer selected, init failed: the where-line may not claim it answers. */
+      computerNotResponding: "Non risponde",
     },
     composer: {
       typingAllowed: "Puoi scrivere la prossima domanda mentre risponde",

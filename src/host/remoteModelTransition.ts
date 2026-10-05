@@ -11,6 +11,8 @@ import {
   notifyModelSwitchSettled,
 } from "./modelSwitchState";
 import { hostEngineErrorText } from "./remoteEngineError";
+import { waitForMemoryExtract } from "./memoryExtractWait";
+import { noticePort } from "./useNotice";
 import { cancelPendingEagerKick } from "./eagerKickDelay";
 import type { TranslateFn } from "../i18n";
 
@@ -26,10 +28,19 @@ export interface RemoteModelTransitionDeps {
   setModelErrorDetail: (detail: string | null) => void;
   disposeCurrent: () => Promise<boolean>;
   ensureRemote: () => Promise<boolean>;
+  /** The turn-end extract the dispose must not race (`memoryExtractWait.ts`). */
+  memoryExtractRef: { current: Promise<void> | null };
+  /** The human text of the last failed remote ensure, null when none. */
+  remoteErrorRef: { current: string | null };
   t: TranslateFn;
 }
 
-/** Runs the accepted remote flip only after the current engine disposed. */
+/**
+ * Runs the accepted remote flip only after the current engine disposed. Every
+ * failed exit says so through the one-slot notice: the pill's sheet is already
+ * closed by then, and the model bar's error line lives inside that sheet, so a
+ * silent failure would leave the strip claiming the computer answers.
+ */
 export function switchHostToRemoteComputer(deps: RemoteModelTransitionDeps): void {
   if (modelSwitchInFlightRef.current) return;
   modelSwitchInFlightRef.current = true;
@@ -43,11 +54,16 @@ export function switchHostToRemoteComputer(deps: RemoteModelTransitionDeps): voi
   void (async () => {
     let disposed = false;
     try {
+      // The extract owns the engine the dispose is about to take; wait it out
+      // exactly as the local model switch does.
+      await waitForMemoryExtract(deps.memoryExtractRef);
       if (!(await deps.disposeCurrent())) {
+        const message = deps.t("errors.engineDisposeTimeout");
         deps.setModelState("error");
         deps.setModelErrorKind("engine");
-        deps.setModelError(deps.t("errors.engineDisposeTimeout"));
+        deps.setModelError(message);
         deps.setModelErrorDetail(null);
+        noticePort.current?.(message);
         return;
       }
       disposed = true;
@@ -56,15 +72,23 @@ export function switchHostToRemoteComputer(deps: RemoteModelTransitionDeps): voi
       deps.setRemoteActive(true);
       AsyncStorage.setItem(MODEL_STORAGE_KEY, REMOTE_COMPUTER_MODEL_ID).catch(() => undefined);
       deps.setModelState("loading");
-      await deps.ensureRemote();
+      if (!(await deps.ensureRemote())) {
+        // An init failure publishes its human text on `remoteErrorRef`; a
+        // superseded ensure leaves it null and must stay silent.
+        if (deps.remoteErrorRef.current !== null) {
+          noticePort.current?.(deps.remoteErrorRef.current);
+        }
+      }
     } catch (error) {
       deps.remoteActiveRef.current = false;
       deps.setRemoteActive(false);
       deps.setModelState("error");
       deps.setModelErrorKind("engine");
       const raw = error instanceof Error ? error.message : String(error);
-      deps.setModelError(hostEngineErrorText(raw, true, deps.t));
+      const message = hostEngineErrorText(raw, true, deps.t);
+      deps.setModelError(message);
       deps.setModelErrorDetail(null);
+      noticePort.current?.(message);
     } finally {
       if (releasedGen !== null) deps.markChatReleased(releasedGen);
       modelSwitchInFlightRef.current = false;

@@ -7,12 +7,11 @@
  *
  * A store error says nothing about pairing, so the last answer stands (the
  * `paired` flag in Settings follows the same rule). A completed pairing
- * re-reads: the pairing screen runs over this chat, so a mount-time answer
- * would leave the new computer undiscoverable from the pill. A removal
- * landing mid-session has no event here — it is read again on the next
- * pairing or remount.
+ * re-reads; and a removal that lands mid-session — a 401 on the room stream —
+ * has no event on this branch, so `refresh` re-reads on demand: the pill calls
+ * it as it opens, and the rows are then the store's answer at that moment.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { subscribePairingCompleted } from "../pairing/pairingCompletedAt";
 import { getPairingCredential } from "../pairing/pairingCredentialStore";
 import type { PairingRecord } from "../pairing/pairingRecord";
@@ -22,24 +21,36 @@ export function usablePairing(record: PairingRecord | null): boolean {
   return record !== null && record.removed !== true;
 }
 
-export function useUsablePairing(): boolean {
+export function useUsablePairing(): {
+  usable: boolean;
+  /** Re-read the store now and publish the verdict before resolving. */
+  refresh: () => Promise<void>;
+} {
   const [usable, setUsable] = useState(false);
+  const mountedRef = useRef(true);
   useEffect(() => {
-    let cancelled = false;
-    const read = () => {
-      void getPairingCredential().then(
-        (record) => {
-          if (!cancelled) setUsable(usablePairing(record));
-        },
-        () => undefined,
-      );
-    };
-    const unsubscribe = subscribePairingCompleted(read);
-    read();
+    mountedRef.current = true;
     return () => {
-      cancelled = true;
-      unsubscribe();
+      mountedRef.current = false;
     };
   }, []);
-  return usable;
+
+  const read = useCallback(async () => {
+    try {
+      const record = await getPairingCredential();
+      if (mountedRef.current) setUsable(usablePairing(record));
+    } catch {
+      // Unreadable says nothing about pairing: keep the last answer.
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribePairingCompleted(() => {
+      void read();
+    });
+    void read();
+    return unsubscribe;
+  }, [read]);
+
+  return { usable, refresh: read };
 }

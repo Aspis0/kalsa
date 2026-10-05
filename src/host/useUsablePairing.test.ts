@@ -4,7 +4,9 @@
  * "Where it responds" control and the remote door both route through — is
  * present and no room has refused it (`removed`). The hook must also see a
  * pairing completed while the chat is open (the pairing screen runs over this
- * chat) and must never let a store failure flip a good answer.
+ * chat), must never let a store failure flip a good answer, and must re-read
+ * on demand: the pill refreshes as it opens, because a mid-session removal
+ * has no event on this branch.
  */
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
@@ -52,7 +54,7 @@ describe("the live answer", () => {
   const mount = async () => {
     seen = [];
     const Probe = () => {
-      seen.push(useUsablePairing());
+      seen.push(useUsablePairing().usable);
       return null;
     };
     await act(async () => {
@@ -110,5 +112,65 @@ describe("the live answer", () => {
     });
 
     expect(latest()).toBe(true);
+  });
+});
+
+describe("the press-time refresh", () => {
+  let renderer: ReactTestRenderer;
+  let seen: boolean[];
+  let refresh: () => Promise<void>;
+
+  const latest = () => seen[seen.length - 1];
+  const mount = async () => {
+    seen = [];
+    const Probe = () => {
+      const pairing = useUsablePairing();
+      seen.push(pairing.usable);
+      refresh = pairing.refresh;
+      return null;
+    };
+    await act(async () => {
+      renderer = create(React.createElement(Probe));
+    });
+  };
+
+  beforeEach(() => {
+    read.mockReset();
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      try {
+        renderer.unmount();
+      } catch {
+        // already unmounted
+      }
+    });
+  });
+
+  test("a removal that landed after mount is seen on the next refresh", async () => {
+    // The 401 removal has no event on this branch: only a fresh read sees it.
+    read.mockResolvedValueOnce(RECORD).mockResolvedValueOnce({ ...RECORD, removed: true });
+    await mount();
+    expect(latest()).toBe(true);
+
+    await act(async () => {
+      await refresh();
+    });
+
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(latest()).toBe(false);
+  });
+
+  test("a refresh that fails keeps the last answer", async () => {
+    read.mockResolvedValueOnce({ ...RECORD, removed: true }).mockRejectedValueOnce(new Error("keystore"));
+    await mount();
+    expect(latest()).toBe(false);
+
+    await act(async () => {
+      await refresh();
+    });
+
+    expect(latest()).toBe(false);
   });
 });

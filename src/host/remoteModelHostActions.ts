@@ -1,8 +1,12 @@
 import { isDeleteActive } from "../documents/docOpGate";
-import { regenInFlightRef } from "../engine/regenState";
+import { regenInFlightRef, sendClaimRef } from "../engine/regenState";
 import { downloadInFlightRef } from "./useModelDownload";
 import { modelSwitchInFlightRef } from "./modelSwitchState";
-import { trySelectRemoteComputer } from "./remoteModelSelection";
+import {
+  remoteModelSelectionRefusal,
+  trySelectRemoteComputer,
+  type RemoteModelSelectionRefusal,
+} from "./remoteModelSelection";
 import { switchHostToRemoteComputer } from "./remoteModelTransition";
 import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import type { ModelPipelineState } from "./hostPipelineState";
@@ -18,6 +22,10 @@ export interface RemoteModelHostActionPorts {
   setRemoteActive: (active: boolean) => void;
   modelStateRef: { current: ModelPipelineState };
   streamInFlightRef: { current: boolean };
+  /** The turn-end extract the remote transition waits for. */
+  memoryExtractRef: { current: Promise<void> | null };
+  /** The human text of the last failed remote ensure (the transition's notice). */
+  remoteErrorRef: { current: string | null };
   setModelState: (state: "loading" | "error") => void;
   setModelError: (message: string | null) => void;
   setModelErrorKind: (kind: "engine" | null) => void;
@@ -35,10 +43,16 @@ export function createRemoteModelHostActions(ports: RemoteModelHostActionPorts) 
     modelState: ports.modelStateRef.current,
     streaming: ports.streamInFlightRef.current,
     regenerating: regenInFlightRef.current,
+    sendClaim: sendClaimRef.current,
+    memoryExtract: ports.memoryExtractRef.current !== null,
     semanticRebuildBusy: false,
     documentDeleteBusy: isDeleteActive(),
   });
-  const announceRefusal = (reason: "busy" | "turn-active" | "documents-busy") => {
+  /** The verdict a switch would get right now: the pill's rows and the
+   *  Settings row read the same predicate the press itself runs through. */
+  const locationSwitchBlocked = (): boolean =>
+    remoteModelSelectionRefusal(refusalInput()) !== null;
+  const announceRefusal = (reason: RemoteModelSelectionRefusal) => {
     const key: TranslationKey = reason === "busy"
       ? "settings.whereSwitchBusy"
       : reason === "turn-active"
@@ -61,6 +75,8 @@ export function createRemoteModelHostActions(ports: RemoteModelHostActionPorts) 
         setModelErrorDetail: ports.setModelErrorDetail,
         disposeCurrent: ports.disposeCurrent,
         ensureRemote: ports.ensureRemote,
+        memoryExtractRef: ports.memoryExtractRef,
+        remoteErrorRef: ports.remoteErrorRef,
         t: ports.t,
       }),
     );
@@ -86,5 +102,11 @@ export function createRemoteModelHostActions(ports: RemoteModelHostActionPorts) 
     return true;
   };
 
-  return { selectRemoteComputer, selectLocalModel, selectLocation, routeModelById };
+  return {
+    selectRemoteComputer,
+    selectLocalModel,
+    selectLocation,
+    routeModelById,
+    locationSwitchBlocked,
+  };
 }

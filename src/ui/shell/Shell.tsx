@@ -91,6 +91,9 @@ export type ShellProps = {
   /** The pill's where-choices from the host; empty when one place can
    *  answer, and the strip then draws no picker affordance. */
   locationRows?: readonly AttachSheetRowData[];
+  /** Re-read the pairing store and the switch guard before the pill's sheet
+   *  opens. */
+  onRefreshLocations?: () => Promise<void>;
 };
 
 export function Shell({
@@ -121,6 +124,7 @@ export function Shell({
   attachments,
   modelBar,
   locationRows,
+  onRefreshLocations,
 }: ShellProps) {
   const { t } = useLocale();
   const window = useWindowDimensions();
@@ -163,6 +167,7 @@ export function Shell({
         mode={mode}
         modelBar={modelBar}
         locationRows={locationRows}
+        onRefreshLocations={onRefreshLocations}
         onMenuPress={onMenuPress}
         onModelAction={onModelPress}
       />

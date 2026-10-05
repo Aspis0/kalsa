@@ -13,8 +13,9 @@ import { SheetGrabber } from "./SheetGrabber";
 import { ModelBar, type ModelBarView } from "./ModelBar";
 
 /** The row as this sheet draws it: the switch, then the sheet's own
- *  dismissal — a refusal has already spoken through the one-slot notice, and
- *  a Modal would hide it if the sheet stayed up. */
+ *  dismissal — a switch that does not take (a refusal, or a remote init that
+ *  fails behind it) speaks through the one-slot notice, which a Modal would
+ *  hide if the sheet stayed up. */
 function dismissOnChoice(row: AttachSheetRowData, onClose: () => void): AttachSheetRowData {
   return {
     ...row,

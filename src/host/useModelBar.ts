@@ -10,6 +10,7 @@
  * controller's `onPress` did — the render-time decision only feeds the
  * disabled/inert affordance, which by construction updates with the render.
  */
+import { useState } from "react";
 import { isEmbedderHung } from "../engine/EmbeddingService";
 import { getActiveModelId, isEngineReady } from "../engine/engineBackend";
 import { MODEL_REGISTRY } from "../engine/ModelRegistry";
@@ -25,15 +26,22 @@ import { useUsablePairing } from "./useUsablePairing";
 
 type ModelHost = ReturnType<typeof useHostEngine>["modelHost"];
 
-export function useModelBar(modelHost: ModelHost, sending: boolean): {
+export function useModelBar(modelHost: ModelHost): {
   view: ModelBarView;
   onPress: () => void;
   /** The sheet's where-rows; empty when only one place can answer and the
    *  pill must not look like a picker (`modelBarChoices.ts`). */
   locationRows: readonly AttachSheetRowData[];
+  /** Re-read the store and the switch guard as the pill opens: neither has an
+   *  event that reaches a render (`useUsablePairing.ts`, `refusalInput`). */
+  refreshLocationRows: () => Promise<void>;
 } {
   const { t } = useLocale();
-  const usablePairing = useUsablePairing();
+  const { usable: usablePairing, refresh: refreshPairing } = useUsablePairing();
+  // The guard reads refs no render is guaranteed to follow (a held send claim,
+  // a running extract): a press bumps this so the rows are rebuilt from a
+  // fresh read instead of the last render's.
+  const [, setGuardRevision] = useState(0);
   const currentModel = modelHost.currentModel;
   const jsReady = isEngineReady();
   const activeMatches = getActiveModelId() === currentModel.id;
@@ -83,17 +91,23 @@ export function useModelBar(modelHost: ModelHost, sending: boolean): {
   };
 
   // The chooser's switch is `modelHost.selectLocation` — the same function
-  // the Settings "Where it responds" rows call (`HostFurniture.tsx`).
+  // the Settings "Where it responds" rows call (`HostFurniture.tsx`) — and its
+  // disabled state is that switch's own verdict, never a second guess.
   const locationRows = modelBarChoices({
     usablePairing,
     remoteActive: modelHost.remoteActive,
-    sending,
+    switchBlocked: modelHost.locationSwitchBlocked(),
     // The local registry entry, not `currentModel`: in computer mode that
     // one is the remote placeholder, and this row names the phone's model.
     localModelName: MODEL_REGISTRY[modelHost.modelIndex].name,
     labels: { phone: t("shell.where.thisPhone"), computer: t("shell.where.pillComputer") },
     selectLocation: modelHost.selectLocation,
   });
+
+  const refreshLocationRows = async () => {
+    await refreshPairing();
+    setGuardRevision((revision) => revision + 1);
+  };
 
   const onPress = () => {
     const live = decideModelPress({
@@ -106,5 +120,5 @@ export function useModelBar(modelHost: ModelHost, sending: boolean): {
     else if (live.action === "reload") modelHost.userReloadModel(currentModel);
   };
 
-  return { view, onPress, locationRows };
+  return { view, onPress, locationRows, refreshLocationRows };
 }

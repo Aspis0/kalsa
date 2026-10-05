@@ -41,7 +41,10 @@ jest.mock("./SettingsHeader", () => ({ SettingsHeader: "SettingsHeader" }));
 jest.mock("../ui/shell/AttachSheet", () => ({ AttachSheet: "AttachSheet" }));
 jest.mock("../../assets/icon.png", () => "brand-mark");
 jest.mock("../documents/docOpGate", () => ({ isDeleteActive: jest.fn(() => false) }));
-jest.mock("../engine/regenState", () => ({ regenInFlightRef: { current: false } }));
+jest.mock("../engine/regenState", () => ({
+  regenInFlightRef: { current: false },
+  sendClaimRef: { current: false },
+}));
 jest.mock("../host/useModelDownload", () => ({ downloadInFlightRef: { current: false } }));
 jest.mock("../host/modelSwitchState", () => ({ modelSwitchInFlightRef: { current: false } }));
 jest.mock("../host/remoteModelTransition", () => ({ switchHostToRemoteComputer: jest.fn() }));
@@ -80,6 +83,8 @@ function makeHostActions(remoteActive: boolean) {
     setRemoteActive: jest.fn(),
     modelStateRef: { current: remoteActive ? "error" : "ready" },
     streamInFlightRef: { current: false },
+    memoryExtractRef: { current: null },
+    remoteErrorRef: { current: null },
     setModelState: jest.fn(),
     setModelError: jest.fn(),
     setModelErrorKind: jest.fn(),

@@ -1516,6 +1516,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       /** The pill's second line while a hard RAM/tier refusal stands
        *  (`pillWhereLabel`): the claim must stay true in the failure state. */
       notRunning: "Not running here",
+      /** The computer is selected but its init failed (`hostModelLocation`):
+       *  the where-line may not claim it answers while the sheet's error line
+       *  says otherwise. */
+      computerNotResponding: "Not responding",
     },
     composer: {
       typingAllowed: "You can write the next question while it answers",

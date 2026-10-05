@@ -44,6 +44,7 @@ import { clearLoadMarker } from "../engine/loadMarker";
 import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
 import { loadMarkerStore, type EngineLoadDeps } from "./engineLoad";
 import { downloadInFlightRef } from "./useModelDownload";
+import { waitForMemoryExtract } from "./memoryExtractWait";
 import {
   MODEL_STORAGE_KEY,
   modelSwitchInFlightRef,
@@ -154,23 +155,10 @@ export function createModelSwitchers(deps: ModelSwitchDeps) {
           // releasing what the switch captured (gen + lock). Nothing in here is
           // known to throw, so this closes a shape, not a witnessed crash.
           try {
-            if (memoryExtractRef.current) {
-              let memoryExtractTimer: ReturnType<typeof setTimeout> | undefined;
-              try {
-                await Promise.race([
-                  memoryExtractRef.current,
-                  new Promise<void>((resolve) => {
-                    memoryExtractTimer = setTimeout(resolve, 3000);
-                  }),
-                ]);
-              } catch {
-                // ignore
-              } finally {
-                // Keep the 3s bound, but never leak the timer when extraction wins.
-                if (memoryExtractTimer !== undefined) clearTimeout(memoryExtractTimer);
-              }
-              memoryExtractRef.current = null;
-            }
+            // Extraction holds the engine: wait briefly so dispose does not
+            // race it — the shared wait, `memoryExtractWait.ts`. Epoch checks
+            // discard any delayed writes after the engine is gone.
+            await waitForMemoryExtract(memoryExtractRef);
             if (!wasRemote && isEngineReady() && !sendingInFlightRef.current) {
               const modelId = getActiveModelId();
               if (modelId) {

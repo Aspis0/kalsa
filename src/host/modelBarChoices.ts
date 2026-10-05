@@ -9,12 +9,13 @@
  * A usable pairing — or the computer already answering through a manual door
  * — makes the choice real. The press runs the SAME `selectLocation` the
  * Settings "Where it responds" sheet calls, so the refusal rules (a download,
- * a switch in flight, a document operation, a turn generating) and the
- * room-removal handling stay in that one path (`remoteModelSelection.ts` /
- * `remoteModelHostActions.ts`); nothing here re-decides them. The rows are
- * DISABLED while a turn generates: a switch there would dispose the engine
- * under a running answer, and a disabled row never asks the switch path for
- * something it would only refuse.
+ * a switch in flight, a document operation, a held send claim, a running
+ * memory extract) and the room-removal handling stay in that one path
+ * (`remoteModelSelection.ts` / `remoteModelHostActions.ts`); nothing here
+ * re-decides them. The rows are DISABLED on the shared guard's own verdict —
+ * the predicate the press would run through (`locationSwitchBlocked`) — so a
+ * row never asks the switch for something it would only refuse, and a switch
+ * can never dispose the engine under a running answer.
  *
  * Pure: translations, live booleans and the switch in; row data out, so the
  * table is a test and not a device probe.
@@ -27,18 +28,19 @@ export function modelBarChoices(input: {
   /** The computer is answering now, so the phone row is a real choice even
    *  without a pairing (a manual door): the chooser stays. */
   remoteActive: boolean;
-  /** A turn is generating; the caller's signal is the composer's face. */
-  sending: boolean;
+  /** The shared location-switch guard's verdict this render
+   *  (`remoteModelHostActions.locationSwitchBlocked`). */
+  switchBlocked: boolean;
   /** The phone's selected local model — the name a switch back loads. */
   localModelName: string;
   labels: { phone: string; computer: string };
   /** The Settings control's own switch; a refusal is its `false`. */
   selectLocation: (location: "local" | "remote") => boolean;
 }): AttachSheetRowData[] {
-  const { usablePairing, remoteActive, sending, localModelName, labels, selectLocation } = input;
+  const { usablePairing, remoteActive, switchBlocked, localModelName, labels, selectLocation } = input;
   // One place can answer: the sheet stays a status sheet, with no choices.
   if (!usablePairing && !remoteActive) return [];
-  const shared = { role: "radio" as const, disabled: sending };
+  const shared = { role: "radio" as const, disabled: switchBlocked };
   return [
     {
       ...shared,

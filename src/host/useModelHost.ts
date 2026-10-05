@@ -243,6 +243,8 @@ export function useModelHost(params: ModelHostParams) {
     setRemoteActive,
     modelStateRef,
     streamInFlightRef,
+    memoryExtractRef,
+    remoteErrorRef,
     setModelState: (state) => {
       modelStateRef.current = state;
       setModelState(state);
@@ -330,6 +332,9 @@ export function useModelHost(params: ModelHostParams) {
     scans,
     ...switchers,
     selectLocation: (location: "local" | "remote") => remoteActions.selectLocation(location, MODEL_REGISTRY[modelIndexRef.current].id),
+    /** The same verdict the switch itself would give right now; the pill's
+     *  rows dim on it (`remoteModelHostActions.refusalInput`). */
+    locationSwitchBlocked: remoteActions.locationSwitchBlocked,
     ...modelDownload,
     userReloadModel,
     refreshContextSize,

@@ -135,7 +135,7 @@ export function HostChatSurface({
   // Strip pill semantics and the rows beneath it (D1 rows 33-36): one hook
   // owns the decision table, the derived labels and the battery sampling —
   // the controller computed these in render (`AppShell.tsx:6720-6788`).
-  const modelBar = useModelBar(modelHost, view.composer.face !== "send");
+  const modelBar = useModelBar(modelHost);
 
   const bandInsets = bottomInsetFor(insets, keyboardHeight);
   const colors = modes[mode];
@@ -259,6 +259,7 @@ export function HostChatSurface({
       onModelPress={modelBar.onPress}
       modelBar={modelBar.view}
       locationRows={modelBar.locationRows}
+      onRefreshLocations={modelBar.refreshLocationRows}
       onAttachPress={() => setAttachSheetOpen(true)}
       attachDisabled={view.composer.face !== "send" || attachments.converting !== null}
       onMicPress={() => showNoticeKey("shell.notice.mic")}

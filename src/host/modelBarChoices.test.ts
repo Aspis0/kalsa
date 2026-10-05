@@ -4,8 +4,10 @@
  * sheet — there is no local model catalog behind it — so choices exist only
  * where a second place can answer, and the strip may draw its chevron exactly
  * then. A press must be the Settings control's own switch (never a second
- * policy) and must be disabled while a turn generates, so no switch can
- * dispose the engine under a running answer.
+ * policy), it must be disabled on that switch's own verdict (a download, a
+ * held send claim, a running memory extract) so it cannot dispose the engine
+ * under a running answer, and the sheet must open on a fresh read of the
+ * store and the guard.
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -24,7 +26,7 @@ function build(overrides: Partial<Parameters<typeof modelBarChoices>[0]> = {}) {
   return modelBarChoices({
     usablePairing: true,
     remoteActive: false,
-    sending: false,
+    switchBlocked: false,
     localModelName: "LFM2.5 2.6B",
     labels: LABELS,
     selectLocation: () => true,
@@ -111,13 +113,21 @@ describe("what a press does", () => {
 });
 
 describe("the running answer is never cut", () => {
-  test("a generating turn disables both rows", () => {
-    expect(build({ sending: true }).map((row) => row.disabled)).toEqual([true, true]);
+  test("the shared guard's verdict disables both rows", () => {
+    expect(build({ switchBlocked: true }).map((row) => row.disabled)).toEqual([true, true]);
   });
 
-  test("the host hands in the composer's own generating state", () => {
-    expect(read("HostChatSurface.tsx")).toContain(
-      'useModelBar(modelHost, view.composer.face !== "send")',
-    );
+  test("the pill asks the switch's own predicate, never the composer face", () => {
+    expect(HOOK).toContain("switchBlocked: modelHost.locationSwitchBlocked()");
+    expect(read("HostChatSurface.tsx")).toContain("useModelBar(modelHost);");
+  });
+});
+
+describe("the sheet opens on a read of the moment", () => {
+  test("the press refreshes the store and the guard before the sheet is shown", () => {
+    expect(STRIP).toContain("void onRefreshLocations().then(() => setSheetVisible(true))");
+    expect(read("HostChatSurface.tsx")).toContain("onRefreshLocations={modelBar.refreshLocationRows}");
+    expect(HOOK).toContain("await refreshPairing();");
+    expect(HOOK).toContain("setGuardRevision((revision) => revision + 1);");
   });
 });
