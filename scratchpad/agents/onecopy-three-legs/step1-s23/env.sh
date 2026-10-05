@@ -105,7 +105,7 @@ ERRPAT='dsp-error|NO-SUPPORT|CRASH|GGML_ABORT|Segmentation'
 
 st() { dumpsys battery | grep 'Sending ACTION_BATTERY_CHANGED' | tail -1 | sed -nE 's/.*level:([0-9]+),.*ac:([a-z]+),.*usb:([a-z]+),.*wireless:([a-z]+),.*temperature:([0-9]+),.*/lvl=\1 ac=\2 usb=\3 wl=\4 batT=\5/p' | tr -d '\n'; sk=$(dumpsys thermalservice | grep 'mName=SKIN' | tail -1 | sed -nE 's/.*mValue=([0-9.]+),.*/\1/p'); echo -n " skin=$sk wake=$(dumpsys power | grep -m1 -o 'mWakefulness=[A-Za-z]*' | cut -d= -f2) thermal=$(dumpsys thermalservice | grep '^Thermal Status' | tail -1 | sed -nE 's/.*: ([0-9]+).*/\1/p') traced=$(getprop persist.traced.enable)"; }
 
-# session gates: battery >= BATT_MIN, unplugged, screen on (awake), thermal 0, no traced.
+# session gates: battery >= BATT_MIN, unplugged, screen on (awake), no traced.
 # Returns 1 (caller aborts) instead of falling through.
 session_gates() {
   st_full=$(dumpsys battery | grep 'Sending ACTION_BATTERY_CHANGED' | tail -1)
@@ -120,7 +120,7 @@ session_gates() {
   [ "${lvl:-0}" -ge $BATT_MIN ] || why="$why battery=${lvl:-?}<$BATT_MIN"
   [ "$ac" = false ] && [ "$usb" = false ] && [ "$wl" = false ] || why="$why plugged(ac=$ac usb=$usb wl=$wl)"
   [ "$wake" = Awake ] || why="$why not-awake=$wake"
-  [ "${thermal:-9}" = 0 ] || why="$why thermal=$thermal"
+  # thermal status is waited out in waitcool (step-1 session 1 aborted on a transient status 1)
   [ "$traced" = 0 ] || why="$why traced=$traced"
   if [ -n "$why" ]; then
     echo "GATE-FAIL: $why" | tee -a $REPORT
@@ -135,10 +135,11 @@ waitcool() {
   i=0
   while [ $i -lt $COOL_TRIES ]; do
     t=$(dumpsys battery | grep -m1 'temperature' | sed -nE 's/.*temperature: ([0-9]+).*/\1/p')
-    [ "${t:-999}" -le $COOL_MAX_TEMP ] && return 0
+    th=$(dumpsys thermalservice | grep '^Thermal Status' | tail -1 | sed -nE 's/.*: ([0-9]+).*/\1/p')
+    [ "${t:-999}" -le $COOL_MAX_TEMP ] && [ "${th:-9}" = 0 ] && return 0
     input keyevent 224   # the session runs with the screen on, including during the wait
     sleep $COOL_SLEEP; i=$((i + 1))
   done
-  echo "waitcool: battery ${t:-unknown} tenths > $COOL_MAX_TEMP after $((COOL_TRIES * COOL_SLEEP / 60)) min - refusing to start the arm" | tee -a $REPORT
+  echo "waitcool: battery ${t:-unknown} tenths (max $COOL_MAX_TEMP), thermal ${th:-unknown} (need 0) after $((COOL_TRIES * COOL_SLEEP / 60)) min - refusing to start the arm" | tee -a $REPORT
   return 1
 }

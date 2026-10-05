@@ -1333,6 +1333,34 @@ load-time numbers owed on the S23. Open: CPU decode on raw Q4_0 is **0.62-0.64**
 on the S23 (tg128, interleaved); a multi-row raw gemv (`spike/onecopy-cpu-gemv` `1dd83c245`) moved it
 only ~4 %, so the cause is being split on the Mac. Governor S3+ stays on hold until decode is fixed.
 
+### One copy, three legs: integration (owner GO 2026-10-04)
+
+Owner decisions, 2026-10-04: the governor is a three-legged surfer (CPU, NPU, GPU) and the GPU must be a leg;
+ONE weight copy read by all three legs is fundamental (never a second or third copy); integrate with two hard
+requirements - R1 it works on the tested phones (same CPU/GPU/NPU), R2 every leg is OFF on untested phones (they keep
+today's loads). Late on 2026-10-04: CPU prefill on tiles (same as today's shipped CPU path, a third of repack) is
+ACCEPTED for now; a GEMM over tiles is deferred to after the integration - recorded as open item. S23 is the
+coordinator's overnight; the engine branch may be pushed to our fork (never upstream).
+
+Design: the shared copy is the NPU's own 32x32 tiled Q4_0 layout (`scratchpad/agents/onecopy-three-legs/`:
+`DESIGN.md`, `FABLE-DESIGN.md` + Amendment A by the Fable 5.1 architect session, `PLAN-INTEGRATION.md` revisions
+1-3). Spikes on the S23: GPU mat-vec v4 reads it zero-copy at aggregate parity with the engine Adreno path, CPU
+mat-vec 0.71-0.87 of repack (`REPORT.md`). Engine `feat/governor-onecopy` (`~/Projects/kalsallama-gov-onecopy`).
+
+Steps (each: code -> verify on disk -> one hostile audit by a different model -> S23):
+- **Gate G PASSED**: NPU from the shared tiled copy = two-copy speed (pp512 0.995, tg128 1.002, KLD identical).
+- **Step 0 PASSED**: tile layout is a ggml contract (`ggml/src/ggml-q4_0-tile32.h`, `474ca75fe` + `cc777fd12`);
+  S23 NPU unchanged (pp 0.998, tg 0.992).
+- **Step 1 (in measurement)**: tiles live in their own non-host buffer type `HTP0-TILE32`; the CPU reads them with
+  a dotprod gemv (`53db71525`..`e9d7a9f45`, luna audits 42724653 + fixes). S23 so far: NPU one-copy by automatic
+  placement = two-copy; CPU decode on tiles 9.4 tok/s at 1 thread vs 7.0 shipped no-repack (+34 %) and 11.0 repack.
+- Next: step 2 (binding setter + default placement + PSS/dma-buf RAM), step 3 (no hidden second copy: fail by
+  name), step 4 (GPU leg), step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
+  load, R2 negative control on Jelly/untested Snapdragon).
+
+Open: GEMM over tiles for CPU prefill (deferred, owner 2026-10-04); GPU leg may not rest the CPU (attention,
+norms, lm_head stay on CPU) - step 4 measures it; RAM saving not measured yet (max RSS does not count dma-buf).
+
 ## Gates and dates (recovered 2026-09-21)
 
 The concise rewrite of this file dropped the dated register. It is recovered here from

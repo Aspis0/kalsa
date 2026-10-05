@@ -951,6 +951,21 @@ and the app memory path are not measured yet.
   **under 70 MB** is an estimate, not measured. Separately, a link overwrites the saved desk before
   confirmation; the owner declined one-tap confirm for the alpha (family-only users).
 
+### 2026-10-04 - one copy for three legs: gate G, step 0, step 1 (S23, unplugged)
+
+Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onecopy`.
+- GPU v4 mat-vec on the NPU tile layout, zero-copy from the rpcmem dma-buf (alias PASS): sum over four model
+  shapes 0.710-0.718 ms vs engine SoA 0.750-0.757 ms; errors 1000x smaller. CPU tiled mat-vec 0.71-0.87 of repack,
+  bit-identical.
+- Gate G (`raw/session3-t5-releaseskel.grep`): NPU two-copy pp512 **894.6** / tg128 **22.60**, one-copy tiled
+  **890.1** / **22.63**, KLD **0.005313** both. Traps: the fork scheduler sends host-buffer weight ops to the CPU
+  at batch 1 (2.25 tok/s, wrong output) and a debug skel halves both numbers.
+- Step 0 (`raw/session4-step0-474ca75fe.grep`): two-copy 895.3 / 22.65, one-copy 893.2 / 22.47, KLD equal.
+- Step 1 (`step1-s23/`, session 2026-10-04 22:09): NPU A 896.0 / 22.48, T (TILE32 by automatic placement)
+  886.5 / 22.60, T2 887.5 / 22.52, A2 890.8 / 22.54, KLD 0.005313 all. CPU -t 1, pp128 / tg128: shipped no-repack
+  13.6 / **7.0**, tiles 14.4 / **9.4**, repack 45.6 / 11.0; CPU no-repack KLD 0.001295. The session stopped on a
+  transient thermal status 1 before the remaining CPU KLD and -t 5 arms; resumed 23:08.
+
 ## Engine release pipeline (`kalsa-server`)
 
 The macOS engine binary. How it works and how to do it again; current position, decisions and the
