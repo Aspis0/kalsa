@@ -24,6 +24,7 @@ import {
 import { foldEvent } from "./roomFrames";
 import {
   discardRoomQueueItem,
+  createRoomClientMsgId,
   enqueueRoomMessage,
   getRoomQueue,
   retryRoomQueueItem,
@@ -66,6 +67,7 @@ export function useRoom(localId: string): RoomView {
   const [attempt, setAttempt] = useState(0);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [pageErrorCode, setPageErrorCode] = useState<string | null>(null);
+  const pendingSendRef = useRef<{ text: string; askKalsa: boolean; clientMsgId: string } | null>(null);
   // An action's answer may land after the screen is gone: the state it would
   // set must not.
   const liveRef = useRef(true);
@@ -87,6 +89,7 @@ export function useRoom(localId: string): RoomView {
     setFeed(emptyRoomFeed());
     setNameErrorCode(null);
     setSendErrorCode(null);
+    pendingSendRef.current = null;
     setPageErrorCode(null);
 
     // The listeners attach before the reads: nothing the room announces
@@ -164,14 +167,29 @@ export function useRoom(localId: string): RoomView {
       const body = text.trim();
       // A bare "@" names nobody: nothing to post (the desktop's own rule).
       if (body === "" || body === "@") return false;
+      let pending = pendingSendRef.current;
+      if (pending === null || pending.text !== body || pending.askKalsa !== askKalsa) {
+        try {
+          pending = { text: body, askKalsa, clientMsgId: createRoomClientMsgId() };
+          pendingSendRef.current = pending;
+        } catch {
+          if (liveRef.current) setSendErrorCode("client_msg_id_unavailable");
+          return false;
+        }
+      }
       let result;
       try {
-        result = await enqueueRoomMessage(localId, { text: body, callAi: askKalsa });
+        result = await enqueueRoomMessage(localId, {
+          text: body,
+          callAi: askKalsa,
+          clientMsgId: pending.clientMsgId,
+        });
       } catch {
         // A shelf that cannot even be read must be a sentence, not a
         // silent clear: the words go back to the composer either way.
         result = { ok: false, error: { code: "unexpected", message: "The message could not be queued." } };
       }
+      if (result.ok) pendingSendRef.current = null;
       if (liveRef.current) setSendErrorCode(result.ok ? null : result.error.code);
       return result.ok;
     },

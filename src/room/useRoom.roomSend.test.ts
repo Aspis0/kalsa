@@ -13,10 +13,15 @@ jest.mock("../remote/doorRoad", () => ({
   doorFetchFor: jest.fn(),
 }));
 const stored: Record<string, string> = {};
+let failNextQueueWriteAfterPersist = false;
 jest.mock("@react-native-async-storage/async-storage", () => ({
   getItem: async (key: string) => stored[key] ?? null,
   setItem: async (key: string, value: string) => {
     stored[key] = value;
+    if (failNextQueueWriteAfterPersist && key.startsWith("kalsa.roomqueue.")) {
+      failNextQueueWriteAfterPersist = false;
+      throw new Error("write acknowledgement lost");
+    }
   },
   removeItem: async (key: string) => {
     delete stored[key];
@@ -87,6 +92,7 @@ beforeEach(() => {
   resetRoomEpochs();
   installFakeRoomXhr();
   minted = 0;
+  failNextQueueWriteAfterPersist = false;
   holdPost = null;
   postBodies.length = 0;
   for (const key of Object.keys(stored)) delete stored[key];
@@ -201,4 +207,31 @@ test("the first send: a visible sending row at once, one POST, then the sent row
   // The ack's row stands in the transcript; the shelf is empty.
   expect(view().pending).toEqual([]);
   expect(view().rows.at(-1)).toMatchObject({ seq: 43, text: "ciao dalla Jelly", own: true });
+});
+
+test("a write that lands before its rejection reuses the draft id on retry", async () => {
+  const localId = await openRoom();
+  failNextQueueWriteAfterPersist = true;
+
+  let accepted = true;
+  await act(async () => {
+    accepted = await view().send("persist once despite the lost write ack", false);
+  });
+  expect(accepted).toBe(false);
+  expect(view().sendErrorCode).toBe("unexpected");
+  expect(JSON.parse(stored[roomQueueKey(localId)]).items).toHaveLength(1);
+
+  await act(async () => {
+    accepted = await view().send("persist once despite the lost write ack", false);
+    await settle();
+  });
+
+  expect(accepted).toBe(true);
+  expect(minted).toBe(1);
+  expect(postBodies).toEqual([
+    { client_msg_id: MINTED, text: "persist once despite the lost write ack", call_ai: false },
+  ]);
+  holdPost?.({ seq: 44, time: 1_791_000_044, ai_call: null, refusal: null });
+  await act(async () => settle());
+  expect(view().pending).toEqual([]);
 });

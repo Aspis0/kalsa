@@ -49,6 +49,7 @@ import {
   forgetRoomEpoch,
   noteRoomEpoch,
 } from "./roomEpochs";
+import { deleteRoomQueue } from "./roomQueueStore";
 import {
   parseRoomHistoryPage,
   parseRoomInfo,
@@ -253,9 +254,16 @@ export async function fetchRoomInfo(options?: RoomCallOptions): Promise<RoomResu
     noteRoomEpoch(localId, info.epoch);
     try {
       const dropped = await bindPairingRoom(localId, info.roomId);
-      // A record superseded while its epoch sat in the cache (this one or
-      // an older one the bind lost the room to) never sends that epoch.
-      for (const superseded of dropped) forgetRoomEpoch(superseded);
+      // A superseded record can never open its room again, so its plaintext
+      // outgoing shelf must leave with the pairing.
+      for (const superseded of dropped) {
+        forgetRoomEpoch(superseded);
+        try {
+          await deleteRoomQueue(superseded);
+        } catch {
+          // A later queue probe sees the missing record and retries deletion.
+        }
+      }
     } catch {
       // The read stands; the map surfaces its own damage on its next access.
     }

@@ -341,12 +341,12 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     ms: NUM,
   },
   KALSA_ROOM_SEND: {
-    op: enumOf("enqueue", "persisted", "kick", "post", "ack", "fail", "drop_no_pairing"),
+    op: enumOf("enqueue", "persisted", "kick", "post", "ack", "fail", "announce_fail", "drop_no_pairing"),
     code: enumOf(
       "bad_request", "name_taken", "client_msg_id_reused", "too_large", "bad_cursor",
       "epoch_changed", "no_room", "read_only", "not_found", "internal", "removed",
       "invalid_input", "body_too_large", "client_msg_id_unavailable", "queue_full",
-      "pairing_store_damaged", "pairing_missing", "door_unusable", "unreachable", "unexpected",
+      "pairing_store_damaged", "door_unusable", "unreachable", "unexpected",
       "malformed_response", "storage_error",
     ),
     localId8: { k: "safeId8" },

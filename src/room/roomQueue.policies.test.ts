@@ -4,8 +4,8 @@
  * the caller still owns it), the 200-item cap refuses before a mint,
  * NotAMember holds like removed (door sentences: kalsa-room/src/room.rs:51
  * and :53, wired as 400 at crates/kalsa-door/src/room/routes.rs:260),
- * discard is P5's removal path, an orphaned pairing's shelf is visibly
- * failed when its record is gone, an enqueue respects an owed backoff, and the
+ * discard is P5's removal path, a missing pairing's shelf is deleted,
+ * an enqueue respects an owed backoff, and the
  * last unsubscribe kills the session's timer — no POST for a room
  * nobody watches; the next subscribe probes again. Two listeners on one
  * shelf are one attempt per round: the session's own start kicks, a
@@ -187,7 +187,7 @@ test("discard removes one message; the emptied shelf writes back empty", async (
   leave();
 });
 
-test("a pairing that no longer exists leaves a visible failed shelf item", async () => {
+test("a pairing that no longer exists deletes its private shelf", async () => {
   const leave = subscribeRoomQueue(LOCAL, () => undefined);
   const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValue(
@@ -199,17 +199,13 @@ test("a pairing that no longer exists leaves a visible failed shelf item", async
 
   // The pairing is gone: a newer one took the room.
   (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue(null);
+  stored[`${roomQueueKey(LOCAL)}.damaged`] = "private damaged text";
   log.mockClear();
   await flushRoomQueue(LOCAL);
 
-  await expect(shelf()).resolves.toMatchObject([
-    {
-      text: "for a superseded pairing",
-      state: "failed",
-      error: { code: "pairing_missing" },
-    },
-  ]);
-  expect(stored[roomQueueKey(LOCAL)]).toBeDefined();
+  await expect(shelf()).resolves.toEqual([]);
+  expect(stored[roomQueueKey(LOCAL)]).toBeUndefined();
+  expect(stored[`${roomQueueKey(LOCAL)}.damaged`]).toBeUndefined();
   expect(postRoomMessage).toHaveBeenCalledTimes(1); // the orphan check precedes any POST
   expect(log.mock.calls.map(([line]) => String(line))).toEqual([
     expect.stringContaining('"op":"drop_no_pairing"'),

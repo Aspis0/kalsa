@@ -21,7 +21,9 @@ import { backoffDelayMs } from "./roomBackoff";
 import { postRoomMessage } from "./roomApi";
 import type { RoomErrorCode, RoomResult } from "./roomError";
 import { roomQueueAttempt } from "./roomQueueOutcome";
+import type { RoomPostAck } from "./roomWire";
 import {
+  deleteRoomQueue,
   loadRoomQueue,
   mutateRoomQueue,
   type RoomQueueItem,
@@ -32,7 +34,15 @@ import { checkEncodedBody, checkRoomText } from "./roomBounds";
 /** The shelf's cap; compose refuses beyond it with a typed queue_full. */
 const MAX_QUEUE_ITEMS = 200;
 
-type RoomSendStep = "enqueue" | "persisted" | "kick" | "post" | "ack" | "fail" | "drop_no_pairing";
+type RoomSendStep =
+  | "enqueue"
+  | "persisted"
+  | "kick"
+  | "post"
+  | "ack"
+  | "fail"
+  | "announce_fail"
+  | "drop_no_pairing";
 
 function logSend(
   op: RoomSendStep,
@@ -102,7 +112,7 @@ function hex(bytes: Uint8Array): string {
  *  required so importing the queue loads nothing native), a runtime's
  *  Web Crypto second — Hermes has none (see pairingTransport), and a
  *  weakened PRNG is never an option for an id that must be unguessable. */
-function newClientMsgId(): string {
+export function createRoomClientMsgId(): string {
   try {
     const { getRandomBytes } = require("expo-crypto") as typeof import("expo-crypto");
     return hex(getRandomBytes(16));
@@ -150,16 +160,14 @@ export function subscribeRoomQueue(localId: string, listener: Listener): () => v
   };
 }
 
-/** Validate at compose (§9's bounds, encoded body included), mint the
- *  id once, persist, and start the first attempt. A refused compose
- *  stores nothing — and mints nothing: only a message the shelf accepts
- *  ever owns an id. */
+/** Validate at compose (§9's bounds, encoded body included), preserve the
+ *  draft's id across retries, persist, and start the first attempt. */
 export async function enqueueRoomMessage(
   localId: string,
-  message: { text: string; callAi?: boolean },
+  message: { text: string; callAi?: boolean; clientMsgId?: string },
 ): Promise<RoomResult<{ clientMsgId: string }>> {
   const startedAt = Date.now();
-  let clientMsgId: string | null = null;
+  let clientMsgId: string | null = message.clientMsgId ?? null;
   logSend("enqueue", localId, clientMsgId, startedAt);
   const textProblem = checkRoomText(message.text);
   if (textProblem !== null) {
@@ -183,24 +191,41 @@ export async function enqueueRoomMessage(
     logSend("fail", localId, clientMsgId, startedAt, "storage_error");
     throw new Error("room queue storage failed");
   }
+  if (clientMsgId !== null) {
+    const held = existing.find((item) => item.clientMsgId === clientMsgId);
+    if (held !== undefined) {
+      if (held.text !== message.text || held.callAi !== callAi) {
+        const error = {
+          code: "client_msg_id_reused" as const,
+          message: "This message id already belongs to another message.",
+        };
+        logSend("fail", localId, clientMsgId, startedAt, error.code);
+        return { ok: false, error };
+      }
+      await announceAndKick(localId, clientMsgId, startedAt);
+      return { ok: true, value: { clientMsgId } };
+    }
+  }
   if (existing.length >= MAX_QUEUE_ITEMS) {
     const error = queueFull();
     logSend("fail", localId, clientMsgId, startedAt, error.code);
     return { ok: false, error };
   }
-  try {
-    clientMsgId = newClientMsgId();
-  } catch {
-    // Never a raw throw: the text was not stored, and the caller is
-    // told why so it can try compose again.
-    logSend("fail", localId, clientMsgId, startedAt, "client_msg_id_unavailable");
-    return {
-      ok: false,
-      error: {
-        code: "client_msg_id_unavailable",
-        message: "No secure source could mint this message's client_msg_id.",
-      },
-    };
+  if (clientMsgId === null) {
+    try {
+      clientMsgId = createRoomClientMsgId();
+    } catch {
+      // Never a raw throw: the text was not stored, and the caller is
+      // told why so it can try compose again.
+      logSend("fail", localId, clientMsgId, startedAt, "client_msg_id_unavailable");
+      return {
+        ok: false,
+        error: {
+          code: "client_msg_id_unavailable",
+          message: "No secure source could mint this message's client_msg_id.",
+        },
+      };
+    }
   }
   const item: RoomQueueItem = {
     clientMsgId,
@@ -210,8 +235,16 @@ export async function enqueueRoomMessage(
     state: "queued",
   };
   let pushed = false;
+  let duplicateMatches = false;
+  let duplicateConflicts = false;
   try {
     await mutateRoomQueue(localId, (draft) => {
+      const held = draft.find((item) => item.clientMsgId === clientMsgId);
+      if (held !== undefined) {
+        duplicateMatches = held.text === message.text && held.callAi === callAi;
+        duplicateConflicts = !duplicateMatches;
+        return false;
+      }
       // Re-checked under the lock: a racing compose may have filled it.
       if (draft.length >= MAX_QUEUE_ITEMS) return false;
       draft.push(item);
@@ -223,20 +256,40 @@ export async function enqueueRoomMessage(
     throw new Error("room queue storage failed");
   }
   if (!pushed) {
+    if (duplicateMatches) {
+      await announceAndKick(localId, clientMsgId, startedAt);
+      return { ok: true, value: { clientMsgId } };
+    }
+    if (duplicateConflicts) {
+      const error = {
+        code: "client_msg_id_reused" as const,
+        message: "This message id already belongs to another message.",
+      };
+      logSend("fail", localId, clientMsgId, startedAt, error.code);
+      return { ok: false, error };
+    }
     const error = queueFull();
     logSend("fail", localId, clientMsgId, startedAt, error.code);
     return { ok: false, error };
   }
+  await announceAndKick(localId, clientMsgId, startedAt);
+  return { ok: true, value: { clientMsgId } };
+}
+
+async function announceAndKick(
+  localId: string,
+  clientMsgId: string,
+  startedAt: number,
+): Promise<void> {
   logSend("persisted", localId, clientMsgId, startedAt);
   try {
     await announce(localId);
   } catch {
     // The durable item owns this send; a view refresh must not restore it to the composer.
-    logSend("fail", localId, clientMsgId, startedAt, "storage_error");
+    logSend("announce_fail", localId, clientMsgId, startedAt, "storage_error");
   }
   logSend("kick", localId, clientMsgId, startedAt);
   void kick(localId);
-  return { ok: true, value: { clientMsgId } };
 }
 
 function queueFull(): { code: "queue_full"; message: string } {
@@ -323,29 +376,23 @@ async function runAttempt(localId: string): Promise<void> {
   if (room === undefined || room.inFlight || room.listeners.size === 0) return;
   room.inFlight = true;
   try {
+    const attemptStartedAt = Date.now();
     // A pairing that no longer exists (a newer one took its room) cannot
-    // carry these messages; preserve them as failed for the reader.
+    // carry these messages, and no room can display them after its removal.
     const record = await getPairing(localId);
     if (record === null) {
       const droppedIds: string[] = [];
-      const items = await mutateRoomQueue(localId, (draft) => {
-        let changed = false;
-        for (const item of draft) {
-          if (item.state === "failed") continue;
-          item.state = "failed";
-          item.error = {
-            code: "pairing_missing",
-            message: "This message could not be sent because its pairing no longer exists.",
-          };
-          droppedIds.push(item.clientMsgId);
-          changed = true;
-        }
-        return changed;
-      });
-      for (const clientMsgId of droppedIds) {
-        logSend("drop_no_pairing", localId, clientMsgId, Date.now(), "pairing_missing");
+      try {
+        droppedIds.push(...(await loadRoomQueue(localId)).map((item) => item.clientMsgId));
+      } catch {
+        // Delete even a damaged shelf: its text has no pairing that can open it.
       }
-      emit(localId, { type: "changed", items });
+      await deleteRoomQueue(localId);
+      if (droppedIds.length === 0) droppedIds.push("");
+      for (const clientMsgId of droppedIds) {
+        logSend("drop_no_pairing", localId, clientMsgId || null, attemptStartedAt);
+      }
+      emit(localId, { type: "changed", items: [] });
       return;
     }
     for (;;) {
@@ -373,7 +420,7 @@ async function runAttempt(localId: string): Promise<void> {
 
       const attemptStartedAt = Date.now();
       logSend("post", localId, head.clientMsgId, attemptStartedAt);
-      let result;
+      let result: RoomResult<RoomPostAck>;
       try {
         result = await postRoomMessage(
           { clientMsgId: head.clientMsgId, text: head.text, callAi: head.callAi },
@@ -381,7 +428,10 @@ async function runAttempt(localId: string): Promise<void> {
         );
       } catch {
         logSend("fail", localId, head.clientMsgId, attemptStartedAt, "unexpected");
-        throw new Error("room message post failed");
+        result = {
+          ok: false,
+          error: { code: "unreachable", message: "The room request failed unexpectedly." },
+        };
       }
       const verdict = roomQueueAttempt(result);
       if (verdict.kind === "sent") {
@@ -434,8 +484,7 @@ async function runAttempt(localId: string): Promise<void> {
       return; // hold: no timer; a trigger decides when to probe again
     }
   } catch {
-    // A damaged shelf or a thrown post must not spin: the next trigger
-    // (reconnect, foreground, enqueue) probes again.
+    // A failed queue operation must not spin; the next trigger probes again.
     return;
   } finally {
     room.inFlight = false;

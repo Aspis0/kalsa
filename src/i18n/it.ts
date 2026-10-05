@@ -757,7 +757,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       too_large: "Quel messaggio è troppo lungo per la stanza. Accorcialo o dividilo in due.",
       read_only: "La stanza non accetta messaggi adesso. Riprova tra un momento.",
       client_msg_id_reused: "Quel messaggio è già nella stanza.",
-      pairing_missing: "Il messaggio non è stato inviato perché l'abbinamento non esiste più.",
       internal: "Qualcosa è andato storto su questo computer. Riprova.",
       already_pending: "Hai già una domanda in attesa di Kalsa.",
       name_taken: "In questa stanza qualcuno usa già quel nome. Scegline un altro.",

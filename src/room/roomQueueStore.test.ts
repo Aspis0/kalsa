@@ -19,6 +19,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import * as AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  deleteRoomQueue,
   loadRoomQueue,
   mutateRoomQueue,
   roomQueueKey,
@@ -156,4 +157,14 @@ test("a bad element costs only itself: kept in the backup once, the rest survive
   });
   expect(JSON.parse(stored[KEY]).items).toHaveLength(3);
   expect(stored[`${KEY}.damaged`]).toBe(raw);
+});
+
+test("deleting a pairing removes the shelf and its damaged-text backup", async () => {
+  stored[KEY] = JSON.stringify({ items: [item("private-id", { text: "private text" })] });
+  stored[`${KEY}.damaged`] = "damaged private text";
+
+  await deleteRoomQueue(LOCAL);
+
+  expect(stored[KEY]).toBeUndefined();
+  expect(stored[`${KEY}.damaged`]).toBeUndefined();
 });

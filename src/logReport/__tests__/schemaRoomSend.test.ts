@@ -1,4 +1,5 @@
 import { formatRecord } from "../schema";
+import { mintLocalId } from "../../pairing/pairingMap";
 
 describe("room send diagnostics privacy", () => {
   it("keeps bounded send steps and drops message text, credentials, and full ids", () => {
@@ -33,5 +34,25 @@ describe("room send diagnostics privacy", () => {
       clientId8: "12345678",
       ms: 1,
     })).toBe('KALSA_ROOM_SEND {"localId8":"abcdefgh","clientId8":"12345678","ms":1}');
+    expect(formatRecord("KALSA_ROOM_SEND", {
+      op: "announce_fail",
+      code: "storage_error",
+      localId8: "abcdefgh",
+      clientId8: "12345678",
+      ms: 1,
+    })).toContain('"op":"announce_fail"');
+  });
+
+  it("accepts the real local id prefix minted by the pairing map", () => {
+    const localId = mintLocalId({ active: null, records: [] });
+    const localId8 = localId.slice(0, 8);
+
+    expect(localId).toMatch(/^p[a-z0-9]+-[a-z0-9]+$/);
+    expect(formatRecord("KALSA_ROOM_SEND", {
+      op: "enqueue",
+      localId8,
+      clientId8: "0123abcd",
+      ms: 0,
+    })).toContain(`"localId8":"${localId8}"`);
   });
 });

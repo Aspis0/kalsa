@@ -155,6 +155,31 @@ test("a lost response retries the same id — the door's same seq sends once, no
   leave();
 });
 
+test("a thrown POST requeues the item and retries it with the same id", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
+  (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>)
+    .mockRejectedValueOnce(new Error("private response text"))
+    .mockResolvedValueOnce(sentResult(51));
+
+  await enqueueRoomMessage(LOCAL, { text: "survive a thrown request" });
+  await settle();
+
+  await expect(getRoomQueue(LOCAL)).resolves.toMatchObject([
+    { state: "queued", clientMsgId: "7e".repeat(16), error: { code: "unreachable" } },
+  ]);
+  expect(postRoomMessage).toHaveBeenCalledTimes(1);
+
+  await jest.advanceTimersByTimeAsync(500);
+  await settle();
+
+  const sentIds = (postRoomMessage as jest.Mock).mock.calls.map(
+    (call) => (call as unknown[])[0] as { clientMsgId: string },
+  );
+  expect(sentIds.map(({ clientMsgId }) => clientMsgId)).toEqual(["7e".repeat(16), "7e".repeat(16)]);
+  await expect(getRoomQueue(LOCAL)).resolves.toEqual([]);
+  leave();
+});
+
 test("409 epoch_changed posts the same id again (§5)", async () => {
   const leave = subscribeRoomQueue(LOCAL, () => undefined);
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>)

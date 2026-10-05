@@ -164,12 +164,18 @@ export async function mutateRoomQueue(
   });
 }
 
-/** A pairing's shelf leaves with it (superseded, or the user discards
- *  the room): the key goes, the backup of any damaged raw stays. */
+/** A pairing's shelf and any damaged-text backup leave with that pairing. */
 export async function deleteRoomQueue(localId: string): Promise<void> {
   await withQueueLock(localId, async () => {
     const store = storage();
-    if (store.removeItem) await store.removeItem(roomQueueKey(localId));
-    else await store.setItem(roomQueueKey(localId), JSON.stringify({ items: [] }));
+    const key = roomQueueKey(localId);
+    if (store.removeItem) {
+      await Promise.all([store.removeItem(key), store.removeItem(`${key}.damaged`)]);
+    } else {
+      await Promise.all([
+        store.setItem(key, JSON.stringify({ items: [] })),
+        store.setItem(`${key}.damaged`, ""),
+      ]);
+    }
   });
 }

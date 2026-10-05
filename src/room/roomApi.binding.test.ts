@@ -17,8 +17,13 @@ jest.mock("../remote/doorRoad", () => ({
   doorFetchFor: jest.fn(),
 }));
 jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: async () => null,
-  setItem: async () => undefined,
+  getItem: async (key: string) => stored[key] ?? null,
+  setItem: async (key: string, value: string) => {
+    stored[key] = value;
+  },
+  removeItem: async (key: string) => {
+    delete stored[key];
+  },
 }));
 
 const stored: Record<string, string> = {};
@@ -31,8 +36,9 @@ jest.mock("expo-secure-store", () => ({
 }));
 
 import { doorFetchFor, establishDoorRoad, type DoorFetch } from "../remote/doorRoad";
-import { listPairings, savePairingCredential } from "../pairing/pairingCredentialStore";
+import { bindPairingRoom, listPairings, savePairingCredential } from "../pairing/pairingCredentialStore";
 import { fetchRoomHistory, fetchRoomInfo } from "./roomApi";
+import { roomQueueKey } from "./roomQueueStore";
 import historyFixture from "./fixtures/history.json";
 import infoFixture from "./fixtures/info.json";
 
@@ -86,6 +92,31 @@ test("an info answers and the REAL store binds the record whose credential read 
   const [historyUrl, historyInit] = historyFetcher.mock.calls[0];
   expect(historyUrl).toBe(`${DOOR}/kalsa/room/history`);
   expect(historyInit.headers["Kalsa-Room-Epoch"]).toBe(infoFixture.epoch);
+});
+
+test("when a newer pairing takes the room, the dropped pairing's shelf is deleted", async () => {
+  await savePairingCredential(new Uint8Array(32).fill(0xab), DOOR);
+  const [older] = await listPairings();
+  await bindPairingRoom(older.localId, infoFixture.room_id);
+  await savePairingCredential(new Uint8Array(32).fill(0xcd), DOOR);
+  const pairings = await listPairings();
+  const newer = pairings[pairings.length - 1];
+  const key = roomQueueKey(older.localId);
+  stored[key] = JSON.stringify({
+    items: [{
+      clientMsgId: "01".repeat(16),
+      text: "private unsent words",
+      callAi: false,
+      createdAt: 1,
+      state: "queued",
+    }],
+  });
+  installDoor([{ match: "/info", body: infoFixture }]);
+
+  await fetchRoomInfo({ roomLocalId: newer.localId });
+
+  expect(stored[key]).toBeUndefined();
+  expect((await listPairings()).map((record) => record.localId)).toEqual([newer.localId]);
 });
 
 test("a 401 marks the REAL record, and the next call sends no bearer at all", async () => {

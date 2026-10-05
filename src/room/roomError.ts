@@ -38,8 +38,6 @@ export type RoomErrorCode =
   | "queue_full"
   /** The pairing store on this phone is damaged: backed up, writes refused. */
   | "pairing_store_damaged"
-  /** The saved pairing that owned this shelf no longer exists. */
-  | "pairing_missing"
   /** No door may carry this request: URL gate, or no bearer for a remote door. */
   | "door_unusable"
   /** The transport failed: dial, request or abort. */

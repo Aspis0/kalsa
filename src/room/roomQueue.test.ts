@@ -163,6 +163,8 @@ test("a post-write announce read failure still accepts once and kicks the persis
   const lines = log.mock.calls.map(([line]) => String(line));
   expect(lines.some((line) => line.includes('"op":"kick"'))).toBe(true);
   expect(lines.some((line) => line.includes('"op":"post"'))).toBe(true);
+  expect(lines.some((line) => line.includes('"op":"announce_fail"'))).toBe(true);
+  expect(lines.some((line) => line.includes('"op":"fail"'))).toBe(false);
   expect(lines.filter((line) => line.includes('"op":"post"'))).toHaveLength(1);
   log.mockRestore();
   leave();
