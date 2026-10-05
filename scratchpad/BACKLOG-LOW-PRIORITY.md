@@ -161,5 +161,5 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - Declared (not a defect): since Amendment I the v4 TILE32 kernel builds with the engine's fast-math options (comment at `ggml-opencl-tile32-matvec.cpp:50-55`); GPU-leg KLDs before/after 24fb5b8d6 are not strictly comparable.
 
 ## Hexagon Q8_0 quantizer revert (`fix/hexagon-q8-quantizer` 837334a74; luna audit 2026-10-05)
-- P2 (plausible, unmeasured): the revert gives up #29395's per-32 activation scales for every Q8_0-activation reader (Q4_0, Q8_0, Q6_K, IQ4_NL, MXFP4). Only the two-copy Q4_0 v73 path is measured (better). Other weight types, N>1 and v75/v79/v81 are unmeasured. A correctly packed per-32 quantizer should beat both; the 0.045 suggests a packing bug upstream, worth a report if Marco agrees.
+- P2 (plausible, unmeasured): the revert gives up #29395's per-32 activation scales for every Q8_0-activation reader (Q4_0, Q8_0, Q6_K, IQ4_NL, MXFP4). Only the two-copy Q4_0 v73 path is measured (better). Other weight types, N>1 and v75/v79/v81 are unmeasured. A correctly packed per-32 quantizer should beat both; the 0.045 suggests a packing bug upstream, no upstream report (owner, 2026-10-05).
 - P3: the restored function keeps `#pragma unroll` (codegen only, not in 97a418bdf).

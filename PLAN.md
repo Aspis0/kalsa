@@ -1531,7 +1531,7 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   to the parent. The rest of #29395 (DMA/staging) is innocent. **FIXED ON ENGINE MAIN `837334a74`** (cherry-pick onto
   `bc5f0207c`, luna audit clean: no reader expects per-32 scales; P2 leftover in BACKLOG): S23 KLD **0.005357**
   (`bisect-npu-kld/main-q8fix-837334a74.grep`), pushed to the fork. Still to do: carry it onto `feat/governor-onecopy`
-  once deepseek's offload_op work lands; upstream report is Marco's call. The app-pin bar on engine main is lifted
+  once deepseek's offload_op work lands. Upstream report: NO (owner, 2026-10-05). The app-pin bar on engine main is lifted
   for this regression.
 - **Option 3 MEASURED (S23 13:50, `opt3-s23/raw/session2-23dbab22f.grep`)**: correct, but the lm_head costs **9.2 s per
   call** (two-copy ~4.8 ms): S pp512 52.6 / tg128 **0.11** vs A 953 / 22.8. Fable's 0.9-0.95 estimate was off by ~3
