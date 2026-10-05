@@ -10,6 +10,7 @@
 import {
   PIN_THRESHOLD_DP,
   PROGRAMMATIC_SCROLL_GRACE_MS,
+  duplicateIdSignature,
   duplicateMessageIds,
   endOffset,
   transcriptScroll,
@@ -113,6 +114,12 @@ describe("failure 2 — the answer above itself and then below", () => {
 
   it("reports each duplicated id in the order it is first repeated", () => {
     expect(duplicateMessageIds([{ id: "a" }, { id: "b" }, { id: "b" }, { id: "a" }])).toEqual(["b", "a"]);
+  });
+
+  it("gives the warning a stable signature: different sets differ, a clean list is empty", () => {
+    expect(duplicateIdSignature(["a", "b"])).toBe(duplicateIdSignature(["a", "b"]));
+    expect(duplicateIdSignature(["a"])).not.toBe(duplicateIdSignature(["b"]));
+    expect(duplicateIdSignature([])).toBe("");
   });
 });
 

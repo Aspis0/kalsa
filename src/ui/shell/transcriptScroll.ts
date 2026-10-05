@@ -166,3 +166,14 @@ export function duplicateMessageIds(messages: ReadonlyArray<{ id: string }>): st
   }
   return duplicates;
 }
+
+/**
+ * The duplicate list as one comparable string, for the warning's effect
+ * dependency. The ids themselves cannot be the dependency: the array is a
+ * fresh one on every settled-list change, so the warning would repeat per
+ * render. Empty when the list is clean, which also re-arms the warning for a
+ * later reappearance.
+ */
+export function duplicateIdSignature(duplicated: readonly string[]): string {
+  return duplicated.join(", ");
+}

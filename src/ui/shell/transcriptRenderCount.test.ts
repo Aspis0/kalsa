@@ -67,6 +67,7 @@ jest.mock("./TranscriptTurns", () => {
 jest.mock("./transcriptScroll", () => ({
   PROGRAMMATIC_SCROLL_GRACE_MS: 100,
   duplicateMessageIds: jest.fn(() => []),
+  duplicateIdSignature: jest.fn((ids: readonly string[]) => ids.join(", ")),
   transcriptScroll: () => ({ pinned: true, scrollTo: null }),
 }));
 jest.mock("./transcriptLayout", () => ({
@@ -260,6 +261,29 @@ describe("transcript render isolation", () => {
       await updateWith(renderer, [...settled, frozen]);
     }
     expect([...renderCounts]).toEqual([...beforeTyping]);
+    await act(async () => renderer.unmount());
+  });
+
+  test("a duplicate id is reported once, not on every settled change", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const duplicated = duplicateMessageIds as jest.Mock;
+    duplicated.mockImplementation(() => ["row-0"]);
+
+    const renderer = await mountWith(settledRows(4));
+    expect(warn).toHaveBeenCalledTimes(1);
+    // The same duplicate set across new settled lists: still one line.
+    await updateWith(renderer, settledRows(5));
+    await updateWith(renderer, settledRows(6));
+    expect(warn).toHaveBeenCalledTimes(1);
+    // Clean list, then the same id duplicated again: a new event, one line.
+    duplicated.mockImplementation(() => []);
+    await updateWith(renderer, settledRows(7));
+    duplicated.mockImplementation(() => ["row-0"]);
+    await updateWith(renderer, settledRows(8));
+    expect(warn).toHaveBeenCalledTimes(2);
+
+    duplicated.mockImplementation(() => []);
+    warn.mockRestore();
     await act(async () => renderer.unmount());
   });
 });

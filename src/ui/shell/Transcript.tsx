@@ -42,6 +42,7 @@ import {
 import { transcriptPropsEqual } from "./transcriptMemo";
 import {
   PROGRAMMATIC_SCROLL_GRACE_MS,
+  duplicateIdSignature,
   duplicateMessageIds,
   transcriptScroll,
   type ScrollCause,
@@ -187,11 +188,14 @@ function TranscriptContent({
     () => duplicateMessageIds(messages),
     [settled, streaming?.id],
   );
+  // The signature, not the duplicate array, is the dependency: the array is
+  // rebuilt whenever the settled list moves, so this warns once per distinct
+  // duplicate set — never per render, and never again for a set already seen.
+  const duplicateSignature = duplicateIdSignature(duplicated);
   useEffect(() => {
-    if (duplicated.length > 0) {
-      console.warn(`[transcript] duplicate message ids: ${duplicated.join(", ")}`);
-    }
-  }, [duplicated]);
+    if (!duplicateSignature) return;
+    console.warn(`[transcript] duplicate message ids: ${duplicateSignature}`);
+  }, [duplicateSignature]);
   // The cloud compares labels field by field, so a fresh object is safe here;
   // `colors` is NOT, and must stay `modes[mode]` — the memo compares it by
   // identity (see ThoughtCloud.tsx).
