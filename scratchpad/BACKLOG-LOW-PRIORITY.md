@@ -92,3 +92,12 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P3: AppErrorBoundary Reload only remounts the React tree; module-level singletons (engine, refs) survive, so a
   failure rooted there can reproduce after Reload. A full JS reload (DevSettings/expo-updates reloadAsync) would be
   the stronger recovery; decide when a real crash report shows the need.
+
+## One copy, step 3 (engine feat/governor-onecopy `8ac5522d0`; review luna efb869af, 2026-10-05)
+- P2: the scheduler weight-copy guard (`ggml-backend.cpp`, split_failed) is reachable only with a mixed scheduler
+  (HTP + OpenCL, pass 3 can assign OpenCL a GET_ROWS on a TILE32 weight); the host test covers the CPU-only graph,
+  which dies at the pass-4 assert first. Exercise it on the S23 once the GPU leg (step 4) builds a mixed scheduler.
+- P3: `ggml_backend_sched_reserve_size` is void and ignores split_failed; its only caller sizes buffers and the
+  failure is logged by split_graph. Revisit only if a caller starts trusting the size after a refused split.
+- P3: with `LLAMA_USE_SYSTEM_GGML`, a system libggml older than the fork lacks `ggml_backend_buft_weight_layout`
+  (now public in ggml-backend.h); we never build against a system ggml.
