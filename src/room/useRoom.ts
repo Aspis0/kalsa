@@ -164,7 +164,14 @@ export function useRoom(localId: string): RoomView {
       const body = text.trim();
       // A bare "@" names nobody: nothing to post (the desktop's own rule).
       if (body === "" || body === "@") return false;
-      const result = await enqueueRoomMessage(localId, { text: body, callAi: askKalsa });
+      let result;
+      try {
+        result = await enqueueRoomMessage(localId, { text: body, callAi: askKalsa });
+      } catch {
+        // A shelf that cannot even be read must be a sentence, not a
+        // silent clear: the words go back to the composer either way.
+        result = { ok: false, error: { code: "unexpected", message: "The message could not be queued." } };
+      }
       if (liveRef.current) setSendErrorCode(result.ok ? null : result.error.code);
       return result.ok;
     },

@@ -291,13 +291,17 @@ async function runAttempt(localId: string): Promise<void> {
       const head = items.find((item) => item.state === "queued");
       if (head === undefined) return;
 
-      await mutateRoomQueue(localId, (draft) => {
+      const sending = await mutateRoomQueue(localId, (draft) => {
         const target = draft.find((item) => item.clientMsgId === head.clientMsgId);
         if (target === undefined || target.state !== "queued") return false;
         target.state = "sending";
         return true;
       });
-      await announce(localId);
+      // The store heals a persisted "sending" to "queued" on every read
+      // (a dead process's leftover); THIS announcement is the live send's
+      // own, so it says what this process set — re-reading would report
+      // the healed shelf and the reader would never see it leave.
+      emit(localId, { type: "changed", items: sending });
 
       const result = await postRoomMessage(
         { clientMsgId: head.clientMsgId, text: head.text, callAi: head.callAi },

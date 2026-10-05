@@ -13,15 +13,23 @@ jest.mock("./roomApi", () => ({
 jest.mock("./roomSubscriptions", () => ({ subscribeRoomEvents: jest.fn() }));
 jest.mock("../pairing/pairingCredentialStore", () => ({ getPairing: jest.fn() }));
 const stored: Record<string, string> = {};
-jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: async (key: string) => stored[key] ?? null,
-  setItem: async (key: string, value: string) => {
-    stored[key] = value;
-  },
-  removeItem: async (key: string) => {
-    delete stored[key];
-  },
-}));
+/** The shelf object behind the mock: a test may bend one read and put it back. */
+let mockShelf: {
+  getItem: (key: string) => Promise<string | null>;
+} | null = null;
+jest.mock("@react-native-async-storage/async-storage", () => {
+  const shelf = {
+    getItem: async (key: string) => stored[key] ?? null,
+    setItem: async (key: string, value: string) => {
+      stored[key] = value;
+    },
+    removeItem: async (key: string) => {
+      delete stored[key];
+    },
+  };
+  mockShelf = shelf;
+  return shelf;
+});
 jest.mock("expo-crypto", () => ({
   getRandomBytes: jest.fn((length: number) => new Uint8Array(length).fill(0x7e)),
 }));
@@ -204,6 +212,26 @@ test("a compose the shelf refuses is a code, with nothing stored", async () => {
   });
   expect(named).toBe(false);
   expect(now().pending).toEqual([]);
+});
+
+test("a shelf that throws instead of answering is a code, never a silent clear", async () => {
+  if (mockShelf === null) throw new Error("shelf mock never built");
+  const read = mockShelf.getItem;
+  mockShelf.getItem = async () => {
+    throw new Error("rkstorage down");
+  };
+  try {
+    let sent = true;
+    await act(async () => {
+      sent = await now().send("words the shelf cannot hold", false);
+    });
+    expect(sent).toBe(false);
+    expect(now().sendErrorCode).toBe("unexpected");
+    expect(now().pending).toEqual([]);
+    expect(postRoomMessage).not.toHaveBeenCalled();
+  } finally {
+    mockShelf.getItem = read;
+  }
 });
 
 test("a message the room refused terminally waits, and can be retried or dropped", async () => {
