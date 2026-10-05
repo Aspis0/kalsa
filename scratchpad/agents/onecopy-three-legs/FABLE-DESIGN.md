@@ -753,6 +753,63 @@ self-check (from `env_fill` or the gate), logs `Q6_K kernel not loaded` if the h
 own silent exits (`-gate.cpp:222-228`: `to_float`, `K % bs`, `ne2/ne3`, `nb[1] != row_bytes`) each log which
 precondition failed with the values. The decline was not the cause of the abort: the -38 came from the TILE32 path.
 
+## Amendment J (2026-10-05): option 3 measured at 9.2 s per lm_head, what dominates and what now
+
+Read at 23dbab22f (`kalsallama-gov-q6raw`). The conversion `q6_K_raw_rows_to_tiles` (`htp/q6_K-raw-tile.h:12-45`)
+runs per 32-row group inside the matvec job, after the DMA pop and before the dot (`matmul-ops.c:296-324`,
+`hvx_mm_push_slot` / `hvx_mm_raw_q6_K_to_tiles`), on every thread for its own rows (`:358-359`, rows split by
+`src0_nrows_per_thread`, `:1783-1786`). Per element it does `q6_K_get_quant` (div/mod by constants and a 4-way switch,
+`q6_K-tiled-pack.h:16-30`), two index computations and two byte read-modify-write ORs into the tile planes
+(`lo_pl[...] |=`, `hi_pl[...] |=`, `:36-37`); per k-tile a 896 B `memset` (`:26`) and per row two software fp16
+conversions (`GGML_FP32_TO_FP16` is `ggml_compute_fp32_to_fp16`, bit math, `ggml-impl.h:420-446`). The tile planes it
+writes are the VTCM slot (`vtcm_tiles`). Profile: `usec 9206508 cycles 725999628` for 2.62e8 elements.
+
+**(a) What dominates.** Not the instruction count: 726 M counted cycles over 9.2 s is 79 M issue cycles per second,
+i.e. the counting thread was stalled ~92 % of the time; 726 M / (2.62e8 / 6 threads) is ~17 issued cycles per
+element, a plausible scalar budget for the switch, the divisions and two RMWs. The stall is the memory path: the
+conversion performs scalar byte LOADS from VTCM (the `|=` read half) on every element, two per element, plus the
+stores and the memset. Scalar accesses to VTCM are uncached round trips of the order of 100 cycles each; two
+dependent loads per element at that latency give ~200 cycles per element per thread, which is 2.62e8 / 6 x 200 ns
+~ 9 s. This also explains why the Q4_0 raw path ran at 0.70 and not 1/1900: `q4_0_raw_rows_to_tiles` only STORES
+(`q[cp*32+row] = ...`, one plain byte store per element, no load, no OR, no memset), and stores post without waiting.
+Confidence medium-high; the one-toggle test in (d) decides it. Threading, DMA and fp16 are secondary: the DMA rows
+arrived (no fault, groups complete), fp16 runs twice per row, not per element.
+
+**(b) Is any converting design viable?** Only a vectorised one, and it is the wrong shape of work. The budget is
+205 MB per token at the tiled path's 4.8 ms, ~43 GB/s, i.e. ~55 G elements/s: eight elements per core cycle across
+six threads. Scalar code cannot reach that at any VTCM latency. An HVX conversion (vectors of 128 B; the tile is a
+32-row interleave, so each k-tile is a 32x32 byte transpose plus nibble/2-bit splits, ~10-20 vector ops per 128
+elements) costs ~0.1-0.2 ops per element, ~6-7 M cycles per thread, i.e. ~6-7 ms added to the 4.8 ms dot: lm_head
+~11 ms, decode ~0.86-0.9 of two-copy. Basis: one vector op per cycle per thread at ~1 GHz, the measured 4.8 ms for
+the same bytes on the tiled dot. Confidence low-medium: the transpose sequence is new DSP code. The right design,
+if the HTP is to read the raw layout, is an HVX dot over raw GGUF rows with no tile at all, the shape of the CPU's
+`ggml_vec_dot_q6_K_q8_K`: per 256-element superblock load ql (128 B), qh (64 B), scales (16 B), unpack to 6-bit
+(~8 vector ops), multiply-accumulate against the quantised activation (~4), apply 16 sub-block scales: ~20 vector ops
+per 256 elements, ~2e7 ops total, ~3.5 ms over six threads, within 1-1.5x of the tiled dot, so decode ~0.95-1.0 and
+no VTCM tile. Basis as above; confidence medium: unknowns are the activation quantisation the DSP uses (the tiled
+dot's input format), accumulation precision, and the fact that main deleted its flat kernel family, so this is a
+new kernel with no sibling. Either way it is weeks of DSP work with the simulator, not a step.
+
+**(c) Fallbacks, ranked.** Token time two-copy ~43.9 ms (22.8 tok/s), lm_head on the DSP 4.8 ms (census).
+1. lm_head on the GPU inside the NPU decode: the NPU leg becomes `{HTP0, GPUOpenCL, CPU}`; the HTP keeps every
+   TILE32 op by priority, OpenCL gets what the HTP refuses, which is exactly the Q6_K host weight, through 4b's plain
+   kernel reading HTP0-HOST-W. Cost per token: the 8 KB `result_norm` copied into an OpenCL buffer (fixed latency
+   ~0.4 ms), the Q6_K mat-vec on Adreno (215 MB at 37-55 GB/s, 4-6 ms), 512 KB of logits read back: ~6-8 ms vs 4.8,
+   decode ~0.92-0.96, RAM 1.75 GB, no DSP work, no copy, a little heat moved to the GPU. Measurable today.
+2. Option 2, the 205 MiB tiled duplicate on HTP0: decode 1.00, RAM ~1.96 GB, the loader policy field of Amendment D
+   plus the audit allowance; the CPU and GPU legs are unaffected (CPU native, GPU via HOST-W).
+3. The HVX raw-row Q6_K dot of (b): decode ~0.95-1.0, RAM 1.75 GB, weeks.
+4. lm_head on the CPU: measured 0.74-0.77, RAM 1.75 GB, zero work.
+Not a fallback: option 3 as built, or any scalar conversion.
+
+**(d) Measure first, cheapest first.** (1) The GPU-lm_head arm: shared env, `-dev HTP0,GPUOpenCL -ts 1,0`, no
+OPFILTER, no `-ot`, KV on the HTP; expect `graph splits` 3-4, read tg128 against 22.8, the OpenCL Q6_K time in the
+profile, KLD; one session. (2) One toggle on the q6raw branch to confirm (a): build the group's tiles in a DDR scratch
+(or a stack array) and `memcpy` them into the VTCM slot once; if the 9.2 s falls by 50-100x the VTCM scalar-RMW
+reading is proven and (b)'s HVX estimates stand on it. (3) Option 2's arm once the policy field exists: RAM and the
+1.00. Before any of these numbers is trusted against two-copy: the main-tip KLD regression (0.0053 -> 0.0450, the DSP
+skel of the b11304 merge) must be bisected, otherwise every NPU ABBA compares to a broken baseline.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
@@ -776,3 +833,5 @@ precondition failed with the values. The decline was not the cause of the abort:
   unaligned DMA stride probe, twin host test, NPU ABBA gates; Qwen: generic placement, GDN has no HTP/OpenCL kernel).
 - 2026-10-05 v11: Amendment I appended (4b failure: HOST buft serves weights and CPU compute; split into HOST-W for
   weights, OpenCL claims by identity, asserts usage; self-check declined on a null kernel handle, kernels load lazily).
+- 2026-10-05 v12: Amendment J appended (option 3 at 9.2 s: scalar VTCM read-modify-write dominates; converting designs
+  need HVX and still lose; raw-row HVX dot is the right shape but weeks; rank: GPU lm_head in the NPU leg, dup, HVX dot, CPU).
