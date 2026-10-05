@@ -428,6 +428,85 @@ policy behind one loader field (`reuse_host` | `allow_device`), default `reuse_h
 buffer only for a `TENSOR_DUPLICATED` tensor, naming it. Then (1) is a flag flip, (3) needs no loader change, and (4)
 needs the placement rule only. Merge with that field; nothing else in step 3 depends on the choice.
 
+## Amendment E (2026-10-05): step-4 spec, the GPU leg
+
+Read at 79f72bb16 (engine) and e3d3c32f4 (spike `tests/opencl-q4_0-raw/`, kernel
+`ggml/src/ggml-opencl/kernels/mul_mv_q4_0_f32_tiled_v4.cl`). OpenCL refuses every foreign buft
+(`ggml-opencl.cpp:14594-14606`), has no `offload_op` (`:14621`), answers yes to any Q4_0 MUL_MAT (`:9805-9807`) and
+then casts `src0->extra` to its own extra (`:23973`): a TILE32 weight reaching it today would crash. `ggml_cl_mul_mat`
+starts at `:23935`; its first branch is the non-contiguous dequant path (`:23952-23970`). The backend context holds
+`device`, `context`, `driver_version`, `gpu_family`, `max_alloc_size`, `kernel_build_failed` (`:641-664`); programs
+are built from embedded source (`:1431`, `:1502`); activations already go through an image1d view (`:8820-8838`).
+Hexagon exposes the rpcmem block as `base()/size()/fd()` (`ggml-hexagon.cpp:589-611`), proc table at `:7265-7274`.
+Spike import route that ran on the S23: `clCreateBuffer(CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR |
+CL_MEM_EXT_HOST_PTR_QCOM, {0x411D dmabuf, 0x40A9 io-coherent, fd, base})`, write-back fallback (`shapes.c:127-129`,
+`dmabuf.c:121-133`); views: sub-buffer at `CL_DEVICE_MEM_BASE_ADDR_ALIGN`, pixel offset `poff`, RGBA/UINT32 quants and
+RGBA/HALF_FLOAT scales (`tiledimg.c:37-45, 90-113`); kernel args `(wq, poff, ximg, ws, dst, K, M)` (`.cl:55-62`),
+launch gws `ceil(M/32)*64`, lws 64 (`tiledimg.c:184`). Isolation report: GPU two-copy decode at `-t 1` 8.6-9.7 tok/s
+with CPU zones 61-67 C, at `-t 5` 12.6-14.0 with 90-91 C; NPU `-t 1` 22.9.
+
+**E1. Claiming a TILE32 weight.** New file `ggml-opencl/ggml-opencl-tile32.cpp` (< 250 lines, 3-function header):
+`supports_buft(buft)` adds `|| (weight_layout(buft) == TILE32 && tile32_ready(backend_ctx))`, where `tile32_ready` is
+the E4 gate evaluated once. The fd is per buffer, not per buft, so the import is lazy: at the first compute on a tensor
+of a buffer, OpenCL asks the buffer's device registry for a generic proc address `ggml_backend_buffer_dmabuf(buffer,
+&fd, &base, &size)` (Hexagon implements it from `fd()/base()/size()`), imports with the spike route, and keeps
+`std::map<ggml_backend_buffer_t, import>` with the cl_mem plus per-tensor `{sub, wq, ws, poff}` built from
+`tensor->data - base` (two images per tensor, ~112 tensors; `CL_DEVICE_IMAGE_MAX_BUFFER_SIZE` 134217728 px is far
+above any tensor). `tensor->extra` stays Hexagon's. Two TILE32 buffers from the 832 MiB cap mean two imports; a tensor
+never straddles (B3). Lifetime: Hexagon owns the fd; an import holds a dma-buf reference, so a model unload with
+imports alive leaks 1.3 GB until they are released. The owner of both backends is the binding: it calls a proc address
+`ggml_backend_opencl_release_imports()` before `llama_model_free`; in debug a WARN if an import's buffer is gone.
+`supports_op`: before `:9796`, if any src buffer layout is TILE32, return true only for MUL_MAT, 2-D Q4_0 src0 with
+`view_src == NULL`, f32 src1, `ne11 == 1`, and `tile32_ready`; everything else on a TILE32 src is false (mirrors
+`tile32.cpp:23-73`). `ne11 == 1` because v4 is a mat-vec and the owner excludes GPU prefill; a wider batch in the GPU
+leg falls to the CPU tile reader, which is the LOWBAT/prefill route's concern, not step 4's.
+
+**E2. Kernel.** `mul_mv_q4_0_f32_tiled_v4.cl` verbatim from e3d3c32f4 (sha 7a15b2a0..., no fp16 types), one program
+built lazily on first TILE32 use with the engine's general opts, so non-Adreno builds never compile it. One early
+branch at the top of `ggml_cl_mul_mat` (`:23935`, before `:23952`): `if (layout(src0) == TILE32) {
+ggml_cl_mul_mat_tile32(...); return; }`. Activations: src1 lives in the GPU leg's OpenCL compute buffer; build the
+RGBA/FLOAT image view like `:8820-8838`. Covers the seven Q4_0 families per layer (gate/up/down, conv in/out proj,
+attn q/k/v/o) at decode. Nothing else moves to the GPU in step 4.
+
+**E3. What stays on the CPU, and the measurement that decides the leg.** In the GPU leg `{OpenCL, CPU}`: GET_ROWS
+(CPU buffer), the Q6_K lm_head (option 2 or 3: the output is in CPU/HOST, OpenCL refuses those bufts), norm MULs and
+SSM_CONV (f32 in HOST), attention with the KV on the CPU buffer (v1), RMS_NORM/SWIGLU wherever the scheduler expands
+them. Every layer therefore alternates GPU and CPU several times; each boundary is a split with a sync (HeteroInfer:
+>= 400 us per GPU<->other sync). At 60-100 splits per token that is 25-40 ms on a ~70 ms token: this, not kernel
+parity, decides the leg. Measure on the S23, GPU-leg decode at `-t 1` and `-t 5`: tok/s, splits per token
+(`ggml_backend_sched_get_n_splits`), per-op OpenCL time (the tiled mat-vec vs the SoA kernel on the two-copy OpenCL
+arm, same session ABBA), CPU zone peaks and host-thread CPU time (`/proc/self/stat` utime delta per 128 tokens).
+Decision rule for the owner: the leg is worth building further only if tok/s >= 0.9x the two-copy OpenCL arm at the
+same `-t` and the CPU zone peak at `-t 1` stays in the 61-67 C band; otherwise step 5b (HOST-native f32 through the
+same import so norms/conv run on the GPU, KV on the GPU) is tried once before any verdict. The GPU-leg context runs
+one host thread, as the binding already does for the HTP context (`rn-llama.cpp:168-170`): the isolation report
+showed the 90 C came from five host threads, not from the GPU.
+
+**E4. R2 gate, device side, one function `tile32_ready`:** `gpu_family == ADRENO` (`:6925`) and `CL_DEVICE_NAME`
+(`:6682`) contains "740", `driver_version` (`:7037-7039`) contains "E031.41.", extensions contain
+`cl_qcom_dmabuf_host_ptr` and `cl_qcom_ext_host_ptr`, `max_alloc_size` (`:7106`) >= every TILE32 buffer, the image
+views exist; then a read-only self-check after the first import: one real tensor's mat-vec on a unit vector against
+the CPU tile32 reader, |diff| <= 1e-5 of output RMS (the spike measured 6-9e-7). Any miss: `tile32_ready = false`,
+`supports_buft` false, tiled ops in the GPU leg fall to the CPU, one INFO line with the reason. The binding's table
+(step 6) reads the same facts and simply never creates a GPU leg elsewhere. No writes into the weights: the spike's
+alias check (pattern writes) is a probe tool, not production.
+
+**E5. Proof.** Host: the OpenCL backend is not in the host CI build and macOS has no dma-buf, so host tests are the
+gate function on fake facts (740/E031.41/extensions -> true; 750, E031.45, missing extension, undersized
+`max_alloc_size` -> false) and the unchanged `test-tile32-*` suite. S23, CLI before leg contexts exist: `-dev
+HTP0,GPUOpenCL -ts 1,0` (layers placed through HTP0's list, backends in that order, `llama-context.cpp:335-338`,
+`ggml-backend.h:328`) with `GGML_HEXAGON_OPFILTER='.*'` so the HTP declines everything and `backend_from_buffer`
+lands tiled mat-vecs on OpenCL and the rest on the CPU, which is the GPU leg minus an idle HTP backend. Gates: all
+~112 tensors print the self-check PASS once; KLD equals the CPU tile32 arm to four digits; E3's numbers; two-copy
+OpenCL arm (`-dev GPUOpenCL -ngl 99`) in the same ABBA.
+
+**E6. Fence and plan errors.** No prefill kernel, no GEMM over tiles, no KV on the GPU, no f32 or Q6_K through the
+import, no binding, no table row beyond the 740, no change to the SoA path. Wrong in the plan: (a) "v4 parity" is a
+mat-vec number; the leg is decided by whole-token tok/s, splits and CPU heat, which nobody has measured; (b) the plan
+has no release path for imports: a reload leaks the tiles' dma-buf reference; (c) `supports_buft` sees a buft, not a
+buffer, so "zero-copy at import time" cannot be a `supports_buft` decision: capability gate plus lazy import; (d) the
+GPU-leg context must be a one-host-thread context or e3 repeats the 90 C measurement.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
@@ -440,3 +519,6 @@ needs the placement rule only. Merge with that field; nothing else in step 3 dep
   check gated on shared mode, two generic native-read guards, host tests, pin must become a live-buffer count).
 - 2026-10-05 v6: Amendment D appended (tied output: options ranked, requantize-to-Q4_0 first pending KLD, duplicate on
   HTP0 second, flat Q6_K third; C1 rule made policy-selectable before the step-3 merge; vocab 128000 correction).
+- 2026-10-05 v7: Amendment E appended (step-4 GPU leg: lazy dma-buf import per buffer via a generic proc address, v4
+  kernel behind an early mul_mat branch, splits-per-token as the deciding metric, 740/E031.41 gate with read-only
+  self-check, CLI arm with OPFILTER, import release on unload).
