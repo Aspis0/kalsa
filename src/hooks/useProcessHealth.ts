@@ -1,8 +1,11 @@
 /**
  * Lightweight process-health ticker for Settings diagnostics.
  * Samples uncached MemAvailable every 15s and exposes fit tier + unload reason.
+ * Foreground only: the interval pauses on `background` and `inactive` (same
+ * policy as `useBatteryEta`) and re-samples at once on `active`.
  */
 import { useEffect, useRef, useState } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import {
   getAvailableMemoryBytesUncached,
@@ -138,14 +141,34 @@ export function useProcessHealth(opts?: {
       }
     };
 
-    void sample();
-    timer = setInterval(() => {
+    const start = () => {
+      // Sample at once so mount and every resume publish a fresh reading
+      // rather than the last one taken before the app was hidden.
       void sample();
-    }, intervalMs);
+      if (timer == null) {
+        timer = setInterval(() => {
+          void sample();
+        }, intervalMs);
+      }
+    };
+    start();
+
+    const appStateSub = AppState.addEventListener(
+      "change",
+      (next: AppStateStatus) => {
+        if (next === "active") {
+          start();
+        } else if (timer != null) {
+          clearInterval(timer);
+          timer = null;
+        }
+      },
+    );
 
     return () => {
       mountedRef.current = false;
       if (timer != null) clearInterval(timer);
+      appStateSub.remove();
     };
   }, [intervalMs, totalMemoryBytes]);
 

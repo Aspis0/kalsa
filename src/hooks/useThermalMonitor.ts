@@ -2,13 +2,19 @@
  * Advisory thermal monitor. Android: sysfs thermal_zone0. iOS: the OS
  * thermal-state API via the kalsa-thermal module (states, no °C). Falls back
  * to a memory-pressure heuristic. Never unloads the model — UI banner only.
- * No run-as / sudo. Dynamic requires keep node harnesses import-clean.
+ * No run-as / sudo. The sysfs read's dynamic require keeps this module
+ * importable where expo-file-system is not.
  *
  * Advisory ONLY: never hard-blocks send / load / download. `thermal_zone0` is
  * an unknown / internal-like sensor (NOT battery, NOT proven skin), so its
  * bands live in `src/engine/thermalThresholds.ts` and are deliberately warm.
+ *
+ * Foreground only: the interval is paused on `background` and `inactive`
+ * (same policy as `useBatteryEta`), because a backgrounded phone has no
+ * banner to fill and a 30 s sysfs read buys nothing while the app is hidden.
  */
 import { useEffect, useRef, useState } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { withNativeCallTimeout } from "../engine/nativeCallTimeout";
@@ -191,14 +197,34 @@ export function useThermalMonitor(opts?: {
       commit({ status, currentTempC: null, source: "memory_proxy" });
     };
 
-    void sample();
-    timer = setInterval(() => {
+    const start = () => {
+      // Sample at once so mount and every resume draw a fresh reading rather
+      // than the last one taken before the app was hidden.
       void sample();
-    }, intervalMs);
+      if (timer == null) {
+        timer = setInterval(() => {
+          void sample();
+        }, intervalMs);
+      }
+    };
+    start();
+
+    const appStateSub = AppState.addEventListener(
+      "change",
+      (next: AppStateStatus) => {
+        if (next === "active") {
+          start();
+        } else if (timer != null) {
+          clearInterval(timer);
+          timer = null;
+        }
+      },
+    );
 
     return () => {
       mountedRef.current = false;
       if (timer != null) clearInterval(timer);
+      appStateSub.remove();
     };
   }, [intervalMs]);
 
