@@ -507,6 +507,88 @@ has no release path for imports: a reload leaks the tiles' dma-buf reference; (c
 buffer, so "zero-copy at import time" cannot be a `supports_buft` decision: capability gate plus lazy import; (d) the
 GPU-leg context must be a one-host-thread context or e3 repeats the 90 C measurement.
 
+## Amendment F (2026-10-05): step-5 spec, leg contexts and hop v2
+
+Where things are. Hop v1 lives in the ENGINE on main bc5f0207c, not on the one-copy branch: the decision is
+`select_decode` rule 4 (`llama-governor-policy.cpp:430-500`: window = tokens / `decode_hop_tokens`, NPU first, move
+when the other leg's headroom leads by `k_hop_hysteresis_c` 4 C `:25`, fixed alternation without zones, one INFO per
+leg change `:479-487`); the execution is the one switch at `llama-governor.cpp:300-345` (target context, commit,
+decode). The binding feeds it: `feed_decode_headroom` (`rn-governor.cpp:117-122`) samples `rn_thermal_legs`
+(headroom = min over a leg's zones of first passive trip minus temp, `rn-thermal-legs.h:18-20, 32-34`) every
+`decode_hop_tokens` (`:111-112`) into `llama_governor_set_decode_headroom(cpu, npu)` (`llama-governor-runtime.cpp:384-386`).
+Contexts: the governor ctor builds `ctx_prefill` from `model_prefill` and `ctx_decode` from `model_decode`
+(`llama-governor.cpp:57-71`), the dtor frees them (`:86-87`); state is `ctx_prefill/ctx_decode/last_ctx` and one
+`side_state` with a `watermark` per side (`llama-governor.h:77-78, 97-99, 106-107`). KV commit: hybrid memory always
+takes MirrorAndCopy (`llama-kv-commit.cpp:302-303`), Direct needs aliasing caches (`:304-310`), rows move through
+`ggml_backend_tensor_get`/`set` and a scratch (`:105, :114`), so the KV may live in any backend's memory. The branch
+8ac5522d0 forked at 45f097b74: main has 373 commits since, the branch 50, and the branch's governor has no hop v1 at
+all. Admission is per device with a generation counter and a re-reserve on change (`llama-context.cpp:584-586, 729`;
+contract `llama-ext.h:163-175`).
+
+**F1. Leg contexts.** Created and destroyed where the two are today (`llama-governor.cpp:57-71, 86-87`),
+generalised to `leg { engine, llama_context *, side_state, params }[3]` over ONE `llama_model *`: NPU leg
+`leg_devices {HTP0}`, GPU leg `{GPUOpenCL}`, CPU leg `{}` (A4; backends from the list instead of `model.devices`,
+`llama-context.cpp:335-338`; KV buft follows the first leg device, `llama-kv-cache.cpp:313-317`). KV: NPU leg on the
+HTP buft (today's prefill KV), CPU leg on the CPU buft, GPU leg on the CPU buft in v1 (attention on the CPU, E3);
+moving it to OpenCL later is a buft choice, not a redesign, because the commit is `tensor_get/set`. The norm pin
+(`llama-context.cpp:2637-2638`) keys on `dev_layer(il)` = HTP0 and finds no backend in the CPU and GPU legs: no pin,
+as required. Admission: the NPU leg is the only context with an HTP backend, so the device-global word is in practice
+per leg; set once after that context exists (`offload_min 1, offload_ops ALL, gate 0`, B2), never rewritten, so the
+generation re-reserve fires once. Host threads: NPU and GPU legs one, CPU leg the caller's. Memory per extra context
+= its KV + compute buffer; the step-2 table counted one context; read the two `buffer size` log lines per leg at
+load and add them to the RAM table (B4) before quoting 1.75 GB for three legs.
+
+**F2. KV on a hop.** Unchanged mechanism: the active leg holds the whole sequence; a switch commits
+`[target.watermark, source end)` from the last active context to the target (`commit_side`, `llama-governor.cpp:300-345`),
+MirrorAndCopy for this hybrid model, which also copies the recurrent conv state whole. Three legs need no new
+bookkeeping: each context's watermark already means "what this context holds", and the last active context is always
+complete, so A->B->C->A stays correct pairwise. Cost per hop = attention rows since the target last held the sequence
+plus the conv state; the first GPU hop after a prefill receives the entire turn. All legs keep identical KV types
+(`decide_governor_lane_kv`, `rn-llama.cpp:178-195`; `compatible` refuses mismatches). Stats already count
+`decode_hop_commit_bytes/us` (`llama-governor.cpp:352-354`): log them per hop in v2. A shared single KV is not reachable
+for hybrid memory (`:302-303`), so hops never become free in step 5.
+
+**F3. The hop site.** One decision, `select_decode` rule 4, and one execution, `llama-governor.cpp:300-345`; both stay.
+v2 changes the decision's inputs and the leg set, nothing else. Inputs: per-leg headroom (CPU, NSP, GPU zones:
+`rn_thermal_legs` learns the GPU zone type on the S23 sysfs; NaN = no zones or leg absent), per-leg availability (table
+plus runtime demotion), per-leg tok/s floor (NPU 22, CPU the shipped number, GPU from step 4), per-leg heat per token
+as constants from the lab (battery C.s/token: NPU 0.15-0.17, CPU 0.30, GPU 0.35-0.42 at tg1024), the window counter.
+Output: `engine in {NPU, GPU, CPU}`, `hop_rule` label, one INFO line per leg change naming all three headrooms and the
+reason; the execution site maps engine to leg context and commits as today. Rule, structured so the owner's pending
+choice is a constant and not a code path: open every decode on the NPU (lowest heat per token, measured); stay while
+the NSP headroom is above the relief margin; when it is not, take ONE window on the relief leg: the available leg with
+the lowest heat-per-token among those whose own block headroom exceeds the margin and whose floor holds (GPU for a
+burst when available, else CPU); re-evaluate every window, NPU returns under the existing 4 C hysteresis. With the GPU
+leg absent and the weighting at zero this reproduces v1 exactly, which is the regression test. v1's lesson stands: the
+block trips never bound, skin did, so the margin is a parameter the owner sets, not a trip distance. Prefill is
+untouched: the hop is decode-only (`!is_prefill` at `:310-312`), and the GPU prefill rule (`policy.cpp:205-232`,
+`gpu_fit`) is a different decision that WARM never opens (owner 03/10).
+
+**F4. Split and order.** Engine first. (0) Merge main into the branch: hop v1, the headroom API and 373 commits are
+only there; doing step 5 on the branch as is would reimplement v1. (1) `leg_devices` + KV buft rule, host-tested
+with CPU-only lists. (2) One-model governor: `llama_governor_init_with_params_internal(model, legs[])`,
+`leg_ctx(engine)`, N-way `side_state`, admission set once; the two-model form stays for the R2 fallback and shares the
+decode function. (3) `set_decode_headroom(cpu, npu, gpu)` and rule v2 with per-leg stats. Binding after: (a)
+`rn_thermal_legs` GPU zone, (b) three-value feed, (c) the one-model load path behind the step-6 table with the step-2
+setter called before anything reads the Hexagon buffer types. `governor-bench` gains the one-model arm first so the
+S23 check does not wait for the binding.
+
+**F5. Proof.** Host: `leg_devices {}` vs default on the ship GGUF, identical logits; three CPU-only legs over one
+model with forced hops every N tokens A->B->C->A, logits identical to one context (extends `test-governor-v0-commit`
+and `-turns`, `tests/CMakeLists.txt:359-365`, conv state included); policy v2 unit test on synthetic headroom
+sequences: NPU first, relief picks GPU when available else CPU, hysteresis, and the two-leg case byte-identical to v1's
+decisions; the existing two-model tests unchanged. S23, `governor-bench` one-model: forced NPU->GPU->CPU->NPU every 32
+tokens, KLD vs two-copy over 256 tokens, tok/s per leg, commit bytes and us per hop (the first GPU hop is the
+expensive one), RAM with three contexts by B4; then v2 free-running on a warm phone against hop v1's 9.0 tok/s and 908
+of 1163 tokens on the CPU: per-leg share, block peaks, skin.
+
+**F6. Fence and plan errors.** No shared KV, no GPU prefill, no change to prefill routes or COOLMODE, no new heat model
+beyond lab constants, no table (step 6). Wrong in the plan: (a) step 5 "on the same branch" has no hop v1 to extend;
+the merge is commit zero; (b) "admission per NPU-leg context" is per device (`llama-ext.h:170-172`) and only works
+because the NPU leg is the sole HTP context: write that down, add no per-context plumbing; (c) the 1.75 GB is one
+context; three contexts add two KV plus compute sets; (d) the v2 weighting is the owner's call: land the three-leg
+plumbing with v1's rule generalised, the heat weight as a parameter defaulting to v1 behaviour.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
@@ -522,3 +604,5 @@ GPU-leg context must be a one-host-thread context or e3 repeats the 90 C measure
 - 2026-10-05 v7: Amendment E appended (step-4 GPU leg: lazy dma-buf import per buffer via a generic proc address, v4
   kernel behind an early mul_mat branch, splits-per-token as the deciding metric, 740/E031.41 gate with read-only
   self-check, CLI arm with OPFILTER, import release on unload).
+- 2026-10-05 v8: Amendment F appended (step-5: legs as contexts over one model, pairwise commit unchanged for N legs,
+  hop v2 in the existing select_decode rule 4 + one execution site, merge main first, owner's weighting as a parameter).
