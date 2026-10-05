@@ -1021,6 +1021,8 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   = 0.69, no better than the CPU lm_head; RSS 125 vs 317 MB. Profiled: the plain Q6_K kernel takes 22.5 ms/token
   (~9.5 GB/s) vs ~4.2 ms at the repacked kernel's ~51 GB/s. Next: a fast Q6_K kernel over the GGUF layout in place;
   owner chooses option 2 vs J(1) after it.
+- J(1) with the in-place AoS Q6_K kernel `917027089`: H tg128 22.38/22.14 vs A 22.68/22.64 = **0.98 of A**, KLD
+  0.005343, RSS ~127 vs ~317 MB. One copy, three legs, the NPU decode keeps its speed. Audit P1/P2 fixes next.
 - Option 3 measured: correct (lm_head on the HTP, splits 2) but 9.2 s per lm_head call -> tg128 0.11 vs 22.8. Fable
   Amendment J requested; owner decides the tied-output route after it.
 

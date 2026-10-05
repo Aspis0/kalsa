@@ -1,0 +1,33 @@
+== NPU+GPU-lm_head session start Mon Oct  5 19:16:59 EDT 2026 [lvl=35 ac=false usb=false wl=false batT=283 skin=29.4 wake=Awake thermal=0 traced=0]
+binaries: 815e0dbfe7a4 528afdd86dbc e16120a812a1 (bench ppl skel)
+proof H: exit=0 splits=3 lm_head_on_htp=0 gpu_selfcheck_pass=1 errors=0 [lvl=35 ac=false usb=false wl=false batT=283 skin=30.2 wake=Awake thermal=0 traced=0]
+proof H: shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+proof H: load_tensors:  HTP0-HOST-W model buffer size =   219.75 MiB
+proof H: load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+proof H: shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+proof H: ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+proof H: ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+proof H: sched_reserve:       HTP0 compute buffer size =     2.22 MiB
+proof H: sched_reserve:     OpenCL compute buffer size =     0.50 MiB
+proof H: sched_reserve:  HTP0-HOST compute buffer size =     8.06 MiB
+proof H: ~llama_context:       HTP0 compute buffer size is   2.2188 MiB, matches expectation of   2.2188 MiB
+proof H: ~llama_context:     OpenCL compute buffer size is   0.4961 MiB, matches expectation of   0.4961 MiB
+proof H: ~llama_context:  HTP0-HOST compute buffer size is   8.0626 MiB, matches expectation of   8.0626 MiB
+proof H: PASS
+== A bench start 1791242304 [lvl=35 ac=false usb=false wl=false batT=296 skin=30.0 wake=Awake thermal=0 traced=0]
+A bench: exit=0 pp512=953.26 tg128=22.68 maxRSS=319996kB errors=0
+== A kld start 1791242420 [lvl=35 ac=false usb=false wl=false batT=298 skin=30.6 wake=Awake thermal=0 traced=0]
+A kld: exit=0 meanKLD=0.005357 errors=0
+== H bench start 1791242531 [lvl=34 ac=false usb=false wl=false batT=330 skin=32.7 wake=Awake thermal=0 traced=0]
+H bench: exit=0 pp512=930.21 tg128=22.38 maxRSS=129760kB errors=0
+== H kld start 1791242647 [lvl=33 ac=false usb=false wl=false batT=317 skin=32.5 wake=Awake thermal=0 traced=0]
+H kld: exit=0 meanKLD=0.005343 errors=0
+== H2 bench start 1791242819 [lvl=32 ac=false usb=false wl=false batT=328 skin=33.1 wake=Awake thermal=0 traced=0]
+H2 bench: exit=0 pp512=910.65 tg128=22.14 maxRSS=124892kB errors=0
+== H2 kld start 1791242934 [lvl=32 ac=false usb=false wl=false batT=329 skin=33.1 wake=Awake thermal=0 traced=0]
+H2 kld: exit=0 meanKLD=0.005343 errors=0
+== A2 bench start 1791243166 [lvl=31 ac=false usb=false wl=false batT=332 skin=33.2 wake=Awake thermal=0 traced=0]
+A2 bench: exit=0 pp512=940.00 tg128=22.64 maxRSS=315364kB errors=0
+== A2 kld start 1791243312 [lvl=30 ac=false usb=false wl=false batT=328 skin=33.0 wake=Awake thermal=0 traced=0]
+A2 kld: exit=0 meanKLD=0.005357 errors=0
+== NPU+GPU-lm_head session end Mon Oct  5 19:36:59 EDT 2026 [lvl=29 ac=false usb=false wl=false batT=351 skin=34.8 wake=Awake thermal=0 traced=0]

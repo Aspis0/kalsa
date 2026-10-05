@@ -1578,6 +1578,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   Unknowns: the io-coherent import's bandwidth and the 210 B (2-byte-aligned) block stride. Owner (2026-10-05): make
   the GPU fast first, choose the tied-output route (option 2 duplicate vs J(1)) after. Audit fixes `6821db6da` (F3:
   init_tensor asks for the buffer too) and `4c47c09c3` (MUL = src1 norm row only; offload slot testable) verified.
+- **J(1) FAST (S23 19:00, `step4b-s23/raw/gpulm-session3-917027089.grep`)**: deepseek's in-place AoS Q6_K GEMV
+  `917027089` (`kernels/mul_mv_q6_k_f32_aos.cl`: flat-kernel lane mapping, 16 rows per subgroup, ushort loads, y
+  reused 4x; self-check runs the same plan; failed self-check -> plain kernel; `GGML_OPENCL_HOST_Q6K_PLAIN=1` forces
+  plain). ABBA: A 953/22.68, **H 930/22.38, H2 911/22.14**, A2 940/22.64 -> **H = 0.98 of A** (was 0.69); KLD H/H2
+  0.005343 vs A 0.005357; maxRSS H 125-130 MB vs A 315-320 MB; self-check PASS, no fallback warning in the logs. The
+  kernel's own ms is not yet profiled (the profiling session stopped at the battery gate, 29 < 30). Luna audit: no
+  arithmetic/bounds bug; P1 the AoS kernel is a process-global (not per backend context) and its args are bound
+  outside the plan lock; P2 the self-check launches the full 128000-row grid to check 32 rows; P2 subgroup width
+  assumed 64 without an extension check (self-check covers it); P2 optional program cached before clCreateKernel.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
