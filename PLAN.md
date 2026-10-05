@@ -1213,6 +1213,16 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   (ack 70 ms). Background battery, Jelly UNPLUGGED, screen off, from 19:14: Kalsa alive 9m50s then force-stopped by
   the Jelly ROM (am_kill "from pid 1722"); in that time 10.4 s CPU (~1.8% of a core), 0 wakelocks/jobs/alarms,
   0.066 mAh. OPEN: main thread ~16% of a core while foreground idle ~1 h on the Room screen (67131 ticks) - to measure.
+  FOREGROUND IDLE, measured 2026-10-05 (Jelly, 30 s windows, app untouched):
+  (1) BUG: Settings home open = JS thread ~94% of a core + Expo AsyncFunctionQueue ~35%, continuously; simpleperf:
+  FileSystemLegacy getInfoAsync in a tight loop; stops at once when leaving Settings. Hunt+fix delegated (luna
+  d9b32294). (2) Android main thread ~10% of a core on any screen (release e110a56b; 18% on debuggable = interpreted
+  Kotlin + CheckJNI). simpleperf: worklets AnimationFrameQueue + Fabric DispatchUIFrameCallback every vsync; the
+  per-frame JS callback does nothing but re-request. Cause = by design in react-native-worklets: UI runtime
+  `nativeFlushQueue` re-schedules itself every frame forever ("Start the loop", runLoop/uiRuntime/
+  requestAnimationFrame.ts), same on upstream main and 0.12.2. Background is paused since 1cd2a40a. Fix would be a
+  library patch (lazy loop; UI microtask flush depends on it) and the repo has no patch infra: NOT before alpha;
+  candidate upstream issue. iOS Simulator idle 2% of an M1 core.
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
