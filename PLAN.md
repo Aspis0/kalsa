@@ -1197,6 +1197,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   FIX LANDED app main `1cd2a40a` (worklets 0.10.4, lock diff worklets-only via npm 11). Jelly check 2026-10-05,
   debuggable APK, same conditions as before (charging, home screen, 30 s): main thread 466 -> 1 tick; whole process
   21 ticks (~0.7% of a core, was ~15%). Final 15-min unplugged batterystats run still owed.
+  Room send fix LANDED app main `82aef4c2` (GLM da95bc5d + luna b9dcaf76/a13f1101; reviews luna cb8a0fdd, space-bunny
+  13c61113): in-flight "sending" visible, every send failure visible (draft restored + trouble line), thrown POSTs
+  requeue with backoff, composer retry reuses the client id (no duplicate), shelves of dropped pairings deleted (no
+  orphan plaintext), KALSA_ROOM_SEND step log (op/code/ids8/ms, no text). Root cause of the live "no row, no key,
+  no dial" NOT proven; the next Jelly run must show a row or a red line + the KALSA_ROOM_SEND trail (APK 37365971613).
+  Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
   **Post-alpha idea (owner 2026-10-05): a member's personal Kalsa in the Room** ("Kalsa di Tommaso" beside the
