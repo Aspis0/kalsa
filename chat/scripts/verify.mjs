@@ -4845,6 +4845,14 @@ const tests = {
         if (event === "brain_progress") window.__PROGRESS_HANDLERS__.push(handler);
         return baseListen(event, handler);
       };
+      // The test's own shrink of the slow hidden cadence: the app still asks
+      // for its real period, which is recorded, but no test waits it out.
+      const realSetInterval = window.setInterval.bind(window);
+      window.__INTERVALS__ = [];
+      window.setInterval = (fn, ms, ...rest) => {
+        window.__INTERVALS__.push(ms);
+        return realSetInterval(fn, Math.min(ms, 4000), ...rest);
+      };
     });
     await openChat(page);
     await page.waitForTimeout(2500);
@@ -4861,10 +4869,15 @@ const tests = {
       "hiddenbrain: an infinite animation is paused",
       (await page.evaluate(() => getComputedStyle(document.getElementById("pause-probe")).animationPlayState)) === "paused",
     );
-    await page.waitForTimeout(5000);
-    const stillHidden = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
-    check("hiddenbrain: no brain_state while hidden", stillHidden === hiddenAt, `${hiddenAt} → ${stillHidden}`);
+    check(
+      "hiddenbrain: the hidden clock asked for the slow period",
+      await page.evaluate(() => window.__INTERVALS__.includes(15000)),
+      JSON.stringify(await page.evaluate(() => window.__INTERVALS__)),
+    );
 
+    // The progress path is still its own read: with the hidden period shrunk
+    // to 4 s, the event's read is the only one inside the first second.
+    await page.waitForTimeout(1000);
     await page.evaluate(() => {
       for (const handler of window.__PROGRESS_HANDLERS__) {
         handler({ event: "brain_progress", id: 1, payload: { kind: "model_bytes", done: 1, total: 2 } });
@@ -4878,10 +4891,16 @@ const tests = {
       `${hiddenAt} → ${afterEvent}`,
     );
 
+    // The slow clock's own tick lands at the shrunk period and keeps the
+    // door-raising read alive behind the hidden window.
+    await page.waitForTimeout(3500);
+    const slow = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenbrain: the slow clock still reads while hidden", slow === afterEvent + 1, `${afterEvent} → ${slow}`);
+
     await page.evaluate(() => window.__setHidden(false));
     await page.waitForTimeout(400);
     const backAt = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
-    check("hiddenbrain: coming back reads once at once", backAt === afterEvent + 1, `${afterEvent} → ${backAt}`);
+    check("hiddenbrain: coming back reads once at once", backAt === slow + 1, `${slow} → ${backAt}`);
     check(
       "hiddenbrain: the root leaves hidden",
       !(await page.evaluate(() => document.documentElement.hasAttribute("data-hidden"))),
@@ -4897,7 +4916,9 @@ const tests = {
     await browser.close();
   },
 
-  // The Devices page's own clock obeys the same rule.
+  // The Devices page's own clock obeys the same rule, slower and never
+  // stopped: `brain_pairing` is what expires and refreshes the pairing
+  // square, so a hidden window must still come around.
   async hiddendevices() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -4913,6 +4934,10 @@ const tests = {
         if (command === "brain_pairing") window.__PAIRING_CALLS__ += 1;
         return base(command, args);
       };
+      // The test's own shrink of the slow hidden cadence: the app asks for
+      // its real 15 s period, and the wait is capped instead.
+      const realSetInterval = window.setInterval.bind(window);
+      window.setInterval = (fn, ms, ...rest) => realSetInterval(fn, Math.min(ms, 4000), ...rest);
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
@@ -4923,14 +4948,14 @@ const tests = {
 
     await page.evaluate(() => window.__setHidden(true));
     const hiddenAt = await page.evaluate(() => window.__PAIRING_CALLS__);
-    await page.waitForTimeout(5000);
-    const stillHidden = await page.evaluate(() => window.__PAIRING_CALLS__);
-    check("hiddendevices: no pairing read while hidden", stillHidden === hiddenAt, `${hiddenAt} → ${stillHidden}`);
+    await page.waitForTimeout(4500);
+    const slow = await page.evaluate(() => window.__PAIRING_CALLS__);
+    check("hiddendevices: the slow clock still reads while hidden", slow === hiddenAt + 1, `${hiddenAt} → ${slow}`);
 
     await page.evaluate(() => window.__setHidden(false));
     await page.waitForTimeout(400);
     const backAt = await page.evaluate(() => window.__PAIRING_CALLS__);
-    check("hiddendevices: coming back reads once at once", backAt === hiddenAt + 1, `${hiddenAt} → ${backAt}`);
+    check("hiddendevices: coming back reads once at once", backAt === slow + 1, `${slow} → ${backAt}`);
     await page.waitForTimeout(2500);
     const resumed = await page.evaluate(() => window.__PAIRING_CALLS__);
     check("hiddendevices: the clock resumes", resumed >= backAt + 1, `${backAt} → ${resumed}`);

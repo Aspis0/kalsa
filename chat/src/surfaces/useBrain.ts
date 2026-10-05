@@ -357,8 +357,7 @@ export function subscribeBrainRead(listener: () => void): () => void {
     // first rejection this generation sees would otherwise get no retry.
     progressRetries = 0;
     void poll();
-    // The clock stops while the window is hidden; a progress event still
-    // reads at once there — that path is the walk's own live work.
+    // `brain_state` raises the phone's door on Running, so the hidden clock slows, never stops.
     stopPollClock = visibleInterval(() => void poll(), POLL_MS);
     startProgress();
   }

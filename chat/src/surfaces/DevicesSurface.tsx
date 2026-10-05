@@ -313,6 +313,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   useEffect(() => {
     live.current = true;
     void refresh();
+    // `brain_pairing` expires and refreshes the pairing square, so the hidden clock slows, never stops.
     const stopClock = visibleInterval(() => void refresh(), POLL_MS);
     return () => {
       live.current = false;
