@@ -24,6 +24,13 @@ import type { RoomView } from "../room/useRoom";
 let mockRoom: RoomView;
 let mockKeyboardHeight = 0;
 const mockInsets = { top: 24, right: 0, bottom: 12, left: 0 };
+/** The effects the stubbed hook deferred, and what they returned: the
+ *  renderer's mount and unmount, made explicit. */
+let mockEffects: Array<() => undefined | (() => void)> = [];
+let mockCleanups: Array<() => void> = [];
+/** Every back listener the room registered, and how many were removed. */
+let mockBackListeners: Array<() => boolean | undefined> = [];
+let mockBackRemoved = 0;
 
 // The screens are invoked as plain functions: the hooks they run are stubbed
 // to dispatcher-free equivalents, and the room's own state (the feed, the
@@ -31,13 +38,20 @@ const mockInsets = { top: 24, right: 0, bottom: 12, left: 0 };
 jest.mock("react", () => ({
   ...jest.requireActual("react"),
   useCallback: (callback: unknown) => callback,
-  useEffect: () => undefined,
+  useEffect: (effect: () => undefined | (() => void)) => {
+    mockEffects.push(effect);
+  },
   useRef: (current: unknown) => ({ current }),
   useState: (initial: unknown) => [initial, () => undefined],
 }));
 jest.mock("react-native", () => ({
   ActivityIndicator: "ActivityIndicator",
-  BackHandler: { addEventListener: () => ({ remove: () => undefined }) },
+  BackHandler: {
+    addEventListener: (_event: string, listener: () => boolean | undefined) => {
+      mockBackListeners.push(listener);
+      return { remove: () => { mockBackRemoved += 1; } };
+    },
+  },
   FlatList: "FlatList",
   Pressable: "Pressable",
   ScrollView: "ScrollView",
@@ -127,7 +141,20 @@ function roomView(overrides: Partial<RoomFeed>): RoomView {
 beforeEach(() => {
   mockRoom = roomView({});
   mockKeyboardHeight = 0;
+  mockInsets.bottom = 12;
+  mockEffects = [];
+  mockCleanups = [];
+  mockBackListeners = [];
+  mockBackRemoved = 0;
 });
+
+/** Mount: run what the stubbed `useEffect` deferred, and keep the cleanups. */
+function mountEffects(): void {
+  for (const effect of mockEffects.splice(0)) {
+    const cleanup = effect();
+    if (cleanup) mockCleanups.push(cleanup);
+  }
+}
 
 function elements(node: unknown): Element[] {
   if (Array.isArray(node)) return node.flatMap(elements);
@@ -170,6 +197,16 @@ function renderRoom(overrides: Partial<RoomFeed> = {}, keyboard = 0): Element {
   mockKeyboardHeight = keyboard;
   mockRoom = roomView(overrides);
   return RoomScreen({ localId: "p-lid-1", onBack: jest.fn() }) as Element;
+}
+
+/** The View below a room state's header: what the loading, removed and error
+ *  pages hang their own words and the pending shelf in. */
+function pageContent(status: RoomFeed["status"], keyboard: number): Element {
+  const content = directChildren(root(renderRoom({ status }, keyboard))).find(
+    (child) => child.type === "View",
+  );
+  expect(content).toBeDefined();
+  return content!;
 }
 
 /** The frame the pre-existing full-screen overlays paint in, read off a
@@ -221,5 +258,31 @@ describe("where the room is mounted", () => {
     // The larger of the gesture bar and the IME, plus the band's own gap —
     // the same rule the shell's own composer follows (`bottomInsetFor`).
     expect(band!.props.style.paddingBottom).toBe(keyboard + space.sm);
+  });
+
+  it("pays the settled bottom inset on the states that carry the pending shelf", () => {
+    mockInsets.bottom = 48;
+    const states = ["loading", "removed", "error"] as const;
+    expect(states.map((status) => pageContent(status, 0).props.style.paddingBottom)).toEqual(
+      states.map(() => 48 + space.md),
+    );
+    // The same rule the ready band follows: the larger of the gesture bar and
+    // the IME, so an unsent message never sits under either.
+    expect(pageContent("error", 312).props.style.paddingBottom).toBe(312 + space.md);
+  });
+
+  it("closes the room on the hardware back, and unsubscribes when it goes away", () => {
+    const onBack = jest.fn();
+    RoomScreen({ localId: "p-lid-1", onBack });
+    mountEffects();
+
+    expect(mockBackListeners).toHaveLength(1);
+    // True: the back belongs to the room, not to the app's exit.
+    expect(mockBackListeners[0]!()).toBe(true);
+    expect(onBack).toHaveBeenCalledTimes(1);
+
+    expect(mockBackRemoved).toBe(0);
+    for (const cleanup of mockCleanups) cleanup();
+    expect(mockBackRemoved).toBe(1);
   });
 });

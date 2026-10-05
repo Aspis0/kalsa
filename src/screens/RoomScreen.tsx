@@ -5,8 +5,8 @@
  * room's state and actions come from `useRoom`, the pieces from `room/`, and
  * every sentence from the catalogue.
  */
-import { useRef, useState, type ReactNode } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { BackHandler, Pressable, Text, TextInput, View } from "react-native";
 import { ArrowUp } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../i18n";
@@ -33,6 +33,16 @@ export function RoomScreen({ localId, onBack }: { localId: string; onBack: () =>
   const [ask, setAsk] = useState(false);
   const posting = useRef(false);
 
+  // Back closes the room, exactly as it closes the other overlays
+  // (`AccountScreen.tsx:48-51`): the room is a destination, not a new app.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onBack]);
+
   const { feed, rows, pending } = room;
   const info = feed.info;
   const aiName = info?.members.find((member) => member.kind === "ai")?.name || "Kalsa";
@@ -56,14 +66,26 @@ export function RoomScreen({ localId, onBack }: { localId: string; onBack: () =>
 
   if (feed.status === "loading") {
     return (
-      <Page colors={colors} title={t("room.title")} backLabel={t("common.back")} onBack={onBack}>
+      <Page
+        colors={colors}
+        title={t("room.title")}
+        backLabel={t("common.back")}
+        onBack={onBack}
+        bottomInset={bandInsets.bottom}
+      >
         <Quiet text={t("room.loading")} colors={colors} />
       </Page>
     );
   }
   if (feed.status === "removed") {
     return (
-      <Page colors={colors} title={info?.roomName || t("room.title")} backLabel={t("common.back")} onBack={onBack}>
+      <Page
+        colors={colors}
+        title={info?.roomName || t("room.title")}
+        backLabel={t("common.back")}
+        onBack={onBack}
+        bottomInset={bandInsets.bottom}
+      >
         <Quiet text={t("room.removed")} colors={colors} testID="room.removed" />
         {/* The reader's own unsent words are still theirs: the room will
             never take them, so discard is the only thing left to offer. */}
@@ -87,6 +109,7 @@ export function RoomScreen({ localId, onBack }: { localId: string; onBack: () =>
         title={info?.roomName || t("room.title")}
         backLabel={t("common.back")}
         onBack={onBack}
+        bottomInset={bandInsets.bottom}
       >
         <Quiet
           text={noteLine(t, feed.error?.code, feed.error?.message) ?? t("room.noteFallback")}
@@ -273,7 +296,7 @@ export function RoomScreen({ localId, onBack }: { localId: string; onBack: () =>
 
 /**
  * The room's mount, which must be the one the other full-screen overlays use
- * (`AccountScreen.tsx:88`, `DocumentsScreen.tsx:229-241`): the exclusive
+ * (`AccountScreen.tsx:88`, `DocumentsScreen.tsx:230-240`): the exclusive
  * overlays are SIBLINGS of the shell's own flex column, so a root that takes
  * part in that column splits the window with the chat. This frame paints over
  * it instead. A `flex: 1` root did exactly that on the Jelly Star: the room
@@ -298,18 +321,25 @@ function Page({
   title,
   backLabel,
   onBack,
+  bottomInset,
   children,
 }: {
   colors: DesignColors;
   title: string;
   backLabel: string;
   onBack: () => void;
+  /** The settled bottom inset the ready screen's composer band pays
+   *  (`bandInsets.bottom`): the pending shelf stands above the gesture bar,
+   *  not under it. */
+  bottomInset: number;
   children: ReactNode;
 }) {
   return (
     <View style={overlayFrame(colors)}>
       <SettingsHeader title={title} onBack={onBack} backLabel={backLabel} />
-      <View style={{ flex: 1, padding: space.md }}>{children}</View>
+      <View style={{ flex: 1, padding: space.md, paddingBottom: bottomInset + space.md }}>
+        {children}
+      </View>
     </View>
   );
 }
