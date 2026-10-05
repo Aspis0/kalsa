@@ -1372,7 +1372,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   identical, A unchanged; one copy **1.75 GB**. Decode stays 0.75 until the tied-output decision.
 - **Step 4 (coding)**: GPU leg per Fable Amendment E (OpenCL claims TILE32 by a lazy per-buffer dma-buf import, v4
   decode mat-vec, Adreno 740 gate with read-only self-check, explicit import release). GLM hit its 5-hour quota
-  mid-task (2026-10-05 03:30); the uncommitted WIP is being finished by Coder deepseek.
+  mid-task (2026-10-05 03:30); deepseek finished it (`777c1ac5c`..`a651191f4`). Luna audit: not mergeable (aborts
+  after placement, stale import reuse, cache policy, image alignment, per-device gate). S23 first run: the R2 gate
+  turned the leg OFF on the tested S23 ("740" is in CL_DEVICE_VERSION, not the name) and fell back cleanly to the CPU
+  tile reader; the step-3 audit also refused a misplaced load by name. Fixes dispatched (deepseek).
 - **Step 5 prerequisite** (Fable Amendment F): hop v1 lives on engine `main`, not on this branch (merge-base
   `45f097b74`, main +373 commits, branch +50): merge main into the branch before step 5.
 - Next: step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model

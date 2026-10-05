@@ -987,6 +987,10 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Step 3 on the S23 (02:50-03:15, `step3-s23/raw/session1-8ac5522d0.grep`): `token_embd.weight reused for
   output.weight from CPU`, buffers TILE32 1306.12 + HOST 1.00 + CPU 205.08 MiB; A 897.0 / 22.49 and 891.4 / 22.43
   (KLD 0.005313), S 882.4 / 16.48 and 881.8 / 17.40 (KLD 0.005329); RAM one copy **1753797 kB**. Step 3 PASS.
+- Step 4 first S23 run (04:10-04:25, `step4-s23/raw/session1-a651191f4-gate-off.grep`): a GPU-leg arm with
+  OPFILTER and no `-ot` was refused at load by the step-3 audit ("blk.0.ffn_gate.weight landed in CPU_REPACK, not a
+  shared buffer"); with `-ot` the load is right (TILE32 1306.12 MiB) but `TILE32 leg disabled: CL_DEVICE_NAME has no
+  "740"` - on the S23 the name is "QUALCOMM Adreno(TM)" and 740 is in the version string. Leg off, CPU fallback clean.
 
 ## Engine release pipeline (`kalsa-server`)
 
