@@ -692,6 +692,12 @@ fn redact(message: &str, r: &Redactions) -> String {
 /// Face `/resolve/` redirect, printed verbatim inside a transport error's
 /// Display), and the credentials a URL carries in its authority
 /// (`user:pass@`) go too, marked so a reader knows something was there.
+///
+/// Both boundaries are the parsers' own, so the log can never show less
+/// than a reader's URL parser would read: the authority ends at the first
+/// of `/`, `\`, `?` or `#` (WHATWG ends it at either separator for the
+/// special schemes), and the userinfo closes at the LAST `@` before that —
+/// everything before it is credentials, `user@x:secret@host` included.
 fn redact_urls(text: &[char]) -> Vec<char> {
     const MARK: &str = "?…";
     const CRED: &str = "<cred>@";
@@ -713,16 +719,19 @@ fn redact_urls(text: &[char]) -> Vec<char> {
                     .position(|c| *c == '?' || *c == '#')
                     .map(|stop| end_of_scheme + stop);
                 let address_end = cut.unwrap_or(url_end);
-                // The authority runs to the first '/', and a userinfo —
-                // which cannot contain one — closes at the '@' inside it.
+                // The authority ends at the first separator — '/' or '\' —
+                // with ?/# having ended it above already.
                 let authority_end = text[end_of_scheme..address_end]
                     .iter()
-                    .position(|c| *c == '/')
+                    .position(|c| *c == '/' || *c == '\\')
                     .map(|stop| end_of_scheme + stop)
                     .unwrap_or(address_end);
+                // The LAST '@' closes the userinfo: everything before it is
+                // credentials, exactly as the parsers that read the URL
+                // back divide it.
                 let host_begins = text[end_of_scheme..authority_end]
                     .iter()
-                    .position(|c| *c == '@')
+                    .rposition(|c| *c == '@')
                     .map(|stop| end_of_scheme + stop + 1);
                 out.extend(text[at..end_of_scheme].iter().copied());
                 if let Some(host_begins) = host_begins {

@@ -489,6 +489,40 @@ fn a_url_loses_the_credentials_in_its_authority() {
     assert!(both.contains("https://<cred>@host.example.com/a?…"), "{both}");
 }
 
+/// The credentials' boundaries are the parsers' own, so the log can never
+/// show less than a URL parser would read: the userinfo closes at the LAST
+/// `@` in the authority (`user@x:secret@host` keeps only `host` — the
+/// first-`@` reading leaks the password part), and the authority ends at a
+/// backslash like the special schemes' parsers say it does.
+#[test]
+fn the_credentials_close_at_the_last_at_and_the_authority_at_a_backslash() {
+    let redactions = Redactions::new(None, None, None, false);
+    let nested = redact(
+        "fetch https://user@x:s3cr3t@host.example.com/weights.gguf failed",
+        &redactions,
+    );
+    assert!(
+        nested.contains("https://<cred>@host.example.com/weights.gguf"),
+        "{nested}"
+    );
+    assert!(!nested.contains("s3cr3t"), "the password part leaked: {nested}");
+    assert!(!nested.contains("user@"), "the first segment leaked: {nested}");
+    for line in [
+        "fetch https://user:pass@host.example.com\\weights.gguf failed",
+        "relay wss://token@relay.internal\\route?key=1 down",
+    ] {
+        let redacted = redact(line, &redactions);
+        assert!(
+            redacted.contains("<cred>@host.example.com\\weights.gguf")
+                || redacted.contains("<cred>@relay.internal\\route?…"),
+            "the authority ended before the backslash: {line} -> {redacted}"
+        );
+        assert!(!redacted.contains("user:pass"), "{line} -> {redacted}");
+        assert!(!redacted.contains("token@"), "{line} -> {redacted}");
+        assert!(!redacted.contains("key=1"), "{line} -> {redacted}");
+    }
+}
+
 /// Hostnames that name the owner's network become `<host>`: a Tailscale
 /// tailnet (`machine.tailnet.ts.net`), an mDNS name (`Laptop.local`), and
 /// the machine's own hostname — in URLs and in bare prose, either casing,
