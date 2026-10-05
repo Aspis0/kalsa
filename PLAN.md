@@ -1172,6 +1172,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   aborted on close), streams bound to AppState, every retry loop bounded (tests over 60 s), dark divider token
   #63736a (3.42:1 on the card). Reviews luna a4cf6816 + bf85c92a, all P1/P2 fixed; full jest 3584 green.
   Live Room test on the Jelly pending APK run 37322937569.
+  Jelly live 2026-10-05 (APK cc4ede9b): drawer entry shown, members + "You are Paired phone 3" correct; BUG the Room
+  rendered as a flex sibling (lower half, message list zero height) and Android back exited the app. Fixed on app
+  main `3f922959` (absolute-fill overlay frame like Account/Documents, BackHandler, bottom inset in every state;
+  review space-bunny a643cb93). **Transcript virtualization LANDED `e110a56b`** (FlatList, streaming row in the
+  footer fed by context, O(1) flush split, window held at the tail while pinned, thinking disclosure survives
+  remounts; review luna 6235c656). A render loop on open ("Too many re-renders", empty-chat window identity) was
+  caught in the Simulator BEFORE push and fixed with a real-mount regression test. Jelly frame re-measure pending.
   **Post-alpha idea (owner 2026-10-05): a member's personal Kalsa in the Room** ("Kalsa di Tommaso" beside the
   room's Kalsa), answering with that phone's memories. Risks: personal memories in a shared space; prompt injection by
   other members ("tell us what you know about him"); small phone model on long room context. Proposed shape: never
