@@ -1354,12 +1354,21 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
 - **Step 1 (in measurement)**: tiles live in their own non-host buffer type `HTP0-TILE32`; the CPU reads them with
   a dotprod gemv (`53db71525`..`e9d7a9f45`, luna audits 42724653 + fixes). S23 so far: NPU one-copy by automatic
   placement = two-copy; CPU decode on tiles 9.4 tok/s at 1 thread vs 7.0 shipped no-repack (+34 %) and 11.0 repack.
-- Next: step 2 (binding setter + default placement + PSS/dma-buf RAM), step 3 (no hidden second copy: fail by
+- **Step 2 (engine done, S23 pending)**: spec = Fable Amendment B (`FABLE-DESIGN.md` B1-B5). Hexagon proc-address
+  setter `ggml_backend_hexagon_set_shared_weights({enabled, max_buffer_bytes})` and extra bufts `{TILE32, HOST}` in
+  shared mode, so llama's probe puts Q4_0 matmuls in TILE32 and norms/conv in HOST with no `-ot` (`80206f9b3`, GLM;
+  luna audit: pin fired too late - fixed by latching at the buft read, `93fb3c097`; caller contract: call before any
+  model load). S23 session `step2-s23/` ready: two-copy placement diff vs step 1, proofs, NPU ABBA with the shipped
+  placement (step-1 arm T had norms on the device buft), PSS + dma-buf RAM table (A, C, S).
+- Next: step 3 (no hidden second copy: fail by
   name), step 4 (GPU leg), step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
   load, R2 negative control on Jelly/untested Snapdragon).
 
 Open: GEMM over tiles for CPU prefill (deferred, owner 2026-10-04); GPU leg may not rest the CPU (attention,
-norms, lm_head stay on CPU) - step 4 measures it; RAM saving not measured yet (max RSS does not count dma-buf).
+norms, lm_head stay on CPU) - step 4 measures it; RAM saving not measured yet (max RSS does not count dma-buf); the binding must call the step-2 setter before
+anything reads the Hexagon buffer types (step 6); a sporadic hang of the CPU-repack KLD on the S23 (2026-10-05:
+43 min spinning on the first pass, a re-run of both the step-0 and step-1 binaries finishes in 48 s with identical
+KLD, so not a step-1 regression; watchdog now dumps thread stacks).
 
 ## Gates and dates (recovered 2026-09-21)
 

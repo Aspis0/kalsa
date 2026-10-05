@@ -965,6 +965,13 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   886.5 / 22.60, T2 887.5 / 22.52, A2 890.8 / 22.54, KLD 0.005313 all. CPU -t 1, pp128 / tg128: shipped no-repack
   13.6 / **7.0**, tiles 14.4 / **9.4**, repack 45.6 / 11.0; CPU no-repack KLD 0.001295. The session stopped on a
   transient thermal status 1 before the remaining CPU KLD and -t 5 arms; resumed 23:08.
+- Resume 1 (23:08): the CPU-repack KLD (`-ngl 0`, `-ub 1`, `-t 5`) spun 43 min on ~4 cores without finishing its
+  first pass (a pass is ~21 s), thermal status 1; killed (exit 143). Bisect, one chunk each: step-0 build and
+  step-1 build both exit 0 in 47-48 s, Mean KLD **0.001262** identical - a sporadic hang, not a step-1
+  regression. Resume 2 (00:15) runs with `step1-s23/watchdog.sh` (stacks via `debuggerd -b` past 300 s).
+- Step 2 engine (`80206f9b3` + audit fix `93fb3c097`, pushed to the fork): shared-weights setter and `{TILE32,
+  HOST}` extra bufts per Fable Amendment B. Luna audit: the pin was set on alloc but the placement probe's 0-byte
+  allocs never reach the backend, so it fired after placement - now latched when the buffer types are read.
 
 ## Engine release pipeline (`kalsa-server`)
 
