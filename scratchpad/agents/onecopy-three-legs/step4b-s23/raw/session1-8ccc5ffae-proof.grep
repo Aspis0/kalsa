@@ -1,0 +1,21 @@
+286:shared weights: token_embd.weight reused for output.weight from HTP0-HOST
+1002:load_tensors:          CPU model buffer size =     1.00 MiB
+1003:load_tensors:    HTP0-HOST model buffer size =   218.75 MiB
+1004:load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+1007:load_all_data: buffer type HTP0-HOST is not the default buffer type for device HTP0 for async uploads
+1009:shared weights: TILE32 1369571328 HOST 229376000 CPU 1044480 bytes
+1049:llama_context:  HTP0-HOST  output buffer size =     0.49 MiB
+1118:sched_reserve: reserving ...
+1119:sched_reserve: max_nodes = 2128
+1120:sched_reserve: reserving full memory module
+1121:sched_reserve: worst-case: n_tokens = 16, n_seqs = 1, n_outputs = 1
+1168:ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+1169:ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+1275:ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+1337:ggml-opencl-tile32: imported HTP0-HOST buffer of 229380096 bytes (fd 21, io-coherent)
+1338:ggml-opencl: HOST self-check failed for token_embd.weight - the HOST leg declines it
+1627:sched_reserve:     OpenCL compute buffer size =     0.12 MiB
+1628:sched_reserve:  HTP0-HOST compute buffer size =     8.20 MiB
+1629:sched_reserve: graph (pp bs=16, tg bs=1): nodes = 1054 / 1054, splits = 1 / 197, input objects = 4 / 4, input tensors = 7 / 7
+1630:sched_reserve: reserve took 11518.56 ms, sched copies = 1
+1635:/workspace/ggml/src/ggml-opencl/ggml-opencl-tile32-matvec.cpp:105: ggml-opencl-tile32: activation/result sub-buffers failed: -38

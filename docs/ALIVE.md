@@ -1005,6 +1005,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   `feat/governor-onecopy-q6raw`). Correction: GATED_DELTA_NET has HTP and OpenCL kernels (Fable said CPU-only).
 - Step 4b audited (reviewer n2) and fixed (`8ccc5ffae`, pushed): HOST Q6_K self-check, no write-back import for
   HOST, admission/compute agreement. S23 run pending (battery).
+- Step 4b S23 proof FAILED: HOST Q6_K self-check failed silently, then CL -38 in the TILE32 mat-vec - OpenCL now
+  claims the HTP0-HOST buft, which also holds the CPU compute buffers, so activations are no longer copied. Fable
+  Amendment I requested.
 
 ## Engine release pipeline (`kalsa-server`)
 

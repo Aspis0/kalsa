@@ -1427,6 +1427,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (n_s > 1 declined), 16 B alignment, comments. Pushed (`origin/feat/governor-onecopy` = `8ccc5ffae`). Binaries
   `~/Projects/kalsa-artifacts-step4b-fix` (llama-bench 92bf95fa..., llama-perplexity 7ef53b3d...). S23 pending:
   splits, G vs O tok/s, KLD (decides the A7X-guard bypass), self-check line. Leftovers in the backlog.
+- **Step 4b S23 proof FAILED (2026-10-05 10:08, plugged, correctness only)** (`step4b-s23/raw/session1-8ccc5ffae-proof.grep`):
+  TILE32 self-checks all PASS, HOST block imported io-coherent, but the HOST Q6_K self-check failed silently (no
+  numbers, no CL error) and the run aborted in the TILE32 mat-vec with CL -38. Coordinator's diagnosis: the CPU
+  backend's compute/output buffers live in HTP0-HOST (first device's host buft), and 4b's OpenCL supports_buft claims
+  that buft, so the scheduler stopped copying CPU activations to OpenCL and the leg casts Hexagon extras. A 4b design
+  hole, not caught by the audit. Fable Amendment I requested (weights-only HOST buft vs decline + no_host).
+  First attempt died earlier on a script bug: llama-bench lost `-nr` for `--repack 0` in the main merge.
 - **Qwen (owner question 2026-10-05)**: the engine pieces are generic, but nothing is measured on Qwen. The local
   `Qwen3.5-4B-Q4_0-requant-from-q4km.gguf` (qwen35 hybrid) has 248 Q4_0 matrices (TILE32-able) and a tied Q6_K
   output of 2560 x 248320 (~500 MiB); one copy needs Q4_0 matrices (a Q4_K_M Qwen cannot use it; the requant's
