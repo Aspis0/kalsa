@@ -34,15 +34,19 @@ jest.mock("lucide-react-native", () => new Proxy({}, { get: (_target, key) => St
 jest.mock("../i18n", () => ({
   useLocale: () => ({ t: (key: string) => key, locale: "en", setLocale: jest.fn() }),
 }));
+/** The theme this file's render harness serves; a case may switch it. */
+let mockThemeMode: "light" | "dark" = "light";
+
 jest.mock("../ui/labTheme", () => {
   const { palettes } =
     jest.requireActual("../theme/palettes") as typeof import("../theme/palettes");
   return {
     // The advanced page paints from ThemeContext.colors (App.tsx:135): the real
-    // light palette, so the page renders without a provider.
+    // palette of the mode the harness serves, so the page renders without a
+    // provider — and a case can render the SAME page in the dark one.
     useLabTheme: () => ({
-      colors: palettes.light.colors,
-      mode: "light",
+      colors: palettes[mockThemeMode].colors,
+      mode: mockThemeMode,
       setMode: jest.fn(),
       fontScaleId: "m",
       setFontScaleId: jest.fn(),
@@ -162,7 +166,7 @@ jest.mock("../hooks/useProcessHealth", () => ({ useProcessHealth: jest.fn(() => 
 jest.mock("../hooks/useThermalMonitor", () => ({ useThermalMonitor: jest.fn(() => ({})) }));
 
 import React from "react";
-import { act, create, type ReactTestRenderer } from "react-test-renderer";
+import { act, create, type ReactTestInstance, type ReactTestRenderer } from "react-test-renderer";
 import type { DeviceBandwidthCalibration } from "../engine/deviceThroughput";
 import type {
   SettingsEmbeddingProps,
@@ -171,6 +175,7 @@ import type {
 } from "./SettingsScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { PairingScreen } from "./PairingScreen";
+import { modes } from "../theme/design";
 
 const model: SettingsModelProps = {
   currentModelId: "local-model",
@@ -209,6 +214,34 @@ const embedding: SettingsEmbeddingProps = {
   onDownload: jest.fn(),
 };
 
+/** Every colour value the dark tokens own, as the palette the row must paint
+ *  from: a literal (or a light-only token) can never be one of these. */
+const DARK_TOKENS: string[] = Object.values(modes.dark);
+
+/** Every colour-valued style property under one node. */
+function coloursUnder(node: ReactTestInstance): Array<{ where: string; colour: string }> {
+  const found: Array<{ where: string; colour: string }> = [];
+  const props = ["color", "backgroundColor", "borderColor", "borderTopColor", "tintColor", "placeholderTextColor"];
+  for (const element of [node, ...node.findAll(() => true)]) {
+    const styles = [].concat(element.props?.style ?? []).filter(Boolean);
+    for (const style of styles) {
+      for (const prop of props) {
+        const value = (style as Record<string, unknown>)[prop];
+        if (typeof value === "string" && value !== "transparent") {
+          found.push({ where: `${String(element.type)}.${prop}`, colour: value });
+        }
+      }
+    }
+    for (const prop of ["color", "tintColor", "placeholderTextColor"]) {
+      const value = element.props?.[prop];
+      if (typeof value === "string" && value !== "transparent") {
+        found.push({ where: `${String(element.type)}.${prop}`, colour: value });
+      }
+    }
+  }
+  return found;
+}
+
 async function renderSettings(remoteActive = false): Promise<ReactTestRenderer> {
   let renderer!: ReactTestRenderer;
   await act(async () => {
@@ -246,6 +279,43 @@ describe("the pairing entry on the home page", () => {
     });
 
     expect(renderer.root.findAllByType(PairingScreen)).toHaveLength(1);
+    await act(async () => renderer.unmount());
+  });
+});
+
+describe("the settings rows under the dark theme", () => {
+  afterEach(() => {
+    mockThemeMode = "light";
+  });
+
+  it("paints every home row from the dark tokens — no literal, no light-only token", async () => {
+    mockThemeMode = "dark";
+    const renderer = await renderSettings(true);
+
+    const rows = renderer.root.findAll(
+      (node) =>
+        String(node.type) === "Pressable" && typeof node.props.testID === "string" &&
+        node.props.testID.startsWith("settings.home."),
+    );
+    // The assistant, appearance, privacy and engine groups are all there.
+    expect(rows.length).toBeGreaterThan(8);
+
+    const strays = rows
+      .flatMap((row) => coloursUnder(row))
+      .filter((entry) => !DARK_TOKENS.includes(entry.colour));
+    expect(strays).toEqual([]);
+
+    // The row the owner named, one token at a time: title, icon, chevron.
+    const pair = renderer.root.findByProps({ testID: "settings.home.pair" });
+    const pairColours = coloursUnder(pair);
+    expect(pairColours.length).toBeGreaterThan(2);
+    expect(pair.findAll((node) => String(node.type) === "QrCode")[0].props.color).toBe(
+      modes.dark.accent,
+    );
+    expect(pair.findAll((node) => String(node.type) === "ChevronRight")[0].props.color).toBe(
+      modes.dark.ink3,
+    );
+
     await act(async () => renderer.unmount());
   });
 });

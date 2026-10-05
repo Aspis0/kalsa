@@ -157,14 +157,18 @@ function Group({ title, colors, children }: { title: string; colors: DesignColor
       <Text style={[type.label, { color: colors.ink3, paddingHorizontal: space.md, paddingTop: space.md, paddingBottom: space.xs }]}>
         {title.toLocaleUpperCase()}
       </Text>
-      <View style={{ height: 1, backgroundColor: colors.line }} />
+      <View style={{ height: 1, backgroundColor: colors.borderStrong }} />
       {children}
     </View>
   );
 }
 
+/** The line between two rows. The theme's STRONG line, not its faint one: on
+ *  a dark page the faint line sits 1.4:1 against the card and the rows read
+ *  as one block (the owner's dark-mode report); the strong line holds in
+ *  both themes. */
 function Divider({ colors }: { colors: DesignColors }) {
-  return <View style={{ height: 1, backgroundColor: colors.line }} />;
+  return <View style={{ height: 1, backgroundColor: colors.borderStrong }} />;
 }
 
 export function SettingsHomeScreen({
