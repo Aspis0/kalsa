@@ -1378,7 +1378,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   tile reader; the step-3 audit also refused a misplaced load by name. Fixes `d816d556c`..`0e7109fdf` (deepseek):
   on the S23 the leg is now ON and correct (2 imports, self-check 166/166) but **3.50 vs 11.51 tok/s** for today's
   two-copy OpenCL decode at -t 1: 197 graph splits per token, only the mat-vecs on the GPU. The leg needs norms,
-  conv and attention on the GPU too (asked Fable, Amendment G). S23 stopped at 30 % battery.
+  conv and attention on the GPU too. S23 stopped at 30 % battery.
+  Fable Amendment G: no new kernel needed - import the HOST dma-buf like TILE32 (f32 norms/conv read in place),
+  token_embd in HOST read by the existing plain Q6_K kernel (lm_head on the GPU), KV on OpenCL for the GPU-leg
+  context; target <= 2 splits and >= 0.9 of 11.51 tok/s. Step 4b (HOST import, token_embd placement, Q6_K path)
+  comes after the main merge; the KV move needs leg_devices (step 5). Amendment G also flips the tied-output ranking
+  to option 3 (HTP reads flat Q6_K from HOST: one copy serves all three legs) over option 2 (205 MiB duplicate).
+- **Main merge (running)**: deepseek merges `origin/main` into the branch (prerequisite of step 5).
 - **Step 5 prerequisite** (Fable Amendment F): hop v1 lives on engine `main`, not on this branch (merge-base
   `45f097b74`, main +373 commits, branch +50): merge main into the branch before step 5.
 - Next: step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
