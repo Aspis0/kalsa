@@ -1491,6 +1491,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   refused before any cast, admission = compute predicate, kernel loader declines instead of aborting). S23 12:47
   (`step4b-s23/raw/session3-5e9b355fd.grep`): G PASS, HOST self-check PASS, G KLD 0.000934; S loads from HTP0-HOST-W,
   audit line `TILE32 1369571328 HOST 230420480 CPU 0`. GPU leg = correct, still 197 splits (step 5).
+- Option 3 fixes `586d82225` (GLM, verified on disk: CTest raw-tile 2/2, n_k%8 refused before any write, one stride
+  source, n_prefetch checked under NDEBUG, DMA push result surfaced, no Q6_K raw at opt_mm_select 1); branch rebased
+  cleanly onto `5e9b355fd` (raw gate is buffer-generic, so HOST-W qualifies). Docker trap: `qaic` SIGKILLs under
+  Rosetta intermittently and the 7.7 GB VM OOMs at -j8 links; GLM seeded build-q6s's IDL outputs from build-q6.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
