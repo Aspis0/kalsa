@@ -1448,6 +1448,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   before the check + every silent precondition logged. `no_host` does not help (model-only parameter). Dispatched to
   deepseek on `feat/governor-onecopy`. Merge note: option 3 (q6raw worktree, from ee3dfde49) must accept the new
   weights buft when it is rebased.
+- **Amendment I implemented** (deepseek, `0685340a4`..`24fb5b8d6`, local): `HTP0-HOST-W` buft for weights, OpenCL claims
+  it by identity + WEIGHTS usage, kernels loaded before the HOST check, every decline logged. **S23 correctness PASS**
+  (2026-10-05 10:58, plugged, no timing; `step4b-s23/raw/session2-24fb5b8d6.grep`): imports TILE32 x2 + HOST-W
+  (io-coherent), HOST self-check token_embd PASS (max|diff| 3.7e-9), all TILE32 self-checks PASS, G KLD **0.000934**,
+  same top p 97.6 %. Splits still **197** at tg (attention needs the KV on the GPU: step 5). HTP0-HOST now holds only
+  CPU compute/output. Audit (reviewer n2) running; NPU S arm with HOST-W still to re-prove.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

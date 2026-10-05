@@ -1008,6 +1008,8 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Step 4b S23 proof FAILED: HOST Q6_K self-check failed silently, then CL -38 in the TILE32 mat-vec - OpenCL now
   claims the HTP0-HOST buft, which also holds the CPU compute buffers, so activations are no longer copied. Fable
   Amendment I requested.
+- Amendment I (HTP0-HOST-W weights buft) implemented; S23 correctness PASS: 3 imports, HOST self-check PASS, G KLD
+  0.000934, splits still 197 (KV on GPU is step 5). Audit running.
 
 ## Engine release pipeline (`kalsa-server`)
 

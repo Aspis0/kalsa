@@ -1,0 +1,61 @@
+== step-4b correctness session start Mon Oct  5 10:58:28 EDT 2026 [lvl=100 ac=true usb=false wl=false batT=282 skin=29.2 wake=Awake thermal=0 traced=0]
+binaries: 4a4701818976 f82dd2694d3b 
+proof G: load_tensors:          CPU model buffer size =     1.00 MiB
+proof G: load_tensors:  HTP0-HOST-W model buffer size =   218.75 MiB
+proof G: load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+proof G: ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+proof G: ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+proof G: ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+proof G: ggml-opencl-tile32: imported HTP0-HOST-W buffer of 229380096 bytes (fd 21, io-coherent)
+proof G: ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 3.725e-09 rms 0.0188 (32 of 128000 rows)
+proof G: exit=0 enabled=1 imports=3 host_imports=1 host_selfcheck_pass=1 errors=0 [lvl=100 ac=true usb=false wl=false batT=282 skin=29.4 wake=Awake thermal=0 traced=0]
+proof G: PASS
+== G kld start 1791212351 [lvl=100 ac=true usb=false wl=false batT=282 skin=29.5 wake=Awake thermal=0 traced=0]
+G kld: exit=0 meanKLD=0.000934 splits=? errors=0 chunk PPL ln(PPL(Q)/PPL(base)) KL Divergence Δp RMS Same top p
+Same top p: 97.647 ± 0.672 % [lvl=100 ac=true usb=false wl=false batT=307 skin=32.5 wake=Awake thermal=0 traced=0]
+== step-4b correctness session end Mon Oct  5 11:03:59 EDT 2026 [lvl=100 ac=true usb=false wl=false batT=307 skin=32.5 wake=Awake thermal=0 traced=0]
+load_tensors:          CPU model buffer size =     1.00 MiB
+load_tensors:  HTP0-HOST-W model buffer size =   218.75 MiB
+load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+llama_context:  HTP0-HOST  output buffer size =     0.49 MiB
+sched_reserve: reserving ...
+sched_reserve: max_nodes = 2128
+sched_reserve: reserving full memory module
+sched_reserve: worst-case: n_tokens = 16, n_seqs = 1, n_outputs = 1
+sched_reserve:     OpenCL compute buffer size =     0.15 MiB
+sched_reserve:  HTP0-HOST compute buffer size =     8.20 MiB
+sched_reserve: graph (pp bs=16, tg bs=1): nodes = 1054 / 1054, splits = 1 / 197, input objects = 4 / 4, input tensors = 7 / 7
+sched_reserve: reserve took 1115.09 ms, sched copies = 1
+~llama_context:       HTP0 compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+~llama_context:     OpenCL compute buffer size is   0.1466 MiB, matches expectation of   0.1466 MiB
+~llama_context:  HTP0-HOST compute buffer size is   8.2039 MiB, matches expectation of   8.2039 MiB
+0.00.377.093 I load_tensors:          CPU model buffer size =     0.00 MiB
+0.00.377.096 I load_tensors:  HTP0-HOST-W model buffer size =     0.00 MiB
+0.00.377.098 I load_tensors:  HTP0-TILE32 model buffer size =     0.00 MiB
+0.00.489.093 I llama_context:  HTP0-HOST  output buffer size =     0.49 MiB
+0.00.492.442 I sched_reserve: reserving ...
+0.00.492.442 D sched_reserve: max_nodes = 2128
+0.00.492.748 D sched_reserve: reserving full memory module
+0.00.492.752 D sched_reserve: worst-case: n_tokens = 1, n_seqs = 1, n_outputs = 1
+0.00.547.647 I sched_reserve:     OpenCL compute buffer size =     0.15 MiB
+0.00.547.648 I sched_reserve:  HTP0-HOST compute buffer size =     0.58 MiB
+0.00.547.650 I sched_reserve: graph: nodes = 1054, splits = 197, input objects = 4, input tensors = 7
+0.00.547.651 I sched_reserve: reserve took 55.21 ms, sched copies = 1
+0.00.885.800 I load_tensors:          CPU model buffer size =     1.00 MiB
+0.00.885.801 I load_tensors:  HTP0-HOST-W model buffer size =   218.75 MiB
+0.00.885.803 I load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+0.03.446.630 I llama_context:  HTP0-HOST  output buffer size =     0.49 MiB
+0.03.448.771 I sched_reserve: reserving ...
+0.03.448.772 D sched_reserve: max_nodes = 2128
+0.03.449.116 D sched_reserve: reserving full memory module
+0.03.449.121 D sched_reserve: worst-case: n_tokens = 1, n_seqs = 1, n_outputs = 1
+0.05.186.678 I sched_reserve:     OpenCL compute buffer size =     0.15 MiB
+0.05.186.679 I sched_reserve:  HTP0-HOST compute buffer size =     0.58 MiB
+0.05.186.682 I sched_reserve: graph: nodes = 1054, splits = 197, input objects = 4, input tensors = 7
+0.05.186.683 I sched_reserve: reserve took 1737.91 ms, sched copies = 1
+chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p
+Mean    KLD:   0.000934 ±   0.000055
+Same top p: 97.647 ± 0.672 %
+4.46.554.133 D ~llama_context:       HTP0 compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+4.46.554.135 D ~llama_context:     OpenCL compute buffer size is   0.1466 MiB, matches expectation of   0.1466 MiB
+4.46.554.135 D ~llama_context:  HTP0-HOST compute buffer size is   0.5847 MiB, matches expectation of   0.5847 MiB
