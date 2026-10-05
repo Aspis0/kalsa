@@ -124,7 +124,7 @@ grammar-constrained — **required-field omissions are counted per model**
 | | tool choice | silent errors | windows | creates (field-exact = start∧end∧allDay) |
 |---|---|---|---|---|
 | A | reads 9/13 right; creates right-tool 7/15, **7 agenda-for-create**, 1 search; clarify asks 1/6; traps 3 call-where-ask; **8/10 no-tool searched** | **10** (5 wrong windows, 2 wrong creates, 3 trap calls) | 4 covers, **5 wrong** (2 covers wider than the ask: r02 7d, r04 2d) | **5/15**; title 7r/8w, start 5r/10w, end 5r/10w, allDay 7r/8w; 0 omitted |
-| B | identical to A (validators repair nothing the model will not redo) | 8 | identical | identical (**5/15** field-exact); 0 UNSURE |
+| B | identical to A except on the two traps it refused: **t01 and t03 went UNSURE** — the nonexistent-date creates A delivered silently (Nov 31, Feb 30) fail the ISO/date-exists check, and the re-ask gives nothing | 8 (the two trap calls moved from silent to refused) | identical | identical (**5/15** field-exact); **2 UNSURE** |
 | C | reads 10/13; creates right-tool 8/15, 7 agenda-for-create; traps 4 call-where-ask | **6** — see the breakdown below | 5 covers, 5 wrong (3 wider: r02 7d, r04 2d, r07 7d); 1 offset-less | **7/15 field-exact, 0 silent creates**; title 7r/8w, start 7r/8w, end 7r/8w, allDay 7r/8w; 1 UNSURE |
 
 Named failures, quoted: **"cosa ho domani?" → `fromISO
@@ -152,7 +152,7 @@ because the GT says so.
 | | tool choice | silent errors | windows | creates |
 |---|---|---|---|---|
 | A | reads 6/13 right + 6 asks; creates **2 calls, both silently wrong (0/15 field-exact), 11 asks**, 1 search, 1 no-call; clarify 6/6 asks; **traps 4/4 asks**; no-tool 8/10 | **5** (3 wrong windows, 2 wrong creates) | 3 covers, 3 wrong; 2/6 offset-less | **0/15 field-exact**; title 2r/13w, start 0r/15w, end 0r/15w, allDay 1r/13w/**1 omitted (required!)** |
-| B | same shape; 1 trap answered as text instead of an ask | 4 | identical | +1 UNSURE |
+| B | same shape; 1 trap answered as text instead of an ask; **1 UNSURE — c01**, A's Wednesday-for-Tuesday silent create, caught by the weekday check and refused after a re-ask that gave nothing | 4 (that create moved from silent to refused) | identical | **0/15 field-exact; 1 UNSURE** |
 | C | reads 6/13 + 5 asks; **creates 7/15 field-exact, 7 asks, 0 silent**; traps 4/4 asks; no-tool 7/10 | **2** (2 wrong windows) | **4 covers** (r06, r12, r13 incl. the switch day), 2 wrong; **6/6 offset-less** | **7/15 field-exact**; title 7r/8w, start 7r/8w, end 7r/8w, allDay 7r/8w; 0 omitted; 0 UNSURE |
 
 Named: the **Wednesday-for-Tuesday** silent create ("metti dentista martedì
