@@ -1548,6 +1548,17 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   buffer the scheduler only hands the op to a backend that opts in (`1.off`), else to the CPU (`1.host`) - so step
   4b's HOST leg (lm_head, norms, conv) never received an op; that is also why the GPU leg stayed at 197 splits.
   Fix + the null-buffer abort dispatched to deepseek (opencode-go Coder).
+- **J(1) arm, second S23 run (17:20, `step4b-s23/raw/gpulm-session2-f7b96a8a0.grep`)** on deepseek's `75177029d` (OpenCL
+  `offload_op` from the shared HOST-W scan) + `e199c140d` (gallocr: realloc a planned chunk the vbuffer lacks - the
+  zero-chunk OpenCL compute buffer met a zero-sized output head) + the Q8_0 fix `f7b96a8a0`. The lm_head now runs on
+  the GPU (OpenCL compute 0.50 MiB, splits 3, GPU self-check PASS), KLD H 0.005343 / H2 0.005343 vs A 0.005357, no
+  abort. ABBA: A 952/22.80, H 900/15.76, H2 895/15.71, A2 940/23.00 (pp512/tg128); maxRSS H 125 MB vs A 317 MB.
+  **J(1) = 0.69 of A, not Fable's 0.92-0.96, and no better than the CPU lm_head (S 16.0-17.7)**: +20 ms per token.
+  The HOST leg runs the plain `kernel_mul_mv_q6_K_f32` over the io-coherent import (the fast `_flat` kernel needs a
+  repacked copy). Open: kernel vs memory vs per-token HTP->GPU sync - an OpenCL profiling build splits them.
+  Luna audit of the two commits (no P0/P1): F3 a zero-size tensor on the dummy chunk keeps data NULL, so a second
+  alloc walk of the same graph would assert (not hit in the KLD); F1/F2 the HOST MUL admission is wider than the norm
+  MUL and can take ops the HTP supports but does not offload; F4-F6 + test gap -> BACKLOG.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

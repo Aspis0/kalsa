@@ -163,3 +163,9 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 ## Hexagon Q8_0 quantizer revert (`fix/hexagon-q8-quantizer` 837334a74; luna audit 2026-10-05)
 - P2 (plausible, unmeasured): the revert gives up #29395's per-32 activation scales for every Q8_0-activation reader (Q4_0, Q8_0, Q6_K, IQ4_NL, MXFP4). Only the two-copy Q4_0 v73 path is measured (better). Other weight types, N>1 and v75/v79/v81 are unmeasured. A correctly packed per-32 quantizer should beat both; the 0.045 suggests a packing bug upstream, no upstream report (owner, 2026-10-05).
 - P3: the restored function keeps `#pragma unroll` (codegen only, not in 97a418bdf).
+
+## OpenCL offload_op + gallocr zero-chunk audit leftovers (luna, 2026-10-05; commits 75177029d, e199c140d)
+- F4 (P2 plausible): the HOST scan fully admits only the first HOST-W source; a MUL with two HOST-W operands is not import-checked for the second and would abort at compute.
+- F5 (P2 plausible): a second HTP device's HOST-W is claimable (no owner-device check); the foreign-device test mock is non-host.
+- F6 (P2 plausible): a failed init_tensor leaves buffer/data set, so the scheduler retry can skip re-init.
+- P3: `test-tile32-host-ops` calls the pure scan directly and would pass with `.offload_op` reverted to NULL.
