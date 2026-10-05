@@ -1209,6 +1209,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   `.default`, module-shape regression test proven to fail on the old line, room suites moved to the real
   `{__esModule, default}` shape; review space-bunny 0014d477; leftovers in BACKLOG). Full jest 358/3665, tsc,
   harness EXIT=0. APK 37382459242 for the Jelly re-test.
+  JELLY LIVE PASS 19:30 (APK 480f4592): "ciao dalla Jelly 3" shows as sent; trail enqueue->persisted->kick->post->ack
+  (ack 70 ms). Background battery, Jelly UNPLUGGED, screen off, from 19:14: Kalsa alive 9m50s then force-stopped by
+  the Jelly ROM (am_kill "from pid 1722"); in that time 10.4 s CPU (~1.8% of a core), 0 wakelocks/jobs/alarms,
+  0.066 mAh. OPEN: main thread ~16% of a core while foreground idle ~1 h on the Room screen (67131 ticks) - to measure.
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
