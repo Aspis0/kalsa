@@ -1439,6 +1439,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   that buft, so the scheduler stopped copying CPU activations to OpenCL and the leg casts Hexagon extras. A 4b design
   hole, not caught by the audit. Fable Amendment I requested (weights-only HOST buft vs decline + no_host).
   First attempt died earlier on a script bug: llama-bench lost `-nr` for `--repack 0` in the main merge.
+  Fable Amendment I (committed) confirms it and adds: the HOST self-check never ran (the plain Q6_K kernel is
+  loaded lazily by the OpenCL buffer allocator, handle null at admission). Fix = one HOST buft per role
+  (weights-only HOST buft claimed by OpenCL; HTP0-HOST stays CPU compute/output, never claimed) + kernels loaded
+  before the check + every silent precondition logged. `no_host` does not help (model-only parameter). Dispatched to
+  deepseek on `feat/governor-onecopy`. Merge note: option 3 (q6raw worktree, from ee3dfde49) must accept the new
+  weights buft when it is rebased.
 - **Qwen (owner question 2026-10-05)**: the engine pieces are generic, but nothing is measured on Qwen. The local
   `Qwen3.5-4B-Q4_0-requant-from-q4km.gguf` (qwen35 hybrid) has 248 Q4_0 matrices (TILE32-able) and a tied Q6_K
   output of 2560 x 248320 (~500 MiB); one copy needs Q4_0 matrices (a Q4_K_M Qwen cannot use it; the requant's
