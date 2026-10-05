@@ -1,0 +1,11 @@
+== step-2 session start Mon Oct  5 00:59:15 EDT 2026 [lvl=64 ac=false usb=false wl=false batT=341 skin=33.2 wake=Awake thermal=0 traced=0]
+binaries: 851ef182124d 705153797d28 (new old)
+placement npu: IDENTICAL (9 lines, exit 0/0)
+placement cpu: IDENTICAL (8 lines, exit 0/0)
+proof A: exit=0/0 bufs=[CPU=205.08 HTP0=1525.87 ] splits=2/2 mm=tiled:3993 flat:0 hmx-mm-2d=213 errors=[] [lvl=64 ac=false usb=false wl=false batT=341 skin=33.9 wake=Awake thermal=0 traced=0]
+proof A ops: ADD:33 CONCAT:726 CPY:726 FLASH_ATTN_EXT:264 GET_ROWS:792 MUL:1452 MUL_MAT:2739 MUL_MAT_NX:1254 OPBATCH:33 RMS_NORM:2541 ROPE:528 SCALE:44 SET_ROWS:528 SSM_CONV:726 SWIGLU:990 
+proof A: PASS
+proof S: exit=0/0 bufs=[CPU=205.08 HTP0-HOST=219.75 HTP0-TILE32=1306.12 ] splits=3/3 mm=tiled:3960 flat:0 hmx-mm-2d=259 errors=[] [lvl=63 ac=false usb=false wl=false batT=342 skin=33.8 wake=Awake thermal=0 traced=0]
+proof S ops: ADD:33 CONCAT:726 CPY:726 FLASH_ATTN_EXT:264 GET_ROWS:792 MUL:1452 MUL_MAT:2706 MUL_MAT_NX:1254 OPBATCH:33 RMS_NORM:2541 ROPE:528 SCALE:44 SET_ROWS:528 SSM_CONV:726 SWIGLU:990 
+INVALID proof S: HOST=219.75MiB
+SESSION ABORTED: S proof failed

@@ -21,6 +21,8 @@ arm_env_shared() {
 }
 ARM_S_ENV="arm_env_shared"
 CAP_BYTES=$((832 * 1024 * 1024))
-# The HOST buffer holds the f32 norms/conv weights (~1 MiB, B2), plus token_embd (Q6_K, ~100 MiB) if
-# the probe accepts its GET_ROWS there (B2 "record where it landed"); above that a matrix missed TILE32.
-HOST_MAX_MIB=160
+# The HOST buffer holds the f32 norms/conv weights (~15 MiB). Session 1 (01:00) measured 219.75 MiB: the tied
+# output (LFM2 has no output.weight, so output is a TENSOR_DUPLICATED token_embd, 205 MiB) lands in HOST as a second
+# copy while token_embd stays in CPU - the duplicate FABLE-DESIGN Amendment C1 removes in step 3. Until then the gate
+# allows that one duplicate; anything above means a matrix missed TILE32.
+HOST_MAX_MIB=230
