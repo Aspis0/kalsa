@@ -1597,6 +1597,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   arithmetic/bounds bug; P1 the AoS kernel is a process-global (not per backend context) and its args are bound
   outside the plan lock; P2 the self-check launches the full 128000-row grid to check 32 rows; P2 subgroup width
   assumed 64 without an extension check (self-check covers it); P2 optional program cached before clCreateKernel.
+- **OWNER DECISION 2026-10-05 (tied output route): J(1)** - the tied lm_head stays one flat Q6_K copy in HTP0-HOST-W,
+  read in place by the GPU leg's AoS kernel inside the NPU decode (0.98 of A, ~200 MB less than option 2). Option 3
+  (raw Q6_K on the HTP, local `feat/governor-onecopy-q6raw`, 9.2 s/call) and option 2 (duplicate) are CLOSED. This
+  supersedes the 2026-10-05 option-3 choice. Consequence for step 5/6: an NPU decode on the shared copy needs the GPU
+  leg present (the binding's capability table must refuse NPU-shared decode where the OpenCL HOST leg is not
+  admitted, R2).
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
