@@ -1420,7 +1420,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   not collide with the 4b fixes. Fable's Qwen claim that GATED_DELTA_NET is CPU-only was **wrong** (HTP
   `gated-delta-net-ops.c` and OpenCL `gated_delta_net.cl` exist; correction appended under H4). Qwen still needs:
   requant KLD vs Q4_K_M first, GDN placement at S23 shapes, hop commit bytes, 521 MB lm_head time.
-- Step 4b audit: luna hit "model at capacity"; re-run on reviewer n2 (space-bunny).
+- Step 4b audit (reviewer n2, `audit-step4b-n2.md`): F1 "OOB lm_head launch" REFUTED by the orchestrator (launch =
+  upstream's, one group in dim 1); F3 confirmed (HOST route had no self-check and could import write-back over cached
+  rpcmem). Fixes `349b55f6a`..`8ccc5ffae` (deepseek, verified on disk): HOST Q6_K self-check with the compute kernel on
+  32 rows of the same bytes, HOST imports io-coherent/uncached only, admission = compute for HOST slots/views/conv
+  (n_s > 1 declined), 16 B alignment, comments. Pushed (`origin/feat/governor-onecopy` = `8ccc5ffae`). Binaries
+  `~/Projects/kalsa-artifacts-step4b-fix` (llama-bench 92bf95fa..., llama-perplexity 7ef53b3d...). S23 pending:
+  splits, G vs O tok/s, KLD (decides the A7X-guard bypass), self-check line. Leftovers in the backlog.
 - **Qwen (owner question 2026-10-05)**: the engine pieces are generic, but nothing is measured on Qwen. The local
   `Qwen3.5-4B-Q4_0-requant-from-q4km.gguf` (qwen35 hybrid) has 248 Q4_0 matrices (TILE32-able) and a tied Q6_K
   output of 2560 x 248320 (~500 MiB); one copy needs Q4_0 matrices (a Q4_K_M Qwen cannot use it; the requant's

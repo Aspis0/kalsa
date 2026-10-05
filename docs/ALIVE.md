@@ -1003,6 +1003,8 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Fable Amendment H (option 3) committed: raw Q6_K -> tiles in VTCM on the DSP (Q4_0 raw pattern), per-op host
   gate, S23 DMA-stride probe before timing. GLM codes it in worktree `kalsallama-gov-q6raw` (local branch
   `feat/governor-onecopy-q6raw`). Correction: GATED_DELTA_NET has HTP and OpenCL kernels (Fable said CPU-only).
+- Step 4b audited (reviewer n2) and fixed (`8ccc5ffae`, pushed): HOST Q6_K self-check, no write-back import for
+  HOST, admission/compute agreement. S23 run pending (battery).
 
 ## Engine release pipeline (`kalsa-server`)
 
