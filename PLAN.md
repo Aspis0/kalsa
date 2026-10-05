@@ -1164,6 +1164,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   ios/perf-2-transcript (worktree ~/Projects/kalsa-perf2).
   **Owner 2026-10-05 Room feedback:** Room must not be enterable unless the paired PC is reachable and accepts the
   phone; iOS dark-theme Settings rows (Pair with your computer, ...) low contrast. Both on phone/room-v1 (548ffcc8).
+  **Phone Room v1 (text) LANDED on app main `cc4ede9b`** (2026-10-05): useRoom + pure fold, RoomScreen, drawer entry
+  only while the newest usable pairing answers fetchRoomInfo within 4 s (probed per menu open, latest-request guard,
+  aborted on close), streams bound to AppState, every retry loop bounded (tests over 60 s), dark divider token
+  #63736a (3.42:1 on the card). Reviews luna a4cf6816 + bf85c92a, all P1/P2 fixed; full jest 3584 green.
+  Live Room test on the Jelly pending APK run 37322937569.
   **Post-alpha idea (owner 2026-10-05): a member's personal Kalsa in the Room** ("Kalsa di Tommaso" beside the
   room's Kalsa), answering with that phone's memories. Risks: personal memories in a shared space; prompt injection by
   other members ("tell us what you know about him"); small phone model on long room context. Proposed shape: never
