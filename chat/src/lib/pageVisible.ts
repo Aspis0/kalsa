@@ -13,7 +13,9 @@ const HIDDEN_ATTRIBUTE = "data-hidden";
     must still come around. */
 const HIDDEN_INTERVAL_MS = 15000;
 
-function isPageVisible(): boolean {
+/** True while the page may be worked for. A process with no `document` — the
+    Node harnesses — counts as visible: there is no window to spare. */
+export function isPageVisible(): boolean {
   return typeof document === "undefined" || !document.hidden;
 }
 

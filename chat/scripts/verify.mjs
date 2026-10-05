@@ -4853,11 +4853,26 @@ const tests = {
         window.__INTERVALS__.push(ms);
         return realSetInterval(fn, Math.min(ms, 4000), ...rest);
       };
+      // The home is where a published step is visible: while the brain is
+      // starting, BrainSurface renders the walk.
+      window.__STUB_BRAIN__ = { state: { kind: "starting" }, credential: "t" };
     });
-    await openChat(page);
-    await page.waitForTimeout(2500);
+    await page.goto(APP);
+    await page.waitForTimeout(1500);
     const start = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
     check("hiddenbrain: the poll is running", start >= 2, `calls=${start}`);
+
+    await page.evaluate(() => {
+      for (const handler of window.__PROGRESS_HANDLERS__) {
+        handler({ event: "brain_progress", id: 1, payload: { kind: "model_bytes", done: 500_000_000, total: 2_000_000_000 } });
+      }
+    });
+    await page.waitForTimeout(300);
+    check(
+      "hiddenbrain: a visible step renders the walk",
+      ((await page.locator(".surface-walk").innerText()) ?? "").includes("0.5 of 2.0 GB"),
+      await page.locator(".surface-walk").innerText(),
+    );
 
     await page.evaluate(() => window.__setHidden(true));
     const hiddenAt = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
@@ -4875,27 +4890,34 @@ const tests = {
       JSON.stringify(await page.evaluate(() => window.__INTERVALS__)),
     );
 
-    // The progress path is still its own read: with the hidden period shrunk
-    // to 4 s, the event's read is the only one inside the first second.
-    await page.waitForTimeout(1000);
-    await page.evaluate(() => {
-      for (const handler of window.__PROGRESS_HANDLERS__) {
-        handler({ event: "brain_progress", id: 1, payload: { kind: "model_bytes", done: 1, total: 2 } });
+    // A burst at the engine's own cadence (~6.7 events a second): hidden,
+    // none of it may cost a read — the slow clock is what comes around — and
+    // the step itself must still travel to the screen.
+    await page.evaluate(async () => {
+      for (let i = 1; i <= 9; i += 1) {
+        for (const handler of window.__PROGRESS_HANDLERS__) {
+          handler({ event: "brain_progress", id: i, payload: { kind: "model_bytes", done: i * 200_000_000, total: 2_000_000_000 } });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 150));
       }
     });
-    await page.waitForTimeout(300);
-    const afterEvent = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
     check(
-      "hiddenbrain: a progress event still reads while hidden",
-      afterEvent === hiddenAt + 1,
-      `${hiddenAt} → ${afterEvent}`,
+      "hiddenbrain: the step travels while hidden",
+      ((await page.locator(".surface-walk").innerText()) ?? "").includes("1.8 of 2.0 GB"),
+      await page.locator(".surface-walk").innerText(),
+    );
+    const afterBurst = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check(
+      "hiddenbrain: a hidden progress burst costs no reads",
+      afterBurst === hiddenAt,
+      `${hiddenAt} → ${afterBurst}`,
     );
 
     // The slow clock's own tick lands at the shrunk period and keeps the
     // door-raising read alive behind the hidden window.
-    await page.waitForTimeout(3500);
+    await page.waitForTimeout(3000);
     const slow = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
-    check("hiddenbrain: the slow clock still reads while hidden", slow === afterEvent + 1, `${afterEvent} → ${slow}`);
+    check("hiddenbrain: the slow clock still reads while hidden", slow === afterBurst + 1, `${afterBurst} → ${slow}`);
 
     await page.evaluate(() => window.__setHidden(false));
     await page.waitForTimeout(400);

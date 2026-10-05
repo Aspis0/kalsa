@@ -5,7 +5,7 @@ import { TABLES } from "../i18n";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { lastKnown, standingOf } from "../lib/slotGate";
-import { visibleInterval } from "../lib/pageVisible";
+import { isPageVisible, visibleInterval } from "../lib/pageVisible";
 import { logUiEvent } from "../lib/uiLog";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./SetupProgress";
@@ -325,9 +325,10 @@ function startProgress(): void {
     registration = listen("brain_progress", (step: unknown) => {
       currentStep = (step as ProgressStep) || null;
       // The step IS the bar's motion: it renders from the event itself, not
-      // from the read below, which is coalesced and may be a while behind.
+      // from the read below. Hidden, the read is skipped — a walk would cost
+      // one per event — and the slow clock still comes around for the door.
       publish();
-      void poll();
+      if (isPageVisible()) void poll();
     });
   } catch {
     lost();
