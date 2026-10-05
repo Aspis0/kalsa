@@ -1194,6 +1194,9 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   vsync = react-native-worklets 0.10.1 never wires onHostPause/onHostResume (upstream reanimated #10076, fix PR
   #10196, backport worklets-0.10.4). Fix = bump worklets 0.10.1 -> 0.10.4 (GLM b5ba60e7, branch deps/worklets-0.10.4).
   iOS Simulator backgrounded: 0% (iOS suspends). Report: scratchpad/agents/stability/WORKLETS-BG.md.
+  FIX LANDED app main `1cd2a40a` (worklets 0.10.4, lock diff worklets-only via npm 11). Jelly check 2026-10-05,
+  debuggable APK, same conditions as before (charging, home screen, 30 s): main thread 466 -> 1 tick; whole process
+  21 ticks (~0.7% of a core, was ~15%). Final 15-min unplugged batterystats run still owed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
   **Post-alpha idea (owner 2026-10-05): a member's personal Kalsa in the Room** ("Kalsa di Tommaso" beside the
