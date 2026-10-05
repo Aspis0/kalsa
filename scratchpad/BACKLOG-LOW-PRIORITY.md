@@ -148,3 +148,8 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P3: the overlay frame literal (absolute fill + zIndex 50) is duplicated in ~10 screens; extract one helper.
 - P3: roomLayout.test.ts mocks react-native minimally and stubs React hooks; it compares style objects, not layout,
   and breaks on unrelated AccountScreen imports.
+
+## Stability batch 1 (app main 88357e64; review luna ea86880d, 2026-10-05)
+- P3: a /bench send sets sendingRef before runBenchTurn appends the user message (sendHost.ts:151/161); a background
+  flush in that window persists the old list, so a process death loses the bench command. Dev-only path.
+- Open: duplicate transcript ids source not proven (warning now once per distinct set).

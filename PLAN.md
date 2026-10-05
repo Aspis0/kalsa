@@ -1183,6 +1183,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   visible in logs, smooth. Tracks: (1) Jelly background drain measured 15 min unplugged via batterystats/wakelocks/
   alarms/jobs, app vs no-app baseline; (2) scripted session log sweep (logcat + Metro) -> every Kalsa error/warning
   fixed or explained; (3) recon luna d95a69a5 -> scratchpad/agents/stability/RECON.md.
+  Stability batch 1 LANDED on app main `88357e64` (thermal/process-health sampling paused in background, partial
+  history persisted when backgrounded mid-turn, require cycle broken, log noise once-per-reason, terminal catches;
+  review luna ea86880d clean). **Jelly measured 2026-10-05: Kalsa backgrounded (home screen, unplugged) burns ~7%
+  of one core continuously (67 s CPU in 15 min), all on the Android MAIN thread, 0 frames drawn; persists in a
+  fresh chat (not the nudge pill).** Suspect a never-stopping native/reanimated frame driver or the KalsaLifecycle
+  main-looper timer; debuggable APK run 37341189685 for simpleperf. Long-chat frames after virtualization: p50/p90/
+  p95/p99 16/25/28/34 ms (was 17/34/34/34), frames drawn 1367 vs 5207 for a comparable answer.
   **Post-alpha idea (owner 2026-10-05): a member's personal Kalsa in the Room** ("Kalsa di Tommaso" beside the
   room's Kalsa), answering with that phone's memories. Risks: personal memories in a shared space; prompt injection by
   other members ("tell us what you know about him"); small phone model on long room context. Proposed shape: never
