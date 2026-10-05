@@ -981,6 +981,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   832 MiB cap. NPU A 890.1 / 22.58, S 877.2 / **17.01**, S2 883.4 / **17.39**, A2 892.5 / 22.40; KLD 0.005313 vs
   0.005329. Cause: the tied output (token_embd duplicate, Q6_K 205 MiB) sits in HOST and its lm_head runs on the CPU.
   RAM (Pss anon + file + dma-buf): NPU model 1.96 GB, CPU model 1.74 GB, one copy 1.98 GB (incl. the duplicate).
+- Tied output, option 1 (token_embd Q6_K -> Q4_0, 265/266 tensors identical, `raw/embd-q4_0-93fb3c097.grep`):
+  lm_head back on the HTP, shared 896.4-896.9 / 23.08-23.54 = two-copy 896.7-899.0 / 22.98-23.39; mean KLD
+  **0.036597** NPU and **0.033649** CPU (ship 0.005313 / 0.001295), CPU same top p 89.8 %. Quality loss.
 
 ## Engine release pipeline (`kalsa-server`)
 

@@ -1361,7 +1361,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (17.0-17.4 vs 22.4-22.6 tok/s): LFM2's tied output (a duplicate of token_embd, Q6_K 205 MiB) lands in HOST and its
   lm_head runs on the CPU; today's two-copy NPU model keeps that duplicate on the HTP. **Owner decision pending**:
   205 MiB output duplicate on the HTP (keeps NPU decode) vs no duplicate (decode 0.77) vs engine work so the NPU reads
-  the one copy (Fable asked for options, 2026-10-05).
+  the one copy. Fable Amendment D ranks: (1) token_embd to Q4_0 in TILE32, (2) accept the duplicate on HTP0,
+  (3) HTP reads flat Q6_K from HOST (DSP work, est. ~0.95), (4) rejected. **Option 1 measured 2026-10-05**: speed
+  = two-copy (SQ 896.4-896.9 / 23.1-23.5) but KLD 0.0366 NPU / 0.0336 CPU vs 0.0053 / 0.0013 (CPU same top p 89.8 %
+  vs ~97 %) - a naive Q6_K->Q4_0 requant is a quality loss. Coordinator's reading: option 2 is the cheap correct
+  one, option 3 the engine path to a true single copy; owner decides.
 - **Step 3 (code in, audit running)**: `be1781cee`..`79f72bb16` (GLM): pin = live TILE32/HOST buffer count (R2
   fallback), scheduler + CPU-compute guards for non-native weights, loader rule "a duplicated tensor reuses the
   original from a host buffer or the load fails" (this rule fixes the lm_head on the CPU - it depends on the decision

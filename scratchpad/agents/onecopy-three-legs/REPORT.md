@@ -241,3 +241,17 @@ Verdict: placement, cap and memory as designed; **NPU decode with one copy is 0.
 output cannot stay on the NPU without a second copy**. This is the open decision of step 2 (owner): a 205 MiB
 duplicate of the output on the HTP (today's two-copy NPU model already carries it), or the NPU learning to read the
 output (or the embedding lookup) from the one copy.
+
+### Amendment D option 1, measured: token_embd requantized Q6_K -> Q4_0 (`step2-s23/raw/embd-q4_0-93fb3c097.grep`)
+
+Model `ship-embd-q4_0.gguf` (sha `96024d7c...`, 1526310944 B): `llama-quantize --allow-requantize
+--token-embedding-type q4_0` on the ship GGUF; 265 of 266 tensors byte-identical, only token_embd changed (Q6_K
+205 MiB -> Q4_0 140.6 MiB). Same binaries and env as step 2, 01:49-02:16.
+- Placement: CPU 140.62 + HTP0-HOST 1.00 + HTP0-TILE32 1446.75 MiB (tiles + the Q4_0 output duplicate, 140 MiB);
+  2 splits, op multiset identical to the two-copy ship model: the lm_head is back on the HTP.
+- NPU, `-t 5 -r 3`: AQ two-copy 899.0 / 23.39, SQ shared 896.4 / 23.08, SQ2 896.9 / 23.54, AQ2 896.7 / 22.98 -
+  shared = two-copy, and both ~3 % above the ship model's 22.5 (fewer lm_head bytes).
+- **Quality: mean KLD vs the ship model's CPU base logits 0.036597 on the NPU (ship model 0.005313) and 0.033649
+  on the CPU `-nr` (ship 0.001295); CPU same top p 89.8 % (ship ~97 %), max KLD 0.506.** A naive Q6_K -> Q4_0
+  requant of the tied embedding costs ~7x (NPU) / ~26x (CPU) the KLD; option 1 as measured is a quality loss.
+  Not tried: requant from a higher-precision source or with an imatrix.
