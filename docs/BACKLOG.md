@@ -109,3 +109,8 @@ they are promoted.
 - P3: the paired route (`choose`) at 7.0 GB is untested, and the CLI cannot express 7.0e9 (`crates/kalsa-catalog/src/bin/kalsa-catalog.rs:205`).
 - P3: the printouts show the raw 65 536 beside a row priced at 32 768 (`crates/kalsa-catalog/src/bin/kalsa-catalog.rs:40-46`), and the audit's footprint carries no window label (`crates/kalsa-catalog/src/bin/kalsa-catalog-audit.rs:163-166`).
 - P3: `fits` and `footprint_bytes` are re-exported cap-free (`crates/kalsa-catalog/src/lib.rs:70`), so every caller applies `priced_context` by hand and the mistake it prevents stays spellable.
+
+## Desktop mini apps (review of ce840b19)
+- P3: pros/cons silently keeps the first 50 rows and still answers "Miniapp created" (`chat/src/lib/miniapp/prosCons.ts:35`) — inherited from the phone builder.
+- P3: the 64 KiB block cap counts UTF-16 characters, not bytes (`chat/src/lib/miniapp/build.ts:27`, `normalize.ts:80`) — same as the phone; new input is bounded by the 4 096-char argument cap.
+- P3: miniapp labels, controls and the tool's result/error text are English only, where the phone passes localized strings (`prosCons.ts:12`, `chat/src/lib/tools/createMiniapp.ts:14`) — translation work is post-alpha.
