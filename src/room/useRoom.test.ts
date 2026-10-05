@@ -283,6 +283,26 @@ describe("reading the room", () => {
     expect(now().rows.map((row) => row.seq)).toEqual([0, 1]);
   });
 
+  test("a read the room keeps refusing with epoch_changed stops after one retry", async () => {
+    (fetchRoomInfo as jest.Mock).mockReset();
+    (fetchRoomInfo as jest.Mock).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "epoch_changed",
+        message: "The room's transcript restarted; drop what was cached and read it again.",
+      },
+    });
+    await mount();
+    // roomApi forgets the epoch on the first 409, so the second read goes bare
+    // and learns the new one; a third answer of the same kind is the error
+    // state's, never another read.
+    expect(fetchRoomInfo).toHaveBeenCalledTimes(2);
+    expect(now().feed.status).toBe("error");
+    await settle();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetchRoomInfo).toHaveBeenCalledTimes(2);
+  });
+
   test("a read that fails is the error state; a reload is the way out", async () => {
     (fetchRoomInfo as jest.Mock).mockResolvedValueOnce({
       ok: false,

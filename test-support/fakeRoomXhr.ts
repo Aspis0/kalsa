@@ -8,7 +8,7 @@ import type { XhrLike } from "../src/engine/remote/openaiTransport";
 
 const HEADERS_RECEIVED = 2;
 const LOADING = 3;
-const DONE = 4;
+export const DONE = 4;
 
 export class FakeRoomXhr implements XhrLike {
   static instances: FakeRoomXhr[] = [];

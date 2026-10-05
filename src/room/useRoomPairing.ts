@@ -18,11 +18,19 @@ import {
   subscribePairingRemoved,
 } from "../pairing/pairingCredentialStore";
 import type { PairingRecord } from "../pairing/pairingRecord";
-import { fetchRoomInfo } from "./roomApi";
+import type { RoomCallOptions } from "./roomApi";
 
 /** How long the entry's reachability check may take: the menu's own
  *  question, not a chat turn's. */
 const ENTRY_PROBE_TIMEOUT_MS = 4_000;
+
+/** Required on first use, as the pairing map's own keystore is: this hook
+ *  hangs off the drawer, and importing the room's network stack at module
+ *  scope would load it for every suite that renders the menu. */
+function probeRoom(options: RoomCallOptions): ReturnType<typeof import("./roomApi").fetchRoomInfo> {
+  const { fetchRoomInfo } = require("./roomApi") as typeof import("./roomApi");
+  return fetchRoomInfo(options);
+}
 
 /** The record a room may open: the newest one a 401 has not retired. */
 export function pickRoomPairing(records: readonly PairingRecord[]): PairingRecord | null {
@@ -57,7 +65,7 @@ export function useRoomPairing(open: boolean): { localId: string | null } {
           // is the probe — the same route the screen opens with — and a 401
           // marks the record removed on the way (roomApi's own path), which
           // re-asks this question with a shorter list of computers.
-          const info = await fetchRoomInfo({
+          const info = await probeRoom({
             roomLocalId: chosen.localId,
             signal: probe.signal,
           });

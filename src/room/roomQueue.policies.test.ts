@@ -268,6 +268,37 @@ test("two listeners on one shelf are one attempt per round, not one per join", a
   leaveStream();
 });
 
+test("a minute of an unreachable room costs the backoff's band, and a 401 ends it", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
+  (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValue(
+    errorResult("unreachable", "remote_brain_network"),
+  );
+  await enqueueRoomMessage(LOCAL, { text: "off the air" });
+  await settle();
+
+  await jest.advanceTimersByTimeAsync(60_000);
+  await settle();
+  const attempts = (postRoomMessage as jest.Mock).mock.calls.length;
+  expect(attempts).toBeGreaterThan(3); // it does keep trying…
+  expect(attempts).toBeLessThanOrEqual(9); // …on 0.5+1+2+4+8+15+15+15 s, never hot
+
+  // The room refuses this phone: the message keeps the door's sentence and
+  // NOTHING retries again — two more minutes change nothing.
+  (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValue(
+    errorResult("removed", "This phone is no longer a member of the room."),
+  );
+  await flushRoomQueue(LOCAL);
+  await settle();
+  const atRefusal = (postRoomMessage as jest.Mock).mock.calls.length;
+  await jest.advanceTimersByTimeAsync(120_000);
+  await settle();
+  expect((postRoomMessage as jest.Mock).mock.calls.length).toBe(atRefusal);
+  await expect(shelf()).resolves.toMatchObject([
+    { state: "queued", error: { code: "removed" } },
+  ]);
+  leave();
+});
+
 test("the last unsubscribe takes the session — timer included — and the next subscribe probes", async () => {
   const leave = subscribeRoomQueue(LOCAL, () => undefined);
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>)
