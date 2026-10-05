@@ -1016,7 +1016,7 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Culprit: upstream `07fc586e3` "hexagon: dynamic quantizer improvements" (#29395): parent 0.005357, commit 0.044953.
   Engine main must not reach the app pin until fixed or reverted.
 - Root cause confirmed: reverting ONLY the Q8_0 activation quantizer (`quantize_block_f32_q8_0_tiled`) on `07fc586e3`
-  gives KLD 0.005357, bit-identical to the parent. Fix = carry that revert onto engine main.
+  gives KLD 0.005357, bit-identical to the parent. Fixed on engine main `837334a74` (S23 KLD 0.005357, pushed).
 - Option 3 measured: correct (lm_head on the HTP, splits 2) but 9.2 s per lm_head call -> tg128 0.11 vs 22.8. Fable
   Amendment J requested; owner decides the tied-output route after it.
 

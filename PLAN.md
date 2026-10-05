@@ -1528,8 +1528,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   **ROOT CAUSE CONFIRMED (S23 16:30, `bisect-npu-kld/revert-q8-c6ae26838.grep`)**: `07fc586e3` with ONLY
   `quantize_block_f32_q8_0_tiled` restored to its parent (GLM, local `exp/revert-q8-quantizer` `c6ae26838` in
   `kalsallama-bisect`; skel `cfec2b00d40f`) gives KLD **0.005357** / PPL 34.264060 / same top p 96.3 % - bit-identical
-  to the parent. The rest of #29395 (DMA/staging) is innocent. Next: carry that one-function revert onto engine main
-  (and the governor branch), then decide with Marco whether to report upstream (public: his call).
+  to the parent. The rest of #29395 (DMA/staging) is innocent. **FIXED ON ENGINE MAIN `837334a74`** (cherry-pick onto
+  `bc5f0207c`, luna audit clean: no reader expects per-32 scales; P2 leftover in BACKLOG): S23 KLD **0.005357**
+  (`bisect-npu-kld/main-q8fix-837334a74.grep`), pushed to the fork. Still to do: carry it onto `feat/governor-onecopy`
+  once deepseek's offload_op work lands; upstream report is Marco's call. The app-pin bar on engine main is lifted
+  for this regression.
 - **Option 3 MEASURED (S23 13:50, `opt3-s23/raw/session2-23dbab22f.grep`)**: correct, but the lm_head costs **9.2 s per
   call** (two-copy ~4.8 ms): S pp512 52.6 / tg128 **0.11** vs A 953 / 22.8. Fable's 0.9-0.95 estimate was off by ~3
   orders of magnitude (the n2 audit's P1 flagged it). S KLD killed (hours). n_prefetch guard fix `23dbab22f` (GLM)
