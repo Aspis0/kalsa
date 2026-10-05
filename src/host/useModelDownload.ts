@@ -27,7 +27,7 @@
  * cannot run; their Settings buttons keep serving `shell.notice.voiceDownload`
  * / `shell.notice.embeddingDownload`.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 
@@ -95,8 +95,7 @@ export function useModelDownload(deps: ModelDownloadDeps) {
   const [downloadedById, setDownloadedById] = useState<Record<string, boolean>>({});
   const markDownloaded = (id: string) =>
     setDownloadedById((prev) => ({ ...prev, [id]: true }));
-  const applyDownloadedScan = (map: Record<string, boolean>) =>
-    setDownloadedById(map);
+  const applyDownloadedScan = useCallback((map: Record<string, boolean>) => setDownloadedById(map), []);
 
   const downloadAbortRef = useRef<AbortController | null>(null);
 
