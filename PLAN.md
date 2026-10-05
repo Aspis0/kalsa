@@ -1164,6 +1164,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   ios/perf-2-transcript (worktree ~/Projects/kalsa-perf2).
   **Owner 2026-10-05 Room feedback:** Room must not be enterable unless the paired PC is reachable and accepts the
   phone; iOS dark-theme Settings rows (Pair with your computer, ...) low contrast. Both on phone/room-v1 (548ffcc8).
+  **Post-alpha idea (owner 2026-10-05): a member's personal Kalsa in the Room** ("Kalsa di Tommaso" beside the
+  room's Kalsa), answering with that phone's memories. Risks: personal memories in a shared space; prompt injection by
+  other members ("tell us what you know about him"); small phone model on long room context. Proposed shape: never
+  autonomous; owner taps "Ask my Kalsa", gets a private draft, edits, then chooses to post it labelled as his
+  Kalsa. Needs a new author kind in ROOM-PROTOCOL and the reserved-name rule updated. Not before alpha.
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
