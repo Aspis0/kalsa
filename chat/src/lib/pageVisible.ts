@@ -5,7 +5,7 @@
  * nobody looking.
  */
 
-import { listen } from "./tauri";
+import { available, invoke, listen } from "./tauri";
 
 const HIDDEN_ATTRIBUTE = "data-hidden";
 
@@ -57,6 +57,20 @@ function announce(): void {
   for (const change of [...changes]) change();
 }
 
+/** The window's state as the backend answers it now. The read a reload needs:
+    the page starts with no history of the events it missed. */
+function askWindowState(): void {
+  if (!available()) return;
+  void invoke<boolean>("window_hidden")
+    .then((hidden) => {
+      windowHidden = hidden === true;
+      announce();
+    })
+    // A binary without the command leaves the events' word alone: this read
+    // is an improvement, not something the clocks below rest on.
+    .catch(() => {});
+}
+
 /** Subscribes the two sources once. The backend's listener is a cheap no-op
     outside the webview (`lib/tauri`), so a browser sees only the page's own
     event. */
@@ -65,11 +79,16 @@ function keepListening(): void {
   listening = true;
   lastHidden = pageHidden();
   document.addEventListener("visibilitychange", announce);
+  // The read waits for the subscription: a change landing between the two
+  // would otherwise be reported by neither. A subscription that never lands
+  // costs the read alone — the page keeps the events it has.
   void listen(WINDOW_SHOWN_EVENT, (payload) => {
     const carried = (payload ?? {}) as { hidden?: unknown };
     windowHidden = carried.hidden === true;
     announce();
-  });
+  })
+    .then(askWindowState)
+    .catch(() => {});
 }
 
 /** Reflects visibility into the root element and keeps it current. The app

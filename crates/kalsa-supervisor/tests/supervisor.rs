@@ -93,24 +93,31 @@ fn a_server_dying_after_it_served_is_reported_without_taking_us_down() {
 }
 
 #[test]
-fn stop_takes_the_stdin_route_when_the_child_listens_for_it() {
+fn stop_signals_the_child_without_waiting_a_grace_out_first() {
     let port = unique_port();
     clear_files(port);
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
     let mut cfg = config("fake_server.sh", port);
-    // Generous grace: the child must die from the closed pipe, not from the
-    // signal escalation that would follow it.
+    // Generous grace: the child ignores stdin and leaves on SIGTERM, so a
+    // walk that waited a grace out before signalling it would be seen here.
     cfg.stop_grace = Duration::from_secs(3);
+    let grace = cfg.stop_grace;
     let _ = supervisor.start(cfg);
     wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
 
     let pid = recorded_pid(port);
+    let began = Instant::now();
     supervisor.stop();
     // Stopping is a request: the state follows it on the worker thread, which
     // is what keeps the window responsive while a child is being reaped.
     wait_for(&supervisor, |s| *s == ServerState::Stopped);
+    let took = began.elapsed();
     assert!(wait_dead(pid), "child survived the graceful stop");
+    assert!(
+        took < grace,
+        "the stop took {took:?}: SIGTERM is the first rung, with no grace waited out before it"
+    );
     supervisor.shutdown();
 }
 
@@ -121,12 +128,11 @@ fn stop_escalates_to_sigkill_for_a_wedged_child() {
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
     let supervisor = Supervisor::new();
     let cfg = config("fake_stubborn.sh", port);
-    // Named so the walk's cost can be asserted against it: this child never
-    // reads stdin and ignores SIGTERM, so it can only be gone after BOTH
-    // graces expired and SIGKILL landed. The escalation is a SUCCESS — the
-    // state ends `Stopped` (§9: a killed engine is a proved-gone engine) —
-    // and the grace expiries below are the registration of what the walk
-    // spent, instead of the old silence.
+    // Named so the walk's cost can be asserted against it: this child ignores
+    // SIGTERM, so it can only be gone after its grace expired and SIGKILL
+    // landed. The escalation is a SUCCESS — the state ends `Stopped` (§9: a
+    // killed engine is a proved-gone engine) — and the grace expiry below is
+    // the registration of what the walk spent, instead of the old silence.
     let grace = cfg.stop_grace;
     let _ = supervisor.start(cfg);
     wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
@@ -137,8 +143,8 @@ fn stop_escalates_to_sigkill_for_a_wedged_child() {
     wait_for(&supervisor, |s| *s == ServerState::Stopped);
     assert!(wait_dead(pid), "SIGTERM-ignoring child was not killed");
     assert!(
-        began.elapsed() >= grace * 2,
-        "the walk finished in {:?}: both graces ({:?} each) must have expired before SIGKILL",
+        began.elapsed() >= grace,
+        "the walk finished in {:?}: its SIGTERM grace ({:?}) must have expired before SIGKILL",
         began.elapsed(),
         grace
     );

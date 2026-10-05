@@ -14,7 +14,8 @@ use std::time::Duration;
 /// server is never exposed on the LAN (plan, section 7).
 pub(crate) const HOST: &str = "127.0.0.1";
 
-/// How long the server gets to exit after stdin EOF, and again after SIGTERM.
+/// How long the server gets to exit after SIGTERM — and, on the pid-only
+/// walk that has no handle to the child, after SIGKILL too.
 pub const DEFAULT_STOP_GRACE: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Debug)]

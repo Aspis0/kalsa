@@ -5117,6 +5117,66 @@ const tests = {
 
     await browser.close();
   },
+
+  // A reload starts from nothing: the page's native flag is false again and
+  // the events it missed are gone. The command is the one read that closes
+  // that hole — the page is hidden from its first paint, with no event at
+  // all, which is what a window minimized before it loaded looks like.
+  async hiddenonload() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, okSettings("hidden-on-load-demo"));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await page.addInitScript(installHiddenSwitch);
+    await page.addInitScript(() => {
+      const core = window.__TAURI__.core;
+      const base = core.invoke;
+      window.__BRAIN_STATE_CALLS__ = 0;
+      window.__WINDOW_HIDDEN_CALLS__ = 0;
+      core.invoke = (command, args) => {
+        if (command === "brain_state") window.__BRAIN_STATE_CALLS__ += 1;
+        if (command === "window_hidden") {
+          window.__WINDOW_HIDDEN_CALLS__ += 1;
+          return Promise.resolve(true);
+        }
+        return base(command, args);
+      };
+      // The test's own shrink of the slow hidden cadence, as above: the app
+      // still asks for its real period, which is recorded.
+      const realSetInterval = window.setInterval.bind(window);
+      window.__INTERVALS__ = [];
+      window.setInterval = (fn, ms, ...rest) => {
+        window.__INTERVALS__.push(ms);
+        return realSetInterval(fn, Math.min(ms, 4000), ...rest);
+      };
+      window.__STUB_BRAIN__ = { state: { kind: "starting" }, credential: "t" };
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1500);
+    check(
+      "hiddenonload: the window's state was asked once",
+      (await page.evaluate(() => window.__WINDOW_HIDDEN_CALLS__)) === 1,
+      `${await page.evaluate(() => window.__WINDOW_HIDDEN_CALLS__)} calls`,
+    );
+    check(
+      "hiddenonload: the root says hidden with no event at all",
+      await page.evaluate(() => document.documentElement.hasAttribute("data-hidden")),
+    );
+    check(
+      "hiddenonload: the clock asked for the slow period",
+      await page.evaluate(() => window.__INTERVALS__.includes(15000)),
+      JSON.stringify(await page.evaluate(() => window.__INTERVALS__)),
+    );
+    // The visible period is 2 s; a read inside this wait would mean the fast
+    // clock is armed behind a window the page already knows is out of sight.
+    const hiddenAt = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    await page.waitForTimeout(2500);
+    const slow = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenonload: the fast clock never armed", slow === hiddenAt, `${hiddenAt} → ${slow}`);
+
+    await browser.close();
+  },
 };
 
 /**

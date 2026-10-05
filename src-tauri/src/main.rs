@@ -2186,7 +2186,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_send_log,
             brain_previous_session_crashed,
             brain_log_webview_error,
-            ui_event::brain_log_event
+            ui_event::brain_log_event,
+            window_visibility::window_hidden
         ])
         .setup({
             let guard = std::sync::Arc::clone(&guard);

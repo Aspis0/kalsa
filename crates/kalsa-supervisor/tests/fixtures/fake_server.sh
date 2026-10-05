@@ -17,7 +17,9 @@ if [ -n "$port" ]; then
   echo $$ > "${TMPDIR:-/tmp}/kalsa-fake-$port.pid"
 fi
 
-# Waits for stdin EOF: closing the supervisor's end of the pipe is the stop
-# signal, and this is the whole reason stdin is piped rather than /dev/null.
-cat > /dev/null
-exit 0
+# Ignores stdin, the way llama-server does: the supervisor's closed pipe is
+# not a stop signal for it, and SIGTERM is what ends it. The supervisor still
+# closes its end of that pipe first; no grace is waited out behind the close.
+while :; do
+  sleep 1
+done

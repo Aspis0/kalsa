@@ -432,9 +432,9 @@ instead of returning an empty conversation.
 - **Declared behaviour, not fixed**: a live door can stand beside `Stopped`. Both senders lower the
   door *before* they send (`brain_stop` before `supervisor.stop`, the app-exit handler before
   `supervisor.shutdown`), but `Supervisor::stop` returns at once — the state follows on the next
-  read — and the worker spends the teardown walking the stop grace out — stdin EOF → grace →
-  SIGTERM → grace → SIGKILL, each wait bounded by `stop_grace` (2.5 s as `startup.rs` configures
-  it), so the window is up to **two** graces plus the reap — before it writes `Stopped`. A
+  read — and the worker spends the teardown walking the stop grace out — SIGTERM → grace →
+  SIGKILL, the wait bounded by `stop_grace` (2.5 s as `startup.rs` configures it), so the window
+  is up to **one** grace plus the reap — before it writes `Stopped`. A
   `brain_state` poll landing in that window still reads `Running`, enters the Running arm and
   re-raises the door the stop had lowered: **the poll is the reconciler**, and that is the whole
   mechanism. So a door that is up can coexist with `Stopped` for up to one poll interval

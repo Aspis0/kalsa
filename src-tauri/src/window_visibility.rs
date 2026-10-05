@@ -56,6 +56,15 @@ fn told_state() -> Option<bool> {
     }
 }
 
+/// The page's own read, for a window that has just loaded: the state NOW,
+/// taken from the window itself and not from [`TOLD`] — a reload forgot
+/// every word the events said, and one emitted while the page was attaching
+/// went nowhere.
+#[tauri::command]
+pub(crate) fn window_hidden(window: Window<Wry>) -> bool {
+    out_of_sight(window.is_minimized().ok(), window.is_visible().ok())
+}
+
 /// The window's events, from the app's own handler. A minimize, a restore or
 /// a show arrives as a resize, a move or a focus change — the three a window
 /// reports when its state changes — and the frame's own answer decides, so a

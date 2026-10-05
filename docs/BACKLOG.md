@@ -122,7 +122,7 @@ they are promoted.
 
 ## Idle work (batch of 2026-10-05)
 - P2: the phone's door is raised by the UI's `brain_state` poll (`src-tauri/src/main.rs` `brain_state` → `start_door_if_paired`), so the door's life depends on a webview timer; it belongs in Rust, on the supervisor's state change. Today the hidden window keeps a 15 s poll for this reason.
-- P2: WebView2 may never fire `visibilitychange` on minimize (Tauri #10592), so on Windows the hidden-window savings may not happen; a Tauri window-event bridge would fix it. Measure on the Lenovo first.
+- P2: the window-event bridge to the page exists (`src-tauri/src/window_visibility.rs`, its `window_hidden` read and `chat/src/lib/pageVisible.ts`), so the hidden-window savings no longer wait on WebView2 firing `visibilitychange` (Tauri #10592); nothing has yet seen a real minimized window announce itself — the Lenovo run is that live check.
 - P3: the Brain page's capability retry (`chat/src/surfaces/BrainSurface.tsx:110`, 1 s while capability is null/migrating) and `useElapsed` (1 s during the setup walk) ignore page visibility.
 - P3: the Room event pump's stop can lag 30 s (`src-tauri/src/room_events.rs:50`) — `kalsa-room`'s notify is crate-private, so no wake reaches it; the thread keeps its AppHandle until then.
 - P3: `queue.rs` expiry test measures from inside the spawned thread (`crates/kalsa-door/src/queue.rs:174`), so a late thread start can flake the ≥250 ms bound.

@@ -704,9 +704,8 @@ fn stop(
                     child::Termination::Gone { needed: child::Step::Kill }
                 );
                 let walk = format!(
-                    "spawned child pid {pid}, {:?} per rung ({}): {report:?}",
-                    run.config.stop_grace,
-                    child::RUNGS
+                    "spawned child pid {pid}, {}: {report:?}",
+                    child::walk_line(run.config.stop_grace)
                 );
                 if let Some(file) = instance {
                     file.release();

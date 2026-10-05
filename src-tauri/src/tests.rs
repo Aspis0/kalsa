@@ -1787,10 +1787,9 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
     // rather than narrowed: it is the blip `docs/PLAN-DISK-TIER.md` T5
     // declared, and §9's `Stopping` bullet is this code implementing it.
     // What remains of the walk is the teardown itself: for a SPAWNED engine
-    // the worker still spends stdin EOF, a stop grace (`stop_grace`, 2.5 s as
-    // `startup.rs` configures it — `llama-server` reads no stdin, so the
-    // first grace is spent whole), SIGTERM, a second grace, SIGKILL before it
-    // writes `Stopped`, and an engine adopted blind has no child to walk:
+    // the worker still spends SIGTERM, a stop grace (`stop_grace`, 2.5 s as
+    // `startup.rs` configures it), SIGKILL before it writes `Stopped`, and an
+    // engine adopted blind has no child to walk:
     // there the stop writes `Stopped` at once with the engine still
     // listening, which is declared in the plan (T5) and is why this sentence
     // is about the spawned path only. One residual, declared: the exit

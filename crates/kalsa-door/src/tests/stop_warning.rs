@@ -35,6 +35,13 @@ fn wake_warnings_for(address: SocketAddr, since: usize) -> Vec<String> {
         .collect()
 }
 
+/// Whether the door still takes connections: after a stop, the listener the
+/// acceptor owned must be closed — which is the acceptor having left rather
+/// than sitting in `accept`.
+fn still_accepting(address: SocketAddr) -> bool {
+    std::net::TcpStream::connect_timeout(&address, Duration::from_millis(200)).is_ok()
+}
+
 /// The ordinary door: a stop wakes its acceptor out of the blocking accept,
 /// and says nothing about it.
 #[test]
@@ -50,6 +57,10 @@ fn a_first_stop_that_wakes_the_acceptor_is_silent() {
         assert!(
             warned.is_empty(),
             "a wake that landed is not news: {warned:?}"
+        );
+        assert!(
+            !still_accepting(address),
+            "the acceptor is still taking connections after the stop"
         );
     });
 }
