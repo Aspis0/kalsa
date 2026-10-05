@@ -1202,6 +1202,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   requeue with backoff, composer retry reuses the client id (no duplicate), shelves of dropped pairings deleted (no
   orphan plaintext), KALSA_ROOM_SEND step log (op/code/ids8/ms, no text). Root cause of the live "no row, no key,
   no dial" NOT proven; the next Jelly run must show a row or a red line + the KALSA_ROOM_SEND trail (APK 37365971613).
+  ROOT CAUSE PROVEN 2026-10-05 on the Jelly (APK 82aef4c2): red line + `KALSA_ROOM_SEND op=fail code=storage_error`
+  8 ms after enqueue. `roomQueueStore.ts:67` lazy-required AsyncStorage WITHOUT `.default` (every sibling site has
+  it), so getItem was undefined on device: no phone Room message had ever left the phone (iOS too). Jest hid it:
+  the hand-rolled mocks put getItem at module top level. FIX LANDED app main `480f4592` (luna 0492cd6b + 480f4592:
+  `.default`, module-shape regression test proven to fail on the old line, room suites moved to the real
+  `{__esModule, default}` shape; review space-bunny 0014d477; leftovers in BACKLOG). Full jest 358/3665, tsc,
+  harness EXIT=0. APK 37382459242 for the Jelly re-test.
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
