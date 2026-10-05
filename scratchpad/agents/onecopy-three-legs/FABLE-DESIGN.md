@@ -641,6 +641,74 @@ per layer and lm_head on the GPU". KV on OpenCL needs `leg_devices`, which needs
 step 5. Wrong in the plan: the GPU leg was declared "ON and correct" on mat-vec parity; a leg is a token, and the
 token was 70 % CPU.
 
+## Amendment H (2026-10-05): option 3, the HTP reads the flat Q6_K tied output from HOST
+
+Read at ee3dfde49 (main merged). The raw path today: a raw weight is a quantized tensor without `HTP_TENSOR_REPACK`
+(`htp/matmul-ops.c:268-278`); for Q4_0 the job DMAs one 32-row group of raw rows into a prefetch slot
+(`hvx_mm_push_raw_q4_0`, `:255-259`), converts it in VTCM into the tiled layout (`q4_0_raw_rows_to_tiles`,
+`:261-263`, scalar C: `q4_0-raw-tile.h` has no HVX intrinsic) and runs the ordinary tiled dot (`hvx_mv_2d_raw_q4_0`,
+`:796`; the slot holds raw rows or tiles alike, `:246-249`). Slots are `n_k_tiles * aligned_tile_size` per prefetch
+(`:300-320`), `n_prefetch` 2..16 (`matmul-ops.h:54`, chosen at `ggml-hexagon.cpp:5026-5041`). Host side the gate
+admits only 2-D Q4_0 MUL_MAT and only with `opt_mm_select == 1` (`:2478-2485`; default 2, `:120`). Q6_K tile: 896 B
+(`matmul-ops.h:39,48`), laid out by `repack_q6_K_tiled` (`ggml-hexagon.cpp:1302-1352`): per 32x32 K-tile a 512 B
+low-nibble plane, a 256 B high-2-bit plane and 64 fp16 sub-block scales `d * scales[kt_local*2+sub]`, one superblock
+spanning 8 K-tiles; read by `tiled_vec_dot_q6_k_32x1` via `unpack_q6_k_group` (`hvx-mm-kernels-tiled.h:472, 885`).
+After 4b, `token_embd` (Q6_K) sits in HOST in shared mode (6d623b76b) and the GPU reads it with the plain kernel.
+
+**H1. DSP work.** One new header `htp/q6_K-raw-tile.h`, `q6_K_raw_rows_to_tiles(tiles, stride, rows, n_k, n_rows)`,
+byte-identical to the host packer's loop (`:1334-1352`, same `d * scale` fp16 rounding), plus the Q6_K twins of the
+Q4_0 helpers (`hvx_mm_push_raw_q6_K`, `hvx_mm_raw_q6_K_to_tiles`) and the two job instantiations
+`hvx_mv_2d_raw_q6_k` / `hvx_mm_2d_raw_q6_k` through the existing `MATVEC/MATMUL_2D_TILES_IMPL` raw argument
+(`:622, :796` pattern). Dispatcher `:1730`: `is_raw` already covers Q6_K in `htp_mm_has_raw_weight`; the HVX switch
+gains the Q6_K raw cases next to Q4_0's; the HMX path never sees a raw Q6_K (host gate below). Slot fit: raw rows
+`n_rows * (K/256) * 210 B` vs tiles `(K/32) * 896 B`: LFM2 K=2048, 53760 vs 57344 B; Qwen K=2560, 67200 vs 71680 B;
+raw < tiles, so the Q4_0 argument (`:246-249`) holds and the slot sizing is unchanged. VTCM: per thread
+`n_prefetch * slot`; at 16 x 57 KiB x 6 threads ~5.4 MiB worst case, inside the v73 budget the chooser already
+respects. DMA: raw Q6_K rows are 1680 B (LFM2) / 2100 B (Qwen), NOT 128-aligned, unlike Q4_0's 1152 B; the 2-D DMA
+stride must be checked on the S23 with a one-row probe before any timing (the 09/30 audit's stride hypothesis).
+Host side: `raw_weights_supported` admits `MUL_MAT, src0 Q6_K, ne0 % 256 == 0` at any `opt_mm_select` (the raw Q6_K
+path is HVX-only, so the clause must be "not HMX for this op", not "HMX off globally"), and `ne11 <= 32` so a
+perplexity run's 512-wide lm_head stays on the CPU rather than needing a raw HMX path. Admission at batch 1 is the B2
+word (`offload_min 1, ops ALL`): the lm_head is a MUL_MAT on a host weight, "1.off" hands it to the HTP once
+`supports_op` says yes. Expected decode: two-copy had the lm_head on the DSP at 4.8 ms of a ~44 ms token; the raw path
+adds the conversion (Q4_0 raw whole-model ran 0.70 of tiled with scalar conversion, and Q6_K's per-element scatter is
+heavier): 0.9-0.95 of two-copy, i.e. ~20-21 tok/s vs 17 today, if the conversion stays scalar; vectorise only if the
+measured number is below 0.95. Qwen's lm_head is 248320 x 2560 = 521 MB raw, ~35-40 % of its token's bytes: there
+the scalar conversion is not acceptable and the HVX version is the plan, not the fallback.
+
+**H2. Loader.** No change: `token_embd` already lands in HOST through the input-role list (6d623b76b), and the
+step-3 duplicate scan reuses a host original. Audit: no code change; the HOST byte count on the INFO line grows by
+205 MiB, and the REPORT table should say so, so nobody reads it as a regression.
+
+**H3. Proof.** Host: `tests/test-hexagon-q6_K-raw-tile.c`, the twin of `test-hexagon-q4_0-raw-tile.c` (built by hand
+against ggml-base, `:3-8`): random `block_q6_K` rows, full and partial last group, tiles byte-identical to
+`repack_q6_K_tiled` on the same rows, plus the `hexagon-sim` raw-reader harness run on the Q6_K job for one tile. S23:
+one-row DMA probe for the unaligned stride; then NPU ABBA shared vs two-copy at `-t 5 -ub 512`: pp512 >= 0.98, tg128
+>= 0.95 (today 0.766), KLD identical to 0.005313 (same tiles, same dot), `graph splits = 2`, `profile-op` shows the
+lm_head MUL_MAT on the HTP with the q6_k tag; the GPU-leg 4b arm re-run once to prove the plain kernel still reads the
+same HOST bytes.
+
+**H4. Qwen3.5-4B.** Generic in steps 1-4b and H: TILE32 placement (248 Q4_0 matrices, every ne0 % 32 == 0), HOST
+for F32, `token_embd` Q6_K in HOST (K = 2560, %256 ok), the CPU and GPU plain readers, the loader rules, the guards.
+LFM2-specific: only the measured numbers and the S23 gates. What breaks on Qwen: GATED_DELTA_NET exists in ggml-cpu
+only (`ggml-cpu.c:2424, 2623`; no case in `ggml-hexagon.cpp` or `ggml-opencl.cpp`), so on 24 of 32 layers the
+recurrent core runs on the CPU in every leg and the "real leg" criterion (splits <= 2) is unreachable until an HTP or
+OpenCL GDN kernel exists; the hop's commit copies the GDN state whole each hop (16 heads x 128 x 128 f32 per layer,
+~24 MiB per hop vs LFM2's tiny conv state); the 521 MB lm_head per token on any leg; and the owner's rule keeps the
+governor off while an mmproj loads. Must be checked, in this order: the Q4_0 requant's KLD against its Q4_K_M (a
+requant from Q4_K_M is a double quantisation; LFM2's embedding requant cost 7x KLD, Amendment D), the GDN placement
+and split count on one layer, the hop commit bytes, the lm_head time on the DSP with H1's conversion, memory
+(2.3 GB tiles + 0.5 GB embedding + KV on the 8 GB S23).
+
+**H4 correction (orchestrator, verified on disk at ee3dfde49, 2026-10-05).** The GDN claim above is wrong: GATED_DELTA_NET has an HTP kernel (`htp/gated-delta-net-ops.c:2272` `op_gated_delta_net`, HMX chunked and HVX pp/tg paths; host admission `ggml_hexagon_supported_gated_delta_net`, `ggml-hexagon.cpp:4780`, dispatched at `:8095`, default `opt_gdn_select = 2` at `:122`) and an OpenCL kernel (`kernels/gated_delta_net.cl:82`, `ggml-opencl.cpp:1029, 3827`, supports_op case `:10175`). So the recurrent core of Qwen3.5 is not CPU-only by construction; whether it lands on the HTP/GPU at the S23 shapes (S_v <= 128, contiguity, state size) is an on-device placement check, not a known gap. The rest of H4 (requant KLD first, hop commit bytes, 521 MB lm_head, mmproj rule) stands.
+
+**H5. Fence and plan errors.** No HVX dot changes, no HMX raw path, no OpenCL change, no Qwen work in H. Wrong or
+missing in the plan: (a) the raw gate's `opt_mm_select == 1` clause would keep HMX off for the whole model; it must
+become per-op; (b) the DSP conversion is scalar C today, fine for a 1 MiB-per-group Q4_0 experiment, unmeasured for a
+205 MiB-per-token lm_head: measure, then vectorise; (c) the Q6_K raw DMA stride is unaligned, a probe comes before the
+ABBA; (d) Qwen is not "the same steps on another model": the GDN kernel gap decides whether a GPU or NPU leg exists at
+all on it.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
@@ -660,3 +728,5 @@ token was 70 % CPU.
   hop v2 in the existing select_decode rule 4 + one execution site, merge main first, owner's weighting as a parameter).
 - 2026-10-05 v9: Amendment G appended (GPU leg: HOST through the same import, KV on OpenCL per leg, lm_head via the plain
   Q6_K kernel with token_embd in HOST; D re-ranked 3 > 2; step 4b now, KV in step 5).
+- 2026-10-05 v10: Amendment H appended (option 3: Q6_K raw-to-tile on the DSP via the Q4_0 pattern, per-op host gate,
+  unaligned DMA stride probe, twin host test, NPU ABBA gates; Qwen: generic placement, GDN has no HTP/OpenCL kernel).
