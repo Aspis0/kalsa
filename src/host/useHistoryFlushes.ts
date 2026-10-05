@@ -8,6 +8,11 @@
  * host does not mount; the background clean-save block now goes through
  * `writer.persist` instead of calling the guard directly — same guard, same
  * landing-keyed `saveEngineSession`.
+ *
+ * The AppState flush writes the PARTIAL payload whenever a turn is in flight
+ * — even before its first token, when the clean projection would drop the
+ * answer and leave the user's message unpersisted — and only a background
+ * with no turn in flight writes the clean payload and the session hash.
  */
 import { useEffect, useRef } from "react";
 import { AppState, type AppStateStatus } from "react-native";
@@ -88,19 +93,27 @@ export function useHistoryFlushes(params: {
         const snap = messagesRef.current;
         // Capture epoch at flush time; drop if clearChat lands before write.
         const epoch = writer.epoch();
-        if (
+        // A turn in flight is exactly what the partial payload is for: the
+        // clean projection drops the streaming answer, so a process kill would
+        // lose the user's message with it. Write the partial form (a streaming
+        // bubble lands as `interrupted`) from the first moment of the turn,
+        // not only once it has produced text. The end-of-turn save overwrites
+        // it.
+        const partialAhead =
+          sendingRef.current ||
           snap.some(
             (m) => m.streaming && typeof m.text === "string" && m.text.trim().length > 0,
-          )
-        ) {
+          );
+        if (partialAhead) {
           persistActiveMessages(snap, {
             allowStreamingPartial: true,
             epoch,
           });
         }
         // KV save + clean history overwrite only on true background + idle.
-        // While sending, keep the allowStreamingPartial payload above — a
-        // clean buildPersistableMessages would drop the partial.
+        // While sending, only the allowStreamingPartial payload above is
+        // written — a clean buildPersistableMessages would drop the partial,
+        // and the native KV belongs to the running turn.
         if (next === "background" && !sendingRef.current) {
           const modelId = getActiveModelId();
           if (modelId) {
