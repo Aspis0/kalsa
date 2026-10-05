@@ -257,9 +257,82 @@ setter now shrink to R1 default + setter, because the probe places tiles and non
 mmap too (`:1663`), so no-mmap is a memory-accounting choice to measure, not a correctness requirement. Gate G's
 measured graph (norms on the device buft) differs from the shipped one (norms in HOST, HTP by admission): re-measure.
 
+## Amendment B (2026-10-04, after step 1): step-2 spec
+
+Read on `feat/governor-onecopy` e9d7a9f45: TILE32 is exposed only when `opt_hostbuf_repack` (`ggml-hexagon.cpp:7196`),
+HOST only when `opt_hostbuf` (`:6584`), both parsed once from env (`:7395+29,32`); admission seeds
+`GGML_OP_OFFLOAD_MIN_BATCH` / `GGML_HEXAGON_ADMIT_OPS` (`:7395+33..37`) into the device ctor snapshot; every Hexagon buft
+reports `dev_ctx->max_bufsize` (`:2026-2029`, from `opt_mbuf` = 1 GiB, `:96`). Placement: `make_gpu_buft_list` puts a
+device's extra bufts before its default buft (`llama-model.cpp:1150-1168`), CPU list appended after (`:1481`); the
+input layer always takes the CPU list (`:1539`), the output layer the last GPU layer's list (`:1548`); the probe
+allocates a 0-byte buffer in the candidate buft and asks that buft's device `supports_op` (`llama-model-loader.cpp:1050-1052`),
+first yes wins (`:1060-1070`). Step-1 arm T ran without `GGML_HEXAGON_HOSTBUF`, so HOST was not in any list and the
+f32 norms went to the device buft: that arm is not the shipped placement.
+
+**B1. Setter.** One proc-address function on the Hexagon reg (table at `:7205-7227`):
+`int ggml_backend_hexagon_set_shared_weights(const struct ggml_hexagon_shared_weights *)` with
+`{ bool enabled; size_t max_buffer_bytes; }` (0 = keep). It writes `opt_hostbuf_repack`, `opt_hostbuf` and every
+device's `max_bufsize`; valid before any model load of the process, ignored with a WARN after the first TILE32 or HOST
+buffer exists. Env stays the CLI seed (same statics, parsed first). It does not touch admission: that is per leg
+context in step 5; the CLI equivalent is env (B2). Nothing else: no new flags, no change when `enabled = false`
+(gate: the placement log of a two-copy load is byte-identical before and after this commit).
+
+**B2. Default placement in shared mode, by the probe, no `-ot`.** Hexagon's extra bufts become `{TILE32, HOST}` when
+shared (`:7194-7203`), so each layer's list reads `[TILE32, HOST, HTP0, CPU...]`: a 2-D Q4_0 matmul weight stops at
+TILE32 (step-1 `supports_op` branch), everything TILE32 refuses (f32 norms, conv weights, output norm) stops at HOST
+because the HTP supports MUL and SSM_CONV on a host f32 weight and `htp_admit_gate` is open at `gate_min 0`. The
+device buft is never reached by a weight. `token_embd` (Q6_K, input layer) takes the CPU list `[HOST, CPU]`
+(`:1082-1088`): it lands in HOST if `ggml_hexagon_supported_get_rows` (`:5357`) accepts the probe, else CPU; both
+compute on the CPU (GET_ROWS is not an admitted offload op, the raw Q6_K MUL_MAT fails `raw_weights_supported`), so no
+knob: record where it landed. Two-copy mode is untouched (extra bufts `none`, host getter NULL).
+The 198-split trap: at batch 1 `htp_admit_offload` returns false below `offload_min` (default 32), the op takes
+"1.host" to the CPU. For the S23 check set `GGML_OP_OFFLOAD_MIN_BATCH=1 GGML_HEXAGON_ADMIT_OPS=7`: it writes the same
+packed word (`htp_admit_pack`) the app will write with `llama_set_backend_admission(ctx_npu, 1, 7, 0)` once per NPU-leg
+context in step 5, so the measurement equals the app path. Proof gates, reused from `gate-g/run-gate-g.sh`: 2 graph
+splits at decode and prefill, `profile-op` lines for MUL and SSM_CONV on the HTP, TILE32 bytes 1369571328, a HOST
+buffer line of ~1 MiB, then pp512/tg128 vs step-1 arm T (886-888 / 22.5-22.6) and KLD identical. If the DSP reading
+f32 from HOST costs > 1 %, the fallback is the 1 MiB duplicated in the device buft, logged as such; nothing bigger.
+
+**B3. The 884 MB cap.** Where: `max_buffer_bytes` in B1, applied to `dev_ctx->max_bufsize`, which `get_max_size`
+returns for TILE32, HOST and the device buft alike. Value: the binding passes `CL_DEVICE_MAX_MEM_ALLOC_SIZE` rounded
+down to 64 MiB (S23: 832 MiB) when the table has a GPU leg, else 0. Splitting is already clean:
+`ggml-alloc.c:1197-1221` pads each tensor to the buft alignment (128, `:2020-2023`) and opens a new buffer when
+`cur_buf_size > 0 && cur_buf_size + this_size > max_size`, so a tensor never straddles; 1306 MiB of tiles become two
+TILE32 buffers (two imports in step 4). A single tensor above the cap would get its own oversized buffer; the largest
+tile tensor here is 12.4 MiB. CLI equivalent: `GGML_HEXAGON_MBUF=832`.
+
+**B4. RAM on the S23, no root (CLI processes run as shell, their /proc is readable).** Sampler started before the bench,
+every 2 s until the pid exits, max of each column reported:
+```
+P=$(pidof llama-bench)
+grep -E '^(Rss|Pss|Pss_Anon|Pss_File|Pss_Shmem):' /proc/$P/smaps_rollup
+for f in /proc/$P/fdinfo/*; do grep -q '^exp_name:' $f && awk '/^size:/{s+=$2} END{print "dmabuf_bytes", s}' $f; done | awk '{s+=$2} END{print "dmabuf_total", s}'
+dmabuf_dump $P 2>/dev/null | tail -3        # cross-check, Android 11+
+toybox time -v ... | grep 'Maximum resident'  # continuity with gate G
+```
+dma-buf pages are not in Pss (gate G: RSS 287 vs 294 MB for two copies vs one), so the comparable number is
+`Pss_Anon + Pss_File + dmabuf_total`, and the three terms are reported separately because they differ for the LMK:
+file-backed mmap pages are evictable, anon and dma-buf are not. Fair arms, same prompt and `-ub 512 -t 5`, sampled during
+decode of rep 1: A = `governor-bench --arm G` (two models: prefill `n_gpu_layers 99` on the accelerator, decode `0` on
+CPU, `governor-bench-run.cpp:86-87`), with mmap and repack set as the binding does on the S23 (mmap on, `no_extra_bufts`
+on; verify both in `load_model`, `:24-28`, before trusting the arm); B = one model shared mode (B2 env), one context, plus
+the second leg's KV and compute buffer sizes from the load log as an upper bound until step 5 runs `governor-bench`
+one-model. Report A and B with mmap on and off for B (B's weights are `tensor_set` either way, `llama-model-loader.cpp:1663`;
+mmap only changes whether the file pages stay cached). The app number comes in step 6 from the same `/proc/self`
+reads inside the process.
+
+**B5. Scope fence.** Step 2 does not touch the binding, leg contexts, OpenCL, KV, the GEMM over tiles, the capability
+table, or two-copy placement; adds no env var; flips no default. Deliverables: the setter, `{TILE32, HOST}` exposure,
+the ABBA re-run with the shipped placement, the RAM table.
+Wrong or missing in the plan: (a) Revision 3 carries the NPU result forward as if it covered the shipped placement; it
+does not (norms on the device buft); (b) "no-mmap" is listed as a requirement, it is a memory choice to be read off
+B4; (c) the plan has no proof that two-copy placement is unchanged after exposing HOST: add the placement-log diff.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
   884 MB import cap; e2 corrected: the S23 has HMX and the HMX dequantizer consumes the same 576 B tiles.
 - 2026-10-04 v3: Amendment A appended (step-1 spec: TILE32 as its own non-host buft, stopgap revert, norms in HOST
   with admission, kernel port, host test and S23 check; plan corrections).
+- 2026-10-04 v4: Amendment B appended (step-2 spec: setter with buffer cap, {TILE32, HOST} exposure and probe
+  placement, admission env for the S23 check, split proof, RAM method and fair arms, scope fence).
