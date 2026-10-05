@@ -82,6 +82,12 @@ pub fn hide_console(_cmd: &mut Command) {}
 
 /// How often `wait_within` looks at the child.
 const WAIT_POLL: Duration = Duration::from_millis(25);
+/// How long the walk waits for the kernel to hand over the status of a child
+/// it has just killed. `kill` or `TerminateProcess` is a request, not a
+/// verdict: the status is a reap, and a reap that has not landed in this long
+/// is a fact to report rather than a wait to keep — a stop walk once held the
+/// app for six minutes here with the engine already gone.
+const REAP_GRACE: Duration = Duration::from_secs(3);
 
 /// The two stderr lines llama-server b10950 prints around a release:
 /// `--sleep-idle-seconds` fires and it frees the model ("I srv  handle_sleep:
@@ -274,12 +280,13 @@ impl ChildHandle {
     /// Stops the child: stdin EOF after `grace`, then — unix — SIGTERM to
     /// its group and SIGKILL, each after a `grace`. A Windows stop walks
     /// stdin and then kills: there is no gentler step, and no grace to wait
-    /// out behind a signal that was never sent. Always reaps, so no zombie
-    /// survives this call —
-    /// and REPORTS what the walk found instead of handing back an exit
-    /// status that reads as "gone" either way. This end never reports
-    /// `Survived`: we hold the handle, and the final `wait` IS the reap —
-    /// if even that errors, nothing is known and nothing may claim to be.
+    /// out behind a signal that was never sent. Every rung is bounded,
+    /// the reap behind the kill included: a status that has not landed
+    /// within [`REAP_GRACE`] is REPORTED, never waited for — a kill can be
+    /// issued and the process object still not signal, and an exit that
+    /// waited on it held this app for six minutes with the engine gone.
+    /// The walk REPORTS what it found instead of handing back an exit
+    /// status that reads as "gone" either way.
     pub fn terminate(&mut self, grace: Duration) -> Termination {
         let mut complaints: Vec<String> = Vec::new();
         if let Ok(Some(_)) = self.child.try_wait() {
@@ -323,13 +330,7 @@ impl ChildHandle {
         if let Err(error) = self.child.kill() {
             complaints.push(format!("kill: {error}"));
         }
-        match self.child.wait() {
-            Ok(_) => Termination::Gone { needed: Step::Kill },
-            Err(error) => {
-                complaints.push(format!("wait: {error}"));
-                Termination::Unknown { detail: complaints.join("; ") }
-            }
-        }
+        reaped(self.wait_within(REAP_GRACE), complaints)
     }
 
     /// Some(status) when the child exited within `grace`, None on timeout.
@@ -347,15 +348,44 @@ impl ChildHandle {
     }
 }
 
+/// The verdict of the bounded reap behind the kill rung. A status that never
+/// landed is `Unknown`, not `Gone`: the kill was issued, and nothing observed
+/// says the process ended — the caller's own pid read decides what remains
+/// (`stop` maps this through `pid_alive`).
+fn reaped(outcome: io::Result<Option<ExitStatus>>, mut complaints: Vec<String>) -> Termination {
+    match outcome {
+        Ok(Some(_)) => Termination::Gone { needed: Step::Kill },
+        Ok(None) => {
+            complaints.push(format!("no exit status within {REAP_GRACE:?} of the kill"));
+            Termination::Unknown {
+                detail: complaints.join("; "),
+            }
+        }
+        Err(error) => {
+            complaints.push(format!("reaping the killed child: {error}"));
+            Termination::Unknown {
+                detail: complaints.join("; "),
+            }
+        }
+    }
+}
+
 /// Best effort only: a process killed outright runs no destructors, which is
-/// exactly why the Job Object / `PR_SET_PDEATHSIG` above exist.
+/// exactly why the Job Object / `PR_SET_PDEATHSIG` above exist. The reap
+/// after the kill is bounded like the walk's own: a Drop that waits forever
+/// for a status is a process that never leaves.
 impl Drop for ChildHandle {
     fn drop(&mut self) {
         if matches!(self.child.try_wait(), Ok(None)) {
             #[cfg(unix)]
             let _ = signal_group(self.pid(), libc::SIGKILL);
             let _ = self.child.kill();
-            let _ = self.child.wait();
+            if matches!(self.wait_within(REAP_GRACE), Ok(None)) {
+                log::warn!(
+                    "the engine (pid {}) was killed but reported no exit status within {REAP_GRACE:?}",
+                    self.pid()
+                );
+            }
         }
     }
 }
@@ -900,6 +930,55 @@ mod tests {
             ended,
             "closing the job's last handle must end the confined child (reaped: {reaped:?})"
         );
+    }
+
+    /// The reap behind a kill is bounded: a status that has not landed
+    /// within the grace is given up on, not waited for. Measured without
+    /// killing anything — the child stays alive on purpose, so this is the
+    /// wait's own bound and not the kernel's speed.
+    #[cfg(unix)]
+    #[test]
+    fn the_wait_for_a_status_is_bounded() {
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &["-c".into(), "sleep 30".into()],
+            None,
+            Arc::new(AtomicU64::new(0)),
+            Residency::new(),
+        )
+        .expect("spawn the stand-in");
+        let begun = Instant::now();
+        let waited = child.wait_within(Duration::from_millis(150));
+        let took = begun.elapsed();
+        assert!(
+            matches!(waited, Ok(None)),
+            "a live child gave a status: {waited:?}"
+        );
+        assert!(
+            took >= Duration::from_millis(100) && took < Duration::from_secs(3),
+            "the wait must end at its bound: {took:?}"
+        );
+        let _ = child.terminate(Duration::from_millis(200));
+    }
+
+    /// A reap that never landed is `Unknown`, never `Gone`: the kill was
+    /// issued, and nothing observed says the process ended.
+    #[test]
+    fn a_reap_that_never_landed_is_unknown_not_gone() {
+        match reaped(Ok(None), vec!["kill: refused".to_string()]) {
+            Termination::Unknown { detail } => {
+                assert!(detail.contains("no exit status"), "{detail}");
+                assert!(
+                    detail.contains("kill: refused"),
+                    "the earlier complaint is kept: {detail}"
+                );
+            }
+            other => panic!("a reap that never landed claimed {other:?}"),
+        }
+        assert!(matches!(
+            reaped(Err(io::Error::other("boom")), Vec::new()),
+            Termination::Unknown { .. }
+        ));
     }
 
     /// Kill the stand-in and reap it, bounded: cleanup may neither swallow

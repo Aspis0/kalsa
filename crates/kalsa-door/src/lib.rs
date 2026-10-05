@@ -104,10 +104,6 @@ const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
 const PATIENCE: std::time::Duration = std::time::Duration::from_secs(10);
 pub(crate) const HEAD_PATIENCE: Duration = Duration::from_secs(15);
 const CONNECTION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(300);
-/// How long the loopback connect that wakes the blocked acceptor may take.
-/// A listener that is there accepts at once and one that is gone refuses at
-/// once; this bound only covers the third case, a backlog nobody is reading.
-const WAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(300);
 /// How long a finished answer stays resumable after its last event. A phone
 /// may be away for minutes; it is not away forever.
 const JOB_RETENTION: std::time::Duration = std::time::Duration::from_secs(600);
@@ -377,6 +373,10 @@ pub struct RunningDoor {
     /// worker's wait, and it lives here rather than in the accept thread
     /// because that thread is one of the things still blocked.
     queue: Arc<queue::Queue<server::Work>>,
+    /// Where the wake connect goes: the address the listener actually bound.
+    /// A test points it at a port nothing holds, to prove that a wake which
+    /// cannot land still ends in a bounded shutdown.
+    wake: SocketAddr,
     /// How many times the accept loop went round. Behind `cfg(test)` so the
     /// idle-wakeup test can count the loop's turns instead of trusting a
     /// clock.
@@ -654,15 +654,27 @@ impl RunningDoor {
         // condvar. Closing the line wakes the sleepers; the connect is the
         // wake the acceptor takes, and it carries nothing.
         self.queue.close();
-        let _ = std::net::TcpStream::connect_timeout(&self.address, WAKE_TIMEOUT);
+        if !server::wake(self.wake) {
+            log::warn!(
+                "the door could not be woken at {}: its acceptor may still be waiting and will not come back",
+                self.wake
+            );
+        }
         let threads = self
             .threads
             .lock()
             .ok()
             .map(|mut threads| std::mem::take(&mut *threads));
         if let Some(threads) = threads {
-            server::join_all(threads);
+            server::stop_threads(threads);
         }
+    }
+
+    /// Points the wake connect at another address. Tests only: a port with
+    /// nothing on it is the one way to exercise a wake that cannot land.
+    #[cfg(test)]
+    pub(crate) fn point_wake_at(&mut self, address: SocketAddr) {
+        self.wake = address;
     }
 
     /// How many turns the accept loop has taken. An idle door's acceptor

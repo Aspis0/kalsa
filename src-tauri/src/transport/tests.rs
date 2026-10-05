@@ -12,7 +12,7 @@ use kalsa_catalog::{Parameters, PhoneModel};
 use kalsa_pairing::PhoneDeclaration;
 
 use super::{
-    classify, connection_expired, handle, parser, request_queue, serve_on, worker,
+    classify, connection_expired, handle, parser, request_queue, serve_on, wake, worker,
     Accepted, Connection, Listener, LogState, Request, Work, WriteErrorLog, CONNECTION_LIFETIME,
     LOG_INTERVAL, PATIENCE, QUEUE, WORKERS,
 };
@@ -677,4 +677,30 @@ fn a_worker_waiting_on_an_empty_channel_leaves_when_the_sender_drops() {
         "the worker slept through the channel closing"
     );
     waiting.join().unwrap();
+}
+
+/// A wake whose connect cannot land is tried a few times and given up on: the
+/// shutdown it belongs to never waits on a listener that is not there.
+#[test]
+fn a_wake_that_cannot_land_is_given_up_on_within_its_tries() {
+    let closed = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let dead = closed.local_addr().unwrap();
+    drop(closed);
+    let (done, walked) = mpsc::channel();
+    let begun = Instant::now();
+    // Not joined: a wake that never gives up would be the thing to fail here,
+    // and the assertion below says so without waiting for it.
+    thread::spawn(move || {
+        let _ = done.send(wake(dead));
+    });
+    assert_eq!(
+        walked.recv_timeout(Duration::from_secs(2)).ok(),
+        Some(false),
+        "a dead port answered as a wake, or the tries did not end"
+    );
+    assert!(
+        begun.elapsed() < Duration::from_secs(2),
+        "the wake retried past its bound: {:?}",
+        begun.elapsed()
+    );
 }

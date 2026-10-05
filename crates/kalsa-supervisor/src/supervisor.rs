@@ -9,7 +9,7 @@
 use std::net::TcpListener;
 use std::path::Path;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -188,6 +188,12 @@ pub struct Supervisor {
     commands: Sender<Command>,
     state: Arc<Mutex<ServerState>>,
     worker: Mutex<Option<JoinHandle<()>>>,
+    /// The engine's pid, kept beside the state rather than inside it: a drain
+    /// overwrites the state's `Running` with `Stopping`, and the exit
+    /// watchdog still has to find the process at its deadline. 0 is this
+    /// crate's marker for "nothing ours to signal" — a stop that proved the
+    /// engine gone, a blind adoption, or no engine at all.
+    engine: Arc<AtomicU32>,
     /// How many model releases the server has announced on stderr (see
     /// `MODEL_RELEASED_LINE` in `child`). The drain thread adds; readers
     /// compare against their last-seen value and act on the difference — an
@@ -201,10 +207,11 @@ pub struct Supervisor {
     residency: Residency,
 }
 
-/// Read-only, `Clone`able view of the two facts the supervisor owns: the
-/// server's state, and whether its model is in memory. Built for a watcher
-/// that must not hold the supervisor — the disk tier's tick thread reads it
-/// every second with no command and no webview behind it.
+/// Read-only, `Clone`able view of the facts the supervisor owns: the
+/// server's state, whether its model is in memory, and the pid of the engine
+/// it owns. Built for watchers that must not hold the supervisor — the disk
+/// tier's tick thread reads it every second with no command and no webview
+/// behind it, and the app's exit watchdog loads the pid at its deadline.
 ///
 /// **Trap: two types, one name.** The `residency` behind `model_asleep` is
 /// `child::Residency`: whether the SERVER holds the MODEL. The door's
@@ -215,6 +222,7 @@ pub struct Supervisor {
 pub struct Watch {
     state: Arc<Mutex<ServerState>>,
     residency: Residency,
+    engine: Arc<AtomicU32>,
 }
 
 impl Watch {
@@ -236,6 +244,20 @@ impl Watch {
     pub fn model_asleep(&self) -> Option<bool> {
         self.residency.asleep()
     }
+
+    /// The pid of the engine this supervisor owns right now — the spawned
+    /// child's, or an adopted server's when one was recorded. Loaded fresh
+    /// every call, so a pid a stop already proved gone is never handed out:
+    /// the app's exit watchdog must kill only the process the supervisor
+    /// still holds. `None` when no engine was started, when one was adopted
+    /// blind (pid 0 names no process to signal), or when the engine is known
+    /// gone.
+    pub fn engine_pid(&self) -> Option<u32> {
+        match self.engine.load(Ordering::SeqCst) {
+            0 => None,
+            pid => Some(pid),
+        }
+    }
 }
 
 impl Supervisor {
@@ -243,17 +265,20 @@ impl Supervisor {
         let (commands, inbox) = mpsc::channel();
         let state = Arc::new(Mutex::new(ServerState::Stopped));
         let releases = Arc::new(AtomicU64::new(0));
+        let engine = Arc::new(AtomicU32::new(0));
         let residency = Residency::new();
         let worker = std::thread::spawn({
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
-            move || work(inbox, state, releases, residency, presence::probe)
+            let engine = Arc::clone(&engine);
+            move || work(inbox, state, releases, residency, engine, presence::probe)
         });
         Self {
             commands,
             state,
             worker: Mutex::new(Some(worker)),
+            engine,
             releases,
             residency,
         }
@@ -285,6 +310,7 @@ impl Supervisor {
         Watch {
             state: Arc::clone(&self.state),
             residency: self.residency.clone(),
+            engine: Arc::clone(&self.engine),
         }
     }
 
@@ -410,6 +436,7 @@ fn work(
     state: Arc<Mutex<ServerState>>,
     releases: Arc<AtomicU64>,
     residency: Residency,
+    engine: Arc<AtomicU32>,
     // The port probe the stop walk asks, exactly as `stop` takes it:
     // production always passes `presence::probe` — the API has no probe
     // parameter, and the test that drives `Supervisor::stop` must not
@@ -456,6 +483,7 @@ fn work(
                                 port: config.port,
                             },
                         );
+                        engine.store(pid.unwrap_or(0), Ordering::SeqCst);
                         log::info!(
                             "engine adopted #{starts}: {} (pid {})",
                             engine_name(&config.exe),
@@ -478,6 +506,7 @@ fn work(
                                 port: config.port,
                             },
                         );
+                        engine.store(child.pid(), Ordering::SeqCst);
                         let _ = settled.send(StartSettled::Up);
                         owned = Some(Owned {
                             child: Some(child),
@@ -493,16 +522,19 @@ fn work(
                                 reason: reason.clone(),
                             },
                         );
+                        engine.store(0, Ordering::SeqCst);
                         log::warn!("engine start failed: {reason:?}");
                         let _ = settled.send(StartSettled::Failed(reason));
                     }
                 }
             }
             Ok(Command::Stop { prior }) => {
-                stop(&mut owned, last.as_ref(), &state, probe, prior)
+                stop(&mut owned, last.as_ref(), &state, probe, prior);
+                forget_engine_unless_unconfirmed(&engine, &state);
             }
             Ok(Command::Shutdown { prior }) => {
                 stop(&mut owned, last.as_ref(), &state, probe, prior);
+                forget_engine_unless_unconfirmed(&engine, &state);
                 return;
             }
             #[cfg(test)]
@@ -512,6 +544,13 @@ fn work(
                 // have no address to probe and the API test could not see
                 // the probe path.
                 last = Some(run.config.clone());
+                let pid = run
+                    .child
+                    .as_ref()
+                    .map(|child| child.pid())
+                    .or(run.adopted_pid)
+                    .unwrap_or(0);
+                engine.store(pid, Ordering::SeqCst);
                 owned = Some(*run);
             }
             Err(RecvTimeoutError::Timeout) => {
@@ -527,6 +566,7 @@ fn work(
                                 log::warn!("engine exited: {reason:?}");
                                 log_stderr_tail(child);
                                 owned = None;
+                                engine.store(0, Ordering::SeqCst);
                                 set(&state, ServerState::Failed { reason });
                             }
                         }
@@ -539,6 +579,7 @@ fn work(
                             if let Some(pid) = run.adopted_pid {
                                 if !child::pid_alive(pid) {
                                     owned = None;
+                                    engine.store(0, Ordering::SeqCst);
                                     set(
                                         &state,
                                         ServerState::Failed {
@@ -556,6 +597,7 @@ fn work(
                                 PROBE_TIMEOUT,
                             ) {
                                 owned = None;
+                                engine.store(0, Ordering::SeqCst);
                                 set(
                                     &state,
                                     ServerState::Failed {
@@ -572,6 +614,22 @@ fn work(
             }
             Err(RecvTimeoutError::Disconnected) => return,
         }
+    }
+}
+
+/// The engine pid is kept only while a stop could NOT prove the engine gone:
+/// that is the one case the app's exit watchdog still has to finish. A stop
+/// that settled (`Stopped`), a start that failed and a self-exit all leave
+/// nothing to signal, and a stale pid is a pid the watchdog must never use.
+fn forget_engine_unless_unconfirmed(engine: &AtomicU32, state: &Arc<Mutex<ServerState>>) {
+    let unconfirmed = matches!(
+        state.lock().map(|current| current.clone()),
+        Ok(ServerState::Failed {
+            reason: Failure::StopUnconfirmed { .. }
+        })
+    );
+    if !unconfirmed {
+        engine.store(0, Ordering::SeqCst);
     }
 }
 
@@ -1503,7 +1561,16 @@ mod tests {
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
-            move || work(inbox, state, releases, residency, presence::probe)
+            move || {
+                work(
+                    inbox,
+                    state,
+                    releases,
+                    residency,
+                    Arc::new(AtomicU32::new(0)),
+                    presence::probe,
+                )
+            }
         });
         let config = config(8294);
         let state_file = config.state_file.clone();
@@ -1957,30 +2024,141 @@ mod tests {
     /// stop; the probe is injected because the public API has no parameter
     /// for it and a policy test must not depend on a socket.
     fn api_supervisor(port: u16, pid: u32, probe: presence::Probe) -> Supervisor {
+        planted_supervisor(
+            Owned {
+                child: None,
+                adopted_pid: Some(pid),
+                instance: None,
+                config: config(port),
+            },
+            probe,
+        )
+    }
+
+    /// A real worker on the real command channel, with `run` planted and the
+    /// state set as the plant's start would leave it.
+    fn planted_supervisor(run: Owned, probe: presence::Probe) -> Supervisor {
+        let pid = run
+            .child
+            .as_ref()
+            .map(|child| child.pid())
+            .or(run.adopted_pid)
+            .unwrap_or(0);
+        let port = run.config.port;
         let (commands, inbox) = mpsc::channel();
         let state = Arc::new(Mutex::new(ServerState::Stopped));
         let releases = Arc::new(AtomicU64::new(0));
+        let engine = Arc::new(AtomicU32::new(0));
         let residency = Residency::new();
         let worker = std::thread::spawn({
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
-            move || work(inbox, state, releases, residency, probe)
+            let engine = Arc::clone(&engine);
+            move || work(inbox, state, releases, residency, engine, probe)
         });
-        let _ = commands.send(Command::Plant(Box::new(Owned {
-            child: None,
-            adopted_pid: Some(pid),
-            instance: None,
-            config: config(port),
-        })));
+        let _ = commands.send(Command::Plant(Box::new(run)));
         set(&state, ServerState::Running { pid, port });
         Supervisor {
             commands,
             state,
             worker: Mutex::new(Some(worker)),
+            engine,
             releases,
             residency,
         }
+    }
+
+    /// The pid the exit watchdog would signal is kept while a stop could not
+    /// prove the engine gone: the state says `StopUnconfirmed`, and the whole
+    /// reason the watchdog exists is the process that may still be out there.
+    #[cfg(unix)]
+    #[test]
+    fn the_engine_pid_outlives_a_stop_that_could_not_prove_the_engine_gone() {
+        let port = 8315;
+        let mut stand_in = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn the stand-in");
+        let answering: presence::Probe = |_, _| presence::Presence::There {
+            evidence: presence::Evidence::Answered {
+                status: "200".into(),
+            },
+        };
+        let supervisor = api_supervisor(port, stand_in.id(), answering);
+        // The plant is a command like any other: wait for the worker to take it.
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while supervisor.watch().engine_pid().is_none() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(
+            supervisor.watch().engine_pid(),
+            Some(stand_in.id()),
+            "the planted engine's pid"
+        );
+        supervisor.shutdown();
+        let end = supervisor.state();
+        assert!(
+            matches!(
+                end,
+                ServerState::Failed {
+                    reason: Failure::StopUnconfirmed { .. }
+                }
+            ),
+            "an unvouched pid and an answering port cannot prove absence: {end:?}"
+        );
+        assert_eq!(
+            supervisor.watch().engine_pid(),
+            Some(stand_in.id()),
+            "an unproven stop must leave the pid for the exit watchdog"
+        );
+        let _ = stand_in.kill();
+        let _ = stand_in.wait();
+    }
+
+    /// A stop that PROVED the engine gone clears the pid: at its deadline the
+    /// watchdog must never signal a pid the walk already reaped, because a
+    /// reaped pid can be somebody else's process by then.
+    #[cfg(unix)]
+    #[test]
+    fn a_stop_that_proved_the_engine_gone_clears_the_pid() {
+        let releases = Arc::new(AtomicU64::new(0));
+        let residency = Residency::new();
+        let child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &["-c".into(), "sleep 30".into()],
+            None,
+            Arc::clone(&releases),
+            residency.clone(),
+        )
+        .expect("spawn the stand-in engine");
+        let pid = child.pid();
+        let gone: presence::Probe = |_, _| presence::Presence::Gone;
+        let supervisor = planted_supervisor(
+            Owned {
+                child: Some(child),
+                adopted_pid: None,
+                instance: None,
+                config: config(8316),
+            },
+            gone,
+        );
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while supervisor.watch().engine_pid() != Some(pid) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(supervisor.watch().engine_pid(), Some(pid), "the planted child's pid");
+        supervisor.shutdown();
+        assert_eq!(
+            supervisor.state(),
+            ServerState::Stopped,
+            "a reaped child and a refusing port prove absence"
+        );
+        assert_eq!(
+            supervisor.watch().engine_pid(),
+            None,
+            "a proven stop leaves nothing to signal"
+        );
     }
 
     /// The script for the refusing-second-stop API test: answers while the
@@ -2139,6 +2317,7 @@ mod tests {
             commands,
             state: Arc::new(Mutex::new(ServerState::Stopping)),
             worker: Mutex::new(Some(worker)),
+            engine: Arc::new(AtomicU32::new(0)),
             releases: Arc::new(AtomicU64::new(0)),
             residency: Residency::new(),
         };
@@ -2166,6 +2345,7 @@ mod tests {
             commands: mpsc::channel().0,
             state: Arc::new(Mutex::new(ServerState::Stopping)),
             worker: Mutex::new(Some(living)),
+            engine: Arc::new(AtomicU32::new(0)),
             releases: Arc::new(AtomicU64::new(0)),
             residency: Residency::new(),
         };

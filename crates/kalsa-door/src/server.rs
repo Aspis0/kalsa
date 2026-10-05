@@ -105,7 +105,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
             Err(error) => {
                 stop.store(true, Ordering::SeqCst);
                 queue.close();
-                join_all(threads);
+                stop_threads(threads);
                 return Err(DoorError::Thread(error));
             }
         }
@@ -122,7 +122,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         Err(error) => {
             stop.store(true, Ordering::SeqCst);
             queue.close();
-            join_all(threads);
+            stop_threads(threads);
             return Err(DoorError::Thread(error));
         }
     }
@@ -137,7 +137,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         Err(error) => {
             stop.store(true, Ordering::SeqCst);
             queue.close();
-            join_all(threads);
+            stop_threads(threads);
             return Err(DoorError::Thread(error));
         }
     }
@@ -169,7 +169,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         Err(error) => {
             stop.store(true, Ordering::SeqCst);
             queue.close();
-            join_all(threads);
+            stop_threads(threads);
             return Err(DoorError::Thread(error));
         }
     }
@@ -181,6 +181,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         chats,
         upstream_port,
         queue,
+        wake: address,
         #[cfg(test)]
         accept_passes,
         threads: Mutex::new(threads),
@@ -189,9 +190,47 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     })
 }
 
+/// How long one wake connect may take. A listener that is there accepts at
+/// once and one that is gone refuses at once; this bound only covers the
+/// third case, a backlog nobody is reading.
+const WAKE_TIMEOUT: Duration = Duration::from_millis(300);
+/// How many times the wake is tried before the door gives up on the connect.
+/// The acceptor may be mid-accept on a real connection when the first attempt
+/// lands, so one failure is not a verdict.
+const WAKE_TRIES: u32 = 5;
+/// The pause between wake attempts.
+const WAKE_RETRY: Duration = Duration::from_millis(50);
+/// How long the door's threads are given to leave it. A worker can be inside
+/// an answer's whole ceiling (see `clocks`), and the process is on its way
+/// out: a thread still running past this is left to die with the process, and
+/// named in one warning. Never a silent give-up, never an unbounded wait.
+const JOIN_DEADLINE: Duration = Duration::from_secs(2);
+/// How often the bounded join looks at a thread that has not finished. The
+/// wait is a poll because std's `join` has no deadline, and this runs once,
+/// on the way out.
+const JOIN_POLL: Duration = Duration::from_millis(10);
+
+/// Wakes a listener blocked in `accept` with a loopback connect carrying
+/// nothing: the acceptor takes the connection as its wake, checks the stop
+/// flag and leaves. Tried a few times, because the acceptor may be mid-accept
+/// on a real connection when the first attempt lands. False when no attempt
+/// landed — the caller says so, because a door that cannot be woken is a door
+/// whose acceptor will not come back.
+pub(super) fn wake(address: std::net::SocketAddr) -> bool {
+    for attempt in 0..WAKE_TRIES {
+        if TcpStream::connect_timeout(&address, WAKE_TIMEOUT).is_ok() {
+            return true;
+        }
+        if attempt + 1 < WAKE_TRIES {
+            thread::sleep(WAKE_RETRY);
+        }
+    }
+    false
+}
+
 /// Forgets kept answers whose retention ran out, whether or not anything
 /// else ever touches the registry again. One interruptible wait for the whole
-/// period: `join_all` unparks this thread on the way down, and a park that
+/// period: `stop_threads` unparks this thread on the way down, and a park that
 /// never happened is not a wake lost — `park_timeout` keeps the permit.
 fn reaper(stop: Arc<AtomicBool>, registry: Arc<Registry>) {
     while !stop.load(Ordering::SeqCst) {
@@ -346,15 +385,46 @@ fn drain(stream: &mut impl std::io::Read) -> usize {
     drained
 }
 
-pub(super) fn join_all(threads: Vec<thread::JoinHandle<()>>) {
-    for thread in threads {
-        // The reaper sleeps a whole `REAP_INTERVAL` between stop checks, so
-        // the join must wake it. Unparking a thread that is not parked only
-        // sets a permit its next park consumes: an early unpark costs one
-        // extra reap and nothing else.
-        thread.thread().unpark();
-        let _ = thread.join();
+pub(super) fn stop_threads(threads: Vec<thread::JoinHandle<()>>) {
+    let left = join_all_until(threads, JOIN_DEADLINE);
+    if !left.is_empty() {
+        let names: Vec<&str> = left
+            .iter()
+            .filter_map(|thread| thread.thread().name())
+            .collect();
+        log::warn!("the door did not stop within {JOIN_DEADLINE:?}: still running {names:?}");
     }
+}
+
+/// The bounded join: a thread that has finished is joined, one that has not
+/// finished by `bound` is handed back for the caller to drop (detach it).
+/// Every wait is against one absolute deadline, so a whole set of stuck
+/// threads costs `bound` and not `bound` each. The reaper sleeps a whole
+/// `REAP_INTERVAL` between stop checks, so each thread is unparked first;
+/// unparking a thread that is not parked only sets a permit its next park
+/// consumes, and an early unpark costs one extra reap at worst.
+fn join_all_until(
+    threads: Vec<thread::JoinHandle<()>>,
+    bound: Duration,
+) -> Vec<thread::JoinHandle<()>> {
+    // Every thread is unparked before the first wait, so the reaper's whole
+    // period is cut even when an earlier thread is the one that never leaves.
+    for thread in &threads {
+        thread.thread().unpark();
+    }
+    let until = Instant::now() + bound;
+    let mut left = Vec::new();
+    for thread in threads {
+        while !thread.is_finished() && Instant::now() < until {
+            thread::sleep(JOIN_POLL);
+        }
+        if thread.is_finished() {
+            let _ = thread.join();
+        } else {
+            left.push(thread);
+        }
+    }
+    left
 }
 
 #[cfg(test)]

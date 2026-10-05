@@ -13,6 +13,7 @@ mod capability;
 #[cfg(test)]
 mod contract;
 mod door;
+mod exit;
 mod failure;
 mod files;
 mod first_run;
@@ -54,7 +55,8 @@ use std::time::{Duration, Instant, SystemTime};
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
 use kalsa_supervisor::{
-    Failure, ServerConfig, StartOutcome, StartSettled, StartWaiter, Supervisor, ServerState, Watch,
+    terminate_pid, Failure, ServerConfig, StartOutcome, StartSettled, StartWaiter, Supervisor,
+    ServerState, Watch,
 };
 use serde::Serialize;
 use tauri::{Emitter, Manager, RunEvent, State};
@@ -2399,29 +2401,61 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log::error!("the app could not be built: {error}");
             error
         })?;
-    app.run(|app, event| {
+    let exiting = std::sync::atomic::AtomicBool::new(false);
+    app.run(move |app, event| {
         // Take the child with us on the way out, on both exit paths the
         // runtime reports. The platform backstop (job object, pdeathsig)
-        // covers the exits that run no handler at all.
-        if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
+        // covers the exits that run no handler at all. The cleanup runs ONCE
+        // for the app — `ExitRequested` and `Exit` both arrive for one quit —
+        // and behind the exit's own deadline: the ENGINE first, so a slow exit
+        // can never orphan it, then the rest, every wait of it bounded. A step
+        // that has not come back at the deadline is named, the engine is
+        // killed by the pid the supervisor holds, and the process leaves.
+        if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit)
+            && !exiting.swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
+            // The handle, not the pid: it is loaded at the deadline, so a
+            // pid a stop already proved gone is never signalled.
+            let engine = app
+                .try_state::<Brain>()
+                .map(|brain| brain.supervisor.watch());
+            let deadline = exit::arm(
+                exit::DEADLINE,
+                "the engine",
+                move || {
+                    let Some(pid) = engine.as_ref().and_then(|watch| watch.engine_pid()) else {
+                        log::warn!(
+                            "the exit reached its deadline with no engine pid on record to kill"
+                        );
+                        return;
+                    };
+                    let report = terminate_pid(pid, exit::KILL_GRACE);
+                    log::warn!("the exit killed the engine (pid {pid}): {report:?}");
+                },
+                |code, _pending| std::process::exit(code),
+            );
+            if let Some(brain) = app.try_state::<Brain>() {
+                brain.supervisor.shutdown();
+                deadline.stage("the room's event pump");
+                room_events::stop_event_pump(&brain);
+                deadline.stage("the door");
+                brain.stop_door();
+            }
             if let Some(desk) = app.try_state::<Desk>() {
+                deadline.stage("the pairing listener");
                 desk.desk.stop_serving();
                 desk.listener.shutdown();
             }
-            if let Some(brain) = app.try_state::<Brain>() {
-                room_events::stop_event_pump(&brain);
-                brain.stop_door();
-                brain.supervisor.shutdown();
-            }
-            // `Exit` is the loop's last event, so this reads once per run;
-            // a `PreventExit`-ed `ExitRequested` is not an exit and stays
-            // unlogged. The marker's removal is what makes THIS exit the
-            // clean one the next start will not ask about.
-            if matches!(event, RunEvent::Exit) {
-                log::info!("app exit");
-                if let Ok(dir) = app.path().app_data_dir() {
-                    instance::session_marker::end_cleanly(&dir);
-                }
+            deadline.finished();
+        }
+        // `Exit` is the loop's last event, so this reads once per run;
+        // a `PreventExit`-ed `ExitRequested` is not an exit and stays
+        // unlogged. The marker's removal is what makes THIS exit the
+        // clean one the next start will not ask about.
+        if matches!(event, RunEvent::Exit) {
+            log::info!("app exit");
+            if let Ok(dir) = app.path().app_data_dir() {
+                instance::session_marker::end_cleanly(&dir);
             }
         }
     });

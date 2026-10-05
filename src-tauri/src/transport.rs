@@ -35,6 +35,12 @@ const LOG_INTERVAL: Duration = Duration::from_secs(1);
 /// listener that is there accepts at once and one that is gone refuses at
 /// once; the bound only covers a backlog nobody is reading.
 const WAKE_TIMEOUT: Duration = Duration::from_millis(300);
+/// How many times the wake is tried before the desk gives up on the connect.
+/// The acceptor may be mid-accept on a real connection when the first attempt
+/// lands, so one failure is not a verdict.
+const WAKE_TRIES: u32 = 5;
+/// The pause between wake attempts.
+const WAKE_RETRY: Duration = Duration::from_millis(50);
 
 /// The port the desk prefers: a fixed loopback port a Tailscale Serve
 /// rule can be pointed at across launches. This app's other fixed ports
@@ -105,13 +111,14 @@ impl Listener {
     pub(crate) fn shutdown(&self) {
         self.stop.store(true, Ordering::SeqCst);
         // The acceptor waits in a blocking accept whenever no head is in the
-        // air, and a flag alone cannot end that wait. A loopback connect
-        // carrying nothing does: the acceptor takes it as the wake, sees the
-        // flag and leaves. A listener nobody is accepting on refuses at once.
-        let _ = TcpStream::connect_timeout(
-            &SocketAddr::from((Ipv4Addr::LOCALHOST, self.port)),
-            WAKE_TIMEOUT,
-        );
+        // air, and a flag alone cannot end that wait: a loopback connect
+        // carrying nothing does.
+        if !wake(SocketAddr::from((Ipv4Addr::LOCALHOST, self.port))) {
+            log::warn!(
+                "the pairing listener could not be woken on port {}: its acceptor may still be waiting",
+                self.port
+            );
+        }
     }
 
     #[cfg(test)]
@@ -170,6 +177,24 @@ impl WriteErrorLog {
         state.suppressed = 0;
         Some(suppressed)
     }
+}
+
+/// Wakes a listener blocked in `accept` with a loopback connect carrying
+/// nothing: the acceptor takes it as the wake, sees the flag and leaves.
+/// Tried a few times, because the acceptor may be mid-accept on a real
+/// connection when the first attempt lands. False when no attempt landed —
+/// the caller says so, because a listener that cannot be woken is one whose
+/// acceptor may still be waiting.
+fn wake(address: SocketAddr) -> bool {
+    for attempt in 0..WAKE_TRIES {
+        if TcpStream::connect_timeout(&address, WAKE_TIMEOUT).is_ok() {
+            return true;
+        }
+        if attempt + 1 < WAKE_TRIES {
+            thread::sleep(WAKE_RETRY);
+        }
+    }
+    false
 }
 
 /// Starts the listener and returns the address the square should advertise.
