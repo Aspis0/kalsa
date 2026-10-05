@@ -370,6 +370,19 @@
   50% { opacity: 1; }
 }
 
+/* The dots and the sentence beside them, once the wait is long enough to
+   need saying. The sentence uses the thread's quiet-note class. */
+.waiting-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.waiting-row .row-note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
 /* --- errors: desaturated dark red, text and border only, never a fill --- */
 
 .error-block {

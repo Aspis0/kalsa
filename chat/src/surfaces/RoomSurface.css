@@ -107,6 +107,19 @@
   color: var(--silence);
 }
 
+/* The waiting dots and the line beside them; the line appears only while the
+   engine works on this turn, never while Kalsa waits for a seat. */
+.room-waiting-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.room-waiting-row .surface-quiet {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
 /* The moment of a message, WhatsApp-like: bottom-right inside the bubble,
    muted, out of the words' way. Absolute, so it adds no line; the corner
    it takes stays free through the twins below. */

@@ -4640,6 +4640,159 @@ const tests = {
 
     await browser.close();
   },
+
+  // The Room's long turn: the dots said nothing while Kalsa spent 46 s before
+  // her first word. A working turn now says she is reading; a turn waiting
+  // for a seat keeps its own note instead, so the bubble never promises an
+  // answer that is not coming yet.
+  async roomwaiting() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await page.addInitScript(() => {
+      const info = {
+        epoch: "verify-roomwait",
+        open: true,
+        room_name: "Studio",
+        you: 4294967295,
+        members: [
+          { member_id: 4294967295, name: "", kind: "host", former: false },
+          { member_id: 4294967294, name: "Kalsa", kind: "ai", former: false },
+        ],
+        ai: { state: "idle", running: null, queue: [], you_pending: false },
+      };
+      window.__ROOM_HANDLERS__ = [];
+      window.__ROOM_SEQ__ = 100;
+      window.__TAURI__ = {
+        core: {
+          invoke: async (command) => {
+            if (command === "brain_state")
+              return { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Liquid LFM 2.5" };
+            if (command === "brain_capability")
+              return {
+                kind: "measured",
+                chosen: true,
+                machine: {
+                  ram_bytes: 17 * 1024 ** 3,
+                  budget_bytes: 12.75 * 1024 ** 3,
+                  gpu_accounted_for: true,
+                  runs_on: "the graphics chip",
+                  bandwidth_bytes_per_second: 110e9,
+                  bandwidth_basis: "chip",
+                },
+                model: {
+                  id: "0f3e5d7c9b1a2468",
+                  name: "Liquid LFM 2.5",
+                  quant: "Q8_0",
+                  weights_bytes: 2874779648,
+                  context_tokens: 65536,
+                  speed_context_tokens: 8192,
+                  speed: { shape: "range", low: 12, high: 21 },
+                  measured: null,
+                },
+                quicker: null,
+                refusal: null,
+              };
+            if (command === "brain_previous_session_crashed") return false;
+            if (command === "brain_room") return info;
+            if (command === "brain_room_history") return [];
+            return null;
+          },
+        },
+        event: {
+          listen: async (_event, handler) => {
+            window.__ROOM_HANDLERS__.push(handler);
+            return () => {};
+          },
+        },
+      };
+      window.__emitRoom = (payload) => {
+        for (const handler of window.__ROOM_HANDLERS__) {
+          handler({ event: "room-event", id: window.__ROOM_SEQ__++, payload });
+        }
+      };
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator(".brain-bar-chat").last().click();
+    await page.waitForTimeout(500);
+
+    await page.evaluate(() => {
+      window.__emitRoom({ kind: "ai_status", state: "thinking", note_code: null, note: null, running: "Kalsa", queue: [], you_pending: true });
+    });
+    await page.waitForTimeout(300);
+    const thinkingText = await page.locator(".room-bubble").innerText();
+    check("roomwaiting: a thinking turn says Kalsa is reading", thinkingText.includes("Reading the room — Kalsa will answer soon."), thinkingText);
+    check("roomwaiting: the dots are beside the line", (await page.locator(".room-bubble .thinking").count()) === 1);
+
+    await page.evaluate(() => {
+      window.__emitRoom({ kind: "ai_status", state: "waiting", note_code: "busy_waiting", note: "Kalsa is busy.", running: "Kalsa", queue: [], you_pending: true });
+    });
+    await page.waitForTimeout(300);
+    const waitingText = await page.locator(".room-bubble").innerText();
+    check("roomwaiting: waiting does not promise an answer in the bubble", !waitingText.includes("Reading the room"), waitingText);
+    const pageText = await page.evaluate(() => document.body.innerText);
+    check("roomwaiting: the busy note still shows under the thread", pageText.includes("Kalsa is busy with another conversation"), pageText.slice(0, 300));
+
+    await page.evaluate(() => {
+      window.__emitRoom({ kind: "ai_delta", turn: 7, text: "First words." });
+    });
+    await page.waitForTimeout(300);
+    const answeredText = await page.locator(".room-bubble").innerText();
+    check("roomwaiting: the first delta takes the waiting line away", !answeredText.includes("Reading the room") && answeredText.includes("First words."), answeredText);
+
+    await browser.close();
+  },
+
+  // The 1:1 chat's long first word: the dots alone for a beat, then the line
+  // that says Kalsa is reading. The mock's `waiting-demo` holds its first
+  // token for 5 s and then streams a long answer, so the sentence appears
+  // before it and leaves while the answer is still streaming.
+  async waitfirst() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, okSettings("waiting-demo"));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Anything.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+
+    await page.waitForTimeout(1000);
+    check("waitfirst: the dots show at once", (await page.locator(".waiting-row").count()) === 1);
+    check("waitfirst: the sentence is not shown yet", (await page.locator(".waiting-row .row-note").count()) === 0);
+
+    await page
+      .locator(".waiting-row .row-note")
+      .waitFor({ timeout: 5000 })
+      .catch(() => check("waitfirst: the sentence appears after a few quiet seconds", false, "never appeared"));
+    check(
+      "waitfirst: the sentence says Kalsa is reading",
+      ((await page.locator(".waiting-row .row-note").innerText()) ?? "").includes("Reading your message — Kalsa will answer soon."),
+      await page.locator(".waiting-row .row-note").innerText(),
+    );
+
+    try {
+      await page.waitForFunction(
+        () => document.querySelector(".thread")?.textContent?.includes("Working through this step"),
+        null,
+        { timeout: 10000 },
+      );
+    } catch {
+      check("waitfirst: the first token arrived", false, "wait timed out");
+    }
+    // The answer is long, so Stop being on screen is what says the stream is
+    // still running: the row left because the token came, not because the
+    // turn ended.
+    const streaming = await page.getByRole("button", { name: "Stop generating" }).isVisible().catch(() => false);
+    check(
+      "waitfirst: the first token takes dots and line away mid-stream",
+      (await page.locator(".waiting-row").count()) === 0 && streaming,
+      `rows ${await page.locator(".waiting-row").count()}, streaming ${streaming}`,
+    );
+
+    await browser.close();
+  },
 };
 
 /**

@@ -7,6 +7,9 @@ export interface RoomTable {
   listJoin: (items: string[]) => string;
   closedRoom: string;
   emptyRoom: string;
+  /** Inside Kalsa's bubble while the turn runs and no answer word has
+      arrived yet — not while she waits for a seat (the note says that). */
+  readingRoom: string;
   queueNext: (name: string) => string;
   queueThen: (name: string, rest: string) => string;
   askKalsa: string;
@@ -63,6 +66,7 @@ export const ROOM: RoomTable = {
   },
   closedRoom: "Turn on Kalsa to use the room.",
   emptyRoom: "No messages yet. Say something, or ask Kalsa.",
+  readingRoom: "Reading the room — Kalsa will answer soon.",
   queueNext: (name) => `Kalsa will answer ${name} next.`,
   queueThen: (name, rest) => `Kalsa will answer ${name} next, then ${rest}.`,
   askKalsa: "Ask Kalsa",

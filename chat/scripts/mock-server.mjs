@@ -151,6 +151,9 @@ function scenarioFor(model) {
   if (model.includes("slow")) return { text: LONG_MD, delay: 45 };
   // Patient: first token takes 1.5s so the waiting state is observable.
   if (model.includes("patient")) return { text: LONG_MD, delay: 20, firstDelay: 1500 };
+  // Long wait: the first token takes 5s, and the long answer then streams
+  // for seconds — the delayed sentence and its first-token exit both fit.
+  if (model.includes("waiting-demo")) return { text: LONG_MD, delay: 25, firstDelay: 5000 };
   return { text: "Hello! The line is open and streaming works.", delay: 10 };
 }
 

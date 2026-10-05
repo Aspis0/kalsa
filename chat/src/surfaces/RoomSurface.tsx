@@ -102,6 +102,11 @@ export function RoomSurface() {
   // `running` is the feed's own word for that; the composer wears it as
   // the chat wears streaming.
   const turnRunning = ai?.running != null;
+  // The bubble's line is for a turn the engine is working on. A turn waiting
+  // for a seat keeps the note under the thread, and a refused or cancelled
+  // one has its own sentence there — neither may be told an answer is coming.
+  const kalsaWorking =
+    turnRunning && (ai?.state === "thinking" || ai?.state === "answering");
 
   // Glued to the bottom while the answer arrives, unless the reader
   // scrolled up — the thread's own rule.
@@ -558,7 +563,12 @@ export function RoomSurface() {
                   {live !== null && live.text !== "" ? (
                     <Markdown text={live.text} streaming />
                   ) : (
-                    <Thinking />
+                    <span className="room-waiting-row">
+                      <Thinking />
+                      {kalsaWorking ? (
+                        <span className="surface-quiet">{room.readingRoom}</span>
+                      ) : null}
+                    </span>
                   )}
                 </div>
               </div>

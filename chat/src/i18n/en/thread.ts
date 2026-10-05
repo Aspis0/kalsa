@@ -18,6 +18,7 @@ export const THREAD = {
   stoppedHalfwayBody: "The connection closed before the end — what arrived is above. Try again for the full answer.",
   tryAgain: "Try again",
   waitingFirstWord: "Waiting for the first word",
+  readingMessage: "Reading your message — Kalsa will answer soon.",
   stoppedEarly: "Stopped early — showing what arrived.",
   noAnswer: "Kalsa finished thinking without an answer. Try asking another way.",
   backToLatest: "Back to latest ↓",

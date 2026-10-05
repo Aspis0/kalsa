@@ -1,5 +1,6 @@
 import type { ChatMessage } from "../lib/types";
 import type { ChatErrorKind } from "../lib/chat";
+import { useEffect, useState } from "react";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { useStickToBottom } from "../lib/stickToBottom";
@@ -55,6 +56,31 @@ export function Thinking() {
   );
 }
 
+/** How long the dots stay alone before the sentence about reading appears:
+    an answer that starts quickly must not flash a line that is already
+    untrue. */
+const WAITING_SENTENCE_MS = 3000;
+
+/** The dots, and — after a few quiet seconds — the sentence that says Kalsa is
+    still reading. The timer dies with the row, so a first token, a thought or
+    Stop takes the sentence away with the dots. */
+function WaitingRow({ text, spoken }: { text: string; spoken: string }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), WAITING_SENTENCE_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  return (
+    <>
+      <span className="waiting-row">
+        <Thinking />
+        {slow ? <span className="row-note">{text}</span> : null}
+      </span>
+      <span className="visually-hidden">{spoken}</span>
+    </>
+  );
+}
+
 /** The moment a message was said, in the reader's own language. */
 export function stamp(when: number, tag: string): string {
   try {
@@ -107,10 +133,7 @@ function AssistantRow({
           run.miniapp ? <MiniappView key={run.id} miniapp={run.miniapp} /> : null,
         )}
         {showThinking ? (
-          <>
-            <Thinking />
-            <span className="visually-hidden">{t.waitingFirstWord}</span>
-          </>
+          <WaitingRow text={t.readingMessage} spoken={t.waitingFirstWord} />
         ) : message.content ? (
           <Markdown text={message.content} streaming={streaming} />
         ) : null}
