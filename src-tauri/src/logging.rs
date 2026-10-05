@@ -589,7 +589,7 @@ fn machine_host() -> Option<String> {
                 let mut buffer = [0u16; 256];
                 let mut size = buffer.len() as u32;
                 let named = windows_sys::Win32::System::SystemInformation::GetComputerNameExW(
-                    windows_sys::Win32::System::SystemInformation::COMPUTER_NAME_FORMAT_DNS_HOSTNAME,
+                    windows_sys::Win32::System::SystemInformation::ComputerNameDnsHostname,
                     buffer.as_mut_ptr(),
                     &mut size,
                 );
