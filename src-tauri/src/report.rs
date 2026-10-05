@@ -110,9 +110,12 @@ pub(crate) fn header_is_well_formed(value: &str) -> bool {
 /// lines rather than mid-write. A file that is there but cannot be read is
 /// REPORTED as one note line in the body, never silently dropped; a folder
 /// with nothing in it answers empty, and the command refuses that before
-/// any network is touched.
+/// any network is touched. The body then meets the sink's own redaction:
+/// the files can hold lines an older build wrote before the sink learned to
+/// redact, and this body is uploaded as it sits, so the joined body goes
+/// through the same rule here, before any send.
 pub(crate) fn read_body(log_dir: &Path) -> String {
-    crate::logging::with_log_held(|| {
+    let body = crate::logging::with_log_held(|| {
         let halves = [
             read_half(&log_dir.join("kalsa-brain.1.log"), "the earlier log file"),
             read_half(&log_dir.join("kalsa-brain.log"), "the live log file"),
@@ -136,8 +139,13 @@ pub(crate) fn read_body(log_dir: &Path) -> String {
             body.push_str(&note);
             body.push('\n');
         }
-        trim_to_newest(body)
-    })
+        body
+    });
+    // The trim comes first, so the pass runs over at most four MiB, and once
+    // more after it: a redaction can lengthen what it replaces (a
+    // three-letter account name becomes `<user>`), and the cap is the cap.
+    // Both are outside the logger's lock, so neither holds a writer.
+    trim_to_newest(crate::logging::redact_str(&trim_to_newest(body)))
 }
 
 /// One half of the body: the file's last [`MAX_BYTES`] bytes as text,
@@ -465,6 +473,42 @@ mod tests {
             "{body}"
         );
         assert!(body.contains("readable"), "{body}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The files can hold lines an older build wrote before the sink
+    /// redacted addresses, and the body is uploaded as it sits: the read
+    /// puts it through the sink's own rule — every non-loopback literal
+    /// becomes `<addr>`, IPv4 and IPv6, the port beside it kept, and
+    /// loopback left alone.
+    #[test]
+    fn an_old_style_line_loses_its_addresses_and_keeps_loopback() {
+        let dir = scratch("old-addresses");
+        std::fs::write(
+            dir.join("kalsa-brain.log"),
+            concat!(
+                "INFO iroh::socket::transports: poll_send; network_path=Ip { remote: 203.0.113.7:41641 }\n",
+                "INFO iroh::socket::transports: poll_send; remote=[2001:db8::5]:49755\n",
+                "the door listens on 127.0.0.1:8131 and [::1]:8131\n",
+            ),
+        )
+        .unwrap();
+        let body = read_body(&dir);
+        assert!(!body.contains("203.0.113.7"), "{body}");
+        assert!(!body.contains("2001:db8::5"), "{body}");
+        assert!(
+            body.contains("<addr>:41641"),
+            "the port beside a redacted IPv4 stays: {body}"
+        );
+        assert!(
+            body.contains("[<addr>]:49755"),
+            "the port beside a redacted IPv6 stays: {body}"
+        );
+        assert!(
+            body.contains("127.0.0.1:8131") && body.contains("[::1]:8131"),
+            "loopback stays, IPv4 and IPv6: {body}"
+        );
+        assert_eq!(body.matches("<addr>").count(), 2, "{body}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
