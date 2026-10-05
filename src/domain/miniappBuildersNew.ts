@@ -19,11 +19,10 @@ import {
   envelope,
   isPlainObject,
   safeAnswerIndex,
-} from "./miniappBuilders";
+  type Slots,
+} from "./miniappBuilderCommon";
 import type { AskAssistantMiniapp } from "./askAssistant";
 import type { MiniappTemplateId } from "./miniappTemplates";
-
-type Slots = Record<string, unknown>;
 
 const MAX_QUIZ_QUESTIONS = 8;
 const MAX_METRICS = 8;
