@@ -1371,7 +1371,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   `8ac5522d0`, GLM, luna audit + fixes). S23: tied output reused from the CPU copy, no HTP0 buffer, two-copy placement
   identical, A unchanged; one copy **1.75 GB**. Decode stays 0.75 until the tied-output decision.
 - **Step 4 (coding)**: GPU leg per Fable Amendment E (OpenCL claims TILE32 by a lazy per-buffer dma-buf import, v4
-  decode mat-vec, Adreno 740 gate with read-only self-check, explicit import release).
+  decode mat-vec, Adreno 740 gate with read-only self-check, explicit import release). GLM hit its 5-hour quota
+  mid-task (2026-10-05 03:30); the uncommitted WIP is being finished by Coder deepseek.
+- **Step 5 prerequisite** (Fable Amendment F): hop v1 lives on engine `main`, not on this branch (merge-base
+  `45f097b74`, main +373 commits, branch +50): merge main into the branch before step 5.
 - Next: step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
   load, R2 negative control on Jelly/untested Snapdragon).
 
