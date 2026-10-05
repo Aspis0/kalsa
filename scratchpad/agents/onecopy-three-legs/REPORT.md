@@ -230,7 +230,7 @@ GGML_OP_OFFLOAD_MIN_BATCH=1 GGML_HEXAGON_ADMIT_OPS=7`), no `-ot`.
   stays on the HTP: op-name multiset otherwise identical to A.
 - NPU ABBA, `-t 5 -r 3 -ub 512`: A 890.1 / 22.58, S 877.2 / 17.01, S2 883.4 / 17.39, A2 892.5 / 22.40.
   **S/A pp512 0.986, tg128 0.766**; KLD A 0.005313, S 0.005329 (lm_head numerics on the CPU).
-  The decode loss is the per-token CPU lm_head (65536 x 2048 Q6_K at -t 5), not the tiles.
+  The decode loss is the per-token CPU lm_head (128000 x 2048 Q6_K = 205 MiB per token at -t 5), not the tiles.
 - Cap: TILE32 arrives as two dma-bufs, 867635200 B (827.4 MiB <= 832) + 501944320 B; HOST 230424576 B.
 - RAM, max during a `-p 512 -n 128 -r 1 -t 5` run, Pss_Anon + Pss_File + dma-buf (kB): A two-copy NPU model
   1960087 (dma-buf 1677532), C the CPU model of today's app (`-ngl 0 -nr`) 1742192 (anon 1689732), S one copy

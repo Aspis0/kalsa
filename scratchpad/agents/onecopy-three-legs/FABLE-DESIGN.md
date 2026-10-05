@@ -395,6 +395,39 @@ zero, the "before any load" contract unchanged. (b) Revision 3 lists the native 
 tied output, the largest real copy. (c) The scheduler guard must stay silent for native weights, or two-copy configs
 that copy today start failing.
 
+## Amendment D (2026-10-05): the tied output
+
+Correction first: C1 predicted the duplicate on HTP0; it lands in HOST because the HTP probe for the OUTPUT role
+(MUL_MAT on a host Q6_K weight) is refused by `ggml_hexagon_raw_weights_supported` (only flat Q4_0 raw,
+`ggml-hexagon.cpp:2169-2171`) and HOST comes before HTP0 in the list; the lm_head then runs on the CPU: 0.766 decode.
+Also: the report's "65536 x 2048" is wrong; 205.08 MiB / (8 superblocks x 210 B per row) = 128000 rows (ALIVE's
+2048x128000). Step 3 as merged (fe3170e7e) keeps the reuse-host rule, so it fixes the bytes and keeps the 0.77.
+
+Facts for the options. Today's two-copy NPU model already carries the duplicate on the device buft (A: HTP0
+1525.87 = 1306.12 tiles + ~14.7 norms/conv + 205 output). The HTP cannot GET_ROWS a repacked tensor
+(`:5381-5382`) and the device buft is not host-readable (`:2046-2047`), so a device-only embedding needs a DSP
+gather. The raw-row template exists for Q4_0 only (`matmul-ops.c:351` converts rows to tiles in VTCM; `:825`
+`hvx_mv_2d_raw_q4_0_flat`; `:1613` the `is_raw` switch), not for Q6_K (`:1617` repacked only; tile 896 B,
+`matmul-ops.h:36`). Whole-model raw Q4_0 decode measured 0.70 of tiled (ALIVE: 15.51 vs 22.1). The lm_head costs
+4.8 ms/token on the DSP (hmx-numerics census) and ~14 ms on the CPU at -t 5 (22.5 -> 17.2 tok/s). Q4_0 output
+would be 128000 x 1152 B = 140.6 MiB; today 205.08 MiB.
+
+| rank | option | weights (MiB) | NPU decode | CPU leg | GPU leg | engine work | risk |
+|---|---|---:|---:|---|---|---|---|
+| 1 | **(4) requantize token_embd to Q4_0, one TILE32 copy for both roles** | 1306 + 15 + 141 = 1462 | ~1.03 (fewer bytes than Q6_K) | lm_head on the tile32 gemv: faster than today's Q6_K CPU dot | lm_head on the v4 kernel: fully GPU | CPU tile32 GET_ROWS (gather 16 B per K-tile per row + dequant, ~60 lines in `tile32.cpp`, `:23-73` admits MUL_MAT only today); placement rule so the input role also lands in TILE32 (today the input list is the CPU list, `llama-model.cpp:1539`, and the HTP declines GET_ROWS at the probe) | KLD unknown: measure on the host first (`llama-quantize --token-embedding-type q4_0`, KLD vs today's 0.005313 on the owner's fixture); a model release through the chain (R2/HF digests, app pin) |
+| 2 | **(1) accept the 205 MiB duplicate on HTP0** | 1306 + 15 + 205 + 205 = 1731 | 1.00 (today's graph) | lm_head native Q6_K from the CPU buffer, as today's CPU model | lm_head on the CPU, 14 ms of the token (e3) | ~20 lines: the dup may take the device buft; audit accepts an HTP0 buffer only for a `TENSOR_DUPLICATED` tensor and prints it by name and size | none technical; 1.98 GB vs 3.70 today; it is not hidden because it is the one tensor read by two different ops (GET_ROWS native, MUL_MAT repacked), named in the audit line and in the RAM table |
+| 3 | **(3) HTP reads flat Q6_K from HOST** | 1526 | ~0.95 (lm_head 4.8 -> ~7 ms if the raw dot is 0.70 like Q4_0) | as (1) | as (1) | DSP: a `q6_k_raw_rows_to_tiles` into the 896 B tile and the `is_raw` switch for Q6_K (`:1617`); host: `raw_weights_supported` for Q6_K with ne0 % 256; a spike like `974a31e79` | medium: speed is an estimate, the Q6_K superblock conversion in VTCM is new DSP code; numerics = repacked |
+| 4 | (2) embedding only on HTP0, repacked | 1526 | 1.00 | the leg must keep an HTP backend for GET_ROWS and lm_head (admission `htp_only`), so the DSP wakes every token: NSP relief gone | same | DSP GET_ROWS over Q6_K tiles + leg plumbing | high, and it defeats the CPU/GPU legs' purpose |
+
+Recommendation: measure (4)'s KLD on the host today (one requantize, one perplexity run, no phone); if it passes the
+owner's gate, (4) is the only option that satisfies both rules and makes every leg native; if it fails, (1) now and (3)
+as the later spike. (2) no.
+
+**Step 3 before merge:** the C1 rule must not hard-code "reuse host, else throw". Put the shared-mode duplicate
+policy behind one loader field (`reuse_host` | `allow_device`), default `reuse_host`, and let the audit accept a device
+buffer only for a `TENSOR_DUPLICATED` tensor, naming it. Then (1) is a flag flip, (3) needs no loader change, and (4)
+needs the placement rule only. Merge with that field; nothing else in step 3 depends on the choice.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
@@ -405,3 +438,5 @@ that copy today start failing.
   placement, admission env for the S23 check, split proof, RAM method and fair arms, scope fence).
 - 2026-10-05 v5: Amendment C appended (step-3 spec: second-copy sources incl. the duplicated tied output, loader
   check gated on shared mode, two generic native-read guards, host tests, pin must become a live-buffer count).
+- 2026-10-05 v6: Amendment D appended (tied output: options ranked, requantize-to-Q4_0 first pending KLD, duplicate on
+  HTP0 second, flat Q6_K third; C1 rule made policy-selectable before the step-3 merge; vocab 128000 correction).
