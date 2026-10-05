@@ -130,3 +130,8 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - F12/F13: per-op mutex/env cost on the compute path; discarded bool return; test covers little runtime decision surface beyond what the fixes add.
 - P3 UX (Jelly 2026-10-05): a remote picture's composer chip reads "Reading from <file>" with a document icon; it
   should look like a picture chip (thumbnail or image icon, no "Reading from").
+
+## Chat pill phone/PC switch (branch ux/model-bar-switch; review luna 64ae87ed, 2026-10-05)
+- P3: switching back to the phone when its model is not downloaded gives a non-pressable status row
+  (modelBarChoices.ts:50, ModelBar.tsx:136); the user must go to Settings to download.
+- P3: modelBarChoices.test.ts:75 and :107-110 pin source text (toContain/regex) for wiring and dismissal.
