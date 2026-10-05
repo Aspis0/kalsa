@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useLocale } from "../../i18n";
 import { e1, families, measure, modes, radius, space, type, type ThemeMode } from "../../theme/design";
+import type { AttachSheetRowData } from "./AttachSheet";
 import { ModelPillSheet } from "./ModelPillSheet";
 import { shellLocationLabel } from "./shellLocationLabel";
 import {
@@ -22,6 +23,7 @@ export function ShellStrip({
   whereLabel,
   mode,
   modelBar,
+  locationRows = [],
   onMenuPress,
   onModelAction,
 }: {
@@ -31,6 +33,9 @@ export function ShellStrip({
   whereLabel?: string;
   mode: ThemeMode;
   modelBar?: ModelBarView;
+  /** The pill's where-choices; empty when one place can answer and the pill
+   *  must claim no picker (`modelBarChoices.ts`). */
+  locationRows?: readonly AttachSheetRowData[];
   onMenuPress?: () => void;
   onModelAction?: () => void;
 }) {
@@ -44,6 +49,9 @@ export function ShellStrip({
   });
   const iconColor = colors.ink2;
   const refused = modelBar?.status.tone === "bad";
+  // The chevron is the picker's affordance: it appears only where a real
+  // choice exists, never beside a single place to answer.
+  const hasChoices = locationRows.length > 0;
 
   return (
     <>
@@ -79,7 +87,11 @@ export function ShellStrip({
         <Pressable
           testID="shell.strip.model"
           accessibilityRole="button"
-          accessibilityLabel={t("shell.a11y.modelSwitcher", { model: modelName, where: locationLabel })}
+          accessibilityLabel={
+            hasChoices
+              ? t("shell.a11y.modelSwitcher", { model: modelName, where: locationLabel })
+              : t("shell.a11y.modelStatus", { model: modelName, where: locationLabel })
+          }
           onPress={() => setSheetVisible(true)}
           style={({ pressed }) => ({
             height: 48,
@@ -122,7 +134,7 @@ export function ShellStrip({
             >
               {locationLabel}
             </Text>
-            <ChevronDown size={STRIP_CHEVRON_SIZE} color={colors.ink3} strokeWidth={2} />
+            {hasChoices ? <ChevronDown size={STRIP_CHEVRON_SIZE} color={colors.ink3} strokeWidth={2} /> : null}
           </View>
         </Pressable>
       </View>
@@ -131,6 +143,7 @@ export function ShellStrip({
         modelName={modelName}
         mode={mode}
         view={modelBar}
+        rows={locationRows}
         onRetryPress={onModelAction}
         onClose={() => setSheetVisible(false)}
       />

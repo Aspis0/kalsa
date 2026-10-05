@@ -1538,6 +1538,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       menu: "Open menu",
       newChat: "New chat",
       modelSwitcher: "Model and where it runs: {model}, {where}",
+      /** The same pill when no chooser exists: the name must promise the
+       *  status sheet the tap opens, never a picker (`ShellStrip.tsx`). */
+      modelStatus: "Model status: {model}, {where}",
       field: "Message",
       send: "Send",
       stop: "Stop generating",

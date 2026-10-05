@@ -21,6 +21,7 @@ import { useLocale } from "../../i18n";
 import { modes, type ThemeMode } from "../../theme/design";
 import { ComposerAttachments, type ComposerAttachmentsProps } from "./ComposerAttachments";
 import { ShellComposer } from "./ShellComposer";
+import type { AttachSheetRowData } from "./AttachSheet";
 import type { ModelBarView } from "./ModelBar";
 import { ShellStrip } from "./ShellStrip";
 import {
@@ -87,6 +88,9 @@ export type ShellProps = {
    */
   attachments?: Omit<ComposerAttachmentsProps, "colors">;
   modelBar?: ModelBarView;
+  /** The pill's where-choices from the host; empty when one place can
+   *  answer, and the strip then draws no picker affordance. */
+  locationRows?: readonly AttachSheetRowData[];
 };
 
 export function Shell({
@@ -116,6 +120,7 @@ export function Shell({
   fieldRef,
   attachments,
   modelBar,
+  locationRows,
 }: ShellProps) {
   const { t } = useLocale();
   const window = useWindowDimensions();
@@ -157,6 +162,7 @@ export function Shell({
         whereLabel={whereLabel}
         mode={mode}
         modelBar={modelBar}
+        locationRows={locationRows}
         onMenuPress={onMenuPress}
         onModelAction={onModelPress}
       />

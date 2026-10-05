@@ -1482,6 +1482,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       menu: "Apri il menu",
       newChat: "Nuova chat",
       modelSwitcher: "Modello e dove gira: {model}, {where}",
+      /** Same pill, no chooser: the name promises the status sheet, not a picker. */
+      modelStatus: "Stato del modello: {model}, {where}",
       field: "Messaggio",
       send: "Invia",
       stop: "Ferma la generazione",

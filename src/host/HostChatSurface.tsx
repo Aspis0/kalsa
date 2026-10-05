@@ -6,8 +6,8 @@
  *
  * - the strip's model-pill tap semantics (D1 row 33: download if missing,
  *   retry if error, load if ready; disabled while busy, inert when the
- *   embedder is hung) and the model bar's rows under the strip (rows 34-36),
- *   both decided in `useModelBar`;
+ *   embedder is hung) and, under the strip, the model bar's rows (rows 34-36)
+ *   and the pill's where-chooser, all decided in `useModelBar`;
  * - the attach flow (sheet, pickers, PDF conversion, §2.7 chip row) and the
  *   mic, still a stub that answers with its toast (§2.7);
  * - the send ⇄ stop wiring of §2.8's one control: `stop` while the face says
@@ -135,7 +135,7 @@ export function HostChatSurface({
   // Strip pill semantics and the rows beneath it (D1 rows 33-36): one hook
   // owns the decision table, the derived labels and the battery sampling —
   // the controller computed these in render (`AppShell.tsx:6720-6788`).
-  const modelBar = useModelBar(modelHost);
+  const modelBar = useModelBar(modelHost, view.composer.face !== "send");
 
   const bandInsets = bottomInsetFor(insets, keyboardHeight);
   const colors = modes[mode];
@@ -258,6 +258,7 @@ export function HostChatSurface({
       onMenuPress={onMenuPress}
       onModelPress={modelBar.onPress}
       modelBar={modelBar.view}
+      locationRows={modelBar.locationRows}
       onAttachPress={() => setAttachSheetOpen(true)}
       attachDisabled={view.composer.face !== "send" || attachments.converting !== null}
       onMicPress={() => showNoticeKey("shell.notice.mic")}

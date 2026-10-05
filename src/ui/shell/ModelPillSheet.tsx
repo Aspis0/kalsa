@@ -1,15 +1,36 @@
-/** Model readiness and battery detail opened from the strip's model pill. */
+/**
+ * The strip pill's sheet: the where-choices (when a usable pairing makes one
+ * real, `modelBarChoices.ts`) over the model's own status and battery detail.
+ * Draw-only — the rows arrive as data and the status view from the host; the
+ * rows are the attach sheet's own `SheetRow`, so the two sheets cannot drift
+ * apart on touch size or radio state.
+ */
 import { Modal, Pressable, Text, View } from "react-native";
 import { useLocale } from "../../i18n";
 import { e2, modes, spacing, type, type ThemeMode } from "../../theme/design";
+import { SheetRow, type AttachSheetRowData } from "./AttachSheet";
 import { SheetGrabber } from "./SheetGrabber";
 import { ModelBar, type ModelBarView } from "./ModelBar";
+
+/** The row as this sheet draws it: the switch, then the sheet's own
+ *  dismissal — a refusal has already spoken through the one-slot notice, and
+ *  a Modal would hide it if the sheet stayed up. */
+function dismissOnChoice(row: AttachSheetRowData, onClose: () => void): AttachSheetRowData {
+  return {
+    ...row,
+    onPress: () => {
+      row.onPress();
+      onClose();
+    },
+  };
+}
 
 export function ModelPillSheet({
   visible,
   modelName,
   mode,
   view,
+  rows = [],
   onRetryPress,
   onClose,
 }: {
@@ -17,6 +38,8 @@ export function ModelPillSheet({
   modelName: string;
   mode: ThemeMode;
   view?: ModelBarView;
+  /** Empty when only one place can answer: the sheet shows status alone. */
+  rows?: readonly AttachSheetRowData[];
   onRetryPress?: () => void;
   onClose: () => void;
 }) {
@@ -54,6 +77,22 @@ export function ModelPillSheet({
         >
           <SheetGrabber colors={colors} testID="shell.modelSheet.grabber" marginBottom={spacing.md} />
           <Text style={[type.title, { color: colors.ink }]}>{modelName}</Text>
+          {rows.length > 0 ? (
+            <>
+              <Text style={[type.secondary, { color: colors.ink3, marginTop: spacing.xs }]}>
+                {t("settings.whereRuns")}
+              </Text>
+              <View style={{ marginTop: spacing.xs, marginBottom: spacing.sm }}>
+                {rows.map((row) => (
+                  <SheetRow
+                    key={row.testID}
+                    colors={colors}
+                    row={dismissOnChoice(row, onClose)}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
           <Text style={[type.secondary, { color: colors.ink3, marginTop: spacing.xs }]}>
             {t("shell.model.statusTitle")}
           </Text>

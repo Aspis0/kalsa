@@ -77,7 +77,10 @@ const ICONS: Record<AttachSheetIcon, (color: string) => ReactNode> = {
   trash: (color) => <Trash2 size={20} color={color} strokeWidth={1.75} />,
 };
 
-function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColors }) {
+/** One 48 dp sheet row — the shared choice primitive: the model pill's sheet
+ *  draws its where-rows through this (a testID and an accessible name on
+ *  every pressable, radio state announced, never `hitSlop`). */
+export function SheetRow({ row, colors }: { row: AttachSheetRowData; colors: DesignColors }) {
   const iconColor = row.tone === "danger" ? colors.danger : row.selected ? colors.accent : colors.ink3;
   const textColor = row.tone === "danger" ? colors.danger : row.selected ? colors.accent : colors.ink;
   return (
