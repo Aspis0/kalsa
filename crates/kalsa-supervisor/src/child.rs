@@ -4,9 +4,11 @@
 //! Shutdown order is the point of this file:
 //!
 //! 1. close our end of the child's stdin — the stop signal a cooperating child
-//!    waits for, identical on every platform, because it is our pipe;
-//! 2. SIGTERM to the child's process group, SIGKILL after a grace period, for a
-//!    server that does not read stdin (`llama-server` does not);
+//!    waits for, identical on every platform, because it is our pipe. Its
+//!    grace is unix-only: `kalsa-server` reads no stdin (`llama-server` does
+//!    not), and on Windows the rung that follows is the kill, so a wait there
+//!    could only expire;
+//! 2. unix: SIGTERM to the child's process group, then SIGKILL a grace later;
 //! 3. the platform backstop for a force-quit: a kill-on-close Job Object on
 //!    Windows (from Jan, see NOTICE), `PR_SET_PDEATHSIG` on Linux. macOS has
 //!    neither; see the README for what that costs.
@@ -161,6 +163,15 @@ pub struct ChildHandle {
     _job: Option<job::Job>,
 }
 
+/// The rungs this platform's walk actually walks, as the stop's own line
+/// names them. The name lives beside the walk so the two cannot drift: a
+/// Windows stop walks the kill alone, and naming a stdin rung it never waits
+/// on would promise a signal the engine cannot hear.
+#[cfg(unix)]
+pub(crate) const RUNGS: &str = "stdin, SIGTERM, SIGKILL";
+#[cfg(not(unix))]
+pub(crate) const RUNGS: &str = "kill";
+
 impl ChildHandle {
     /// Spawns `exe` in its own process group (Unix) or inside a kill-on-close
     /// job (Windows), with stdin piped: dropping our end is the child's stop
@@ -277,22 +288,33 @@ impl ChildHandle {
         self.stdin.take().is_some()
     }
 
-    /// Stops the child: stdin EOF after `grace`, then — unix — SIGTERM to
-    /// its group and SIGKILL, each after a `grace`. A Windows stop walks
-    /// stdin and then kills: there is no gentler step, and no grace to wait
-    /// out behind a signal that was never sent. Every rung is bounded,
+    /// Stops the child: close its stdin, then — unix — SIGTERM to its group
+    /// and SIGKILL, each after a `grace`. A Windows stop closes the pipe and
+    /// kills, so `grace` bounds no rung there: the walk's configuration is
+    /// one value for every platform, and this one is unix's to spend. Every
+    /// rung is bounded,
     /// the reap behind the kill included: a status that has not landed
     /// within [`REAP_GRACE`] is REPORTED, never waited for — a kill can be
     /// issued and the process object still not signal, and an exit that
     /// waited on it held this app for six minutes with the engine gone.
     /// The walk REPORTS what it found instead of handing back an exit
     /// status that reads as "gone" either way.
-    pub fn terminate(&mut self, grace: Duration) -> Termination {
+    pub fn terminate(
+        &mut self,
+        #[cfg_attr(not(unix), allow(unused_variables))] grace: Duration,
+    ) -> Termination {
         let mut complaints: Vec<String> = Vec::new();
         if let Ok(Some(_)) = self.child.try_wait() {
             return Termination::Gone { needed: Step::Already };
         }
+        // The close is every platform's; the grace behind it is not. Nothing
+        // in `kalsa-server` reads stdin, so an EOF is a stop signal no engine
+        // hears — on Windows, where the rung after it IS the kill, that grace
+        // is 2.5 s of every stop spent waiting for a child that cannot
+        // answer. Unix keeps it: SIGTERM follows, and a cooperating child
+        // would be spared the kill.
         self.close_stdin();
+        #[cfg(unix)]
         match self.wait_within(grace) {
             Ok(Some(_)) => return Termination::Gone { needed: Step::Grace },
             Ok(None) => {}
@@ -472,17 +494,19 @@ pub enum Termination {
     Unknown { detail: String },
 }
 
-/// Which class of rung of the walk finished it: `Grace` covers both grace
-/// rungs (gone on stdin EOF, or gone within the grace after SIGTERM) — the
-/// question `Kill` answers separately is whether SIGKILL was needed at all.
+/// Which class of rung of the walk finished it: `Grace` covers unix's two
+/// grace rungs (gone on stdin EOF, or gone within the grace after SIGTERM) —
+/// the question `Kill` answers separately is whether SIGKILL was needed at
+/// all. Windows walks no rung between its close and its kill, so its stops
+/// report `Kill`: the engine is killed, never asked.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
     /// No push was needed: it had already exited when the walk began.
     Already,
     /// Gone within a grace rung — no SIGKILL was required.
     Grace,
-    /// SIGKILL finished it: both earlier rungs were spent and are recorded
-    /// as the time they cost, not as a failure.
+    /// SIGKILL finished it: the grace rungs before it were spent, and are
+    /// recorded as the time they cost, not as a failure.
     Kill,
 }
 
@@ -812,14 +836,26 @@ mod tests {
         assert!(matches!(child.try_wait(), Ok(None)));
     }
 
-    /// The stdin rung is the grace a Windows stop spends: the SIGTERM rung
-    /// is unix, and a second grace behind a signal that was never sent is
-    /// pure waiting — the walk printed "2.5s per rung" twice for a stop
-    /// with one signal. A child that ignores stdin EOF must cost one grace,
-    /// not two.
-    #[cfg(windows)]
+    /// The name a stop writes must be the walk this platform makes: a
+    /// Windows line naming stdin would promise a grace the engine's own
+    /// silence turns into waste.
     #[test]
-    fn stop_of_a_child_that_ignores_stdin_costs_one_grace_not_two() {
+    fn the_stop_line_names_the_rungs_this_platform_walks() {
+        #[cfg(unix)]
+        assert_eq!(RUNGS, "stdin, SIGTERM, SIGKILL");
+        #[cfg(not(unix))]
+        assert_eq!(RUNGS, "kill");
+    }
+
+    /// A Windows stop spends no grace: the engine reads no stdin, so the
+    /// close is not waited behind, and the kill is the rung that follows.
+    /// A child that ignores stdin EOF must therefore die to the kill inside
+    /// less time than one grace — the old walk spent one grace on the close
+    /// and then killed anyway. Windows only: unix keeps the stdin rung,
+    /// because SIGTERM follows it.
+    #[cfg(not(unix))]
+    #[test]
+    fn stop_of_a_child_that_ignores_stdin_costs_no_grace() {
         let releases = Arc::new(AtomicU64::new(0));
         let residency = Residency::new();
         let mut child = ChildHandle::spawn(
@@ -839,8 +875,8 @@ mod tests {
             "a child that ignores stdin dies to the kill rung: {report:?}"
         );
         assert!(
-            elapsed < grace * 2,
-            "stop took {elapsed:?}: one grace, not two, is the contract"
+            elapsed < grace,
+            "stop took {elapsed:?}: a Windows walk waits no grace"
         );
     }
 

@@ -43,6 +43,7 @@ mod ui_event;
 mod vision;
 mod verified;
 mod web;
+mod window_visibility;
 
 use std::io;
 use std::net::SocketAddr;
@@ -2111,6 +2112,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // hook.
     let guard = std::sync::Arc::new(instance::claim());
     let app = tauri::Builder::default()
+        // The window's own state, for the page: a minimized Windows window
+        // keeps `document.hidden` false, so this is the only word the page
+        // gets on being an icon.
+        .on_window_event(window_visibility::on_window_event)
         // The webview's own lifecycle on the log: the first page load of this
         // process is the app start, every later one a reload — which is what
         // "the app stopped and started again" looks like from the outside

@@ -5,7 +5,15 @@
  * nobody looking.
  */
 
+import { listen } from "./tauri";
+
 const HIDDEN_ATTRIBUTE = "data-hidden";
+
+/** The backend's word on the window being out of sight, and the event that
+    carries it. A minimized WebView2 window keeps `document.hidden` false on
+    Windows, so this flag is the only witness of an icon there. */
+const WINDOW_SHOWN_EVENT = "window-shown";
+let windowHidden = false;
 
 /** The period every clock below uses while the window is hidden. Slower to
     spare the battery, never stopped: `brain_state` raises the phone's door
@@ -13,24 +21,63 @@ const HIDDEN_ATTRIBUTE = "data-hidden";
     must still come around. */
 const HIDDEN_INTERVAL_MS = 15000;
 
+/** Whether the page is hidden: the page's own answer OR the backend's.
+    A process with no `document` — the Node harnesses — counts as visible:
+    there is no window to spare. */
+function pageHidden(): boolean {
+  return typeof document !== "undefined" && (document.hidden || windowHidden);
+}
+
 /** True while the page may be worked for. A process with no `document` — the
     Node harnesses — counts as visible: there is no window to spare. */
 export function isPageVisible(): boolean {
-  return typeof document === "undefined" || !document.hidden;
+  return !pageHidden();
 }
 
 function reflect(): void {
   if (typeof document === "undefined") return;
-  if (document.hidden) document.documentElement.setAttribute(HIDDEN_ATTRIBUTE, "");
+  if (pageHidden()) document.documentElement.setAttribute(HIDDEN_ATTRIBUTE, "");
   else document.documentElement.removeAttribute(HIDDEN_ATTRIBUTE);
+}
+
+type Change = () => void;
+const changes = new Set<Change>();
+let listening = false;
+let lastHidden = false;
+
+/** The one place a change of visibility is noticed, from either source. The
+    combined state is what counts, so a platform firing both — macOS reports a
+    minimize as `visibilitychange` too — is still one change: the return read
+    must not run twice for one restoration. */
+function announce(): void {
+  const hidden = pageHidden();
+  if (hidden === lastHidden) return;
+  lastHidden = hidden;
+  reflect();
+  for (const change of [...changes]) change();
+}
+
+/** Subscribes the two sources once. The backend's listener is a cheap no-op
+    outside the webview (`lib/tauri`), so a browser sees only the page's own
+    event. */
+function keepListening(): void {
+  if (listening || typeof document === "undefined") return;
+  listening = true;
+  lastHidden = pageHidden();
+  document.addEventListener("visibilitychange", announce);
+  void listen(WINDOW_SHOWN_EVENT, (payload) => {
+    const carried = (payload ?? {}) as { hidden?: unknown };
+    windowHidden = carried.hidden === true;
+    announce();
+  });
 }
 
 /** Reflects visibility into the root element and keeps it current. The app
     calls this once at start; the attribute is the only thing the CSS reads. */
 export function watchPageVisibility(): void {
   if (typeof document === "undefined") return;
+  keepListening();
   reflect();
-  document.addEventListener("visibilitychange", reflect);
 }
 
 /** Runs `tick` every `ms` while the page is showing and every
@@ -46,7 +93,7 @@ export function visibleInterval(tick: () => void, ms: number): () => void {
   };
   const arm = (): void => {
     stop();
-    timer = setInterval(tick, isPageVisible() ? ms : HIDDEN_INTERVAL_MS);
+    timer = setInterval(tick, pageHidden() ? HIDDEN_INTERVAL_MS : ms);
   };
   if (typeof document === "undefined") {
     arm();
@@ -55,13 +102,14 @@ export function visibleInterval(tick: () => void, ms: number): () => void {
   const onVisibilityChange = (): void => {
     stop();
     // Back in sight: one read at once, then the period the page can afford.
-    if (!document.hidden) tick();
+    if (!pageHidden()) tick();
     arm();
   };
-  document.addEventListener("visibilitychange", onVisibilityChange);
+  keepListening();
+  changes.add(onVisibilityChange);
   arm();
   return () => {
     stop();
-    document.removeEventListener("visibilitychange", onVisibilityChange);
+    changes.delete(onVisibilityChange);
   };
 }

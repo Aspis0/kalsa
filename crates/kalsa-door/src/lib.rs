@@ -654,17 +654,22 @@ impl RunningDoor {
         // condvar. Closing the line wakes the sleepers; the connect is the
         // wake the acceptor takes, and it carries nothing.
         self.queue.close();
-        if !server::wake(self.wake) {
-            log::warn!(
-                "the door could not be woken at {}: its acceptor may still be waiting and will not come back",
-                self.wake
-            );
-        }
+        let woken = server::wake(self.wake);
         let threads = self
             .threads
             .lock()
             .ok()
             .map(|mut threads| std::mem::take(&mut *threads));
+        // A wake that did not land is news only while the acceptor is still
+        // in the door. A door stopped twice — the app's own stop, then the
+        // `Drop` its `Arc` makes later — and one whose acceptor had already
+        // left both answer a refused connect with no thread left to wait.
+        if !woken && threads.as_deref().is_some_and(server::acceptor_waiting) {
+            log::warn!(
+                "the door could not be woken at {}: its acceptor may still be waiting and will not come back",
+                self.wake
+            );
+        }
         if let Some(threads) = threads {
             server::stop_threads(threads);
         }

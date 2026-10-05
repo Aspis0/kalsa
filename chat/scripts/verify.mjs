@@ -4984,6 +4984,139 @@ const tests = {
 
     await browser.close();
   },
+
+  // A Windows minimize is invisible to `document.hidden` (measured: the page
+  // stays "visible" behind an icon), so the backend's own `window-shown`
+  // event is the only witness of the hidden window: the same slow clock and
+  // the same paused CSS as the page's own event, and — where a platform
+  // reports one change through both halves, as macOS does — one return read,
+  // not two.
+  async hiddenwindow() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, okSettings("hidden-window-demo"));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await page.addInitScript(installHiddenSwitch);
+    await page.addInitScript(() => {
+      const core = window.__TAURI__.core;
+      const base = core.invoke;
+      window.__BRAIN_STATE_CALLS__ = 0;
+      core.invoke = (command, args) => {
+        if (command === "brain_state") window.__BRAIN_STATE_CALLS__ += 1;
+        return base(command, args);
+      };
+      // The backend's event as tauri delivers it: the envelope the page's
+      // own `listen` unwraps, so the handler sees `{ hidden }`.
+      const bus = window.__TAURI__.event;
+      const baseListen = bus.listen;
+      window.__WINDOW_SHOWN_HANDLERS__ = [];
+      bus.listen = (event, handler) => {
+        if (event === "window-shown") window.__WINDOW_SHOWN_HANDLERS__.push(handler);
+        return baseListen(event, handler);
+      };
+      window.__emitWindowShown = (hidden) => {
+        for (const handler of window.__WINDOW_SHOWN_HANDLERS__) {
+          handler({ event: "window-shown", id: 1, payload: { hidden } });
+        }
+      };
+      // The test's own shrink of the slow hidden cadence, as in the two cases
+      // above: the app still asks for its real period, which is recorded.
+      const realSetInterval = window.setInterval.bind(window);
+      window.__INTERVALS__ = [];
+      window.setInterval = (fn, ms, ...rest) => {
+        window.__INTERVALS__.push(ms);
+        return realSetInterval(fn, Math.min(ms, 4000), ...rest);
+      };
+      window.__STUB_BRAIN__ = { state: { kind: "starting" }, credential: "t" };
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1500);
+    check(
+      "hiddenwindow: the backend's state is subscribed once",
+      (await page.evaluate(() => window.__WINDOW_SHOWN_HANDLERS__.length)) === 1,
+      `${await page.evaluate(() => window.__WINDOW_SHOWN_HANDLERS__.length)} handlers`,
+    );
+    const start = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenwindow: the poll is running", start >= 2, `calls=${start}`);
+
+    // The Windows minimize: the backend's word arrives, and the page's own
+    // API never moves.
+    await page.evaluate(() => window.__emitWindowShown(true));
+    const hiddenAt = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check(
+      "hiddenwindow: the root says hidden",
+      await page.evaluate(() => document.documentElement.hasAttribute("data-hidden")),
+    );
+    check(
+      "hiddenwindow: the page's own API never said so",
+      !(await page.evaluate(() => document.hidden)),
+    );
+    check(
+      "hiddenwindow: an infinite animation is paused",
+      (await page.evaluate(() => getComputedStyle(document.getElementById("pause-probe")).animationPlayState)) === "paused",
+    );
+    check(
+      "hiddenwindow: the clock asked for the slow period",
+      await page.evaluate(() => window.__INTERVALS__.includes(15000)),
+      JSON.stringify(await page.evaluate(() => window.__INTERVALS__)),
+    );
+    // The visible period is 2 s; a read inside this wait would mean the fast
+    // clock is still armed behind the hidden window.
+    await page.waitForTimeout(2500);
+    const slow = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenwindow: the fast clock stopped", slow === hiddenAt, `${hiddenAt} → ${slow}`);
+
+    // The same state again is not a change.
+    await page.evaluate(() => window.__emitWindowShown(true));
+    await page.waitForTimeout(300);
+    const repeated = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenwindow: a repeated word is not a change", repeated === slow, `${slow} → ${repeated}`);
+
+    // macOS reports one minimize through both halves. Hiding through both
+    // reads nothing either — the state did not change.
+    await page.evaluate(() => {
+      window.__setHidden(true);
+      window.__emitWindowShown(true);
+    });
+    await page.waitForTimeout(300);
+    const both = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenwindow: both halves hiding still read nothing", both === repeated, `${repeated} → ${both}`);
+
+    // The restoration is the one that can double: the return read must run
+    // once for the change, not once per half.
+    await page.evaluate(() => {
+      window.__setHidden(false);
+      window.__emitWindowShown(false);
+    });
+    await page.waitForTimeout(400);
+    const backAt = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenwindow: coming back reads once at once", backAt === both + 1, `${both} → ${backAt}`);
+    check(
+      "hiddenwindow: the root leaves hidden",
+      !(await page.evaluate(() => document.documentElement.hasAttribute("data-hidden"))),
+    );
+    check(
+      "hiddenwindow: the animation runs again",
+      (await page.evaluate(() => getComputedStyle(document.getElementById("pause-probe")).animationPlayState)) === "running",
+    );
+    await page.waitForTimeout(2500);
+    const resumed = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenwindow: the clock resumes", resumed >= backAt + 1, `${backAt} → ${resumed}`);
+
+    // Either half arriving again for a state the page already holds — the
+    // duplicate a platform can emit for one restoration — must not read
+    // again: the return read belongs to the change, not to the event.
+    await page.evaluate(() => {
+      window.__emitWindowShown(false);
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await page.waitForTimeout(400);
+    const quiet = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenwindow: a repeated restore reads nothing", quiet === resumed, `${resumed} → ${quiet}`);
+
+    await browser.close();
+  },
 };
 
 /**

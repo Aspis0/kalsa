@@ -153,7 +153,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     #[cfg(test)]
     let accept_counter = Arc::clone(&accept_passes);
     let result = thread::Builder::new()
-        .name("kalsa-door".into())
+        .name(ACCEPTOR_THREAD.into())
         .spawn(move || {
             accept_loop(
                 listener,
@@ -209,6 +209,20 @@ const JOIN_DEADLINE: Duration = Duration::from_secs(2);
 /// wait is a poll because std's `join` has no deadline, and this runs once,
 /// on the way out.
 const JOIN_POLL: Duration = Duration::from_millis(10);
+
+/// The acceptor thread's name, in one place: the spawn below and the
+/// question a failed wake asks of the handles.
+pub(super) const ACCEPTOR_THREAD: &str = "kalsa-door";
+
+/// Whether the acceptor is still in the door, asked of the handles a stop is
+/// about to wait on (before they are joined). A wake that did not land is
+/// only news while this is true: an acceptor that already left answers a
+/// refused connect with nobody left to lose.
+pub(super) fn acceptor_waiting(threads: &[thread::JoinHandle<()>]) -> bool {
+    threads
+        .iter()
+        .any(|thread| thread.thread().name() == Some(ACCEPTOR_THREAD) && !thread.is_finished())
+}
 
 /// Wakes a listener blocked in `accept` with a loopback connect carrying
 /// nothing: the acceptor takes the connection as its wake, checks the stop
