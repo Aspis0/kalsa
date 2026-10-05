@@ -22,7 +22,7 @@ function summarize(file) {
   const rows = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l));
   const forSection = (section) => {
     const out = {};
-    for (const condition of ["A", "B", "C"]) {
+    for (const condition of ["A", "B", "C", "D"]) {
       const rs = rows.filter((r) => r.condition === condition && (section === "syn" ? r.id.startsWith("syn-") : r.id.startsWith("cord-")));
       const scored = rs.map((r) => ({ r, s: scoreDocument(r.parsed, gtFor(r.id)) }));
       const fieldTotals = {};
@@ -57,25 +57,36 @@ function summarize(file) {
     }
     return out;
   };
-  // Trap behaviour under C: flagged (UNSURE naming the check) vs "fixed"
-  // (a value delivered that differs from what was printed) vs delivered.
+  // Trap behaviour under the validated conditions: mutually exclusive classes
+  // decided by the FIRST attempt's validation — calls[1].afterFailures holds
+  // it when a re-ask happened; absent means the first attempt passed.
   const traps = { sum: [], iban: [] };
-  for (const r of rows.filter((r) => r.condition === "C" && r.gtTrap)) {
+  for (const r of rows.filter((r) => (r.condition === "C" || r.condition === "D") && r.gtTrap)) {
     const gt = gtFor(r.id);
-    const printed = r.gtTrap === "sum" ? (gt.totale_stampata ?? gt.totale) : gt.iban_stampato;
-    const raw = r.gtTrap === "sum" ? r.parsed?.totale : r.parsed?.iban;
-    const delivered = r.outcome === "answer" && raw !== undefined && raw !== null && raw !== "" ? raw : null;
-    const normalized = r.gtTrap === "iban" && typeof delivered === "string" ? delivered.replace(/\s+/g, "").toUpperCase() : delivered;
+    const printed = r.gtTrap === "sum" ? (gt.totale_stampata ?? gt.totale) : (gt.iban_stampato ?? gt.iban);
+    const checkWord = r.gtTrap === "sum" ? "somma" : "IBAN";
+    const firstFailures = r.calls[1]?.afterFailures ?? [];
+    const fired = firstFailures.some((f) => f.includes(checkWord));
+    let klass;
+    let delivered = null;
+    if (r.outcome === "malformed") {
+      klass = "malformed";
+    } else if (fired) {
+      // The check fired on the first attempt; the re-ask either still failed
+      // (UNSURE: the honest refusal) or produced a passing proposal (the model
+      // ALTERED the document to satisfy the validator — a silent fix).
+      klass = r.outcome === "unsure" ? "flagged-by-validator" : "fixed-after-reask";
+    } else {
+      const raw = r.gtTrap === "sum" ? r.parsed?.totale : r.parsed?.iban;
+      delivered = r.outcome === "answer" && raw !== undefined && raw !== null && raw !== "" ? raw : null;
+      if (delivered === null) klass = "evaded-by-omission";
+      else if (String(delivered) === String(printed)) klass = "delivered-as-printed";
+      else klass = "fixed-silently";
+    }
     traps[r.gtTrap].push({
-      id: r.id,
-      outcome: r.outcome,
-      // The trap is DETECTED only when C refuses while naming its check.
-      flagged: r.outcome === "unsure" && String(r.unsureReason ?? "").includes(r.gtTrap === "sum" ? "somma" : "IBAN"),
-      // "fixed": a value delivered that differs from what was printed.
-      fixed: normalized != null && String(normalized) !== String(printed),
-      // Omission evades the validator: nothing was delivered to check.
-      evaded: delivered === null,
-      delivered: normalized, printed, unsureReason: r.unsureReason ?? null,
+      id: r.id, condition: r.condition, klass,
+      delivered: delivered ?? (r.outcome === "answer" ? (r.gtTrap === "sum" ? r.parsed?.totale : r.parsed?.iban) : null),
+      printed, unsureReason: r.unsureReason ?? null,
     });
   }
   return { syn: forSection("syn"), cord: forSection("cord"), traps };
@@ -84,10 +95,11 @@ function summarize(file) {
 const file = process.argv[2];
 const s = summarize(file);
 const pct = (a, b) => (b === 0 ? "—" : `${Math.round((100 * a) / b)}%`);
+const TRAP_CLASSES = ["flagged-by-validator", "fixed-after-reask", "delivered-as-printed", "fixed-silently", "evaded-by-omission", "malformed"];
 for (const section of ["syn", "cord"]) {
   console.log(`\n=== ${section} ===`);
   console.log("cond | fully | malformed | unsure | silentDocs(fields) | s/doc | itemF1 | fields (right/n, omitted marked)");
-  for (const c of ["A", "B", "C"]) {
+  for (const c of ["A", "B", "C", "D"]) {
     const d = s[section][c];
     console.log(
       `  ${c}  | ${d.fully}/${d.n} ${pct(d.fully, d.n)} | ${d.malformed} | ${d.unsure} | ${d.silentDocs}(${d.silentFields}) | ${d.secsPerDoc}s | ${d.meanItemF1 ?? "-"} | ` +
@@ -95,13 +107,17 @@ for (const section of ["syn", "cord"]) {
     );
   }
 }
-console.log("\n=== traps under C ===");
+console.log("\n=== traps under C/D (mutually exclusive classes) ===");
 for (const kind of ["sum", "iban"]) {
-  const list = s.traps[kind];
-  const flagged = list.filter((t) => t.flagged).length;
-  const fixed = list.filter((t) => t.fixed).length;
-  const evaded = list.filter((t) => t.evaded).length;
-  const asPrinted = list.filter((t) => !t.evaded && !t.fixed && t.outcome === "answer").length;
-  console.log(`${kind}: ${flagged}/${list.length} flagged, ${evaded}/${list.length} evaded by omission, ${asPrinted} delivered-as-printed, ${fixed} "fixed"`);
-  for (const t of list) console.log(`  ${t.id}: ${t.outcome}${t.flagged ? " FLAGGED" : ""}${t.evaded ? " EVADED(omitted)" : ""}${t.fixed ? " FIXED->" + t.delivered + " (printed " + t.printed + ")" : ""}${t.unsureReason ? " :: " + String(t.unsureReason).slice(0, 70) : ""}`);
+  for (const cond of ["C", "D"]) {
+    const list = s.traps[kind].filter((t) => t.condition === cond);
+    if (!list.length) continue;
+    const counts = Object.fromEntries(TRAP_CLASSES.map((k) => [k, list.filter((t) => t.klass === k).length]));
+    console.log(`${kind} ${cond}: ` + TRAP_CLASSES.filter((k) => counts[k]).map((k) => `${counts[k]} ${k}`).join(", "));
+  }
+}
+for (const kind of ["sum", "iban"]) {
+  for (const t of s.traps[kind]) {
+    console.log(`  ${t.id} ${t.condition} ${t.klass}${t.delivered != null ? " (delivered " + t.delivered + ", printed " + t.printed + ")" : ""}${t.unsureReason ? " :: " + String(t.unsureReason).slice(0, 90) : ""}`);
+  }
 }

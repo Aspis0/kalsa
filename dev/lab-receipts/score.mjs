@@ -34,10 +34,12 @@ const close = (a, b) => Math.abs(a - b) <= 0.011;
 const norm = (s) => String(s ?? "").replace(/\s+/g, "").toUpperCase();
 
 function itemsF1(predItems, gtItems) {
+  // One item shape on both sides: synthetic righe use descrizione/importo,
+  // CORD's ground truth uses name/price.
   const preds = (predItems ?? [])
-    .map((i) => i && { descrizione: i.descrizione, importo: coerceAmount(i.importo) })
+    .map((i) => i && { descrizione: i.descrizione ?? i.name, importo: coerceAmount(i.importo ?? i.price) })
     .filter((i) => i && i.importo !== null);
-  const gts = (gtItems ?? []).map((g) => ({ ...g }));
+  const gts = (gtItems ?? []).map((g) => ({ descrizione: g.descrizione ?? g.name, importo: g.importo ?? g.price }));
   let tp = 0;
   const taken = new Set();
   for (const p of preds) {
@@ -71,7 +73,14 @@ export function scoreDocument(parsed, gt) {
     const v = verdict(raw, () => close(coerceAmount(raw), target));
     fields[key] = v;
   };
-  if (gt.totale !== undefined) amount("totale", gt.totale_stampata ?? gt.totale);
+  if (gt.totale !== undefined || gt.total !== undefined) amount("totale", gt.totale_stampata ?? gt.totale ?? gt.total);
+  // tipo is a scored field: the enum value the GT kind names (CORD receipts
+  // are receipts: scontrino or ricevuta both read the document right).
+  {
+    const raw = parsed?.tipo;
+    const expected = gt.kind === "cord" ? ["ricevuta", "scontrino"] : [gt.kind];
+    fields.tipo = verdict(raw, () => expected.includes(String(raw).toLowerCase()));
+  }
   const dateField = (key) => {
     const raw = parsed?.[key];
     fields[key] = verdict(raw, () => (parseDate(raw) ?? null) === gt[key]);

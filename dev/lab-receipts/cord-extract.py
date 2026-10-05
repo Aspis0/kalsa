@@ -20,17 +20,23 @@ import pyarrow.parquet as pq
 
 
 def idr_amount(text):
-    """An Indonesian-formatted amount → float, or None when not an amount."""
+    """An Indonesian-formatted amount → float, or None when not an amount.
+
+    CORD prints whole rupiah with EITHER separator as grouping ("60.000" and
+    "28,000" are both thousands); decimals do not occur in this dataset, so
+    every run of [.,] is a group mark. The raw string is kept beside the parse
+    (raw_total) so the convention can be audited.
+    """
     if not isinstance(text, str) or not text.strip():
         return None
     t = text.strip().replace("Rp", "").replace(" ", "")
     if not any(c.isdigit() for c in t):
         return None
-    # Thousands are '.', decimals are ','; the common shape is integral IDR.
-    if "," in t:
-        whole, _, frac = t.partition(",")
-        return float(whole.replace(".", "") or "0") + float("0." + frac if frac else 0)
-    return float(t.replace(".", "")) if "." in t else float(t)
+    digits = t.replace(".", "").replace(",", "")
+    try:
+        return float(digits)
+    except ValueError:
+        return None
 
 
 def menu_items(menu):

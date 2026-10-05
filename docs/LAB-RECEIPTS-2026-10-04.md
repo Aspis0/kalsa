@@ -1,284 +1,236 @@
-# LAB RECEIPTS — 2026-10-04 — LFM2.5-VL-3B vs Gemma 4 E4B at receipts→JSON, "the model proposes, the code decides"
+# LAB RECEIPTS — 2026-10-04 (v2, corrected harness) — LFM2.5-VL-3B vs Gemma 4 E4B at receipts→JSON, "the model proposes, the code decides"
 
 Lab measurement for the owner's question: **can a small local model be made USEFUL
 beyond chat by a harness where the model proposes and code decides?** First case:
-photographs of Italian receipts and bills → structured data. Two models, both Q8/Q4
-GGUFs already on the Lenovo, each with its pinned projector, one engine at a time on
-the owner's PC (vulkan `kalsa-server` v1.1.5, RTX 4050 pin): **LiquidAI LFM2.5-VL-3B
-Q8_0** and **Google Gemma 4 E4B Q4_K_M**. Three conditions on the same 60 images,
-temperature 0 in every request: **A** free-text "extract as JSON" (parse what comes
-back), **B** the same prompt under `response_format json_schema` (grammar-constrained),
-**C** B plus code validators — line items vs total (±0.01), IBAN mod-97, partita IVA
-checksum, real-calendar date not in the far future, amounts ≥0 — with ONE re-ask that
-names the failed check, then `UNSURE` with the reason, never a wrong value shown as good.
+photographs of Italian receipts and bills → structured data. Two models, both
+already on the Lenovo, each with its pinned projector, one headless engine at a
+time (vulkan `kalsa-server` v1.1.5, RTX 4050 pin): **LiquidAI LFM2.5-VL-3B Q8_0**
+and **Google Gemma 4 E4B Q4_K_M**. Four conditions on the same 60 images,
+temperature 0 in every request: **A** free text, **B** the same words under
+`response_format json_schema`, **C** = B plus code validators (items-vs-total,
+IBAN mod-97, P.IVA checksum, real-calendar dates, amounts ≥0, REQUIRED-by-tipo)
+with one named re-ask then `UNSURE`, **D** = A plus a normalizer (lenient JSON,
+Italian numbers, labels, dates) plus the same validators and re-ask.
 
-**Verdict, stated plainly: the harness's safety half works, but both models escape it
-by omission, and the grammar — the piece that looked most valuable — is the piece that
-hurt.** In condition C no document ever ended in a wrong value delivered as valid where
-a validator had fields to check: LFM's confident wrong fields fell from **101 across
-40 synthetic documents (A) to 11 (C)**, Gemma's from 8 to a residual driven by wrong
-dates (plausible dates no checksum can catch). But **all ten planted traps went
-undetected** — 8 escaped by the model simply not proposing the fields the check needs
-(an optional field is an unchecked field), and 2 trapped totals were delivered as
-printed with the line items omitted so the sum check never ran. And condition B
-crippled recall on both models: Gemma went from 10/40 documents fully correct (A) to
-0/40 (B), delivering its merchant on 0/35 documents where the schema allowed it to
-skip; LFM under B delivered only the total (21/21, always right) and omitted nearly
-everything else. On real CORD receipts neither model produced one fully-correct
-document under any condition. The measured answer for this case: **Gemma 4 E4B is the
-extraction model (25% of synthetic documents fully correct, P.IVA 20/20, scadenza
-13/13, POD/PDR perfect, and it alone read CORD's Indonesian thousands correctly) at
-~10× LFM's latency; LFM is the transcriber of totals (21/21 under its own schema) at
-3–7 s a document. Neither is useful unattended today; the missing harness pieces are
-type-conditional REQUIRED fields (to close omission evasion) and validators around
-free text (A+validators, the untested combination this lab's numbers point at).**
+**This document replaces the first version's results. The first run's B and C
+columns are INVALIDATED — four harness defects, named below — and its CORD
+numbers are invalid for ALL conditions (the lab's own CORD ground-truth parser
+was wrong by 1000× on comma-formatted amounts). The first run's A numbers are
+also not comparable (the prompt changed when the key list was made identical
+across conditions).** Everything below is measured with the corrected harness.
 
-Machine: the owner's Lenovo (Core Ultra 9 185H, 32 GB, RTX 4050 6 GB), Windows 11.
-Engine headless on 127.0.0.1:8150 (one model at a time, launched via a one-shot
-scheduled task deleted immediately after `/Run`, reached from the Mac over
-`ssh -L 18150:127.0.0.1:8150`). Every model file verified against its catalog pin
-before use. Nothing was uploaded anywhere; no product code was changed; the only repo
-files written are this document and the harness under `dev/lab-receipts/`. All
-scratch (images, ground truth, raw request/response JSONL, run logs) stayed in
-`/tmp/lab-receipts/` on the Mac — outside the repo on purpose; the image set's
-manifest sha256 is recorded below.
+**Verdict, stated plainly: the concept works, and it needs the bigger of the two
+models.** With every field REQUIRED and nullable and every check mechanical,
+Gemma 4 E4B under the validators delivers **10/40 synthetic documents fully
+correct (25%) with 7 silent fields left across 40 documents — from 14 in free
+text — and it caught 9 of 10 planted traps outright; the tenth it silently
+"repaired" (a corrupted IBAN became a VALID DIFFERENT account number, delivered
+confidently: the one failure mode the harness classification now names).** On
+real CORD receipts Gemma reaches **8/20 fully correct in free text, 7/20 under
+validators, 0 silent errors in C**. LFM2.5-VL-3B transcribes printed totals
+essentially perfectly (21/21 synthetic, 17/20 CORD) but proposes so much noise
+(hallucinated IBANs, invented dates, rows that mis-sum into the quadrillions)
+that the validators refuse **39/40 synthetic documents** — safe, and nearly
+useless: 1 confident delivery in 40, which still carried a wrong date. **The
+grammar is not the safety piece — A and B are identical for both models to the
+field; the validators are. Condition D (free text + normalizer + validators)
+worked for neither model: the free-text re-ask regresses vocabulary (LFM drops
+`tipo` in 38/40) and the harness discards a good first proposal wholesale —
+D's honest verdict is that the re-ask needs the schema, or nothing.**
 
-## Setup
+Machine: the owner's Lenovo (Core Ultra 9 185H, 32 GB, RTX 4050), Windows 11.
+Engine headless on 127.0.0.1:8150, one model at a time, launched by one-shot
+scheduled tasks deleted immediately after `/Run`, reached from the Mac over
+`ssh -L 18150:127.0.0.1:8150`. Nothing uploaded; no product code changed; repo
+files: this document and `dev/lab-receipts/`. Scratch in `/tmp/lab-receipts/`
+on the Mac.
 
-### Models, pins, projector (all verified on the Lenovo before any request)
+## Why the first run's B/C were invalid — the four defects, plainly
 
-| file | bytes | sha256 | provenance |
-|---|---:|---|---|
-| LFM2.5-VL-3B-Q8_0.gguf | 2 874 779 680 | `69b49ceddf61c65cce4a8938a0791c364a8d38cd2d87db2ca7ea359232a8b17e` | already at `%LOCALAPPDATA%\kalsa-brain\runtime\models\` — **equals the catalog pin** (walk of 2026-10-04) |
-| mmproj-LFM2.5-VL-3B-Q8_0.gguf | 583 109 984 | `ecbbe7097f696dba67172738d79c9f01132cdb6c0b457606315e268df3d67e64` | same, same pin |
-| gemma-4-E4B-it-Q4_K_M.gguf | 4 977 171 584 | `85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87` | same models dir — equals the row's pin |
-| mmproj-gemma-4-E4B-it-Q8_0.gguf | 559 874 816 | `197f49a93027f9843772bd24a6a9e0be2a32a788de5a3def330e9c585d86edd1` | **downloaded by the pin's URL** (`ggml-org/gemma-4-E4B-it-GGUF@b8093469224f83f5c38f691eb906c380e9e63114`) into `C:\kalsa-bench\lab\`, `Get-FileHash` = pin |
+1. **The schema had no `required`**, so the grammar let a model close the
+   object after one or two fields — "Gemma 0/17 totals under the schema" and
+   "LFM delivered only totals" were the harness, not the models.
+2. **The schema prompt listed no keys while the free prompt did**, so B was
+   less instructed than A; the comparison measured two variables at once.
+3. **The re-ask said "metti null" while no type admitted null** — the grammar
+   forbade obeying it (a control probe with a plain `number` forced
+   `{"totale": 0}` when asked for null).
+4. **`tipo` lost its enum**, so a bolletta with an invented tipo fell to the
+   default REQUIRED set and its IBAN/scadenza/POD stopped being required:
+   omission escape, reopened.
 
-### Engine flags (the app's own argv per row)
+Plus two defects found correcting the above: **Gemma 4 E4B answers through a
+thinking channel** (`reasoning_content`) whose prose consumed the whole
+generation cap before any JSON (149/240 first-pass replies arrived as `content:
+""` with 3 785 chars of thinking) — fixed with `chat_template_kwargs
+{"enable_thinking": false}` (236 tokens, clean JSON, the app's own thinking-off
+path; `chat_template_caps` had shown the template supports none of the caps
+fields, but the kwarg itself works); and **the CORD ground-truth parser read
+"28,000" as 28.0** — Indonesian amounts use either separator as a thousands
+mark, so every comma-formatted CORD document's truth was 1000× too small and
+both models' correct readings were scored as silent errors. All raw replies
+were kept, so the CORD fix is a rescoring, not a re-run.
 
-```
-kalsa-server.exe --host 127.0.0.1 --port 8150
-  --model <weights> --ctx-size <WINDOW> --parallel 1 --device Vulkan1
-  --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0
-  <ROW SAMPLING> --mmproj <PROJECTOR> --image-max-tokens 560 --no-webui
-```
+Two engine deaths mid-run, cause found: the `/IT` scheduled task ran the
+server in a **visible console window on the owner's desktop** — closing it (or
+a stray Ctrl-C) killed the engine (both logs end in a bare `^C`, mid-task, no
+crash line). Relaunches went through
+`Start-Process -WindowStyle Hidden` with redirected output; no further deaths.
 
-`<WINDOW>`: LFM **32768** (the row's trained cap — the window the launcher funds);
-Gemma **65536** (= min(`CHOOSER_CONTEXT_TOKENS` 65 536, trained 131 072), the figure
-the Lenovo walk itself ran). `<ROW SAMPLING>`: LFM `--temp 0.2 --top-k 50
---repeat-penalty 1`; Gemma `--temp 1.0 --top-p 0.95 --top-k 64` (the catalog rows).
-**Every request carried `temperature: 0`** — extraction sampling is the lab's, the
-launch flags are the app's; llama-server takes the per-request value. `GET /props`
-answered `n_ctx` 32768 / 65536 and `vision: true` for each engine before its run.
-No `--ctx-shift`, no `--cache-reuse`, no slot path (a lab server owns no app state).
+## Setup (unchanged facts from v1, still verified)
 
-### The schema-constraint probe (condition B's premise, verified not assumed)
+Model files and pins, engine flags, dataset construction, licences — as in v1
+and still true: both weights and both projectors sha256-verified against the
+catalog pins (Gemma's projector downloaded by the pin's own URL into
+`C:\kalsa-bench\lab\`); LFM ctx 32768 / Gemma 65536, `--device Vulkan1`,
+q8_0 caches, the row's sampling on the launch line and `temperature: 0` per
+request; 40 seeded synthetic Italian documents (21 scontrini, 13 bollette, 6
+slips; rotation ±8°, keystone, blur, JPEG q60, uneven light, crumple) with 6
+sum-traps and 4 mod-97 IBAN traps; 20 real CORD test receipts (CORD © Clova
+AI, CC BY 4.0). Dataset manifest sha256 after the CORD ground-truth fix:
+`d42beb386c58bab5bf4728fbf9f6697d7d65a4a2d478c7e4ac7cdb4a43a2c6df` (the v1
+manifest `2a5f92d3…` covered the same images with the broken GT).
 
-A dropped `response_format` fails silently — the server just answers free text. Probed
-twice against the LFM engine before any scored run:
-
-```
-PROBE valid-schema:   status=200  content shaped by the schema ("tipo" from the enum)
-PROBE invalid-schema: status=500
-  {"error":{"code":500,"message":"JSON schema error at #/properties/a: unrecognized type strin","type":"server_error"}}
-```
-
-The invalid-on-purpose schema (`"type": "strin"`) is rejected by the engine's own
-grammar builder — the field provably reached the server. Both models ran B/C on that
-enforced path.
-
-### Dataset (privacy: no real personal documents anywhere)
-
-**Synthetic, 40 documents** — generated by `dev/lab-receipts/gen-docs.mjs` (seeded,
-reproducible): 21 supermarket scontrini (rows, IVA, total, date, time, P.IVA), 13
-bollette (7 luce with POD, 6 gas with PDR; fornitore, importo, scadenza, IBAN for
-SEPA), 6 bonifico/bollettino slips — varied layouts and five font stacks, rendered
-via Playwright at 2×. Then `dev/lab-receipts/degrade.py` makes each a phone photo:
-rotation ±8°, mild keystone, blur 0.4–1.1 px, JPEG q60, uneven lighting, ~35% with a
-crumple warp. **Traps, seeded before any run and recorded in the ground truth:**
-6 documents (15%) print a total their line items do NOT sum to (drift 0.03–1.37 €);
-4 documents (10%) print an IBAN whose mod-97 fails (one corrupted account digit —
-asserted invalid at generation); dates in the three shapes the owner named
-(`04/10/26`, `4 ott 2026`, `2026-10-04`). Every clean document's arithmetic was
-verified (non-trap sums exact, all 34 P.IVAs pass the checksum, all 15 clean IBANs
-pass mod-97, all 4 traps fail it — checked by the same validators condition C uses).
-
-**CORD, 20 real receipts** — the public CORD v1 test split (`naver-clova-ix/cord-v1`
-on Hugging Face; the dataset card carries `"license": "Creative Commons Attribution
-4.0 International License"`, the GitHub repo's LICENSE-CC-BY says the same —
-**CORD © Clova AI, CC BY 4.0**, cited here). `dev/lab-receipts/cord-extract.py` took
-the first 20 test receipts with a parseable total and ≥1 menu item, as real
-photographs, with the card's own ground truth (total, menu items) in Indonesian
-amount convention (thousands `.`). Download: one 234 MB parquet, curl EXIT=0, local.
-
-Image set manifest (80 lines, `name sha256` per image + the GT jsons):
-`shasum -a 256 dataset-sha256.txt` =
-`2a5f92d3ac684dd69bb39e7dd20824f91c431b2c849a412bc04db63cac1a85bc`.
-Images are NOT in the repo — they live in `/tmp/lab-receipts/images/`.
-
-### Runs and a method note that matters
-
-60 documents × 3 conditions × 2 models = 360 scored extractions plus C's re-asks,
-each recorded as one JSONL line (request shape, both calls' status/wall ms/token
-usage, raw reply, parsed JSON, validator verdicts, outcome). The first pass ran with
-`max_tokens: 700`, which **clipped Gemma mid-JSON** (it explains itself at length —
-one clipped reply ended `…per i prezzi interi con separatore migliaia/punto decim`);
-LFM clipped twice. The cap was raised to 1300 and **both models were re-run whole**
-(the 700-cap runs are archived as `lfm-cap700.jsonl` / `gemma-cap700-partial.jsonl`
-and none of their numbers appear below; the cap never bound at 1300 for LFM).
-Mid-run, the Gemma engine died once to an external hard kill (log ends mid-generation
-at `n_gen = 262`, no crash line — the one unexplained event of the session); the
-runner resumed by id+condition and completed. Latency is whole-request wall time
-(image encode + prompt + full generation), one slot, sequential.
+Schema-constraint probes (all against the live engine before scoring):
+`required` binds (14/14 keys present in every output, including a null-everything
+request), `type: [T, "null"]` is honored (`"totale": null` came out), the
+`tipo` **enum with null** binds (asked to write `"FATTURA ELETTRONICA"` the
+grammar forced `bolletta_luce`; `null` stays legal), and the non-nullable
+control refused null by forcing 0 — the old defect, now impossible.
 
 ## Results — synthetic (40 documents)
 
-`fields` = delivered-and-right / documents where the ground truth has the field;
-`(n omitted)` = the model proposed nothing for it. **silent** = wrong value delivered
-confidently. `itemF1` = mean F1 on line items.
+Per-field = delivered-and-right / docs where the GT has it (omitted marked);
+**silent** = wrong value delivered confidently; `itemF1` = mean line-item F1.
 
-| cond | fully correct | malformed | UNSURE | silent docs (fields) | s/doc |
-|---|---|---|---|---|---|
-| **LFM A** | 0/40 | 0 | 0 | **37 (101)** | 6.5 |
-| **LFM B** | 0/40 | 0 | 0 | 17 (25) | 2.5 |
-| **LFM C** | 0/40 | 0 | 11 | **8 (11)** | 2.9 |
-| **Gemma A** | **10/40 = 25%** | 14 | 0 | 8 (8) | 28.4 |
-| **Gemma B** | 0/40 | 5 | 0 | 10 (10) | 27.3 |
-| **Gemma C** | 0/40 | 9 | 4 | 10 (10) | 33.0 |
+| | fully | malformed | UNSURE | silent docs (fields) | s/doc | totale | tipo | esercente | piva | righe | scadenza | iban | pod/pdr |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **LFM A** | 0/40 | 0 | 0 | 40 (113) | 7.1 | **21/21** | 19/40 | 22/40 | 4/34 | 14/21 | 13/13 | 1/19 | 0/13 |
+| **LFM B** | 0/40 | 0 | 0 | 40 (113) | 6.6 | **21/21** | 19/40 | 22/40 | 4/34 | 14/21 | 12/13 | 1/19 | 1/13 |
+| **LFM C** | 0/40 | 0 | **39** | **1 (2)** | 14.8 | **21/21** | 19/40 | 25/40 | 9/34 | 10/21 | 12/13 | 0/19 | 1/13 |
+| **LFM D** | 0/40 | 0 | **38** | **2 (3)** | 10.6 | 18/21 | 0/40 | 2/40 | 2/34 | 2/21 | 7/13 | 1/19 | 1/13 |
+| **Gemma A** | **14/40 = 35%** | 0 | 0 | 14 (14) | 8.5 | 20/21 | **40/40** | 33/40 | **34/34** | 18/21 | 11/13 | 13/19 | **13/13** |
+| **Gemma B** | **14/40 = 35%** | 0 | 0 | 15 (15) | 7.5 | 20/21 | **40/40** | 33/40 | **34/34** | 18/21 | 11/13 | 13/19 | **13/13** |
+| **Gemma C** | **10/40 = 25%** | 0 | 13 | **7 (7)** | 11.4 | 20/21 | **40/40** | 33/40 | **34/34** | 19/21 | 11/13 | **15/19** | **13/13** |
+| **Gemma D** | **10/40 = 25%** | 0 | 14 | 6 (6) | 11.6 | 14/21 | 26/40 | 21/40 | 22/34 | 13/21 | 9/13 | 11/19 | 10/13 |
 
-Per-field, delivered-and-right (synthetic):
+Reading it: **A and B are the same measurement twice** — with identical words
+and REQUIRED keys, the constraint changed nothing for either model (LFM: 113
+silent fields both; Gemma: 14 vs 15 docs). **The validators are the entire
+safety effect.** For Gemma they cut silent fields 14→7 while keeping 25% of
+documents fully correct and IMPROVING the checksummable fields it delivered
+(iban 13→15 right: the re-ask fixed real misreads). For LFM they cut
+113→2 fields by refusing 39/40 documents — LFM's proposals fail some check on
+almost every document (a hallucinated IBAN on a scontrino, "BOLOGNA" as a
+date, rows summing to 1.8×10¹³). LFM's one confident C delivery still carried
+a wrong date (`2026-01-01` printed where the paper reads `2026-08-01`) — the
+plausible-but-wrong class no checksum can see.
 
-| field | LFM A | LFM B | LFM C | Gemma A | Gemma B | Gemma C |
-|---|---|---|---|---|---|---|
-| totale | **21/21** | **21/21** | 12/21 (9 om.) | 7/7 | 0/17 (17 om.) | 0/12 (12 om.) |
-| data | 25/40 | 18/40 (13 om.) | 11/40 (23 om.) | 14/26 (12 om.) | 16/35 (9 om.) | 15/31 (6 om.) |
-| esercente | 20/40 | 0/40 (40 om.) | 0/40 (40 om.) | **24/26** | 0/35 (35 om.) | 0/31 (31 om.) |
-| piva | 8/34 | 2/34 (28 om.) | 2/34 (28 om.) | **20/20** | 1/29 (28 om.) | 1/25 (24 om.) |
-| righe (F1) | 4/21 (0.54) | 0/21 (0.00) | 4/21 (0.19) | 6/7 (0.29) | 1/17 (0.05) | 0/12 (0.00) |
-| scadenza | 11/13 | 3/13 (9 om.) | 1/13 (12 om.) | **13/13** | 3/12 (9 om.) | 5/13 (8 om.) |
-| iban | 1/19 | 0/19 (16 om.) | 0/19 (18 om.) | 12/19 | 1/18 (17 om.) | 1/19 (18 om.) |
-| pod / pdr | 0/13 | 0/13 | 0/13 | **13/13** | 4/12 | 4/13 |
+### Traps (10 planted: 6 sum, 4 IBAN) — mutually exclusive classes
 
-Reading it: **LFM reads printed totals essentially perfectly** (21/21 in A and B —
-with A's amounts arriving as Italian strings like `"€ 62,21"` that the harness
-normalizes; B's grammar made them numbers). Everything else it proposes is a lottery
-(1/19 IBANs right in A) — and A delivers those wrong guesses confidently, which is
-the 101 silent fields. **Gemma in free text is a different class**: every P.IVA,
-every scadenza, every POD/PDR, 24/26 merchants, 12/19 IBANs — at the price of 14/40
-malformed (prose around or inside the JSON, one quoted below) and 10× the time.
-**Under the schema both models stop proposing** (Gemma 0/35 merchants, 0/17 totals
-delivered; LFM 0/40 merchants, 0/21 line-item sets) — the grammar guarantees shape
-and loses content. Condition C's residual silent errors are almost entirely **wrong
-but plausible dates** (real calendar days, so no checksum can catch them) — the
-class of error "code decides" cannot see without reading the pixels itself.
-
-### Silent errors — the key numbers, with the examples
-
-- **LFM A: 101 wrong fields across 37/40 documents.** A typical one, `syn-022`: IBAN
-  delivered `IT9847561 301295437 3018303` (spaces and a dropped digit) where the
-  paper prints `IT984756130312954373018303` — delivered as confidently as a right one.
-- **LFM C: 11** (−89% from A). What survived: dates like a shifted day/month, valid
-  as dates, wrong as transcriptions.
-- **Gemma A: 8 fields across 8 documents** (its 20% silent-document rate); e.g.
-  `syn-024`: IBAN `IT65307191526666085222819` against the printed
-  `IT653071915266660052222819` — two digits gone, still a syntactically clean IBAN.
-  In B/C Gemma's silent count did NOT fall (10) because the schema taught it omission
-  rather than correctness.
-- **Gemma B's malformed shape is worth quoting** — the grammar cannot stop it talking:
-  `{"data": "null", "scadenza": "null", "valuta": "null_o_non_specificata_dall_immagine_vuota_per_questo_campo_non_t…`
-  (prose written INTO a string value until the token cap cut it — 5 such documents at
-  cap 1300).
-- A Gemma free-text success, for balance (`syn-010`, one of the 10 fully-correct A
-  documents): `{"esercente": "ALIMENTARI DA LUIGI", "piva": "42877914517",
-  "data": "2026-08-15", "totale": 22.97}` — every field right, no prose.
-
-### Traps: 0/10 detected — the finding that matters most
-
-| trap | LFM C | Gemma C |
+| | sum 6 | IBAN 4 |
 |---|---|---|
-| sum ≠ total (6 docs) | 0 flagged: 4 evaded by omission, **2 delivered the trapped total as printed** | 0 flagged: 6 evaded by omission |
-| IBAN mod-97 (4 docs) | 0 flagged: 4 evaded by omission | 0 flagged: 4 evaded by omission |
+| LFM C | **6 flagged-by-validator** | **4 flagged-by-validator** |
+| LFM D | 6 flagged | 4 flagged |
+| Gemma C | **6 flagged-by-validator** | 3 flagged, **1 fixed-silently** |
+| Gemma D | 6 flagged | 3 flagged, 1 fixed-silently |
 
-The two LFM sum-traps that were "delivered as printed": `syn-015` proposed
-`totale: 43.87` — exactly what the paper prints — with `righe: 0`, so the sum check
-that would have caught the 0.10 € drift had nothing to sum. **An optional field is an
-unchecked field**: both models learned (from the schema, or from the re-ask naming a
-failed check) that not proposing is the painless move. The two C refusals that DID
-happen on trap documents were for other reasons (`la scadenza "€ 37,98" non è una
-data leggibile`). The fix direction is mechanical — REQUIRED per document type
-(`scontrino` ⇒ `righe` + `totale` must be present; anything unreadable becomes `null`
-PLUS a named `unreadable` list the code can count) — proposed, not measured here.
+No trap was ever delivered-as-printed, evaded by omission, or escaped
+unflagged. The one `fixed-silently`: `syn-033` prints the corrupted
+`IT822936968338747785098892` (mod-97 fails — the planted trap); Gemma
+delivered `IT822936968338747785094892` — a VALID IBAN, two digits different,
+in both C and D: it repaired the document instead of flagging it, and the
+repair passes every checksum. On a real bill that is an invented account
+number delivered as good — the exact case the UNSURE design exists to
+prevent, and the number to watch as this harness evolves.
 
-### CORD (20 real receipts, reported separately)
+## Results — CORD (20 real receipts, CC BY 4.0, rescored on corrected GT)
 
-| cond | LFM | Gemma |
-|---|---|---|
-| fully correct | 0/20 | 0/20 |
-| itemF1 mean | 0.00 | 0.00 |
-| shape | A delivers items at the wrong scale; B/C omit them | A delivers the right scale, wrong item set; B/C omit or malformed |
-| silent docs | A 20(20), B 0, C 0 | A 18(18), B 5(5), C 0 |
-| s/doc | A 6.3 / B 4.2 / C 4.2 | A 26.9 / B 23.8 / C 47.3 |
+| | fully | silent docs (fields) | UNSURE | totale | tipo | righe | itemF1 | s/doc |
+|---|---|---|---|---|---|---|---|---|
+| LFM A | 5/20 | 15 (18) | 0 | 17/20 | 19/20 | 6/20 | 0.53 | 5.8 |
+| LFM B | 5/20 | 15 (18) | 0 | 17/20 | 19/20 | 6/20 | 0.54 | 5.0 |
+| LFM C | 4/20 | **0 (0)** | 16 | 17/20 | 20/20 | 6/20 | 0.48 | 10.5 |
+| LFM D | 4/20 | **0 (0)** | 16 | 5/20 (13 om.) | 4/20 | 4/20 | 0.20 | 8.1 |
+| Gemma A | **8/20 = 40%** | 12 (15) | 0 | 17/20 | 19/20 | 8/20 | 0.54 | 7.0 |
+| Gemma B | 8/20 | 11 (14) | 0 | 17/20 | 17/20 | 9/20 | 0.59 | 6.2 |
+| Gemma C | 7/20 = 35% | **3 (5)** | 10 | 16/20 | 20/20 | 8/20 | 0.56 | 11.7 |
+| Gemma D | 7/20 | 3 (4) | 10 | 9/20 (9 om.) | 10/20 | 7/20 | 0.35 | 11.7 |
 
-LFM read `60.000` as **sixty** (its Italian decimal training) where CORD's ground
-truth means sixty thousand — every amount wrong by 1000×, confidently. Gemma read the
-same prints as **60000**, correct — but proposed more line rows than the card's menu
-lists (its F1 dies to false positives, not scale). Neither model produced a fully
-correct real receipt under any condition: real thermal paper, real fonts, real noise
-are a class harder than the synthetic set, whose clean layouts both models found
-easier. CORD is CC BY 4.0; totals/items per the card's own annotations.
+With honest ground truth both models read real Indonesian receipts far better
+than v1 claimed — **both read the thousands scale correctly (17/20 totals
+each)**; the residual silent errors are misread items and dates, and C's
+refusals are almost all the sum check firing on TAX/Subtotal rows the models
+insist on listing as items (e.g. LFM `cord-004`: "la somma delle righe
+(194000.00) non è il totale (174600.00)"). A typical CORD failure is a true
+read of the printed lines against a menu GT that lists fewer: cord-000's model
+output `TICKET CP 60000` (right) beside `TOTAL DISC $ / TAX / Subtotal`
+(counted as false positives) — F1 0.29 on that document, not 0.
 
-### Cost of safety (UNSURE rate) and speed
+### Condition D, judged
 
-UNSURE per 40 synthetic / 20 CORD: LFM C 11 + 8; Gemma C 4 + 9 (+11 CORD malformed,
-the re-ask reply not being JSON). Seconds per document (whole request, one slot):
-LFM A 6.5 → C 2.9 (the schema's short answers decode faster); Gemma ~27–33, CORD C
-47.3 with re-asks — **Gemma costs ~10× LFM's time per document**, both peaks well
-inside the machine: server private-memory peak **LFM 4 807 MB, Gemma 10 835 MB**
-(5 s sampler over the whole session, `C:\kalsa-bench\lab-samples.csv`).
+D was this lab's own recommendation from v1, and the data says it was half
+right: the normalizer works (raw `"totale": "3.39,"` → 3.39 scored right;
+`"P.IVA 54185128417"` no longer fails the checksum once the label is
+stripped), but the FREE-TEXT re-ask regresses vocabulary — LFM drops `tipo`
+entirely in 38/40 (its UNSURE reasons are dominated by `tipo non riconosciuto:
+""`), Gemma in 14/40 — and the harness replaces a good first proposal with
+that regression wholesale. D's honest verdict: **the re-ask needs the
+grammar**; free text should propose, and the schema should repair.
 
-## What the numbers say the harness needs (recommendation)
+### Cost and capacity
 
-1. **Model: Gemma 4 E4B when accuracy per document is the point** (25% fully correct
-   free-text, checksummed fields near-perfect, the only correct IDR reading), LFM
-   when the job is "read the total off a slip" at interactivo speed. On this PC
-   Gemma's ~30 s/document is batch, not chat.
-2. **The grammar is not the safety piece; the validators are.** B never improved a
-   model's correctness — it shrank its proposals (and Gemma still wrote prose inside
-   strings). Run A-shaped free text WITH the normalizer and the validators: the
-   A+validators combination is the one this lab did not score and the one its data
-   points at (LFM A totals 21/21 + validators would have flagged every wrong IBAN it
-   proposed; Gemma A's 8 silent fields were all checksummable ones).
-3. **Close omission evasion before trusting any of it**: type-conditional REQUIRED
-   fields + an explicit `unreadable` list. Until then, UNSURE is honest but the
-   traps pass through untouched — this lab's 0/10 is the number to beat.
+UNSURE rate is the price of safety: LFM C refuses 39/40 synthetic + 16/20
+CORD; Gemma C refuses 13/40 + 10/20 while still delivering 10 and 7 fully
+correct. Seconds per document (whole request, one slot): Gemma 7–12 s with
+thinking off (the first pass's 30 s included thinking; `enable_thinking:
+false` cut it ~3×), LFM 5–15 s. Server private-memory peak: **LFM 5 068 MB,
+Gemma 10 669 MB** (5 s sampler over the whole session).
+
+## Recommendation (from this data only)
+
+1. **Gemma 4 E4B is the extraction model**, decisively: 35% fully-correct
+   free text, `tipo` 40/40, P.IVA 34/34, POD/PDR 13/13 under every condition,
+   and the only correct-trap behavior worth shipping (9/10 flagged). LFM's
+   ceiling here is "read the total off a slip" (21/21 totals) — everything
+   else it proposes is unreliable enough that the validators must refuse it.
+2. **Ship the validators, skip the grammar**: A≡B for both models; C = A's
+   words + REQUIRED schema (the enum is what makes REQUIRED derivable) +
+   validators + one named re-ask. The grammar's only irreplaceable job in
+   this design is the RE-ASK round (D's lesson).
+3. **Watch the fixed-silently class**: checksums prove internal consistency,
+   not fidelity to the paper. The IBAN trap Gemma "repaired" passes mod-97;
+   only a second reading (or a diff against the crop) can catch it. 1/10
+   here — the number to drive to zero before any unattended use.
+4. **Do not ship D** as built; if free text is required (no server grammar
+   support), hold the first proposal and re-ask under a schema, or not at all.
 
 ## UNMEASURED
 
-- The A+validators combination (the recommendation above is inference from A and C's
-  halves, not a scored condition), and the REQUIRED-fields fix for omission evasion.
-- A second seed per document (temperature 0, but the engine is not bit-deterministic
-  across batch states); phone-vs-scan degradation axes beyond the five used; HDR/
-  shadow extremes; receipts in English or mixed language.
-- CORD beyond 20 documents, and its non-Italian merchant names against the Italian
-  prompt; whether an Italian-convention prompt note would fix LFM's 1000× scale
-  reading (a one-line prompt change, untested).
-- Streamed first-token latency (all calls were whole-request); the door's real slot
-  bookkeeping (bypassed by design — the lab talked to the engine directly).
-- Why the Gemma engine died once mid-run (external hard kill, no crash line; resumed
-  and completed — the only anomaly of the session).
+- A second seed per document (temperature 0, but batching state is not
+  bit-deterministic); degradation axes beyond the five; English/mixed docs.
+- CORD past 20 documents; whether a prompt naming the IDR convention changes
+  the 3/20 wrong totals; the door's real slot bookkeeping (bypassed by design).
+- The fixed-silently catch-rate (needs adversarial traps per field, not one
+  IBAN); streamed first-token latency; whether Gemma's 13 UNSURE in C are
+  mostly the TAX-rows-as-items convention (they looked it) — a menu-vs-tax
+  prompt line might recover them, untested.
+- The 103 records dropped from the interrupted Gemma session were 503-race
+  artifacts (engine still loading; statuses recorded), never measurements;
+  the resumed run re-measured every one.
 
 ## Cleanup
 
-Lab engines killed after each run (exact PIDs; 0 kalsa processes at the end); every
-scheduled task (`KalsaLabLFM`, `KalsaLabLFM2`, `KalsaLabGemma`, `KalsaLabGemma2`,
-`KalsaLabSampler`) deleted within seconds of its `/Run` and confirmed gone by
-`schtasks /Query` failing; the SSH tunnel closed; the RAM sampler stopped by its stop
-file. Left in place, by instruction: `C:\kalsa-bench\lab\` (the pinned Gemma
-projector), `lab-samples.csv`, the engine logs (`ctx32k-server.log`,
-`lab-gemma-server.log`), the launcher `.cmd`s, and the models in the runtime store.
-On the Mac: `/tmp/lab-receipts/` keeps the dataset (images + ground truth +
-`dataset-sha256.txt`), all raw JSONL (`lfm.jsonl`, `gemma.jsonl`, the two archived
-cap-700 runs), run logs and the CORD parquet — nothing committed except the harness
-and this document.
+Lab engines killed by exact PID after each run (0 kalsa processes at the end);
+every scheduled task deleted within seconds of `/Run` and confirmed gone;
+tunnels closed; the RAM sampler stopped by its stop file. Left in place:
+`C:\kalsa-bench\lab\` (the pinned projector), `lab-samples.csv`, the engine
+logs (including the two `^C` death logs and the hidden-launch `server2` logs),
+launchers, and the runtime-store models. On the Mac, `/tmp/lab-receipts/`
+keeps everything: images + corrected GT, all raw JSONL (`lfm2.jsonl`,
+`gemma2.jsonl` full A/B/C runs; `lfm2d2`/`gemma2d2` the fixed-normalizer D
+re-runs; `lfm-final`/`gemma-final` the merged four-condition sets; the
+archived invalidated first run `lfm.jsonl`/`gemma-cap700*`/
+`gemma2-thinking-clipped.jsonl`), run logs, and the summaries.
 
 One commit; no push; no product code touched.

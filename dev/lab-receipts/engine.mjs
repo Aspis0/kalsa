@@ -4,7 +4,7 @@
 // body plus wall seconds and the engine's own token accounting from `usage`.
 const IMAGE_MAX_EDGE = 1100;
 
-export async function extract({ base, model, system, prompt, imagePath, responseFormat, timeoutMs = 120000 }) {
+export async function extract({ base, model, system, prompt, imagePath, responseFormat, templateKwargs, timeoutMs = 120000 }) {
   const { readFileSync } = await import("node:fs");
   const raw = readFileSync(imagePath);
   const mime = imagePath.endsWith(".png") ? "image/png" : "image/jpeg";
@@ -23,6 +23,7 @@ export async function extract({ base, model, system, prompt, imagePath, response
     max_tokens: 1300,
   };
   if (responseFormat) body.response_format = responseFormat;
+  if (templateKwargs) body.chat_template_kwargs = templateKwargs;
   const began = Date.now();
   const response = await fetch(`${base}/v1/chat/completions`, {
     method: "POST",
