@@ -82,7 +82,12 @@ export function reanchor(
   settled: readonly Identifiable[],
 ): TranscriptWindow {
   if (window.anchorId !== null && settled[window.start]?.id === window.anchorId) return window;
-  if (window.anchorId === null) return tailWindow(settled);
+  // Armed on the empty transcript: while it IS still empty the window is
+  // already right, and a fresh object here would be a new object EVERY render
+  // — the render-phase re-arm in `useTranscriptWindow` would then loop the
+  // band (a null anchor and an empty conversation are the same state, so the
+  // window is returned by identity, not rebuilt).
+  if (window.anchorId === null) return settled.length === 0 ? window : tailWindow(settled);
   const followed = settled.findIndex((row) => row.id === window.anchorId);
   if (followed >= 0) return { anchorId: window.anchorId, firstId: window.firstId, start: followed };
   if (settled[0]?.id !== window.firstId) return tailWindow(settled);

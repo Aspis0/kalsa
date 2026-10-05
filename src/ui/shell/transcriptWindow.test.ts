@@ -31,6 +31,18 @@ describe("tailWindow arms at the conversation's last tail", () => {
 });
 
 describe("reanchor keeps a reader's rows under deletions", () => {
+  it("returns the empty window by IDENTITY while the conversation stays empty", () => {
+    // Not a style point: a fresh object here re-arms in a render-phase
+    // setState every render — the loop the field report caught on open.
+    const armed = tailWindow([]);
+    expect(reanchor(armed, [])).toBe(armed);
+    expect(reanchor(armed, [])).toBe(armed);
+  });
+
+  it("re-arms, anchored, once the empty conversation gains messages", () => {
+    expect(reanchor(tailWindow([]), rows(3))).toEqual(tailWindow(rows(3)));
+  });
+
   it("returns the window unchanged while its anchor still starts the slice", () => {
     const settled = rows(40);
     const armed = tailWindow(settled);
