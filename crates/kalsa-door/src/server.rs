@@ -7,9 +7,11 @@ use std::time::{Duration, Instant};
 
 use crate::queue::Queue;
 use crate::registry::Registry;
-use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, MAX_CONNECTIONS, POLL_INTERVAL, QUEUE, REAP_INTERVAL, WORKERS};
+use crate::{proxy, Door, DoorError, RunningDoor, ActiveDevices, BUSY_RESPONSE, MAX_CONNECTIONS, QUEUE, REAP_INTERVAL, WORKERS};
 
-struct Work {
+/// One accepted connection waiting for a worker. `pub(super)` because the
+/// running door keeps the line shutdown closes, and the line holds these.
+pub(super) struct Work {
     stream: TcpStream,
     accepted: Instant,
     /// The accept-budget slot this work occupies. Dropping the work — at the
@@ -73,7 +75,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         seat_waiting: Mutex::new(std::collections::HashSet::new()),
     });
     let queue = Arc::new(Queue::new(QUEUE));
-    let mut threads = Vec::with_capacity(WORKERS + 2);
+    let mut threads = Vec::with_capacity(WORKERS + 3);
 
     for index in 0..WORKERS {
         let worker_active = Arc::clone(&active);
@@ -102,6 +104,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
             Ok(thread) => threads.push(thread),
             Err(error) => {
                 stop.store(true, Ordering::SeqCst);
+                queue.close();
                 join_all(threads);
                 return Err(DoorError::Thread(error));
             }
@@ -109,6 +112,21 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     }
 
     let queue_wait = door.clocks.queue_wait;
+    let sweeper_stop = Arc::clone(&stop);
+    let sweeper_queue = Arc::clone(&queue);
+    let result = thread::Builder::new()
+        .name("kalsa-door-sweeper".into())
+        .spawn(move || sweeper(sweeper_stop, sweeper_queue, queue_wait));
+    match result {
+        Ok(thread) => threads.push(thread),
+        Err(error) => {
+            stop.store(true, Ordering::SeqCst);
+            queue.close();
+            join_all(threads);
+            return Err(DoorError::Thread(error));
+        }
+    }
+
     let reaper_stop = Arc::clone(&stop);
     let reaper_registry = Arc::clone(&registry);
     let result = thread::Builder::new()
@@ -118,6 +136,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         Ok(thread) => threads.push(thread),
         Err(error) => {
             stop.store(true, Ordering::SeqCst);
+            queue.close();
             join_all(threads);
             return Err(DoorError::Thread(error));
         }
@@ -128,13 +147,28 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
     let listener = door.listener;
     let accept_stop = Arc::clone(&stop);
     let accept_connections = Arc::clone(&connections);
+    let accept_queue = Arc::clone(&queue);
+    #[cfg(test)]
+    let accept_passes = Arc::new(AtomicUsize::new(0));
+    #[cfg(test)]
+    let accept_counter = Arc::clone(&accept_passes);
     let result = thread::Builder::new()
         .name("kalsa-door".into())
-        .spawn(move || accept_loop(listener, queue, queue_wait, accept_stop, accept_connections));
+        .spawn(move || {
+            accept_loop(
+                listener,
+                accept_queue,
+                accept_stop,
+                accept_connections,
+                #[cfg(test)]
+                accept_counter,
+            )
+        });
     match result {
         Ok(thread) => threads.push(thread),
         Err(error) => {
             stop.store(true, Ordering::SeqCst);
+            queue.close();
             join_all(threads);
             return Err(DoorError::Thread(error));
         }
@@ -146,6 +180,9 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         active,
         chats,
         upstream_port,
+        queue,
+        #[cfg(test)]
+        accept_passes,
         threads: Mutex::new(threads),
         room: door.room,
         shared: Some(shared),
@@ -153,13 +190,32 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
 }
 
 /// Forgets kept answers whose retention ran out, whether or not anything
-/// else ever touches the registry again.
+/// else ever touches the registry again. One interruptible wait for the whole
+/// period: `join_all` unparks this thread on the way down, and a park that
+/// never happened is not a wake lost — `park_timeout` keeps the permit.
 fn reaper(stop: Arc<AtomicBool>, registry: Arc<Registry>) {
     while !stop.load(Ordering::SeqCst) {
         registry.reap();
-        let wake = Instant::now() + REAP_INTERVAL;
-        while Instant::now() < wake && !stop.load(Ordering::SeqCst) {
-            thread::sleep(Duration::from_millis(200));
+        thread::park_timeout(REAP_INTERVAL);
+    }
+}
+
+/// Answers the clients whose wait in the line ran out. An answer can hold a
+/// worker for half an hour, so the bound has to be kept by someone who is not
+/// a worker: this thread sleeps on the line's own condvar until the oldest
+/// item's wait ends — no poll, and no wake at all while the line is empty.
+fn sweeper(stop: Arc<AtomicBool>, queue: Arc<Queue<Work>>, bound: Duration) {
+    while !stop.load(Ordering::SeqCst) {
+        let Some(expired) = queue.take_expired(bound) else {
+            return; // the line closed: the door is stopping
+        };
+        for mut work in expired {
+            // The join is waiting on this thread now; a batch of busy answers
+            // must not hold it up. The clients left unread meet the close.
+            if stop.load(Ordering::SeqCst) {
+                return;
+            }
+            reject_busy(&mut work.stream);
         }
     }
 }
@@ -167,19 +223,21 @@ fn reaper(stop: Arc<AtomicBool>, registry: Arc<Registry>) {
 fn accept_loop(
     listener: std::net::TcpListener,
     queue: Arc<Queue<Work>>,
-    queue_wait: Duration,
     stop: Arc<AtomicBool>,
     connections: Arc<AtomicUsize>,
+    #[cfg(test)] passes: Arc<AtomicUsize>,
 ) {
     while !stop.load(Ordering::SeqCst) {
-        // Answers can hold a worker for half an hour, so the line is swept on
-        // every turn: whoever has waited too long is answered busy now, not
-        // when a worker finally frees.
-        for mut work in queue.expired(queue_wait) {
-            reject_busy(&mut work.stream);
-        }
+        #[cfg(test)]
+        passes.fetch_add(1, Ordering::SeqCst);
         match listener.accept() {
             Ok((mut stream, _)) => {
+                // The wake a shutdown sends: a loopback connect to this very
+                // listener, carrying nothing. The accept lands here, the flag
+                // is already set, and the connection is dropped unread.
+                if stop.load(Ordering::SeqCst) {
+                    return;
+                }
                 if connections.load(Ordering::SeqCst) >= MAX_CONNECTIONS {
                     reject_busy(&mut stream);
                     continue;
@@ -201,13 +259,14 @@ fn accept_loop(
                     // work drops here: the lease hands the slot back
                 }
             }
-            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                thread::sleep(POLL_INTERVAL);
-            }
             Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
             Err(error) => {
                 log::error!("the door listener stopped: {error}");
                 stop.store(true, Ordering::SeqCst);
+                // The workers wait on the line, not on the flag: a door that
+                // can accept no more must close it or they sleep for good.
+                queue.close();
+                return;
             }
         }
     }
@@ -223,29 +282,25 @@ fn worker(
     head_patience: Duration,
     observer: Option<crate::ResponseObserverFactory>,
 ) {
-    loop {
-        match queue.pop(POLL_INTERVAL) {
-            Some(work) => {
-                if !shared.stop.load(Ordering::SeqCst) {
-                    let response_observer = observer.as_ref().map(|factory| factory());
-                    proxy::handle(
-                        work.stream,
-                        work.accepted,
-                        head_patience,
-                        upstream_port,
-                        capacity,
-                        &shared,
-                        &registry,
-                        &active,
-                        response_observer.as_deref(),
-                    );
-                }
-                // The work — and with it its slot — drops here, on every
-                // path an unwind included. No manual fetch_sub to forget.
-            }
-            None if shared.stop.load(Ordering::SeqCst) => return,
-            None => {}
+    // A closed line is the door stopping; work already in it against the stop
+    // flag is dropped, not served.
+    while let Some(work) = queue.pop() {
+        if !shared.stop.load(Ordering::SeqCst) {
+            let response_observer = observer.as_ref().map(|factory| factory());
+            proxy::handle(
+                work.stream,
+                work.accepted,
+                head_patience,
+                upstream_port,
+                capacity,
+                &shared,
+                &registry,
+                &active,
+                response_observer.as_deref(),
+            );
         }
+        // The work — and with it its slot — drops here, on every path an
+        // unwind included. No manual fetch_sub to forget.
     }
 }
 
@@ -258,8 +313,10 @@ const BUSY_DRAIN_BYTES: usize = 64 * 1024;
 const BUSY_DRAIN_TIME: Duration = Duration::from_millis(50);
 
 fn reject_busy(stream: &mut TcpStream) {
-    // The answer first, whole: blocking, but only for a moment. (A socket
-    // accepted from the non-blocking listener may inherit that mode.)
+    // The answer first, whole: blocking, but only for a moment. The listener
+    // accepts in blocking mode, so this mostly settles a mode already right —
+    // and the answer must not be lost to a `WouldBlock` on the one socket that
+    // inherited something else.
     let _ = stream.set_nonblocking(false);
     let _ = stream.set_write_timeout(Some(BUSY_WRITE));
     log::warn!("{}", crate::audit::line::refusal_line(503, "door.listener_busy"));
@@ -289,8 +346,13 @@ fn drain(stream: &mut impl std::io::Read) -> usize {
     drained
 }
 
-fn join_all(threads: Vec<thread::JoinHandle<()>>) {
+pub(super) fn join_all(threads: Vec<thread::JoinHandle<()>>) {
     for thread in threads {
+        // The reaper sleeps a whole `REAP_INTERVAL` between stop checks, so
+        // the join must wake it. Unparking a thread that is not parked only
+        // sets a permit its next park consumes: an early unpark costs one
+        // extra reap and nothing else.
+        thread.thread().unpark();
         let _ = thread.join();
     }
 }

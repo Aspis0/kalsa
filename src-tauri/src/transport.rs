@@ -31,6 +31,10 @@ const QUEUE: usize = 8;
 const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
 const POLL_INTERVAL: Duration = Duration::from_millis(5);
 const LOG_INTERVAL: Duration = Duration::from_secs(1);
+/// How long the loopback connect that wakes a blocked accept may take. A
+/// listener that is there accepts at once and one that is gone refuses at
+/// once; the bound only covers a backlog nobody is reading.
+const WAKE_TIMEOUT: Duration = Duration::from_millis(300);
 
 /// The port the desk prefers: a fixed loopback port a Tailscale Serve
 /// rule can be pointed at across launches. This app's other fixed ports
@@ -49,6 +53,11 @@ pub(crate) struct Listener {
     stop: Arc<AtomicBool>,
     #[cfg(test)]
     accepted: Arc<AtomicUsize>,
+    /// How many times the acceptor went round. Behind `cfg(test)` like the
+    /// count above, so the idle test can count turns instead of trusting a
+    /// clock.
+    #[cfg(test)]
+    passes: Arc<AtomicUsize>,
 }
 
 struct Connection {
@@ -95,11 +104,25 @@ impl Listener {
 
     pub(crate) fn shutdown(&self) {
         self.stop.store(true, Ordering::SeqCst);
+        // The acceptor waits in a blocking accept whenever no head is in the
+        // air, and a flag alone cannot end that wait. A loopback connect
+        // carrying nothing does: the acceptor takes it as the wake, sees the
+        // flag and leaves. A listener nobody is accepting on refuses at once.
+        let _ = TcpStream::connect_timeout(
+            &SocketAddr::from((Ipv4Addr::LOCALHOST, self.port)),
+            WAKE_TIMEOUT,
+        );
     }
 
     #[cfg(test)]
     pub(crate) fn accepted_count(&self) -> usize {
         self.accepted.load(Ordering::SeqCst)
+    }
+
+    /// How many turns the acceptor has taken. Tests only.
+    #[cfg(test)]
+    pub(crate) fn accept_passes(&self) -> usize {
+        self.passes.load(Ordering::SeqCst)
     }
 }
 
@@ -171,13 +194,17 @@ pub(crate) fn serve_on(desk: SharedDesk, preferred: u16) -> io::Result<Listener>
         }
         Err(error) => return Err(error),
     };
-    listener.set_nonblocking(true)?;
+    // The accept loop owns the mode: blocking for the wait, non-blocking
+    // while a head is being read.
+    listener.set_nonblocking(false)?;
     let port = listener.local_addr()?.port();
     let address = format!("http://127.0.0.1:{port}");
     let on_preferred_port = port == preferred;
     let stop = Arc::new(AtomicBool::new(false));
     #[cfg(test)]
     let accepted = Arc::new(AtomicUsize::new(0));
+    #[cfg(test)]
+    let passes = Arc::new(AtomicUsize::new(0));
     let logger = Arc::new(WriteErrorLog::new());
     let (sender, receiver) = request_queue();
 
@@ -200,6 +227,8 @@ pub(crate) fn serve_on(desk: SharedDesk, preferred: u16) -> io::Result<Listener>
     let accept_logger = logger.clone();
     #[cfg(test)]
     let accepted_counter = accepted.clone();
+    #[cfg(test)]
+    let passes_counter = passes.clone();
     if let Err(error) = thread::Builder::new()
         .name("kalsa-pairing".into())
         .spawn(move || {
@@ -211,6 +240,8 @@ pub(crate) fn serve_on(desk: SharedDesk, preferred: u16) -> io::Result<Listener>
                 accept_logger,
                 #[cfg(test)]
                 accepted_counter,
+                #[cfg(test)]
+                passes_counter,
             );
         })
     {
@@ -224,6 +255,8 @@ pub(crate) fn serve_on(desk: SharedDesk, preferred: u16) -> io::Result<Listener>
         stop,
         #[cfg(test)]
         accepted,
+        #[cfg(test)]
+        passes,
     })
 }
 
@@ -239,24 +272,66 @@ fn accept_loop(
     sender: mpsc::SyncSender<Work>,
     logger: Arc<WriteErrorLog>,
     #[cfg(test)] accepted: Arc<AtomicUsize>,
+    #[cfg(test)] passes: Arc<AtomicUsize>,
 ) {
     let mut connections = Vec::new();
     while !stop.load(Ordering::SeqCst) {
-        let mut progressed = match accept_connections(
-            &listener,
-            &mut connections,
-            &logger,
-            #[cfg(test)]
-            &accepted,
-        ) {
-            Ok(progressed) => progressed,
-            Err(error) => {
-                log::error!("pairing listener stopped: {error}");
+        #[cfg(test)]
+        passes.fetch_add(1, Ordering::SeqCst);
+        let mut progressed = false;
+        if connections.is_empty() {
+            // Nothing to read, so there is nothing to do but wait for a
+            // knock, and the listener is put in blocking mode for exactly
+            // that wait. `Listener::shutdown` ends it with a loopback
+            // connect; the acceptor takes that as the wake and leaves.
+            if listener.set_nonblocking(false).is_err() {
                 desk.listener_failed();
                 stop.store(true, Ordering::SeqCst);
                 break;
             }
-        };
+            match classify(listener.accept()) {
+                Accepted::Socket(stream) => {
+                    if stop.load(Ordering::SeqCst) {
+                        drop(stream);
+                        break;
+                    }
+                    progressed = true;
+                    admit_connection(stream, &mut connections, &logger, #[cfg(test)] &accepted);
+                }
+                Accepted::Retry => thread::sleep(POLL_INTERVAL),
+                Accepted::Idle => {}
+                Accepted::Fatal(error) => {
+                    log::error!("pairing listener stopped: {error}");
+                    desk.listener_failed();
+                    stop.store(true, Ordering::SeqCst);
+                    break;
+                }
+            }
+            // A head needs reading the moment one exists, and that cannot
+            // be done from inside a blocking accept: back to the mode the
+            // read loop below polls in.
+            if listener.set_nonblocking(true).is_err() {
+                desk.listener_failed();
+                stop.store(true, Ordering::SeqCst);
+                break;
+            }
+        }
+        progressed = progressed
+            || match accept_connections(
+                &listener,
+                &mut connections,
+                &logger,
+                #[cfg(test)]
+                &accepted,
+            ) {
+                Ok(progressed) => progressed,
+                Err(error) => {
+                    log::error!("pairing listener stopped: {error}");
+                    desk.listener_failed();
+                    stop.store(true, Ordering::SeqCst);
+                    break;
+                }
+            };
         let mut index = 0;
         while index < connections.len() {
             match read_connection(&mut connections[index]) {
@@ -303,6 +378,33 @@ fn accept_loop(
     }
 }
 
+/// Takes one accepted socket in, or refuses it at the bound: the one road
+/// both the blocking wait and the backlog drain put sockets through.
+fn admit_connection(
+    mut stream: TcpStream,
+    connections: &mut Vec<Connection>,
+    logger: &WriteErrorLog,
+    #[cfg(test)] accepted: &AtomicUsize,
+) {
+    #[cfg(test)]
+    accepted.fetch_add(1, Ordering::SeqCst);
+    if connections.len() >= MAX_CONNECTIONS {
+        refuse_connection(&mut stream, logger);
+        return;
+    }
+    if stream.set_nonblocking(true).is_err() {
+        refuse_connection(&mut stream, logger);
+        return;
+    }
+    let now = Instant::now();
+    connections.push(Connection {
+        stream,
+        accepted: now,
+        last_activity: now,
+        buffer: Vec::with_capacity(MAX_BUFFER),
+    });
+}
+
 fn accept_connections(
     listener: &TcpListener,
     connections: &mut Vec<Connection>,
@@ -312,25 +414,9 @@ fn accept_connections(
     let mut progressed = false;
     loop {
         match classify(listener.accept()) {
-            Accepted::Socket(mut stream) => {
-                #[cfg(test)]
-                accepted.fetch_add(1, Ordering::SeqCst);
+            Accepted::Socket(stream) => {
                 progressed = true;
-                if connections.len() >= MAX_CONNECTIONS {
-                    refuse_connection(&mut stream, logger);
-                    continue;
-                }
-                if stream.set_nonblocking(true).is_err() {
-                    refuse_connection(&mut stream, logger);
-                    continue;
-                }
-                let now = Instant::now();
-                connections.push(Connection {
-                    stream,
-                    accepted: now,
-                    last_activity: now,
-                    buffer: Vec::with_capacity(MAX_BUFFER),
-                });
+                admit_connection(stream, connections, logger, #[cfg(test)] accepted);
             }
             Accepted::Idle => return Ok(progressed),
             Accepted::Retry => {
@@ -430,20 +516,21 @@ fn worker(
     loop {
         let work = {
             let receiver = receiver.lock().unwrap_or_else(|e| e.into_inner());
-            receiver.recv_timeout(POLL_INTERVAL)
+            // The wait is the channel's own: a request wakes one worker, and
+            // the acceptor dropping the last sender ends the wait on the way
+            // down. Nothing polls for a stop that has not happened.
+            receiver.recv()
         };
-        let work = match work {
-            Ok(work) => Some(work),
-            Err(mpsc::RecvTimeoutError::Timeout) => None,
-            Err(mpsc::RecvTimeoutError::Disconnected) => return,
-        };
-        if stop.load(Ordering::SeqCst) {
-            return;
+        match work {
+            Ok(work) => {
+                if stop.load(Ordering::SeqCst) {
+                    return;
+                }
+                handle(desk, work, logger);
+            }
+            // The acceptor left and took the last sender with it.
+            Err(_) => return,
         }
-        let Some(work) = work else {
-            continue;
-        };
-        handle(desk, work, logger);
     }
 }
 

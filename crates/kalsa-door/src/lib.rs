@@ -104,7 +104,10 @@ const MAX_CONNECTIONS: usize = WORKERS + QUEUE;
 const PATIENCE: std::time::Duration = std::time::Duration::from_secs(10);
 pub(crate) const HEAD_PATIENCE: Duration = Duration::from_secs(15);
 const CONNECTION_LIFETIME: std::time::Duration = std::time::Duration::from_secs(300);
-const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
+/// How long the loopback connect that wakes the blocked acceptor may take.
+/// A listener that is there accepts at once and one that is gone refuses at
+/// once; this bound only covers the third case, a backlog nobody is reading.
+const WAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(300);
 /// How long a finished answer stays resumable after its last event. A phone
 /// may be away for minutes; it is not away forever.
 const JOB_RETENTION: std::time::Duration = std::time::Duration::from_secs(600);
@@ -370,6 +373,15 @@ pub struct RunningDoor {
     /// door that was started, never from a caller and never from a constant.
     chats: Arc<paging::Chats>,
     upstream_port: u16,
+    /// The line the accept loop fills. Shutdown closes it to end every
+    /// worker's wait, and it lives here rather than in the accept thread
+    /// because that thread is one of the things still blocked.
+    queue: Arc<queue::Queue<server::Work>>,
+    /// How many times the accept loop went round. Behind `cfg(test)` so the
+    /// idle-wakeup test can count the loop's turns instead of trusting a
+    /// clock.
+    #[cfg(test)]
+    accept_passes: Arc<std::sync::atomic::AtomicUsize>,
     threads: Mutex<Vec<JoinHandle<()>>>,
     /// The room this door serves and the workers' shared state, when the
     /// caller gave the door a room: the pieces its driver needs, kept so
@@ -430,7 +442,7 @@ impl Door {
             return Err(DoorError::UpstreamIsListener { port: upstream_port });
         }
         listener
-            .set_nonblocking(true)
+            .set_nonblocking(false)
             .map_err(DoorError::Listener)?;
         Ok(Self {
             listener,
@@ -637,16 +649,29 @@ impl RunningDoor {
     /// Stop accepting and wait for the bounded thread set to leave.
     pub fn shutdown(&self) {
         self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        // Three waits a stop flag alone cannot end: the acceptor sits in a
+        // blocking accept, and the workers and the sweeper sleep on the line's
+        // condvar. Closing the line wakes the sleepers; the connect is the
+        // wake the acceptor takes, and it carries nothing.
+        self.queue.close();
+        let _ = std::net::TcpStream::connect_timeout(&self.address, WAKE_TIMEOUT);
         let threads = self
             .threads
             .lock()
             .ok()
             .map(|mut threads| std::mem::take(&mut *threads));
         if let Some(threads) = threads {
-            for thread in threads {
-                let _ = thread.join();
-            }
+            server::join_all(threads);
         }
+    }
+
+    /// How many turns the accept loop has taken. An idle door's acceptor
+    /// waits in `accept`, so the count stands still instead of climbing with a
+    /// poll. Tests only.
+    #[cfg(test)]
+    pub(crate) fn accept_passes(&self) -> usize {
+        self.accept_passes
+            .load(std::sync::atomic::Ordering::SeqCst)
     }
 }
 

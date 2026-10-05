@@ -600,3 +600,81 @@ fn an_invitation_cannot_claim_while_the_desk_is_not_serving() {
     );
     listener.shutdown();
 }
+
+/// The idle desk waits in `accept`: over two seconds with nothing knocking
+/// the acceptor's turn count stands still. The count moving for a real
+/// request is what shows the reading is the loop's and not a constant.
+#[test]
+fn an_idle_desk_does_not_wake_its_acceptor() {
+    let (_desk, listener, address, code, _nonce, _reachable) = setup("idle-acceptor");
+    thread::sleep(Duration::from_secs(2));
+    let idle = listener.accept_passes();
+    assert!(
+        idle <= 1,
+        "the acceptor took {idle} turns in two idle seconds"
+    );
+    let claim = serde_json::json!({ "code": code });
+    let _ = request(&address, "POST", "/pair/claim", &claim.to_string());
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while listener.accept_passes() == idle && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert!(
+        listener.accept_passes() > idle,
+        "the acceptor never came back for a real request"
+    );
+    listener.shutdown();
+}
+
+/// Shutdown wakes the acceptor out of its blocking accept, and the port is
+/// the proof: it is the acceptor's to release, so binding it again says the
+/// thread left its wait rather than being still in it.
+#[test]
+fn shutdown_wakes_the_blocked_acceptor_and_frees_its_port() {
+    let (_desk, listener, _address, _code, _nonce, _reachable) = setup("wake-acceptor");
+    let port = listener.port();
+    // Let the acceptor reach its wait.
+    thread::sleep(Duration::from_millis(50));
+    let begun = Instant::now();
+    listener.shutdown();
+    let deadline = begun + Duration::from_secs(1);
+    loop {
+        match TcpListener::bind((Ipv4Addr::LOCALHOST, port)) {
+            Ok(again) => {
+                drop(again);
+                break;
+            }
+            Err(_) if Instant::now() < deadline => thread::sleep(Duration::from_millis(10)),
+            Err(error) => panic!("the acceptor never left its wait: {error}"),
+        }
+    }
+    assert!(
+        begun.elapsed() < Duration::from_secs(1),
+        "shutdown took {:?} with the acceptor blocked",
+        begun.elapsed()
+    );
+}
+
+/// A worker blocked on an empty channel leaves when the last sender drops:
+/// the acceptor's exit is the desk stopping, and no worker may need a poll to
+/// see it.
+#[test]
+fn a_worker_waiting_on_an_empty_channel_leaves_when_the_sender_drops() {
+    let desk = Arc::new(Desk::new(scratch("worker-wake")));
+    let (sender, receiver) = mpsc::sync_channel(1);
+    let receiver = Mutex::new(receiver);
+    let stop = AtomicBool::new(false);
+    let (done, finished) = mpsc::channel();
+    let waiting = thread::spawn(move || {
+        worker(&desk, &stop, &receiver, &WriteErrorLog::new());
+        let _ = done.send(());
+    });
+    thread::sleep(Duration::from_millis(30));
+    drop(sender);
+    let left = finished.recv_timeout(Duration::from_secs(1));
+    assert!(
+        left.is_ok(),
+        "the worker slept through the channel closing"
+    );
+    waiting.join().unwrap();
+}

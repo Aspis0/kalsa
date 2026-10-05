@@ -1482,3 +1482,59 @@ fn a_revoked_device_is_refused_and_its_answer_dies_with_the_door() {
     upstream_stop.store(true, Ordering::SeqCst);
     upstream_thread.join().unwrap();
 }
+
+/// The idle door waits in `accept`: over three seconds with nothing knocking
+/// the acceptor's turn count stands still. The count moving for a real
+/// connection is what shows the reading is the loop's and not a constant.
+#[test]
+fn an_idle_door_does_not_wake_its_acceptor() {
+    support::bounded(Duration::from_secs(20), || {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let token = credential();
+        let door = Door::new(listener, 1, door_devices(&[&token]), 1)
+            .unwrap()
+            .start()
+            .unwrap();
+        thread::sleep(Duration::from_secs(3));
+        let idle = door.accept_passes();
+        assert!(
+            idle <= 1,
+            "the acceptor took {idle} turns in three idle seconds"
+        );
+        let _ = request(address, Some(&format!("Bearer {token}")));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while door.accept_passes() == idle && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(5));
+        }
+        assert!(
+            door.accept_passes() > idle,
+            "the acceptor never came back for a real connection"
+        );
+        door.shutdown();
+    });
+}
+
+/// Shutdown wakes the acceptor out of its blocking accept: at rest the only
+/// thing that can end that wait is the loopback connect `shutdown` sends. One
+/// second is the budget — a door that cannot stop promptly is a door the app
+/// cannot restart.
+#[test]
+fn shutdown_returns_promptly_with_the_acceptor_blocked() {
+    support::bounded(Duration::from_secs(20), || {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let door = Door::new(listener, 1, door_devices(&[&credential()]), 1)
+            .unwrap()
+            .start()
+            .unwrap();
+        // The acceptor is in its wait; nothing has knocked and nothing will.
+        thread::sleep(Duration::from_millis(50));
+        let begun = Instant::now();
+        door.shutdown();
+        let took = begun.elapsed();
+        assert!(
+            took < Duration::from_secs(1),
+            "shutdown took {took:?} with the acceptor blocked"
+        );
+    });
+}

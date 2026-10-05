@@ -41,7 +41,13 @@ pub fn spawn_event_pump(app: tauri::AppHandle, brain: &crate::Brain) {
                     return;
                 }
                 let mut out = Vec::new();
-                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+                // The deadline is only how often a quiet room's pump re-checks
+                // the stop flag: `Room` has no public notify to wake a follower
+                // on anything but news, and this thread is detached and joined
+                // by nobody, so a stop can wait half a minute without holding
+                // the exit. With news arriving, `read_since` returns at once and
+                // the flag is seen then.
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
                 if room.read_since(&mut cursor, deadline, &mut out) == kalsa_room::Take::BadCursor {
                     cursor = room.next_cursor();
                     continue;
