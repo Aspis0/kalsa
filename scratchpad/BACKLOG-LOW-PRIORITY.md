@@ -143,3 +143,8 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P1 DMA alignment (first non-128-aligned 2-D DMA rows, 1680 B) and P1 conversion cost (2.62e8 inner iterations/token; 0.9-0.95 only if the loop vectorises): decided by the S23 one-row probe and the NPU ABBA, not in code. Fable's "Q4_0 raw ran 0.70 with scalar conversion" premise is questioned: Q4_0's converter is the shape clang vectorises.
 - P2 zero host tests for the three new host predicates (raw gate split, HMX refusal, has_raw_q6_K_mm): add with the step-6 binding tests if the gate changes again.
 - P3: host packer compiled into the DSP TU then discarded; 256K memset calls per token; `int raw` mode relies on inlining; `has_raw_q6_K_mm` named like an identity test; fp16 byte identity rests on a shared unpinned implementation; duplicated TILE_SIZE; double-derived tile counts.
+
+## Room layout fix (branch phone/room-layout; review space-bunny a643cb93, 2026-10-05)
+- P3: the overlay frame literal (absolute fill + zIndex 50) is duplicated in ~10 screens; extract one helper.
+- P3: roomLayout.test.ts mocks react-native minimally and stubs React hooks; it compares style objects, not layout,
+  and breaks on unrelated AccountScreen imports.
