@@ -328,6 +328,73 @@ Wrong or missing in the plan: (a) Revision 3 carries the NPU result forward as i
 does not (norms on the device buft); (b) "no-mmap" is listed as a requirement, it is a memory choice to be read off
 B4; (c) the plan has no proof that two-copy placement is unchanged after exposing HOST: add the placement-log diff.
 
+## Amendment C (2026-10-05, after step 2): step-3 spec
+
+Read at 93fb3c097. Placement probe allocates 0-byte buffers that never reach the backend (`ggml-backend.cpp:43-46`).
+Scheduler: a weight whose (buft, op) no backend supports gets -1 (`:903-912`) and is then COPIED into the split's
+backend: `ggml_dup_tensor_layout` + `split->inputs[n] = src` (`:1414-1433`); `split_graph` is void (`:1081`),
+`reserve`/`alloc_graph` return bool (`:1990-2003`, `:2007-2018`). CPU `supports_op` already returns
+`ggml_cpu_tile32_supports_op` for any TILE32 src in `src[0..3]` (`ggml-cpu.cpp:437-447`; only 2-D Q4_0 MUL_MAT passes,
+`tile32.cpp:23-73`); the compute dispatch tries the extra path then the native switch (`ggml-cpu.c:2064-2070`); the
+only native guard is inside mul_mat (`:1457-1460`). Native readers of a quantized src0: MUL_MAT, MUL_MAT_ID
+(`ggml-cpu.c:1851`, `type_traits_cpu[type]` at `:1868`), GET_ROWS (`ops.cpp:5146`), DUP/CPY/CONT (`ops.cpp:526`).
+
+**C1. Where a second copy appears in shared mode, and the load-time check.**
+- The tied output. `lfm2.cpp:40-44`: no `output.weight`, so `output = create_tensor(TOKEN_EMBD, TENSOR_DUPLICATED)`;
+  the loader probes it as an OUTPUT op (`llama-model-loader.cpp:1159-1161`), reuses the original only if it sits in the
+  SAME buft context (`:1364-1368`), else `ggml_dup_tensor` and `size_data += nbytes`: loaded twice (`:1371-1378`).
+  Shared mode: `dev_output` is the last layer's list `[TILE32, HOST, HTP0, CPU]`; TILE32 refuses Q6_K, HOST is refused
+  (`raw_weights_supported` admits only flat Q4_0 raw), HTP0 accepts: a 205 MiB repacked copy on the device buft and the
+  lm_head on the HTP, the measured 458 pp512 case. This is the second copy nobody listed.
+- The scheduler copy (`:1414-1433`), live today: P0's `CPU#token_embd.weight#0`. For a TILE32 weight it goes through
+  `get_tensor` (unpack) so the bytes are right and the copy is invisible: a native tensor per graph in the compute buffer.
+- CPU_REPACK claiming the duplicate output when `use_extra_bufts` (repack has Q6_K gemv, `repack.cpp:4752-4756`);
+  the probe op for the dup is MUL_MAT, which repack accepts (`:5821`).
+- NOT a copy: mmap. `mmaps_used` starts `{size, 0}` (`:1426`) and only mmap-backed tensors shrink it (`:1659-1661`),
+  so `:1776 unmap_fragment(0, mmap_used.first)` unmaps the whole file after load; `pimpl->mappings` keeps unmapped objects
+  (`llama-model.cpp:1878-1882`). Nor are HOST-placed f32/Q6_K tensors: they are the only copy.
+Check, in the loader, gated on one bool `shared_weights` that `llama_model::load_tensors` sets when any list entry reports
+`GGML_WEIGHT_LAYOUT_Q4_0_TILE32` (two-copy mode never sets it, so nothing below runs there):
+(a) `create_tensor` `:1364-1368`: for `TENSOR_DUPLICATED` in shared mode, search every ctx for the name; if found in a
+host buft, return it and log once `shared weights: %s reused for %s from %s`; else throw
+`shared weights: %s would be loaded twice (%s and %s)`. (b) after `load_all_data`, every WEIGHTS buffer must be
+TILE32, HOST or the CPU buft, else throw `shared weights: %s landed in %s, not a shared buffer` naming the first tensor;
+on success one INFO line `shared weights: TILE32 %zu HOST %zu CPU %zu bytes` (B4 reads it). A throw fails the load; the
+binding falls back. The duplicate rule is a placement decision only in shared mode, so two-copy placement logs stay
+byte-identical (gate).
+
+**C2. Native-read guards: two generic ones, no per-op list.**
+- Scheduler, `:1414` before `ggml_dup_tensor_layout`: if `src->buffer` and `ggml_backend_buft_weight_layout` is not
+  NATIVE, `GGML_LOG_ERROR("%s: weight %s (%s) has no backend for %s in this scheduler and cannot be copied", ...)`,
+  set `sched->split_failed`, and `reserve`/`alloc_graph` return false when it is set (`llama_context` already turns a
+  false reserve into a thrown error). Native weights keep today's behaviour: P0-style copies stay legal and silent.
+- CPU compute, `ggml-cpu.c:2064-2070` after the extra path declines: any src with a non-NATIVE layout aborts,
+  `ggml-cpu: %s cannot read %s (TILE32) as native bytes`. It subsumes `:1457-1460` (delete that one) and covers
+  MUL_MAT_ID, GET_ROWS, DUP/CPY/CONT and every future op, plus direct `ggml_graph_compute` callers that bypass the
+  scheduler. `supports_op` refusal alone is not enough: the scheduler answers a refusal with a copy, and graph compute
+  without a scheduler never asks. Other backends need nothing: Hexagon's TILE32 branch admits 2-D Q4_0 MUL_MAT only
+  (step 1), OpenCL refuses foreign bufts (`ggml-opencl.cpp:14912-14923`) so `backend_from_buffer` never names it,
+  CPU_REPACK answers only for its own buft (`repack.cpp:5824`).
+
+**C3. Proof.** Host, with `test_tile32_buft()` (`tests/test-tile32-buft.h:9`): extend `test-tile32-support` with
+GET_ROWS, MUL_MAT_ID, CPY, DUP, CONT on a TILE32 src0 and a TILE32 src1 of MUL, all `supports_op` false; new
+`test-tile32-sched`: a `{CPU}` scheduler over `GET_ROWS(w_tile32)` has `reserve` return false and the log names `w`, the
+same graph with a native `w` returns true; the compute abort in a forked child (`SIGABRT` expected) on the same graph
+through `ggml_graph_compute_with_ctx`, MUL_MAT as the passing control. The loader rule has no host test (shared mode
+needs a Hexagon device): S23, one shared-mode load of the ship GGUF, no timing: log shows `reused for output`, the
+buffer summary lists TILE32 + HOST + CPU only (no HTP0 device buffer), `token_embd.weight` loaded once, weight bytes =
+file size + tile padding; control: the two-copy arm A placement log byte-identical to step 2's. Ten minutes on the
+phone, owner's call whether it rides the step-2 session.
+
+**C4. Fence and what is wrong.** Step 3 is host-only plus that one log check; no kernels, binding, OpenCL, KV, or
+behaviour change for native weights. Wrong: (a) the pin. `shared_weights_pinned` latches on the first buffer-type read
+and never clears (93fb3c097), so after a refused shared load the same process cannot fall back to a two-copy load,
+and no later model can load two-copy: R2's fallback story breaks. Make the pin a count of live TILE32/HOST buffers
+(inc in `alloc_buffer`, dec in `free_buffer`; the probe dummies never reach the backend, `:43-46`), setter legal at
+zero, the "before any load" contract unchanged. (b) Revision 3 lists the native guard per op and misses the duplicated
+tied output, the largest real copy. (c) The scheduler guard must stay silent for native weights, or two-copy configs
+that copy today start failing.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
@@ -336,3 +403,5 @@ B4; (c) the plan has no proof that two-copy placement is unchanged after exposin
   with admission, kernel port, host test and S23 check; plan corrections).
 - 2026-10-04 v4: Amendment B appended (step-2 spec: setter with buffer cap, {TILE32, HOST} exposure and probe
   placement, admission env for the S23 check, split proof, RAM method and fair arms, scope fence).
+- 2026-10-05 v5: Amendment C appended (step-3 spec: second-copy sources incl. the duplicated tied output, loader
+  check gated on shared mode, two generic native-read guards, host tests, pin must become a live-buffer count).
