@@ -1384,10 +1384,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   context; target <= 2 splits and >= 0.9 of 11.51 tok/s. Step 4b (HOST import, token_embd placement, Q6_K path)
   comes after the main merge; the KV move needs leg_devices (step 5). Amendment G also flips the tied-output ranking
   to option 3 (HTP reads flat Q6_K from HOST: one copy serves all three legs) over option 2 (205 MiB duplicate).
-- **Main merge done, not pushed** (`6a937f6db`, deepseek): 5 conflicted files, host + Android builds, tile32 and
+- **Main merge done and pushed** (`6a937f6db`, deepseek; luna audit: no lossy hunk): 5 conflicted files, host + Android builds, tile32 and
   governor host tests (incl. v0-hybrid with the ship GGUF) green; release skel changed (main moved 56 DSP files) -
   the NPU numbers of steps 1-3 must be re-measured on the merged build. HTP Q4_0 tiles still 576 B (TILE32 layout
-  intact, static_assert kept). Luna is auditing the merge (possible tile-stride bug in the old raw-Q4_0 path).
+  intact, static_assert kept). Audit leftovers in `scratchpad/BACKLOG-LOW-PRIORITY.md`.
+- **Step 4b (coding, GLM)**: HOST buffers imported like TILE32, native HOST tensors read in place by the existing
+  OpenCL kernels, token_embd in HOST so the plain Q6_K kernel runs the lm_head on the GPU (Amendment G).
 - **Step 5 prerequisite** (Fable Amendment F): hop v1 lives on engine `main`, not on this branch (merge-base
   `45f097b74`, main +373 commits, branch +50): merge main into the branch before step 5.
 - Next: step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model

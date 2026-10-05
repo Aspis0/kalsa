@@ -994,6 +994,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Step 4 after fixes (`0e7109fdf`, `step4-s23/raw/proof-0e7109fdf.grep`, ~04:45): leg enabled on the Adreno 740,
   imports 867635200 + 501944320 B io-coherent, self-check PASS 166/166; graph splits 197 at bs=1; tg64 -t 1:
   **G 3.50, two-copy OpenCL 11.51**. Correct but 0.30x: the GPU only gets the mat-vecs.
+- Engine main merged into the branch (`6a937f6db`, pushed): 5 conflicted files, host + Android builds and the
+  tile32 + governor host tests green; release skel hash changed (`9455871f...`, main moved 56 DSP files), so the
+  NPU numbers of steps 1-3 are re-measured on the merged build before step 5.
 
 ## Engine release pipeline (`kalsa-server`)
 
