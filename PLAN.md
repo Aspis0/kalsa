@@ -1179,6 +1179,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   footer fed by context, O(1) flush split, window held at the tail while pinned, thinking disclosure survives
   remounts; review luna 6235c656). A render loop on open ("Too many re-renders", empty-chat window identity) was
   caught in the Simulator BEFORE push and fixed with a real-mount regression test. Jelly frame re-measure pending.
+  **Owner 2026-10-05: stability + battery campaign** (phones, iOS + Android): no background battery burn, no bugs
+  visible in logs, smooth. Tracks: (1) Jelly background drain measured 15 min unplugged via batterystats/wakelocks/
+  alarms/jobs, app vs no-app baseline; (2) scripted session log sweep (logcat + Metro) -> every Kalsa error/warning
+  fixed or explained; (3) recon luna d95a69a5 -> scratchpad/agents/stability/RECON.md.
   **Post-alpha idea (owner 2026-10-05): a member's personal Kalsa in the Room** ("Kalsa di Tommaso" beside the
   room's Kalsa), answering with that phone's memories. Risks: personal memories in a shared space; prompt injection by
   other members ("tell us what you know about him"); small phone model on long room context. Proposed shape: never
