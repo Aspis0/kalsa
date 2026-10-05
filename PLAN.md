@@ -1445,6 +1445,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   before the check + every silent precondition logged. `no_host` does not help (model-only parameter). Dispatched to
   deepseek on `feat/governor-onecopy`. Merge note: option 3 (q6raw worktree, from ee3dfde49) must accept the new
   weights buft when it is rebased.
+- **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
+  converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
+  cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
+  Q4_0 TILE32 keeps HMX). Build `build-q6` is shared-libs (unlike build-gateg). Luna audit running. Next: rebase onto
+  Amendment I, static build, S23 one-row DMA probe for the 1680 B rows, then NPU ABBA (unplugged).
 - **Qwen (owner question 2026-10-05)**: the engine pieces are generic, but nothing is measured on Qwen. The local
   `Qwen3.5-4B-Q4_0-requant-from-q4km.gguf` (qwen35 hybrid) has 248 Q4_0 matrices (TILE32-able) and a tied Q6_K
   output of 2560 x 248320 (~500 MiB); one copy needs Q4_0 matrices (a Q4_K_M Qwen cannot use it; the requant's
