@@ -1,0 +1,2 @@
+revert-q8-07fc586e3: exit=0 chunk PPL ln(PPL(Q)/PPL(base)) KL Divergence Δp RMS Same top p;Mean PPL(Q) : 34.264060 ± 5.228234;Mean KLD: 0.005357 ± 0.000378;Same top p: 96.275 ± 0.839 %; errors=0 [lvl=52 ac=false usb=false wl=false batT=318 skin=33.8 wake=Awake thermal=0 traced=0]
+EXIT=0
