@@ -221,9 +221,10 @@ export function HostChatSurface({
     if (action === "notes") { arms.toggleNotes(); return; }
     if (action === "library" || action === "camera") { beginImageAttach(action); return; }
     if (action === "document") {
+      // The docx import can reject (a native read of the picked file).
       void attachments.beginDocumentPick().then((close) => {
         if (close) setAttachSheetOpen(false);
-      });
+      }).catch(() => undefined);
       return;
     }
     setAttachSheetOpen(false);

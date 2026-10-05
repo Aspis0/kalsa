@@ -105,15 +105,19 @@ export function useModelHost(params: ModelHostParams) {
   deviceBandwidthRef.current = deviceBandwidth;
   useEffect(() => {
     let mounted = true;
-    void loadDeviceBandwidthCalibration().then((loaded) => {
-      if (!mounted) return;
-      const merged = mergeDeviceBandwidthCalibrations(
-        deviceBandwidthRef.current,
-        loaded,
-      );
-      deviceBandwidthRef.current = merged;
-      setDeviceBandwidth(merged);
-    });
+    // The loader swallows its own read failures; the terminal catch is the
+    // backstop that keeps a rejection off the process's unhandled list.
+    void loadDeviceBandwidthCalibration()
+      .then((loaded) => {
+        if (!mounted) return;
+        const merged = mergeDeviceBandwidthCalibrations(
+          deviceBandwidthRef.current,
+          loaded,
+        );
+        deviceBandwidthRef.current = merged;
+        setDeviceBandwidth(merged);
+      })
+      .catch(() => undefined);
     return () => {
       mounted = false;
     };

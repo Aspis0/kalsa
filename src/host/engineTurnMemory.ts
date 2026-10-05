@@ -103,11 +103,15 @@ export function createMemoryExtract(
           };
           const trackMemoryExtractJob = (extractJob: Promise<void>) => {
             memoryExtractRef.current = extractJob;
-            void extractJob.finally(() => {
-              if (memoryExtractRef.current === extractJob) {
-                memoryExtractRef.current = null;
-              }
-            });
+            void extractJob
+              .finally(() => {
+                if (memoryExtractRef.current === extractJob) {
+                  memoryExtractRef.current = null;
+                }
+              })
+              // The job's own finally awaits telemetry, so it can still reject
+              // after its internal catch: this is the terminal handler.
+              .catch(() => undefined);
           };
           const armMemoryExtract = () => {
             if (extractScheduled) return;

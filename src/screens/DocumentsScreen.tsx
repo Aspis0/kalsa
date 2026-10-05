@@ -151,13 +151,18 @@ export function DocumentsScreen({
                 Alert.alert(t("documents.title"), t("documents.errorBusy"));
                 return;
               }
-              void onDeleteDocument(doc.id).then((accepted) => {
-                if (!accepted) {
-                  Alert.alert(t("documents.title"), t("documents.errorBusy"));
-                  return;
-                }
-                setScreenMode("list");
-              });
+              // A rejected delete (an owned file that would not go) must not
+              // reach the process's unhandled-rejection list; the row simply
+              // stays, which is what the refusal alert already says.
+              void onDeleteDocument(doc.id)
+                .then((accepted) => {
+                  if (!accepted) {
+                    Alert.alert(t("documents.title"), t("documents.errorBusy"));
+                    return;
+                  }
+                  setScreenMode("list");
+                })
+                .catch(() => undefined);
             },
           },
         ],
