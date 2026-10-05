@@ -114,3 +114,7 @@ they are promoted.
 - P3: pros/cons silently keeps the first 50 rows and still answers "Miniapp created" (`chat/src/lib/miniapp/prosCons.ts:35`) — inherited from the phone builder.
 - P3: the 64 KiB block cap counts UTF-16 characters, not bytes (`chat/src/lib/miniapp/build.ts:27`, `normalize.ts:80`) — same as the phone; new input is bounded by the 4 096-char argument cap.
 - P3: miniapp labels, controls and the tool's result/error text are English only, where the phone passes localized strings (`prosCons.ts:12`, `chat/src/lib/tools/createMiniapp.ts:14`) — translation work is post-alpha.
+
+## Waiting line (review of ca60c354)
+- P3: leaving the chat page and coming back mid-wait remounts `WaitingRow`, so the 3 s delay starts again for the same turn (`chat/src/components/Thread.tsx` `WaitingRow`).
+- P3: a Room turn that waited for a seat (`waiting`) and then sees another member enqueue gets state `queued`, so the bubble shows the reading line while the turn is still waiting for a seat (`crates/kalsa-room/src/queue.rs:315`, `RoomSurface.tsx` `kalsaWorking`).
