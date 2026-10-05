@@ -1190,6 +1190,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   fresh chat (not the nudge pill).** Suspect a never-stopping native/reanimated frame driver or the KalsaLifecycle
   main-looper timer; debuggable APK run 37341189685 for simpleperf. Long-chat frames after virtualization: p50/p90/
   p95/p99 16/25/28/34 ms (was 17/34/34/34), frames drawn 1367 vs 5207 for a comparable answer.
+  ROOT CAUSE (simpleperf, debuggable APK 3f922959): worklets AnimationFrameQueue.executeQueue on Choreographer every
+  vsync = react-native-worklets 0.10.1 never wires onHostPause/onHostResume (upstream reanimated #10076, fix PR
+  #10196, backport worklets-0.10.4). Fix = bump worklets 0.10.1 -> 0.10.4 (GLM b5ba60e7, branch deps/worklets-0.10.4).
+  iOS Simulator backgrounded: 0% (iOS suspends). Report: scratchpad/agents/stability/WORKLETS-BG.md.
+  Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
+  row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
   **Post-alpha idea (owner 2026-10-05): a member's personal Kalsa in the Room** ("Kalsa di Tommaso" beside the
   room's Kalsa), answering with that phone's memories. Risks: personal memories in a shared space; prompt injection by
   other members ("tell us what you know about him"); small phone model on long room context. Proposed shape: never
