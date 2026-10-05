@@ -30,6 +30,8 @@ function projectValue(rule: FieldRule, value: unknown): unknown {
       return typeof value === "string" && rule.values.includes(value) ? value : undefined;
     case "counter":
       return typeof value === "string" && /^\d{1,12}$/.test(value) ? value : undefined;
+    case "safeId8":
+      return typeof value === "string" && /^[a-zA-Z0-9_-]{1,8}$/.test(value) ? value : undefined;
     case "modelId":
       return typeof value === "string" && modelIds.has(value) ? value : undefined;
     case "numObj": {

@@ -763,6 +763,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       too_large: "That message is too long for the room. Shorten it or split it in two.",
       read_only: "The room can't take messages right now. Try again in a moment.",
       client_msg_id_reused: "That message is already in the room.",
+      pairing_missing: "This message could not be sent because its pairing no longer exists.",
       internal: "Something went wrong on this computer. Try again.",
       already_pending: "You already have a question waiting for Kalsa.",
       name_taken: "Someone in this room already uses that name. Pick another.",

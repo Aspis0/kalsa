@@ -12,17 +12,16 @@
  * included), and the next subscribe or stream open probes again. The
  * triggers are that open and the foreground reconnect — never
  * background work, which RN stops anyway. A pairing that no longer
- * exists leaves its shelf behind only once: the next probe deletes it.
+ * exists leaves its messages on the shelf as terminal failures.
  *
- * Privacy: this module never logs message text or the client_msg_id.
+ * Privacy: send diagnostics log only eight-character id prefixes, never text.
  */
 import { getPairing } from "../pairing/pairingCredentialStore";
 import { backoffDelayMs } from "./roomBackoff";
 import { postRoomMessage } from "./roomApi";
-import type { RoomResult } from "./roomError";
+import type { RoomErrorCode, RoomResult } from "./roomError";
 import { roomQueueAttempt } from "./roomQueueOutcome";
 import {
-  deleteRoomQueue,
   loadRoomQueue,
   mutateRoomQueue,
   type RoomQueueItem,
@@ -32,6 +31,25 @@ import { checkEncodedBody, checkRoomText } from "./roomBounds";
 
 /** The shelf's cap; compose refuses beyond it with a typed queue_full. */
 const MAX_QUEUE_ITEMS = 200;
+
+type RoomSendStep = "enqueue" | "persisted" | "kick" | "post" | "ack" | "fail" | "drop_no_pairing";
+
+function logSend(
+  op: RoomSendStep,
+  localId: string,
+  clientMsgId: string | null,
+  startedAt: number,
+  code?: RoomErrorCode | "storage_error",
+): void {
+  const fields = {
+    op,
+    ...(code === undefined ? {} : { code }),
+    localId8: localId.slice(0, 8),
+    clientId8: clientMsgId?.slice(0, 8) ?? "unknown",
+    ms: Math.max(0, Date.now() - startedAt),
+  };
+  console.log(`KALSA_ROOM_SEND ${JSON.stringify(fields)}`);
+}
 
 export type RoomQueueEvent =
   /** The shelf after every mutation — what a waiting list renders. */
@@ -140,23 +158,42 @@ export async function enqueueRoomMessage(
   localId: string,
   message: { text: string; callAi?: boolean },
 ): Promise<RoomResult<{ clientMsgId: string }>> {
+  const startedAt = Date.now();
+  let clientMsgId: string | null = null;
+  logSend("enqueue", localId, clientMsgId, startedAt);
   const textProblem = checkRoomText(message.text);
-  if (textProblem !== null) return { ok: false, error: textProblem };
+  if (textProblem !== null) {
+    logSend("fail", localId, clientMsgId, startedAt, textProblem.code);
+    return { ok: false, error: textProblem };
+  }
   const callAi = message.callAi === true;
   // The id is always 32 hex chars (16 bytes), so a fixed-width dummy
   // measures the body exactly before anything is minted or stored.
   const bodyProblem = checkEncodedBody(
     JSON.stringify({ client_msg_id: "0".repeat(32), text: message.text, call_ai: callAi }),
   );
-  if (bodyProblem !== null) return { ok: false, error: bodyProblem };
-  const existing = await loadRoomQueue(localId);
-  if (existing.length >= MAX_QUEUE_ITEMS) return { ok: false, error: queueFull() };
-  let clientMsgId: string;
+  if (bodyProblem !== null) {
+    logSend("fail", localId, clientMsgId, startedAt, bodyProblem.code);
+    return { ok: false, error: bodyProblem };
+  }
+  let existing: RoomQueueItem[];
+  try {
+    existing = await loadRoomQueue(localId);
+  } catch {
+    logSend("fail", localId, clientMsgId, startedAt, "storage_error");
+    throw new Error("room queue storage failed");
+  }
+  if (existing.length >= MAX_QUEUE_ITEMS) {
+    const error = queueFull();
+    logSend("fail", localId, clientMsgId, startedAt, error.code);
+    return { ok: false, error };
+  }
   try {
     clientMsgId = newClientMsgId();
   } catch {
     // Never a raw throw: the text was not stored, and the caller is
     // told why so it can try compose again.
+    logSend("fail", localId, clientMsgId, startedAt, "client_msg_id_unavailable");
     return {
       ok: false,
       error: {
@@ -173,15 +210,31 @@ export async function enqueueRoomMessage(
     state: "queued",
   };
   let pushed = false;
-  await mutateRoomQueue(localId, (draft) => {
-    // Re-checked under the lock: a racing compose may have filled it.
-    if (draft.length >= MAX_QUEUE_ITEMS) return false;
-    draft.push(item);
-    pushed = true;
-    return true;
-  });
-  if (!pushed) return { ok: false, error: queueFull() };
-  await announce(localId);
+  try {
+    await mutateRoomQueue(localId, (draft) => {
+      // Re-checked under the lock: a racing compose may have filled it.
+      if (draft.length >= MAX_QUEUE_ITEMS) return false;
+      draft.push(item);
+      pushed = true;
+      return true;
+    });
+  } catch {
+    logSend("fail", localId, clientMsgId, startedAt, "storage_error");
+    throw new Error("room queue storage failed");
+  }
+  if (!pushed) {
+    const error = queueFull();
+    logSend("fail", localId, clientMsgId, startedAt, error.code);
+    return { ok: false, error };
+  }
+  logSend("persisted", localId, clientMsgId, startedAt);
+  try {
+    await announce(localId);
+  } catch {
+    // The durable item owns this send; a view refresh must not restore it to the composer.
+    logSend("fail", localId, clientMsgId, startedAt, "storage_error");
+  }
+  logSend("kick", localId, clientMsgId, startedAt);
   void kick(localId);
   return { ok: true, value: { clientMsgId } };
 }
@@ -270,14 +323,29 @@ async function runAttempt(localId: string): Promise<void> {
   if (room === undefined || room.inFlight || room.listeners.size === 0) return;
   room.inFlight = true;
   try {
-    // A pairing that no longer exists (a newer one took its room) has
-    // no home for these messages: the shelf goes the next time anyone
-    // probes it. A removed-but-present pairing keeps its shelf (§ F: the
-    // user discards that one).
+    // A pairing that no longer exists (a newer one took its room) cannot
+    // carry these messages; preserve them as failed for the reader.
     const record = await getPairing(localId);
     if (record === null) {
-      await deleteRoomQueue(localId);
-      emit(localId, { type: "changed", items: [] });
+      const droppedIds: string[] = [];
+      const items = await mutateRoomQueue(localId, (draft) => {
+        let changed = false;
+        for (const item of draft) {
+          if (item.state === "failed") continue;
+          item.state = "failed";
+          item.error = {
+            code: "pairing_missing",
+            message: "This message could not be sent because its pairing no longer exists.",
+          };
+          droppedIds.push(item.clientMsgId);
+          changed = true;
+        }
+        return changed;
+      });
+      for (const clientMsgId of droppedIds) {
+        logSend("drop_no_pairing", localId, clientMsgId, Date.now(), "pairing_missing");
+      }
+      emit(localId, { type: "changed", items });
       return;
     }
     for (;;) {
@@ -303,12 +371,21 @@ async function runAttempt(localId: string): Promise<void> {
       // the healed shelf and the reader would never see it leave.
       emit(localId, { type: "changed", items: sending });
 
-      const result = await postRoomMessage(
-        { clientMsgId: head.clientMsgId, text: head.text, callAi: head.callAi },
-        { roomLocalId: localId },
-      );
+      const attemptStartedAt = Date.now();
+      logSend("post", localId, head.clientMsgId, attemptStartedAt);
+      let result;
+      try {
+        result = await postRoomMessage(
+          { clientMsgId: head.clientMsgId, text: head.text, callAi: head.callAi },
+          { roomLocalId: localId },
+        );
+      } catch {
+        logSend("fail", localId, head.clientMsgId, attemptStartedAt, "unexpected");
+        throw new Error("room message post failed");
+      }
       const verdict = roomQueueAttempt(result);
       if (verdict.kind === "sent") {
+        logSend("ack", localId, head.clientMsgId, attemptStartedAt);
         await mutateRoomQueue(localId, (draft) => {
           const at = draft.findIndex((item) => item.clientMsgId === head.clientMsgId);
           if (at === -1) return false;
@@ -330,6 +407,7 @@ async function runAttempt(localId: string): Promise<void> {
         continue; // the FIFO moves on
       }
       if (verdict.kind === "failed") {
+        logSend("fail", localId, head.clientMsgId, attemptStartedAt, verdict.error.code);
         await mutateRoomQueue(localId, (draft) => {
           const target = draft.find((item) => item.clientMsgId === head.clientMsgId);
           if (target === undefined) return false;
@@ -341,6 +419,7 @@ async function runAttempt(localId: string): Promise<void> {
         room.attempt = 0; // terminal: the next item starts at the floor
         continue; // terminal — the next queued item is the new head
       }
+      logSend("fail", localId, head.clientMsgId, attemptStartedAt, verdict.error.code);
       // hold or retry: this item goes back to waiting, in its place,
       // with the door's sentence stored where P5 can read it.
       await mutateRoomQueue(localId, (draft) => {

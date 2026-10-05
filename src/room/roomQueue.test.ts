@@ -9,14 +9,26 @@
  * not_found (mod.rs:72 via mod.rs:195).
  */
 const stored: Record<string, string> = {};
+let rejectAnnouncementRead = false;
+let failNextSetAnnouncementRead = false;
 /** Distinct ids per mint (the contract's one-id-per-message rule makes
  *  identity load-bearing); read only from inside the mock callback. */
 const mintSequence = { counter: 0 };
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: async (key: string) => stored[key] ?? null,
+  getItem: async (key: string) => {
+    if (rejectAnnouncementRead) {
+      rejectAnnouncementRead = false;
+      throw new Error("storage unavailable");
+    }
+    return stored[key] ?? null;
+  },
   setItem: async (key: string, value: string) => {
     stored[key] = value;
+    if (failNextSetAnnouncementRead) {
+      failNextSetAnnouncementRead = false;
+      rejectAnnouncementRead = true;
+    }
   },
   removeItem: async (key: string) => {
     delete stored[key];
@@ -75,6 +87,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   randomSpy = jest.spyOn(Math, "random").mockReturnValue(0);
   mintSequence.counter = 0;
+  rejectAnnouncementRead = false;
+  failNextSetAnnouncementRead = false;
   for (const key of Object.keys(stored)) delete stored[key];
   (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockReset();
   (getPairing as jest.MockedFunction<typeof getPairing>).mockResolvedValue({
@@ -127,6 +141,30 @@ test("compose validates at §9's bounds, mints once, and the sent verdict retire
   // The waiting list saw queued before sending before gone.
   const changed = events.filter((event) => event.type === "changed");
   expect(changed[0]).toMatchObject({ items: [expect.objectContaining({ state: "queued" })] });
+  leave();
+});
+
+test("a post-write announce read failure still accepts once and kicks the persisted item", async () => {
+  const leave = subscribeRoomQueue(LOCAL, () => undefined);
+  const log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+  (postRoomMessage as jest.MockedFunction<typeof postRoomMessage>).mockResolvedValueOnce(sentResult(49));
+  failNextSetAnnouncementRead = true;
+
+  const result = await enqueueRoomMessage(LOCAL, { text: "persisted once" });
+  await settle();
+
+  expect(result).toEqual({ ok: true, value: { clientMsgId: idOf(1) } });
+  expect(postRoomMessage).toHaveBeenCalledTimes(1);
+  expect(postRoomMessage).toHaveBeenCalledWith(
+    { clientMsgId: idOf(1), text: "persisted once", callAi: false },
+    { roomLocalId: LOCAL },
+  );
+  await expect(shelf()).resolves.toEqual([]);
+  const lines = log.mock.calls.map(([line]) => String(line));
+  expect(lines.some((line) => line.includes('"op":"kick"'))).toBe(true);
+  expect(lines.some((line) => line.includes('"op":"post"'))).toBe(true);
+  expect(lines.filter((line) => line.includes('"op":"post"'))).toHaveLength(1);
+  log.mockRestore();
   leave();
 });
 
@@ -270,4 +308,3 @@ test("exactly one post in flight: a flush mid-send waits its turn, an enqueue is
   await expect(shelf()).resolves.toEqual([]);
   leave();
 });
-

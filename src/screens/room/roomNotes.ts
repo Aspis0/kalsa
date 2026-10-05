@@ -22,6 +22,7 @@ const NOTE_KEYS: Record<string, TranslationKey> = {
   too_large: "room.note.too_large",
   read_only: "room.note.read_only",
   client_msg_id_reused: "room.note.client_msg_id_reused",
+  pairing_missing: "room.note.pairing_missing",
   internal: "room.note.internal",
   already_pending: "room.note.already_pending",
   name_taken: "room.note.name_taken",

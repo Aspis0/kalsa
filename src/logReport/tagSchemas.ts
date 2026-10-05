@@ -16,6 +16,8 @@ export type FieldRule =
   | { k: "enum"; values: readonly string[]; nullable?: true }
   /** A monotonic turn counter (`mintTurnId`, LlamaService.ts:546-548) — never a conversation id. */
   | { k: "counter" }
+  /** A bounded identifier prefix; full ids are never collected. */
+  | { k: "safeId8" }
   /** A catalog model id; the accepted set is installed at startup. */
   | { k: "modelId" }
   /** A finite number, or a depth-1 object of them under exactly these keys —
@@ -336,6 +338,19 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
       "async_context",
       "other",
     ),
+    ms: NUM,
+  },
+  KALSA_ROOM_SEND: {
+    op: enumOf("enqueue", "persisted", "kick", "post", "ack", "fail", "drop_no_pairing"),
+    code: enumOf(
+      "bad_request", "name_taken", "client_msg_id_reused", "too_large", "bad_cursor",
+      "epoch_changed", "no_room", "read_only", "not_found", "internal", "removed",
+      "invalid_input", "body_too_large", "client_msg_id_unavailable", "queue_full",
+      "pairing_store_damaged", "pairing_missing", "door_unusable", "unreachable", "unexpected",
+      "malformed_response", "storage_error",
+    ),
+    localId8: { k: "safeId8" },
+    clientId8: { k: "safeId8" },
     ms: NUM,
   },
 };
