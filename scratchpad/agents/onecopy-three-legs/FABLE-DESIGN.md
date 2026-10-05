@@ -709,6 +709,50 @@ become per-op; (b) the DSP conversion is scalar C today, fine for a 1 MiB-per-gr
 ABBA; (d) Qwen is not "the same steps on another model": the GDN kernel gap decides whether a GPU or NPU leg exists at
 all on it.
 
+## Amendment I (2026-10-05): step-4b failure, the HOST buft has two roles
+
+Read at 8ccc5ffae. **(a) The diagnosis is right, and it is a buffer-type problem, not an op problem.** llama gives
+the CPU backend the first device's host buffer type for its compute buffers ("use the host buffer of the first
+device", `llama-context.cpp:413-418`) and the output buffer the same (`:2249-2251`); with `GGML_HEXAGON_HOSTBUF=1`
+that is `HTP0-HOST` (log: `HTP0-HOST output buffer size = 0.49 MiB`, `HTP0-HOST compute buffer size = 8.20 MiB`).
+4b made OpenCL claim that buft by predicate, not by role: `supports_buft` says yes to any host buft whose registry
+serves the dma-buf accessor (`ggml-opencl.cpp:15080-15089`), and `ggml_opencl_in_host_leg_buffer` keys on the same
+two facts (`:9876-9882`). The scheduler decides copies per buft (`ggml_backend_sched_buffer_supported` ->
+`supports_buft`), so a CPU-split activation allocated in the HTP0-HOST compute buffer is no longer copied into an
+OpenCL buffer; the TILE32 call site then casts `src1->extra` and `dst->extra` as OpenCL extras (`:25558` region) on a
+tensor whose extra is Hexagon's, and `clCreateSubBuffer` fails with -38 (`-matvec.cpp:105`). The `supports_op` loop
+cannot catch it: at reserve time graph-local srcs have no buffer yet (`:9973`, "graph-local srcs are allocated into
+this split's own buffers"), and that assumption is exactly what 4b broke. The same hazard sits in the MUL and
+SSM_CONV substitutions, whose activation srcs can also live in HTP0-HOST.
+
+**(b) Fix: option (i), one buffer type per role.** Hexagon exposes a second buft object `HTP0-HOST-W` (same rpcmem
+allocation, same interface, same dma-buf accessor, `is_host` true) and serves it through `get_extra_bufts`
+(`{TILE32, HOST-W}`) and the 4b input-role list; `get_host_buffer_type` keeps returning `HTP0-HOST`, which llama uses
+for CPU compute and output. OpenCL claims a host buft only if `buft != ggml_backend_dev_host_buffer_type(buft->device)`;
+with one object today that test would always fail, which is why the split is needed. Fails closed: the compute and
+output bufts are never claimed, so the scheduler copies activations exactly as before 4b, and the leg's cast sites
+additionally assert `ggml_backend_buffer_get_usage(src->buffer) == WEIGHTS` for every src they address through the
+import map, by name. Blast radius: Hexagon one buft object and two list entries; OpenCL one identity test and the
+asserts; llama nothing; the loader's audit accepts HOST-W where it accepts HOST. NPU leg: unchanged, its compute and
+output stay in `HTP0-HOST`, host-addressable rpcmem the HTP reads without a copy (`:414`), and HOST-W is mapped per
+buffer like HOST (`fastrpc_mmap` in the shared-buffer ctor), so option 3's flat Q6_K reader sees `token_embd` as
+before. Rejected: (ii) `no_host` is a model parameter consulted only by the model's buffer lists (`include/llama.h:353`;
+no use in `llama-context.cpp`), so it leaves the compute and output buffers in HTP0-HOST, and declining non-WEIGHTS
+srcs at `supports_op` cannot see unallocated graph tensors; (iii) addressing any tensor of an imported buffer through
+the map (zero-copy activations) is a real option for later, but it imports compute buffers at compute time, cannot
+fail closed (`supports_buft` is per buft), and adds a CPU-write/GPU-read coherence question per split. Step 5: in the
+GPU-leg context the CPU backend's compute buft should follow the leg's first device, not `model.devices[0]` (`:415`),
+one line in F1; the NPU leg keeps HTP0-HOST.
+
+**(c) The silent self-check.** The HOST self-check never ran its numbers: `host_checked_locked` ANDs the kernel
+handle without logging (`-tile32.cpp:294`, `kernel && ...`), and `kernel_mul_mv_q6_K_f32` is created inside
+`load_cl_kernels` (`ggml-opencl.cpp:2366`), which runs only from the OpenCL buffer-type allocator (`:14851`; the init
+call is commented out, `:7415`). The imports and the check ran at log lines 1169-1338, the first OpenCL compute buffer
+appears at 1627: the handle was null. Fix: the leg calls `load_cl_kernels(backend_ctx)` before the first HOST
+self-check (from `env_fill` or the gate), logs `Q6_K kernel not loaded` if the handle is still null, and the check's
+own silent exits (`-gate.cpp:222-228`: `to_float`, `K % bs`, `ne2/ne3`, `nb[1] != row_bytes`) each log which
+precondition failed with the values. The decline was not the cause of the abort: the -38 came from the TILE32 path.
+
 ## Changelog
 - 2026-10-04 v2 (after RECON-CODE, WEB-PRIOR-ART, PLAN-INTEGRATION): A3 names the loader `read_raw` bypass that makes
   `set_tensor` (and so the pack) never run for host buffers; A6 names the `opt_mbuf` 1 GiB default above the S23
@@ -730,3 +774,5 @@ all on it.
   Q6_K kernel with token_embd in HOST; D re-ranked 3 > 2; step 4b now, KV in step 5).
 - 2026-10-05 v10: Amendment H appended (option 3: Q6_K raw-to-tile on the DSP via the Q4_0 pattern, per-op host gate,
   unaligned DMA stride probe, twin host test, NPU ABBA gates; Qwen: generic placement, GDN has no HTP/OpenCL kernel).
+- 2026-10-05 v11: Amendment I appended (4b failure: HOST buft serves weights and CPU compute; split into HOST-W for
+  weights, OpenCL claims by identity, asserts usage; self-check declined on a null kernel handle, kernels load lazily).
