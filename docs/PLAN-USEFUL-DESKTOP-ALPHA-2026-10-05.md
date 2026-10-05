@@ -1,6 +1,6 @@
 # Plan — a useful desktop for the alpha (2026-10-05)
 
-Owner, 2026-10-04 night: alpha only; top = mini apps on the desktop + helpers in the Room; do not
+Owner, 2026-10-04 night: alpha only; top = mini apps on the desktop; do not
 overengineer; stay close to the phone app; use the stronger PC models (Gemma E4B, Q8 where the
 machine carries it).
 
@@ -45,19 +45,13 @@ Port, do not invent:
 
 The model reads a short text summary as the tool result, as on the phone.
 
-### 2. Room helpers (prompt-only, no protocol change)
+### 2. No Gemma E4B Q8 row
 
-Two buttons in the Room's composer menu: **Catch me up** (summary of what was said since my last
-message) and **Make a list** (the shopping/to-do list implied by the conversation, as a Markdown
-checklist). Each posts a fixed `@Kalsa` request; the answer is ordinary text, so the phone shows it
-already. No miniapps in the Room for the alpha: that needs a protocol field and phone rendering.
+The chooser never serves E4B at ≥200 GB/s: at that bandwidth every machine with room for an 8 GB
+E4B already gets Gemma 12B or bigger (grid run 2026-10-05, with `--lower-bound` for discrete GPUs).
+A Q8 variant would be downloaded by nobody.
 
-### 3. Gemma E4B Q8 where the machine carries it (needs the owner's nod)
-
-Add a pinned Q8_0 variant to the E4B row (≈8 GB instead of ≈5 GB) so the existing ≥200 GB/s rule
-serves it. Changes what some machines download — owner call before it lands.
-
-### 4. Measure restraint, then decide
+### 3. Measure restraint, then decide
 
 A short lab on the Lenovo: the same no-tool / tool-needed prompts with `create_miniapp` offered,
 LFM VL-3B vs Gemma E4B. If the weak model over-calls it, tighten the description ("only when the
