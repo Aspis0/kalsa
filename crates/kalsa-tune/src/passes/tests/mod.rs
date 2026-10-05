@@ -63,11 +63,22 @@ fn first(prompt_rate: f64, off_decode: f64) -> Result<First, Refusal> {
     })
 }
 
-/// The Lenovo: three shapes, and every first lifetime covers all of them
-/// before any drafted sweep begins — the likely winner first, so its
-/// complete off reply is the bound for the shapes behind it. Each shape
-/// then runs 2, 3 and 4, because the owner's rule tries MTP on every
-/// backend shape.
+/// A three-shape fixture the drafted pass sweeps whole: the card wins the
+/// off race on its decode, and both processors read the history more than
+/// [`PREFILL_EDGE`] faster, so each earns its own sweep — the winner
+/// first, then 16 threads, then 22.
+fn reading_ahead(shape: &Candidate) -> Result<First, Refusal> {
+    match (shape.backend, shape.threads) {
+        (ServerBackend::Vulkan, _) => first(100.0, 100.0),
+        (_, Some(16)) => first(110.0, 50.0),
+        _ => first(120.0, 50.0),
+    }
+}
+
+/// Three shapes, and every first lifetime covers all of them before any
+/// drafted sweep begins — the likely winner first, so its complete off reply
+/// is the bound for the shapes behind it. The winner is swept first, then
+/// the shapes that read ahead of it.
 #[test]
 fn every_shape_takes_one_first_lifetime_and_then_its_drafted_sweep() {
     let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
@@ -82,7 +93,7 @@ fn every_shape_takes_one_first_lifetime_and_then_its_drafted_sweep() {
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
         |shape, _| {
             firsts.borrow_mut().push(*shape);
-            first(100.0, 50.0)
+            reading_ahead(shape)
         },
         |trial, _| {
             decodes
@@ -149,7 +160,7 @@ fn the_off_number_comes_from_the_first_lifetime() {
     );
     assert_eq!(
         *decodes.borrow(),
-        vec![Some(2), Some(3), Some(4), Some(2), Some(3), Some(4)],
+        vec![Some(2), Some(3), Some(4)],
         "the sweep is 2, 3, 4 only: off has no lifetime of its own"
     );
     let off = tuned
@@ -164,12 +175,13 @@ fn the_off_number_comes_from_the_first_lifetime() {
     );
 }
 
-/// The bound: a shape whose history alone already costs more than the best
-/// complete reply cannot win, so its drafted lifetimes are skipped — its
-/// own off entry stands, and the record is whole. The plan lowers with the
-/// skipped lifetimes, so the panel's total is what will really run.
+/// A shape that reads the history slower than the winner is not swept — a
+/// reply reads its history on every setting, and speculation speeds decode
+/// only — so its drafted lifetimes never run: its own off entry stands, and
+/// the record is whole. The plan lowers with the skipped lifetimes, so the
+/// panel's total is what will really run.
 #[test]
-fn the_bound_skips_a_hopeless_shapes_drafted_sweep_and_the_record_stays_whole() {
+fn a_hopeless_shapes_sweep_leaves_the_plan_and_the_record_whole() {
     let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
     let decodes = RefCell::new(Vec::new());
     let seen = RefCell::new(Vec::new());
@@ -209,10 +221,10 @@ fn the_bound_skips_a_hopeless_shapes_drafted_sweep_and_the_record_stays_whole() 
     assert!(!tuned.cut, "a bound skip is not a budget cut");
     // Six lifetimes run (three firsts, the card's three drafted), and the
     // two skipped shapes take their three planned lifetimes off the total
-    // as each is bounded: 12, then 9, then 6.
+    // as each is skipped: 12, then 9, then 6.
     let seen = seen.borrow();
     assert!(
-        seen.contains(&(6, 9)) && seen.contains(&(6, 6)),
+        seen.contains(&(3, 9)) && seen.contains(&(3, 6)),
         "the skipped lifetimes leave the plan: {seen:?}"
     );
     assert_eq!(seen.last(), Some(&(6, 6)), "the final total is what ran");
@@ -242,14 +254,13 @@ fn the_bound_skips_a_hopeless_shapes_drafted_sweep_and_the_record_stays_whole() 
     }
 }
 
-/// Inside the tie band prefill alone prunes nothing: a reply costs at
-/// least its shape's prefill, so the bound runs to the best reply pushed
-/// out to the band's edge — and a shape that stays inside wins on decode.
-/// The card reads at 1000 and decodes at 100 (3.15 s); the processor
-/// reads at 359.375 — a 3.2 s history, inside 3.15 × 1.05 — and its
-/// drafted reply decodes at 2000 (3.3 s), the fastest decode in the band.
+/// MTP speeds decode only, so a shape that reads the history slower than
+/// the winner is never swept, however cheap its own history looks: the card
+/// reads at 1000 and decodes at 100 (3.15 s), the processor reads at
+/// 359.375 — a 3.2 s history, inside 3.15 × 1.05 — and its drafted reply
+/// would decode at 2000, the fastest decode in the whole tune.
 #[test]
-fn a_shape_whose_prefill_sits_inside_the_band_is_swept_and_wins_on_decode() {
+fn a_shape_that_reads_slower_than_the_winner_is_not_swept() {
     let shapes = vec![on(gpu()), on(cpu(16))];
     let decodes = RefCell::new(Vec::new());
     let tuned = tune(
@@ -274,14 +285,18 @@ fn a_shape_whose_prefill_sits_inside_the_band_is_swept_and_wins_on_decode() {
             }])
         },
     );
-    assert!(
-        decodes.borrow().contains(&(ServerBackend::Cpu, Some(2))),
-        "the in-band shape's sweep must run: {:?}",
-        decodes.borrow()
+    assert_eq!(
+        *decodes.borrow(),
+        vec![
+            (ServerBackend::Vulkan, Some(2)),
+            (ServerBackend::Vulkan, Some(3)),
+            (ServerBackend::Vulkan, Some(4)),
+        ],
+        "the winner is swept and the slower reader is not"
     );
     let win = tuned.winner.expect("both shapes replied");
-    assert_eq!(win.candidate, drafted(cpu(16), 2), "{win:?}");
-    assert_eq!(win.reply.decode_rate, 2000.0, "the band's fastest decoder");
+    assert_eq!(win.candidate, gpu(), "{win:?}");
+    assert_eq!(win.reply.decode_rate, 100.0, "the winner's own decode");
 }
 
 /// The card decodes 10 tok/s but reads at 60, a 39.2 s mean wait; the
@@ -451,7 +466,7 @@ fn every_candidate_reports_a_start_and_a_close_with_its_index_and_the_total() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push(report),
-        |_, _| first(100.0, 50.0),
+        |shape, _| reading_ahead(shape),
         |_, _| Ok(vec![50.0]),
     );
     assert!(tuned.complete, "every lifetime ran");
@@ -492,3 +507,4 @@ fn every_candidate_reports_a_start_and_a_close_with_its_index_and_the_total() {
 }
 
 mod budget;
+mod sweep;

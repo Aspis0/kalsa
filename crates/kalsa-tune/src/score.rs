@@ -70,6 +70,12 @@ pub fn prefill_seconds(prompt_rate: f64) -> f64 {
     (TURN_PROMPT_TOKENS + ROOM_PROMPT_TOKENS) as f64 / 2.0 / prompt_rate
 }
 
+/// The decode share of the score, the most a drafted setting can take
+/// away: a reply's written tokens at the trial's own decode rate.
+pub(crate) fn decode_seconds(decode_rate: f64) -> f64 {
+    (TURN_REPLY_TOKENS + ROOM_REPLY_TOKENS) as f64 / 2.0 / decode_rate
+}
+
 /// The winner: which launch to keep, and the reply that won it — the app
 /// shows the wait it chose, so the numbers travel with the choice.
 #[derive(Clone, Copy, Debug, PartialEq)]

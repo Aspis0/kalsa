@@ -79,10 +79,11 @@ fn a_shape_cut_before_its_first_lifetime_leaves_the_picture_incomplete() {
             (1, 12, 1, false),
             (1, 12, 2, false),
             (2, 12, 2, false),
-            (2, 12, 2, true),
-            (2, 12, 2, true),
+            (2, 9, 2, false),
+            (2, 9, 2, true),
+            (2, 9, 2, true),
         ],
-        "a start and a close per candidate, then the stop naming the plan it owes: {:?}",
+        "the slower reader's sweep leaves the plan, then the stop names what is owed: {:?}",
         seen.borrow()
     );
 }
@@ -136,10 +137,11 @@ fn a_cut_between_the_passes_leaves_every_shape_with_an_entry() {
             (1, 8, 1, false),
             (1, 8, 2, false),
             (2, 8, 2, false),
-            (2, 8, 2, true),
-            (2, 8, 2, true),
+            (2, 5, 2, false),
+            (2, 5, 2, true),
+            (2, 5, 2, true),
         ],
-        "every shape closed before the stop, and the stop owes the sweep: {:?}",
+        "every shape closed, the unswept one's lifetimes left the plan, and the stop owes the sweep: {:?}",
         seen.borrow()
     );
 }
@@ -195,8 +197,9 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
 }
 
 /// A cut on the first shape's sweep ends the whole sweep: the shapes behind
-/// it — which the bound would have skipped — never begin, so the plan can
-/// never fall below what ran and no subtraction underflows.
+/// it — which the reading clause leaves unswept anyway — never get their
+/// sweeps, so the plan can never fall below what ran and no subtraction
+/// underflows.
 #[test]
 fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
     let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
@@ -217,10 +220,9 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
         },
         &mut |report| seen.borrow_mut().push(report),
         |shape, _| {
-            // Every shape's first lifetime runs (ticks 1..3), and the
-            // processors' prefill floors are far above the card's reply, so
-            // the bound would skip their sweeps if the cut had not ended
-            // the sweep first.
+            // Every shape's first lifetime runs (ticks 1..3); the
+            // processors read far slower than the card, so their sweeps
+            // leave the plan before the cut ends the sweep.
             if shape.backend == ServerBackend::Vulkan {
                 first(1000.0, 100.0)
             } else {
@@ -256,10 +258,12 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
             (2, 12, 2, false),
             (2, 12, 3, false),
             (3, 12, 3, false),
-            (3, 12, 3, true),
-            (3, 12, 3, true),
+            (3, 9, 3, false),
+            (3, 6, 3, false),
+            (3, 6, 3, true),
+            (3, 6, 3, true),
         ],
-        "three closes, then the stop — plan intact at twelve: {:?}",
+        "three closes, the unswept shapes' lifetimes leave the plan, then the stop: {:?}",
         seen.borrow()
     );
 }

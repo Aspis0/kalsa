@@ -1,8 +1,8 @@
 //! The tune's two passes under one budget: every shape's first lifetime —
 //! the room ask and the shape's own off-decode in one server — then the
-//! drafted sweep, off the shape's own numbers, so a shape that cannot
-//! reach the best complete reply even inside the tie band costs one
-//! lifetime instead of four.
+//! drafted sweep on the off-winner and on the shapes whose history reads
+//! faster than it. A shape outside that set costs one lifetime instead of
+//! four: what it measured is what the record keeps.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -10,12 +10,20 @@ use std::time::Duration;
 use crate::candidates::Candidate;
 use crate::record::Kept;
 use crate::refusal::Refusal;
-use crate::score::{best_rate, prefill_seconds, reply_winner, Reply, Winner, TIE_BAND};
+use crate::score::{
+    best_rate, decode_seconds, prefill_seconds, reply_winner, Reply, Winner, TIE_BAND,
+};
 
 /// The drafted settings a shape is swept at when the plan ships a drafter;
 /// the off setting is not among them — it rides the shape's first lifetime
 /// on the drafter-less launch a start without speculation really is.
 const DRAFT_SETTINGS: [Option<u32>; 3] = [Some(2), Some(3), Some(4)];
+
+/// How much faster a shape's history must read than the off-winner's to
+/// earn a drafted sweep: a reply reads its history on every setting, and
+/// MTP speeds decode only, so the shapes worth a sweep are the ones that
+/// already read faster than the winner.
+const PREFILL_EDGE: f64 = 1.05;
 
 /// One shape's answer to one lifetime: the rates it measured, or the
 /// closed cause that kept them from arriving.
@@ -91,7 +99,9 @@ where
     // any drafted setting runs.
     let mut prompt: Vec<Option<f64>> = vec![None; shapes.len()];
     let mut refused: Vec<Option<Refusal>> = vec![None; shapes.len()];
-    let mut ran: Vec<bool> = vec![false; shapes.len()];
+    // Each shape's off reply with the candidate that made it: the sweep
+    // order is read from these, so it cannot disagree with the entries.
+    let mut off_replies: Vec<Option<(Candidate, Reply)>> = vec![None; shapes.len()];
     let mut best: Option<f64> = None;
     for (index, (shape, exe)) in shapes.iter().enumerate() {
         if since_start() >= budget {
@@ -106,7 +116,6 @@ where
             candidate: done + 1,
             cut: false,
         });
-        ran[index] = true;
         match first(shape, exe) {
             Ok(measured) => {
                 prompt[index] = Some(measured.prompt_rate);
@@ -122,6 +131,7 @@ where
                             best = Some(
                                 best.map_or(reply.seconds, |current| current.min(reply.seconds)),
                             );
+                            off_replies[index] = Some((off, reply));
                             trials.push((off, Kept::Replied(reply)));
                         }
                         None => trials.push((
@@ -166,22 +176,40 @@ where
         });
     }
 
-    // Pass two: each shape's drafted sweep, in the same order. A reply
-    // costs at least its shape's prefill, so a shape whose prefill lands
-    // beyond the best reply outside [`TIE_BAND`] can no longer enter the
-    // band and its drafted lifetimes are skipped — not a hole, its own off
-    // entry stands. Inside the band it still competes, and on decode.
-    'sweep: for (index, (shape, exe)) in shapes.iter().enumerate() {
-        if !ran[index] {
-            break; // the budget cut pass one: the shapes behind it never ran
-        }
+    // Pass two: the drafted sweeps — the off-winner's first, then every
+    // shape whose history reads at least [`PREFILL_EDGE`] faster than the
+    // winner's, largest decode saving first. The rest keep their off entries
+    // and the plan lowers with the lifetimes they will never run: a reply
+    // reads its history on every setting, and speculation speeds decode
+    // only. The bound below still stands on top: a reply costs at least its
+    // shape's prefill, so a shape whose prefill lands beyond the best reply
+    // outside [`TIE_BAND`] can no longer enter the band either.
+    let order = sweep_order(&off_replies);
+    let replied = off_replies.iter().filter(|entry| entry.is_some()).count();
+    debug_assert!(order.len() <= replied, "a sweep order names replied shapes");
+    let skipped = if settings.is_empty() {
+        0
+    } else {
+        replied - order.len()
+    };
+    for _ in 0..skipped {
+        // Lifetimes that will never run leave the plan now, so the panel's
+        // total is what will really run; the report carries the new total
+        // under the candidate that closed last — nothing new began.
+        planned = lower(planned, settings.len(), done);
+        progress(Report {
+            done,
+            total: planned,
+            candidate: done,
+            cut: false,
+        });
+    }
+    'sweep: for index in order {
+        let (shape, exe) = &shapes[index];
         let Some(shape_prompt) = prompt[index] else {
             continue; // the first lifetime refused: its entry is that refusal
         };
         if best.is_some_and(|best| prefill_seconds(shape_prompt) > best * (1.0 + TIE_BAND)) {
-            // The bound skipped lifetimes that will never run: the plan
-            // lowers with them, and the report carries the new total under
-            // the candidate that closed last — nothing new began.
             planned = lower(planned, settings.len(), done);
             progress(Report {
                 done,
@@ -277,6 +305,38 @@ where
         complete,
         cut,
     }
+}
+
+/// The drafted sweeps this tune runs, in order: the off-winner first — the
+/// same candidate the score picked, so a drafted setting can be measured
+/// against it — then every shape whose history reads at least
+/// [`PREFILL_EDGE`] faster than the winner's, the largest decode saving
+/// (`200/D`, the most MTP can take away) first. `None` entries are shapes
+/// whose first lifetime refused: they have no off number to sweep from.
+fn sweep_order(off_replies: &[Option<(Candidate, Reply)>]) -> Vec<usize> {
+    let scored: Vec<(Candidate, Reply)> = off_replies.iter().flatten().copied().collect();
+    let Some(winner) = reply_winner(&scored) else {
+        return Vec::new();
+    };
+    let Some(winner_index) = off_replies.iter().position(|entry| {
+        matches!(entry, Some((candidate, reply))
+            if *candidate == winner.candidate && *reply == winner.reply)
+    }) else {
+        return Vec::new();
+    };
+    let mut ahead: Vec<(usize, f64)> = off_replies
+        .iter()
+        .enumerate()
+        .filter_map(|(index, entry)| {
+            let (_, reply) = (*entry)?;
+            (reply.prompt_rate >= winner.reply.prompt_rate * PREFILL_EDGE)
+                .then(|| (index, decode_seconds(reply.decode_rate)))
+        })
+        .collect();
+    ahead.sort_by(|left, right| right.1.total_cmp(&left.1));
+    let mut order = vec![winner_index];
+    order.extend(ahead.into_iter().map(|(index, _)| index));
+    order
 }
 
 /// Lower the plan by the sweeps a shape will never run. The plan counted
