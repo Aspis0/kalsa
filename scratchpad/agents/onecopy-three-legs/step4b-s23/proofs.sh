@@ -25,6 +25,11 @@ placement_diff() {
 # as in step 1. Arm A must show no TILE32/HOST buffer; arm S must show TILE32 >= TILE_MIN_MIB, a
 # HOST buffer <= HOST_MAX_MIB, and the same set of HTP op names as arm A (norms and conv still on
 # the NPU, now reading HOST). The op-name sets are written to $D/ops_NAME.txt for that compare.
+splits_of() {
+  grep -m1 -E 'graph splits|sched_reserve: graph' "$1" |
+    sed -nE 's/.*splits = *([0-9]+)( *\/ *([0-9]+))?.*/\1 \3/p' | awk '{ m = $1; if ($2 > m) m = $2; print m }'
+}
+
 proof() {
   name=$1; env_fn="$2"
   input keyevent 224; sleep 2
@@ -46,8 +51,10 @@ proof() {
   grep -o 'profile-op [A-Z_0-9]*' $L | sort | uniq -c | awk '{print $3}' > $D/ops_$name.txt
   ops=$(grep -o 'profile-op [A-Z_0-9]*' $L | sort | uniq -c | awk '{printf "%s:%s ", $3, $1}')
   hmx=$(grep -c 'hmx-mm-2d:' $D/adsprpc_$name.log)
-  splits=$(grep -m1 'graph splits' $L | sed -nE 's/.*= *([0-9]+).*/\1/p')
-  psplits=$(grep -m1 'graph splits' $D/proof_prefill_$name.log | sed -nE 's/.*= *([0-9]+).*/\1/p')
+  # after the main merge the count is on sched_reserve's line, "splits = N" or "splits = PP / TG": the gate
+  # takes the larger, so neither graph can hide a regression
+  splits=$(splits_of $L)
+  psplits=$(splits_of $D/proof_prefill_$name.log)
   errs=$(grep -c -E "$ERRPAT" $L $D/proof_prefill_$name.log | grep -v ':0' | tr '\n' ' ')
   echo "proof $name: exit=$rc1/$rc2 bufs=[$bufs] splits=${splits:-?}/${psplits:-?} mm=tiled:$tiled flat:$flat hmx-mm-2d=$hmx errors=[$errs] [$(st)]" >> $REPORT
   echo "proof $name ops: $ops" >> $REPORT
