@@ -9,12 +9,14 @@
 use std::net::TcpListener;
 use std::path::Path;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use crate::child::{self, ChildHandle, Residency};
+use crate::engine_id::EngineId;
+
+use crate::child::{self, ChildHandle, Residency, Termination};
 use crate::config::ServerConfig;
 use crate::drain;
 use crate::health;
@@ -188,12 +190,11 @@ pub struct Supervisor {
     commands: Sender<Command>,
     state: Arc<Mutex<ServerState>>,
     worker: Mutex<Option<JoinHandle<()>>>,
-    /// The engine's pid, kept beside the state rather than inside it: a drain
-    /// overwrites the state's `Running` with `Stopping`, and the exit
-    /// watchdog still has to find the process at its deadline. 0 is this
-    /// crate's marker for "nothing ours to signal" — a stop that proved the
-    /// engine gone, a blind adoption, or no engine at all.
-    engine: Arc<AtomicU32>,
+    /// The engine's killable identity, published at the spawn and held only
+    /// while a signal through it can reach no process but the engine (see
+    /// `engine_id`). The exit watchdog and the exit handler load it at their
+    /// deadline and after their steps.
+    engine: Arc<EngineId>,
     /// How many model releases the server has announced on stderr (see
     /// `MODEL_RELEASED_LINE` in `child`). The drain thread adds; readers
     /// compare against their last-seen value and act on the difference — an
@@ -222,7 +223,7 @@ pub struct Supervisor {
 pub struct Watch {
     state: Arc<Mutex<ServerState>>,
     residency: Residency,
-    engine: Arc<AtomicU32>,
+    engine: Arc<EngineId>,
 }
 
 impl Watch {
@@ -245,18 +246,27 @@ impl Watch {
         self.residency.asleep()
     }
 
-    /// The pid of the engine this supervisor owns right now — the spawned
-    /// child's, or an adopted server's when one was recorded. Loaded fresh
-    /// every call, so a pid a stop already proved gone is never handed out:
-    /// the app's exit watchdog must kill only the process the supervisor
-    /// still holds. `None` when no engine was started, when one was adopted
-    /// blind (pid 0 names no process to signal), or when the engine is known
-    /// gone.
+    /// The pid of the engine this supervisor holds a killable identity for
+    /// right now. Loaded fresh every call, so a pid a stop already proved
+    /// gone is never handed out. `None` when no engine was started, when one
+    /// was adopted (an adopted pid is never held — see `finish_engine`), or
+    /// when the engine's going is proven.
     pub fn engine_pid(&self) -> Option<u32> {
-        match self.engine.load(Ordering::SeqCst) {
-            0 => None,
-            pid => Some(pid),
-        }
+        self.engine.pid()
+    }
+
+    /// The exit's last resort, on the identity the supervisor still holds:
+    /// the engine the stop could not prove gone. `None` — the common exit —
+    /// when nothing is held, in which case nothing is killed and nothing is
+    /// said. This is the one kill path the app has: the exit handler runs it
+    /// after its steps come back, the exit watchdog at its deadline, and
+    /// both reach here so neither can drift into signalling a pid the
+    /// supervisor no longer vouches for. An adopted engine is never killed
+    /// through it: its only voucher is a state file a previous run wrote,
+    /// stale by exit time — a recycled pid may name a stranger, and the stop
+    /// walk already signalled the pid while the file still vouched for it.
+    pub fn finish_engine(&self, grace: Duration) -> Option<Termination> {
+        self.engine.kill(grace)
     }
 }
 
@@ -265,7 +275,7 @@ impl Supervisor {
         let (commands, inbox) = mpsc::channel();
         let state = Arc::new(Mutex::new(ServerState::Stopped));
         let releases = Arc::new(AtomicU64::new(0));
-        let engine = Arc::new(AtomicU32::new(0));
+        let engine = Arc::new(EngineId::new());
         let residency = Residency::new();
         let worker = std::thread::spawn({
             let state = Arc::clone(&state);
@@ -436,7 +446,7 @@ fn work(
     state: Arc<Mutex<ServerState>>,
     releases: Arc<AtomicU64>,
     residency: Residency,
-    engine: Arc<AtomicU32>,
+    engine: Arc<EngineId>,
     // The port probe the stop walk asks, exactly as `stop` takes it:
     // production always passes `presence::probe` — the API has no probe
     // parameter, and the test that drives `Supervisor::stop` must not
@@ -474,7 +484,9 @@ fn work(
                 // before the handshake, because the handshake's success is what
                 // reports the new server as running.
                 residency.forget();
-                match start_blocking(&config, Arc::clone(&releases), residency.clone(), starts) {
+                let started =
+                    start_blocking(&config, Arc::clone(&releases), residency.clone(), starts, &engine);
+                match started {
                     Ok(Started::Adopted { pid }) => {
                         set(
                             &state,
@@ -483,7 +495,10 @@ fn work(
                                 port: config.port,
                             },
                         );
-                        engine.store(pid.unwrap_or(0), Ordering::SeqCst);
+                        // An adopted engine's pid is never held: its only
+                        // voucher is a state file a previous run wrote, and
+                        // by exit time that word is stale.
+                        engine.clear();
                         log::info!(
                             "engine adopted #{starts}: {} (pid {})",
                             engine_name(&config.exe),
@@ -506,7 +521,8 @@ fn work(
                                 port: config.port,
                             },
                         );
-                        engine.store(child.pid(), Ordering::SeqCst);
+                        // The identity was published at the spawn, inside
+                        // `start_blocking`, before the readiness wait.
                         let _ = settled.send(StartSettled::Up);
                         owned = Some(Owned {
                             child: Some(child),
@@ -522,19 +538,17 @@ fn work(
                                 reason: reason.clone(),
                             },
                         );
-                        engine.store(0, Ordering::SeqCst);
+                        engine.clear();
                         log::warn!("engine start failed: {reason:?}");
                         let _ = settled.send(StartSettled::Failed(reason));
                     }
                 }
             }
             Ok(Command::Stop { prior }) => {
-                stop(&mut owned, last.as_ref(), &state, probe, prior);
-                forget_engine_unless_unconfirmed(&engine, &state);
+                stop(&mut owned, last.as_ref(), &state, probe, prior, &engine);
             }
             Ok(Command::Shutdown { prior }) => {
-                stop(&mut owned, last.as_ref(), &state, probe, prior);
-                forget_engine_unless_unconfirmed(&engine, &state);
+                stop(&mut owned, last.as_ref(), &state, probe, prior, &engine);
                 return;
             }
             #[cfg(test)]
@@ -544,13 +558,12 @@ fn work(
                 // have no address to probe and the API test could not see
                 // the probe path.
                 last = Some(run.config.clone());
-                let pid = run
-                    .child
-                    .as_ref()
-                    .map(|child| child.pid())
-                    .or(run.adopted_pid)
-                    .unwrap_or(0);
-                engine.store(pid, Ordering::SeqCst);
+                match run.child.as_ref() {
+                    // A planted child stands for a spawned engine, identity
+                    // and all; a planted adopted pid for the never-held kind.
+                    Some(child) => engine.publish(child.pid()),
+                    None => engine.clear(),
+                }
                 owned = Some(*run);
             }
             Err(RecvTimeoutError::Timeout) => {
@@ -566,7 +579,7 @@ fn work(
                                 log::warn!("engine exited: {reason:?}");
                                 log_stderr_tail(child);
                                 owned = None;
-                                engine.store(0, Ordering::SeqCst);
+                                engine.clear();
                                 set(&state, ServerState::Failed { reason });
                             }
                         }
@@ -579,7 +592,7 @@ fn work(
                             if let Some(pid) = run.adopted_pid {
                                 if !child::pid_alive(pid) {
                                     owned = None;
-                                    engine.store(0, Ordering::SeqCst);
+                                    engine.clear();
                                     set(
                                         &state,
                                         ServerState::Failed {
@@ -597,7 +610,7 @@ fn work(
                                 PROBE_TIMEOUT,
                             ) {
                                 owned = None;
-                                engine.store(0, Ordering::SeqCst);
+                                engine.clear();
                                 set(
                                     &state,
                                     ServerState::Failed {
@@ -617,22 +630,11 @@ fn work(
     }
 }
 
-/// The engine pid is kept only while a stop could NOT prove the engine gone:
-/// that is the one case the app's exit watchdog still has to finish. A stop
-/// that settled (`Stopped`), a start that failed and a self-exit all leave
-/// nothing to signal, and a stale pid is a pid the watchdog must never use.
-fn forget_engine_unless_unconfirmed(engine: &AtomicU32, state: &Arc<Mutex<ServerState>>) {
-    let unconfirmed = matches!(
-        state.lock().map(|current| current.clone()),
-        Ok(ServerState::Failed {
-            reason: Failure::StopUnconfirmed { .. }
-        })
-    );
-    if !unconfirmed {
-        engine.store(0, Ordering::SeqCst);
-    }
-}
-
+/// The identity outlives the walk only in the one case the exit still has
+/// to finish it: the spawned child that was killed but never reaped, whose
+/// pid is still ours alone and still signalable. Every other walk end
+/// clears it — a reaped child's pid is recyclable, and an adopted pid was
+/// never held (see `Watch::finish_engine`).
 fn stop(
     owned: &mut Option<Owned>,
     // The last start's config, kept by the worker after `owned` is gone:
@@ -650,6 +652,7 @@ fn stop(
     // set `Stopping`, so the carried prior is the only record of what the
     // first stop left behind (§18).
     prior: Option<ServerState>,
+    engine: &EngineId,
 ) {
     let prior = match prior {
         Some(declared) => Some(declared),
@@ -688,6 +691,14 @@ fn stop(
             (Some(mut child), _, instance) => {
                 let pid = child.pid();
                 let report = child.terminate(run.config.stop_grace);
+                // Reaped is the boundary: from the reap on, the pid can be
+                // recycled, so it must never be signalled again — not even
+                // by an exit that found the stop unconfirmed. Unreaped (the
+                // kill was issued and no status landed) it is still ours
+                // alone, and the exit may still have to finish it.
+                if matches!(report, child::Termination::Gone { .. }) {
+                    engine.clear();
+                }
                 let escalated = matches!(
                     report,
                     child::Termination::Gone { needed: child::Step::Kill }
@@ -726,6 +737,9 @@ fn stop(
                 // somebody else's program. Terminate only a pid the file
                 // still vouches for; when it does not, THAT is reported as
                 // the unknown it is instead of being skipped in silence.
+                // The identity was never held for an adopted engine, and
+                // this walk does not start holding it.
+                engine.clear();
                 let report = match InstanceFile::inspect(&run.config.state_file) {
                     Ok(Existing::Live { pid: current, .. }) => {
                         let outcome = if current == pid {
@@ -772,12 +786,15 @@ fn stop(
             // can never be proven here — only the port can speak (§9:
             // `Stopped` only after the probe fails), and what it could not
             // prove becomes the suspicion record beside the state file.
-            (None, None, _) => (
-                presence::Witness::Unwatched,
-                "adopted blind: no pid was ever recorded, so no process could be signalled"
-                    .to_string(),
-                false,
-            ),
+            (None, None, _) => {
+                engine.clear();
+                (
+                    presence::Witness::Unwatched,
+                    "adopted blind: no pid was ever recorded, so no process could be signalled"
+                        .to_string(),
+                    false,
+                )
+            }
         };
         // The PORT half's witness, and the join (§9's two halves). NOT
         // `health_ok`: a refused connection is absence, a 503 or a silence
@@ -851,6 +868,7 @@ fn start_blocking(
     releases: Arc<AtomicU64>,
     residency: Residency,
     start: u64,
+    engine: &EngineId,
 ) -> Result<Started, Failure> {
     // Before anything exists: an unsafe binding must be refused, not started
     // and then failed to be found.
@@ -892,6 +910,11 @@ fn start_blocking(
     .map_err(|e| Failure::ServerNotStarted {
         detail: format!("could not start the server: {e}"),
     })?;
+    // The identity is published the moment the child exists, before the
+    // readiness wait below: an exit that lands while the engine is still
+    // starting — the wait can run a whole `ready_timeout` — must already
+    // find it, or the engine is orphaned with the identity empty.
+    engine.publish(child.pid());
     // The engine start, as the launch describes it: the binary's own name
     // (it carries the pinned build) and the flags and paths it was handed,
     // rendered by [`argv_line`] — never Debug, whose doubled backslashes a
@@ -906,8 +929,15 @@ fn start_blocking(
     let began = Instant::now();
     instance
         .describe(child.pid(), config.port)
-        .map_err(|e| Failure::InstanceUnwritable {
-            detail: format!("could not write our state file: {e}"),
+        .map_err(|e| {
+            // The child this Err leaves behind is killed and reaped by its
+            // own Drop, which this function cannot observe: a pid left
+            // published over an unobserved reap is a pid the exit might
+            // signal after it stopped being ours alone.
+            engine.clear();
+            Failure::InstanceUnwritable {
+                detail: format!("could not write our state file: {e}"),
+            }
         })?;
 
     let deadline = Instant::now() + config.ready_timeout;
@@ -917,6 +947,8 @@ fn start_blocking(
             log::warn!("engine exit code: {}", exit_code(status));
             log::warn!("engine exited before it was ready: {reason:?}");
             log_stderr_tail(&child);
+            // `try_wait` above was the reap: the pid is no longer ours alone.
+            engine.clear();
             return Err(reason);
         }
         if health::health_ok(config.address(), "/health", PROBE_TIMEOUT) {
@@ -926,7 +958,10 @@ fn start_blocking(
         }
         if Instant::now() >= deadline {
             let seconds = config.ready_timeout.as_secs();
-            let _ = child.terminate(config.stop_grace);
+            let walked = child.terminate(config.stop_grace);
+            if matches!(walked, child::Termination::Gone { .. }) {
+                engine.clear();
+            }
             log::warn!("engine not ready in {seconds}s");
             log_stderr_tail(&child);
             return Err(Failure::NotReady { seconds });
@@ -1409,7 +1444,7 @@ mod tests {
             "--port".into(),
             "8290".into(),
         ];
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1)
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new())
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1429,7 +1464,7 @@ mod tests {
             "--port".into(),
             "9999".into(),
         ];
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1)
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new())
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1443,7 +1478,7 @@ mod tests {
         // The exe does not exist: getting as far as ServerNotStarted proves
         // the binding gate let a correct argv through.
         let config = config(8292);
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1)
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new())
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1495,7 +1530,7 @@ mod tests {
         crate::hold_state_lock(&lock).expect("hold the lock as an earlier run would");
 
         let residency = Residency::new();
-        let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone(), 1);
+        let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone(), 1, &EngineId::new());
         let announced = residency.asleep();
 
         // Teardown before the assertions, so a failing one cannot leave the
@@ -1561,16 +1596,7 @@ mod tests {
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
-            move || {
-                work(
-                    inbox,
-                    state,
-                    releases,
-                    residency,
-                    Arc::new(AtomicU32::new(0)),
-                    presence::probe,
-                )
-            }
+            move || work(inbox, state, releases, residency, Arc::new(EngineId::new()), presence::probe)
         });
         let config = config(8294);
         let state_file = config.state_file.clone();
@@ -1637,7 +1663,7 @@ mod tests {
             pid: stand_in_pid,
             port,
         }));
-        stop(&mut owned, None, &state, presence::probe, None);
+        stop(&mut owned, None, &state, presence::probe, None, &EngineId::new());
         assert!(
             stand_in.try_wait().expect("poll the stand-in").is_none(),
             "a recycled pid was signalled: we killed somebody else's program"
@@ -1697,7 +1723,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
-        stop(&mut owned, None, &state, answering, None);
+        stop(&mut owned, None, &state, answering, None, &EngineId::new());
 
         let ended = state.lock().expect("the state lock").clone();
         let measures = match &ended {
@@ -1750,7 +1776,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
-        stop(&mut owned, None, &state, silent, None);
+        stop(&mut owned, None, &state, silent, None, &EngineId::new());
 
         assert_eq!(
             state.lock().expect("the state lock").clone(),
@@ -1833,7 +1859,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid, port }));
-        stop(&mut owned, None, &state, answering, None);
+        stop(&mut owned, None, &state, answering, None, &EngineId::new());
 
         match state.lock().expect("the state lock").clone() {
             ServerState::Failed {
@@ -1911,7 +1937,7 @@ mod tests {
             config: config(port),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 1, port }));
-        stop(&mut owned, None, &state, answering, None);
+        stop(&mut owned, None, &state, answering, None, &EngineId::new());
 
         assert_eq!(
             state.lock().expect("the state lock").clone(),
@@ -1950,7 +1976,7 @@ mod tests {
             config: config.clone(),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
-        stop(&mut owned, Some(&config), &state, answering, None);
+        stop(&mut owned, Some(&config), &state, answering, None, &EngineId::new());
         assert!(owned.is_none(), "the first stop took what was owned");
         let first = state.lock().expect("the state lock").clone();
         assert!(
@@ -1965,7 +1991,7 @@ mod tests {
 
         // Second stop, nothing owned: the port is asked (§18) and answers
         // again — `Stopped` must not appear.
-        stop(&mut owned, Some(&config), &state, answering, None);
+        stop(&mut owned, Some(&config), &state, answering, None, &EngineId::new());
         let second = state.lock().expect("the state lock").clone();
         assert!(
             matches!(
@@ -1996,7 +2022,7 @@ mod tests {
             config: config.clone(),
         });
         let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
-        stop(&mut owned, Some(&config), &state, answering, None);
+        stop(&mut owned, Some(&config), &state, answering, None, &EngineId::new());
         assert!(
             matches!(
                 state.lock().expect("the state lock").clone(),
@@ -2008,7 +2034,7 @@ mod tests {
         );
 
         let silent: presence::Probe = |_, _| presence::Presence::Gone;
-        stop(&mut owned, Some(&config), &state, silent, None);
+        stop(&mut owned, Some(&config), &state, silent, None, &EngineId::new());
         assert_eq!(
             state.lock().expect("the state lock").clone(),
             ServerState::Stopped,
@@ -2048,7 +2074,7 @@ mod tests {
         let (commands, inbox) = mpsc::channel();
         let state = Arc::new(Mutex::new(ServerState::Stopped));
         let releases = Arc::new(AtomicU64::new(0));
-        let engine = Arc::new(AtomicU32::new(0));
+        let engine = Arc::new(EngineId::new());
         let residency = Residency::new();
         let worker = std::thread::spawn({
             let state = Arc::clone(&state);
@@ -2069,12 +2095,13 @@ mod tests {
         }
     }
 
-    /// The pid the exit watchdog would signal is kept while a stop could not
-    /// prove the engine gone: the state says `StopUnconfirmed`, and the whole
-    /// reason the watchdog exists is the process that may still be out there.
+    /// An unconfirmed stop over an ADOPTED engine retains nothing: the pid's
+    /// only voucher is a state file a previous run wrote, stale by exit
+    /// time — a recycled pid may name a stranger, and the exit's last-resort
+    /// kill must never signal one, unconfirmed or not.
     #[cfg(unix)]
     #[test]
-    fn the_engine_pid_outlives_a_stop_that_could_not_prove_the_engine_gone() {
+    fn an_unconfirmed_stop_retains_no_adopted_pid() {
         let port = 8315;
         let mut stand_in = std::process::Command::new("/bin/sleep")
             .arg("30")
@@ -2086,15 +2113,12 @@ mod tests {
             },
         };
         let supervisor = api_supervisor(port, stand_in.id(), answering);
-        // The plant is a command like any other: wait for the worker to take it.
-        let deadline = Instant::now() + Duration::from_secs(2);
-        while supervisor.watch().engine_pid().is_none() && Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(5));
-        }
+        // The plant is a command the worker takes before any later one; an
+        // adopted pid is never held, from the plant on.
         assert_eq!(
             supervisor.watch().engine_pid(),
-            Some(stand_in.id()),
-            "the planted engine's pid"
+            None,
+            "an adopted pid is never held for the exit's kill"
         );
         supervisor.shutdown();
         let end = supervisor.state();
@@ -2109,11 +2133,132 @@ mod tests {
         );
         assert_eq!(
             supervisor.watch().engine_pid(),
-            Some(stand_in.id()),
-            "an unproven stop must leave the pid for the exit watchdog"
+            None,
+            "the unconfirmed stop leaves the adopted pid unheld: it may no \
+             longer name the engine"
+        );
+        assert_eq!(
+            supervisor.watch().finish_engine(Duration::from_millis(50)),
+            None,
+            "the exit's kill has nothing safe to signal"
         );
         let _ = stand_in.kill();
         let _ = stand_in.wait();
+    }
+
+    /// The exit's kill reaches the supervisor's watch: the identity a live
+    /// planted engine holds is the one the exit handler and the watchdog
+    /// both load. The kill's own power is proven in `engine_id`'s tests —
+    /// here the subject is the path from the watch.
+    #[cfg(unix)]
+    #[test]
+    fn the_exits_kill_takes_the_identity_the_watch_holds() {
+        let releases = Arc::new(AtomicU64::new(0));
+        let child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &["-c".into(), "sleep 30".into()],
+            None,
+            Arc::clone(&releases),
+            Residency::new(),
+        )
+        .expect("spawn the stand-in engine");
+        let pid = child.pid();
+        let gone: presence::Probe = |_, _| presence::Presence::Gone;
+        let supervisor = planted_supervisor(
+            Owned {
+                child: Some(child),
+                adopted_pid: None,
+                instance: None,
+                config: config(8317),
+            },
+            gone,
+        );
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while supervisor.watch().engine_pid() != Some(pid) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(supervisor.watch().engine_pid(), Some(pid), "the planted child");
+        assert!(
+            supervisor
+                .watch()
+                .finish_engine(Duration::from_millis(100))
+                .is_some(),
+            "a live engine was held, so a kill was owed"
+        );
+        // The walk afterwards must still come back clean: whatever the
+        // by-pid kill left behind, the child's own handle reaps it.
+        supervisor.shutdown();
+        assert_eq!(supervisor.state(), ServerState::Stopped, "nothing is left");
+    }
+
+    /// A starting engine is already killable: the identity is published at
+    /// the spawn, before the readiness wait that can run a whole
+    /// `ready_timeout` — an exit in that window must not find it empty.
+    /// The stand-in never serves /health, so the start can only fail; where
+    /// that failure reaped the child, the identity is spent again.
+    #[cfg(unix)]
+    #[test]
+    fn a_starting_engine_is_publishable_before_it_is_ready() {
+        let free = TcpListener::bind("127.0.0.1:0").expect("borrow a free port");
+        let port = free.local_addr().unwrap().port();
+        drop(free);
+        let config = ServerConfig {
+            exe: PathBuf::from("/bin/sh"),
+            argv: vec![
+                "-c".into(),
+                "sleep 30".into(),
+                "--host".into(),
+                "127.0.0.1".into(),
+                "--port".into(),
+                port.to_string(),
+            ],
+            state_file: std::env::temp_dir().join("kalsa-supervisor-publish-at-spawn.state"),
+            port,
+            ready_timeout: Duration::from_secs(1),
+            stop_grace: Duration::from_millis(50),
+        };
+        let engine = Arc::new(EngineId::new());
+        let shared = Arc::clone(&engine);
+        let state_file = config.state_file.clone();
+        let (done, finished) = mpsc::channel();
+        let walker = std::thread::spawn(move || {
+            let _ = done.send(start_blocking(
+                &config,
+                Arc::new(AtomicU64::new(0)),
+                Residency::new(),
+                1,
+                &shared,
+            ));
+        });
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut seen = None;
+        while seen.is_none() && Instant::now() < deadline {
+            if finished.try_recv().is_ok() {
+                break; // the start failed before any pid was observed
+            }
+            seen = engine.pid();
+            if seen.is_none() {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        }
+        assert!(
+            seen.is_some_and(|pid| pid != 0),
+            "the engine was never killable while it was starting"
+        );
+        let outcome = finished
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the start never settled");
+        assert!(
+            matches!(outcome, Err(Failure::NotReady { .. })),
+            "a stand-in that serves nothing never becomes ready"
+        );
+        let _ = walker.join();
+        assert_eq!(
+            engine.pid(),
+            None,
+            "the failed start reaped the child, so the identity is spent"
+        );
+        let _ = std::fs::remove_file(&state_file);
     }
 
     /// A stop that PROVED the engine gone clears the pid: at its deadline the
@@ -2317,7 +2462,7 @@ mod tests {
             commands,
             state: Arc::new(Mutex::new(ServerState::Stopping)),
             worker: Mutex::new(Some(worker)),
-            engine: Arc::new(AtomicU32::new(0)),
+            engine: Arc::new(EngineId::new()),
             releases: Arc::new(AtomicU64::new(0)),
             residency: Residency::new(),
         };
@@ -2345,7 +2490,7 @@ mod tests {
             commands: mpsc::channel().0,
             state: Arc::new(Mutex::new(ServerState::Stopping)),
             worker: Mutex::new(Some(living)),
-            engine: Arc::new(AtomicU32::new(0)),
+            engine: Arc::new(EngineId::new()),
             releases: Arc::new(AtomicU64::new(0)),
             residency: Residency::new(),
         };

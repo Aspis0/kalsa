@@ -55,8 +55,7 @@ use std::time::{Duration, Instant, SystemTime};
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
 use kalsa_supervisor::{
-    terminate_pid, Failure, ServerConfig, StartOutcome, StartSettled, StartWaiter, Supervisor,
-    ServerState, Watch,
+    Failure, ServerConfig, StartOutcome, StartSettled, StartWaiter, Supervisor, ServerState, Watch,
 };
 use serde::Serialize;
 use tauri::{Emitter, Manager, RunEvent, State};
@@ -2410,28 +2409,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // and behind the exit's own deadline: the ENGINE first, so a slow exit
         // can never orphan it, then the rest, every wait of it bounded. A step
         // that has not come back at the deadline is named, the engine is
-        // killed by the pid the supervisor holds, and the process leaves.
+        // killed through the identity the supervisor still holds, and the
+        // process leaves.
         if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit)
             && !exiting.swap(true, std::sync::atomic::Ordering::SeqCst)
         {
-            // The handle, not the pid: it is loaded at the deadline, so a
-            // pid a stop already proved gone is never signalled.
+            // The watch, not a pid read: the identity is loaded at the
+            // deadline, after the steps below have decided what the
+            // supervisor still vouches for.
             let engine = app
                 .try_state::<Brain>()
                 .map(|brain| brain.supervisor.watch());
+            let watched = engine.clone();
             let deadline = exit::arm(
                 exit::DEADLINE,
                 "the engine",
                 move || {
-                    let Some(pid) = engine.as_ref().and_then(|watch| watch.engine_pid()) else {
-                        log::warn!(
-                            "the exit reached its deadline with no engine pid on record to kill"
-                        );
-                        return;
-                    };
-                    let report = terminate_pid(pid, exit::KILL_GRACE);
-                    log::warn!("the exit killed the engine (pid {pid}): {report:?}");
+                    match watched
+                        .as_ref()
+                        .and_then(|watch| watch.finish_engine(exit::KILL_GRACE))
+                    {
+                        Some(report) => {
+                            format!("the engine was killed at the deadline: {report:?}")
+                        }
+                        None => "no engine identity was held to kill".to_string(),
+                    }
                 },
+                logging::warn_urgent,
                 |code, _pending| std::process::exit(code),
             );
             if let Some(brain) = app.try_state::<Brain>() {
@@ -2445,6 +2449,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 deadline.stage("the pairing listener");
                 desk.desk.stop_serving();
                 desk.listener.shutdown();
+            }
+            // A stop that came back with the engine's going unproven — a
+            // kill issued, no proof it landed — leaves the engine's identity
+            // held. The steps have returned, so the watchdog is about to
+            // stand down: the kill is finished HERE, on the path the
+            // watchdog would have taken, or a timely unconfirmed stop would
+            // cancel the promised final kill.
+            if let Some(report) = engine
+                .as_ref()
+                .and_then(|watch| watch.finish_engine(exit::KILL_GRACE))
+            {
+                log::warn!(
+                    "the stop left the engine's going unproven; the exit killed it: {report:?}"
+                );
             }
             deadline.finished();
         }

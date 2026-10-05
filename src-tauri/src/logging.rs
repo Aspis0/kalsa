@@ -11,8 +11,10 @@
 //! Every message passes through one redaction before it is written — in
 //! the file and on stderr alike: a path that starts with the user's home
 //! directory is logged with `~` in its place, a signed URL loses its
-//! query, and an IP literal that is not loopback (this machine's own
-//! address, a peer's, a relay's) becomes `<addr>`.
+//! query and the credentials in its authority, an IP literal that is not
+//! loopback (this machine's own address, a peer's, a relay's) becomes
+//! `<addr>`, and a hostname that names the owner's network — a tailnet, an
+//! mDNS name, this machine's own — becomes `<host>`.
 //!
 //! The crates that log per packet (the iroh stack and the tracing mirror
 //! over it) are held at WARN: their INFO is not the app's story, it is
@@ -189,6 +191,24 @@ impl Sink {
             .write_all(format!("{line}\n").as_bytes());
     }
 
+    /// The exit watchdog's one line, through `try_lock` for the same reason
+    /// as the panic line and one more: a writer stuck on the sink's mutex
+    /// must not be able to hold the process hostage at the exit. The line is
+    /// appended only while the state is free; stderr carries it either way.
+    fn urgent(&self, message: &str) {
+        let line = clip_line(&format!(
+            "{} WARN  logging: {}",
+            rfc3339_now(),
+            redact(message, &self.redactions)
+        ));
+        if let Ok(mut state) = self.state.try_lock() {
+            append(&mut state, &line);
+        }
+        let _ = std::io::stderr()
+            .lock()
+            .write_all(format!("{line}\n").as_bytes());
+    }
+
     /// Takes the file over, from a sink that started stderr-only: called
     /// once, after the instance lock says this process owns the log. On
     /// success the session header is written into the file (it is the
@@ -314,6 +334,22 @@ pub fn attach_file(dir: PathBuf, version: &str) {
         .is_some_and(|sink| sink.attach(&dir, version));
     if attached {
         advertise_dir(dir);
+    }
+}
+
+/// The exit watchdog's one line, on the installed sink if there is one and
+/// it is free: said through `try_lock`, because the caller is about to end
+/// the process and must not be held by a writer stuck on the sink's mutex.
+/// With no sink installed (before [`install`], or under a test) the line
+/// goes to stderr alone.
+pub fn warn_urgent(message: &str) {
+    match SINK.get() {
+        Some(sink) => sink.urgent(message),
+        None => {
+            let _ = std::io::stderr()
+                .lock()
+                .write_all(format!("{message}\n").as_bytes());
+        }
     }
 }
 
@@ -488,6 +524,11 @@ pub(crate) struct Redactions {
     /// is at least three characters: a two-letter name between separators
     /// would eat ordinary words.
     user: Option<String>,
+    /// The machine's own hostname (unix `uname`, Windows
+    /// `GetComputerNameEx`), when it is at least three characters: with the
+    /// `.ts.net` and `.local` suffixes it is how a log line names the
+    /// owner's network.
+    host: Option<String>,
     /// Windows matches paths without regard to case; everywhere else the
     /// exact spelling is the rule.
     insensitive: bool,
@@ -501,16 +542,23 @@ impl Redactions {
             // spelling — the platform's own variable wins.
             home: env_path("USERPROFILE").or_else(|| env_path("HOME")),
             user: env_name("USERNAME").or_else(|| env_name("USER")),
+            host: machine_host(),
             insensitive: cfg!(windows),
         }
     }
 
     /// A build with the given strings, for tests and for fixtures.
     #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn new(home: Option<String>, user: Option<String>, insensitive: bool) -> Self {
+    pub(crate) fn new(
+        home: Option<String>,
+        user: Option<String>,
+        host: Option<String>,
+        insensitive: bool,
+    ) -> Self {
         Self {
             home,
             user,
+            host,
             insensitive,
         }
     }
@@ -524,6 +572,50 @@ fn env_path(key: &str) -> Option<String> {
 fn env_name(key: &str) -> Option<String> {
     let value = env_path(key)?;
     (value.chars().count() >= 3).then_some(value)
+}
+
+/// This machine's hostname, or `None` where the platform would not say: a
+/// name shorter than three characters is refused for the same reason as a
+/// two-letter account name — it would eat ordinary words.
+fn machine_host() -> Option<String> {
+    let name = {
+        #[cfg(target_os = "windows")]
+        {
+            use std::mem::zeroed;
+            // SAFETY: `GetComputerNameExW` writes into the caller's buffer
+            // and reports the length it wrote; the call is abandoned, not
+            // unwrapped, on any refusal.
+            unsafe {
+                let mut buffer = [0u16; 256];
+                let mut size = buffer.len() as u32;
+                let named = windows_sys::Win32::System::SystemInformation::GetComputerNameExW(
+                    windows_sys::Win32::System::SystemInformation::COMPUTER_NAME_FORMAT_DNS_HOSTNAME,
+                    buffer.as_mut_ptr(),
+                    &mut size,
+                );
+                if named != 0 {
+                    Some(String::from_utf16_lossy(&buffer[..size as usize]))
+                } else {
+                    None
+                }
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            // SAFETY: `uname` writes into the caller's zeroed struct and
+            // returns its own success code; the node name is NUL-terminated
+            // or the read is abandoned.
+            unsafe {
+                let mut name: libc::utsname = std::mem::zeroed();
+                (libc::uname(&mut name) == 0).then(|| {
+                    std::ffi::CStr::from_ptr(name.nodename.as_ptr())
+                        .to_string_lossy()
+                        .into_owned()
+                })
+            }
+        }
+    };
+    name.filter(|host| host.chars().count() >= 3)
 }
 
 fn is_sep(c: char) -> bool {
@@ -580,26 +672,29 @@ fn extends_name(c: char) -> bool {
 /// The one redaction, in passes over the message: the URL query first (a
 /// signed query can carry the very path and name the later passes redact),
 /// then the temp tree, the home directory, the account name as a path
-/// component, and the IP literals last.
+/// component, the hostnames that name the owner's network, and the IP
+/// literals last.
 fn redact(message: &str, r: &Redactions) -> String {
     let chars: Vec<char> = message.chars().collect();
     let chars = redact_urls(&chars);
     let chars = redact_tmp(&chars);
     let chars = redact_path(&chars, r);
     let chars = redact_component(&chars, r);
+    let chars = redact_hosts(&chars, r);
     redact_addresses(&chars).into_iter().collect()
 }
 
 /// Characters that end a URL printed inside free text: whitespace, or a
 /// bracketing punctuation a sentence might wrap it in. Any scheme is
-/// covered (`http://`, `wss://`, and the rest of `://`), and everything
-/// between it and the first `?`/`#` is the URL's own address and stays;
-/// the query and fragment go, because a downloader's redirect answers with
-/// signed URLs whose query is a credential (`?X-Amz-Signature=…` from a
-/// Hugging Face `/resolve/` redirect, printed verbatim inside a transport
-/// error's Display).
+/// covered (`http://`, `wss://`, and the rest of `://`); the query and
+/// fragment go whole, because a downloader's redirect answers with signed
+/// URLs whose query is a credential (`?X-Amz-Signature=…` from a Hugging
+/// Face `/resolve/` redirect, printed verbatim inside a transport error's
+/// Display), and the credentials a URL carries in its authority
+/// (`user:pass@`) go too, marked so a reader knows something was there.
 fn redact_urls(text: &[char]) -> Vec<char> {
     const MARK: &str = "?…";
+    const CRED: &str = "<cred>@";
     let ends_url = |c: char| c.is_whitespace() || matches!(c, ')' | ']' | '}' | '>' | '"' | '\'');
     let mut out = Vec::with_capacity(text.len());
     let mut at = 0;
@@ -617,17 +712,29 @@ fn redact_urls(text: &[char]) -> Vec<char> {
                     .iter()
                     .position(|c| *c == '?' || *c == '#')
                     .map(|stop| end_of_scheme + stop);
-                match cut {
-                    Some(cut) => {
-                        out.extend(text[at..cut].iter().copied());
-                        out.extend(MARK.chars());
-                        at = url_end;
-                    }
-                    None => {
-                        out.extend(text[at..url_end].iter().copied());
-                        at = url_end;
-                    }
+                let address_end = cut.unwrap_or(url_end);
+                // The authority runs to the first '/', and a userinfo —
+                // which cannot contain one — closes at the '@' inside it.
+                let authority_end = text[end_of_scheme..address_end]
+                    .iter()
+                    .position(|c| *c == '/')
+                    .map(|stop| end_of_scheme + stop)
+                    .unwrap_or(address_end);
+                let host_begins = text[end_of_scheme..authority_end]
+                    .iter()
+                    .position(|c| *c == '@')
+                    .map(|stop| end_of_scheme + stop + 1);
+                out.extend(text[at..end_of_scheme].iter().copied());
+                if let Some(host_begins) = host_begins {
+                    out.extend(CRED.chars());
+                    out.extend(text[host_begins..address_end].iter().copied());
+                } else {
+                    out.extend(text[end_of_scheme..address_end].iter().copied());
                 }
+                if cut.is_some() {
+                    out.extend(MARK.chars());
+                }
+                at = url_end;
             }
             None => {
                 out.push(text[at]);
@@ -769,6 +876,56 @@ fn redact_component(text: &[char], r: &Redactions) -> Vec<char> {
                 out.push(text[at]);
                 at += 1;
             }
+        }
+    }
+    out
+}
+
+/// Hostnames that name the owner's network become `<host>`: the tailnet a
+/// Tailscale rule points at (`…ts.net`), the mDNS names machines answer on
+/// (`…local`), and this machine's own hostname. Matched as whole host
+/// tokens — a run of hostname characters bounded by anything that cannot be
+/// in one — so the rule covers URLs and bare prose alike, and
+/// case-insensitively, as DNS itself is. A token that merely ends like a
+/// file named `notes.local` goes with it: the rare over-redaction is
+/// cheaper than the leak.
+fn redact_hosts(text: &[char], r: &Redactions) -> Vec<char> {
+    const MARK: &str = "<host>";
+    let is_host_char = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '.');
+    let names_the_network = |token: &str| {
+        let token = token.to_ascii_lowercase();
+        token.ends_with(".ts.net") || token.ends_with(".local")
+    };
+    let mut out = Vec::with_capacity(text.len());
+    let mut at = 0;
+    while at < text.len() {
+        let bounded_before = at == 0 || !is_host_char(text[at - 1]);
+        if bounded_before && is_host_char(text[at]) {
+            let mut end = at;
+            while end < text.len() && is_host_char(text[end]) {
+                end += 1;
+            }
+            // A sentence's own period may close the token: `…at foo.local.`
+            // The trailing dots are not part of any hostname.
+            let mut name_end = end;
+            while name_end > at && text[name_end - 1] == '.' {
+                name_end -= 1;
+            }
+            let token: String = text[at..name_end].iter().collect();
+            let is_ours = r
+                .host
+                .as_deref()
+                .is_some_and(|host| host.eq_ignore_ascii_case(&token));
+            if names_the_network(&token) || is_ours {
+                out.extend(MARK.chars());
+            } else {
+                out.extend(text[at..name_end].iter().copied());
+            }
+            out.extend(text[name_end..end].iter().copied());
+            at = end;
+        } else {
+            out.push(text[at]);
+            at += 1;
         }
     }
     out

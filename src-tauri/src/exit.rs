@@ -5,15 +5,14 @@
 //! on its own (`kalsa-door` gives its threads two seconds, the supervisor's
 //! stop walk its graces, the pairing wake a few tries). A watchdog armed
 //! before the first step is the backstop the whole thing answers to: at the
-//! deadline it logs what is still pending, makes sure the engine child is
-//! gone by the pid the supervisor holds — never by name — and ends the
+//! deadline it makes sure the engine is gone — killed through the identity
+//! the supervisor still holds, never by name — says one line, and ends the
 //! process.
 //!
-//! `std::process::exit` runs no destructors, which is the point: the
-//! alternative at the deadline is a process that never ends, still holding
-//! the instance lock the next launch needs. The engine goes first so the one
-//! thing that must not outlive the app is already asked to leave — and is
-//! killed by pid if the asking did not land.
+//! The kill runs FIRST: the note and the exit behind it must never be able
+//! to wait on anything, because the alternative at the deadline is a
+//! process that never ends, still holding the instance lock the next launch
+//! needs. `std::process::exit` runs no destructors, which is the point.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -78,15 +77,18 @@ impl Deadline {
 }
 
 /// Arms the deadline, which `first` names until [`Deadline::stage`] says
-/// otherwise. `engine` runs at the deadline and must make sure the model
-/// server is gone; `exit` is the process exit itself — it is handed the step
-/// that was still pending, and it is a seam, so a test can watch the deadline
-/// fire without ending the test process. A deadline that cannot be armed is
-/// declared, not silent: the exit then runs without its backstop.
+/// otherwise. `engine` kills the engine at the deadline and reports what it
+/// did; `note` says the deadline's one line and must never block (the
+/// production note takes the sink's mutex with `try_lock`); `exit` is the
+/// process exit itself — handed the step that was still pending, and a
+/// seam, so a test can watch the deadline fire without ending the test
+/// process. A deadline that cannot be armed is declared, not silent: the
+/// exit then runs without its backstop.
 pub(crate) fn arm(
     deadline: Duration,
     first: &'static str,
-    engine: impl Fn() + Send + 'static,
+    engine: impl Fn() -> String + Send + 'static,
+    note: impl Fn(&str) + Send + 'static,
     exit: impl Fn(i32, &'static str) + Send + 'static,
 ) -> Deadline {
     let done = Arc::new(AtomicBool::new(false));
@@ -103,11 +105,13 @@ pub(crate) fn arm(
             let stage = *stage
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            log::warn!(
+            // The kill is first: everything behind it — the note, the exit —
+            // must never be able to become the thing that waits.
+            let did = engine();
+            note(&format!(
                 "the exit did not finish within {deadline:?}: still stopping {stage}; \
-                 the engine is killed and the process leaves now"
-            );
-            engine();
+                 {did}; the process leaves now"
+            ));
             exit(0, stage);
         });
     let watchdog = match spawned {
@@ -132,31 +136,56 @@ mod tests {
     use super::*;
     use std::sync::mpsc;
 
-    /// The deadline fires: the engine is handed to the kill first, then the
-    /// process exits with the seam the test holds.
+    /// What the watchdog did, in order: the kill first, then the note, then
+    /// the exit — the order is the guarantee, not the events.
+    #[derive(Debug, PartialEq)]
+    enum Step {
+        Killed,
+        Noted(String),
+        Exited(i32, &'static str),
+    }
+
+    /// The deadline fires: the engine is killed before anything is said or
+    /// done, and the process exits last, through the seam the test holds.
     #[test]
-    fn the_deadline_kills_the_engine_and_exits() {
-        let (exited, watched) = mpsc::channel();
-        let killed = Arc::new(AtomicBool::new(false));
-        let engine_flag = Arc::clone(&killed);
-        // Dropped, not finished: the deadline is the thing under test.
-        let _deadline = arm(
+    fn the_deadline_kills_before_it_says_or_leaves() {
+        let (steps, seen) = mpsc::channel();
+        let killed = steps.clone();
+        let noted = steps.clone();
+        let deadline = arm(
             Duration::from_millis(50),
             "the door",
             move || {
-                engine_flag.store(true, Ordering::SeqCst);
+                let _ = killed.send(Step::Killed);
+                "the kill's own report".to_string()
             },
-            move |code, _stage| {
-                let _ = exited.send(code);
+            move |line| {
+                let _ = noted.send(Step::Noted(line.to_string()));
+            },
+            move |code, stage| {
+                let _ = steps.send(Step::Exited(code, stage));
             },
         );
-        let code = watched
-            .recv_timeout(Duration::from_secs(2))
-            .expect("the deadline never fired");
-        assert_eq!(code, 0, "a forced exit is still a clean one");
-        assert!(
-            killed.load(Ordering::SeqCst),
-            "the engine must be killed before the exit"
+        // Dropped, not finished: the deadline is the thing under test.
+        drop(deadline);
+        assert_eq!(
+            seen.recv_timeout(Duration::from_secs(2)).ok(),
+            Some(Step::Killed),
+            "the kill is first: nothing behind it may wait"
+        );
+        assert_eq!(
+            seen.recv_timeout(Duration::from_secs(2)).ok(),
+            Some(Step::Noted(
+                "the exit did not finish within 50ms: still stopping the door; the kill's own \
+                 report; the process leaves now"
+                    .to_string()
+            )),
+            "the note is second, carrying the deadline's facts"
+        );
+        assert_eq!(
+            seen.recv_timeout(Duration::from_secs(2)).ok(),
+            Some(Step::Exited(0, "the door")),
+            "the exit is last, and a forced exit is still a clean one"
         );
     }
 
@@ -165,13 +194,13 @@ mod tests {
     #[test]
     fn a_cleanup_inside_the_deadline_stands_the_watchdog_down() {
         let (exited, watched) = mpsc::channel();
-        let killed = Arc::new(AtomicBool::new(false));
-        let engine_flag = Arc::clone(&killed);
+        let (noted, notes) = mpsc::channel();
         let deadline = arm(
             Duration::from_millis(80),
             "the engine",
-            move || {
-                engine_flag.store(true, Ordering::SeqCst);
+            || "killed".to_string(),
+            move |line| {
+                let _ = noted.send(line.to_string());
             },
             move |code, _stage| {
                 let _ = exited.send(code);
@@ -184,30 +213,9 @@ mod tests {
             watched.recv_timeout(Duration::from_millis(400)).is_err(),
             "the watchdog fired after the cleanup finished"
         );
-        assert!(!killed.load(Ordering::SeqCst), "nothing was killed");
-    }
-
-    /// The deadline names what was still pending, so the one warning says
-    /// which step the exit was waiting on.
-    #[test]
-    fn the_deadline_names_the_step_that_was_still_pending() {
-        let (exited, watched) = mpsc::channel();
-        let deadline = arm(
-            Duration::from_millis(50),
-            "the engine",
-            || {},
-            move |code, stage| {
-                let _ = exited.send((code, stage));
-            },
-        );
-        deadline.stage("the pairing listener");
-        let (code, stage) = watched
-            .recv_timeout(Duration::from_secs(2))
-            .expect("the deadline never fired");
-        assert_eq!(code, 0);
-        assert_eq!(
-            stage, "the pairing listener",
-            "the deadline names the step it cut"
+        assert!(
+            notes.recv_timeout(Duration::from_millis(400)).is_err(),
+            "the watchdog spoke after the cleanup finished"
         );
     }
 }

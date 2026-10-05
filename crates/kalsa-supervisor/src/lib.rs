@@ -11,6 +11,7 @@
 mod child;
 mod config;
 mod drain;
+mod engine_id;
 mod health;
 mod instance;
 mod presence;

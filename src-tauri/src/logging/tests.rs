@@ -80,7 +80,7 @@ fn a_write_past_the_cap_leaves_exactly_two_files_with_the_newest_lines_live() {
 fn a_message_carrying_the_home_path_is_written_with_a_tilde() {
     let dir = scratch("redaction");
     let mut sink = Sink::open(&dir, CAP_BYTES);
-    sink.redactions = Redactions::new(Some("/Users/someone".to_string()), None, false);
+    sink.redactions = Redactions::new(Some("/Users/someone".to_string()), None, None, false);
     logged(
         &sink,
         "files list failed: /Users/someone/Library/nope/here.txt (os error 2)",
@@ -93,7 +93,7 @@ fn a_message_carrying_the_home_path_is_written_with_a_tilde() {
 
 #[test]
 fn a_home_that_is_a_prefix_of_another_name_is_not_overmatched() {
-    let redactions = Redactions::new(Some("/Users/marco".to_string()), None, false);
+    let redactions = Redactions::new(Some("/Users/marco".to_string()), None, None, false);
     let redacted = redact("both /Users/marco and /Users/marco2 appear", &redactions);
     assert_eq!(redacted, "both ~ and /Users/marco2 appear");
 }
@@ -106,6 +106,7 @@ fn windows_home_paths_redact_in_every_spelling() {
     let redactions = Redactions::new(
         Some("C:\\Users\\Marco G".to_string()),
         Some("Marco G".to_string()),
+        None,
         true,
     );
     for line in [
@@ -129,7 +130,7 @@ fn windows_home_paths_redact_in_every_spelling() {
 /// never when it is too short to be more than a word.
 #[test]
 fn the_account_name_redacts_only_as_a_path_component() {
-    let redactions = Redactions::new(None, Some("marco".to_string()), true);
+    let redactions = Redactions::new(None, Some("marco".to_string()), None, true);
     let redacted = redact(
         "C:\\Users\\marco\\AppData\\Local\\Temp and /tmp/marco/x, but marco wrote this",
         &redactions,
@@ -138,7 +139,7 @@ fn the_account_name_redacts_only_as_a_path_component() {
         redacted,
         "C:\\Users\\<user>\\AppData\\Local\\Temp and /tmp/<user>/x, but marco wrote this"
     );
-    let short = Redactions::new(None, Some("mk".to_string()), true);
+    let short = Redactions::new(None, Some("mk".to_string()), None, true);
     assert_eq!(
         redact("C:\\Users\\mk\\x", &short),
         "C:\\Users\\mk\\x",
@@ -151,7 +152,7 @@ fn the_account_name_redacts_only_as_a_path_component() {
 /// with `/private`.
 #[test]
 fn the_per_user_temp_tree_becomes_tmp() {
-    let redactions = Redactions::new(None, None, false);
+    let redactions = Redactions::new(None, None, None, false);
     for line in [
         "slot save: /var/folders/ab/xyz123/T/ai.kalsa.brain/slots/chat.bin",
         "slot save: /private/var/folders/ab/xyz123/T/ai.kalsa.brain/slots/chat.bin",
@@ -171,7 +172,7 @@ fn the_per_user_temp_tree_becomes_tmp() {
 /// made of, which a looser redactor would eat.
 #[test]
 fn the_machine_addresses_are_redacted_and_loopback_and_versions_survive() {
-    let redactions = Redactions::new(None, None, false);
+    let redactions = Redactions::new(None, None, None, false);
     let line = "peer=192.168.1.5 v6=[2001:db8:85a3::8a2e:370:7334]:7842 link=fe80::1c2b:3d4e%en0 mapped=::ffff:10.0.0.7 door=127.0.0.1:8131 self=::1";
     let redacted = redact(line, &redactions);
     for gone in [
@@ -440,7 +441,7 @@ fn a_rotation_that_cannot_happen_resets_the_live_file() {
 /// query is a credential.
 #[test]
 fn a_signed_url_loses_its_query_and_fragment_but_not_its_address() {
-    let redactions = Redactions::new(None, None, false);
+    let redactions = Redactions::new(None, None, None, false);
     let message = "download failed: weights.gguf: https://huggingface.co/Kalsa-ai/kalsa-server/resolve/f038a4f4/file.gz?X-Amz-Signature=deadbeef1234&X-Amz-Date=20261002T0000Z (status 403)";
     let redacted = redact(message, &redactions);
     assert!(
@@ -457,6 +458,76 @@ fn a_signed_url_loses_its_query_and_fragment_but_not_its_address() {
     assert!(!plain.contains("?…"), "{plain}");
 }
 
+/// The credentials a URL carries in its authority go with the query: a
+/// `user:pass@` (or a bare `key@`) is as much a secret in a transport
+/// error's Display as the signature behind the `?`, and it is marked, not
+/// silently dropped, so a reader knows the URL was authenticated.
+#[test]
+fn a_url_loses_the_credentials_in_its_authority() {
+    let redactions = Redactions::new(None, None, None, false);
+    for line in [
+        "proxy refused: http://AKIAIOSFODNN7EXAMPLE@proxy.internal:8080/weights.gguf",
+        "proxy refused: http://operator:s3cr3t-pass@proxy.internal:8080/weights.gguf",
+        "proxy refused: https://token123@cdn.example.com/a/b?sig=deadbeef",
+    ] {
+        let redacted = redact(line, &redactions);
+        assert!(
+            redacted.contains("<cred>@"),
+            "the credentials are marked gone: {line} -> {redacted}"
+        );
+        assert!(!redacted.contains("s3cr3t-pass"), "{line} -> {redacted}");
+        assert!(!redacted.contains("AKIAIOSFODNN7EXAMPLE"), "{line} -> {redacted}");
+        assert!(!redacted.contains("token123"), "{line} -> {redacted}");
+        // The host and port behind the mark stay: a line still says where
+        // the connection was refused.
+        assert!(redacted.contains("8080") || redacted.contains("cdn.example.com"), "{redacted}");
+    }
+    let both = redact(
+        "at https://user:pass@host.example.com/a?sig=1 end",
+        &redactions,
+    );
+    assert!(both.contains("https://<cred>@host.example.com/a?…"), "{both}");
+}
+
+/// Hostnames that name the owner's network become `<host>`: a Tailscale
+/// tailnet (`machine.tailnet.ts.net`), an mDNS name (`Laptop.local`), and
+/// the machine's own hostname — in URLs and in bare prose, either casing,
+/// with a sentence's period left alone. A name that is none of these
+/// (a domain a report may well name) keeps its spelling.
+#[test]
+fn hostnames_that_name_the_owners_network_become_host() {
+    let redactions = Redactions::new(None, None, Some("Kalsa-Studio".to_string()), false);
+    for line in [
+        "road points at http://marco-mac.tail1234.ts.net:8134 end",
+        "resolved marco-mac.TAIL1234.TS.NET in 3ms",
+        "bonjour found laptop.local and printer.local",
+        "this machine is kalsa-studio on the LAN",
+        "dialing kalsa-studio.:8131 refused",
+    ] {
+        let redacted = redact(line, &redactions);
+        assert!(!redacted.contains("marco-mac"), "{line} -> {redacted}");
+        assert!(!redacted.contains("laptop.local"), "{line} -> {redacted}");
+        assert!(!redacted.contains("printer.local"), "{line} -> {redacted}");
+        assert!(!redacted.contains("kalsa-studio"), "{line} -> {redacted}");
+        assert!(redacted.contains("<host>"), "{line} -> {redacted}");
+    }
+    // What is left speaks for the shape: the port and the sentence's period
+    // survive beside the mark.
+    let url = redact("road points at http://marco-mac.tail1234.ts.net:8134 end", &redactions);
+    assert!(url.contains("<host>:8134"), "{url}");
+    let sentence = redact("dialing kalsa-studio.:8131 refused", &redactions);
+    assert!(sentence.contains("<host>.:8131"), "{sentence}");
+    // A public domain and a bare word keep their spelling.
+    assert_eq!(
+        redact("download from https://huggingface.co/Kalsa-ai end", &redactions),
+        "download from https://huggingface.co/Kalsa-ai end"
+    );
+    assert_eq!(
+        redact("the engine answers on localhost:8130", &redactions),
+        "the engine answers on localhost:8130"
+    );
+}
+
 /// Every scheme's query goes, not only the downloader's two: a relay URL
 /// carries a token just as well, and the schemes Kalsa names today are not
 /// the schemes a line may hold. A Windows path is not one of them — `C:\`
@@ -464,7 +535,7 @@ fn a_signed_url_loses_its_query_and_fragment_but_not_its_address() {
 /// and neither is a plain path.
 #[test]
 fn every_scheme_loses_its_query_and_windows_paths_stay_whole() {
-    let redactions = Redactions::new(None, None, false);
+    let redactions = Redactions::new(None, None, None, false);
     for line in [
         "relay wss://relay.example.com/x?token=deadbeef1234 done",
         "relay ws://relay.example.com/x?token=deadbeef1234 done",
@@ -497,7 +568,7 @@ fn every_scheme_loses_its_query_and_windows_paths_stay_whole() {
 /// redaction that ate one would eat the facts a report is read for.
 #[test]
 fn the_versions_builds_and_hashes_the_app_logs_survive() {
-    let redactions = Redactions::new(None, None, false);
+    let redactions = Redactions::new(None, None, None, false);
     for line in [
         "adapter: Intel(R) Arc(TM) Graphics (discrete, driver 31.0.101.2125, 8.0 GiB)",
         "adapter: Apple M3 Pro (integrated, driver the OS's own, 18.0 GiB)",
@@ -530,6 +601,47 @@ fn a_panic_line_never_waits_on_the_sink_s_own_mutex() {
     sink.panic_line("src/x.rs:7:2");
     assert!(
         live_lines(&dir).iter().any(|l| l.contains("panic at src/x.rs:7:2")),
+        "once free, the line is filed: {:?}",
+        live_lines(&dir)
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// The exit watchdog's line is bounded the same way from the other side: a
+/// writer stuck on the sink's mutex must not be able to hold the exit
+/// hostage, so the urgent note skips the file while the lock is held and
+/// files the line once the lock is free. The deadline's own words arrive
+/// after the kill they describe.
+#[test]
+fn the_urgent_note_never_waits_on_the_sink_s_own_mutex() {
+    let dir = scratch("urgent-held");
+    let sink = std::sync::Arc::new(Sink::open(&dir, CAP_BYTES));
+    let held = sink.state.lock().expect("the lock is taken");
+    // The call must return while the lock is held — the test's own timeout
+    // on `recv` is the assertion that it did.
+    let (said, noted) = std::sync::mpsc::channel();
+    let speaker = {
+        let sink = std::sync::Arc::clone(&sink);
+        std::thread::spawn(move || {
+            sink.urgent("the exit did not finish: the engine was killed");
+            let _ = said.send(());
+        })
+    };
+    assert!(
+        noted.recv_timeout(std::time::Duration::from_secs(2)).is_ok(),
+        "the urgent note waited on a mutex a stuck writer held"
+    );
+    speaker.join().unwrap();
+    assert!(
+        !dir.join(LIVE_NAME).exists() || live_lines(&dir).iter().all(|l| !l.contains("the exit")),
+        "no urgent line reaches the file while the lock is held"
+    );
+    drop(held);
+    sink.urgent("the exit did not finish: the engine was killed");
+    assert!(
+        live_lines(&dir)
+            .iter()
+            .any(|l| l.contains("WARN  logging: the exit did not finish")),
         "once free, the line is filed: {:?}",
         live_lines(&dir)
     );
