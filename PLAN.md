@@ -1495,6 +1495,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   source, n_prefetch checked under NDEBUG, DMA push result surfaced, no Q6_K raw at opt_mm_select 1); branch rebased
   cleanly onto `5e9b355fd` (raw gate is buffer-generic, so HOST-W qualifies). Docker trap: `qaic` SIGKILLs under
   Rosetta intermittently and the 7.7 GB VM OOMs at -j8 links; GLM seeded build-q6s's IDL outputs from build-q6.
+- **Option 3 first S23 run (13:33, `opt3-s23/raw/session1-caa901b7c.grep`)**: the lm_head RUNS ON THE HTP from the raw
+  Q6_K rows (`MUL_MAT|token_embd.weight ... q6_K x f32 ... hvx-tiled`, 17 calls in 16 tokens) and S's graph splits
+  drop to **2** (= two-copy); the unaligned 1680 B DMA rows did not fault. Then A's pp512 failed (decode res -3):
+  GLM's audit-fix n_prefetch guard sits at the top of op_matmul and refuses every HMX matmul (they never set
+  n_prefetch). Fix dispatched to GLM; ABBA + KLD after it.
+- Bisect: engine main tip `bc5f0207c` alone reproduces the NPU KLD 0.044953 exactly; next point `e3c43a9db^1` (main
+  before the upstream b11304 merge).
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

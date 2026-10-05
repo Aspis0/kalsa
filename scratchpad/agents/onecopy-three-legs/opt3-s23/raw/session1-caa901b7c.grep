@@ -1,0 +1,16 @@
+INVALID A bench: bench-exit=1 no-pp512 no-tg128
+SESSION ABORTED: A timed failed
+== option-3 session start Mon Oct  5 13:33:17 EDT 2026 [lvl=86 ac=false usb=false wl=false batT=287 skin=29.7 wake=Awake thermal=0 traced=0]
+binaries: 5f7fefcb475d b0f9f8f70595 c648f2f6e2f9 (bench ppl skel)
+proof S lm_head: exit=0 n=17 splits=2 errors=0 line=[token_embd.weight x result_norm -> result_output|2048:128000 x 2048:1 -> 128000:1|q6_K x f32 -> f32|210:1680 x 4:8192 -> 4:512000|hvx-tiled vtcm 4255744] [lvl=86 ac=false usb=false wl=false batT=287 skin=30.6 wake=Awake thermal=0 traced=0]
+proof S: shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+proof S: load_tensors:  HTP0-HOST-W model buffer size =   219.75 MiB
+proof S: load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+proof S: shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+proof S lm_head: PASS
+== A bench start 1791221826 [lvl=86 ac=false usb=false wl=false batT=287 skin=30.4 wake=Awake thermal=0 traced=0]
+A bench: exit=1 pp512=none tg128=none maxRSS=314492kB errors=0
+INVALID A bench: bench-exit=1 no-pp512 no-tg128
+SESSION ABORTED: A timed failed
+
+[exited with code 0]
