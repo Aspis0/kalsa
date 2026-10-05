@@ -218,3 +218,79 @@ fn the_prefill_bound_skips_a_swept_shape_whose_history_no_longer_fits_the_band()
     );
     assert_eq!(seen.last(), Some(&(9, 9)), "{seen:?}");
 }
+
+/// A shape that answered the room ask but refused its own decode — prompt
+/// measured, off samples not — has no off number to sweep from, so it keeps
+/// a refusal entry and never enters the order. Its three planned lifetimes
+/// must still leave the plan: the total ends at what ran, not one sweep per
+/// unswept shape above it.
+#[test]
+fn a_shape_whose_off_decode_refused_leaves_its_sweep_out_of_the_plan() {
+    let shapes = vec![on(gpu()), on(cpu(16)), on(cpu(22))];
+    let decodes = RefCell::new(Vec::new());
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        Duration::from_secs(3600),
+        || Duration::ZERO,
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        |shape, _| {
+            if shape.backend == ServerBackend::Vulkan {
+                Ok(First {
+                    prompt_rate: 1000.0,
+                    off: Err(Refusal::NoUsableAnswer),
+                })
+            } else if shape.threads == Some(16) {
+                first(30.0, 12.0)
+            } else {
+                first(25.0, 9.0)
+            }
+        },
+        |trial, _| {
+            decodes
+                .borrow_mut()
+                .push((trial.backend, trial.threads, trial.draft));
+            Ok(vec![50.0])
+        },
+    );
+    assert_eq!(
+        *decodes.borrow(),
+        vec![
+            (ServerBackend::Cpu, Some(16), Some(2)),
+            (ServerBackend::Cpu, Some(16), Some(3)),
+            (ServerBackend::Cpu, Some(16), Some(4)),
+        ],
+        "the refused off-decode bought no drafted lifetime"
+    );
+    assert!(
+        tuned
+            .trials
+            .iter()
+            .any(|(candidate, kept)| *candidate == gpu()
+                && matches!(
+                    kept,
+                    Kept::Refused {
+                        refusal: Refusal::NoUsableAnswer,
+                        prompt_rate: Some(_)
+                    }
+                )),
+        "the off refusal keeps the prompt rate it measured: {:?}",
+        tuned.trials
+    );
+    assert!(tuned.complete && !tuned.cut, "a refusal is not a hole");
+    assert_eq!(
+        tuned.winner.map(|win| win.candidate),
+        Some(drafted(cpu(16), 2)),
+        "the winner's own sweep still decides"
+    );
+    // Twelve planned lifetimes: the card's refused off-decode and the
+    // 22-thread shape's slow history leave the plan one after the other,
+    // then the winner's three run — done and total end together.
+    let seen = seen.borrow();
+    assert!(
+        seen.contains(&(3, 9)) && seen.contains(&(3, 6)),
+        "both unswept shapes leave the plan before the sweep: {seen:?}"
+    );
+    assert_eq!(seen.last(), Some(&(6, 6)), "{seen:?}");
+}

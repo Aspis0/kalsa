@@ -412,11 +412,11 @@ fn a_refused_candidate_falls_to_the_best_processor() {
     );
     assert!(!tuned.cut, "a refusal is not a budget cut");
     // The refused shape's three planned drafted lifetimes leave the total
-    // as soon as its first lifetime answers: five lifetimes run (two
+    // once every first lifetime has answered: five lifetimes run (two
     // firsts, one sweep).
     let seen = seen.borrow();
     assert!(
-        seen.contains(&(1, 5)),
+        seen.contains(&(2, 5)),
         "the refused shape's sweep leaves the plan: {seen:?}"
     );
     assert_eq!(seen.last(), Some(&(5, 5)));

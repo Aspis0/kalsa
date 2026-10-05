@@ -155,9 +155,9 @@ where
         }
         done += 1;
         if prompt[index].is_none() {
-            // A shape that cannot be scored has no sweep left to run: the
-            // plan lowers now, so the panel's total is what will happen.
-            planned = lower(planned, settings.len(), done);
+            // A shape the first lifetime could not score has no off number
+            // and no sweep: the refusal is its whole answer, and its planned
+            // lifetimes leave the plan with every other unswept shape.
             trials.push((
                 *shape,
                 Kept::Refused {
@@ -166,8 +166,6 @@ where
                 },
             ));
         }
-        // The candidate closes with the plan as it stands, so a refusal's
-        // lowered total travels on the close itself.
         progress(Report {
             done,
             total: planned,
@@ -185,17 +183,19 @@ where
     // shape's prefill, so a shape whose prefill lands beyond the best reply
     // outside [`TIE_BAND`] can no longer enter the band either.
     let order = sweep_order(&off_replies);
-    let replied = off_replies.iter().filter(|entry| entry.is_some()).count();
-    debug_assert!(order.len() <= replied, "a sweep order names replied shapes");
-    let skipped = if settings.is_empty() {
+    // The ledger: every shape that ran and is not in `order` loses its sweep
+    // here, once, whatever kept it out — a first lifetime that refused, an
+    // off-decode that refused, or a history too slow to sweep — so the total
+    // is what will really run and no planned sweep stays behind a shape that
+    // never got one. `done` counts the shapes that began (pass one walks them
+    // in order and stops at the first the budget cannot start): the shapes it
+    // never reached stay owed, and the stop report says so.
+    let unswept = if settings.is_empty() {
         0
     } else {
-        replied - order.len()
+        (0..done).filter(|index| !order.contains(index)).count()
     };
-    for _ in 0..skipped {
-        // Lifetimes that will never run leave the plan now, so the panel's
-        // total is what will really run; the report carries the new total
-        // under the candidate that closed last — nothing new began.
+    for _ in 0..unswept {
         planned = lower(planned, settings.len(), done);
         progress(Report {
             done,
