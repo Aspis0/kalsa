@@ -135,3 +135,6 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P3: switching back to the phone when its model is not downloaded gives a non-pressable status row
   (modelBarChoices.ts:50, ModelBar.tsx:136); the user must go to Settings to download.
 - P3: modelBarChoices.test.ts:75 and :107-110 pin source text (toContain/regex) for wiring and dismissal.
+
+## Virtualized transcript (branch ios/perf-2-transcript; review luna 6235c656, 2026-10-05)
+- P3: transcriptEdgeFade.test.ts:124 finds the FlatList end with indexOf("/>") — syntax-pinned, not paint order.
