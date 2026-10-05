@@ -226,6 +226,7 @@ import {
   sessionNativeErrorReason,
   sessionAssembleBoundary,
   shouldDeleteSessionArtifactsOnLoadFailure,
+  warnUnexpectedSessionFailure,
   sessionNativeSaveCoversNPast,
   shouldSaveSession,
   writeSessionMeta,
@@ -3771,7 +3772,10 @@ export async function saveEngineSession(
       });
       return true;
     } catch (error) {
-      console.warn("[saveEngineSession]", sessionErrorReason(error));
+      const reason = sessionErrorReason(error);
+      // kv_inconsistent et al. are the protocol's own refusals (the .kvs is
+      // kept on purpose); only an unexpected class warns, once per process.
+      warnUnexpectedSessionFailure("[saveEngineSession]", reason);
       // Failed save: delete ONLY the tmp. Leave previous .kvs + meta intact.
       if (tmpPath) {
         try {
@@ -3780,7 +3784,7 @@ export async function saveEngineSession(
           // ignore
         }
       }
-      log(false, { reason: sessionErrorReason(error) });
+      log(false, { reason });
       return false;
     }
   }),
@@ -4002,11 +4006,13 @@ async function tryLoadEngineSession(
     });
     return true;
   } catch (error) {
-    console.warn("[tryLoadEngineSession]", sessionErrorReason(error));
+    const reason = sessionErrorReason(error);
+    // Same rule as the save: the expected refusal classes stay on the
+    // structured line, an unexpected class warns once per process.
+    warnUnexpectedSessionFailure("[tryLoadEngineSession]", reason);
     bakedUserTails = [];
     bakeUnprefixedHealed = false;
     await dropHoldAfterOptionalNativeClear(context);
-    const reason = sessionErrorReason(error);
     if (shouldDeleteSessionArtifactsOnLoadFailure(reason) && loadStem) {
       await deleteSessionArtifacts(loadStem);
     }

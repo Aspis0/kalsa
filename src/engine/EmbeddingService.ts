@@ -247,6 +247,11 @@ type InitLlamaFn = (params: {
   n_threads?: number;
 }) => Promise<EmbedContext>;
 
+/** Once per process: a build whose llama.rn export is missing has no embedder
+ *  at all (and no chat engine either), so this is a wiring fault to report
+ *  once, not a per-call fallback to log. */
+let warnedInitLlamaUnavailable = false;
+
 /**
  * Resolve initLlama from the static llama.rn import.
  * Kept as a function so abort checks stay at the call site and tests can
@@ -255,10 +260,13 @@ type InitLlamaFn = (params: {
 function loadInitLlama(signal?: AbortSignal): InitLlamaFn | null {
   if (isAborted(signal)) return null;
   if (typeof initLlama !== "function") {
-    // eslint-disable-next-line no-console
-    console.warn(
-      "[embed] initLlama unavailable from llama.rn static import",
-    );
+    if (!warnedInitLlamaUnavailable) {
+      warnedInitLlamaUnavailable = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[embed] initLlama missing from the llama.rn static import — no embedder in this build (native module absent or an export renamed); embeddings stay disabled for this process",
+      );
+    }
     return null;
   }
   // Cast via unknown: EmbedContext is a structural subset of LlamaContext.

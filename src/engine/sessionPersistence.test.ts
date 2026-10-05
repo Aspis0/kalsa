@@ -45,6 +45,8 @@ import {
   sessionMetaKey,
   sessionNativeErrorReason,
   shouldDeleteSessionArtifactsOnLoadFailure,
+  isExpectedSessionFailureReason,
+  warnUnexpectedSessionFailure,
   shouldSaveSession,
   writeSessionMeta,
   type SessionMeta,
@@ -517,6 +519,30 @@ describe("hybrid snapshot consistency", () => {
     );
     expect(shouldDeleteSessionArtifactsOnLoadFailure("error:Error")).toBe(true);
     expect(shouldDeleteSessionArtifactsOnLoadFailure("")).toBe(true);
+  });
+
+  test("only the protocol's own refusals count as expected session failures", () => {
+    expect(isExpectedSessionFailureReason("kv_inconsistent")).toBe(true);
+    expect(
+      isExpectedSessionFailureReason("meta_mismatch:history_not_reproducible"),
+    ).toBe(true);
+    expect(isExpectedSessionFailureReason("tokens_loaded:0")).toBe(false);
+    expect(isExpectedSessionFailureReason("error:Error")).toBe(false);
+  });
+
+  test("an unexpected session failure warns once per process, an expected one never", () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      warnUnexpectedSessionFailure("[saveEngineSession]", "kv_inconsistent");
+      expect(warn).not.toHaveBeenCalled();
+      const reason = "error:UniqueSessionPersistenceTestFault";
+      warnUnexpectedSessionFailure("[saveEngineSession]", reason);
+      warnUnexpectedSessionFailure("[tryLoadEngineSession]", reason);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("[saveEngineSession]", reason);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   test("native clear drops chat-KV hold so save cannot overwrite a kept file", () => {

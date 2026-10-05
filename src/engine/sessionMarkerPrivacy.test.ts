@@ -50,10 +50,19 @@ test("save and load session payloads stay hash-only", () => {
   }
   expect(llamaServiceSource).not.toMatch(/\blogStem\b/);
   expect(llamaServiceSource.match(/logStemHash = historyHash\(/g)).toHaveLength(3);
+  // The warning prints the telemetry-safe CLASS from `sessionErrorReason`,
+  // never the error or the payload, and it goes through the shared
+  // once-per-process warner for both session operations.
+  expect(
+    llamaServiceSource.match(/const reason = sessionErrorReason\(error\);/g),
+  ).toHaveLength(2);
   expect(llamaServiceSource).toMatch(
-    /console\.warn\("\[saveEngineSession\]",\s*sessionErrorReason\(error\)\)/,
+    /warnUnexpectedSessionFailure\("\[saveEngineSession\]", reason\)/,
   );
   expect(llamaServiceSource).toMatch(
-    /console\.warn\("\[tryLoadEngineSession\]",\s*sessionErrorReason\(error\)\)/,
+    /warnUnexpectedSessionFailure\("\[tryLoadEngineSession\]", reason\)/,
+  );
+  expect(llamaServiceSource).not.toMatch(
+    /warnUnexpectedSessionFailure\([^)]*error/,
   );
 });

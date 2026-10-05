@@ -810,11 +810,31 @@ export function sessionNativeErrorReason(error: unknown): string | null {
   return null;
 }
 
+/** The refusals that ARE the protocol: the .kvs is deliberately kept and the
+ *  structured `KALSA_SESSION` line already reports the reason. Anything else
+ *  thrown out of a save/load is unexpected. */
+export function isExpectedSessionFailureReason(reason: string): boolean {
+  return reason === "kv_inconsistent" || reason.includes("history_not_reproducible");
+}
+
 /** Keep the .kvs on kv_inconsistent / history_not_reproducible; delete otherwise. */
 export function shouldDeleteSessionArtifactsOnLoadFailure(reason: string): boolean {
-  if (reason === "kv_inconsistent") return false;
-  if (reason.includes("history_not_reproducible")) return false;
-  return true;
+  return !isExpectedSessionFailureReason(reason);
+}
+
+/**
+ * One line per distinct UNEXPECTED save/load failure, for the life of the
+ * process. Expected refusals stay silent here (the structured line carries
+ * them), and a fault that repeats on every turn must not repeat in logcat.
+ * `tag` is the caller's own bracket tag; `reason` is the telemetry-safe
+ * class from `sessionErrorReason`, never message text or a path.
+ */
+const warnedSessionFailureReasons = new Set<string>();
+export function warnUnexpectedSessionFailure(tag: string, reason: string): void {
+  if (isExpectedSessionFailureReason(reason)) return;
+  if (warnedSessionFailureReasons.has(reason)) return;
+  warnedSessionFailureReasons.add(reason);
+  console.warn(tag, reason);
 }
 
 /**
