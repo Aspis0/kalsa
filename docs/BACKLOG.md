@@ -76,6 +76,7 @@ they are promoted.
 - Small tool-calling model beside a bigger writer — Lab.
 - Advanced "every AI" list, BYO GGUF.
 - All translation/copy polish.
+- Room, for the beta (owner 2026-10-05): Kalsa's tables rendered on the phone (the phone Room shows plain text, `origin/main:src/screens/room/RoomTranscript.tsx`; the chat's `TranscriptMarkdown` already draws GFM tables) plus a table hint in the Room prompt; then a `create_poll` Room tool — the model proposes question and options, the door counts one vote per member and closes it, shown on desktop and phone (needs a protocol field).
 
 ## First-run progress (review of 7fc7d0d7)
 - P2: a paced download still starts one `brain_state` read per gated event (~6.7/s) whenever the previous read has finished — the coalescing removes overlap, not rate; byte-carrying events could skip the read entirely (`chat/src/surfaces/useBrain.ts:329` `void poll();`, `src-tauri/src/progress.rs:20`).
