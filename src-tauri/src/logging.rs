@@ -693,11 +693,13 @@ fn redact(message: &str, r: &Redactions) -> String {
 /// Display), and the credentials a URL carries in its authority
 /// (`user:pass@`) go too, marked so a reader knows something was there.
 ///
-/// Both boundaries are the parsers' own, so the log can never show less
-/// than a reader's URL parser would read: the authority ends at the first
-/// of `/`, `\`, `?` or `#` (WHATWG ends it at either separator for the
-/// special schemes), and the userinfo closes at the LAST `@` before that —
-/// everything before it is credentials, `user@x:secret@host` included.
+/// The credentials' span is the conservative reading, because a redactor
+/// must not pick one parser's: only the special schemes end their authority
+/// at a `\`, every other scheme carries the backslash as ordinary
+/// userinfo-or-host data, so `\` ends nothing here. The span closes at the
+/// LAST `@` before the first `/`, `?` or `#` — an `@` one parser would
+/// place inside a "path" swallows more, never less, and over-redaction is
+/// the acceptable side of that rule.
 fn redact_urls(text: &[char]) -> Vec<char> {
     const MARK: &str = "?…";
     const CRED: &str = "<cred>@";
@@ -719,17 +721,14 @@ fn redact_urls(text: &[char]) -> Vec<char> {
                     .position(|c| *c == '?' || *c == '#')
                     .map(|stop| end_of_scheme + stop);
                 let address_end = cut.unwrap_or(url_end);
-                // The authority ends at the first separator — '/' or '\' —
-                // with ?/# having ended it above already.
-                let authority_end = text[end_of_scheme..address_end]
+                // The credentials' search stops at the first '/'; ?/# ended
+                // it above, and '\' deliberately ends nothing (see the doc).
+                let cred_search_end = text[end_of_scheme..address_end]
                     .iter()
-                    .position(|c| *c == '/' || *c == '\\')
+                    .position(|c| *c == '/')
                     .map(|stop| end_of_scheme + stop)
                     .unwrap_or(address_end);
-                // The LAST '@' closes the userinfo: everything before it is
-                // credentials, exactly as the parsers that read the URL
-                // back divide it.
-                let host_begins = text[end_of_scheme..authority_end]
+                let host_begins = text[end_of_scheme..cred_search_end]
                     .iter()
                     .rposition(|c| *c == '@')
                     .map(|stop| end_of_scheme + stop + 1);

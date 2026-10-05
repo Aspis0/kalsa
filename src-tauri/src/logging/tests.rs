@@ -489,13 +489,15 @@ fn a_url_loses_the_credentials_in_its_authority() {
     assert!(both.contains("https://<cred>@host.example.com/a?…"), "{both}");
 }
 
-/// The credentials' boundaries are the parsers' own, so the log can never
-/// show less than a URL parser would read: the userinfo closes at the LAST
-/// `@` in the authority (`user@x:secret@host` keeps only `host` — the
-/// first-`@` reading leaks the password part), and the authority ends at a
-/// backslash like the special schemes' parsers say it does.
+/// The credentials' span is the reading that never shows less. The LAST `@`
+/// before the first `/`, `?` or `#` closes it (`user@x:secret@host` keeps
+/// only `host`), and a `\` ends nothing: only the special schemes treat it
+/// as a separator, and in every other scheme it is ordinary credential or
+/// host data — `postgres://user:pa\ss@host/db` must lose the password, not
+/// print it. An `@` that one parser would place inside a "path" swallows
+/// more, never less: over-redaction is the acceptable side.
 #[test]
-fn the_credentials_close_at_the_last_at_and_the_authority_at_a_backslash() {
+fn the_credentials_close_at_the_last_at_and_no_backslash_ends_them() {
     let redactions = Redactions::new(None, None, None, false);
     let nested = redact(
         "fetch https://user@x:s3cr3t@host.example.com/weights.gguf failed",
@@ -507,6 +509,18 @@ fn the_credentials_close_at_the_last_at_and_the_authority_at_a_backslash() {
     );
     assert!(!nested.contains("s3cr3t"), "the password part leaked: {nested}");
     assert!(!nested.contains("user@"), "the first segment leaked: {nested}");
+    let odd_scheme = redact(
+        "connect postgres://operator:pa\\ss@db.internal:5432/kalsa failed",
+        &redactions,
+    );
+    assert!(
+        odd_scheme.contains("postgres://<cred>@db.internal:5432/kalsa"),
+        "the backslash ended the span before the credentials: {odd_scheme}"
+    );
+    assert!(
+        !odd_scheme.contains("pa\\ss") && !odd_scheme.contains("operator"),
+        "a non-special scheme's password printed: {odd_scheme}"
+    );
     for line in [
         "fetch https://user:pass@host.example.com\\weights.gguf failed",
         "relay wss://token@relay.internal\\route?key=1 down",
@@ -515,7 +529,7 @@ fn the_credentials_close_at_the_last_at_and_the_authority_at_a_backslash() {
         assert!(
             redacted.contains("<cred>@host.example.com\\weights.gguf")
                 || redacted.contains("<cred>@relay.internal\\route?…"),
-            "the authority ended before the backslash: {line} -> {redacted}"
+            "the special-scheme forms changed shape: {line} -> {redacted}"
         );
         assert!(!redacted.contains("user:pass"), "{line} -> {redacted}");
         assert!(!redacted.contains("token@"), "{line} -> {redacted}");
