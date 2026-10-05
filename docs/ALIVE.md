@@ -1018,7 +1018,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Root cause confirmed: reverting ONLY the Q8_0 activation quantizer (`quantize_block_f32_q8_0_tiled`) on `07fc586e3`
   gives KLD 0.005357, bit-identical to the parent. Fixed on engine main `837334a74` (S23 KLD 0.005357, pushed).
 - J(1) measured (lm_head on the GPU inside the NPU decode, one copy): correct (KLD 0.005343) but tg128 15.7 vs A 22.9
-  = 0.69, no better than the CPU lm_head; RSS 125 vs 317 MB. Where the +20 ms/token goes is the next measurement.
+  = 0.69, no better than the CPU lm_head; RSS 125 vs 317 MB. Profiled: the plain Q6_K kernel takes 22.5 ms/token
+  (~9.5 GB/s) vs ~4.2 ms at the repacked kernel's ~51 GB/s. Next: a fast Q6_K kernel over the GGUF layout in place;
+  owner chooses option 2 vs J(1) after it.
 - Option 3 measured: correct (lm_head on the HTP, splits 2) but 9.2 s per lm_head call -> tg128 0.11 vs 22.8. Fable
   Amendment J requested; owner decides the tied-output route after it.
 

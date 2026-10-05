@@ -1,0 +1,8 @@
+== J(1) profiling start Mon Oct  5 18:12:30 EDT 2026 [lvl=40 ac=false usb=false wl=false batT=300 skin=30.0 wake=Awake thermal=0 traced=0]
+binary: ec55d8998907 skel: e16120a812a1
+H: exit=0 tg=16.24 rows=34 [lvl=40 ac=false usb=false wl=false batT=300 skin=30.0 wake=Awake thermal=0 traced=0]
+O: exit=0 tg=12.46 rows=17832 [lvl=40 ac=false usb=false wl=false batT=294 skin=30.2 wake=Awake thermal=0 traced=0]
+== J(1) profiling end Mon Oct  5 18:13:47 EDT 2026 [lvl=40 ac=false usb=false wl=false batT=294 skin=30.2 wake=Awake thermal=0 traced=0]
+H cl_profiling: result_output kernel_mul_mv_q6_K_f32 n=33 mean=22.542 ms
+O cl_profiling: no 128000-wide kernel (the tied output stays on the CPU in GPU-only)
+test-backend-ops perf GPUOpenCL: MUL_MAT(type_a=q6_K,type_b=f32,m=4096,n=1,k=14336) 947.58 us/run (48.2 MB -> ~51 GB/s)

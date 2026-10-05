@@ -1559,6 +1559,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   Luna audit of the two commits (no P0/P1): F3 a zero-size tensor on the dummy chunk keeps data NULL, so a second
   alloc walk of the same graph would assert (not hit in the KLD); F1/F2 the HOST MUL admission is wider than the norm
   MUL and can take ops the HTP supports but does not offload; F4-F6 + test gap -> BACKLOG.
+- **J(1) profiled (S23 18:12, `step4b-s23/raw/prof-session1-f7b96a8a0.grep`; OpenCL-profiling llama-bench `ec55d8998907`
+  from worktree `kalsallama-gov-prof` at f7b96a8a0)**: the whole +20 ms is the kernel - `kernel_mul_mv_q6_K_f32` on
+  result_output takes **22.5 ms/token** (215 MB -> ~9.5 GB/s; byte loads, one row per subgroup, y re-read from global).
+  The repacked `_flat` path reaches ~51 GB/s (test-backend-ops q6_K 4096x14336 n=1: 0.95 ms) -> ~4.2 ms for the
+  lm_head. If a kernel over the GGUF AoS layout in place gets near that, H ~45 ms/token = ~0.96 of A (Fable's figure).
+  Unknowns: the io-coherent import's bandwidth and the 210 B (2-byte-aligned) block stride. Owner (2026-10-05): make
+  the GPU fast first, choose the tied-output route (option 2 duplicate vs J(1)) after. Audit fixes `6821db6da` (F3:
+  init_tensor asks for the buffer too) and `4c47c09c3` (MUL = src1 norm row only; offload slot testable) verified.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
