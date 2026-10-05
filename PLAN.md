@@ -1158,6 +1158,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   **Owner 2026-10-05 UX: quick phone/PC switch in the chat pill.** Unpaired: the pill shows only the phone model, no
   fake picker chevron. Paired: tap opens two rows (On this phone / Your computer) and switches through the same path
   as Settings > Where it runs; refused while a turn generates. Coder on branch ux/model-bar-switch.
+  **Jelly frame measurement 2026-10-05** (unplugged, 25-27 C, same 400-word remote answer): short chat ~8 msgs
+  p50/p90/p99 15/22/31 ms, janky 7%; long chat ~40 msgs 17/34/34 ms (~30 fps while streaming). Cost grows with
+  chat length -> perf batch 2: virtualized transcript (FlatList, streaming row isolated), GLM 4f25aae7, branch
+  ios/perf-2-transcript (worktree ~/Projects/kalsa-perf2).
+  **Owner 2026-10-05 Room feedback:** Room must not be enterable unless the paired PC is reachable and accepts the
+  phone; iOS dark-theme Settings rows (Pair with your computer, ...) low contrast. Both on phone/room-v1 (548ffcc8).
   **iOS background generation LANDED on app main `30038004`** (2026-10-04; commits 523d104e, 0033f6b1, 30038004 on
   pin kalsa.rn 7c26e272). iOS forbids GPU work in background; a failed Metal command buffer latches ggml-metal
   `has_error` (reset only at context creation) so the context silently decodes nothing afterwards. Now on iOS:
