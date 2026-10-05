@@ -135,7 +135,7 @@ export function RoomScreen({ localId, onBack }: { localId: string; onBack: () =>
   const trouble = noteLine(t, room.sendErrorCode) ?? noteLine(t, room.pageErrorCode);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.page }}>
+    <View style={overlayFrame(colors)}>
       <SettingsHeader
         title={info?.roomName || t("room.title")}
         onBack={onBack}
@@ -271,6 +271,27 @@ export function RoomScreen({ localId, onBack }: { localId: string; onBack: () =>
   );
 }
 
+/**
+ * The room's mount, which must be the one the other full-screen overlays use
+ * (`AccountScreen.tsx:88`, `DocumentsScreen.tsx:229-241`): the exclusive
+ * overlays are SIBLINGS of the shell's own flex column, so a root that takes
+ * part in that column splits the window with the chat. This frame paints over
+ * it instead. A `flex: 1` root did exactly that on the Jelly Star: the room
+ * got the lower half and its list, which only ever takes what the column
+ * leaves, got no height at all.
+ */
+function overlayFrame(colors: DesignColors) {
+  return {
+    position: "absolute" as const,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: colors.page,
+    zIndex: 50,
+  };
+}
+
 /** The room's own frame before there is a room to show: header, one line. */
 function Page({
   colors,
@@ -286,7 +307,7 @@ function Page({
   children: ReactNode;
 }) {
   return (
-    <View style={{ flex: 1, backgroundColor: colors.page }}>
+    <View style={overlayFrame(colors)}>
       <SettingsHeader title={title} onBack={onBack} backLabel={backLabel} />
       <View style={{ flex: 1, padding: space.md }}>{children}</View>
     </View>
