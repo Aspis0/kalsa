@@ -119,3 +119,16 @@ they are promoted.
 ## Waiting line (review of ca60c354)
 - P3: leaving the chat page and coming back mid-wait remounts `WaitingRow`, so the 3 s delay starts again for the same turn (`chat/src/components/Thread.tsx` `WaitingRow`).
 - P3: a Room turn that waited for a seat (`waiting`) and then sees another member enqueue gets state `queued`, so the bubble shows the reading line while the turn is still waiting for a seat (`crates/kalsa-room/src/queue.rs:315`, `RoomSurface.tsx` `kalsaWorking`).
+
+## Idle work (batch of 2026-10-05)
+- P2: the phone's door is raised by the UI's `brain_state` poll (`src-tauri/src/main.rs` `brain_state` → `start_door_if_paired`), so the door's life depends on a webview timer; it belongs in Rust, on the supervisor's state change. Today the hidden window keeps a 15 s poll for this reason.
+- P2: WebView2 may never fire `visibilitychange` on minimize (Tauri #10592), so on Windows the hidden-window savings may not happen; a Tauri window-event bridge would fix it. Measure on the Lenovo first.
+- P3: the Brain page's capability retry (`chat/src/surfaces/BrainSurface.tsx:110`, 1 s while capability is null/migrating) and `useElapsed` (1 s during the setup walk) ignore page visibility.
+- P3: the Room event pump's stop can lag 30 s (`src-tauri/src/room_events.rs:50`) — `kalsa-room`'s notify is crate-private, so no wake reaches it; the thread keeps its AppHandle until then.
+- P3: `queue.rs` expiry test measures from inside the spawned thread (`crates/kalsa-door/src/queue.rs:174`), so a late thread start can flake the ≥250 ms bound.
+- P3: no end-to-end test drives the door's busy `sweeper` through the accept queue (`crates/kalsa-door/src/tests.rs:804` calls `proxy::handle` directly), and no test pins that a push wakes a blocked worker rather than the sweeper (`notify_all` is required, `queue.rs`).
+
+## Bounded exit (review of 4607ee82)
+- P2: if the exit watchdog's thread cannot be spawned, `arm` returns none and the exit runs unbounded (`src-tauri/src/exit.rs:116-120`).
+- P2: the instance guard's Drop joins its watcher after the RunEvent callback, outside the deadline; the watcher can be inside `on_knock()` (`src-tauri/src/instance.rs:335`, `:363`).
+- P2: no test proves the post-kill wait is bounded end to end — the "never landed" test feeds `reaped` synthetic results (`crates/kalsa-supervisor/src/child.rs:333` vs `:951`, `:968`).
