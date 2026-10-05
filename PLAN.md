@@ -1157,7 +1157,10 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   it per token. Simulator/Mac numbers are not iPhone numbers; jetsam needs a real device (partner 15 Pro, ask).
   **Owner 2026-10-05 UX: quick phone/PC switch in the chat pill.** Unpaired: the pill shows only the phone model, no
   fake picker chevron. Paired: tap opens two rows (On this phone / Your computer) and switches through the same path
-  as Settings > Where it runs; refused while a turn generates. Coder on branch ux/model-bar-switch.
+  as Settings > Where it runs; refused while a turn generates. LANDED on app main `7d028acd` (2026-10-05; review luna
+  64ae87ed: the shared location guard now also refuses while the send claim is held or the memory extract runs,
+  the remote transition waits out the extract like the local switch, rows re-read the pairing at the press, a
+  failed switch speaks through the notice and the strip says "Not responding"). Full jest 3616 green.
   **Jelly frame measurement 2026-10-05** (unplugged, 25-27 C, same 400-word remote answer): short chat ~8 msgs
   p50/p90/p99 15/22/31 ms, janky 7%; long chat ~40 msgs 17/34/34 ms (~30 fps while streaming). Cost grows with
   chat length -> perf batch 2: virtualized transcript (FlatList, streaming row isolated), GLM 4f25aae7, branch
