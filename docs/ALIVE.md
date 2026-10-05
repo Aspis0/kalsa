@@ -997,6 +997,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Engine main merged into the branch (`6a937f6db`, pushed): 5 conflicted files, host + Android builds and the
   tile32 + governor host tests green; release skel hash changed (`9455871f...`, main moved 56 DSP files), so the
   NPU numbers of steps 1-3 are re-measured on the merged build before step 5.
+- Owner 2026-10-05: tied output **option 3** (HTP reads the flat Q6_K from HOST). Owner question "does it work on
+  Qwen?": not measured; Qwen3.5-4B Q4_0 requant = 248 Q4_0 matrices + tied Q6_K output 2560 x 248320 (~500 MiB);
+  Qwen3.5-4B never runs under the governor today (mmproj rule of 2026-09-25).
 
 ## Engine release pipeline (`kalsa-server`)
 

@@ -1361,7 +1361,8 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (17.0-17.4 vs 22.4-22.6 tok/s): LFM2's tied output (a duplicate of token_embd, Q6_K 205 MiB) lands in HOST and its
   lm_head runs on the CPU; today's two-copy NPU model keeps that duplicate on the HTP. **Owner decision pending**:
   205 MiB output duplicate on the HTP (keeps NPU decode) vs no duplicate (decode 0.77) vs engine work so the NPU reads
-  the one copy. Fable Amendment D ranks: (1) token_embd to Q4_0 in TILE32, (2) accept the duplicate on HTP0,
+  the one copy. **Owner decision 2026-10-05: option 3** (the HTP reads the flat Q6_K tied output from HOST; one copy
+  for all three legs) - Fable Amendment H requested. Fable Amendment D ranks: (1) token_embd to Q4_0 in TILE32, (2) accept the duplicate on HTP0,
   (3) HTP reads flat Q6_K from HOST (DSP work, est. ~0.95), (4) rejected. **Option 1 measured 2026-10-05**: speed
   = two-copy (SQ 896.4-896.9 / 23.1-23.5) but KLD 0.0366 NPU / 0.0336 CPU vs 0.0053 / 0.0013 (CPU same top p 89.8 %
   vs ~97 %) - a naive Q6_K->Q4_0 requant is a quality loss. Coordinator's reading: option 2 is the cheap correct
@@ -1388,8 +1389,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   governor host tests (incl. v0-hybrid with the ship GGUF) green; release skel changed (main moved 56 DSP files) -
   the NPU numbers of steps 1-3 must be re-measured on the merged build. HTP Q4_0 tiles still 576 B (TILE32 layout
   intact, static_assert kept). Audit leftovers in `scratchpad/BACKLOG-LOW-PRIORITY.md`.
-- **Step 4b (coding, GLM)**: HOST buffers imported like TILE32, native HOST tensors read in place by the existing
-  OpenCL kernels, token_embd in HOST so the plain Q6_K kernel runs the lm_head on the GPU (Amendment G).
+- **Step 4b (code in `6ed31f68e`..`ee3dfde49`, GLM; luna audit running)**: HOST buffers imported like TILE32, native
+  HOST tensors read in place by the existing OpenCL kernels, token_embd in HOST so the plain Q6_K kernel runs the
+  lm_head on the GPU (Amendment G). The coder bypassed the A7X vocab-scale Q6_K guard (it protects the SoA kernels;
+  the plain kernel is another) - the S23 KLD decides.
+- **Qwen (owner question 2026-10-05)**: the engine pieces are generic, but nothing is measured on Qwen. The local
+  `Qwen3.5-4B-Q4_0-requant-from-q4km.gguf` (qwen35 hybrid) has 248 Q4_0 matrices (TILE32-able) and a tied Q6_K
+  output of 2560 x 248320 (~500 MiB); one copy needs Q4_0 matrices (a Q4_K_M Qwen cannot use it; the requant's
+  quality is unmeasured) and Qwen3.5-4B never runs under the governor today because it loads an mmproj (owner rule
+  2026-09-25). To check on the S23: placement proofs, KLD and NPU speed one vs two copies.
 - **Step 5 prerequisite** (Fable Amendment F): hop v1 lives on engine `main`, not on this branch (merge-base
   `45f097b74`, main +373 commits, branch +50): merge main into the branch before step 5.
 - Next: step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
