@@ -600,6 +600,7 @@ fn a_refused_tune_is_not_saved_and_the_rule_stands() {
                 done: 3,
                 total: 3,
                 candidate: 3,
+                budget_seconds: kalsa_tune::TOTAL_BUDGET_SECONDS,
                 cut: false,
                 retry_next: false,
                 kept_winner: false,
@@ -1194,6 +1195,7 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
                 done: 1,
                 total: 1,
                 candidate: 1,
+                budget_seconds: kalsa_tune::TOTAL_BUDGET_SECONDS,
                 cut: false,
                 retry_next: false,
                 kept_winner: false,
@@ -1353,6 +1355,7 @@ fn the_tuning_step_serialises_the_total_the_page_reads() {
         done: 1,
         total: 2,
         candidate: 2,
+        budget_seconds: kalsa_tune::TOTAL_BUDGET_SECONDS,
         cut: false,
         retry_next: false,
         kept_winner: false,
@@ -1361,6 +1364,10 @@ fn the_tuning_step_serialises_the_total_the_page_reads() {
     assert_eq!(json["kind"], "tuning");
     assert_eq!(json["total"], 2);
     assert_eq!(json["candidate"], 2, "the index the page names arrives whole");
+    assert_eq!(
+        json["budget_seconds"], 1080,
+        "the budget the page counts its wait down from, whole seconds"
+    );
     assert_eq!(json["cut"], false, "and the stop marker rides along");
     assert_eq!(json["retry_next"], false, "with whether it owes the next start");
     assert_eq!(json["kept_winner"], false, "and with what, if anything, was kept");

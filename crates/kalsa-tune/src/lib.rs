@@ -26,7 +26,7 @@ mod room;
 mod score;
 
 pub use candidates::{candidates, needs_tuning, Candidate};
-pub use measure::measure_tune;
+pub use measure::{measure_tune, TOTAL_BUDGET_SECONDS};
 pub use passes::{Report, Tuned};
 pub use refusal::Refusal;
 pub use score::{Reply, Winner};

@@ -338,6 +338,7 @@ fn tune_launch_inner(
                     done: report.done,
                     total: report.total,
                     candidate: report.candidate,
+                    budget_seconds: kalsa_tune::TOTAL_BUDGET_SECONDS,
                     cut: report.cut,
                     // A stop only owes the next start a measurement while no
                     // marker has been spent on this fingerprint yet — the
@@ -434,6 +435,7 @@ fn tune_launch_inner(
                     done: report.done,
                     total: report.total,
                     candidate: report.candidate,
+                    budget_seconds: kalsa_tune::TOTAL_BUDGET_SECONDS,
                     cut: true,
                     retry_next: owed_still && staged.is_ok(),
                     kept_winner: winner.is_some(),

@@ -97,6 +97,11 @@ pub(crate) enum Progress {
         done: usize,
         total: usize,
         candidate: usize,
+        /// The tune's budget in whole seconds (kalsa-tune's own clock). The
+        /// page has nothing to average before two lifetimes have finished,
+        /// and this is what its wait counts down from instead — no lifetime
+        /// begins past it, so it is an end the page may name.
+        budget_seconds: u64,
         /// The budget (or a shape that never began) stopped this tune short
         /// of its plan: `total` is what the start still owes, so `done ==
         /// total` never means finished here — the page keeps its bar at the

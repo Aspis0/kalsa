@@ -4165,6 +4165,97 @@ const tests = {
     check("walkProgress: a closing report fills no slot", tuneShare(closed(1, 4), 90, 100) === 0);
     check("walkProgress: the running one is timed against the average", tuneShare(at(1, 4, 2), 50, 100) === 0.5);
     check("walkProgress: no average means no share", tuneShare(at(1, 4, 2), 50, 0) === 0);
+
+    // The first test's own wait: nothing to average yet, so the budget —
+    // the end no lifetime may begin past — carries it, and the figure only
+    // comes down as that test spends the tune's clock. (Budget 1080 s plus
+    // the tune's own 120 s of slack is 20 min; the extra 15 s a tick is
+    // what the wall clock adds between two reports.)
+    const budgeted = [0, 15, 30, 45, 60, 75, 90].map((elapsed) =>
+      tuneWait(at(0, 16, 1), 0, elapsed, 0, 1080),
+    );
+    check(
+      "walkProgress: the first test already says what the budget leaves",
+      JSON.stringify(budgeted[0]) === '{"kind":"minutes","minutes":20}' &&
+        budgeted.every(
+          (wait, index) =>
+            wait !== null && wait.kind === "minutes" && (index === 0 || wait.minutes <= budgeted[index - 1].minutes),
+        ),
+      `${JSON.stringify(budgeted[0])} … ${JSON.stringify(budgeted[budgeted.length - 1])}`,
+    );
+
+    // One test's ticks, with two samples behind it and a running candidate
+    // that costs exactly the average they set: the estimate may only come
+    // down, and it stays down once the running one's share passes its own
+    // slot — the count-up the owner read as a countdown. (`wholeSeconds`
+    // carries the running candidate's seconds, as the page computes it:
+    // 200 s behind it plus its share of the 100 s average.)
+    const ticks = [];
+    for (let share = 0; share <= 2; share += 0.25) {
+      ticks.push(tuneWait(at(2, 6, 3), share, 200 + share * 100, 2, 1080));
+    }
+    check(
+      "walkProgress: the wait never climbs while one test runs",
+      ticks.every(
+        (wait, index) =>
+          wait !== null && wait.kind === "minutes" && (index === 0 || wait.minutes <= ticks[index - 1].minutes),
+      ),
+      JSON.stringify(ticks),
+    );
+  },
+
+  // The owner's own reading of the first-run tune — a bare count-up beside
+  // "Test 1 of 16", which he read as time still to come, when the line had
+  // nothing else for the first two tests. On the real surface, through the
+  // real payload: the line names the test, says what the tune's budget
+  // leaves from the very first one, and holds still while the clock under
+  // it ticks.
+  async tuneLine() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, okSettings("tune-line"));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await page.addInitScript(() => {
+      const bus = window.__TAURI__.event;
+      const baseListen = bus.listen;
+      window.__PROGRESS_HANDLERS__ = [];
+      bus.listen = (event, handler) => {
+        if (event === "brain_progress") window.__PROGRESS_HANDLERS__.push(handler);
+        return baseListen(event, handler);
+      };
+      // A starting brain is what renders the walk (the hidden-window case
+      // above drives the same door).
+      window.__STUB_BRAIN__ = { state: { kind: "starting" }, credential: "t" };
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => {
+      const step = {
+        kind: "tuning",
+        done: 0,
+        total: 16,
+        candidate: 1,
+        budget_seconds: 1080,
+        cut: false,
+        retry_next: false,
+        kept_winner: false,
+      };
+      for (const handler of window.__PROGRESS_HANDLERS__) handler({ event: "brain_progress", id: 1, payload: step });
+    });
+    await page.waitForTimeout(500);
+    const first = await page.locator(".surface-walk").innerText();
+    check(
+      "tuneLine: the first test already says what is left",
+      first.includes("Test 1 of 16") && /\d+ min left/.test(first),
+      first,
+    );
+    // The elapsed clock ticks every second below this line; the line itself
+    // may not move with it.
+    await page.waitForTimeout(2500);
+    const later = await page.locator(".surface-walk").innerText();
+    check("tuneLine: no ticking clock beside the test's own name", later === first, `${first} → ${later}`);
+    await browser.close();
   },
 
   // The window reaches the send even when nothing was ever attached: the

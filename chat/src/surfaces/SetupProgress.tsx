@@ -15,9 +15,11 @@ import type { TuneFace } from "./tuneProgress";
 // "kind": { kind: "measuring" | "deciding" | "choosing" | "tuning" }, the byte
 // phases { kind: "runtime_bytes" | "model_bytes", done, total }, and on the
 // tuning step: `candidate` (the 1-based index a report is about — `done + 1`
-// when it starts, `done` when it closes) and `cut` (the budget stopped the
-// tune short of its plan: the bar holds where it reached, the line says the
-// next start finishes, and no finish is played for a tune that owes work).
+// when it starts, `done` when it closes), `budget_seconds` (the tune's own
+// clock, which the wait counts down from before two candidates have
+// finished) and `cut` (the budget stopped the tune short of its plan: the
+// bar holds where it reached, the line says the next start finishes, and no
+// finish is played for a tune that owes work).
 // This view replaces the Server surface body while the walk runs; the walk's
 // failures arrive as brain_start rejections and are spoken by the Server
 // surface. The words are this page's.
@@ -37,6 +39,7 @@ export interface ProgressStep {
   done?: number;
   total?: number;
   candidate?: number;
+  budget_seconds?: number;
   cut?: boolean;
 }
 
@@ -290,21 +293,22 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
   const whole =
     durations.reduce((sum, value) => sum + value, 0) +
     (face !== null && !face.closing ? elapsed : 0);
-  const wait = face !== null ? tuneWait(face, share, whole, durations.length) : null;
+  const wait = face !== null ? tuneWait(face, share, whole, durations.length, step.budget_seconds) : null;
   const waitText = wait !== null ? waitWord(wait, t) : null;
   const attempt = face !== null ? tuneAttempt(face) : null;
   const attemptText = attempt !== null ? t.attempt(attempt.index, attempt.total) : null;
 
-  // The line under the bar: the tune names its test, that test's time and —
-  // once one candidate finished — what is left of the wait (or the stop's
-  // own line, or "any moment now"); the byte phases say what has arrived;
-  // every other phase is the time alone. The clock ticks every second, so
-  // it travels in a span assistive tech skips: the line's live region then
-  // speaks when the candidate or the wait changes, not on every tick.
+  // The line under the bar: the tune names its test and what is left of the
+  // wait (or the stop's own line, or "any moment now") and never a bare
+  // clock — a count-up beside "Test 1 of 16" reads as a countdown, and the
+  // wait is the number the owner is reading. The byte phases say what has
+  // arrived; every other phase is the time alone. That clock ticks every
+  // second, so it travels in a span assistive tech skips: the line's live
+  // region then speaks when the candidate or the wait changes, not on every
+  // tick.
   const segments: Array<{ text: string; hidden: boolean }> = [];
   if (face !== null) {
     if (attemptText !== null) segments.push({ text: attemptText, hidden: false });
-    segments.push({ text: clock(elapsed), hidden: true });
     if (waitText !== null) segments.push({ text: waitText, hidden: false });
   } else if (current.view.progress !== null) {
     segments.push({ text: current.view.progress, hidden: false });

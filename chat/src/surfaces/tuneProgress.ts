@@ -4,8 +4,9 @@
 // the bar and its line must never break: full only when the tune's own report
 // says the plan ran to the end (a `cut` report never says that), a stop that
 // still owes a next start named as such (and one that does not named for what
-// it kept), no wait shown before there are two candidates to average, and no
-// estimate that has already been exceeded.
+// it kept), a wait from the first test on the budget where no average exists
+// yet, one that never climbs while a candidate runs, and no figure that has
+// already been exceeded.
 
 /** The tuning half of a `brain_progress` step, as the page reads it. */
 export interface TuningStep {
@@ -16,6 +17,9 @@ export interface TuningStep {
   cut?: boolean;
   retry_next?: boolean;
   kept_winner?: boolean;
+  /** The tune's budget in whole seconds: no lifetime begins past it, so it
+      is the one end the page may name before it has anything to average. */
+  budget_seconds?: number;
 }
 
 /** The tune as the bar reads it. `candidate` is 1-based; a report whose
@@ -36,8 +40,8 @@ export interface TuneFace {
   keptWinner: boolean;
 }
 
-/** What the line under the bar says about the wait, once two candidates
-    have finished for it to average. */
+/** What the line under the bar says about the wait: the stop's three words,
+    the minutes left, or the last half minute before its end. */
 export type TuneWait =
   | { kind: "cut" }
   | { kind: "kept" }
@@ -49,9 +53,18 @@ export type TuneWait =
     rather than a minute figure that would be wrong by the time it is read. */
 const ALMOST_SECONDS = 30;
 
-/** Two finished candidates before any wait is shown: one sample anchors an
-    estimate to whatever that candidate happened to cost. */
+/** Two finished candidates before the wait is an average of them: one
+    sample anchors an estimate to whatever that candidate happened to cost,
+    and below two the budget alone answers. */
 const MINIMUM_SAMPLES = 2;
+
+/** What the budget gets on top before the page calls it an end: kalsa-tune
+    stops a lifetime from BEGINNING past the budget and never kills one
+    mid-measurement, and it names a lifetime's ready deadline (READY_TIMEOUT)
+    as the bound on what one that began at the bound can overrun
+    (`crates/kalsa-tune/src/measure/mod.rs`). A tune that outlives even that
+    is answered as "any moment now", never as a figure. */
+const LIFETIME_SLACK_SECONDS = 120;
 
 /** A count that may be missing or nonsense: zero, whole, never below. */
 function whole(value: number | undefined): number {
@@ -115,30 +128,43 @@ export function tuneDone(face: TuneFace): boolean {
 /** The wait under the bar. The stop's three answers come first — a cut
     that still owes a next start; one whose verdict was saved WITH a
     winner, which is what may be called kept; and one with no winner at
-    all, where the rule stands — and
-    then the estimate: `wholeSeconds` over the candidates measured so far
-    (the running one's share counted in both) is the rate one candidate
-    really costs on THIS tune, and it moves in small steps as each
-    candidate finishes instead of jumping at the boundary the way a mean
-    of only the finished ones does. Hidden until two candidates have
-    finished — one sample anchors it to whatever that candidate cost — and
-    never a figure already exceeded: under half a minute left is "any
-    moment now". */
+    all, where the rule stands — and then the figure, the smaller of two:
+    `wholeSeconds` over the candidates measured so far (the running one's
+    share counted in both) is the rate one candidate really costs on THIS
+    tune, and it moves in small steps as each candidate finishes instead of
+    jumping at the boundary the way a mean of only the finished ones does;
+    the budget — the point no lifetime BEGINS past — plus that one
+    lifetime's slack, less the tune's own whole seconds, is where the end
+    is due, and it answers alone until two candidates have finished. Both
+    only come down while one candidate runs, and neither is shown already
+    exceeded: under half a minute left is "any moment now". */
 export function tuneWait(
   face: TuneFace,
   share: number,
   wholeSeconds: number,
   finished: number,
+  budgetSeconds?: number,
 ): TuneWait | null {
   if (face.cut) {
     if (face.retryNext) return { kind: "cut" };
     return face.keptWinner ? { kind: "kept" } : { kind: "standard" };
   }
-  if (finished < MINIMUM_SAMPLES || face.total <= 0 || face.done >= face.total) return null;
-  const running = Math.min(Math.max(share, 0), 1);
-  const rate = wholeSeconds / (finished + running);
-  if (!(rate > 0)) return null; // nothing measured in time yet
-  const remaining = (face.total - face.done - running) * rate;
-  if (remaining < ALMOST_SECONDS) return { kind: "almost" };
-  return { kind: "minutes", minutes: Math.max(1, Math.round(remaining / 60)) };
+  if (face.total <= 0 || face.done >= face.total) return null;
+  const running = Math.max(share, 0);
+  let estimate: number | null = null;
+  if (finished >= MINIMUM_SAMPLES) {
+    // The rate is the finished candidates' own average: `wholeSeconds`
+    // carries the running candidate's seconds and this share carries its
+    // fraction of one, so the two cancel. Cap the share in the divisor
+    // instead and a candidate slower than the average winds the figure up
+    // tick after tick, which is the clock the line must never look like.
+    const rate = wholeSeconds / (finished + running);
+    if (rate > 0) estimate = (face.total - face.done - Math.min(running, 1)) * rate;
+  }
+  const budget = whole(budgetSeconds);
+  const bound = budget > 0 ? budget + LIFETIME_SLACK_SECONDS - wholeSeconds : null;
+  const left = estimate === null ? bound : bound === null ? estimate : Math.min(estimate, bound);
+  if (left === null) return null;
+  if (left < ALMOST_SECONDS) return { kind: "almost" };
+  return { kind: "minutes", minutes: Math.max(1, Math.round(left / 60)) };
 }
