@@ -1519,6 +1519,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   upstream merge `5de9fa2fc` **0.005313** (PPL 33.99, same top p 97.1 %); the merge `e3c43a9db` (upstream b11304)
   **0.044953**. The regression came in with upstream; its skel equals main tip's. 22 upstream hexagon commits
   (4bc272fd7..81ff93ea1); first suspect 07fc586e3 "dynamic quantizer improvements", pure-upstream builds next.
+  **CULPRIT FOUND**: pure upstream `97a418bdf` (parent) KLD 0.005357 / PPL 34.26; pure upstream **`07fc586e3`
+  "hexagon: dynamic quantizer improvements" (#29395, Qualcomm; first bullet "fix accuracy issue in Q8_0 N=1
+  MUL_MAT")** KLD 0.044953 / PPL 27.09 - identical to every later build. PPL(Q) below the base suggests a systematic
+  error, not noise. No later upstream fix (upstream master checked to 8345f3339). Luna forensic analysis of the
+  diff running. Engine main must not be pinned into the app until this is fixed or reverted.
 - **Option 3 MEASURED (S23 13:50, `opt3-s23/raw/session2-23dbab22f.grep`)**: correct, but the lm_head costs **9.2 s per
   call** (two-copy ~4.8 ms): S pp512 52.6 / tg128 **0.11** vs A 953 / 22.8. Fable's 0.9-0.95 estimate was off by ~3
   orders of magnitude (the n2 audit's P1 flagged it). S KLD killed (hours). n_prefetch guard fix `23dbab22f` (GLM)

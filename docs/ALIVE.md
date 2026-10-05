@@ -1013,6 +1013,8 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - **NPU regression from the engine main merge**: two-copy NPU KLD 0.0053 -> 0.0450 (same top p 97 -> 88.6 %), CPU
   unchanged; shipped binding pin `f25f0c1c5` not affected, engine main is. Bisect running.
 - Bisect: the regression came in with the upstream b11304 merge `e3c43a9db` (before 0.005313, after 0.044953).
+- Culprit: upstream `07fc586e3` "hexagon: dynamic quantizer improvements" (#29395): parent 0.005357, commit 0.044953.
+  Engine main must not reach the app pin until fixed or reverted.
 - Option 3 measured: correct (lm_head on the HTP, splits 2) but 9.2 s per lm_head call -> tg128 0.11 vs 22.8. Fable
   Amendment J requested; owner decides the tied-output route after it.
 
