@@ -1454,6 +1454,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (io-coherent), HOST self-check token_embd PASS (max|diff| 3.7e-9), all TILE32 self-checks PASS, G KLD **0.000934**,
   same top p 97.6 %. Splits still **197** at tg (attention needs the KV on the GPU: step 5). HTP0-HOST now holds only
   CPU compute/output. Audit (reviewer n2) running; NPU S arm with HOST-W still to re-prove.
+- Option 3 audit (reviewer n2, luna at capacity twice; `audit-option3-n2.md`): NOT ABBA-ready until the S23 proves
+  the unaligned 1680 B DMA rows and the conversion cost (needs a vectorised inner loop to reach 0.9-0.95). Packer
+  move verbatim, slot inequality general, HMX never sees raw: verified. Cheap P2/P3 fixes (CTest, n_k%8 guard, one
+  stride source, NDEBUG-safe prefetch check, dma push return, no Q6_K raw at opt_mm_select 1) dispatched to GLM with
+  a static build `build-q6s`. Rest in the backlog.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
