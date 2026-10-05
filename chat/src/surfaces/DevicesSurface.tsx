@@ -8,6 +8,7 @@ import { useRowFold } from "./useRowFold";
 import { useDeviceBeats } from "./useDeviceBeats";
 import { BEAT_MS, FOLD_MS, reducedMotion } from "./motion";
 import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
+import { visibleInterval } from "../lib/pageVisible";
 import { codeSentence } from "../lib/rustText";
 import { forgetLocalCredential, useBrain } from "./useBrain";
 import { useLanguage } from "../i18n/useLanguage";
@@ -312,10 +313,10 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   useEffect(() => {
     live.current = true;
     void refresh();
-    const timer = setInterval(() => void refresh(), POLL_MS);
+    const stopClock = visibleInterval(() => void refresh(), POLL_MS);
     return () => {
       live.current = false;
-      clearInterval(timer);
+      stopClock();
     };
   }, [refresh]);
 

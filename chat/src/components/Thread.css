@@ -370,6 +370,14 @@
   50% { opacity: 1; }
 }
 
+/* The dots stay as a still mark; only the pulse stops. */
+@media (prefers-reduced-motion: reduce) {
+  .thinking span,
+  .tool-working span {
+    animation: none;
+  }
+}
+
 /* The dots and the sentence beside them, once the wait is long enough to
    need saying. The sentence uses the thread's quiet-note class. */
 .waiting-row {

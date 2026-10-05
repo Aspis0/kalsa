@@ -132,6 +132,13 @@
   }
 }
 
+/* The base rule's duration clamp does not remove the loop; this does. */
+@media (prefers-reduced-motion: reduce) {
+  .room-media-loading {
+    animation: none;
+  }
+}
+
 /* The video's poster pieces: frame, length, play. */
 .room-media-poster-tile {
   display: grid;

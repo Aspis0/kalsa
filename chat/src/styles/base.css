@@ -61,3 +61,12 @@ button {
     scroll-behavior: auto !important;
   }
 }
+
+/* A hidden window does no work: every animation pauses while the root
+   attribute `lib/pageVisible.ts` keeps current is set. Paused, not removed —
+   the look with the attribute gone is exactly the look without this rule. */
+html[data-hidden] *,
+html[data-hidden] *::before,
+html[data-hidden] *::after {
+  animation-play-state: paused !important;
+}

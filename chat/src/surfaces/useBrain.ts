@@ -5,6 +5,7 @@ import { TABLES } from "../i18n";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { lastKnown, standingOf } from "../lib/slotGate";
+import { visibleInterval } from "../lib/pageVisible";
 import { logUiEvent } from "../lib/uiLog";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./SetupProgress";
@@ -157,7 +158,7 @@ export function credentialRefusalText(error: unknown): string | null {
 // from its own brain does not know whether there is a door to diverge from.
 let standingSnapshot: DoorStanding = "unready";
 const listeners = new Set<() => void>();
-let pollTimer: ReturnType<typeof setInterval> | undefined;
+let stopPollClock: (() => void) | null = null;
 let offProgress: (() => void) | null = null;
 // A `listen()` registration in flight: not held yet, and the reason a
 // second one does not start. StrictMode's mount→unmount→mount runs all
@@ -356,14 +357,16 @@ export function subscribeBrainRead(listener: () => void): () => void {
     // first rejection this generation sees would otherwise get no retry.
     progressRetries = 0;
     void poll();
-    pollTimer = setInterval(() => void poll(), POLL_MS);
+    // The clock stops while the window is hidden; a progress event still
+    // reads at once there — that path is the walk's own live work.
+    stopPollClock = visibleInterval(() => void poll(), POLL_MS);
     startProgress();
   }
   return () => {
     listeners.delete(listener);
     if (listeners.size === 0) {
-      clearInterval(pollTimer);
-      pollTimer = undefined;
+      if (stopPollClock !== null) stopPollClock();
+      stopPollClock = null;
       if (offProgress) offProgress();
       offProgress = null;
       // The walk's step is live only while someone reads it: the next

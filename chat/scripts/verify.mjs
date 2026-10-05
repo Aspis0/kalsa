@@ -4819,6 +4819,124 @@ const tests = {
 
     await browser.close();
   },
+
+  // A hidden window must not work: the brain poll stops and the animations
+  // pause; coming back to sight reads once at once, then the clock resumes.
+  // A progress event is the walk's own live work and still reads hidden.
+  async hiddenbrain() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, okSettings("hidden-demo"));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await page.addInitScript(installHiddenSwitch);
+    await page.addInitScript(() => {
+      const core = window.__TAURI__.core;
+      const base = core.invoke;
+      window.__BRAIN_STATE_CALLS__ = 0;
+      core.invoke = (command, args) => {
+        if (command === "brain_state") window.__BRAIN_STATE_CALLS__ += 1;
+        return base(command, args);
+      };
+      const bus = window.__TAURI__.event;
+      const baseListen = bus.listen;
+      window.__PROGRESS_HANDLERS__ = [];
+      bus.listen = (event, handler) => {
+        if (event === "brain_progress") window.__PROGRESS_HANDLERS__.push(handler);
+        return baseListen(event, handler);
+      };
+    });
+    await openChat(page);
+    await page.waitForTimeout(2500);
+    const start = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenbrain: the poll is running", start >= 2, `calls=${start}`);
+
+    await page.evaluate(() => window.__setHidden(true));
+    const hiddenAt = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check(
+      "hiddenbrain: the root says hidden",
+      await page.evaluate(() => document.documentElement.hasAttribute("data-hidden")),
+    );
+    check(
+      "hiddenbrain: an infinite animation is paused",
+      (await page.evaluate(() => getComputedStyle(document.getElementById("pause-probe")).animationPlayState)) === "paused",
+    );
+    await page.waitForTimeout(5000);
+    const stillHidden = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenbrain: no brain_state while hidden", stillHidden === hiddenAt, `${hiddenAt} → ${stillHidden}`);
+
+    await page.evaluate(() => {
+      for (const handler of window.__PROGRESS_HANDLERS__) {
+        handler({ event: "brain_progress", id: 1, payload: { kind: "model_bytes", done: 1, total: 2 } });
+      }
+    });
+    await page.waitForTimeout(300);
+    const afterEvent = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check(
+      "hiddenbrain: a progress event still reads while hidden",
+      afterEvent === hiddenAt + 1,
+      `${hiddenAt} → ${afterEvent}`,
+    );
+
+    await page.evaluate(() => window.__setHidden(false));
+    await page.waitForTimeout(400);
+    const backAt = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenbrain: coming back reads once at once", backAt === afterEvent + 1, `${afterEvent} → ${backAt}`);
+    check(
+      "hiddenbrain: the root leaves hidden",
+      !(await page.evaluate(() => document.documentElement.hasAttribute("data-hidden"))),
+    );
+    check(
+      "hiddenbrain: the animation runs again",
+      (await page.evaluate(() => getComputedStyle(document.getElementById("pause-probe")).animationPlayState)) === "running",
+    );
+    await page.waitForTimeout(2500);
+    const resumed = await page.evaluate(() => window.__BRAIN_STATE_CALLS__);
+    check("hiddenbrain: the clock resumes", resumed >= backAt + 1, `${backAt} → ${resumed}`);
+
+    await browser.close();
+  },
+
+  // The Devices page's own clock obeys the same rule.
+  async hiddendevices() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, okSettings("hidden-devices-demo"));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await page.addInitScript(installHiddenSwitch);
+    await page.addInitScript(() => {
+      const core = window.__TAURI__.core;
+      const base = core.invoke;
+      window.__PAIRING_CALLS__ = 0;
+      core.invoke = (command, args) => {
+        if (command === "brain_pairing") window.__PAIRING_CALLS__ += 1;
+        return base(command, args);
+      };
+    });
+    await page.goto(APP);
+    await page.waitForTimeout(1200);
+    await page.locator(".brain-settings-item", { hasText: "Devices" }).first().click();
+    await page.waitForTimeout(3000);
+    const start = await page.evaluate(() => window.__PAIRING_CALLS__);
+    check("hiddendevices: the page is polling", start >= 2, `calls=${start}`);
+
+    await page.evaluate(() => window.__setHidden(true));
+    const hiddenAt = await page.evaluate(() => window.__PAIRING_CALLS__);
+    await page.waitForTimeout(5000);
+    const stillHidden = await page.evaluate(() => window.__PAIRING_CALLS__);
+    check("hiddendevices: no pairing read while hidden", stillHidden === hiddenAt, `${hiddenAt} → ${stillHidden}`);
+
+    await page.evaluate(() => window.__setHidden(false));
+    await page.waitForTimeout(400);
+    const backAt = await page.evaluate(() => window.__PAIRING_CALLS__);
+    check("hiddendevices: coming back reads once at once", backAt === hiddenAt + 1, `${hiddenAt} → ${backAt}`);
+    await page.waitForTimeout(2500);
+    const resumed = await page.evaluate(() => window.__PAIRING_CALLS__);
+    check("hiddendevices: the clock resumes", resumed >= backAt + 1, `${backAt} → ${resumed}`);
+
+    await browser.close();
+  },
 };
 
 /**
@@ -4862,6 +4980,29 @@ function answerCapabilityInit(capability) {
   const base = core.invoke;
   core.invoke = (command, args) =>
     command === "brain_capability" ? Promise.resolve(capability) : base(command, args);
+}
+
+/** A page-side switch for `document.hidden`, for the background-idle cases:
+    `defineProperty` shadows the document's own getter and the event is what
+    the app listens to. Installed before the page loads; call
+    `window.__setHidden(true|false)` from the test. A probe wearing one of the
+    app's own infinite keyframes rides the same install, so the paused rule
+    can be read off computed style. */
+function installHiddenSwitch() {
+  window.__setHidden = (value) => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => value });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => (value ? "hidden" : "visible"),
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  };
+  document.addEventListener("DOMContentLoaded", () => {
+    const probe = document.createElement("span");
+    probe.id = "pause-probe";
+    probe.style.animation = "think-pulse 1.2s ease-in-out infinite";
+    document.documentElement.appendChild(probe);
+  });
 }
 
 async function seedHomeChat(page, settings, convos = []) {

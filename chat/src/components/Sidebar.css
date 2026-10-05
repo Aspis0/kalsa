@@ -162,6 +162,13 @@
   50% { opacity: 1; }
 }
 
+/* The dot is information and stays; only the pulse stops. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-live span {
+    animation: none;
+  }
+}
+
 .sidebar-actions {
   position: absolute;
   top: 0.25rem;
