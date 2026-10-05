@@ -271,3 +271,17 @@ Binaries `f706702e2018...` / `0e6078ffcca7...`, 02:50-03:15.
 - RAM S (Pss_Anon + Pss_File + dma-buf): **1753797 kB** (dma-buf 1472152: tiles 867635200 + 501944320), vs 1978156
   in step 2 and ~3.70 GB for today's NPU + CPU models.
 Step 3 PASS.
+
+## Step 4 check, first: the GPU leg reads the one copy, but 197 splits per token (engine `0e7109fdf`)
+
+Raw: `step4-s23/raw/session1-a651191f4-gate-off.grep` (the R2 gate kept the leg off on the S23: "740" is in
+CL_DEVICE_VERSION, not CL_DEVICE_NAME - fixed with an exact-token match in name or version) and
+`step4-s23/raw/proof-0e7109fdf.grep` (after luna's audit fixes; binaries `0fe3d6ab...` / `90c4f13b...`).
+Arm G: shared mode, `GGML_HEXAGON_OPFILTER='.*'`, `-dev HTP0/GPUOpenCL -ts 1/0 -nr -nkvo 1` + step 1's `-ot`
+(OPFILTER also declines the placement probe; without `-ot` the step-3 audit refused the load by name).
+- Correct: `TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)`, two io-coherent dma-buf imports
+  (867635200 + 501944320 B, the 832 MiB cap split), self-check PASS on 166/166 tensors (max|diff| ~1e-8, rms ~0.015).
+- **Slow: graph splits 197 at bs=1; tg64 at -t 1: G 3.50 vs today's two-copy OpenCL 11.51 tok/s (0.30)**. Only the
+  Q4_0 mat-vecs run on the GPU; norms, conv, attention and the Q6_K lm_head go to the CPU, and every layer crosses
+  GPU<->CPU several times per token. (CPU alone on the tiles at -t 1: 9.4.) KLD and the ABBA not run: the S23 was at
+  30 % battery. Verdict: the leg works and is gated, but as a decode leg it needs the rest of the layer on the GPU.

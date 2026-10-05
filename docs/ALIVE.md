@@ -991,6 +991,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   OPFILTER and no `-ot` was refused at load by the step-3 audit ("blk.0.ffn_gate.weight landed in CPU_REPACK, not a
   shared buffer"); with `-ot` the load is right (TILE32 1306.12 MiB) but `TILE32 leg disabled: CL_DEVICE_NAME has no
   "740"` - on the S23 the name is "QUALCOMM Adreno(TM)" and 740 is in the version string. Leg off, CPU fallback clean.
+- Step 4 after fixes (`0e7109fdf`, `step4-s23/raw/proof-0e7109fdf.grep`, ~04:45): leg enabled on the Adreno 740,
+  imports 867635200 + 501944320 B io-coherent, self-check PASS 166/166; graph splits 197 at bs=1; tg64 -t 1:
+  **G 3.50, two-copy OpenCL 11.51**. Correct but 0.30x: the GPU only gets the mat-vecs.
 
 ## Engine release pipeline (`kalsa-server`)
 

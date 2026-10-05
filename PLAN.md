@@ -1375,7 +1375,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   mid-task (2026-10-05 03:30); deepseek finished it (`777c1ac5c`..`a651191f4`). Luna audit: not mergeable (aborts
   after placement, stale import reuse, cache policy, image alignment, per-device gate). S23 first run: the R2 gate
   turned the leg OFF on the tested S23 ("740" is in CL_DEVICE_VERSION, not the name) and fell back cleanly to the CPU
-  tile reader; the step-3 audit also refused a misplaced load by name. Fixes dispatched (deepseek).
+  tile reader; the step-3 audit also refused a misplaced load by name. Fixes `d816d556c`..`0e7109fdf` (deepseek):
+  on the S23 the leg is now ON and correct (2 imports, self-check 166/166) but **3.50 vs 11.51 tok/s** for today's
+  two-copy OpenCL decode at -t 1: 197 graph splits per token, only the mat-vecs on the GPU. The leg needs norms,
+  conv and attention on the GPU too (asked Fable, Amendment G). S23 stopped at 30 % battery.
 - **Step 5 prerequisite** (Fable Amendment F): hop v1 lives on engine `main`, not on this branch (merge-base
   `45f097b74`, main +373 commits, branch +50): merge main into the branch before step 5.
 - Next: step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
