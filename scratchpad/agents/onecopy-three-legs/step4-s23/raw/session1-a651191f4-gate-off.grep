@@ -1,0 +1,11 @@
+== step-4 session start Mon Oct  5 04:10:23 EDT 2026 [lvl=35 ac=false usb=false wl=false batT=279 skin=28.9 wake=Awake thermal=0 traced=0]
+binaries: 6366c78c931a f706702e2018 (new old)
+proof G: load_tensors:          CPU model buffer size =   206.07 MiB
+proof G: load_tensors:   CPU_REPACK model buffer size =  1306.12 MiB
+proof G: exit=1 enabled=0 imports=0 errors=0 [lvl=35 ac=false usb=false wl=false batT=279 skin=28.9 wake=Awake thermal=0 traced=0]
+SESSION ABORTED: G proof failed
+== try 04:2x after the arm-flag fix
+load_tensors:          CPU model buffer size =   206.07 MiB
+load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+ggml-opencl: TILE32 leg disabled: CL_DEVICE_NAME has no "740"
+sched_reserve: graph splits = 1

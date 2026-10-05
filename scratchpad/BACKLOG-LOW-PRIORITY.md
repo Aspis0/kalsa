@@ -101,3 +101,9 @@ One line per item: area - finding - source audit. Pick from here only when a rel
   failure is logged by split_graph. Revisit only if a caller starts trusting the size after a refused split.
 - P3: with `LLAMA_USE_SYSTEM_GGML`, a system libggml older than the fork lacks `ggml_backend_buft_weight_layout`
   (now public in ggml-backend.h); we never build against a system ggml.
+
+## One copy, step 4 (engine `a651191f4`; review luna f3ab128b, 2026-10-05)
+- P1 (carried to step 6, binding): `ggml_backend_opencl_release_imports` must be called before every
+  `llama_model_free` of a shared-mode model; there is no automatic hook on the Hexagon buffer free.
+- P3: OpenCL `supports_op` walks every src for the TILE32 layout before the op switch; a cheap op prefilter would
+  save a little on placement. Not measured.
