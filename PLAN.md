@@ -1351,9 +1351,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
 - **Gate G PASSED**: NPU from the shared tiled copy = two-copy speed (pp512 0.995, tg128 1.002, KLD identical).
 - **Step 0 PASSED**: tile layout is a ggml contract (`ggml/src/ggml-q4_0-tile32.h`, `474ca75fe` + `cc777fd12`);
   S23 NPU unchanged (pp 0.998, tg 0.992).
-- **Step 1 (in measurement)**: tiles live in their own non-host buffer type `HTP0-TILE32`; the CPU reads them with
-  a dotprod gemv (`53db71525`..`e9d7a9f45`, luna audits 42724653 + fixes). S23 so far: NPU one-copy by automatic
-  placement = two-copy; CPU decode on tiles 9.4 tok/s at 1 thread vs 7.0 shipped no-repack (+34 %) and 11.0 repack.
+- **Step 1 PASSED** (`REPORT.md` "Step 1 check"): tiles live in their own non-host buffer type `HTP0-TILE32`; the
+  CPU reads them with a dotprod gemv (`53db71525`..`e9d7a9f45`). S23: NPU one-copy by automatic placement = two-copy
+  (pp 0.991, tg 1.004, KLD equal); CPU decode on tiles +34 % (-t 1) / +21 % (-t 5) over shipped no-repack, 0.83-0.86
+  of repack; CPU prefill on tiles 1.06x native at -t 1 but **0.88x at -t 5** (open, with the GEMM over tiles).
 - **Step 2 (engine done, S23 pending)**: spec = Fable Amendment B (`FABLE-DESIGN.md` B1-B5). Hexagon proc-address
   setter `ggml_backend_hexagon_set_shared_weights({enabled, max_buffer_bytes})` and extra bufts `{TILE32, HOST}` in
   shared mode, so llama's probe puts Q4_0 matmuls in TILE32 and norms/conv in HOST with no `-ot` (`80206f9b3`, GLM;

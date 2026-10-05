@@ -184,3 +184,32 @@ to the old packer on 8 shapes + IQ4_NL (`cc777fd12`, luna audit c9af7460: no byt
 unchanged `61c8d6f5...` after the 576 -> named constant). Same ABBA script as gate G (binaries `d2738237...`,
 `b80e4324...`): A 897.87 / 22.68, B 892.80 / 22.57, B2 893.67 / 22.36, A2 892.64 / 22.62 (pp512 / tg128); B/A pp
 0.998, tg 0.992; KLD 0.005313 all four. NPU numbers unchanged: step 0 PASS.
+
+## Step 1 check: TILE32 buffer type + CPU gemv on tiles (engine `e9d7a9f45`, S23 unplugged)
+
+Raw: `step1-s23/raw/session1-e9d7a9f45.grep` (2026-10-04 22:09, NPU ABBA + CPU -t 1) and
+`step1-s23/raw/resumes-e9d7a9f45.grep` (CPU KLD + CPU -t 5, resume 2 at 00:15; resume 1 hung, see below).
+Binaries `705153797d28...` / `794a302d60ca...`, release skel `61c8d6f5...`.
+
+NPU, `-t 5 -r 3 -ub 512`: A two-copy 896.0 / 22.48, T one copy in HTP0-TILE32 by automatic placement 886.5 / 22.60,
+T2 887.5 / 22.52, A2 890.8 / 22.54 (pp512 / tg128); T/A pp 0.991, tg 1.004; KLD 0.005313 all four. Proof T: one
+TILE32 buffer 1306.12 MiB, 2 splits, 0 flat. Caveat (Amendment B): T ran without HOST, so its norms sat on the device
+buft - not the shipped placement; step 2 re-runs the ABBA.
+
+CPU `-ngl 0`, `-p 128 -n 128 -r 3`, ABBA order native, tile, repack, repack2, tile2, native2:
+
+| arm | -t 1 pp128 / tg128 | -t 5 pp128 / tg128 | max RSS (-t 5) | mean KLD |
+|---|---:|---:|---:|---:|
+| C-native (`-nr`, shipped S23 CPU path) | 13.6 / 7.0 | 36.5 / 15.1 | 1639 MB | 0.001295 |
+| C-tile (Q4_0 in TILE32, HTP declines every op) | 14.4 / **9.4** | 32.1 / **18.3** | 512 MB + dma-buf | 0.001222 |
+| C-repack (engine default) | 45.6 / 11.0 | 103.3 / 22.0 | 1849 MB | 0.001262 |
+
+(-t 5 values are the mean of the two ABBA legs; legs within 0.6 %.) Decode on tiles: +34 % (-t 1) and +21 % (-t 5)
+over the shipped no-repack path, 0.83-0.86 of repack. **Prefill on tiles: 1.06x native at -t 1 but 0.88x at -t 5**
+(32.1 vs 36.5) - the owner accepted CPU prefill on tiles as "same as today"; at 5 threads it is 12 % slower. Open,
+with the deferred GEMM over tiles. KLD of the tiled CPU path is in line with native and repack (all three ~0.0013 vs
+the CPU base logits).
+
+Resume 1 (23:08): the C-repack KLD spun 43 min on ~4 cores without finishing its first pass (normal ~21 s), killed.
+Bisect, one chunk: step-0 and step-1 binaries both 47-48 s, KLD 0.001262 identical; resume 2 with a stack-dumping
+watchdog ran clean. A sporadic hang in the shipped-default CPU repack path, not a step-1 regression; no stacks yet.

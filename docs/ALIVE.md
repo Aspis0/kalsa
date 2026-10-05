@@ -969,6 +969,10 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   first pass (a pass is ~21 s), thermal status 1; killed (exit 143). Bisect, one chunk each: step-0 build and
   step-1 build both exit 0 in 47-48 s, Mean KLD **0.001262** identical - a sporadic hang, not a step-1
   regression. Resume 2 (00:15) runs with `step1-s23/watchdog.sh` (stacks via `debuggerd -b` past 300 s).
+- Step 1 complete (resume 2, 00:15-00:57, watchdog idle): CPU KLD native 0.001295, repack **0.001262**, tiles
+  **0.001222**; -t 5 pp128 / tg128 native 36.5 / 15.1, tiles 32.1 / **18.3**, repack 103.3 / 22.0. Tiles beat the
+  shipped no-repack decode at both thread counts; prefill on tiles is 0.88x native at -t 5 (1.06x at -t 1).
+  Raw `step1-s23/raw/session1-e9d7a9f45.grep`, `resumes-e9d7a9f45.grep`.
 - Step 2 engine (`80206f9b3` + audit fix `93fb3c097`, pushed to the fork): shared-weights setter and `{TILE32,
   HOST}` extra bufts per Fable Amendment B. Luna audit: the pin was set on alloc but the placement probe's 0-byte
   allocs never reach the backend, so it fired after placement - now latched when the buffer types are read.

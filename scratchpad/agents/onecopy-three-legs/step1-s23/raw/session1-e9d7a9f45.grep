@@ -1,0 +1,50 @@
+== step-1 session start Sun Oct  4 22:09:44 EDT 2026 [lvl=100 ac=false usb=false wl=false batT=293 skin=30.0 wake=Awake thermal=0 traced=0]
+proof A: exit=0/0 TILE32-buf=0 (none MiB) HTP0-HOST-buf=0 splits=2 mm=kern-tiled:3993 flat:0 hmx-mm-2d=271 load=4219.40ms errors=[] [lvl=100 ac=false usb=false wl=false batT=293 skin=30.3 wake=Awake thermal=0 traced=0]
+proof A: hmx-mm-2d: m 512 k 2048 n 6144 wtype 2 mc 512 nc 480 vtcm 8243200/8388608
+proof A: PASS
+proof T: exit=0/0 TILE32-buf=1 (1306.12 MiB) HTP0-HOST-buf=0 splits=2 mm=kern-tiled:3993 flat:0 hmx-mm-2d=267 load=3004.42ms errors=[] [lvl=100 ac=false usb=false wl=false batT=293 skin=30.7 wake=Awake thermal=0 traced=0]
+proof T: hmx-mm-2d: m 512 k 2048 n 6144 wtype 2 mc 512 nc 480 vtcm 8243200/8388608
+proof T: PASS
+proof c_native: exit=0 CPU_REPACK-buf=0 HTP0-buf=0 TILE32-buf=0 HOST-buf=0 splits=1 errors=0 [lvl=100 ac=false usb=false wl=false batT=293 skin=31.1 wake=Awake thermal=0 traced=0]
+proof c_native: PASS
+proof c_repack: exit=0 CPU_REPACK-buf=1 HTP0-buf=0 TILE32-buf=0 HOST-buf=0 splits=1 errors=0 [lvl=100 ac=false usb=false wl=false batT=305 skin=31.6 wake=Awake thermal=0 traced=0]
+proof c_repack: PASS
+proof c_tile: exit=0/0 TILE32-buf=1306.12MiB tensors=166/166 (decode ne11=1:166 prefill ne11>1:163) HTP0-buf=noneMiB profile-op=0 profile-op-MUL_MAT=0 splits=1 load=2375.32ms errors=0 [lvl=100 ac=false usb=false wl=false batT=305 skin=32.1 wake=Awake thermal=0 traced=0]
+proof c_tile: PASS
+== A bench start 1791166378 [lvl=100 ac=false usb=false wl=false batT=321 skin=31.7 wake=Awake thermal=0 traced=0]
+A bench: exit=0 pp512=896.04 tg128=22.48 maxRSS=292536kB errors=0
+== A kld start 1791166493 [lvl=100 ac=false usb=false wl=false batT=310 skin=31.7 wake=Awake thermal=0 traced=0]
+A kld: exit=0 meanKLD=0.005313 errors=0
+A kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  33.994233 ±   5.169415;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   1.051248 ±   0.006721;Mean PPL(Q)-PPL(base)         :   1.657202 ±   0.364124;Mean    KLD:   0.005313 ±   0.000383;Maximum KLD:   0.094590;Same top p: 97.059 ± 0.749 %;
+== T bench start 1791166604 [lvl=100 ac=false usb=false wl=false batT=338 skin=33.7 wake=Awake thermal=0 traced=0]
+T bench: exit=0 pp512=886.45 tg128=22.60 maxRSS=292552kB errors=0
+== T kld start 1791166719 [lvl=99 ac=false usb=false wl=false batT=324 skin=33.1 wake=Awake thermal=0 traced=0]
+T kld: exit=0 meanKLD=0.005313 errors=0
+T kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  33.994233 ±   5.169415;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   1.051248 ±   0.006721;Mean PPL(Q)-PPL(base)         :   1.657202 ±   0.364124;Mean    KLD:   0.005313 ±   0.000383;Maximum KLD:   0.094590;Same top p: 97.059 ± 0.749 %;
+== T2 bench start 1791166921 [lvl=98 ac=false usb=false wl=false batT=329 skin=33.1 wake=Awake thermal=0 traced=0]
+T2 bench: exit=0 pp512=887.46 tg128=22.52 maxRSS=292988kB errors=0
+== T2 kld start 1791167036 [lvl=98 ac=false usb=false wl=false batT=330 skin=33.2 wake=Awake thermal=0 traced=0]
+T2 kld: exit=0 meanKLD=0.005313 errors=0
+T2 kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  33.994233 ±   5.169415;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   1.051248 ±   0.006721;Mean PPL(Q)-PPL(base)         :   1.657202 ±   0.364124;Mean    KLD:   0.005313 ±   0.000383;Maximum KLD:   0.094590;Same top p: 97.059 ± 0.749 %;
+== A2 bench start 1791167268 [lvl=97 ac=false usb=false wl=false batT=339 skin=33.1 wake=Awake thermal=0 traced=0]
+A2 bench: exit=0 pp512=890.77 tg128=22.54 maxRSS=292572kB errors=0
+== A2 kld start 1791167414 [lvl=97 ac=false usb=false wl=false batT=328 skin=33.1 wake=Awake thermal=0 traced=0]
+A2 kld: exit=0 meanKLD=0.005313 errors=0
+A2 kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  33.994233 ±   5.169415;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   1.051248 ±   0.006721;Mean PPL(Q)-PPL(base)         :   1.657202 ±   0.364124;Mean    KLD:   0.005313 ±   0.000383;Maximum KLD:   0.094590;Same top p: 97.059 ± 0.749 %;
+== c_native bench start 1791167675 [lvl=96 ac=false usb=false wl=false batT=338 skin=33.0 wake=Awake thermal=0 traced=0]
+c_native bench: exit=0 pp128=13.58 tg128=7.01 threads=1 maxRSS=1643912kB errors=0
+== c_tile bench start 1791168043 [lvl=95 ac=false usb=false wl=false batT=336 skin=32.9 wake=Awake thermal=0 traced=0]
+c_tile bench: exit=0 pp128=14.38 tg128=9.42 threads=1 maxRSS=516960kB errors=0
+== c_repack bench start 1791168337 [lvl=94 ac=false usb=false wl=false batT=336 skin=33.1 wake=Awake thermal=0 traced=0]
+c_repack bench: exit=0 pp128=45.54 tg128=11.00 threads=1 maxRSS=1853320kB errors=0
+== c_repack2 bench start 1791168569 [lvl=93 ac=false usb=false wl=false batT=339 skin=33.1 wake=Awake thermal=0 traced=0]
+c_repack2 bench: exit=0 pp128=45.66 tg128=11.02 threads=1 maxRSS=1853476kB errors=0
+== c_tile2 bench start 1791168802 [lvl=92 ac=false usb=false wl=false batT=338 skin=33.2 wake=Awake thermal=0 traced=0]
+c_tile2 bench: exit=0 pp128=14.36 tg128=9.39 threads=1 maxRSS=516960kB errors=0
+== c_native2 bench start 1791169156 [lvl=91 ac=false usb=false wl=false batT=338 skin=32.9 wake=Awake thermal=0 traced=0]
+c_native2 bench: exit=0 pp128=13.69 tg128=7.02 threads=1 maxRSS=1643936kB errors=0
+== c_native kld start 1791169523 [lvl=90 ac=false usb=false wl=false batT=337 skin=33.0 wake=Awake thermal=0 traced=0]
+c_native kld: exit=0 meanKLD=0.001295 errors=0
+c_native kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  32.277014 ±   4.858066;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   0.998144 ±   0.003342;Mean PPL(Q)-PPL(base)         :  -0.060017 ±   0.108734;Mean    KLD:   0.001295 ±   0.000066;Maximum KLD:   0.013058;Same top p: 97.451 ± 0.699 %;
+GATE-FAIL:  thermal=1
+SESSION ABORTED: C-repack kld failed
