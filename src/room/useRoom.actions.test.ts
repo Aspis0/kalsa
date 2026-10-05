@@ -28,7 +28,7 @@ jest.mock("@react-native-async-storage/async-storage", () => {
     },
   };
   mockShelf = shelf;
-  return shelf;
+  return { __esModule: true, default: shelf };
 });
 jest.mock("expo-crypto", () => ({
   getRandomBytes: jest.fn((length: number) => new Uint8Array(length).fill(0x7e)),

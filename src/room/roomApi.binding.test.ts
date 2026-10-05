@@ -17,12 +17,15 @@ jest.mock("../remote/doorRoad", () => ({
   doorFetchFor: jest.fn(),
 }));
 jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: async (key: string) => stored[key] ?? null,
-  setItem: async (key: string, value: string) => {
-    stored[key] = value;
-  },
-  removeItem: async (key: string) => {
-    delete stored[key];
+  __esModule: true,
+  default: {
+    getItem: async (key: string) => stored[key] ?? null,
+    setItem: async (key: string, value: string) => {
+      stored[key] = value;
+    },
+    removeItem: async (key: string) => {
+      delete stored[key];
+    },
   },
 }));
 

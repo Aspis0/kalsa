@@ -64,7 +64,7 @@ function damagedQueueError(): Error {
 
 function storage(): RoomQueueStorage {
   // Required on first use: importing this module never loads the store.
-  return require("@react-native-async-storage/async-storage") as RoomQueueStorage;
+  return require("@react-native-async-storage/async-storage").default as RoomQueueStorage;
 }
 
 function decodeItem(value: unknown): RoomQueueItem | null {

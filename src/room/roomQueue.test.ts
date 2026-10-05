@@ -16,22 +16,25 @@ let failNextSetAnnouncementRead = false;
 const mintSequence = { counter: 0 };
 
 jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: async (key: string) => {
-    if (rejectAnnouncementRead) {
-      rejectAnnouncementRead = false;
-      throw new Error("storage unavailable");
-    }
-    return stored[key] ?? null;
-  },
-  setItem: async (key: string, value: string) => {
-    stored[key] = value;
-    if (failNextSetAnnouncementRead) {
-      failNextSetAnnouncementRead = false;
-      rejectAnnouncementRead = true;
-    }
-  },
-  removeItem: async (key: string) => {
-    delete stored[key];
+  __esModule: true,
+  default: {
+    getItem: async (key: string) => {
+      if (rejectAnnouncementRead) {
+        rejectAnnouncementRead = false;
+        throw new Error("storage unavailable");
+      }
+      return stored[key] ?? null;
+    },
+    setItem: async (key: string, value: string) => {
+      stored[key] = value;
+      if (failNextSetAnnouncementRead) {
+        failNextSetAnnouncementRead = false;
+        rejectAnnouncementRead = true;
+      }
+    },
+    removeItem: async (key: string) => {
+      delete stored[key];
+    },
   },
 }));
 jest.mock("expo-crypto", () => ({
