@@ -1,0 +1,44 @@
+SESSION COMPLETE - read $REPORT
+== step-4b NPU session start Mon Oct  5 11:27:08 EDT 2026 [lvl=100 ac=false usb=false wl=false batT=289 skin=29.8 wake=Awake thermal=0 traced=0]
+binaries: 4a4701818976 9455871f0673 (bench rel-skel)
+proof A: exit=0/0 bufs=[CPU=205.08 HTP0=1525.87 ] splits=2/2 mm=tiled:3993 flat:0 hmx-mm-2d=216 errors=[] [lvl=100 ac=false usb=false wl=false batT=289 skin=30.3 wake=Awake thermal=0 traced=0]
+proof A ops: ADD:33 CONCAT:726 CPY:726 FLASH_ATTN_EXT:264 GET_ROWS:792 MUL:1452 MUL_MAT:2739 MUL_MAT_NX:1254 OPBATCH:33 RMS_NORM:2541 ROPE:528 SCALE:44 SET_ROWS:528 SSM_CONV:726 SWIGLU:990 
+proof A: PASS
+proof S: exit=0/0 bufs=[HTP0-HOST-W=219.75 HTP0-TILE32=1306.12 ] splits=3/3 mm=tiled:3960 flat:0 hmx-mm-2d=221 errors=[] [lvl=100 ac=false usb=false wl=false batT=289 skin=30.4 wake=Awake thermal=0 traced=0]
+proof S ops: ADD:33 CONCAT:726 CPY:726 FLASH_ATTN_EXT:264 GET_ROWS:792 MUL:1452 MUL_MAT:2706 MUL_MAT_NX:1254 OPBATCH:33 RMS_NORM:2541 ROPE:528 SCALE:44 SET_ROWS:528 SSM_CONV:726 SWIGLU:990 
+proof S: PASS
+C1 S: reuse=[shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W] summary=[shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes]
+== A bench start 1791214191 [lvl=100 ac=false usb=false wl=false batT=289 skin=30.2 wake=Awake thermal=0 traced=0]
+A bench: exit=0 pp512=949.30 tg128=22.73 maxRSS=320544kB errors=0
+== A kld start 1791214307 [lvl=99 ac=false usb=false wl=false batT=298 skin=30.6 wake=Awake thermal=0 traced=0]
+A kld: exit=0 meanKLD=0.044953 errors=0
+A kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  27.092975 ±   3.946555;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   0.837831 ±   0.015796;Mean PPL(Q)-PPL(base)         :  -5.244057 ±   1.068490;Mean    KLD:   0.044953 ±   0.004217;Maximum KLD:   0.998282;Same top p: 88.627 ± 1.407 %;
+== S bench start 1791214418 [lvl=99 ac=false usb=false wl=false batT=330 skin=32.6 wake=Awake thermal=0 traced=0]
+S bench: exit=0 pp512=909.06 tg128=17.65 maxRSS=117624kB errors=0
+== S kld start 1791214538 [lvl=98 ac=false usb=false wl=false batT=316 skin=32.3 wake=Awake thermal=0 traced=0]
+S kld: exit=0 meanKLD=0.045014 errors=0
+S kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  27.090157 ±   3.947031;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   0.837744 ±   0.015825;Mean PPL(Q)-PPL(base)         :  -5.246874 ±   1.068755;Mean    KLD:   0.045014 ±   0.004233;Maximum KLD:   1.013012;Same top p: 88.431 ± 1.418 %;
+== S2 bench start 1791214687 [lvl=97 ac=false usb=false wl=false batT=327 skin=33.3 wake=Awake thermal=0 traced=0]
+S2 bench: exit=0 pp512=908.82 tg128=15.96 maxRSS=117708kB errors=0
+== S2 kld start 1791214809 [lvl=97 ac=false usb=false wl=false batT=325 skin=33.0 wake=Awake thermal=0 traced=0]
+S2 kld: exit=0 meanKLD=0.045014 errors=0
+S2 kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  27.090157 ±   3.947031;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   0.837744 ±   0.015825;Mean PPL(Q)-PPL(base)         :  -5.246874 ±   1.068755;Mean    KLD:   0.045014 ±   0.004233;Maximum KLD:   1.013012;Same top p: 88.431 ± 1.418 %;
+== A2 bench start 1791215018 [lvl=96 ac=false usb=false wl=false batT=335 skin=33.1 wake=Awake thermal=0 traced=0]
+A2 bench: exit=0 pp512=939.49 tg128=23.02 maxRSS=320604kB errors=0
+== A2 kld start 1791215134 [lvl=96 ac=false usb=false wl=false batT=339 skin=33.1 wake=Awake thermal=0 traced=0]
+A2 kld: exit=0 meanKLD=0.044953 errors=0
+A2 kld sig: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p;Mean PPL(Q)                   :  27.092975 ±   3.946555;Mean PPL(base)                :  32.337031 ±   4.869263;Mean PPL(Q)/PPL(base)         :   0.837831 ±   0.015796;Mean PPL(Q)-PPL(base)         :  -5.244057 ±   1.068490;Mean    KLD:   0.044953 ±   0.004217;Maximum KLD:   0.998282;Same top p: 88.627 ± 1.407 %;
+ram S (kB max): Rss=112660 Pss_Anon=73576 Pss_File=24506 Pss_Shmem=54 dmabuf=1696248 anon+file+dmabuf=1790934 samples=4
+ram S dmabufs (inode bytes exporter, top 6 by size): 50382 867635200 system;50383 501944320 system;50381 230424576 system;50393 67641344 system;50378 43597824 system;50392 18616320 system;
+ram S: bench exit=0 [lvl=95 ac=false usb=false wl=false batT=327 skin=33.5 wake=Awake thermal=0 traced=0]
+== step-4b NPU session end Mon Oct  5 11:49:37 EDT 2026 [lvl=95 ac=false usb=false wl=false batT=327 skin=33.5 wake=Awake thermal=0 traced=0]
+
+[exited with code 0]
+C kld (cpu, -ngl 0 -nr): chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p
+C kld (cpu, -ngl 0 -nr): Mean PPL(Q)                   :  32.277014 ±   4.858066
+C kld (cpu, -ngl 0 -nr): Mean PPL(base)                :  32.337031 ±   4.869263
+C kld (cpu, -ngl 0 -nr): Mean PPL(Q)/PPL(base)         :   0.998144 ±   0.003342
+C kld (cpu, -ngl 0 -nr): Mean PPL(Q)-PPL(base)         :  -0.060017 ±   0.108734
+C kld (cpu, -ngl 0 -nr): Mean    KLD:   0.001295 ±   0.000066
+C kld (cpu, -ngl 0 -nr): Maximum KLD:   0.013058
+C kld (cpu, -ngl 0 -nr): Same top p: 97.451 ± 0.699 %

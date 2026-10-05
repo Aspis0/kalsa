@@ -1010,6 +1010,8 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   Amendment I requested.
 - Amendment I (HTP0-HOST-W weights buft) implemented; S23 correctness PASS: 3 imports, HOST self-check PASS, G KLD
   0.000934, splits still 197 (KV on GPU is step 5). Audit running.
+- **NPU regression from the engine main merge**: two-copy NPU KLD 0.0053 -> 0.0450 (same top p 97 -> 88.6 %), CPU
+  unchanged; shipped binding pin `f25f0c1c5` not affected, engine main is. Bisect running.
 
 ## Engine release pipeline (`kalsa-server`)
 

@@ -1466,6 +1466,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   move verbatim, slot inequality general, HMX never sees raw: verified. Cheap P2/P3 fixes (CTest, n_k%8 guard, one
   stride source, NDEBUG-safe prefetch check, dma push return, no Q6_K raw at opt_mm_select 1) dispatched to GLM with
   a static build `build-q6s`. Rest in the backlog.
+- **NPU REGRESSION FROM THE MAIN MERGE (S23 2026-10-05 11:27, unplugged; `step4b-s23/raw/npu-session-24fb5b8d6.grep`)**:
+  two-copy NPU A KLD **0.0450** (PPL(Q) 27.09, same top p 88.6 %) vs **0.0053** before the merge (PPL 33.99, ~97 %);
+  CPU-only unchanged 0.001295. S tracks A exactly (0.0450): not a one-copy effect. Speed: A pp512 939-949 / tg128
+  22.7-23.0; S 909 / 16.0-17.7 (decode ~0.74, lm_head on the CPU until option 3); S RAM 1.79 GB; HOST-W works on
+  the NPU (proofs PASS, C1 reuse from HTP0-HOST-W). The binding pin `f25f0c1c5` does NOT contain the merged DSP
+  commits (upstream b11304 merge `e3c43a9db`, our dspqueue fixes 10/01-03): the shipped app is unaffected, engine
+  main is. Bisect next (main tip alone, then around `e3c43a9db`). Two harness lessons: build-gateg's debug skel was
+  stale (rebuild `htp-v73` in BOTH build dirs after any DSP change); the post-merge splits line is
+  `sched_reserve: graph ... splits = N` (proofs parse it now).
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
