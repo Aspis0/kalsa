@@ -1,0 +1,20 @@
+== step-4b correctness session start Mon Oct  5 12:47:54 EDT 2026 [lvl=91 ac=false usb=false wl=false batT=282 skin=29.1 wake=Awake thermal=0 traced=0]
+binaries: 1c5e468cdf9e 6f791706c04f 
+proof G: load_tensors:          CPU model buffer size =     1.00 MiB
+proof G: load_tensors:  HTP0-HOST-W model buffer size =   218.75 MiB
+proof G: load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+proof G: ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+proof G: ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+proof G: ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+proof G: ggml-opencl-tile32: imported HTP0-HOST-W buffer of 229380096 bytes (fd 21, io-coherent)
+proof G: ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 3.725e-09 rms 0.0188 (32 of 128000 rows)
+proof G: exit=0 enabled=1 imports=3 host_imports=1 host_selfcheck_pass=1 errors=0 [lvl=91 ac=false usb=false wl=false batT=282 skin=29.2 wake=Awake thermal=0 traced=0]
+proof G: PASS
+== G kld start 1791218916 [lvl=91 ac=false usb=false wl=false batT=282 skin=29.4 wake=Awake thermal=0 traced=0]
+G kld: exit=0 meanKLD=0.000934 splits=? errors=0 chunk PPL ln(PPL(Q)/PPL(base)) KL Divergence Δp RMS Same top p
+Same top p: 97.647 ± 0.672 % [lvl=89 ac=false usb=false wl=false batT=311 skin=32.1 wake=Awake thermal=0 traced=0]
+== step-4b correctness session end Mon Oct  5 12:53:22 EDT 2026 [lvl=89 ac=false usb=false wl=false batT=311 skin=32.1 wake=Awake thermal=0 traced=0]
+S check: shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+S check: load_tensors:  HTP0-HOST-W model buffer size =   219.75 MiB
+S check: load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+S check: shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes

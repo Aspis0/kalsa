@@ -153,3 +153,9 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P3: a /bench send sets sendingRef before runBenchTurn appends the user message (sendHost.ts:151/161); a background
   flush in that window persists the old list, so a process death loses the bench command. Dev-only path.
 - Open: duplicate transcript ids source not proven (warning now once per distinct set).
+
+## Amendment I audit leftovers (reviewer n2, 2026-10-05; `audit-amendI-n2.md`)
+- P2-5: `make_cpu_buft_list` still offers the CPU compute buft as a weight candidate (dead only because HOST and HOST-W share one iface).
+- P2-9: OpenCL HOST admission depends on the mutable Hexagon global `opt_hostbuf` through `device_weight_host_buft`, resolved from a different registry than `make_cpu_buft_list`.
+- P3s: identity test not fail-closed by itself; process-global v4 program/kernel; dead `ggml_hexagon_tensor_is_host` cited as live; no assertion that compute/output stayed in HTP0-HOST; v4 under the binary cache; two self-check preconditions share one message.
+- Declared (not a defect): since Amendment I the v4 TILE32 kernel builds with the engine's fast-math options (comment at `ggml-opencl-tile32-matvec.cpp:50-55`); GPU-leg KLDs before/after 24fb5b8d6 are not strictly comparable.
