@@ -120,3 +120,11 @@ One line per item: area - finding - source audit. Pick from here only when a rel
   post-load audit (loud, by name). The app never uses ROW split.
 - P2 plausible: a CPU extra-buffer kernel claiming an op whose OTHER src is TILE32 would skip the native-read guard;
   no such op in LFM2.
+
+## Step 4b audit leftovers (reviewer n2, 2026-10-05; `audit-step4b-n2.md`)
+- F1 REFUTED by the orchestrator: the lm_head launch matches upstream (`ggml-opencl.cpp:27803`), global[1] = local[1] = 2 -> one group in dim 1, `get_group_id(1)` is always 0.
+- F2 (A7X lm-head guard bypassed on the HOST route): decided on the S23 by KLD + the new HOST self-check, not in code.
+- F7: the shared-mode input buft list moves every input-role tensor (pos_embd, token_types, per-layer embd, masked-emb) to HTP0-HOST paired with the CPU device; only token_embd matters for LFM2/Qwen. The mmap swap to CPU does not apply in our runs (HTP present -> mmap off). Narrow to TOKEN_EMBD if another arch ever runs shared.
+- F8/F10: `ggml_backend_opencl_release_imports` has no caller in-tree; stale-import warning is NDEBUG-silent and fd/base/size can collide after recycling. Wiring is step 6 (binding); revisit the detector there.
+- F9: only a tied lm_head lands in HOST; an untied output in shared mode is unaddressed.
+- F12/F13: per-op mutex/env cost on the compute path; discarded bool return; test covers little runtime decision surface beyond what the fixes add.
