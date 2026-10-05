@@ -1509,8 +1509,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   drop to **2** (= two-copy); the unaligned 1680 B DMA rows did not fault. Then A's pp512 failed (decode res -3):
   GLM's audit-fix n_prefetch guard sits at the top of op_matmul and refuses every HMX matmul (they never set
   n_prefetch). Fix dispatched to GLM; ABBA + KLD after it.
-- Bisect: engine main tip `bc5f0207c` alone reproduces the NPU KLD 0.044953 exactly; next point `e3c43a9db^1` (main
-  before the upstream b11304 merge).
+- **Bisect (two-copy NPU A KLD, `bisect-npu-kld/report-so-far.grep`)**: main tip `bc5f0207c` 0.044953; main before the
+  upstream merge `5de9fa2fc` **0.005313** (PPL 33.99, same top p 97.1 %); the merge `e3c43a9db` (upstream b11304)
+  **0.044953**. The regression came in with upstream; its skel equals main tip's. 22 upstream hexagon commits
+  (4bc272fd7..81ff93ea1); first suspect 07fc586e3 "dynamic quantizer improvements", pure-upstream builds next.
+- **Option 3 MEASURED (S23 13:50, `opt3-s23/raw/session2-23dbab22f.grep`)**: correct, but the lm_head costs **9.2 s per
+  call** (two-copy ~4.8 ms): S pp512 52.6 / tg128 **0.11** vs A 953 / 22.8. Fable's 0.9-0.95 estimate was off by ~3
+  orders of magnitude (the n2 audit's P1 flagged it). S KLD killed (hours). n_prefetch guard fix `23dbab22f` (GLM)
+  restored HMX prefill. Fable Amendment J requested (raw-layout HVX mat-vec vs vectorised conversion vs fallbacks:
+  option 2 duplicate, lm_head on the GPU leg, lm_head on the CPU); owner decides after it.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
