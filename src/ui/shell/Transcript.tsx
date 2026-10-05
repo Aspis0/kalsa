@@ -5,18 +5,41 @@
  * subscribes to nothing, and knows nothing about a conversation store, the
  * engine or the governor. Tool rows and source chips arrive as two optional
  * message fields drawn inside the same entry by `TranscriptEvidence`. The
- * arithmetic lives in `./transcriptLayout.ts`, which a node test can reach;
- * this file only places the boxes it returns.
+ * arithmetic lives in `./transcriptLayout.ts` (rhythm, day markers) and
+ * `./transcriptWindow.ts` (how much of a long conversation the list holds);
+ * this file only places the boxes they return.
+ *
+ * The conversation draws in a FlatList, not a ScrollView that maps every
+ * message: only a window of rows mounts, and the frame cost of a streaming
+ * answer no longer grows with the conversation's length. The streaming row
+ * never enters the list's data at all — it rides the context feed in
+ * `TranscriptStreamRow.tsx`, so a token flush re-renders only that row.
  */
-import { ArrowDown } from "lucide-react-native";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 
-import { useLocale, type TranslateFn, type TranslationKey } from "../../i18n";
+import { ArrowDown } from "lucide-react-native";
+import { isValidElement, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FlatList,
+  Pressable,
+  Text,
+  View,
+  useWindowDimensions,
+  type ListRenderItemInfo,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
+
+import { useLocale } from "../../i18n";
 import { modes } from "../../theme/design";
 import { TranscriptEdgeFade } from "./TranscriptEdgeFade";
 import { createTranscriptStyles } from "./TranscriptParts";
-import { TranscriptRow } from "./TranscriptRow";
+import { RowItem, translateFor, type RowView } from "./TranscriptRowItem";
+import {
+  StreamingFeedProvider,
+  StreamingRowFooter,
+  useStreamingFeed,
+  useStreamingSplit,
+} from "./TranscriptStreamRow";
 import { transcriptPropsEqual } from "./transcriptMemo";
 import {
   PROGRAMMATIC_SCROLL_GRACE_MS,
@@ -24,7 +47,9 @@ import {
   transcriptScroll,
   type ScrollCause,
 } from "./transcriptScroll";
-import { isSameDay, rhythmGap, shouldShowDayMarker, transcriptLayout } from "./transcriptLayout";
+import { transcriptLayout } from "./transcriptLayout";
+import { TRANSCRIPT_WINDOW_BATCH, TRANSCRIPT_WINDOW_SIZE, TRANSCRIPT_WINDOW_TAIL } from "./transcriptWindow";
+import { useTranscriptWindow } from "./useTranscriptWindow";
 
 export type {
   TranscriptMessage,
@@ -34,53 +59,12 @@ export type {
   TranscriptThinking,
   TranscriptToolCall,
 } from "./transcriptTypes";
-import type { TranscriptProps, TranscriptTranslateAction } from "./transcriptTypes";
+import type { TranscriptMessage, TranscriptProps } from "./transcriptTypes";
 
-/** The band draws the translate action ONLY under the message it belongs to:
- *  a run keyed to another id (or to a message that no longer exists) draws
- *  nothing here — the host's orphan cleanup is the second fence, this is the
- *  first. */
-function translateFor(
-  translate: TranscriptTranslateAction | null | undefined,
-  messageId: string,
-): TranscriptTranslateAction | undefined {
-  if (!translate || translate.view.messageId !== messageId) return undefined;
-  return translate;
-}
-
-/** In the order `Date.getMonth()` reports. */
-const MONTH_KEYS: readonly TranslationKey[] = [
-  "shell.transcript.months.jan",
-  "shell.transcript.months.feb",
-  "shell.transcript.months.mar",
-  "shell.transcript.months.apr",
-  "shell.transcript.months.may",
-  "shell.transcript.months.jun",
-  "shell.transcript.months.jul",
-  "shell.transcript.months.aug",
-  "shell.transcript.months.sep",
-  "shell.transcript.months.oct",
-  "shell.transcript.months.nov",
-  "shell.transcript.months.dec",
-];
-
-/** Today, yesterday, or a date built from translated month names — no locale
- *  library, and every word still comes from the catalogue. */
-function dayLabel(createdAt: number, now: number, t: TranslateFn): string {
-  const date = new Date(createdAt);
-  if (isSameDay(createdAt, now)) return t("shell.transcript.today");
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (isSameDay(createdAt, yesterday.getTime())) return t("shell.transcript.yesterday");
-
-  const month = t(MONTH_KEYS[date.getMonth()] ?? MONTH_KEYS[0]);
-  const day = date.getDate();
-  const year = date.getFullYear();
-  if (year === new Date(now).getFullYear()) {
-    return t("shell.transcript.onDate", { month, day });
-  }
-  return t("shell.transcript.onDateYear", { month, day, year });
-}
+/** The reader's place through a prepend is the scroll view's own job, native
+ *  on both platforms; the module-level constant keeps the prop identity stable
+ *  so the list's pure-component check still holds. */
+const KEEP_PLACE = { minIndexForVisible: 0 };
 
 function TranscriptContent({
   messages,
@@ -105,25 +89,30 @@ function TranscriptContent({
     () => transcriptLayout(width ?? window.width, height ?? window.height, insets),
     [width, height, window.width, window.height, insets.top, insets.bottom],
   );
-  const clock = now ?? Date.now();
+
+  const { settled, streaming } = useStreamingSplit(messages);
+  const { listData, prependIfNearTop, trimToTail, windowStart } = useTranscriptWindow(settled);
 
   // ── Where the view sits. The rules live in ./transcriptScroll.ts; this only
-  // obeys them. Refs are the source of truth; the two states exist only to draw
-  // the control, because a state update per token would re-render the whole
-  // transcript on every token of an answer.
-  const scrollRef = useRef<ScrollView | null>(null);
+  // obeys them. Refs decide; the two states exist only to draw the control,
+  // because a state update per token would re-render the transcript per token.
+  const scrollRef = useRef<FlatList | null>(null);
   const contentHeightRef = useRef(0);
   const offsetRef = useRef(0);
+  // The messages count at the last content-size event, and at this render: the
+  // stable content-size callback compares the two to tell an append from growth.
   const countRef = useRef(messages.length);
+  const renderedCountRef = useRef(messages.length);
+  renderedCountRef.current = messages.length;
   const pinnedRef = useRef(true);
   // The first-layout-done FACT, reported into the machine as `placedBefore`:
   // `onLayout` fires for every re-layout and the event itself is identical for
   // the first layout and the hundredth. A ref, not state: it decides a scroll,
   // never a draw.
   const placedRef = useRef(false);
-  // When this component last issued a `scrollTo`. A programmatic scroll emits
-  // `onScroll` events too, so they are ignored for a grace window rather than
-  // read as the reader moving the view (see `PROGRAMMATIC_SCROLL_GRACE_MS`).
+  // When this component last issued a programmatic scroll: its own `onScroll`
+  // events are ignored for a grace window, not read as the reader's opinion
+  // (see `PROGRAMMATIC_SCROLL_GRACE_MS`).
   const programmaticScrollAtRef = useRef<number | null>(null);
   const [pinned, setPinned] = useState(true);
   const [overflows, setOverflows] = useState(false);
@@ -157,10 +146,31 @@ function TranscriptContent({
         // any other resize (the machine folded it via `placedBefore`).
         const firstPlacement = cause === "first-layout" && !placedRef.current;
         programmaticScrollAtRef.current = Date.now();
-        scrollRef.current?.scrollTo({ y: decision.scrollTo, animated: !firstPlacement });
+        scrollRef.current?.scrollToOffset({ animated: !firstPlacement, offset: decision.scrollTo });
       }
     },
     [layout.availableHeight],
+  );
+
+  // One page of history above the window when the reader nears its top. Runs
+  // outside the programmatic grace window, so a scroll the band itself started
+  // (the first placement, a jump) cannot page history in as it passes the top.
+  const onScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      offsetRef.current = event.nativeEvent.contentOffset.y;
+      const scrolled = offsetRef.current > 0;
+      // Same value in, no re-render out: this flips only when the view
+      // crosses the top, not on every scroll frame.
+      setTopClipped((was) => (was === scrolled ? was : scrolled));
+      // A programmatic scroll emits scroll events too. While one is in
+      // flight the offset is not the reader's opinion: ignored — not obeyed
+      // and not re-pinned. Reading them here would unpin mid-animation.
+      const since = programmaticScrollAtRef.current;
+      if (since !== null && Date.now() - since < PROGRAMMATIC_SCROLL_GRACE_MS) return;
+      prependIfNearTop(offsetRef.current);
+      decide("user-scroll");
+    },
+    [decide, prependIfNearTop],
   );
 
   // The band changed height under a placed view — the keyboard opening or
@@ -190,103 +200,115 @@ function TranscriptContent({
     [t],
   );
 
+  // The view inputs every row draws with — one memo, so each callback below is
+  // a stable identity between user actions, the list (a pure component) skips
+  // a token flush entirely, and only the footer, fed by context, re-renders.
+  const view = useMemo<RowView>(
+    () => ({
+      colors,
+      labels: cloudLabels,
+      layout,
+      now,
+      onCopy,
+      onMessageLongPress,
+      onMiniappOpen,
+      onSpeak,
+      speakingId,
+      styles,
+      translate,
+    }),
+    [
+      colors,
+      cloudLabels,
+      layout,
+      now,
+      onCopy,
+      onMessageLongPress,
+      onMiniappOpen,
+      onSpeak,
+      speakingId,
+      styles,
+      translate,
+    ],
+  );
+  const feed = useStreamingFeed(view, settled, streaming);
+
+  const onContentSizeChange = useCallback(
+    (_width: number, contentHeight: number) => {
+      const appended = renderedCountRef.current !== countRef.current;
+      countRef.current = renderedCountRef.current;
+      contentHeightRef.current = contentHeight;
+      const nextOverflows = contentHeight > layout.availableHeight;
+      setOverflows((current) => (current === nextOverflows ? current : nextOverflows));
+      decide(appended ? "append" : "growth");
+    },
+    [decide, layout.availableHeight],
+  );
+
+  const onLayout = useCallback(() => {
+    // The first of these is a placement (offset 0 for the welcome block,
+    // the end for a conversation); every one after it is a RE-layout under
+    // a placed view, and the reader's position must survive it. The event
+    // cannot say which it is, so the ref does; the machine decides.
+    decide("first-layout");
+    placedRef.current = true;
+  }, [decide]);
+
+  const extractKey = useCallback((message: TranscriptMessage) => message.id, []);
+
+  const renderItem = useCallback(
+    ({ index, item }: ListRenderItemInfo<TranscriptMessage>) => {
+      // The gap and marker read the row's real predecessor, which may sit one
+      // page above the drawn slice.
+      const absolute = windowStart + index;
+      const previous = absolute > 0 ? settled[absolute - 1] : null;
+      return (
+        <RowItem
+          message={item}
+          previous={previous}
+          speaking={item.id === view.speakingId}
+          translate={translateFor(view.translate, item.id)}
+          view={view}
+        />
+      );
+    },
+    [settled, view, windowStart],
+  );
+
+  const contentStyle = useMemo(
+    () => [styles.content, { paddingBottom: layout.bottomPadding }],
+    [styles, layout.bottomPadding],
+  );
+
+  // The welcome rides the list's empty state; the list wants an element, the prop a node.
+  const welcome = messages.length === 0 && isValidElement(empty) ? empty : null;
+
   return (
     <View style={styles.root}>
-      <ScrollView
-        accessibilityLabel={t("shell.a11y.transcript")}
-        contentContainerStyle={[styles.content, { paddingBottom: layout.bottomPadding }]}
-        onContentSizeChange={(_width, contentHeight) => {
-          const appended = messages.length !== countRef.current;
-          countRef.current = messages.length;
-          contentHeightRef.current = contentHeight;
-          const nextOverflows = contentHeight > layout.availableHeight;
-          setOverflows((current) => (current === nextOverflows ? current : nextOverflows));
-          decide(appended ? "append" : "growth");
-        }}
-        onLayout={() => {
-          // The first of these is a placement (offset 0 for the welcome block,
-          // the end for a conversation); every one after it is a RE-layout under
-          // a placed view, and the reader's position must survive it. The event
-          // cannot say which it is, so the ref does; the machine decides.
-          decide("first-layout");
-          placedRef.current = true;
-        }}
-        onScroll={(event) => {
-          offsetRef.current = event.nativeEvent.contentOffset.y;
-          const scrolled = offsetRef.current > 0;
-          // Same value in, no re-render out: this flips only when the view
-          // crosses the top, not on every scroll frame.
-          setTopClipped((was) => (was === scrolled ? was : scrolled));
-          // A programmatic scroll emits scroll events too. While one is in
-          // flight the offset is not the reader's opinion: ignored — not obeyed
-          // and not re-pinned. Reading them here would unpin mid-animation.
-          const since = programmaticScrollAtRef.current;
-          if (since !== null && Date.now() - since < PROGRAMMATIC_SCROLL_GRACE_MS) return;
-          decide("user-scroll");
-        }}
-        ref={scrollRef}
-        // How a press inside a scroll view keeps from being eaten: with the
-        // default `never`, while the keyboard is up the ScrollView claims the
-        // touch ON START, so the first press on a message — a hold of any
-        // length — was consumed and the long-press timer never began. `handled`
-        // lets a press a descendant handles reach it, while a tap that handles
-        // nothing still dismisses the keyboard.
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
-        style={styles.scroll}
-        testID="transcript.root"
-      >
-      {messages.length === 0
-        ? empty
-        : messages.map((message, index) => {
-        const previous = messages[index - 1];
-        // An answer opening with the cloud takes the larger, chosen gap: a
-        // different object must not look welded to the green capsule.
-        const opensWithCloud = message.role === "assistant" && message.thinking != null;
-        const gap = rhythmGap(previous?.role ?? null, message.role, opensWithCloud);
-        const marker = shouldShowDayMarker(
-          previous?.createdAt ?? null,
-          message.createdAt,
-          layout.availableHeight,
-        )
-          ? dayLabel(message.createdAt, clock, t)
-          : null;
-
-        return (
-          <View
-            key={message.id}
-            style={{ marginTop: gap }}
-            testID={`transcript.message.${message.id}`}
-          >
-            {marker ? (
-              <View
-                style={styles.dayMarker}
-                testID={`transcript.day.${message.id}`}
-                accessibilityLabel={t("shell.transcript.a11y.day", { label: marker })}
-              >
-                <View style={styles.hairline} />
-                <Text style={styles.dayLabel}>{marker}</Text>
-                <View style={styles.hairline} />
-              </View>
-            ) : null}
-            <TranscriptRow
-              colors={colors}
-              labels={cloudLabels}
-              layout={layout}
-              message={message}
-              onCopy={onCopy}
-              onMessageLongPress={onMessageLongPress}
-              onMiniappOpen={onMiniappOpen}
-              onSpeak={onSpeak}
-              speaking={message.id === speakingId}
-              styles={styles}
-              translate={translateFor(translate, message.id)}
-            />
-          </View>
-        );
-      })}
-      </ScrollView>
-      {/* Placement is the z-order argument: after the ScrollView the fade paints
+      <StreamingFeedProvider value={feed}>
+        <FlatList
+          accessibilityLabel={t("shell.a11y.transcript")}
+          contentContainerStyle={contentStyle}
+          data={listData}
+          initialNumToRender={TRANSCRIPT_WINDOW_TAIL}
+          keyExtractor={extractKey}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={welcome}
+          ListFooterComponent={StreamingRowFooter}
+          maintainVisibleContentPosition={KEEP_PLACE}
+          maxToRenderPerBatch={TRANSCRIPT_WINDOW_BATCH}
+          onContentSizeChange={onContentSizeChange}
+          onLayout={onLayout}
+          onScroll={onScroll}
+          ref={scrollRef}
+          renderItem={renderItem}
+          scrollEventThrottle={16}
+          style={styles.scroll}
+          testID="transcript.root"
+          windowSize={TRANSCRIPT_WINDOW_SIZE}
+        />
+      </StreamingFeedProvider>
+      {/* Placement is the z-order argument: after the list the fade paints
           over the content it dissolves; before the jump control it paints UNDER
           it (React Native paints siblings in document order), so the control's
           ring is not faded. Inside this root, which the shell clips to the
@@ -296,7 +318,10 @@ function TranscriptContent({
         <Pressable
           accessibilityLabel={t("shell.a11y.jumpToEnd")}
           accessibilityRole="button"
-          onPress={() => decide("jump-to-end")}
+          onPress={() => {
+            trimToTail();
+            decide("jump-to-end");
+          }}
           style={styles.jumpBox}
           testID="transcript.jumpToEnd"
         >

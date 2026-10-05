@@ -40,6 +40,10 @@ const BAND_FILES = [
   "TranscriptEvidence.tsx",
   "TranscriptMarkdown.tsx",
   "TranscriptInline.tsx",
+  // The list's row chrome and the streaming row's isolated feed, split out
+  // when the transcript went onto a FlatList.
+  "TranscriptRowItem.tsx",
+  "TranscriptStreamRow.tsx",
   "transcriptTypes.ts",
   "transcriptMarkdownStyles.ts",
   "toolLabels.ts",

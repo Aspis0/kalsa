@@ -115,13 +115,16 @@ function fadesIntoThePageColour(code: string): boolean {
   );
 }
 
-/** Document order is paint order: after the ScrollView (over the content it
- *  dissolves), before the jump control (under the control and its ring). */
+/** Document order is paint order: after the list (over the content it
+ *  dissolves — the band's scroll element is the FlatList, self-closing), before
+ *  the jump control (under the control and its ring). */
 function paintsUnderTheJumpControl(code: string): boolean {
-  const scrollEnd = code.indexOf("</ScrollView>");
+  const listStart = code.indexOf("<FlatList");
+  if (listStart < 0) return false;
+  const listEnd = code.indexOf("/>", listStart);
   const fade = code.indexOf("<TranscriptEdgeFade");
   const jump = code.indexOf('testID="transcript.jumpToEnd"');
-  return scrollEnd >= 0 && fade > scrollEnd && jump > fade;
+  return listEnd >= 0 && fade > listEnd && jump > fade;
 }
 
 /** The top ramp is opaque at the edge it protects, so it may only draw while
@@ -225,11 +228,9 @@ describe("would catch a fade that broke one of those rules", () => {
     ).toBe(false);
   });
 
-  it("would catch a fade painted over the jump control, or not under the ScrollView", () => {
+  it("would catch a fade painted over the jump control, or not under the list", () => {
     expect(
-      paintsUnderTheJumpControl(
-        'testID="transcript.jumpToEnd" </ScrollView> <TranscriptEdgeFade />',
-      ),
+      paintsUnderTheJumpControl('testID="transcript.jumpToEnd" <FlatList /> <TranscriptEdgeFade />'),
     ).toBe(false);
     expect(
       paintsUnderTheJumpControl('<TranscriptEdgeFade /> <Pressable testID="transcript.jumpToEnd">'),
