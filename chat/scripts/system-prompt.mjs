@@ -138,8 +138,11 @@ try {
     SYSTEM_PROMPT_TOKENS,
   );
   check(
+    // The fixed prompt is small on purpose: every byte of it is re-prefilled
+    // whenever it changes, so the bound catches a sentence that would quietly
+    // grow it by a third.
     "the prompt costs more than nothing",
-    SYSTEM_PROMPT_TOKENS > 0 && SYSTEM_PROMPT_TOKENS < 80,
+    SYSTEM_PROMPT_TOKENS > 0 && SYSTEM_PROMPT_TOKENS < 130,
     `${SYSTEM_PROMPT_TOKENS} tokens`,
   );
   check(

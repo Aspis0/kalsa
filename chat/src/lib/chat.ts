@@ -6,6 +6,7 @@ import { logUiEvent } from "./uiLog";
 import type { Sampling } from "./sampling";
 import type { ToolDefinition } from "./tools/definitions";
 import type { ToolRun } from "./types";
+import type { Miniapp } from "./miniapp/types";
 
 /**
  * Minimal OpenAI-compatible client: what a request is, and what the server
@@ -123,11 +124,13 @@ export interface ToolPhrases {
 
 /** What a tool answered, and whether that answer is a result or a refusal.
     `resultCode` is the Rust refusal's code for the screen; `text` stays the
-    English the model reads. */
+    English the model reads. `miniapp` is a locally built envelope the thread
+    renders — it rides the transcript, never the wire. */
 export interface ToolOutcome {
   text: string;
   ok: boolean;
   resultCode?: string;
+  miniapp?: Miniapp;
 }
 
 /** No new words for this long means the server is gone, not slow. */

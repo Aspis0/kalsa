@@ -1,4 +1,5 @@
 import { TOOL_STOPPED } from "./types";
+import { normalizeMiniapp } from "./miniapp/normalize";
 import type { ChatErrorKind } from "./chat";
 import type {
   ChatMessage,
@@ -210,6 +211,10 @@ function cleanImages(value: unknown[]): { images?: MessageImage[] } {
 /** Tool runs read back from disk are kept only if whole: a half-written run
     would render as a call with no answer, which reads like a broken tool.
 
+    A carried miniapp is re-normalized on the way in and out: the loaded
+    shape is the one the renderer can draw, and a stored blob that fails
+    normalization is dropped from the run, never a crash in the thread.
+
     `running` is a live state, not a stored one. `put` and `get` both come
     through here, so a run on its way to disk is already marked interrupted —
     otherwise a crash while a tool was in flight would leave "Searching the
@@ -222,6 +227,7 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
     if (typeof r.id !== "string" || typeof r.name !== "string") continue;
     if (typeof r.arguments !== "string" || typeof r.result !== "string") continue;
     if (r.state !== "running" && r.state !== "ok" && r.state !== "failed" && r.state !== "refused") continue;
+    const miniapp = r.miniapp === undefined ? null : normalizeMiniapp(r.miniapp);
     runs.push({
       id: r.id,
       name: r.name,
@@ -231,6 +237,7 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
       // A record that already holds a sentence keeps it as it is.
       result: r.state === "running" && r.result === "" ? TOOL_STOPPED : r.result,
       state: r.state === "running" ? "failed" : r.state,
+      ...(miniapp ? { miniapp } : {}),
     });
   }
   return runs.length > 0 ? { toolRuns: runs } : {};

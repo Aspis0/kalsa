@@ -1,4 +1,5 @@
 import type { ChatErrorKind } from "./chat";
+import type { Miniapp } from "./miniapp/types";
 
 export type Role = "user" | "assistant";
 
@@ -25,6 +26,9 @@ export interface ToolRun {
   /** The stable code a Rust refusal carried, for the screen; the wire
       and the stored text keep the English the model reads. */
   resultCode?: string;
+  /** A miniapp this call built here. It is rendered in the thread and kept
+      with the conversation; the wire only ever carries `result`. */
+  miniapp?: Miniapp;
   /**
    * `refused` is a call that never became an exchange on the wire: one the
    * stream never named, one whose turn ended for another reason, or one with no

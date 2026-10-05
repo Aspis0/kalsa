@@ -1,9 +1,11 @@
 /**
- * The two tools the assistant can call, in the shape every OpenAI-compatible
+ * The three tools the assistant can call, in the shape every OpenAI-compatible
  * server expects for function calling. The descriptions are what the model
  * reads when deciding to call one, so they say when the tool is worth calling
  * and what comes back.
  */
+import { MINIAPP_TEMPLATE_IDS } from "../miniapp/templates";
+
 export interface ToolDefinition {
   type: "function";
   function: {
@@ -13,7 +15,52 @@ export interface ToolDefinition {
   };
 }
 
-export const TOOL_DEFINITIONS: ToolDefinition[] = [
+/**
+ * The one local tool: it builds a miniapp here, with no network and no Tauri
+ * command, so it is offered whatever the web switch says (see `offeredTools`).
+ * Name, description and schema are the phone's `CREATE_MINIAPP_TOOL`.
+ */
+export const CREATE_MINIAPP_TOOL: ToolDefinition = {
+  type: "function",
+  function: {
+    name: "create_miniapp",
+    description:
+      "Build an interactive on-device miniapp in a single call. Pick one " +
+      "template — compare_data (a comparison table), quick_calculator (a " +
+      "formula calculator), reading_quiz (a quiz with several questions), " +
+      "kpi_strip (key metrics), checklist (ordered steps), or pros_cons (pros " +
+      "vs cons) — and pass its slots. The app opens inline in the chat. Use " +
+      "this instead of writing miniapp JSON by hand.",
+    parameters: {
+      type: "object",
+      properties: {
+        template: {
+          type: "string",
+          enum: [...MINIAPP_TEMPLATE_IDS],
+          description: "Which miniapp template to build.",
+        },
+        slots: {
+          type: "object",
+          description:
+            "Per-template slots: compare_data (title?, columns[], rows[]), " +
+            "quick_calculator (title?, formula, fields[]), reading_quiz " +
+            "(title?, questions[] of {question, options[2..4], answerIndex?, " +
+            "explanation?}), kpi_strip (title?, metrics[] of {label, value, " +
+            "unit?, tone?}), checklist (title?, steps[] or items[]), or " +
+            "pros_cons (title?, rows[] of {pro?, con?}).",
+          additionalProperties: true,
+        },
+      },
+      required: ["template"],
+    },
+  },
+};
+
+/**
+ * The tools whose work leaves this computer — the owner's switch governs
+ * exactly these, and nothing else in the list.
+ */
+export const WEB_TOOLS: ToolDefinition[] = [
   {
     type: "function",
     function: {
@@ -51,3 +98,6 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
   },
 ];
+
+/** Every tool this build can offer, local first. */
+export const TOOL_DEFINITIONS: ToolDefinition[] = [CREATE_MINIAPP_TOOL, ...WEB_TOOLS];

@@ -8,6 +8,7 @@ import { MessageImages } from "./MessageImages";
 import { MessageVideos } from "./MessageVideos";
 import { ThoughtCloud } from "./ThoughtCloud";
 import { ToolActivity } from "./ToolActivity";
+import { MiniappView } from "./miniapp/MiniappView";
 import "./Thread.css";
 
 export interface FailedState {
@@ -102,6 +103,9 @@ function AssistantRow({
           />
         ) : null}
         <ToolActivity runs={toolRuns} />
+        {toolRuns.map((run) =>
+          run.miniapp ? <MiniappView key={run.id} miniapp={run.miniapp} /> : null,
+        )}
         {showThinking ? (
           <>
             <Thinking />

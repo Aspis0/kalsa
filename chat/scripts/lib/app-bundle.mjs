@@ -39,6 +39,13 @@ export async function loadApp() {
         export { thinkingSupport } from "../src/lib/thinking.ts";
         export { createToolMarkupStripper } from "../src/lib/toolMarkup.ts";
         export { getBrainRead, subscribeBrainRead } from "../src/surfaces/useBrain.ts";
+        export { buildMiniappV1 } from "../src/lib/miniapp/build.ts";
+        export { evaluateCalculatorFormula } from "../src/lib/miniapp/calculator.ts";
+        export { MINIAPP_TEMPLATE_IDS } from "../src/lib/miniapp/templates.ts";
+        export { normalizeMiniapp } from "../src/lib/miniapp/normalize.ts";
+        export { runCreateMiniapp } from "../src/lib/tools/createMiniapp.ts";
+        export { createStore } from "../src/lib/store.ts";
+        export { buildPinnedContext } from "../src/lib/attachments.ts";
       `,
       resolveDir: SCRIPTS_DIR,
       loader: "ts",
@@ -51,6 +58,20 @@ export async function loadApp() {
     nodePaths: [join(CHAT_DIR, "node_modules")],
     loader: { ".css": "empty" },
     logLevel: "silent",
+    plugins: [
+      {
+        // attachments.ts imports the pdf.js worker as a vite `?url` asset; the
+        // worker only matters when a PDF is extracted, which these tests never do.
+        name: "vite-url-asset",
+        setup(build) {
+          build.onResolve({ filter: /\?url$/ }, (args) => ({ path: args.path, namespace: "url-asset" }));
+          build.onLoad({ filter: /.*/, namespace: "url-asset" }, () => ({
+            contents: 'export default "";',
+            loader: "js",
+          }));
+        },
+      },
+    ],
   });
   const app = await import(`${pathToFileURL(outfile).href}?cache=${Date.now()}`);
   return { dir, app };

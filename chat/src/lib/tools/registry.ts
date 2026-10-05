@@ -4,8 +4,9 @@ import { findCopied } from "../webgate/copied";
 import type { PinnedDoc } from "../webgate/copied";
 import type { GateFinding } from "../webgate/finding";
 import { findSensitive } from "../webgate/sensitive";
-import { TOOL_DEFINITIONS } from "./definitions";
+import { TOOL_DEFINITIONS, CREATE_MINIAPP_TOOL } from "./definitions";
 import type { ToolDefinition } from "./definitions";
+import { runCreateMiniapp } from "./createMiniapp";
 
 /** What one held call looks like to the page: which tool, the exact string
     that would leave, what the detectors saw in it, and the documents whose
@@ -35,13 +36,14 @@ export interface WebGate {
 
 /**
  * The tools this build may offer on a request. Outside the desktop app there
- * is no command behind them — the browser harnesses and a plain `vite dev`
- * page get an empty list, so no request ever offers a tool that cannot run.
- * The owner's switch is the other half: off means no tools array is sent at
- * all, so the model is never told a tool exists.
+ * is no command behind the web tools — the browser harnesses and a plain
+ * `vite dev` page get an empty list, so no request ever offers a tool that
+ * cannot run. Inside it, the owner's switch is the only thing the web tools
+ * sit behind; `create_miniapp` runs locally, so it is offered either way.
  */
 export function offeredTools(enabled: boolean): ToolDefinition[] {
-  return enabled && available() ? TOOL_DEFINITIONS : [];
+  if (!available()) return [];
+  return enabled ? TOOL_DEFINITIONS : [CREATE_MINIAPP_TOOL];
 }
 
 /**
@@ -73,6 +75,11 @@ export async function executeToolCall(
   if (signal?.aborted) return stopped(stoppedText);
   const record = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
   try {
+    // Local: it builds here, and the web gate has nothing to hold — the
+    // switch governs traffic leaving the machine, not this one.
+    if (name === "create_miniapp") {
+      return runCreateMiniapp(record);
+    }
     if (name === "web_search") {
       const query = typeof record.query === "string" ? record.query.trim() : "";
       if (!query) return { text: "No search was made: the query was empty.", ok: false };

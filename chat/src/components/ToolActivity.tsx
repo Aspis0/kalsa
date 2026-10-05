@@ -34,6 +34,9 @@ export function ToolActivity({ runs }: { runs: ToolRun[] }) {
 }
 
 function ToolRow({ run }: { run: ToolRun }) {
+  // The miniapp tool says its own words: it is local, and its row stands
+  // beside the view it built rather than narrating a web check.
+  if (run.name === "create_miniapp") return <MiniappRow run={run} />;
   const { table } = useLanguage();
   const t = table.tools;
   const args = readArguments(run.name, run.arguments).args;
@@ -105,6 +108,41 @@ function ToolRow({ run }: { run: ToolRun }) {
           </ul>
         ) : null}
       </div>
+    </details>
+  );
+}
+
+/**
+ * The row for a local miniapp build. Its words are English because the tool's
+ * own result text and the phone's strings are English; the view it built is
+ * rendered right below.
+ */
+function MiniappRow({ run }: { run: ToolRun }) {
+  const failed = run.state === "failed" || run.state === "refused";
+  const summary =
+    run.state === "running"
+      ? "Kalsa is building an interactive view…"
+      : failed
+        ? run.result || "Kalsa couldn't build that view."
+        : "Kalsa built an interactive view";
+
+  return (
+    <details className={`tool-run${failed ? " tool-run-failed" : ""}`}>
+      <summary>
+        {run.state === "running" ? (
+          <span className="tool-working">
+            <span />
+            {summary}
+          </span>
+        ) : (
+          <span>{summary}</span>
+        )}
+      </summary>
+      {failed ? (
+        <div className="tool-detail">
+          <p className="tool-failure">{run.result}</p>
+        </div>
+      ) : null}
     </details>
   );
 }

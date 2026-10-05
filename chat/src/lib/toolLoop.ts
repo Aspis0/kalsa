@@ -5,6 +5,7 @@ import type { Round } from "./streamRound";
 import { readArguments } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
 import type { ToolRun } from "./types";
+import type { Miniapp } from "./miniapp/types";
 
 /**
  * Answer, calling tools for as long as the model asks for them.
@@ -158,6 +159,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       let state: ToolRun["state"] = problem === null ? "ok" : "failed";
       let result = problem ?? "";
       let resultCode: string | undefined;
+      let miniapp: Miniapp | undefined;
       if (problem === null) {
         const answered = await untilStopped(() => runTool!(call.name, args, signal), signal);
         if (answered === null) {
@@ -166,9 +168,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         }
         result = answered.text;
         resultCode = answered.resultCode;
+        miniapp = answered.miniapp;
         state = answered.ok ? "ok" : "failed";
       }
-      options.onToolRun?.({ ...started, result: kept(result), resultCode, state });
+      options.onToolRun?.({ ...started, result: kept(result), resultCode, state, ...(miniapp ? { miniapp } : {}) });
       results.push(result);
     }
 

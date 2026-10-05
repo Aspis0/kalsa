@@ -1,0 +1,280 @@
+/* The miniapp a create_miniapp call built: the chat's own surfaces, no
+   accent of its own beyond the app's. Both themes come through the tokens. */
+
+.miniapp {
+  margin: 0.75rem 0 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.miniapp-title {
+  margin: 0 0 0.6rem;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+.miniapp-block + .miniapp-block {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.miniapp-block-title {
+  margin: 0 0 0.45rem;
+  color: var(--silence);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.miniapp-note {
+  margin: 0.3rem 0 0;
+  color: var(--silence);
+  font-size: 0.85rem;
+}
+
+/* --- data_table --- */
+
+.miniapp-table-wrap {
+  overflow-x: auto;
+}
+
+.miniapp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.miniapp-table th,
+.miniapp-table td {
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+}
+
+.miniapp-table th {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.miniapp-table tr:last-child td {
+  border-bottom: 0;
+}
+
+/* --- calculator --- */
+
+.miniapp-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.miniapp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 7rem;
+}
+
+.miniapp-field-label {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.miniapp-input {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  color: var(--ink);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.miniapp-input:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.miniapp-formula {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin: 0.35rem 0 0;
+}
+
+.miniapp-note-label {
+  color: var(--silence);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.miniapp-formula-text {
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.miniapp-result {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+}
+
+/* --- quiz --- */
+
+.miniapp-question {
+  margin: 0 0 0.5rem;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.miniapp-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.miniapp-quiz-option {
+  padding: 0.4rem 0.65rem;
+  color: var(--ink);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.miniapp-quiz-option:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.miniapp-quiz-selected {
+  border-color: var(--accent);
+}
+
+.miniapp-quiz-correct {
+  border-color: var(--accent);
+  background: var(--selection);
+}
+
+.miniapp-quiz-wrong {
+  border-color: var(--danger);
+}
+
+.miniapp-quiz-actions {
+  margin-top: 0.6rem;
+}
+
+.miniapp-button {
+  padding: 0.3rem 0.8rem;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 0;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.miniapp-button:hover {
+  background: var(--accent-hover);
+}
+
+.miniapp-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.miniapp-quiz-feedback {
+  margin-top: 0.6rem;
+}
+
+.miniapp-quiz-right {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.miniapp-quiz-bad {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+/* --- metric_strip --- */
+
+.miniapp-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.miniapp-metric {
+  flex: 1 1 8rem;
+  min-width: 7rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-muted);
+  border-radius: 10px;
+}
+
+.miniapp-metric-label {
+  margin: 0;
+  color: var(--silence);
+  font-size: 0.8rem;
+}
+
+.miniapp-metric-value {
+  margin: 0.15rem 0 0;
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+.miniapp-metric-unit {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+/* --- timeline --- */
+
+.miniapp-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.miniapp-step + .miniapp-step {
+  margin-top: 0.5rem;
+}
+
+.miniapp-step-head {
+  margin: 0;
+  color: var(--silence);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.miniapp-step-title {
+  margin: 0.1rem 0 0;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.miniapp-step-output {
+  margin: 0.15rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}

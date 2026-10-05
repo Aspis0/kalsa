@@ -2394,6 +2394,10 @@ const tests = {
     const page = await browser.newPage();
     await stubDoor(page, { search: LISBON, fetch: "The page text." });
     await seedOnce(page, toolSettings("tools-demo"));
+    // The home bar only renders once `brain_capability` answers (the harness
+    // gap the appended cases declare too), and the Chat button behind it is
+    // the only road to a composer.
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
     await openChat(page);
     await page.waitForTimeout(1200);
     await resetMock(page);
@@ -2456,6 +2460,7 @@ const tests = {
     const off = await browser.newPage();
     await stubDoor(off, { search: LISBON });
     await seedOnce(off, toolSettings("toolsloop-demo", false));
+    await off.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
     await openChat(off);
     await off.waitForTimeout(1200);
     await resetMock(off);
@@ -2471,21 +2476,26 @@ const tests = {
     // endpoint anymore (the removed setting was the only other road), so
     // this page has nothing it could send — the third half of the claim.
     await seedOnce(plain, { model: "toolsloop-demo" });
+    await plain.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
     await openChat(plain);
     await plain.waitForTimeout(800);
     await resetMock(plain);
 
-    const offered = (body) => (body?.tools ?? []).length;
+    const offeredNames = (body) => (body?.tools ?? []).map((tool) => tool?.function?.name);
     const plainBodies = await allBodies(plain);
-    const withDoor = offered(first);
-    const switchOff = offered(offBodies.at(-1));
-    // The switch-off half also requires that it actually sent a request: a
-    // page that crashed before sending must not read as "offered nothing",
-    // which is what would make this pass for the wrong reason.
+    const withDoor = offeredNames(first);
+    const switchOff = offeredNames(offBodies.at(-1));
+    // The switch decides the web tools and nothing else: create_miniapp runs
+    // on this computer, so it is offered with the switch off too. The
+    // switch-off half also requires that it actually sent a request: a page
+    // that crashed before sending must not read as "offered nothing", which
+    // is what would make this pass for the wrong reason.
     check(
-      "tools: offered only when the switch is on and a command can run them",
-      withDoor === 2 && switchOff === 0 && offBodies.length >= 1,
-      `on with door ${withDoor}, switch off ${switchOff} (${offBodies.length} sent)`,
+      "tools: the switch decides the web tools, and create_miniapp is always there",
+      JSON.stringify(withDoor) === JSON.stringify(["create_miniapp", "web_search", "web_fetch"]) &&
+        JSON.stringify(switchOff) === JSON.stringify(["create_miniapp"]) &&
+        offBodies.length >= 1,
+      `on with door ${JSON.stringify(withDoor)}, switch off ${JSON.stringify(switchOff)} (${offBodies.length} sent)`,
     );
     check(
       "tools: a page with no desktop has no server and sends nothing",
@@ -4442,6 +4452,132 @@ const tests = {
     await browser.close();
   },
 
+  // Mini apps on the desktop, end to end: with the web switch OFF the model
+  // is still offered create_miniapp and nothing else. The local tool builds a
+  // calculator and a quiz, the thread draws both, the calculator recomputes
+  // through the ported parser, the quiz grades a picked answer, the envelope
+  // reaches the disk, and the wire only ever carries the short text.
+  async miniapp() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("miniapp-demo", false));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    const bodies = [];
+    await scriptModel(
+      page,
+      [
+        [
+          {
+            id: "m1",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "quick_calculator",
+              slots: {
+                title: "Loan",
+                formula: "p * r",
+                fields: [
+                  { id: "p", label: "Principal", value: 1000 },
+                  { id: "r", label: "Rate", value: 0.05 },
+                ],
+              },
+            }),
+          },
+          {
+            id: "m2",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "reading_quiz",
+              slots: {
+                title: "Quiz",
+                questions: [{ question: "2+2?", options: ["3", "4"], answerIndex: 1, explanation: "Two and two." }],
+              },
+            }),
+          },
+        ],
+      ],
+      "Built it.",
+      bodies,
+    );
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "Work out the interest.", "Built it.");
+
+    const parsed = bodies.map((raw) => JSON.parse(raw ?? "{}"));
+    const firstTools = (parsed[0]?.tools ?? []).map((tool) => tool?.function?.name);
+    check(
+      "miniapp: the switch off still offers the local tool and no web tool",
+      JSON.stringify(firstTools) === JSON.stringify(["create_miniapp"]),
+      JSON.stringify(firstTools),
+    );
+    const last = parsed[parsed.length - 1] ?? {};
+    const results = (last.messages ?? []).filter((m) => m.role === "tool").map((m) => m.content);
+    check(
+      "miniapp: the model reads one short text per call",
+      results.length === 2 && results[0] === "Miniapp created: Loan" && results[1] === "Miniapp created: Quiz",
+      JSON.stringify(results),
+    );
+    check("miniapp: the wire never carries the envelope", !JSON.stringify(last).includes("miniapp_v1"));
+
+    check("miniapp: both views are drawn", (await page.locator(".miniapp").count()) === 2);
+    const rows = await page.locator(".tool-run > summary").allTextContents();
+    check(
+      "miniapp: the tool row says what happened",
+      rows.filter((row) => row.includes("interactive view")).length === 2,
+      JSON.stringify(rows),
+    );
+
+    const calculator = page.locator(".miniapp").nth(0);
+    check("miniapp: the calculator shows its first result", ((await calculator.locator(".miniapp-result").textContent()) ?? "").trim() === "50");
+    await calculator.locator(".miniapp-input").first().fill("2000");
+    check("miniapp: editing an input recomputes", ((await calculator.locator(".miniapp-result").textContent()) ?? "").trim() === "100");
+
+    const quiz = page.locator(".miniapp").nth(1);
+    await quiz.locator(".miniapp-quiz-option").nth(1).click();
+    await quiz.locator(".miniapp-button").click();
+    const graded = (await quiz.textContent()) ?? "";
+    check("miniapp: the quiz grades the picked answer", graded.includes("Correct"), graded.slice(0, 200));
+    check("miniapp: the quiz shows the explanation", graded.includes("Two and two."));
+    await quiz.locator(".miniapp-button").click();
+    check("miniapp: retry clears the grade", !((await quiz.textContent()) ?? "").includes("Two and two."));
+
+    await page
+      .waitForFunction(
+        () =>
+          Object.keys(localStorage).some(
+            (k) =>
+              k.startsWith("crescent-chat.msgs.") &&
+              (JSON.parse(localStorage.getItem(k) ?? "[]") ?? []).some((m) => (m.toolRuns ?? []).some((run) => run.miniapp)),
+          ),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => check("miniapp: the envelope reached the disk", false, "never written"));
+    const storedPayloads = await page.evaluate(() => ({ ...localStorage }));
+    const payloadKey = Object.keys(storedPayloads).find((k) => k.startsWith("crescent-chat.msgs."));
+    const messages = JSON.parse(storedPayloads[payloadKey] ?? "[]");
+    const assistant = messages.find((m) => m.role === "assistant");
+    const runs = assistant?.toolRuns ?? [];
+    check(
+      "miniapp: the stored run carries the normalized envelope",
+      runs.length === 2 &&
+        runs.every((run) => run.miniapp?.schema === "miniapp_v1") &&
+        runs[0].miniapp.blocks[0]?.type === "calculator" &&
+        runs[1].miniapp.blocks[0]?.type === "quiz",
+      JSON.stringify(runs.map((run) => run.miniapp?.kind)),
+    );
+
+    await page.reload();
+    await page.waitForTimeout(1200);
+    const chat = page.locator(".brain-bar-chat");
+    if ((await chat.count()) > 0) await chat.first().click();
+    await page.waitForTimeout(800);
+    await openSidebar(page, "Work out the interest");
+    check("miniapp: reload draws both views again", (await page.locator(".miniapp").count()) === 2);
+
+    await browser.close();
+  },
 };
 
 /**
