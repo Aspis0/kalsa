@@ -1389,10 +1389,19 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   governor host tests (incl. v0-hybrid with the ship GGUF) green; release skel changed (main moved 56 DSP files) -
   the NPU numbers of steps 1-3 must be re-measured on the merged build. HTP Q4_0 tiles still 576 B (TILE32 layout
   intact, static_assert kept). Audit leftovers in `scratchpad/BACKLOG-LOW-PRIORITY.md`.
-- **Step 4b (code in `6ed31f68e`..`ee3dfde49`, GLM; luna audit running)**: HOST buffers imported like TILE32, native
+- **Step 4b (code in `6ed31f68e`..`ee3dfde49`, GLM; audit running)**: HOST buffers imported like TILE32, native
   HOST tensors read in place by the existing OpenCL kernels, token_embd in HOST so the plain Q6_K kernel runs the
   lm_head on the GPU (Amendment G). The coder bypassed the A7X vocab-scale Q6_K guard (it protects the SoA kernels;
   the plain kernel is another) - the S23 KLD decides.
+- **Option 3 (coding, 2026-10-05)**: Fable Amendment H (`FABLE-DESIGN.md`, committed): Q6_K raw rows DMA'd into VTCM
+  and converted to the 896 B tiles there (the Q4_0 raw pattern), per-op host gate instead of `opt_mm_select == 1`
+  (which would switch HMX off for the whole model), unaligned 1680 B row stride to probe on the S23 first, twin host
+  test; gates pp512 >= 0.98, tg128 >= 0.95 of two-copy, KLD identical. GLM implements it in worktree
+  `~/Projects/kalsallama-gov-q6raw` (branch `feat/governor-onecopy-q6raw` from `ee3dfde49`, local only) so it does
+  not collide with the 4b fixes. Fable's Qwen claim that GATED_DELTA_NET is CPU-only was **wrong** (HTP
+  `gated-delta-net-ops.c` and OpenCL `gated_delta_net.cl` exist; correction appended under H4). Qwen still needs:
+  requant KLD vs Q4_K_M first, GDN placement at S23 shapes, hop commit bytes, 521 MB lm_head time.
+- Step 4b audit: luna hit "model at capacity"; re-run on reviewer n2 (space-bunny).
 - **Qwen (owner question 2026-10-05)**: the engine pieces are generic, but nothing is measured on Qwen. The local
   `Qwen3.5-4B-Q4_0-requant-from-q4km.gguf` (qwen35 hybrid) has 248 Q4_0 matrices (TILE32-able) and a tied Q6_K
   output of 2560 x 248320 (~500 MiB); one copy needs Q4_0 matrices (a Q4_K_M Qwen cannot use it; the requant's

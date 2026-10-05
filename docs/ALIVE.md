@@ -1000,6 +1000,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Owner 2026-10-05: tied output **option 3** (HTP reads the flat Q6_K from HOST). Owner question "does it work on
   Qwen?": not measured; Qwen3.5-4B Q4_0 requant = 248 Q4_0 matrices + tied Q6_K output 2560 x 248320 (~500 MiB);
   Qwen3.5-4B never runs under the governor today (mmproj rule of 2026-09-25).
+- Fable Amendment H (option 3) committed: raw Q6_K -> tiles in VTCM on the DSP (Q4_0 raw pattern), per-op host
+  gate, S23 DMA-stride probe before timing. GLM codes it in worktree `kalsallama-gov-q6raw` (local branch
+  `feat/governor-onecopy-q6raw`). Correction: GATED_DELTA_NET has HTP and OpenCL kernels (Fable said CPU-only).
 
 ## Engine release pipeline (`kalsa-server`)
 
