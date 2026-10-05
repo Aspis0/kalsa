@@ -255,3 +255,19 @@ Model `ship-embd-q4_0.gguf` (sha `96024d7c...`, 1526310944 B): `llama-quantize -
   on the CPU `-nr` (ship 0.001295); CPU same top p 89.8 % (ship ~97 %), max KLD 0.506.** A naive Q6_K -> Q4_0
   requant of the tied embedding costs ~7x (NPU) / ~26x (CPU) the KLD; option 1 as measured is a quality loss.
   Not tried: requant from a higher-precision source or with an imatrix.
+
+## Step 3 check: no hidden second copy (engine `8ac5522d0`, `step3-s23/raw/session1-8ac5522d0.grep`, S23 unplugged)
+
+Code: `be1781cee`..`79f72bb16` (GLM) + audit fixes `155e8492b`..`efac95af9` + `8ac5522d0` (luna audit: TILE32 views
+bypassed the guards, guard scan on every worker, alloc leak, CPU_Mapped bucket, host-first duplicate scan, public
+accessor; the scheduler copy guard is reachable only with a mixed HTP+OpenCL scheduler - no host test for that).
+Binaries `f706702e2018...` / `0e6078ffcca7...`, 02:50-03:15.
+- Two-copy placement (NPU and CPU) byte-identical to the step-2 build.
+- Shared load: `shared weights: token_embd.weight reused for output.weight from CPU`; `shared weights: TILE32
+  1369571328 HOST 1044480 CPU 215040000 bytes`; buffers CPU 205.08 + HTP0-HOST 1.00 + HTP0-TILE32 1306.12 MiB, no
+  HTP0 device buffer. The 205 MiB output duplicate of step 2 is gone.
+- NPU ABBA: A 897.0 / 22.49, S 882.4 / 16.48, S2 881.8 / 17.40, A2 891.4 / 22.43; KLD A 0.005313, S 0.005329. The
+  guards cost nothing on two-copy (A = step 2's A); S decode stays 0.75 (lm_head on the CPU, the open decision).
+- RAM S (Pss_Anon + Pss_File + dma-buf): **1753797 kB** (dma-buf 1472152: tiles 867635200 + 501944320), vs 1978156
+  in step 2 and ~3.70 GB for today's NPU + CPU models.
+Step 3 PASS.

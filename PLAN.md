@@ -1366,11 +1366,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   = two-copy (SQ 896.4-896.9 / 23.1-23.5) but KLD 0.0366 NPU / 0.0336 CPU vs 0.0053 / 0.0013 (CPU same top p 89.8 %
   vs ~97 %) - a naive Q6_K->Q4_0 requant is a quality loss. Coordinator's reading: option 2 is the cheap correct
   one, option 3 the engine path to a true single copy; owner decides.
-- **Step 3 (code in, audit running)**: `be1781cee`..`79f72bb16` (GLM): pin = live TILE32/HOST buffer count (R2
-  fallback), scheduler + CPU-compute guards for non-native weights, loader rule "a duplicated tensor reuses the
-  original from a host buffer or the load fails" (this rule fixes the lm_head on the CPU - it depends on the decision
-  above), post-load buffer audit. Fable's scheduler guard found unreachable by the coder (an earlier assert fires).
-- Next: step 4 (GPU leg), step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
+- **Step 3 PASSED** (`REPORT.md` "Step 3 check"): live-buffer pin, scheduler + CPU-compute guards (views included,
+  thread-0 scan), loader reuse of a duplicated tensor from its host original, post-load audit line (`be1781cee`..
+  `8ac5522d0`, GLM, luna audit + fixes). S23: tied output reused from the CPU copy, no HTP0 buffer, two-copy placement
+  identical, A unchanged; one copy **1.75 GB**. Decode stays 0.75 until the tied-output decision.
+- **Step 4 (coding)**: GPU leg per Fable Amendment E (OpenCL claims TILE32 by a lazy per-buffer dma-buf import, v4
+  decode mat-vec, Adreno 740 gate with read-only self-check, explicit import release).
+- Next: step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
   load, R2 negative control on Jelly/untested Snapdragon).
 
 Open: GEMM over tiles for CPU prefill (deferred, owner 2026-10-04); GPU leg may not rest the CPU (attention,

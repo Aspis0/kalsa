@@ -984,6 +984,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Tied output, option 1 (token_embd Q6_K -> Q4_0, 265/266 tensors identical, `raw/embd-q4_0-93fb3c097.grep`):
   lm_head back on the HTP, shared 896.4-896.9 / 23.08-23.54 = two-copy 896.7-899.0 / 22.98-23.39; mean KLD
   **0.036597** NPU and **0.033649** CPU (ship 0.005313 / 0.001295), CPU same top p 89.8 %. Quality loss.
+- Step 3 on the S23 (02:50-03:15, `step3-s23/raw/session1-8ac5522d0.grep`): `token_embd.weight reused for
+  output.weight from CPU`, buffers TILE32 1306.12 + HOST 1.00 + CPU 205.08 MiB; A 897.0 / 22.49 and 891.4 / 22.43
+  (KLD 0.005313), S 882.4 / 16.48 and 881.8 / 17.40 (KLD 0.005329); RAM one copy **1753797 kB**. Step 3 PASS.
 
 ## Engine release pipeline (`kalsa-server`)
 
