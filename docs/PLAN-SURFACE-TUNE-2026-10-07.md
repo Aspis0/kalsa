@@ -53,9 +53,25 @@ Move the tuning record aside (never delete), first start from zero: one tune, in
 verdict saved the first time, the second start straight to the door. Close ×3 and minimized idle as
 on 2026-10-05.
 
+### 6. Lab: the phone reaches the PC on the home network without the relay
+Owner OK 2026-10-06. On the night of 2026-10-05/06 the Mac's link to the n0 relay failed for 2+ h
+(`Ping timeout`, DNS `Resolve failed`, `tls handshake eof` in the app log from ~06:04Z), while the
+Mac's internet worked. The Jelly, on the same LAN, could not dial the door (node 459c914b) at all:
+the dial goes only through the relay. Questions: does the desktop endpoint
+(`crates/kalsa-iroh/src/bridge.rs`, `RelayChoice::N0Public`; `transport.rs` `presets::N0`) publish
+its direct addresses, and does the phone's dial use them; would local discovery (iroh mDNS or the
+address carried in the pairing) let a phone at home connect with the relay down. Test: block the
+relay on the Mac (hosts entry or firewall, restored after), dial from the Jelly on the same Wi-Fi.
+Deliverable: `docs/LAB-IROH-LAN-2026-10-07.md` and a fix plan. Phone-side changes go to the iOS/UX
+session; the wire stays unchanged unless the owner agrees.
+
+### 7. Lock-screen door check on the Mac (morning of 2026-10-06; here only if not done then)
+Rebuild the Mac app from brain while unlocked, then relaunch it behind the lock: 8131 must listen
+and the Jelly must dial without anyone unlocking (fix 22eed856 + bec3614a).
+
 ## Order and gates
-1 and 2 first (they may change 3). Then 3 → review → 4 → review (one hostile review each, writer and
-reviewer different models, P0/P1 fixed, the rest to `docs/BACKLOG.md`). Then 5. Push to `brain`; no
+1, 2 and 6 first (labs; 1 and 2 may change 3). Then 3 → review → 4 → review (one hostile review each, writer and
+reviewer different models, P0/P1 fixed, the rest to `docs/BACKLOG.md`). Then 5, and 7 if still open. Push to `brain`; no
 tags or releases.
 
 ## Not in this plan
