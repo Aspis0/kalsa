@@ -1624,6 +1624,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   launches R rows, a refused kernel's binary is forgotten from the cache. S23 correctness-only (battery 26 %, no
   timing; `step4b-s23/raw/hcorrect-6106d4997.grep`): proof H splits 3, self-check PASS, no AoS fallback, KLD 0.005343.
   Branch pushed to the fork. The kernel's own ms is still to profile on a charged phone.
+- **AoS kernel profiled (S23 22:21, unplugged, 100 %, skin 29.6 C; `step4b-s23/raw/prof-session2-6106d4997.{grep,csv}`)**:
+  OpenCL-profiling llama-bench `c59dd1dfde27` at `6106d4997`, release skel `e16120a812a1`, H arm only (the O arm was
+  dropped: GPU-only keeps the tied output on the CPU). `kernel_mul_mv_q6_K_f32_aos` on `result_output`: **mean 5.307 ms**
+  over 33 calls (min 5.279, max 5.361) vs the plain kernel 22.542 ms = 4.25x, ~40 GB/s over the ~214 MB Q6_K matrix.
+  Below the ~6 ms bar: the `image1d_buffer` view lever is NOT needed now (kept as the next lever if a future device
+  needs it). tg32 22.70.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

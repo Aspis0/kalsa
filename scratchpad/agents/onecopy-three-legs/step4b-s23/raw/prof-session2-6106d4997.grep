@@ -1,0 +1,11 @@
+  mWakefulness=Awake
+Failed to write while dumping service power: Broken pipe
+Failed to write while dumping service power: Broken pipe
+Failed to write while dumping service power: Broken pipe
+Failed to write while dumping service power: Broken pipe
+Failed to write while dumping service power: Broken pipe
+SESSION COMPLETE - read $REPORT
+== J(1) profiling start Mon Oct  5 22:21:21 EDT 2026 [lvl=100 ac=false usb=false wl=false batT=286 skin=29.6 wake=Awake thermal=0 traced=0]
+binary: c59dd1dfde27 skel: e16120a812a1
+H: exit=0 tg=22.70 rows=34 [lvl=100 ac=false usb=false wl=false batT=286 skin=29.6 wake=Awake thermal=0 traced=0]
+== J(1) profiling end Mon Oct  5 22:21:28 EDT 2026 [lvl=100 ac=false usb=false wl=false batT=286 skin=29.6 wake=Awake thermal=0 traced=0]
