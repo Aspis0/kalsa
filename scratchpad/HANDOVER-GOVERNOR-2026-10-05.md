@@ -16,7 +16,7 @@ Fable 5.1 `b1fb0210` (architect, owner-granted exception) is idle and stays aliv
 | Engine main (Aspis0/kalsallama) | `837334a74` = `bc5f0207c` + the Q8_0 quantizer fix (below). The bar "engine main must not reach the app pin" is LIFTED for the #29395 regression. |
 | One-copy branch | `feat/governor-onecopy` = `6106d4997`, pushed to the fork. Q8_0 fix cherry-picked (`f7b96a8a0`). |
 | Archive tags (fork) | `archive/governor-onecopy-q6raw` (option 3, closed), `archive/exp-revert-q8-quantizer` (the revert experiment). |
-| Binding / app | binding pin `f25f0c1c5` (shipped, not affected by #29395). App main is `1b54f533` (UX session; no engine/binding/lockfile change since 1cd2a40a); the next app-pin push rebases on it and needs a native rebuild (react-native-worklets 0.10.4). |
+| Binding / app | binding pin `f25f0c1c5` (shipped, not affected by #29395). App main is `67c3eea5` (UX session; no engine/binding/lockfile change since 1cd2a40a); the next app-pin push rebases on it and needs a native rebuild (react-native-worklets 0.10.4). |
 
 ## What was settled today
 
