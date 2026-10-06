@@ -1669,6 +1669,17 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   reads the HOST-W weight through its Hexagon extra (no import substitution, no CL error - a silent garbage read).
   Fix dispatched: substitute the import in the fused paths + can_fuse fails closed on unsubstituted host operands;
   plus the HOST-W fallback restricted to native f32 weights (audit triage).
+- **Fixed and measured: `0ca7e1890` + `9eb7c54c7`** (GLM `1fcf571e`, deepseek's Go quota ran out mid-fix; S23 01:10-01:33,
+  unplugged; `step4b-s23/raw/session5-9eb7c54c7.grep`). Fused norm paths substitute the HOST-W import, every can_fuse
+  fails closed on an unsubstituted host operand; the HOST-W layer catch-all takes F32 weights only. **G arm: KLD
+  0.000885, splits 62 (was 198), tg128 6.80 +- 0.03 (was 4.15)**; prefill graph bs=16 now 199 splits (decode-only leg).
+  **J(1) ABBA no regression**: A 947/22.73, H 927/22.11, H2 925/22.13, A2 938/22.88 (pp512/tg128) = 0.97; KLD H 0.005343
+  vs A 0.005357; H splits 3; maxRSS 127 vs 317 MB. Luna audit (`audit-fusion-f32only-luna.md`): 5 findings, none
+  blocking (no F32 matrices in the Q4_0 ship models; HOST-W is WEIGHTS-only) -> BACKLOG. The 6.80 vs the 10.4 target:
+  the rest is the KV/attention on the CPU, step 5.
+- **Step 5 started.** The "merge main first" trap is stale: the branch already merged main (`6a937f6db`), hop v1
+  included; only `837334a74` (the Q8_0 fix, already in as `f7b96a8a0`) is missing. Step 5.1 (leg_devices + KV/state
+  buft rule, host-tested) dispatched to GLM `190a3701`.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

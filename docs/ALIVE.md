@@ -1028,6 +1028,8 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - One-copy GPU leg on `6106d4997`: correct (KLD 0.000882), 198 splits, tg128 4.15 tok/s; the KV on OpenCL (step 5)
   is what must close the gap to 11.5 - after the per-layer f32 weights (norms, conv) move from the CPU buffer to
   HOST-W, which the 4b placement never did (found 2026-10-05 with GGML_SCHED_DEBUG; fix in progress).
+- 2026-10-06 `9eb7c54c7`: norms/conv in HOST-W (OpenCL fused norms read the import): GPU leg KLD 0.000885, 62 splits,
+  tg128 6.80; J(1) NPU decode unchanged (0.97 of A, KLD 0.005343, RSS 127 vs 317 MB).
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.
