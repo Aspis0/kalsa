@@ -344,6 +344,6 @@ export function HostOverlays(props: OverlaysProps) {
       />
     );
   }
-  if (overlay?.kind === "room") return <RoomScreen key={overlay.localId} localId={overlay.localId} onBack={() => setOverlay(null)} />;
+  if (overlay?.kind === "room") return <RoomScreen localId={overlay.localId} onBack={() => setOverlay(null)} />;
   return null;
 }

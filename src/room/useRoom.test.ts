@@ -32,7 +32,6 @@ import { getPairing } from "../pairing/pairingCredentialStore";
 import { fetchRoomHistory, fetchRoomInfo } from "./roomApi";
 import type { RoomStreamEvent } from "./roomStream";
 import { subscribeRoomEvents } from "./roomSubscriptions";
-import { clearRoomFeed } from "./roomFeedCache";
 import { useRoom, type RoomView } from "./useRoom";
 import { parseRoomInfo, type RoomHistoryMessage, type RoomInfo } from "./roomWire";
 import infoFixture from "./fixtures/info.json";
@@ -84,7 +83,6 @@ let listeners: Array<(event: RoomStreamEvent) => void>;
 let leaves: jest.Mock[];
 
 beforeEach(() => {
-  clearRoomFeed(LOCAL);
   jest.clearAllMocks();
   listeners = [];
   leaves = [];
