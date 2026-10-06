@@ -38,15 +38,15 @@ class KalsaIrohModule : Module() {
   // Two pools, split by whether the call parks. Reads (and writes, which
   // backpressure can park) sit on an unbounded cached pool: each parks up
   // to its own deadline — a long SSE read — and a parked read must never
-  // starve another call; the crate bounds every park, so unbounded threads
-  // are bounded in time. Control calls (start, node id, open, shutdown)
-  // are short and must stay responsive during teardown: a small fixed pool.
+  // starve another call. Control calls use a four-thread pool; open can
+  // block for a bounded dial, while start, node id, shutdown, and stop are short.
   private val parking = Executors.newCachedThreadPool()
   private val control = Executors.newFixedThreadPool(4)
   private val bridges = Any()
   @Volatile private var bridge: MobileBridge? = null
   @Volatile private var destroyed = false
   private val tunnels = ConcurrentHashMap<Long, Tunnel>()
+  private var pendingOpens = 0
   private val nextId = AtomicLong(0)
 
   private external fun nativeInstallAndroidContext(applicationContext: Context): Boolean
@@ -61,6 +61,10 @@ class KalsaIrohModule : Module() {
       }
     }
 
+    AsyncFunction("stopBridge") { promise: Promise ->
+      run(control, promise, "stopBridge") { stopBridge() }
+    }
+
     AsyncFunction("nodeId") { promise: Promise ->
       run(control, promise, "nodeId") { currentBridge().nodeId() }
     }
@@ -72,15 +76,29 @@ class KalsaIrohModule : Module() {
           "desk" -> Lane.DESK
           else -> throw IllegalArgumentException("lane must be \"door\" or \"desk\", got: $lane")
         }
-        val tunnel = currentBridge().connect(nodeHex, target)
-        if (destroyed) {
-          // OnDestroy raced this open: the module is gone, so the fresh
-          // tunnel closes right away and is never handed out.
-          tunnel.shutdown()
-          throw IllegalStateException("the module is destroyed")
+        val active = synchronized(bridges) {
+          if (destroyed) throw IllegalStateException("the module is destroyed")
+          val current = currentBridge()
+          pendingOpens += 1
+          current
         }
-        val id = nextId.incrementAndGet()
-        tunnels[id] = tunnel
+        val tunnel = try {
+          active.connect(nodeHex, target)
+        } catch (error: Throwable) {
+          synchronized(bridges) { pendingOpens -= 1 }
+          throw error
+        }
+        val id = synchronized(bridges) {
+          pendingOpens -= 1
+          if (destroyed || bridge !== active) null
+          else nextId.incrementAndGet().also { tunnels[it] = tunnel }
+        }
+        if (id == null) {
+          // Teardown raced this open: close the fresh tunnel before it can
+          // escape with a handle backed by a dropped bridge.
+          tunnel.shutdown()
+          throw IllegalStateException("the bridge stopped during open")
+        }
         id
       }
     }
@@ -109,10 +127,14 @@ class KalsaIrohModule : Module() {
     OnDestroy {
       // First: no new work is accepted and no racing open may keep its
       // tunnel. Then the pools drain what is in flight and stop.
-      destroyed = true
-      val open = tunnels.values.toList()
-      tunnels.clear()
-      val current = synchronized(bridges) { val b = bridge; bridge = null; b }
+      val (open, current) = synchronized(bridges) {
+        destroyed = true
+        val openTunnels = tunnels.values.toList()
+        tunnels.clear()
+        val active = bridge
+        bridge = null
+        openTunnels to active
+      }
       control.execute {
         open.forEach { it.shutdown() }
         dropBridge(current)
@@ -211,6 +233,19 @@ class KalsaIrohModule : Module() {
 
   private fun currentBridge(): MobileBridge {
     return bridge ?: throw IllegalStateException("the bridge is not started")
+  }
+
+  /** Keep stop and open/register atomic: an accepted tunnel always keeps its bridge alive. */
+  private fun stopBridge(): Boolean {
+    val current = synchronized(bridges) {
+      if (destroyed) return false
+      if (pendingOpens > 0 || tunnels.isNotEmpty()) return false
+      val active = bridge
+      bridge = null
+      active
+    }
+    dropBridge(current)
+    return true
   }
 
   private fun tunnel(id: Long): Tunnel {

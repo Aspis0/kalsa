@@ -13,6 +13,7 @@ export type IrohLane = "door" | "desk";
 
 type NativeKalsaIrohModule = {
   startBridge(): Promise<void>;
+  stopBridge(): Promise<boolean>;
   nodeId(): Promise<string>;
   openTunnel(nodeHex: string, lane: IrohLane): Promise<number>;
   write(id: number, base64: string, timeoutMs: number): Promise<void>;
@@ -56,6 +57,11 @@ function requireModule(): NativeKalsaIrohModule {
  */
 export function startBridge(): Promise<void> {
   return requireModule().startBridge();
+}
+
+/** Drop the bridge when no native tunnels are open; false means keep it. */
+export function stopBridge(): Promise<boolean> {
+  return requireModule().stopBridge();
 }
 
 /** This node's public identity, 64 hex characters. */

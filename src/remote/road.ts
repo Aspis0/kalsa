@@ -31,6 +31,9 @@ export type IrohDialReason =
   | "async_context"
   | "other";
 
+export type IrohBridgeStage = "start" | "background_stop";
+export type IrohBridgeReason = "started" | "stopped" | "tunnels_open" | "error" | "stop_timeout";
+
 export const IROH_DIAL_ERROR_REASONS = {
   KALSA_IROH_DEADLINE: "deadline",
   KALSA_IROH_ABORTED: "aborted",
@@ -111,6 +114,18 @@ export function logIrohDial(
     emitRoadLine(line);
   } catch {
     // Invalid input must never change the dial result.
+  }
+}
+
+/** Privacy-safe lifecycle decision for lazy bridge start and background stop. */
+export function logIrohBridgeDecision(
+  stage: IrohBridgeStage,
+  reason: IrohBridgeReason,
+): void {
+  try {
+    emitRoadLine({ road: "iroh", stage, reason });
+  } catch {
+    // Logging must never change bridge lifecycle behavior.
   }
 }
 

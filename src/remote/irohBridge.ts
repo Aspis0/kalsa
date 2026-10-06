@@ -8,7 +8,8 @@
 import type { IrohLane } from "../../modules/kalsa-iroh/src/index";
 import type { IrohTunnel } from "./irohHttp";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "../util/base64";
-import { irohDialReason, logIrohDial } from "./road";
+import { irohDialReason, logIrohBridgeDecision, logIrohDial } from "./road";
+import { notifyIrohTunnelClosed } from "./irohBackgroundStop";
 
 type IrohModule = typeof import("../../modules/kalsa-iroh/src/index");
 
@@ -35,18 +36,93 @@ export function irohModulePresent(): boolean {
 }
 
 let started: Promise<void> | null = null;
+let stopping: Promise<boolean> | null = null;
+const STOP_WAIT_TIMEOUT_MS = 3_000;
 
-function ensureStarted(module: IrohModule): Promise<void> {
-  if (started === null) {
-    // startBridge REPLACES any running native bridge and drops it — closing
-    // the tunnels it opened — so it runs exactly once per session; only a
-    // failed start is retryable.
-    started = module.startBridge().catch((error: unknown) => {
-      started = null;
-      throw error;
-    });
+function waitForSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (signal === undefined) return promise;
+  if (signal.aborted) return Promise.reject(dialError("KALSA_IROH_ABORTED", "dial aborted"));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener("abort", onAbort);
+      reject(dialError("KALSA_IROH_ABORTED", "dial aborted"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+function waitForStopOrTimeout(promise: Promise<boolean>): Promise<"settled" | "timeout"> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve("timeout"), STOP_WAIT_TIMEOUT_MS);
+    promise.then(
+      () => {
+        clearTimeout(timer);
+        resolve("settled");
+      },
+      () => {
+        clearTimeout(timer);
+        resolve("settled");
+      },
+    );
+  });
+}
+
+async function ensureStarted(module: IrohModule, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) throw dialError("KALSA_IROH_ABORTED", "dial aborted");
+  if (stopping !== null) {
+    const stopInFlight = stopping;
+    const outcome = await waitForSignal(waitForStopOrTimeout(stopInFlight), signal);
+    if (outcome === "timeout") {
+      logIrohBridgeDecision("start", "stop_timeout");
+      // The native operation may still be queued or running. Do not let its
+      // pending promise hold this dial open forever; openTunnel will report
+      // whether the existing bridge is still usable.
+      return;
+    }
+    return ensureStarted(module, signal);
   }
-  return started;
+  if (started === null) {
+    // Native startBridge replaces a running bridge and drops its tunnels.
+    // Keep this promise until native stopBridge confirms the bridge is down.
+    started = module.startBridge().then(
+      () => logIrohBridgeDecision("start", "started"),
+      (error: unknown) => {
+        started = null;
+        logIrohBridgeDecision("start", "error");
+        throw error;
+      },
+    );
+  }
+  return waitForSignal(started, signal);
+}
+
+/** Stop after the current start settles; a later dial restarts lazily. */
+export function stopIrohBridge(): Promise<boolean> {
+  if (stopping !== null) return stopping;
+  const pendingStart = started;
+  stopping = (async () => {
+    if (pendingStart !== null) await pendingStart;
+    const module = loadModule();
+    if (module === null) {
+      return false;
+    }
+    const stopped = await module.stopBridge();
+    if (stopped) started = null;
+    return stopped;
+  })().finally(() => {
+    stopping = null;
+  });
+  return stopping;
 }
 
 function dialError(code: string, message: string): Error & { code: string } {
@@ -81,7 +157,10 @@ function raceDial(
     dial().then(
       (id) => {
         if (settled) {
-          void module.tunnelShutdown(id);
+          void Promise.resolve(module.tunnelShutdown(id)).then(
+            notifyIrohTunnelClosed,
+            notifyIrohTunnelClosed,
+          );
           return;
         }
         settled = true;
@@ -115,7 +194,7 @@ export async function openIrohTunnel(
     if (module === null) {
       throw dialError("KALSA_IROH_NO_MODULE", "iroh module unavailable");
     }
-    await ensureStarted(module);
+    await ensureStarted(module, signal);
     const id = await raceDial(() => module.openTunnel(nodeHex, lane), signal, module);
     logIrohDial(lane, nodeHex, "ok", Date.now() - startedAt);
     let closed = false;
@@ -126,7 +205,11 @@ export async function openIrohTunnel(
       shutdown: async () => {
         if (closed) return;
         closed = true;
-        await module.tunnelShutdown(id);
+        try {
+          await module.tunnelShutdown(id);
+        } finally {
+          notifyIrohTunnelClosed();
+        }
       },
     };
   } catch (error) {

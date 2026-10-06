@@ -6,6 +6,7 @@
  * epoch-stamped, because `updateMessage` no-ops once unmounted.
  */
 import { useEffect, useMemo, useRef } from "react";
+import { AppState, Platform } from "react-native";
 import {
   regenHandleSendPassRef,
   regenInFlightRef,
@@ -14,6 +15,8 @@ import {
 } from "../engine/regenState";
 import { notifyStaticPrefixInputs, type EngineTool } from "../engine/engineBackend";
 import { bindRoomStreamsToAppState } from "../room/roomAppState";
+import { bindIrohBackgroundStop } from "../remote/irohBackgroundStop";
+import { stopIrohBridge } from "../remote/irohBridge";
 import { createStaticPrefixNotifier } from "./staticPrefixNotify";
 import { notifyNativeWorkSettled } from "../engine/nativeWorkSettle";
 import { idleDiscardAbortRef } from "./foregroundIdle";
@@ -120,6 +123,12 @@ export function useHostEffects(params: HostEffectParams): void {
   // — background closes every wire, active dials each room back — beside the
   // iOS guard above.
   useEffect(() => bindRoomStreamsToAppState(), []);
+
+  // Android iroh bridge idle stop shares the same process lifecycle wiring;
+  // native stopBridge preserves any tunnel that is still open.
+  useEffect(() => {
+    return bindIrohBackgroundStop(AppState, Platform.OS, stopIrohBridge);
+  }, []);
 
   // Unmount: flush the partial from the ref BEFORE aborting — updateMessage
   // no-ops once unmounted and the turn's finally may never rewrite state.

@@ -314,12 +314,12 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     ),
     status: NUMN,
   },
-  // road.ts:79-120; Road/HttpsRoadReason/IrohDialReason at road.ts:9-32.
+  // Lifecycle and dial reasons share one field; stage-specific sets live in road.ts.
   // `node8` is deliberately NOT a field (node-id prefix): the schema drops it.
   KALSA_ROAD: {
     road: enumOf("https", "iroh"),
     lane: enumOf("desk", "door"),
-    stage: enumOf("dial"),
+    stage: enumOf("dial", "start", "background_stop"),
     reason: enumOf(
       "no_node",
       "module_absent",
@@ -337,6 +337,11 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
       "closed",
       "async_context",
       "other",
+      "started",
+      "stopped",
+      "tunnels_open",
+      "error",
+      "stop_timeout",
     ),
     ms: NUM,
   },

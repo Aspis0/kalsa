@@ -190,4 +190,17 @@ describe("KALSA_ROAD (road.ts:79-120)", () => {
       reason: "no_node",
     });
   });
+
+  it("keeps iroh bridge lifecycle decisions", () => {
+    expect(record("KALSA_ROAD", '{"road":"iroh","stage":"background_stop","reason":"tunnels_open"}')).toEqual({
+      road: "iroh",
+      stage: "background_stop",
+      reason: "tunnels_open",
+    });
+    expect(record("KALSA_ROAD", '{"road":"iroh","stage":"start","reason":"stop_timeout"}')).toEqual({
+      road: "iroh",
+      stage: "start",
+      reason: "stop_timeout",
+    });
+  });
 });
