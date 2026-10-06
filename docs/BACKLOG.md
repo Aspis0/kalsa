@@ -142,3 +142,7 @@ they are promoted.
 ## Tune sweep and wait (review of dfac842e, 83d62e2f)
 - P2 accepted trade-off (owner chose it): a shape reading the prompt less than 5 % faster than the off-winner is never swept, so a large MTP gain on it cannot be seen (`crates/kalsa-tune/src/passes/mod.rs` `PREFILL_EDGE`). The sound alternative is a capped best-case bound per backend (~13 lifetimes on the Surface instead of ~10).
 - P3: `chat/scripts/walk-shots.mjs` sends tuning payloads without `budget_seconds`, so its screenshots show no ceiling.
+
+## Room host name (review of 24ff59db)
+
+- P3: `crates/kalsa-door/src/tests/room_support.rs` `scratch()` clears a room directory only before a test, never after: the 10 kalsa-door test files that use it, `room_names.rs` included, leave their rooms in the temp dir. A drop guard would clean them.
