@@ -1734,6 +1734,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   19.4-19.5 tok/s** (J(1) llama-bench tg128 22.1: different harness - re-measure in one harness), **GPU leg 15.2-15.7**
   (KV on OpenCL, 2 splits), CPU leg 13.3-15.4; hops: first 9.27 MB / 16 ms, then 1.41 MB / 0.3-15.5 ms. Next: step 5.3
   (hop v2: per-leg headroom incl. the GPU zone, relief leg choice), then v2 free-running on a warm phone vs hop v1's 9.0.
+- **Step 5.3 landed** (GLM, `a9ed9adaf` rule v2 in `llama-governor-policy-hop.cpp` + `8b2d864f4` per-leg/pair stats,
+  floors, bench free-running with `--headroom-file`): v1 generalised to three legs (move to the leg whose headroom leads
+  by 4 C, NPU first and on ties), heat-per-token weight and floors are params defaulting to v1; v1 router test unchanged;
+  host tests green (orchestrator re-ran hop-v2, router, legs). F3's "lowest heat-per-token relief leg / GPU burst" is
+  NOT implemented - the weighting stays the owner's decision (v1 lesson: headroom-to-trip leans on the CPU). Luna audit
+  running. S23 feeder `step5-s23/headroom-feeder.sh` (binding rule + gpu zones, lowest passive trip, 1 Hz): at rest
+  CPU 76.8 / NPU 64.0 / GPU 63.3 C of headroom (CPU trip 108, NSP/GPU ~95). **S23 free-run 1
+  (`raw/session5-free-8b2d864f4.grep`)**: KL PASS but all 8 windows on the CPU although the NPU led by 15-20 C - the
+  rule never ran (suspect: the NPU lane is never "live" in the one-model governor; forced runs skip that gate). Fix
+  with GLM.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
