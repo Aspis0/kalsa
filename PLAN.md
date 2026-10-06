@@ -1239,6 +1239,13 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   resync relabels it "This computer" (desktop correct); (B) on resume the Room list is empty for a few seconds
   and the composer refocuses. A+B delegated to luna 025d7f55. Photo chip reads "Reading from <id>" (doc-style
   label) before send - check copy.
+  (A) RESOLVED on the desktop: kalsa-brain 24ff59db (branch brain) - name_of resolves the host via host_label
+  (room name, else device label, else "This computer") for history, stream frames, ai-state and the AI prompt
+  speaker. Takes effect after the Mac app is rebuilt from brain; phone live check owed. Phone-side override
+  3d5e5d33 and feed cache 1532b6d8 were REVERTED (review c5ac98fc: protocol authority inversion; plaintext cache
+  outliving the pairing; remount unproven). (B) instead gets a KALSA_ROOM_FEED diagnostic (op/entries/seqFirst/
+  seqLast/epoch8/status, no text). keyboard-controller 1.21.9 -> 1.22.6 for the Modal SoftException; Jelly
+  (API 33) IME-height check owed.
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
