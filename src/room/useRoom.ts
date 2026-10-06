@@ -35,6 +35,17 @@ import { subscribeRoomEvents } from "./roomSubscriptions";
 /** §4's own cap, and the page the Room asks for: the newest 200. */
 const HISTORY_LIMIT = 200;
 
+type FeedLogOp = "mount" | "read" | "history" | "resync" | "entry" | "info" | "removed" | "error";
+
+function logRoomFeed(op: FeedLogOp, feed: RoomFeed): void {
+  console.log(`KALSA_ROOM_FEED ${JSON.stringify({
+    op,
+    entries: feed.entries.length,
+    epoch8: feed.epoch.slice(0, 8) || "unknown",
+    status: feed.status,
+  })}`);
+}
+
 export type RoomView = {
   feed: RoomFeed;
   rows: RoomRow[];
@@ -73,6 +84,20 @@ export function useRoom(localId: string): RoomView {
   const liveRef = useRef(true);
   const feedRef = useRef(feed);
   feedRef.current = feed;
+  const commitFeed = useCallback((op: FeedLogOp, fold: (current: RoomFeed) => RoomFeed): void => {
+    const previous = feedRef.current;
+    const next = fold(previous);
+    if (
+      previous.entries.length !== next.entries.length ||
+      previous.epoch !== next.epoch ||
+      op === "removed" ||
+      op === "error"
+    ) {
+      logRoomFeed(op, next);
+    }
+    feedRef.current = next;
+    setFeed(next);
+  }, []);
   const olderInFlight = useRef(false);
   useEffect(() => {
     liveRef.current = true;
@@ -82,11 +107,15 @@ export function useRoom(localId: string): RoomView {
   }, []);
 
   useEffect(() => {
+    logRoomFeed("mount", feedRef.current);
+  }, []);
+
+  useEffect(() => {
     let live = true;
-    const apply = (fold: (current: RoomFeed) => RoomFeed): void => {
-      if (live) setFeed(fold);
+    const apply = (op: FeedLogOp, fold: (current: RoomFeed) => RoomFeed): void => {
+      if (live) commitFeed(op, fold);
     };
-    setFeed(emptyRoomFeed());
+    commitFeed("mount", () => emptyRoomFeed());
     setNameErrorCode(null);
     setSendErrorCode(null);
     pendingSendRef.current = null;
@@ -94,17 +123,29 @@ export function useRoom(localId: string): RoomView {
 
     // The listeners attach before the reads: nothing the room announces
     // while the page loads is lost.
-    const leaveStream = subscribeRoomEvents(localId, (event) =>
-      apply((current) => foldEvent(current, event)),
-    );
+    const leaveStream = subscribeRoomEvents(localId, (event) => {
+      const op: FeedLogOp =
+        event.type === "message" || event.type === "ai_message"
+          ? "entry"
+          : event.type === "resynced"
+            ? "resync"
+            : event.type === "refetched"
+              ? "info"
+              : event.type === "removed"
+                ? "removed"
+                : event.type === "error"
+                  ? "error"
+                  : "info";
+      apply(op, (current) => foldEvent(current, event));
+    });
     const leaveQueue = subscribeRoomQueue(localId, (event) => {
-      if (event.type === "changed") apply((current) => foldQueue(current, event.items));
-      else apply((current) => foldQueueSent(current, event.item));
+      if (event.type === "changed") apply("info", (current) => foldQueue(current, event.items));
+      else apply("info", (current) => foldQueueSent(current, event.item));
     });
     // A subscription only announces what moves after it: the shelf as it
     // stands is read once, here.
     void getRoomQueue(localId)
-      .then((items) => apply((current) => foldQueue(current, items)))
+      .then((items) => apply("info", (current) => foldQueue(current, items)))
       .catch(() => undefined);
 
     const controller = new AbortController();
@@ -119,18 +160,18 @@ export function useRoom(localId: string): RoomView {
       const history = await fetchRoomHistory({ limit: HISTORY_LIMIT }, options);
       if (!live) return null;
       if (!history.ok) return history.error;
-      apply((current) => foldHistory(foldInfo(current, info.value), history.value));
+      apply("read", (current) => foldHistory(foldInfo(current, info.value), history.value));
       return null;
     };
     void (async () => {
       const refused = await read();
       if (refused === null) return;
       if (refused.code !== "epoch_changed") {
-        apply((current) => failRoom(current, refused));
+        apply("error", (current) => failRoom(current, refused));
         return;
       }
       const again = await read();
-      if (again !== null) apply((current) => failRoom(current, again));
+      if (again !== null) apply("error", (current) => failRoom(current, again));
     })();
 
     return () => {
@@ -149,7 +190,7 @@ export function useRoom(localId: string): RoomView {
         setNameErrorCode(null);
         // The room confirmed the name: a rename of the reader, and the rows
         // already held resolve to it (the room resolves names at read time).
-        setFeed((current) =>
+        commitFeed("info", (current) =>
           foldEvent(current, {
             type: "member",
             member: { action: "renamed", memberId: result.value.memberId, name: result.value.name },
@@ -159,7 +200,7 @@ export function useRoom(localId: string): RoomView {
         setNameErrorCode(result.error.code);
       }
     },
-    [localId],
+    [commitFeed, localId],
   );
 
   const send = useCallback(
@@ -230,12 +271,12 @@ export function useRoom(localId: string): RoomView {
         return;
       }
       setPageErrorCode(null);
-      setFeed((held) => foldHistory(held, page.value));
+      commitFeed("history", (held) => foldHistory(held, page.value));
     } finally {
       olderInFlight.current = false;
       if (liveRef.current) setLoadingOlder(false);
     }
-  }, [localId]);
+  }, [commitFeed, localId]);
 
   const reload = useCallback(() => setAttempt((current) => current + 1), []);
 
