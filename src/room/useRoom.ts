@@ -16,11 +16,13 @@ import {
   foldInfo,
   foldQueue,
   foldQueueSent,
+  foldResync,
   roomRows,
   type RoomFeed,
   type RoomQueueRow,
   type RoomRow,
 } from "./roomFeed";
+import { cachedRoomFeed, clearRoomFeed, rememberRoomFeed } from "./roomFeedCache";
 import { foldEvent } from "./roomFrames";
 import {
   discardRoomQueueItem,
@@ -61,7 +63,7 @@ export type RoomView = {
 };
 
 export function useRoom(localId: string): RoomView {
-  const [feed, setFeed] = useState<RoomFeed>(emptyRoomFeed);
+  const [feed, setFeed] = useState<RoomFeed>(() => cachedRoomFeed(localId) ?? emptyRoomFeed());
   const [nameErrorCode, setNameErrorCode] = useState<string | null>(null);
   const [sendErrorCode, setSendErrorCode] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -82,11 +84,14 @@ export function useRoom(localId: string): RoomView {
   }, []);
 
   useEffect(() => {
+    rememberRoomFeed(localId, feed);
+  }, [localId, feed]);
+
+  useEffect(() => {
     let live = true;
     const apply = (fold: (current: RoomFeed) => RoomFeed): void => {
       if (live) setFeed(fold);
     };
-    setFeed(emptyRoomFeed());
     setNameErrorCode(null);
     setSendErrorCode(null);
     pendingSendRef.current = null;
@@ -94,9 +99,10 @@ export function useRoom(localId: string): RoomView {
 
     // The listeners attach before the reads: nothing the room announces
     // while the page loads is lost.
-    const leaveStream = subscribeRoomEvents(localId, (event) =>
-      apply((current) => foldEvent(current, event)),
-    );
+    const leaveStream = subscribeRoomEvents(localId, (event) => {
+      if (event.type === "removed") clearRoomFeed(localId);
+      apply((current) => foldEvent(current, event));
+    });
     const leaveQueue = subscribeRoomQueue(localId, (event) => {
       if (event.type === "changed") apply((current) => foldQueue(current, event.items));
       else apply((current) => foldQueueSent(current, event.item));
@@ -119,18 +125,26 @@ export function useRoom(localId: string): RoomView {
       const history = await fetchRoomHistory({ limit: HISTORY_LIMIT }, options);
       if (!live) return null;
       if (!history.ok) return history.error;
-      apply((current) => foldHistory(foldInfo(current, info.value), history.value));
+      apply((current) =>
+        current.epoch !== "" && current.epoch !== info.value.epoch
+          ? foldResync(current, info.value, history.value)
+          : foldHistory(foldInfo(current, info.value), history.value),
+      );
       return null;
     };
     void (async () => {
       const refused = await read();
       if (refused === null) return;
       if (refused.code !== "epoch_changed") {
+        if (refused.code === "removed") clearRoomFeed(localId);
         apply((current) => failRoom(current, refused));
         return;
       }
       const again = await read();
-      if (again !== null) apply((current) => failRoom(current, again));
+      if (again !== null) {
+        if (again.code === "removed") clearRoomFeed(localId);
+        apply((current) => failRoom(current, again));
+      }
     })();
 
     return () => {

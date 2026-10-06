@@ -209,15 +209,11 @@ export function foldHistory(feed: RoomFeed, page: RoomHistoryPage): RoomFeed {
  *  a cursor that claimed past the end, and the rows and acks they named all
  *  go with it. */
 export function foldResync(feed: RoomFeed, info: RoomInfo, history: RoomHistoryPage): RoomFeed {
-  const keepVisibleEntries =
-    feed.epoch === info.epoch && feed.entries.length > 0 && history.messages.length === 0;
-  const kept = keepVisibleEntries
-    ? { entries: resolveNames(feed.entries, info.members), trimmed: false }
-    : capped([...history.messages].sort(bySeq));
+  const kept = capped([...history.messages].sort(bySeq));
   return {
     ...foldInfo({ ...feed, epoch: "" }, info),
     entries: kept.entries,
-    hasOlder: history.hasOlder || kept.trimmed || (keepVisibleEntries && feed.hasOlder),
+    hasOlder: history.hasOlder || kept.trimmed,
     sent: [],
     live: null,
   };

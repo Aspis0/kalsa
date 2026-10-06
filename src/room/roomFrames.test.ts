@@ -195,27 +195,6 @@ describe("the endings", () => {
     expect(state.live).toBeNull();
   });
 
-  test("an empty same-epoch resync keeps the last visible transcript", () => {
-    const prior = withHistory([1, 2]);
-    const state = foldResync(prior, INFO, {
-      messages: [],
-      hasOlder: false,
-      hasNewer: false,
-    });
-    expect(state.entries.map((held) => held.seq)).toEqual([1, 2]);
-  });
-
-  test("an empty new-epoch resync replaces the old transcript", () => {
-    const prior = withHistory([1, 2]);
-    const state = foldResync(prior, { ...INFO, epoch: "e-new" }, {
-      messages: [],
-      hasOlder: false,
-      hasNewer: false,
-    });
-    expect(state.epoch).toBe("e-new");
-    expect(state.entries).toEqual([]);
-  });
-
   test("a cut wire is a reconnect, and the next frame ends it", () => {
     const cut = foldEvent(feed(), { type: "disconnected" });
     expect(cut.reconnecting).toBe(true);

@@ -39,6 +39,7 @@ import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { getPairing } from "../pairing/pairingCredentialStore";
 import { fetchRoomHistory, fetchRoomInfo, postRoomMessage, putRoomName } from "./roomApi";
 import { subscribeRoomEvents } from "./roomSubscriptions";
+import { clearRoomFeed } from "./roomFeedCache";
 import { useRoom, type RoomView } from "./useRoom";
 import { parseRoomInfo, type RoomHistoryMessage, type RoomInfo } from "./roomWire";
 import infoFixture from "./fixtures/info.json";
@@ -95,6 +96,7 @@ const now = (): RoomView => {
 };
 
 beforeEach(async () => {
+  clearRoomFeed(LOCAL);
   jest.clearAllMocks();
   for (const key of Object.keys(stored)) delete stored[key];
   (subscribeRoomEvents as jest.Mock).mockImplementation(() => jest.fn());
