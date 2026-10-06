@@ -83,12 +83,14 @@ const MAIN_WINDOW_LABEL: &str = "main";
 /// reload of a window that never closed.
 static PAGE_LOADS: AtomicU64 = AtomicU64::new(0);
 
+/// The app's brain, managed as an `Arc` so the ticker's thread can hold it
+/// weakly: that thread carries the disk tier's tick and the door's reconcile
+/// ([`ticker`]), and it must never keep the app alive to do its work.
 struct Brain {
     supervisor: Supervisor,
-    /// The door slot, an `Arc` because the disk tier's timer holds it weakly: the
-    /// tick runs on its own thread ([`ticker`]) and must not read a door through
-    /// the webview's command. Weak on purpose — the thread watches this slot and
-    /// ends with it, and it keeps no app alive to do it.
+    /// The door slot, an `Arc` because the timer's thread takes it out of the
+    /// lock and calls the door on its own — a save can wait on the engine for
+    /// seconds, and the tick must not hold the slot's lock across it.
     door: Arc<Mutex<Option<ActiveDoor>>>,
     launch: Mutex<Option<startup::LaunchInfo>>,
     /// Whether the engine the walk mounted consumes the door's private
@@ -222,6 +224,117 @@ fn tick(door: &Mutex<Option<ActiveDoor>>, watch: &Watch) {
             active.invalidate_residency();
         }
         active.save_idle(Instant::now());
+    }
+}
+
+/// Who is asking the shared reconcile: the one thing its two callers disagree
+/// about.
+enum DoorCaller<'a> {
+    /// The webview's `brain_state` poll. It reads the store once a second
+    /// anyway — its raise is also the device-set refresh and the road's
+    /// reconcile — and it runs on the event loop's thread, where the exit
+    /// handler cannot be executing beside it.
+    Poll,
+    /// The ticker's thread, carrying the app's exit flag. It pays for a raise
+    /// only when no door is up, and the flag gets the last word over a raise
+    /// it does make.
+    Tick { leaving: &'a AtomicBool },
+}
+
+/// The door's reconcile, in one place so the webview's poll and the ticker's
+/// thread cannot drift into different doors. The rule is the poll's own: a
+/// running engine raises the door through its paired store, and every other
+/// state takes the door and the pairing square down — the upstream is not
+/// ready while one starts, a drain must never be re-raised, and a stopped or
+/// failed engine has nothing to forward to. Lowering is idempotent: `brain_stop`
+/// may already have taken the door.
+///
+/// The ticker's half exists for the start no page ever sees — the window
+/// behind a lock screen, a stalled webview — where the engine comes up and the
+/// poll that used to be the only raiser never runs, leaving the phone outside
+/// a door nobody raised.
+///
+/// Nothing here reads a file on the ways that change nothing: `state_file` is
+/// read on the raise path alone, and `pairing_file` only inside
+/// [`Brain::start_door_if_paired`].
+fn reconcile_door(
+    brain: &Brain,
+    desk: &pairing::Desk,
+    state: &ServerState,
+    pairing_file: &Path,
+    state_file: Option<&Path>,
+    caller: DoorCaller<'_>,
+) {
+    let leaving = match caller {
+        DoorCaller::Poll => None,
+        DoorCaller::Tick { leaving } => Some(leaving),
+    };
+    // An exit that has begun wins over everything below, and this is the first
+    // thing the function reads: the exit sets the flag before it stops
+    // anything, so a false read here means a raise below can only land before
+    // its stop — never after it.
+    if leaving.is_some_and(|flag| flag.load(Ordering::SeqCst)) {
+        brain.stop_door();
+        desk.stop_serving();
+        return;
+    }
+    match state {
+        ServerState::Running { port, .. } => {
+            let may_raise = match caller {
+                DoorCaller::Poll => true,
+                // The battery rule: an open door is left to the poll and to
+                // pairing's own allow/forget paths, so a quiet tick reads no
+                // store. The slot read below is memory, not a file.
+                DoorCaller::Tick { .. } => brain.door_port().is_none(),
+            };
+            // While a walk is still finishing (its speed check included) the
+            // raise is skipped — a door already open stays open.
+            if may_raise && door_may_raise(brain.turning_on.load(Ordering::SeqCst)) {
+                let raised = brain
+                    .start_door_if_paired(
+                        *port,
+                        pairing_file,
+                        state_file.map(persisted_internet_road).unwrap_or(false),
+                    )
+                    .is_ok();
+                // A door that could not stand up — a credential store this app
+                // cannot read, a listener that would not bind — is not the
+                // brain's problem: the brain is still running and says so, and
+                // the door's problem is reported where the door lives, on the
+                // Devices page, which reads the same store every poll and
+                // carries the escape hatch. The square comes down either way:
+                // advertising a door that cannot complete a request lies to
+                // the phone that scans.
+                //
+                // The exit flag is read again here, after the raise: the exit
+                // may have begun while the door was being built. A true read
+                // means its stop either already ran or is still to come, and
+                // lowering now makes the order irrelevant — a shutdown never
+                // ends with a door up. A false read means the exit had not
+                // begun before this point, so its own stop runs after this
+                // raise.
+                if !raised || leaving.is_some_and(|flag| flag.load(Ordering::SeqCst)) {
+                    brain.stop_door();
+                    desk.stop_serving();
+                }
+            }
+        }
+        ServerState::Starting => {
+            brain.stop_door();
+            desk.stop_serving();
+        }
+        ServerState::Stopping => {
+            brain.stop_door();
+            desk.stop_serving();
+        }
+        ServerState::Stopped => {
+            brain.stop_door();
+            desk.stop_serving();
+        }
+        ServerState::Failed { .. } => {
+            brain.stop_door();
+            desk.stop_serving();
+        }
     }
 }
 
@@ -1078,37 +1191,27 @@ enum StateDto {
 }
 
 #[tauri::command]
-fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) -> StateDto {
+fn brain_state(app: tauri::AppHandle, brain: State<Arc<Brain>>, desk: State<Desk>) -> StateDto {
     let state = brain.supervisor.state();
     brain.clear_launch_for_state(&state);
+    reconcile_door(
+        &brain,
+        &desk.desk,
+        &state,
+        &desk.pairing_file,
+        state_file(&app).ok().as_deref(),
+        DoorCaller::Poll,
+    );
     match state {
         ServerState::Running { port, .. } => {
-            let internet_road = state_file(&app)
-                .map(|path| persisted_internet_road(&path))
-                .unwrap_or(false);
-            // The door is the phone path, not the brain: if it cannot stand
-            // up — a credential store this app cannot read, a listener that
-            // would not bind — the brain is still running and says so. The
-            // door's problem is reported where the door lives: the Devices
-            // page reads the same store every poll and carries the escape
-            // hatch. The square comes down either way: advertising a door
-            // that cannot complete a request lies to the phone that scans.
-            // While a walk is still finishing (its speed check included)
-            // the raise is skipped — a door already open stays open.
-            if door_may_raise(brain.turning_on.load(Ordering::SeqCst))
-                && brain
-                    .start_door_if_paired(port, &desk.pairing_file, internet_road)
-                    .is_err()
-            {
-                brain.stop_door();
-                desk.desk.stop_serving();
-            }
             let active_devices = brain.active_devices();
             let tier = brain.tier();
             let model = brain.model_dto();
             let launch = brain.launch_record();
             StateDto::Running {
                 port,
+                // Absent while the door is not standing. The reconcile above
+                // is what decides that; the phone path is not the brain.
                 endpoint: brain
                     .door_port()
                     .map(|door_port| format!("http://127.0.0.1:{door_port}/v1")),
@@ -1119,33 +1222,10 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
                 metrics: brain.metrics.snapshot(active_devices, tier),
             }
         }
-        ServerState::Starting => {
-            brain.stop_door();
-            // The upstream is not ready while it starts, so a pairing square
-            // would point at a door that cannot complete a request.
-            desk.desk.stop_serving();
-            StateDto::Starting
-        }
-        ServerState::Stopping => {
-            // The drain's arm, and the reason the state exists: this poll
-            // must LOWER the door the stop is taking down, never raise it.
-            // Before this state the field read `Running` through the whole
-            // teardown — the poll is the reconciler — and this is where it
-            // re-raised the door the stop had lowered. Lowering is
-            // idempotent: `brain_stop` may already have taken the door.
-            brain.stop_door();
-            // The square points at a door that is going away with the engine.
-            desk.desk.stop_serving();
-            StateDto::Stopping
-        }
-        ServerState::Stopped => {
-            brain.stop_door();
-            desk.desk.stop_serving();
-            StateDto::Stopped
-        }
+        ServerState::Starting => StateDto::Starting,
+        ServerState::Stopping => StateDto::Stopping,
+        ServerState::Stopped => StateDto::Stopped,
         ServerState::Failed { reason } => {
-            brain.stop_door();
-            desk.desk.stop_serving();
             let message = failure::StartupFailure::Supervisor(reason).message();
             StateDto::Failed {
                 reason: message.text,
@@ -1159,7 +1239,7 @@ fn brain_state(app: tauri::AppHandle, brain: State<Brain>, desk: State<Desk>) ->
 #[tauri::command]
 fn brain_advanced(
     app: tauri::AppHandle,
-    brain: State<Brain>,
+    brain: State<Arc<Brain>>,
 ) -> Result<options::AdvancedDto, String> {
     let state_file = state_file(&app)?;
     Ok(brain.advanced(&state_file).with_desk_port(desk_port(&app)))
@@ -1178,7 +1258,7 @@ fn desk_port(app: &tauri::AppHandle) -> Option<(u16, bool)> {
 #[tauri::command]
 fn brain_set_advanced(
     app: tauri::AppHandle,
-    brain: State<Brain>,
+    brain: State<Arc<Brain>>,
     context_tokens: Option<u64>,
     idle_unload_seconds: Option<u32>,
     internet_road: Option<bool>,
@@ -1238,7 +1318,10 @@ struct ModelDto {
 /// alike), so this answers `Unmeasured` only until the first turn-on or
 /// until startup seeds a record this machine still matches, by design.
 #[tauri::command]
-fn brain_capability(app: tauri::AppHandle, brain: State<Brain>) -> capability::CapabilityDto {
+fn brain_capability(
+    app: tauri::AppHandle,
+    brain: State<Arc<Brain>>,
+) -> capability::CapabilityDto {
     if brain.migrating.load(Ordering::SeqCst) {
         return capability::CapabilityDto::Migrating;
     }
@@ -1311,7 +1394,7 @@ fn brain_choose_model(
 #[tauri::command]
 async fn brain_test(
     app: tauri::AppHandle,
-    brain: State<'_, Brain>,
+    brain: State<'_, Arc<Brain>>,
 ) -> Result<first_run::Suggestions, CommandError> {
     let Some(_stops_seen) = brain.begin_walk(|| {}) else {
         return Err(CommandError::new(
@@ -1386,7 +1469,10 @@ async fn brain_test(
 }
 
 #[tauri::command]
-async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(), CommandError> {
+async fn brain_start(
+    app: tauri::AppHandle,
+    brain: State<'_, Arc<Brain>>,
+) -> Result<(), CommandError> {
     walk_and_settle(&app, &brain).await
 }
 
@@ -1911,7 +1997,7 @@ fn take_own_seat(file: &Path) -> Result<(), kalsa_pairing::StoreError> {
 }
 
 #[tauri::command]
-fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
+fn brain_stop(brain: State<Arc<Brain>>, desk: State<Desk>) {
     // `stop` is non-blocking and sets `Stopping` before it queues, so every
     // poll from here reads the drain — never `Running` behind a lowered door.
     {
@@ -1930,7 +2016,7 @@ fn brain_stop(brain: State<Brain>, desk: State<Desk>) {
 /// Status instead.
 #[tauri::command]
 async fn brain_pairing(
-    brain: State<'_, Brain>,
+    brain: State<'_, Arc<Brain>>,
     desk: State<'_, Desk>,
 ) -> Result<pairing::PairingDto, String> {
     Ok(pairing_dto(&brain, &desk).await)
@@ -1973,7 +2059,10 @@ async fn pairing_dto(brain: &Brain, desk: &Desk) -> pairing::PairingDto {
 
 /// The owner asked for another square. Whatever was in flight is abandoned.
 #[tauri::command]
-async fn brain_pairing_retry(brain: State<'_, Brain>, desk: State<'_, Desk>) -> Result<(), String> {
+async fn brain_pairing_retry(
+    brain: State<'_, Arc<Brain>>,
+    desk: State<'_, Desk>,
+) -> Result<(), String> {
     let serving = matches!(brain.supervisor.state(), ServerState::Running { .. });
     let road_node_id = brain.road_node_id();
     let tailnet = tailnet_now(&brain, &desk).await;
@@ -1992,7 +2081,7 @@ async fn brain_pairing_retry(brain: State<'_, Brain>, desk: State<'_, Desk>) -> 
 #[tauri::command]
 fn brain_pairing_forget_device(
     desk: State<Desk>,
-    brain: State<Brain>,
+    brain: State<Arc<Brain>>,
     id: u32,
 ) -> Result<(), CommandError> {
     // This computer's own record has no Forget. The page does not draw the
@@ -2088,7 +2177,7 @@ fn forget_store_and_keep_own_seat(desk: &pairing::Desk) -> Result<(), String> {
 /// way out of `StoreUnavailable`; a read error is never silently treated as
 /// an unpaired computer.
 #[tauri::command]
-fn brain_pairing_forget(brain: State<Brain>, desk: State<Desk>) -> Result<(), CommandError> {
+fn brain_pairing_forget(brain: State<Arc<Brain>>, desk: State<Desk>) -> Result<(), CommandError> {
     brain.stop_door();
     // The hatch's own words are logged by the helper; a refusal here is a
     // coded save failure like any other store write.
@@ -2111,6 +2200,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // frame: the guard must live as long as the app, not as long as the
     // hook.
     let guard = std::sync::Arc::new(instance::claim());
+    // The one flag the ticker's thread shares with the exit: an exit that has
+    // begun must not be undone by a late tick raising the door it just took
+    // down. See `reconcile_door` for how the two ends order themselves.
+    let exiting = Arc::new(AtomicBool::new(false));
     let app = tauri::Builder::default()
         // The window's own state, for the page: a minimized Windows window
         // keeps `document.hidden` false, so this is the only word the page
@@ -2141,7 +2234,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ui_event::page_line(load, event, webview.label(), payload.url().as_str())
             );
         })
-        .manage(Brain::new())
+        .manage(Arc::new(Brain::new()))
         .manage(web::WebCalls::default())
         .manage(files::Searches::default())
         .invoke_handler(tauri::generate_handler![
@@ -2191,6 +2284,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .setup({
             let guard = std::sync::Arc::clone(&guard);
+            let exiting = Arc::clone(&exiting);
             move |app| {
             // The log is the first thing that works, so everything after it
             // is on the record — on STDERR, until the instance lock below
@@ -2255,7 +2349,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // window is up; this is also the one place it is logged.
             if instance::session_marker::begin(parent) {
                 log::warn!("the previous session did not exit cleanly");
-                app.state::<Brain>()
+                app.state::<Arc<Brain>>()
                     .prev_crash
                     .store(true, Ordering::SeqCst);
             }
@@ -2264,7 +2358,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // run. A record this machine no longer matches is ignored
             // inside, and the first turn-on measures as it always did.
             measurement::seed(
-                &app.state::<Brain>().measurement,
+                &app.state::<Arc<Brain>>().measurement,
                 parent,
                 SystemTime::now(),
                 // Read lazily, inside the seed: a machine with no record
@@ -2280,7 +2374,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // record already holds one — a first-ever run has none yet, and
             // the block says so by omission.
             let measured = app
-                .state::<Brain>()
+                .state::<Arc<Brain>>()
                 .measurement
                 .lock()
                 .ok()
@@ -2309,7 +2403,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // stored choice keeps its model, and the window opens meanwhile.
             if let Ok(state) = state_file(app.handle()) {
                 legacy_choice::in_background(
-                    Arc::clone(&app.state::<Brain>().migrating),
+                    Arc::clone(&app.state::<Arc<Brain>>().migrating),
                     state,
                     kalsa_runtime::runtime_root(),
                 );
@@ -2349,8 +2443,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(opened) => {
                     // A second set can only mean the hook ran twice; the
                     // room is opened once and the first one is the room.
-                    let _ = app.state::<Brain>().room.set(Arc::new(opened));
-                    room_events::spawn_event_pump(app.handle().clone(), &app.state::<Brain>());
+                    let _ = app.state::<Arc<Brain>>().room.set(Arc::new(opened));
+                    room_events::spawn_event_pump(app.handle().clone(), &app.state::<Arc<Brain>>());
                 }
                 Err(error) => {
                     log::warn!("the room could not be opened: {error}");
@@ -2366,27 +2460,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // that actually serves.
             let desk_address = SocketAddr::from(([127, 0, 0, 1], desk.listener.port()));
             app.manage(desk);
-            app.state::<Brain>().set_desk_address(desk_address);
-            // The disk tier's tick, on a thread of its own and with a `Weak` to
-            // the door slot: it runs while this window is an icon — the phone's
-            // case, and the one the webview's poll degraded in — and it holds no
-            // app alive to do it. A thread that will not start costs the timer
-            // and not the tier: a switch still saves. The `Watch` it carries is
-            // the supervisor's own state, so a released or dead engine is acted
-            // on here whether or not any window ever polls.
-            let doors = Arc::downgrade(&app.state::<Brain>().door);
-            let watch = app.state::<Brain>().supervisor.watch();
+            app.state::<Arc<Brain>>().set_desk_address(desk_address);
+            // The app's own clock, on a thread of its own and over `Weak`
+            // handles to the brain and the pairing desk: it runs while this
+            // window is an icon — the phone's case, and the one the webview's
+            // poll degraded in — and it holds no app alive to do it. Two jobs
+            // ride it. First the door's reconcile, so the phone's door follows
+            // the engine with no page behind it — the lock-screen start, where
+            // the poll that used to be the only raiser never runs. Then the
+            // disk tier's tick, which can wait on the engine for seconds and
+            // must not stand between the engine and the door. A thread that
+            // will not start costs the timer and the door's Rust side, not the
+            // tier: a switch still saves. The `Watch` it carries is the
+            // supervisor's own state, so a released or dead engine is acted on
+            // here whether or not any window ever polls.
+            let brain: Arc<Brain> = Arc::clone(&app.state::<Arc<Brain>>());
+            let brain = Arc::downgrade(&brain);
+            let desk = Arc::downgrade(&app.state::<Desk>().desk);
+            let pairing_file = app.state::<Desk>().pairing_file.clone();
+            let state_file = state_file(app.handle()).ok();
+            let leaving = Arc::clone(&exiting);
+            let watch = app.state::<Arc<Brain>>().supervisor.watch();
             match ticker::Ticker::start(ticker::PERIOD, move || {
-                if let Some(doors) = doors.upgrade() {
-                    tick(&doors, &watch);
-                }
+                let (Some(brain), Some(desk)) = (brain.upgrade(), desk.upgrade()) else {
+                    return;
+                };
+                reconcile_door(
+                    &brain,
+                    &desk,
+                    &watch.state(),
+                    &pairing_file,
+                    state_file.as_deref(),
+                    DoorCaller::Tick { leaving: &leaving },
+                );
+                tick(&brain.door, &watch);
             }) {
                 Ok(ticker) => {
                     app.manage(ticker);
                 }
                 Err(error) => log::warn!(
-                    "the disk tier's timer did not start, so a chat is saved \
-                     only when it is switched: {error}"
+                    "the app's timer did not start, so a chat is saved only when \
+                     it is switched and the door follows the engine only while a \
+                     page polls: {error}"
                 ),
             }
             // A knock means a second instance was launched: bring this
@@ -2406,7 +2521,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log::error!("the app could not be built: {error}");
             error
         })?;
-    let exiting = std::sync::atomic::AtomicBool::new(false);
     app.run(move |app, event| {
         // Take the child with us on the way out, on both exit paths the
         // runtime reports. The platform backstop (job object, pdeathsig)
@@ -2424,7 +2538,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // deadline, after the steps below have decided what the
             // supervisor still vouches for.
             let engine = app
-                .try_state::<Brain>()
+                .try_state::<Arc<Brain>>()
                 .map(|brain| brain.supervisor.watch());
             let watched = engine.clone();
             let deadline = exit::arm(
@@ -2444,7 +2558,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 logging::warn_urgent,
                 |code, _pending| std::process::exit(code),
             );
-            if let Some(brain) = app.try_state::<Brain>() {
+            if let Some(brain) = app.try_state::<Arc<Brain>>() {
                 brain.supervisor.shutdown();
                 deadline.stage("the room's event pump");
                 room_events::stop_event_pump(&brain);
@@ -2567,7 +2681,7 @@ async fn brain_send_log() -> Result<String, String> {
 /// was still there when this one started. Reading it clears it: the prompt
 /// is asked once per session, however many times the page mounts.
 #[tauri::command]
-fn brain_previous_session_crashed(brain: State<Brain>) -> bool {
+fn brain_previous_session_crashed(brain: State<Arc<Brain>>) -> bool {
     brain
         .prev_crash
         .swap(false, Ordering::SeqCst)

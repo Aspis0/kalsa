@@ -1,4 +1,5 @@
-//! The disk tier's tick: the app's own thread, not the webview's.
+//! The app's own tick: the disk tier's save and the phone door's reconcile, on
+//! a thread of its own, not the webview's.
 //!
 //! The tier writes a slot out once it has been quiet long enough, and that clock
 //! is asked for by nobody: no client request carries it, no head asks for it, and
@@ -7,6 +8,12 @@
 //! occluded or the process takes an App Nap, which is exactly the case this timer
 //! exists for: a phone chatting while the desktop window is an icon. So the tick
 //! is Rust's, on a thread of its own; the webview's poll only reads state.
+//!
+//! The door's reconcile rides the same tick, first, and for the same reason:
+//! the engine comes up behind a lock screen and no page ever polls, so the door
+//! must be raised from Rust ([`crate::reconcile_door`]). It goes before the
+//! tier's save because that save can hold the engine for seconds, and the phone
+//! must not wait behind it.
 //!
 //! What it is not: the interval. The door holds that one — the unload clock
 //! divided by three, from the launch record (`kalsa_launch::idle_save_seconds`)
@@ -19,9 +26,10 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-/// How often the tier looks at its slots. Short next to the shortest interval
-/// the panel can set — a 60 s unload clock is 20 s of quiet — and it is the rate
-/// the webview's store poll ran at, kept so the tick's rate is not a new number.
+/// How often the tier looks at its slots, and the reconcile at the door. Short
+/// next to the shortest interval the panel can set — a 60 s unload clock is 20 s
+/// of quiet — and it is the rate the webview's store poll ran at, kept so the
+/// tick's rate is not a new number.
 pub const PERIOD: Duration = Duration::from_secs(1);
 
 /// A thread running `tick` every `period`, independent of every webview.
@@ -41,7 +49,7 @@ impl Ticker {
         let stop = Arc::new(AtomicBool::new(false));
         let running = Arc::clone(&stop);
         let handle = thread::Builder::new()
-            .name("kalsa-disk-tier-tick".into())
+            .name("kalsa-app-tick".into())
             .spawn(move || {
                 while !running.load(Ordering::SeqCst) {
                     thread::sleep(period);

@@ -28,6 +28,7 @@
 
 use std::path::Path;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::Instant;
 
 use serde::Serialize;
@@ -223,7 +224,7 @@ fn projector_fits(
 #[tauri::command]
 pub(crate) async fn brain_vision_enable(
     app: tauri::AppHandle,
-    brain: State<'_, Brain>,
+    brain: State<'_, Arc<Brain>>,
 ) -> Result<VisionState, CommandError> {
     // Before anything: the stop generation this enable began at. A Turn off
     // pressed from here on must survive the whole command.

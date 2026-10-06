@@ -179,7 +179,7 @@ fn entry_dto(room: &Room, labels: &Labels, entry: &Entry) -> RoomEntryDto {
 #[tauri::command]
 pub fn brain_room(
     desk: tauri::State<'_, crate::Desk>,
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
 ) -> Result<RoomInfoDto, RoomCommandError> {
     let Some(room) = brain.room.get() else {
         return Ok(RoomInfoDto {
@@ -241,7 +241,7 @@ pub fn brain_room(
 #[tauri::command]
 pub fn brain_room_history(
     desk: tauri::State<'_, crate::Desk>,
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
     after: Option<u64>,
     before: Option<u64>,
     limit: Option<usize>,
@@ -271,7 +271,7 @@ pub fn brain_room_history(
 /// the media ids of blobs the host uploaded to the shelf.
 #[tauri::command]
 pub fn brain_room_post(
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
     desk: tauri::State<'_, crate::Desk>,
     client_msg_id: String,
     text: String,
@@ -331,7 +331,7 @@ pub fn brain_room_post(
 /// The host's own display name in this room.
 #[tauri::command]
 pub fn brain_room_set_name(
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
     name: String,
 ) -> Result<String, RoomCommandError> {
     let Some(room) = brain.room.get() else {
@@ -344,7 +344,9 @@ pub fn brain_room_set_name(
 /// the page shows Stop only while a turn runs, so a click that raced the
 /// end simply does nothing.
 #[tauri::command]
-pub fn brain_room_stop(brain: tauri::State<'_, crate::Brain>) -> Result<bool, RoomCommandError> {
+pub fn brain_room_stop(
+    brain: tauri::State<'_, Arc<crate::Brain>>,
+) -> Result<bool, RoomCommandError> {
     Ok(room::stop_turn(brain.inner()))
 }
 

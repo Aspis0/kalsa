@@ -2297,35 +2297,172 @@ fn server_state_variants() -> Vec<String> {
     names
 }
 
-/// The pin under the fifth way, and the most important check this round adds.
-/// It defends TWO things in every non-`Running` arm of `brain_state`, because
-/// two promises ride on the same answer:
+/// The bug this pair exists for, from the app's side: the door used to be
+/// raised by the webview's `brain_state` poll alone, so a start behind a lock
+/// screen — engine up, page never running — left nothing listening on 8131 and
+/// the phone lost the chat and the room until the owner unlocked. Both tests
+/// drive the shared reconcile directly, with no page anywhere in the path.
+#[test]
+fn the_reconcile_follows_the_engine_with_no_page_involved() {
+    let (root, file, _host, _slots) = launched_brain("door-reconcile");
+    let brain = Brain::new();
+    let desk = pairing::Desk::new(file.clone());
+    let leaving = AtomicBool::new(false);
+    let tick = || DoorCaller::Tick { leaving: &leaving };
+    let running = ServerState::Running { pid: 0, port: 8130 };
+
+    // Running and no door: the raise the ticker's thread performs.
+    reconcile_door(&brain, &desk, &running, &file, None, tick());
+    assert!(
+        brain.door_port().is_some(),
+        "the tick's reconcile did not raise the door for a running engine"
+    );
+
+    // Every state that is not Running takes a raised door down, whatever the
+    // door was built for: nothing to forward to, and a drain never re-raised.
+    for state in [
+        ServerState::Starting,
+        ServerState::Stopping,
+        ServerState::Stopped,
+        ServerState::Failed {
+            reason: Failure::PortTaken,
+        },
+    ] {
+        reconcile_door(&brain, &desk, &running, &file, None, tick());
+        assert!(
+            brain.door_port().is_some(),
+            "the fixture did not raise the door before {state:?}"
+        );
+        reconcile_door(&brain, &desk, &state, &file, None, tick());
+        assert!(brain.door_port().is_none(), "the door outlived {state:?}");
+    }
+
+    // A walk still finishing keeps the raise on hold, and the next pass after
+    // the walk raises the door.
+    brain.turning_on.store(true, Ordering::SeqCst);
+    reconcile_door(&brain, &desk, &running, &file, None, tick());
+    assert!(
+        brain.door_port().is_none(),
+        "a raise went up while a walk was still finishing"
+    );
+    brain.turning_on.store(false, Ordering::SeqCst);
+    reconcile_door(&brain, &desk, &running, &file, None, tick());
+    assert!(
+        brain.door_port().is_some(),
+        "the raise did not resume once the walk finished"
+    );
+
+    brain.stop_door();
+    drop(desk);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// The ticker's own two rules: it must not read the pairing store while the
+/// door is up, and it must never leave a door up once the app is leaving.
+#[test]
+fn a_tick_reads_no_store_for_an_open_door_and_never_raises_while_leaving() {
+    let (root, file, _host, _slots) = launched_brain("door-reconcile-battery");
+    let brain = Brain::new();
+    let desk = pairing::Desk::new(file.clone());
+    let leaving = AtomicBool::new(false);
+    let running = ServerState::Running { pid: 0, port: 8130 };
+
+    reconcile_door(
+        &brain,
+        &desk,
+        &running,
+        &file,
+        None,
+        DoorCaller::Tick { leaving: &leaving },
+    );
+    let port = brain.door_port().expect("the fixture did not raise the door");
+    // The store disappears under the running door. A tick that read it would
+    // take the door down; the battery rule is that it does not read it at all.
+    std::fs::remove_file(&file).unwrap();
+    reconcile_door(
+        &brain,
+        &desk,
+        &running,
+        &file,
+        None,
+        DoorCaller::Tick { leaving: &leaving },
+    );
+    assert_eq!(
+        brain.door_port(),
+        Some(port),
+        "a tick read the pairing store with the door already up"
+    );
+    // The poll is the reader: the same pass over the same missing store takes
+    // the door down, which is the refresh an open door still gets.
+    reconcile_door(&brain, &desk, &running, &file, None, DoorCaller::Poll);
+    assert!(
+        brain.door_port().is_none(),
+        "the poll no longer refreshes the device set"
+    );
+
+    // Leaving: a tick lowers what is up and raises nothing.
+    take_own_seat(&file).expect("the store comes back");
+    reconcile_door(
+        &brain,
+        &desk,
+        &running,
+        &file,
+        None,
+        DoorCaller::Tick { leaving: &leaving },
+    );
+    assert!(
+        brain.door_port().is_some(),
+        "the fixture did not raise the door again"
+    );
+    leaving.store(true, Ordering::SeqCst);
+    reconcile_door(
+        &brain,
+        &desk,
+        &running,
+        &file,
+        None,
+        DoorCaller::Tick { leaving: &leaving },
+    );
+    assert!(
+        brain.door_port().is_none(),
+        "a tick left the door up while the app was leaving"
+    );
+
+    brain.stop_door();
+    drop(desk);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// The pin under the fifth way: every non-`Running` arm of the shared
+/// reconcile must lower the door and retire the pairing square. It watches the
+/// reconcile rather than `brain_state` because the rule moved there when the
+/// ticker became a second raiser — the poll calls it before it answers, so the
+/// promise below still rides on the poll's answer.
 ///
 /// 1. THE DOOR. The cross-layer invariant nobody wrote down: a window that
-/// polls THIS command says `absent` only when `kind !== "running"`
-/// (`slotGate.ts`, `standingOf`), and `brain_state` — the very command that
-/// poll answers from — calls `stop_door()` in every non-`Running` arm.
-/// Together they make `absent` on the polling client imply the door is
-/// already down. Drop one `stop_door()` and the implication breaks in
-/// silence: the window calls a live door "no door", mints a chat against
-/// its slot, and the next switch writes that slot's state into another
-/// chat's file — the divergence `slotGate.ts` exists to prevent, re-entered
-/// from Rust. (A browser outside the webview never polls this command and
-/// says `absent` on an assumption instead — declared in `useBrain.ts`, not
-/// covered here.)
+/// polls `brain_state` says `absent` only when `kind !== "running"`
+/// (`slotGate.ts`, `standingOf`), and the very command that poll answers from
+/// reconciles the door down in every non-`Running` state. Together they make
+/// `absent` on the polling client imply the door is already down. Drop one
+/// `stop_door()` and the implication breaks in silence: the window calls a
+/// live door "no door", mints a chat against its slot, and the next switch
+/// writes that slot's state into another chat's file — the divergence
+/// `slotGate.ts` exists to prevent, re-entered from Rust. (A browser outside
+/// the webview never polls this command and says `absent` on an assumption
+/// instead — declared in `useBrain.ts`, not covered here.)
 ///
-/// 2. THE SQUARE. `desk.desk.stop_serving()` in those same arms: the pairing
-/// square is only drawn while the desk serves (`brain_pairing` answers
-/// `serving` from `Running`), so an arm that takes the door down and leaves
-/// the square up promises a way in that has just gone — a phone scans a QR
-/// that leads to a door being torn down and finds nothing behind it. The
-/// door's arm was pinned and this was not: the reviewer cancelled one
-/// `desk.desk.stop_serving();` and all 166 + 47 + the harness stayed green,
-/// which is exactly the hole this half of the pin closes.
+/// 2. THE SQUARE. `desk.stop_serving()` in those same arms: the pairing square
+/// is only drawn while the desk serves (`brain_pairing` answers `serving` from
+/// `Running`), so an arm that takes the door down and leaves the square up
+/// promises a way in that has just gone — a phone scans a QR that leads to a
+/// door being torn down and finds nothing behind it. The door's arm was pinned
+/// and this was not: the reviewer cancelled one `desk.stop_serving();` and all
+/// 166 + 47 + the harness stayed green, which is exactly the hole this half of
+/// the pin closes.
 fn non_running_arms_stop_the_door(source: &str) -> Result<(), String> {
     let at = source
-        .find("fn brain_state(")
-        .ok_or_else(|| "brain_state is the command the client polls".to_string())?;
+        .find("fn reconcile_door(")
+        .ok_or_else(|| "the shared reconcile is where the door rule lives".to_string())?;
     let body = brace_block(source, at);
     for variant in server_state_variants() {
         if variant == "Running" {
@@ -2334,18 +2471,18 @@ fn non_running_arms_stop_the_door(source: &str) -> Result<(), String> {
         let marker = format!("ServerState::{variant}");
         let found = body
             .find(&marker)
-            .ok_or_else(|| format!("brain_state grew no arm for {variant}"))?;
+            .ok_or_else(|| format!("the reconcile grew no arm for {variant}"))?;
         let rest = &body[found + marker.len()..];
         let arm = &rest[..rest.find("ServerState::").unwrap_or(rest.len())];
         if !arm.contains("stop_door()") {
             return Err(format!(
-                "the {variant} arm of brain_state answers without stopping the door"
+                "the {variant} arm of the reconcile answers without stopping the door"
             ));
         }
-        if !arm.contains("desk.desk.stop_serving()") {
+        if !arm.contains("desk.stop_serving()") {
             return Err(format!(
-                "the {variant} arm of brain_state answers without retiring the pairing square — \
-                 a square that stays up while the door goes down promises a way in that is gone"
+                "the {variant} arm of the reconcile answers without retiring the square — a \
+                 square that stays up while the door goes down promises a way in that is gone"
             ));
         }
     }
@@ -2353,7 +2490,7 @@ fn non_running_arms_stop_the_door(source: &str) -> Result<(), String> {
 }
 
 #[test]
-fn every_non_running_arm_of_brain_state_stops_the_door() {
+fn every_non_running_arm_of_the_reconcile_stops_the_door() {
     let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
         .expect("main.rs is readable");
     if let Err(error) = non_running_arms_stop_the_door(&source) {
@@ -2367,11 +2504,14 @@ fn every_non_running_arm_of_brain_state_stops_the_door() {
 #[test]
 fn the_pin_bites_when_one_stop_door_is_taken_away() {
     // The edit a future cleanup makes by accident, replayed on a COPY of the
-    // source: the Stopped arm keeps answering `stopped` and stops taking the
-    // door down. The pin must go red on exactly that copy...
+    // source: the Stopped state keeps reaching the page as `stopped` while the
+    // reconcile stops taking the door down. The pin must go red on exactly
+    // that copy...
     let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
         .expect("main.rs is readable");
-    let start = source.find("fn brain_state(").expect("the command");
+    let start = source
+        .find("fn reconcile_door(")
+        .expect("the shared reconcile");
     let stopped = start + source[start..].find("ServerState::Stopped").expect("the arm");
     let mutated = format!(
         "{}{}",
@@ -2380,7 +2520,7 @@ fn the_pin_bites_when_one_stop_door_is_taken_away() {
     );
     assert!(
         non_running_arms_stop_the_door(&mutated).is_err(),
-        "the pin passed on a brain_state whose Stopped arm no longer stops the door"
+        "the pin passed on a reconcile whose Stopped arm no longer stops the door"
     );
     // ...and stay green on the untouched source, so the red above is the
     // mutation's doing and not a checker that fails both ways.
@@ -2396,10 +2536,9 @@ fn the_pin_bites_when_the_square_is_taken_away() {
     // exactly that copy...
     let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
         .expect("main.rs is readable");
-    let start = source.find("fn brain_state(").expect("the command");
-    // Scoped from `fn brain_state(` onward: `clear_launch_for_state` matches
-    // `ServerState::Stopping` too, and the first `stop_serving` before this
-    // point is not an arm of this command at all.
+    let start = source
+        .find("fn reconcile_door(")
+        .expect("the shared reconcile");
     let draining = start +
         source[start..]
             .find("ServerState::Stopping =>")
@@ -2407,27 +2546,28 @@ fn the_pin_bites_when_the_square_is_taken_away() {
     let mutated = format!(
         "{}{}",
         &source[..draining],
-        source[draining..].replacen("desk.desk.stop_serving();", "", 1)
+        source[draining..].replacen("desk.stop_serving();", "", 1)
     );
     assert!(
         non_running_arms_stop_the_door(&mutated).is_err(),
-        "the pin passed on a brain_state whose Stopping arm no longer retires the square"
+        "the pin passed on a reconcile whose Stopping arm no longer retires the square"
     );
     // ...and stay green on the untouched source.
     assert_eq!(non_running_arms_stop_the_door(&source), Ok(()));
 }
 
-/// The companion pin: `every_non_running_arm_of_brain_state_stops_the_door`
-/// demands an arm that STOPS the door; this one demands that the RAISE lives
-/// in exactly one arm, the `Running` one. `start_door_if_paired` inside the
-/// drain's arm is the original defect arriving through the very arm that
-/// exists to suppress it: a poll landing during a stop would rebuild the
-/// door the stop had lowered, from inside the answer that is supposed to say
-/// "draining". Exactly once, in `Running`, or the window is open again.
+/// The companion pin: `every_non_running_arm_of_the_reconcile_stops_the_door`
+/// demands arms that STOP the door; this one demands that the RAISE lives in
+/// exactly one arm of the reconcile, the `Running` one. `start_door_if_paired`
+/// inside the drain's arm is the original defect arriving through the very arm
+/// that exists to suppress it: a reconciliation landing during a stop would
+/// rebuild the door the stop had lowered, from inside the answer that is
+/// supposed to say "draining". Exactly once, in `Running`, or the window is
+/// open again.
 fn only_the_running_arm_raises_the_door(source: &str) -> Result<(), String> {
     let at = source
-        .find("fn brain_state(")
-        .ok_or_else(|| "brain_state is the command the poll answers from".to_string())?;
+        .find("fn reconcile_door(")
+        .ok_or_else(|| "the shared reconcile is where the door rule lives".to_string())?;
     let body = brace_block(source, at);
     let marker = "start_door_if_paired(";
     let mut hits = 0usize;
@@ -2438,7 +2578,7 @@ fn only_the_running_arm_raises_the_door(source: &str) -> Result<(), String> {
         // The arm this call sits in: the last `ServerState::` before it.
         let arm_at = body[..call]
             .rfind("ServerState::")
-            .ok_or_else(|| "a door raise sits outside every arm of brain_state".to_string())?;
+            .ok_or_else(|| "a door raise sits outside every arm of the reconcile".to_string())?;
         let rest = &body[arm_at + "ServerState::".len()..];
         let name: String = rest
             .chars()
@@ -2446,13 +2586,15 @@ fn only_the_running_arm_raises_the_door(source: &str) -> Result<(), String> {
             .collect();
         if name != "Running" {
             return Err(format!(
-                "start_door_if_paired is called in the {name} arm of brain_state"
+                "start_door_if_paired is called in the {name} arm of the reconcile"
             ));
         }
         cursor = call + marker.len();
     }
-    if hits == 0 {
-        return Err("brain_state no longer raises the door at all".to_string());
+    if hits != 1 {
+        return Err(format!(
+            "the reconcile raises the door {hits} times; the one raise lives in the Running arm"
+        ));
     }
     Ok(())
 }
@@ -2469,31 +2611,86 @@ fn start_door_if_paired_is_raised_by_the_running_arm_only() {
 #[test]
 fn the_raise_pin_bites_when_the_drain_re_raises_the_door() {
     // The edit replayed on a COPY: a future cleanup "reconciles" the door in
-    // the new `Stopping` arm as well — which is the defect this state closes,
+    // the `Stopping` arm as well — which is the defect that arm closes,
     // re-entered through the arm that exists to close it. The pin must go red
     // on that copy...
     let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
         .expect("main.rs is readable");
-    // Found inside `brain_state` itself: `clear_launch_for_state` matches
-    // `ServerState::Stopping` too, and injecting there would be outside every
-    // arm this pin reads.
+    // Found inside the reconcile itself, whose `Stopping` arm is the one the
+    // injection must land in.
     let command = source
-        .find("fn brain_state(")
-        .expect("the command the poll answers from");
+        .find("fn reconcile_door(")
+        .expect("the shared reconcile");
     let anchor = "ServerState::Stopping => {";
     let at = command + source[command..].find(anchor).expect("the drain's arm");
     let insert = at + anchor.len();
     let mutated = format!(
-        "{}\n            let _ = brain.start_door_if_paired(port, &desk.pairing_file, false);{}",
+        "{}\n            let _ = brain.start_door_if_paired(*port, pairing_file, false);{}",
         &source[..insert],
         &source[insert..]
     );
     assert!(
         only_the_running_arm_raises_the_door(&mutated).is_err(),
-        "the pin passed on a brain_state whose Stopping arm raises the door"
+        "the pin passed on a reconcile whose Stopping arm raises the door"
     );
     // ...and stay green on the untouched source.
     assert_eq!(only_the_running_arm_raises_the_door(&source), Ok(()));
+}
+
+/// The reconcile the pins above read must actually be called by both parties
+/// it exists for: `brain_state`, whose answer the client trusts, and the
+/// ticker's thread, which is the fix — a start behind a lock screen has no
+/// page at all. A reconcile nobody calls is the bug with extra steps.
+fn the_reconcile_reaches_both_callers(source: &str) -> Result<(), String> {
+    let at = source
+        .find("fn brain_state(")
+        .ok_or_else(|| "brain_state is the command the client polls".to_string())?;
+    if !brace_block(source, at).contains("reconcile_door(") {
+        return Err("brain_state no longer reconciles the door".to_string());
+    }
+    let start = source
+        .find("ticker::Ticker::start(")
+        .ok_or_else(|| "the ticker is the thread that runs with no window".to_string())?;
+    let rest = &source[start..];
+    let end = rest
+        .find("Ok(ticker) =>")
+        .ok_or_else(|| "the ticker's setup lost its arms".to_string())?;
+    if !rest[..end].contains("reconcile_door(") {
+        return Err("the ticker's thread does not reconcile the door".to_string());
+    }
+    Ok(())
+}
+
+#[test]
+fn the_reconcile_reaches_both_the_poll_and_the_ticker() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    if let Err(error) = the_reconcile_reaches_both_callers(&source) {
+        panic!("{error} — the door would follow the engine only while a page polls");
+    }
+}
+
+#[test]
+fn the_pin_bites_when_the_ticker_stops_reconciling_the_door() {
+    // The other half of the fix, replayed on a COPY: the ticker's thread goes
+    // back to carrying only the disk tier's tick, and the phone's door is the
+    // webview's business again. The pin must go red on exactly that copy...
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    let start = source
+        .find("ticker::Ticker::start(")
+        .expect("the ticker");
+    let mutated = format!(
+        "{}{}",
+        &source[..start],
+        source[start..].replacen("reconcile_door(", "", 1)
+    );
+    assert!(
+        the_reconcile_reaches_both_callers(&mutated).is_err(),
+        "the pin passed on a ticker whose thread never reconciles the door"
+    );
+    // ...and stay green on the untouched source.
+    assert_eq!(the_reconcile_reaches_both_callers(&source), Ok(()));
 }
 
 /// The wire name the page unions (`useBrain.ts`, `kind: "stopping"`): pinned

@@ -22,7 +22,7 @@
 
 use std::fmt;
 use std::path::Path;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use kalsa_pairing::{ClaimResult, Handshake, InviteError, Invites, PairingSeal, PhoneDeclaration};
@@ -249,7 +249,7 @@ fn message(error: InviteError) -> CommandError {
 /// behind it would lead nowhere, so no invitation is minted without one.
 #[tauri::command]
 pub(crate) async fn brain_invite_create(
-    brain: State<'_, Brain>,
+    brain: State<'_, Arc<Brain>>,
     desk: State<'_, Desk>,
 ) -> Result<String, CommandError> {
     let Some(node) = brain.road_node_id() else {

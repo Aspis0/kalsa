@@ -61,7 +61,7 @@ fn room_of(brain: &crate::Brain) -> Result<Arc<Room>, RoomCommandError> {
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub fn brain_room_media_create(
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
     kind: String,
     mime: String,
     bytes: u64,
@@ -101,7 +101,7 @@ pub fn brain_room_media_create(
 /// answered from what the shelf already holds.
 #[tauri::command]
 pub fn brain_room_media_chunk(
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
     upload: String,
     index: u32,
     bytes: Vec<u8>,
@@ -115,7 +115,7 @@ pub fn brain_room_media_chunk(
 /// descriptor the host's post will name.
 #[tauri::command]
 pub fn brain_room_media_complete(
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
     upload: String,
 ) -> Result<RoomMediaDto, RoomCommandError> {
     let room = room_of(&brain)?;
@@ -130,7 +130,7 @@ pub fn brain_room_media_complete(
 /// sees the whole room; there is no floor on this read.
 #[tauri::command]
 pub fn brain_room_media_read(
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
     id: String,
 ) -> Result<tauri::ipc::Response, RoomCommandError> {
     let room = room_of(&brain)?;
@@ -155,7 +155,7 @@ pub(crate) fn media_read(room: &Room, id: &str) -> Result<Vec<u8>, RoomCommandEr
 /// `media_cleared` event. No phone route exists for this.
 #[tauri::command]
 pub fn brain_room_media_clear(
-    brain: tauri::State<'_, crate::Brain>,
+    brain: tauri::State<'_, Arc<crate::Brain>>,
 ) -> Result<(), RoomCommandError> {
     let room = room_of(&brain)?;
     room.media_clear(kalsa_room::MemberId::Host)
