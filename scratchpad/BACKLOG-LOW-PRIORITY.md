@@ -174,3 +174,9 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P2 (E3/A3): 62 suites hand-roll the AsyncStorage jest mock in two shapes; the package's own `jest/async-storage-mock.js` has no `default`. One shared `test-support` factory (or moduleNameMapper wrapping the shipped mock as `{__esModule, default}`) would stop a wrong-shape mock hiding a device-only bug again.
 - P2 (F2): `roomQueue.ts:401-404` treats any load throw as a "damaged shelf" hold; an adapter fault (TypeError) should be logged distinctly from corrupt data.
 - P3 (E4/F1): no comment at `roomQueueStore.ts:66` that the package exports only a default.
+
+## Settings model-scan loop fix (c1fb0366 + follow-up; review space-bunny 3d63bcfc, 2026-10-05)
+- P3 PLAUSIBLE (6): the Settings scan REPLACES downloadedById while markDownloaded merged; isFileComplete needs an exact size match, so a re-armed scan per modelState transition could publish {id:false} for a model the engine has loaded.
+- P3 (7): no single-flight for the scan; each modelState transition starts a fresh registry probe and abandons the previous FS calls (one may hit the file being written while downloading). Wasteful, not wrong.
+- P3 (11): OverlaysProps.setOverlay typed as a plain setter but fed the React Dispatch; a future updater call would silently change meaning.
+- Android foreground: react-native-worklets UI-runtime frame loop is always on (~10% of a Jelly core, release); library design, upstream main/0.12.2 same; no patch infra in the repo. Revisit after alpha / upstream issue.
