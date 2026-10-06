@@ -1680,6 +1680,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
 - **Step 5 started.** The "merge main first" trap is stale: the branch already merged main (`6a937f6db`), hop v1
   included; only `837334a74` (the Q8_0 fix, already in as `f7b96a8a0`) is missing. Step 5.1 (leg_devices + KV/state
   buft rule, host-tested) dispatched to GLM `190a3701`.
+- **Step 5.1 landed `c26288fdf`** (GLM): `llama_init_from_model_with_legs(model, params, leg_devices)` in `llama-ext.h`
+  (NULL = today, {NULL} = CPU leg); backends, KV, recurrent state, output, sampler and host buft follow the leg's first
+  device. Host test `test-leg-contexts` on the ship 2.6B: CPU leg vs default bitwise exact over 32 steps (re-run by the
+  orchestrator, EXIT=0); governor commit/turns/shared-cells green. Luna audit (`audit-step5-1-luna.md`, 13 findings)
+  triaged: **load contract** - the one-copy three-leg model load lists devices {HTP0, GPUOpenCL} with every layer on
+  HTP0 (-ts 1,0, as the J(1) arm already does); FABLE's "{HTP0}" recipe is superseded. YaRN writes `n_ctx_train`
+  into the shared model (upstream) -> legs share the rope/YaRN cparams; duplicate/CPU leg devices refused; test pass
+  condition exact. Fix round with GLM. To steps 5.2/5.3: device-global Hexagon admission (F6b, documented),
+  governor labels per leg, F5's forced-hop proof, the device check (governor-bench one-model arm). Merge surface: a
+  parameter through every memory constructor (25 src files); the audit found no smaller alternative.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
