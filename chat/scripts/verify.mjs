@@ -4167,19 +4167,19 @@ const tests = {
     check("walkProgress: no average means no share", tuneShare(at(1, 4, 2), 50, 0) === 0);
 
     // The first test's own wait: nothing to average yet, so the budget —
-    // the end no lifetime may begin past — carries it, and the figure only
-    // comes down as that test spends the tune's clock. (Budget 1080 s plus
-    // the tune's own 120 s of slack is 20 min; the extra 15 s a tick is
-    // what the wall clock adds between two reports.)
+    // the end no lifetime may begin past — carries it as a CEILING, and the
+    // figure only comes down as that test spends the tune's clock. (Budget
+    // 1080 s plus the one running lifetime's 120 s is 20 min; the extra 15 s
+    // a tick is what the wall clock adds between two reports.)
     const budgeted = [0, 15, 30, 45, 60, 75, 90].map((elapsed) =>
       tuneWait(at(0, 16, 1), 0, elapsed, 0, 1080),
     );
     check(
-      "walkProgress: the first test already says what the budget leaves",
-      JSON.stringify(budgeted[0]) === '{"kind":"minutes","minutes":20}' &&
+      "walkProgress: the first test says the budget's ceiling",
+      JSON.stringify(budgeted[0]) === '{"kind":"ceiling","minutes":20}' &&
         budgeted.every(
           (wait, index) =>
-            wait !== null && wait.kind === "minutes" && (index === 0 || wait.minutes <= budgeted[index - 1].minutes),
+            wait !== null && wait.kind === "ceiling" && (index === 0 || wait.minutes <= budgeted[index - 1].minutes),
         ),
       `${JSON.stringify(budgeted[0])} … ${JSON.stringify(budgeted[budgeted.length - 1])}`,
     );
@@ -4202,14 +4202,52 @@ const tests = {
       ),
       JSON.stringify(ticks),
     );
+
+    // Before two samples the figure is the budget's ceiling and says so —
+    // the page has an "up to" for it and an "about" for the estimate, and
+    // the kind is what picks between them.
+    check(
+      "walkProgress: before two samples the wait is the budget's ceiling",
+      JSON.stringify(tuneWait(at(0, 16, 1), 0, 5, 0, 1080)) === '{"kind":"ceiling","minutes":20}' &&
+        tuneWait(at(1, 16, 2), 0, 200, 1, 1080)?.kind === "ceiling" &&
+        tuneWait(at(2, 16, 3), 0, 400, 2, 1080)?.kind === "minutes",
+      `${JSON.stringify(tuneWait(at(0, 16, 1), 0, 5, 0, 1080))} … ${JSON.stringify(tuneWait(at(2, 16, 3), 0, 400, 2, 1080))}`,
+    );
+
+    // A candidate that closes slower than the ones behind it lifts the raw
+    // estimate (150 s → 600 s here, 3 min → 10): the figure the line shows
+    // may not lift with it, because the page hands back the smallest one it
+    // has already shown this tune.
+    const beforeClose = tuneWait(at(2, 8, 3), 1, 90, 2, 1080);
+    const rawClose = tuneWait(at(3, 8, 3), 0, 360, 3, 1080);
+    const heldClose = tuneWait(at(3, 8, 3), 0, 360, 3, 1080, beforeClose?.minutes ?? null);
+    check(
+      "walkProgress: a slow candidate's close cannot raise the figure",
+      beforeClose?.kind === "minutes" &&
+        beforeClose.minutes === 3 &&
+        rawClose?.minutes === 10 &&
+        heldClose?.minutes === 3,
+      `${JSON.stringify(beforeClose)} → ${JSON.stringify(rawClose)} → ${JSON.stringify(heldClose)}`,
+    );
+
+    // The budget spent: a lifetime that began inside it is never killed
+    // mid-measurement, so the end is not knowable and no figure is honest —
+    // not the ceiling's 2 min, not the estimate's 36.
+    check(
+      "walkProgress: past the budget the wait shows no figure",
+      JSON.stringify(tuneWait(at(2, 6, 3), 0, 1100, 2, 1080)) === '{"kind":"almost"}' &&
+        JSON.stringify(tuneWait(at(0, 16, 1), 0, 1080, 0, 1080)) === '{"kind":"almost"}',
+      `${JSON.stringify(tuneWait(at(2, 6, 3), 0, 1100, 2, 1080))} … ${JSON.stringify(tuneWait(at(0, 16, 1), 0, 1080, 0, 1080))}`,
+    );
   },
 
   // The owner's own reading of the first-run tune — a bare count-up beside
   // "Test 1 of 16", which he read as time still to come, when the line had
   // nothing else for the first two tests. On the real surface, through the
-  // real payload: the line names the test, says what the tune's budget
-  // leaves from the very first one, and holds still while the clock under
-  // it ticks.
+  // real payload: the line names the test, says the budget's ceiling from
+  // the very first one and says it as a ceiling, holds still while the
+  // clock under it ticks, and drops the figure altogether once the budget
+  // is spent.
   async tuneLine() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -4246,8 +4284,8 @@ const tests = {
     await page.waitForTimeout(500);
     const first = await page.locator(".surface-walk").innerText();
     check(
-      "tuneLine: the first test already says what is left",
-      first.includes("Test 1 of 16") && /\d+ min left/.test(first),
+      "tuneLine: the first test says the budget's ceiling, as a ceiling",
+      first.includes("Test 1 of 16") && first.includes("up to 20 min"),
       first,
     );
     // The elapsed clock ticks every second below this line; the line itself
@@ -4255,6 +4293,37 @@ const tests = {
     await page.waitForTimeout(2500);
     const later = await page.locator(".surface-walk").innerText();
     check("tuneLine: no ticking clock beside the test's own name", later === first, `${first} → ${later}`);
+
+    // …and once the budget is spent the line carries words only. A budget of
+    // 8 s stands in for the tune's 1080 — the rule reads the same, and no
+    // test can wait eighteen minutes for the real one.
+    await page.evaluate(() => {
+      const step = {
+        kind: "tuning",
+        done: 0,
+        total: 16,
+        candidate: 1,
+        budget_seconds: 8,
+        cut: false,
+        retry_next: false,
+        kept_winner: false,
+      };
+      for (const handler of window.__PROGRESS_HANDLERS__) handler({ event: "brain_progress", id: 2, payload: step });
+    });
+    const spent = await page
+      .waitForFunction(
+        () => (document.querySelector(".surface-walk")?.innerText ?? "").includes("almost done"),
+        null,
+        { timeout: 20000 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    const spentText = await page.locator(".surface-walk").innerText();
+    check(
+      "tuneLine: past the budget the line carries no figure",
+      spent && spentText.includes("Test 1 of 16") && !/\d+ min/.test(spentText),
+      spentText,
+    );
     await browser.close();
   },
 

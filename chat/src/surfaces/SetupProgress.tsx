@@ -140,7 +140,8 @@ function walkView(
 }
 
 /** The wait's sentence in the page's language: one word per answer the
-    pure layer gives (the stop's three, the overrun, and the minutes). */
+    pure layer gives (the stop's three, the budget's ceiling, the estimate,
+    and the overrun). */
 function waitWord(wait: TuneWait, t: English["setup"]): string {
   switch (wait.kind) {
     case "cut":
@@ -151,6 +152,8 @@ function waitWord(wait: TuneWait, t: English["setup"]): string {
       return t.standardSettings;
     case "almost":
       return t.almostDone;
+    case "ceiling":
+      return t.upToMinutes(wait.minutes);
     case "minutes":
       return t.minutesLeft(wait.minutes);
   }
@@ -165,8 +168,9 @@ function clock(seconds: number): string {
 
 /** What one step commits to: its view (computed once, so the resumed line
     does not flicker between ticks) and its pace — which candidate is under
-    the clock, which finished ones the average runs on, and a cut's frozen
-    time. */
+    the clock, which finished ones the average runs on, a cut's frozen
+    time — plus the wait's own high-water, this tune's smallest figure so
+    far. */
 interface Walk {
   step: ProgressStep;
   table: English["setup"];
@@ -182,6 +186,7 @@ interface Walk {
   timed: boolean;
   durations: number[];
   frozen: number | null;
+  waitMinutes: number | null;
 }
 
 /** The clock one step runs on: its candidate inside the tune, its phase
@@ -204,6 +209,7 @@ function begin(step: ProgressStep, face: TuneFace | null, seconds: number, t: En
     timed: face !== null && !face.closing,
     durations: [],
     frozen: face !== null && face.cut ? seconds : null,
+    waitMinutes: null,
   };
 }
 
@@ -220,6 +226,10 @@ function advance(previous: Walk, step: ProgressStep, face: TuneFace | null, seco
   let candidate = previous.candidate;
   let timed = previous.timed;
   let frozen = previous.frozen;
+  // A plan with nothing measured yet is a new one — a retry counts from
+  // zero again — and the figure the last plan held to must not speak for
+  // it.
+  const waitMinutes = face !== null && face.done === 0 ? null : previous.waitMinutes;
   if (stepChanged && face !== null) {
     if (changed) {
       // A candidate began under this clock — or the view joined one that
@@ -253,6 +263,7 @@ function advance(previous: Walk, step: ProgressStep, face: TuneFace | null, seco
     timed,
     durations,
     frozen,
+    waitMinutes,
   };
 }
 
@@ -293,7 +304,16 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
   const whole =
     durations.reduce((sum, value) => sum + value, 0) +
     (face !== null && !face.closing ? elapsed : 0);
-  const wait = face !== null ? tuneWait(face, share, whole, durations.length, step.budget_seconds) : null;
+  const wait = face !== null ? tuneWait(face, share, whole, durations.length, step.budget_seconds, current.waitMinutes) : null;
+  const shownMinutes = wait !== null && (wait.kind === "minutes" || wait.kind === "ceiling") ? wait.minutes : null;
+  if (shownMinutes !== null && shownMinutes !== current.waitMinutes) {
+    // The wait's high-water, kept in the same render-time state: the figure
+    // on screen is the most this tune may show again, so a candidate that
+    // closes slower than the ones behind it cannot wind it up — a number
+    // that grows beside "Test 3 of 16" is the countdown the owner read.
+    current = { ...current, waitMinutes: shownMinutes };
+    setWalk(current);
+  }
   const waitText = wait !== null ? waitWord(wait, t) : null;
   const attempt = face !== null ? tuneAttempt(face) : null;
   const attemptText = attempt !== null ? t.attempt(attempt.index, attempt.total) : null;

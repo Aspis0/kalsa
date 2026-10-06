@@ -29,6 +29,7 @@ export const SETUP = {
     "receiving": "Réception.",
     "pickingUp": (text: string) => `Reprend là où il s'était arrêté — ${text}`,
     "attempt": (index: number, total: number) => `Essai ${index} sur ${total}`,
+    "upToMinutes": (minutes: number) => `jusqu'à ${minutes} min`,
     "minutesLeft": (minutes: number) => `environ ${minutes} min restantes`,
     "finishNextStart": "Kalsa terminera les tests au prochain démarrage",
     "keptBest": "Kalsa a gardé les meilleurs réglages trouvés",

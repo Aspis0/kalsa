@@ -30,9 +30,11 @@ export const SETUP = {
   receivedSoFar: (received: string) => `${received} received so far.`,
   receiving: "Receiving.",
   pickingUp: (text: string) => `Picking up where it stopped — ${text}`,
-  // The tune's own line, under the bar: which test it is, how long it has
-  // run, and — once one finished — what is left of the wait.
+  // The tune's own line, under the bar: which test it is and what is left
+  // of the wait — the budget's own ceiling until two tests have finished,
+  // the average's estimate from then on.
   attempt: (index: number, total: number) => `Test ${index} of ${total}`,
+  upToMinutes: (minutes: number) => `up to ${minutes} min`,
   minutesLeft: (minutes: number) => `about ${minutes} min left`,
   // A stop, not a finish: the budget ran out with the plan unfinished.
   finishNextStart: "Kalsa will finish testing next time it starts",

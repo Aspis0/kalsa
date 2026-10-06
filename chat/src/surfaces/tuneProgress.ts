@@ -4,9 +4,9 @@
 // the bar and its line must never break: full only when the tune's own report
 // says the plan ran to the end (a `cut` report never says that), a stop that
 // still owes a next start named as such (and one that does not named for what
-// it kept), a wait from the first test on the budget where no average exists
-// yet, one that never climbs while a candidate runs, and no figure that has
-// already been exceeded.
+// it kept), a wait from the first test — said as the budget's CEILING, where
+// nothing has been averaged yet — one that never climbs inside one tune, and
+// no figure at all once the budget is spent.
 
 /** The tuning half of a `brain_progress` step, as the page reads it. */
 export interface TuningStep {
@@ -41,11 +41,13 @@ export interface TuneFace {
 }
 
 /** What the line under the bar says about the wait: the stop's three words,
-    the minutes left, or the last half minute before its end. */
+    the budget's ceiling where nothing has been averaged yet, the minutes
+    left, or the last half minute before its end. */
 export type TuneWait =
   | { kind: "cut" }
   | { kind: "kept" }
   | { kind: "standard" }
+  | { kind: "ceiling"; minutes: number }
   | { kind: "minutes"; minutes: number }
   | { kind: "almost" };
 
@@ -55,16 +57,23 @@ const ALMOST_SECONDS = 30;
 
 /** Two finished candidates before the wait is an average of them: one
     sample anchors an estimate to whatever that candidate happened to cost,
-    and below two the budget alone answers. */
+    and below two the budget's ceiling answers alone. */
 const MINIMUM_SAMPLES = 2;
 
-/** What the budget gets on top before the page calls it an end: kalsa-tune
-    stops a lifetime from BEGINNING past the budget and never kills one
-    mid-measurement, and it names a lifetime's ready deadline (READY_TIMEOUT)
-    as the bound on what one that began at the bound can overrun
-    (`crates/kalsa-tune/src/measure/mod.rs`). A tune that outlives even that
-    is answered as "any moment now", never as a figure. */
+/** What the ceiling adds to the budget for the one lifetime that may be
+    running past it: kalsa-tune stops a lifetime from BEGINNING past the
+    budget and never kills one mid-measurement, naming a lifetime's ready
+    deadline (READY_TIMEOUT) as the overshoot — a lifetime may run on past
+    even that (`crates/kalsa-tune/src/measure/mod.rs`). So the number is
+    said as "up to", and the budget's passing drops to "any moment now". */
 const LIFETIME_SLACK_SECONDS = 120;
+
+/** The line's own high-water: the figure it last showed is the most it may
+    show again, so a candidate that closes slower than the ones behind it
+    cannot wind the number up. A fresh tune passes none. */
+function held(minutes: number, shown: number | null | undefined): number {
+  return typeof shown === "number" && Number.isFinite(shown) ? Math.min(minutes, shown) : minutes;
+}
 
 /** A count that may be missing or nonsense: zero, whole, never below. */
 function whole(value: number | undefined): number {
@@ -128,28 +137,32 @@ export function tuneDone(face: TuneFace): boolean {
 /** The wait under the bar. The stop's three answers come first — a cut
     that still owes a next start; one whose verdict was saved WITH a
     winner, which is what may be called kept; and one with no winner at
-    all, where the rule stands — and then the figure, the smaller of two:
-    `wholeSeconds` over the candidates measured so far (the running one's
-    share counted in both) is the rate one candidate really costs on THIS
-    tune, and it moves in small steps as each candidate finishes instead of
-    jumping at the boundary the way a mean of only the finished ones does;
-    the budget — the point no lifetime BEGINS past — plus that one
-    lifetime's slack, less the tune's own whole seconds, is where the end
-    is due, and it answers alone until two candidates have finished. Both
-    only come down while one candidate runs, and neither is shown already
-    exceeded: under half a minute left is "any moment now". */
+    all, where the rule stands — and then the figure. Before two candidates
+    have finished there is nothing to average, so the budget — the point no
+    lifetime BEGINS past — plus one lifetime's slack is a CEILING, said as
+    such. From two on, the smaller of that ceiling and the estimate
+    (`wholeSeconds` over the candidates measured so far, the running one's
+    share counted in both, which is the rate one candidate really costs on
+    THIS tune) answers. Once the budget's seconds are spent, no figure is
+    honest at all: a lifetime that began inside it runs on to its own
+    limits, so the line says "any moment now" and nothing numeric — as it
+    does under half a minute left. `shownMinutes` is the figure this tune
+    has already put on screen, and none of them is exceeded. */
 export function tuneWait(
   face: TuneFace,
   share: number,
   wholeSeconds: number,
   finished: number,
   budgetSeconds?: number,
+  shownMinutes?: number | null,
 ): TuneWait | null {
   if (face.cut) {
     if (face.retryNext) return { kind: "cut" };
     return face.keptWinner ? { kind: "kept" } : { kind: "standard" };
   }
   if (face.total <= 0 || face.done >= face.total) return null;
+  const budget = whole(budgetSeconds);
+  if (budget > 0 && wholeSeconds >= budget) return { kind: "almost" };
   const running = Math.max(share, 0);
   let estimate: number | null = null;
   if (finished >= MINIMUM_SAMPLES) {
@@ -161,10 +174,12 @@ export function tuneWait(
     const rate = wholeSeconds / (finished + running);
     if (rate > 0) estimate = (face.total - face.done - Math.min(running, 1)) * rate;
   }
-  const budget = whole(budgetSeconds);
   const bound = budget > 0 ? budget + LIFETIME_SLACK_SECONDS - wholeSeconds : null;
-  const left = estimate === null ? bound : bound === null ? estimate : Math.min(estimate, bound);
-  if (left === null) return null;
+  if (estimate === null) {
+    if (bound === null) return null;
+    return { kind: "ceiling", minutes: held(Math.max(1, Math.ceil(bound / 60)), shownMinutes) };
+  }
+  const left = bound === null ? estimate : Math.min(estimate, bound);
   if (left < ALMOST_SECONDS) return { kind: "almost" };
-  return { kind: "minutes", minutes: Math.max(1, Math.round(left / 60)) };
+  return { kind: "minutes", minutes: held(Math.max(1, Math.round(left / 60)), shownMinutes) };
 }
