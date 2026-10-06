@@ -1744,6 +1744,18 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (`raw/session5-free-8b2d864f4.grep`)**: KL PASS but all 8 windows on the CPU although the NPU led by 15-20 C - the
   rule never ran (suspect: the NPU lane is never "live" in the one-model governor; forced runs skip that gate). Fix
   with GLM.
+- **Lane fix `05515136d`** (confirmed: `npu_lane_live()` needed `npu_fit == Fit`, which only the binding's LaunchConfig
+  sets; the one-model governor now proves the lane by construction, `npu_lane_enabled` stays the master gate, two-model
+  unchanged; the host test had set the fit by hand - now it does not). Luna audit of 5.2-fixes + 5.3
+  (`audit-step5-3-luna.md`): **v1 parity CONFIRMED** on the shipped two-model path; H-04/05/06/12 fixing, rest BACKLOG.
+  **S23 free-run 2 (`raw/session6-free-05515136d.grep`, bench `d41611feeaaf`)**: the rule decides (`rule=headroom`):
+  windows npu/cpu/npu/npu/cpu/npu/cpu/npu, 159 tokens on the NPU at 19.5 tok/s, 96 on the CPU at 14.2, 6 npu-cpu hops
+  = 14.2 MB / 32.6 ms total, KL 0.000019 PASS. The GPU leg is never picked even when it leads (window 2: gpu 41.1, npu
+  38.9, cpu 27.8 -> npu, the NPU-return preference). Per-leg min-zone headroom is very noisy (CPU 18 <-> 63 C between
+  windows: single-core spikes), so a pure headroom rule flips almost every window. **OWNER DECISION NEEDED (open since
+  04/10)**: the v2 weighting - heat-per-token weight, a filtered temperature, and whether/when the GPU takes bursts.
+  Engine step 5 is otherwise complete; next: binding side (rn_thermal_legs GPU zone, three-value feed, one-model load)
+  = step 6.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

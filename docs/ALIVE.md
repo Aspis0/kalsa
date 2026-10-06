@@ -1035,6 +1035,8 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   tokens; the first KL figure (0.056) was a bench metric bug, fixed.
 - 2026-10-06 STEP 5 GATE PASSED: one model, forced npu/gpu/cpu hops every 32 tokens over 256: KL 0.000019 vs two-copy,
   0 divergences; NPU leg (J(1)) 19.5 tok/s, GPU leg 15.5, CPU 13-15; a hop costs 0.3-16 ms.
+- 2026-10-06 hop v2 free-running on the S23 (one model, fed sysfs headroom): decides by headroom, npu/cpu alternation,
+  KL PASS; GPU never chosen; raw min-zone headroom too noisy for a pure headroom rule - weighting is the owner's call.
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.

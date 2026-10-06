@@ -1,0 +1,22 @@
+feed0: 78.1 64.8 64.5 [lvl=50 ac=false usb=false wl=false batT=279 skin=28.7 wake=Awake thermal=0 traced=0]
+free exit=0 [lvl=50 ac=false usb=false wl=false batT=279 skin=29.8 wake=Awake thermal=0 traced=0]
+leg_headroom arm=L rep=0 cpu=51.30 npu=27.30 gpu=55.00
+leg_headroom arm=L rep=0 cpu=63.50 npu=28.90 gpu=50.20
+leg_window arm=L rep=0 window=0 engine=npu rule=headroom tokens=32 us=1592143 tps=20.099 kl_mean=0.000022 kl_max=0.000208 kl_max_row=24 kl_diverged=0
+leg_headroom arm=L rep=0 cpu=33.10 npu=47.30 gpu=43.50
+leg_window arm=L rep=0 window=1 engine=cpu rule=headroom tokens=32 us=2281084 tps=14.028 kl_mean=0.000014 kl_max=0.000092 kl_max_row=36 kl_diverged=0
+leg_headroom arm=L rep=0 cpu=27.80 npu=38.90 gpu=41.10
+leg_window arm=L rep=0 window=2 engine=npu rule=headroom tokens=32 us=1640505 tps=19.506 kl_mean=0.000032 kl_max=0.000353 kl_max_row=84 kl_diverged=0
+leg_headroom arm=L rep=0 cpu=58.60 npu=34.90 gpu=44.30
+leg_window arm=L rep=0 window=3 engine=npu rule=headroom tokens=32 us=1651195 tps=19.380 kl_mean=0.000019 kl_max=0.000248 kl_max_row=108 kl_diverged=0
+leg_headroom arm=L rep=0 cpu=18.10 npu=41.70 gpu=36.80
+leg_window arm=L rep=0 window=4 engine=cpu rule=headroom tokens=32 us=2279690 tps=14.037 kl_mean=0.000019 kl_max=0.000116 kl_max_row=144 kl_diverged=0
+leg_headroom arm=L rep=0 cpu=52.10 npu=24.20 gpu=39.10
+leg_window arm=L rep=0 window=5 engine=npu rule=headroom tokens=32 us=1663828 tps=19.233 kl_mean=0.000019 kl_max=0.000117 kl_max_row=167 kl_diverged=0
+leg_headroom arm=L rep=0 cpu=28.60 npu=40.90 gpu=37.20
+leg_window arm=L rep=0 window=6 engine=cpu rule=headroom tokens=32 us=2205015 tps=14.512 kl_mean=0.000009 kl_max=0.000119 kl_max_row=216 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu rule=headroom tokens=32 us=1605282 tps=19.934 kl_mean=0.000016 kl_max=0.000149 kl_max_row=240 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=96 us=6765789 tps=14.189
+leg_summary arm=L rep=0 engine=npu tokens=159 us=8152953 tps=19.502
+leg_pair arm=L rep=0 pair=npu-cpu hops=6 commit_bytes=14221312 commit_us=32619
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000019 max=0.000353 kld_max=0.010000 status=PASS
