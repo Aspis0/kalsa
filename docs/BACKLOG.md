@@ -132,3 +132,13 @@ they are promoted.
 - P2: if the exit watchdog's thread cannot be spawned, `arm` returns none and the exit runs unbounded (`src-tauri/src/exit.rs:116-120`).
 - P2: the instance guard's Drop joins its watcher after the RunEvent callback, outside the deadline; the watcher can be inside `on_knock()` (`src-tauri/src/instance.rs:335`, `:363`).
 - P2: no test proves the post-kill wait is bounded end to end — the "never landed" test feeds `reaped` synthetic results (`crates/kalsa-supervisor/src/child.rs:333` vs `:951`, `:968`).
+
+## Windows walk on the Surface (2026-10-05)
+- P1 process gap: `cargo check --target x86_64-pc-windows-msvc -p kalsa-brain` cannot run from the Mac (ring's MSVC build script), so src-tauri's `cfg(windows)` code is only compiled on a Windows machine — a wrong windows-sys constant shipped in `logging.rs` until the Surface build caught it (fixed c7da4875). Needs a Windows CI job or cargo-xwin.
+- P2: a machine holding the old LFM 2.5 Q8 file re-downloads 2.9 GB for the LFM2.5-VL-3B row (`crates/kalsa-catalog/src/manifest.rs:1056`); same byte size, sha not compared. Only affects pre-VL installs.
+- P3: an aborted model download resumes on the next launch with no walk and no user action.
+- Lab (owner, 2026-10-07/08): MTP on the Iris Plus iGPU — both drafted lifetimes refused `NoUsableAnswer` while the off lifetime answered; and Vulkan on the Surface in general.
+
+## Tune sweep and wait (review of dfac842e, 83d62e2f)
+- P2 accepted trade-off (owner chose it): a shape reading the prompt less than 5 % faster than the off-winner is never swept, so a large MTP gain on it cannot be seen (`crates/kalsa-tune/src/passes/mod.rs` `PREFILL_EDGE`). The sound alternative is a capped best-case bound per backend (~13 lifetimes on the Surface instead of ~10).
+- P3: `chat/scripts/walk-shots.mjs` sends tuning payloads without `budget_seconds`, so its screenshots show no ceiling.
