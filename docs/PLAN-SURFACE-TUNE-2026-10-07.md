@@ -69,9 +69,21 @@ session; the wire stays unchanged unless the owner agrees.
 Rebuild the Mac app from brain while unlocked, then relaunch it behind the lock: 8131 must listen
 and the Jelly must dial without anyone unlocking (fix 22eed856 + bec3614a).
 
+### 8. Phone tests (Jelly, app main 67c3eea5 or later)
+Owner 2026-10-06: the iOS/UX session is archived and these tests are mine. Open from that session:
+- Room author name live: write in the desktop Room while the Jelly has the Room open → the entry
+  reads the host's label, never "Former member" (history already checked on 2026-10-06).
+- Room list emptying for a few seconds after background → foreground: read logcat
+  `KALSA_ROOM_FEED` (op/entries/seqFirst/seqLast/epoch8/status) and say which side empties it.
+- Keyboard (react-native-keyboard-controller 1.22.6) in chat and Room.
+- Android iroh background stop: 30 s after HOME, no tokio threads, no avc; first dial after resume
+  still reaches the door.
+Phone code lives in the app repo (`/Users/marco/Projects/kalsa`, branch main); a phone-side fix
+follows that repo's rules.
+
 ## Order and gates
 1, 2 and 6 first (labs; 1 and 2 may change 3). Then 3 → review → 4 → review (one hostile review each, writer and
-reviewer different models, P0/P1 fixed, the rest to `docs/BACKLOG.md`). Then 5, and 7 if still open. Push to `brain`; no
+reviewer different models, P0/P1 fixed, the rest to `docs/BACKLOG.md`). Then 5, 8, and 7 if still open. Push to `brain`; no
 tags or releases.
 
 ## Not in this plan
