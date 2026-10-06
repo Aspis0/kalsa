@@ -1658,6 +1658,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   Root cause with deepseek (`f0716300`). Luna audit of `b7bd8bb13` (`audit-hostw-layers-luna.md`): 4 x P2, one root -
   the HOST-W entry accepts ANY weight the HTP refuses (Q4_0 under OPFILTER, mixed-quant matrices, CPU-repack
   preemption, import size cap); fix = restrict the HOST-W layer fallback to native f32 weights. Triage after the race.
+  **Root cause found (not a race)**: deepseek showed from the code that every split boundary syncs (HTP compute is
+  synchronous, OpenCL has no events -> clFinish), and that the eval-callback run computes 1-node views with uid 0,
+  which disables fusion. `GGML_OPENCL_DISABLE_FUSION=1` -> KLD **0.000886**, splits 62: the OpenCL RMS_NORM+MUL fusion
+  reads the HOST-W weight through its Hexagon extra (no import substitution, no CL error - a silent garbage read).
+  Fix dispatched: substitute the import in the fused paths + can_fuse fails closed on unsubstituted host operands;
+  plus the HOST-W fallback restricted to native f32 weights (audit triage).
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
