@@ -1635,6 +1635,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   token_embd via the aos kernel), KLD **0.000882** (was 0.000934), same top p 97.8 %. Splits **198** at tg (was 197):
   `offload_op` did not pull the HOST-side ops onto OpenCL here; attention + KV stay on the CPU (`-nkvo 1`), which is
   step 5. tg128 **4.15 +- 0.02** tok/s at -t 1 (step 4: 3.50; Amendment G target >= 0.9 x 11.51 = 10.4).
+  The G3 arm (`-dev GPUOpenCL/HTP0 -ts 0/1`) gives the same 198 splits / 4.22 tok/s. **Cause, from
+  `GGML_SCHED_DEBUG=2` (`raw/session3-G3-sched-6106d4997.grep`)**: the ~100 per-layer f32 weights (attn/ffn norms,
+  shortconv conv kernels) load into the plain CPU buffer (`... (and 99 others) cannot be used with preferred buffer type
+  HTP0-TILE32, using CPU instead`); only `token_embd` reaches HOST-W, because only the input list offers it
+  (`make_shared_input_buft_list`). So every norm MUL and SSM_CONV runs on the CPU: 4 splits per layer. Amendment G1's
+  first move ("f32 weights through the HOST import") was never placed - the 4b premise "norms in HOST" was false on disk.
+  Fix dispatched to deepseek (Coder `f0716300`): layer/output lists offer HOST-W before CPU in shared mode; then G arm
+  re-run + NPU S/H regression before step 5.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
