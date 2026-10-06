@@ -96,7 +96,7 @@ class KalsaIrohModule : Module() {
         if (id == null) {
           // Teardown raced this open: close the fresh tunnel before it can
           // escape with a handle backed by a dropped bridge.
-          tunnel.shutdown()
+          shutdownAndDestroy(tunnel)
           throw IllegalStateException("the bridge stopped during open")
         }
         id
@@ -120,7 +120,8 @@ class KalsaIrohModule : Module() {
     AsyncFunction("shutdown") { id: Double, promise: Promise ->
       run(control, promise, "shutdown") {
         // Removed whether or not it was open: a shut-down handle is gone.
-        tunnels.remove(id.toLong())?.shutdown()
+        tunnels.remove(id.toLong())?.let(::shutdownAndDestroy)
+        null
       }
     }
 
@@ -136,7 +137,7 @@ class KalsaIrohModule : Module() {
         openTunnels to active
       }
       control.execute {
-        open.forEach { it.shutdown() }
+        closeTunnels(open)
         dropBridge(current)
       }
       parking.shutdown()
@@ -218,15 +219,20 @@ class KalsaIrohModule : Module() {
     }
     if (!nativeInstallAndroidContext(applicationContext)) throw AndroidContextInitializationException()
     val started = MobileBridge(File(applicationContext.filesDir, "iroh-node.key").path)
-    val previous = synchronized(bridges) {
+    val (previous, previousTunnels) = synchronized(bridges) {
       val old = bridge
       bridge = started
-      old
+      val oldTunnels = if (old != null) tunnels.values.toList() else emptyList()
+      if (old != null) tunnels.clear()
+      old to oldTunnels
     }
     if (previous != null) {
-      // Drop the replaced bridge outside the lock: its runtime shutdown
-      // is bounded but not instant, and no caller is waiting on it.
-      control.execute { dropBridge(previous) }
+      // Close handles from the replaced bridge outside the lock, then destroy
+      // the bridge after its tunnels have released their runtime references.
+      control.execute {
+        closeTunnels(previousTunnels)
+        dropBridge(previous)
+      }
     }
     return started
   }
@@ -256,8 +262,27 @@ class KalsaIrohModule : Module() {
     synchronized(bridges) {
       if (toDrop == null || bridge === toDrop) bridge = null
     }
-    // Dropping the reference runs the crate's bounded runtime shutdown;
-    // it happens on a pool thread, never the JS thread.
+    // UniFFI requires explicit destruction; this runs on a control-pool
+    // thread and releases the bridge's runtime reference.
+    toDrop?.destroy()
+  }
+
+  private fun closeTunnels(open: List<Tunnel>) {
+    open.forEach { tunnel ->
+      try {
+        shutdownAndDestroy(tunnel)
+      } catch (_: Throwable) {
+        // Continue releasing the rest of the handles during module teardown.
+      }
+    }
+  }
+
+  private fun shutdownAndDestroy(tunnel: Tunnel) {
+    try {
+      tunnel.shutdown()
+    } finally {
+      tunnel.destroy()
+    }
   }
 
   private class AndroidContextInitializationException :
