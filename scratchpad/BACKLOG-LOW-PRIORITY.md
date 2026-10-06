@@ -180,3 +180,9 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P3 (7): no single-flight for the scan; each modelState transition starts a fresh registry probe and abandons the previous FS calls (one may hit the file being written while downloading). Wasteful, not wrong.
 - P3 (11): OverlaysProps.setOverlay typed as a plain setter but fed the React Dispatch; a future updater call would silently change meaning.
 - Android foreground: react-native-worklets UI-runtime frame loop is always on (~10% of a Jelly core, release); library design, upstream main/0.12.2 same; no patch infra in the repo. Revisit after alpha / upstream issue.
+
+## Room feed diagnostic + keyboard-controller 1.22.6 (review space-bunny 9978eb05, 2026-10-05)
+- P2 A1: KALSA_ROOM_FEED epoch8 passes the report schema only if [A-Za-z0-9_-]; an epoch with other chars is dropped from the report (raw logcat still shows it). Check the desktop epoch format.
+- P3: the "info" op is effectively unreachable; FeedLogOp duplicated in tagSchemas without a drift guard; batching path of commitFeed untested; tagSchemas header privacy sentence omits safeId8; no localId8 on the feed line; logStore sync file I/O per accepted line.
+- P3 E4: app now off the Expo 57 bundled keyboard-controller pin (1.21.9); `expo install --fix` would revert it; no CI runs expo-doctor.
+- Room review c5ac98fc leftovers (reverted work): every Room open closes the wire on unmount and replays the full transcript from lastSeq=0 (O(n^2) fold) - pause on unmount instead of close; loadOlder has no AbortSignal and survives reload().
