@@ -1223,6 +1223,12 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   requestAnimationFrame.ts), same on upstream main and 0.12.2. Background is paused since 1cd2a40a. Fix would be a
   library patch (lazy loop; UI microtask flush depends on it) and the repo has no patch infra: NOT before alpha;
   candidate upstream issue. iOS Simulator idle 2% of an M1 core.
+  Settings loop FIX LANDED app main `b9e96c53` (luna c1fb0366 + b9e96c53; review space-bunny 3d63bcfc): cause = the
+  Settings-open model presence scan (HostOverlays effect) re-ran forever because useModelDownload recreated its
+  publish callback every render (scan -> setState -> new callback -> scan; 346-370 scans in 25 ms in test). Fix:
+  stable callback, equal-map bail-out, deps on overlay?.kind, BackHandler subscribed once; regression test mounts
+  the real HostFurniture+HostOverlays wiring and fails on 4 reintroductions. Full jest 359/3666 green. Jelly
+  re-measure pending on the new APK.
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
