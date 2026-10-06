@@ -1251,6 +1251,16 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   Bug B NOT reproduced: HOME 60 s and screen-off 5 min both resume with the list intact, no FEED line (no change),
   first dial +185 ms / 558 ms (the earlier ~5 s gap did not recur). Diagnostic stays in; next sighting gets read
   from the KALSA_ROOM_FEED trail. Only remaining noisy log: iroh netmon avc denials (backlog recon).
+  **iroh background stop (2026-10-06, app main 1b54f533 + 1d362c25 + 67c3eea5, Android only):** cause of the ~22 s avc
+  bursts = iroh 1.2.0 periodic re-stun (20-26 s, socket.rs new_re_stun_timer) -> interface enumeration denied by SELinux,
+  for the whole process life. Bridge now drops after 30 s in background when no tunnel/pending open exists; next dial
+  restarts it. Two device-caught bugs on the way: (1) plain JS setTimeout never fires while the activity is paused ->
+  moved to createBackgroundTimer; (2) Kotlin dropBridge only nulled the reference and tunnels were never destroyed
+  (UniFFI frees only on destroy()/GC) -> a tokio worker kept re-stunning. Jelly, 5 min HOME, debuggable, unplugged:
+  BEFORE 308 ticks / 105 avc; AFTER 66 ticks / 18 avc (all before the stop), 0 tokio threads after the stop; resume
+  restarts the bridge, no crash. Review: space-bunny (P0 lock-around-dial fixed, P1s fixed). Writer luna.
+  Mac relay down since ~02:04 local (kalsa-brain read-only: relay ping/connect timeouts, DNS timeouts) -> phone dials
+  time out; phone and Mac share the LAN but the dial goes via relay (backlog).
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
