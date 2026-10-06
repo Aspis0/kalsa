@@ -149,6 +149,8 @@ export function App() {
   // `CrescentNav`.
   const chatEntries: CrescentEntry[] = [
     { key: "brain", label: chrome.home, onSelect: () => openSurface("brain") },
+    // The way back to the chat from the room: dropped on the chat itself.
+    { key: "chat", label: chrome.chat, onSelect: () => openSurface("chat") },
     // The room, between the chat and the settings: the host's view of the
     // house's shared conversation.
     { key: "room", label: chrome.room, onSelect: () => openSurface("room") },
