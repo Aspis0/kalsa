@@ -1227,8 +1227,9 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   Settings-open model presence scan (HostOverlays effect) re-ran forever because useModelDownload recreated its
   publish callback every render (scan -> setState -> new callback -> scan; 346-370 scans in 25 ms in test). Fix:
   stable callback, equal-map bail-out, deps on overlay?.kind, BackHandler subscribed once; regression test mounts
-  the real HostFurniture+HostOverlays wiring and fails on 4 reintroductions. Full jest 359/3666 green. Jelly
-  re-measure pending on the new APK.
+  the real HostFurniture+HostOverlays wiring and fails on 4 reintroductions. Full jest 359/3666 green. JELLY PASS
+  21:56 (APK b9e96c53, Settings open 30 s untouched): JS thread 17 ticks (was ~2800 per 30 s), Expo async queue
+  gone from the top; main thread 626 = the known worklets/Fabric per-frame cost on a debuggable build.
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
