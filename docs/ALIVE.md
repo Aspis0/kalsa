@@ -1024,6 +1024,8 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - J(1) with the in-place AoS Q6_K kernel `917027089`: H tg128 22.38/22.14 vs A 22.68/22.64 = **0.98 of A**, KLD
   0.005343, RSS ~127 vs ~317 MB. One copy, three legs, the NPU decode keeps its speed. Audit P1/P2 fixes next.
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
+- Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
+  S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.
 - Option 3 measured: correct (lm_head on the HTP, splits 2) but 9.2 s per lm_head call -> tg128 0.11 vs 22.8. Fable
   Amendment J requested; owner decides the tied-output route after it.
 
