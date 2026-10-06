@@ -1246,6 +1246,11 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   outliving the pairing; remount unproven). (B) instead gets a KALSA_ROOM_FEED diagnostic (op/entries/seqFirst/
   seqLast/epoch8/status, no text). keyboard-controller 1.21.9 -> 1.22.6 for the Modal SoftException; Jelly
   (API 33) IME-height check owed.
+  Jelly 2026-10-05/06 on APK 80953ca1 (debuggable, unplugged): composer stays pinned above the IME (E3 PASS);
+  keyboard-controller SoftException gone (0 in logcat); Room open -> first FEED read in 111 ms (5 entries).
+  Bug B NOT reproduced: HOME 60 s and screen-off 5 min both resume with the list intact, no FEED line (no change),
+  first dial +185 ms / 558 ms (the earlier ~5 s gap did not recur). Diagnostic stays in; next sighting gets read
+  from the KALSA_ROOM_FEED trail. Only remaining noisy log: iroh netmon avc denials (backlog recon).
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
