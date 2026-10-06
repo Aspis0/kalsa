@@ -1756,6 +1756,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   04/10)**: the v2 weighting - heat-per-token weight, a filtered temperature, and whether/when the GPU takes bursts.
   Engine step 5 is otherwise complete; next: binding side (rn_thermal_legs GPU zone, three-value feed, one-model load)
   = step 6.
+- **Engine step 5 CLOSED `1c7f27f13`** (pushed to the fork `feat/governor-onecopy`): H-04 floor demotion recoverable
+  (turn-local evidence, re-admit at each latch, no demotion on < 2 windows), H-05 CPU leg never excludable (empty mask
+  fails closed to the CPU), H-06 GPU headroom resets per turn; host tests green (orchestrator re-ran router v1, hop-v2,
+  legs incl. floor recovery).
+- **Step 6 started**: binding worktree `~/Projects/llama.rn-kalsa-onecopy`, branch `spike/onecopy-legs` from the binding's
+  live line `origin/feat/governor-platform-status` `7c26e272` (the app pins `3d8fc84a`). GLM `bb3565cc`: vendor engine
+  `1c7f27f13` + HTP skels, `cpp/rn-legs-table.cpp` (one row: SM8550/v73/Adreno 740/E031.41/dotprod; NPU-shared decode
+  only with the OpenCL HOST leg, R2), one-model load behind the table, rn_thermal_legs GPU zone + three-value feed.
+  The app pin is NOT moved without the owner.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
