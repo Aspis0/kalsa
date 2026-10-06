@@ -1650,6 +1650,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   first move ("f32 weights through the HOST import") was never placed - the 4b premise "norms in HOST" was false on disk.
   Fix dispatched to deepseek (Coder `f0716300`): layer/output lists offer HOST-W before CPU in shared mode; then G arm
   re-run + NPU S/H regression before step 5.
+- **HOST-W layer fix `b7bd8bb13` on the S23 (`step4b-s23/raw/session4-hostw-b7bd8bb13.grep`)**: placement as designed
+  (`using HTP0-HOST-W instead`, one HOST-W import of 230424576 B), splits at tg **198 -> 62**, tg128 **4.15 -> 5.69**,
+  but **output WRONG**: KLD 9.85, same top p 0 %. `-ot norm.weight=CPU` -> KLD 0.000881 (so the norm MUL on OpenCL over
+  HOST-W is the trigger; SSM_CONV over HOST-W is fine). llama-eval-callback (per-node sync) over 38 tokens: all 40052
+  tensor sums agree -> the math is right when synced node by node; suspect a CPU<->OpenCL split synchronisation race.
+  Root cause with deepseek (`f0716300`). Luna audit of `b7bd8bb13` (`audit-hostw-layers-luna.md`): 4 x P2, one root -
+  the HOST-W entry accepts ANY weight the HTP refuses (Q4_0 under OPFILTER, mixed-quant matrices, CPU-repack
+  preemption, import size cap); fix = restrict the HOST-W layer fallback to native f32 weights. Triage after the race.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

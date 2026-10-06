@@ -1,0 +1,30 @@
+# b7bd8bb13 (layer f32 weights in HOST-W) on S23, 2026-10-05 23:00-23:45, unplugged; bench b542b2e8872d ppl afacae09bc4e evalcb f81afe5d41d4
+SESSION COMPLETE - read $REPORT
+== step-4b correctness session start Mon Oct  5 23:01:59 EDT 2026 [lvl=97 ac=false usb=false wl=false batT=287 skin=29.4 wake=Awake thermal=0 traced=0]
+binaries: b542b2e8872d afacae09bc4e 
+proof G: load_tensors:  HTP0-HOST-W model buffer size =   219.75 MiB
+proof G: load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+proof G: ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+proof G: ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+proof G: ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+proof G: ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+proof G: ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+proof G: exit=0 enabled=1 imports=3 host_imports=1 host_selfcheck_pass=1 errors=0 [lvl=97 ac=false usb=false wl=false batT=287 skin=29.6 wake=Awake thermal=0 traced=0]
+proof G: PASS
+== G kld start 1791255760 [lvl=97 ac=false usb=false wl=false batT=287 skin=29.8 wake=Awake thermal=0 traced=0]
+G kld: exit=0 meanKLD=9.852802 splits=? errors=0 chunk PPL ln(PPL(Q)/PPL(base)) KL Divergence Δp RMS Same top p
+Same top p: 0.000 ± 0.000 % [lvl=96 ac=false usb=false wl=false batT=305 skin=32.3 wake=Awake thermal=0 traced=0]
+== step-4b correctness session end Mon Oct  5 23:05:47 EDT 2026 [lvl=96 ac=false usb=false wl=false batT=305 skin=32.3 wake=Awake thermal=0 traced=0]
+proof_G.log:sched_reserve: graph (pp bs=16, tg bs=1): nodes = 1054 / 1054, splits = 199 / 62, input objects = 4 / 4, input tensors = 7 / 7
+kld_G.log:0.00.589.451 I sched_reserve: graph: nodes = 1054, splits = 62, input objects = 4, input tensors = 7
+kld_G.log:0.05.333.045 I sched_reserve: graph: nodes = 1054, splits = 62, input objects = 4, input tensors = 7
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+done_getting_tensors: tensor 'token_embd_norm.weight' (f32) (and 99 others) cannot be used with preferred buffer type HTP0-TILE32, using HTP0-HOST-W instead
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+rc=0
+tg128 |          5.69 ± 0.06
+[lvl=96 ac=false usb=false wl=false batT=305 skin=32.5 wake=Awake thermal=0 traced=0]
+--- localization by -ot (KLD vs CPU base, -ub 1, 2 chunks)
+N (norm.weight=CPU): rc=0 Mean KLD: 0.000881 ± 0.000053 | chunk PPL ln(PPL(Q)/PPL(base)) KL Divergence Δp RMS Same top p | splits = 198 | 0.03.401.145 I shared weights: TILE32 1369571328 HOST 229916672 CPU 503808 bytes [lvl=95 ac=false usb=false wl=false batT=320 skin=33.5 wake=Awake thermal=0 traced=0]
+C (shortconv.conv.weight=CPU): rc=0 Mean KLD: 9.852802 ± 0.052932 | chunk PPL ln(PPL(Q)/PPL(base)) KL Divergence Δp RMS Same top p | splits = 62 | 0.03.529.260 I shared weights: TILE32 1369571328 HOST 229879808 CPU 540672 bytes [lvl=94 ac=false usb=false wl=false batT=333 skin=34.4 wake=Awake thermal=0 traced=0]
+--- llama-eval-callback (per-node sync), G arm, -ub 1: 3 tokens and 38 tokens, broken vs norm.weight=CPU: 3162 / 40052 tensor sums, max relative diff ~1e-3, no large divergence. => math correct when synced node by node; async run broken.
