@@ -22,6 +22,18 @@ const INFO = parseRoomInfo(infoFixture) as RoomInfo;
 const events: Array<(event: RoomStreamEvent) => void> = [];
 const lines: string[] = [];
 
+class CatchBoundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? React.createElement("caught") : this.props.children;
+  }
+}
+
 function entry(seq: number, text: string): RoomHistoryMessage {
   return {
     seq,
@@ -62,7 +74,7 @@ test("logs count and epoch transitions without message text or names", async () 
     useRoom("p-lid-feed-log");
     return null;
   };
-  let renderer: ReturnType<typeof create>;
+  let renderer!: ReturnType<typeof create>;
   await act(async () => {
     renderer = create(React.createElement(Probe));
     await settle();
@@ -75,7 +87,18 @@ test("logs count and epoch transitions without message text or names", async () 
   expect(lines).toHaveLength(beforeInfo);
 
   await act(async () => {
-    events[0]({ type: "message", entry: entry(2, "another secret body") });
+    events[0]({
+      type: "resynced",
+      info: INFO,
+      history: {
+        messages: [entry(9, "secret replacement")],
+        hasOlder: false,
+        hasNewer: false,
+      },
+    });
+  });
+  await act(async () => {
+    events[0]({ type: "message", entry: entry(10, "another secret body") });
   });
   const records = lines
     .filter((line) => line.startsWith("KALSA_ROOM_FEED "))
@@ -83,10 +106,46 @@ test("logs count and epoch transitions without message text or names", async () 
   expect(records.map((record) => [record.op, record.entries])).toEqual([
     ["mount", 0],
     ["read", 1],
+    ["resync", 1],
     ["entry", 2],
+  ]);
+  expect(records.map((record) => [record.seqFirst, record.seqLast])).toEqual([
+    [-1, -1],
+    [1, 1],
+    [9, 9],
+    [9, 10],
   ]);
   expect(records[1]).toMatchObject({ epoch8: INFO.epoch.slice(0, 8), status: "ready" });
   expect(lines.join("\n")).not.toContain("secret");
   expect(lines.join("\n")).not.toContain("Private name");
+  await act(async () => renderer.unmount());
+});
+
+test("a fold error is diagnosed without details and reaches the React boundary", async () => {
+  jest.spyOn(console, "error").mockImplementation(() => undefined);
+  const Probe = () => {
+    useRoom("p-lid-feed-log-error");
+    return null;
+  };
+  let renderer!: ReturnType<typeof create>;
+  await act(async () => {
+    renderer = create(
+      React.createElement(CatchBoundary, null, React.createElement(Probe)),
+    );
+    await settle();
+  });
+
+  await act(async () => {
+    events[0]({
+      type: "resynced",
+      info: INFO,
+      history: { hasOlder: false, hasNewer: false },
+    } as unknown as RoomStreamEvent);
+  });
+  expect(renderer.toJSON()).toMatchObject({ type: "caught" });
+  const failure = lines.find((line) => line.startsWith("KALSA_ROOM_FEED ") && line.includes('"op":"error"'));
+  expect(failure).toBeDefined();
+  expect(failure).not.toContain("messages");
+  expect(failure).not.toContain("Private name");
   await act(async () => renderer.unmount());
 });

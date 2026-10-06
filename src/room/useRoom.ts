@@ -37,10 +37,18 @@ const HISTORY_LIMIT = 200;
 
 type FeedLogOp = "mount" | "read" | "history" | "resync" | "entry" | "info" | "removed" | "error";
 
+function feedSequenceBounds(feed: RoomFeed): { seqFirst: number; seqLast: number } {
+  return {
+    seqFirst: feed.entries[0]?.seq ?? -1,
+    seqLast: feed.entries[feed.entries.length - 1]?.seq ?? -1,
+  };
+}
+
 function logRoomFeed(op: FeedLogOp, feed: RoomFeed): void {
   console.log(`KALSA_ROOM_FEED ${JSON.stringify({
     op,
     entries: feed.entries.length,
+    ...feedSequenceBounds(feed),
     epoch8: feed.epoch.slice(0, 8) || "unknown",
     status: feed.status,
   })}`);
@@ -82,14 +90,28 @@ export function useRoom(localId: string): RoomView {
   // An action's answer may land after the screen is gone: the state it would
   // set must not.
   const liveRef = useRef(true);
+  const mountLogged = useRef(false);
   const feedRef = useRef(feed);
   feedRef.current = feed;
   const commitFeed = useCallback((op: FeedLogOp, fold: (current: RoomFeed) => RoomFeed): void => {
     const previous = feedRef.current;
-    const next = fold(previous);
+    let next: RoomFeed;
+    try {
+      next = fold(previous);
+    } catch (error) {
+      logRoomFeed("error", previous);
+      setFeed(() => {
+        throw error;
+      });
+      return;
+    }
+    const previousBounds = feedSequenceBounds(previous);
+    const nextBounds = feedSequenceBounds(next);
     if (
       previous.entries.length !== next.entries.length ||
       previous.epoch !== next.epoch ||
+      previousBounds.seqFirst !== nextBounds.seqFirst ||
+      previousBounds.seqLast !== nextBounds.seqLast ||
       op === "removed" ||
       op === "error"
     ) {
@@ -107,6 +129,8 @@ export function useRoom(localId: string): RoomView {
   }, []);
 
   useEffect(() => {
+    if (mountLogged.current) return;
+    mountLogged.current = true;
     logRoomFeed("mount", feedRef.current);
   }, []);
 

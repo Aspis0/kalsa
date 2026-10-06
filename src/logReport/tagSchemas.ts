@@ -356,6 +356,8 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
   KALSA_ROOM_FEED: {
     op: enumOf("mount", "read", "history", "resync", "entry", "info", "removed", "error"),
     entries: NUM,
+    seqFirst: NUM,
+    seqLast: NUM,
     epoch8: { k: "safeId8" },
     status: enumOf("loading", "ready", "error", "removed"),
   },

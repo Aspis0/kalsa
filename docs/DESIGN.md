@@ -351,7 +351,7 @@ Decision, taken before mounting the shell:
   existing chat already uses (`kbPad` over the root, chosen there because its frame-diff formula
   under-lifted by a constant, `AiChatPage.tsx:3936-3940`) and the same reason the cloud's own animation
   never touches React state.
-- The height comes from `react-native-keyboard-controller`, which the app already ships (1.21.9) and
+- The height comes from `react-native-keyboard-controller`, which the app already ships (1.22.6) and
   which reads the IME from native insets. **The safe-area bottom inset must never be used for this**:
   it excludes the IME, and stacking the two double-counts — a trap the existing composer's comment
   already records. The two are combined by **one named rule** rather than by hand at each call site:

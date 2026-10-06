@@ -5,6 +5,8 @@ describe("room feed diagnostics privacy", () => {
     const line = formatRecord("KALSA_ROOM_FEED", {
       op: "entry",
       entries: 4,
+      seqFirst: 10,
+      seqLast: 13,
       epoch8: "0123abcd",
       status: "ready",
       text: "private message",
@@ -12,7 +14,7 @@ describe("room feed diagnostics privacy", () => {
     });
 
     expect(line).toBe(
-      'KALSA_ROOM_FEED {"op":"entry","entries":4,"epoch8":"0123abcd","status":"ready"}',
+      'KALSA_ROOM_FEED {"op":"entry","entries":4,"seqFirst":10,"seqLast":13,"epoch8":"0123abcd","status":"ready"}',
     );
     expect(line).not.toContain("private message");
     expect(line).not.toContain("Marco");
@@ -22,8 +24,23 @@ describe("room feed diagnostics privacy", () => {
     expect(formatRecord("KALSA_ROOM_FEED", {
       op: "message_text",
       entries: 1,
+      seqFirst: -1,
+      seqLast: -1,
       epoch8: "secret epoch",
       status: "ready",
-    })).toBe('KALSA_ROOM_FEED {"entries":1,"status":"ready"}');
+    })).toBe('KALSA_ROOM_FEED {"entries":1,"seqFirst":-1,"seqLast":-1,"status":"ready"}');
+  });
+
+  it("uses negative one sequence bounds for an empty feed", () => {
+    expect(formatRecord("KALSA_ROOM_FEED", {
+      op: "mount",
+      entries: 0,
+      seqFirst: -1,
+      seqLast: -1,
+      epoch8: "unknown",
+      status: "loading",
+    })).toBe(
+      'KALSA_ROOM_FEED {"op":"mount","entries":0,"seqFirst":-1,"seqLast":-1,"epoch8":"unknown","status":"loading"}',
+    );
   });
 });
