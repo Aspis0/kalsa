@@ -1630,6 +1630,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   over 33 calls (min 5.279, max 5.361) vs the plain kernel 22.542 ms = 4.25x, ~40 GB/s over the ~214 MB Q6_K matrix.
   Below the ~6 ms bar: the `image1d_buffer` view lever is NOT needed now (kept as the next lever if a future device
   needs it). tg32 22.70.
+- **Step-4b G arm re-run on `6106d4997` (S23 22:25-22:31, unplugged; `step4b-s23/raw/session3-G-6106d4997.grep`;
+  bench `fbf3f4c98474`, ppl `052926cd8c84`)**: proof PASS (TILE32 x2 + HOST-W imports, every self-check PASS, HOST
+  token_embd via the aos kernel), KLD **0.000882** (was 0.000934), same top p 97.8 %. Splits **198** at tg (was 197):
+  `offload_op` did not pull the HOST-side ops onto OpenCL here; attention + KV stay on the CPU (`-nkvo 1`), which is
+  step 5. tg128 **4.15 +- 0.02** tok/s at -t 1 (step 4: 3.50; Amendment G target >= 0.9 x 11.51 = 10.4).
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
