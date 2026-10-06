@@ -186,3 +186,9 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - P3: the "info" op is effectively unreachable; FeedLogOp duplicated in tagSchemas without a drift guard; batching path of commitFeed untested; tagSchemas header privacy sentence omits safeId8; no localId8 on the feed line; logStore sync file I/O per accepted line.
 - P3 E4: app now off the Expo 57 bundled keyboard-controller pin (1.21.9); `expo install --fix` would revert it; no CI runs expo-doctor.
 - Room review c5ac98fc leftovers (reverted work): every Room open closes the wire on unmount and replays the full transcript from lastSeq=0 (O(n^2) fold) - pause on unmount instead of close; loadOlder has no AbortSignal and survives reload().
+
+## Overnight recon 2026-10-06 (scratchpad/agents/overnight-recon/REPORT.md, verified by orchestrator where marked)
+- iroh avc every ~22 s on Android: VERIFIED cause = iroh 1.2.0 `periodic_re_stun_timer` 20-26 s (socket.rs new_re_stun_timer) -> net report -> interface enumeration denied by SELinux; endpoint lives all process long. Fix in progress: stop the bridge after 30 s in background with no open tunnel (branch phone/iroh-bg-stop). netwatch 0.19.3 Android RouteMonitor is a no-op; iroh 1.3.0 still on netwatch 0.19.3.
+- Remote PC send serializes the whole body twice when the image wire budget runs (RemoteEngine.ts bodyBytes + transport), up to 12 MiB on the JS thread. Fix: build once, measure, pass the string. P2 perf, only with images.
+- Android direct PC stream is not aborted/paused on background (iosBackgroundPlan no-ops off iOS). OWNER DECISION: cut the turn and mark it interrupted, or let it run. Battery impact low (event-driven XHR, 120 s idle timeout).
+- Model download keep-awake = FLAG_KEEP_SCREEN_ON (screen stays on during a download), released in finally; no CPU wakelock. Fine for now; resumable OS-managed download is post-alpha.
