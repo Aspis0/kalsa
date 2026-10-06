@@ -1771,6 +1771,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   `1c7f27f13` + HTP skels, `cpp/rn-legs-table.cpp` (one row: SM8550/v73/Adreno 740/E031.41/dotprod; NPU-shared decode
   only with the OpenCL HOST leg, R2), one-model load behind the table, rn_thermal_legs GPU zone + three-value feed.
   The app pin is NOT moved without the owner.
+- **Step 6 code done** (GLM `bb3565cc`, `e5807ab8`..`7ce0a677` on local `spike/onecopy-legs`, not pushed): vendor
+  `1c7f27f13`, skels rebuilt (orchestrator re-ran `assert-htp-skels.sh`: EXIT=0, 4 skels match), table
+  `cpp/rn-legs-table.cpp` (all three legs or nothing), `load_governor_one_model` (setter before load, one
+  `common_init_from_params`, teardown governor -> release_imports -> model), thermal GPU leg; Android .so compile of the
+  S23 variant green (it caught a missing NDK `<sys/hwcap.h>`, fixed `83259402`). Hostile audit: luna `e99452f5`.
 - **Leg speed, S23 07:00 (`step5-s23/raw/session7-speed-1c7f27f13.grep`)**: governor-bench forced single leg, no KL dump:
   NPU 20.0, GPU 16.9 tok/s (with the KL dump 19.5 / 15.5 - the dump is cheap). llama-bench at depth 512 (the bench's
   prefill depth), ABBA: two-copy NPU A 22.17 / 22.12 vs one-copy J(1) H 21.44 / 21.70 = **0.975**. So one-copy keeps the
