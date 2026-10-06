@@ -1,5 +1,6 @@
 /** Android bridge idle policy. Native tunnel state remains authoritative. */
 import { logIrohBridgeDecision } from "./road";
+import type { BackgroundTimer, TimerHandle } from "../platform/backgroundTimer";
 
 export type IrohBackgroundAppState = {
   addEventListener(type: "change", handler: (state: string) => void): { remove(): void };
@@ -20,6 +21,7 @@ export function bindIrohBackgroundStop(
   source: IrohBackgroundAppState,
   platform: string,
   stopBridge: () => Promise<boolean>,
+  timerSource: BackgroundTimer,
 ): () => void {
   if (platform !== "android") return () => undefined;
   if (isBound) return () => undefined;
@@ -27,7 +29,7 @@ export function bindIrohBackgroundStop(
 
   let background = false;
   let deadlinePassed = false;
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  let timer: TimerHandle | null = null;
   let stopping: Promise<void> | null = null;
   let closeDuringStop = false;
 
@@ -65,7 +67,8 @@ export function bindIrohBackgroundStop(
       if (background) return;
       background = true;
       deadlinePassed = false;
-      timer = setTimeout(() => {
+      // RN suspends plain setTimeout while the activity is paused.
+      timer = timerSource.setTimeout(() => {
         timer = null;
         deadlinePassed = true;
         attemptStop();
@@ -74,14 +77,14 @@ export function bindIrohBackgroundStop(
       background = false;
       deadlinePassed = false;
       closeDuringStop = false;
-      if (timer !== null) clearTimeout(timer);
+      if (timer !== null) timerSource.clearTimeout(timer);
       timer = null;
     }
   });
 
   return () => {
     subscription.remove();
-    if (timer !== null) clearTimeout(timer);
+    if (timer !== null) timerSource.clearTimeout(timer);
     timer = null;
     if (tunnelCloseListener === onTunnelClosed) {
       tunnelCloseListener = null;

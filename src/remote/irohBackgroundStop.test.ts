@@ -4,11 +4,30 @@ import {
   notifyIrohTunnelClosed,
   type IrohBackgroundAppState,
 } from "./irohBackgroundStop";
+import type { BackgroundTimer } from "../platform/backgroundTimer";
 
 let unbind: (() => void) | null = null;
 
-function bind(app: IrohBackgroundAppState, platform: string, stop: () => Promise<boolean>): void {
-  unbind = bindIrohBackgroundStop(app, platform, stop);
+function fakeBackgroundTimer(): BackgroundTimer {
+  return {
+    setTimeout: (run, delayMs) => ({
+      kind: "js",
+      value: globalThis.setTimeout(run, delayMs),
+    }),
+    clearTimeout: (handle) => {
+      if (handle.kind === "js") globalThis.clearTimeout(handle.value);
+    },
+    source: "js",
+  };
+}
+
+function bind(
+  app: IrohBackgroundAppState,
+  platform: string,
+  stop: () => Promise<boolean>,
+  timer: BackgroundTimer = fakeBackgroundTimer(),
+): void {
+  unbind = bindIrohBackgroundStop(app, platform, stop, timer);
 }
 
 function appStateSource(): {
@@ -54,6 +73,17 @@ describe("Android iroh background stop", () => {
     jest.advanceTimersByTime(1);
     await Promise.resolve();
     expect(stopBridge).toHaveBeenCalledTimes(1);
+  });
+
+  test("schedules the deadline through the injected background timer", () => {
+    const app = appStateSource();
+    const stopBridge = jest.fn(async () => true);
+    const timer = fakeBackgroundTimer();
+    const schedule = jest.spyOn(timer, "setTimeout");
+    bind(app.source, "android", stopBridge, timer);
+    app.change("background");
+
+    expect(schedule).toHaveBeenCalledWith(expect.any(Function), IROH_BACKGROUND_STOP_DELAY_MS);
   });
 
   test("foreground cancels the pending stop", () => {
@@ -122,7 +152,12 @@ describe("Android iroh background stop", () => {
     const second = appStateSource();
     const stopBridge = jest.fn(async () => true);
     bind(first.source, "android", stopBridge);
-    const secondUnbind = bindIrohBackgroundStop(second.source, "android", stopBridge);
+    const secondUnbind = bindIrohBackgroundStop(
+      second.source,
+      "android",
+      stopBridge,
+      fakeBackgroundTimer(),
+    );
 
     second.change("background");
     jest.advanceTimersByTime(IROH_BACKGROUND_STOP_DELAY_MS);
@@ -137,7 +172,7 @@ describe("Android iroh background stop", () => {
   test("iOS does not subscribe or stop", () => {
     const app = appStateSource();
     const stopBridge = jest.fn(async () => true);
-    const iosUnbind = bindIrohBackgroundStop(app.source, "ios", stopBridge);
+    const iosUnbind = bindIrohBackgroundStop(app.source, "ios", stopBridge, fakeBackgroundTimer());
     app.change("background");
     jest.advanceTimersByTime(IROH_BACKGROUND_STOP_DELAY_MS);
     expect(stopBridge).not.toHaveBeenCalled();

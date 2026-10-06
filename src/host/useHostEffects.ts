@@ -7,6 +7,7 @@
  */
 import { useEffect, useMemo, useRef } from "react";
 import { AppState, Platform } from "react-native";
+import { createBackgroundTimer } from "../platform/backgroundTimer";
 import {
   regenHandleSendPassRef,
   regenInFlightRef,
@@ -127,7 +128,8 @@ export function useHostEffects(params: HostEffectParams): void {
   // Android iroh bridge idle stop shares the same process lifecycle wiring;
   // native stopBridge preserves any tunnel that is still open.
   useEffect(() => {
-    return bindIrohBackgroundStop(AppState, Platform.OS, stopIrohBridge);
+    const timer = createBackgroundTimer();
+    return bindIrohBackgroundStop(AppState, Platform.OS, stopIrohBridge, timer);
   }, []);
 
   // Unmount: flush the partial from the ref BEFORE aborting — updateMessage
