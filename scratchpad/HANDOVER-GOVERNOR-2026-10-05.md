@@ -16,7 +16,7 @@ Fable 5.1 `b1fb0210` (architect, owner-granted exception) is idle and stays aliv
 | Engine main (Aspis0/kalsallama) | `837334a74` = `bc5f0207c` + the Q8_0 quantizer fix (below). The bar "engine main must not reach the app pin" is LIFTED for the #29395 regression. |
 | One-copy branch | `feat/governor-onecopy` = `6106d4997`, pushed to the fork. Q8_0 fix cherry-picked (`f7b96a8a0`). |
 | Archive tags (fork) | `archive/governor-onecopy-q6raw` (option 3, closed), `archive/exp-revert-q8-quantizer` (the revert experiment). |
-| Binding / app | binding pin `f25f0c1c5` (shipped, not affected by #29395). App main is `480f4592` (UX session); the next app-pin push rebases on it and needs a native rebuild (react-native-worklets 0.10.4). |
+| Binding / app | binding pin `f25f0c1c5` (shipped, not affected by #29395). App main is `80953ca1` (UX session); the next app-pin push rebases on it and needs a native rebuild (react-native-worklets 0.10.4). |
 
 ## What was settled today
 
@@ -35,7 +35,8 @@ Fable 5.1 `b1fb0210` (architect, owner-granted exception) is idle and stays aliv
 
 0. **Profile the AoS kernel on the S23** (needs battery >= 30 %, UNPLUGGED; the last attempt stopped at the gate, 29 %).
    Profiling build = `~/Projects/kalsallama-gov-prof/build-prof/bin/llama-bench` at `6106d4997` (OpenCL profiling ON;
-   check the build log `/tmp/prof-build3.log` ended `EXIT=0`, else rebuild with the docker command below). Push it to
+   built 22:04, sha256 `c59dd1dfde27...`; the docker container was killed after the final link, so re-verify the hash or
+   rebuild with the docker command below). Push it to
    `/data/local/tmp/govhtp/prof/` (sha256 both sides), run `. /data/local/tmp/govhtp/step4b-s23/run-prof.sh`, pull
    `prof/H/cl_profiling.csv`, mean of `result_output` rows. Baseline: plain 22.542 ms. The O arm is useless (the tied
    output stays on the CPU in GPU-only) - drop it. If the AoS kernel is above ~6 ms, the next lever is reading the
