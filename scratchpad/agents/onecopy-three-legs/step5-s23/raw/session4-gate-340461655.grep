@@ -1,0 +1,80 @@
+SESSION COMPLETE - read $REPORT
+== step-5 legs session start Tue Oct  6 05:29:47 EDT 2026 [lvl=60 ac=false usb=false wl=false batT=280 skin=28.8 wake=Awake thermal=0 traced=0]
+binary: d424e17a403f skel: e16120a812a1
+G ref: exit=0 run_end arm=G rep=0 monotonic_us=545775045514 summary=median arm=G turns=3 repetitions=1 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3721.421 decode_tps=16.359 pr
+L: exit=0 [lvl=58 ac=false usb=false wl=false batT=328 skin=35.1 wake=Awake thermal=0 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+sched_reserve: graph (pp bs=512, tg bs=1): nodes = 1054 / 1054, splits = 199 / 2, input objects = 4 / 4, input tensors = 7 / 7
+sched_reserve: graph: nodes = 1054, splits = 1, input objects = 4, input tensors = 7
+leg_window arm=L rep=0 window=0 engine=npu tokens=32 us=1693830 tps=18.892 kl_mean=0.000042 kl_max=0.000822 kl_max_row=24 kl_diverged=0
+leg_hop arm=L rep=0 hop=1 bytes=9273344 us=16070
+leg_window arm=L rep=0 window=1 engine=gpu tokens=32 us=2121501 tps=15.084 kl_mean=0.000015 kl_max=0.000114 kl_max_row=47 kl_diverged=0
+leg_hop arm=L rep=0 hop=2 bytes=1409024 us=11362
+leg_window arm=L rep=0 window=2 engine=cpu tokens=32 us=2035230 tps=15.723 kl_mean=0.000019 kl_max=0.000153 kl_max_row=96 kl_diverged=0
+leg_hop arm=L rep=0 hop=3 bytes=1409024 us=398
+leg_window arm=L rep=0 window=3 engine=npu tokens=32 us=1628354 tps=19.652 kl_mean=0.000029 kl_max=0.000231 kl_max_row=120 kl_diverged=0
+leg_hop arm=L rep=0 hop=4 bytes=1409024 us=12011
+leg_window arm=L rep=0 window=4 engine=gpu tokens=32 us=1932623 tps=16.558 kl_mean=0.000009 kl_max=0.000084 kl_max_row=132 kl_diverged=0
+leg_hop arm=L rep=0 hop=5 bytes=1409024 us=15517
+leg_window arm=L rep=0 window=5 engine=cpu tokens=32 us=2107938 tps=15.181 kl_mean=0.000007 kl_max=0.000040 kl_max_row=168 kl_diverged=0
+leg_hop arm=L rep=0 hop=6 bytes=1409024 us=306
+leg_window arm=L rep=0 window=6 engine=npu tokens=32 us=1620579 tps=19.746 kl_mean=0.000013 kl_max=0.000105 kl_max_row=204 kl_diverged=0
+leg_hop arm=L rep=0 hop=7 bytes=1409024 us=11787
+leg_window arm=L rep=0 window=7 engine=gpu tokens=32 us=2211285 tps=14.471 kl_mean=0.000013 kl_max=0.000092 kl_max_row=252 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=96 us=4942763 tps=19.422
+leg_summary arm=L rep=0 engine=gpu tokens=95 us=6265409 tps=15.163
+leg_summary arm=L rep=0 engine=cpu tokens=64 us=4143168 tps=15.447
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000019 max=0.000822 kld_max=0.010000 status=PASS
+== step-5 legs session end Tue Oct  6 05:32:39 EDT 2026 [lvl=58 ac=false usb=false wl=false batT=328 skin=35.1 wake=Awake thermal=0 traced=0]
+SESSION COMPLETE - read $REPORT
+== localize start Tue Oct  6 05:33:39 EDT 2026 binary d424e17a403f [lvl=58 ac=false usb=false wl=false batT=326 skin=33.4 wake=Awake thermal=0 traced=0]
+prefill_backend=GPUOpenCL
+## cpu (--legs cpu): exit=0 [lvl=58 ac=false usb=false wl=false batT=326 skin=35.8 wake=Awake thermal=0 traced=0]
+leg_window arm=L rep=0 window=0 engine=cpu tokens=32 us=2153448 tps=14.860 kl_mean=0.000013 kl_max=0.000117 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=cpu tokens=32 us=2172945 tps=14.727 kl_mean=0.000024 kl_max=0.000240 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=cpu tokens=32 us=2183302 tps=14.657 kl_mean=0.000022 kl_max=0.000212 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu tokens=32 us=2245889 tps=14.248 kl_mean=0.000020 kl_max=0.000259 kl_max_row=108 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=cpu tokens=32 us=2316514 tps=13.814 kl_mean=0.000015 kl_max=0.000134 kl_max_row=156 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=cpu tokens=32 us=2686562 tps=11.911 kl_mean=0.000012 kl_max=0.000174 kl_max_row=192 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=cpu tokens=32 us=2743620 tps=11.663 kl_mean=0.000010 kl_max=0.000085 kl_max_row=216 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=cpu tokens=32 us=2683283 tps=11.926 kl_mean=0.000011 kl_max=0.000062 kl_max_row=228 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=255 us=19185563 tps=13.291
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000016 max=0.000259 kld_max=0.010000 status=PASS
+## npu (--legs npu): exit=0 [lvl=57 ac=false usb=false wl=false batT=343 skin=36.3 wake=Awake thermal=0 traced=0]
+leg_window arm=L rep=0 window=0 engine=npu tokens=32 us=1644334 tps=19.461 kl_mean=0.000042 kl_max=0.000822 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu tokens=32 us=1624486 tps=19.699 kl_mean=0.000028 kl_max=0.000170 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu tokens=32 us=1617931 tps=19.778 kl_mean=0.000033 kl_max=0.000268 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=npu tokens=32 us=1624097 tps=19.703 kl_mean=0.000042 kl_max=0.000600 kl_max_row=126 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=npu tokens=32 us=1613260 tps=19.836 kl_mean=0.000023 kl_max=0.000146 kl_max_row=131 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=npu tokens=32 us=1656861 tps=19.314 kl_mean=0.000053 kl_max=0.000956 kl_max_row=192 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=npu tokens=32 us=1657462 tps=19.307 kl_mean=0.000029 kl_max=0.000543 kl_max_row=216 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu tokens=32 us=1606162 tps=19.923 kl_mean=0.000018 kl_max=0.000196 kl_max_row=228 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=255 us=13044593 tps=19.548
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000034 max=0.000956 kld_max=0.010000 status=PASS
+## gpu (--legs gpu): exit=0 [lvl=56 ac=false usb=false wl=false batT=354 skin=36.9 wake=Awake thermal=0 traced=0]
+leg_window arm=L rep=0 window=0 engine=gpu tokens=32 us=2130275 tps=15.022 kl_mean=0.000011 kl_max=0.000092 kl_max_row=23 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu tokens=32 us=2173087 tps=14.726 kl_mean=0.000019 kl_max=0.000187 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu tokens=32 us=2257043 tps=14.178 kl_mean=0.000008 kl_max=0.000061 kl_max_row=72 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu tokens=32 us=1959583 tps=16.330 kl_mean=0.000024 kl_max=0.000397 kl_max_row=126 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=gpu tokens=32 us=1892932 tps=16.905 kl_mean=0.000008 kl_max=0.000051 kl_max_row=132 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=gpu tokens=32 us=1878187 tps=17.038 kl_mean=0.000006 kl_max=0.000046 kl_max_row=179 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=gpu tokens=32 us=1983230 tps=16.135 kl_mean=0.000009 kl_max=0.000109 kl_max_row=204 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=gpu tokens=32 us=1974985 tps=16.203 kl_mean=0.000012 kl_max=0.000086 kl_max_row=252 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=255 us=16249322 tps=15.693
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000012 max=0.000397 kld_max=0.010000 status=PASS
+## npu5 (--legs npu --leg-threads 5,1,5): exit=0 [lvl=56 ac=false usb=false wl=false batT=362 skin=36.8 wake=Awake thermal=0 traced=0]
+leg_window arm=L rep=0 window=0 engine=npu tokens=32 us=1684574 tps=18.996 kl_mean=0.000042 kl_max=0.000822 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu tokens=32 us=1646129 tps=19.440 kl_mean=0.000028 kl_max=0.000170 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu tokens=32 us=1646730 tps=19.432 kl_mean=0.000033 kl_max=0.000268 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=npu tokens=32 us=1650407 tps=19.389 kl_mean=0.000042 kl_max=0.000600 kl_max_row=126 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=npu tokens=32 us=1650038 tps=19.393 kl_mean=0.000023 kl_max=0.000146 kl_max_row=131 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=npu tokens=32 us=1652209 tps=19.368 kl_mean=0.000053 kl_max=0.000956 kl_max_row=192 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=npu tokens=32 us=1652066 tps=19.370 kl_mean=0.000029 kl_max=0.000543 kl_max_row=216 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu tokens=32 us=1565417 tps=20.442 kl_mean=0.000018 kl_max=0.000196 kl_max_row=228 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=255 us=13147570 tps=19.395
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000034 max=0.000956 kld_max=0.010000 status=PASS
+== localize end Tue Oct  6 05:39:13 EDT 2026 [lvl=56 ac=false usb=false wl=false batT=354 skin=35.7 wake=Awake thermal=0 traced=0]

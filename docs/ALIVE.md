@@ -1032,7 +1032,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   tg128 6.80; J(1) NPU decode unchanged (0.97 of A, KLD 0.005343, RSS 127 vs 317 MB).
 - 2026-10-06 step 5: three decode legs on ONE model ran on the S23 (governor-bench arm L, forced hops every 32
   tokens): GPU leg 2 splits / 14.6 tok/s with its KV on OpenCL; hops 0.4-20 ms; argmax identical to two-copy over 256
-  tokens but mean KL 0.056 (gate 0.01) - being localized; NPU leg 13 tok/s at 1 host thread.
+  tokens; the first KL figure (0.056) was a bench metric bug, fixed.
+- 2026-10-06 STEP 5 GATE PASSED: one model, forced npu/gpu/cpu hops every 32 tokens over 256: KL 0.000019 vs two-copy,
+  0 divergences; NPU leg (J(1)) 19.5 tok/s, GPU leg 15.5, CPU 13-15; a hop costs 0.3-16 ms.
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.

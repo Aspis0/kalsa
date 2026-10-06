@@ -1725,6 +1725,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   accelerator), L's on HTP0 - a confound to remove. **NPU leg is not J(1)**: `{HTP0}` alone leaves the tied Q6_K
   lm_head on the CPU (12.1 tok/s at 1 thread, 15.8 at 5 = the old CPU-lm_head arm); per the J(1) decision the NPU leg
   must be `{HTP0, GPUOpenCL}` (HTP first). GPU leg alone 15.5 tok/s. Both fixes with GLM.
+- **KL metric fixed `19d8d9cbe`** (sign of the normalizer correction inverted: every row read KL + 2(LSE_ref - LSE_cur);
+  ctest `test-bench-logits`: identical = 0, >= 0, closed form, shift invariance) and **NPU leg = J(1) `340461655`**
+  ({HTP0, GPUOpenCL}, HTP first, NPU leg threads = -t). All earlier step-5 KL numbers are void.
+- **STEP 5 F5 GATE PASSED (S23 05:30-05:39, unplugged, bench `d424e17a403f`, `step5-s23/raw/session4-gate-340461655.grep`)**:
+  ONE model, forced npu/gpu/cpu every 32 tokens over 256 greedy tokens vs the two-copy governor: **mean KL 0.000019,
+  max 0.00082, 0 argmax divergences, PASS**. Legs alone: cpu 0.000016, npu 0.000034, gpu 0.000012. Speed: **NPU leg
+  19.4-19.5 tok/s** (J(1) llama-bench tg128 22.1: different harness - re-measure in one harness), **GPU leg 15.2-15.7**
+  (KV on OpenCL, 2 splits), CPU leg 13.3-15.4; hops: first 9.27 MB / 16 ms, then 1.41 MB / 0.3-15.5 ms. Next: step 5.3
+  (hop v2: per-leg headroom incl. the GPU zone, relief leg choice), then v2 free-running on a warm phone vs hop v1's 9.0.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
