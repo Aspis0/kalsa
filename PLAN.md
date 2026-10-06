@@ -1266,6 +1266,7 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   session; no wire change without Marco.
   OWNER 2026-10-06: a PC reply streaming when Android backgrounds the app is LEFT TO FINISH (current behaviour: no
   abort, and the iroh background stop keeps open tunnels). No code change; an OS process kill still loses it.
+  OWNER 2026-10-06: iroh background stop delay stays 30 s (quick app switches keep the PC link warm).
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
