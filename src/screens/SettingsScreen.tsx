@@ -1002,6 +1002,8 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
     }
     handleBack();
   }, [dismissPairing, handleBack, page, pairingOpen]);
+  const handlePageBackRef = useRef(handlePageBack);
+  handlePageBackRef.current = handlePageBack;
 
   /** Guards double-tap: two rapid Help taps must not stack two discard Alerts. */
   const helpConfirmPendingRef = useRef(false);
@@ -1049,11 +1051,11 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   // Android hardware back: consume here so dirty confirmation is not skipped by AppShell.
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      handlePageBack();
+      handlePageBackRef.current();
       return true;
     });
     return () => sub.remove();
-  }, [handlePageBack]);
+  }, []);
 
   const keyPlaceholder = useMemo(
     () => meta.keyPlaceholder ?? t("settings.apiKeyPlaceholder"),

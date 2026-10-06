@@ -194,7 +194,7 @@ export function HostOverlays(props: OverlaysProps) {
     return () => {
       mounted = false;
     };
-  }, [overlay, modelState, onDownloadedScan]);
+  }, [overlay?.kind, modelState, onDownloadedScan]);
 
   // Extra guidance for connectivity-shaped failures plus the raw diagnostic
   // — the controller's single builder (`App:6725-6745`), shared with the

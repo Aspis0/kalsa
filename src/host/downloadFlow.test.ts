@@ -28,12 +28,6 @@ const NOTICE = HOST("useNotice.ts");
 const SURFACE = HOST("HostChatSurface.tsx");
 
 describe("downloadedById: written on success, re-scanned on open — never at boot", () => {
-  test("the controller's three live writes collapse to one mark, after the bundle verifies", () => {
-    // App:4914, 4933, 5046 — all three fire only once the bytes are on disk.
-    expect(DOWNLOAD).toContain("markDownloaded(model.id);");
-    expect(DOWNLOAD.match(/markDownloaded\(model\.id\)/g)).toHaveLength(1);
-  });
-
   test("the full scan gates on Settings open BEFORE any probe — there is no boot rescan", () => {
     // The gate is the first statement of the effect body (controller
     // `App:5323`): a boot mount runs the effect once and returns untouched.
@@ -41,7 +35,7 @@ describe("downloadedById: written on success, re-scanned on open — never at bo
       /useEffect\(\(\) => \{\s*\n\s*if \(overlay\?\.kind !== "settings"\) return;/,
     );
     // And it re-runs on state changes while open — the controller's deps.
-    expect(OVERLAYS).toContain("}, [overlay, modelState, onDownloadedScan]);");
+    expect(OVERLAYS).toContain("}, [overlay?.kind, modelState, onDownloadedScan]);");
   });
 
   test("the scan writes UP into the download host: one map, two writers, no local copy", () => {

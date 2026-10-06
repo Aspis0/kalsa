@@ -166,6 +166,7 @@ jest.mock("../hooks/useProcessHealth", () => ({ useProcessHealth: jest.fn(() => 
 jest.mock("../hooks/useThermalMonitor", () => ({ useThermalMonitor: jest.fn(() => ({})) }));
 
 import React from "react";
+import { BackHandler } from "react-native";
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from "react-test-renderer";
 import type { DeviceBandwidthCalibration } from "../engine/deviceThroughput";
 import type {
@@ -294,6 +295,22 @@ describe("the pairing entry on the home page", () => {
     });
 
     expect(renderer.root.findAllByType(PairingScreen)).toHaveLength(1);
+    await act(async () => renderer.unmount());
+  });
+});
+
+describe("Android hardware-back subscription", () => {
+  it("stays subscribed while Settings rerenders between pages", async () => {
+    const addEventListener = BackHandler.addEventListener as jest.Mock;
+    addEventListener.mockClear();
+    const renderer = await renderSettings();
+    expect(addEventListener).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: "settings.home.advanced" }).props.onPress();
+    });
+
+    expect(addEventListener).toHaveBeenCalledTimes(1);
     await act(async () => renderer.unmount());
   });
 });

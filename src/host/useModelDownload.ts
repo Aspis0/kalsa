@@ -3,8 +3,8 @@
  * `AppShell.tsx:4657-5154` (442 lines). What happens AFTER the bytes land is
  * the one structural adaptation: the controller inlined a ~250-line
  * download→init path (its `:4769-5105`), and this host already owns that
- * path as one function — so the hook verifies the bundle, marks it
- * downloaded, flips to `loading` and hands off to `ensureEngineForModel`,
+ * path as one function — so the hook verifies the bundle, flips to `loading`
+ * and hands off to `ensureEngineForModel`,
  * the same load every other site uses (`engineEnsure.ts`: hung guard,
  * RAM/disk gates, chat acquisition, death marker, refusal fallback).
  *
@@ -17,9 +17,8 @@
  *   and its boolean cannot distinguish a refusal (no notification in the
  *   controller) from a throw (one); the failure is visible on the bar and in
  *   Settings either way. Download-phase failures still notify, as before;
- * - `downloadedById` is marked at bundle completeness instead of the
- *   controller's two load refusals plus ready (`App:4914, 4933, 5046`) —
- *   same truth, one write, and the settings-open scan re-derives it.
+ * - `downloadedById` is re-derived by the settings-open scan; completing a
+ *   download changes `modelState`, which refreshes it while Settings is open.
  *
  * Held in this slice, with its reason: the voice and embedding downloads
  * (`AppShell.tsx:5155-5312`) — the voice pipeline does not exist in this
@@ -60,6 +59,10 @@ const DOWNLOAD_KEEP_AWAKE_TAG = "model-download";
 export const downloadInFlightRef = { current: false };
 export const confirmDownloadLockRef = { current: false };
 
+const sameDownloadedMap = (previous: Record<string, boolean>, next: Record<string, boolean>) =>
+  Object.keys(previous).length === Object.keys(next).length &&
+  Object.entries(next).every(([id, value]) => previous[id] === value);
+
 export interface ModelDownloadDeps {
   t: TranslateFn;
   locale: Locale;
@@ -89,13 +92,11 @@ export function useModelDownload(deps: ModelDownloadDeps) {
     bytesTotal: number;
     progress: number;
   } | null>(null);
-  /** Presence map the controller kept at `App:3527`, same writes, same
-   *  readers: the three live marks here, the settings-open scan in
-   *  `HostOverlays` (there is NO boot-time rescan in either app). */
+  /** Shared by the strip and Settings; re-derived with a full scan on open. */
   const [downloadedById, setDownloadedById] = useState<Record<string, boolean>>({});
-  const markDownloaded = (id: string) =>
-    setDownloadedById((prev) => ({ ...prev, [id]: true }));
-  const applyDownloadedScan = useCallback((map: Record<string, boolean>) => setDownloadedById(map), []);
+  const applyDownloadedScan = useCallback((map: Record<string, boolean>) =>
+    setDownloadedById((previous) =>
+      sameDownloadedMap(previous, map) ? previous : map), []);
 
   const downloadAbortRef = useRef<AbortController | null>(null);
 
@@ -244,7 +245,6 @@ export function useModelDownload(deps: ModelDownloadDeps) {
         return;
       }
       if (!stillCurrent() || thermalHardGateRef.current) return;
-      markDownloaded(model.id);
       errorPhase = "engine";
       setModelState("loading");
       const loaded = await ensureEngineForModelRef.current(model);
@@ -341,7 +341,6 @@ export function useModelDownload(deps: ModelDownloadDeps) {
   return {
     download,
     downloadedById,
-    markDownloaded,
     applyDownloadedScan,
     confirmDownload,
   };
