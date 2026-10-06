@@ -92,6 +92,12 @@ struct Brain {
     /// lock and calls the door on its own — a save can wait on the engine for
     /// seconds, and the tick must not hold the slot's lock across it.
     door: Arc<Mutex<Option<ActiveDoor>>>,
+    /// The pairing snapshot's critical section: `start_door_if_paired` holds
+    /// it from `load_devices` to the install in the door, so two concurrent
+    /// reconciles — poll against tick, poll against a forget or allow —
+    /// install in read order, and a snapshot read before a store write can
+    /// never land after one read after it.
+    pairing_install: Mutex<()>,
     launch: Mutex<Option<startup::LaunchInfo>>,
     /// Whether the engine the walk mounted consumes the door's private
     /// headers, read from that engine's own bytes when the start was
@@ -306,14 +312,24 @@ fn reconcile_door(
                 // advertising a door that cannot complete a request lies to
                 // the phone that scans.
                 //
-                // The exit flag is read again here, after the raise: the exit
-                // may have begun while the door was being built. A true read
-                // means its stop either already ran or is still to come, and
-                // lowering now makes the order irrelevant — a shutdown never
-                // ends with a door up. A false read means the exit had not
-                // begun before this point, so its own stop runs after this
-                // raise.
-                if !raised || leaving.is_some_and(|flag| flag.load(Ordering::SeqCst)) {
+                // The raise is judged once more against the supervisor's LIVE
+                // state, not the snapshot this call was handed: a stop that
+                // landed while the door was being built declared `Stopping`
+                // and lowered the door already, and this reconcile must end on
+                // the same side — not leave the door re-raised until the next
+                // pass reads `Stopping`. The exit flag keeps the last word it
+                // had over a raise the tick made.
+                let still_running = matches!(
+                    brain.supervisor.state(),
+                    ServerState::Running {
+                        port: live_port,
+                        ..
+                    } if live_port == *port
+                );
+                if !raised
+                    || !still_running
+                    || leaving.is_some_and(|flag| flag.load(Ordering::SeqCst))
+                {
                     brain.stop_door();
                     desk.stop_serving();
                 }
@@ -446,6 +462,7 @@ impl Brain {
         Self {
             supervisor,
             door: Arc::new(Mutex::new(None)),
+            pairing_install: Mutex::new(()),
             launch: Mutex::new(None),
             engine: Mutex::new(None),
             metrics,
@@ -678,6 +695,14 @@ impl Brain {
         file: &Path,
         internet_road: bool,
     ) -> Result<(), String> {
+        // Read and install are one critical section (`pairing_install`). The
+        // store write behind a forget or allow runs on the desk, outside this
+        // lock; what the lock decides is that a snapshot read before that
+        // write cannot install after one read after it.
+        let _install = self
+            .pairing_install
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         // Every stored device travels to the door under its own id and its
         // own label, the identity the store minted when the device paired.
         // An empty set is "not paired" — the same answer the absent file

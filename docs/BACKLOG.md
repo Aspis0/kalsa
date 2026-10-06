@@ -146,3 +146,7 @@ they are promoted.
 ## Room host name (review of 24ff59db)
 
 - P3: `crates/kalsa-door/src/tests/room_support.rs` `scratch()` clears a room directory only before a test, never after: the 10 kalsa-door test files that use it, `room_names.rs` included, leave their rooms in the temp dir. A drop guard would clean them.
+
+## The door follows the engine from Rust (review of 22eed856)
+
+- P2: with no door up, every one-second tick reads the pairing store from disk (`src-tauri/src/main.rs` `reconcile_door`, Tick's `may_raise` → `start_door_if_paired`), so a machine that is unpaired — or whose store is unreadable — costs a file read a second on the ticker's thread for as long as the engine runs. The battery rule already skips the read while a door is up; the down state has no such guard.

@@ -2297,6 +2297,112 @@ fn server_state_variants() -> Vec<String> {
     names
 }
 
+/// A genuinely running engine on a test brain's own supervisor: the
+/// supervisor test fixture's `fake_server.sh` child, with the health listener
+/// its pid file gates — the same shape kalsa-supervisor's own tests use. The
+/// reconcile tests need the LIVE state and not a hand-built snapshot, because
+/// a raise that must stand is re-checked against the supervisor after it
+/// lands.
+struct RunningEngine {
+    health_stop: Arc<AtomicBool>,
+    pid_file: PathBuf,
+    state_file: PathBuf,
+}
+
+impl RunningEngine {
+    /// Starts the fake engine on `brain`'s own supervisor and waits for
+    /// `Running`.
+    fn start(brain: &Brain, name: &str) -> Self {
+        let exe = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../crates/kalsa-supervisor/tests/fixtures/fake_server.sh");
+        assert!(exe.is_file(), "the supervisor's fake server fixture is missing");
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        // The fixture's own pid file, whose appearance gates the health
+        // listener: `kalsa-fake-$port.pid` under $TMPDIR.
+        let pid_file = std::env::temp_dir().join(format!("kalsa-fake-{port}.pid"));
+        let _ = std::fs::remove_file(&pid_file);
+        let state_file = std::env::temp_dir()
+            .join(format!("kalsa-{name}-{}-{port}.state", std::process::id()));
+        let _ = std::fs::remove_file(&state_file);
+        // The health listener binds only once the child's pid file exists, so
+        // the supervisor's pre-spawn port check sees a free port.
+        let health_stop = Arc::new(AtomicBool::new(false));
+        let _health = {
+            let gate = Arc::clone(&health_stop);
+            let pid_file = pid_file.clone();
+            std::thread::spawn(move || {
+                while !pid_file.exists() && !gate.load(Ordering::SeqCst) {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                if gate.load(Ordering::SeqCst) {
+                    return;
+                }
+                let listener =
+                    std::net::TcpListener::bind(("127.0.0.1", port)).expect("health bind");
+                listener.set_nonblocking(true).expect("health nonblocking");
+                while !gate.load(Ordering::SeqCst) {
+                    match listener.accept() {
+                        Ok((mut socket, _)) => {
+                            let mut scratch = [0u8; 512];
+                            let _ = std::io::Read::read(&mut socket, &mut scratch);
+                            let _ = std::io::Write::write_all(
+                                &mut socket,
+                                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                            );
+                        }
+                        Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            std::thread::sleep(Duration::from_millis(2))
+                        }
+                        Err(_) => return,
+                    }
+                }
+            })
+        };
+        let config = kalsa_supervisor::ServerConfig {
+            exe,
+            argv: vec![
+                "--host".into(),
+                "127.0.0.1".into(),
+                "--port".into(),
+                port.to_string(),
+            ],
+            state_file: state_file.clone(),
+            port,
+            ready_timeout: Duration::from_secs(10),
+            stop_grace: Duration::from_secs(2),
+        };
+        let accepted = brain.supervisor.start(config);
+        assert_eq!(accepted.outcome(), StartOutcome::Accepted);
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !matches!(brain.supervisor.state(), ServerState::Running { .. }) {
+            assert!(
+                Instant::now() < deadline,
+                "the fake engine never came up (at {:?})",
+                brain.supervisor.state()
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        RunningEngine {
+            health_stop,
+            pid_file,
+            state_file,
+        }
+    }
+
+    /// Stops the engine and the health listener, and clears the fixture's
+    /// temp files.
+    fn stop(self, brain: &Brain) {
+        brain.supervisor.stop();
+        self.health_stop.store(true, Ordering::SeqCst);
+        let _ = std::fs::remove_file(&self.pid_file);
+        let _ = std::fs::remove_file(&self.state_file);
+    }
+}
+
 /// The bug this pair exists for, from the app's side: the door used to be
 /// raised by the webview's `brain_state` poll alone, so a start behind a lock
 /// screen — engine up, page never running — left nothing listening on 8131 and
@@ -2307,9 +2413,12 @@ fn the_reconcile_follows_the_engine_with_no_page_involved() {
     let (root, file, _host, _slots) = launched_brain("door-reconcile");
     let brain = Brain::new();
     let desk = pairing::Desk::new(file.clone());
+    let engine = RunningEngine::start(&brain, "door-reconcile");
     let leaving = AtomicBool::new(false);
     let tick = || DoorCaller::Tick { leaving: &leaving };
-    let running = ServerState::Running { pid: 0, port: 8130 };
+    // The snapshot the ticker's thread carries, off the engine that is
+    // really running.
+    let running = brain.supervisor.state();
 
     // Running and no door: the raise the ticker's thread performs.
     reconcile_door(&brain, &desk, &running, &file, None, tick());
@@ -2352,7 +2461,7 @@ fn the_reconcile_follows_the_engine_with_no_page_involved() {
         "the raise did not resume once the walk finished"
     );
 
-    brain.stop_door();
+    engine.stop(&brain);
     drop(desk);
     let _ = std::fs::remove_dir_all(root);
 }
@@ -2364,8 +2473,9 @@ fn a_tick_reads_no_store_for_an_open_door_and_never_raises_while_leaving() {
     let (root, file, _host, _slots) = launched_brain("door-reconcile-battery");
     let brain = Brain::new();
     let desk = pairing::Desk::new(file.clone());
+    let engine = RunningEngine::start(&brain, "door-reconcile-battery");
     let leaving = AtomicBool::new(false);
-    let running = ServerState::Running { pid: 0, port: 8130 };
+    let running = brain.supervisor.state();
 
     reconcile_door(
         &brain,
@@ -2428,8 +2538,147 @@ fn a_tick_reads_no_store_for_an_open_door_and_never_raises_while_leaving() {
         "a tick left the door up while the app was leaving"
     );
 
-    brain.stop_door();
+    engine.stop(&brain);
     drop(desk);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// A stop that lands while a reconcile is raising must end with the door
+/// down. The ticker carries a snapshot of the engine's state, and the stop —
+/// `brain_stop`'s own sequence: declare the drain, lower the door, retire the
+/// square — can run to the end between that snapshot and the raise it sends
+/// into motion. The raise is re-checked against the supervisor's LIVE state,
+/// so the door it just built comes straight back down, instead of standing
+/// until the ticker's next pass reads `Stopping`.
+#[test]
+fn a_stop_landing_during_a_raise_leaves_the_door_down() {
+    let (root, file, _host, _slots) = launched_brain("door-raise-recheck");
+    let brain = Brain::new();
+    let desk = pairing::Desk::new(file.clone());
+    let engine = RunningEngine::start(&brain, "door-raise-recheck");
+    let leaving = AtomicBool::new(false);
+
+    // The snapshot the ticker holds — and then the stop's own sequence, in
+    // brain_stop's order: the drain is declared first, the door goes down
+    // after it.
+    let stale = brain.supervisor.state();
+    assert!(matches!(stale, ServerState::Running { .. }));
+    brain.supervisor.stop();
+    brain.stop_door();
+    desk.stop_serving();
+    assert!(brain.door_port().is_none(), "the fixture did not lower the door");
+
+    reconcile_door(
+        &brain,
+        &desk,
+        &stale,
+        &file,
+        None,
+        DoorCaller::Tick { leaving: &leaving },
+    );
+    assert!(
+        brain.door_port().is_none(),
+        "the reconcile re-raised the door for a snapshot of an engine the stop had taken down"
+    );
+
+    engine.stop(&brain);
+    drop(desk);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// The pairing snapshot's read and its install are one critical section, so
+/// two overlapping raises cannot fall out of order: a raise parked mid-way —
+/// here on the door lock the test holds — finishes its install before a
+/// second raise can even read the store, so the final device set is the one
+/// the store holds at that later read. Without the critical section the
+/// parked raise's older snapshot could land after the newer one and restore a
+/// forgotten phone's credential until the next poll.
+///
+/// What this proves is the ordering the section guarantees, deterministically.
+/// As a pin against DELETING the section it is schedule-dependent: there is no
+/// observation point between the store read and the door install, and a
+/// mutex's wake order is unspecified, so the buggy interleaving would win
+/// only by chance.
+#[test]
+fn a_raise_parked_mid_install_cannot_outlive_a_later_read() {
+    let (root, file, host, _slots) = launched_brain("door-install-order");
+    // The store the first raise reads: this computer and an allowed phone.
+    let phone_file = root.join("phone.json");
+    persist_pairing(&phone_file);
+    let phone = kalsa_pairing::store::load(&phone_file).expect("the phone reloads");
+    let phone = kalsa_pairing::store::add_device(&file, "Paired phone", &phone)
+        .expect("a phone pairs beside the host");
+    let brain = Arc::new(Brain::new());
+
+    // The brake: with the door lock held, the first raise reads the store
+    // and parks before it can install anything.
+    let gate = brain.door.lock().unwrap();
+    let parked = {
+        let brain = Arc::clone(&brain);
+        let file = file.clone();
+        std::thread::spawn(move || brain.start_door_if_paired(4141, &file, false))
+    };
+    // The parked raise is inside the critical section; its read is done.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while brain.pairing_install.try_lock().is_ok() {
+        assert!(
+            Instant::now() < deadline,
+            "the parked raise never entered the critical section"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    std::thread::sleep(Duration::from_millis(100));
+
+    // The forget lands while the raise is parked — the desk writes the store
+    // outside the critical section, exactly as `forget_device` does.
+    kalsa_pairing::store::forget_device(&file, phone.id).expect("the phone is forgotten");
+
+    // The second raise waits for the parked one to finish installing before
+    // it may read; both complete once the brake is released, and the LAST
+    // install must be the second raise's — the store as it reads NOW, with
+    // the phone gone and the guest seated beside the host.
+    let later = {
+        let brain = Arc::clone(&brain);
+        let file = file.clone();
+        std::thread::spawn(move || brain.start_door_if_paired(4141, &file, false))
+    };
+    drop(gate);
+    parked
+        .join()
+        .unwrap()
+        .expect("the parked raise installs its snapshot");
+    later
+        .join()
+        .unwrap()
+        .expect("the later raise installs its read");
+
+    let mut entries = vec![
+        kalsa_door::DeviceEntry::new(
+            kalsa_door::DeviceId::new(host.id),
+            host.label.clone(),
+            host.handshake.credential_hex(),
+        )
+        .expect("the host's entry builds"),
+    ];
+    if let Some(guest) = kalsa_door::guest_entry(host.handshake.credential_hex().as_str()) {
+        entries.push(guest);
+    }
+    let expected = kalsa_door::Devices::new(entries).expect("the expected set builds");
+    let installed = brain
+        .door
+        .lock()
+        .unwrap()
+        .as_ref()
+        .expect("a door stands")
+        .devices
+        .clone();
+    // `Devices` carries no `Debug` on purpose, so the comparison is `assert!`.
+    assert!(
+        installed == expected,
+        "a parked raise's older snapshot outlived a later read of the store"
+    );
+
+    brain.stop_door();
     let _ = std::fs::remove_dir_all(root);
 }
 
