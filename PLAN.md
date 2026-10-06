@@ -1765,6 +1765,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   `1c7f27f13` + HTP skels, `cpp/rn-legs-table.cpp` (one row: SM8550/v73/Adreno 740/E031.41/dotprod; NPU-shared decode
   only with the OpenCL HOST leg, R2), one-model load behind the table, rn_thermal_legs GPU zone + three-value feed.
   The app pin is NOT moved without the owner.
+- **Leg speed, S23 07:00 (`step5-s23/raw/session7-speed-1c7f27f13.grep`)**: governor-bench forced single leg, no KL dump:
+  NPU 20.0, GPU 16.9 tok/s (with the KL dump 19.5 / 15.5 - the dump is cheap). llama-bench at depth 512 (the bench's
+  prefill depth), ABBA: two-copy NPU A 22.17 / 22.12 vs one-copy J(1) H 21.44 / 21.70 = **0.975**. So one-copy keeps the
+  NPU decode; the bench's 20.0 vs 21.5 is harness overhead (sampling, per-token governor work), not one-copy. Open: a
+  governor-bench arm with the TWO-copy governor decoding on the NPU, to price the governor's per-token overhead in the
+  same harness (the app pays it too).
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

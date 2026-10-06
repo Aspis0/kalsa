@@ -1,0 +1,7 @@
+[lvl=47 ac=false usb=false wl=false batT=271 skin=28.3 wake=Awake thermal=0 traced=0]
+npu exit=0 leg_summary arm=L rep=0 engine=npu tokens=255 us=12747223 tps=20.004 [lvl=47 ac=false usb=false wl=false batT=274 skin=29.0 wake=Awake thermal=0 traced=0]
+gpu exit=0 leg_summary arm=L rep=0 engine=gpu tokens=255 us=15079865 tps=16.910 [lvl=47 ac=false usb=false wl=false batT=280 skin=30.3 wake=Awake thermal=0 traced=0]
+A exit=0 tg128 @ d512 |         22.17 ± 0.20 [lvl=46 ac=false usb=false wl=false batT=292 skin=30.6 wake=Awake thermal=0 traced=0]
+H exit=0 tg128 @ d512 |         21.44 ± 0.09 [lvl=46 ac=false usb=false wl=false batT=295 skin=31.0 wake=Awake thermal=0 traced=0]
+H2 exit=0 tg128 @ d512 |         21.70 ± 0.24 [lvl=46 ac=false usb=false wl=false batT=299 skin=31.3 wake=Awake thermal=0 traced=0]
+A2 exit=0 tg128 @ d512 |         22.12 ± 0.05 [lvl=45 ac=false usb=false wl=false batT=301 skin=31.5 wake=Awake thermal=0 traced=0]
