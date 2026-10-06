@@ -149,4 +149,4 @@ they are promoted.
 
 ## The door follows the engine from Rust (review of 22eed856)
 
-- P2: with no door up, every one-second tick reads the pairing store from disk (`src-tauri/src/main.rs` `reconcile_door`, Tick's `may_raise` → `start_door_if_paired`), so a machine that is unpaired — or whose store is unreadable — costs a file read a second on the ticker's thread for as long as the engine runs. The battery rule already skips the read while a door is up; the down state has no such guard.
+- P3: with no door up, every one-second tick re-reads the pairing store (`src-tauri/src/main.rs` `reconcile_door`, Tick → `start_door_if_paired`). A normal install always holds the host, so this only bites a store that is missing or unreadable: a file read a second for as long as the engine runs. Back off after an empty/failed read and retry on a pairing change.
