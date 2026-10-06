@@ -192,3 +192,9 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 - Remote PC send serializes the whole body twice when the image wire budget runs (RemoteEngine.ts bodyBytes + transport), up to 12 MiB on the JS thread. Fix: build once, measure, pass the string. P2 perf, only with images.
 - Android direct PC stream is not aborted/paused on background (iosBackgroundPlan no-ops off iOS). OWNER DECISION: cut the turn and mark it interrupted, or let it run. Battery impact low (event-driven XHR, 120 s idle timeout).
 - Model download keep-awake = FLAG_KEEP_SCREEN_ON (screen stays on during a download), released in finally; no CPU wakelock. Fine for now; resumable OS-managed download is post-alpha.
+
+## One-copy HOST-W layer weights (engine feat/governor-onecopy 0ca7e1890 + 9eb7c54c7; audit scratchpad/agents/onecopy-three-legs/audit-fusion-f32only-luna.md, triaged 2026-10-06)
+- P2->P3 #1: the F32-only HOST-W catch-all still takes an F32 MATRIX (output or layer) that every device refuses; harmless for the Q4_0 ship models (no F32 matrices, CPU reads host memory), a placement/perf issue only. Restrict to the norm/conv shapes if an F32-matrix model is ever shipped.
+- P2->P3 #2: per-op OpenCL paths have no blanket HOST-W dst guard (only the fused gates refuse host dsts); HOST-W buffers are WEIGHTS-only so no dst lands there today.
+- P3 #3: select_weight_buft identifies the catch-all by "pair shape" (host buft of one device probed under another); pass the resolved weight_host_buft explicitly instead - simpler and exact.
+- P2->P3 #4/#5: the placement-test mock does not model Hexagon's own HOST-W support for F16/Q6_K; the fusion test covers the predicate, not the can_fuse callers or the patched launches (device KLD is the gate today).
