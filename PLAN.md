@@ -1261,6 +1261,9 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   restarts the bridge, no crash. Review: space-bunny (P0 lock-around-dial fixed, P1s fixed). Writer luna.
   Mac relay down since ~02:04 local (kalsa-brain read-only: relay ping/connect timeouts, DNS timeouts) -> phone dials
   time out; phone and Mac share the LAN but the dial goes via relay (backlog).
+  OWNER 2026-10-06: LAN direct path (phone reaches the PC at home without the relay) = step 6 of kalsa-brain's
+  Wednesday plan (docs/PLAN-SURFACE-TUNE-2026-10-07.md, brain 0c1cf787); phone-side changes come to the iOS/UX
+  session; no wire change without Marco.
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
