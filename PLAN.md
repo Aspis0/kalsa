@@ -1230,6 +1230,15 @@ S23 adb route (2026-09-29): `cmd battery get current_now` changes only every ~30
   the real HostFurniture+HostOverlays wiring and fails on 4 reintroductions. Full jest 359/3666 green. JELLY PASS
   21:56 (APK b9e96c53, Settings open 30 s untouched): JS thread 17 ticks (was ~2800 per 30 s), Expo async queue
   gone from the top; main thread 626 = the known worklets/Fabric per-frame cost on a debuggable build.
+  ANDROID LOG SWEEP 22:02-22:07 (APK b9e96c53; chat->PC, photo->PC read "42", Room send, 60 s HOME, resume):
+  zero Kalsa JS warnings/errors. Native: 2x Unhandled SoftException "Fabric View does not have SurfaceId" from
+  react-native-keyboard-controller ModalAttachedWatcher on Modal show (fixed upstream in 1.22.3; we pin 1.21.9 ->
+  bump queued); ~9 SELinux avc denials (sysfs net / netlink) every ~22 s from iroh's network monitor, ALSO in
+  background (small CPU, periodic wake; goes with the open "iroh background sockets" recon item); OnBackInvoked
+  and Glide warnings benign. UX bugs seen: (A) a live Room message from the PC labelled "Former member" until a
+  resync relabels it "This computer" (desktop correct); (B) on resume the Room list is empty for a few seconds
+  and the composer refocuses. A+B delegated to luna 025d7f55. Photo chip reads "Reading from <id>" (doc-style
+  label) before send - check copy.
   Writers today: commandcode deepseek out of credits; GLM 5-h cap until 2026-10-06 03:49; luna wrote, space-bunny reviewed.
   Room live on Jelly (3f922959): full screen OK, back OK, composer above keyboard OK; BUG Send clears the draft but no
   row appears and no POST dial is logged (GLM 5db03a28, branch phone/room-send-visible).
