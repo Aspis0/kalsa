@@ -1710,6 +1710,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   `step5-s23/raw/session1-2b8b39ca3.grep`)**: arm L refused at load ("token_embd_norm.weight landed in OpenCL") -
   dangling `tensor_split` pointer in governor-bench (block-scoped array), found by reading the code; fixed in the same
   round.
+- **Audit fix round** `9512003a7` (tensor_split lifetime, -v) / `93d7dab85` (governor F-01/02/04/05/07/08) / `f21f5b539`
+  (bench KL gate fails loudly, --gen on every arm, exact device names, test cadence asserts). **S23 session 2 (04:19,
+  unplugged, `step5-s23/raw/session2-f21f5b539.grep`, bench `8414bf8a940e`): FIRST THREE-LEG RUN ON ONE MODEL.** Forced
+  npu/gpu/cpu every 32 tokens over 256: 7 hops, first 9.27 MB / 20 ms, then 1.41 MB / 0.4-13.5 ms. GPU leg with its KV
+  on OpenCL: **tg splits 2** (was 62/198), **14.60 tok/s** (Amendment G target 10.4 met). NPU leg 13.08 (J(1) arm 22 at
+  -t 5; the leg runs 1 host thread per F1 - to test), CPU leg 13.49. KL vs the two-copy governor's greedy logits: all
+  256 argmax agree, but **mean 0.0559, max 1.12 -> gate FAIL (0.01)**; ~10x the NPU-vs-CPU 0.0053. Next: per-window KL
+  and single-leg runs to localize (GLM).
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,

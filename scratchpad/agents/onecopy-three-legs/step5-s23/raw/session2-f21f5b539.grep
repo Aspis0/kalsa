@@ -1,0 +1,32 @@
+SESSION COMPLETE - read $REPORT
+== step-5 legs session start Tue Oct  6 04:18:54 EDT 2026 [lvl=68 ac=false usb=false wl=false batT=273 skin=28.6 wake=Awake thermal=0 traced=0]
+binary: 8414bf8a940e skel: e16120a812a1
+G ref: exit=0 run_end arm=G rep=0 monotonic_us=541540598324 summary=median arm=G turns=3 repetitions=1 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3800.425 decode_tps=11.033 pr
+L: exit=1 [lvl=66 ac=false usb=false wl=false batT=340 skin=35.9 wake=Awake thermal=0 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+sched_reserve: graph (pp bs=512, tg bs=1): nodes = 1054 / 1054, splits = 199 / 2, input objects = 4 / 4, input tensors = 7 / 7
+sched_reserve: graph: nodes = 1054, splits = 1, input objects = 4, input tensors = 7
+leg_window arm=L rep=0 window=0 engine=npu tokens=32 us=2553817 tps=12.530
+leg_hop arm=L rep=0 hop=1 bytes=9273344 us=20143
+leg_window arm=L rep=0 window=1 engine=gpu tokens=32 us=2209128 tps=14.485
+leg_hop arm=L rep=0 hop=2 bytes=1409024 us=7097
+leg_window arm=L rep=0 window=2 engine=cpu tokens=32 us=2562099 tps=12.490
+leg_hop arm=L rep=0 hop=3 bytes=1409024 us=363
+leg_window arm=L rep=0 window=3 engine=npu tokens=32 us=2531227 tps=12.642
+leg_hop arm=L rep=0 hop=4 bytes=1409024 us=12218
+leg_window arm=L rep=0 window=4 engine=gpu tokens=32 us=2308757 tps=13.860
+leg_hop arm=L rep=0 hop=5 bytes=1409024 us=13509
+leg_window arm=L rep=0 window=5 engine=cpu tokens=32 us=2183887 tps=14.653
+leg_hop arm=L rep=0 hop=6 bytes=1409024 us=396
+leg_window arm=L rep=0 window=6 engine=npu tokens=32 us=2254346 tps=14.195
+leg_hop arm=L rep=0 hop=7 bytes=1409024 us=12372
+leg_window arm=L rep=0 window=7 engine=gpu tokens=32 us=1989132 tps=16.087
+leg_summary arm=L rep=0 engine=npu tokens=96 us=7339390 tps=13.080
+leg_summary arm=L rep=0 engine=gpu tokens=95 us=6507017 tps=14.600
+leg_summary arm=L rep=0 engine=cpu tokens=64 us=4745986 tps=13.485
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.055931 max=1.118813 kld_max=0.010000 status=FAIL
+== step-5 legs session end Tue Oct  6 04:22:07 EDT 2026 [lvl=66 ac=false usb=false wl=false batT=340 skin=35.9 wake=Awake thermal=0 traced=0]

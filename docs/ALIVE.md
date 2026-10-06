@@ -1030,6 +1030,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   HOST-W, which the 4b placement never did (found 2026-10-05 with GGML_SCHED_DEBUG; fix in progress).
 - 2026-10-06 `9eb7c54c7`: norms/conv in HOST-W (OpenCL fused norms read the import): GPU leg KLD 0.000885, 62 splits,
   tg128 6.80; J(1) NPU decode unchanged (0.97 of A, KLD 0.005343, RSS 127 vs 317 MB).
+- 2026-10-06 step 5: three decode legs on ONE model ran on the S23 (governor-bench arm L, forced hops every 32
+  tokens): GPU leg 2 splits / 14.6 tok/s with its KV on OpenCL; hops 0.4-20 ms; argmax identical to two-copy over 256
+  tokens but mean KL 0.056 (gate 0.01) - being localized; NPU leg 13 tok/s at 1 host thread.
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.
