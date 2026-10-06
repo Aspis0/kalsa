@@ -1,0 +1,4 @@
+== H correctness start Mon Oct  5 20:22:49 EDT 2026 [lvl=26 ac=false usb=false wl=false batT=288 skin=29.8 wake=Awake thermal=0 traced=0]
+binaries: fbf3f4c98474 052926cd8c84 e16120a812a1 (bench ppl skel)
+proof H: exit=0 splits=3 lm_head_on_htp=0 gpu_selfcheck_pass=1 aos_fallback=0 errors=0 [lvl=26 ac=false usb=false wl=false batT=288 skin=29.8 wake=Awake thermal=0 traced=0]
+H kld: exit=0 meanKLD=0.005343 errors=0 [lvl=26 ac=false usb=false wl=false batT=313 skin=33.6 wake=Awake thermal=0 traced=0]

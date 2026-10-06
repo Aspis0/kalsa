@@ -1609,6 +1609,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   supersedes the 2026-10-05 option-3 choice. Consequence for step 5/6: an NPU decode on the shared copy needs the GPU
   leg present (the binding's capability table must refuse NPU-shared decode where the OpenCL HOST leg is not
   admitted, R2).
+- **AoS audit fixes `6106d4997`** (deepseek; kernel .cl untouched): the AoS program/kernel/dropped flag are the backend
+  context's (released in free), args bound with no lock like every kernel in the backend (WHY comment), self-check
+  launches R rows, a refused kernel's binary is forgotten from the cache. S23 correctness-only (battery 26 %, no
+  timing; `step4b-s23/raw/hcorrect-6106d4997.grep`): proof H splits 3, self-check PASS, no AoS fallback, KLD 0.005343.
+  Branch pushed to the fork. The kernel's own ms is still to profile on a charged phone.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
