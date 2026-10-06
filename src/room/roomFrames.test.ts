@@ -42,6 +42,46 @@ function withHistory(seqs: number[]): RoomFeed {
 }
 
 describe("member news", () => {
+  test("live entries resolve the host against the room member list", () => {
+    const state = foldEvent(feed(), {
+      type: "message",
+      entry: {
+        ...entry(4),
+        memberId: 4294967295,
+        name: "Former member",
+        former: true,
+        text: "che bello",
+      },
+    });
+    expect(state.entries.map(({ name, former }) => [name, former])).toEqual([
+      ["This computer", false],
+    ]);
+  });
+
+  test("live entries resolve a member that joined after the opening snapshot", () => {
+    const joined = foldEvent(feed(), {
+      type: "member",
+      member: { action: "joined", memberId: 9, name: "Paired phone 3" },
+    });
+    const state = foldEvent(joined, {
+      type: "message",
+      entry: { ...entry(4), memberId: 9, name: "Old device name", former: true },
+    });
+    expect(state.entries.map(({ name, former }) => [name, former])).toEqual([
+      ["Paired phone 3", false],
+    ]);
+  });
+
+  test("a live author absent from a stale member list keeps the server's current status", () => {
+    const state = foldEvent(feed(), {
+      type: "message",
+      entry: { ...entry(4), memberId: 12, name: "New member", former: false },
+    });
+    expect(state.entries.map(({ name, former }) => [name, former])).toEqual([
+      ["New member", false],
+    ]);
+  });
+
   test("a rename follows the member list and every row already held", () => {
     const state = foldEvent(withHistory([1, 2]), {
       type: "member",
@@ -153,6 +193,27 @@ describe("the endings", () => {
     expect(state.entries.map((held) => held.seq)).toEqual([9]);
     expect(state.sent).toEqual([]);
     expect(state.live).toBeNull();
+  });
+
+  test("an empty same-epoch resync keeps the last visible transcript", () => {
+    const prior = withHistory([1, 2]);
+    const state = foldResync(prior, INFO, {
+      messages: [],
+      hasOlder: false,
+      hasNewer: false,
+    });
+    expect(state.entries.map((held) => held.seq)).toEqual([1, 2]);
+  });
+
+  test("an empty new-epoch resync replaces the old transcript", () => {
+    const prior = withHistory([1, 2]);
+    const state = foldResync(prior, { ...INFO, epoch: "e-new" }, {
+      messages: [],
+      hasOlder: false,
+      hasNewer: false,
+    });
+    expect(state.epoch).toBe("e-new");
+    expect(state.entries).toEqual([]);
   });
 
   test("a cut wire is a reconnect, and the next frame ends it", () => {
