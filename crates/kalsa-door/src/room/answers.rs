@@ -21,12 +21,17 @@ const MAX_BODY: usize = 16 * 1024;
 /// One transcript entry as the protocol answers it: the author's CURRENT
 /// name, resolved here at the door, and the former mark for a member whose
 /// device is gone.
-pub(super) fn entry_json(room: &Room, devices: &Devices, entry: &kalsa_room::Entry) -> Value {
+pub(super) fn entry_json(
+    room: &Room,
+    devices: &Devices,
+    host: DeviceId,
+    entry: &kalsa_room::Entry,
+) -> Value {
     let mut value = json!({
         "seq": entry.seq,
         "epoch": room.epoch(),
         "member_id": entry.member.wire(),
-        "name": name_of(room, devices, entry.member),
+        "name": name_of(room, devices, host, entry.member),
         "time": entry.time,
         "text": entry.text,
         "call_ai": entry.call_ai,
@@ -46,9 +51,21 @@ pub(super) fn entry_json(room: &Room, devices: &Devices, entry: &kalsa_room::Ent
     value
 }
 
-pub(super) fn name_of(room: &Room, devices: &Devices, member: MemberId) -> String {
+/// The label of the device the host is seated at, and the door's own word
+/// when that seat has none — the one place the word is written, so
+/// `room_name`, the host's row and every host entry cannot drift apart.
+pub(super) fn host_label(devices: &Devices, host: DeviceId) -> String {
+    devices.label(host).unwrap_or("This computer").to_string()
+}
+
+pub(super) fn name_of(room: &Room, devices: &Devices, host: DeviceId, member: MemberId) -> String {
     if let Some(name) = room.name_of(member) {
         return name;
+    }
+    // The host's seat is not in the roster's device map: without this it
+    // would fall to the former-member word.
+    if member == MemberId::Host {
+        return host_label(devices, host);
     }
     room.device_of(member)
         .and_then(|device| devices.label(DeviceId::new(device)))

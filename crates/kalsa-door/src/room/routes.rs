@@ -8,10 +8,12 @@ use std::time::Instant;
 use kalsa_room::MemberId;
 use serde_json::{json, Value};
 
-use super::answers::{entry_json, json_error, json_ok, name_of, read_body, store_failed};
+use super::answers::{
+    entry_json, host_label, json_error, json_ok, name_of, read_body, store_failed,
+};
 use super::RoomDoor;
 use super::{BAD_QUERY, MALFORMED, NO_ID, NO_NAME};
-use crate::devices::Devices;
+use crate::devices::{DeviceId, Devices};
 use crate::request::UnsealedHead;
 use kalsa_room::Room;
 use std::sync::Arc;
@@ -39,10 +41,11 @@ pub(super) fn floor_of(room: &Room, member: MemberId) -> Option<u64> {
 /// caller's own member id, the room's stable id, and the epoch its seqs
 /// are unique within.
 pub(super) fn info(door: &RoomDoor, devices: &Devices, you: MemberId) -> Value {
+    let host = host_label(devices, door.host);
     let mut members = vec![entry_member(
         door.room.clone(),
         MemberId::Host,
-        devices.label(door.host).unwrap_or("This computer"),
+        &host,
         "host",
     )];
     for (id, label) in devices.entries() {
@@ -67,12 +70,20 @@ pub(super) fn info(door: &RoomDoor, devices: &Devices, you: MemberId) -> Value {
         "kind": "ai",
     }));
     json!({
-        "room_name": devices.label(door.host).unwrap_or("This computer"),
+        "room_name": host,
         "room_id": door.room.room_id(),
         "epoch": door.room.epoch(),
         "you": you.wire(),
         "members": members,
-        "ai": ai_state(&door.room, devices, you, door.room.turn_state().state, None, None),
+        "ai": ai_state(
+            &door.room,
+            devices,
+            door.host,
+            you,
+            door.room.turn_state().state,
+            None,
+            None,
+        ),
     })
 }
 
@@ -86,17 +97,20 @@ pub(super) fn info(door: &RoomDoor, devices: &Devices, you: MemberId) -> Value {
 pub(super) fn ai_state(
     room: &Room,
     devices: &Devices,
+    host: DeviceId,
     you: MemberId,
     state: &'static str,
     note_code: Option<&str>,
     note: Option<&str>,
 ) -> Value {
     let turns = room.turn_state();
-    let running = turns.running.map(|member| name_of(room, devices, member));
+    let running = turns
+        .running
+        .map(|member| name_of(room, devices, host, member));
     let queue: Vec<String> = turns
         .pending
         .iter()
-        .map(|member| name_of(room, devices, *member))
+        .map(|member| name_of(room, devices, host, *member))
         .collect();
     json!({
         "state": state,
@@ -183,7 +197,7 @@ pub(super) fn history(
     let messages = page
         .messages
         .iter()
-        .map(|entry| entry_json(&door.room, devices, entry))
+        .map(|entry| entry_json(&door.room, devices, door.host, entry))
         .collect::<Vec<_>>();
     json_ok(
         origin,

@@ -220,6 +220,7 @@ pub(super) fn serve(mut client: TcpStream, request: Request<'_>, deadline: Insta
                     set: Arc::clone(&shared.set),
                     stop: Arc::clone(&shared.stop),
                     device,
+                    host: door.host,
                     seats: Arc::clone(&door.seats),
                 },
                 member,

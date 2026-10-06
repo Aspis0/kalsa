@@ -33,11 +33,14 @@ const PING: Duration = Duration::from_secs(15);
 /// streamed — and the live follow then owns the socket on its own thread.
 /// The stream's cut and its subject, the one bundle the spawned thread
 /// keeps: the set that can revoke the device, the flag that stops the
-/// door, the device itself, and the follower's seat in the per-device cap.
+/// door, the device itself, the host's seat, and the follower's seat in
+/// the per-device cap.
 pub(super) struct Ctx {
     pub(super) set: Arc<DeviceSet>,
     pub(super) stop: Arc<AtomicBool>,
     pub(super) device: DeviceId,
+    /// The seat the host holds, whose unset name falls to its label.
+    pub(super) host: DeviceId,
     pub(super) seats: Arc<Seats>,
 }
 
@@ -253,7 +256,15 @@ fn follow(follower: Follower) {
         let devices = ctx.set.current();
         frame_of(
             b"ai_status",
-            &super::routes::ai_state(&room, &devices, you, room.turn_state().state, None, None),
+            &super::routes::ai_state(
+                &room,
+                &devices,
+                ctx.host,
+                you,
+                room.turn_state().state,
+                None,
+                None,
+            ),
         )
     };
     if proxy::answer_to(&mut client, &snapshot, deadline).is_err() {
@@ -270,7 +281,7 @@ fn follow(follower: Follower) {
         match room.read_since(&mut cursor, slice, &mut out) {
             Take::Events => {
                 for event in &out {
-                    let frame = frame(&room, &devices, you, event);
+                    let frame = frame(&room, &devices, ctx.host, you, event);
                     if proxy::answer_to(&mut client, &frame, deadline).is_err() {
                         return;
                     }
@@ -305,7 +316,7 @@ fn frame_of(name: &[u8], value: &serde_json::Value) -> Vec<u8> {
 }
 
 /// One event as SSE bytes.
-fn frame(room: &Room, devices: &Devices, you: MemberId, event: &Event) -> Vec<u8> {
+fn frame(room: &Room, devices: &Devices, host: DeviceId, you: MemberId, event: &Event) -> Vec<u8> {
     match event {
         Event::Message(entry) => {
             let event_name = if entry.member == kalsa_room::MemberId::Ai {
@@ -319,7 +330,7 @@ fn frame(room: &Room, devices: &Devices, you: MemberId, event: &Event) -> Vec<u8
             frame.extend_from_slice(event_name.as_bytes());
             frame.extend_from_slice(b"\ndata: ");
             frame.extend_from_slice(
-                &serde_json::to_vec(&entry_json(room, devices, entry))
+                &serde_json::to_vec(&entry_json(room, devices, host, entry))
                     .expect("an entry always serializes"),
             );
             frame.extend_from_slice(b"\n\n");
@@ -330,8 +341,15 @@ fn frame(room: &Room, devices: &Devices, you: MemberId, event: &Event) -> Vec<u8
             note_code,
             note,
         }) => {
-            let value =
-                super::routes::ai_state(room, devices, you, state, *note_code, note.as_deref());
+            let value = super::routes::ai_state(
+                room,
+                devices,
+                host,
+                you,
+                state,
+                *note_code,
+                note.as_deref(),
+            );
             frame_of(b"ai_status", &value)
         }
         Event::Ai(AiEvent::Delta { turn, text }) => frame_of(

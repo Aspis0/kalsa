@@ -589,7 +589,7 @@ fn window(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> (Vec<Ent
     let mut kept: Vec<Entry> = Vec::new();
     let mut bytes = SYSTEM_PROMPT.len();
     for entry in entries.iter().rev() {
-        let name = frame_name(&door.room, &devices, entry.member);
+        let name = frame_name(door, &devices, entry.member);
         let cost = name.len() + entry.text.len() + 8;
         if bytes + cost > budget && !kept.is_empty() {
             break;
@@ -618,7 +618,7 @@ fn halve_budget(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> Op
     let bytes = older
         .iter()
         .map(|entry| {
-            let name = frame_name(&door.room, &devices, entry.member);
+            let name = frame_name(door, &devices, entry.member);
             name.len() + entry.text.len() + 8
         })
         .sum::<usize>()
@@ -655,7 +655,7 @@ fn transcript(
     let read = kept.len() as u32;
     let mut messages = vec![json!({"role": "system", "content": SYSTEM_PROMPT})];
     for entry in kept {
-        let name = frame_name(&door.room, &devices, entry.member);
+        let name = frame_name(door, &devices, entry.member);
         let text = format!("[{name}] {}", entry.text);
         let mut parts = Vec::new();
         if vision {
@@ -767,8 +767,8 @@ fn engine_vision(port: u16) -> bool {
 /// bracket and forge another speaker. Member-chosen names refuse the
 /// characters outright; the strip remains for the labels, which their
 /// owner never chose to be framing.
-fn frame_name(room: &kalsa_room::Room, devices: &crate::Devices, member: MemberId) -> String {
-    let name = name_of(room, devices, member);
+fn frame_name(door: &RoomDoor, devices: &crate::Devices, member: MemberId) -> String {
+    let name = name_of(&door.room, devices, door.host, member);
     name.replace(['[', ']'], "")
 }
 
