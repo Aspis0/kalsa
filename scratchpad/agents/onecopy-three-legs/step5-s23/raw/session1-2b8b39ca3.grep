@@ -1,0 +1,8 @@
+SESSION COMPLETE - read $REPORT
+== step-5 legs session start Tue Oct  6 03:40:47 EDT 2026 [lvl=72 ac=false usb=false wl=false batT=273 skin=28.5 wake=Awake thermal=0 traced=0]
+binary: 3c4078d4b3d4 skel: e16120a812a1
+G ref: exit=0 run_end arm=G rep=0 monotonic_us=539209909652 summary=median arm=G turns=3 repetitions=1 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3719.384 decode_tps=16.988 pr
+L: exit=1 [lvl=71 ac=false usb=false wl=false batT=302 skin=31.2 wake=Awake thermal=0 traced=0]
+llama_model_load: error loading model: shared weights: token_embd_norm.weight landed in OpenCL, not a shared buffer
+== step-5 legs session end Tue Oct  6 03:42:40 EDT 2026 [lvl=71 ac=false usb=false wl=false batT=302 skin=31.2 wake=Awake thermal=0 traced=0]
+--- retry with arm_env_shared (step-2 env incl. ADMIT_OPS=7): same load error. Cause found in code: governor-bench-run.cpp setup() keeps model_params.tensor_split pointing at a block-scoped split[] (dangling).

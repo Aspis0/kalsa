@@ -1690,6 +1690,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   condition exact. Fix round with GLM. To steps 5.2/5.3: device-global Hexagon admission (F6b, documented),
   governor labels per leg, F5's forced-hop proof, the device check (governor-bench one-model arm). Merge surface: a
   parameter through every memory constructor (25 src files); the audit found no smaller alternative.
+- **Step 5.2 landed** (GLM `190a3701`, `170b4bbf8` legs / `f73160634` forced rotation + F5 host proof / `2b8b39ca3`
+  governor-bench arm L + logits KL): one-model governor with legs {HTP0} / {GPUOpenCL} / {} over one model, shared decode
+  and commit path, admission set once. Load-bearing fix: `commit_side` copies `[dst.watermark, end)` (three legs lost
+  `[0, watermark)` on a leg's first hop); host proof three CPU legs, forced hops every 8 tokens over 64: bitwise equal
+  to one context (orchestrator re-ran: EXIT=0). Luna audit (`audit-step5-2-luna.md`): the watermark change is harmless
+  for the shipped two-model governor (watermarks equal at every commit); 14 findings, fix round with GLM (P1: leg
+  bound, KL ref shorter than the run truncated silently, KL gate never failed; P2s). **S23 session 1 (03:40,
+  `step5-s23/raw/session1-2b8b39ca3.grep`)**: arm L refused at load ("token_embd_norm.weight landed in OpenCL") -
+  dangling `tensor_split` pointer in governor-bench (block-scoped array), found by reading the code; fixed in the same
+  round.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
