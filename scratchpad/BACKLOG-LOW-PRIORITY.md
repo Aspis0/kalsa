@@ -190,7 +190,7 @@ One line per item: area - finding - source audit. Pick from here only when a rel
 ## Overnight recon 2026-10-06 (scratchpad/agents/overnight-recon/REPORT.md, verified by orchestrator where marked)
 - iroh avc every ~22 s on Android: VERIFIED cause = iroh 1.2.0 `periodic_re_stun_timer` 20-26 s (socket.rs new_re_stun_timer) -> net report -> interface enumeration denied by SELinux; endpoint lives all process long. Fix in progress: stop the bridge after 30 s in background with no open tunnel (branch phone/iroh-bg-stop). netwatch 0.19.3 Android RouteMonitor is a no-op; iroh 1.3.0 still on netwatch 0.19.3.
 - Remote PC send serializes the whole body twice when the image wire budget runs (RemoteEngine.ts bodyBytes + transport), up to 12 MiB on the JS thread. Fix: build once, measure, pass the string. P2 perf, only with images.
-- Android direct PC stream is not aborted/paused on background (iosBackgroundPlan no-ops off iOS). OWNER DECISION: cut the turn and mark it interrupted, or let it run. Battery impact low (event-driven XHR, 120 s idle timeout).
+- Android direct PC stream is not aborted/paused on background (iosBackgroundPlan no-ops off iOS). OWNER DECISION: cut the turn and mark it interrupted, or let it run. DECIDED 2026-10-06: let it run (owner). Battery impact low (event-driven XHR, 120 s idle timeout).
 - Model download keep-awake = FLAG_KEEP_SCREEN_ON (screen stays on during a download), released in finally; no CPU wakelock. Fine for now; resumable OS-managed download is post-alpha.
 
 ## One-copy HOST-W layer weights (engine feat/governor-onecopy 0ca7e1890 + 9eb7c54c7; audit scratchpad/agents/onecopy-three-legs/audit-fusion-f32only-luna.md, triaged 2026-10-06)
