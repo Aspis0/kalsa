@@ -70,14 +70,13 @@ Rebuild the Mac app from brain while unlocked, then relaunch it behind the lock:
 and the Jelly must dial without anyone unlocking (fix 22eed856 + bec3614a).
 
 ### 8. Phone tests (Jelly, app main 67c3eea5 or later)
-Owner 2026-10-06: the iOS/UX session is archived and these tests are mine. Open from that session:
+Owner 2026-10-06: the iOS/UX session is archived and these tests are mine. The Android background
+behaviour (reply in background, iroh stop after 30 s) is decided and stays as is. Open:
 - Room author name live: write in the desktop Room while the Jelly has the Room open → the entry
   reads the host's label, never "Former member" (history already checked on 2026-10-06).
 - Room list emptying for a few seconds after background → foreground: read logcat
   `KALSA_ROOM_FEED` (op/entries/seqFirst/seqLast/epoch8/status) and say which side empties it.
 - Keyboard (react-native-keyboard-controller 1.22.6) in chat and Room.
-- Android iroh background stop: 30 s after HOME, no tokio threads, no avc; first dial after resume
-  still reaches the door.
 Phone code lives in the app repo (`/Users/marco/Projects/kalsa`, branch main); a phone-side fix
 follows that repo's rules.
 
