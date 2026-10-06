@@ -1,0 +1,48 @@
+SESSION COMPLETE - read $REPORT
+== localize start Tue Oct  6 04:47:24 EDT 2026 binary 5bd460a4e9c4 [lvl=65 ac=false usb=false wl=false batT=290 skin=29.1 wake=Awake thermal=0 traced=0]
+prefill_backend=GPUOpenCL
+## cpu (--legs cpu): exit=1 [lvl=64 ac=false usb=false wl=false batT=286 skin=32.7 wake=Awake thermal=0 traced=0]
+leg_window arm=L rep=0 window=0 engine=cpu tokens=32 us=2022278 tps=15.824 kl_mean=0.059724 kl_max=0.382228 kl_max_row=26 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=cpu tokens=32 us=2054997 tps=15.572 kl_mean=-0.061766 kl_max=0.133212 kl_max_row=42 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=cpu tokens=32 us=2557882 tps=12.510 kl_mean=0.014964 kl_max=0.434883 kl_max_row=86 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu tokens=32 us=2579108 tps=12.407 kl_mean=0.052969 kl_max=0.344982 kl_max_row=113 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=cpu tokens=32 us=2504337 tps=12.778 kl_mean=-0.005584 kl_max=0.247893 kl_max_row=155 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=cpu tokens=32 us=2603204 tps=12.293 kl_mean=0.089921 kl_max=0.451493 kl_max_row=175 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=cpu tokens=32 us=2150817 tps=14.878 kl_mean=0.123414 kl_max=0.374409 kl_max_row=209 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=cpu tokens=32 us=2076873 tps=15.408 kl_mean=0.111338 kl_max=0.495660 kl_max_row=227 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=255 us=18549496 tps=13.747
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.047248 max=0.495660 kld_max=0.010000 status=FAIL
+## npu (--legs npu): exit=1 [lvl=64 ac=false usb=false wl=false batT=314 skin=33.9 wake=Awake thermal=0 traced=0]
+leg_window arm=L rep=0 window=0 engine=npu tokens=32 us=2231646 tps=14.339 kl_mean=0.158448 kl_max=1.118813 kl_max_row=30 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu tokens=32 us=2184032 tps=14.652 kl_mean=0.042133 kl_max=0.476637 kl_max_row=54 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu tokens=32 us=2242746 tps=14.268 kl_mean=0.071364 kl_max=0.625249 kl_max_row=78 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=npu tokens=32 us=2580917 tps=12.399 kl_mean=0.033922 kl_max=0.595658 kl_max_row=99 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=npu tokens=32 us=2947523 tps=10.857 kl_mean=0.021440 kl_max=0.679967 kl_max_row=150 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=npu tokens=32 us=3006779 tps=10.643 kl_mean=0.107714 kl_max=0.494682 kl_max_row=189 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=npu tokens=32 us=2965090 tps=10.792 kl_mean=0.121607 kl_max=0.600677 kl_max_row=202 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu tokens=32 us=2895364 tps=11.052 kl_mean=0.044667 kl_max=0.427434 kl_max_row=249 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=255 us=21054097 tps=12.112
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.074548 max=1.118813 kld_max=0.010000 status=FAIL
+## gpu (--legs gpu): exit=1 [lvl=63 ac=false usb=false wl=false batT=323 skin=34.8 wake=Awake thermal=0 traced=0]
+leg_window arm=L rep=0 window=0 engine=gpu tokens=32 us=1902106 tps=16.823 kl_mean=0.093031 kl_max=0.398771 kl_max_row=17 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu tokens=32 us=1958386 tps=16.340 kl_mean=0.002634 kl_max=0.225155 kl_max_row=55 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu tokens=32 us=1985235 tps=16.119 kl_mean=0.030481 kl_max=0.304383 kl_max_row=86 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu tokens=32 us=1981866 tps=16.146 kl_mean=0.005504 kl_max=0.290230 kl_max_row=99 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=gpu tokens=32 us=2181250 tps=14.670 kl_mean=-0.037942 kl_max=0.221379 kl_max_row=155 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=gpu tokens=32 us=2115890 tps=15.124 kl_mean=0.090027 kl_max=0.268412 kl_max_row=163 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=gpu tokens=32 us=2177269 tps=14.697 kl_mean=0.132691 kl_max=0.360940 kl_max_row=222 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=gpu tokens=32 us=2105436 tps=15.199 kl_mean=0.133405 kl_max=0.378717 kl_max_row=227 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=255 us=16407438 tps=15.542
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.055268 max=0.398771 kld_max=0.010000 status=FAIL
+## npu5 (--legs npu --leg-threads 5,1,5): exit=1 [lvl=62 ac=false usb=false wl=false batT=338 skin=35.8 wake=Awake thermal=0 traced=0]
+leg_window arm=L rep=0 window=0 engine=npu tokens=32 us=2028339 tps=15.776 kl_mean=0.158448 kl_max=1.118813 kl_max_row=30 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu tokens=32 us=2060428 tps=15.531 kl_mean=0.042133 kl_max=0.476637 kl_max_row=54 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu tokens=32 us=1985831 tps=16.114 kl_mean=0.071364 kl_max=0.625249 kl_max_row=78 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=npu tokens=32 us=1995338 tps=16.037 kl_mean=0.033922 kl_max=0.595658 kl_max_row=99 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=npu tokens=32 us=1973792 tps=16.212 kl_mean=0.021440 kl_max=0.679967 kl_max_row=150 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=npu tokens=32 us=2022033 tps=15.826 kl_mean=0.107714 kl_max=0.494682 kl_max_row=189 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=npu tokens=32 us=2056279 tps=15.562 kl_mean=0.121607 kl_max=0.600677 kl_max_row=202 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu tokens=32 us=2019839 tps=15.843 kl_mean=0.044667 kl_max=0.427434 kl_max_row=249 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=255 us=16141879 tps=15.797
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.074548 max=1.118813 kld_max=0.010000 status=FAIL
+== localize end Tue Oct  6 04:53:08 EDT 2026 [lvl=62 ac=false usb=false wl=false batT=343 skin=34.4 wake=Awake thermal=0 traced=0]

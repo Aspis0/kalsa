@@ -1718,6 +1718,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   -t 5; the leg runs 1 host thread per F1 - to test), CPU leg 13.49. KL vs the two-copy governor's greedy logits: all
   256 argmax agree, but **mean 0.0559, max 1.12 -> gate FAIL (0.01)**; ~10x the NPU-vs-CPU 0.0053. Next: per-window KL
   and single-leg runs to localize (GLM).
+- **S23 session 3, localization (04:47, `step5-s23/raw/session3-localize-e6e3ed854.grep`, bench `5bd460a4e9c4`)**: each leg
+  alone vs the same reference: cpu mean 0.047, npu 0.075, gpu 0.055, all diverged=0 - but several windows report a
+  NEGATIVE mean KL (-0.062, -0.038): **the bench's KL metric is wrong**, so the session-2 0.056 is void until the metric
+  has a host unit test (identical -> 0, always >= 0). Also: G's prefill runs on GPUOpenCL (first enumerated
+  accelerator), L's on HTP0 - a confound to remove. **NPU leg is not J(1)**: `{HTP0}` alone leaves the tied Q6_K
+  lm_head on the CPU (12.1 tok/s at 1 thread, 15.8 at 5 = the old CPU-lm_head arm); per the J(1) decision the NPU leg
+  must be `{HTP0, GPUOpenCL}` (HTP first). GPU leg alone 15.5 tok/s. Both fixes with GLM.
 - **Option 3 code done** (GLM, `80177af6a`..`2459a9d1d` on local `feat/governor-onecopy-q6raw`): DSP Q6_K raw-to-tile
   converter (production packer moved verbatim to `htp/q6_K-tiled-pack.h` so the host test checks the real code; 12
   cases + a mutation check), raw Q6_K jobs via the Q4_0 macro pattern, per-op host gate (HMX refuses raw weights per op,
