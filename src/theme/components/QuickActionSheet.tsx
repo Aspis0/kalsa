@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  BarChart2,
   Calculator,
   Beaker,
   Camera,
@@ -11,7 +10,6 @@ import {
   History,
   HelpCircle,
   ListChecks,
-  Scale,
 } from "lucide-react-native";
 import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
@@ -48,12 +46,8 @@ export function QuickActionSheet({ visible, onClose, onAction, onChooseTemplate,
         return Calculator;
       case "reading_quiz":
         return HelpCircle;
-      case "kpi_strip":
-        return BarChart2;
       case "checklist":
         return ListChecks;
-      case "pros_cons":
-        return Scale;
       default:
         return Columns2;
     }

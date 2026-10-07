@@ -22,9 +22,9 @@ export const CREATE_MINIAPP_TOOL: EngineTool = {
     description:
       "Build an interactive on-device miniapp in a single call. Pick one " +
       "template — compare_data (a comparison table), quick_calculator (a " +
-      "formula calculator), reading_quiz (a quiz with several questions), " +
-      "kpi_strip (key metrics), checklist (ordered steps), or pros_cons (pros " +
-      "vs cons) — and pass its slots. The app opens inline in the chat. Use " +
+      "formula calculator), reading_quiz (a quiz with several questions), or " +
+      "checklist (an ordered, tickable list) — and pass its slots. The app " +
+      "opens inline in the chat. Use " +
       "this instead of writing miniapp JSON by hand. For quick_calculator, " +
       "give every number the person might change a labelled field (id, label, " +
       "value) and write the formula from those ids; a formula of bare numbers " +
@@ -45,9 +45,7 @@ export const CREATE_MINIAPP_TOOL: EngineTool = {
             "value} — one labelled field per number the person might change), " +
             "reading_quiz " +
             "(title?, questions[] of {question, options[2..4], answerIndex?, " +
-            "explanation?}), kpi_strip (title?, metrics[] of {label, value, " +
-            "unit?, tone?}), checklist (title?, steps[] or items[]), or " +
-            "pros_cons (title?, rows[] of {pro?, con?}).",
+            "explanation?}), or checklist (title?, steps[] or items[]).",
           additionalProperties: true,
         },
       },
@@ -98,10 +96,7 @@ export function makeCreateMiniappExecutor(
       };
     }
 
-    const built = buildMiniappV1(template, raw.slots, {
-      pro: strings.miniapp.pro,
-      con: strings.miniapp.con,
-    });
+    const built = buildMiniappV1(template, raw.slots);
     const normalized = built ? normalizeMiniapp(built) : null;
     if (!normalized) {
       return {

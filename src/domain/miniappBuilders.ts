@@ -6,7 +6,8 @@
 // the executor can surface an error instead of rendering a broken miniapp.
 //
 // The produced envelope only ever uses block types the renderer already
-// supports (data_table / calculator / quiz), so no new UI is required.
+// supports (data_table / calculator / quiz / checklist), so no new UI is
+// required.
 
 import { normalizeMiniapp } from "./askAssistant";
 import type { AskAssistantMiniapp } from "./askAssistant";
@@ -15,7 +16,7 @@ import {
   type MiniappTemplateId,
 } from "./miniappTemplates";
 import { evaluateCalculatorFormula } from "./miniappCalculator";
-import { buildC6c, type ColumnLabels } from "./miniappBuildersNew";
+import { buildC6c } from "./miniappBuildersNew";
 import { recordCalculatorValues } from "./miniappState";
 import {
   asString,
@@ -224,7 +225,6 @@ function buildQuickCalculator(slots: Slots): AskAssistantMiniapp | null {
 export function buildMiniappV1(
   templateId: string,
   slots: unknown,
-  labels?: ColumnLabels,
 ): AskAssistantMiniapp | null {
   if (!MINIAPP_TEMPLATE_IDS.includes(templateId as MiniappTemplateId)) {
     return null;
@@ -240,10 +240,8 @@ export function buildMiniappV1(
       built = buildQuickCalculator(safeSlots);
       break;
     case "reading_quiz":
-    case "kpi_strip":
     case "checklist":
-    case "pros_cons":
-      built = buildC6c(templateId, safeSlots, labels);
+      built = buildC6c(templateId, safeSlots);
       break;
     default:
       return null;

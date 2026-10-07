@@ -794,8 +794,6 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     confirmAction:
       "This action may use AI to generate a result from your current calculator values.",
     exportDialogTitle: "Export mini-app {format}",
-    pro: "Pro",
-    con: "Con",
     timelineTitle: "Timeline",
     timelineEmpty: "No timeline entries yet.",
     stepN: "Step {n}",
@@ -1067,7 +1065,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     writeNoteAborted: "write_note was aborted.",
     writeNoteFailed: "Could not save the note.",
     createMiniappInvalidTemplate:
-      "create_miniapp: unknown template \"{template}\". Use compare_data, quick_calculator, reading_quiz, kpi_strip, checklist, or pros_cons.",
+      "create_miniapp: unknown template \"{template}\". Use compare_data, quick_calculator, reading_quiz, or checklist.",
     createMiniappInvalidSlots:
       "create_miniapp could not build the miniapp from the slots you provided.",
     createMiniappCreated: "Miniapp created: {title}",
@@ -1140,18 +1138,12 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     quickCalculatorSub: "Compute a formula",
     readingQuiz: "Reading quiz",
     readingQuizSub: "A quiz with several questions",
-    kpiStrip: "Key metrics",
-    kpiStripSub: "Show a strip of metrics",
     checklist: "Checklist",
     checklistSub: "List ordered steps",
-    prosCons: "Pros and cons",
-    prosConsSub: "Compare pros against cons",
     compareDataPrompt: "Turn this data into a comparison table.",
     quickCalculatorPrompt: "Work out this calculation and show the result.",
     readingQuizPrompt: "Ask me a quiz with several questions on what I just read.",
-    kpiStripPrompt: "Show these key metrics in a strip.",
     checklistPrompt: "Turn this into an ordered checklist.",
-    prosConsPrompt: "Compare the pros and cons of this.",
   },
 
   wizard: {
@@ -1323,7 +1315,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "if you don't know or are unsure, say so explicitly — never guess; " +
       "distinguish clearly between what you know and what you infer.",
     miniapp:
-      "Prefer the create_miniapp tool - call it with template compare_data (a comparison table), quick_calculator (a formula calculator), reading_quiz (a quiz with several questions), kpi_strip (a strip of key metrics), checklist (an ordered checklist), or pros_cons (pros vs cons), filling its slots. It builds the miniapp for you; use only those six templates. For any other layout (table, chart, metric, tabs, expandable, html, action_bar, citations) fall back to emitting miniapp_v1 JSON by hand. Miniapp: you may emit interactive miniapp_v1 JSON (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
+      "Prefer the create_miniapp tool - call it with template compare_data (a comparison table), quick_calculator (a formula calculator), reading_quiz (a quiz with several questions), or checklist (an ordered, tickable list), filling its slots. It builds the miniapp for you; use only those four templates. For any other layout (table, chart, metric, tabs, expandable, html, action_bar, citations) fall back to emitting miniapp_v1 JSON by hand. Miniapp: you may emit interactive miniapp_v1 JSON (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
       "for quiz never reveal answerIndex in prose — the app grades privately; " +
       "calculator formulas: numbers, field identifiers, + - * / and parentheses only; " +
       "block types also include data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls).",
@@ -1352,7 +1344,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     "If you don't know or are not sure, say so plainly and never guess. " +
     "Distinguish clearly between what you know and what you infer. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
-    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). You can also build a miniapp with the create_miniapp tool instead of writing JSON by hand: choose template compare_data, quick_calculator, reading_quiz, kpi_strip, checklist or pros_cons and pass its slots. Prefer the tool; write miniapp_v1 JSON only when you need a layout the tool does not offer. " +
+    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). You can also build a miniapp with the create_miniapp tool instead of writing JSON by hand: choose template compare_data, quick_calculator, reading_quiz or checklist and pass its slots. Prefer the tool; write miniapp_v1 JSON only when you need a layout the tool does not offer. " +
     "Other block types: data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls). " +
     "For quiz blocks never reveal answerIndex in the prose — the app grades the answer privately. " +
     "Calculator formulas: numbers, field identifiers, + - * / and parentheses only. " +
@@ -1390,7 +1382,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     "document_chat returns relevant passages with page citations, or the full text for small documents. " +
     "Prefer document_chat over web_search for questions about the user's own files. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
-    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). You can also build a miniapp with the create_miniapp tool instead of writing JSON by hand: choose template compare_data, quick_calculator, reading_quiz, kpi_strip, checklist or pros_cons and pass its slots. Prefer the tool; write miniapp_v1 JSON only when you need a layout the tool does not offer. " +
+    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). You can also build a miniapp with the create_miniapp tool instead of writing JSON by hand: choose template compare_data, quick_calculator, reading_quiz or checklist and pass its slots. Prefer the tool; write miniapp_v1 JSON only when you need a layout the tool does not offer. " +
     "Other block types: data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls). " +
     "For quiz blocks never reveal answerIndex in the prose — the app grades the answer privately. " +
     "Calculator formulas: numbers, field identifiers, + - * / and parentheses only. " +

@@ -1,17 +1,15 @@
-// Builders for the C6c templates added in this session:
-// reading_quiz (N questions), kpi_strip, checklist, pros_cons.
+// Builders for the `create_miniapp` templates the first group does not cover:
+// reading_quiz (N questions) and checklist.
 //
 // Each builder validates its slots strictly and returns `null` on bad input so
 // the executor can surface an error instead of rendering a broken miniapp. The
 // produced blocks use block types the renderer already supports
-// (quiz / checklist / metric_strip / timeline / data_table).
+// (quiz / checklist).
 //
 // Field shapes match the renderer exactly (see
 // src/ui/AskAssistantMiniappRenderer.tsx):
-//   - metric_strip  → block.metrics[] read by getMetricRows/getMetricValue
-//   - checklist     → block.items[] {id, title} read by ChecklistBlockView
-//   - timeline      → block.steps[] / block.items[] read by TimelineBlockView
-//   - data_table    → block.columns[] + block.rows[] read by normalizeTable
+//   - quiz      → one quiz block per question, read by QuizBlockView
+//   - checklist → block.items[] {id, title}, read by ChecklistBlockView
 
 import {
   asString,
@@ -28,16 +26,7 @@ import type { AskAssistantMiniapp } from "./askAssistant";
 import type { MiniappTemplateId } from "./miniappTemplates";
 
 const MAX_QUIZ_QUESTIONS = 8;
-const MAX_METRICS = 8;
 const MAX_STEPS = 12;
-const MAX_ROWS = 50;
-
-/** Column labels for the pros_cons data_table. `key` is the stable field used
- *  to look up row values; `label` is the localized header shown in the UI. */
-export type ColumnLabels = { pro: string; con: string };
-
-/** English defaults; the executor overrides with locale labels (F-4). */
-const DEFAULT_COLUMN_LABELS: ColumnLabels = { pro: "Pro", con: "Con" };
 
 /**
  * reading_quiz → one `quiz` block per question.
@@ -79,44 +68,6 @@ export function buildNQuestionQuiz(slots: Slots): AskAssistantMiniapp | null {
   }
 
   return envelope("reading_quiz", asString(slots.title) ?? "Quiz", blocks);
-}
-
-/**
- * kpi_strip → a single `metric_strip` block.
- *
- * Requires 1..8 metrics; each metric needs a non-empty label and a value
- * (string or number). `unit` and `tone` are optional and passed through.
- */
-export function buildKpiStrip(slots: Slots): AskAssistantMiniapp | null {
-  const rawMetrics = slots.metrics;
-  if (!Array.isArray(rawMetrics)) return null;
-  if (rawMetrics.length < 1 || rawMetrics.length > MAX_METRICS) return null;
-
-  const metrics: Record<string, unknown>[] = [];
-  for (const metric of rawMetrics) {
-    if (!isPlainObject(metric)) return null;
-    const label = asStringCapped(metric.label);
-    if (!label) return null;
-    const value = metric.value;
-    if (
-      value === undefined ||
-      value === null ||
-      (typeof value !== "string" && typeof value !== "number")
-    ) {
-      return null;
-    }
-    const entry: Record<string, unknown> = { label, value };
-    const unit = asString(metric.unit);
-    if (unit) entry.unit = unit;
-    const tone = asString(metric.tone);
-    if (tone) entry.tone = tone;
-    metrics.push(entry);
-  }
-
-  const block: Record<string, unknown> = { type: "metric_strip", metrics };
-  const title = asString(slots.title);
-  if (title) block.title = title;
-  return envelope("kpi_strip", title ?? "KPIs", [block]);
 }
 
 /**
@@ -174,52 +125,12 @@ export function buildChecklist(slots: Slots): AskAssistantMiniapp | null {
 }
 
 /**
- * pros_cons → a `data_table` with one row per pro/con pair. Requires >=1 row
- * with at least one non-empty pro/con. Column `key` stays the stable "pro"/"con"
- * used to look up row values; `label` is localized (F-4).
- */
-export function buildProsCons(
-  slots: Slots,
-  labels: ColumnLabels = DEFAULT_COLUMN_LABELS,
-): AskAssistantMiniapp | null {
-  const rawRows = slots.rows;
-  if (!Array.isArray(rawRows)) return null;
-
-  const rows: Record<string, string>[] = [];
-  for (const raw of rawRows) {
-    if (!isPlainObject(raw)) return null;
-    const pro = asStringCapped(raw.pro);
-    const con = asStringCapped(raw.con);
-    if (!pro && !con) continue; // skip empty rows
-    rows.push({ pro: pro ?? "", con: con ?? "" });
-  }
-  if (rows.length < 1) return null;
-
-  return envelope(
-    "pros_cons",
-    asString(slots.title) ?? "Pros & Cons",
-    [
-      {
-        type: "data_table",
-        columns: [
-          { key: "pro", label: labels.pro },
-          { key: "con", label: labels.con },
-        ],
-        rows: rows.slice(0, MAX_ROWS),
-      },
-    ],
-  );
-}
-
-/**
- * Dispatch a C6c template id + slots to the matching builder, or null when the
- * template is unknown or its slots fail validation. `labels` localizes the
- * pros_cons column headers (ignored by the other builders).
+ * Dispatch a template id + slots to the matching builder, or null when the
+ * template is unknown or its slots fail validation.
  */
 export function buildC6c(
   templateId: string,
   slots: unknown,
-  labels?: ColumnLabels,
 ): AskAssistantMiniapp | null {
   const safeSlots: Slots = isPlainObject(slots) ? (slots as Slots) : {};
 
@@ -228,14 +139,8 @@ export function buildC6c(
     case "reading_quiz":
       built = buildNQuestionQuiz(safeSlots);
       break;
-    case "kpi_strip":
-      built = buildKpiStrip(safeSlots);
-      break;
     case "checklist":
       built = buildChecklist(safeSlots);
-      break;
-    case "pros_cons":
-      built = buildProsCons(safeSlots, labels);
       break;
     default:
       return null;

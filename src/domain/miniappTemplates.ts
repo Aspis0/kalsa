@@ -8,9 +8,7 @@ export type MiniappTemplateId =
   | "compare_data"
   | "quick_calculator"
   | "reading_quiz"
-  | "kpi_strip"
-  | "checklist"
-  | "pros_cons";
+  | "checklist";
 
 export type MiniappTemplate = {
   id: MiniappTemplateId;
@@ -42,22 +40,10 @@ export const MINIAPP_TEMPLATES: MiniappTemplate[] = [
     promptKey: "quickActions.readingQuizPrompt",
   },
   {
-    id: "kpi_strip",
-    labelKey: "quickActions.kpiStrip",
-    subKey: "quickActions.kpiStripSub",
-    promptKey: "quickActions.kpiStripPrompt",
-  },
-  {
     id: "checklist",
     labelKey: "quickActions.checklist",
     subKey: "quickActions.checklistSub",
     promptKey: "quickActions.checklistPrompt",
-  },
-  {
-    id: "pros_cons",
-    labelKey: "quickActions.prosCons",
-    subKey: "quickActions.prosConsSub",
-    promptKey: "quickActions.prosConsPrompt",
   },
 ];
 
@@ -65,7 +51,5 @@ export const MINIAPP_TEMPLATE_IDS: ReadonlyArray<MiniappTemplateId> = Object.fre
   "compare_data",
   "quick_calculator",
   "reading_quiz",
-  "kpi_strip",
   "checklist",
-  "pros_cons",
 ]);

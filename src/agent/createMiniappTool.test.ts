@@ -244,29 +244,6 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     expect(buildMiniappV1("reading_quiz", { questions: "nope" })).toBeNull();
   });
 
-  test("kpi_strip → metric_strip with metrics", () => {
-    const miniapp = buildMiniappV1("kpi_strip", {
-      title: "Q3 metrics",
-      metrics: [
-        { label: "Revenue", value: 12000, unit: "€" },
-        { label: "Growth", value: "12%", tone: "positive" },
-      ],
-    });
-    expect(miniapp).not.toBeNull();
-    expect(miniapp?.kind).toBe("kpi_strip");
-    expect(miniapp?.blocks[0]).toMatchObject({ type: "metric_strip" });
-    expect((miniapp?.blocks[0] as any).metrics[0]).toMatchObject({ label: "Revenue", value: 12000, unit: "€" });
-    expect((miniapp?.blocks[0] as any).metrics[1]).toMatchObject({ label: "Growth", value: "12%", tone: "positive" });
-  });
-
-  test("kpi_strip rejects 0/>8 metrics and missing label or value", () => {
-    expect(buildMiniappV1("kpi_strip", { metrics: [] })).toBeNull();
-    expect(buildMiniappV1("kpi_strip", { metrics: [{ value: "x" }] })).toBeNull(); // no label
-    expect(buildMiniappV1("kpi_strip", { metrics: [{ label: "L" }] })).toBeNull(); // no value
-    const nine = Array.from({ length: 9 }, (_, i) => ({ label: `L${i}`, value: i }));
-    expect(buildMiniappV1("kpi_strip", { metrics: nine })).toBeNull();
-  });
-
   test("checklist → tickable items with minted ids", () => {
     const miniapp = buildMiniappV1("checklist", {
       title: "Setup",
@@ -336,57 +313,13 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     expect(buildMiniappV1("checklist", { steps })).toBeNull();
   });
 
-  test("pros_cons → data_table with pro/con columns", () => {
-    const miniapp = buildMiniappV1("pros_cons", {
-      title: "Choice",
-      rows: [{ pro: "Fast", con: "Expensive" }, { pro: "Simple" }],
-    });
-    expect(miniapp).not.toBeNull();
-    expect(miniapp?.kind).toBe("pros_cons");
-    expect(miniapp?.blocks[0]).toMatchObject({
-      type: "data_table",
-      columns: [
-        { key: "pro", label: "Pro" },
-        { key: "con", label: "Con" },
-      ],
-    });
-    expect(miniapp?.blocks[0].rows).toHaveLength(2);
-    expect((miniapp?.blocks[0] as any).rows[0]).toMatchObject({ pro: "Fast", con: "Expensive" });
-    // a row with only a pro keeps an empty con cell
-    expect((miniapp?.blocks[0] as any).rows[1]).toMatchObject({ pro: "Simple", con: "" });
-  });
-
-  test("pros_cons rejects empty rows and non-array input", () => {
-    expect(buildMiniappV1("pros_cons", { rows: [] })).toBeNull();
-    expect(buildMiniappV1("pros_cons", { rows: [{ pro: "" }, { con: "" }, {}] })).toBeNull();
-    expect(buildMiniappV1("pros_cons", { rows: "nope" })).toBeNull();
-  });
-
-  test("pros_cons localizes column headers via labels (F-4)", () => {
-    const miniapp = buildMiniappV1(
-      "pros_cons",
-      { rows: [{ pro: "fast", con: "costoso" }] },
-      { pro: "Pro / No", con: "Contro" },
-    );
-    expect(miniapp?.blocks[0]).toMatchObject({
-      type: "data_table",
-      columns: [
-        { key: "pro", label: "Pro / No" },
-        { key: "con", label: "Contro" },
-      ],
-    });
-    // key stays stable so row lookup still works
-    expect((miniapp?.blocks[0] as any).rows[0]).toMatchObject({ pro: "fast", con: "costoso" });
-  });
-
-  test("F-1: pros_cons reads rows[], not top-level pro/con", () => {
-    // The tool description no longer advertises top-level pro/con; sending
-    // them without rows[] is rejected (invalid_slots), not silently ignored.
-    expect(buildMiniappV1("pros_cons", { pro: "a", con: "b" })).toBeNull();
-  });
-
   test("unknown template → null", () => {
     expect(buildMiniappV1("not_a_template", {})).toBeNull();
+  });
+
+  test("the removed templates are rejected, not silently rebuilt", () => {
+    expect(buildMiniappV1("kpi_strip", { metrics: [{ label: "L", value: 1 }] })).toBeNull();
+    expect(buildMiniappV1("pros_cons", { rows: [{ pro: "fast" }] })).toBeNull();
   });
 
   // ── F-5: per-field string cap + per-block 64 KiB serialized guard ──
@@ -408,12 +341,12 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
   });
 
   test("F-5: a single block exceeding 64 KiB is rejected, not silently degraded", () => {
-    // pros_cons emits one data_table block; ~12 rows with 4000-char pro/con
-    // fields each total > 64 KiB in that single block. The per-field cap allows
-    // each field, but the serialized guard rejects the whole miniapp.
+    // compare_data passes rows through; ~12 rows of 4000-char cells total
+    // > 64 KiB in that single data_table block, so the serialized guard
+    // rejects the whole miniapp instead of rendering a degraded one.
     const big = "x".repeat(4000);
-    const rows = Array.from({ length: 12 }, () => ({ pro: big, con: big }));
-    expect(buildMiniappV1("pros_cons", { rows })).toBeNull();
+    const rows = Array.from({ length: 12 }, () => ({ a: big, b: big }));
+    expect(buildMiniappV1("compare_data", { columns: ["a", "b"], rows })).toBeNull();
   });
 
   test("F-5: a normal-sized checklist still builds", () => {
@@ -440,24 +373,6 @@ describe("create_miniapp executor", () => {
     const opened = onMiniapp.mock.calls[0][0] as { kind: string; blocks: unknown[] };
     expect(opened.kind).toBe("reading_quiz");
     expect(opened.blocks[0]).toMatchObject({ type: "quiz" });
-  });
-
-  test("executor localizes headers by locale (F-4)", async () => {
-    const onMiniapp = jest.fn();
-    const execute = makeCreateMiniappExecutor("it", { onMiniapp });
-    await execute("create_miniapp", {
-      template: "pros_cons",
-      slots: { rows: [{ pro: "fast", con: "costoso" }] },
-    });
-    const opened = onMiniapp.mock.calls[0][0] as {
-      kind: string;
-      blocks: Array<{ columns: Array<{ key: string; label: string }> }>;
-    };
-    expect(opened.kind).toBe("pros_cons");
-    expect(opened.blocks[0].columns).toEqual([
-      { key: "pro", label: getStrings("it").miniapp.pro },
-      { key: "con", label: getStrings("it").miniapp.con },
-    ]);
   });
 
   test("success text is 'Miniapp created: {title}'", async () => {
@@ -520,7 +435,7 @@ describe("create_miniapp executor", () => {
 });
 
 describe("create_miniapp tool definition + registry", () => {
-  test("definition advertises the six templates and requires template", () => {
+  test("definition advertises the four templates and requires template", () => {
     const fn = CREATE_MINIAPP_TOOL.function;
     expect(fn.name).toBe("create_miniapp");
     // The quick_calculator rule the model must follow: labelled fields first.
@@ -532,10 +447,10 @@ describe("create_miniapp tool definition + registry", () => {
       "compare_data",
       "quick_calculator",
       "reading_quiz",
-      "kpi_strip",
       "checklist",
-      "pros_cons",
     ]);
+    expect(enumValues).not.toContain("kpi_strip");
+    expect(enumValues).not.toContain("pros_cons");
     expect((fn.parameters as { required: string[] }).required).toEqual(["template"]);
   });
 
@@ -567,15 +482,15 @@ describe("system prompts mention create_miniapp (F1)", () => {
     ].join("\n");
   }
 
-  test("en prompts steer the tool and name all six templates", () => {
+  test("en prompts steer the tool and name all four templates", () => {
     const hay = promptText("en");
     expect(hay).toContain("create_miniapp");
     expect(hay).toContain("compare_data");
     expect(hay).toContain("quick_calculator");
     expect(hay).toContain("reading_quiz");
-    expect(hay).toContain("kpi_strip");
     expect(hay).toContain("checklist");
-    expect(hay).toContain("pros_cons");
+    expect(hay).not.toContain("kpi_strip");
+    expect(hay).not.toContain("pros_cons");
     // Prose JSON is framed as a fallback, not the primary instruction.
     expect(hay.toLowerCase()).toContain("fallback");
   });
@@ -586,8 +501,8 @@ describe("system prompts mention create_miniapp (F1)", () => {
     expect(hay).toContain("compare_data");
     expect(hay).toContain("quick_calculator");
     expect(hay).toContain("reading_quiz");
-    expect(hay).toContain("kpi_strip");
     expect(hay).toContain("checklist");
-    expect(hay).toContain("pros_cons");
+    expect(hay).not.toContain("kpi_strip");
+    expect(hay).not.toContain("pros_cons");
   });
 });
