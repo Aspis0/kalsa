@@ -55,7 +55,9 @@ pub(crate) struct Verdict {
 /// The Windows driver version is included because a driver update is exactly
 /// the kind of change that flips a working backend into a refusing one.
 /// Elsewhere the driver ships with the OS, which the platform name already
-/// stands for.
+/// stands for. A read that FAILED is [`DRIVER_UNREAD`], which
+/// [`fingerprint_holds`] treats as no reading at all: only two real
+/// versions can move a saved key.
 ///
 /// The ordered candidate list is included too: a verdict answers "which of
 /// these builds won", so a release that offers another build (the integrated
@@ -88,6 +90,35 @@ fn fingerprint_of(assets: &[&Asset], detected: Backend) -> String {
         std::env::consts::OS,
         driver_version()
     )
+}
+
+/// What a driver read that failed puts in a fingerprint: no reading, not
+/// a new fact. It appears in the driver field alone — every other field
+/// is a digest, an OS name, a detection or a launch name — so a key that
+/// carries it says "asked and not told".
+pub const DRIVER_UNREAD: &str = "unknown";
+
+/// Whether a saved key still answers for the current one: identical, or
+/// identical in every field but an engine driver neither side could read
+/// — the sentinel marks no reading, and no reading is not a change (a
+/// query blocked by a scan must not throw away what this machine
+/// proved). Two REAL versions still differ: a driver update keeps its
+/// power to re-prove. Any other difference — even one — moves the key.
+/// The rule is segment-wise over `|`, so it holds for the verdict's own
+/// key and for any key that embeds it (the tune's record key embeds two).
+pub fn fingerprint_holds(saved: &str, current: &str) -> bool {
+    if saved == current {
+        return true;
+    }
+    let saved_fields: Vec<&str> = saved.split('|').collect();
+    let current_fields: Vec<&str> = current.split('|').collect();
+    saved_fields.len() == current_fields.len()
+        && saved_fields
+            .iter()
+            .zip(current_fields.iter())
+            .all(|(saved, current)| {
+                saved == current || *saved == DRIVER_UNREAD || *current == DRIVER_UNREAD
+            })
 }
 
 /// wmic's query, exactly as it has always run.
@@ -144,7 +175,7 @@ fn driver_version() -> String {
         )
         .and_then(|text| parse_driver_versions(&text))
     })
-    .unwrap_or_else(|| "unknown".to_string())
+    .unwrap_or_else(|| DRIVER_UNREAD.to_string())
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -460,6 +491,35 @@ mod tests {
         assert_eq!(calls.get(), 2);
     }
 
+    /// The fingerprint's one wildcard, on the verdict's own key: an
+    /// unread driver is no reading, a real one against another real one
+    /// is a change, and every other field — the candidate list included —
+    /// stays strict.
+    #[test]
+    fn an_unread_driver_keeps_a_verdict_and_a_real_change_moves_it() {
+        let key = |driver: &str| format!("build|macos|DiscreteGpu|{driver}|vulkan,cpu");
+        assert!(fingerprint_holds(&key("31.0.15.3623"), &key(DRIVER_UNREAD)));
+        assert!(fingerprint_holds(&key(DRIVER_UNREAD), &key("31.0.15.3623")));
+        assert!(fingerprint_holds(&key(DRIVER_UNREAD), &key(DRIVER_UNREAD)));
+        assert!(
+            !fingerprint_holds(&key("31.0.15.3623"), &key("32.0.15.6109")),
+            "a driver update re-proves"
+        );
+        assert!(
+            !fingerprint_holds(
+                &key("31.0.15.3623"),
+                "build|macos|DiscreteGpu|31.0.15.3623|vulkan,cpu,integrated"
+            ),
+            "the candidate list is a field too"
+        );
+        assert!(
+            !fingerprint_holds(
+                &key("31.0.15.3623"),
+                "other|macos|DiscreteGpu|31.0.15.3623|vulkan,cpu"
+            ),
+            "any other difference moves it"
+        );
+    }
 
     #[test]
     fn both_producers_ask_the_video_controller_class_for_its_driver_versions() {

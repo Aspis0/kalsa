@@ -855,6 +855,65 @@ fn a_fingerprint_that_is_not_one_line_is_refused() {
     }
 }
 
+/// The key's one wildcard: an engine driver neither side could read is no
+/// reading, not a change — a query blocked by a scan must not throw away
+/// the tune — while two real versions still differ (an update re-tunes,
+/// the owner's call) and every other field stays strict. The rule is the
+/// runtime's; both reads of the key go through it.
+#[test]
+fn an_unread_driver_never_moves_the_key_and_a_real_change_does() {
+    let dir = Scratch::new("driver-key");
+    let key = |graphics: &str, processor: &str| {
+        format!(
+            "kalsa-tune fp v4|model={DIGEST}|ctx=8192|physical=Some(8)|logical=Some(16)|\
+             graphics=buildx|macos|DiscreteGpu|{graphics}|vulkan,cpu|\
+             processor=buildy|macos|Cpu|{processor}|cpu|draft=none"
+        )
+    };
+    let unread = kalsa_runtime::DRIVER_UNREAD;
+    let record = Record {
+        fingerprint: key("545.120", "545.120"),
+        ..sample()
+    };
+    save(&dir, DIGEST, &record).expect("saved beside a read driver");
+
+    for (graphics, processor, why) in [
+        (unread, "545.120", "the graphics read failed"),
+        ("545.120", unread, "the processor read failed"),
+        (unread, unread, "neither side read one"),
+    ] {
+        assert_eq!(
+            load(&dir, DIGEST, &key(graphics, processor)),
+            Some(record.clone()),
+            "{why}: no reading is not a change"
+        );
+    }
+    assert_eq!(
+        load(&dir, DIGEST, &key("546.40", "545.120")),
+        None,
+        "a real driver update re-tunes"
+    );
+    let moved_ctx = key("545.120", "545.120").replace("ctx=8192", "ctx=4096");
+    assert_eq!(
+        load(&dir, DIGEST, &moved_ctx),
+        None,
+        "every other field is strict"
+    );
+
+    // The marker reads by the same rule: a retry started on a machine
+    // whose read failed still finds its checkpoint; another driver reads
+    // as no marker at all.
+    save_marker(&dir, DIGEST, &record, Marker::Sweep).expect("marker");
+    assert!(
+        cut_marker(&dir, DIGEST, &key(unread, unread)).is_some(),
+        "the marker survives an unread driver"
+    );
+    assert!(
+        cut_marker(&dir, DIGEST, &key("546.40", "545.120")).is_none(),
+        "another driver reads as no marker"
+    );
+}
+
 /// The builder de-duplicates candidates, so `save` refuses a record
 /// that lists one launch twice — even carrying its own outcome.
 #[test]

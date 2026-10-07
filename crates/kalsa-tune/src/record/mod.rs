@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use kalsa_launch::Offload;
-use kalsa_runtime::ServerBackend;
+use kalsa_runtime::{fingerprint_holds, ServerBackend};
 
 use crate::candidates::Candidate;
 use crate::refusal::Refusal;
@@ -50,13 +50,17 @@ fn legacy_path(dir: &Path) -> PathBuf {
     dir.join("tuning.txt")
 }
 
-/// The record's key: everything whose change must force a re-tune. Opaque —
-/// save and load only compare it — and one function, so the walk, the tune
+/// The record's key: everything whose change must force a re-tune. Save
+/// and load compare it through `kalsa_runtime::fingerprint_holds` —
+/// field for field, with an engine driver neither side could read
+/// counted as no reading — and one function composes it, so the walk, the
+/// tune
 /// and the real walk can never compose it differently. The two engine
 /// strings come from `kalsa_runtime::fingerprint` (the verdict's own
 /// format: build digests | OS | detected backend | driver version), so a
-/// new engine build, a new driver or a different card moves the key even
-/// when the model and the context stand still.
+/// new engine build, a real driver update or a different card moves the
+/// key even when the model and the context stand still — while a driver
+/// read that failed moves nothing.
 ///
 /// `context_per_slot` is the window ONE SLOT is given, not the launch's
 /// total: the engine divides `--ctx-size` by `--parallel`, so the per-slot
@@ -472,7 +476,10 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
         .or_else(|_| fs::read_to_string(legacy_path(dir)))
         .ok()?;
     let (saved, record, cause) = parse(&text)?;
-    (saved == fingerprint && cause.is_none()).then_some(record)
+    // `fingerprint_holds`, not `==`: an engine driver read that failed
+    // must not by itself throw the record away (kalsa-runtime owns the
+    // rule; every other field stays strict).
+    (fingerprint_holds(&saved, fingerprint) && cause.is_none()).then_some(record)
 }
 
 /// The marker the last start left for this fingerprint: why it was
@@ -488,7 +495,7 @@ pub fn cut_marker(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<(
     let file = path(dir, model_digest)?;
     let text = fs::read_to_string(file).ok()?;
     let (saved, record, cause) = parse(&text)?;
-    if saved != fingerprint {
+    if !fingerprint_holds(&saved, fingerprint) {
         return None;
     }
     cause.map(|cause| (cause, record))

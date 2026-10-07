@@ -2436,7 +2436,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     arch: std::env::consts::ARCH,
                     cpu: kalsa_probe::brand_string(),
                     physical_cores: kalsa_probe::physical_cores(),
-                    logical_cores: std::thread::available_parallelism().ok().map(|n| n.get()),
+                    logical_cores: kalsa_probe::logical_cores(),
                     ram_total_bytes: startup::ram_bytes(),
                     ram_available_bytes: system::available_ram_bytes(),
                     bandwidth_bytes_per_second: measured

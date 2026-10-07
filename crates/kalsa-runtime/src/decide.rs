@@ -296,7 +296,10 @@ fn standing_verdict(
 ) -> Option<Verdict> {
     let verdict = verdict::load(root, verdict_slot(only))?;
     (only.is_none_or(|backend| verdict.backend == backend)
-        && verdict.fingerprint == verdict::fingerprint(platform, verdict.backend, detected))
+        && verdict::fingerprint_holds(
+            &verdict.fingerprint,
+            &verdict::fingerprint(platform, verdict.backend, detected),
+        ))
     .then_some(verdict)
 }
 

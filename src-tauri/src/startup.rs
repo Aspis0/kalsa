@@ -467,12 +467,10 @@ pub(crate) fn run(
             // the exe, argv, threads and offload, and it may never fail the
             // walk — every path inside it degrades to the plan as made.
             let mut memo = crate::tune_step::Memo {
-                cores: (
-                    kalsa_probe::physical_cores(),
-                    std::thread::available_parallelism()
-                        .ok()
-                        .map(|cores| cores.get()),
-                ),
+                // The probe's counts, both: available_parallelism answers
+                // for THIS process's affinity and moves with a limit — a
+                // key built on it re-tuned whenever one blinked.
+                cores: (kalsa_probe::physical_cores(), kalsa_probe::logical_cores()),
                 processor: None,
             };
             crate::tune_step::tune_launch(
@@ -483,7 +481,14 @@ pub(crate) fn run(
                 &mut memo,
                 progress,
                 |resolved, rule, prior, inner, checkpoint| {
-                    crate::tune_step::measure_with_rule(root, resolved, rule, prior, inner, checkpoint)
+                    crate::tune_step::measure_with_rule(
+                        root,
+                        resolved,
+                        rule,
+                        prior,
+                        inner,
+                        checkpoint,
+                    )
                 },
             );
             // The engine's facts, as the walk settles them — on every start,
