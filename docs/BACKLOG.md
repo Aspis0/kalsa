@@ -179,3 +179,9 @@ they are promoted.
 ## Tune "100%" batch (review of fb03c060, 454a1f14, 288c022f, 84da8025, 4e769a3c)
 
 - P3: the setup screen's "up to N min" adds 120 s to the 1500 s budget (`chat/src/surfaces/tuneProgress.ts:63-69`), but a lifetime started just before the budget runs out can spend up to ~670 s of request bounds (`crates/kalsa-tune/src/measure/mod.rs:62-68`), plus connect and DNS time. The real end can pass the ceiling the screen shows.
+
+## Desktop chat UI fixes (review of 59863ed5, 69dba19f, 3877864c)
+
+- P2: closing the files panel with its × on a wide window hides the focused button (`Panel.css` `.panel:not(.panel-open) { display: none }`) and nothing returns focus to the topbar Files toggle (`ChatSurface.tsx:203`). Keyboard users lose their place.
+- P3: the vision chip carries `title={visionLabel}` and the same text inside (`Composer.tsx:286-289`), so a chip that fits shows a duplicate tooltip.
+- P3: no verify check asserts that a closed panel is hidden on a wide window; the 1400 px attach test only checks the opened panel's row (`verify.mjs:1425-1435`).
