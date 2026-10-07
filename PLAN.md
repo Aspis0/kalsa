@@ -1836,8 +1836,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   S23 values (this device's skin per leg); another device needs its own (capability-table row is the natural home).
   **OWNER DECISION 2026-10-07 ("secondo me si")**: tau 10 + this heat weight become the one-copy default on the S23
   capability row (constants live in the row: per-device values); the shipped two-model path keeps v1, unchanged.
-  Next (after the owner's Paseo update): binding - vendor bump to `5cb7e14a0`+, the S23 row carries tau / weight /
-  per-token heat, `load_governor_one_model` sets them; host test; one audit. Session ended at battery 30 %.
+  DONE 2026-10-07 (GLM `0f744351`, binding `4b2051df` vendor 5cb7e14a0, `807e91d9` skels re-stamped, `1eb78bfe` the
+  S23 row carries tau 10 / weight 7 / heat 2.8, 3.2, 4.7; set only on a local copy in the one-copy branch, two-model
+  untouched incl. after a demotion; host tests 9/9, 8/8, 15/15; Android S23 .so links). Luna audit
+  `audit-binding-hoptuning-luna.md`: 5 findings, none blocking -> backlog. Binding pushed to the fork
+  (`spike/onecopy-legs` `1eb78bfe`); engine fork now at `5cb7e14a0` (I had left it at 482ae4717). App pin NOT moved.
+  Session ended at battery 30 %.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
