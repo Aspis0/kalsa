@@ -1784,8 +1784,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   teardown; F2 Hexagon globals restored after it; F3 one process-wide mutex over load and teardown; F4 one-copy only
   when the caller's `npu_lane_enabled`; F6 GPU facts from the device GPUOpenCL uses, row needs "Adreno" + "740"; F7
   every post-setter failure tears down, restores and demotes to the two-model load. Host gates green (engine
-  test-governor-legs incl. the refusal, test-leg-contexts on the 2.6B; binding table 7/7, thermal 8/8). Next: S23
-  functional check that the fence ADMITS the J(1) config (governor-bench arm L at `b60dbbfb0`).
+  test-governor-legs incl. the refusal, test-leg-contexts on the 2.6B; binding table 7/7, thermal 8/8).
+- **F5 fence admits J(1) on the S23** (2026-10-07, `step5-s23/raw/session8-f5fence-b60dbbfb0.grep`, phone PLUGGED so
+  functional only): governor-bench `b60dbbfb0` arm L `--legs npu --gen 64` builds the governor; the log shows the
+  HOST-W import and `HOST self-check token_embd.weight: PASS (aos kernel)`; KL vs the two-copy reference mean 0.000024,
+  max 0.000293, 0 diverged, PASS. Step 6 binding code is done on local `spike/onecopy-legs` (not pushed); the app pin
+  stays `3d8fc84a` until the owner moves it. Open: the R2 negative control on a non-row device (Jelly = UX session's).
 - **Leg speed, S23 07:00 (`step5-s23/raw/session7-speed-1c7f27f13.grep`)**: governor-bench forced single leg, no KL dump:
   NPU 20.0, GPU 16.9 tok/s (with the KL dump 19.5 / 15.5 - the dump is cheap). llama-bench at depth 512 (the bench's
   prefill depth), ABBA: two-copy NPU A 22.17 / 22.12 vs one-copy J(1) H 21.44 / 21.70 = **0.975**. So one-copy keeps the

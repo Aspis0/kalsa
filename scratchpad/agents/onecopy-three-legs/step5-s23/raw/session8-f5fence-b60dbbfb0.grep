@@ -1,0 +1,10 @@
+# S23 2026-10-07 08:10, engine b60dbbfb0 governor-bench sha 3c17f78caca0, arm L --legs npu --gen 64, PLUGGED (functional check only, no speed claim)
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+leg_summary arm=L rep=0 engine=npu tokens=63 us=3164805 tps=19.906
+kld arm=L ref=/data/local/tmp/govhtp/step5-s23/twocopy.gbl vocab=128000 tokens=64 compared=64 diverged=0 mean=0.000024 max=0.000293 kld_max=0.010000 status=PASS
