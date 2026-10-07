@@ -482,8 +482,8 @@ pub(crate) fn run(
                 main,
                 &mut memo,
                 progress,
-                |resolved, rule, prior, inner| {
-                    crate::tune_step::measure_with_rule(root, resolved, rule, prior, inner)
+                |resolved, rule, prior, inner, checkpoint| {
+                    crate::tune_step::measure_with_rule(root, resolved, rule, prior, inner, checkpoint)
                 },
             );
             // The engine's facts, as the walk settles them — on every start,

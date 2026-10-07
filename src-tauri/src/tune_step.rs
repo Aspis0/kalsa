@@ -164,7 +164,9 @@ pub(crate) fn tune_fingerprint(
 /// builder — the exe travels with its candidate, so the pairing cannot be
 /// lost between here and the spawn. `prior` is the withheld marker's
 /// trials: the lifetimes they proved measured never run again, so a retry
-/// spends its budget on what is left. The decode ask is the row's own
+/// spends its budget on what is left. `checkpoint` receives the trials
+/// after every finished lifetime for the caller to persist. The decode
+/// ask is the row's own
 /// sampling on the draft prompt with a fixed seed: one short chat text for
 /// every shape and setting, so every decode rate is the same work made,
 /// and the room ask rides each shape's first lifetime beside its off
@@ -175,6 +177,7 @@ pub(crate) fn measure_with_rule(
     rule: &ServerArgs,
     prior: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
     counts: &mut dyn FnMut(kalsa_tune::Report),
+    checkpoint: &mut dyn FnMut(&kalsa_tune::record::Trials),
 ) -> kalsa_tune::Tuned {
     let ask = kalsa_tune::Ask {
         prompt: kalsa_tune::DRAFT_PROMPT,
@@ -203,6 +206,7 @@ pub(crate) fn measure_with_rule(
             )
         },
         counts,
+        checkpoint,
     )
 }
 
@@ -228,6 +232,7 @@ pub(crate) fn tune_launch(
         &ServerArgs,
         &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         &mut dyn FnMut(kalsa_tune::Report),
+        &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned,
 ) {
     // The plan's own launch, kept before anything may rewrite it: the rule
@@ -261,6 +266,7 @@ fn tune_launch_inner(
         &ServerArgs,
         &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         &mut dyn FnMut(kalsa_tune::Report),
+        &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned,
 ) {
     let rule_args = prepared.info.args.clone();
@@ -343,10 +349,34 @@ fn tune_launch_inner(
             // exactly these) alike. A first tune has none.
             let prior: Vec<(kalsa_tune::Candidate, kalsa_tune::record::Kept)> = marker
                 .as_ref()
-                .map(|record| {
+                .map(|(_, record)| {
                     kalsa_tune::plan_prior(&record.trials, &resolved, rule_args.draft.is_some())
                 })
                 .unwrap_or_default();
+            // Every finished lifetime lands on disk as an `interrupted`
+            // marker — the same file and format the retry reads — so a
+            // window closed, a sleep or a reboot after any lifetime loses
+            // nothing, and the next start resumes from here. One small
+            // write per lifetime, never per report; the verdict's own
+            // save replaces this marker when the measure returns.
+            let mut checkpoint = |trials: &kalsa_tune::record::Trials| {
+                let record = kalsa_tune::record::Record {
+                    fingerprint: fingerprint.clone(),
+                    winner: None,
+                    trials: trials.to_vec(),
+                };
+                if let Err(error) = kalsa_tune::record::save_marker(
+                    root,
+                    &model_digest,
+                    &record,
+                    kalsa_tune::record::Marker::Interrupted,
+                ) {
+                    // Best effort: the next lifetime writes again, and a
+                    // checkpoint lost to the disk costs only a run that
+                    // then dies before the next one.
+                    log::warn!("the tune checkpoint could not be written: {error}");
+                }
+            };
             // The last stop this measure reported — its final word is said
             // AFTER the write below, when the disk has answered for it.
             let mut stop: Option<kalsa_tune::Report> = None;
@@ -367,7 +397,7 @@ fn tune_launch_inner(
                     retry_next: report.cut && owed,
                     kept_winner: false,
                 })
-            });
+            }, &mut checkpoint);
             let winner = tuned.winner;
             let record = kalsa_tune::record::Record {
                 fingerprint: fingerprint.clone(),
@@ -399,10 +429,11 @@ fn tune_launch_inner(
             // the budget stopped a lifetime in either pass, or nothing
             // replied — is written as the marker `load` refuses, so the
             // next start finishes the measuring; a second unfinished verdict is
-            // saved, pooled with what the first measured (below). The
-            // marker IS the "retried once": `cut_marker` reads it back, so
+            // saved, pooled with what the first measured (below). A VERDICT
+            // marker is the "retried once": `cut_marker` reads it back, so
             // a persistently missing build (like a slow or broken machine)
-            // spends the budget on one retry, not on every start. A shape
+            // spends the budget on one retry, not on every start — while an
+            // `interrupted` checkpoint never counts (see below). A shape
             // the bound skipped ran — its own entry stands — and is never a
             // hole here.
             let unfinished = if resolved.len() != candidates.len() {
@@ -430,10 +461,16 @@ fn tune_launch_inner(
             } else {
                 (record, winner)
             };
-            // What the stop still owes, decided BEFORE the write: a marker
-            // path, no marker spent on this fingerprint yet.
-            let owed_still = unfinished.is_some() && marker.is_none();
-            let staged = match (unfinished, marker.is_some()) {
+            // What the stop still owes, decided BEFORE the write. The one
+            // retry the rule spends is measured in UNFINISHED VERDICTS:
+            // an `interrupted` marker is a run the app never finished, no
+            // verdict was reached — it withholds again instead of saving
+            // early, so closing the app twice keeps both attempts' progress.
+            let retried_once = marker.as_ref().is_some_and(|(cause, _)| {
+                *cause != kalsa_tune::record::Marker::Interrupted
+            });
+            let owed_still = unfinished.is_some() && !retried_once;
+            let staged = match (unfinished, retried_once) {
                 (Some(cause), false) => {
                     log::info!(
                         "the tune's verdict is unfinished ({cause:?}; {}/{} candidates ran); withheld once — the next start finishes the measuring",

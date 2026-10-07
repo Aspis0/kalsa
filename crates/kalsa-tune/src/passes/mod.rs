@@ -17,7 +17,7 @@ mod resume;
 pub use self::resume::plan_prior;
 use self::resume::{Resume, Seeded};
 use crate::candidates::Candidate;
-use crate::record::Kept;
+use crate::record::{Kept, Trials};
 use crate::refusal::Refusal;
 use crate::score::{
     best_rate, decode_seconds, prefill_seconds, reply_winner, Reply, Winner, TIE_BAND,
@@ -98,6 +98,12 @@ pub struct Tuned {
 /// never runs again, so on a retry the plan, the budget and the reports
 /// below are only about what is left; a lifetime that never got its
 /// answer (the budget cut it, the spawn failed) runs like any other.
+///
+/// `checkpoint` receives the trials whole after every finished lifetime —
+/// the caller writes them to disk there, so a run that dies later keeps
+/// every lifetime it already measured. It is called on closes only, never
+/// on plan-lowering or budget reports: one write per lifetime, none per
+/// progress tick.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn tune<P, D>(
     shapes: &[(Candidate, PathBuf)],
@@ -106,6 +112,7 @@ pub(crate) fn tune<P, D>(
     budget: Duration,
     since_start: impl Fn() -> Duration,
     progress: &mut dyn FnMut(Report),
+    checkpoint: &mut dyn FnMut(&Trials),
     mut first: P,
     mut decode: D,
 ) -> Tuned
@@ -224,6 +231,9 @@ where
             candidate: done,
             cut: false,
         });
+        // The lifetime is finished and its entry is in: the disk gets the
+        // picture as it stands, so a run that dies after this keeps it.
+        checkpoint(&trials);
     }
 
     // Pass two: the drafted sweeps — the off-winner's first, then every
@@ -353,6 +363,10 @@ where
                     candidate: done,
                     cut: false,
                 });
+                // Finished and entered: the checkpoint lands between
+                // lifetimes, never per report — the budget's own reports
+                // carry no write.
+                checkpoint(&trials);
                 ends
             };
             if stop {

@@ -45,6 +45,7 @@ fn the_winner_and_the_faster_reading_shapes_are_swept_first_and_only_those() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             let (prompt, decode) = surface_rates(shape);
             first(prompt, decode)
@@ -117,6 +118,7 @@ fn a_winner_that_reads_best_leaves_the_other_shapes_their_off_entries_only() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
                 first(1500.0, 50.0)
@@ -168,6 +170,7 @@ fn the_prefill_bound_skips_a_swept_shape_whose_history_no_longer_fits_the_band()
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| match (shape.backend, shape.threads) {
             (ServerBackend::Cpu, Some(16)) => first(20.0, 13.0),
             (ServerBackend::Vulkan, _) => first(25.0, 4.0),
@@ -242,6 +245,7 @@ fn a_shape_whose_off_decode_refused_leaves_its_sweep_out_of_the_plan() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
                 Ok(First {

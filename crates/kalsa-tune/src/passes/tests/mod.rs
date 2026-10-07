@@ -93,6 +93,7 @@ fn every_shape_takes_one_first_lifetime_and_then_its_drafted_sweep() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             firsts.borrow_mut().push(*shape);
             reading_ahead(shape)
@@ -147,6 +148,7 @@ fn the_off_number_comes_from_the_first_lifetime() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
+        &mut |_| {},
         |shape, _| {
             firsts.borrow_mut().push(*shape);
             first(60.0, 31.0)
@@ -196,6 +198,7 @@ fn a_hopeless_shapes_sweep_leaves_the_plan_and_the_record_whole() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             // The card's history is two seconds; the processors' are
             // hundreds — more than the card's whole reply below.
@@ -273,6 +276,7 @@ fn a_shape_that_reads_slower_than_the_winner_is_not_swept() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
+        &mut |_| {},
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
                 first(1000.0, 100.0)
@@ -313,6 +317,7 @@ fn the_card_that_decodes_faster_but_waits_longer_loses() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
+        &mut |_| {},
         |shape, _| match (shape.backend, shape.threads) {
             (ServerBackend::Vulkan, _) => first(60.0, 10.0),
             (_, Some(16)) => first(300.0, 8.0),
@@ -340,6 +345,7 @@ fn a_drafter_on_a_shape_that_loses_the_decode_race_wins_the_room() {
         &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
+        &mut |_| {},
         &mut |_| {},
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
@@ -381,6 +387,7 @@ fn a_refused_candidate_falls_to_the_best_processor() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             if shape.backend == ServerBackend::Vulkan {
                 Err(Refusal::NotReady)
@@ -444,6 +451,7 @@ fn a_launch_without_a_drafter_is_complete_after_the_first_lifetime() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
+        &mut |_| {},
         |_, _| first(100.0, 40.0),
         |_, _| panic!("no drafter, no drafted lifetime"),
     );
@@ -477,6 +485,7 @@ fn every_candidate_reports_a_start_and_a_close_with_its_index_and_the_total() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
         |shape, _| reading_ahead(shape),
         |_, _| Ok(vec![150.0]),
     );
@@ -518,6 +527,7 @@ fn every_candidate_reports_a_start_and_a_close_with_its_index_and_the_total() {
 }
 
 mod budget;
+mod checkpoint;
 mod resume;
 mod retry;
 mod stop;

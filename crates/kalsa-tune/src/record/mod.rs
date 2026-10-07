@@ -118,6 +118,11 @@ pub enum Kept {
     },
 }
 
+/// The trials as a callback receives them: one kept result per launch —
+/// the shape [`crate::plan_prior`] filters, the passes report after every
+/// finished lifetime and the checkpoint persists.
+pub type Trials = [(Candidate, Kept)];
+
 /// One tune's result, kept until the fingerprint moves: the winner with
 /// its reply, and every candidate's own numbers or cause — the app must
 /// show the wait it chose, so the trials travel with the choice. An
@@ -234,6 +239,15 @@ pub enum Marker {
     /// Some candidate's build never resolved, so its shapes never ran:
     /// the dropped hole the next start gets one chance to fill.
     Unresolved,
+    /// The run never finished: the app closed, slept or rebooted mid-tune,
+    /// and the checkpoint holds the lifetimes measured so far. Not an
+    /// unfinished verdict — no verdict was reached — so it never spends
+    /// the one retry the rule owes: every interruption keeps its progress
+    /// and lets the next start withhold again. The cause name is its own
+    /// because the file must read what actually happened; an older build
+    /// reads an unknown name as no file at all (a full re-tune there —
+    /// the safe direction).
+    Interrupted,
 }
 
 impl Marker {
@@ -243,6 +257,20 @@ impl Marker {
             Marker::PassOne => "first",
             Marker::Refused => "refused",
             Marker::Unresolved => "unresolved",
+            Marker::Interrupted => "interrupted",
+        }
+    }
+
+    /// The marker a `cut=<cause>` line names, and none another does — one
+    /// closed name per cause, on the way out and on the way in.
+    fn from_cause(cause: &str) -> Option<Marker> {
+        match cause {
+            "sweep" => Some(Marker::Sweep),
+            "first" => Some(Marker::PassOne),
+            "refused" => Some(Marker::Refused),
+            "unresolved" => Some(Marker::Unresolved),
+            "interrupted" => Some(Marker::Interrupted),
+            _ => None,
         }
     }
 }
@@ -253,7 +281,9 @@ impl Marker {
 /// the measuring — only the lifetimes no marker proved measured — and a
 /// second unfinished verdict is saved by [`save`] as it stands, which is
 /// what keeps a slow or broken machine from spending the whole budget on
-/// every start forever.
+/// every start forever. [`Marker::Interrupted`] is written the same way,
+/// by the checkpoint after every finished lifetime: same file, same
+/// format, one honest cause.
 pub fn save_marker(
     dir: &Path,
     model_digest: &str,
@@ -403,22 +433,27 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
     let text = fs::read_to_string(path(dir, model_digest)?)
         .or_else(|_| fs::read_to_string(legacy_path(dir)))
         .ok()?;
-    let (saved, record, cut) = parse(&text)?;
-    (saved == fingerprint && !cut).then_some(record)
+    let (saved, record, cause) = parse(&text)?;
+    (saved == fingerprint && cause.is_none()).then_some(record)
 }
 
-/// The marker the last start left for this fingerprint, with the trials it
-/// measured: [`load`] refuses it as a verdict, and the retry plans from
-/// the measurements themselves — every lifetime they proved measured
-/// keeps its entry and never runs again, and a retry that measures
-/// nothing keeps the first attempt's winner instead of replacing it with
-/// a record of refusals. A record for another fingerprint, a torn file, or
+/// The marker the last start left for this fingerprint: why it was
+/// withheld, and the trials it measured. [`load`] refuses it as a
+/// verdict, and the retry plans from the measurements themselves — every
+/// lifetime they proved measured keeps its entry and never runs again,
+/// and a retry that measures nothing keeps the first attempt's winner
+/// instead of replacing it with a record of refusals. The cause tells
+/// the walk whether the one retry was already spent (`Marker::Interrupted`
+/// never spends it). A record for another fingerprint, a torn file, or
 /// no marker at all answers none.
-pub fn cut_marker(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record> {
+pub fn cut_marker(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<(Marker, Record)> {
     let file = path(dir, model_digest)?;
     let text = fs::read_to_string(file).ok()?;
-    let (saved, record, cut) = parse(&text)?;
-    (cut && saved == fingerprint).then_some(record)
+    let (saved, record, cause) = parse(&text)?;
+    if saved != fingerprint {
+        return None;
+    }
+    cause.map(|cause| (cause, record))
 }
 
 /// Whether the last start's tune for this fingerprint left an unfinished
@@ -495,9 +530,9 @@ pub fn load_by_model(dir: &Path, model_digest: &str) -> Option<Record> {
 }
 
 /// The file's whole meaning: the fingerprint it claims, the record it
-/// holds, and whether it is a cut marker rather than a verdict. Shared by
+/// holds, and which marker it carries — or none for a verdict. Shared by
 /// every read, so none can grow a reading the others lack.
-fn parse(text: &str) -> Option<(String, Record, bool)> {
+fn parse(text: &str) -> Option<(String, Record, Option<Marker>)> {
     let mut lines = text.lines();
     // The magic must be the WHOLE first line: a version we do not know —
     // `kalsa-tune v5` with its separate off lifetime, today — is not ours,
@@ -506,7 +541,7 @@ fn parse(text: &str) -> Option<(String, Record, bool)> {
         return None;
     }
     let mut saved_fingerprint: Option<&str> = None;
-    let mut cut = false;
+    let mut cause: Option<Marker> = None;
     let mut trials: Vec<(Candidate, Kept)> = Vec::new();
     // The candidate being read: fields arrive in the order save writes
     // them (backend, threads?, offload, prompt-rate?, then exactly one of
@@ -633,12 +668,12 @@ fn parse(text: &str) -> Option<(String, Record, bool)> {
                 saved_fingerprint = Some(value);
             }
             "cut"
-                if !cut && saved_fingerprint.is_some() && trials.is_empty() && winner.is_none() =>
+                if cause.is_none()
+                    && saved_fingerprint.is_some()
+                    && trials.is_empty()
+                    && winner.is_none() =>
             {
-                if !matches!(value, "sweep" | "first" | "refused" | "unresolved") {
-                    return None; // one closed name per cause, like every other field
-                }
-                cut = true;
+                cause = Some(Marker::from_cause(value)?);
             }
             "winner-backend" if winner.is_none() => {
                 winner = Some(WinnerLine {
@@ -740,7 +775,7 @@ fn parse(text: &str) -> Option<(String, Record, bool)> {
             winner,
             trials,
         },
-        cut,
+        cause,
     ))
 }
 

@@ -53,6 +53,7 @@ fn a_sweep_marker_resumes_at_the_one_drafted_lifetime_left() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
         |_, _| panic!("the marker proved every first lifetime measured"),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -110,6 +111,7 @@ fn a_pass_one_marker_runs_the_missing_shape_then_pass_two() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             firsts.borrow_mut().push(*shape);
             first(25.0, 9.0)
@@ -167,6 +169,7 @@ fn a_cut_drafted_lifetime_is_rerun_not_counted_as_measured() {
             seen.borrow_mut()
                 .push((report.done, report.total, report.candidate))
         },
+        &mut |_| {},
         |_, _| panic!("the marker proved every first lifetime measured"),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -219,6 +222,7 @@ fn the_retry_plan_counts_only_the_lifetimes_left() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             assert_eq!(*shape, cpu(22), "only the shape the marker never answered");
             first(25.0, 9.0)

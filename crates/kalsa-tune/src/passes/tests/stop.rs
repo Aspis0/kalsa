@@ -63,6 +63,7 @@ fn a_setting_that_does_not_beat_off_ends_the_shapes_sweep() {
             seen.borrow_mut()
                 .push((report.done, report.total, report.candidate))
         },
+        &mut |_| {},
         |shape, _| surface_first(shape),
         |trial, _| {
             decodes.borrow_mut().push((trial.backend, trial.draft));
@@ -143,6 +144,7 @@ fn a_refused_draft_ends_the_shapes_sweep() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
+        &mut |_| {},
         |shape, _| surface_first(shape),
         |trial, _| {
             decodes.borrow_mut().push((trial.backend, trial.draft));
@@ -215,6 +217,7 @@ fn a_faster_setting_keeps_the_sweep_until_a_slower_one_arrives() {
             seen.borrow_mut()
                 .push((report.done, report.total, report.candidate))
         },
+        &mut |_| {},
         |shape, _| surface_first(shape),
         |trial, _| {
             decodes.borrow_mut().push((trial.backend, trial.draft));
@@ -291,6 +294,7 @@ fn a_startup_refusal_does_not_end_the_shapes_sweep() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| surface_first(shape),
         |trial, _| {
             decodes.borrow_mut().push((trial.backend, trial.draft));

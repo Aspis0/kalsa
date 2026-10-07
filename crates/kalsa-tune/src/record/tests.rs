@@ -431,12 +431,19 @@ fn the_retry_pool_keeps_one_entry_per_candidate_and_the_better_reply() {
 /// An unfinished verdict is written as a marker: the same record and one
 /// `cut=<cause>` line, which the launch read refuses (the next start must
 /// measure again) while `cut_before` and the display read still see it,
-/// for every cause the marker carries.
+/// for every cause the marker carries — the interruption included, which
+/// no verdict reached and which never spends the one retry.
 #[test]
 fn a_marker_is_refused_as_a_verdict_and_read_as_a_marker() {
     let dir = Scratch::new("cut-marker");
     let record = sample();
-    for cause in [Marker::Sweep, Marker::PassOne, Marker::Refused, Marker::Unresolved] {
+    for cause in [
+        Marker::Sweep,
+        Marker::PassOne,
+        Marker::Refused,
+        Marker::Unresolved,
+        Marker::Interrupted,
+    ] {
         save_marker(&dir, DIGEST, &record, cause).expect("marker");
         assert_eq!(
             load(&dir, DIGEST, &record.fingerprint),
@@ -449,8 +456,8 @@ fn a_marker_is_refused_as_a_verdict_and_read_as_a_marker() {
         );
         assert_eq!(
             cut_marker(&dir, DIGEST, &record.fingerprint),
-            Some(record.clone()),
-            "{cause:?}: and with the trials a retry may keep"
+            Some((cause, record.clone())),
+            "{cause:?}: and with the cause and the trials a retry may keep"
         );
         assert!(
             load_by_model(&dir, DIGEST).is_some(),

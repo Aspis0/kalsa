@@ -377,7 +377,7 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("a kept record must not measure"),
+        |_, _, _, _, _| panic!("a kept record must not measure"),
     );
 
     assert!(
@@ -424,7 +424,7 @@ fn a_second_seat_keeps_the_record_and_launches_the_new_plan() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut stubbed(),
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let best = resolved[0].0;
             tuned(
@@ -451,7 +451,7 @@ fn a_second_seat_keeps_the_record_and_launches_the_new_plan() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut stubbed(),
         &mut progress,
-        |_, _, _, _| panic!("the second seat's start must answer from the record"),
+        |_, _, _, _, _| panic!("the second seat's start must answer from the record"),
     );
     assert!(
         matches!(two_seats.info.tune, Some(Tune::Measured(_))),
@@ -497,7 +497,7 @@ fn a_smaller_per_slot_window_still_misses_the_record() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut stubbed(),
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let best = resolved[0].0;
             tuned(
@@ -519,7 +519,7 @@ fn a_smaller_per_slot_window_still_misses_the_record() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut stubbed(),
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             measured.set(true);
             counts(all_done(resolved.len()));
             let best = resolved[0].0;
@@ -570,7 +570,7 @@ fn a_refused_tune_is_not_saved_and_the_rule_stands() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts: &mut dyn FnMut(kalsa_tune::Report)| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             tuned(
                 resolved
@@ -649,7 +649,7 @@ fn a_single_candidate_is_skipped_and_never_measured() {
         (ServerBackend::Cpu, PathBuf::from("/main-cpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("one candidate must not be measured"),
+        |_, _, _, _, _| panic!("one candidate must not be measured"),
     );
 
     assert!(
@@ -850,7 +850,7 @@ fn a_processor_fallback_still_tunes_the_graphics_candidate() {
         (ServerBackend::Vulkan, PathBuf::from("/gpu-exe")),
         &mut memo,
         &mut progress,
-        |resolved, rule, _, counts| {
+        |resolved, rule, _, counts, _| {
             counts(all_done(resolved.len()));
             *captured.borrow_mut() = resolved.to_vec();
             assert!(
@@ -900,6 +900,7 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(all_done(resolved.len()));
         let best = resolved[2].0;
@@ -980,7 +981,7 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("the saved record answers; nothing measures"),
+        |_, _, _, _, _| panic!("the saved record answers; nothing measures"),
     );
     assert_eq!(third.info.args.threads, pooled_threads);
     assert!(
@@ -990,6 +991,109 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// An interrupted attempt never spends the one retry. The checkpoint
+/// marker (cause `interrupted`) is a run the app never finished, not a
+/// verdict — so a budget cut after it withholds AGAIN, replacing it with
+/// the honest `sweep` marker, and only a second unfinished verdict over a
+/// verdict marker is saved. Closing the app keeps the progress and never
+/// saves an unfinished verdict early.
+#[test]
+fn an_interrupted_marker_never_spends_the_one_retry() {
+    let dir = scratch("interrupted-retry");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut first = prepared("/main-gpu");
+    let digest = first.info.model_sha256.as_deref().unwrap().to_string();
+    let fingerprint = tune_fingerprint(&machine, &first.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+
+    // The checkpoint an interrupted run left behind: one lifetime held,
+    // no winner — this launch's own graphics candidate (the rule's 8
+    // threads, engine-fitted), so the seam keeps it.
+    let graphics = kalsa_tune::Candidate {
+        backend: ServerBackend::Vulkan,
+        threads: Some(8),
+        offload: Offload::EngineFitted,
+        draft: None,
+    };
+    let checkpoint = kalsa_tune::record::Record {
+        fingerprint: fingerprint.clone(),
+        winner: None,
+        trials: vec![replied(graphics, 60.0, 30.0)],
+    };
+    kalsa_tune::record::save_marker(
+        &dir,
+        &digest,
+        &checkpoint,
+        kalsa_tune::record::Marker::Interrupted,
+    )
+    .expect("the checkpoint");
+
+    // One budget cut per attempt: the seam answers the same way each time.
+    fn cut_measure(
+        resolved: &[(kalsa_tune::Candidate, PathBuf)],
+        _: &ServerArgs,
+        _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
+        counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
+    ) -> kalsa_tune::Tuned {
+        counts(all_done(resolved.len()));
+        let mut measured = tuned(vec![replied(resolved[0].0, 60.0, 30.0)], None);
+        measured.cut = true;
+        measured
+    }
+
+    // The cut after the interruption withholds: the interruption did not
+    // spend the retry, so the marker stands — now named for what this
+    // attempt actually was — and no verdict is saved.
+    tune_launch(
+        &mut first,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        cut_measure,
+    );
+    assert!(
+        kalsa_tune::record::load(&dir, &digest, &fingerprint).is_none(),
+        "an interruption never spent the retry: the cut verdict withholds"
+    );
+    let (cause, _) = kalsa_tune::record::cut_marker(&dir, &digest, &fingerprint)
+        .expect("still a marker");
+    assert_eq!(
+        cause,
+        kalsa_tune::record::Marker::Sweep,
+        "the checkpoint was replaced by the honest verdict marker"
+    );
+
+    // The SECOND unfinished verdict — over a verdict marker — is saved,
+    // as the rule has always done.
+    let mut again = prepared("/main-gpu");
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        cut_measure,
+    );
+    assert!(
+        kalsa_tune::record::load(&dir, &digest, &fingerprint).is_some(),
+        "the second unfinished verdict saves"
+    );
+    assert!(!kalsa_tune::record::cut_before(&dir, &digest, &fingerprint));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 
 /// An all-refused tune is retried once and then stands: the first start
 /// measures, keeps only the marker and runs the rule; the second
@@ -1015,6 +1119,7 @@ fn an_all_refused_tune_is_retried_once_and_then_stands() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(all_done(resolved.len()));
         tuned(
@@ -1072,7 +1177,7 @@ fn an_all_refused_tune_is_retried_once_and_then_stands() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("the saved no-winner record answers; nothing measures"),
+        |_, _, _, _, _| panic!("the saved no-winner record answers; nothing measures"),
     );
     assert!(
         matches!(third.info.tune, Some(Tune::NoWinner(_))),
@@ -1116,6 +1221,7 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(all_done(resolved.len()));
         assert_eq!(resolved.len(), 1, "the processor candidates were dropped");
@@ -1183,7 +1289,7 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("the saved record answers; nothing measures"),
+        |_, _, _, _, _| panic!("the saved record answers; nothing measures"),
     );
     assert!(
         matches!(third.info.tune, Some(Tune::Measured(_))),
@@ -1261,7 +1367,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             measured.set(measured.get() + 1);
             counts(all_done(resolved.len()));
             // Complete: every candidate ran and the first replied, so the
@@ -1333,7 +1439,7 @@ fn a_panicking_tune_leaves_the_plan_standing() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("the measure exploded"),
+        |_, _, _, _, _| panic!("the measure exploded"),
     );
     assert_eq!(
         prepared.server.argv, rule.argv,
@@ -1404,7 +1510,7 @@ fn the_tune_passes_a_start_and_a_close_for_every_candidate_to_the_walk() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             // The production seam's shape, candidate by candidate: the
             // start report, then the close that answers it.
             for index in 0..resolved.len() {
@@ -1481,7 +1587,7 @@ fn the_cut_report_reaches_the_walk_untouched() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, counts| {
+        |_, _, _, counts, _| {
             // One candidate measured, then the budget: the plan still
             // names the two it owes.
             counts(kalsa_tune::Report {
@@ -1562,6 +1668,7 @@ fn both_cuts_report_whether_the_next_start_is_still_owed_a_measurement() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(kalsa_tune::Report {
             done: 1,
@@ -1671,7 +1778,7 @@ fn the_measure_receives_the_markers_trials_as_the_prior() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let mut measured = tuned(vec![replied(resolved[0].0, 60.0, 30.0)], None);
             measured.cut = true;
@@ -1680,6 +1787,7 @@ fn the_measure_receives_the_markers_trials_as_the_prior() {
     );
     let expected = kalsa_tune::record::cut_marker(&dir, &digest, &fingerprint)
         .expect("the first attempt was withheld as a marker")
+        .1
         .trials;
     assert!(!expected.is_empty(), "the marker carries what it measured");
     // The retry: the seam receives exactly those trials to skip.
@@ -1692,7 +1800,7 @@ fn the_measure_receives_the_markers_trials_as_the_prior() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, prior, counts| {
+        |resolved, _, prior, counts, _| {
             *handed.borrow_mut() = prior.to_vec();
             counts(all_done(resolved.len()));
             let best = resolved[0].0;
@@ -1721,7 +1829,7 @@ fn the_measure_receives_the_markers_trials_as_the_prior() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, prior, counts| {
+        |resolved, _, prior, counts, _| {
             fresh_handed.set(prior.is_empty());
             counts(all_done(resolved.len()));
             let best = resolved[0].0;
@@ -1777,7 +1885,7 @@ fn the_pool_restores_only_the_entries_the_plan_keeps() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let mut measured = tuned(
                 vec![
@@ -1806,7 +1914,7 @@ fn the_pool_restores_only_the_entries_the_plan_keeps() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, prior, counts| {
+        |resolved, _, prior, counts, _| {
             *handed.borrow_mut() = prior.to_vec();
             counts(all_done(resolved.len()));
             let best = resolved[0].0;
@@ -1877,6 +1985,7 @@ fn a_stop_whose_marker_cannot_be_written_promises_nothing_and_keeps_nothing() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(kalsa_tune::Report {
             done: 1,
@@ -1949,7 +2058,7 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, rule, _, counts| {
+        |resolved, rule, _, counts, _| {
             passes.set(passes.get() + 1);
             counts(all_done(resolved.len()));
             assert!(rule.draft.is_some(), "this plan ships a drafter");
@@ -2028,7 +2137,7 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("a kept record must not measure"),
+        |_, _, _, _, _| panic!("a kept record must not measure"),
     );
     assert!(
         again.server.argv.join(" ").contains("--spec-draft-n-max 3"),
@@ -2058,7 +2167,7 @@ fn a_failing_draft_candidate_loses() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let gpu = resolved[0].0;
             let processor = resolved
@@ -2101,7 +2210,7 @@ fn a_failing_draft_candidate_loses() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("a kept record must not measure"),
+        |_, _, _, _, _| panic!("a kept record must not measure"),
     );
     assert!(
         !again.server.argv.join(" ").contains("--model-draft"),
@@ -2133,7 +2242,7 @@ fn a_launch_without_a_drafter_measures_no_draft_lifetimes() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, rule, _, counts| {
+        |resolved, rule, _, counts, _| {
             passes.set(passes.get() + 1);
             counts(all_done(resolved.len()));
             assert!(
@@ -2178,7 +2287,7 @@ fn off_wins_the_second_ask_even_though_the_grid_measured_it() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let gpu = resolved[0].0;
             let processor = resolved
@@ -2243,6 +2352,7 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(all_done(resolved.len()));
         let gpu = resolved[0].0;
@@ -2342,7 +2452,7 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |_, _, _, _| panic!("a kept record must not measure"),
+        |_, _, _, _, _| panic!("a kept record must not measure"),
     );
     assert!(third.server.argv.join(" ").contains("--spec-draft-n-max 2"));
     let _ = std::fs::remove_dir_all(&dir);
@@ -2373,6 +2483,7 @@ fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(all_done(resolved.len()));
         let best = resolved[0].0;
@@ -2392,6 +2503,7 @@ fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(all_done(resolved.len()));
         tuned(
@@ -2489,6 +2601,7 @@ fn a_slower_retry_cannot_erase_the_first_attempts_faster_winner() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(all_done(resolved.len()));
         let fast = resolved[0].0;
@@ -2509,6 +2622,7 @@ fn a_slower_retry_cannot_erase_the_first_attempts_faster_winner() {
         _: &ServerArgs,
         _: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         counts: &mut dyn FnMut(kalsa_tune::Report),
+        _: &mut dyn FnMut(&kalsa_tune::record::Trials),
     ) -> kalsa_tune::Tuned {
         counts(all_done(resolved.len()));
         let slower = resolved[1].0;
@@ -2598,7 +2712,7 @@ fn an_unresolvable_draft_exe_leaves_the_tune_unsaved() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let ghost = kalsa_tune::Candidate {
                 backend: ServerBackend::Cpu,
@@ -2648,7 +2762,7 @@ fn the_processor_leg_carries_the_drafter_pinned_to_the_cpu() {
         (ServerBackend::Metal, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let fitted = resolved
                 .iter()
@@ -2722,7 +2836,7 @@ fn an_integrated_gpu_measures_the_mixed_shape_and_keeps_a_processor_fallback() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             let by = |offload: Offload| {
                 resolved
@@ -2787,7 +2901,7 @@ fn a_dedicated_gpu_is_not_offered_the_mixed_shape() {
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
         &mut progress,
-        |resolved, _, _, counts| {
+        |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
             assert!(
                 resolved

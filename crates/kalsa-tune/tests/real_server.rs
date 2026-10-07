@@ -100,7 +100,7 @@ fn the_metal_build_measures_full_and_forced_off() {
         chat: true,
         min_generated: kalsa_tune::DRAFT_MIN_GENERATED,
     };
-    let tuned = measure_tune(&resolved, &root, &ask, false, &[], build, &mut |_| {});
+    let tuned = measure_tune(&resolved, &root, &ask, false, &[], build, &mut |_| {}, &mut |_| {});
 
     let mut lines = Vec::new();
     let mut scored = 0usize;

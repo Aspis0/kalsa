@@ -53,6 +53,7 @@ fn a_saved_startup_refusal_is_rerun_not_skipped() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |shape, _| {
             firsts.borrow_mut().push(*shape);
             first(30.0, 12.0)
@@ -130,6 +131,7 @@ fn a_saved_draft_refusal_that_answered_ends_the_sweep() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |_, _| panic!("every first lifetime is answered"),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -187,6 +189,7 @@ fn a_saved_setting_slower_than_off_ends_the_sweep() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |_, _| panic!("every first lifetime is answered"),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -238,6 +241,7 @@ fn an_entry_outside_the_current_plan_is_ignored() {
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        &mut |_| {},
         |_, _| panic!("every first lifetime is answered"),
         |_, _| Ok(vec![80.0]),
     );

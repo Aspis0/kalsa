@@ -30,6 +30,7 @@ fn a_shape_cut_before_its_first_lifetime_leaves_the_picture_incomplete() {
             }
         },
         &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
         |_, _| first(100.0, 50.0),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -74,7 +75,10 @@ fn a_shape_cut_before_its_first_lifetime_leaves_the_picture_incomplete() {
         "the shape that never began is absent, not invented"
     );
     assert_eq!(
-        seen.borrow().iter().map(|r| (r.done, r.total, r.candidate, r.cut)).collect::<Vec<_>>(),
+        seen.borrow()
+            .iter()
+            .map(|r| (r.done, r.total, r.candidate, r.cut))
+            .collect::<Vec<_>>(),
         vec![
             (0, 12, 1, false),
             (1, 12, 1, false),
@@ -113,6 +117,7 @@ fn a_cut_between_the_passes_leaves_every_shape_with_an_entry() {
             }
         },
         &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
         |_, _| first(100.0, 50.0),
         |trial, _| {
             decodes.borrow_mut().push(trial.draft);
@@ -170,6 +175,7 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
             }
         },
         &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
         // The off decode sits below the drafted one, so the settings run
         // until the budget — not the sweep's stop rule — ends this shape.
         |_, _| first(100.0, 30.0),
@@ -185,7 +191,10 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
     );
     assert!(tuned.winner.is_some(), "what ran still decides");
     assert_eq!(
-        seen.borrow().iter().map(|r| (r.done, r.total, r.candidate, r.cut)).collect::<Vec<_>>(),
+        seen.borrow()
+            .iter()
+            .map(|r| (r.done, r.total, r.candidate, r.cut))
+            .collect::<Vec<_>>(),
         vec![
             (0, 4, 1, false),
             (1, 4, 1, false),
@@ -225,6 +234,7 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
             }
         },
         &mut |report| seen.borrow_mut().push(report),
+        &mut |_| {},
         |shape, _| {
             // Every shape's first lifetime runs (ticks 1..3); the
             // processors read far slower than the card, so their sweeps
@@ -256,7 +266,10 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
         .iter()
         .all(|(candidate, kept)| candidate.draft.is_none() && matches!(kept, Kept::Replied(_))));
     assert_eq!(
-        seen.borrow().iter().map(|r| (r.done, r.total, r.candidate, r.cut)).collect::<Vec<_>>(),
+        seen.borrow()
+            .iter()
+            .map(|r| (r.done, r.total, r.candidate, r.cut))
+            .collect::<Vec<_>>(),
         vec![
             (0, 12, 1, false),
             (1, 12, 1, false),
