@@ -69,6 +69,8 @@ session; the wire stays unchanged unless the owner agrees.
 Rebuild the Mac app from brain while unlocked, then relaunch it behind the lock: 8131 must listen
 and the Jelly must dial without anyone unlocking (fix 22eed856 + bec3614a).
 
+**Result 2026-10-07 (Mac side PASS):** build 8eb24932 launched at 13:18:52Z with the screen locked (`CGSSessionScreenIsLocked` true) and no page running: engine ready 13:19:07Z, `door started: 127.0.0.1:8131, 3 seats` 13:19:09Z, 8131 listening, no WARN/ERROR. Phone dial still to check (the Jelly was not on adb; the S23 is the coordinator's).
+
 ### 8. Phone tests (Jelly, app main 67c3eea5 or later)
 Owner 2026-10-06: the iOS/UX session is archived and these tests are mine. The Android background
 behaviour (reply in background, iroh stop after 30 s) is decided and stays as is. Open:
