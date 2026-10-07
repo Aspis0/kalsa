@@ -1840,8 +1840,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   S23 row carries tau 10 / weight 7 / heat 2.8, 3.2, 4.7; set only on a local copy in the one-copy branch, two-model
   untouched incl. after a demotion; host tests 9/9, 8/8, 15/15; Android S23 .so links). Luna audit
   `audit-binding-hoptuning-luna.md`: 5 findings, none blocking -> backlog. Binding pushed to the fork
-  (`spike/onecopy-legs` `1eb78bfe`); engine fork now at `5cb7e14a0` (I had left it at 482ae4717). App pin NOT moved.
-  Session ended at battery 30 %.
+  (`spike/onecopy-legs` `1eb78bfe`); engine fork now at `5cb7e14a0` (I had left it at 482ae4717).
+- **2026-10-07 owner "procedi" + "perche non main?" + "non voglio branch che si perdono"**: binding live line
+  `feat/governor-platform-status` fast-forwarded 7c26e272 -> `1eb78bfe` and the duplicate `spike/onecopy-legs` deleted
+  on the fork; **app main `dddc8e4b`** pins kalsa.rn `1eb78bfe` / kalsallama `5cb7e14a0` (gates EXIT=0: npm ci,
+  assert-engine-provenance 1179 files, tsc 0 errors, apk.yml harness block, jest src/engine 1210/1210); kalsa-brain
+  session 67f706c4 told before and after (no collision; it rebases its mDNS work on top). apk.yml run 37701867548
+  dispatched on main for the in-app S23 check. Still to land in main afterwards: engine `feat/governor-onecopy` ->
+  engine main, binding live line -> binding main. Jelly R2 negative control: right before/after kalsa-brain's Jelly
+  session tonight (owner holds the Jelly).
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
