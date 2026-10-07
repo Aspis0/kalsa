@@ -868,15 +868,19 @@ fn offload_from_name(name: &str) -> Option<Offload> {
 }
 
 /// Throw the model's record away: the tuned launch just failed where the
-/// rule succeeded, so whatever the file said is not what this machine
-/// wants — the next start must measure again. The legacy single file goes
-/// only when it holds THIS model's record (its fingerprint says whose it
-/// is): a retry for one model must not erase another's legacy. Best
-/// effort: no record is already the goal, and a missing file is not an
-/// error anyone should see.
+/// rule succeeded — twice in a row (see [`launch_failed`]) — so whatever
+/// the file said is not what this machine wants, and the next start must
+/// measure again. The failure count beside the record goes with it, and
+/// the legacy single file only when it holds THIS model's record (its
+/// fingerprint says whose it is): a retry for one model must not erase
+/// another's legacy. Best effort: no record is already the goal, and a
+/// missing file is not an error anyone should see.
 pub fn invalidate(dir: &Path, model_digest: &str) {
     if let Some(file) = path(dir, model_digest) {
         let _ = fs::remove_file(file);
+    }
+    if let Some(counter) = failures_path(dir, model_digest) {
+        let _ = fs::remove_file(counter); // the streak goes with the record
     }
     let holds_this_model = fs::read_to_string(legacy_path(dir))
         .ok()
@@ -884,6 +888,56 @@ pub fn invalidate(dir: &Path, model_digest: &str) {
         .is_some_and(|(saved, _, _)| names_model(&saved, model_digest));
     if holds_this_model {
         let _ = fs::remove_file(legacy_path(dir));
+    }
+}
+
+/// How many consecutive failures of the tuned launch the record survives.
+/// One is a slow start — a scan holding the exe, a cold disk — and the
+/// rule runs THIS launch while the record keeps its chance; two is a
+/// launch this machine cannot bring up, and the next start tunes again.
+const LAUNCH_FAILURE_LIMIT: u32 = 2;
+
+/// The failure count beside the record: same name, `.launch-failures`
+/// instead of `.txt` — a neighbour no reader mistakes for a record (every
+/// read names the `.txt` exactly).
+fn failures_path(dir: &Path, model_digest: &str) -> Option<PathBuf> {
+    Some(path(dir, model_digest)?.with_extension("launch-failures"))
+}
+
+/// One more consecutive failure of the tuned launch to come up, persisted
+/// beside the record so the streak survives the restart. The SECOND one
+/// throws the record (and the count) away and returns `true` — the caller
+/// says so; the first changes no verdict, only the number. Best effort: a
+/// count that cannot be written only forgets the streak, never the record.
+pub fn launch_failed(dir: &Path, model_digest: &str) -> bool {
+    let Some(target) = failures_path(dir, model_digest) else {
+        return false; // an unusable digest names no record to protect
+    };
+    let count = fs::read_to_string(&target)
+        .ok()
+        .and_then(|text| text.trim().parse::<u32>().ok())
+        .unwrap_or(0)
+        .saturating_add(1);
+    if count >= LAUNCH_FAILURE_LIMIT {
+        invalidate(dir, model_digest);
+        return true;
+    }
+    // The record's own temp-and-rename: a torn count reads as the streak
+    // it replaced's absence — at worst the next failure counts as a first.
+    let temp = temp_path(&target);
+    let landed = fs::write(&temp, format!("{count}\n")).and_then(|()| fs::rename(&temp, target));
+    if landed.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    false
+}
+
+/// The tuned launch came up: whatever failed before, the streak of
+/// consecutive failures is over. Called on a successful start, the count
+/// file simply goes.
+pub fn launch_succeeded(dir: &Path, model_digest: &str) {
+    if let Some(target) = failures_path(dir, model_digest) {
+        let _ = fs::remove_file(&target);
     }
 }
 

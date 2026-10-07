@@ -1673,10 +1673,15 @@ fn settle_walk(
                 .then(|| waiter.settle())
                 .flatten();
             let mut last = settled.clone();
+            // Which launch each fallback follows: the count below is
+            // about the RECORD's own launch, so a later failure of the
+            // rule's config (which the record cannot fix) never counts.
+            let mut fell_back_from_tuned = false;
             if let Some(relaunch) =
                 attempt_retry(brain, stops_seen, settled.clone(), tuned_changed, rule)
             {
-                (outcome, last) = adopt_relaunch(&mut prepared, relaunch);
+                (outcome, last) = adopt_relaunch(&mut prepared, relaunch, true);
+                fell_back_from_tuned = true;
             }
             // A graphics launch that still did not come up — a driver that
             // crashes or hangs at model load — hands the slot, once, to the
@@ -1689,12 +1694,21 @@ fn settle_walk(
             if let Some(relaunch) =
                 attempt_retry(brain, stops_seen, last, processor_differs, processor)
             {
-                outcome = adopt_relaunch(&mut prepared, relaunch).0;
+                outcome = adopt_relaunch(&mut prepared, relaunch, !fell_back_from_tuned).0;
             }
             // The per-start speed check, still inside the walk: while the
             // walk holds `turning_on` no NEW door raise happens — one
             // already open stays open.
             if matches!(settled, Some(StartSettled::Up)) {
+                // The launch this record describes came up: whatever
+                // failed before, the consecutive-failure streak is over
+                // before the speed check below gets its say.
+                if let Some(model_digest) = prepared.info.model_sha256.as_deref() {
+                    kalsa_tune::record::launch_succeeded(
+                        &kalsa_runtime::runtime_root(),
+                        model_digest,
+                    );
+                }
                 let restart =
                     |config: ServerConfig| restart_after_check(brain, stops_seen, config);
                 match speed_check(
@@ -1818,17 +1832,29 @@ fn attempt_retry(
     Some((waiter, config, args))
 }
 
-/// Waits out a relaunch and makes the record describe what now runs: the
-/// failed launch's tune record is dropped (best effort — a delete that fails
-/// leaves it, and the next start fails and relaunches the same way) and the
-/// args and config are the relaunch's. Returns the relaunch's own verdict and
-/// settle; the settle is awaited here so the walk's guard outlives it.
+/// Waits out a relaunch and makes the panel describe what now runs — the
+/// args and config are the relaunch's, while the RECORD stays: a launch
+/// the tune chose that failed to come up once is a slow start (a scan
+/// holding the exe, a cold disk), not proof the tune was wrong, so the
+/// failure is counted beside the record instead of thrown away, and only
+/// the second consecutive one drops it (`kalsa_tune::record::
+/// launch_failed`). `record_launch_failed` says the launch that failed
+/// was the record's own — a fallback from the rule's config cannot blame
+/// the record. Returns the relaunch's own verdict and settle; the settle
+/// is awaited here so the walk's guard outlives it.
 fn adopt_relaunch(
     prepared: &mut startup::PreparedStart,
     (waiter, config, args): (StartWaiter, ServerConfig, kalsa_launch::ServerArgs),
+    record_launch_failed: bool,
 ) -> (StartOutcome, Option<StartSettled>) {
-    if let Some(model_digest) = prepared.info.model_sha256.as_deref() {
-        kalsa_tune::record::invalidate(&kalsa_runtime::runtime_root(), model_digest);
+    if record_launch_failed {
+        if let Some(model_digest) = prepared.info.model_sha256.as_deref() {
+            if kalsa_tune::record::launch_failed(&kalsa_runtime::runtime_root(), model_digest) {
+                log::warn!(
+                    "the tuned launch failed twice in a row; the record is dropped and this machine tunes again"
+                );
+            }
+        }
     }
     let outcome = waiter.outcome();
     let settled = (outcome == StartOutcome::Accepted)

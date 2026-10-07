@@ -428,6 +428,52 @@ fn the_retry_pool_keeps_one_entry_per_candidate_and_the_better_reply() {
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), Some(pooled));
 }
 
+/// The tuned launch's failure streak, beside the record: ONE failure
+/// keeps the record — a slow start under a scan must not cost the tune,
+/// the rule runs this launch and the record gets its next chance — a
+/// success resets the count, and only the SECOND consecutive failure
+/// throws the record away.
+#[test]
+fn a_tuned_launch_failing_once_keeps_the_record_and_twice_drops_it() {
+    let dir = Scratch::new("launch-failures");
+    let record = sample();
+    save(&dir, DIGEST, &record).expect("the verdict");
+
+    assert!(
+        !launch_failed(&dir, DIGEST),
+        "one failure: nothing is thrown away"
+    );
+    assert_eq!(
+        load(&dir, DIGEST, &record.fingerprint),
+        Some(record.clone()),
+        "the record stands after one failure"
+    );
+
+    launch_succeeded(&dir, DIGEST);
+    assert!(
+        !launch_failed(&dir, DIGEST),
+        "the success in between reset the streak: this is a first failure again"
+    );
+    assert!(
+        load(&dir, DIGEST, &record.fingerprint).is_some(),
+        "still kept"
+    );
+
+    assert!(
+        launch_failed(&dir, DIGEST),
+        "two in a row: the record chose a launch this machine cannot bring up"
+    );
+    assert_eq!(
+        load(&dir, DIGEST, &record.fingerprint),
+        None,
+        "the second consecutive failure drops it"
+    );
+    assert!(
+        !launch_failed(&dir, DIGEST),
+        "the count went with the record: the next failure is a first again"
+    );
+}
+
 /// An unfinished verdict is written as a marker: the same record and one
 /// `cut=<cause>` line, which the launch read refuses (the next start must
 /// measure again) while `cut_before` and the display read still see it,
