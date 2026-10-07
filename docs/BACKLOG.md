@@ -150,3 +150,18 @@ they are promoted.
 ## The door follows the engine from Rust (review of 22eed856)
 
 - P3: with no door up, every one-second tick re-reads the pairing store (`src-tauri/src/main.rs` `reconcile_door`, Tick → `start_door_if_paired`). A normal install always holds the host, so this only bites a store that is missing or unreadable: a file read a second for as long as the engine runs. Back off after an empty/failed read and retry on a pairing change.
+
+## Tune retry (review of 863b4a41)
+
+- P2: the tune line's "up to N min" ceiling is the budget plus 120 s (`chat/src/surfaces/tuneProgress.ts:63`), but the budget is checked only BEFORE a lifetime, and one lifetime's listed bounds add up to ~670 s (`crates/kalsa-tune/src/measure/mod.rs:62`). The last lifetime can overrun the shown ceiling by minutes. Either bound a lifetime hard or stop calling budget + 120 s a maximum.
+- P3: when the retry's normal save fails, the atomic write leaves the old marker in place (`crates/kalsa-tune/src/record/mod.rs:214`), so the next start retries again, while the page was told the retry was spent.
+- P3: the tune fingerprint (`record/mod.rs:83`) omits launch inputs that shape a measurement (batch, micro-batch, cache type, device, the rule's threads). Prior trials outside the current candidate set are now dropped, but a changed batch under the same candidates is still pooled.
+
+## mDNS on the desktop's iroh endpoint (review of f8e9129f)
+
+- P3: discovery queries every ~700 ms forever (`iroh-mdns-address-lookup` uses `Discoverer::new_interactive`, swarm-discovery 0.6.3 `lib.rs:247-250`), even when idle. Small on the desktop; on the phone it runs while the bridge runs. Slow the cadence after a first discovery window.
+- P3: on any LAN (café, hotel), the PC announces its node id, private addresses and port, and its relay URL. No hostname or label. Consider announcing only on networks the owner marks as home.
+- P3: mDNS records are unauthenticated. A LAN peer can inject a bad address for the PC's node id. iroh still authenticates the node key, so the worst case is a failed or slower dial. Prefer link-local candidates.
+- P3: if a discovery actor dies after bind (socket or interface error), LAN discovery stays dead until the endpoint is rebuilt. The relay still works.
+- P3: `crates/kalsa-iroh/tests/mdns_lan.rs` needs working multicast and waits up to 30 s where it is blocked.
+- P3 (from 6a43b5b5): the LAN discovery now lives for the whole process, so while the door is down (brain off, engine restarting) the PC keeps announcing its LAST record, with a stale port, and keeps querying every ~700 ms. iroh has no un-publish on close. A phone dialing then fails the same way as with the door down.
