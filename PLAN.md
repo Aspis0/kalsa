@@ -1776,6 +1776,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   `cpp/rn-legs-table.cpp` (all three legs or nothing), `load_governor_one_model` (setter before load, one
   `common_init_from_params`, teardown governor -> release_imports -> model), thermal GPU leg; Android .so compile of the
   S23 variant green (it caught a missing NDK `<sys/hwcap.h>`, fixed `83259402`). Hostile audit: luna `e99452f5`.
+- **Step 6 audit fixed** (`audit-step6-binding-luna.md`, 8 findings; F8 TTS bypass pre-existing -> backlog). Engine
+  `b60dbbfb0` (pushed to the fork, `feat/governor-onecopy`): F5 J(1) fence - the one-model governor ctor asks every
+  NPU-leg GPU device `supports_op` on a real MUL_MAT over the real output weight (so the OpenCL HOST gate, import and
+  Q6_K self-check decide) and refuses the load otherwise. Binding `121a11f6`..`054565d3`: vendor `b60dbbfb0`, skels
+  re-stamped (fingerprint unchanged; orchestrator re-ran the gate EXIT=0); F1 imports released only on a one-copy
+  teardown; F2 Hexagon globals restored after it; F3 one process-wide mutex over load and teardown; F4 one-copy only
+  when the caller's `npu_lane_enabled`; F6 GPU facts from the device GPUOpenCL uses, row needs "Adreno" + "740"; F7
+  every post-setter failure tears down, restores and demotes to the two-model load. Host gates green (engine
+  test-governor-legs incl. the refusal, test-leg-contexts on the 2.6B; binding table 7/7, thermal 8/8). Next: S23
+  functional check that the fence ADMITS the J(1) config (governor-bench arm L at `b60dbbfb0`).
 - **Leg speed, S23 07:00 (`step5-s23/raw/session7-speed-1c7f27f13.grep`)**: governor-bench forced single leg, no KL dump:
   NPU 20.0, GPU 16.9 tok/s (with the KL dump 19.5 / 15.5 - the dump is cheap). llama-bench at depth 512 (the bench's
   prefill depth), ABBA: two-copy NPU A 22.17 / 22.12 vs one-copy J(1) H 21.44 / 21.70 = **0.975**. So one-copy keeps the
