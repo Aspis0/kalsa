@@ -4762,6 +4762,103 @@ const tests = {
     await browser.close();
   },
 
+  // The stateful half of a mini app: a checklist ticked in the thread lands
+  // in the stored message, survives a reload, and the next turn's replayed
+  // tool result carries the ticks as plain [x]/[ ] lines the model reads.
+  async ministate() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("ministate-demo", false));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    const bodies = [];
+    await scriptModel(
+      page,
+      [
+        [
+          {
+            id: "s1",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "checklist",
+              slots: {
+                title: "Groceries",
+                items: [
+                  { id: "milk", title: "Milk" },
+                  { id: "eggs", title: "Eggs" },
+                  { id: "tea", title: "Tea" },
+                ],
+              },
+            }),
+          },
+        ],
+      ],
+      "The list is noted.",
+      bodies,
+    );
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Make me a shopping list.", "The list is noted.");
+
+    const list = page.locator(".miniapp").first();
+    const boxes = list.locator('input[type="checkbox"]');
+    check("ministate: three items draw as checkboxes", (await boxes.count()) === 3, String(await boxes.count()));
+    await boxes.nth(0).check();
+    await boxes.nth(2).check();
+    const struck = await list.locator(".miniapp-check-done").allTextContents();
+    check("ministate: ticked items are struck through", JSON.stringify(struck) === JSON.stringify(["Milk", "Tea"]), JSON.stringify(struck));
+
+    await page
+      .waitForFunction(
+        () => {
+          for (const key of Object.keys(localStorage)) {
+            if (!key.startsWith("crescent-chat.msgs.")) continue;
+            const messages = JSON.parse(localStorage.getItem(key) ?? "[]");
+            for (const message of messages) {
+              for (const run of message.toolRuns ?? []) {
+                const checked = run.miniapp?.state?.checked;
+                if (checked?.milk === true && checked?.tea === true && checked?.eggs === undefined) return true;
+              }
+            }
+          }
+          return false;
+        },
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => check("ministate: the ticks reached the stored message", false, "no checked state on disk"));
+
+    await page.reload();
+    await page.waitForTimeout(1200);
+    const chat = page.locator(".brain-bar-chat");
+    if ((await chat.count()) > 0) await chat.first().click();
+    await page.waitForTimeout(800);
+    await openSidebar(page, "shopping list");
+    const reloaded = page.locator(".miniapp").first();
+    const kept = [];
+    for (let at = 0; at < 3; at += 1) kept.push(await reloaded.locator('input[type="checkbox"]').nth(at).isChecked());
+    check("ministate: reload keeps the ticks", JSON.stringify(kept) === JSON.stringify([true, false, true]), JSON.stringify(kept));
+
+    // The follow-up turn: the replayed tool result carries the ticks as
+    // plain lines, and never the envelope.
+    await page.getByRole("textbox", { name: "Message" }).fill("What is still on the list?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    for (let at = 0; at < 50 && bodies.length < 3; at += 1) await page.waitForTimeout(100);
+    check("ministate: the follow-up turn was sent", bodies.length >= 3, String(bodies.length));
+    const parsed = bodies.map((raw) => JSON.parse(raw ?? "{}"));
+    const last = parsed[parsed.length - 1] ?? {};
+    const toolTexts = (last.messages ?? []).filter((m) => m.role === "tool").map((m) => m.content);
+    check(
+      "ministate: the wire carries the ticks as plain lines",
+      toolTexts.length === 1 && toolTexts[0] === "Miniapp created: Groceries\n[x] Milk\n[ ] Eggs\n[x] Tea",
+      JSON.stringify(toolTexts),
+    );
+    const wireText = JSON.stringify(last);
+    check("ministate: the wire never carries the envelope", !wireText.includes("miniapp_v1") && !wireText.includes('"checked"'));
+
+    await browser.close();
+  },
+
   // The switch is off, so web_search is not offered. A model can still ask
   // for it from its training priors; the call must not reach the network. It
   // becomes a refused run that reads why, and the turn goes on to an answer.

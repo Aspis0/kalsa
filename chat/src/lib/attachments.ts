@@ -2,7 +2,8 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { strFromU8, unzipSync } from "fflate";
 import { TOOL_STOPPED } from "./types";
-import type { ChatMessage } from "./types";
+import type { ChatMessage, ToolRun } from "./types";
+import { miniappStateLines } from "./miniapp/stateText";
 import type { WireContentPart, WireMessage } from "./chat";
 
 export type AttachmentKind = "txt" | "md" | "csv" | "pdf" | "docx" | "pptx";
@@ -504,6 +505,16 @@ function wireResult(result: string): string {
   return result === TOOL_STOPPED ? "Stopped before this finished." : result;
 }
 
+/** The replayed result of a mini app run gains its current state as plain
+    lines, so the next turn reads where the person left the widgets — the
+    ticks, the picked answer, the edited values. No state, no lines: the
+    short result text goes alone, as it always has. */
+function wireResultFor(run: ToolRun): string {
+  const lines = run.miniapp ? miniappStateLines(run.miniapp) : [];
+  const text = wireResult(run.result);
+  return lines.length > 0 ? `${text}\n${lines.join("\n")}` : text;
+}
+
 /**
  * How the model now being served sees pictures: `vision` says whether it can
  * look at all, and `url` hands back the data URI of a stored image — null
@@ -572,7 +583,7 @@ function wireFor(message: ChatMessage, media: MediaView | undefined): WireMessag
     role: "tool",
     // The wire language is English whatever the interface speaks: the code
     // is for storage and the screen, the model gets the sentence.
-    content: wireResult(run.result),
+    content: wireResultFor(run),
     tool_call_id: run.id,
   }));
   const said: WireMessage[] = message.content

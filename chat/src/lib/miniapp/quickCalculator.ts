@@ -5,6 +5,7 @@
  */
 
 import { evaluateCalculatorFormula } from "./calculator";
+import { recordCalculatorValues } from "./state";
 import { asString, asStringCapped, envelope, isPlainObject } from "./slots";
 import type { Miniapp } from "./types";
 
@@ -74,9 +75,16 @@ export function buildQuickCalculator(slots: Record<string, unknown>): Miniapp | 
   // Validate the formula exactly as the renderer's evaluator does (length /
   // charset gate + field-id substitution). A formula that references an unknown
   // id or is arithmetically invalid is rejected here, not as a dead calculator.
-  if (!evaluateCalculatorFormula(formula, fieldsToVars(fields)).ok) return null;
+  const vars = fieldsToVars(fields);
+  const evaluated = evaluateCalculatorFormula(formula, vars);
+  if (!evaluated.ok) return null;
 
   const block: Record<string, unknown> = { type: "calculator", formula };
   if (fields) block.fields = fields; // omitted fields are optional
-  return envelope("quick_calculator", asString(slots.title) ?? "Calculator", [block]);
+  // The initial values and result are the envelope's first state, so the next
+  // turn's wire carries what the calculator shows even before anyone edits it.
+  return {
+    ...envelope("quick_calculator", asString(slots.title) ?? "Calculator", [block]),
+    state: recordCalculatorValues({}, vars, evaluated.value),
+  };
 }

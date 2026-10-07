@@ -19,7 +19,7 @@ function equal(name, actual, expected) {
 
 const { app, dir } = await loadApp();
 try {
-  const { buildMiniappV1, evaluateCalculatorFormula, normalizeMiniapp, MINIAPP_TEMPLATE_IDS, runCreateMiniapp, checklistItems, isItemTicked, toggleChecklistItem, quizAnswer, recordQuizAnswer, calculatorValues, calculatorResult, recordCalculatorValues } = app;
+  const { buildMiniappV1, evaluateCalculatorFormula, normalizeMiniapp, MINIAPP_TEMPLATE_IDS, runCreateMiniapp, checklistItems, isItemTicked, toggleChecklistItem, quizAnswer, recordQuizAnswer, calculatorValues, calculatorResult, recordCalculatorValues, miniappStateLines } = app;
 
   // ── compare_data ──────────────────────────────────────────────────────────
   {
@@ -170,6 +170,31 @@ try {
     equal("calculator state keeps fields and result", [calculatorValues(calc), calculatorResult(calc)], [{ p: 2000, r: 0.05 }, 100]);
     equal("a result that is not a finite number is left out", calculatorResult(recordCalculatorValues({}, { p: 1 }, null)), null);
     equal("calculator readers answer null on state without numbers", [calculatorValues({}), calculatorResult({ calculator: { fields: { x: "nope" } } })], [null, null]);
+  }
+
+  // ── the state on the wire ─────────────────────────────────────────────────
+  {
+    const built = buildMiniappV1("quick_calculator", {
+      title: "Loan",
+      formula: "p * r",
+      fields: [
+        { id: "p", label: "Principal", value: 1000 },
+        { id: "r", label: "Rate", value: 0.05 },
+      ],
+    });
+    equal("a built calculator seeds its state", built?.state, { calculator: { fields: { p: 1000, r: 0.05 }, result: 50 } });
+    equal("the seeded values read back", [calculatorValues(built?.state), calculatorResult(built?.state)], [{ p: 1000, r: 0.05 }, 50]);
+    const lines = (state, blocks) => miniappStateLines({ schema: "miniapp_v1", kind: "k", title: "T", blocks, ...(state ? { state } : {}) });
+    const checklist = { type: "checklist", items: [{ id: "milk", title: "Milk" }, { id: "eggs", title: "Eggs" }] };
+    equal("checklist ticks ride as [x]/[ ] lines", lines({ checked: { milk: true } }, [checklist]), ["[x] Milk", "[ ] Eggs"]);
+    equal("an old steps block ticks by index", lines({ checked: { "0": true } }, [{ type: "checklist", steps: [{ title: "One" }, { title: "Two" }] }]), ["[x] One", "[ ] Two"]);
+    equal("no state means no lines", lines(undefined, [checklist]), ["[ ] Milk", "[ ] Eggs"]);
+    const quiz = { type: "quiz", question: "2+2?", options: ["3", "4"], answerIndex: 1 };
+    equal("a checked quiz answer says its grade", lines({ quiz: { "0": { picked: 1, checked: true, correct: true } } }, [quiz]), ["Q: 2+2? picked: 4 (correct)"]);
+    equal("an unchecked pick says nothing about correctness", lines({ quiz: { "0": { picked: 0, checked: false, correct: false } } }, [quiz]), ["Q: 2+2? picked: 3"]);
+    const calculator = { type: "calculator", formula: "p * r", fields: [{ id: "p" }, { id: "r" }, { id: "z" }] };
+    equal("calculator values and result ride as plain lines", lines({ calculator: { fields: { p: 2000, r: 0.05, z: 1 }, result: 100 } }, [calculator]), ["p = 2000", "r = 0.05", "z = 1", "Result: 100"]);
+    equal("an unanswered quiz and a valueless calculator stay silent", lines({ calculator: { fields: {}, result: null } }, [quiz, calculator]), []);
   }
 
   // ── pros_cons ─────────────────────────────────────────────────────────────

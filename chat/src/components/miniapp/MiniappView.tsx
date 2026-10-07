@@ -25,7 +25,7 @@ export function MiniappView({
     <section className="miniapp" aria-label={`Interactive miniapp: ${miniapp.title}`}>
       <p className="miniapp-title">{miniapp.title}</p>
       {miniapp.blocks.map((block, index) => (
-        <Block key={index} miniapp={miniapp} block={block} onState={onState} />
+        <Block key={index} miniapp={miniapp} block={block} index={index} onState={onState} />
       ))}
     </section>
   );
@@ -34,19 +34,21 @@ export function MiniappView({
 function Block({
   miniapp,
   block,
+  index,
   onState,
 }: {
   miniapp: Miniapp;
   block: Record<string, unknown>;
+  index: number;
   onState?: (state: Record<string, unknown>) => void;
 }) {
   switch (block.type) {
     case "data_table":
       return <DataTable block={block} />;
     case "calculator":
-      return <Calculator block={block} />;
+      return <Calculator block={block} state={miniapp.state} onState={onState} />;
     case "quiz":
-      return <Quiz block={block} />;
+      return <Quiz miniapp={miniapp} block={block} index={index} onState={onState} />;
     case "metric_strip":
       return <MetricStrip block={block} />;
     case "checklist":

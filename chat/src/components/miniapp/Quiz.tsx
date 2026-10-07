@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { quizAnswer, recordQuizAnswer } from "../../lib/miniapp/state";
+import type { Miniapp } from "../../lib/miniapp/types";
 import { asArray, asText } from "./values";
 
 /**
  * A `quiz` block: pick an option, check, see right/wrong and the explanation.
  * Grading happens only when answerIndex addresses a real option; otherwise
- * Check says the answer is not available. Ported from the phone's QuizBlock.
+ * Check says the answer is not available. The pick and its grade live in the
+ * envelope's state, keyed by the block's position, so a reload shows the same
+ * graded view the person left. Ported from the phone's QuizBlock.
  */
 
 const MAX_OPTIONS = 4;
@@ -17,7 +20,17 @@ function answerIndexOf(raw: unknown, optionCount: number): number | null {
   return n;
 }
 
-export function Quiz({ block }: { block: Record<string, unknown> }) {
+export function Quiz({
+  miniapp,
+  block,
+  index,
+  onState,
+}: {
+  miniapp: Miniapp;
+  block: Record<string, unknown>;
+  index: number;
+  onState?: (state: Record<string, unknown>) => void;
+}) {
   const question = asText(block.question ?? block.title, "Question");
   const options = asArray(block.options, MAX_OPTIONS).map((option, index) =>
     asText(option, `Option ${index + 1}`),
@@ -26,8 +39,14 @@ export function Quiz({ block }: { block: Record<string, unknown> }) {
   const explanation = asText(block.explanation, "");
   const gradable = answerIndex !== null;
 
-  const [selected, setSelected] = useState<number | null>(null);
-  const [checked, setChecked] = useState(false);
+  const stored = quizAnswer(miniapp.state, index);
+  const selected = stored?.picked ?? null;
+  const checked = stored?.checked ?? false;
+
+  const record = (picked: number | null, graded: boolean): void =>
+    onState?.(
+      recordQuizAnswer(miniapp.state ?? {}, index, picked, graded, picked !== null && picked === answerIndex),
+    );
 
   if (options.length === 0) {
     return (
@@ -71,7 +90,7 @@ export function Quiz({ block }: { block: Record<string, unknown> }) {
               aria-checked={isSelected}
               role="radio"
               disabled={checked}
-              onClick={() => setSelected(index)}
+              onClick={() => record(index, false)}
             >
               {String.fromCharCode(65 + index)}. {label}
               {showCorrect ? " — Correct" : showWrong ? " — Wrong" : ""}
@@ -85,19 +104,12 @@ export function Quiz({ block }: { block: Record<string, unknown> }) {
             type="button"
             className="miniapp-button"
             disabled={selected === null}
-            onClick={() => setChecked(true)}
+            onClick={() => record(selected, true)}
           >
             Check
           </button>
         ) : (
-          <button
-            type="button"
-            className="miniapp-button"
-            onClick={() => {
-              setSelected(null);
-              setChecked(false);
-            }}
-          >
+          <button type="button" className="miniapp-button" onClick={() => record(null, false)}>
             Retry
           </button>
         )}
