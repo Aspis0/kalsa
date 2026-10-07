@@ -479,13 +479,13 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         // on battery admits no relief), and when it cannot, the walk falls
         // through to what remains rather than mislabelling the offer or
         // hiding it. On a tier whose lines stand down none of that row
-        // arithmetic means anything — no line spoke — so the walk leads with
-        // speed instead, and the justification below gates it as it gates
-        // every other candidate.
+        // arithmetic means anything — no line spoke — so the walk leads by
+        // the same stand-down ranking as every other road, and the
+        // justification below gates it as it gates every other candidate.
         let chosen = if dense_lines_stand_down {
-            *walk
-                .iter()
-                .max_by(|a, b| a.decode.floor().total_cmp(&b.decode.floor()))
+            walk.iter()
+                .copied()
+                .max_by(|a, b| stand_down_ranking(a, b))
                 .expect("remaining is not empty")
         } else {
             let leader = *walk
@@ -579,6 +579,17 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     })
 }
 
+/// The stand-down's one ranking, shared by every card on such a tier: the
+/// owner's family rule first — LFM is the last resort on the paired walk
+/// exactly as on the phone-free first card — then the pessimistic decode
+/// end. Both first-card roads read this, so they cannot disagree about
+/// which row leads.
+fn stand_down_ranking(a: &Candidate<'_>, b: &Candidate<'_>) -> std::cmp::Ordering {
+    (!lfm_row(a.entry))
+        .cmp(&(!lfm_row(b.entry)))
+        .then_with(|| a.decode.floor().total_cmp(&b.decode.floor()))
+}
+
 /// The first card among rows that run — the row every second option is
 /// measured against. When some row on the tier clears its own dense line,
 /// the big dense row that cleared it is the smarter answer and leads; only
@@ -594,14 +605,7 @@ fn leading_candidate<'a>(
     pool: &[&'a Candidate<'static>],
 ) -> Option<&'a Candidate<'static>> {
     if answer.dense_lines_stand_down {
-        return pool
-            .iter()
-            .copied()
-            .max_by(|a, b| {
-                (!lfm_row(a.entry))
-                    .cmp(&(!lfm_row(b.entry)))
-                    .then_with(|| a.decode.floor().total_cmp(&b.decode.floor()))
-            });
+        return pool.iter().copied().max_by(|a, b| stand_down_ranking(a, b));
     }
     pool.iter()
         .copied()
@@ -773,9 +777,11 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
     let lead = leading_candidate(&answer, &first_card_pool)
         .map(|candidate| (candidate.entry.repo, candidate.entry.quant, candidate.entry.weights_bytes));
     // The row the walk itself put on the first card, when the paired road
-    // produced one: on a stand-down tier the walk leads with speed while
-    // `lead` names the phone-free answer, and the two can differ — the
-    // exclusion follows the row the owner is actually looking at.
+    // produced one: the walk can fall through its dense leader when that
+    // row earns nothing, and the exclusion must follow the row the owner is
+    // actually looking at. On a stand-down tier the walk and `lead` rank by
+    // the same rule and coincide; on the phone-free road there is no walk
+    // pick and `lead` answers alone.
     let walked = match choose(input) {
         Decision::Pick(selection) => Some((
             selection.repo,
@@ -889,7 +895,8 @@ struct Runnable {
     remaining: Vec<Candidate<'static>>,
     /// The stand-down: no row here clears its own dense line, so the lines
     /// are withholding nobody and cannot pick either. Where the lines would
-    /// have decided, speed decides instead — see [`leading_candidate`].
+    /// have decided, the stand-down ranking decides instead — see
+    /// [`leading_candidate`].
     dense_lines_stand_down: bool,
 }
 

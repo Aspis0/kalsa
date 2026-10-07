@@ -62,6 +62,8 @@ pub(crate) fn reason_message(reason: &str) -> ReasonMessage {
         ("model.reason.quicker", reason)
     } else if reason == QUICKER_SMALLER_REASON {
         ("model.reason.quicker_smaller", reason)
+    } else if reason == BIGGER_REASON {
+        ("model.reason.bigger", reason)
     } else if reason == MORE_CAPABLE_REASON {
         ("model.reason.more_capable", reason)
     } else if reason.starts_with(PROCESSOR_FALLBACK_SENTENCE_PREFIX) {
@@ -91,16 +93,21 @@ Choose another, or let this computer choose again, from the same page.";
 const QUICKER_REASON: &str = "Smaller and much faster: it starts answering sooner. \
 The one above is the more capable of the two.";
 
-/// The second option's sentence when both figures are this machine's own
-/// measurements and the smaller one did not measure faster: the catalog's
-/// "much faster" is a prediction, and the measurement just disagreed with
-/// it. What stays true is the size, not the speed.
-const QUICKER_SMALLER_REASON: &str = "Smaller, so it starts answering sooner. \
+/// The second option's sentence when the smaller row is not the faster one:
+/// the size is the fact that stays, and the sentence claims no speed at all.
+const QUICKER_SMALLER_REASON: &str = "Smaller: it needs less memory. \
 The one above is the more capable of the two.";
 
-/// The second option's sentence when it is the bigger row: the more
-/// capable model, and the page says so instead of claiming a smaller
-/// size it does not have.
+/// The second option's sentence when it is the bigger row and not the
+/// slower one: the size is said, and no speed direction the numbers do not
+/// show. "Can be" because more model is the ground for more capability,
+/// never a measurement of it.
+const BIGGER_REASON: &str = "Bigger, so it can be more capable. \
+The one above is the smaller of the two.";
+
+/// The second option's sentence when it is the bigger row and the slower
+/// one: the more capable model, traded against the speed the first card
+/// starts with.
 const MORE_CAPABLE_REASON: &str = "More capable, but slower on this computer. \
 The one above starts answering sooner.";
 
@@ -204,7 +211,7 @@ pub(crate) struct ModelChoiceDto {
     details: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(tag = "shape", rename_all = "snake_case")]
 pub(crate) enum SpeedDto {
     Range { low: f64, high: f64 },
@@ -387,25 +394,20 @@ pub(crate) fn dto(
             quicker_alternative(&input, &prediction).map(|row| {
                 let measured = measured_speed(root, row.entry);
                 // The sentence is picked from the facts, so it can never claim a
-                // direction the numbers contradict. Speed: the two measurements
-                // when both rows carry one — the prediction has by then been
-                // outranked on the card — else the two predictions' pessimistic
-                // ends. Size: the weights against the first card's.
+                // direction the numbers contradict. Speed, per row: the card
+                // shows a row's own measurement when it has one and the
+                // prediction's pessimistic end when it has not — the sentence
+                // compares those same two numbers. Size: the weights against
+                // the first card's.
                 let pick_measured = model.as_ref().and_then(|choice| choice.measured);
-                let faster = match (pick_measured, measured) {
-                    (Some(pick), Some(own)) => own > pick,
-                    _ => row.decode.floor() > prediction.floor(),
-                };
-                let reason = if row.entry.weights_bytes < pick_weights {
-                    if faster {
-                        QUICKER_REASON
-                    } else {
-                        QUICKER_SMALLER_REASON
-                    }
-                } else {
-                    // The bigger row is the more capable of the two, whatever
-                    // the speed does; saying "smaller" of it would be a lie.
-                    MORE_CAPABLE_REASON
+                let pick_speed = pick_measured.unwrap_or_else(|| prediction.floor());
+                let own_speed = measured.unwrap_or_else(|| row.decode.floor());
+                let faster = own_speed > pick_speed;
+                let reason = match (row.entry.weights_bytes < pick_weights, faster) {
+                    (true, true) => QUICKER_REASON,
+                    (true, false) => QUICKER_SMALLER_REASON,
+                    (false, true) => BIGGER_REASON,
+                    (false, false) => MORE_CAPABLE_REASON,
                 };
                 ModelChoiceDto {
                     id: Some(crate::startup::model_token(row.entry)),
@@ -915,6 +917,102 @@ mod tests {
             "the size is still true and still said: {}",
             second.reason
         );
+        assert_eq!(
+            second.reason,
+            QUICKER_SMALLER_REASON,
+            "the variant of record, under its own code"
+        );
+        assert_eq!(
+            second.reason_code.as_deref(),
+            Some("model.reason.quicker_smaller")
+        );
+    }
+
+    /// One tune record, filed: the rate a row measured on this machine, the
+    /// only fact `dto` reads back from the records root.
+    fn file_measured_rate(root: &Path, digest: &'static str, rate: f64) {
+        let candidate = kalsa_tune::Candidate {
+            backend: kalsa_runtime::ServerBackend::Cpu,
+            threads: Some(8),
+            offload: Offload::NoGpuBuild,
+            draft: None,
+        };
+        let record = kalsa_tune::record::Record {
+            fingerprint: "the display read does not compare keys".to_string(),
+            winner: Some(kalsa_tune::Winner {
+                candidate,
+                reply: kalsa_tune::Reply::from_rates(1000.0, rate).expect("two measurements"),
+            }),
+            trials: vec![(
+                candidate,
+                kalsa_tune::record::Kept::Replied(
+                    kalsa_tune::Reply::from_rates(1000.0, rate).expect("two measurements"),
+                ),
+            )],
+        };
+        kalsa_tune::record::save(root, digest, &record).expect("file the record");
+    }
+
+    #[test]
+    fn a_measured_pick_is_compared_with_the_number_its_card_shows() {
+        // The card shows each row's own measurement when it has one and the
+        // prediction's floor when it has not; the sentence compares those
+        // displayed numbers, per row. Here only the pick carries a record —
+        // 40.0 against the alternative's 32.6 floor — so the pair is not
+        // called faster even though the two floors alone would say it is.
+        let root = records_root("one-side-measured");
+        let first = dto(&pair_machine(), 16 * GIB, None, false, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = first
+        else {
+            panic!("the tier answers with both cards");
+        };
+        assert_eq!(pick.measured, None, "nothing recorded yet");
+        let (pick_floor, own_floor) = match (&pick.speed, &second.speed) {
+            (SpeedDto::Range { low: p, .. }, SpeedDto::Range { low: o, .. }) => (*p, *o),
+            other => panic!("predicted bands on both cards: {other:?}"),
+        };
+        assert!(
+            own_floor > pick_floor,
+            "the premise: the floors alone would call the second card faster"
+        );
+
+        let digest = usable()
+            .find(|row| {
+                let row = row.entry();
+                row.display_name == pick.name
+                    && row.quant == pick.quant
+                    && Some(crate::startup::model_token(row)) == pick.id
+            })
+            .expect("the pick is on the menu")
+            .source()
+            .sha256;
+        file_measured_rate(&root, digest, 40.0);
+
+        let again = dto(&pair_machine(), 16 * GIB, None, false, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = again
+        else {
+            panic!("the second read answers the same shape");
+        };
+        assert_eq!(pick.measured, Some(40.0), "the pick's card shows its record");
+        assert_eq!(second.measured, None, "the alternative still shows a floor");
+        assert_eq!(
+            second.reason,
+            QUICKER_SMALLER_REASON,
+            "against the pick's own number the alternative is not faster: {}",
+            second.reason
+        );
+        assert_eq!(
+            second.reason_code.as_deref(),
+            Some("model.reason.quicker_smaller")
+        );
     }
 
     #[test]
@@ -1095,36 +1193,116 @@ mod tests {
     }
 
     #[test]
-    fn a_second_card_bigger_and_slower_says_so() {
-        // The same stand-down tier with a phone paired: the walk leads LFM
-        // Q8 on speed, and the second card is the E4B — bigger than the
-        // pick, and slower than its band. The fixed "smaller and much
-        // faster" could not say that; the sentence is picked from the
-        // facts, and this is the shape that proves the picking.
-        let surface = Measurement {
-            decode_bytes_per_second: Some(45.1e9),
+    fn a_bigger_faster_second_card_says_only_its_size() {
+        // 64 GiB at 800 GB/s, no phone: the dense Qwen 3.8 clears the
+        // big-dense line and leads, and the second card is the 35B MoE —
+        // more weights AND a higher floor than the pick's. "Smaller" would
+        // be a lie and "slower" would be a lie; the sentence claims only
+        // the size.
+        let wide = Measurement {
+            ramp: vec![(2, 800.0e9)],
+            ceiling_bytes_per_second: 800.0e9,
+            ceiling: kalsa_probe::Series::new(vec![800.0e9]),
             ..measured(Backend::Cpu)
         };
-        let phone = PhoneModel {
-            weights_bytes: 2_834_975_040,
-            parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
-            measured_tokens_per_second: None,
-            battery_powered: Some(true),
-        };
-        let suggestion = dto(&surface, 15 * GIB, Some(phone), true, &records_root("surface-pair"));
+        let suggestion = dto(&wide, 64 * GIB, None, true, &records_root("bigger-faster"));
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
             ..
         } = suggestion
         else {
-            panic!("the stand-down tier answers with both cards");
+            panic!("a 64 GiB machine answers with both cards");
         };
         assert_eq!(
             (pick.name.as_str(), pick.quant.as_str()),
-            ("Liquid LFM 2.5", "Q8_0")
+            ("Alibaba Qwen 3.8", "Q4_K_M")
         );
-        assert_eq!(second.name, "Google Gemma 4 E4B");
+        assert_eq!(
+            (second.name.as_str(), second.quant.as_str()),
+            ("Alibaba Qwen 3.6", "Q4_K_M")
+        );
+        // The premise, on the weights the cards are built from and the
+        // bands they quote: bigger and faster.
+        let weights_of = |option: &ModelChoiceDto| {
+            usable()
+                .find(|row| {
+                    let row = row.entry();
+                    row.display_name == option.name && row.quant == option.quant
+                })
+                .expect("the card names a row the catalog holds")
+                .entry()
+                .weights_bytes
+        };
+        assert!(
+            weights_of(&second) > weights_of(&pick),
+            "the premise: the second card is the bigger row"
+        );
+        let (SpeedDto::Range { low: pick_low, .. }, SpeedDto::Range { low: own_low, .. }) =
+            (&pick.speed, &second.speed)
+        else {
+            panic!("predicted bands on both cards");
+        };
+        assert!(
+            own_low > pick_low,
+            "the premise: the second card is the faster row"
+        );
+        assert_eq!(second.reason, BIGGER_REASON);
+        assert_eq!(second.reason_code.as_deref(), Some("model.reason.bigger"));
+    }
+
+    #[test]
+    fn a_second_card_bigger_and_slower_says_so() {
+        // The same machine, with a tune record under the second card: its
+        // card shows 10.0 where the pick quotes a 29-and-up band, so the
+        // facts are bigger AND slower, and the sentence names the trade —
+        // the more capable model, but slower on this computer.
+        let root = records_root("bigger-slower");
+        let wide = Measurement {
+            ramp: vec![(2, 800.0e9)],
+            ceiling_bytes_per_second: 800.0e9,
+            ceiling: kalsa_probe::Series::new(vec![800.0e9]),
+            ..measured(Backend::Cpu)
+        };
+        let first = dto(&wide, 64 * GIB, None, true, &root);
+        let CapabilityDto::Measured {
+            model: Some(_),
+            quicker: Some(second),
+            ..
+        } = first
+        else {
+            panic!("a 64 GiB machine answers with both cards");
+        };
+        let digest = usable()
+            .find(|row| {
+                let row = row.entry();
+                row.display_name == second.name
+                    && row.quant == second.quant
+                    && Some(crate::startup::model_token(row)) == second.id
+            })
+            .expect("the second card is on the menu")
+            .source()
+            .sha256;
+        file_measured_rate(&root, digest, 10.0);
+
+        let again = dto(&wide, 64 * GIB, None, true, &root);
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = again
+        else {
+            panic!("the second read answers the same shape");
+        };
+        assert_eq!(second.measured, Some(10.0), "the record is the card's number");
+        let pick_low = match &pick.speed {
+            SpeedDto::Range { low, .. } => *low,
+            other => panic!("a predicted band on the pick: {other:?}"),
+        };
+        assert!(
+            second.measured.unwrap() < pick_low,
+            "the premise: slower than the pick's band"
+        );
         assert_eq!(second.reason, MORE_CAPABLE_REASON);
         assert_eq!(second.reason_code.as_deref(), Some("model.reason.more_capable"));
     }
@@ -1143,6 +1321,7 @@ mod tests {
             reason_message(MORE_CAPABLE_REASON).code,
             "model.reason.more_capable"
         );
+        assert_eq!(reason_message(BIGGER_REASON).code, "model.reason.bigger");
     }
 
     #[test]

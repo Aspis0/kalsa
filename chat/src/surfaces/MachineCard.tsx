@@ -132,6 +132,7 @@ function reasonLine(t: English["machine"], model: ModelOption): string {
     "model.reason.chosen": t.reasonChosen,
     "model.reason.quicker": t.reasonQuicker,
     "model.reason.quicker_smaller": t.reasonQuickerSmaller,
+    "model.reason.bigger": t.reasonBigger,
     "model.reason.more_capable": t.reasonMoreCapable,
   };
   return (model.reason_code && byCode[model.reason_code]) || model.reason;

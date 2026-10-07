@@ -1703,13 +1703,14 @@ fn the_surface_that_clears_no_line_starts_the_two_fastest_rows() {
 }
 
 #[test]
-fn a_standing_down_tier_with_a_phone_leads_with_speed_not_size() {
+fn a_standing_down_tier_with_a_phone_ranks_lfm_last_too() {
     // The owner's Surface WITH a phone paired: 15.6 GiB at 45.1 GB/s, the
     // same tier `stand_down_cards` pins on the phone-free road. Nothing
-    // clears a line here either, so the paired walk must not fall back to
-    // the biggest row — Gemma 12B, at 3.8–5.5 tok/s, used to lead it. Speed
-    // ranks the walk, and the phone's justification still gates every
-    // candidate: the fastest row that earns one takes the card.
+    // clears a line here either, and the owner's ruling is one ranking on
+    // every road: LFM is the last resort, so the walk leads with the E4B —
+    // justified on capability against the phone — even though the LFM file
+    // is the faster row (9.0–13.1 against 5.6–8.1), and Gemma 12B
+    // (3.8–5.5) stays on neither card.
     let machine = ChoiceInput {
         ram_bytes: (15.6 * GIB as f64) as u64,
         bandwidth_bytes_per_second: 45.1e9,
@@ -1739,27 +1740,24 @@ fn a_standing_down_tier_with_a_phone_leads_with_speed_not_size() {
         pick.repo, "google/gemma-4-12B-it",
         "the biggest row must not lead a tier that runs it at about four tokens a second"
     );
-    // Speed leads: LFM Q8 is the fastest row here (9.0–13.1) and it earns
-    // a justification — the assertion's message names which — so the walk
-    // returns it before the bigger rows are ever tried. The E4B (5.6–8.1)
-    // and Gemma 12B (3.8–5.5) are both slower, and only size put 12B first.
     assert_eq!(
-        pick.repo,
-        "LiquidAI/LFM2.5-VL-3B",
+        (pick.repo, pick.quant),
+        ("google/gemma-4-E4B-it", "Q4_K_M"),
         "justified as {:?}",
         pick.justification
     );
-    // The walk's pick and the phone-free answer differ on this tier — the
-    // stand-down now hands the phone-free card to the E4B — so the second
-    // option's exclusion must follow the row the walk put on the page, or
-    // the pick itself would come back as its own second card.
+    // The faster demoted row is the second card, and never the pick again:
+    // the exclusion follows the row the walk put on the page.
     let second = quicker_alternative(&machine, &pick.decode).expect("a second card");
+    assert_eq!(
+        (second.entry.repo, second.entry.quant),
+        ("LiquidAI/LFM2.5-VL-3B", "Q8_0")
+    );
     assert_ne!(
         (second.entry.repo, second.entry.quant),
         (pick.repo, pick.quant),
         "one model must not fill both cards"
     );
-    assert_eq!(second.entry.repo, "google/gemma-4-E4B-it", "the pair is unchanged");
 }
 
 #[test]

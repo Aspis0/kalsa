@@ -37,7 +37,8 @@ export const MACHINE = {
     "reasonPicked": "Kalsa l'a choisi parce qu'il tourne bien sur cet ordinateur.",
     "reasonChosen": "C'est toi qui l'as choisi.",
     "reasonQuicker": "Plus petit et bien plus rapide : il commence à répondre plus tôt. Celui du dessus est le plus capable des deux.",
-    "reasonQuickerSmaller": "Plus petit, donc il commence à répondre plus tôt. Celui du dessus est le plus capable des deux.",
+    "reasonQuickerSmaller": "Plus petit : il demande moins de mémoire. Celui du dessus est le plus capable des deux.",
+    "reasonBigger": "Plus grand, donc il peut être plus capable. Celui du dessus est le plus petit des deux.",
     "reasonMoreCapable": "Plus capable, mais plus lent sur cet ordinateur. Celui du dessus commence à répondre plus tôt.",
     "noSuitableChoice": "Kalsa n'a pas encore d'IA qui tourne bien sur cet ordinateur. Cherche une mise à jour de l'app.",
   };
