@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use kalsa_launch::Offload;
-use kalsa_runtime::{fingerprint_holds, ServerBackend};
+use kalsa_runtime::{keep_fingerprint, ServerBackend};
 
 use crate::candidates::Candidate;
 use crate::refusal::Refusal;
@@ -51,10 +51,10 @@ fn legacy_path(dir: &Path) -> PathBuf {
 }
 
 /// The record's key: everything whose change must force a re-tune. Save
-/// and load compare it through `kalsa_runtime::fingerprint_holds` —
-/// field for field, with an engine driver neither side could read
-/// counted as no reading — and one function composes it, so the walk, the
-/// tune
+/// and load compare it through `kalsa_runtime::keep_fingerprint` —
+/// field for field, with an engine driver neither side could read filled
+/// in from the first real reading (the re-stamp below) — and one function
+/// composes it, so the walk, the tune
 /// and the real walk can never compose it differently. The two engine
 /// strings come from `kalsa_runtime::fingerprint` (the verdict's own
 /// format: build digests | OS | detected backend | driver version), so a
@@ -476,10 +476,23 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
         .or_else(|_| fs::read_to_string(legacy_path(dir)))
         .ok()?;
     let (saved, record, cause) = parse(&text)?;
-    // `fingerprint_holds`, not `==`: an engine driver read that failed
-    // must not by itself throw the record away (kalsa-runtime owns the
-    // rule; every other field stays strict).
-    (fingerprint_holds(&saved, fingerprint) && cause.is_none()).then_some(record)
+    if cause.is_some() {
+        return None; // a marker is not this start's verdict; its reader re-stamps
+    }
+    // Keep, not `==`: an engine driver read that failed must not throw
+    // the record away, and a record written under a failed read learns
+    // the real version HERE — persisted through the same atomic save, so
+    // the next real driver update moves the key instead of sliding past
+    // "unknown" forever (kalsa-runtime owns the rule).
+    let kept = keep_fingerprint(&saved, fingerprint)?;
+    if kept != saved {
+        let upgraded = Record {
+            fingerprint: kept,
+            ..record.clone()
+        };
+        let _ = save(dir, model_digest, &upgraded); // a failed re-stamp tries again next read
+    }
+    Some(record)
 }
 
 /// The marker the last start left for this fingerprint: why it was
@@ -495,10 +508,19 @@ pub fn cut_marker(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<(
     let file = path(dir, model_digest)?;
     let text = fs::read_to_string(file).ok()?;
     let (saved, record, cause) = parse(&text)?;
-    if !fingerprint_holds(&saved, fingerprint) {
-        return None;
+    let cause = cause?; // no marker: nothing to resume
+    let kept = keep_fingerprint(&saved, fingerprint)?;
+    if kept != saved {
+        // The marker's file learns the driver it could not read — the
+        // same re-stamp as [`load`], cause and trials untouched, so the
+        // next real update moves the key.
+        let upgraded = Record {
+            fingerprint: kept,
+            ..record.clone()
+        };
+        let _ = save_marker(dir, model_digest, &upgraded, cause);
     }
-    cause.map(|cause| (cause, record))
+    Some((cause, record))
 }
 
 /// Whether the last start's tune for this fingerprint left an unfinished

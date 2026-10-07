@@ -44,6 +44,17 @@ fn fp(digest: &str) -> String {
     )
 }
 
+/// The key's shape with the engine fields the real composer writes — the
+/// two driver fields injectable, the rest fixed, so a test can read a key
+/// as one machine's and another's.
+fn driver_key(graphics_driver: &str, processor_driver: &str) -> String {
+    format!(
+        "kalsa-tune fp v4|model={DIGEST}|ctx=8192|physical=Some(8)|logical=Some(16)|\
+         graphics=buildx|macos|DiscreteGpu|{graphics_driver}|vulkan,cpu|\
+         processor=buildy|macos|Cpu|{processor_driver}|cpu|draft=none"
+    )
+}
+
 fn path_last(model_digest: &str) -> String {
     path(Path::new("."), model_digest)
         .expect("hex digest")
@@ -863,16 +874,9 @@ fn a_fingerprint_that_is_not_one_line_is_refused() {
 #[test]
 fn an_unread_driver_never_moves_the_key_and_a_real_change_does() {
     let dir = Scratch::new("driver-key");
-    let key = |graphics: &str, processor: &str| {
-        format!(
-            "kalsa-tune fp v4|model={DIGEST}|ctx=8192|physical=Some(8)|logical=Some(16)|\
-             graphics=buildx|macos|DiscreteGpu|{graphics}|vulkan,cpu|\
-             processor=buildy|macos|Cpu|{processor}|cpu|draft=none"
-        )
-    };
     let unread = kalsa_runtime::DRIVER_UNREAD;
     let record = Record {
-        fingerprint: key("545.120", "545.120"),
+        fingerprint: driver_key("545.120", "545.120"),
         ..sample()
     };
     save(&dir, DIGEST, &record).expect("saved beside a read driver");
@@ -883,17 +887,17 @@ fn an_unread_driver_never_moves_the_key_and_a_real_change_does() {
         (unread, unread, "neither side read one"),
     ] {
         assert_eq!(
-            load(&dir, DIGEST, &key(graphics, processor)),
+            load(&dir, DIGEST, &driver_key(graphics, processor)),
             Some(record.clone()),
             "{why}: no reading is not a change"
         );
     }
     assert_eq!(
-        load(&dir, DIGEST, &key("546.40", "545.120")),
+        load(&dir, DIGEST, &driver_key("546.40", "545.120")),
         None,
         "a real driver update re-tunes"
     );
-    let moved_ctx = key("545.120", "545.120").replace("ctx=8192", "ctx=4096");
+    let moved_ctx = driver_key("545.120", "545.120").replace("ctx=8192", "ctx=4096");
     assert_eq!(
         load(&dir, DIGEST, &moved_ctx),
         None,
@@ -905,12 +909,71 @@ fn an_unread_driver_never_moves_the_key_and_a_real_change_does() {
     // as no marker at all.
     save_marker(&dir, DIGEST, &record, Marker::Sweep).expect("marker");
     assert!(
-        cut_marker(&dir, DIGEST, &key(unread, unread)).is_some(),
+        cut_marker(&dir, DIGEST, &driver_key(unread, unread)).is_some(),
         "the marker survives an unread driver"
     );
     assert!(
-        cut_marker(&dir, DIGEST, &key("546.40", "545.120")).is_none(),
+        cut_marker(&dir, DIGEST, &driver_key("546.40", "545.120")).is_none(),
         "another driver reads as no marker"
+    );
+}
+
+/// A record written under a driver read that FAILED holds at the first
+/// read that has one — and the FILE learns the version then, so the next
+/// real update moves the key instead of sliding past "unknown" forever.
+/// The marker path re-stamps the same way, cause untouched.
+#[test]
+fn an_unread_saved_driver_is_restamped_by_a_real_read_then_a_change_moves_it() {
+    let dir = Scratch::new("driver-restamp");
+    let unread = kalsa_runtime::DRIVER_UNREAD;
+    save(
+        &dir,
+        DIGEST,
+        &Record {
+            fingerprint: driver_key(unread, unread),
+            ..sample()
+        },
+    )
+    .expect("saved under a failed read");
+
+    assert_eq!(
+        load(&dir, DIGEST, &driver_key("545.120", "545.120")).map(|record| record.trials),
+        Some(sample().trials),
+        "the read that knows holds, trials and all"
+    );
+    let text = std::fs::read_to_string(path(&dir, DIGEST).expect("hex digest")).expect("readable");
+    assert!(
+        text.contains("545.120") && !text.contains(unread),
+        "the file learned the driver it could not read"
+    );
+    assert!(
+        load(&dir, DIGEST, &driver_key("546.40", "546.40")).is_none(),
+        "and the next real update moves it — without the re-stamp it would hold forever"
+    );
+
+    save_marker(
+        &dir,
+        DIGEST,
+        &Record {
+            fingerprint: driver_key(unread, unread),
+            ..sample()
+        },
+        Marker::Sweep,
+    )
+    .expect("marker");
+    assert_eq!(
+        cut_marker(&dir, DIGEST, &driver_key("545.120", "545.120")).map(|(cause, _)| cause),
+        Some(Marker::Sweep),
+        "the marker answers, cause untouched"
+    );
+    let text = std::fs::read_to_string(path(&dir, DIGEST).expect("hex digest")).expect("readable");
+    assert!(
+        text.contains("cut=sweep") && text.contains("545.120") && !text.contains(unread),
+        "the marker file re-stamped in place: {text}"
+    );
+    assert!(
+        cut_marker(&dir, DIGEST, &driver_key("546.40", "546.40")).is_none(),
+        "another real driver reads as another launch"
     );
 }
 

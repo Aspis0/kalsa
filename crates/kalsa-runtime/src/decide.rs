@@ -295,12 +295,27 @@ fn standing_verdict(
     detected: Backend,
 ) -> Option<Verdict> {
     let verdict = verdict::load(root, verdict_slot(only))?;
-    (only.is_none_or(|backend| verdict.backend == backend)
-        && verdict::fingerprint_holds(
-            &verdict.fingerprint,
-            &verdict::fingerprint(platform, verdict.backend, detected),
-        ))
-    .then_some(verdict)
+    if only.is_some_and(|backend| verdict.backend != backend) {
+        return None;
+    }
+    let kept = verdict::keep_fingerprint(
+        &verdict.fingerprint,
+        &verdict::fingerprint(platform, verdict.backend, detected),
+    )?;
+    if kept != verdict.fingerprint {
+        // The saved verdict learns the driver it could not read: re-stamp
+        // it now (best effort — the next read tries again), so a later
+        // real update re-proves instead of sliding past "unknown".
+        let _ = verdict::save(
+            root,
+            &Verdict {
+                backend: verdict.backend,
+                fingerprint: kept,
+            },
+            verdict_slot(only),
+        );
+    }
+    Some(verdict)
 }
 
 fn map_store_error(e: StoreError) -> DecideError {
@@ -764,6 +779,57 @@ mod tests {
         assert_eq!(
             verdict_slot(Some(ServerBackend::Cpu)),
             verdict::Slot::ProcessorFallback
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A verdict written under a driver read that FAILED holds at the
+    /// first read that has one — and its file learns the version then, so
+    /// a later real update re-proves instead of sliding past "unknown"
+    /// forever. (The rule itself — upgrade, keep, re-prove — has
+    /// `keep_fingerprint`'s own test; this pins the wiring.)
+    #[test]
+    fn an_unread_saved_verdict_is_re_stamped_by_a_real_read() {
+        let root = scratch("driver-restamp");
+        let platform = Platform::WindowsX64;
+        let detected = Backend::DiscreteGpu {
+            vram_bytes: Some(6 << 30),
+        };
+        let backend = ServerBackend::Vulkan;
+        // The key as a failed read left it: the driver field — the fourth
+        // of `build|OS|detected|driver|candidates` — says "unknown".
+        let mut fields: Vec<String> = verdict::fingerprint(platform, backend, detected)
+            .split('|')
+            .map(str::to_string)
+            .collect();
+        assert!(fields.len() >= 4, "the verdict's own shape: {fields:?}");
+        fields[3] = verdict::DRIVER_UNREAD.to_string();
+        let saved = fields.join("|");
+        verdict::save(
+            &root,
+            &Verdict {
+                backend,
+                fingerprint: saved.clone(),
+            },
+            verdict_slot(None),
+        )
+        .expect("save the verdict");
+
+        assert!(
+            standing_verdict(&root, None, platform, detected).is_some(),
+            "the read that knows holds"
+        );
+        let stamped = verdict::load(&root, verdict::Slot::Main)
+            .expect("readable")
+            .fingerprint;
+        assert_ne!(stamped, saved, "the verdict learned the driver");
+        assert!(
+            !stamped.contains(verdict::DRIVER_UNREAD),
+            "re-stamped in place: {stamped}"
+        );
+        assert!(
+            standing_verdict(&root, None, platform, detected).is_some(),
+            "and still answers after the stamp"
         );
         let _ = std::fs::remove_dir_all(&root);
     }

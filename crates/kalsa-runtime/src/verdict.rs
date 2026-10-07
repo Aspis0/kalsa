@@ -56,8 +56,8 @@ pub(crate) struct Verdict {
 /// the kind of change that flips a working backend into a refusing one.
 /// Elsewhere the driver ships with the OS, which the platform name already
 /// stands for. A read that FAILED is [`DRIVER_UNREAD`], which
-/// [`fingerprint_holds`] treats as no reading at all: only two real
-/// versions can move a saved key.
+/// [`keep_fingerprint`] fills in from the first real reading it meets and
+/// never lets move a saved key on its own: only two real versions can.
 ///
 /// The ordered candidate list is included too: a verdict answers "which of
 /// these builds won", so a release that offers another build (the integrated
@@ -98,27 +98,40 @@ fn fingerprint_of(assets: &[&Asset], detected: Backend) -> String {
 /// carries it says "asked and not told".
 pub const DRIVER_UNREAD: &str = "unknown";
 
-/// Whether a saved key still answers for the current one: identical, or
-/// identical in every field but an engine driver neither side could read
-/// — the sentinel marks no reading, and no reading is not a change (a
-/// query blocked by a scan must not throw away what this machine
-/// proved). Two REAL versions still differ: a driver update keeps its
-/// power to re-prove. Any other difference — even one — moves the key.
-/// The rule is segment-wise over `|`, so it holds for the verdict's own
-/// key and for any key that embeds it (the tune's record key embeds two).
-pub fn fingerprint_holds(saved: &str, current: &str) -> bool {
+/// Whether a saved key still answers for the current one — and the key
+/// to keep when it does. `None`: it does not (re-tune, re-prove).
+/// `Some(key)`: it does, and `key` is what to persist — the saved key,
+/// field by field: where the SAVED side could not read its driver and
+/// this read could, the real version is taken now, so the record learns
+/// it and the NEXT driver update moves the key instead of sliding past
+/// "unknown" forever; where the SAVED side read one and this side did
+/// not, the saved reading stands unchanged. Two real versions must be
+/// equal — a driver update keeps its power to re-prove — and any other
+/// difference, even one field, is `None`. The rule is segment-wise over
+/// `|`, so it holds for the verdict's own key and for any key that
+/// embeds it (the tune's record key embeds two engine keys).
+pub fn keep_fingerprint(saved: &str, current: &str) -> Option<String> {
     if saved == current {
-        return true;
+        return Some(saved.to_string());
     }
     let saved_fields: Vec<&str> = saved.split('|').collect();
     let current_fields: Vec<&str> = current.split('|').collect();
-    saved_fields.len() == current_fields.len()
-        && saved_fields
-            .iter()
-            .zip(current_fields.iter())
-            .all(|(saved, current)| {
-                saved == current || *saved == DRIVER_UNREAD || *current == DRIVER_UNREAD
-            })
+    if saved_fields.len() != current_fields.len() {
+        return None;
+    }
+    let mut kept = saved_fields.clone();
+    for (index, (saved, current)) in saved_fields.iter().zip(current_fields.iter()).enumerate() {
+        if saved == current {
+            continue;
+        }
+        if *saved == DRIVER_UNREAD && *current != DRIVER_UNREAD {
+            kept[index] = current; // the saved side learns what it could not read
+        } else if *current != DRIVER_UNREAD {
+            return None; // a real difference between two readings
+        }
+        // current unread, saved real: the saved reading stands.
+    }
+    Some(kept.join("|"))
 }
 
 /// wmic's query, exactly as it has always run.
@@ -492,32 +505,65 @@ mod tests {
     }
 
     /// The fingerprint's one wildcard, on the verdict's own key: an
-    /// unread driver is no reading, a real one against another real one
-    /// is a change, and every other field — the candidate list included —
-    /// stays strict.
+    /// unread driver is no reading — the saved side LEARNS the first real
+    /// one it meets (the re-stamp, so the next update can move the key),
+    /// a saved real reading stands against a read that failed, and every
+    /// other field — the candidate list included — stays strict.
     #[test]
-    fn an_unread_driver_keeps_a_verdict_and_a_real_change_moves_it() {
+    fn keep_fingerprint_upgrades_an_unread_driver_and_a_real_change_moves_it() {
         let key = |driver: &str| format!("build|macos|DiscreteGpu|{driver}|vulkan,cpu");
-        assert!(fingerprint_holds(&key("31.0.15.3623"), &key(DRIVER_UNREAD)));
-        assert!(fingerprint_holds(&key(DRIVER_UNREAD), &key("31.0.15.3623")));
-        assert!(fingerprint_holds(&key(DRIVER_UNREAD), &key(DRIVER_UNREAD)));
-        assert!(
-            !fingerprint_holds(&key("31.0.15.3623"), &key("32.0.15.6109")),
-            "a driver update re-proves"
+        assert_eq!(
+            keep_fingerprint(&key("31.0.15.3623"), &key("31.0.15.3623")),
+            Some(key("31.0.15.3623")),
+            "identical keys stand"
         );
-        assert!(
-            !fingerprint_holds(
+        assert_eq!(
+            keep_fingerprint(&key("31.0.15.3623"), &key(DRIVER_UNREAD)),
+            Some(key("31.0.15.3623")),
+            "a failed read keeps the saved reading, never downgrading it"
+        );
+        assert_eq!(
+            keep_fingerprint(&key(DRIVER_UNREAD), &key("31.0.15.3623")),
+            Some(key("31.0.15.3623")),
+            "the saved side learns what it could not read: the re-stamp"
+        );
+        assert_eq!(
+            keep_fingerprint(&key(DRIVER_UNREAD), &key(DRIVER_UNREAD)),
+            Some(key(DRIVER_UNREAD)),
+            "neither side read one: nothing to learn yet"
+        );
+        assert_eq!(
+            keep_fingerprint(&key("31.0.15.3623"), &key("32.0.15.6109")),
+            None,
+            "two real readings must match: a driver update re-proves"
+        );
+        assert_eq!(
+            keep_fingerprint(
                 &key("31.0.15.3623"),
                 "build|macos|DiscreteGpu|31.0.15.3623|vulkan,cpu,integrated"
             ),
+            None,
             "the candidate list is a field too"
         );
-        assert!(
-            !fingerprint_holds(
+        assert_eq!(
+            keep_fingerprint(
                 &key("31.0.15.3623"),
                 "other|macos|DiscreteGpu|31.0.15.3623|vulkan,cpu"
             ),
+            None,
             "any other difference moves it"
+        );
+        // A mixed pair: each side keeps what IT read — the saved
+        // processor version survives this read's graphics failure, and
+        // the saved-unread graphics field takes this read's real one.
+        let saved =
+            format!("build|macos|DiscreteGpu|{DRIVER_UNREAD}|vulkan,cpu|proc|macos|Cpu|31.0|cpu");
+        let current =
+            format!("build|macos|DiscreteGpu|32.0|vulkan,cpu|proc|macos|Cpu|{DRIVER_UNREAD}|cpu");
+        assert_eq!(
+            keep_fingerprint(&saved, &current),
+            Some("build|macos|DiscreteGpu|32.0|vulkan,cpu|proc|macos|Cpu|31.0|cpu".to_string()),
+            "each side keeps its own reading and fills only the unread field"
         );
     }
 
