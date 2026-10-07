@@ -337,15 +337,20 @@ fn tune_launch_inner(
             // read — nothing between here and the save writes the marker.
             let marker = kalsa_tune::record::cut_marker(root, &model_digest, &fingerprint);
             let owed = marker.is_none();
-            // The marker's trials, handed to the seam: what the first
-            // attempt proved measured — the retry plans only the lifetimes
-            // these never answered, and none on a first tune.
-            let prior: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)] =
-                marker.as_ref().map(|record| record.trials.as_slice()).unwrap_or(&[]);
+            // The marker's trials THIS plan keeps — `plan_prior` is the
+            // one filter, given to the seam (which skips and seeds
+            // exactly these) and to the pool below (which may restore
+            // exactly these) alike. A first tune has none.
+            let prior: Vec<(kalsa_tune::Candidate, kalsa_tune::record::Kept)> = marker
+                .as_ref()
+                .map(|record| {
+                    kalsa_tune::plan_prior(&record.trials, &resolved, rule_args.draft.is_some())
+                })
+                .unwrap_or_default();
             // The last stop this measure reported — its final word is said
             // AFTER the write below, when the disk has answered for it.
             let mut stop: Option<kalsa_tune::Report> = None;
-            let tuned = measure(&resolved, &rule_args, prior, &mut |report| {
+            let tuned = measure(&resolved, &rule_args, &prior, &mut |report| {
                 if report.cut {
                     stop = Some(report);
                 }
@@ -412,18 +417,18 @@ fn tune_launch_inner(
                 None
             };
             // A marker means this start IS the retry it was owed: the
-            // seam already seeded the marker's trials into this verdict, and
-            // the pool keeps both attempts' facts — one entry per candidate,
-            // the better reply over the union by the same winner rule.
+            // seam seeded the marker's kept trials into this verdict, and
+            // the pool restores the kept ones the seam never re-measured —
+            // one entry per candidate, the better reply over the union by
+            // the same winner rule, and nothing the plan dropped.
             // (`marker` was read before the measure — see above.)
-            let (record, winner) = match marker.as_ref() {
-                Some(prior) => {
-                    let pooled = kalsa_tune::record::pool_retry(prior, record);
-                    log::info!("the retry pools the first attempt's measured trials into this verdict");
-                    let winner = pooled.winner;
-                    (pooled, winner)
-                }
-                None => (record, winner),
+            let (record, winner) = if marker.is_some() {
+                let pooled = kalsa_tune::record::pool_retry(&prior, record);
+                log::info!("the retry pools the first attempt's measured trials into this verdict");
+                let winner = pooled.winner;
+                (pooled, winner)
+            } else {
+                (record, winner)
             };
             // What the stop still owes, decided BEFORE the write: a marker
             // path, no marker spent on this fingerprint yet.

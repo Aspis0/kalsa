@@ -431,8 +431,11 @@ pub fn cut_before(dir: &Path, model_digest: &str, fingerprint: &str) -> bool {
     cut_marker(dir, model_digest, fingerprint).is_some()
 }
 
-/// The record a retry saves: the marker's measured trials pooled with
-/// everything this retry produced — one entry per candidate. The retry's
+/// The record a retry saves: the prior trials the CURRENT PLAN kept —
+/// the caller's filter (`kalsa_tune::plan_prior` over the marker's
+/// trials), so a launch this start's candidate list no longer runs
+/// cannot re-enter the record through here — pooled with everything this
+/// retry produced: one entry per candidate. The retry's
 /// own measurement is the fresher one and wins a pair where both measured
 /// the same launch; a refusal this start wrote never erases an earlier
 /// reply (a refusal is a closed cause, not a measurement), so a marker's
@@ -443,9 +446,9 @@ pub fn cut_before(dir: &Path, model_digest: &str, fingerprint: &str) -> bool {
 /// entry is the reply it was saved as. `retry`'s fingerprint is the
 /// record's: the marker was only read for this fingerprint in the first
 /// place.
-pub fn pool_retry(prior: &Record, retry: Record) -> Record {
+pub fn pool_retry(prior: &[(Candidate, Kept)], retry: Record) -> Record {
     let mut trials = retry.trials;
-    for (candidate, kept) in &prior.trials {
+    for (candidate, kept) in prior {
         let Kept::Replied(reply) = kept else {
             continue; // only measurements pool in from the first attempt
         };

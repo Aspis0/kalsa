@@ -14,6 +14,7 @@ use std::time::Duration;
 
 mod resume;
 
+pub use self::resume::plan_prior;
 use self::resume::{Resume, Seeded};
 use crate::candidates::Candidate;
 use crate::record::Kept;
@@ -26,6 +27,16 @@ use crate::score::{
 /// the off setting is not among them — it rides the shape's first lifetime
 /// on the drafter-less launch a start without speculation really is.
 const DRAFT_SETTINGS: [Option<u32>; 3] = [Some(2), Some(3), Some(4)];
+
+/// The drafted settings THIS plan runs — one home for the rule, so the
+/// sweep, the plan's counts and the retry's filter cannot disagree.
+fn settings_for(drafter: bool) -> &'static [Option<u32>] {
+    if drafter {
+        &DRAFT_SETTINGS
+    } else {
+        &[]
+    }
+}
 
 /// How much faster a shape's history must read than the off-winner's to
 /// earn a drafted sweep: a reply reads its history on every setting, and
@@ -102,12 +113,12 @@ where
     P: FnMut(&Candidate, &PathBuf) -> Result<First, Refusal>,
     D: FnMut(&Candidate, &PathBuf) -> Samples,
 {
-    let settings: &[Option<u32>] = if drafter { &DRAFT_SETTINGS } else { &[] };
+    let settings = settings_for(drafter);
     // The marker's trials this plan may use: answered, and lifetimes of
     // the current shapes. What they proved measured is seeded into the
     // picture and leaves this start's plan — the retry runs only the
     // lifetimes they never answered.
-    let resume = Resume::new(prior, shapes, settings);
+    let resume = Resume::new(prior, shapes, drafter);
     let Seeded {
         mut trials,
         mut prompt,
@@ -281,78 +292,69 @@ where
                 draft: *setting,
                 ..*shape
             };
-            if resume.measured(&trial) {
-                // Its entry stands, nothing runs — and only a setting this
-                // start runs may end the sweep: a saved one never judges it.
-                continue;
-            }
-            if since_start() >= budget {
-                // Nothing behind this check can begin: every later setting
-                // and every later shape would stop here. The sweep is
-                // unfinished — the caller must let the next start try
-                // again — and the plan is finished as of now.
-                cut = true;
-                // The plan is NOT re-cut down to `done`: what this start
-                // did not measure is what it still owes, and the page's bar
-                // must stay at the height the tune really reached.
+            // A saved setting answers to the same rule as a run one: its
+            // entry stands either way, and it may end the sweep here. A
+            // saved startup refusal is not in the marker at all (never
+            // an answer), so it reaches the run below instead.
+            let stop = if let Some(saved) = resume.kept(&trial) {
+                sweep_ends(saved, off_decode)
+            } else {
+                if since_start() >= budget {
+                    // Nothing behind this check can begin: every later
+                    // setting and every later shape would stop here. The
+                    // sweep is unfinished — the caller must let the next
+                    // start try again — and the plan is finished as of now.
+                    cut = true;
+                    // The plan is NOT re-cut down to `done`: what this start
+                    // did not measure is what it still owes, and the page's bar
+                    // must stay at the height the tune really reached.
+                    progress(Report {
+                        done,
+                        total: planned,
+                        candidate: done,
+                        cut: true,
+                    });
+                    break 'sweep;
+                }
+                progress(Report {
+                    done,
+                    total: planned,
+                    candidate: done + 1,
+                    cut: false,
+                });
+                done += 1;
+                let kept = match decode(&trial, exe) {
+                    Ok(rates) => match best_rate(&rates)
+                        .and_then(|decode_rate| Reply::from_rates(shape_prompt, decode_rate))
+                    {
+                        Some(reply) => {
+                            best = Some(
+                                best.map_or(reply.seconds, |current| current.min(reply.seconds)),
+                            );
+                            Kept::Replied(reply)
+                        }
+                        None => Kept::Refused {
+                            refusal: Refusal::NoUsableAnswer,
+                            prompt_rate: Some(shape_prompt),
+                        },
+                    },
+                    Err(refusal) => Kept::Refused {
+                        refusal,
+                        prompt_rate: Some(shape_prompt),
+                    },
+                };
+                let ends = sweep_ends(&kept, off_decode);
+                trials.push((trial, kept));
+                // The candidate closes: the page's bar counts these, and its
+                // line names the one that just ran.
                 progress(Report {
                     done,
                     total: planned,
                     candidate: done,
-                    cut: true,
+                    cut: false,
                 });
-                break 'sweep;
-            }
-            progress(Report {
-                done,
-                total: planned,
-                candidate: done + 1,
-                cut: false,
-            });
-            done += 1;
-            // The rule that ends a sweep: refused, or not writing faster
-            // than this shape with the drafter off. This setting's own
-            // entry stands; the settings behind it leave the plan below.
-            let stop = match decode(&trial, exe) {
-                Ok(rates) => match best_rate(&rates)
-                    .and_then(|decode_rate| Reply::from_rates(shape_prompt, decode_rate))
-                {
-                    Some(reply) => {
-                        best =
-                            Some(best.map_or(reply.seconds, |current| current.min(reply.seconds)));
-                        trials.push((trial, Kept::Replied(reply)));
-                        reply.decode_rate <= off_decode
-                    }
-                    None => {
-                        trials.push((
-                            trial,
-                            Kept::Refused {
-                                refusal: Refusal::NoUsableAnswer,
-                                prompt_rate: Some(shape_prompt),
-                            },
-                        ));
-                        true
-                    }
-                },
-                Err(refusal) => {
-                    trials.push((
-                        trial,
-                        Kept::Refused {
-                            refusal,
-                            prompt_rate: Some(shape_prompt),
-                        },
-                    ));
-                    true
-                }
+                ends
             };
-            // The candidate closes: the page's bar counts these, and its
-            // line names the one that just ran.
-            progress(Report {
-                done,
-                total: planned,
-                candidate: done,
-                cut: false,
-            });
             if stop {
                 // The settings behind this one were counted in the plan
                 // and will never run — the ones no marker has already
@@ -433,6 +435,19 @@ fn sweep_order(off_replies: &[Option<(Candidate, Reply)>]) -> Vec<usize> {
     let mut order = vec![winner_index];
     order.extend(ahead.into_iter().map(|(index, _)| index));
     order
+}
+
+/// The one rule that ends a shape's sweep, judged on the entry exactly
+/// as the record holds it — saved or just run, the same question: a
+/// refusal ends it when it ANSWERS (the server ran and said nothing
+/// usable; a startup refusal answers nothing, so the next setting runs
+/// and the retry re-runs it), and a reply ends it when it does not write
+/// faster than the shape's own off decode.
+fn sweep_ends(kept: &Kept, off_decode: f64) -> bool {
+    match kept {
+        Kept::Refused { refusal, .. } => refusal.answers(),
+        Kept::Replied(reply) => reply.decode_rate <= off_decode,
+    }
 }
 
 /// Lower the plan by the sweeps a shape will never run. The plan counted

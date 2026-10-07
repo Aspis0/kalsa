@@ -1742,6 +1742,116 @@ fn the_measure_receives_the_markers_trials_as_the_prior() {
     let _ = std::fs::remove_dir_all(&fresh);
 }
 
+/// The pool obeys the same filter as the seam: a marker can hold a
+/// launch this start's candidate list no longer runs (the plan's thread
+/// count is not part of the fingerprint), and its reply — the fastest
+/// in the file — must not re-enter the saved record through either door,
+/// let alone win there.
+#[test]
+fn the_pool_restores_only_the_entries_the_plan_keeps() {
+    let dir = scratch("pool-filter");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let mut first = prepared("/main-gpu");
+    let digest = first.info.model_sha256.as_deref().unwrap().to_string();
+    let fingerprint = tune_fingerprint(&machine, &first.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/stub-cpu"))),
+    };
+    let mut progress = |_: Progress| {};
+    // A launch outside this candidate list — the plan's thread count
+    // moved under the same fingerprint — measured by the first attempt.
+    let stale = kalsa_tune::Candidate {
+        backend: ServerBackend::Cpu,
+        threads: Some(6),
+        offload: Offload::NoGpuBuild,
+        draft: None,
+    };
+    tune_launch(
+        &mut first,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, _, counts| {
+            counts(all_done(resolved.len()));
+            let mut measured = tuned(
+                vec![
+                    replied(resolved[0].0, 60.0, 30.0),
+                    replied(stale, 2000.0, 100.0),
+                ],
+                None,
+            );
+            measured.cut = true;
+            measured
+        },
+    );
+    assert!(
+        kalsa_tune::record::cut_before(&dir, &digest, &fingerprint),
+        "the first attempt was withheld as a marker"
+    );
+    // The retry: the seam's prior is the filtered set, and so is the
+    // pool's — asserted after the closure, where no catch_unwind can
+    // swallow the failure.
+    let handed = std::cell::RefCell::new(Vec::new());
+    let mut again = prepared("/main-gpu");
+    tune_launch(
+        &mut again,
+        &machine,
+        &dir,
+        (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
+        &mut memo,
+        &mut progress,
+        |resolved, _, prior, counts| {
+            *handed.borrow_mut() = prior.to_vec();
+            counts(all_done(resolved.len()));
+            let best = resolved[0].0;
+            tuned(
+                vec![replied(best, 90.0, 20.0)],
+                Some(kalsa_tune::Winner {
+                    candidate: best,
+                    reply: reply(90.0, 20.0),
+                }),
+            )
+        },
+    );
+    assert!(
+        !handed
+            .borrow()
+            .iter()
+            .any(|(candidate, _)| candidate.threads == Some(6)),
+        "the seam's prior is the plan's filter too: {:?}",
+        handed.borrow()
+    );
+    let saved = kalsa_tune::record::load(&dir, &digest, &fingerprint)
+        .expect("the retry's verdict is saved");
+    assert!(
+        !saved
+            .trials
+            .iter()
+            .any(|(candidate, _)| candidate.threads == Some(6)),
+        "the stale launch never re-enters the record: {:?}",
+        saved.trials
+    );
+    assert_eq!(
+        saved.trials.len(),
+        1,
+        "both attempts measured the same launch; the fresher stands: {:?}",
+        saved.trials
+    );
+    assert_eq!(
+        saved.winner.map(|win| win.candidate.threads),
+        Some(Some(8)),
+        "the pool chose over the filtered union, never the stale reply: {:?}",
+        saved.winner
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// The stop's promise is only as good as the write behind it: a verdict the
 /// record cannot carry — here no trials at all, which `save_marker` refuses
 /// — writes nothing, so nothing is owed to the next start, and with no

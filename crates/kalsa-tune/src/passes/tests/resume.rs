@@ -106,13 +106,14 @@ fn a_saved_startup_refusal_is_rerun_not_skipped() {
     assert!(tuned.complete && !tuned.cut);
 }
 
-/// A drafted refusal that ANSWERED is measured all the same: the server
-/// ran, passed the gates, and the ask came back with nothing usable
-/// inside the tune's own bound — that is the setting's answer, so the
-/// retry keeps the entry and never runs it again. The plan pays only for
-/// the settings behind it.
+/// A drafted refusal that ANSWERED judges the sweep exactly like a run
+/// setting: the server ran, passed the gates, and the ask came back
+/// with nothing usable inside the tune's own bound — that ends the
+/// shape's sweep. The entry stands in the record; the settings behind
+/// it are unsaved, so they leave the plan through `lower()` and never
+/// run.
 #[test]
-fn a_saved_draft_refusal_that_answered_is_skipped() {
+fn a_saved_draft_refusal_that_answered_ends_the_sweep() {
     let shapes = surface();
     let prior = vec![
         replied(gpu(), 1500.0, 50.0),
@@ -135,10 +136,9 @@ fn a_saved_draft_refusal_that_answered_is_skipped() {
             Ok(vec![80.0])
         },
     );
-    assert_eq!(
-        *decodes.borrow(),
-        vec![Some(3), Some(4)],
-        "the refused 2 is skipped, the settings behind it run: {:?}",
+    assert!(
+        decodes.borrow().is_empty(),
+        "the saved refusal ends the sweep: nothing behind it runs: {:?}",
         decodes.borrow()
     );
     assert!(
@@ -152,12 +152,66 @@ fn a_saved_draft_refusal_that_answered_is_skipped() {
     );
     assert_eq!(
         tuned.trials.len(),
-        6,
-        "three saved firsts, the saved refusal, two drafts: {:?}",
+        4,
+        "three saved firsts and the saved refusal: {:?}",
         tuned.trials
     );
     let seen = seen.borrow();
-    assert_eq!(seen.last(), Some(&(2, 2)), "{seen:?}");
+    assert_eq!(
+        *seen,
+        vec![(0, 5), (0, 2), (0, 0), (0, 0)],
+        "the unswept shapes leave first, then the 3 and 4 behind the stop: {seen:?}"
+    );
+    assert!(tuned.complete && !tuned.cut);
+}
+
+/// The other half of the rule: a saved setting that does not write
+/// faster than the shape's own off decode ends the sweep just like a
+/// run one — 40 tok/s against the card's 50 — its entry stands, and the
+/// unsaved settings behind it leave the plan through `lower()`.
+#[test]
+fn a_saved_setting_slower_than_off_ends_the_sweep() {
+    let shapes = surface();
+    let prior = vec![
+        replied(gpu(), 1500.0, 50.0),
+        replied(cpu(16), 30.0, 12.0),
+        replied(cpu(22), 25.0, 9.0),
+        replied(drafted(gpu(), 2), 1500.0, 40.0),
+    ];
+    let decodes = RefCell::new(Vec::new());
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        &prior,
+        Duration::from_secs(3600),
+        || Duration::ZERO,
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        |_, _| panic!("every first lifetime is answered"),
+        |trial, _| {
+            decodes.borrow_mut().push(trial.draft);
+            Ok(vec![80.0])
+        },
+    );
+    assert!(
+        decodes.borrow().is_empty(),
+        "the saved slower-than-off 2 ends the sweep: {:?}",
+        decodes.borrow()
+    );
+    assert!(
+        tuned
+            .trials
+            .contains(&replied(drafted(gpu(), 2), 1500.0, 40.0)),
+        "its entry stands in the record: {:?}",
+        tuned.trials
+    );
+    assert_eq!(tuned.trials.len(), 4, "{:?}", tuned.trials);
+    let seen = seen.borrow();
+    assert_eq!(
+        *seen,
+        vec![(0, 5), (0, 2), (0, 0), (0, 0)],
+        "the settings behind the stop leave the plan: {seen:?}"
+    );
     assert!(tuned.complete && !tuned.cut);
 }
 

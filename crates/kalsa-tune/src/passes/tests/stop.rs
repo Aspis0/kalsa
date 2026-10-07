@@ -272,3 +272,85 @@ fn a_faster_setting_keeps_the_sweep_until_a_slower_one_arrives() {
     );
     assert!(tuned.complete && !tuned.cut);
 }
+
+/// A startup refusal answers nothing, so it cannot judge the sweep: the
+/// card's n = 2 fails to come up (`NotReady`), and n = 3 / n = 4 run
+/// anyway — the entry stands as the refusal it is (a retry re-runs it,
+/// never this sweep), and the shape is judged on the settings that did
+/// answer: n = 3 at 6.0 beats the 4.70 off and runs on, n = 4 at 3.0
+/// ends the sweep with nothing behind it.
+#[test]
+fn a_startup_refusal_does_not_end_the_shapes_sweep() {
+    let shapes = surface();
+    let decodes = RefCell::new(Vec::new());
+    let seen = RefCell::new(Vec::new());
+    let tuned = tune(
+        &shapes,
+        true,
+        &[],
+        Duration::from_secs(3600),
+        || Duration::ZERO,
+        &mut |report| seen.borrow_mut().push((report.done, report.total)),
+        |shape, _| surface_first(shape),
+        |trial, _| {
+            decodes.borrow_mut().push((trial.backend, trial.draft));
+            if trial.backend == ServerBackend::Vulkan {
+                match trial.draft {
+                    Some(2) => Err(Refusal::NotReady),
+                    Some(3) => Ok(vec![6.0]),
+                    Some(4) => Ok(vec![3.0]),
+                    other => panic!("the card has no setting {other:?}"),
+                }
+            } else {
+                Ok(vec![processor_decode(trial)])
+            }
+        },
+    );
+    assert_eq!(
+        *decodes.borrow(),
+        vec![
+            (ServerBackend::Cpu, Some(2)),
+            (ServerBackend::Cpu, Some(3)),
+            (ServerBackend::Cpu, Some(4)),
+            (ServerBackend::Vulkan, Some(2)),
+            (ServerBackend::Vulkan, Some(3)),
+            (ServerBackend::Vulkan, Some(4)),
+        ],
+        "the startup refusal did not end anything: every setting ran"
+    );
+    assert!(
+        tuned.trials.contains(&(
+            drafted(gpu(), 2),
+            Kept::Refused {
+                refusal: Refusal::NotReady,
+                prompt_rate: Some(25.0),
+            },
+        )),
+        "the refusal is the entry it is: {:?}",
+        tuned.trials
+    );
+    assert_eq!(
+        *seen.borrow(),
+        vec![
+            (0, 8),
+            (1, 8),
+            (1, 8),
+            (2, 8),
+            (2, 8),
+            (3, 8),
+            (3, 8),
+            (4, 8),
+            (4, 8),
+            (5, 8),
+            (5, 8),
+            (6, 8),
+            (6, 8),
+            (7, 8),
+            (7, 8),
+            (8, 8),
+            (8, 8),
+        ],
+        "no lowering: nothing is behind the last setting to leave"
+    );
+    assert!(tuned.complete && !tuned.cut);
+}

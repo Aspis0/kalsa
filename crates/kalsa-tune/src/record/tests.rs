@@ -390,7 +390,7 @@ fn the_retry_pool_keeps_one_entry_per_candidate_and_the_better_reply() {
             ),
         ],
     };
-    let pooled = pool_retry(&prior, retry);
+    let pooled = pool_retry(&prior.trials, retry);
     assert_eq!(pooled.fingerprint, fp(DIGEST), "the retry's own key");
     assert_eq!(pooled.trials.len(), 2, "one entry per candidate: {pooled:?}");
     let cpu8_trial = pooled
