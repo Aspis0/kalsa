@@ -248,8 +248,19 @@ const MAX_KIND = 100;
 const MAX_QUESTION = 500;
 const MAX_OPTION = 200;
 const MAX_EXPLANATION = 1000;
-/** Hard cap on serialized block size (unknown / oversized → { type: "unknown" }). */
+/** Hard cap on serialized block size (unknown / oversized → { type: "unknown" } and oversized envelopes → state dropped). */
 const MAX_BLOCK_JSON_BYTES = 64 * 1024;
+/** Longest id a checklist item may keep: ids key the stored state, and past
+ *  this they are noise, not identity. Same rule as
+ *  miniappBuilderCommon.MAX_ID_CHARS — keep in sync. */
+const MAX_ID_CHARS = 64;
+
+/** Ids that would write along an object's prototype chain instead of its own
+ *  keys — an item with one can never be ticked. Same rule as
+ *  miniappBuilderCommon.isUnsafeId — keep in sync. */
+function isUnsafeId(id) {
+  return id === "__proto__" || id === "constructor" || id === "prototype";
+}
 
 function clipString(value, max = MAX_STRING, fallback = "") {
   if (typeof value === "number" && Number.isFinite(value)) return String(value).slice(0, max);
@@ -300,6 +311,35 @@ function normalizeQuizBlock(block) {
   };
 }
 
+/**
+ * Normalize a checklist block: the item id keys the ticked state and the
+ * React row, so EVERY source — tool build, hand-written JSON, restore —
+ * gets the builder's rules here: a missing, duplicate, unsafe or over-cap
+ * id mints `item-N` instead of breaking ticking or duplicating keys.
+ */
+function normalizeChecklistBlock(block) {
+  const items = [];
+  const taken = new Set();
+  let minted = 0;
+  const source = Array.isArray(block.items) ? block.items : [];
+  source.forEach((entry) => {
+    if (!isPlainObject(entry)) return;
+    const title = typeof entry.title === "string" ? entry.title.trim() : "";
+    if (!title) return;
+    let id =
+      typeof entry.id === "string" && entry.id && entry.id.length <= MAX_ID_CHARS && !isUnsafeId(entry.id)
+        ? entry.id
+        : null;
+    while (!id || taken.has(id)) id = `item-${(minted += 1)}`;
+    taken.add(id);
+    items.push({ id, title });
+  });
+  const out = { ...block, type: "checklist" };
+  if ("title" in out) out.title = clipString(out.title, MAX_TITLE, "");
+  out.items = items;
+  return out;
+}
+
 /** Soft-normalize one block. Oversized / non-objects become { type: "unknown" }. */
 function normalizeMiniappBlock(block) {
   if (!isPlainObject(block)) return { type: "unknown" };
@@ -314,6 +354,7 @@ function normalizeMiniappBlock(block) {
   }
   const type = clipString(block.type, 64, "unknown");
   if (type === "quiz") return normalizeQuizBlock(block);
+  if (type === "checklist") return normalizeChecklistBlock(block);
   // Apply common string caps even to unknown types (title/question/option/explanation).
   const out = { ...block, type };
   if ("title" in out) out.title = clipString(out.title, MAX_TITLE, "");
@@ -347,7 +388,8 @@ function legacyChecklistBlock(block) {
     const title = clipString(raw, MAX_TITLE, "");
     if (title) items.push({ id: String(index), title });
   });
-  return { type: "checklist", title: block.title, items };
+  // …and the result goes through the same id rules as every other source.
+  return normalizeChecklistBlock({ type: "checklist", title: block.title, items });
 }
 
 /**

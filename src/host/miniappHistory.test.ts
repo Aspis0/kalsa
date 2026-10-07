@@ -228,3 +228,41 @@ describe("the state a later turn's history carries", () => {
     expect(user.text).toBe("make me a list");
   });
 });
+
+test("restore gives a hand-written checklist safe, unique item ids", () => {
+  const [restored] = sanitizeHistoryMessages(
+    [
+      {
+        id: "a1",
+        role: "assistant",
+        text: "List below.",
+        createdAt: 9,
+        miniapp: {
+          schema: "miniapp_v1",
+          kind: "checklist",
+          title: "Hand written",
+          blocks: [
+            {
+              type: "checklist",
+              items: [
+                { id: "__proto__", title: "A" },
+                { id: "milk", title: "B" },
+                { id: "milk", title: "C" },
+                { id: "x".repeat(65), title: "D" },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+    "en",
+  );
+  // Unsafe, duplicate and over-cap ids mint like the builder does; the
+  // safe unique id is kept, and the tick it keys still resolves.
+  expect(restored.miniapp?.blocks[0].items).toEqual([
+    { id: "item-1", title: "A" },
+    { id: "milk", title: "B" },
+    { id: "item-2", title: "C" },
+    { id: "item-3", title: "D" },
+  ]);
+});

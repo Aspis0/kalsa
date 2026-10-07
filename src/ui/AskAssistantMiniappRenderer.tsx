@@ -1180,7 +1180,7 @@ function TabsBlockView({ block, context, depth }: { block: MiniappBlock; context
             <MiniappBlockRenderer
               key={`tab-${safeIndex}-${childIndex}`}
               block={child}
-              context={{ ...context, index: childIndex, blockKey: `${context.blockKey}.${childIndex}` }}
+              context={{ ...context, index: childIndex, blockKey: `${context.blockKey}.${safeIndex}.${childIndex}` }}
               depth={depth + 1}
             />
           ))

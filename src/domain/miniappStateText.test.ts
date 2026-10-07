@@ -103,3 +103,65 @@ test("a corrupt envelope yields no lines instead of throwing", () => {
   expect(miniappStateLines({ blocks: "nope" })).toEqual([]);
   expect(miniappStateLines({ kind: "checklist", blocks: [null, 7, { type: "checklist" }] })).toEqual([]);
 });
+
+describe("nested state reads back under the renderer's keys", () => {
+  const quiz = (question: string) => ({
+    type: "quiz",
+    question,
+    options: ["Yes", "No"],
+    answerIndex: 0,
+  });
+
+  test("an expandable's child quiz reads <parent>.<childIndex>", () => {
+    const lines = miniappStateLines({
+      kind: "reading_quiz",
+      blocks: [
+        {
+          type: "expandable",
+          blocks: [quiz("Nested?")],
+        },
+      ],
+      state: { quiz: { "0.0": { picked: 1, checked: true, correct: false } } },
+    });
+    expect(lines).toEqual(["Q: Nested? picked: No (wrong)"]);
+  });
+
+  test("a tab's child quiz reads <parent>.<tabIndex>.<childIndex>", () => {
+    const lines = miniappStateLines({
+      kind: "reading_quiz",
+      blocks: [
+        {
+          type: "tabs",
+          tabs: [
+            { blocks: [] },
+            { blocks: [quiz("In tab two?"), quiz("Also tab two?")] },
+          ],
+        },
+      ],
+      state: {
+        quiz: {
+          "0.1.0": { picked: 0, checked: true, correct: true },
+          "0.1.1": { picked: 0, checked: false, correct: false },
+        },
+      },
+    });
+    expect(lines).toEqual([
+      "Q: In tab two? picked: Yes (correct)",
+      "Q: Also tab two? picked: Yes",
+    ]);
+  });
+
+  test("a nested checklist is read too (its keys are ids, not positions)", () => {
+    const lines = miniappStateLines({
+      kind: "checklist",
+      blocks: [
+        {
+          type: "tabs",
+          tabs: [{ blocks: [{ type: "checklist", items: [{ id: "milk", title: "Milk" }] }] }],
+        },
+      ],
+      state: { checked: { milk: true } },
+    });
+    expect(lines).toEqual(["[x] Milk"]);
+  });
+});
