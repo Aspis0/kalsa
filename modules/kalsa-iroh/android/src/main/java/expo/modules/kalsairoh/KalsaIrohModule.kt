@@ -223,16 +223,27 @@ class KalsaIrohModule : Module() {
     if (!nativeInstallAndroidContext(applicationContext)) throw AndroidContextInitializationException()
     val started = MobileBridge(File(applicationContext.filesDir, "iroh-node.key").path)
     holdMulticastReception(applicationContext)
-    val (previous, previousTunnels) = synchronized(bridges) {
-      val old = bridge
-      bridge = started
-      val oldTunnels = if (old != null) tunnels.values.toList() else emptyList()
-      if (old != null) tunnels.clear()
-      old to oldTunnels
+    // OnDestroy can land while the constructor above blocks: install only
+    // if the module is still alive, else close what was just built.
+    val (previous, previousTunnels, installed) = synchronized(bridges) {
+      if (destroyed) {
+        Triple(null, emptyList<Tunnel>(), false)
+      } else {
+        val old = bridge
+        bridge = started
+        val oldTunnels = if (old != null) tunnels.values.toList() else emptyList()
+        if (old != null) tunnels.clear()
+        Triple(old, oldTunnels, true)
+      }
+    }
+    if (!installed) {
+      dropMulticastReception()
+      started.destroy()
+      throw IllegalStateException("the module is destroyed")
     }
     if (previous != null) {
       // Close handles from the replaced bridge outside the lock, then destroy
-      // the bridge after its tunnels have released their runtime references.
+      // the bridge after its tunnels have released its runtime references.
       control.execute {
         closeTunnels(previousTunnels)
         dropBridge(previous)
