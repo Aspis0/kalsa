@@ -1794,6 +1794,23 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   HOST-W import and `HOST self-check token_embd.weight: PASS (aos kernel)`; KL vs the two-copy reference mean 0.000024,
   max 0.000293, 0 diverged, PASS. Step 6 binding code is done on local `spike/onecopy-legs` (not pushed); the app pin
   stays `3d8fc84a` until the owner moves it. Open: the R2 negative control on a non-row device (Jelly = UX session's).
+- **OWNER DECISION 2026-10-07 (v2 weighting)**: "smoothing sicuro e poi testa sia gpu burst che equal weight". Engine
+  `85d017571` + audit fixes `482ae4717` (mimo; luna `audit-hop-knobs-luna.md`, findings 1-4 fixed, 5-8 backlog), bench
+  `--dev` `e162b8e6f`; pushed to the fork. `decode_headroom_tau_s` (per-leg EMA, default 0 = raw = shipped behaviour,
+  v1 parity confirmed by the audit) and `decode_leg_weighting` NPU_FIRST (default) | GPU_BURST (when the rule would
+  go to/stay on the CPU and the GPU's headroom >= the CPU's, one GPU window; no back-to-back). EQUAL was dropped: the
+  existing rule already IS argmax-with-hysteresis, so "equal weights" = NPU_FIRST decision for decision (audit
+  confirmed).
+- **S23 modes, short (`raw/session9-modes-e162b8e6f.grep`, 512 tokens each, unplugged)**: raw: 14 hops in 16 windows
+  (flips almost every window), GPU 1 window; tau 10 s: 6 hops, GPU 3 windows, NPU 224 / CPU 192 tokens; gpu_burst tau
+  10: 6 hops, GPU 4 windows (one by burst), NPU 192 / CPU 191. Mean rates 16.7 / 16.4 / 16.2 tok/s; commits 0.13-0.18
+  s per 511 tokens. Smoothing does what it should (hops 14 -> 6) and the GPU enters on its own once the CPU's
+  single-core spikes are filtered. 25 s runs say nothing about heat: a 4096-token sustained run per mode is next
+  (`run-step5-heat.sh`, bench `482ae4717`).
+- **Governor overhead, not priced yet**: ABBA arm A `--dev HTP0` (plain context, two-copy) 18.2 -> 15.6 tok/s across
+  its 3 turns vs arm L forced NPU leg 19.7 / 19.6. Arm A on HTP0 alone is not the J(1) device list (its lm_head likely
+  runs on the CPU), so this does NOT price the governor. Needed: arm A over {HTP0, GPUOpenCL} with the one-copy env
+  (= llama-bench H, 21.4-21.7).
 - **Leg speed, S23 07:00 (`step5-s23/raw/session7-speed-1c7f27f13.grep`)**: governor-bench forced single leg, no KL dump:
   NPU 20.0, GPU 16.9 tok/s (with the KL dump 19.5 / 15.5 - the dump is cheap). llama-bench at depth 512 (the bench's
   prefill depth), ABBA: two-copy NPU A 22.17 / 22.12 vs one-copy J(1) H 21.44 / 21.70 = **0.975**. So one-copy keeps the

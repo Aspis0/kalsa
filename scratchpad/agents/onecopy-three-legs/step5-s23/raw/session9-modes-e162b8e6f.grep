@@ -1,0 +1,124 @@
+# S23 2026-10-07 11:33-11:45 EDT, unplugged, engine e162b8e6f governor-bench sha 366944189480, run-step5-modes.sh
+== modes start Wed Oct  7 11:33:37 EDT 2026 binary 366944189480 [lvl=92 ac=false usb=false wl=false batT=262 skin=27.7 wake=Awake thermal=0 traced=0]
+## ovh 1 arm=A exit=0 [lvl=92 ac=false usb=false wl=false batT=265 skin=29.1 wake=Awake thermal=0 traced=0]
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0 decode_backend=HTP0 ttft_ms=769.467 decode_tps=18.203 prefill_ms=767.807 seed=1234
+turn arm=A rep=0 turn=1 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0 decode_backend=HTP0 ttft_ms=832.470 decode_tps=16.450 prefill_ms=831.310 seed=1234
+turn arm=A rep=0 turn=2 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0 decode_backend=HTP0 ttft_ms=888.768 decode_tps=15.603 prefill_ms=886.552 seed=1234
+summary=median arm=A turns=3 repetitions=1 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0 decode_backend=HTP0 ttft_ms=832.470 decode_tps=16.450 prefill_ms=831.310 seed=123
+## ovh 2 arm=L exit=0 [lvl=91 ac=false usb=false wl=false batT=276 skin=29.6 wake=Awake thermal=0 traced=0]
+leg_summary arm=L rep=0 engine=npu tokens=127 us=6432763 tps=19.743
+## ovh 3 arm=L exit=0 [lvl=91 ac=false usb=false wl=false batT=280 skin=29.6 wake=Awake thermal=0 traced=0]
+leg_summary arm=L rep=0 engine=npu tokens=127 us=6491912 tps=19.563
+## ovh 4 arm=A exit=0 [lvl=91 ac=false usb=false wl=false batT=283 skin=30.6 wake=Awake thermal=0 traced=0]
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0 decode_backend=HTP0 ttft_ms=763.629 decode_tps=16.374 prefill_ms=762.021 seed=1234
+turn arm=A rep=0 turn=1 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0 decode_backend=HTP0 ttft_ms=844.178 decode_tps=15.925 prefill_ms=838.865 seed=1234
+turn arm=A rep=0 turn=2 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0 decode_backend=HTP0 ttft_ms=892.137 decode_tps=15.654 prefill_ms=889.187 seed=1234
+summary=median arm=A turns=3 repetitions=1 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0 decode_backend=HTP0 ttft_ms=844.178 decode_tps=15.925 prefill_ms=838.865 seed=123
+feed0: 54.1 21.4 41.5 [lvl=91 ac=false usb=false wl=false batT=295 skin=30.0 wake=Awake thermal=0 traced=0]
+## mode=npu_first tau=0 exit=0 [lvl=91 ac=false usb=false wl=false batT=290 skin=32.7 wake=Awake thermal=0 traced=0]
+governor: decode hop cpu->npu at token 0 (headroom cpu 54.1 C, npu 21.4 C, gpu 41.5 C, hysteresis 4 C)
+governor: decode hop npu->cpu at token 32 (headroom cpu 65.1 C, npu 28.5 C, gpu 50.2 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 64 (headroom cpu 27.0 C, npu 43.7 C, gpu 38.0 C, hysteresis 4 C)
+governor: decode hop npu->cpu at token 96 (headroom cpu 55.4 C, npu 21.0 C, gpu 42.7 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 128 (headroom cpu 22.1 C, npu 41.3 C, gpu 36.4 C, hysteresis 4 C)
+governor: decode hop npu->cpu at token 160 (headroom cpu 45.6 C, npu 21.4 C, gpu 38.4 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 192 (headroom cpu 27.4 C, npu 38.5 C, gpu 36.4 C, hysteresis 4 C)
+governor: decode hop npu->gpu at token 224 (headroom cpu 18.1 C, npu 18.6 C, gpu 32.8 C, hysteresis 4 C)
+governor: decode hop gpu->cpu at token 256 (headroom cpu 52.1 C, npu 39.3 C, gpu 31.6 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 288 (headroom cpu 18.9 C, npu 37.3 C, gpu 31.6 C, hysteresis 4 C)
+governor: decode hop npu->cpu at token 320 (headroom cpu 46.3 C, npu 15.8 C, gpu 37.2 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 352 (headroom cpu 21.3 C, npu 36.9 C, gpu 33.2 C, hysteresis 4 C)
+governor: decode hop npu->cpu at token 416 (headroom cpu 51.7 C, npu 15.8 C, gpu 37.2 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 448 (headroom cpu 22.5 C, npu 36.1 C, gpu 31.6 C, hysteresis 4 C)
+governor: decode hop npu->cpu at token 480 (headroom cpu 46.4 C, npu 14.6 C, gpu 35.6 C, hysteresis 4 C)
+run_start arm=L rep=0 monotonic_us=654264914185 dev=auto hop_mode=npu_first headroom_tau=0.000
+leg_window arm=L rep=0 window=0 engine=npu rule=headroom tokens=32 us=1644130 tps=19.463
+leg_window arm=L rep=0 window=1 engine=cpu rule=headroom tokens=32 us=2224876 tps=14.383
+leg_window arm=L rep=0 window=2 engine=npu rule=headroom tokens=32 us=1634706 tps=19.575
+leg_window arm=L rep=0 window=3 engine=cpu rule=headroom tokens=32 us=2380563 tps=13.442
+leg_window arm=L rep=0 window=4 engine=npu rule=headroom tokens=32 us=1617682 tps=19.781
+leg_window arm=L rep=0 window=5 engine=cpu rule=headroom tokens=32 us=1898328 tps=16.857
+leg_window arm=L rep=0 window=6 engine=npu rule=headroom tokens=32 us=1628649 tps=19.648
+leg_window arm=L rep=0 window=7 engine=gpu rule=headroom tokens=32 us=1934404 tps=16.543
+leg_window arm=L rep=0 window=8 engine=cpu rule=headroom tokens=32 us=1965461 tps=16.281
+leg_window arm=L rep=0 window=9 engine=npu rule=headroom tokens=32 us=1685444 tps=18.986
+leg_window arm=L rep=0 window=10 engine=cpu rule=headroom tokens=32 us=2318533 tps=13.802
+leg_window arm=L rep=0 window=11 engine=npu rule=headroom tokens=32 us=1695617 tps=18.872
+leg_window arm=L rep=0 window=12 engine=npu rule=headroom tokens=32 us=1696497 tps=18.862
+leg_window arm=L rep=0 window=13 engine=cpu rule=headroom tokens=32 us=2372107 tps=13.490
+leg_window arm=L rep=0 window=14 engine=npu rule=headroom tokens=32 us=1689517 tps=18.940
+leg_window arm=L rep=0 window=15 engine=cpu rule=headroom tokens=32 us=2289138 tps=13.979
+leg_summary arm=L rep=0 engine=cpu tokens=223 us=15449006 tps=14.435
+leg_summary arm=L rep=0 engine=gpu tokens=32 us=1934404 tps=16.543
+leg_summary arm=L rep=0 engine=npu tokens=256 us=13292242 tps=19.259
+leg_pair arm=L rep=0 pair=npu-gpu hops=1 commit_bytes=12419072 commit_us=49281
+leg_pair arm=L rep=0 pair=npu-cpu hops=12 commit_bytes=20054016 commit_us=120340
+leg_pair arm=L rep=0 pair=gpu-cpu hops=1 commit_bytes=1409024 commit_us=13261
+leg_total arm=L rep=0 generated=511 windows=16 hops=14 commit_bytes=33882112 commit_us=182882
+feed0: 75.6 62.4 61.7 [lvl=90 ac=false usb=false wl=false batT=301 skin=31.2 wake=Awake thermal=0 traced=0]
+## mode=npu_first tau=10 exit=0 [lvl=90 ac=false usb=false wl=false batT=324 skin=33.6 wake=Awake thermal=0 traced=0]
+governor: decode hop cpu->npu at token 0 (headroom cpu 33.9 C, npu 54.4 C, gpu 49.5 C, hysteresis 4 C)
+governor: decode hop npu->gpu at token 96 (headroom cpu 44.8 C, npu 44.1 C, gpu 48.5 C, hysteresis 4 C)
+governor: decode hop gpu->cpu at token 160 (headroom cpu 48.6 C, npu 43.6 C, gpu 44.5 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 256 (headroom cpu 33.2 C, npu 40.1 C, gpu 37.7 C, hysteresis 4 C)
+governor: decode hop npu->cpu at token 320 (headroom cpu 38.4 C, npu 33.2 C, gpu 37.8 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 416 (headroom cpu 28.7 C, npu 33.9 C, gpu 33.6 C, hysteresis 4 C)
+governor: decode hop npu->gpu at token 480 (headroom cpu 30.6 C, npu 28.1 C, gpu 33.5 C, hysteresis 4 C)
+run_start arm=L rep=0 monotonic_us=654391470039 dev=auto hop_mode=npu_first headroom_tau=10.000
+leg_window arm=L rep=0 window=0 engine=npu rule=headroom tokens=32 us=1652049 tps=19.370
+leg_window arm=L rep=0 window=1 engine=npu rule=headroom tokens=32 us=1597356 tps=20.033
+leg_window arm=L rep=0 window=2 engine=npu rule=headroom tokens=32 us=1616297 tps=19.798
+leg_window arm=L rep=0 window=3 engine=gpu rule=headroom tokens=32 us=1904024 tps=16.807
+leg_window arm=L rep=0 window=4 engine=gpu rule=headroom tokens=32 us=1863880 tps=17.168
+leg_window arm=L rep=0 window=5 engine=cpu rule=headroom tokens=32 us=1941576 tps=16.481
+leg_window arm=L rep=0 window=6 engine=cpu rule=headroom tokens=32 us=2215422 tps=14.444
+leg_window arm=L rep=0 window=7 engine=cpu rule=headroom tokens=32 us=2340094 tps=13.675
+leg_window arm=L rep=0 window=8 engine=npu rule=headroom tokens=32 us=1701632 tps=18.805
+leg_window arm=L rep=0 window=9 engine=npu rule=headroom tokens=32 us=1677998 tps=19.070
+leg_window arm=L rep=0 window=10 engine=cpu rule=headroom tokens=32 us=2457542 tps=13.021
+leg_window arm=L rep=0 window=11 engine=cpu rule=headroom tokens=32 us=2377242 tps=13.461
+leg_window arm=L rep=0 window=12 engine=cpu rule=headroom tokens=32 us=2449381 tps=13.065
+leg_window arm=L rep=0 window=13 engine=npu rule=headroom tokens=32 us=1692899 tps=18.902
+leg_window arm=L rep=0 window=14 engine=npu rule=headroom tokens=32 us=1705117 tps=18.767
+leg_window arm=L rep=0 window=15 engine=gpu rule=headroom tokens=32 us=1962498 tps=16.306
+leg_summary arm=L rep=0 engine=cpu tokens=192 us=13781257 tps=13.932
+leg_summary arm=L rep=0 engine=gpu tokens=95 us=5730402 tps=16.578
+leg_summary arm=L rep=0 engine=npu tokens=224 us=11643348 tps=19.238
+leg_pair arm=L rep=0 pair=npu-gpu hops=2 commit_bytes=15925248 commit_us=87679
+leg_pair arm=L rep=0 pair=npu-cpu hops=3 commit_bytes=6324224 commit_us=25723
+leg_pair arm=L rep=0 pair=gpu-cpu hops=1 commit_bytes=11370496 commit_us=37349
+leg_total arm=L rep=0 generated=511 windows=16 hops=6 commit_bytes=33619968 commit_us=150751
+feed0: 73.6 61.2 61.3 [lvl=89 ac=false usb=false wl=false batT=311 skin=31.9 wake=Awake thermal=0 traced=0]
+## mode=gpu_burst tau=10 exit=0 [lvl=89 ac=false usb=false wl=false batT=325 skin=34.9 wake=Awake thermal=0 traced=0]
+governor: decode hop cpu->npu at token 0 (headroom cpu 35.5 C, npu 53.6 C, gpu 47.5 C, hysteresis 4 C)
+governor: decode hop npu->gpu at token 96 (headroom cpu 45.7 C, npu 41.6 C, gpu 46.7 C, hysteresis 4 C)
+governor: decode hop gpu->cpu at token 160 (headroom cpu 49.2 C, npu 41.8 C, gpu 43.0 C, hysteresis 4 C)
+governor: decode hop cpu->gpu at token 224 (headroom cpu 38.5 C, npu 40.2 C, gpu 38.7 C, hysteresis 4 C)
+governor: decode hop gpu->cpu at token 288 (headroom cpu 42.4 C, npu 39.3 C, gpu 35.5 C, hysteresis 4 C)
+governor: decode hop cpu->npu at token 352 (headroom cpu 32.5 C, npu 37.5 C, gpu 33.1 C, hysteresis 4 C)
+governor: decode hop npu->cpu at token 448 (headroom cpu 36.1 C, npu 28.5 C, gpu 33.5 C, hysteresis 4 C)
+run_start arm=L rep=0 monotonic_us=654519588570 dev=auto hop_mode=gpu_burst headroom_tau=10.000
+leg_window arm=L rep=0 window=0 engine=npu rule=headroom tokens=32 us=1575156 tps=20.315
+leg_window arm=L rep=0 window=1 engine=npu rule=headroom tokens=32 us=1651207 tps=19.380
+leg_window arm=L rep=0 window=2 engine=npu rule=headroom tokens=32 us=1645794 tps=19.444
+leg_window arm=L rep=0 window=3 engine=gpu rule=headroom tokens=32 us=2008175 tps=15.935
+leg_window arm=L rep=0 window=4 engine=gpu rule=headroom tokens=32 us=1929201 tps=16.587
+leg_window arm=L rep=0 window=5 engine=cpu rule=headroom tokens=32 us=2378535 tps=13.454
+leg_window arm=L rep=0 window=6 engine=cpu rule=headroom tokens=32 us=2286138 tps=13.997
+leg_window arm=L rep=0 window=7 engine=gpu rule=gpu_burst tokens=32 us=2102751 tps=15.218
+leg_window arm=L rep=0 window=8 engine=gpu rule=headroom tokens=32 us=2085570 tps=15.344
+leg_window arm=L rep=0 window=9 engine=cpu rule=headroom tokens=32 us=2360266 tps=13.558
+leg_window arm=L rep=0 window=10 engine=cpu rule=headroom tokens=32 us=2369366 tps=13.506
+leg_window arm=L rep=0 window=11 engine=npu rule=headroom tokens=32 us=1689436 tps=18.941
+leg_window arm=L rep=0 window=12 engine=npu rule=headroom tokens=32 us=1664224 tps=19.228
+leg_window arm=L rep=0 window=13 engine=npu rule=headroom tokens=32 us=1659557 tps=19.282
+leg_window arm=L rep=0 window=14 engine=cpu rule=headroom tokens=32 us=2002256 tps=15.982
+leg_window arm=L rep=0 window=15 engine=cpu rule=headroom tokens=32 us=2155446 tps=14.846
+leg_summary arm=L rep=0 engine=cpu tokens=191 us=13552007 tps=14.094
+leg_summary arm=L rep=0 engine=gpu tokens=128 us=8125697 tps=15.752
+leg_summary arm=L rep=0 engine=npu tokens=192 us=9885374 tps=19.423
+leg_pair arm=L rep=0 pair=npu-gpu hops=1 commit_bytes=10321920 commit_us=59354
+leg_pair arm=L rep=0 pair=npu-cpu hops=2 commit_bytes=6488064 commit_us=14769
+leg_pair arm=L rep=0 pair=gpu-cpu hops=3 commit_bytes=14188544 commit_us=54795
+leg_total arm=L rep=0 generated=511 windows=16 hops=6 commit_bytes=30998528 commit_us=128918
+== modes end Wed Oct  7 11:45:31 EDT 2026 [lvl=89 ac=false usb=false wl=false batT=315 skin=32.5 wake=Awake thermal=0 traced=0]
