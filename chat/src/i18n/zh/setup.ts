@@ -31,6 +31,7 @@ export const SETUP = {
     "attempt": (index: number, total: number) => `测试 ${index}/${total}`,
     "upToMinutes": (minutes: number) => `最多 ${minutes} 分钟`,
     "minutesLeft": (minutes: number) => `约剩 ${minutes} 分钟`,
+    "tuneOnce": "这个过程只会出现一次。你可以最小化 Kalsa，继续使用你的电脑。",
     "finishNextStart": "Kalsa 下次启动时会完成测试",
     "keptBest": "Kalsa 保留了找到的最佳设置",
     "standardSettings": "Kalsa 将使用其标准设置",

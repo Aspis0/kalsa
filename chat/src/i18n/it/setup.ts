@@ -31,6 +31,7 @@ export const SETUP = {
     "attempt": (index: number, total: number) => `Prova ${index} di ${total}`,
     "upToMinutes": (minutes: number) => `fino a ${minutes} min`,
     "minutesLeft": (minutes: number) => `circa ${minutes} min rimanenti`,
+    "tuneOnce": "Succede una sola volta. Puoi ridurre Kalsa a icona e continuare a usare il tuo computer.",
     "finishNextStart": "Kalsa finirà le prove al prossimo avvio",
     "keptBest": "Kalsa ha tenuto le impostazioni migliori che ha trovato",
     "standardSettings": "Kalsa userà le impostazioni standard",

@@ -362,6 +362,9 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
           </>
         }
       />
+      {/* The once-only note, on the tuning step alone — a face is the
+          tune's own reading of the step — under the tune's line. */}
+      {face !== null ? <p className="surface-quiet">{t.tuneOnce}</p> : null}
     </div>
   );
 }

@@ -17,12 +17,12 @@ use crate::sample::{post_to, request_ask, serves_id, Ask};
 /// The tune's budget in whole seconds, for the walk's own report: the page
 /// has nothing to average before two lifetimes have finished, and this is
 /// the clock its wait counts down from instead.
-pub const TOTAL_BUDGET_SECONDS: u64 = 1080;
+pub const TOTAL_BUDGET_SECONDS: u64 = 1500;
 
 /// One clock over both passes, checked before each lifetime and never
 /// during one: [`TOTAL_BUDGET_SECONDS`] for four shapes (the integrated
 /// GPU's mixed shape is the fourth), each a prefill-and-off lifetime and
-/// three drafted settings — sixteen lifetimes averaging 67.5 s apiece. The
+/// three drafted settings — sixteen lifetimes averaging 93.75 s apiece. The
 /// clock stops a lifetime from BEGINNING past the bound, and one that
 /// begins just inside runs on by its own limits ([`LIFETIME_LIMIT`], an
 /// estimate), so the tune may overrun the budget by up to about one

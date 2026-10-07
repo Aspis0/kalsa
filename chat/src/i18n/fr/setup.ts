@@ -31,6 +31,7 @@ export const SETUP = {
     "attempt": (index: number, total: number) => `Essai ${index} sur ${total}`,
     "upToMinutes": (minutes: number) => `jusqu'à ${minutes} min`,
     "minutesLeft": (minutes: number) => `environ ${minutes} min restantes`,
+    "tuneOnce": "Cela n'arrive qu'une seule fois. Tu peux réduire Kalsa et continuer à utiliser ton ordinateur.",
     "finishNextStart": "Kalsa terminera les tests au prochain démarrage",
     "keptBest": "Kalsa a gardé les meilleurs réglages trouvés",
     "standardSettings": "Kalsa utilisera ses réglages standards",

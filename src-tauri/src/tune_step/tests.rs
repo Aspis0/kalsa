@@ -1368,7 +1368,7 @@ fn the_tuning_step_serialises_the_total_the_page_reads() {
     assert_eq!(json["total"], 2);
     assert_eq!(json["candidate"], 2, "the index the page names arrives whole");
     assert_eq!(
-        json["budget_seconds"], 1080,
+        json["budget_seconds"], 1500,
         "the budget the page counts its wait down from, whole seconds"
     );
     assert_eq!(json["cut"], false, "and the stop marker rides along");

@@ -36,6 +36,9 @@ export const SETUP = {
   attempt: (index: number, total: number) => `Test ${index} of ${total}`,
   upToMinutes: (minutes: number) => `up to ${minutes} min`,
   minutesLeft: (minutes: number) => `about ${minutes} min left`,
+  // The once-only note under the tune's line: one run, and the window
+  // can go away while it happens.
+  tuneOnce: "This happens only once. You can minimize Kalsa and keep using your computer.",
   // A stop, not a finish: the budget ran out with the plan unfinished.
   finishNextStart: "Kalsa will finish testing next time it starts",
   // The second stop: this start was the retry, its verdict is saved as a

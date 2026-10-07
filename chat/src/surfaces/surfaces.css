@@ -140,6 +140,12 @@
   text-align: center;
 }
 
+/* The once-only note under the tune's line reads where the line reads:
+   centred over the same column, in the surfaces' quiet voice. */
+.surface-walk .surface-quiet {
+  text-align: center;
+}
+
 .surface-qr {
   width: min(200px, 100%);
   margin: 0.25rem 0 0.6rem;
