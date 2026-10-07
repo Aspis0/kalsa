@@ -5010,6 +5010,81 @@ const tests = {
     await browser.close();
   },
 
+  // The calculator a person reads, in Italian: one title, the formula in the
+  // fields' names instead of their ids, and numbers written the way the
+  // interface's language writes them — decimal comma and grouped thousands.
+  async minicalc() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("minicalc-demo", false));
+    await page.addInitScript(() => localStorage.setItem("crescent-chat.language.v1", "it"));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await scriptModel(
+      page,
+      [
+        [
+          {
+            id: "k1",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "quick_calculator",
+              slots: {
+                title: "Prezzo",
+                formula: "totale / quattro",
+                fields: [
+                  { id: "totale", label: "Totale", value: 50 },
+                  { id: "quattro", label: "Quanti", value: 4 },
+                ],
+              },
+            }),
+          },
+          {
+            id: "k2",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "quick_calculator",
+              slots: {
+                title: "Punti",
+                formula: "base / parti",
+                fields: [
+                  { id: "base", label: "Base", value: 50000 },
+                  { id: "parti", label: "Parti", value: 4 },
+                ],
+              },
+            }),
+          },
+        ],
+      ],
+      "Fatto.",
+    );
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    // The interface speaks Italian here, the composer included.
+    await page.getByRole("textbox", { name: "Messaggio" }).fill("Quanto fa 50 diviso 4?");
+    await page.getByRole("textbox", { name: "Messaggio" }).press("Enter");
+    await page.waitForFunction(
+      () => document.querySelector(".thread")?.textContent?.includes("Fatto."),
+      null,
+      { timeout: 25000 },
+    ).catch(() => check("minicalc: arrived: Fatto.", false, "wait timed out"));
+
+    const first = page.locator(".miniapp").nth(0);
+    check(
+      "minicalc: the title renders once",
+      (await first.locator(".miniapp-title").count()) === 1 && (await first.locator(".miniapp-block-title").count()) === 0,
+      `titles=${await first.locator(".miniapp-title").count()} blocks=${await first.locator(".miniapp-block-title").count()}`,
+    );
+    const formulaText = ((await first.locator(".miniapp-formula-text").textContent()) ?? "").trim();
+    check("minicalc: the formula reads in the fields' names", formulaText === "Totale / Quanti", formulaText);
+    const result = ((await first.locator(".miniapp-result").textContent()) ?? "").trim();
+    check("minicalc: the decimal reads in Italian", result === "12,5", result);
+    const grouped = ((await page.locator(".miniapp").nth(1).locator(".miniapp-result").textContent()) ?? "").trim();
+    check("minicalc: thousands group in Italian", grouped === "12.500", grouped);
+
+    await browser.close();
+  },
+
   // A comparison table sorts: the header is a button, the first click sorts
   // ascending — numbers by value, so "5" precedes "100" — the second flips
   // to descending, and the sorted column announces itself with aria-sort.

@@ -26,8 +26,15 @@ export function asNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export function formatNumber(value: unknown, digits = 3): string {
+/** A number as the interface's language writes it — decimal comma in it/es/fr,
+ *  grouping where the language groups — or "--" when it is not a number. */
+export function formatNumber(value: unknown, tag: string, digits = 3): string {
   const parsed = asNumber(value, Number.NaN);
   if (!Number.isFinite(parsed)) return "--";
-  return Number(parsed.toFixed(digits)).toString();
+  try {
+    return new Intl.NumberFormat(tag, { maximumFractionDigits: digits }).format(parsed);
+  } catch {
+    // A tag Intl does not know falls back to the plain form.
+    return Number(parsed.toFixed(digits)).toString();
+  }
 }

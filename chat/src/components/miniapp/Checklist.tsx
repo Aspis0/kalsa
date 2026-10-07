@@ -25,7 +25,9 @@ export function Checklist({
   const title = asText(block.title);
   return (
     <div className="miniapp-block">
-      {title ? <p className="miniapp-block-title">{title}</p> : null}
+      {/* The envelope title is the list's title; the builder repeats it on
+          the block, and twice on screen is once too often. */}
+      {title && title !== miniapp.title ? <p className="miniapp-block-title">{title}</p> : null}
       <ul className="miniapp-checklist">
         {items.map((item) => {
           const ticked = isItemTicked(miniapp.state, item.id);
