@@ -1665,7 +1665,7 @@ dependencies = [
 [[package]]
 name = "kalsa-iroh"
 version = "0.0.1"
-source = "git+https://github.com/Aspis0/kalsa.git?rev=a3e41521f0a0f58b6e46649f9613223dd1ec8a4d#a3e41521f0a0f58b6e46649f9613223dd1ec8a4d"
+source = "git+https://github.com/Aspis0/kalsa.git?rev=78e36a531e35048b13b496efe629962f9dcad681#78e36a531e35048b13b496efe629962f9dcad681"
 dependencies = [
  "getrandom 0.3.4",
  "hex",
