@@ -4875,6 +4875,151 @@ const tests = {
     await browser.close();
   },
 
+  // A tick made while the answer is STILL STREAMING. The live buffer owns
+  // the message until the run ends, so this is the window where an edit that
+  // only reached the store would be reverted by the next persist: the tick
+  // must survive the stream's end, a reload, and reach the next turn's wire.
+  async ministream() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("ministream-demo", false));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    // The scripted model as a page-side fetch: the tool round answers at
+    // once, the final answer drips — ~400 ms a chunk — so there is a real
+    // window to tick in. Every request body is kept for the wire check.
+    await page.addInitScript(() => {
+      window.__MINISTREAM__ = { bodies: [] };
+      const orig = window.fetch.bind(window);
+      const frame = (delta, finish) =>
+        `data: ${JSON.stringify({ choices: [{ delta, finish_reason: finish }] })}\n\n`;
+      window.fetch = async (input, init) => {
+        const url = typeof input === "string" ? input : (input && input.url) || "";
+        if (!url.includes("/v1/chat/completions")) return orig(input, init);
+        const config = window.__MINISTREAM__;
+        config.bodies.push(String(init?.body ?? ""));
+        let rounds = 0;
+        try {
+          const body = JSON.parse(init?.body ?? "{}");
+          rounds = (body.messages ?? []).filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).length;
+        } catch {
+          rounds = 0;
+        }
+        if (rounds === 0) {
+          const call = {
+            id: "w1",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "checklist",
+              slots: {
+                title: "Groceries",
+                items: [
+                  { id: "milk", title: "Milk" },
+                  { id: "eggs", title: "Eggs" },
+                  { id: "tea", title: "Tea" },
+                ],
+              },
+            }),
+          };
+          const sse =
+            `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: call.id, type: "function", function: { name: call.name, arguments: call.arguments } }] } }] })}\n\n` +
+            frame({}, "tool_calls") +
+            "data: [DONE]\n\n";
+          return new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } });
+        }
+        // The follow-up turn is told by its own wire (a reload resets any
+        // counter): the second question names it.
+        const second = String(init?.body ?? "").includes("What is left?");
+        const answer = second
+          ? "The second pass over your list is done too."
+          : "The first pass over your list is done, slowly.";
+        const enc = new TextEncoder();
+        const stream = new ReadableStream({
+          async start(controller) {
+            for (let at = 0; at < answer.length; at += 5) {
+              controller.enqueue(enc.encode(frame({ content: answer.slice(at, at + 5) })));
+              await new Promise((resolve) => setTimeout(resolve, 400));
+            }
+            controller.enqueue(enc.encode(frame({}, "stop") + "data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+        return new Response(stream, { status: 200, headers: { "content-type": "text/event-stream" } });
+      };
+    });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Make me a shopping list.");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+
+    // The checklist is up while the answer is still dripping: tick now,
+    // before the final word lands.
+    const list = page.locator(".miniapp").first();
+    await list.locator('input[type="checkbox"]').nth(0).waitFor({ timeout: 15000 });
+    await list.locator('input[type="checkbox"]').nth(0).check();
+    await list.locator('input[type="checkbox"]').nth(2).check();
+
+    // Polled from the test, not waitForFunction: a navigation or a Vite HMR
+    // reload destroys the in-page context and fails that wait as noise.
+    const waited = async (marker) => {
+      for (let at = 0; at < 90; at += 1) {
+        const text = (await page.locator(".thread").textContent().catch(() => "")) ?? "";
+        if (text.includes(marker)) return;
+        await page.waitForTimeout(500);
+      }
+      check(`ministream: arrived: ${marker}`, false, "never arrived");
+    };
+    // The stream's end, not its beginning: the last word is the marker.
+    await waited("done, slowly.");
+    const afterStream = await list.locator(".miniapp-check-done").allTextContents();
+    check(
+      "ministream: a mid-stream tick survives the stream's end on screen",
+      JSON.stringify(afterStream) === JSON.stringify(["Milk", "Tea"]),
+      JSON.stringify(afterStream),
+    );
+
+    // The stream's end persist is the one that carries the whole answer:
+    // reload only when the disk holds it, or the reload reads a partial.
+    await page
+      .waitForFunction(
+        () =>
+          Object.keys(localStorage).some(
+            (k) => k.startsWith("crescent-chat.msgs.") && (localStorage.getItem(k) ?? "").includes("done, slowly."),
+          ),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => check("ministream: the finished answer reached the disk", false, "never written"));
+    await page.reload();
+    await page.waitForTimeout(1200);
+    const chat = page.locator(".brain-bar-chat");
+    if ((await chat.count()) > 0) await chat.first().click();
+    await page.waitForTimeout(800);
+    await openSidebar(page, "shopping list");
+    const reloaded = page.locator(".miniapp").first();
+    const kept = [];
+    for (let at = 0; at < 3; at += 1) {
+      kept.push(await reloaded.locator('input[type="checkbox"]').nth(at).isChecked());
+    }
+    check("ministream: a mid-stream tick survives the reload", JSON.stringify(kept) === JSON.stringify([true, false, true]), JSON.stringify(kept));
+
+    // The follow-up turn: the ticks that were made mid-stream ride the
+    // replayed tool result as plain lines.
+    await page.getByRole("textbox", { name: "Message" }).fill("What is left?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await waited("done too.");
+    const bodies = await page.evaluate(() => window.__MINISTREAM__?.bodies ?? []);
+    const last = JSON.parse(bodies[bodies.length - 1] ?? "{}");
+    const toolTexts = (last.messages ?? []).filter((m) => m.role === "tool").map((m) => m.content);
+    check(
+      "ministream: the mid-stream tick reaches the next wire",
+      toolTexts.length === 1 && toolTexts[0] === "Miniapp created: Groceries\n[x] Milk\n[ ] Eggs\n[x] Tea",
+      JSON.stringify(toolTexts),
+    );
+
+    await browser.close();
+  },
+
   // A comparison table sorts: the header is a button, the first click sorts
   // ascending — numbers by value, so "5" precedes "100" — the second flips
   // to descending, and the sorted column announces itself with aria-sort.
