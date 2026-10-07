@@ -1807,6 +1807,18 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   s per 511 tokens. Smoothing does what it should (hops 14 -> 6) and the GPU enters on its own once the CPU's
   single-core spikes are filtered. 25 s runs say nothing about heat: a 4096-token sustained run per mode is next
   (`run-step5-heat.sh`, bench `482ae4717`).
+- **S23 modes, sustained (`raw/session11-heat-482ae4717.grep`, bench `482ae4717`, 2048 tokens each, every mode from
+  skin <= 31.9 after a cool wait, unlocked + wake poke, all samples Awake; n=1, order burst -> tau10 -> raw)**:
+  gpu_burst tau 10: skin +8.8 C in 150 s (31.8 -> 40.6), 14.1 tok/s, tokens CPU 1216 / GPU 320 / NPU 512, 23 hops.
+  npu_first tau 10: +8.9 C (31.9 -> 40.8), 14.0 tok/s, CPU 1472 / GPU 96 / NPU 480, 17 hops.
+  npu_first raw (today): +7.8 C in 140 s (31.9 -> 39.7), 14.8 tok/s, CPU 992 / GPU 224 / NPU 832, 57 hops (0.69 s of
+  commits). **Smoothing made it WORSE on both axes**: averaging away the CPU's single-core spikes makes the CPU look
+  cool (its passive trip is 108 C vs ~95 for NSP/GPU), so the rule parks on the CPU - the hottest leg per token -
+  for 60-72 % of the tokens. The raw rule's noise was accidentally limiting the CPU. This is the v1 lesson again:
+  headroom-to-own-trip is the wrong currency, skin binds, not trips. The engine already carries the fix's knobs
+  (`decode_heat_weight` x `decode_heat_per_token_{cpu,gpu,npu}`, default 0). GPU burst adds GPU windows (320 vs 96)
+  but does not move skin at n=1. First attempt (`raw/session10-heat-attempt1-482ae4717.grep`) INVALID: the S23 sat
+  on its lock screen (short keyguard timeout) and fell to Dozing; HTP dspqueue_write failed at token 3936 after it.
 - **Governor overhead, not priced yet**: ABBA arm A `--dev HTP0` (plain context, two-copy) 18.2 -> 15.6 tok/s across
   its 3 turns vs arm L forced NPU leg 19.7 / 19.6. Arm A on HTP0 alone is not the J(1) device list (its lm_head likely
   runs on the CPU), so this does NOT price the governor. Needed: arm A over {HTP0, GPUOpenCL} with the one-copy env
