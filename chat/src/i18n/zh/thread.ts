@@ -16,7 +16,7 @@ export const THREAD = {
     "tryAgain": "再试一次",
     "waitingFirstWord": "等待第一个字",
     "readingMessage": "Kalsa 正在阅读你的消息，很快就会回复。",
-    "stoppedEarly": "提前中断 —— 显示已到达的内容。",
+    "stoppedEarly": "回答已中断。",
     "noAnswer": "Kalsa 想完了却没有给出回答。换个方式问问。",
     "backToLatest": "回到最新 ↓",
     "threadAria": "对话",

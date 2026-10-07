@@ -16,7 +16,7 @@ export const THREAD = {
     "tryAgain": "Réessaie",
     "waitingFirstWord": "En attente du premier mot",
     "readingMessage": "Kalsa lit ton message et répondra bientôt.",
-    "stoppedEarly": "Interrompue avant la fin — voici ce qui était arrivé.",
+    "stoppedEarly": "Réponse interrompue.",
     "noAnswer": "Kalsa a fini de réfléchir sans donner de réponse. Essaie de demander autrement.",
     "backToLatest": "Revenir au dernier ↓",
     "threadAria": "Conversation",

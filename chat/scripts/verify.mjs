@@ -704,7 +704,7 @@ const tests = {
     check("twostream: A survives B stop", lenA2 > lenA1, `${lenA1} -> ${lenA2} chars`);
     await open("Second topic");
     const bodyB = (await page.locator(".thread").textContent()) ?? "";
-    check("twostream: B stopped honestly", bodyB.includes("Stopped early"));
+    check("twostream: B stopped honestly", bodyB.includes("Reply stopped."));
     await browser.close();
   },
 
@@ -1261,7 +1261,7 @@ const tests = {
     check("stopthink: partial thinking kept", (answer?.reasoning ?? "").length > 0);
     check("stopthink: no answer yet", (answer?.content ?? "") === "");
     const body = (await page.locator(".thread").textContent()) ?? "";
-    check("stopthink: stopped honestly", body.includes("Stopped early"));
+    check("stopthink: stopped honestly", body.includes("Reply stopped."));
     check("stopthink: cloud stays", (await page.locator(".thought").count()) === 1);
     await browser.close();
   },
@@ -2697,7 +2697,7 @@ const tests = {
     check("stop: the search was in flight", search !== undefined, JSON.stringify(calls));
     check("stop: Rust was told to stop that exact call", stop !== undefined && stop.args?.id === search?.args?.id, JSON.stringify({ stop: stop?.args, search: search?.args }));
     const text = (await page.locator(".thread").textContent()) ?? "";
-    check("stop: the turn stopped instead of waiting for the network", text.includes("Stopped early"), text.slice(0, 200));
+    check("stop: the turn stopped instead of waiting for the network", text.includes("Reply stopped."), text.slice(0, 200));
     check("stop: the composer is free again", (await page.locator(".composer-stop").count()) === 0);
     await browser.close();
   },
@@ -3536,7 +3536,7 @@ const tests = {
     check("gate stop: the call never left", calls.length === 0, JSON.stringify(calls));
     check("gate stop: the ask closed", (await page.locator(".webgate").count()) === 0);
     check("gate stop: the composer is free again", (await page.locator(".composer-stop").count()) === 0);
-    check("gate stop: the turn stopped", ((await page.locator(".thread").textContent()) ?? "").includes("Stopped early"), "thread on screen");
+    check("gate stop: the turn stopped", ((await page.locator(".thread").textContent()) ?? "").includes("Reply stopped."), "thread on screen");
     await browser.close();
   },
 
@@ -3801,7 +3801,7 @@ const tests = {
       calls.length === 1 && String(calls[0].args?.query).includes("beta"),
       String(calls.length),
     );
-    check("gate abortpromote: A stopped honestly", ((await page.locator(".thread").textContent()) ?? "").includes("Stopped early"), "thread on screen");
+    check("gate abortpromote: A stopped honestly", ((await page.locator(".thread").textContent()) ?? "").includes("Reply stopped."), "thread on screen");
     await openSidebar(page, "about beta");
     check("gate abortpromote: B's turn finished", ((await page.locator(".thread").textContent()) ?? "").includes("All done in beta."), "thread on screen");
     await browser.close();
@@ -4607,7 +4607,7 @@ const tests = {
     await page.getByRole("button", { name: "Stop generating" }).click();
     await page.waitForTimeout(800);
     const thread = (await page.locator(".thread").textContent()) ?? "";
-    check("stop400: stopped honestly", thread.includes("Stopped early"), thread.slice(0, 160));
+    check("stop400: stopped honestly", thread.includes("Reply stopped."), thread.slice(0, 160));
     check("stop400: never the generic retry text", !thread.includes("Wait a moment, then try again"));
     await browser.close();
   },

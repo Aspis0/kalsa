@@ -19,7 +19,7 @@ export const THREAD = {
   tryAgain: "Try again",
   waitingFirstWord: "Waiting for the first word",
   readingMessage: "Reading your message — Kalsa will answer soon.",
-  stoppedEarly: "Stopped early — showing what arrived.",
+  stoppedEarly: "Reply stopped.",
   noAnswer: "Kalsa finished thinking without an answer. Try asking another way.",
   backToLatest: "Back to latest ↓",
   threadAria: "Conversation",
