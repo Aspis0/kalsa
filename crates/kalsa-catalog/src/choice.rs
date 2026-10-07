@@ -584,7 +584,9 @@ pub fn choose(input: &ChoiceInput) -> Decision {
 /// the big dense row that cleared it is the smarter answer and leads; only
 /// a dense row at the big end HAS that line, and here it really cleared it.
 /// When the lines stand down — no row clears one — they withhold nobody and
-/// pick nobody: the fastest row this machine runs well leads, never the
+/// pick nobody: the owner's family rule ranks first, LFM the last resort on
+/// this road exactly as it is on the second card's bar, and among the other
+/// families the fastest row this machine runs well leads, never the
 /// biggest. The full-precision file is already out of `pool`: it leads no
 /// card on either answer.
 fn leading_candidate<'a>(
@@ -595,7 +597,11 @@ fn leading_candidate<'a>(
         return pool
             .iter()
             .copied()
-            .max_by(|a, b| a.decode.floor().total_cmp(&b.decode.floor()));
+            .max_by(|a, b| {
+                (!lfm_row(a.entry))
+                    .cmp(&(!lfm_row(b.entry)))
+                    .then_with(|| a.decode.floor().total_cmp(&b.decode.floor()))
+            });
     }
     pool.iter()
         .copied()
@@ -635,8 +641,9 @@ pub struct RunnableRow {
 /// chooser's window lowered to the row's own trained cap) and even its
 /// pessimistic speed clears the usability floor — see [`leading_candidate`]
 /// for which of them takes the first card: the big dense row that cleared
-/// its line while some row clears one, and the fastest row there is while
-/// the lines stand down, never the biggest on a tier where no line can
+/// its line while some row clears one, and — the lines standing down — the
+/// fastest row of any family but LFM's, the last resort there as on the
+/// second card's bar, never the biggest on a tier where no line can
 /// speak. No phone is involved, because "what can this computer run" does
 /// not need one — the phone decides whether the computer is an *upgrade*,
 /// which is [`choose`].
@@ -765,8 +772,24 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
         .collect();
     let lead = leading_candidate(&answer, &first_card_pool)
         .map(|candidate| (candidate.entry.repo, candidate.entry.quant, candidate.entry.weights_bytes));
+    // The row the walk itself put on the first card, when the paired road
+    // produced one: on a stand-down tier the walk leads with speed while
+    // `lead` names the phone-free answer, and the two can differ — the
+    // exclusion follows the row the owner is actually looking at.
+    let walked = match choose(input) {
+        Decision::Pick(selection) => Some((
+            selection.repo,
+            selection.quant,
+            selection.weights_bytes,
+        )),
+        Decision::Refuse(_) => None,
+    };
     let not_the_first = |candidate: &Candidate| {
-        lead != Some((candidate.entry.repo, candidate.entry.quant, candidate.entry.weights_bytes))
+        walked
+            .or(lead)
+            .is_none_or(|id| {
+                id != (candidate.entry.repo, candidate.entry.quant, candidate.entry.weights_bytes)
+            })
     };
     if answer.dense_lines_stand_down {
         // The lines stand down, so there is no line to clear beside the

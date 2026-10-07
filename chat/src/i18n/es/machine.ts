@@ -36,5 +36,8 @@ export const MACHINE = {
     "speedsHeld": "Estas velocidades valen para una conversación corta. Las largas son más lentas.",
     "reasonPicked": "Kalsa lo eligió porque funciona bien en este equipo.",
     "reasonChosen": "Lo elegiste tú.",
+    "reasonQuicker": "Más pequeño y mucho más rápido: empieza a responder antes. El de arriba es el más capaz de los dos.",
+    "reasonQuickerSmaller": "Más pequeño, así que empieza a responder antes. El de arriba es el más capaz de los dos.",
+    "reasonMoreCapable": "Más capaz, pero más lento en este equipo. El de arriba empieza a responder antes.",
     "noSuitableChoice": "Kalsa todavía no tiene una IA que funcione bien en este equipo. Busca una actualización de la app.",
   };

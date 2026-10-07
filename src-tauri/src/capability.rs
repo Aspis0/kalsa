@@ -26,8 +26,8 @@ use kalsa_probe::{Backend, Measurement};
 /// The phone-free pick's sentence, written for that path: there is no
 /// justification to report, because no comparison was ever made. The true
 /// thing is that this is the row this machine runs best — the big dense row
-/// that cleared its line, the fastest row when no line clears — and the
-/// phone is what would turn it into a comparison.
+/// that cleared its line, and where no line clears the fastest row of any
+/// family but LFM's — and the phone is what would turn it into a comparison.
 pub(crate) const PHONE_FREE_REASON: &str = "This is the model that suits this computer best. \
 Pair your phone and the app can tell you whether it beats what the phone runs.";
 
@@ -58,8 +58,12 @@ pub(crate) fn reason_message(reason: &str) -> ReasonMessage {
         ("model.reason.pick", "Kalsa picked this because it runs well on this computer.")
     } else if reason == CHOSEN_REASON {
         ("model.reason.chosen", "You picked this AI.")
-    } else if reason.starts_with(QUICKER_REASON) || reason.starts_with(QUICKER_SMALLER_REASON) {
+    } else if reason == QUICKER_REASON {
         ("model.reason.quicker", reason)
+    } else if reason == QUICKER_SMALLER_REASON {
+        ("model.reason.quicker_smaller", reason)
+    } else if reason == MORE_CAPABLE_REASON {
+        ("model.reason.more_capable", reason)
     } else if reason.starts_with(PROCESSOR_FALLBACK_SENTENCE_PREFIX) {
         ("model.reason.sized_for_memory", reason)
     } else {
@@ -93,6 +97,12 @@ The one above is the more capable of the two.";
 /// it. What stays true is the size, not the speed.
 const QUICKER_SMALLER_REASON: &str = "Smaller, so it starts answering sooner. \
 The one above is the more capable of the two.";
+
+/// The second option's sentence when it is the bigger row: the more
+/// capable model, and the page says so instead of claiming a smaller
+/// size it does not have.
+const MORE_CAPABLE_REASON: &str = "More capable, but slower on this computer. \
+The one above starts answering sooner.";
 
 /// The answer the Brain page reads. `Unmeasured` when this run keeps no
 /// measurement of the machine; otherwise the machine's facts and exactly one
@@ -275,8 +285,10 @@ pub(crate) fn dto(
     };
     // The pick, its prediction, and the refusal — exactly one of the first and
     // the last. The prediction travels because the second option is defined
-    // against the row actually on the page, which two different roads reach.
-    let (model, decode, refusal, refusal_code) = match choose(&input) {
+    // against the row actually on the page, which two different roads reach;
+    // the weights travel because the second card's sentence is checked
+    // against the pick's size, not assumed from either road's shape.
+    let (model, decode, pick_weights, refusal, refusal_code) = match choose(&input) {
         Decision::Pick(selection) => {
             let row = chosen_row(&selection);
             (
@@ -300,6 +312,7 @@ pub(crate) fn dto(
                     details: selection.details,
                 }),
                 Some(selection.decode),
+                selection.weights_bytes,
                 None,
                 None,
             )
@@ -309,7 +322,8 @@ pub(crate) fn dto(
             // "is this computer an upgrade?" and without a phone that has no
             // answer; the page asks "what can this computer run?", and that
             // one is answerable — the row that fits and runs well: the big
-            // dense row that clears its line, the fastest row when none does.
+            // dense row that clears its line, and where none does the
+            // fastest row of any family but LFM's.
             // Every other refusal is a real one and keeps its own words.
             RefusalReason::PhoneUnknown => match largest_that_runs_well(&input) {
                 Ok(row) => {
@@ -336,6 +350,7 @@ pub(crate) fn dto(
                             details: phone_free_details(&row, &row.decode),
                         }),
                         Some(row.decode),
+                        row.entry.weights_bytes,
                         None,
                         None,
                     )
@@ -347,6 +362,7 @@ pub(crate) fn dto(
                 Err(fallback) => (
                     None,
                     None,
+                    0,
                     Some(fallback.explanation),
                     Some(catalog_refusal_code(&fallback.reason)),
                 ),
@@ -354,6 +370,7 @@ pub(crate) fn dto(
             _ => (
                 None,
                 None,
+                0,
                 Some(refusal.explanation),
                 Some(catalog_refusal_code(&refusal.reason)),
             ),
@@ -366,34 +383,48 @@ pub(crate) fn dto(
     // chooser judged — [`CHOOSER_CONTEXT_TOKENS`] — so the bar the second
     // card must clear and the number the page shows are one number.
     let quicker = decode
-        .and_then(|prediction| quicker_alternative(&input, &prediction))
-        .map(|row| {
-            let measured = measured_speed(root, row.entry);
-            // "Much faster" is the catalog's prediction. When both rows
-            // carry this machine's own measurements and the smaller one
-            // did not measure faster, the claim must not stand.
-            let pick_measured = model.as_ref().and_then(|choice| choice.measured);
-            let reason = match (pick_measured, measured) {
-                (Some(pick), Some(own)) if own <= pick => QUICKER_SMALLER_REASON,
-                _ => QUICKER_REASON,
-            };
-            ModelChoiceDto {
-                id: Some(crate::startup::model_token(row.entry)),
-                name: row.entry.display_name.to_string(),
-                quant: row.entry.quant.to_string(),
-                download_bytes: row.download.total_bytes(),
-                context_tokens: funded_context(
-                    row.entry,
-                    window_budget(budget, row.entry, &row.download),
-                    DEFAULT_PARALLEL,
-                ),
-                speed_context_tokens: row.entry.priced_context(CHOOSER_CONTEXT_TOKENS),
-                speed: speed(&row.decode),
-                measured,
-                reason: reason.to_string(),
-                reason_code: Some(reason_message(reason).code),
-                details: alternative_details(&row, &row.decode),
-            }
+        .and_then(|prediction| {
+            quicker_alternative(&input, &prediction).map(|row| {
+                let measured = measured_speed(root, row.entry);
+                // The sentence is picked from the facts, so it can never claim a
+                // direction the numbers contradict. Speed: the two measurements
+                // when both rows carry one — the prediction has by then been
+                // outranked on the card — else the two predictions' pessimistic
+                // ends. Size: the weights against the first card's.
+                let pick_measured = model.as_ref().and_then(|choice| choice.measured);
+                let faster = match (pick_measured, measured) {
+                    (Some(pick), Some(own)) => own > pick,
+                    _ => row.decode.floor() > prediction.floor(),
+                };
+                let reason = if row.entry.weights_bytes < pick_weights {
+                    if faster {
+                        QUICKER_REASON
+                    } else {
+                        QUICKER_SMALLER_REASON
+                    }
+                } else {
+                    // The bigger row is the more capable of the two, whatever
+                    // the speed does; saying "smaller" of it would be a lie.
+                    MORE_CAPABLE_REASON
+                };
+                ModelChoiceDto {
+                    id: Some(crate::startup::model_token(row.entry)),
+                    name: row.entry.display_name.to_string(),
+                    quant: row.entry.quant.to_string(),
+                    download_bytes: row.download.total_bytes(),
+                    context_tokens: funded_context(
+                        row.entry,
+                        window_budget(budget, row.entry, &row.download),
+                        DEFAULT_PARALLEL,
+                    ),
+                    speed_context_tokens: row.entry.priced_context(CHOOSER_CONTEXT_TOKENS),
+                    speed: speed(&row.decode),
+                    measured,
+                    reason: reason.to_string(),
+                    reason_code: Some(reason_message(reason).code),
+                    details: alternative_details(&row, &row.decode),
+                }
+            })
         });
     CapabilityDto::Measured {
         machine,
@@ -1029,10 +1060,11 @@ mod tests {
         // The owner's numbers: `--ram 15.6 --bandwidth 45.1 --no-phone`,
         // which the CLI truncates to 15 GiB (`number(..) as u64 * GIB`) —
         // reproduced here exactly so the card and the CLI are read off the
-        // same machine. Nothing clears its line there, so both cards are
-        // speed-ranked: LFM Q8 9.8–14.3, priced at its own 32 768-token
-        // trained cap, and the E4B 5.6–8.1 at the chooser's 65 536 — the
-        // CLI's own figures.
+        // same machine. Nothing clears its line there, so the stand-down
+        // ranks the cards: Gemma E4B first — LFM is the last resort on this
+        // road exactly as on the second card's bar — and the smaller,
+        // faster LFM Q8 beside it, priced at its own 32 768-token cap (the
+        // E4B 5.6–8.1 at the chooser's 65 536 — the CLI's own figures).
         let surface = Measurement {
             decode_bytes_per_second: Some(45.1e9),
             ..measured(Backend::Cpu)
@@ -1044,14 +1076,73 @@ mod tests {
         let model = model.expect("the tier starts something");
         assert_eq!(
             (model.name.as_str(), model.quant.as_str()),
+            ("Google Gemma 4 E4B", "Q4_K_M")
+        );
+        assert_eq!(model.speed_context_tokens, CHOOSER_CONTEXT_TOKENS);
+        assert_eq!(band(&model.speed), "5.6\u{2013}8.1");
+        let second = quicker.expect("a second card beside it");
+        assert_eq!(
+            (second.name.as_str(), second.quant.as_str()),
             ("Liquid LFM 2.5", "Q8_0")
         );
-        assert_eq!(model.speed_context_tokens, 32_768);
-        assert_eq!(band(&model.speed), "9.8\u{2013}14.3");
-        let second = quicker.expect("a second card beside it");
+        assert_eq!(second.speed_context_tokens, 32_768);
+        assert_eq!(band(&second.speed), "9.8\u{2013}14.3");
+        // Smaller and faster: the sentence is checked against the facts it
+        // states, and here the facts say exactly what the old fixed string
+        // always claimed.
+        assert_eq!(second.reason, QUICKER_REASON);
+        assert_eq!(second.reason_code.as_deref(), Some("model.reason.quicker"));
+    }
+
+    #[test]
+    fn a_second_card_bigger_and_slower_says_so() {
+        // The same stand-down tier with a phone paired: the walk leads LFM
+        // Q8 on speed, and the second card is the E4B — bigger than the
+        // pick, and slower than its band. The fixed "smaller and much
+        // faster" could not say that; the sentence is picked from the
+        // facts, and this is the shape that proves the picking.
+        let surface = Measurement {
+            decode_bytes_per_second: Some(45.1e9),
+            ..measured(Backend::Cpu)
+        };
+        let phone = PhoneModel {
+            weights_bytes: 2_834_975_040,
+            parameters: Some(kalsa_catalog::Parameters::dense(4_000_000_000)),
+            measured_tokens_per_second: None,
+            battery_powered: Some(true),
+        };
+        let suggestion = dto(&surface, 15 * GIB, Some(phone), true, &records_root("surface-pair"));
+        let CapabilityDto::Measured {
+            model: Some(pick),
+            quicker: Some(second),
+            ..
+        } = suggestion
+        else {
+            panic!("the stand-down tier answers with both cards");
+        };
+        assert_eq!(
+            (pick.name.as_str(), pick.quant.as_str()),
+            ("Liquid LFM 2.5", "Q8_0")
+        );
         assert_eq!(second.name, "Google Gemma 4 E4B");
-        assert_eq!(second.speed_context_tokens, CHOOSER_CONTEXT_TOKENS);
-        assert_eq!(band(&second.speed), "5.6\u{2013}8.1");
+        assert_eq!(second.reason, MORE_CAPABLE_REASON);
+        assert_eq!(second.reason_code.as_deref(), Some("model.reason.more_capable"));
+    }
+
+    #[test]
+    fn every_second_card_sentence_travels_under_its_own_code() {
+        // The page translates the code, so one code per sentence: a variant
+        // riding a quicker code would show in the owner's language as the
+        // faster claim the facts may contradict.
+        assert_eq!(reason_message(QUICKER_REASON).code, "model.reason.quicker");
+        assert_eq!(
+            reason_message(QUICKER_SMALLER_REASON).code,
+            "model.reason.quicker_smaller"
+        );
+        assert_eq!(
+            reason_message(MORE_CAPABLE_REASON).code,
+            "model.reason.more_capable"
+        );
     }
 
     #[test]

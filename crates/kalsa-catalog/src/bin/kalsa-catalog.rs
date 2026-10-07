@@ -115,7 +115,7 @@ fn main() {
     // is an upgrade, never whether it can run. The route is named so the
     // reader knows which question was answered.
     if input.phone.is_none() {
-        println!("route:  phone-free (the row this machine runs well: biggest while a line clears, fastest while none does)");
+        println!("route:  phone-free (the row this machine runs well: biggest while a line clears, any other family before LFM while none does)");
         match largest_that_runs_well(&input) {
             Ok(row) => {
                 println!(

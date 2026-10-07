@@ -1640,19 +1640,26 @@ fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
 // run any of them well.
 
 /// The two cards a stand-down tier must show, asserted where they are
-/// wanted: the LFM Q8 row first, the E4B beside it, fastest first, and
-/// Gemma 12B — the biggest row on those tiers — on neither card.
+/// wanted: the E4B first — LFM is the last resort on this road exactly as
+/// it is on the second card's bar, so the fastest row of any other family
+/// outranks it — and the LFM Q8 file beside it, the smaller and genuinely
+/// faster row the first card's sentence then truthfully describes. Gemma
+/// 12B — the biggest row on those tiers — on neither card.
 fn stand_down_cards(machine: &ChoiceInput) -> (RunnableRow, RunnableRow) {
     let first = largest_that_runs_well(machine).expect("the tier starts something");
     let second = quicker_alternative(machine, &first.decode).expect("a second card");
-    assert_eq!(first.entry.repo, "LiquidAI/LFM2.5-VL-3B");
-    assert_eq!(first.entry.quant, "Q8_0");
-    assert_eq!(second.entry.repo, "google/gemma-4-E4B-it");
+    assert_eq!(first.entry.repo, "google/gemma-4-E4B-it");
+    assert_eq!(first.entry.quant, "Q4_K_M");
+    assert_eq!(second.entry.repo, "LiquidAI/LFM2.5-VL-3B");
+    assert_eq!(second.entry.quant, "Q8_0");
+    // The family rule outranks, speed orders within it: the demoted row is
+    // still the faster of the two here, which is what makes it the second
+    // card and not the first.
     assert!(
-        first.decode.floor() > second.decode.floor(),
-        "fastest first: {:.1} against {:.1}",
-        first.decode.floor(),
-        second.decode.floor()
+        second.decode.floor() > first.decode.floor(),
+        "the second card is the faster row: {:.1} against {:.1}",
+        second.decode.floor(),
+        first.decode.floor()
     );
     assert_ne!(second.entry.display_name, first.entry.display_name);
     for card in [&first, &second] {
@@ -1742,6 +1749,17 @@ fn a_standing_down_tier_with_a_phone_leads_with_speed_not_size() {
         "justified as {:?}",
         pick.justification
     );
+    // The walk's pick and the phone-free answer differ on this tier — the
+    // stand-down now hands the phone-free card to the E4B — so the second
+    // option's exclusion must follow the row the walk put on the page, or
+    // the pick itself would come back as its own second card.
+    let second = quicker_alternative(&machine, &pick.decode).expect("a second card");
+    assert_ne!(
+        (second.entry.repo, second.entry.quant),
+        (pick.repo, pick.quant),
+        "one model must not fill both cards"
+    );
+    assert_eq!(second.entry.repo, "google/gemma-4-E4B-it", "the pair is unchanged");
 }
 
 #[test]

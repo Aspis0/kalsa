@@ -36,5 +36,8 @@ export const MACHINE = {
     "speedsHeld": "这些速度对应较短的对话。较长的对话会更慢。",
     "reasonPicked": "Kalsa 选了它，因为它在这台电脑上运行良好。",
     "reasonChosen": "是你选的。",
+    "reasonQuicker": "更小、快得多：更早开始回答。上面那个是两者中更强的。",
+    "reasonQuickerSmaller": "更小，所以更早开始回答。上面那个是两者中更强的。",
+    "reasonMoreCapable": "更强，但在这台电脑上更慢。上面那个更早开始回答。",
     "noSuitableChoice": "Kalsa 还没有在这台电脑上运行良好的 AI。请检查应用更新。",
   };
