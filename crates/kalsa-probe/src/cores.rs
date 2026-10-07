@@ -76,15 +76,15 @@ fn platform_logical_cores() -> Option<usize> {
     (ok == 0 && count > 0).then_some(count as usize)
 }
 
-/// Windows: the OS's own count — every logical processor it hands out,
-/// machine-wide, indifferent to this process's affinity.
+/// Windows: every active processor in every group, machine-wide and
+/// indifferent to this process's affinity. `GetSystemInfo`'s
+/// `dwNumberOfProcessors` counts only this process's processor GROUP —
+/// on a machine with more than 64 logical processors that is a piece of
+/// the machine, not the machine. Zero on failure reads as no answer.
 #[cfg(windows)]
 fn platform_logical_cores() -> Option<usize> {
-    use windows_sys::Win32::System::SystemInformation::GetSystemInfo;
-    let mut info: windows_sys::Win32::System::SystemInformation::SYSTEM_INFO =
-        unsafe { std::mem::zeroed() };
-    unsafe { GetSystemInfo(&mut info) };
-    let count = info.dwNumberOfProcessors as usize;
+    use windows_sys::Win32::System::Threading::{GetActiveProcessorCount, ALL_PROCESSOR_GROUPS};
+    let count = unsafe { GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) } as usize;
     (count > 0).then_some(count)
 }
 
