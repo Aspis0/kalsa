@@ -23,9 +23,13 @@ export function MiniappView({
 }) {
   const { table } = useLanguage();
   if (miniapp.blocks.length === 0) return null;
+  // A title the model never gave is named here, in the interface's language;
+  // nothing English is persisted as a default the person would read.
+  const named = table.miniapp.named as Record<string, string>;
+  const title = miniapp.title || named[miniapp.kind] || miniapp.kind;
   return (
-    <section className="miniapp" aria-label={table.miniapp.viewAria(miniapp.title)}>
-      <p className="miniapp-title">{miniapp.title}</p>
+    <section className="miniapp" aria-label={table.miniapp.viewAria(title)}>
+      <p className="miniapp-title">{title}</p>
       {miniapp.blocks.map((block, index) => (
         <Block key={index} miniapp={miniapp} block={block} index={index} onState={onState} />
       ))}

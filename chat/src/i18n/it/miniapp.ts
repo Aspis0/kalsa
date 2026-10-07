@@ -28,4 +28,5 @@ export const MINIAPP = {
     "building": "Kalsa sta creando una vista interattiva…",
     "built": "Kalsa ha creato una vista interattiva",
     "buildFailed": "Kalsa non è riuscita a creare la vista.",
+    "named": { "compare_data": "Confronto", "quick_calculator": "Calcolatrice", "reading_quiz": "Quiz", "checklist": "Lista" },
 };

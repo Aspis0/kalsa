@@ -21,5 +21,5 @@ export function buildCompareData(slots: Record<string, unknown>): Miniapp | null
 
   const block: Record<string, unknown> = { type: "data_table", columns };
   if (rows.length > 0) block.rows = rows;
-  return envelope("compare_data", asString(slots.title) ?? "Comparison", [block]);
+  return envelope("compare_data", asString(slots.title) ?? "", [block]);
 }

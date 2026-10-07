@@ -66,10 +66,13 @@ export function envelope(
   title: string,
   blocks: Array<Record<string, unknown>>,
 ): Miniapp {
+  // The title is kept as given — empty when the model gave none. The view
+  // names a title-less miniapp in the interface's language; the wire's own
+  // English name is written by the tool, at `runCreateMiniapp`.
   return {
     schema: "miniapp_v1",
     kind: templateId,
-    title: title || "Miniapp",
+    title,
     blocks,
   };
 }

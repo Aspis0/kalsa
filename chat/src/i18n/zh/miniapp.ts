@@ -28,4 +28,5 @@ export const MINIAPP = {
     "building": "Kalsa 正在创建交互视图…",
     "built": "Kalsa 创建了一个交互视图",
     "buildFailed": "Kalsa 未能创建该视图。",
+    "named": { "compare_data": "对比", "quick_calculator": "计算器", "reading_quiz": "测验", "checklist": "清单" },
 };

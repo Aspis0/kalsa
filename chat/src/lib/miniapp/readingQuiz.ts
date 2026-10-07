@@ -40,5 +40,5 @@ export function buildNQuestionQuiz(slots: Record<string, unknown>): Miniapp | nu
     blocks.push(block);
   }
 
-  return envelope("reading_quiz", asString(slots.title) ?? "Quiz", blocks);
+  return envelope("reading_quiz", asString(slots.title) ?? "", blocks);
 }

@@ -13,7 +13,17 @@ import { MINIAPP_TEMPLATE_IDS, type MiniappTemplateId } from "../miniapp/templat
 const INVALID_TEMPLATE = (template: string): string =>
   `create_miniapp: unknown template "${template}". Use compare_data, quick_calculator, reading_quiz, or checklist.`;
 const INVALID_SLOTS = "create_miniapp could not build the miniapp from the slots you provided.";
-const CREATED = (title: string): string => `Miniapp created: ${title}`;
+/** What a title-less build is called on the wire: the model reads English,
+ *  whatever the interface speaks; the person never sees this name — the view
+ *  names it in the interface's language. */
+const DEFAULT_TITLES: Record<MiniappTemplateId, string> = {
+  compare_data: "Comparison",
+  quick_calculator: "Calculator",
+  reading_quiz: "Quiz",
+  checklist: "Checklist",
+};
+const CREATED = (title: string, template: MiniappTemplateId): string =>
+  `Miniapp created: ${title || DEFAULT_TITLES[template]}`;
 
 export function runCreateMiniapp(args: unknown): ToolOutcome {
   const raw = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
@@ -27,5 +37,5 @@ export function runCreateMiniapp(args: unknown): ToolOutcome {
   if (!miniapp) {
     return { text: INVALID_SLOTS, ok: false };
   }
-  return { text: CREATED(miniapp.title), ok: true, miniapp };
+  return { text: CREATED(miniapp.title, template as MiniappTemplateId), ok: true, miniapp };
 }

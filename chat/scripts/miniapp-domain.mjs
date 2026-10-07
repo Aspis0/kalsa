@@ -285,6 +285,10 @@ try {
     check("a missing template is refused with a dash", missing.text.includes('"—"'), missing.text);
     const retired = runCreateMiniapp({ template: "pros_cons", slots: { rows: [{ pro: "fast", con: "costoso" }] } });
     check("a retired template is refused, not built", retired.ok === false && retired.miniapp === undefined);
+    const untitled = runCreateMiniapp({ template: "checklist", slots: { steps: ["Only step"] } });
+    equal("a title-less build stores no title", untitled.miniapp?.title, "");
+    equal("the wire still names it, in English", untitled.text, "Miniapp created: Checklist");
+    equal("normalize keeps an empty title empty", normalizeMiniapp({ schema: "miniapp_v1", kind: "checklist", title: "", blocks: [] })?.title, "");
   }
 } finally {
   await rm(dir, { recursive: true, force: true });

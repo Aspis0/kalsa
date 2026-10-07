@@ -53,7 +53,7 @@ export function buildChecklist(slots: Record<string, unknown>): Miniapp | null {
 
   return envelope(
     "checklist",
-    asString(slots.title) ?? "Checklist",
+    asString(slots.title) ?? "",
     [{ type: "checklist", title: asString(slots.title), items }],
   );
 }

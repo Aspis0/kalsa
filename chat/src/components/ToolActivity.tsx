@@ -114,20 +114,16 @@ function ToolRow({ run }: { run: ToolRun }) {
 
 /**
  * The row for a local miniapp build. The words are the interface's; the view
- * it built is rendered right below. A failure keeps the tool's own result
- * text — the refusal the model read, not a second sentence about the same
- * thing.
+ * it built is rendered right below. A failure keeps its precise text for the
+ * MODEL (the stored result is what the wire replays); the person reads one
+ * localized line, never template ids.
  */
 function MiniappRow({ run }: { run: ToolRun }) {
   const { table } = useLanguage();
-  const t = table.miniapp;
   const failed = run.state === "failed" || run.state === "refused";
+  const failure = run.result === TOOL_STOPPED ? table.tools.stopped : table.miniapp.buildFailed;
   const summary =
-    run.state === "running"
-      ? t.building
-      : failed
-        ? run.result || t.buildFailed
-        : t.built;
+    run.state === "running" ? table.miniapp.building : failed ? failure : table.miniapp.built;
 
   return (
     <details className={`tool-run${failed ? " tool-run-failed" : ""}`}>
@@ -143,7 +139,7 @@ function MiniappRow({ run }: { run: ToolRun }) {
       </summary>
       {failed ? (
         <div className="tool-detail">
-          <p className="tool-failure">{run.result}</p>
+          <p className="tool-failure">{failure}</p>
         </div>
       ) : null}
     </details>

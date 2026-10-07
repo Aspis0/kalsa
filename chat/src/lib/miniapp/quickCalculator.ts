@@ -160,7 +160,7 @@ export function buildQuickCalculator(slots: Record<string, unknown>): Miniapp | 
   // The initial values and result are the envelope's first state, so the next
   // turn's wire carries what the calculator shows even before anyone edits it.
   return {
-    ...envelope("quick_calculator", asString(slots.title) ?? "Calculator", [block]),
+    ...envelope("quick_calculator", asString(slots.title) ?? "", [block]),
     state: recordCalculatorValues({}, vars, evaluated.value),
   };
 }

@@ -28,4 +28,5 @@ export const MINIAPP = {
     "building": "Kalsa is building an interactive view…",
     "built": "Kalsa built an interactive view",
     "buildFailed": "Kalsa couldn't build that view.",
+    "named": { "compare_data": "Comparison", "quick_calculator": "Calculator", "reading_quiz": "Quiz", "checklist": "Checklist" },
 };

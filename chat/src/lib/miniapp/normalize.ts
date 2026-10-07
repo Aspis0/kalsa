@@ -120,7 +120,9 @@ export function normalizeMiniapp(raw: unknown): Miniapp | null {
   const miniapp: Miniapp = {
     schema: "miniapp_v1",
     kind: clipString(raw.kind, MAX_KIND, "miniapp"),
-    title: clipString(raw.title, MAX_TITLE, "Miniapp"),
+    // An empty title is the model having given none: the view supplies the
+    // localized name, so no default word is persisted as data.
+    title: clipString(raw.title, MAX_TITLE, ""),
     blocks,
   };
 
