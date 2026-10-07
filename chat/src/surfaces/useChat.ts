@@ -894,6 +894,32 @@ export function useChat(shell: ChatShell) {
     void turns.runAssistant(active.id, messageId, effectiveSettings, vision);
   }
 
+  // A mini app widget's next state — ticked checklist items, a picked quiz
+  // answer, edited calculator fields — into the run that drew it. Reads the
+  // conversation's latest copy and patches the one run: the store's own
+  // notification is what renders the tick, and the disk copy is what a
+  // reload reads it back from.
+  function saveMiniappState(messageId: string, runId: string, state: Record<string, unknown>): void {
+    if (!activeId) return;
+    const latest = store.get(activeId);
+    if (!latest) return;
+    store.put({
+      ...latest,
+      messages: latest.messages.map((m) =>
+        m.id !== messageId
+          ? m
+          : {
+              ...m,
+              toolRuns: (m.toolRuns ?? []).map((run) =>
+                run.id !== runId || !run.miniapp
+                  ? run
+                  : { ...run, miniapp: { ...run.miniapp, state } },
+              ),
+            },
+      ),
+    });
+  }
+
   function removeConversation(id: string): void {
     turns.stopFor(id);
     store.remove(id);
@@ -1053,6 +1079,7 @@ export function useChat(shell: ChatShell) {
     send,
     stop,
     retry,
+    saveMiniappState,
     selectConversation,
     newConversation,
     removeConversation,

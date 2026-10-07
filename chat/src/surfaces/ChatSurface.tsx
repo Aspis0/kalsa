@@ -132,6 +132,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
             failures={failures}
             tails={tails}
             onRetry={retry}
+            onMiniappState={chat.saveMiniappState}
           />
         )}
         {attachStatus ? (

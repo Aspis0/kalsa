@@ -19,7 +19,7 @@ function equal(name, actual, expected) {
 
 const { app, dir } = await loadApp();
 try {
-  const { buildMiniappV1, evaluateCalculatorFormula, normalizeMiniapp, MINIAPP_TEMPLATE_IDS, runCreateMiniapp } = app;
+  const { buildMiniappV1, evaluateCalculatorFormula, normalizeMiniapp, MINIAPP_TEMPLATE_IDS, runCreateMiniapp, checklistItems, isItemTicked, toggleChecklistItem, quizAnswer, recordQuizAnswer, calculatorValues, calculatorResult, recordCalculatorValues } = app;
 
   // ── compare_data ──────────────────────────────────────────────────────────
   {
@@ -130,11 +130,15 @@ try {
   // ── checklist ─────────────────────────────────────────────────────────────
   {
     const miniapp = buildMiniappV1("checklist", { title: "Setup", steps: ["Install", "Configure", "Launch"] });
-    equal("checklist builds timeline steps from string[]", [miniapp?.kind, miniapp?.blocks[0].type, miniapp?.blocks[0].steps], ["checklist", "timeline", [{ title: "Install" }, { title: "Configure" }, { title: "Launch" }]]);
+    equal("checklist builds tickable items with minted ids", [miniapp?.kind, miniapp?.blocks[0].type, miniapp?.blocks[0].items], ["checklist", "checklist", [{ id: "item-1", title: "Install" }, { id: "item-2", title: "Configure" }, { id: "item-3", title: "Launch" }]]);
+    const provided = buildMiniappV1("checklist", { items: [{ id: "milk", title: "Buy milk" }, { title: "No id" }, "plain step"] });
+    equal("checklist keeps provided ids and mints the rest", provided?.blocks[0].items, [{ id: "milk", title: "Buy milk" }, { id: "item-1", title: "No id" }, { id: "item-2", title: "plain step" }]);
+    const colliding = buildMiniappV1("checklist", { items: [{ id: "item-1", title: "A" }, { id: "item-1", title: "B" }] });
+    equal("checklist replaces a colliding id with a minted one", colliding?.blocks[0].items.map((item) => item.id), ["item-1", "item-2"]);
     const promoted = buildMiniappV1("checklist", {
       items: [{ title: "Step 1", body: "do it" }, { body: "Only body" }, "plain step"],
     });
-    equal("checklist promotes body and drops it", promoted?.blocks[0].steps, [{ title: "Step 1" }, { title: "Only body" }, { title: "plain step" }]);
+    equal("checklist promotes body and drops it", promoted?.blocks[0].items.map((item) => item.title), ["Step 1", "Only body", "plain step"]);
     const thirteen = Array.from({ length: 13 }, (_, i) => `S${i}`);
     equal("checklist rejects more than 12 steps", buildMiniappV1("checklist", { steps: thirteen }), null);
     equal("checklist rejects empty and title-less steps", [
@@ -142,6 +146,30 @@ try {
       buildMiniappV1("checklist", { steps: [{}] }),
       buildMiniappV1("checklist", {}),
     ], [null, null, null]);
+  }
+
+  // ── the state the widgets write through ───────────────────────────────────
+  {
+    equal("toggling ticks and unticks by id", [
+      isItemTicked(toggleChecklistItem({}, "a", true), "a"),
+      isItemTicked(toggleChecklistItem({ checked: { a: true } }, "a", false), "a"),
+    ], [true, false]);
+    equal("unticking removes the key instead of storing false", toggleChecklistItem({ checked: { a: true } }, "a", false), { checked: {} });
+    equal("checklistItems resolves ids; old steps fall back to the index", [
+      checklistItems({ items: [{ id: "milk", title: "Milk" }, { title: "Eggs" }] }),
+      checklistItems({ steps: [{ title: "One" }, { title: "Two" }] }),
+    ], [
+      [{ id: "milk", title: "Milk" }, { id: "1", title: "Eggs" }],
+      [{ id: "0", title: "One" }, { id: "1", title: "Two" }],
+    ]);
+    equal("checklistItems skips entries without a title", checklistItems({ items: [{ id: "x" }, "nope", { title: "Kept" }] }), [{ id: "2", title: "Kept" }]);
+    const answered = recordQuizAnswer({}, 1, 0, true, false);
+    equal("a quiz answer stores picked, checked and correct", quizAnswer(answered, 1), { picked: 0, checked: true, correct: false });
+    equal("a retry clears the answer", quizAnswer(recordQuizAnswer(answered, 1, null, false, false), 1), null);
+    const calc = recordCalculatorValues({}, { p: 2000, r: 0.05 }, 100);
+    equal("calculator state keeps fields and result", [calculatorValues(calc), calculatorResult(calc)], [{ p: 2000, r: 0.05 }, 100]);
+    equal("a result that is not a finite number is left out", calculatorResult(recordCalculatorValues({}, { p: 1 }, null)), null);
+    equal("calculator readers answer null on state without numbers", [calculatorValues({}), calculatorResult({ calculator: { fields: { x: "nope" } } })], [null, null]);
   }
 
   // ── pros_cons ─────────────────────────────────────────────────────────────

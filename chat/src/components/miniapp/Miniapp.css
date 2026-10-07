@@ -278,3 +278,29 @@
   color: var(--ink-soft);
   font-size: 0.88rem;
 }
+
+/* --- checklist --- */
+
+.miniapp-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.miniapp-check-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+
+.miniapp-check-title {
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.miniapp-check-done {
+  color: var(--silence);
+  text-decoration: line-through;
+}

@@ -24,6 +24,8 @@ interface ThreadProps {
   failures: Record<string, FailedState>;
   tails: Record<string, string>;
   onRetry: (messageId: string) => void;
+  /** A mini app widget's next state, into the run that drew it. */
+  onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
 }
 
 function errorCopy(t: English["thread"], kind: ChatErrorKind): { title: string; body: string } {
@@ -100,12 +102,14 @@ function AssistantRow({
   failures,
   tail,
   onRetry,
+  onMiniappState,
 }: {
   message: ChatMessage;
   streaming: boolean;
   failures: Record<string, FailedState>;
   tail?: string;
   onRetry: (messageId: string) => void;
+  onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
 }) {
   const { table, tag } = useLanguage();
   const t = table.thread;
@@ -134,7 +138,13 @@ function AssistantRow({
         ) : null}
         <ToolActivity runs={toolRuns} />
         {toolRuns.map((run) =>
-          run.miniapp ? <MiniappView key={run.id} miniapp={run.miniapp} /> : null,
+          run.miniapp ? (
+            <MiniappView
+              key={run.id}
+              miniapp={run.miniapp}
+              onState={(state) => onMiniappState(message.id, run.id, state)}
+            />
+          ) : null,
         )}
         {showThinking ? (
           <WaitingRow text={t.readingMessage} spoken={t.waitingFirstWord} />
@@ -174,6 +184,7 @@ export function Thread({
   failures,
   tails,
   onRetry,
+  onMiniappState,
 }: ThreadProps) {
   const { table, tag } = useLanguage();
   const { ref: scrollRef, following, toBottom } = useStickToBottom();
@@ -204,6 +215,7 @@ export function Thread({
                 failures={failures}
                 tail={tails[message.id]}
                 onRetry={onRetry}
+                onMiniappState={onMiniappState}
               />
             ),
           )}

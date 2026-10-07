@@ -43,6 +43,7 @@ export async function loadApp() {
         export { evaluateCalculatorFormula } from "../src/lib/miniapp/calculator.ts";
         export { MINIAPP_TEMPLATE_IDS } from "../src/lib/miniapp/templates.ts";
         export { normalizeMiniapp } from "../src/lib/miniapp/normalize.ts";
+        export { checklistItems, isItemTicked, toggleChecklistItem, quizAnswer, recordQuizAnswer, calculatorValues, calculatorResult, recordCalculatorValues } from "../src/lib/miniapp/state.ts";
         export { runCreateMiniapp } from "../src/lib/tools/createMiniapp.ts";
         export { createStore } from "../src/lib/store.ts";
         export { buildPinnedContext } from "../src/lib/attachments.ts";
