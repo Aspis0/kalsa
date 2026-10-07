@@ -77,6 +77,17 @@ try {
     const fields25 = Array.from({ length: 25 }, (_, i) => ({ id: `f${i}`, label: `F${i}`, value: i }));
     check("quick_calculator accepts the 24-field cap", buildMiniappV1("quick_calculator", { formula: "f0 + f23", fields: fields24 }) !== null);
     equal("quick_calculator rejects a field past the renderer's cap", buildMiniappV1("quick_calculator", { formula: "f0 + f24", fields: fields25 }), null);
+    const lifted = buildMiniappV1("quick_calculator", { title: "Split", formula: "50 / 4" });
+    equal("a literal formula lifts into editable fields", [lifted?.blocks[0].formula, lifted?.blocks[0].fields], ["n1 / n2", [{ id: "n1", value: 50 }, { id: "n2", value: 4 }]]);
+    equal("the lifted calculator seeds its state", lifted?.state, { calculator: { fields: { n1: 50, n2: 4 }, result: 12.5 } });
+    const mixed = buildMiniappV1("quick_calculator", { formula: "a + 50 * .5", fields: [{ id: "a", label: "A", value: 1 }] });
+    equal("literals lift alongside the model's own fields", [mixed?.blocks[0].formula, mixed?.blocks[0].fields], ["a + n1 * n2", [{ id: "a", label: "A", value: 1 }, { id: "n1", value: 50 }, { id: "n2", value: 0.5 }]]);
+    const skip = buildMiniappV1("quick_calculator", { formula: "f0 + 2", fields: [{ id: "f0", label: "F", value: 1 }] });
+    equal("a digit inside an identifier is not lifted", [skip?.blocks[0].formula, skip?.blocks[0].fields.map((field) => field.id)], ["f0 + n1", ["f0", "n1"]]);
+    const named = buildMiniappV1("quick_calculator", { formula: "2 + 2", fields: [{ id: "n1", label: "Taken", value: 9 }] });
+    equal("a lifted id never collides with a provided one", [named?.blocks[0].formula, named?.blocks[0].fields.map((field) => field.id)], ["n2 + n3", ["n1", "n2", "n3"]]);
+    equal("an identifier-only formula is untouched", buildMiniappV1("quick_calculator", { formula: "a + b", fields: [{ id: "a", label: "A", value: 1 }, { id: "b", label: "B", value: 2 }] })?.blocks[0].formula, "a + b");
+    equal("more literals than the field cap rejects the build", buildMiniappV1("quick_calculator", { formula: Array.from({ length: 25 }, (_, i) => `${i}+`).join("") + "1" }), null);
   }
 
   // ── reading_quiz ──────────────────────────────────────────────────────────

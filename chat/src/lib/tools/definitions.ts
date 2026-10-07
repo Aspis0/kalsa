@@ -30,7 +30,10 @@ export const CREATE_MINIAPP_TOOL: ToolDefinition = {
       "formula calculator), reading_quiz (a quiz with several questions), " +
       "kpi_strip (key metrics), checklist (ordered steps), or pros_cons (pros " +
       "vs cons) — and pass its slots. The app opens inline in the chat. Use " +
-      "this instead of writing miniapp JSON by hand.",
+      "this instead of writing miniapp JSON by hand. For quick_calculator, " +
+      "give every number the person might change a labelled field (id, label, " +
+      "value) and write the formula from those ids; a formula of bare numbers " +
+      "is split into editable Number fields automatically.",
     parameters: {
       type: "object",
       properties: {
@@ -43,11 +46,12 @@ export const CREATE_MINIAPP_TOOL: ToolDefinition = {
           type: "object",
           description:
             "Per-template slots: compare_data (title?, columns[], rows[]), " +
-            "quick_calculator (title?, formula, fields[]), reading_quiz " +
-            "(title?, questions[] of {question, options[2..4], answerIndex?, " +
-            "explanation?}), kpi_strip (title?, metrics[] of {label, value, " +
-            "unit?, tone?}), checklist (title?, steps[] or items[]), or " +
-            "pros_cons (title?, rows[] of {pro?, con?}).",
+            "quick_calculator (title?, formula, fields[] of {id, label, " +
+            "value}), reading_quiz (title?, questions[] of {question, " +
+            "options[2..4], answerIndex?, explanation?}), kpi_strip (title?, " +
+            "metrics[] of {label, value, unit?, tone?}), checklist (title?, " +
+            "steps[] or items[]), or pros_cons (title?, rows[] of {pro?, " +
+            "con?}).",
           additionalProperties: true,
         },
       },

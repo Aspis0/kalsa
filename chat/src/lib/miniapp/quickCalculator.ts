@@ -2,6 +2,8 @@
  * quick_calculator → one `calculator` block. The formula is validated here,
  * exactly as the renderer's evaluator will read it, so an unknown field id or
  * a malformed expression is an error the model sees, not a dead calculator.
+ * A formula with bare numbers is never drawn dead either: every literal is
+ * lifted into an editable field and the formula rewritten to reference it.
  */
 
 import { evaluateCalculatorFormula } from "./calculator";
@@ -64,23 +66,94 @@ function fieldsToVars(
   return vars;
 }
 
+/** One numeric literal in the formula: where it spans, and its value. */
+interface Literal {
+  start: number;
+  end: number;
+  value: number;
+}
+
+/** The formula's numeric literals, read the way the evaluator reads them: a
+ *  number not inside an identifier (the `0` of `f0` is part of the id) and
+ *  not the tail of an earlier one (the second dot of `2.5.3` lifts nothing —
+ *  the rewritten formula is rejected by the evaluator, as it always was). */
+function formulaLiterals(formula: string): Literal[] {
+  const out: Literal[] = [];
+  let i = 0;
+  while (i < formula.length) {
+    const ch = formula[i];
+    if (/[A-Za-z_]/.test(ch)) {
+      i += 1;
+      while (i < formula.length && /[A-Za-z0-9_]/.test(formula[i])) i += 1;
+      continue;
+    }
+    const startsNumber = /[0-9]/.test(ch) || (ch === "." && /[0-9]/.test(formula[i + 1] ?? ""));
+    const prev = i > 0 ? formula[i - 1] : "";
+    if (startsNumber && !/[A-Za-z0-9_.]/.test(prev)) {
+      let j = i;
+      let sawDot = false;
+      while (j < formula.length && (/[0-9]/.test(formula[j]) || (formula[j] === "." && !sawDot))) {
+        if (formula[j] === ".") sawDot = true;
+        j += 1;
+      }
+      const value = Number(formula.slice(i, j));
+      if (Number.isFinite(value)) out.push({ start: i, end: j, value });
+      i = j;
+      continue;
+    }
+    i += 1;
+  }
+  return out;
+}
+
 export function buildQuickCalculator(slots: Record<string, unknown>): Miniapp | null {
   const formula = asStringCapped(slots.formula);
   if (!formula) return null;
 
   const fields = buildCalculatorFields(slots.fields);
   if (fields === null) return null; // provided but invalid
-  if (fields && fields.length > MAX_CALCULATOR_FIELDS) return null;
 
-  // Validate the formula exactly as the renderer's evaluator does (length /
-  // charset gate + field-id substitution). A formula that references an unknown
-  // id or is arithmetically invalid is rejected here, not as a dead calculator.
-  const vars = fieldsToVars(fields);
-  const evaluated = evaluateCalculatorFormula(formula, vars);
+  // Every literal becomes an editable field, so the person can play with the
+  // numbers the model hardcoded. Lifted ids are minted n1, n2… past the
+  // model's own, and carry no label: the renderer names a lifted field in
+  // the interface's language.
+  const literals = formulaLiterals(formula);
+  const lifted: Record<string, unknown>[] = [];
+  let rewritten = formula;
+  if (literals.length > 0) {
+    const taken = new Set((fields ?? []).map((field) => asString(field.id) ?? ""));
+    let next = 1;
+    const idFor = (): string => {
+      while (taken.has(`n${next}`)) next += 1;
+      const id = `n${next}`;
+      taken.add(id);
+      next += 1;
+      return id;
+    };
+    const parts: string[] = [];
+    let cursor = 0;
+    for (const literal of literals) {
+      const id = idFor();
+      parts.push(formula.slice(cursor, literal.start), id);
+      cursor = literal.end;
+      lifted.push({ id, value: literal.value });
+    }
+    rewritten = parts.join("") + formula.slice(cursor);
+  }
+
+  const allFields = [...(fields ?? []), ...lifted];
+  if (allFields.length > MAX_CALCULATOR_FIELDS) return null;
+
+  // Validate the rewritten formula exactly as the renderer's evaluator does
+  // (length / charset gate + field-id substitution). A formula that references
+  // an unknown id or is arithmetically invalid is rejected here, not as a
+  // dead calculator.
+  const vars = fieldsToVars(allFields);
+  const evaluated = evaluateCalculatorFormula(rewritten, vars);
   if (!evaluated.ok) return null;
 
-  const block: Record<string, unknown> = { type: "calculator", formula };
-  if (fields) block.fields = fields; // omitted fields are optional
+  const block: Record<string, unknown> = { type: "calculator", formula: rewritten };
+  if (fields || lifted.length > 0) block.fields = allFields;
   // The initial values and result are the envelope's first state, so the next
   // turn's wire carries what the calculator shows even before anyone edits it.
   return {
