@@ -516,5 +516,6 @@ fn every_candidate_reports_a_start_and_a_close_with_its_index_and_the_total() {
 }
 
 mod budget;
+mod resume;
 mod retry;
 mod sweep;

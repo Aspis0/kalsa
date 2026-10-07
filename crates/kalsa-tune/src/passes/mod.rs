@@ -4,9 +4,10 @@
 //! faster than it. A shape outside that set costs one lifetime instead of
 //! four: what it measured is what the record keeps.
 //!
-//! A withheld marker's trials arrive as `prior`: what they proved measured
-//! is seeded in whole and never runs again, and the plan — and its report —
-//! count only the lifetimes that are left.
+//! A withheld marker's trials arrive as `prior`: what they ANSWERED is
+//! seeded in whole and never runs again, and the plan — and its report —
+//! count only the lifetimes that are left. A lifetime that never started
+//! has no answer and runs again.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -81,10 +82,11 @@ pub struct Tuned {
 /// drafted lifetime, and a refused off-decode still leaves the prefill
 /// number that the sweep and the bound run on.
 ///
-/// `prior` is the withheld marker's trials: a lifetime they proved
-/// measured keeps its entry and never runs again, so on a retry the plan,
-/// the budget and the reports below are only about what is left — and a
-/// lifetime they left unanswered (the budget cut it) runs like any other.
+/// `prior` is the withheld marker's trials: a lifetime they answered —
+/// a reply, or a refusal from a server that ran — keeps its entry and
+/// never runs again, so on a retry the plan, the budget and the reports
+/// below are only about what is left; a lifetime that never got its
+/// answer (the budget cut it, the spawn failed) runs like any other.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn tune<P, D>(
     shapes: &[(Candidate, PathBuf)],
@@ -101,10 +103,11 @@ where
     D: FnMut(&Candidate, &PathBuf) -> Samples,
 {
     let settings: &[Option<u32>] = if drafter { &DRAFT_SETTINGS } else { &[] };
-    // The marker's trials: what they proved measured is seeded into the
+    // The marker's trials this plan may use: answered, and lifetimes of
+    // the current shapes. What they proved measured is seeded into the
     // picture and leaves this start's plan — the retry runs only the
     // lifetimes they never answered.
-    let resume = Resume::new(prior);
+    let resume = Resume::new(prior, shapes, settings);
     let Seeded {
         mut trials,
         mut prompt,
