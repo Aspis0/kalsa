@@ -968,12 +968,15 @@ export function useChat(shell: ChatShell) {
   }
 
   // A mini app widget's next state — ticked checklist items, a picked quiz
-  // answer, edited calculator fields — into the run that drew it. Reads the
-  // conversation's latest copy and patches the one run: the store's own
+  // answer, edited calculator fields — into the run that drew it. It goes to
+  // the live buffer FIRST when the turn is still streaming: the buffer is
+  // what the next persist writes back, so an edit that only reached the
+  // store would be reverted mid-stream. Then the store's own copy: its
   // notification is what renders the tick, and the disk copy is what a
   // reload reads it back from.
   function saveMiniappState(messageId: string, runId: string, state: Record<string, unknown>): void {
     if (!activeId) return;
+    turns.patchMiniappState(messageId, runId, state);
     const latest = store.get(activeId);
     if (!latest) return;
     store.put({

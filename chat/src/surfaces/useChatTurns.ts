@@ -139,6 +139,28 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
     gateAsks.current.find((ask) => ask.id === id)?.settle(allow);
   }
 
+  // A widget's state edit on a turn that is still streaming. The live buffer
+  // is authoritative until the run ends — the screen overlays it and
+  // persistLive writes its toolRuns back — so an edit that only reached the
+  // store would be reverted by the next persist and lost. It must land in the
+  // buffer too, and the snapshot with it, or the overlay would keep hiding it.
+  function patchMiniappState(
+    messageId: string,
+    runId: string,
+    state: Record<string, unknown>,
+  ): void {
+    const b = bufs.current.get(messageId);
+    if (!b || !b.toolRuns.some((run) => run.id === runId && run.miniapp)) return;
+    b.toolRuns = b.toolRuns.map((run) =>
+      run.id === runId && run.miniapp ? { ...run, miniapp: { ...run.miniapp, state } } : run,
+    );
+    setLiveState((prev) => {
+      const entry = prev[messageId];
+      if (!entry) return prev;
+      return { ...prev, [messageId]: { ...entry, toolRuns: b.toolRuns } };
+    });
+  }
+
   const runAssistant = useCallback(
     async (
       conversationId: string,
@@ -454,5 +476,6 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
     answerGate,
     runAssistant,
     stopFor,
+    patchMiniappState,
   };
 }
