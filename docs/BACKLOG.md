@@ -198,3 +198,9 @@ they are promoted.
 - P3: the web-call gate collects every active attachment and every bound doc before the fit trims history (`useChatTurns.ts:191-193`), so a retry of an older turn can ask about a staged document that turn never carries.
 - P3: re-attaching a sent document and then pinning it puts its text in the system message while the old message still carries it — sent and counted twice.
 - P3: `verify.mjs` assumes a dev server on 5173 and a mock on 18081 and resets the mock at `/__reset`; two agents running it at once clear each other's state.
+
+## Phone mini apps (review of kalsa main 945875c5..df41e3ae)
+
+- P2: a tick made while a turn streams stays in memory until the stream's partial (every 10 s) or final write (`src/host/miniappStateWrite.ts:42`, `useHistoryFlushes.ts:82`); the background flush is not awaited (`useHistoryFlushes.ts:108`). A crash or force-stop before it lands loses the tick.
+- P2: state lines are appended to `modelEmittedText` (`src/host/turnCorpus.ts:266`), which is replayed byte-for-byte for the KV prefix (`hostMessage.ts:47`); the replay now differs from the saved completion, so the engine re-reads from that message on. Correct, slower.
+- P3: the "transient" state lines can reach the compaction digest through retrieval units (`turnCorpus.ts:1023` → `compactor.ts:829`) and be stored in AsyncStorage (`engineTurnSlide.ts:304`).
