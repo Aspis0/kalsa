@@ -31,6 +31,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
     attachFiles,
     attachFromDisk,
     attachStatus,
+    attachBusy,
     refusal,
     setRefusal,
     setup,
@@ -154,6 +155,9 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           onThinking={saveThinking}
           streaming={streaming}
           opening={pending || creating}
+          // An attach in flight holds Send: the reading line stays visible
+          // above, and the words stay in the box for the next Enter.
+          sendBlocked={attachBusy > 0}
           draft={draft}
           onDraftChange={setDraft}
           onSend={send}

@@ -47,6 +47,7 @@ export async function loadApp() {
         export { miniappStateLines } from "../src/lib/miniapp/stateText.ts";
         export { runCreateMiniapp } from "../src/lib/tools/createMiniapp.ts";
         export { createStore } from "../src/lib/store.ts";
+        export { createAttachGate } from "../src/lib/attachGate.ts";
         export { buildPinnedContext } from "../src/lib/attachments.ts";
       `,
       resolveDir: SCRIPTS_DIR,

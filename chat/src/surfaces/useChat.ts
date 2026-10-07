@@ -15,6 +15,7 @@ import type { ActiveChat, DoorAccess, SlotNotice } from "../lib/slotGate";
 import { loadThinking, saveThinking, thinkingSupport } from "../lib/thinking";
 import type { ChatSettings, Conversation, ConversationMeta } from "../lib/types";
 import type { FailedState } from "../components/Thread";
+import { createAttachGate } from "../lib/attachGate";
 import type { Attachment } from "../lib/attachments";
 import {
   AttachmentError,
@@ -144,6 +145,11 @@ export function useChat(shell: ChatShell) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [attachStatus, setAttachStatus] = useState<string | null>(null);
+  // The attach gate and the count the composer's disabled state renders: the
+  // gate is the synchronous truth send() asks at Enter, the count is that
+  // truth one render later (see attachFiles).
+  const attachGate = useState(createAttachGate)[0];
+  const [attachBusy, setAttachBusy] = useState(0);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [ctxInfo, setCtxInfo] = useState<{ endpoint: string; nctx: number | null } | null>(null);
   // Numbers only, and that IS the healing rule: an unknown answer is never
@@ -405,50 +411,69 @@ export function useChat(shell: ChatShell) {
       visionOffer.ask();
       return;
     }
-    let convId = activeId;
-    if (!convId) {
-      const fresh: Conversation = {
-        id: uid(),
-        title: firstCharacters(list[0].name, 46),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        messages: [],
-      };
-      // The conversation exists before the door answers, so the moment the gate
-      // makes it active there is something to show. The door decides whether it
-      // becomes active, and on a refusal it must not — but the conversation
-      // stays, with the attachment on it below, so nothing the person chose is
-      // lost and the warning says why.
-      store.put(fresh);
-      const result = await gate.create(fresh.id);
-      if (result === null) {
-        // A creation is already in flight; this one never reached the door.
-        store.remove(fresh.id);
-        return;
-      }
-      noteSlot(result.notice);
-      convId = fresh.id;
-    }
-    const target = convId;
-    // Pictures and videos take their roads only under a seeing model: VISION
-    // is the gate for both because a video reaches the model as FRAMES —
-    // images — and a `video` modality would matter only to an engine taking
-    // video parts, which this app never sends. Blind, they are files like
-    // any other, and the extractor gives the honest not-readable refusal
-    // rather than silently eating pixels.
-    const imageFiles = vision ? list.filter(isImageFile) : [];
-    const videoFiles = vision ? list.filter((file) => !imageFiles.includes(file) && isVideoFile(file)) : [];
-    const docFiles = list.filter(
-      (file) => !imageFiles.includes(file) && !videoFiles.includes(file),
-    );
-    setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
+    // The gate closes only when this settles, whatever the settle is: a send
+    // that lands mid-attach must wait, because the documents it should carry
+    // are still nowhere to read.
+    setAttachBusy(attachGate.begin());
     const prepared: PendingImage[] = [];
     const preparedVideos: PendingVideo[] = [];
     try {
+      let convId = activeId;
+      if (!convId) {
+        const fresh: Conversation = {
+          id: uid(),
+          title: firstCharacters(list[0].name, 46),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          messages: [],
+        };
+        // The conversation exists before the door answers, so the moment the
+        // gate makes it active there is something to show. The door decides
+        // whether it becomes active, and on a refusal it must not — the attach
+        // below refuses visibly rather than park documents on a chat no panel
+        // shows and no send carries.
+        store.put(fresh);
+        const result = await gate.create(fresh.id);
+        if (result === null) {
+          // A creation is already in flight; this one never reached the door.
+          store.remove(fresh.id);
+          setAttachStatus(null);
+          return;
+        }
+        noteSlot(result.notice);
+        if (!result.opened) {
+          // The door refused the chat this attach was making: the slot notice
+          // says why, and the attachment says what that leaves — nothing
+          // stored, nothing silent.
+          store.remove(fresh.id);
+          setAttachStatus(t.attachmentFailed);
+          logUiEvent("chat.attach_no_chat");
+          return;
+        }
+        convId = fresh.id;
+      }
+      const target = convId;
+      // Pictures and videos take their roads only under a seeing model: VISION
+      // is the gate for both because a video reaches the model as FRAMES —
+      // images — and a `video` modality would matter only to an engine taking
+      // video parts, which this app never sends. Blind, they are files like
+      // any other, and the extractor gives the honest not-readable refusal
+      // rather than silently eating pixels.
+      const imageFiles = vision ? list.filter(isImageFile) : [];
+      const videoFiles = vision ? list.filter((file) => !imageFiles.includes(file) && isVideoFile(file)) : [];
+      const docFiles = list.filter(
+        (file) => !imageFiles.includes(file) && !videoFiles.includes(file),
+      );
+      setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
       const extracted: Attachment[] = [];
       for (const file of docFiles) {
         extracted.push(await extractAttachment(file));
       }
+      // The documents land while they are fresh: the context fetch below may
+      // spend its whole ceiling on a sleeping engine, and a send this attach
+      // held waits on the gate, which opens only after these rows exist. A fit
+      // refused below walks them back — nothing rides that the fit refused.
+      for (const attachment of extracted) store.putAttachment(target, attachment);
       for (const file of imageFiles) {
         const image = await prepareImage(file);
         prepared.push({ ...image, kind: "image", url: URL.createObjectURL(image.blob) });
@@ -553,9 +578,12 @@ export function useChat(shell: ChatShell) {
         pendingTokens,
       );
       if (trial.status === "refused") {
-        // The banner names the batch as the picker saw it; a picture or a
-        // video keeps the name of the file it came from, since none is
+        // The documents landed early; a refused fit walks them back — detached,
+        // not erased, so the read work survives for one re-attach once room is
+        // made. The banner names the batch as the picker saw it; a picture or
+        // a video keeps the name of the file it came from, since none is
         // stored.
+        for (const attachment of extracted) store.removeAttachment(target, attachment.id);
         const names = [
           ...extracted.map((a) => a.name),
           ...imageFiles.map((f) => f.name),
@@ -596,6 +624,9 @@ export function useChat(shell: ChatShell) {
         prepared.reduce((sum, chip) => sum + wireImageBytes(chip.blob.size), 0) +
         preparedVideos.reduce((sum, chip) => sum + heldBytes(chip), 0);
       if (pendingWireBytes > ATTACH_IMAGE_CEILING) {
+        // This refusal is the pictures' body, but nothing lands partial: the
+        // documents landed early and walk back with the batch.
+        for (const attachment of extracted) store.removeAttachment(target, attachment.id);
         setRefusal({
           names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
           docTokens: 0,
@@ -633,7 +664,6 @@ export function useChat(shell: ChatShell) {
         // the bubble reads the bytes back when it renders.
         patchChip(video.id, { notKept: video.notKept });
       }
-      for (const attachment of extracted) store.putAttachment(target, attachment);
       if (prepared.length > 0) {
         setPendingImages((prev) => ({
           ...prev,
@@ -653,6 +683,8 @@ export function useChat(shell: ChatShell) {
           : "chat.attach_failed.unknown",
       );
       announce(t.attachmentFailed);
+    } finally {
+      setAttachBusy(attachGate.end());
     }
   }
 
@@ -787,6 +819,11 @@ export function useChat(shell: ChatShell) {
     // A send into the outgoing chat during a switch is the race C4 closes,
     // whichever control produced it.
     if (gate.getSnapshot().pending) return false;
+    // An attach in flight holds the send at the same source of truth: the
+    // composer's disabled state is this count one render behind, and a
+    // document still reading is in no conversation yet. The words stay in the
+    // box; the next Enter — once the reading line clears — carries them.
+    if (attachGate.busy()) return false;
     if (active) return sendMessage(text) !== null;
     // The first message of a chat that does not exist yet waits for the door,
     // and the words stay in the box until it answers: a refusal has to leave
@@ -1048,6 +1085,8 @@ export function useChat(shell: ChatShell) {
     attachFiles,
     attachFromDisk,
     attachStatus,
+    // The attach gate's count: the composer's sendBlocked derives from it.
+    attachBusy,
     refusal,
     setRefusal,
     setup,
