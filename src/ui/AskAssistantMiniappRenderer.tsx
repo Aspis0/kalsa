@@ -15,6 +15,7 @@ import { calculatorValues, recordCalculatorValues } from "../domain/miniappState
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import type { ThemeColors } from "../theme/palettes";
 import { QuizBlockView } from "./blocks/QuizBlock";
+import { compareForSort } from "./tableSort";
 import { useLabTheme } from "./labTheme";
 
 const MAX_BLOCK_DEPTH = 3;
@@ -830,20 +831,52 @@ function ScientificPlotBlockView({ block, context }: { block: MiniappBlock; cont
 }
 
 function TableBlockView({ block, rows, context }: { block: MiniappBlock; rows: ReturnType<typeof normalizeTable>; context: RendererContext }) {
+  // A header is a button: tapping it sorts by that column, ascending then
+  // descending. View-local, like the desktop's — the stored table is never
+  // rewritten by a sort.
+  const [sort, setSort] = useState<{ at: number; dir: "asc" | "desc" } | null>(null);
+  const toggleSort = (at: number) =>
+    setSort((current) =>
+      current?.at === at ? { at, dir: current.dir === "asc" ? "desc" : "asc" } : { at, dir: "asc" },
+    );
+  // A sort kept across a miniapp prop change may point past the new columns;
+  // it then reads as unsorted rather than sorting by nothing.
+  const active = sort && sort.at < rows.columns.length ? sort : null;
+  const sortedRows = active
+    ? [...rows.rows].sort((a, b) => compareForSort(a[active.at] ?? "", b[active.at] ?? "", active.dir))
+    : rows.rows;
   return (
     <View style={context.styles.miniappTableBlock}>
       <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.table"))}</Text>
       {rows.columns.length ? (
         <View style={context.styles.miniappTableHeaderRow}>
-          {rows.columns.map((column, index) => (
-            <Text key={index} numberOfLines={1} style={[context.styles.miniappTableCell, context.styles.miniappTableHeaderCell]}>
-              {column.label}
-            </Text>
-          ))}
+          {rows.columns.map((column, index) => {
+            const isSelected = active?.at === index;
+            const indicator = isSelected ? (active.dir === "asc" ? " ▲" : " ▼") : "";
+            const label = isSelected
+              ? context.t(active.dir === "asc" ? "renderer.sortAscending" : "renderer.sortDescending", {
+                  column: column.label,
+                })
+              : context.t("renderer.sortBy", { column: column.label });
+            return (
+              <Pressable
+                accessibilityLabel={label}
+                accessibilityRole="button"
+                key={index}
+                onPress={() => toggleSort(index)}
+                style={{ flex: 1, minWidth: 40 }}
+              >
+                <Text numberOfLines={1} style={[context.styles.miniappTableCell, context.styles.miniappTableHeaderCell]}>
+                  {column.label}
+                  {indicator}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
-      {rows.rows.length ? (
-        rows.rows.map((row, rowIndex) => (
+      {sortedRows.length ? (
+        sortedRows.map((row, rowIndex) => (
           <View key={rowIndex} style={context.styles.miniappTableRow}>
             {row.map((cell, cellIndex) => (
               <Text key={cellIndex} numberOfLines={1} style={context.styles.miniappTableCell}>
