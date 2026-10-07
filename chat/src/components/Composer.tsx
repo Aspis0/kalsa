@@ -178,6 +178,14 @@ export function Composer({
     onAttach?.(files);
   }
 
+  // The vision offer's one sentence, shown in the chip and again as its
+  // title: the chip may truncate when the row is short, and the hover then
+  // carries the whole offer.
+  const visionLabel =
+    visionOfferBytes !== null && onOfferVision
+      ? visionWords.offer(downloadBytes(visionOfferBytes, tag))
+      : null;
+
   return (
     <div className="composer">
       {mediaChips}
@@ -225,108 +233,111 @@ export function Composer({
           placeholder={composer.placeholder}
           aria-label={composer.messageAria}
         />
-        {onAttach ? (
-          <>
-            <input
-              ref={fileRef}
-              type="file"
-              className="visually-hidden"
-              multiple
-              accept={
-                acceptsImages
-                  ? `${DOCUMENT_ACCEPT},${IMAGE_ACCEPT}${acceptsVideos ? `,${VIDEO_ACCEPT}` : ""}`
-                  : DOCUMENT_ACCEPT
-              }
-              aria-hidden="true"
-              tabIndex={-1}
-              onChange={(event) => {
-                if (event.target.files && event.target.files.length > 0) onAttach(event.target.files);
-                event.target.value = "";
-              }}
-            />
+        <div className="composer-actions">
+          {onAttach ? (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                className="visually-hidden"
+                multiple
+                accept={
+                  acceptsImages
+                    ? `${DOCUMENT_ACCEPT},${IMAGE_ACCEPT}${acceptsVideos ? `,${VIDEO_ACCEPT}` : ""}`
+                    : DOCUMENT_ACCEPT
+                }
+                aria-hidden="true"
+                tabIndex={-1}
+                onChange={(event) => {
+                  if (event.target.files && event.target.files.length > 0) onAttach(event.target.files);
+                  event.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                className="composer-action composer-attach"
+                aria-label={composer.attachAria}
+                title={
+                  acceptsImages && acceptsVideos
+                    ? composer.attachTitleMedia
+                    : acceptsImages
+                      ? composer.attachTitleImages
+                      : composer.attachTitle
+                }
+                onClick={() => fileRef.current?.click()}
+              >
+                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+                  <path
+                    d="M11.5 7.2 6.4 12.3a2.3 2.3 0 0 1-3.3-3.3l6-6a3.7 3.7 0 0 1 5.2 5.2l-6 6a5.1 5.1 0 0 1-7.2-7.2l5.5-5.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </>
+          ) : null}
+          {visionLabel !== null ? (
             <button
               type="button"
-              className="composer-action composer-attach"
-              aria-label={composer.attachAria}
-              title={
-                acceptsImages && acceptsVideos
-                  ? composer.attachTitleMedia
-                  : acceptsImages
-                    ? composer.attachTitleImages
-                    : composer.attachTitle
-              }
-              onClick={() => fileRef.current?.click()}
+              className="composer-action composer-vision"
+              title={visionLabel}
+              onClick={onOfferVision}
+            >
+              <span className="composer-vision-label">{visionLabel}</span>
+            </button>
+          ) : null}
+          {thinking === null || thinking === undefined ? null : (
+            <button
+              type="button"
+              className={`composer-action composer-thinking${thinking ? " is-on" : ""}`}
+              aria-pressed={thinking}
+              aria-label={thinking ? composer.thinkingOff : composer.thinkingOn}
+              title={thinking ? composer.thinkingOnTitle : composer.thinkingOffTitle}
+              onClick={() => onThinking?.(!thinking)}
+            >
+              Think
+            </button>
+          )}
+          {ask && !streaming ? (
+            <button
+              type="button"
+              className="composer-action composer-ask"
+              disabled={!ready || ask.disabled || held}
+              onClick={askKalsa}
+            >
+              {ask.label}
+            </button>
+          ) : null}
+          {streaming ? (
+            <button type="button" className="composer-action composer-stop" onClick={onStop} aria-label={composer.stopGenerating}>
+              <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+                <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="currentColor" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="composer-action composer-send"
+              onClick={send}
+              disabled={!canSend}
+              aria-label={composer.send}
             >
               <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
                 <path
-                  d="M11.5 7.2 6.4 12.3a2.3 2.3 0 0 1-3.3-3.3l6-6a3.7 3.7 0 0 1 5.2 5.2l-6 6a5.1 5.1 0 0 1-7.2-7.2l5.5-5.5"
+                  d="M8 2.2v10.6M3.8 7 8 2.8 12.2 7"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.6"
+                  strokeWidth="1.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
             </button>
-          </>
-        ) : null}
-        {visionOfferBytes !== null && onOfferVision ? (
-          <button
-            type="button"
-            className="composer-action composer-vision"
-            onClick={onOfferVision}
-          >
-            {visionWords.offer(downloadBytes(visionOfferBytes, tag))}
-          </button>
-        ) : null}
-        {thinking === null || thinking === undefined ? null : (
-          <button
-            type="button"
-            className={`composer-action composer-thinking${thinking ? " is-on" : ""}`}
-            aria-pressed={thinking}
-            aria-label={thinking ? composer.thinkingOff : composer.thinkingOn}
-            title={thinking ? composer.thinkingOnTitle : composer.thinkingOffTitle}
-            onClick={() => onThinking?.(!thinking)}
-          >
-            Think
-          </button>
-        )}
-        {ask && !streaming ? (
-          <button
-            type="button"
-            className="composer-action composer-ask"
-            disabled={!ready || ask.disabled || held}
-            onClick={askKalsa}
-          >
-            {ask.label}
-          </button>
-        ) : null}
-        {streaming ? (
-          <button type="button" className="composer-action composer-stop" onClick={onStop} aria-label={composer.stopGenerating}>
-            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-              <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="currentColor" />
-            </svg>
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="composer-action composer-send"
-            onClick={send}
-            disabled={!canSend}
-            aria-label={composer.send}
-          >
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-              <path
-                d="M8 2.2v10.6M3.8 7 8 2.8 12.2 7"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        )}
+          )}
+        </div>
       </div>
       <p className="composer-hint">
         {opening ? composer.hintOpening : composer.hintSend}

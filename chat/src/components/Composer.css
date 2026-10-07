@@ -6,11 +6,13 @@
   padding: 0.5rem 1rem 0.75rem;
 }
 
+/* The words get the whole width on their own row; the actions live in a
+   row below, where they take no space from the text. */
 .composer-box {
   display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-  padding: 0.6rem 0.6rem 0.6rem 1rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.6rem 0.5rem 1rem;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
@@ -22,8 +24,7 @@
 }
 
 .composer-input {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   padding: 0.35rem 0;
   color: var(--ink);
   background: transparent;
@@ -42,6 +43,20 @@
    composer never shows a double outline. Stronger than the global rule. */
 .composer-box .composer-input:focus-visible {
   outline: none;
+}
+
+/* Attach on the left, everything else on the right: the auto margin on the
+   attach pushes the rest across, and without an attach the row itself
+   right-aligns. */
+.composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.composer-actions .composer-attach {
+  margin-right: auto;
 }
 
 .composer-action {
@@ -137,11 +152,14 @@
   border-color: var(--border-strong);
 }
 
-/* The vision offer: one quiet sentence beside the attach button, shaped like
-   Think — never a second primary action in the box. */
+/* The vision offer: one quiet sentence in the actions row, shaped like
+   Think — never a second primary action in the box. It takes the width its
+   words need and stays on one line; a short row shrinks it to an ellipsis,
+   and the whole sentence rides in the button's title. */
 .composer-vision {
+  flex: 0 1 auto;
   width: auto;
-  max-width: 15rem;
+  min-width: 0;
   padding: 0 0.75rem;
   color: var(--ink-soft);
   background: var(--surface-muted);
@@ -149,6 +167,13 @@
   font-size: 0.76rem;
   line-height: 1.3;
   text-align: left;
+}
+
+.composer-vision-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .composer-vision:hover {
