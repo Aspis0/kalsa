@@ -255,29 +255,38 @@ fn mdns_enabled(relay: &RelayChoice, mdns: Option<bool>) -> bool {
 /// key carries the announce mode so a listen-only bind can never be handed
 /// an announcing lookup; two actors for one id (a process that both serves
 /// and dials under one id) are the accepted cost, and each real process —
-/// the desktop serving, the phone dialing — uses one mode per id. One more
-/// cost, accepted: the discovery runs on the first bind's runtime and
-/// assumes that runtime outlives the endpoints (true of the desktop's
-/// static road runtime and the phone's shared one).
-static LAN_DISCOVERY: OnceLock<Mutex<HashMap<(EndpointId, bool), MdnsAddressLookup>>> = OnceLock::new();
+/// the desktop serving, the phone dialing — uses one mode per id. Each
+/// entry also records the runtime it was built on: an entry from a runtime
+/// that has since stopped is a husk (its actors died with it, and
+/// iroh-mdns-address-lookup swallows the sends into their dead channel),
+/// so a bind on a different runtime replaces it — which cannot resurrect
+/// the respawn leak, because those actors died with their runtime instead
+/// of dropping while it lives.
+/// The cache's value: a discovery and the runtime its actors run on.
+type LanDiscovery = (tokio::runtime::Id, MdnsAddressLookup);
+
+static LAN_DISCOVERY: OnceLock<Mutex<HashMap<(EndpointId, bool), LanDiscovery>>> = OnceLock::new();
 
 /// A clone of this node id's discovery in the asked mode, building it on
-/// first use. `None` means the LAN road is off for this bind: either the
-/// discovery cannot start on this network, or the cache lock is poisoned —
-/// both warned here, never fatal, and a failed build is not cached, so the
-/// next bind retries it.
+/// first use on the current runtime. `None` means the LAN road is off for
+/// this bind: either the discovery cannot start on this network, or the
+/// cache lock is poisoned — both warned here, never fatal, and a failed
+/// build is not cached, so the next bind retries it.
 fn lan_discovery(id: EndpointId, advertise: bool) -> Option<MdnsAddressLookup> {
+    let runtime = tokio::runtime::Handle::current().id();
     let cache = LAN_DISCOVERY.get_or_init(Mutex::default);
     let Ok(mut cache) = cache.lock() else {
         warn!("the mDNS cache lock is poisoned; the endpoint continues without LAN discovery");
         return None;
     };
-    if let Some(lookup) = cache.get(&(id, advertise)) {
-        return Some(lookup.clone());
+    if let Some((built_on, lookup)) = cache.get(&(id, advertise)) {
+        if *built_on == runtime {
+            return Some(lookup.clone());
+        }
     }
     match MdnsAddressLookup::builder().advertise(advertise).build(id) {
         Ok(lookup) => {
-            cache.insert((id, advertise), lookup.clone());
+            cache.insert((id, advertise), (runtime, lookup.clone()));
             Some(lookup)
         }
         Err(e) => {

@@ -182,3 +182,77 @@ async fn a_rebuilt_door_is_found_again_through_the_same_discovery() {
     let message = echoed.await.expect("the second door stub finishes");
     assert_eq!(message, *b"ping");
 }
+
+/// The phone's shape: every bridge owns its runtime, and the runtime stops
+/// with the bridge (the app stops it 30 s after background). A discovery
+/// built on a stopped runtime is a husk — its actors died with it, and
+/// iroh-mdns-address-lookup swallows the failed sends, so nothing resolves
+/// or announces — and the cache must never hand one to a later bridge.
+/// Runtime A raises a door under `key` and shuts down; runtime B rebuilds
+/// the door under the same key, and a dialer must still find it.
+#[test]
+fn a_new_runtime_gets_a_fresh_working_discovery() {
+    use std::time::Duration;
+
+    let key = NodeKey::generate().expect("entropy");
+    let node_id = {
+        let runtime = tokio::runtime::Runtime::new().expect("runtime A builds");
+        let door: std::net::SocketAddr = "127.0.0.1:1".parse().expect("loopback address");
+        let config = BridgeConfig::new(door)
+            .with_relay(RelayChoice::Disabled)
+            .with_mdns(true);
+        let bridge = runtime
+            .block_on(Bridge::start_with_key(config, &key))
+            .expect("the bridge raises on runtime A");
+        let node_id = bridge.node_id();
+        bridge.shutdown();
+        drop(bridge);
+        runtime.shutdown_timeout(Duration::from_secs(5));
+        node_id
+    };
+
+    let runtime = tokio::runtime::Runtime::new().expect("runtime B builds");
+    runtime.block_on(async {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("door stub binds");
+        let door = listener.local_addr().expect("door address");
+        let echoed = tokio::spawn(echo_once(listener));
+        let config = BridgeConfig::new(door)
+            .with_relay(RelayChoice::Disabled)
+            .with_mdns(true);
+        let serving = Bridge::start_with_key(config, &key)
+            .await
+            .expect("the door raises on runtime B");
+        assert_eq!(serving.node_id(), node_id, "the same key keeps the same id");
+
+        let dialing_key = NodeKey::generate().expect("entropy");
+        let dialing = Bridge::start_with_key(
+            BridgeConfig::dial_only()
+                .with_relay(RelayChoice::Disabled)
+                .with_mdns(true)
+                .with_dial_timeout(Duration::from_secs(30)),
+            &dialing_key,
+        )
+        .await
+        .expect("the dialing endpoint comes up");
+
+        let mut tunnel = dialing
+            .connect(node_id, Lane::Door)
+            .await
+            .expect("runtime B's discovery works");
+        tunnel
+            .write_all(b"ping")
+            .await
+            .expect("request written into the tunnel");
+        tunnel.flush().await.expect("request flushed");
+        let mut back = [0u8; 4];
+        tunnel
+            .read_exact(&mut back)
+            .await
+            .expect("the tunnel carries the echo back");
+        assert_eq!(back, *b"ping", "the bytes must have crossed the tunnel");
+
+        let message = echoed.await.expect("the door stub finishes");
+        assert_eq!(message, *b"ping");
+    });
+    runtime.shutdown_timeout(Duration::from_secs(5));
+}
