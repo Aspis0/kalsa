@@ -588,15 +588,18 @@ export function useChat(shell: ChatShell) {
       const pendingTokens =
         IMAGE_TOKENS * prepared.length +
         preparedVideos.reduce((sum, chip) => sum + chip.frames.length * IMAGE_TOKENS, 0) +        (pendingImages[target] ?? []).reduce((sum, chip) => sum + heldTokens(chip), 0);
+      // The trial weighs what the next send will actually bind: every active
+      // unpinned document — what was already staged and this new batch
+      // together — measured as the block they render into, so the attach's
+      // fit and the send's fit agree on the same number.
+      const riding = store.getAttachments(target).filter((a) => a.active && !(a.pinned ?? true));
       const trial = buildPinnedContext(
         history,
         store.getAttachments(target),
         nctx,
         { vision, url: () => null },
         pendingTokens,
-        // The batch is weighed as what it will be: documents riding the next
-        // message, counted against the window before anything lands.
-        extracted.reduce((sum, a) => sum + a.tokens, 0),
+        estTokens(turnDocBlock([...riding, ...extracted])),
       );
       if (trial.status === "refused") {
         // The documents landed early; a refused fit walks them back — detached,

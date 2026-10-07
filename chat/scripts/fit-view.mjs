@@ -1,7 +1,7 @@
 // The fit note says nothing about files when there are none: an unknown
 // context size is a warning about attached files, so with zero attached it is
 // silent. Too much is still too much, and a known size stays quiet until the
-// free share of the window falls below a sixth — then the one sentence.
+// free share of the window falls below 15 % — then the one sentence.
 //
 // Pure. Run: node scripts/fit-view.mjs   (from chat/)
 
@@ -40,7 +40,7 @@ equal("files that do not fit: too much", fitView(4096, 2, 3800, 300, RESERVE), "
 equal("files that fit with room to spare: quiet", fitView(8192, 1, 1200, 300, RESERVE), "quiet");
 equal("no files, a known size: quiet", fitView(8192, 0, 0, 300, RESERVE), "quiet");
 // 1024 − 400 − 50 − 512 = 62 free, under the 154 the sixth asks for.
-equal("free under a sixth of the window: the one sentence", fitView(1024, 1, 400, 50, RESERVE), "almost");
+equal("free under 15 % of the window: the one sentence", fitView(1024, 1, 400, 50, RESERVE), "almost");
 // 1024 − 350 − 0 − 512 = 162 free, past the line.
 equal("free past the line: quiet again", fitView(1024, 1, 350, 0, RESERVE), "quiet");
 equal("almost full on history alone, no files", fitView(1024, 0, 0, 380, RESERVE), "almost");

@@ -627,11 +627,21 @@ export function createStore(): ConversationStore {
     putAttachment(convId, attachment) {
       const clean = cleanAttachment(attachment);
       if (!clean) return;
-      const rest = this.getAttachments(convId).filter((a) => a.id !== clean.id);
-      const next = [clean, ...rest];
+      const next = [clean, ...this.getAttachments(convId).filter((a) => a.id !== clean.id)].sort(
+        (a, b) => b.attachedAt - a.attachedAt,
+      );
       const active = next.filter((a) => a.active);
-      const history = next.filter((a) => !a.active).slice(0, 20);
-      const capped = [...active, ...history].sort((a, b) => b.attachedAt - a.attachedAt);
+      // The cap prunes history nobody points at. A document a stored message
+      // still binds is kept however old: that message renders its block on
+      // the wire and weighs it as history, and pruning the record would
+      // leave the count paying for text the wire no longer carries.
+      const referenced = new Set(
+        (this.get(convId)?.messages ?? []).flatMap((m) => m.docs ?? []),
+      );
+      const history = next.filter((a) => !a.active);
+      const bound = history.filter((a) => referenced.has(a.id));
+      const loose = history.filter((a) => !referenced.has(a.id)).slice(0, 20);
+      const capped = [...active, ...bound, ...loose];
       writeThrough(() => {
         localStorage.setItem(attachKey(convId), JSON.stringify(capped));
       });

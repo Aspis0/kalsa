@@ -106,6 +106,10 @@ check(
     useChatSource.includes("docTokens: estTokens(boundBlock)"),
 );
 check(
+  "the attach trial weighs the staged and the arriving as one rendered block",
+  useChatSource.includes("estTokens(turnDocBlock([...riding, ...extracted]))"),
+);
+check(
   "a bound document leaves the composer's set at send",
   useChatSource.includes('for (const doc of bindable) store.putAttachment(conv.id, { ...doc, active: false });'),
 );
@@ -289,6 +293,127 @@ try {
   check("a send that would create a chat waits for a creating attach", gate.run(null, () => true) === null);
   gate.release(app.NEW_CHAT);
   check("a settled refusal reopens the gate", gate.run("c1", () => true) !== null);
+
+  // --- 8. the history cap never prunes a bound document: 21 documents sent
+  //     with one message all survive their own detach, and the wire still
+  //     carries every block the message's count pays for.
+  {
+    const many = Array.from({ length: 21 }, (_, i) => ({
+      ...DOC,
+      id: `att-20-${String(i).padStart(2, "0")}`,
+      name: `page-${String(i).padStart(2, "0")}.txt`,
+      kind: "txt",
+      attachedAt: i + 1,
+      pinned: false,
+    }));
+    for (const d of many) delete d.pages;
+    store.put({ id: "c20", title: "T", createdAt: 1, updatedAt: 2, messages: [] });
+    for (const d of many) store.putAttachment("c20", d);
+    store.put({
+      id: "c20",
+      title: "T",
+      createdAt: 1,
+      updatedAt: 99,
+      messages: [
+        {
+          id: "u20",
+          role: "user",
+          content: "all of them",
+          createdAt: 99,
+          docs: many.map((d) => d.id),
+          docTokens: app.estTokens(app.turnDocBlock(many)),
+        },
+      ],
+    });
+    for (const d of many) store.putAttachment("c20", { ...d, active: false });
+    const after = store.getAttachments("c20");
+    check(
+      "no bound document is pruned by the history cap",
+      after.length === 21,
+      `${after.length} of 21 remain`,
+    );
+    const wire20 = app.buildPinnedContext(store.get("c20").messages, after, null);
+    check(
+      "the oldest bound block still rides the wire",
+      wire20.wire.some(
+        (m) => typeof m.content === "string" && m.content.includes("--- page-00.txt (txt, ≈13 tokens) ---"),
+      ),
+    );
+    // The cap itself stands for history nobody points at — detached the way
+    // the send detaches, through putAttachment, where the cap lives.
+    store.put({ id: "c21", title: "T", createdAt: 1, updatedAt: 2, messages: [] });
+    for (let i = 0; i < 25; i++) {
+      store.putAttachment("c21", { ...DOC, id: `att-loose-${i}`, name: `loose-${i}.txt`, kind: "txt", attachedAt: i + 1, pinned: false });
+    }
+    for (let i = 0; i < 25; i++) {
+      const found = store.getAttachments("c21").find((a) => a.id === `att-loose-${i}`);
+      if (found) store.putAttachment("c21", { ...found, active: false });
+    }
+    check(
+      "history nobody references is still capped at twenty",
+      store.getAttachments("c21").length === 20,
+      `${store.getAttachments("c21").length} remain`,
+    );
+  }
+
+  // --- 9. the attach trial counts what the send will bind: a staged A plus
+  //     an arriving B, measured as their one rendered block. A window that
+  //     holds A alone refuses A+B at the attach's own door.
+  {
+    const staged = { id: "att-a", name: "staged.txt", kind: "txt", chars: 600, tokens: 150, text: "a".repeat(600), attachedAt: 5, active: true, pinned: false };
+    const arriving = { id: "att-b", name: "arriving.txt", kind: "txt", chars: 600, tokens: 150, text: "b".repeat(600), attachedAt: 6, active: true, pinned: false };
+    for (const id of ["c3", "c4"]) {
+      store.put({
+        id,
+        title: "T",
+        createdAt: 1,
+        updatedAt: 2,
+        messages: [{ id: `m-${id}`, role: "user", content: "hello", createdAt: 1 }],
+      });
+    }
+    store.putAttachment("c3", staged);
+    // useChat's own trial expression, driven as the app drives it.
+    const riding = store.getAttachments("c3").filter((a) => a.active && !(a.pinned ?? true));
+    const blind = { vision: false, url: () => null };
+    const trialBoth = app.buildPinnedContext(
+      store.get("c3").messages,
+      store.getAttachments("c3"),
+      900,
+      blind,
+      0,
+      app.estTokens(app.turnDocBlock([...riding, arriving])),
+    );
+    check(
+      "staged A + arriving B, together too big, refused at attach",
+      trialBoth.status === "refused",
+      JSON.stringify(trialBoth).slice(0, 90),
+    );
+    const trialStagedAlone = app.buildPinnedContext(
+      store.get("c3").messages,
+      store.getAttachments("c3"),
+      900,
+      blind,
+      0,
+      app.estTokens(app.turnDocBlock([...riding])),
+    );
+    check(
+      "the same window still takes the staged A alone",
+      trialStagedAlone.status === "ok",
+      JSON.stringify(trialStagedAlone).slice(0, 90),
+    );
+    const trialArrivingAlone = app.buildPinnedContext(
+      store.get("c4").messages,
+      [],
+      900,
+      blind,
+      0,
+      app.estTokens(app.turnDocBlock([arriving])),
+    );
+    check(
+      "and B alone on an empty conversation",
+      trialArrivingAlone.status === "ok",
+    );
+  }
 } finally {
   await rm(dir, { recursive: true, force: true });
 }

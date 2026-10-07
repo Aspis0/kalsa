@@ -13,7 +13,7 @@ export const ALMOST_FULL_SHARE = 0.15;
  * weighs, and however little an attached file weighs. Too much is still too
  * much without files when the size is known — earlier messages alone can fill
  * the room. A known size that still has room keeps quiet: one sentence, and
- * only when the free share falls below a sixth of the window.
+ * only when the free share falls below 15 % of the window.
  */
 export function fitView(
   contextTokens: number | null,
