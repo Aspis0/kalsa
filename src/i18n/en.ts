@@ -799,6 +799,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     timelineTitle: "Timeline",
     timelineEmpty: "No timeline entries yet.",
     stepN: "Step {n}",
+    checklistTitle: "Checklist",
+    checklistEmpty: "No items yet.",
     qualityTitle: "Quality panel",
     qualityEmpty: "No quality entries yet.",
     citationsTitle: "Citations",

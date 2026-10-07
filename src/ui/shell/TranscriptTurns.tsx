@@ -159,7 +159,7 @@ function AnswerView({
   readingMeasure: number;
   onCopy?: (text: string) => Promise<boolean>;
   onLongPress?: () => void;
-  onMiniappOpen?: (miniapp: TranscriptMiniapp) => void;
+  onMiniappOpen?: (miniapp: TranscriptMiniapp, messageId: string) => void;
   /** Read-aloud's press on THIS answer and the speaking fact (D1 row 19):
    *  absent → the chip is absent, never present and silent. */
   onSpeak?: () => void;
@@ -257,7 +257,7 @@ function AnswerView({
           colors={colors}
           id={id}
           miniapp={miniapp}
-          onOpen={onMiniappOpen ? () => onMiniappOpen(miniapp) : undefined}
+          onOpen={onMiniappOpen ? () => onMiniappOpen(miniapp, id) : undefined}
         />
       ) : null}
       {sources ? <SourceChips sources={sources} styles={styles} /> : null}

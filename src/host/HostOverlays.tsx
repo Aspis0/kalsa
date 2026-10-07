@@ -339,6 +339,7 @@ export function HostOverlays(props: OverlaysProps) {
     return (
       <HostMiniappSheet
         miniapp={overlay.miniapp}
+        onStateChange={overlay.onStateChange}
         onClose={() => setOverlay(null)}
         onNoticeText={onNoticeText}
       />

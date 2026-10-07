@@ -3,12 +3,13 @@
 //
 // Each builder validates its slots strictly and returns `null` on bad input so
 // the executor can surface an error instead of rendering a broken miniapp. The
-// produced blocks only ever use block types the renderer already supports
-// (quiz / metric_strip / timeline / data_table), so no new UI is required.
+// produced blocks use block types the renderer already supports
+// (quiz / checklist / metric_strip / timeline / data_table).
 //
 // Field shapes match the renderer exactly (see
 // src/ui/AskAssistantMiniappRenderer.tsx):
 //   - metric_strip  → block.metrics[] read by getMetricRows/getMetricValue
+//   - checklist     → block.items[] {id, title} read by ChecklistBlockView
 //   - timeline      → block.steps[] / block.items[] read by TimelineBlockView
 //   - data_table    → block.columns[] + block.rows[] read by normalizeTable
 
@@ -18,6 +19,8 @@ import {
   asStringArrayCapped,
   envelope,
   isPlainObject,
+  isUnsafeId,
+  MAX_ID_CHARS,
   safeAnswerIndex,
   type Slots,
 } from "./miniappBuilderCommon";
@@ -117,13 +120,15 @@ export function buildKpiStrip(slots: Slots): AskAssistantMiniapp | null {
 }
 
 /**
- * checklist → a single `timeline` block.
+ * checklist → a single `checklist` block of tickable `{id, title}` items.
  *
- * Accepts `steps: string[]` OR `items: Array<string | {title, body?}>` and
- * normalizes them to the timeline renderer shape (1..12 entries). String
- * entries become {title}; object entries use `title` when present, otherwise
- * `body` is promoted to the visible title — the renderer only shows title,
- * so no unused `body` field is ever emitted.
+ * Accepts `steps: string[]` OR `items: Array<string | {id?, title, body?}>`
+ * (1..12 entries). The id keys the ticked state, so it must be stable for
+ * the life of the stored envelope: a provided id is kept, everything else
+ * mints `item-N` — missing, duplicate, unsafe (`__proto__`…) or over-cap ids
+ * included, since two items answering to the same key would tick together.
+ * `body` is promoted to the title and dropped: nothing reads a hidden field
+ * the renderer never draws.
  */
 export function buildChecklist(slots: Slots): AskAssistantMiniapp | null {
   const rawSteps = slots.steps;
@@ -138,28 +143,33 @@ export function buildChecklist(slots: Slots): AskAssistantMiniapp | null {
     return null;
   }
 
-  const steps: Record<string, unknown>[] = [];
+  const items: Record<string, unknown>[] = [];
+  const taken = new Set<string>();
+  let minted = 0;
   for (const entry of raw) {
     // Plain-string steps are capped too (F-5): an oversized step rejects the
     // whole build rather than emitting a title the 64 KiB guard might keep.
-    const title = asStringCapped(entry);
-    if (title) {
-      steps.push({ title });
-      continue;
+    let title: string | null;
+    let given: string | null = null;
+    if (typeof entry === "string") {
+      title = asStringCapped(entry);
+    } else if (isPlainObject(entry)) {
+      title = asStringCapped(entry.title) ?? asStringCapped(entry.body);
+      given = asString(entry.id);
+    } else {
+      title = null;
     }
-    if (!isPlainObject(entry)) return null;
-    // TimelineBlockView only renders title/label/time, so never store a `body`
-    // field the UI ignores: promote `body` to the visible title only when no
-    // title is given, then drop it.
-    const stepTitle = asStringCapped(entry.title) ?? asStringCapped(entry.body);
-    if (!stepTitle) return null;
-    steps.push({ title: stepTitle });
+    if (!title) return null;
+    let id = given !== null && given.length <= MAX_ID_CHARS && !isUnsafeId(given) ? given : null;
+    while (!id || taken.has(id)) id = `item-${(minted += 1)}`;
+    taken.add(id);
+    items.push({ id, title });
   }
 
   return envelope(
     "checklist",
     asString(slots.title) ?? "Checklist",
-    [{ type: "timeline", title: asString(slots.title), steps }],
+    [{ type: "checklist", title: asString(slots.title), items }],
   );
 }
 

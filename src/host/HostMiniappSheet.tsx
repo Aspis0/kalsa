@@ -35,12 +35,15 @@ export function HostMiniappSheet({
   miniapp,
   onClose,
   onNoticeText,
+  onStateChange,
 }: {
   miniapp: AskAssistantMiniapp;
   onClose: () => void;
   /** The one-slot notice with a rendered string: the action handler speaks
    *  strings, not catalogue keys (`miniappActions.ts`). */
   onNoticeText: (value: string) => void;
+  /** The widget's next envelope state → the stored message (`miniappStateWrite.ts`). */
+  onStateChange?: (state: Record<string, unknown>) => void;
 }) {
   const { t, locale } = useLocale();
   const { colors, styles } = useLabTheme<any>();
@@ -96,6 +99,7 @@ export function HostMiniappSheet({
           <AskAssistantMiniappRenderer
             colors={colors}
             miniapp={miniapp}
+            onStateChange={onStateChange}
             onAction={(action, active) => {
               void handleAskAssistantMiniappAction(
                 action as Record<string, unknown>,

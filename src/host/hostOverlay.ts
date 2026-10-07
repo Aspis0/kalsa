@@ -10,10 +10,16 @@
  * as held, not silently kept. The card now exists (`MiniappCard.tsx`, fed by
  * `messageMapper.ts`), so the kind is honest again; the reason stays here so
  * the next reader sees the deletion was reasoned, not lost.
+ *
+ * The kind also carries the widget-state write-back (`onStateChange`): the
+ * card opens it, so only here can a tick find its message again — the
+ * closure binds the message id at open time and writes through the history
+ * host (`miniappStateWrite.ts`).
  */
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { normalizeMiniapp } from "../domain/askAssistant";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
+import { writeMiniappState, type MiniappStateHost } from "./miniappStateWrite";
 
 export type HostOverlay =
   | { kind: "settings" }
@@ -24,10 +30,22 @@ export type HostOverlay =
   | { kind: "conversations" }
   | { kind: "notes"; focusId?: string }
   | { kind: "personas" }
-  | { kind: "miniapp"; miniapp: AskAssistantMiniapp }
+  | {
+      kind: "miniapp";
+      miniapp: AskAssistantMiniapp;
+      /** The widget state's next value, bound to its message id at open. */
+      onStateChange?: (state: Record<string, unknown>) => void;
+    }
   /** The one paired computer's room (v1: no picker — see `useRoomPairing`). */
   | { kind: "room"; localId: string }
   | null;
+
+/** What the card hands the opener besides the envelope: the message whose
+ *  state the widgets write back into, and the host that stores it. */
+export type MiniappOpenIo = {
+  messageId?: string;
+  history?: MiniappStateHost;
+};
 
 /**
  * The controller's open policy (`AppShell.tsx:7035-7046`): a mini-app open
@@ -40,16 +58,37 @@ export type HostOverlay =
  * already on the restore path, so the sheet's precondition is checked, not
  * assumed).
  */
-export function withMiniappOverlay(previous: HostOverlay, raw: unknown): HostOverlay {
+export function withMiniappOverlay(
+  previous: HostOverlay,
+  raw: unknown,
+  io?: MiniappOpenIo,
+): HostOverlay {
   if (previous && previous.kind !== "miniapp") return previous;
   const miniapp = normalizeMiniapp(raw);
   if (!miniapp) return previous;
-  return { kind: "miniapp", miniapp };
+  const { messageId, history } = io ?? {};
+  if (!messageId || !history) return { kind: "miniapp", miniapp };
+  return {
+    kind: "miniapp",
+    miniapp,
+    onStateChange: (state) => writeMiniappState(history, messageId, state),
+  };
 }
 
-export function useMiniappOpen(setOverlay: Dispatch<SetStateAction<HostOverlay>>) {
+export function useMiniappOpen(
+  setOverlay: Dispatch<SetStateAction<HostOverlay>>,
+  history?: MiniappStateHost,
+) {
+  // Kept in a ref so the callback stays identity-stable while the history
+  // host hands out a fresh object every render (the transcript memoizes on
+  // this prop's identity).
+  const historyRef = useRef(history);
+  historyRef.current = history;
   return useCallback(
-    (miniapp: unknown) => setOverlay((previous) => withMiniappOverlay(previous, miniapp)),
+    (miniapp: unknown, messageId: string) =>
+      setOverlay((previous) =>
+        withMiniappOverlay(previous, miniapp, { messageId, history: historyRef.current }),
+      ),
     [setOverlay],
   );
 }

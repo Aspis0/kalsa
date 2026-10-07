@@ -98,7 +98,7 @@ export type Message = {
   statusLabel?: string;
   statusHistory?: string[];
   sources?: MessageSource[];
-  miniapp?: { kind: string; title: string; blocks: any[] };
+  miniapp?: { kind: string; title: string; blocks: any[]; state?: Record<string, unknown> };
   attachments?: LocalAttachment[];
   // RNA-seq job context: result image/download links delivered alongside the
   // assistant reply.

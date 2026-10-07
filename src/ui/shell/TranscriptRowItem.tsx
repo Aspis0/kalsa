@@ -30,7 +30,7 @@ export type RowView = {
   now?: number;
   onCopy?: (text: string) => Promise<boolean>;
   onMessageLongPress?: (message: TranscriptMessage) => void;
-  onMiniappOpen?: (miniapp: TranscriptMiniapp) => void;
+  onMiniappOpen?: (miniapp: TranscriptMiniapp, messageId: string) => void;
   onSpeak?: (id: string, text: string) => void;
   speakingId?: string | null;
   styles: TranscriptStyles;

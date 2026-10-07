@@ -26,6 +26,17 @@ export function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+/** Longest id a builder accepts for a field or checklist item: ids key the
+ *  stored state, and past this they are noise, not identity. */
+export const MAX_ID_CHARS = 64;
+
+/** Ids that would write along an object's prototype chain instead of its own
+ *  keys — an item or field with one can never be ticked or edited, so a
+ *  builder never accepts one. */
+export function isUnsafeId(id: string): boolean {
+  return id === "__proto__" || id === "constructor" || id === "prototype";
+}
+
 /** Non-empty trimmed string capped at MAX_SLOT_CHARS; null when empty or over
  *  the cap. Rejects oversized required fields loudly instead of emitting them. */
 export function asStringCapped(value: unknown): string | null {

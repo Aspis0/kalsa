@@ -203,16 +203,49 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     expect(buildMiniappV1("kpi_strip", { metrics: nine })).toBeNull();
   });
 
-  test("checklist → timeline steps from string[]", () => {
+  test("checklist → tickable items with minted ids", () => {
     const miniapp = buildMiniappV1("checklist", {
       title: "Setup",
       steps: ["Install", "Configure", "Launch"],
     });
     expect(miniapp).not.toBeNull();
     expect(miniapp?.kind).toBe("checklist");
-    expect(miniapp?.blocks[0]).toMatchObject({ type: "timeline" });
-    expect(miniapp?.blocks[0].steps).toHaveLength(3);
-    expect((miniapp?.blocks[0] as any).steps[0]).toMatchObject({ title: "Install" });
+    expect(miniapp?.blocks[0]).toMatchObject({ type: "checklist", title: "Setup" });
+    expect((miniapp?.blocks[0] as any).items).toEqual([
+      { id: "item-1", title: "Install" },
+      { id: "item-2", title: "Configure" },
+      { id: "item-3", title: "Launch" },
+    ]);
+  });
+
+  test("checklist keeps provided ids and mints the rest", () => {
+    const miniapp = buildMiniappV1("checklist", {
+      items: [{ id: "milk", title: "Buy milk" }, { title: "No id" }, "plain step"],
+    });
+    expect((miniapp?.blocks[0] as any).items).toEqual([
+      { id: "milk", title: "Buy milk" },
+      { id: "item-1", title: "No id" },
+      { id: "item-2", title: "plain step" },
+    ]);
+  });
+
+  test("checklist mints over a colliding, unsafe or over-cap id", () => {
+    const colliding = buildMiniappV1("checklist", {
+      items: [{ id: "item-1", title: "A" }, { id: "item-1", title: "B" }],
+    });
+    expect((colliding?.blocks[0] as any).items.map((item: any) => item.id)).toEqual(["item-1", "item-2"]);
+    const unsafe = buildMiniappV1("checklist", {
+      items: [
+        { id: "__proto__", title: "A" },
+        { id: "constructor", title: "B" },
+        { id: "x".repeat(65), title: "C" },
+      ],
+    });
+    expect((unsafe?.blocks[0] as any).items.map((item: any) => item.id)).toEqual([
+      "item-1",
+      "item-2",
+      "item-3",
+    ]);
   });
 
   test("checklist promotes body to the visible title and drops it (F-3)", () => {
@@ -223,14 +256,12 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
         "plain step",
       ],
     });
-    expect(miniapp?.blocks[0].steps).toHaveLength(3);
-    // titled item: title kept, body ignored and never stored
-    expect((miniapp?.blocks[0] as any).steps[0]).toMatchObject({ title: "Step 1" });
-    expect((miniapp?.blocks[0] as any).steps[0].body).toBeUndefined();
-    // body-only item: body promoted to the visible title, then dropped
-    expect((miniapp?.blocks[0] as any).steps[1]).toMatchObject({ title: "Only body" });
-    expect((miniapp?.blocks[0] as any).steps[1].body).toBeUndefined();
-    expect((miniapp?.blocks[0] as any).steps[2]).toMatchObject({ title: "plain step" });
+    expect((miniapp?.blocks[0] as any).items.map((item: any) => item.title)).toEqual([
+      "Step 1",
+      "Only body",
+      "plain step",
+    ]);
+    expect(((miniapp?.blocks[0] as any).items[0] as any).body).toBeUndefined();
     expect(buildMiniappV1("checklist", { steps: [] })).toBeNull();
     expect(buildMiniappV1("checklist", { steps: [{}] })).toBeNull(); // no title/body
     expect(buildMiniappV1("checklist", {})).toBeNull();
@@ -326,7 +357,7 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
       steps: ["One", "Two", "Three"],
     });
     expect(miniapp).not.toBeNull();
-    expect(miniapp?.blocks[0]).toMatchObject({ type: "timeline" });
+    expect(miniapp?.blocks[0].type).toBe("checklist");
   });
 });
 

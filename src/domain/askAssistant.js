@@ -328,6 +328,29 @@ function normalizeMiniappBlock(block) {
 }
 
 /**
+ * Old checklists stored their steps as a `timeline` block; the tickable view
+ * reads `checklist` + items, so the envelope is converted at this boundary.
+ * The item id is the step index — as stable in a stored payload as it ever
+ * was, so any ticks recorded under it keep resolving.
+ */
+function legacyChecklistBlock(block) {
+  if (!isPlainObject(block) || block.type !== "timeline") return block;
+  const source = Array.isArray(block.steps)
+    ? block.steps
+    : Array.isArray(block.items)
+      ? block.items
+      : [];
+  const items = [];
+  source.forEach((entry, index) => {
+    const record = isPlainObject(entry) ? entry : null;
+    const raw = record ? record.title ?? record.label : entry;
+    const title = clipString(raw, MAX_TITLE, "");
+    if (title) items.push({ id: String(index), title });
+  });
+  return { type: "checklist", title: block.title, items };
+}
+
+/**
  * Normalize a miniapp object into miniapp_v1 shape, or null if unusable.
  * Accepts schema "miniapp_v1" | "aspis_miniapp_v1", or kind+title+blocks without schema.
  */
@@ -342,6 +365,7 @@ function normalizeMiniapp(raw) {
   if (!hasSchema && !hasEnvelope) return null;
   if (!hasEnvelope) return null;
 
+  const kind = clipString(raw.kind, MAX_KIND, "miniapp");
   const blocks = raw.blocks
     .slice(0, MAX_MINIAPP_BLOCKS)
     .map(normalizeMiniappBlock)
@@ -349,16 +373,27 @@ function normalizeMiniapp(raw) {
 
   const miniapp = {
     schema: "miniapp_v1",
-    kind: clipString(raw.kind, MAX_KIND, "miniapp"),
+    kind,
     title: clipString(raw.title, MAX_TITLE, "Miniapp"),
-    blocks,
+    blocks: kind === "checklist" ? blocks.map(legacyChecklistBlock) : blocks,
   };
 
   if (Array.isArray(raw.actions)) {
     miniapp.actions = raw.actions.slice(0, MAX_MINIAPP_ACTIONS);
   }
   if (isPlainObject(raw.computed)) miniapp.computed = raw.computed;
-  if (isPlainObject(raw.state)) miniapp.state = raw.state;
+  if (isPlainObject(raw.state)) {
+    miniapp.state = raw.state;
+    // The widgets' own state is bounded by their shapes (an item count, a
+    // field count); a stored blob past the block guard would grow the stored
+    // message without limit, so it is dropped here and the widgets start
+    // clean rather than the whole envelope degrading.
+    try {
+      if (JSON.stringify(miniapp).length > MAX_BLOCK_JSON_BYTES) delete miniapp.state;
+    } catch {
+      delete miniapp.state;
+    }
+  }
   if (isPlainObject(raw.navigation)) miniapp.navigation = raw.navigation;
   if (isPlainObject(raw.interaction)) miniapp.interaction = raw.interaction;
 

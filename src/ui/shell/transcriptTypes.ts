@@ -226,7 +226,7 @@ export type TranscriptProps = {
    * Open control: a hint that promises an opener nothing can perform is the
    * inert affordance this build does not ship.
    */
-  onMiniappOpen?: (miniapp: TranscriptMiniapp) => void;
+  onMiniappOpen?: (miniapp: TranscriptMiniapp, messageId: string) => void;
   /**
    * The translate run under ONE message (D1 row 18): busy row + expandable
    * block, handlers bundled with the view. Absent (the preview, or no run):

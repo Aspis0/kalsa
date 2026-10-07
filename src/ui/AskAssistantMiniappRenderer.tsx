@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { normalizeMiniappBlock } from "../domain/askAssistant";
+import { ChecklistBlockView } from "./blocks/ChecklistBlock";
 import { computeStatistics, convertVolumeDensityToMass, fitRegression } from "../domain/miniappMathCore";
 import { evaluateCalculatorFormula } from "../domain/miniappCalculator";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
@@ -59,11 +60,7 @@ type Miniapp = {
   interaction?: Record<string, unknown>;
   kind: string;
   schema: "miniapp_v1" | "aspis_miniapp_v1";
-  state?: {
-    activeView?: unknown;
-    inputs?: Record<string, unknown>;
-    [key: string]: unknown;
-  };
+  state?: Record<string, unknown>;
   navigation?: MiniappNavigation;
   title: string;
 };
@@ -74,6 +71,9 @@ type Props = {
   glassVariant?: "ios" | "android" | "vision";
   miniapp: Miniapp;
   onAction?: (action: MiniappAction, miniapp: Miniapp) => void;
+  /** The envelope's next `state` after a widget wrote through it — the host
+   *  writes it into the stored message so ticks and answers survive a reload. */
+  onStateChange?: (state: Record<string, unknown>) => void;
   styles: Record<string, any>;
 };
 
@@ -85,10 +85,13 @@ type RendererContext = {
   inputs: Record<string, number>;
   index: number;
   locale: Locale;
+  onStateChange: (state: Record<string, unknown>) => void;
   t: TranslateFn;
   setInput: (key: string, value: string) => void;
   runAction: (action: MiniappAction) => void;
 
+  /** The envelope's current `state` (ticks, answers, values) as the widgets read it. */
+  state: Record<string, unknown>;
   styles: Record<string, any>;
 };
 
@@ -1667,6 +1670,25 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
     visual: { accent: "indigo", density: "compact", liquidGlassSurface: "floating_control", motion: "state_transition", role: "same_miniapp_tabs" },
     render: ({ block, context, depth }) => <TabsBlockView block={block} context={context} depth={depth} />,
   }),
+  checklist: defineMiniappBlock({
+    schemaFields: ["items", "title"],
+    exportSupport: true,
+    editable: false,
+    aiActionSupport: false,
+    backendActionSupport: false,
+    capabilities: { interactive: true, stateful: true },
+    visual: { accent: "violet", density: "comfortable", liquidGlassSurface: "frosted_panel", motion: "state_transition", role: "checklist" },
+    render: ({ block, context }) => (
+      <ChecklistBlockView
+        block={block}
+        color={context.colors.ink}
+        onStateChange={context.onStateChange}
+        state={context.state}
+        styles={context.styles}
+        t={context.t}
+      />
+    ),
+  }),
   timeline: defineMiniappBlock({
     schemaFields: ["items", "steps", "title"],
     exportSupport: true,
@@ -1971,6 +1993,7 @@ export function AskAssistantMiniappRenderer({
   glassVariant,
   miniapp,
   onAction,
+  onStateChange,
   styles,
 }: Props) {
   const { t, locale } = useLocale();
@@ -2006,6 +2029,13 @@ export function AskAssistantMiniappRenderer({
       ...current,
       [key]: toNumber(value, current[key]),
     }));
+  };
+
+  // The widgets replace the envelope state wholesale (their transitions
+  // return the next full state); the host persists it into the stored message.
+  const patchState = (state: Record<string, unknown>) => {
+    setLocalMiniapp({ ...localMiniapp, state });
+    onStateChange?.(state);
   };
 
   const runAction = (action: MiniappAction) => {
@@ -2095,6 +2125,8 @@ export function AskAssistantMiniappRenderer({
     index: 0,
     inputs,
     locale,
+    onStateChange: patchState,
+    state: localMiniapp.state ?? {},
     t,
     runAction,
     setInput,

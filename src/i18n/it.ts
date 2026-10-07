@@ -794,6 +794,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     timelineTitle: "Cronologia",
     timelineEmpty: "Nessuna voce ancora.",
     stepN: "Passo {n}",
+    checklistTitle: "Checklist",
+    checklistEmpty: "Nessun elemento ancora.",
     qualityTitle: "Pannello qualità",
     qualityEmpty: "Nessuna voce di qualità ancora.",
     citationsTitle: "Citazioni",

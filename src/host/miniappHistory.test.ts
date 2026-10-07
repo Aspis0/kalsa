@@ -113,3 +113,70 @@ describe("old histories whose mini-app lives only in the text (Chat:731-734)", (
     expect(mapped.miniapp).toEqual(expect.objectContaining({ title: "Photosynthesis quiz" }));
   });
 });
+
+describe("the widget state rides the envelope (save → restore → save)", () => {
+  const checklist = () =>
+    normalizeMiniapp({
+      schema: "miniapp_v1",
+      kind: "checklist",
+      title: "Groceries",
+      blocks: [
+        {
+          type: "checklist",
+          items: [
+            { id: "milk", title: "Milk" },
+            { id: "eggs", title: "Eggs" },
+          ],
+        },
+      ],
+      state: { checked: { milk: true } },
+    });
+
+  test("a tick survives save → disk → restore → save byte-identically", () => {
+    const ticked: Message = {
+      id: "a1",
+      role: "assistant",
+      text: "Here is your list.",
+      createdAt: 6,
+      miniapp: checklist() as Message["miniapp"],
+    };
+    const saved = buildPersistableMessages([ticked]);
+    const onDisk = JSON.parse(JSON.stringify(saved)) as unknown;
+    const restored = sanitizeHistoryMessages(onDisk, "en");
+    expect(restored[0].miniapp?.state).toEqual({ checked: { milk: true } });
+    expect(restored[0].miniapp?.blocks[0]).toMatchObject({ type: "checklist" });
+
+    const resaved = buildPersistableMessages(restored);
+    expect(JSON.stringify(resaved)).toBe(JSON.stringify(saved));
+  });
+
+  test("an old timeline-shaped checklist restores as the tickable block, keyed by step index", () => {
+    const restored = sanitizeHistoryMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          text: "Steps below.",
+          createdAt: 7,
+          miniapp: {
+            schema: "miniapp_v1",
+            kind: "checklist",
+            title: "Setup",
+            blocks: [{ type: "timeline", title: "Setup", steps: [{ title: "Install" }, { title: "Launch" }] }],
+            state: { checked: { "1": true } },
+          },
+        },
+      ],
+      "en",
+    );
+    expect(restored[0].miniapp?.blocks[0]).toEqual({
+      type: "checklist",
+      title: "Setup",
+      items: [
+        { id: "0", title: "Install" },
+        { id: "1", title: "Launch" },
+      ],
+    });
+    expect(restored[0].miniapp?.state).toEqual({ checked: { "1": true } });
+  });
+});

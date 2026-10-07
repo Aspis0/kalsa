@@ -17,7 +17,7 @@ type TranscriptRowProps = {
   message: TranscriptMessage;
   onCopy?: (text: string) => Promise<boolean>;
   onMessageLongPress?: (message: TranscriptMessage) => void;
-  onMiniappOpen?: (miniapp: TranscriptMiniapp) => void;
+  onMiniappOpen?: (miniapp: TranscriptMiniapp, messageId: string) => void;
   onSpeak?: (id: string, text: string) => void;
   speaking: boolean;
   styles: TranscriptStyles;

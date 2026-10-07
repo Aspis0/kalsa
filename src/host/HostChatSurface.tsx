@@ -91,7 +91,7 @@ export interface ChatSurfaceProps {
   actions: MessageActionsBundle;
   /** The mini-app card's open (D1 row 4/28): the host applies the
    *  controller's open policy and owns the overlay (`AppShell.tsx:7035-7046`). */
-  onMiniappOpen: (miniapp: TranscriptMiniapp) => void;
+  onMiniappOpen: (miniapp: TranscriptMiniapp, messageId: string) => void;
 }
 
 export function HostChatSurface({

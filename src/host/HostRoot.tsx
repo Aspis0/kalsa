@@ -121,7 +121,7 @@ export function HostRoot() {
   });
   touchedRef.current = actions.handleConversationTouched;
   const clearDraft = useCallback(() => setDraft(""), []);
-  const onMiniappOpen = useMiniappOpen(setActiveOverlay);
+  const onMiniappOpen = useMiniappOpen(setActiveOverlay, history);
 
   // Share-in (D1 row 41): listener, pending flush, nonce merge — one hook,
   // ports only, now including the attach row a shared PDF lands in.
