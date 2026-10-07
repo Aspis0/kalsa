@@ -1819,6 +1819,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (`decode_heat_weight` x `decode_heat_per_token_{cpu,gpu,npu}`, default 0). GPU burst adds GPU windows (320 vs 96)
   but does not move skin at n=1. First attempt (`raw/session10-heat-attempt1-482ae4717.grep`) INVALID: the S23 sat
   on its lock screen (short keyguard timeout) and fell to Dozing; HTP dspqueue_write failed at token 3936 after it.
+- **Decode heat per leg, S23 (`raw/session13-legheat-3a7fbec44.grep`, each leg forced alone, 2048 tokens, all
+  samples Awake)**: NPU 17.1 tok/s, skin 28.8 -> 34.5 (+5.7 C, 120 s) = **2.8 C per 1k tokens**; GPU 14.5 tok/s,
+  31.9 -> 38.5 (+6.6, 141 s) = **3.2**; CPU 12.8 tok/s, 31.9 -> 41.5 (+9.6, 160 s) = **4.7**. (NPU started 3 C
+  cooler: its rise is if anything overstated.) Mixed modes for scale: raw rule 3.8, smoothed 4.3-4.35 per 1k. So the
+  CPU is the worst leg on both axes, and the NPU the best: ranking by heat per token = ranking by speed. Next:
+  `--heat-weight` / `--heat-per-token` bench flags (mimo `e55937a0`), then raw vs tau 10 + heat weight
+  (per-token 2.8 / 3.2 / 4.7, weight sized so the CPU's ~13 C trip advantage over NSP/GPU is cancelled) on the S23.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
