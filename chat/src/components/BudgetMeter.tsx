@@ -15,10 +15,10 @@ interface BudgetMeterProps {
 }
 
 /**
- * The fit bar: labelled segments, never figures — the numbers behind them
- * are measures of text the owner cannot check. Unknown stays unknown — no
- * bar at a made-up scale. Static widths, no animation: it re-renders, never
- * moves by itself.
+ * The fit's one sentence, and only when it matters: nothing at all while the
+ * conversation has room, the almost-full warning once the free share of the
+ * window runs low, and the unknown/too-much sentences the bar used to carry.
+ * No figures — they are measures of text the owner cannot check.
  */
 export function BudgetMeter({
   contextTokens,
@@ -30,36 +30,15 @@ export function BudgetMeter({
 }: BudgetMeterProps) {
   const { table } = useLanguage();
   const t = table.files;
-  const reserve = CONTEXT_RESERVE_TOKENS;
   const view = fitView(
     contextTokens,
     fileCount + imageCount,
     docTokens + imageTokens,
     historyTokens,
-    reserve,
+    CONTEXT_RESERVE_TOKENS,
   );
-  if (view === "hidden") return null;
-  // `contextTokens === null` is exactly the two views above, and the check is
-  // what lets the code below use the number.
-  if (contextTokens === null) return <p className="budget-unknown">{t.budgetUnknown}</p>;
+  if (view === "hidden" || view === "quiet") return null;
+  if (view === "unknown") return <p className="budget-unknown">{t.budgetUnknown}</p>;
   if (view === "over") return <p className="budget-over">{t.budgetOver}</p>;
-  const pct = (n: number): string => `${Math.min(100, Math.max(0, (n / contextTokens) * 100)).toFixed(1)}%`;
-  return (
-    <div className="budget">
-      <div className="budget-bar" aria-hidden="true">
-        <span className="budget-docs" style={{ width: pct(docTokens + imageTokens) }} />
-        <span className="budget-history" style={{ width: pct(historyTokens) }} />
-        <span className="budget-reserve" style={{ width: pct(reserve) }} />
-      </div>
-      <p className="budget-terms">
-        <span data-term="docs">{t.budgetFiles}</span>
-        {" · "}
-        <span data-term="history">{t.budgetEarlier}</span>
-        {" · "}
-        <span data-term="reserve">{t.budgetKept}</span>
-        {" · "}
-        <span data-term="left">{t.budgetFree}</span>
-      </p>
-    </div>
-  );
+  return <p className="budget-almost">{t.budgetAlmostFull}</p>;
 }

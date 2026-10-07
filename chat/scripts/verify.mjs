@@ -2282,55 +2282,45 @@ const tests = {
     await browser.close();
   },
 
-  // The meter's terms sum to its total — the assert that would have
-  // caught the missing reserve in the refusal text.
+  // The fit note: no bar anymore — quiet while there is room, the one
+  // almost-full sentence once the free share of the window runs low. Nine
+  // seeded turns are 330 tokens of history (28 each plus the 78-token
+  // prompt), so a 1024 window has 162 free before the attach (past the 15%
+  // line: quiet) and 112 after the 50-token document lands (under it: the
+  // sentence).
   async metersum() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     const messages = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 9; i++) {
       messages.push({ id: `u${i}`, role: "user", content: `Meter Q${i} ${"m".repeat(96)}`, createdAt: i });
     }
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "x" },
       convos: [{ id: "m1", title: "Metered", createdAt: 1, updatedAt: 1, messages }],
     });
+    // The home's capability read must answer or the bar the harness clicks
+    // never renders (the seed gap declared in efc338d3).
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
     await openChat(page);
     await page.waitForTimeout(1200);
     await openSidebar(page, "Metered");
+    await page.getByRole("button", { name: "Toggle the files panel" }).click();
+    await page.waitForTimeout(300);
+    check("metersum: room to spare says nothing", (await page.locator(".budget-almost").count()) === 0);
+    check("metersum: no bar remains", (await page.locator(".budget-bar").count()) === 0 && (await page.locator("[data-term]").count()) === 0);
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "m.txt", mimeType: "text/plain", buffer: Buffer.from(`METER ${"w".repeat(193)}`) },
     ]);
     await page.waitForTimeout(1500);
-    const n = async (term) => {
-      // Absence-tolerant: a dropped term must FAIL the sum check below,
-      // not explode here as a raw TimeoutError (round-24 rule).
-      try {
-        return parseInt(
-          (await page.locator(`[data-term="${term}"]`).getAttribute("data-n", { timeout: 5000 })) ?? "NaN",
-          10,
-        );
-      } catch {
-        return NaN;
-      }
-    };
-    const [docs, hist, reserve, left, total] = await Promise.all([
-      n("docs"),
-      n("history"),
-      n("reserve"),
-      n("left"),
-      n("total"),
-    ]);
-    check("metersum: terms sum to total", docs + hist + reserve + left === total, `${docs}+${hist}+${reserve}+${left}=${total}`);
-    check("metersum: reserve named", reserve === 512);
-    check("metersum: total is the server size", total === 1024);
-    const widths = await page.locator(".budget-bar span").evaluateAll((els) =>
-      els.map((el) => parseFloat(el.style.width)),
+    const note = page.locator(".budget-almost");
+    check(
+      "metersum: the almost-full sentence, whole",
+      (await note.count()) === 1 &&
+        ((await note.textContent()) ?? "") ===
+          "This conversation is almost full: Kalsa may not read everything. Remove a file or start a new conversation.",
+      ((await note.count()) === 1 ? await note.textContent() : "(none)") ?? "",
     );
-    const widthSum = widths.reduce((a, b) => a + b, 0);
-    // The bar covers the used share; the rest is empty track by design.
-    const usedShare = ((total - left) / total) * 100;
-    check("metersum: bar matches used share", Math.abs(widthSum - usedShare) < 0.6, `${widthSum.toFixed(1)}% vs ${usedShare.toFixed(1)}%`);
     await browser.close();
   },
   // At rest, nothing moves document-wide (sidebar included): zero running

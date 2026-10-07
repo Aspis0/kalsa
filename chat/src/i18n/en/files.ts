@@ -13,12 +13,9 @@ export const FILES = {
   previouslyAttached: "Previously attached",
   onePage: "1 page",
   pages: (count: number) => `${count} pages`,
-  // The fit bar: labelled segments, no numbers.
+  // The fit's sentences: unknown size, nearly full, too much.
   budgetUnknown: "Kalsa can't check whether these files fit, so she may not use all of them.",
-  budgetFiles: "Files",
-  budgetEarlier: "Earlier messages",
-  budgetKept: "Kept for Kalsa's answer",
-  budgetFree: "Free",
+  budgetAlmostFull: "This conversation is almost full: Kalsa may not read everything. Remove a file or start a new conversation.",
   budgetOver: "Too much for Kalsa at once. Remove a file or shorten your message.",
   // Why a file could not be attached, by the failure the extractor reports.
   unsupportedKind: "Kalsa can't read this kind of file. Use a text document, PDF, Word or PowerPoint file.",

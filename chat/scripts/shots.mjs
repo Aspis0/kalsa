@@ -601,7 +601,7 @@ async function main() {
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "m.txt", mimeType: "text/plain", buffer: Buffer.from(`METER ${"w".repeat(193)}`) },
     ]);
-    await must(page, ".budget-bar", "meter with room");
+    await must(page, ".panel-row", "attached row, and the fit stays quiet with room to spare");
     await shot(page, "shots/63-meter.png");
     await page.close();
   }
@@ -620,7 +620,7 @@ async function main() {
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "bigish.txt", mimeType: "text/plain", buffer: Buffer.from(`FULL ${"f".repeat(1395)}`) },
     ]);
-    await must(page, ".budget-bar", "nearly full meter");
+    await must(page, ".budget-almost", "nearly full sentence");
     await shot(page, "shots/64-meter-full.png");
     await page.close();
   }

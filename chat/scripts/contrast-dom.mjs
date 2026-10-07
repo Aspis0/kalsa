@@ -125,7 +125,6 @@ const CHECKS = [
   ["thought face", ".thought-face", null, "think"],
   ["thought toggle", ".thought-toggle", null, "think"],
   ["thought body", ".thought-body", null, "thinkopen"],
-  ["budget terms", ".budget-terms", null, "panel"],
   ["budget unknown", ".budget-unknown", null, "panelunknown"],
 ];
 
