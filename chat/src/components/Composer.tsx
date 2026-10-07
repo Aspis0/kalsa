@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent, ReactNode } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { downloadBytes } from "../lib/downloadBytes";
+import type { Attachment } from "../lib/attachments";
 import "./Composer.css";
 
 /** One pending chip: the reference and the object URL it shows — null for a
@@ -59,6 +60,11 @@ interface ComposerProps {
   // Pictures attached but not yet sent, removable like documents.
   images?: ComposerImage[];
   onRemoveImage?: (id: string) => void;
+  /** Documents active in this conversation — they ride with the next send
+      and are removable here exactly as in the files panel. Absent where
+      documents have no route (the Room carries words only). */
+  docs?: Attachment[];
+  onRemoveDoc?: (id: string) => void;
   /** Null when this model's own template cannot read a thinking switch, in
       which case no control is shown: a switch that moves while nothing changes
       is worse than none. */
@@ -90,6 +96,8 @@ export function Composer({
   onOfferVision,
   images,
   onRemoveImage,
+  docs = [],
+  onRemoveDoc,
   thinking = null,
   onThinking,
   ask,
@@ -186,11 +194,40 @@ export function Composer({
       ? visionWords.offer(downloadBytes(visionOfferBytes, tag))
       : null;
 
+  // The meta line a document chip carries: the same "pdf · 1 page" the
+  // files panel shows, so one attachment reads the same in both places.
+  const fileWords = table.files;
+  const docMeta = (a: Attachment): string => {
+    const parts: string[] = [a.kind];
+    if (a.pages !== undefined)
+      parts.push(a.pages === 1 ? fileWords.onePage : fileWords.pages(a.pages));
+    return parts.join(" · ");
+  };
+
   return (
     <div className="composer">
       {mediaChips}
-      {pendingImages.length > 0 && onRemoveImage ? (
+      {(pendingImages.length > 0 && onRemoveImage) || (docs.length > 0 && onRemoveDoc) ? (
         <div className="composer-images">
+          {docs.map((doc) => (
+            <div key={doc.id} className="composer-doc">
+              <span className="composer-doc-glyph" aria-hidden="true">
+                📄
+              </span>
+              <span className="composer-doc-name" title={doc.name}>
+                {doc.name}
+              </span>
+              <span className="composer-doc-meta">{docMeta(doc)}</span>
+              <button
+                type="button"
+                className="composer-image-remove"
+                aria-label={composer.removeDoc}
+                onClick={() => onRemoveDoc?.(doc.id)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
           {pendingImages.map((image) => (
             <figure key={image.id} className="composer-image">
               {image.label !== undefined ? (
@@ -213,7 +250,7 @@ export function Composer({
                 type="button"
                 className="composer-image-remove"
                 aria-label={composer.removeImage}
-                onClick={() => onRemoveImage(image.id)}
+                onClick={() => onRemoveImage?.(image.id)}
               >
                 ×
               </button>

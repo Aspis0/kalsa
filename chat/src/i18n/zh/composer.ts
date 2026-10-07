@@ -16,7 +16,8 @@ export const COMPOSER = {
     "attachTitle": "附加文件（文本、markdown、CSV、PDF、Word、PowerPoint）",
     "attachTitleImages": "附加文件或图片（文本、markdown、CSV、PDF、Word、PowerPoint、图片）",
     "attachTitleMedia": "附加图片或视频",
-    "removeImage": "移除这张图片"
+    "removeImage": "移除这张图片",
+    "removeDoc": "移除这个文档"
   };
 
 export const BRAIN_BAR = {

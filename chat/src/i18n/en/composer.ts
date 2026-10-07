@@ -18,6 +18,7 @@ export const COMPOSER = {
     "Attach a file or picture (text, markdown, CSV, PDF, Word, PowerPoint, images)",
   attachTitleMedia: "Attach a picture or video",
   removeImage: "Remove this picture",
+  removeDoc: "Remove this document",
 };
 
 export const BRAIN_BAR = {

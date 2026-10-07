@@ -16,7 +16,8 @@ export const COMPOSER = {
     "attachTitle": "Adjuntar un archivo (texto, markdown, CSV, PDF, Word, PowerPoint)",
     "attachTitleImages": "Adjuntar un archivo o imagen (texto, markdown, CSV, PDF, Word, PowerPoint, imágenes)",
     "attachTitleMedia": "Adjuntar una imagen o vídeo",
-    "removeImage": "Quitar esta imagen"
+    "removeImage": "Quitar esta imagen",
+    "removeDoc": "Quitar este documento"
   };
 
 export const BRAIN_BAR = {

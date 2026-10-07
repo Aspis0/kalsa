@@ -230,6 +230,43 @@
   cursor: pointer;
 }
 
+/* A document chip: the same height and quiet border as a picture chip, so
+   one strip reads as one set of attachments. The name ellipsizes; the kind
+   and page count stay whole — they are the short, useful half. */
+.composer-doc {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 220px;
+  height: 40px;
+  padding: 0 1.6rem 0 0.55rem;
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+.composer-doc-glyph {
+  flex: none;
+  font-size: 0.95rem;
+}
+
+.composer-doc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.composer-doc-meta {
+  flex: none;
+  color: var(--silence);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
 /* A video chip: the glyph stands where a picture would, and for a picture
    whose bytes are not there yet. */
 .composer-image-glyph {

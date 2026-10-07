@@ -172,6 +172,8 @@ export function ChatSurface({ chat }: { chat: Chat }) {
               : {}),
           }))}
           onRemoveImage={removeImage}
+          docs={attachments.filter((a) => a.active)}
+          onRemoveDoc={removeAttachment}
         />
       </div>
       <Panel
