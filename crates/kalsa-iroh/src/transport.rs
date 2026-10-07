@@ -23,7 +23,7 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -242,6 +242,48 @@ fn mdns_enabled(relay: &RelayChoice, mdns: Option<bool>) -> bool {
     mdns.unwrap_or(!matches!(relay, RelayChoice::Disabled))
 }
 
+/// One mDNS discovery per node id per process, shared by every endpoint
+/// bind. swarm-discovery 0.6.3's updater leaves a 10 ms respawn loop
+/// behind once its actor is gone (src/updater.rs:15-21), and the road
+/// runtime outlives the endpoints — the desktop's is process-wide and the
+/// door is rebuilt on every raise — so a per-bind discovery would leak one
+/// ~100 Hz wakeup per raise, forever. Holding the lookup here keeps its
+/// actors alive for the process; endpoint close only drops its clone
+/// (iroh clears its boxed lookups, and the `AddressLookup` trait has no
+/// shutdown), and a later bind reuses the same actors, which re-announce
+/// the new endpoint's port — iroh publishes on every address change.
+/// Two costs, accepted: the discovery runs on the first bind's runtime
+/// and assumes that runtime outlives the endpoints (true of the desktop's
+/// static road runtime and the phone's shared one), and the first bind
+/// for an id fixes whether it announces.
+static LAN_DISCOVERY: OnceLock<Mutex<HashMap<EndpointId, MdnsAddressLookup>>> = OnceLock::new();
+
+/// A clone of this node id's discovery, building it on first use. `None`
+/// means the LAN road is off for this bind: either the discovery cannot
+/// start on this network, or the cache lock is poisoned — both warned
+/// here, never fatal, and a failed build is not cached, so the next bind
+/// retries it.
+fn lan_discovery(id: EndpointId, advertise: bool) -> Option<MdnsAddressLookup> {
+    let cache = LAN_DISCOVERY.get_or_init(Mutex::default);
+    let Ok(mut cache) = cache.lock() else {
+        warn!("the mDNS cache lock is poisoned; the endpoint continues without LAN discovery");
+        return None;
+    };
+    if let Some(lookup) = cache.get(&id) {
+        return Some(lookup.clone());
+    }
+    match MdnsAddressLookup::builder().advertise(advertise).build(id) {
+        Ok(lookup) => {
+            cache.insert(id, lookup.clone());
+            Some(lookup)
+        }
+        Err(e) => {
+            warn!("mDNS cannot start on this network ({e}); the endpoint continues without it");
+            None
+        }
+    }
+}
+
 impl Transport {
     /// Bind the endpoint under the node's persisted key. The relay choice,
     /// the address book, the mDNS switch and the role are the caller's
@@ -265,12 +307,11 @@ impl Transport {
         let secret = SecretKey::from_bytes(&key.to_bytes());
         let mut builder = endpoint_builder(relay, dial_only)?;
         if mdns_enabled(relay, mdns) {
-            match MdnsAddressLookup::builder().advertise(!dial_only).build(secret.public()) {
-                Ok(lookup) => builder = builder.address_lookup(lookup),
-                // The LAN road is an addition, never a precondition: no
-                // multicast (interface without it, firewall, permission)
-                // must not take the door down with it.
-                Err(e) => warn!("mDNS discovery unavailable, the endpoint continues without it: {e}"),
+            // Shared per node id (see `LAN_DISCOVERY`); `None` already
+            // warned inside — the LAN road is an addition, never a
+            // precondition for the door.
+            if let Some(lookup) = lan_discovery(secret.public(), !dial_only) {
+                builder = builder.address_lookup(lookup);
             }
         }
         if let Some(book) = book {
