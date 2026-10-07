@@ -7,6 +7,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
 use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
@@ -217,11 +218,13 @@ fn trial_holds(trials: &[(Candidate, Kept)], candidate: &Candidate, reply: &Repl
 }
 
 /// Saves the record atomically: a temp file in the same directory, renamed
-/// over the old one. A crash mid-write therefore leaves the predecessor
-/// whole (or no record at all on the first save) — never a truncated file
-/// that could parse as a smaller truth.
+/// over the old one — retried briefly when the disk holds the file (see
+/// [`SAVE_ATTEMPTS`]), so a scan's moment does not cost the verdict. A
+/// crash mid-write therefore leaves the predecessor whole (or no record at
+/// all on the first save) — never a truncated file that could parse as a
+/// smaller truth.
 pub fn save(dir: &Path, model_digest: &str, record: &Record) -> io::Result<()> {
-    save_with(dir, model_digest, record, None)
+    save_with(dir, model_digest, record, None, stage_once)
 }
 
 /// Why a file on disk is a marker rather than a verdict: the cause its
@@ -290,14 +293,26 @@ pub fn save_marker(
     record: &Record,
     marker: Marker,
 ) -> io::Result<()> {
-    save_with(dir, model_digest, record, Some(marker.cause()))
+    save_with(dir, model_digest, record, Some(marker.cause()), stage_once)
 }
+
+/// How many times one save's write+rename is tried before the caller's
+/// warning stands: an antivirus can hold the file for a moment (a
+/// Windows sharing violation at the create or the rename), and one
+/// refusal must not cost the next start a re-tune over a record this
+/// start already holds.
+const SAVE_ATTEMPTS: u32 = 5;
+
+/// The pause between two attempts of one save: long enough for a scan to
+/// let go, five times short enough to stay inside one step of the walk.
+const SAVE_RETRY: Duration = Duration::from_millis(200);
 
 fn save_with(
     dir: &Path,
     model_digest: &str,
     record: &Record,
     cut: Option<&'static str>,
+    mut attempt: impl FnMut(&Path, &str) -> io::Result<()>,
 ) -> io::Result<()> {
     validate(record)?;
     let Some(target) = path(dir, model_digest) else {
@@ -384,13 +399,36 @@ fn save_with(
     // suffer lands before it, and a record without it is a record we do
     // not have.
     text.push_str("end\n");
-    let temp = temp_path(&target);
-    // A create failure is the one early return past this point, and it is
-    // safe: no file of ours exists yet (this code never removes a path it
-    // did not just make). Every path AFTER the create — write, flush,
-    // rename — reports through `result`, never through `?`, because a `?`
-    // would return and leave this save's partial temp behind; one cleanup
-    // below owns them all.
+    // The bounded retry: a momentary hold (an AV scan mid-rename) must
+    // not cost the verdict — [`SAVE_ATTEMPTS`] tries, [`SAVE_RETRY`]
+    // apart, the same bytes each time; only the last failure reaches the
+    // caller's warning.
+    let mut last = None;
+    for taken in 0..SAVE_ATTEMPTS {
+        match attempt(&target, &text) {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                last = Some(error);
+                if taken + 1 < SAVE_ATTEMPTS {
+                    std::thread::sleep(SAVE_RETRY);
+                }
+            }
+        }
+    }
+    Err(last.expect("a save is attempted at least once"))
+}
+
+/// One attempt at the atomic write: a fresh temp in the same directory,
+/// the bytes, the rename over the old file — and any failure takes its
+/// own temp away before it reports. The retry lives in [`save_with`]:
+/// this is the part a scan can hold for a moment.
+fn stage_once(target: &Path, text: &str) -> io::Result<()> {
+    let temp = temp_path(target);
+    // A create failure is the one early return, and it is safe: no file
+    // of ours exists yet (this code never removes a path it did not just
+    // make). Every path AFTER the create — write, flush, rename — reports
+    // through `result`, never through `?`, because a `?` would return and
+    // leave this attempt's partial temp behind; one cleanup owns them all.
     let mut file = fs::File::create(&temp)?;
     let staged = file.write_all(text.as_bytes()).and_then(|()| file.flush());
     drop(file); // closed before the rename: nobody may hold the temp open
@@ -399,8 +437,8 @@ fn save_with(
         Err(error) => Err(error),
     };
     if let Err(error) = result {
-        // Whatever failed, THIS save's temp is this save's to clean — by
-        // its own unique name, never another save's half-written file.
+        // Whatever failed, THIS attempt's temp is THIS attempt's to clean
+        // — by its own unique name, never another attempt's file.
         let _ = fs::remove_file(&temp);
         return Err(error);
     }

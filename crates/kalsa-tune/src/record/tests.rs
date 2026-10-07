@@ -681,6 +681,58 @@ fn a_candidate_left_open_at_the_end_reads_as_no_record() {
     assert_eq!(load(&dir, DIGEST, &fp(DIGEST)), None);
 }
 
+/// The bounded retry behind every save: a file the disk refuses twice
+/// and then takes lands on the third attempt — the caller never hears
+/// about the refusals — and one that never lands gives up after
+/// [`SAVE_ATTEMPTS`], leaving the caller's warning to say so. On Windows
+/// this is a scan holding the file for a moment; without the retry the
+/// next start would re-tune over a record this start already holds.
+#[test]
+fn a_held_file_is_retried_until_the_write_lands() {
+    let dir = Scratch::new("held-write");
+    let record = sample();
+    let attempts = std::cell::Cell::new(0u32);
+    save_with(&dir, DIGEST, &record, None, |target, text| {
+        let attempt = attempts.get() + 1;
+        attempts.set(attempt);
+        if attempt <= 2 {
+            return Err(io::Error::other("held by the scanner"));
+        }
+        stage_once(target, text)
+    })
+    .expect("the third attempt lands");
+    assert_eq!(attempts.get(), 3, "two refusals, then the write");
+    assert_eq!(
+        load(&dir, DIGEST, &record.fingerprint),
+        Some(record),
+        "and the record reads back whole"
+    );
+}
+
+/// The bound itself: a file that never lands stops at the last attempt —
+/// no endless loop inside one step of the walk, only the error the
+/// caller already warns about.
+#[test]
+fn a_write_that_never_lands_gives_up_after_the_bounded_attempts() {
+    let dir = Scratch::new("never-lands");
+    let record = sample();
+    let attempts = std::cell::Cell::new(0u32);
+    let result = save_with(&dir, DIGEST, &record, None, |_, _| {
+        attempts.set(attempts.get() + 1);
+        Err(io::Error::other("held by the scanner"))
+    });
+    assert!(result.is_err(), "the caller's warning stands");
+    assert_eq!(
+        attempts.get(),
+        SAVE_ATTEMPTS,
+        "five attempts, no more, no less"
+    );
+    assert!(
+        load(&dir, DIGEST, &record.fingerprint).is_none(),
+        "nothing was written"
+    );
+}
+
 /// Every shape `load` would refuse is refused by `save` first, with
 /// InvalidInput, and nothing is written — not even the directory.
 #[test]
