@@ -410,7 +410,12 @@ fn save_with(
     let mut last = None;
     for taken in 0..SAVE_ATTEMPTS {
         match attempt(&target, &text) {
-            Ok(()) => return Ok(()),
+            Ok(()) => {
+                // This record is a state the old failure streak judged
+                // nothing about: writing it starts the count from zero.
+                clear_failures(dir, model_digest);
+                return Ok(());
+            }
             Err(error) => {
                 last = Some(error);
                 if taken + 1 < SAVE_ATTEMPTS {
@@ -946,9 +951,7 @@ pub fn invalidate(dir: &Path, model_digest: &str) {
     if let Some(file) = path(dir, model_digest) {
         let _ = fs::remove_file(file);
     }
-    if let Some(counter) = failures_path(dir, model_digest) {
-        let _ = fs::remove_file(counter); // the streak goes with the record
-    }
+    clear_failures(dir, model_digest); // the streak goes with the record
     let holds_this_model = fs::read_to_string(legacy_path(dir))
         .ok()
         .and_then(|text| parse(&text))
@@ -974,9 +977,31 @@ fn failures_path(dir: &Path, model_digest: &str) -> Option<PathBuf> {
 /// One more consecutive failure of the tuned launch to come up, persisted
 /// beside the record so the streak survives the restart. The SECOND one
 /// throws the record (and the count) away and returns `true` — the caller
-/// says so; the first changes no verdict, only the number. Best effort: a
-/// count that cannot be written only forgets the streak, never the record.
+/// says so; the first changes no verdict, only the number. A count that
+/// cannot be persisted is the same verdict: a streak every future start
+/// would forget could keep a broken launch alive forever, so the record
+/// goes — the safe direction.
 pub fn launch_failed(dir: &Path, model_digest: &str) -> bool {
+    launch_failed_with(dir, model_digest, |target, text| {
+        // The record's own temp-and-rename: a torn count reads as the
+        // streak it replaced's absence — at worst a first again.
+        let temp = temp_path(target);
+        let result = fs::write(&temp, text).and_then(|()| fs::rename(&temp, target));
+        if result.is_err() {
+            let _ = fs::remove_file(&temp);
+        }
+        result
+    })
+}
+
+/// [`launch_failed`] over an injected write, so the test can fail the
+/// persistence the way a held file does — the decision (count up, throw
+/// the record when the count itself is lost) is the one thing tested.
+fn launch_failed_with(
+    dir: &Path,
+    model_digest: &str,
+    write: impl FnOnce(&Path, &str) -> io::Result<()>,
+) -> bool {
     let Some(target) = failures_path(dir, model_digest) else {
         return false; // an unusable digest names no record to protect
     };
@@ -989,12 +1014,9 @@ pub fn launch_failed(dir: &Path, model_digest: &str) -> bool {
         invalidate(dir, model_digest);
         return true;
     }
-    // The record's own temp-and-rename: a torn count reads as the streak
-    // it replaced's absence — at worst the next failure counts as a first.
-    let temp = temp_path(&target);
-    let landed = fs::write(&temp, format!("{count}\n")).and_then(|()| fs::rename(&temp, target));
-    if landed.is_err() {
-        let _ = fs::remove_file(&temp);
+    if write(&target, &format!("{count}\n")).is_err() {
+        invalidate(dir, model_digest);
+        return true;
     }
     false
 }
@@ -1003,8 +1025,16 @@ pub fn launch_failed(dir: &Path, model_digest: &str) -> bool {
 /// consecutive failures is over. Called on a successful start, the count
 /// file simply goes.
 pub fn launch_succeeded(dir: &Path, model_digest: &str) {
-    if let Some(target) = failures_path(dir, model_digest) {
-        let _ = fs::remove_file(&target);
+    clear_failures(dir, model_digest);
+}
+
+/// The streak beside the record, gone — a record this start just wrote
+/// is a state the previous one's failures said nothing about (a re-tune
+/// after the key moved, a first verdict), so every save starts counting
+/// from nothing.
+fn clear_failures(dir: &Path, model_digest: &str) {
+    if let Some(counter) = failures_path(dir, model_digest) {
+        let _ = fs::remove_file(counter);
     }
 }
 

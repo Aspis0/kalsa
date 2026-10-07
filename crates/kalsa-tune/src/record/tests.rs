@@ -485,6 +485,72 @@ fn a_tuned_launch_failing_once_keeps_the_record_and_twice_drops_it() {
     );
 }
 
+/// A failure count that cannot be written drops the record: a streak
+/// every future start would forget could keep a broken tuned launch
+/// alive forever — the safe direction is the old behaviour, no record,
+/// the next start tunes.
+#[test]
+fn a_failure_count_that_cannot_be_written_drops_the_record() {
+    let dir = Scratch::new("unwritable-count");
+    let record = sample();
+    save(&dir, DIGEST, &record).expect("the verdict");
+
+    assert!(
+        launch_failed_with(&dir, DIGEST, |_, _| Err(io::Error::other(
+            "held by the scanner"
+        ))),
+        "no persistence: the record goes"
+    );
+    assert_eq!(
+        load(&dir, DIGEST, &record.fingerprint),
+        None,
+        "and the count with it — the next start tunes"
+    );
+    assert!(
+        !failures_path(&dir, DIGEST).expect("hex digest").exists(),
+        "no count file outlives the record it could not update"
+    );
+}
+
+/// A freshly written record is not judged by its predecessor's streak:
+/// one failure on the old verdict, a new save, one failure on the new
+/// one — the new record keeps its own first chance.
+#[test]
+fn a_fresh_save_clears_the_previous_records_failure_streak() {
+    let dir = Scratch::new("streak-reset");
+    let old = sample();
+    save(&dir, DIGEST, &old).expect("the first verdict");
+    assert!(!launch_failed(&dir, DIGEST), "the first failure keeps it");
+
+    // The same model's next verdict — a re-tune after the key moved.
+    let fresh_candidate = Candidate {
+        backend: ServerBackend::Metal,
+        threads: Some(8),
+        offload: Offload::ForcedOff,
+        draft: None,
+    };
+    let fresh = Record {
+        fingerprint: fp(DIGEST),
+        winner: Some(Winner {
+            candidate: fresh_candidate,
+            reply: mac_reply(),
+        }),
+        trials: vec![(fresh_candidate, Kept::Replied(mac_reply()))],
+    };
+    save(&dir, DIGEST, &fresh).expect("the new verdict");
+    assert_eq!(load(&dir, DIGEST, &fresh.fingerprint), Some(fresh.clone()));
+
+    assert!(
+        !launch_failed(&dir, DIGEST),
+        "the new record's first failure is a first again"
+    );
+    assert_eq!(
+        load(&dir, DIGEST, &fresh.fingerprint),
+        Some(fresh),
+        "one failure later, the new record is still kept"
+    );
+}
+
 /// An unfinished verdict is written as a marker: the same record and one
 /// `cut=<cause>` line, which the launch read refuses (the next start must
 /// measure again) while `cut_before` and the display read still see it,
