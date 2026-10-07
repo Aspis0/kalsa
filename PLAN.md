@@ -1756,8 +1756,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (`audit-step5-3-luna.md`): **v1 parity CONFIRMED** on the shipped two-model path; H-04/05/06/12 fixing, rest BACKLOG.
   **S23 free-run 2 (`raw/session6-free-05515136d.grep`, bench `d41611feeaaf`)**: the rule decides (`rule=headroom`):
   windows npu/cpu/npu/npu/cpu/npu/cpu/npu, 159 tokens on the NPU at 19.5 tok/s, 96 on the CPU at 14.2, 6 npu-cpu hops
-  = 14.2 MB / 32.6 ms total, KL 0.000019 PASS. The GPU leg is never picked even when it leads (window 2: gpu 41.1, npu
-  38.9, cpu 27.8 -> npu, the NPU-return preference). Per-leg min-zone headroom is very noisy (CPU 18 <-> 63 C between
+  = 14.2 MB / 32.6 ms total, KL 0.000019 PASS. The GPU leg is never picked. [CORRECTED 2026-10-07: I first wrote
+  "even when it leads (window 2: gpu 41.1, npu 38.9 -> npu, the NPU-return preference)". Wrong twice: there is no
+  NPU-return preference in hop_decide (plain argmax + 4 C hysteresis), and I paired each leg_headroom line with the
+  leg_window line BELOW it, but that line reports the previous window (governor-bench-run.cpp:391 prints the sample,
+  :449 then prints window k-1). Correctly paired, the GPU was present and simply never best by >= 4 C; the 41.1 vs
+  38.9 sample decided window 3 with the NPU incumbent: +2.2 C < hysteresis -> hold.] Per-leg min-zone headroom is very noisy (CPU 18 <-> 63 C between
   windows: single-core spikes), so a pure headroom rule flips almost every window. **OWNER DECISION NEEDED (open since
   04/10)**: the v2 weighting - heat-per-token weight, a filtered temperature, and whether/when the GPU takes bursts.
   Engine step 5 is otherwise complete; next: binding side (rn_thermal_legs GPU zone, three-value feed, one-model load)
