@@ -180,6 +180,35 @@
   border-color: var(--accent);
 }
 
+/* The row's pin, the chip's pin in the panel's own clothes: pressed reads as
+   set, unpinned dims to the state one press away. */
+.panel-pin {
+  flex: none;
+  display: grid;
+  width: 28px;
+  min-height: 28px;
+  place-items: center;
+  padding: 0;
+  font-size: 0.8rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  opacity: 0.45;
+  cursor: pointer;
+}
+
+.panel-pin.is-pinned {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.panel-pin:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .panel-sub {
   flex: none;
   margin: 0.5rem 0 0;

@@ -87,6 +87,13 @@ export interface ChatMessage {
   images?: MessageImage[];
   /** Videos attached to this user turn, in attach order. */
   videos?: MessageVideo[];
+  /** Documents bound to this user turn, by attachment id: their text rides
+      the wire as a block before this message's words, and drops with the
+      turn when the fit sheds it. */
+  docs?: string[];
+  /** What the bound documents' block weighs (estTokens of its text), so the
+      fit counts it as history without re-reading the attachments. */
+  docTokens?: number;
   /** The failure this turn ended in, so a reload can show its sentence and
       Retry again; absent on every turn that did not fail. */
   failed?: ChatErrorKind;

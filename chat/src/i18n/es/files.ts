@@ -9,6 +9,7 @@ export const FILES = {
     "empty": "Añade un documento para que Kalsa pueda usarlo en esta conversación. Suéltalo aquí, usa el clip, o elige uno en Archivos.",
     "remove": "Quitar",
     "reattach": "Adjuntar de nuevo",
+    "pinDoc": "Fijar: enviar con cada mensaje",
     "previouslyAttached": "Adjuntos antes",
     "onePage": "1 página",
     "pages": (count: number) => `${count} páginas`,

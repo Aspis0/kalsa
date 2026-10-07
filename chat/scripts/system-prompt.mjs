@@ -83,6 +83,7 @@ try {
     text: "HELLO",
     attachedAt: 1,
     active: true,
+    pinned: true,
   };
 
   // The wire carries ONE system message — several chat templates render only

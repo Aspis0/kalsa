@@ -180,14 +180,30 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       const turns = before
         .filter((m) => !(m.role === "assistant" && m.content === ""))
         .filter((m) => m.content.length > 0 || m.role === "user");
-      const docs = store.getAttachments(conversationId).filter((a) => a.active);
+      // The whole store of attachments rides the build: the pinned ones as
+      // the system message's block, the per-turn ones through the ids their
+      // messages bound.
+      const all = store.getAttachments(conversationId);
+      // The gate is armed on what this turn's model can quote — the pinned
+      // actives plus every document bound to a kept message, whether it is
+      // still the composer's own set or long since sent.
+      const gateDocs = new Map(
+        all.filter((a) => a.active).map((a) => [a.id, a] as const),
+      );
+      for (const message of turns) {
+        for (const id of message.docs ?? []) {
+          const found = all.find((a) => a.id === id);
+          if (found) gateDocs.set(id, found);
+        }
+      }
+      const docs = [...gateDocs.values()];
       // Send-time never fetches: the cached size (or unknown) decides, so a
       // request never waits on /props. Unknown means unpruned, never refused.
       const known = contextSizes.current.get(currentSettings.endpoint) ?? null;
       // The token fit is answered once, on the wire where every picture is
       // the placeholder sentence: each stored picture costs IMAGE_TOKENS
       // whether it rides or not, so the fit is the same for both shapes.
-      const dry = buildPinnedContext(turns, docs, known, { vision, url: () => null });
+      const dry = buildPinnedContext(turns, all, known, { vision, url: () => null });
 
       function refuseOversize(code: string): void {
         // History outgrew the context after attaching — or the pictures the
@@ -272,7 +288,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
         }
       }
       const media: MediaView = { vision, url: (id) => urlMap.get(id) ?? null };
-      const ctx = buildPinnedContext(turns, docs, known, media);
+      const ctx = buildPinnedContext(turns, all, known, media);
       // Unreachable by construction: this build spends the same tokens the
       // dry one already passed above (a picture costs IMAGE_TOKENS riding
       // or not), so the check exists to hand the type that invariant.

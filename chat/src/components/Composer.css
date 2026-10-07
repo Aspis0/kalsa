@@ -267,6 +267,35 @@
   white-space: nowrap;
 }
 
+/* The pin: pressed means the document rides every message, and the pin reads
+   as set; unpinned dims to a hint of the state one press away. */
+.composer-doc-pin {
+  flex: none;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  opacity: 0.45;
+  cursor: pointer;
+}
+
+.composer-doc-pin.is-pinned {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.composer-doc-pin:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* A video chip: the glyph stands where a picture would, and for a picture
    whose bytes are not there yet. */
 .composer-image-glyph {

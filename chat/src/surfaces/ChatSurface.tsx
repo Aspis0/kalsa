@@ -179,6 +179,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           onRemoveImage={removeImage}
           docs={attachments.filter((a) => a.active)}
           onRemoveDoc={removeAttachment}
+          onPinDoc={chat.setAttachmentPinned}
         />
       </div>
       <Panel
@@ -202,6 +203,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           IMAGE_TOKENS
         }
         onRemove={removeAttachment}
+        onPin={chat.setAttachmentPinned}
         onReattach={(id) => {
           if (!activeId) return;
           const found = attachments.find((a) => a.id === id);

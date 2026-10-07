@@ -22,6 +22,10 @@ export interface Attachment {
   attachedAt: number;
   /** False = history: detached but re-attachable with one click. */
   active: boolean;
+  /** True rides the system message on every turn until removed; false rides
+      only the user message it was sent with. Absent reads as true — the
+      behaviour attachments stored before pinning existed must keep. */
+  pinned?: boolean;
 }
 
 /** Browser-side read cap: beyond this a tab risks more than it gains. */
@@ -103,7 +107,10 @@ export function messageTokens(message: ChatMessage): number {
     estTokens(message.reasoning ?? "") +
     toolTokens +
     imageTokens +
-    frameTokens
+    frameTokens +
+    // The documents bound to this turn weigh what their rendered block
+    // weighs — history, like the words they ride with.
+    (message.docTokens ?? 0)
   );
 }
 
@@ -395,6 +402,9 @@ export async function extractAttachment(file: File): Promise<Attachment> {
     text,
     attachedAt: Date.now(),
     active: true,
+    // The way in is per-turn: the document rides the message it was sent
+    // with, and the owner's pin is what makes it ride every message.
+    pinned: false,
   };
 }
 
@@ -468,14 +478,24 @@ function wireMessageTokens(message: WireMessage): number {
   return tokens;
 }
 
+/** One document's section, the same line wherever a document rides: name,
+    kind, pages, measured weight, then the text itself. */
+function docSection(d: Attachment): string {
+  return `--- ${d.name} (${d.kind}${d.pages !== undefined ? `, ${d.pages} pages` : ""}, ≈${d.tokens} tokens) ---\n${d.text}`;
+}
+
 /** The pinned-documents text, for the tail of the one system message: the
     block, then one section per document. */
 function docBlockText(docs: Attachment[]): string {
-  const parts = docs.map(
-    (d) =>
-      `--- ${d.name} (${d.kind}${d.pages !== undefined ? `, ${d.pages} pages` : ""}, ≈${d.tokens} tokens) ---\n${d.text}`,
-  );
-  return `Attached documents (pinned — they stay even as older turns are dropped):\n\n${parts.join("\n\n")}`;
+  return `Attached documents (pinned — they stay even as older turns are dropped):\n\n${docs.map(docSection).join("\n\n")}`;
+}
+
+/** The documents a user turn bound to itself, as the block that rides before
+    that turn's words. Empty string for none — the message renders as it
+    always has. */
+export function turnDocBlock(docs: Attachment[]): string {
+  if (docs.length === 0) return "";
+  return `Attached documents:\n\n${docs.map(docSection).join("\n\n")}`;
 }
 
 /**
@@ -526,21 +546,30 @@ export interface MediaView {
   url: (id: string) => string | null;
 }
 
-/** A user turn's content on the wire. Pictures ride as parts, text first;
-    a video rides as its MARKER line and its frames' image parts — the
-    engine never gets video, and a seeing model reads a video exactly as
-    the stills plus one honest line saying what they are. For a model that
-    cannot see, media of either kind become one sentence in the text: the
-    engine errors on image parts without a projector. A picture the wire
-    budget demoted, or whose bytes are gone, becomes that same sentence per
-    picture; a demoted FRAME simply does not ride — the marker already told
-    the model the video has more of them than this. */
-function userWireContent(message: ChatMessage, media: MediaView | undefined): string | WireContentPart[] {
+/** A user turn's content on the wire, its bound documents' block first. 
+    Pictures ride as parts, text first after the block; a video rides as its
+    MARKER line and its frames' image parts — the engine never gets video,
+    and a seeing model reads a video exactly as the stills plus one honest
+    line saying what they are. For a model that cannot see, media of either
+    kind become one sentence in the text: the engine errors on image parts
+    without a projector. A picture the wire budget demoted, or whose bytes
+    are gone, becomes that same sentence per picture; a demoted FRAME simply
+    does not ride — the marker already told the model the video has more of
+    them than this. */
+function userWireContent(
+  message: ChatMessage,
+  media: MediaView | undefined,
+  docs: Attachment[],
+): string | WireContentPart[] {
   const images = message.role === "user" ? (message.images ?? []) : [];
   const videos = message.role === "user" ? (message.videos ?? []) : [];
-  if (images.length === 0 && videos.length === 0) return message.content;
+  // The block sits before the words: the model reads what was attached, then
+  // what was asked about it.
+  const block = turnDocBlock(docs);
+  const words = block ? `${block}\n\n${message.content}` : message.content;
+  if (images.length === 0 && videos.length === 0) return words;
   if (!media?.vision) {
-    return message.content ? `${message.content}\n${IMAGE_PLACEHOLDER}` : IMAGE_PLACEHOLDER;
+    return words ? `${words}\n${IMAGE_PLACEHOLDER}` : IMAGE_PLACEHOLDER;
   }
   const parts: WireContentPart[] = [];
   const lines: string[] = [];
@@ -557,18 +586,28 @@ function userWireContent(message: ChatMessage, media: MediaView | undefined): st
       if (url !== null) parts.push({ type: "image_url", image_url: { url } });
     }
   }
-  const text = [message.content, ...dropped, ...lines].filter(Boolean).join("\n");
+  const text = [words, ...dropped, ...lines].filter(Boolean).join("\n");
   if (parts.length === 0) return text;
   return [...(text ? [{ type: "text", text } as const] : []), ...parts];
 }
 
-function wireFor(message: ChatMessage, media: MediaView | undefined): WireMessage[] {
+function wireFor(
+  message: ChatMessage,
+  media: MediaView | undefined,
+  docsById: Map<string, Attachment>,
+): WireMessage[] {
   // A refused run never happened as far as the server is concerned: it was
   // never sent back as a call, and an unnamed one would be a malformed request.
   // It stays in the transcript for the reader and out of the wire.
   const runs = (message.toolRuns ?? []).filter((run) => run.state !== "refused");
   if (message.role !== "assistant" || runs.length === 0) {
-    return [{ role: message.role, content: userWireContent(message, media) }];
+    // The ids a user turn bound resolve here, not at render time elsewhere:
+    // a document the store no longer holds rides as nothing rather than as
+    // a name with no text behind it.
+    const docs = (message.docs ?? [])
+      .map((id) => docsById.get(id))
+      .filter((d): d is Attachment => d !== undefined);
+    return [{ role: message.role, content: userWireContent(message, media, docs) }];
   }
   const asked: WireMessage = {
     role: "assistant",
@@ -614,9 +653,15 @@ export function buildPinnedContext(
   nctx: number | null,
   media?: MediaView,
   pendingImageTokens = 0,
+  pendingDocTokens = 0,
 ): PinnedContext {
-  const actives = docs.filter((d) => d.active);
-  const docTokens = actives.reduce((sum, d) => sum + d.tokens, 0);
+  // The system message carries the pinned alone; a per-turn document rides
+  // its own message (`wireFor` below) and weighs as history. `docs` is the
+  // conversation's whole store of attachments — active and history both —
+  // because the ids a message bound resolve against it.
+  const pinned = docs.filter((d) => d.active && (d.pinned ?? true));
+  const byId = new Map(docs.map((d) => [d.id, d]));
+  const docTokens = pinned.reduce((sum, d) => sum + d.tokens, 0);
   const turns = [...messages];
   let histTokens = wireTokens(turns, media?.vision ?? false);
   let dropped = 0;
@@ -629,7 +674,7 @@ export function buildPinnedContext(
   };
   if (nctx !== null) {
     while (
-      docTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS > nctx &&
+      docTokens + pendingDocTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS > nctx &&
       turns.length > 1
     ) {
       shedOne();
@@ -640,12 +685,12 @@ export function buildPinnedContext(
       // wire with its own 400 — the one this fit exists to prevent.
       while (turns.length > 1 && turns[0]?.role !== "user") shedOne();
     }
-    const need = docTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS;
+    const need = docTokens + pendingDocTokens + pendingImageTokens + histTokens + CONTEXT_RESERVE_TOKENS;
     if (need > nctx) {
       return { status: "refused", need, have: nctx, docTokens, historyTokens: histTokens };
     }
   }
-  const wire = turns.flatMap((message) => wireFor(message, media));
-  wire.unshift(systemMessage(actives, media?.vision ?? false));
+  const wire = turns.flatMap((message) => wireFor(message, media, byId));
+  wire.unshift(systemMessage(pinned, media?.vision ?? false));
   return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
 }

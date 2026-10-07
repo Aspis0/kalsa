@@ -16,6 +16,9 @@ interface PanelProps {
   imageTokens: number;
   onRemove: (id: string) => void;
   onReattach: (id: string) => void;
+  /** The same pin the composer's chip carries: pinned rides every message,
+   *  unpinned only the next one. */
+  onPin: (id: string, pinned: boolean) => void;
   /** Attach a file from the computer: the Rust side reads the bytes, the
    *  page runs the same extractor the composer's clip uses. */
   onAttachFile: (path: string, name: string) => void;
@@ -42,6 +45,7 @@ export function Panel({
   imageTokens,
   onRemove,
   onReattach,
+  onPin,
   onAttachFile,
   onClose,
 }: PanelProps) {
@@ -50,7 +54,11 @@ export function Panel({
   const { table } = useLanguage();
   const t = table.files;
   const [tab, setTab] = useState<"files" | "attached">("attached");
+  // Pinned first: the documents that ride every message stand above the ones
+  // riding only the next send.
   const active = attachments.filter((a) => a.active);
+  const pinned = active.filter((a) => a.pinned ?? true);
+  const riding = active.filter((a) => !(a.pinned ?? true));
   const history = attachments.filter((a) => !a.active);
   const fileTokens = active.reduce((sum, a) => sum + a.tokens, 0);
 
@@ -103,7 +111,7 @@ export function Panel({
               <p className="panel-empty">{t.empty}</p>
             ) : (
               <ul className="panel-list">
-                {active.map((a) => (
+                {[...pinned, ...riding].map((a) => (
                   <li key={a.id} className="panel-row">
                     <div className="panel-file">
                       <span className="panel-name" title={a.name}>
@@ -111,6 +119,16 @@ export function Panel({
                       </span>
                       <span className="panel-meta">{metaLine(t, a)}</span>
                     </div>
+                    <button
+                      type="button"
+                      className={`panel-pin${(a.pinned ?? true) ? " is-pinned" : ""}`}
+                      aria-pressed={a.pinned ?? true}
+                      aria-label={t.pinDoc}
+                      title={t.pinDoc}
+                      onClick={() => onPin(a.id, !(a.pinned ?? true))}
+                    >
+                      <span aria-hidden="true">📌</span>
+                    </button>
                     <button type="button" className="panel-remove" onClick={() => onRemove(a.id)}>
                       {t.remove}
                     </button>

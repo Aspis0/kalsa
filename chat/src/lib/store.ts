@@ -87,6 +87,9 @@ function cleanAttachment(value: unknown): Attachment | null {
     text: a.text,
     attachedAt: a.attachedAt,
     active: a.active,
+    // An attachment stored before pinning existed is pinned: its behaviour
+    // — riding the system message every turn — must not change under it.
+    pinned: typeof a.pinned === "boolean" ? a.pinned : true,
   };
 }
 // The failure kinds cleanMessage admits on reload. This list must hold every
@@ -165,6 +168,21 @@ function cleanMessage(value: unknown): ChatMessage | null {
     ...(Array.isArray(value.toolRuns) ? cleanToolRuns(value.toolRuns) : {}),
     ...(Array.isArray(value.images) ? cleanImages(value.images) : {}),
     ...(Array.isArray(value.videos) ? cleanVideos(value.videos) : {}),
+    ...cleanBoundDocs(value),
+  };
+}
+
+/** The documents a user turn bound to itself, read back as ids plus their
+    measured weight. A weight that is not a number leaves the ids riding
+    unweighed — the wire still renders them; the fit just under-counts that
+    one turn, which is the lesser evil next to dropping the binding. */
+function cleanBoundDocs(value: { docs?: unknown; docTokens?: unknown }): { docs?: string[]; docTokens?: number } {
+  if (!Array.isArray(value.docs)) return {};
+  const ids = value.docs.filter((id): id is string => typeof id === "string" && id !== "");
+  if (ids.length === 0) return {};
+  return {
+    docs: ids,
+    ...(typeof value.docTokens === "number" ? { docTokens: value.docTokens } : {}),
   };
 }
 

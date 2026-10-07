@@ -65,6 +65,9 @@ interface ComposerProps {
       documents have no route (the Room carries words only). */
   docs?: Attachment[];
   onRemoveDoc?: (id: string) => void;
+  /** The pin each document chip carries: pinned rides every message, unpinned
+      rides only this one. Absent means the surface offers no pin. */
+  onPinDoc?: (id: string, pinned: boolean) => void;
   /** Null when this model's own template cannot read a thinking switch, in
       which case no control is shown: a switch that moves while nothing changes
       is worse than none. */
@@ -98,6 +101,7 @@ export function Composer({
   onRemoveImage,
   docs = [],
   onRemoveDoc,
+  onPinDoc,
   thinking = null,
   onThinking,
   ask,
@@ -218,6 +222,18 @@ export function Composer({
                 {doc.name}
               </span>
               <span className="composer-doc-meta">{docMeta(doc)}</span>
+              {onPinDoc ? (
+                <button
+                  type="button"
+                  className={`composer-doc-pin${(doc.pinned ?? true) ? " is-pinned" : ""}`}
+                  aria-pressed={doc.pinned ?? true}
+                  aria-label={fileWords.pinDoc}
+                  title={fileWords.pinDoc}
+                  onClick={() => onPinDoc(doc.id, !(doc.pinned ?? true))}
+                >
+                  <span aria-hidden="true">📌</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="composer-image-remove"

@@ -20,8 +20,10 @@ import type { Attachment } from "../lib/attachments";
 import {
   AttachmentError,
   buildPinnedContext,
+  estTokens,
   extractAttachment,
   IMAGE_TOKENS,
+  turnDocBlock,
   wireTokens,
 } from "../lib/attachments";
 import { isImageFile, prepareImage } from "../lib/images";
@@ -588,10 +590,13 @@ export function useChat(shell: ChatShell) {
         preparedVideos.reduce((sum, chip) => sum + chip.frames.length * IMAGE_TOKENS, 0) +        (pendingImages[target] ?? []).reduce((sum, chip) => sum + heldTokens(chip), 0);
       const trial = buildPinnedContext(
         history,
-        extracted,
+        store.getAttachments(target),
         nctx,
         { vision, url: () => null },
         pendingTokens,
+        // The batch is weighed as what it will be: documents riding the next
+        // message, counted against the window before anything lands.
+        extracted.reduce((sum, a) => sum + a.tokens, 0),
       );
       if (trial.status === "refused") {
         // The documents landed early; a refused fit walks them back — detached,
@@ -814,6 +819,11 @@ export function useChat(shell: ChatShell) {
           ]
         : [],
     );
+    // The documents riding THIS message alone: bound to it by id, and their
+    // block's weight taken once, at binding, so the fit counts them as
+    // history without re-reading the attachments on every turn.
+    const bindable = store.getAttachments(conv.id).filter((a) => a.active && !(a.pinned ?? true));
+    const boundBlock = turnDocBlock(bindable);
     const updated: Conversation = {
       ...conv,
       title: conv.messages.length === 0 ? titleFor(text, t.newConversation) : conv.title,
@@ -827,11 +837,18 @@ export function useChat(shell: ChatShell) {
           createdAt: Date.now(),
           ...(images.length > 0 ? { images } : {}),
           ...(videos.length > 0 ? { videos } : {}),
+          ...(bindable.length > 0
+            ? { docs: bindable.map((a) => a.id), docTokens: estTokens(boundBlock) }
+            : {}),
         },
         { id: assistantId, role: "assistant", content: "", createdAt: Date.now() },
       ],
     };
     store.put(updated);
+    // The bound documents leave the composer's set: the next message starts
+    // clean, and the sent ones sit under "Previously attached" until they are
+    // re-attached. The binding above already holds their text to this turn.
+    for (const doc of bindable) store.putAttachment(conv.id, { ...doc, active: false });
     // Everything that rode is released — a video-only send as surely as a
     // picture one: a chip left pending could be sent again, and its × would
     // delete bytes this SENT message now references. A chip still
@@ -1166,6 +1183,13 @@ export function useChat(shell: ChatShell) {
     renameConversation: (id: string, title: string) => store.rename(id, title),
     removeAttachment: (attachmentId: string) => {
       if (activeId) store.removeAttachment(activeId, attachmentId);
+    },
+    // The owner's own pin: a pinned document rides the system message on
+    // every turn; an unpinned one rides only the message it is sent with.
+    setAttachmentPinned: (attachmentId: string, pinned: boolean) => {
+      if (!activeId) return;
+      const found = store.getAttachments(activeId).find((a) => a.id === attachmentId);
+      if (found) store.putAttachment(activeId, { ...found, pinned });
     },
     reattachAttachment: (conversationId: string, attachmentId: string) => {
       const found = store.getAttachments(conversationId).find((a) => a.id === attachmentId);
