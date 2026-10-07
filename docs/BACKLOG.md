@@ -175,3 +175,7 @@ they are promoted.
 ## Surface walk (2026-10-07, build 8f30e43c)
 
 - P3: when the tuned winner is a processor shape, the start still logs `engine: kalsa-server v1.1.5 · vulkan build` and `device pin: Vulkan0 (target and drafter)`, though the engine that runs is `builds\cpu\…\kalsa-server.exe` with no device flags (checked on the Surface). These lines describe the machine's backend, not the launch. Log the launch's real build and devices.
+
+## Tune "100%" batch (review of fb03c060, 454a1f14, 288c022f, 84da8025, 4e769a3c)
+
+- P3: the setup screen's "up to N min" adds 120 s to the 1500 s budget (`chat/src/surfaces/tuneProgress.ts:63-69`), but a lifetime started just before the budget runs out can spend up to ~670 s of request bounds (`crates/kalsa-tune/src/measure/mod.rs:62-68`), plus connect and DNS time. The real end can pass the ceiling the screen shows.
