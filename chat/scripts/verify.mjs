@@ -4904,6 +4904,24 @@ const tests = {
               },
             }),
           },
+          {
+            id: "t2",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "compare_data",
+              slots: {
+                title: "Mixed",
+                columns: ["Thing", "Value"],
+                rows: [
+                  { Thing: "c", Value: "7" },
+                  { Thing: "a", Value: "1.234,5" },
+                  { Thing: "b", Value: "" },
+                  { Thing: "d", Value: "1,234.5" },
+                  { Thing: "e", Value: "zz" },
+                ],
+              },
+            }),
+          },
         ],
       ],
       "Table built.",
@@ -4912,7 +4930,7 @@ const tests = {
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Compare the plans.", "Table built.");
 
-    const table = page.locator(".miniapp table");
+    const table = page.locator(".miniapp").first().locator("table");
     const storage = table.locator("thead th").nth(1);
     check("minitable: the header is a button", (await storage.locator("button").count()) === 1);
     const cells = async () => (await table.locator("tbody td").allTextContents());
@@ -4937,6 +4955,23 @@ const tests = {
       JSON.stringify(await cells()),
     );
     check("minitable: only one column claims aria-sort", (await table.locator("thead th[aria-sort]").count()) === 1);
+
+    // The total order: numbers first (grouped locale forms read as their
+    // values), text after them, empty cells last whatever the direction.
+    const mixed = page.locator(".miniapp").nth(1).locator("table");
+    const mixedCells = async () => (await mixed.locator("tbody td").allTextContents());
+    await mixed.locator("thead th").nth(1).locator("button").click();
+    check(
+      "minitable: numbers first, grouped forms by value, text then empty last",
+      JSON.stringify(await mixedCells()) === JSON.stringify(["c", "7", "a", "1.234,5", "d", "1,234.5", "e", "zz", "b", ""]),
+      JSON.stringify(await mixedCells()),
+    );
+    await mixed.locator("thead th").nth(1).locator("button").click();
+    check(
+      "minitable: descending keeps empty last",
+      JSON.stringify(await mixedCells()) === JSON.stringify(["e", "zz", "a", "1.234,5", "d", "1,234.5", "c", "7", "b", ""]),
+      JSON.stringify(await mixedCells()),
+    );
 
     await browser.close();
   },
