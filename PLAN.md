@@ -1834,8 +1834,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   1024/128/896. Hops halve (25 vs 56), commit time 0.45-0.49 vs 0.65-0.73 s per 2048 tokens. So the weight moves half
   the CPU's tokens to the GPU and cuts the skin rise ~15 % at no speed cost. n=2 per arm. The per-token constants are
   S23 values (this device's skin per leg); another device needs its own (capability-table row is the natural home).
-  **OWNER DECISION NEEDED**: make tau 10 + this heat weight the one-copy default on the S23 row (the shipped two-model
-  path keeps v1, unchanged). Session ended at battery 30 % - phone free to charge.
+  **OWNER DECISION 2026-10-07 ("secondo me si")**: tau 10 + this heat weight become the one-copy default on the S23
+  capability row (constants live in the row: per-device values); the shipped two-model path keeps v1, unchanged.
+  Next (after the owner's Paseo update): binding - vendor bump to `5cb7e14a0`+, the S23 row carries tau / weight /
+  per-token heat, `load_governor_one_model` sets them; host test; one audit. Session ended at battery 30 %.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
