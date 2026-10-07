@@ -88,6 +88,7 @@ fn every_shape_takes_one_first_lifetime_and_then_its_drafted_sweep() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
@@ -141,6 +142,7 @@ fn the_off_number_comes_from_the_first_lifetime() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
@@ -188,6 +190,7 @@ fn a_hopeless_shapes_sweep_leaves_the_plan_and_the_record_whole() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
@@ -266,6 +269,7 @@ fn a_shape_that_reads_slower_than_the_winner_is_not_swept() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
@@ -308,6 +312,7 @@ fn the_card_that_decodes_faster_but_waits_longer_loses() {
     let tuned = tune(
         &shapes,
         false,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
@@ -335,6 +340,7 @@ fn a_drafter_on_a_shape_that_loses_the_decode_race_wins_the_room() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
@@ -371,6 +377,7 @@ fn a_refused_candidate_falls_to_the_best_processor() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
@@ -432,6 +439,7 @@ fn a_launch_without_a_drafter_is_complete_after_the_first_lifetime() {
     let tuned = tune(
         &shapes,
         false,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |_| {},
@@ -463,6 +471,7 @@ fn every_candidate_reports_a_start_and_a_close_with_its_index_and_the_total() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push(report),
@@ -507,4 +516,5 @@ fn every_candidate_reports_a_start_and_a_close_with_its_index_and_the_total() {
 }
 
 mod budget;
+mod retry;
 mod sweep;

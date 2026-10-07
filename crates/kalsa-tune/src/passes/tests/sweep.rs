@@ -38,6 +38,7 @@ fn the_winner_and_the_faster_reading_shapes_are_swept_first_and_only_those() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
@@ -111,6 +112,7 @@ fn a_winner_that_reads_best_leaves_the_other_shapes_their_off_entries_only() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
@@ -159,6 +161,7 @@ fn the_prefill_bound_skips_a_swept_shape_whose_history_no_longer_fits_the_band()
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),
@@ -232,6 +235,7 @@ fn a_shape_whose_off_decode_refused_leaves_its_sweep_out_of_the_plan() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(3600),
         || Duration::ZERO,
         &mut |report| seen.borrow_mut().push((report.done, report.total)),

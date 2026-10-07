@@ -18,6 +18,7 @@ fn a_shape_cut_before_its_first_lifetime_leaves_the_picture_incomplete() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(60),
         || {
             let mut tick = clock.borrow_mut();
@@ -100,6 +101,7 @@ fn a_cut_between_the_passes_leaves_every_shape_with_an_entry() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(60),
         || {
             let mut tick = clock.borrow_mut();
@@ -156,6 +158,7 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(60),
         || {
             let mut tick = clock.borrow_mut();
@@ -208,6 +211,7 @@ fn a_cut_ends_the_sweep_and_the_plan_never_falls_below_what_ran() {
     let tuned = tune(
         &shapes,
         true,
+        &[],
         Duration::from_secs(60),
         || {
             let mut tick = clock.borrow_mut();

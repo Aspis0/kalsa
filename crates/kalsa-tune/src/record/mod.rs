@@ -249,10 +249,11 @@ impl Marker {
 
 /// Saves the tune as a marker rather than a verdict: the same record and
 /// one `cut=<cause>` line, which `load` refuses and [`cut_before`] reads.
-/// An unfinished verdict is written this way so the next start measures
-/// once more — and a second unfinished verdict is saved by [`save`] as it
-/// stands, which is what keeps a slow or broken machine from spending the
-/// whole budget on every start forever.
+/// An unfinished verdict is written this way so the next start finishes
+/// the measuring — only the lifetimes no marker proved measured — and a
+/// second unfinished verdict is saved by [`save`] as it stands, which is
+/// what keeps a slow or broken machine from spending the whole budget on
+/// every start forever.
 pub fn save_marker(
     dir: &Path,
     model_digest: &str,
@@ -407,11 +408,12 @@ pub fn load(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record>
 }
 
 /// The marker the last start left for this fingerprint, with the trials it
-/// measured: [`load`] refuses it as a verdict, and the retry needs the
-/// measurements themselves — a retry that measures nothing keeps the first
-/// attempt's winner instead of replacing it with a record of refusals.
-/// A record for another fingerprint, a torn file, or no marker at all
-/// answers none.
+/// measured: [`load`] refuses it as a verdict, and the retry plans from
+/// the measurements themselves — every lifetime they proved measured
+/// keeps its entry and never runs again, and a retry that measures
+/// nothing keeps the first attempt's winner instead of replacing it with
+/// a record of refusals. A record for another fingerprint, a torn file, or
+/// no marker at all answers none.
 pub fn cut_marker(dir: &Path, model_digest: &str, fingerprint: &str) -> Option<Record> {
     let file = path(dir, model_digest)?;
     let text = fs::read_to_string(file).ok()?;

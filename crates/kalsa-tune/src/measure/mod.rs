@@ -9,6 +9,7 @@ use kalsa_runtime::{free_loopback_port, serve, ServeError};
 
 use crate::candidates::Candidate;
 use crate::passes::{self, First, Report, Samples, Tuned};
+use crate::record::Kept;
 use crate::refusal::Refusal;
 use crate::room;
 use crate::sample::{post_to, request_ask, serves_id, Ask};
@@ -89,12 +90,15 @@ const MEASURED_REQUESTS: usize = 2;
 /// (2, 3, 4) over the caller's short chat ask, so every decode number is
 /// the same work made. `drafter` says whether the plan ships one at all;
 /// a shape whose build cannot host it is a refusal inside the sweep,
-/// never a failed launch.
+/// never a failed launch. `prior` is the withheld marker's trials: the
+/// lifetimes they proved measured are never run again, and the budget
+/// counts only what is left.
 pub fn measure_tune(
     shapes: &[(Candidate, PathBuf)],
     state_root: &Path,
     ask: &Ask,
     drafter: bool,
+    prior: &[(Candidate, Kept)],
     build: impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
     progress: &mut dyn FnMut(Report),
 ) -> Tuned {
@@ -103,6 +107,7 @@ pub fn measure_tune(
     passes::tune(
         shapes,
         drafter,
+        prior,
         TOTAL_BUDGET,
         || started.elapsed(),
         progress,

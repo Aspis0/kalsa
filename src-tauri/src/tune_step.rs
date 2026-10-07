@@ -4,8 +4,10 @@
 //! Every failure degrades to the plan's launch, panic included (caught
 //! below; the runtime's hook prints first, and neither line names argv).
 //! The exception: an unfinished tune's measured winner runs and its
-//! record is withheld as a marker — once — so the next start measures
-//! again; a second unfinished result is saved as it stands.
+//! record is withheld as a marker — once — so the next start finishes
+//! the measuring (only the lifetimes the first attempt did not complete)
+//! and pools them with what it saved; a second unfinished result is saved
+//! as it stands.
 //!
 //! No GPU flag on the graphics candidate: the engine's fit adapts the
 //! layers to this start's free memory only when no count is given
@@ -160,7 +162,9 @@ pub(crate) fn tune_fingerprint(
 
 /// The production measurement: the whole tune through the ONE launch
 /// builder — the exe travels with its candidate, so the pairing cannot be
-/// lost between here and the spawn. The decode ask is the row's own
+/// lost between here and the spawn. `prior` is the withheld marker's
+/// trials: the lifetimes they proved measured never run again, so a retry
+/// spends its budget on what is left. The decode ask is the row's own
 /// sampling on the draft prompt with a fixed seed: one short chat text for
 /// every shape and setting, so every decode rate is the same work made,
 /// and the room ask rides each shape's first lifetime beside its off
@@ -169,6 +173,7 @@ pub(crate) fn measure_with_rule(
     root: &Path,
     resolved: &[(kalsa_tune::Candidate, PathBuf)],
     rule: &ServerArgs,
+    prior: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
     counts: &mut dyn FnMut(kalsa_tune::Report),
 ) -> kalsa_tune::Tuned {
     let ask = kalsa_tune::Ask {
@@ -186,6 +191,7 @@ pub(crate) fn measure_with_rule(
         root,
         &ask,
         rule.draft.is_some(),
+        prior,
         |candidate, exe, port| {
             tuned_launch(
                 rule,
@@ -203,11 +209,13 @@ pub(crate) fn measure_with_rule(
 /// The tune step itself: look the winner up by fingerprint; keep it on a
 /// hit; on a miss measure (when there is anything to compare) and keep the
 /// best. A verdict the budget or a refusal left unfinished is saved as the
-/// marker `load` refuses, so the next start measures once more; a second
-/// unfinished verdict is saved as it stands — a slow or broken machine
-/// must not spend the whole budget on every start forever. Nothing here
-/// fails the walk: the whole step is caught below, and any panic degrades
-/// to the plan with one log line.
+/// marker `load` refuses, and the next start hands the seam only those
+/// marker trials — so the retry measures the lifetimes the first attempt
+/// did not finish and pools them with the saved ones; a second unfinished
+/// verdict is saved as it stands — a slow or broken machine must not spend
+/// the whole budget on every start forever. Nothing here fails the walk:
+/// the whole step is caught below, and any panic degrades to the plan with
+/// one log line.
 pub(crate) fn tune_launch(
     prepared: &mut PreparedStart,
     machine: &Machine,
@@ -218,6 +226,7 @@ pub(crate) fn tune_launch(
     measure: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
+        &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned,
 ) {
@@ -250,6 +259,7 @@ fn tune_launch_inner(
     measure: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
         &ServerArgs,
+        &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
         &mut dyn FnMut(kalsa_tune::Report),
     ) -> kalsa_tune::Tuned,
 ) {
@@ -327,10 +337,15 @@ fn tune_launch_inner(
             // read — nothing between here and the save writes the marker.
             let marker = kalsa_tune::record::cut_marker(root, &model_digest, &fingerprint);
             let owed = marker.is_none();
+            // The marker's trials, handed to the seam: what the first
+            // attempt proved measured — the retry plans only the lifetimes
+            // these never answered, and none on a first tune.
+            let prior: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)] =
+                marker.as_ref().map(|record| record.trials.as_slice()).unwrap_or(&[]);
             // The last stop this measure reported — its final word is said
             // AFTER the write below, when the disk has answered for it.
             let mut stop: Option<kalsa_tune::Report> = None;
-            let tuned = measure(&resolved, &rule_args, &mut |report| {
+            let tuned = measure(&resolved, &rule_args, prior, &mut |report| {
                 if report.cut {
                     stop = Some(report);
                 }
@@ -378,7 +393,7 @@ fn tune_launch_inner(
             // An unfinished verdict — a candidate's build never resolved,
             // the budget stopped a lifetime in either pass, or nothing
             // replied — is written as the marker `load` refuses, so the
-            // next start measures once more; a second unfinished verdict is
+            // next start finishes the measuring; a second unfinished verdict is
             // saved, pooled with what the first measured (below). The
             // marker IS the "retried once": `cut_marker` reads it back, so
             // a persistently missing build (like a slow or broken machine)
@@ -396,11 +411,10 @@ fn tune_launch_inner(
             } else {
                 None
             };
-            // A marker means this start IS the retry it was owed: pool the
-            // first attempt's measured trials with this retry's own and let
-            // `reply_winner` choose over the union — the better reply wins
-            // whichever attempt measured it, one entry per candidate, the
-            // retry's fresher number when both measured the same launch.
+            // A marker means this start IS the retry it was owed: the
+            // seam already seeded the marker's trials into this verdict, and
+            // the pool keeps both attempts' facts — one entry per candidate,
+            // the better reply over the union by the same winner rule.
             // (`marker` was read before the measure — see above.)
             let (record, winner) = match marker.as_ref() {
                 Some(prior) => {
@@ -417,7 +431,7 @@ fn tune_launch_inner(
             let staged = match (unfinished, marker.is_some()) {
                 (Some(cause), false) => {
                     log::info!(
-                        "the tune's verdict is unfinished ({cause:?}; {}/{} candidates ran); withheld once — the next start measures again",
+                        "the tune's verdict is unfinished ({cause:?}; {}/{} candidates ran); withheld once — the next start finishes the measuring",
                         resolved.len(),
                         candidates.len()
                     );

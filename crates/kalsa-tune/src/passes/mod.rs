@@ -3,10 +3,17 @@
 //! drafted sweep on the off-winner and on the shapes whose history reads
 //! faster than it. A shape outside that set costs one lifetime instead of
 //! four: what it measured is what the record keeps.
+//!
+//! A withheld marker's trials arrive as `prior`: what they proved measured
+//! is seeded in whole and never runs again, and the plan — and its report —
+//! count only the lifetimes that are left.
 
 use std::path::PathBuf;
 use std::time::Duration;
 
+mod resume;
+
+use self::resume::{Resume, Seeded};
 use crate::candidates::Candidate;
 use crate::record::Kept;
 use crate::refusal::Refusal;
@@ -53,12 +60,13 @@ pub struct Report {
     pub cut: bool,
 }
 
-/// What the two passes produced: the trials the record keeps, the winner
-/// the launch applies, whether every shape's first lifetime ran, and
-/// whether the budget stopped a drafted sweep. A shape that never began is
-/// a hole in the picture, and the caller withholds that picture as a
-/// marker so the next start can finish it — a second unfinished picture is
-/// kept as it stands.
+/// What the two passes produced: the trials the record keeps — the
+/// marker's seeded answers beside everything this run measured — the
+/// winner the launch applies, whether every shape's first lifetime has an
+/// answer, and whether the budget stopped a drafted sweep. A shape that
+/// never began is a hole in the picture, and the caller withholds that
+/// picture as a marker so the next start can finish it — a second
+/// unfinished picture is kept as it stands.
 #[derive(Debug, PartialEq)]
 pub struct Tuned {
     pub trials: Vec<(Candidate, Kept)>,
@@ -72,9 +80,16 @@ pub struct Tuned {
 /// shape's answer arrives whole — a first lifetime that refuses costs no
 /// drafted lifetime, and a refused off-decode still leaves the prefill
 /// number that the sweep and the bound run on.
+///
+/// `prior` is the withheld marker's trials: a lifetime they proved
+/// measured keeps its entry and never runs again, so on a retry the plan,
+/// the budget and the reports below are only about what is left — and a
+/// lifetime they left unanswered (the budget cut it) runs like any other.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn tune<P, D>(
     shapes: &[(Candidate, PathBuf)],
     drafter: bool,
+    prior: &[(Candidate, Kept)],
     budget: Duration,
     since_start: impl Fn() -> Duration,
     progress: &mut dyn FnMut(Report),
@@ -86,30 +101,52 @@ where
     D: FnMut(&Candidate, &PathBuf) -> Samples,
 {
     let settings: &[Option<u32>] = if drafter { &DRAFT_SETTINGS } else { &[] };
-    let mut planned = shapes.len() * (1 + settings.len());
+    // The marker's trials: what they proved measured is seeded into the
+    // picture and leaves this start's plan — the retry runs only the
+    // lifetimes they never answered.
+    let resume = Resume::new(prior);
+    let Seeded {
+        mut trials,
+        mut prompt,
+        mut off_replies,
+        mut answered,
+        mut best,
+    } = resume.seed(shapes);
+    // The plan as it starts: the first lifetimes nothing has proved
+    // measured plus every shape's drafted settings less the ones saved —
+    // what this start owes, never the whole tune's share.
+    let mut planned = shapes
+        .iter()
+        .map(|(shape, _)| {
+            let off = Candidate {
+                draft: None,
+                ..*shape
+            };
+            usize::from(!resume.measured(&off)) + resume.sweeps_left(shape, settings)
+        })
+        .sum();
     let mut done = 0usize;
-    let mut trials: Vec<(Candidate, Kept)> = Vec::new();
     let mut complete = true;
     let mut cut = false;
-
-    // Pass one: every shape's first lifetime, in the order built — the
-    // likely winner first, so its complete off reply is the bound for
-    // everything after it. The off trial is kept here, not in the sweep:
-    // its reply is the shape's own number, and it can be the best before
-    // any drafted setting runs.
-    let mut prompt: Vec<Option<f64>> = vec![None; shapes.len()];
     let mut refused: Vec<Option<Refusal>> = vec![None; shapes.len()];
-    // Each shape's off reply with the candidate that made it: the sweep
-    // order is read from these, so it cannot disagree with the entries.
-    let mut off_replies: Vec<Option<(Candidate, Reply)>> = vec![None; shapes.len()];
-    let mut best: Option<f64> = None;
+
+    // Pass one: every shape whose first lifetime is still unproved, in
+    // the order built — the likely winner first, so its complete off
+    // reply is the bound for everything after it. The off trial is kept
+    // here, not in the sweep: its reply is the shape's own number, and it
+    // can be the best before any drafted setting runs. Shapes the marker
+    // already answered are seeded above and cost this loop nothing.
     for (index, (shape, exe)) in shapes.iter().enumerate() {
+        if answered[index] {
+            continue;
+        }
         if since_start() >= budget {
             complete = false; // never began: a shape-sized hole in the picture
             break;
         }
-        // The candidate starts: its index is what the page names, and the
-        // close below is the only other report it makes about this one.
+        // The candidate starts: `done + 1` names it in this start's own
+        // plan — the lifetimes already proved measured are behind it — and
+        // the close below is the only other report it makes about this one.
         progress(Report {
             done,
             total: planned,
@@ -153,6 +190,7 @@ where
             }
             Err(refusal) => refused[index] = Some(refusal),
         }
+        answered[index] = true;
         done += 1;
         if prompt[index].is_none() {
             // A shape the first lifetime could not score has no off number
@@ -183,20 +221,22 @@ where
     // shape's prefill, so a shape whose prefill lands beyond the best reply
     // outside [`TIE_BAND`] can no longer enter the band either.
     let order = sweep_order(&off_replies);
-    // The ledger: every shape that ran and is not in `order` loses its sweep
-    // here, once, whatever kept it out — a first lifetime that refused, an
-    // off-decode that refused, or a history too slow to sweep — so the total
-    // is what will really run and no planned sweep stays behind a shape that
-    // never got one. `done` counts the shapes that began (pass one walks them
-    // in order and stops at the first the budget cannot start): the shapes it
-    // never reached stay owed, and the stop report says so.
-    let unswept = if settings.is_empty() {
-        0
-    } else {
-        (0..done).filter(|index| !order.contains(index)).count()
-    };
-    for _ in 0..unswept {
-        planned = lower(planned, settings.len(), done);
+    // The ledger: every answered shape that is not in `order` loses its
+    // sweep here, once, whatever kept it out — a first lifetime that
+    // refused, an off-decode that refused, or a history too slow to sweep
+    // — so the total is what will really run and no planned sweep stays
+    // behind a shape that never got one. The shapes pass one never
+    // reached are unanswered: their sweeps stay owed, and the stop report
+    // says so.
+    for (index, (shape, _)) in shapes.iter().enumerate() {
+        if !answered[index] || order.contains(&index) {
+            continue;
+        }
+        let owed = resume.sweeps_left(shape, settings);
+        if owed == 0 {
+            continue; // the marker already holds this shape's sweeps
+        }
+        planned = lower(planned, owed, done);
         progress(Report {
             done,
             total: planned,
@@ -210,16 +250,26 @@ where
             continue; // the first lifetime refused: its entry is that refusal
         };
         if best.is_some_and(|best| prefill_seconds(shape_prompt) > best * (1.0 + TIE_BAND)) {
-            planned = lower(planned, settings.len(), done);
-            progress(Report {
-                done,
-                total: planned,
-                candidate: done,
-                cut: false,
-            });
+            let owed = resume.sweeps_left(shape, settings);
+            if owed > 0 {
+                planned = lower(planned, owed, done);
+                progress(Report {
+                    done,
+                    total: planned,
+                    candidate: done,
+                    cut: false,
+                });
+            }
             continue;
         }
         for setting in settings {
+            let trial = Candidate {
+                draft: *setting,
+                ..*shape
+            };
+            if resume.measured(&trial) {
+                continue; // proved measured: its entry stands, nothing runs
+            }
             if since_start() >= budget {
                 // Nothing behind this check can begin: every later setting
                 // and every later shape would stop here. The sweep is
@@ -243,10 +293,6 @@ where
                 candidate: done + 1,
                 cut: false,
             });
-            let trial = Candidate {
-                draft: *setting,
-                ..*shape
-            };
             done += 1;
             match decode(&trial, exe) {
                 Ok(rates) => match best_rate(&rates)
@@ -340,12 +386,12 @@ fn sweep_order(off_replies: &[Option<(Candidate, Reply)>]) -> Vec<usize> {
 }
 
 /// Lower the plan by the sweeps a shape will never run. The plan counted
-/// exactly one sweep per shape, so a subtraction past what is left is this
-/// side's bug: loud here, never a wrapped number on a panel.
-fn lower(planned: usize, settings: usize, done: usize) -> usize {
+/// each shape's sweeps that were still left, so a subtraction past what is
+/// left is this side's bug: loud here, never a wrapped number on a panel.
+fn lower(planned: usize, owed: usize, done: usize) -> usize {
     let lowered = planned
-        .checked_sub(settings)
-        .expect("the plan counted every shape's sweep");
+        .checked_sub(owed)
+        .expect("the plan counted every sweep that was left");
     debug_assert!(lowered >= done, "the plan cannot fall below what began");
     lowered
 }
