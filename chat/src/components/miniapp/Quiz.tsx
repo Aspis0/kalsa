@@ -1,5 +1,6 @@
 import { quizAnswer, recordQuizAnswer } from "../../lib/miniapp/state";
 import type { Miniapp } from "../../lib/miniapp/types";
+import { useLanguage } from "../../i18n/useLanguage";
 import { asArray, asText } from "./values";
 
 /**
@@ -31,9 +32,11 @@ export function Quiz({
   index: number;
   onState?: (state: Record<string, unknown>) => void;
 }) {
-  const question = asText(block.question ?? block.title, "Question");
-  const options = asArray(block.options, MAX_OPTIONS).map((option, index) =>
-    asText(option, `Option ${index + 1}`),
+  const { table } = useLanguage();
+  const t = table.miniapp;
+  const question = asText(block.question ?? block.title, t.question);
+  const options = asArray(block.options, MAX_OPTIONS).map((option, at) =>
+    asText(option, t.option(at + 1)),
   );
   const answerIndex = answerIndexOf(block.answerIndex, options.length);
   const explanation = asText(block.explanation, "");
@@ -55,7 +58,7 @@ export function Quiz({
           <p className="miniapp-block-title">{asText(block.title)}</p>
         ) : null}
         <p className="miniapp-question">{question}</p>
-        <p className="miniapp-note">Answer not available</p>
+        <p className="miniapp-note">{t.answerNotAvailable}</p>
       </div>
     );
   }
@@ -70,10 +73,10 @@ export function Quiz({
       ) : null}
       <p className="miniapp-question">{question}</p>
       <div className="miniapp-quiz-options" role="radiogroup" aria-label={question}>
-        {options.map((label, index) => {
-          const isSelected = selected === index;
-          const showCorrect = checked && gradable && index === answerIndex;
-          const showWrong = checked && gradable && isSelected && index !== answerIndex;
+        {options.map((label, at) => {
+          const isSelected = selected === at;
+          const showCorrect = checked && gradable && at === answerIndex;
+          const showWrong = checked && gradable && isSelected && at !== answerIndex;
           const classes = [
             "miniapp-quiz-option",
             isSelected && (!checked || !gradable) ? "miniapp-quiz-selected" : "",
@@ -85,15 +88,15 @@ export function Quiz({
           return (
             <button
               type="button"
-              key={index}
+              key={at}
               className={classes}
               aria-checked={isSelected}
               role="radio"
               disabled={checked}
-              onClick={() => record(index, false)}
+              onClick={() => record(at, false)}
             >
-              {String.fromCharCode(65 + index)}. {label}
-              {showCorrect ? " — Correct" : showWrong ? " — Wrong" : ""}
+              {String.fromCharCode(65 + at)}. {label}
+              {showCorrect ? t.correctSuffix : showWrong ? t.wrongSuffix : ""}
             </button>
           );
         })}
@@ -106,27 +109,27 @@ export function Quiz({
             disabled={selected === null}
             onClick={() => record(selected, true)}
           >
-            Check
+            {t.check}
           </button>
         ) : (
           <button type="button" className="miniapp-button" onClick={() => record(null, false)}>
-            Retry
+            {t.retry}
           </button>
         )}
       </div>
       {checked ? (
         <div className="miniapp-quiz-feedback" aria-live="polite">
           {!gradable ? (
-            <p className="miniapp-note">Answer not available</p>
+            <p className="miniapp-note">{t.answerNotAvailable}</p>
           ) : (
             <>
               <p className={correct ? "miniapp-quiz-right" : "miniapp-quiz-bad"}>
-                {correct ? "Correct" : "Wrong"}
+                {correct ? t.correct : t.wrong}
               </p>
               {wrong && answerIndex !== null ? (
-                <p className="miniapp-note">Correct answer: {options[answerIndex]}</p>
+                <p className="miniapp-note">{t.correctAnswer(options[answerIndex])}</p>
               ) : null}
-              {explanation ? <p className="miniapp-note">Explanation: {explanation}</p> : null}
+              {explanation ? <p className="miniapp-note">{t.explanation(explanation)}</p> : null}
             </>
           )}
         </div>

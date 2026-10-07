@@ -113,18 +113,21 @@ function ToolRow({ run }: { run: ToolRun }) {
 }
 
 /**
- * The row for a local miniapp build. Its words are English because the tool's
- * own result text and the phone's strings are English; the view it built is
- * rendered right below.
+ * The row for a local miniapp build. The words are the interface's; the view
+ * it built is rendered right below. A failure keeps the tool's own result
+ * text — the refusal the model read, not a second sentence about the same
+ * thing.
  */
 function MiniappRow({ run }: { run: ToolRun }) {
+  const { table } = useLanguage();
+  const t = table.miniapp;
   const failed = run.state === "failed" || run.state === "refused";
   const summary =
     run.state === "running"
-      ? "Kalsa is building an interactive view…"
+      ? t.building
       : failed
-        ? run.result || "Kalsa couldn't build that view."
-        : "Kalsa built an interactive view";
+        ? run.result || t.buildFailed
+        : t.built;
 
   return (
     <details className={`tool-run${failed ? " tool-run-failed" : ""}`}>

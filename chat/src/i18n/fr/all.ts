@@ -7,6 +7,7 @@ import { ROOM } from "./room";
 import { THREAD } from "./thread";
 import { VIEWER } from "./viewer";
 import { TOOLS } from "./tools";
+import { MINIAPP } from "./miniapp";
 import { SIDEBAR } from "./sidebar";
 import { FILES } from "./files";
 import { FIRST_PAGE } from "./firstPage";
@@ -37,6 +38,7 @@ export const FRENCH: English = {
   thread: THREAD,
   viewer: VIEWER,
   tools: TOOLS,
+  miniapp: MINIAPP,
   sidebar: SIDEBAR,
   files: FILES,
   firstPage: FIRST_PAGE,

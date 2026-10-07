@@ -2,6 +2,7 @@ import { useState } from "react";
 import { evaluateCalculatorFormula } from "../../lib/miniapp/calculator";
 import { calculatorValues, recordCalculatorValues } from "../../lib/miniapp/state";
 import { MAX_CALCULATOR_FIELDS } from "../../lib/miniapp/quickCalculator";
+import { useLanguage } from "../../i18n/useLanguage";
 import { asArray, asNumber, asRecord, asText, formatNumber } from "./values";
 
 /**
@@ -9,8 +10,12 @@ import { asArray, asNumber, asRecord, asText, formatNumber } from "./values";
  * live through the ported parser — never eval, never Function. The field cap
  * is the builder's own, so a formula can never reference a field this refuses
  * to draw. Each edit is written through to the envelope's state, so the next
- * turn's wire carries the values the person left.
+ * turn's wire carries the values the person left. A field the builder lifted
+ * from a bare literal has ids like `n1` and no label; it is named here, in
+ * the interface's language.
  */
+
+const LIFTED_ID = /^n(\d+)$/;
 
 export function Calculator({
   block,
@@ -21,6 +26,8 @@ export function Calculator({
   state?: Record<string, unknown>;
   onState?: (state: Record<string, unknown>) => void;
 }) {
+  const { table } = useLanguage();
+  const t = table.miniapp;
   const fields = asArray(block.fields, MAX_CALCULATOR_FIELDS).map(asRecord);
   const stored = calculatorValues(state);
   const [values, setValues] = useState<Record<string, number>>(() => {
@@ -47,19 +54,22 @@ export function Calculator({
   if (live && live.ok) {
     displayValue = formatNumber(live.value, 4);
   } else if (live && !live.ok) {
-    displayValue = "Unsupported formula";
+    displayValue = t.unsupportedFormula;
   } else {
-    displayValue = asText(block.value ?? block.result, "No result.");
+    displayValue = asText(block.value ?? block.result, t.noResult);
   }
 
   return (
     <div className="miniapp-block">
-      <p className="miniapp-block-title">{asText(block.title, "Calculator")}</p>
+      <p className="miniapp-block-title">{asText(block.title, t.calculator)}</p>
       <div className="miniapp-fields">
         {fields.map((field, index) => {
           const id = asText(field.id, `field_${index}`);
           const unit = asText(field.unit);
-          const label = asText(field.label, id) + (unit ? ` (${unit})` : "");
+          const lifted = LIFTED_ID.exec(id);
+          const name =
+            asText(field.label, "") || (lifted ? t.numberField(Number(lifted[1])) : id);
+          const label = name + (unit ? ` (${unit})` : "");
           return (
             <label className="miniapp-field" key={id}>
               <span className="miniapp-field-label">{label}</span>
@@ -80,12 +90,12 @@ export function Calculator({
       </div>
       {formula ? (
         <p className="miniapp-formula">
-          <span className="miniapp-note-label">Formula</span>
+          <span className="miniapp-note-label">{t.formula}</span>
           <span className="miniapp-formula-text">{formula}</span>
         </p>
       ) : null}
       <p className="miniapp-formula">
-        <span className="miniapp-note-label">{asText(block.label, "Result")}</span>
+        <span className="miniapp-note-label">{asText(block.label, t.result)}</span>
         <span className="miniapp-result">{displayValue}</span>
       </p>
     </div>

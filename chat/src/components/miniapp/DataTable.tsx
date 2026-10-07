@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLanguage } from "../../i18n/useLanguage";
 import { asArray, asRecord, asText } from "./values";
 
 /**
@@ -72,13 +73,15 @@ function compareCells(a: string, b: string): number {
 }
 
 export function DataTable({ block }: { block: Record<string, unknown> }) {
-  const table = normalizeTable(block);
+  const { table } = useLanguage();
+  const t = table.miniapp;
+  const { columns, rows: sourceRows, hasMoreRows, hasMoreColumns } = normalizeTable(block);
   const [sort, setSort] = useState<{ at: number; dir: "asc" | "desc" } | null>(null);
   const rows = sort
-    ? [...table.rows].sort((a, b) =>
+    ? [...sourceRows].sort((a, b) =>
         sort.dir === "asc" ? compareCells(a[sort.at] ?? "", b[sort.at] ?? "") : compareCells(b[sort.at] ?? "", a[sort.at] ?? ""),
       )
-    : table.rows;
+    : sourceRows;
   const toggleSort = (at: number): void =>
     setSort((current) =>
       current?.at === at ? { at, dir: current.dir === "asc" ? "desc" : "asc" } : { at, dir: "asc" },
@@ -86,13 +89,13 @@ export function DataTable({ block }: { block: Record<string, unknown> }) {
 
   return (
     <div className="miniapp-block">
-      <p className="miniapp-block-title">{asText(block.title, "Table")}</p>
-      {table.columns.length > 0 ? (
+      <p className="miniapp-block-title">{asText(block.title, t.table)}</p>
+      {columns.length > 0 ? (
         <div className="miniapp-table-wrap">
           <table className="miniapp-table">
             <thead>
               <tr>
-                {table.columns.map((column, at) => {
+                {columns.map((column, at) => {
                   const sorted = sort?.at === at ? (sort.dir === "asc" ? "ascending" : "descending") : undefined;
                   return (
                     <th key={column.key} scope="col" aria-sort={sorted}>
@@ -117,11 +120,10 @@ export function DataTable({ block }: { block: Record<string, unknown> }) {
           </table>
         </div>
       ) : null}
-      {table.rows.length === 0 ? <p className="miniapp-note">No rows yet.</p> : null}
-      {table.hasMoreRows || table.hasMoreColumns ? (
+      {rows.length === 0 ? <p className="miniapp-note">{t.noRows}</p> : null}
+      {hasMoreRows || hasMoreColumns ? (
         <p className="miniapp-note">
-          Showing up to {Math.min(table.rows.length, MAX_TABLE_ROWS)} rows and{" "}
-          {Math.min(table.columns.length, MAX_TABLE_COLUMNS)} columns.
+          {t.showingCap(Math.min(rows.length, MAX_TABLE_ROWS), Math.min(columns.length, MAX_TABLE_COLUMNS))}
         </p>
       ) : null}
     </div>

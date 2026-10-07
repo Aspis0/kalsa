@@ -1,4 +1,5 @@
 import type { Miniapp } from "../../lib/miniapp/types";
+import { useLanguage } from "../../i18n/useLanguage";
 import { Calculator } from "./Calculator";
 import { Checklist } from "./Checklist";
 import { DataTable } from "./DataTable";
@@ -20,9 +21,10 @@ export function MiniappView({
   miniapp: Miniapp;
   onState?: (state: Record<string, unknown>) => void;
 }) {
+  const { table } = useLanguage();
   if (miniapp.blocks.length === 0) return null;
   return (
-    <section className="miniapp" aria-label={`Interactive miniapp: ${miniapp.title}`}>
+    <section className="miniapp" aria-label={table.miniapp.viewAria(miniapp.title)}>
       <p className="miniapp-title">{miniapp.title}</p>
       {miniapp.blocks.map((block, index) => (
         <Block key={index} miniapp={miniapp} block={block} index={index} onState={onState} />

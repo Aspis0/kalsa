@@ -7,6 +7,7 @@ import { ROOM, type RoomTable } from "./room";
 import { THREAD } from "./thread";
 import { VIEWER } from "./viewer";
 import { TOOLS } from "./tools";
+import { MINIAPP } from "./miniapp";
 import { SIDEBAR } from "./sidebar";
 import { FILES } from "./files";
 import { FIRST_PAGE } from "./firstPage";
@@ -36,6 +37,7 @@ export interface English {
   thread: typeof THREAD;
   viewer: typeof VIEWER;
   tools: typeof TOOLS;
+  miniapp: typeof MINIAPP;
   sidebar: typeof SIDEBAR;
   files: typeof FILES;
   firstPage: typeof FIRST_PAGE;
@@ -72,6 +74,7 @@ export const ENGLISH: English = {
   thread: THREAD,
   viewer: VIEWER,
   tools: TOOLS,
+  miniapp: MINIAPP,
   sidebar: SIDEBAR,
   files: FILES,
   firstPage: FIRST_PAGE,
