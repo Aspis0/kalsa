@@ -155,9 +155,10 @@ export function ChatSurface({ chat }: { chat: Chat }) {
           onThinking={saveThinking}
           streaming={streaming}
           opening={pending || creating}
-          // An attach in flight holds Send: the reading line stays visible
-          // above, and the words stay in the box for the next Enter.
-          sendBlocked={attachBusy > 0}
+          // An attach reading for THIS conversation holds Send: the reading
+          // line stays visible above, and the words stay in the box for the
+          // next Enter. Another conversation's attach never blocks here.
+          sendBlocked={attachBusy}
           draft={draft}
           onDraftChange={setDraft}
           onSend={send}

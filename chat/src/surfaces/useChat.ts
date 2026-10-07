@@ -15,7 +15,7 @@ import type { ActiveChat, DoorAccess, SlotNotice } from "../lib/slotGate";
 import { loadThinking, saveThinking, thinkingSupport } from "../lib/thinking";
 import type { ChatSettings, Conversation, ConversationMeta } from "../lib/types";
 import type { FailedState } from "../components/Thread";
-import { createAttachGate } from "../lib/attachGate";
+import { createAttachGate, NEW_CHAT } from "../lib/attachGate";
 import type { Attachment } from "../lib/attachments";
 import {
   AttachmentError,
@@ -145,11 +145,12 @@ export function useChat(shell: ChatShell) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [attachStatus, setAttachStatus] = useState<string | null>(null);
-  // The attach gate and the count the composer's disabled state renders: the
-  // gate is the synchronous truth send() asks at Enter, the count is that
-  // truth one render later (see attachFiles).
+  // The attach gate and the render bump that follows it: the gate is the
+  // synchronous truth, keyed by conversation, that every send asks at Enter;
+  // the bump only re-renders so `attachBusy` can be asked fresh of it.
   const attachGate = useState(createAttachGate)[0];
-  const [attachBusy, setAttachBusy] = useState(0);
+  const [, bumpAttach] = useState(0);
+  const syncAttach = (): void => bumpAttach((n) => n + 1);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [ctxInfo, setCtxInfo] = useState<{ endpoint: string; nctx: number | null } | null>(null);
   // Numbers only, and that IS the healing rule: an unknown answer is never
@@ -411,12 +412,21 @@ export function useChat(shell: ChatShell) {
       visionOffer.ask();
       return;
     }
+    setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
     // The gate closes only when this settles, whatever the settle is: a send
     // that lands mid-attach must wait, because the documents it should carry
-    // are still nowhere to read.
-    setAttachBusy(attachGate.begin());
+    // are still nowhere to read. The hold is this conversation's alone — a
+    // chat still to be created holds the new-chat key.
+    const holdKey = activeId ?? NEW_CHAT;
+    attachGate.hold(holdKey);
+    syncAttach();
     const prepared: PendingImage[] = [];
     const preparedVideos: PendingVideo[] = [];
+    const extracted: Attachment[] = [];
+    // Set once the conversation exists; while it is empty no document has
+    // landed, so the catch below has nothing to walk back.
+    let target = "";
+    let extraHold: string | null = null;
     try {
       let convId = activeId;
       if (!convId) {
@@ -435,9 +445,12 @@ export function useChat(shell: ChatShell) {
         store.put(fresh);
         const result = await gate.create(fresh.id);
         if (result === null) {
-          // A creation is already in flight; this one never reached the door.
+          // A creation is already in flight and this one never reached the
+          // door: refusing visibly beats a file that silently never lands.
           store.remove(fresh.id);
-          setAttachStatus(null);
+          setAttachStatus(t.attachmentFailed);
+          logUiEvent("chat.attach_create_busy");
+          announce(t.attachmentFailed);
           return;
         }
         noteSlot(result.notice);
@@ -451,8 +464,13 @@ export function useChat(shell: ChatShell) {
           return;
         }
         convId = fresh.id;
+        // The chat exists and is on screen now: a send from it would read the
+        // same not-yet-stored documents, so it is held under its own key too.
+        attachGate.hold(fresh.id);
+        extraHold = fresh.id;
+        syncAttach();
       }
-      const target = convId;
+      target = convId;
       // Pictures and videos take their roads only under a seeing model: VISION
       // is the gate for both because a video reaches the model as FRAMES —
       // images — and a `video` modality would matter only to an engine taking
@@ -464,8 +482,6 @@ export function useChat(shell: ChatShell) {
       const docFiles = list.filter(
         (file) => !imageFiles.includes(file) && !videoFiles.includes(file),
       );
-      setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
-      const extracted: Attachment[] = [];
       for (const file of docFiles) {
         extracted.push(await extractAttachment(file));
       }
@@ -675,6 +691,9 @@ export function useChat(shell: ChatShell) {
       const chipCount = prepared.length + preparedVideos.length + extracted.length;
       announce(chipCount === 1 ? t.attachedOne(list[0].name) : t.attachedMany(chipCount));
     } catch (error) {
+      // A failed attach leaves nothing half-landed: whatever documents were
+      // stored early walk back with the batch that failed.
+      for (const attachment of extracted) store.removeAttachment(target, attachment.id);
       for (const chip of prepared) URL.revokeObjectURL(chip.url);
       setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
       logUiEvent(
@@ -684,7 +703,9 @@ export function useChat(shell: ChatShell) {
       );
       announce(t.attachmentFailed);
     } finally {
-      setAttachBusy(attachGate.end());
+      attachGate.release(holdKey);
+      if (extraHold !== null) attachGate.release(extraHold);
+      syncAttach();
     }
   }
 
@@ -694,6 +715,12 @@ export function useChat(shell: ChatShell) {
   async function attachFromDisk(path: string, name: string): Promise<void> {
     setRefusal(null);
     setAttachStatus(t.readingOne(name));
+    // The hold opens here, not inside attachFiles: reading the bytes is work
+    // a send must wait for too. One attach is one hold on one key —
+    // attachFiles holds the same key beside it, and a set releases once.
+    const holdKey = activeId ?? NEW_CHAT;
+    attachGate.hold(holdKey);
+    syncAttach();
     try {
       const bytes = await filesRead(path);
       await attachFiles([new File([bytes], name)]);
@@ -702,6 +729,9 @@ export function useChat(shell: ChatShell) {
         error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error),
       );
       logUiEvent("chat.attach_failed.read");
+    } finally {
+      attachGate.release(holdKey);
+      syncAttach();
     }
   }
 
@@ -736,6 +766,15 @@ export function useChat(shell: ChatShell) {
   // gate can mint one: a chat that is already open never takes this path,
   // because it was offered when it was selected.
   function sendMessage(text: string, opened: ActiveChat | null = null): string | null {
+    // The one funnel every send passes — composer, brain bar, retry — and
+    // with it the attach gate: a document still reading is in no wire yet,
+    // and the chat still to be created is held by the attach making one.
+    return attachGate.run(opened !== null ? opened.id : (active?.id ?? null), () =>
+      sendNow(text, opened),
+    );
+  }
+
+  function sendNow(text: string, opened: ActiveChat | null): string | null {
     // The brand bites here. An `ActiveChat` is the door's answer for one chat,
     // so it is used for that chat or refused — never passed over in favour of
     // whatever this render happened to call active. The render's chat is
@@ -819,11 +858,6 @@ export function useChat(shell: ChatShell) {
     // A send into the outgoing chat during a switch is the race C4 closes,
     // whichever control produced it.
     if (gate.getSnapshot().pending) return false;
-    // An attach in flight holds the send at the same source of truth: the
-    // composer's disabled state is this count one render behind, and a
-    // document still reading is in no conversation yet. The words stay in the
-    // box; the next Enter — once the reading line clears — carries them.
-    if (attachGate.busy()) return false;
     if (active) return sendMessage(text) !== null;
     // The first message of a chat that does not exist yet waits for the door,
     // and the words stay in the box until it answers: a refusal has to leave
@@ -918,17 +952,19 @@ export function useChat(shell: ChatShell) {
     // Reread from the gate, as in `send`.
     if (gate.getSnapshot().pending) return;
     if (streamingByConv[active.id] !== undefined) return;
-    const latest = store.get(active.id);
-    if (!latest) return;
-    store.put({
-      ...latest,
-      messages: latest.messages.map((m) =>
-        m.id === messageId
-          ? { ...m, content: "", stopped: false, reasoning: "", reasoningMs: undefined }
-          : m,
-      ),
+    attachGate.run(active.id, () => {
+      const latest = store.get(active.id);
+      if (!latest) return;
+      store.put({
+        ...latest,
+        messages: latest.messages.map((m) =>
+          m.id === messageId
+            ? { ...m, content: "", stopped: false, reasoning: "", reasoningMs: undefined }
+            : m,
+        ),
+      });
+      void turns.runAssistant(active.id, messageId, effectiveSettings, vision);
     });
-    void turns.runAssistant(active.id, messageId, effectiveSettings, vision);
   }
 
   // A mini app widget's next state — ticked checklist items, a picked quiz
@@ -1085,8 +1121,10 @@ export function useChat(shell: ChatShell) {
     attachFiles,
     attachFromDisk,
     attachStatus,
-    // The attach gate's count: the composer's sendBlocked derives from it.
-    attachBusy,
+    // The attach gate asked for the conversation on screen: the composer's
+    // sendBlocked derives from it. A hold on another conversation never
+    // shows here.
+    attachBusy: attachGate.busy(activeId ?? null),
     refusal,
     setRefusal,
     setup,
