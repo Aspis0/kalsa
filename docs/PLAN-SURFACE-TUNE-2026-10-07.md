@@ -53,6 +53,69 @@ Move the tuning record aside (never delete), first start from zero: one tune, in
 verdict saved the first time, the second start straight to the door. Close ×3 and minimized idle as
 on 2026-10-05.
 
+#### Result 2026-10-07 (walk)
+
+Build **8f30e43c**, built on the Surface from a fresh `git archive` (the first Windows build since
+c7da4875 — it **compiled clean**: `npm ci` in `chat/`, then `npx --yes @tauri-apps/cli@2.12.1 build`
+from the repo root, `TAURI_BUILD_EXIT=0`, cargo release 10m47s, 7 pre-existing warnings, no
+errors). Artifacts: `target\release\kalsa-brain.exe` 29 030 400 B, NSIS
+`Kalsa_0.0.1_x64-setup.exe` 7 719 717 B, both kept in `C:\Users\gualt\kalsa-src-8f30e43c`.
+Installed at `%LOCALAPPDATA%\Kalsa\kalsa-brain.exe`; the 43740d87 exe is backed up beside it as
+**`kalsa-brain.exe.bak-43740d87-20261007`** (27 853 824 B, sha256 `58389eb7…3501`; the first
+install attempt's `ren` was eaten by cmd-over-ssh quoting and the copy overwrote in place — the
+backup was restored byte-identical from our old `kalsa-src\target\release`, same size and
+timestamp as what was installed). The app's Gemma tuning record was moved aside as
+`runtime\tuning-85a896a0….txt.aside-20261007` (never deleted); models, drafter, engine builds and
+`verdict.txt` untouched. GUI starts went through a one-shot `/IT` task (`KalsaLab1007`, deleted
+afterwards); all times UTC, from `%LOCALAPPDATA%\ai.kalsa.brain\logs\kalsa-brain.log`.
+
+**First start (15:58:37):** tune from zero, 15:58:40 → 16:18:12 = **19m32s, 8 lifetimes** (not the
+hoped 6–7): four first lifetimes, the off-winner's full sweep (2/3/4 — none slower than its own off
+decode), the graphics sweep's first setting refused → stopped, and the budget then cutting the
+**mixed** shape's still-owed sweep — its prefill (20 tok/s) sat exactly on the 1.05 `PREFILL_EDGE`
+over the winner's 19. So the verdict was **withheld once** (`unfinished (Sweep; 4/4 candidates
+ran)`), NOT saved at the first start. Winner `processor 8 threads + drafter 3`; engine ready 36.4 s;
+`door started: 127.0.0.1:8131, 1 seats` at 16:18:49 (20m16s after launch). Verbatim:
+
+```
+16:18:12Z tune: graphics: backend vulkan, prompt 25 tok/s, decode 4 tok/s, reply 91.3s
+16:18:12Z tune: graphics + processor 4 threads: backend vulkan, prompt 20 tok/s, decode 6 tok/s, reply 91.1s
+16:18:12Z tune: processor 4 threads: backend cpu, prompt 17 tok/s, decode 6 tok/s, reply 99.4s
+16:18:12Z tune: processor 8 threads: backend cpu, prompt 19 tok/s, decode 6 tok/s, reply 92.1s
+16:18:12Z tune: processor 8 threads + drafter 2: … decode 6 tok/s, reply 91.5s
+16:18:12Z tune: processor 8 threads + drafter 3: … decode 8 tok/s, reply 84.9s
+16:18:12Z tune: processor 8 threads + drafter 4: … decode 6 tok/s, reply 91.4s
+16:18:12Z tune: graphics + drafter 2: backend vulkan, refused (NoUsableAnswer, prompt rate Some(25.415288728944702))
+16:18:12Z the tune's verdict is unfinished (Sweep; 4/4 candidates ran); withheld once — the next start finishes the measuring
+16:18:12Z tune winner: processor 8 threads + drafter 3
+```
+
+**Second start (16:25:22):** the retry (step 4's mechanism) ran **only the 2 missing lifetimes**
+(2m41s): `graphics + processor 4 threads + drafter 2: … decode 7 tok/s, reply 84.7s` (7 > its off
+6, no stop), `… + drafter 3: … decode 5 tok/s, reply 98.3s` (5 ≤ 6 → **sweep stopped**, drafter 4
+never ran), pooled the first attempt's trials verbatim, saved a normal verdict — no "withheld"
+line — same winner, `door started` 16:28:27, **3m05s after launch**. **Third start (16:32:01):**
+record hit — `tune winner: processor 8 threads + drafter 3` logged from the record at 16:32:06
+with no measuring, engine ready 14.7 s (warm), `door started` 16:32:20, **~19 s to the door**. The
+winner's engine argv is the CPU-build shape (`--threads 8 --threads-batch 8`, no device flags,
+drafter 3) — identical to the 2026-10-06 winner.
+
+**Close (WM_CLOSE via the `/IT` task):** two valid closes, **3.05 s** and **3.09 s** (`CloseMainWindow=True`, `app exit` logged); after each, no `kalsa-server`, no `kalsa-brain` left, and our WebView2 children exit with the app. The first "close" was NOT a measurement: the close task was refused twice (0x800710E0, the task name still held the running app), and a `schtasks /End` of that task at ~16:24:15 hard-killed the app mid-teardown (`door stopped` 16:24:16, no `app exit`; next start: `WARN the previous session did not exit cleanly`). A walker error, not an app bug: use a separate task name for the close.
+
+**Minimized idle, 5 min (app running, window minimized, engine up):** kalsa-brain 0.094 CPU-s
+(0.004 % of total capacity; ×8 = 0.03 % of one core), our 6 webview children 0.297 CPU-s (0.012 %
+of total; ×8 = 0.099 %), kalsa-server 1.438 CPU-s (0.06 % of total; ×8 = 0.48 %). Against
+2026-10-05 (brain 0.04 %, webview 0.02 %, engine 0.8 %): the brain's idle did **not** rise with the
+new mDNS endpoint — at or below the old number under either reading; the engine idles lower too.
+
+**No WARN/ERROR lines in the whole walk — and no mDNS WARN** on this corporate network (the
+desktop endpoint's discovery either works silently or stays quiet here).
+
+Left in place at the end: the 8f30e43c build installed and **running** (minimized, door on 8131),
+the backup `kalsa-brain.exe.bak-43740d87-20261007`, the moved-aside record, and our build tree
+`C:\Users\gualt\kalsa-src-8f30e43c` + `kalsa-src-8f30e43c-build.log` (nothing of the owner's was
+modified; `kalsa-src2` and the three `Kalsa*1001` tasks untouched).
+
 ### 6. Lab: the phone reaches the PC on the home network without the relay
 Owner OK 2026-10-06. On the night of 2026-10-05/06 the Mac's link to the n0 relay failed for 2+ h
 (`Ping timeout`, DNS `Resolve failed`, `tls handshake eof` in the app log from ~06:04Z), while the

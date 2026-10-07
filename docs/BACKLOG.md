@@ -171,3 +171,7 @@ they are promoted.
 - Decided, not bugs: a drafted setting that times out at the 60 s bound (`NoUsableAnswer`) is an answer, and a lifetime with one good request out of two is a reply. Both are skipped on retry. The fixed 5 % `PREFILL_EDGE` can leave out a shape whose drafter would win (owner's option 2, 2026-10-05). The sweep assumes a drafted n that loses to off is not followed by a higher n that wins (docs/LAB-IRIS-MTP-2026-10-07.md).
 - P2: the tune fingerprint (`crates/kalsa-tune/src/record/mod.rs:74`) omits the sampling settings the measurement uses (temperature, top-p, top-k, `src-tauri/src/tune_step.rs:179`). A marker from another rule can be reused.
 - P2: no test drives a real budget cut → persisted marker → retry through the pass runner. `retry.rs` drops an entry by hand, and the tune_step handoff test stubs the measurement.
+
+## Surface walk (2026-10-07, build 8f30e43c)
+
+- P3: when the tuned winner is a processor shape, the start still logs `engine: kalsa-server v1.1.5 · vulkan build` and `device pin: Vulkan0 (target and drafter)`, though the engine that runs is `builds\cpu\…\kalsa-server.exe` with no device flags (checked on the Surface). These lines describe the machine's backend, not the launch. Log the launch's real build and devices.
