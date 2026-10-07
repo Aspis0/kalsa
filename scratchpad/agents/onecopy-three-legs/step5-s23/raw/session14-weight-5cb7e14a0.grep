@@ -1,0 +1,115 @@
+# S23 2026-10-07 16:50-17:29 EDT, unplugged, unlocked + wake poke, bench 5cb7e14a0 sha 1d74341d72fc, ABBA raw / tau10+heat weight 7 x per-token 2.8,3.2,4.7, 2048 tokens each (run-step5-weight.sh); run 1 started at skin 28.8 (no cool wait needed), runs 2-4 at 31.9
+== weight start Wed Oct  7 16:50:23 EDT 2026 binary 1d74341d72fc [lvl=42 ac=false usb=false wl=false batT=276 skin=28.8 wake=Awake thermal=0 traced=0]
+## 1 arm=raw (--headroom-tau 0) start after 0s cool wait [lvl=42 ac=false usb=false wl=false batT=276 skin=28.8 wake=Awake thermal=0 traced=0] feed 57.8 46.5 45.9
+## 1 arm=raw exit=0 [lvl=40 ac=false usb=false wl=false batT=366 skin=37.9 wake=Awake thermal=0 traced=0]
+run_start arm=L rep=0 monotonic_us=672602713077 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=cpu tokens=928 us=67778589 tps=13.692
+leg_summary arm=L rep=0 engine=gpu tokens=224 us=15536239 tps=14.418
+leg_summary arm=L rep=0 engine=npu tokens=896 us=51962332 tps=17.243
+leg_pair arm=L rep=0 pair=npu-gpu hops=7 commit_bytes=37126144 commit_us=274886
+leg_pair arm=L rep=0 pair=npu-cpu hops=42 commit_bytes=52363264 commit_us=350895
+leg_pair arm=L rep=0 pair=gpu-cpu hops=7 commit_bytes=9863168 commit_us=102659
+leg_total arm=L rep=0 generated=2048 windows=65 hops=56 commit_bytes=99352576 commit_us=728440
+hops: 57; windows by rule:      63 rule=headroom 
+## 2 arm=hw (--headroom-tau 10 --heat-weight 7 --heat-per-token 2.8,3.2,4.7) start after 330s cool wait [lvl=39 ac=false usb=false wl=false batT=321 skin=31.9 wake=Awake thermal=0 traced=0] feed 74.2 61.2 60.6
+## 2 arm=hw exit=0 [lvl=37 ac=false usb=false wl=false batT=373 skin=39.1 wake=Awake thermal=1 traced=0]
+run_start arm=L rep=0 monotonic_us=673094713322 dev=auto hop_mode=npu_first headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7
+leg_summary arm=L rep=0 engine=cpu tokens=448 us=34286572 tps=13.066
+leg_summary arm=L rep=0 engine=gpu tokens=608 us=41881141 tps=14.517
+leg_summary arm=L rep=0 engine=npu tokens=992 us=57497324 tps=17.253
+leg_pair arm=L rep=0 pair=npu-gpu hops=8 commit_bytes=35389440 commit_us=265999
+leg_pair arm=L rep=0 pair=npu-cpu hops=11 commit_bytes=37519360 commit_us=115486
+leg_pair arm=L rep=0 pair=gpu-cpu hops=5 commit_bytes=16482304 commit_us=105645
+leg_total arm=L rep=0 generated=2048 windows=65 hops=24 commit_bytes=89391104 commit_us=487130
+hops: 25; windows by rule:      64 rule=headroom 
+## 3 arm=hw (--headroom-tau 10 --heat-weight 7 --heat-per-token 2.8,3.2,4.7) start after 600s cool wait [lvl=36 ac=false usb=false wl=false batT=320 skin=31.9 wake=Awake thermal=0 traced=0] feed 68.7 61.6 61.0
+## 3 arm=hw exit=0 [lvl=34 ac=false usb=false wl=false batT=374 skin=39.5 wake=Awake thermal=1 traced=0]
+run_start arm=L rep=0 monotonic_us=673855589873 dev=auto hop_mode=npu_first headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7
+leg_summary arm=L rep=0 engine=cpu tokens=544 us=41120476 tps=13.229
+leg_summary arm=L rep=0 engine=gpu tokens=608 us=41371263 tps=14.696
+leg_summary arm=L rep=0 engine=npu tokens=896 us=52507437 tps=17.064
+leg_pair arm=L rep=0 pair=npu-gpu hops=7 commit_bytes=30834688 commit_us=221515
+leg_pair arm=L rep=0 pair=npu-cpu hops=13 commit_bytes=31948800 commit_us=147404
+leg_pair arm=L rep=0 pair=gpu-cpu hops=5 commit_bytes=25919488 commit_us=77526
+leg_total arm=L rep=0 generated=2048 windows=65 hops=25 commit_bytes=88702976 commit_us=446445
+hops: 26; windows by rule:      64 rule=headroom 
+## 4 arm=raw (--headroom-tau 0) start after 750s cool wait [lvl=33 ac=false usb=false wl=false batT=325 skin=31.9 wake=Awake thermal=0 traced=0] feed 74.4 61.2 61.0
+## 4 arm=raw exit=0 [lvl=30 ac=false usb=false wl=false batT=397 skin=40.2 wake=Awake thermal=2 traced=0]
+run_start arm=L rep=0 monotonic_us=674770177363 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=cpu tokens=1024 us=75225574 tps=13.612
+leg_summary arm=L rep=0 engine=gpu tokens=128 us=8369569 tps=15.293
+leg_summary arm=L rep=0 engine=npu tokens=896 us=52196058 tps=17.166
+leg_pair arm=L rep=0 pair=npu-gpu hops=4 commit_bytes=33947648 commit_us=155244
+leg_pair arm=L rep=0 pair=npu-cpu hops=47 commit_bytes=56262656 commit_us=440877
+leg_pair arm=L rep=0 pair=gpu-cpu hops=4 commit_bytes=5636096 commit_us=50672
+leg_total arm=L rep=0 generated=2048 windows=65 hops=55 commit_bytes=95846400 commit_us=646793
+hops: 56; windows by rule:      64 rule=headroom 
+== weight end Wed Oct  7 17:29:16 EDT 2026 [lvl=30 ac=false usb=false wl=false batT=397 skin=40.2 wake=Awake thermal=2 traced=0]
+# weight_1_raw.csv
+t_s,skin_c,batt_dc,wake,cpu_hr,npu_hr,gpu_hr
+0,28.8,276,Awake,57.8,46.5,45.9
+10,29.1,276,Awake,23.3,44.5,38.0
+20,30.2,276,Awake,54.3,38.5,37.6
+30,31.0,276,Awake,18.5,39.7,32.8
+40,32.2,303,Awake,20.5,34.9,29.2
+50,32.8,303,Awake,48.9,38.5,28.8
+60,33.3,303,Awake,21.7,34.5,29.2
+70,34.2,325,Awake,47.6,18.2,34.8
+80,34.7,325,Awake,27.0,17.4,32.8
+90,35.3,325,Awake,20.1,32.1,27.3
+100,36.1,342,Awake,50.1,17.8,34.8
+110,36.4,342,Awake,31.0,33.7,31.6
+120,36.8,342,Awake,46.8,18.6,33.2
+130,37.3,355,Awake,29.0,32.1,29.2
+140,37.6,355,Awake,32.7,32.9,31.6
+# weight_2_hw.csv
+t_s,skin_c,batt_dc,wake,cpu_hr,npu_hr,gpu_hr
+0,31.9,313,Awake,74.2,61.2,60.6
+10,32.0,313,Awake,60.7,30.1,45.9
+20,32.6,313,Awake,54.9,41.7,32.4
+30,33.4,324,Awake,19.7,32.9,27.6
+40,34.1,324,Awake,50.9,37.7,28.8
+50,34.8,324,Awake,23.7,35.3,31.2
+60,35.7,347,Awake,48.1,34.9,24.5
+70,36.2,347,Awake,50.3,19.4,34.0
+80,36.4,347,Awake,22.9,32.5,28.8
+90,37.0,361,Awake,49.3,17.0,33.6
+100,37.3,361,Awake,46.4,14.2,33.2
+110,37.6,361,Awake,28.6,32.9,30.0
+120,38.2,373,Awake,43.6,33.3,24.1
+130,38.5,373,Awake,30.6,31.7,28.8
+140,38.8,373,Awake,49.7,17.4,34.0
+# weight_3_hw.csv
+t_s,skin_c,batt_dc,wake,cpu_hr,npu_hr,gpu_hr
+0,31.9,315,Awake,68.7,61.6,61.0
+10,32.0,315,Awake,55.4,46.1,38.4
+20,32.7,322,Awake,47.9,17.4,36.8
+30,33.5,322,Awake,50.9,38.1,29.2
+40,34.2,322,Awake,51.5,21.0,38.4
+50,34.7,346,Awake,46.0,33.3,23.7
+60,35.8,346,Awake,32.7,35.7,34.0
+70,36.1,346,Awake,50.5,34.1,30.0
+80,36.5,363,Awake,25.4,32.1,28.0
+90,37.1,363,Awake,29.8,34.5,31.2
+100,37.6,363,Awake,46.8,33.3,23.7
+110,37.9,374,Awake,28.6,32.5,29.6
+120,38.4,374,Awake,49.1,16.2,33.6
+130,38.7,374,Awake,24.1,32.1,29.2
+140,38.9,384,Awake,31.0,32.5,30.4
+# weight_4_raw.csv
+t_s,skin_c,batt_dc,wake,cpu_hr,npu_hr,gpu_hr
+0,31.9,316,Awake,74.4,61.2,61.0
+10,32.4,316,Awake,37.9,23.8,38.0
+20,33.4,316,Awake,22.9,19.0,34.0
+30,34.2,316,Awake,20.9,19.0,30.8
+40,35.4,344,Awake,27.0,32.1,29.2
+50,36.0,344,Awake,27.0,32.5,29.6
+60,36.5,344,Awake,30.2,33.7,32.0
+70,37.2,364,Awake,27.0,32.1,29.6
+80,37.6,364,Awake,31.4,32.5,31.2
+90,38.1,364,Awake,46.0,13.4,31.2
+100,38.6,377,Awake,29.8,30.9,28.8
+110,39.0,377,Awake,44.7,15.4,29.6
+120,39.3,377,Awake,21.3,30.5,28.0
+130,39.8,389,Awake,26.6,29.3,27.6
+140,40.1,389,Awake,44.7,13.8,30.4

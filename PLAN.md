@@ -1826,6 +1826,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   CPU is the worst leg on both axes, and the NPU the best: ranking by heat per token = ranking by speed. Next:
   `--heat-weight` / `--heat-per-token` bench flags (mimo `e55937a0`), then raw vs tau 10 + heat weight
   (per-token 2.8 / 3.2 / 4.7, weight sized so the CPU's ~13 C trip advantage over NSP/GPU is cancelled) on the S23.
+- **Heat weight WORKS, S23 ABBA (`raw/session14-weight-5cb7e14a0.grep`, bench `5cb7e14a0` with `--heat-weight` /
+  `--heat-per-token`, 2048 tokens per run, all samples Awake)**: hw = tau 10 s + weight 7 x per-token NPU 2.8 / GPU
+  3.2 / CPU 4.7. From the same start skin 31.9: **hw +6.9 / +7.0 C vs raw +8.2 C** (run 1 raw started at 28.8: +8.8,
+  left out of the skin comparison); battery temp hw +6.0 / +6.9 vs raw +7.3 / +7.9. Speed equal or better: hw 15.3 /
+  15.2 tok/s vs raw 15.1 / 15.1. Tokens CPU/GPU/NPU: hw 448/608/992 and 544/608/896 vs raw 928/224/896 and
+  1024/128/896. Hops halve (25 vs 56), commit time 0.45-0.49 vs 0.65-0.73 s per 2048 tokens. So the weight moves half
+  the CPU's tokens to the GPU and cuts the skin rise ~15 % at no speed cost. n=2 per arm. The per-token constants are
+  S23 values (this device's skin per leg); another device needs its own (capability-table row is the natural home).
+  **OWNER DECISION NEEDED**: make tau 10 + this heat weight the one-copy default on the S23 row (the shipped two-model
+  path keeps v1, unchanged). Session ended at battery 30 % - phone free to charge.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
