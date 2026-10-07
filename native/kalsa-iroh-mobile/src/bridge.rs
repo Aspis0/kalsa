@@ -38,13 +38,17 @@ impl MobileBridge {
     /// already exist; on Android the app passes
     /// `<Context.filesDir>/iroh-node.key` — and bind a dial-only endpoint:
     /// no accept loop, no ALPN offered for inbound, and no pkarr
-    /// publication on the n0 road. No publication is not anonymity: on a
+    /// publication on the n0 road. mDNS listens on the LAN so the desktop
+    /// is still found when n0's relay and DNS are unreachable — the phone
+    /// never announces itself. No publication is not anonymity: on a
     /// relayed road this node still tells the relay its stable EndpointId.
     /// The dial itself is bounded by brain's 10 s dial deadline.
     #[uniffi::constructor]
     pub fn new(key_path: String) -> Result<Arc<Self>, IrohMobileError> {
         Self::start(
-            BridgeConfig::dial_only().with_relay(RelayChoice::N0Public),
+            BridgeConfig::dial_only()
+                .with_relay(RelayChoice::N0Public)
+                .with_mdns(true),
             PathBuf::from(key_path),
         )
     }

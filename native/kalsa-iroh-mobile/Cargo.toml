@@ -14,7 +14,9 @@ test-support = []
 
 [dependencies]
 # The road itself, pinned to the brain rev whose ALPN contract is frozen.
-kalsa-iroh = { git = "https://github.com/Aspis0/kalsa.git", rev = "637b2f79e2e3ad8591a6ca501084826dfcad65de" }
+# a3e41521 (origin/brain) adds the mDNS LAN road: the desktop announces on
+# the home network and this crate listens, for when n0 is unreachable.
+kalsa-iroh = { git = "https://github.com/Aspis0/kalsa.git", rev = "a3e41521f0a0f58b6e46649f9613223dd1ec8a4d" }
 # The wrapper parks FFI calls on this runtime; brain's accept loop needs it too.
 tokio = { version = "1", features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "time"] }
 # Pinned exactly: the bindings and the scaffolding must come from one version.

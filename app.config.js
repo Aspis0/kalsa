@@ -36,7 +36,13 @@ const config = {
   },
   android: {
     package: "com.kalsa.app",
-    permissions: ["android.permission.RECORD_AUDIO", "android.permission.READ_CALENDAR"],
+    permissions: [
+      "android.permission.RECORD_AUDIO",
+      "android.permission.READ_CALENDAR",
+      // mDNS reception for the iroh LAN road: Android drops multicast for
+      // apps without it; the bridge holds the MulticastLock only while it runs.
+      "android.permission.CHANGE_WIFI_MULTICAST_STATE",
+    ],
     intentFilters: [
       {
         action: "VIEW",

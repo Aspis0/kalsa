@@ -1,6 +1,7 @@
 package expo.modules.kalsairoh
 
 import android.content.Context
+import android.net.wifi.WifiManager
 import android.util.Base64
 import android.util.Log
 import expo.modules.kotlin.Promise
@@ -48,6 +49,7 @@ class KalsaIrohModule : Module() {
   private val tunnels = ConcurrentHashMap<Long, Tunnel>()
   private var pendingOpens = 0
   private val nextId = AtomicLong(0)
+  @Volatile private var multicastLock: WifiManager.MulticastLock? = null
 
   private external fun nativeInstallAndroidContext(applicationContext: Context): Boolean
 
@@ -140,6 +142,7 @@ class KalsaIrohModule : Module() {
         closeTunnels(open)
         dropBridge(current)
       }
+      dropMulticastReception()
       parking.shutdown()
       control.shutdown()
     }
@@ -219,6 +222,7 @@ class KalsaIrohModule : Module() {
     }
     if (!nativeInstallAndroidContext(applicationContext)) throw AndroidContextInitializationException()
     val started = MobileBridge(File(applicationContext.filesDir, "iroh-node.key").path)
+    holdMulticastReception(applicationContext)
     val (previous, previousTunnels) = synchronized(bridges) {
       val old = bridge
       bridge = started
@@ -241,6 +245,31 @@ class KalsaIrohModule : Module() {
     return bridge ?: throw IllegalStateException("the bridge is not started")
   }
 
+  /** Android withholds multicast from apps that hold no MulticastLock —
+   *  without it LAN discovery never hears the desktop's announcements. */
+  private fun holdMulticastReception(context: Context) {
+    if (multicastLock?.isHeld == true) return
+    try {
+      val wifi = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+      multicastLock = wifi.createMulticastLock("kalsa-iroh-mdns").apply {
+        setReferenceCounted(false)
+        acquire()
+      }
+    } catch (e: Throwable) {
+      Log.w("KalsaIroh", "multicast reception unavailable; LAN discovery cannot listen", e)
+      multicastLock = null
+    }
+  }
+
+  private fun dropMulticastReception() {
+    val lock = multicastLock ?: return
+    multicastLock = null
+    try {
+      if (lock.isHeld) lock.release()
+    } catch (_: Throwable) {
+    }
+  }
+
   /** Keep stop and open/register atomic: an accepted tunnel always keeps its bridge alive. */
   private fun stopBridge(): Boolean {
     val current = synchronized(bridges) {
@@ -251,6 +280,7 @@ class KalsaIrohModule : Module() {
       active
     }
     dropBridge(current)
+    dropMulticastReception()
     return true
   }
 
