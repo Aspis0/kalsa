@@ -134,6 +134,14 @@ try {
     equal("checklist keeps provided ids and mints the rest", provided?.blocks[0].items, [{ id: "milk", title: "Buy milk" }, { id: "item-1", title: "No id" }, { id: "item-2", title: "plain step" }]);
     const colliding = buildMiniappV1("checklist", { items: [{ id: "item-1", title: "A" }, { id: "item-1", title: "B" }] });
     equal("checklist replaces a colliding id with a minted one", colliding?.blocks[0].items.map((item) => item.id), ["item-1", "item-2"]);
+    const unsafeIds = buildMiniappV1("checklist", { items: [{ id: "__proto__", title: "A" }, { id: "constructor", title: "B" }, { id: "x".repeat(65), title: "C" }] });
+    equal("checklist mints over unsafe and over-cap ids", unsafeIds?.blocks[0].items.map((item) => item.id), ["item-1", "item-2", "item-3"]);
+    equal("quick_calculator rejects unsafe and over-cap field ids", [
+      buildMiniappV1("quick_calculator", { formula: "1", fields: [{ id: "constructor", value: 1 }] }),
+      buildMiniappV1("quick_calculator", { formula: "1", fields: [{ id: "x".repeat(65), value: 1 }] }),
+    ], [null, null]);
+    const bounded = normalizeMiniapp({ schema: "miniapp_v1", kind: "checklist", title: "T", blocks: [{ type: "checklist", items: [{ id: "a", title: "A" }] }], state: { blob: "x".repeat(70 * 1024) } });
+    check("a state past the 64 KiB guard is dropped, not the envelope", bounded?.blocks[0].items?.[0]?.title === "A" && bounded.state === undefined);
     const promoted = buildMiniappV1("checklist", {
       items: [{ title: "Step 1", body: "do it" }, { body: "Only body" }, "plain step"],
     });

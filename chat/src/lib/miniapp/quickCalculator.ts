@@ -8,7 +8,7 @@
 
 import { evaluateCalculatorFormula } from "./calculator";
 import { recordCalculatorValues } from "./state";
-import { asString, asStringCapped, envelope, isPlainObject } from "./slots";
+import { asString, asStringCapped, envelope, isPlainObject, isUnsafeId, MAX_ID_CHARS } from "./slots";
 import type { Miniapp } from "./types";
 
 /** The renderer draws at most this many inputs (the phone's MAX_CHILD_BLOCKS).
@@ -27,10 +27,12 @@ function buildCalculatorFields(
     if (!isPlainObject(field)) {
       return null;
     }
-    // Reject empty or duplicate field ids: duplicate ids collide on the
-    // renderer's per-field state key — one input overwrites the other.
+    // Reject empty, duplicate, oversized and unsafe field ids: duplicate ids
+    // collide on the renderer's per-field state key, and an unsafe one writes
+    // along the prototype chain instead of it — one input overwrites the
+    // other, or neither.
     const id = asString(field.id);
-    if (!id) return null;
+    if (!id || id.length > MAX_ID_CHARS || isUnsafeId(id)) return null;
     if (seenIds.has(id)) return null;
     seenIds.add(id);
     const entry: Record<string, unknown> = { id, label: asString(field.label) ?? id };

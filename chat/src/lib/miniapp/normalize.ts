@@ -128,7 +128,18 @@ export function normalizeMiniapp(raw: unknown): Miniapp | null {
     miniapp.actions = raw.actions.slice(0, MAX_MINIAPP_ACTIONS) as Array<Record<string, unknown>>;
   }
   if (isPlainObject(raw.computed)) miniapp.computed = raw.computed;
-  if (isPlainObject(raw.state)) miniapp.state = raw.state;
+  if (isPlainObject(raw.state)) {
+    miniapp.state = raw.state;
+    // The widgets' own state is bounded by their shapes (an item count, a
+    // field count); a stored blob that has grown past the block guard would
+    // grow the stored message without limit, so it is dropped here and the
+    // widgets start clean rather than the whole envelope degrading.
+    try {
+      if (JSON.stringify(miniapp).length > MAX_BLOCK_JSON_BYTES) delete miniapp.state;
+    } catch {
+      delete miniapp.state;
+    }
+  }
   if (isPlainObject(raw.navigation)) miniapp.navigation = raw.navigation;
   if (isPlainObject(raw.interaction)) miniapp.interaction = raw.interaction;
 
