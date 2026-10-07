@@ -170,7 +170,9 @@ fn a_cut_inside_a_sweep_keeps_what_ran_and_drops_the_rest() {
             }
         },
         &mut |report| seen.borrow_mut().push(report),
-        |_, _| first(100.0, 50.0),
+        // The off decode sits below the drafted one, so the settings run
+        // until the budget — not the sweep's stop rule — ends this shape.
+        |_, _| first(100.0, 30.0),
         |_, _| Ok(vec![50.0]),
     );
     assert!(tuned.complete);

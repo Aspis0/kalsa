@@ -25,7 +25,10 @@ fn surface_rates(shape: &Candidate) -> (f64, f64) {
 /// faster — and the card is the only shape whose history reads more than
 /// [`PREFILL_EDGE`] faster than the winner's, so the drafted lifetimes run
 /// on the winner and on the card, in that order. The two slower-reading
-/// shapes are never swept, and sixteen lifetimes become ten.
+/// shapes are never swept, and sixteen lifetimes become six: three firsts
+/// each, plus one drafted setting per swept shape — the fixture's drafts
+/// measure no faster than each shape's own off decode, so each sweep ends
+/// at its first setting.
 #[test]
 fn the_winner_and_the_faster_reading_shapes_are_swept_first_and_only_those() {
     let mixed = Candidate {
@@ -57,18 +60,15 @@ fn the_winner_and_the_faster_reading_shapes_are_swept_first_and_only_those() {
         *decodes.borrow(),
         vec![
             (ServerBackend::Cpu, Some(8), Some(2)),
-            (ServerBackend::Cpu, Some(8), Some(3)),
-            (ServerBackend::Cpu, Some(8), Some(4)),
             (ServerBackend::Vulkan, Some(16), Some(2)),
-            (ServerBackend::Vulkan, Some(16), Some(3)),
-            (ServerBackend::Vulkan, Some(16), Some(4)),
         ],
-        "the winner first, then the only shape that reads faster than it"
+        "the winner first, then the only shape that reads faster than it —\n\
+         each sweep ends at its first setting: the draft does not beat off"
     );
     assert_eq!(
         tuned.trials.len(),
-        10,
-        "four first lifetimes and two sweeps: {:?}",
+        6,
+        "four first lifetimes and two drafted settings: {:?}",
         tuned.trials
     );
     assert!(tuned.complete && !tuned.cut, "every planned lifetime ran");
@@ -95,10 +95,11 @@ fn the_winner_and_the_faster_reading_shapes_are_swept_first_and_only_those() {
             "and bought no drafted lifetime"
         );
     }
-    // Ten planned lifetimes: the two unswept shapes' sweeps leave the plan
-    // one after the other, and the last report is what ran.
+    // Six planned lifetimes: the two unswept shapes' sweeps leave the plan
+    // one after the other, each swept shape's 3 and 4 leave at its stop,
+    // and the last report is what ran.
     let seen = seen.borrow();
-    assert_eq!(seen.last(), Some(&(10, 10)), "{seen:?}");
+    assert_eq!(seen.last(), Some(&(6, 6)), "{seen:?}");
 }
 
 /// The card-only machine: the winner reads the history faster than
@@ -134,18 +135,20 @@ fn a_winner_that_reads_best_leaves_the_other_shapes_their_off_entries_only() {
     );
     assert_eq!(
         *decodes.borrow(),
-        vec![
-            (ServerBackend::Vulkan, Some(16), Some(2)),
-            (ServerBackend::Vulkan, Some(16), Some(3)),
-            (ServerBackend::Vulkan, Some(16), Some(4)),
-        ],
-        "only the winner is swept"
+        vec![(ServerBackend::Vulkan, Some(16), Some(2))],
+        "only the winner is swept — and its draft decodes at its own off
+         rate, so the sweep ends at 2"
     );
-    assert_eq!(tuned.trials.len(), 6, "three first lifetimes, one sweep");
+    assert_eq!(
+        tuned.trials.len(),
+        4,
+        "three first lifetimes and the winner's losing 2: {:?}",
+        tuned.trials
+    );
     assert!(tuned.complete && !tuned.cut);
     assert_eq!(tuned.winner.map(|win| win.candidate), Some(gpu()));
     let seen = seen.borrow();
-    assert_eq!(seen.last(), Some(&(6, 6)), "{seen:?}");
+    assert_eq!(seen.last(), Some(&(4, 4)), "{seen:?}");
 }
 
 /// The prefill bound still bites after a drafted reply has lowered the bar:

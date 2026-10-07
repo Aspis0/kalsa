@@ -126,12 +126,9 @@ fn a_pass_one_marker_runs_the_missing_shape_then_pass_two() {
     );
     assert_eq!(
         *decodes.borrow(),
-        vec![
-            (Some(16), Some(2)),
-            (Some(16), Some(3)),
-            (Some(16), Some(4))
-        ],
-        "pass two from the pooled numbers: the winner is swept alone"
+        vec![(Some(16), Some(2))],
+        "pass two from the pooled numbers: the winner is swept alone — and
+         its draft decodes at the off rate, so the sweep ends at 2"
     );
     assert!(
         tuned.complete && !tuned.cut,
@@ -145,8 +142,8 @@ fn a_pass_one_marker_runs_the_missing_shape_then_pass_two() {
     );
     assert_eq!(
         seen.last(),
-        Some(&(4, 4)),
-        "one first lifetime and three drafted ones ran: {seen:?}"
+        Some(&(2, 2)),
+        "one first lifetime and one drafted setting ran: {seen:?}"
     );
 }
 

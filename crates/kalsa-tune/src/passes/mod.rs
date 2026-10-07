@@ -220,7 +220,11 @@ where
     // winner's, largest decode saving first. The rest keep their off entries
     // and the plan lowers with the lifetimes they will never run: a reply
     // reads its history on every setting, and speculation speeds decode
-    // only. The bound below still stands on top: a reply costs at least its
+    // only — so a shape's sweep ends at its first drafted setting that is
+    // refused or does not write faster than the shape with the drafter off,
+    // and the settings behind it leave the plan (measured: a setting that
+    // loses to off is not followed by a higher n that wins). The bound below
+    // still stands on top: a reply costs at least its
     // shape's prefill, so a shape whose prefill lands beyond the best reply
     // outside [`TIE_BAND`] can no longer enter the band either.
     let order = sweep_order(&off_replies);
@@ -252,6 +256,13 @@ where
         let Some(shape_prompt) = prompt[index] else {
             continue; // the first lifetime refused: its entry is that refusal
         };
+        // Every shape in the order carries its off reply — the order is
+        // read from them — so the sweep has the drafter-off decode each
+        // drafted setting must beat.
+        let off_decode = off_replies[index]
+            .expect("the sweep order names shapes with an off reply")
+            .1
+            .decode_rate;
         if best.is_some_and(|best| prefill_seconds(shape_prompt) > best * (1.0 + TIE_BAND)) {
             let owed = resume.sweeps_left(shape, settings);
             if owed > 0 {
@@ -265,13 +276,15 @@ where
             }
             continue;
         }
-        for setting in settings {
+        for (position, setting) in settings.iter().enumerate() {
             let trial = Candidate {
                 draft: *setting,
                 ..*shape
             };
             if resume.measured(&trial) {
-                continue; // proved measured: its entry stands, nothing runs
+                // Its entry stands, nothing runs — and only a setting this
+                // start runs may end the sweep: a saved one never judges it.
+                continue;
             }
             if since_start() >= budget {
                 // Nothing behind this check can begin: every later setting
@@ -297,7 +310,10 @@ where
                 cut: false,
             });
             done += 1;
-            match decode(&trial, exe) {
+            // The rule that ends a sweep: refused, or not writing faster
+            // than this shape with the drafter off. This setting's own
+            // entry stands; the settings behind it leave the plan below.
+            let stop = match decode(&trial, exe) {
                 Ok(rates) => match best_rate(&rates)
                     .and_then(|decode_rate| Reply::from_rates(shape_prompt, decode_rate))
                 {
@@ -305,23 +321,30 @@ where
                         best =
                             Some(best.map_or(reply.seconds, |current| current.min(reply.seconds)));
                         trials.push((trial, Kept::Replied(reply)));
+                        reply.decode_rate <= off_decode
                     }
-                    None => trials.push((
+                    None => {
+                        trials.push((
+                            trial,
+                            Kept::Refused {
+                                refusal: Refusal::NoUsableAnswer,
+                                prompt_rate: Some(shape_prompt),
+                            },
+                        ));
+                        true
+                    }
+                },
+                Err(refusal) => {
+                    trials.push((
                         trial,
                         Kept::Refused {
-                            refusal: Refusal::NoUsableAnswer,
+                            refusal,
                             prompt_rate: Some(shape_prompt),
                         },
-                    )),
-                },
-                Err(refusal) => trials.push((
-                    trial,
-                    Kept::Refused {
-                        refusal,
-                        prompt_rate: Some(shape_prompt),
-                    },
-                )),
-            }
+                    ));
+                    true
+                }
+            };
             // The candidate closes: the page's bar counts these, and its
             // line names the one that just ran.
             progress(Report {
@@ -330,6 +353,30 @@ where
                 candidate: done,
                 cut: false,
             });
+            if stop {
+                // The settings behind this one were counted in the plan
+                // and will never run — the ones no marker has already
+                // answered: lower them, one report for the shape.
+                let behind = settings[position + 1..]
+                    .iter()
+                    .filter(|setting| {
+                        !resume.measured(&Candidate {
+                            draft: **setting,
+                            ..*shape
+                        })
+                    })
+                    .count();
+                if behind > 0 {
+                    planned = lower(planned, behind, done);
+                    progress(Report {
+                        done,
+                        total: planned,
+                        candidate: done,
+                        cut: false,
+                    });
+                }
+                break;
+            }
         }
     }
     // The plan as it stands: on a finished tune that is exactly what ran,
