@@ -855,6 +855,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     calculator: "Calcolatrice",
     result: "Risultato",
     formulaUnsupported: "Formula non supportata",
+    numberField: "Numero {n}",
   },
 
   quiz: {

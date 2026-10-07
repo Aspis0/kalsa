@@ -1255,7 +1255,16 @@ function CalculatorBlockView({ block, context }: { block: MiniappBlock; context:
       {fields.map((field, fieldIndex) => {
         const fieldId = toStringValue(field.id, `field_${fieldIndex}`);
         const unit = toStringValue(field.unit);
-        const label = toStringValue(field.label, fieldId) + (unit ? ` (${unit})` : "");
+        // A lifted field (id n1, n2…) carries no label: the renderer names
+        // it in the interface's language, as does a hand-written field with
+        // no label at all.
+        const lifted = /^n(\d+)$/.exec(fieldId);
+        const name =
+          toStringValue(field.label, "") ||
+          context.t("renderer.numberField", {
+            n: lifted ? Number(lifted[1]) : fieldIndex + 1,
+          });
+        const label = name + (unit ? ` (${unit})` : "");
         return (
           <NumberField
             key={fieldId}

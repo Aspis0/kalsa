@@ -25,7 +25,10 @@ export const CREATE_MINIAPP_TOOL: EngineTool = {
       "formula calculator), reading_quiz (a quiz with several questions), " +
       "kpi_strip (key metrics), checklist (ordered steps), or pros_cons (pros " +
       "vs cons) — and pass its slots. The app opens inline in the chat. Use " +
-      "this instead of writing miniapp JSON by hand.",
+      "this instead of writing miniapp JSON by hand. For quick_calculator, " +
+      "give every number the person might change a labelled field (id, label, " +
+      "value) and write the formula from those ids; a formula of bare numbers " +
+      "is split into editable Number fields automatically.",
     parameters: {
       type: "object",
       properties: {
@@ -38,7 +41,9 @@ export const CREATE_MINIAPP_TOOL: EngineTool = {
           type: "object",
           description:
             "Per-template slots: compare_data (title?, columns[], rows[]), " +
-            "quick_calculator (title?, formula, fields[]), reading_quiz " +
+            "quick_calculator (title?, formula, fields[] of {id, label, " +
+            "value} — one labelled field per number the person might change), " +
+            "reading_quiz " +
             "(title?, questions[] of {question, options[2..4], answerIndex?, " +
             "explanation?}), kpi_strip (title?, metrics[] of {label, value, " +
             "unit?, tone?}), checklist (title?, steps[] or items[]), or " +

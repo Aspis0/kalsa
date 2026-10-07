@@ -861,6 +861,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     calculator: "Calculator",
     result: "Result",
     formulaUnsupported: "Unsupported formula",
+    numberField: "Number {n}",
   },
 
   quiz: {
