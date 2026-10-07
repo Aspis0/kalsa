@@ -304,3 +304,20 @@
   color: var(--silence);
   text-decoration: line-through;
 }
+
+/* --- sortable data_table --- */
+
+.miniapp-sort {
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.miniapp-sort:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}

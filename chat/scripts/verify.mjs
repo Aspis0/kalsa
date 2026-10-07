@@ -4859,6 +4859,72 @@ const tests = {
     await browser.close();
   },
 
+  // A comparison table sorts: the header is a button, the first click sorts
+  // ascending — numbers by value, so "5" precedes "100" — the second flips
+  // to descending, and the sorted column announces itself with aria-sort.
+  async minitable() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, {});
+    await seedOnce(page, toolSettings("minitable-demo", false));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await scriptModel(
+      page,
+      [
+        [
+          {
+            id: "t1",
+            name: "create_miniapp",
+            arguments: JSON.stringify({
+              template: "compare_data",
+              slots: {
+                title: "Plans",
+                columns: ["Plan", "Storage"],
+                rows: [
+                  { Plan: "Pro", Storage: "100" },
+                  { Plan: "Free", Storage: "5" },
+                  { Plan: "Max", Storage: "20" },
+                ],
+              },
+            }),
+          },
+        ],
+      ],
+      "Table built.",
+    );
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Compare the plans.", "Table built.");
+
+    const table = page.locator(".miniapp table");
+    const storage = table.locator("thead th").nth(1);
+    check("minitable: the header is a button", (await storage.locator("button").count()) === 1);
+    const cells = async () => (await table.locator("tbody td").allTextContents());
+    await storage.locator("button").click();
+    check(
+      "minitable: numeric ascending sorts by value",
+      JSON.stringify(await cells()) === JSON.stringify(["Free", "5", "Max", "20", "Pro", "100"]),
+      JSON.stringify(await cells()),
+    );
+    check("minitable: the sorted column says so", (await storage.getAttribute("aria-sort")) === "ascending");
+    await storage.locator("button").click();
+    check(
+      "minitable: the second click flips to descending",
+      JSON.stringify(await cells()) === JSON.stringify(["Pro", "100", "Max", "20", "Free", "5"]),
+      JSON.stringify(await cells()),
+    );
+    check("minitable: aria-sort follows the flip", (await storage.getAttribute("aria-sort")) === "descending");
+    await table.locator("thead th").nth(0).locator("button").click();
+    check(
+      "minitable: a text column sorts by text",
+      JSON.stringify(await cells()) === JSON.stringify(["Free", "5", "Max", "20", "Pro", "100"]),
+      JSON.stringify(await cells()),
+    );
+    check("minitable: only one column claims aria-sort", (await table.locator("thead th[aria-sort]").count()) === 1);
+
+    await browser.close();
+  },
+
   // The switch is off, so web_search is not offered. A model can still ask
   // for it from its training priors; the call must not reach the network. It
   // becomes a refused run that reads why, and the turn goes on to an answer.

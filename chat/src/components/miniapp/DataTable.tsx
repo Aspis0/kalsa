@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { asArray, asRecord, asText } from "./values";
 
 /**
  * A `data_table` block, capped the way the phone renderer caps it: 50 rows,
  * 12 columns. Columns may be plain strings (compare_data) or {key,label}
  * records (pros_cons); rows may be objects keyed by column key, or arrays.
+ * A header is a button: clicking it sorts by that column, ascending then
+ * descending — cells that read as numbers by value, everything else by text.
  */
 
 const MAX_TABLE_ROWS = 50;
@@ -56,8 +59,31 @@ function normalizeTable(block: Record<string, unknown>): {
   };
 }
 
+/** Cells that read as numbers compare by value — "2" before "10" — after the
+ *  decimal-comma forgiveness the inputs themselves get; an empty or partly
+ *  numeric cell makes the pair plain text. */
+function compareCells(a: string, b: string): number {
+  const number = (cell: string): number =>
+    cell.trim() === "" ? Number.NaN : Number(cell.trim().replace(",", "."));
+  const na = number(a);
+  const nb = number(b);
+  if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+  return a.localeCompare(b);
+}
+
 export function DataTable({ block }: { block: Record<string, unknown> }) {
   const table = normalizeTable(block);
+  const [sort, setSort] = useState<{ at: number; dir: "asc" | "desc" } | null>(null);
+  const rows = sort
+    ? [...table.rows].sort((a, b) =>
+        sort.dir === "asc" ? compareCells(a[sort.at] ?? "", b[sort.at] ?? "") : compareCells(b[sort.at] ?? "", a[sort.at] ?? ""),
+      )
+    : table.rows;
+  const toggleSort = (at: number): void =>
+    setSort((current) =>
+      current?.at === at ? { at, dir: current.dir === "asc" ? "desc" : "asc" } : { at, dir: "asc" },
+    );
+
   return (
     <div className="miniapp-block">
       <p className="miniapp-block-title">{asText(block.title, "Table")}</p>
@@ -66,15 +92,21 @@ export function DataTable({ block }: { block: Record<string, unknown> }) {
           <table className="miniapp-table">
             <thead>
               <tr>
-                {table.columns.map((column) => (
-                  <th key={column.key} scope="col">
-                    {column.label}
-                  </th>
-                ))}
+                {table.columns.map((column, at) => {
+                  const sorted = sort?.at === at ? (sort.dir === "asc" ? "ascending" : "descending") : undefined;
+                  return (
+                    <th key={column.key} scope="col" aria-sort={sorted}>
+                      <button type="button" className="miniapp-sort" onClick={() => toggleSort(at)}>
+                        {column.label}
+                        {sorted === "ascending" ? " ▲" : sorted === "descending" ? " ▼" : ""}
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {table.rows.map((row, rowIndex) => (
+              {rows.map((row, rowIndex) => (
                 <tr key={rowIndex}>
                   {row.map((cell, cellIndex) => (
                     <td key={cellIndex}>{cell}</td>
