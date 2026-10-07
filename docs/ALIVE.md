@@ -1037,6 +1037,17 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   0 divergences; NPU leg (J(1)) 19.5 tok/s, GPU leg 15.5, CPU 13-15; a hop costs 0.3-16 ms.
 - 2026-10-06 hop v2 free-running on the S23 (one model, fed sysfs headroom): decides by headroom, npu/cpu alternation,
   KL PASS; GPU never chosen; raw min-zone headroom too noisy for a pure headroom rule - weighting is the owner's call.
+  (Corrected 2026-10-07: no "NPU-return preference" exists; the GPU was present and lost to the 4 C hysteresis - I
+  had paired the bench's headroom lines with the wrong windows.)
+- 2026-10-06/07 step 6 (binding, `spike/onecopy-legs` on the fork, app pin NOT moved): capability table (all three
+  legs or nothing), one-model load, GPU thermal leg; audit fixes incl. engine `b60dbbfb0` J(1) fence (the one-model
+  governor refuses to start if OpenCL does not admit the tied Q6_K output) - S23: fence admits J(1), KL PASS.
+- 2026-10-07 governor costs nothing per token: same one-copy load, plain context 16.4 vs governor NPU leg 19.0 tok/s.
+- 2026-10-07 decode heat per leg on the S23 (skin C per 1k tokens): NPU 2.8, GPU 3.2, CPU 4.7 - CPU worst on heat
+  and speed. Headroom smoothing ALONE made things worse (parks on the CPU, whose 108 C trip makes it look cool);
+  smoothing + heat weight (7 x those constants): skin rise -15 % at equal speed, half the hops (ABBA n=2).
+- Owner 2026-10-07: smoothing + heat weight becomes the one-copy default on the S23 capability row (per-device
+  constants); the shipped two-model path keeps v1.
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.
