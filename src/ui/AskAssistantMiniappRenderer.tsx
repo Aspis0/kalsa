@@ -11,6 +11,7 @@ import { normalizeMiniappBlock } from "../domain/askAssistant";
 import { ChecklistBlockView } from "./blocks/ChecklistBlock";
 import { computeStatistics, convertVolumeDensityToMass, fitRegression } from "../domain/miniappMathCore";
 import { evaluateCalculatorFormula } from "../domain/miniappCalculator";
+import { calculatorValues, recordCalculatorValues } from "../domain/miniappState";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import type { ThemeColors } from "../theme/palettes";
 import { QuizBlockView } from "./blocks/QuizBlock";
@@ -80,6 +81,7 @@ type Props = {
 type ComputedMiniapp = Record<string, unknown>;
 
 type RendererContext = {
+  blockKey: string;
   colors: Props["colors"];
   computed: ComputedMiniapp;
   inputs: Record<string, number>;
@@ -1145,7 +1147,7 @@ function TabsBlockView({ block, context, depth }: { block: MiniappBlock; context
             <MiniappBlockRenderer
               key={`tab-${safeIndex}-${childIndex}`}
               block={child}
-              context={{ ...context, index: childIndex }}
+              context={{ ...context, index: childIndex, blockKey: `${context.blockKey}.${childIndex}` }}
               depth={depth + 1}
             />
           ))
@@ -1185,7 +1187,7 @@ function ExpandableBlockView({ block, context, depth }: { block: MiniappBlock; c
             <MiniappBlockRenderer
               key={`${block.type || "expandable"}-${childIndex}`}
               block={child}
-              context={{ ...context, index: childIndex }}
+              context={{ ...context, index: childIndex, blockKey: `${context.blockKey}.${childIndex}` }}
               depth={depth + 1}
             />
           ))
@@ -1199,16 +1201,43 @@ function ExpandableBlockView({ block, context, depth }: { block: MiniappBlock; c
 
 function CalculatorBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   const fields = asArray(block.fields, MAX_CHILD_BLOCKS).map(asRecord);
-  const [values, setValues] = useState<Record<string, number>>(() => {
-    const seed: Record<string, number> = {};
+  const stored = calculatorValues(context.state);
+  // What the inputs hold is TEXT: parsing on every keystroke would eat the
+  // dot of "1." and snap "-" back the moment it is typed. The numbers the
+  // formula reads are derived, and only those are persisted.
+  const [texts, setTexts] = useState<Record<string, string>>(() => {
+    const seed: Record<string, string> = {};
     fields.forEach((field, index) => {
       const id = toStringValue(field.id, `field_${index}`);
-      seed[id] = toNumber(field.value);
+      const remembered = stored?.[id];
+      seed[id] = remembered !== undefined ? String(remembered) : toStringValue(field.value, "");
     });
     return seed;
   });
   const formula = toStringValue(block.formula ?? block.expr, "");
-  const live = formula ? evaluateCalculatorFormula(formula, values) : null;
+
+  /** The numbers the formula reads from the raw texts; a comma is a decimal
+   *  mark, as the phone's inputs write it. */
+  const parseAll = (source: Record<string, string>): Record<string, number> => {
+    const numbers: Record<string, number> = {};
+    for (const [id, raw] of Object.entries(source)) {
+      const parsed = toNumber(raw, Number.NaN);
+      if (Number.isFinite(parsed)) numbers[id] = parsed;
+    }
+    return numbers;
+  };
+
+  const edit = (id: string, raw: string) => {
+    const next = { ...texts, [id]: raw };
+    setTexts(next);
+    const numbers = parseAll(next);
+    const live = formula ? evaluateCalculatorFormula(formula, numbers) : null;
+    context.onStateChange(
+      recordCalculatorValues(context.state, numbers, live && live.ok ? live.value : null),
+    );
+  };
+
+  const live = formula ? evaluateCalculatorFormula(formula, parseAll(texts)) : null;
   let displayValue: string;
   if (live && live.ok) {
     displayValue = formatMiniappNumber(live.value, 4);
@@ -1231,14 +1260,9 @@ function CalculatorBlockView({ block, context }: { block: MiniappBlock; context:
           <NumberField
             key={fieldId}
             label={label}
-            onChange={(value) =>
-              setValues((current) => ({
-                ...current,
-                [fieldId]: toNumber(value, current[fieldId]),
-              }))
-            }
+            onChange={(value) => edit(fieldId, value)}
             styles={context.styles}
-            value={values[fieldId] ?? toNumber(field.value)}
+            value={texts[fieldId] ?? toStringValue(field.value, "")}
           />
         );
       })}
@@ -1592,7 +1616,14 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
     capabilities: { interactive: true, stateful: true },
     visual: { accent: "indigo", density: "comfortable", liquidGlassSurface: "frosted_panel", motion: "state_transition", role: "quiz" },
     render: ({ block, context }) => (
-      <QuizBlockView block={block} styles={context.styles} t={context.t} />
+      <QuizBlockView
+        block={block}
+        blockKey={context.blockKey}
+        onStateChange={context.onStateChange}
+        state={context.state}
+        styles={context.styles}
+        t={context.t}
+      />
     ),
   }),
   quality_panel: defineMiniappBlock({
@@ -2120,6 +2151,7 @@ export function AskAssistantMiniappRenderer({
   };
 
   const blockContext: RendererContext = {
+    blockKey: "0",
     colors,
     computed,
     index: 0,
@@ -2132,9 +2164,9 @@ export function AskAssistantMiniappRenderer({
     setInput,
     styles,
   };
-  const visibleBlocks = asArray<MiniappBlock>(localMiniapp.blocks, MAX_CHILD_BLOCKS).filter((block) =>
-    isBlockVisibleInActiveView(block, activeView),
-  );
+  const visibleBlocks = asArray<MiniappBlock>(localMiniapp.blocks, MAX_CHILD_BLOCKS)
+    .map((block, envelopeIndex) => ({ block, envelopeIndex }))
+    .filter(({ block }) => isBlockVisibleInActiveView(block, activeView));
 
   return (
     <GlassSurface colors={colors} styles={styles} variant={glassVariant}>
@@ -2170,8 +2202,8 @@ export function AskAssistantMiniappRenderer({
           </View>
         ) : null}
 
-        {visibleBlocks.map((block, index) => (
-          <MiniappBlockRenderer key={`${toStringValue(block.type, "block")}-${index}`} block={asRecord(block)} context={{ ...blockContext, index }} depth={0} />
+        {visibleBlocks.map(({ block, envelopeIndex }, index) => (
+          <MiniappBlockRenderer key={`${toStringValue(block.type, "block")}-${index}`} block={asRecord(block)} context={{ ...blockContext, index, blockKey: String(envelopeIndex) }} depth={0} />
         ))}
 
         {statusText ? (
@@ -2228,7 +2260,9 @@ function NumberField({
   label: string;
   onChange: (value: string) => void;
   styles: Record<string, any>;
-  value: number;
+  /** Raw text or a number: the calculator shows the text as typed ("1.",
+   *  "-" survive), the input panel shows its number. */
+  value: string | number;
 }) {
   return (
     <View style={styles.miniappInputCard}>

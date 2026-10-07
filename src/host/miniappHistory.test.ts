@@ -11,6 +11,7 @@
 import { normalizeMiniapp } from "../domain/askAssistant";
 import { buildPersistableMessages, sanitizeHistoryMessages } from "./historyMessages";
 import { toTranscriptMessage, type MapperOptions } from "./messageMapper";
+import { validateHistoryMessages } from "./turnCorpus";
 import type { Message } from "./hostMessage";
 
 const opts: MapperOptions = { thinkingStatus: "Thinking" };
@@ -178,5 +179,52 @@ describe("the widget state rides the envelope (save → restore → save)", () =
       ],
     });
     expect(restored[0].miniapp?.state).toEqual({ checked: { "1": true } });
+  });
+});
+
+describe("the state a later turn's history carries", () => {
+  const tickedList: Message = {
+    id: "a1",
+    role: "assistant",
+    text: "Here is your list.",
+    createdAt: 8,
+    miniapp: normalizeMiniapp({
+      schema: "miniapp_v1",
+      kind: "checklist",
+      title: "Groceries",
+      blocks: [
+        {
+          type: "checklist",
+          items: [
+            { id: "milk", title: "Milk" },
+            { id: "eggs", title: "Eggs" },
+          ],
+        },
+      ],
+      state: { checked: { milk: true } },
+    }) as Message["miniapp"],
+  };
+
+  test("the injected history text carries [x]", () => {
+    const [rec] = validateHistoryMessages([tickedList]);
+    expect(rec.text).toBe("Here is your list.\n[x] Milk\n[ ] Eggs");
+  });
+
+  test("modelEmittedText — the string both engines replay — carries it too", () => {
+    const [rec] = validateHistoryMessages([
+      { ...tickedList, modelEmittedText: "Here is your list." },
+    ]);
+    expect(rec.modelEmittedText).toBe("Here is your list.\n[x] Milk\n[ ] Eggs");
+    // Provenance travels with the string, unchanged.
+    expect(rec.emissionSource).toBeUndefined();
+  });
+
+  test("a message without a miniapp, and a user turn, carry no state lines", () => {
+    const [plain] = validateHistoryMessages([{ ...tickedList, miniapp: undefined }]);
+    expect(plain.text).toBe("Here is your list.");
+    const [user] = validateHistoryMessages([
+      { id: "u1", role: "user", text: "make me a list", createdAt: 7, miniapp: tickedList.miniapp },
+    ]);
+    expect(user.text).toBe("make me a list");
   });
 });

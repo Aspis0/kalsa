@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { Pressable, Text, View } from "react-native";
 
+import { quizAnswer, recordQuizAnswer } from "../../domain/miniappState";
 import type { TranslateFn } from "../../i18n";
 
 type QuizBlockData = {
@@ -13,6 +14,11 @@ type QuizBlockData = {
 
 type Props = {
   block: QuizBlockData;
+  /** The block's position in the envelope's `blocks` — the key its answer is stored under. */
+  blockKey: string;
+  onStateChange: (state: Record<string, unknown>) => void;
+  /** The envelope's `state`; the pick and its grade live in `state.quiz[blockKey]`. */
+  state: Record<string, unknown>;
   styles: Record<string, any>;
   t: TranslateFn;
 };
@@ -46,33 +52,39 @@ function normalizeAnswerIndex(raw: unknown, optionCount: number): number | null 
 }
 
 /**
- * Interactive multiple-choice quiz block.
- * Local state only: select → Check → feedback → Retry.
+ * Interactive multiple-choice quiz block, driven by the envelope's state:
+ * select → Check → feedback → Retry, every step written through so a reload
+ * shows the graded view the person left.
  * answerIndex is never shown until the user checks (and only when gradable).
  * When answerIndex is null, Check reports "answer not available" without grading.
  */
-export function QuizBlockView({ block, styles, t }: Props) {
+export function QuizBlockView({ block, blockKey, onStateChange, state, styles, t }: Props) {
   const question = toText(block.question ?? block.title, t("quiz.questionFallback"));
   const options = normalizeOptions(block.options);
   const answerIndex = normalizeAnswerIndex(block.answerIndex, options.length);
   const explanation = toText(block.explanation, "");
   const gradable = answerIndex !== null;
 
-  const [selected, setSelected] = useState<number | null>(null);
-  const [checked, setChecked] = useState(false);
+  const stored = quizAnswer(state, blockKey);
+  const selected = stored?.picked ?? null;
+  const checked = stored?.checked ?? false;
 
   const isCorrect = checked && gradable && selected === answerIndex;
   const isWrong = checked && gradable && selected !== null && selected !== answerIndex;
   const notGradable = checked && !gradable;
 
+  /** One write-through: the next pick, ungraded. */
+  const pick = (index: number) => {
+    onStateChange(recordQuizAnswer(state, blockKey, index, false, index === answerIndex));
+  };
+
   const onCheck = () => {
     if (selected === null) return;
-    setChecked(true);
+    onStateChange(recordQuizAnswer(state, blockKey, selected, true, selected === answerIndex));
   };
 
   const onRetry = () => {
-    setSelected(null);
-    setChecked(false);
+    onStateChange(recordQuizAnswer(state, blockKey, null, false, false));
   };
 
   // Zero options: no selectable answers — show answer-not-available fallback (not a dead end UI).
@@ -118,7 +130,7 @@ export function QuizBlockView({ block, styles, t }: Props) {
               accessibilityState={{ checked: isSelected, disabled: checked, selected: isSelected }}
               disabled={checked}
               key={`quiz-opt-${index}`}
-              onPress={() => setSelected(index)}
+              onPress={() => pick(index)}
               style={({ pressed }) => [
                 styles.miniappQuizOption,
                 // Keep selection tint after check when answer is not gradable

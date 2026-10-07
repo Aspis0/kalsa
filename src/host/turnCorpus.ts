@@ -21,6 +21,7 @@ import {
   type HistoryRoleMessage,
 } from "../context/compactor";
 import { RetrieverIndex } from "../context/retriever";
+import { miniappStateLines } from "../domain/miniappStateText";
 import { readModelEmittedText } from "../engine/modelEmittedText";
 import { remoteAttachmentImageUris } from "./attachments";
 import type { LocalAttachment } from "./hostMessage";
@@ -244,12 +245,25 @@ export function validateHistoryMessages(
         role === "user"
           ? remoteAttachmentImageUris((m as { attachments?: LocalAttachment[] }).attachments)
           : [];
-      const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
+      // The mini-app's widget state rides the message as plain lines, so a
+      // later turn reads where the person left the ticks, the picked answer
+      // and the edited values — appended to BOTH strings the engines replay
+      // (the model reads modelEmittedText when present, content otherwise).
+      // Transient: the stored record keeps its own text untouched.
+      const stateLines =
+        role === "assistant" && (m as { miniapp?: unknown }).miniapp
+          ? miniappStateLines((m as { miniapp?: unknown }).miniapp)
+          : [];
+      const stateText = stateLines.length > 0 ? `\n${stateLines.join("\n")}` : "";
+      const rec: HistoryRoleMessage & { edited?: boolean } = {
+        role,
+        text: text + stateText,
+      };
       if (images.length > 0) rec.images = images;
       if (interrupted !== undefined) rec.interrupted = interrupted;
       if (edited !== undefined) rec.edited = edited;
       if (modelEmittedText !== undefined) {
-        rec.modelEmittedText = modelEmittedText;
+        rec.modelEmittedText = modelEmittedText + stateText;
         if (emissionSource !== undefined) rec.emissionSource = emissionSource;
       }
       out.push(rec);
