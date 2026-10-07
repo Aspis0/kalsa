@@ -1819,7 +1819,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (`decode_heat_weight` x `decode_heat_per_token_{cpu,gpu,npu}`, default 0). GPU burst adds GPU windows (320 vs 96)
   but does not move skin at n=1. First attempt (`raw/session10-heat-attempt1-482ae4717.grep`) INVALID: the S23 sat
   on its lock screen (short keyguard timeout) and fell to Dozing; HTP dspqueue_write failed at token 3936 after it.
-- **Governor overhead, not priced yet**: ABBA arm A `--dev HTP0` (plain context, two-copy) 18.2 -> 15.6 tok/s across
+- **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
+  `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
+  depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
+  19.11 (mean 19.0). The governor arm is FASTER, so the governor adds no per-token cost the app would pay; arm A's
+  plain path in this bench is slower for its own reasons (n_ctx 2304 for its 3 turns vs 776, its decode loop), not
+  priced further. The bench-vs-llama-bench gap (19.0 vs 21.4-21.7) stays a harness difference. The first overhead run
+  (arm_env_legs) gave arm A 5.7 tok/s: a plain context gets no HTP admission word without the env - my script error.
+- **Governor overhead (superseded by the line above)**: ABBA arm A `--dev HTP0` (plain context, two-copy) 18.2 -> 15.6 tok/s across
   its 3 turns vs arm L forced NPU leg 19.7 / 19.6. Arm A on HTP0 alone is not the J(1) device list (its lm_head likely
   runs on the CPU), so this does NOT price the governor. Needed: arm A over {HTP0, GPUOpenCL} with the one-copy env
   (= llama-bench H, 21.4-21.7).

@@ -1,0 +1,23 @@
+# S23 2026-10-07 14:25-14:39 EDT, unplugged, unlocked, bench 3a7fbec44 sha 61b9f4576384, ABBA x2, both arms arm_env_shared; arm A = plain context over {HTP0,GPUOpenCL} one-copy, 3 turns of 512+256 (turn 0 at KV depth 512->767); arm L = one-copy governor forced NPU leg, one turn, same depth
+== overhead start Wed Oct  7 14:25:53 EDT 2026 binary 61b9f4576384 [lvl=61 ac=false usb=false wl=false batT=273 skin=28.5 wake=Awake thermal=0 traced=0]
+## 1 arm=A exit=0 [lvl=61 ac=false usb=false wl=false batT=296 skin=31.0 wake=Awake thermal=0 traced=0]
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0,GPUOpenCL decode_backend=HTP0,GPUOpenCL ttft_ms=807.048 decode_tps=16.572 prefill_ms=805.278 seed=1234
+## 2 arm=L exit=0 [lvl=60 ac=false usb=false wl=false batT=297 skin=31.3 wake=Awake thermal=0 traced=0]
+leg_summary arm=L rep=0 engine=npu tokens=255 us=13364315 tps=19.081
+## 3 arm=L exit=0 [lvl=60 ac=false usb=false wl=false batT=297 skin=31.4 wake=Awake thermal=0 traced=0]
+leg_summary arm=L rep=0 engine=npu tokens=255 us=13482518 tps=18.913
+## 4 arm=A exit=0 [lvl=59 ac=false usb=false wl=false batT=312 skin=32.8 wake=Awake thermal=0 traced=0]
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0,GPUOpenCL decode_backend=HTP0,GPUOpenCL ttft_ms=801.480 decode_tps=16.917 prefill_ms=799.831 seed=1234
+## 5 arm=A exit=0 [lvl=59 ac=false usb=false wl=false batT=323 skin=33.8 wake=Awake thermal=0 traced=0]
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0,GPUOpenCL decode_backend=HTP0,GPUOpenCL ttft_ms=801.461 decode_tps=16.291 prefill_ms=799.781 seed=1234
+## 6 arm=L exit=0 [lvl=58 ac=false usb=false wl=false batT=317 skin=33.0 wake=Awake thermal=0 traced=0]
+leg_summary arm=L rep=0 engine=npu tokens=255 us=13386887 tps=19.048
+## 7 arm=L exit=0 [lvl=58 ac=false usb=false wl=false batT=321 skin=32.7 wake=Awake thermal=0 traced=0]
+leg_summary arm=L rep=0 engine=npu tokens=255 us=13346466 tps=19.106
+## 8 arm=A exit=0 [lvl=58 ac=false usb=false wl=false batT=326 skin=34.2 wake=Awake thermal=0 traced=0]
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/heat3way/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0,GPUOpenCL decode_backend=HTP0,GPUOpenCL ttft_ms=803.271 decode_tps=15.924 prefill_ms=801.638 seed=1234
+== overhead end Wed Oct  7 14:39:11 EDT 2026 [lvl=57 ac=false usb=false wl=false batT=337 skin=33.2 wake=Awake thermal=0 traced=0]
+ovh3_1_A.log turn=0 tps=16.572 turn=1 tps=14.389 turn=2 tps=13.754 
+ovh3_4_A.log turn=0 tps=16.917 turn=1 tps=14.668 turn=2 tps=13.711 
+ovh3_5_A.log turn=0 tps=16.291 turn=1 tps=14.633 turn=2 tps=13.668 
+ovh3_8_A.log turn=0 tps=15.924 turn=1 tps=14.294 turn=2 tps=13.862 
