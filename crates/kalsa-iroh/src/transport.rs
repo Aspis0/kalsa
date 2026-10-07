@@ -242,39 +242,42 @@ fn mdns_enabled(relay: &RelayChoice, mdns: Option<bool>) -> bool {
     mdns.unwrap_or(!matches!(relay, RelayChoice::Disabled))
 }
 
-/// One mDNS discovery per node id per process, shared by every endpoint
-/// bind. swarm-discovery 0.6.3's updater leaves a 10 ms respawn loop
-/// behind once its actor is gone (src/updater.rs:15-21), and the road
-/// runtime outlives the endpoints — the desktop's is process-wide and the
-/// door is rebuilt on every raise — so a per-bind discovery would leak one
-/// ~100 Hz wakeup per raise, forever. Holding the lookup here keeps its
-/// actors alive for the process; endpoint close only drops its clone
-/// (iroh clears its boxed lookups, and the `AddressLookup` trait has no
-/// shutdown), and a later bind reuses the same actors, which re-announce
-/// the new endpoint's port — iroh publishes on every address change.
-/// Two costs, accepted: the discovery runs on the first bind's runtime
-/// and assumes that runtime outlives the endpoints (true of the desktop's
-/// static road runtime and the phone's shared one), and the first bind
-/// for an id fixes whether it announces.
-static LAN_DISCOVERY: OnceLock<Mutex<HashMap<EndpointId, MdnsAddressLookup>>> = OnceLock::new();
+/// One mDNS discovery per node id and announce mode per process, shared by
+/// every endpoint bind. swarm-discovery 0.6.3's updater leaves a 10 ms
+/// respawn loop behind once its actor is gone (src/updater.rs:15-21), and
+/// the road runtime outlives the endpoints — the desktop's is process-wide
+/// and the door is rebuilt on every raise — so a per-bind discovery would
+/// leak one ~100 Hz wakeup per raise, forever. Holding the lookup here
+/// keeps its actors alive for the process; endpoint close only drops its
+/// clone (iroh clears its boxed lookups, and the `AddressLookup` trait has
+/// no shutdown), and a later bind reuses the same actors, which re-announce
+/// the new endpoint's port — iroh publishes on every address change. The
+/// key carries the announce mode so a listen-only bind can never be handed
+/// an announcing lookup; two actors for one id (a process that both serves
+/// and dials under one id) are the accepted cost, and each real process —
+/// the desktop serving, the phone dialing — uses one mode per id. One more
+/// cost, accepted: the discovery runs on the first bind's runtime and
+/// assumes that runtime outlives the endpoints (true of the desktop's
+/// static road runtime and the phone's shared one).
+static LAN_DISCOVERY: OnceLock<Mutex<HashMap<(EndpointId, bool), MdnsAddressLookup>>> = OnceLock::new();
 
-/// A clone of this node id's discovery, building it on first use. `None`
-/// means the LAN road is off for this bind: either the discovery cannot
-/// start on this network, or the cache lock is poisoned — both warned
-/// here, never fatal, and a failed build is not cached, so the next bind
-/// retries it.
+/// A clone of this node id's discovery in the asked mode, building it on
+/// first use. `None` means the LAN road is off for this bind: either the
+/// discovery cannot start on this network, or the cache lock is poisoned —
+/// both warned here, never fatal, and a failed build is not cached, so the
+/// next bind retries it.
 fn lan_discovery(id: EndpointId, advertise: bool) -> Option<MdnsAddressLookup> {
     let cache = LAN_DISCOVERY.get_or_init(Mutex::default);
     let Ok(mut cache) = cache.lock() else {
         warn!("the mDNS cache lock is poisoned; the endpoint continues without LAN discovery");
         return None;
     };
-    if let Some(lookup) = cache.get(&id) {
+    if let Some(lookup) = cache.get(&(id, advertise)) {
         return Some(lookup.clone());
     }
     match MdnsAddressLookup::builder().advertise(advertise).build(id) {
         Ok(lookup) => {
-            cache.insert(id, lookup.clone());
+            cache.insert((id, advertise), lookup.clone());
             Some(lookup)
         }
         Err(e) => {
@@ -535,7 +538,41 @@ async fn forward_stream(
 
 #[cfg(test)]
 mod tests {
-    use super::{endpoint_builder, mdns_enabled, RelayChoice, ALPN, DESK_ALPN};
+    use super::{
+        endpoint_builder, endpoint_id, id_of, lan_discovery, mdns_enabled, LAN_DISCOVERY,
+        RelayChoice, ALPN, DESK_ALPN,
+    };
+    use crate::key::NodeKey;
+
+    // The cache key must carry the announce mode: an advertising bind
+    // first, then a dial-only bind for the same id, must build its own
+    // listen-only lookup rather than reuse the announcing one — privacy
+    // fails closed. The lookup exposes no mode getter, so the proof is
+    // the cache holding both entries for the one id.
+    #[tokio::test]
+    async fn a_dial_only_bind_never_reuses_an_advertising_discovery() {
+        let key = NodeKey::generate().expect("entropy");
+        let id = endpoint_id(&id_of(&key)).expect("a valid curve point");
+
+        assert!(
+            lan_discovery(id, true).is_some(),
+            "the advertising lookup builds"
+        );
+        assert!(
+            lan_discovery(id, false).is_some(),
+            "the listen-only lookup builds separately"
+        );
+
+        let cache = LAN_DISCOVERY
+            .get()
+            .expect("initialized by the calls above")
+            .lock()
+            .expect("unpoisoned");
+        assert!(
+            cache.contains_key(&(id, true)) && cache.contains_key(&(id, false)),
+            "one id, one entry per announce mode: {cache:?}"
+        );
+    }
 
     // The mDNS default is the road's, and an explicit choice always wins.
     // Decided here, without touching a network: building the real lookup
