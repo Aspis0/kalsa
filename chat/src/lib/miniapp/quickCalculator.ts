@@ -42,11 +42,12 @@ function buildCalculatorFields(
   return out;
 }
 
-/** Coerce a field value to a finite number, else undefined. */
+/** Coerce a field value to a finite number, else undefined. A string value
+ *  may write its decimal with a comma, as the phone's inputs do. */
 function toNumber(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
-  if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value.trim())) {
-    const n = Number(value);
+  if (typeof value === "string" && /^-?\d+([.,]\d+)?$/.test(value.trim())) {
+    const n = Number(value.trim().replace(",", "."));
     return Number.isFinite(n) ? n : undefined;
   }
   return undefined;

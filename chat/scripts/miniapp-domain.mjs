@@ -57,6 +57,8 @@ try {
     check("quick_calculator builds a calculator", miniapp !== null && miniapp.blocks[0].type === "calculator");
     check("quick_calculator keeps its fields", Array.isArray(miniapp?.blocks[0].fields));
     check("quick_calculator accepts a bare arithmetic formula", buildMiniappV1("quick_calculator", { formula: "2 + 3 * 4" }) !== null);
+    const comma = buildMiniappV1("quick_calculator", { formula: "a * b", fields: [{ id: "a", value: "12,5" }, { id: "b", value: 2 }] });
+    equal("a comma-decimal string field value parses", comma?.state, { calculator: { fields: { a: 12.5, b: 2 }, result: 25 } });
     equal("quick_calculator rejects missing formula", [
       buildMiniappV1("quick_calculator", { fields: [] }),
       buildMiniappV1("quick_calculator", {}),

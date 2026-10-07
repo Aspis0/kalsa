@@ -4708,6 +4708,22 @@ const tests = {
     await calculator.locator(".miniapp-input").first().fill("2000");
     check("miniapp: editing an input recomputes", ((await calculator.locator(".miniapp-result").textContent()) ?? "").trim() === "100");
 
+    // Typing, not pasting: the dash of a negative and the decimal marks must
+    // survive their own keystroke instead of snapping back or losing the dot.
+    const typed = calculator.locator(".miniapp-input").first();
+    await typed.fill("");
+    await typed.pressSequentially("-", { delay: 20 });
+    check("miniapp: a lone dash stays in the input", (await typed.inputValue()) === "-", await typed.inputValue());
+    await typed.pressSequentially("2", { delay: 20 });
+    check("miniapp: a negative typed digit by digit computes", ((await calculator.locator(".miniapp-result").textContent()) ?? "").trim() === "-0.1");
+    await typed.fill("");
+    await typed.pressSequentially("0,5", { delay: 20 });
+    check(
+      "miniapp: a comma decimal stays and computes",
+      (await typed.inputValue()) === "0,5" && ((await calculator.locator(".miniapp-result").textContent()) ?? "").trim() === "0.025",
+      `${await typed.inputValue()} → ${(await calculator.locator(".miniapp-result").textContent()) ?? ""}`,
+    );
+
     const quiz = page.locator(".miniapp").nth(1);
     await quiz.locator(".miniapp-quiz-option").nth(1).click();
     await quiz.locator(".miniapp-button").click();
