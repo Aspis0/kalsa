@@ -6,9 +6,7 @@
 
 import { buildChecklist } from "./checklist";
 import { buildCompareData } from "./compareData";
-import { buildKpiStrip } from "./kpiStrip";
 import { normalizeMiniapp } from "./normalize";
-import { buildProsCons } from "./prosCons";
 import { buildQuickCalculator } from "./quickCalculator";
 import { buildNQuestionQuiz } from "./readingQuiz";
 import { isPlainObject } from "./slots";
@@ -46,14 +44,8 @@ export function buildMiniappV1(templateId: string, slots: unknown): Miniapp | nu
     case "reading_quiz":
       built = buildNQuestionQuiz(safeSlots);
       break;
-    case "kpi_strip":
-      built = buildKpiStrip(safeSlots);
-      break;
     case "checklist":
       built = buildChecklist(safeSlots);
-      break;
-    case "pros_cons":
-      built = buildProsCons(safeSlots);
       break;
     default:
       return null;

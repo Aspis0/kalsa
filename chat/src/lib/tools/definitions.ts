@@ -27,13 +27,13 @@ export const CREATE_MINIAPP_TOOL: ToolDefinition = {
     description:
       "Build an interactive on-device miniapp in a single call. Pick one " +
       "template — compare_data (a comparison table), quick_calculator (a " +
-      "formula calculator), reading_quiz (a quiz with several questions), " +
-      "kpi_strip (key metrics), checklist (ordered steps), or pros_cons (pros " +
-      "vs cons) — and pass its slots. The app opens inline in the chat. Use " +
-      "this instead of writing miniapp JSON by hand. For quick_calculator, " +
-      "give every number the person might change a labelled field (id, label, " +
-      "value) and write the formula from those ids; a formula of bare numbers " +
-      "is split into editable Number fields automatically.",
+      "formula calculator), reading_quiz (a quiz with several questions), or " +
+      "checklist (an ordered, tickable list) — and pass its slots. The app " +
+      "opens inline in the chat. Use this instead of writing miniapp JSON by " +
+      "hand. For quick_calculator, give every number the person might change " +
+      "a labelled field (id, label, value) and write the formula from those " +
+      "ids; a formula of bare numbers is split into editable Number fields " +
+      "automatically.",
     parameters: {
       type: "object",
       properties: {
@@ -48,10 +48,8 @@ export const CREATE_MINIAPP_TOOL: ToolDefinition = {
             "Per-template slots: compare_data (title?, columns[], rows[]), " +
             "quick_calculator (title?, formula, fields[] of {id, label, " +
             "value}), reading_quiz (title?, questions[] of {question, " +
-            "options[2..4], answerIndex?, explanation?}), kpi_strip (title?, " +
-            "metrics[] of {label, value, unit?, tone?}), checklist (title?, " +
-            "steps[] or items[]), or pros_cons (title?, rows[] of {pro?, " +
-            "con?}).",
+            "options[2..4], answerIndex?, explanation?}), or checklist " +
+            "(title?, steps[] or items[]).",
           additionalProperties: true,
         },
       },

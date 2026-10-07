@@ -417,7 +417,7 @@ function promptBytes(vision: boolean): string {
     "Attached files reach you as plain text in a message; if no text is there, " +
     "no file reached you. " +
     "Use only the tools you are given; never claim an ability you do not have. " +
-    "Use create_miniapp only when the person asks for a comparison table, calculator, quiz, KPI strip, checklist or pros/cons. " +
+    "Use create_miniapp only when the person asks for a comparison table, calculator, quiz or checklist. " +
     "Reply in the language the user writes in."
   );
 }

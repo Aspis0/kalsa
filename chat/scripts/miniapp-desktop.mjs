@@ -111,11 +111,11 @@ try {
 
     const built = await executeToolCall(
       "create_miniapp",
-      { template: "kpi_strip", slots: { metrics: [{ label: "Revenue", value: 1 }] } },
+      { template: "compare_data", slots: { columns: ["Plan"], rows: [{ Plan: "Free" }] } },
       undefined,
       gate,
     );
-    check("create_miniapp runs with a gate armed", built.ok === true && built.miniapp?.kind === "kpi_strip");
+    check("create_miniapp runs with a gate armed", built.ok === true && built.miniapp?.kind === "compare_data");
     equal("create_miniapp never asks the gate", asked, 0);
 
     const held = await executeToolCall("web_fetch", { url: "https://example.com/x" }, undefined, gate);

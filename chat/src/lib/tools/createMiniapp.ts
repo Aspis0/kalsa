@@ -11,7 +11,7 @@ import { MINIAPP_TEMPLATE_IDS, type MiniappTemplateId } from "../miniapp/templat
 
 /** The phone's English strings for this tool (see its `i18n/en.ts`). */
 const INVALID_TEMPLATE = (template: string): string =>
-  `create_miniapp: unknown template "${template}". Use compare_data, quick_calculator, reading_quiz, kpi_strip, checklist, or pros_cons.`;
+  `create_miniapp: unknown template "${template}". Use compare_data, quick_calculator, reading_quiz, or checklist.`;
 const INVALID_SLOTS = "create_miniapp could not build the miniapp from the slots you provided.";
 const CREATED = (title: string): string => `Miniapp created: ${title}`;
 

@@ -118,24 +118,12 @@ try {
     equal("reading_quiz disables grading per out-of-range question", [outOfRange?.blocks[0].answerIndex, outOfRange?.blocks[1].answerIndex], [null, 0]);
   }
 
-  // ── kpi_strip ─────────────────────────────────────────────────────────────
+  // ── the retired templates ─────────────────────────────────────────────────
   {
-    const miniapp = buildMiniappV1("kpi_strip", {
-      title: "Q3 metrics",
-      metrics: [
-        { label: "Revenue", value: 12000, unit: "€" },
-        { label: "Growth", value: "12%", tone: "positive" },
-      ],
-    });
-    equal("kpi_strip builds a metric_strip", [miniapp?.kind, miniapp?.blocks[0].type], ["kpi_strip", "metric_strip"]);
-    equal("kpi_strip keeps metrics whole", miniapp?.blocks[0].metrics, [{ label: "Revenue", value: 12000, unit: "€" }, { label: "Growth", value: "12%", tone: "positive" }]);
-    const nine = Array.from({ length: 9 }, (_, i) => ({ label: `L${i}`, value: i }));
-    equal("kpi_strip rejects 0/>8 metrics and missing label or value", [
-      buildMiniappV1("kpi_strip", { metrics: [] }),
-      buildMiniappV1("kpi_strip", { metrics: [{ value: "x" }] }),
-      buildMiniappV1("kpi_strip", { metrics: [{ label: "L" }] }),
-      buildMiniappV1("kpi_strip", { metrics: nine }),
-    ], [null, null, null, null]);
+    equal("kpi_strip and pros_cons no longer build", [
+      buildMiniappV1("kpi_strip", { title: "Q3 metrics", metrics: [{ label: "Revenue", value: 12000, unit: "€" }] }),
+      buildMiniappV1("pros_cons", { title: "Choice", rows: [{ pro: "Fast", con: "Expensive" }] }),
+    ], [null, null]);
   }
 
   // ── checklist ─────────────────────────────────────────────────────────────
@@ -208,22 +196,6 @@ try {
     equal("an unanswered quiz and a valueless calculator stay silent", lines({ calculator: { fields: {}, result: null } }, [quiz, calculator]), []);
   }
 
-  // ── pros_cons ─────────────────────────────────────────────────────────────
-  {
-    const miniapp = buildMiniappV1("pros_cons", {
-      title: "Choice",
-      rows: [{ pro: "Fast", con: "Expensive" }, { pro: "Simple" }],
-    });
-    equal("pros_cons builds a data_table with english headers", [miniapp?.kind, miniapp?.blocks[0].columns], ["pros_cons", [{ key: "pro", label: "Pro" }, { key: "con", label: "Con" }]]);
-    equal("pros_cons keeps an empty con cell", miniapp?.blocks[0].rows, [{ pro: "Fast", con: "Expensive" }, { pro: "Simple", con: "" }]);
-    equal("pros_cons rejects empty rows and non-array input", [
-      buildMiniappV1("pros_cons", { rows: [] }),
-      buildMiniappV1("pros_cons", { rows: [{ pro: "" }, { con: "" }, {}] }),
-      buildMiniappV1("pros_cons", { rows: "nope" }),
-    ], [null, null, null]);
-    equal("pros_cons reads rows[], not top-level pro/con", buildMiniappV1("pros_cons", { pro: "a", con: "b" }), null);
-  }
-
   // ── the shared bounds ─────────────────────────────────────────────────────
   {
     equal("an unknown template is null", buildMiniappV1("not_a_template", {}), null);
@@ -234,9 +206,9 @@ try {
     ], [null, null]);
     check("a normal checklist still builds", buildMiniappV1("checklist", { steps: ["One", "Two", "Three"] }) !== null);
     const big = "x".repeat(4000);
-    const twelve = Array.from({ length: 12 }, () => ({ pro: big, con: big }));
-    check("a block past 64 KiB rejects the whole build", buildMiniappV1("pros_cons", { rows: twelve }) === null);
-    equal("the schema enum names the six templates", MINIAPP_TEMPLATE_IDS, ["compare_data", "quick_calculator", "reading_quiz", "kpi_strip", "checklist", "pros_cons"]);
+    const twenty = Array.from({ length: 20 }, () => ({ a: big }));
+    check("a block past 64 KiB rejects the whole build", buildMiniappV1("compare_data", { columns: ["a"], rows: twenty }) === null);
+    equal("the schema enum names the four templates", MINIAPP_TEMPLATE_IDS, ["compare_data", "quick_calculator", "reading_quiz", "checklist"]);
   }
 
   // ── the calculator (no eval, no Function) ─────────────────────────────────
@@ -297,8 +269,8 @@ try {
     check("an unknown template is refused by name", badTemplate.ok === false && badTemplate.text.includes('"bogus"') && badTemplate.text.includes("compare_data"));
     const missing = runCreateMiniapp({});
     check("a missing template is refused with a dash", missing.text.includes('"—"'), missing.text);
-    const pros = runCreateMiniapp({ template: "pros_cons", slots: { rows: [{ pro: "fast", con: "costoso" }] } });
-    equal("the desktop keeps the phone's english headers", pros.miniapp?.blocks[0].columns, [{ key: "pro", label: "Pro" }, { key: "con", label: "Con" }]);
+    const retired = runCreateMiniapp({ template: "pros_cons", slots: { rows: [{ pro: "fast", con: "costoso" }] } });
+    check("a retired template is refused, not built", retired.ok === false && retired.miniapp === undefined);
   }
 } finally {
   await rm(dir, { recursive: true, force: true });
