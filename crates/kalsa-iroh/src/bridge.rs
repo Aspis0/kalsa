@@ -73,6 +73,7 @@ pub struct BridgeConfig {
     idle_timeout: Duration,
     relay: RelayChoice,
     book: Option<AddressBook>,
+    mdns: Option<bool>,
 }
 
 impl BridgeConfig {
@@ -87,7 +88,9 @@ impl BridgeConfig {
     /// offered for inbound — and on the n0 road the resolvers without the
     /// pkarr publisher, because publishing is what makes this node's stable
     /// id and addresses public enough for a stranger to dial back. `connect`
-    /// is the same from either side; only what can arrive changes.
+    /// is the same from either side; only what can arrive changes. With
+    /// mDNS on ([`BridgeConfig::with_mdns`]) it listens for LAN
+    /// announcements but never makes one.
     ///
     /// No publication is not anonymity: on a relayed road this node still
     /// tells the relay its stable EndpointId — that is the relay handshake's
@@ -104,6 +107,7 @@ impl BridgeConfig {
             idle_timeout: Duration::from_secs(30),
             relay: RelayChoice::default(),
             book: None,
+            mdns: None,
         }
     }
 
@@ -148,6 +152,18 @@ impl BridgeConfig {
     /// to both of its endpoints.
     pub fn with_address_book(mut self, book: AddressBook) -> Self {
         self.book = Some(book);
+        self
+    }
+
+    /// Force LAN discovery over mDNS on or off. Unset, the choice follows
+    /// the relay: on for the relayed roads — the door announces itself on
+    /// the LAN and a dialer finds it with n0's relay and DNS unreachable —
+    /// and off on [`RelayChoice::Disabled`], the tests' road, which
+    /// resolves through an [`AddressBook`] instead. A serving endpoint
+    /// announces its direct addresses; a dial-only one only listens, since
+    /// nothing can dial into it anyway.
+    pub fn with_mdns(mut self, mdns: bool) -> Self {
+        self.mdns = Some(mdns);
         self
     }
 }
@@ -201,6 +217,7 @@ impl Bridge {
             &config.relay,
             config.book.as_ref(),
             config.door.is_none(),
+            config.mdns,
         )
         .await?;
         transport.register_self(config.book.as_ref());

@@ -30,8 +30,10 @@ use std::time::Duration;
 use iroh::address_lookup::{memory::MemoryLookup, DnsAddressLookup, PkarrResolver};
 use iroh::endpoint::{presets, Builder, TransportAddrUsage};
 use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMap, RelayMode, RelayUrl, SecretKey, TransportAddr};
+use iroh_mdns_address_lookup::MdnsAddressLookup;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::time::timeout_at;
+use tracing::warn;
 
 use crate::bridge::{Lane, RelayChoice};
 use crate::error::BridgeError;
@@ -231,29 +233,51 @@ fn endpoint_builder(relay: &RelayChoice, dial_only: bool) -> Result<Builder, Bri
     Ok(builder)
 }
 
+/// Whether the endpoint gets mDNS LAN discovery: `None` is the caller
+/// leaving the choice to the road. The default is ON for the relayed roads
+/// — that is the fix for a phone whose relay and DNS are unreachable — and
+/// OFF for [`RelayChoice::Disabled`], the tests' road, which resolves
+/// through an [`AddressBook`] and must not start spraying multicast.
+fn mdns_enabled(relay: &RelayChoice, mdns: Option<bool>) -> bool {
+    mdns.unwrap_or(!matches!(relay, RelayChoice::Disabled))
+}
+
 impl Transport {
     /// Bind the endpoint under the node's persisted key. The relay choice,
-    /// the address book and the role are the caller's decisions; the ALPNs
-    /// and the identity are not.
+    /// the address book, the mDNS switch and the role are the caller's
+    /// decisions; the ALPNs and the identity are not.
     ///
     /// `dial_only` is the phone's half: no ALPN is registered for inbound —
     /// iroh accepts a connection only under a configured ALPN — and nothing
-    /// about this node is published to n0's pkarr DNS.
+    /// about this node is published to n0's pkarr DNS. With mDNS on it only
+    /// listens on the LAN: a dial-only node offers nothing to dial into, so
+    /// announcing its presence would leak it for no road gained.
     pub(crate) async fn bind(
         key: &NodeKey,
         relay: &RelayChoice,
         book: Option<&AddressBook>,
         dial_only: bool,
+        mdns: Option<bool>,
     ) -> Result<Self, BridgeError> {
         // Captured for a graceful close: `Endpoint::close` is async, and
         // shutdown is called from threads that own no runtime.
         let runtime = tokio::runtime::Handle::try_current().ok();
+        let secret = SecretKey::from_bytes(&key.to_bytes());
         let mut builder = endpoint_builder(relay, dial_only)?;
+        if mdns_enabled(relay, mdns) {
+            match MdnsAddressLookup::builder().advertise(!dial_only).build(secret.public()) {
+                Ok(lookup) => builder = builder.address_lookup(lookup),
+                // The LAN road is an addition, never a precondition: no
+                // multicast (interface without it, firewall, permission)
+                // must not take the door down with it.
+                Err(e) => warn!("mDNS discovery unavailable, the endpoint continues without it: {e}"),
+            }
+        }
         if let Some(book) = book {
             builder = builder.address_lookup(book.inner.clone());
         }
         let endpoint = builder
-            .secret_key(SecretKey::from_bytes(&key.to_bytes()))
+            .secret_key(secret)
             .bind()
             .await
             .map_err(|e| BridgeError::Transport(e.to_string()))?;
@@ -470,7 +494,24 @@ async fn forward_stream(
 
 #[cfg(test)]
 mod tests {
-    use super::{endpoint_builder, RelayChoice, ALPN, DESK_ALPN};
+    use super::{endpoint_builder, mdns_enabled, RelayChoice, ALPN, DESK_ALPN};
+
+    // The mDNS default is the road's, and an explicit choice always wins.
+    // Decided here, without touching a network: building the real lookup
+    // would open a multicast socket in this suite.
+    #[test]
+    fn mdns_follows_the_road_unless_told_otherwise() {
+        assert!(mdns_enabled(&RelayChoice::N0Public, None));
+        assert!(mdns_enabled(
+            &RelayChoice::Custom {
+                url: String::new()
+            },
+            None
+        ));
+        assert!(!mdns_enabled(&RelayChoice::Disabled, None));
+        assert!(!mdns_enabled(&RelayChoice::N0Public, Some(false)));
+        assert!(mdns_enabled(&RelayChoice::Disabled, Some(true)));
+    }
 
     // A phone pinned to an older brain commit dials the ALPN it was built
     // with, so an edited tag would break that phone's handshake silently —

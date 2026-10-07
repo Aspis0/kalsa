@@ -9,6 +9,12 @@ license.workspace = true
 # Pinned exactly on purpose; see the upgrade header at the top of
 # src/transport.rs — the one file allowed to import the iroh crate.
 iroh = "=1.2.0"
+# LAN discovery: the endpoint announces its direct addresses and resolves
+# LAN peers by node id, so a phone finds the door with n0 unreachable.
+# Pinned exactly like iroh, for the same upgrade-discipline reason.
+iroh-mdns-address-lookup = "=0.6.0"
+# One WARN when mDNS cannot start: the door must come up regardless.
+tracing = "0.1"
 # The pump and the accept loop are async; iroh runs on tokio.
 tokio = { version = "1", features = ["rt", "net", "io-util", "time"] }
 # The node secret key is stored as 64 hex characters, owner-only.
