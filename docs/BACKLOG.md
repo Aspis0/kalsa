@@ -191,3 +191,10 @@ they are promoted.
 - P2: saved conversations with a `metric_strip` (the retired kpi_strip) still render it, static. The owner's rule is "interactive or removed"; old messages keep it so history reads whole.
 - P2: the quiz's custom radios (`Quiz.tsx` `role="radio"`) have no roving tab stop and no arrow-key handler; keyboard users Tab through every option.
 - P3: reloading the page while an answer streams keeps whatever the last throttled persist (500 ms) wrote — a partial answer.
+
+## One-turn and pinned documents (review of dac28c92, 99fe7e78)
+
+- P2: `chat/scripts/attach-send-race.mjs` binds documents with its own `sendWith` helper (`:152-170`) and checks production by source-string matches (`:105`). A production change that drops the `docs` assignment while keeping the matched lines still passes.
+- P3: the web-call gate collects every active attachment and every bound doc before the fit trims history (`useChatTurns.ts:191-193`), so a retry of an older turn can ask about a staged document that turn never carries.
+- P3: re-attaching a sent document and then pinning it puts its text in the system message while the old message still carries it — sent and counted twice.
+- P3: `verify.mjs` assumes a dev server on 5173 and a mock on 18081 and resets the mock at `/__reset`; two agents running it at once clear each other's state.
