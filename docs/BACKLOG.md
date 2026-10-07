@@ -185,3 +185,9 @@ they are promoted.
 - P2: closing the files panel with its × on a wide window hides the focused button (`Panel.css` `.panel:not(.panel-open) { display: none }`) and nothing returns focus to the topbar Files toggle (`ChatSurface.tsx:203`). Keyboard users lose their place.
 - P3: the vision chip carries `title={visionLabel}` and the same text inside (`Composer.tsx:286-289`), so a chip that fits shows a duplicate tooltip.
 - P3: no verify check asserts that a closed panel is hidden on a wide window; the 1400 px attach test only checks the opened panel's row (`verify.mjs:1425-1435`).
+
+## Interactive mini apps and the attach gate (reviews of 970a573d..6e68fb44, 385ebbe4)
+
+- P2: saved conversations with a `metric_strip` (the retired kpi_strip) still render it, static. The owner's rule is "interactive or removed"; old messages keep it so history reads whole.
+- P2: the quiz's custom radios (`Quiz.tsx` `role="radio"`) have no roving tab stop and no arrow-key handler; keyboard users Tab through every option.
+- P3: reloading the page while an answer streams keeps whatever the last throttled persist (500 ms) wrote — a partial answer.
