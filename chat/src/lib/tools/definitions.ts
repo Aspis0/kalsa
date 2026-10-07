@@ -32,8 +32,11 @@ export const CREATE_MINIAPP_TOOL: ToolDefinition = {
       "opens inline in the chat. Use this instead of writing miniapp JSON by " +
       "hand. For quick_calculator, give every number the person might change " +
       "a labelled field (id, label, value) and write the formula from those " +
-      "ids; a formula of bare numbers is split into editable Number fields " +
-      "automatically. Never show the tool's or a template's name " +
+      "ids — every field must appear in the formula and bare numbers are " +
+      "refused, unless a field holds exactly that value (then its id is " +
+      "substituted). With no fields, a formula of bare numbers is split into " +
+      "editable Number fields automatically. Never show the tool's or a " +
+      "template's name " +
       "(create_miniapp, compare_data…) to the person, and never mention " +
       "templates or slots: describe the mini app in plain words, as the thing " +
       "it is — a table, a calculator, a quiz, a list.",

@@ -48,14 +48,14 @@ try {
   // ── quick_calculator ──────────────────────────────────────────────────────
   {
     const miniapp = buildMiniappV1("quick_calculator", {
-      formula: "a + b * 0.1",
+      formula: "a + b",
       fields: [
         { id: "a", label: "Principal", value: 1000 },
         { id: "b", label: "Rate", value: 5 },
       ],
     });
     check("quick_calculator builds a calculator", miniapp !== null && miniapp.blocks[0].type === "calculator");
-    check("quick_calculator keeps its fields", Array.isArray(miniapp?.blocks[0].fields));
+    equal("referenced fields are kept whole", miniapp?.blocks[0].fields, [{ id: "a", label: "Principal", value: 1000 }, { id: "b", label: "Rate", value: 5 }]);
     check("quick_calculator accepts a bare arithmetic formula", buildMiniappV1("quick_calculator", { formula: "2 + 3 * 4" }) !== null);
     const comma = buildMiniappV1("quick_calculator", { formula: "a * b", fields: [{ id: "a", value: "12,5" }, { id: "b", value: 2 }] });
     equal("a comma-decimal string field value parses", comma?.state, { calculator: { fields: { a: 12.5, b: 2 }, result: 25 } });
@@ -77,19 +77,60 @@ try {
     ], [null, null]);
     const fields24 = Array.from({ length: 24 }, (_, i) => ({ id: `f${i}`, label: `F${i}`, value: i }));
     const fields25 = Array.from({ length: 25 }, (_, i) => ({ id: `f${i}`, label: `F${i}`, value: i }));
-    check("quick_calculator accepts the 24-field cap", buildMiniappV1("quick_calculator", { formula: "f0 + f23", fields: fields24 }) !== null);
-    equal("quick_calculator rejects a field past the renderer's cap", buildMiniappV1("quick_calculator", { formula: "f0 + f24", fields: fields25 }), null);
+    check("quick_calculator accepts the 24-field cap", buildMiniappV1("quick_calculator", { formula: fields24.map((f) => f.id).join(" + "), fields: fields24 }) !== null);
+    equal("quick_calculator rejects a field past the renderer's cap", buildMiniappV1("quick_calculator", { formula: fields25.map((f) => f.id).join(" + "), fields: fields25 }), null);
+
+    // The fields decide what bare numbers mean: none given, they lift into
+    // editable fields; fields given, the formula must speak in field ids.
     const lifted = buildMiniappV1("quick_calculator", { title: "Split", formula: "50 / 4" });
-    equal("a literal formula lifts into editable fields", [lifted?.blocks[0].formula, lifted?.blocks[0].fields], ["n1 / n2", [{ id: "n1", value: 50 }, { id: "n2", value: 4 }]]);
+    equal("with no fields a literal formula lifts into editable fields", [lifted?.blocks[0].formula, lifted?.blocks[0].fields], ["n1 / n2", [{ id: "n1", value: 50 }, { id: "n2", value: 4 }]]);
     equal("the lifted calculator seeds its state", lifted?.state, { calculator: { fields: { n1: 50, n2: 4 }, result: 12.5 } });
-    const mixed = buildMiniappV1("quick_calculator", { formula: "a + 50 * .5", fields: [{ id: "a", label: "A", value: 1 }] });
-    equal("literals lift alongside the model's own fields", [mixed?.blocks[0].formula, mixed?.blocks[0].fields], ["a + n1 * n2", [{ id: "a", label: "A", value: 1 }, { id: "n1", value: 50 }, { id: "n2", value: 0.5 }]]);
-    const skip = buildMiniappV1("quick_calculator", { formula: "f0 + 2", fields: [{ id: "f0", label: "F", value: 1 }] });
-    equal("a digit inside an identifier is not lifted", [skip?.blocks[0].formula, skip?.blocks[0].fields.map((field) => field.id)], ["f0 + n1", ["f0", "n1"]]);
-    const named = buildMiniappV1("quick_calculator", { formula: "2 + 2", fields: [{ id: "n1", label: "Taken", value: 9 }] });
-    equal("a lifted id never collides with a provided one", [named?.blocks[0].formula, named?.blocks[0].fields.map((field) => field.id)], ["n2 + n3", ["n1", "n2", "n3"]]);
+    equal("more literals than the field cap rejects the lift", buildMiniappV1("quick_calculator", { formula: Array.from({ length: 25 }, (_, i) => `${i}+`).join("") + "1" }), null);
+    const named = buildMiniappV1("quick_calculator", { formula: "2 + 2", fields: [] });
+    equal("a lifted id never collides with a provided one", named?.blocks[0].formula, "n1 + n2");
+    const owner = buildMiniappV1("quick_calculator", {
+      formula: "50 / 4",
+      fields: [
+        { id: "start", label: "Valore iniziale", value: 60 },
+        { id: "div", label: "Divisore", value: 4 },
+      ],
+    });
+    equal("the owner's case is refused: fields given and the literals match only some", owner, null);
+    const substitute = buildMiniappV1("quick_calculator", {
+      formula: "50 / 4",
+      fields: [
+        { id: "a", label: "Valore iniziale", value: 50 },
+        { id: "b", label: "Divisore", value: 4 },
+      ],
+    });
+    equal("a literal equal to a field's value substitutes the id", [substitute?.blocks[0].formula, substitute?.blocks[0].fields.map((field) => field.id)], ["a / b", ["a", "b"]]);
+    equal("the substituted calculator seeds the same state", substitute?.state, { calculator: { fields: { a: 50, b: 4 }, result: 12.5 } });
+    equal("a bare literal beside fields is refused", buildMiniappV1("quick_calculator", { formula: "a + 50 * .5", fields: [{ id: "a", label: "A", value: 1 }] }), null);
+    equal("an unknown id beside fields is refused", buildMiniappV1("quick_calculator", { formula: "a / x", fields: [{ id: "a", value: 1 }] }), null);
+    equal("a dead field is refused", buildMiniappV1("quick_calculator", { formula: "a / b", fields: [{ id: "a", value: 1 }, { id: "b", value: 2 }, { id: "c", value: 3 }] }), null);
+    equal("a digit inside an identifier is not a literal", buildMiniappV1("quick_calculator", { formula: "f0 + f1", fields: [{ id: "f0", value: 1 }, { id: "f1", value: 2 }] })?.blocks[0].formula, "f0 + f1");
     equal("an identifier-only formula is untouched", buildMiniappV1("quick_calculator", { formula: "a + b", fields: [{ id: "a", label: "A", value: 1 }, { id: "b", label: "B", value: 2 }] })?.blocks[0].formula, "a + b");
-    equal("more literals than the field cap rejects the build", buildMiniappV1("quick_calculator", { formula: Array.from({ length: 25 }, (_, i) => `${i}+`).join("") + "1" }), null);
+    const badFields = runCreateMiniapp({
+      template: "quick_calculator",
+      slots: {
+        formula: "50 / 4",
+        fields: [
+          { id: "start", label: "Valore iniziale", value: 60 },
+          { id: "div", label: "Divisore", value: 4 },
+        ],
+      },
+    });
+    check("the owner's case refuses with the bare-number rule named", badFields.ok === false && badFields.text.includes("bare number 50"), badFields.text);
+    const deadField = runCreateMiniapp({
+      template: "quick_calculator",
+      slots: { formula: "a / b", fields: [{ id: "a", value: 1 }, { id: "b", value: 2 }, { id: "c", value: 3 }] },
+    });
+    check("a dead field refuses with the field named", deadField.ok === false && deadField.text.includes("the field c is not used"), deadField.text);
+    const unknownId = runCreateMiniapp({
+      template: "quick_calculator",
+      slots: { formula: "a / x", fields: [{ id: "a", value: 1 }] },
+    });
+    check("an unknown id refuses with the id named", unknownId.ok === false && unknownId.text.includes("references x"), unknownId.text);
   }
 
   // ── reading_quiz ──────────────────────────────────────────────────────────

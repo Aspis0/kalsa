@@ -7,6 +7,7 @@
 
 import type { ToolOutcome } from "../chat";
 import { buildMiniappV1 } from "../miniapp/build";
+import { quickCalculatorRefusal } from "../miniapp/quickCalculator";
 import { MINIAPP_TEMPLATE_IDS, type MiniappTemplateId } from "../miniapp/templates";
 
 /** The phone's English strings for this tool (see its `i18n/en.ts`). */
@@ -35,7 +36,12 @@ export function runCreateMiniapp(args: unknown): ToolOutcome {
 
   const miniapp = buildMiniappV1(template, raw.slots);
   if (!miniapp) {
-    return { text: INVALID_SLOTS, ok: false };
+    // A quick_calculator whose fields and formula disagree is refused with
+    // the precise rule it broke, so the model can retry; the generic line
+    // covers everything else.
+    const refusal =
+      template === "quick_calculator" ? quickCalculatorRefusal(raw.slots) : null;
+    return { text: refusal ?? INVALID_SLOTS, ok: false };
   }
   return { text: CREATED(miniapp.title, template as MiniappTemplateId), ok: true, miniapp };
 }

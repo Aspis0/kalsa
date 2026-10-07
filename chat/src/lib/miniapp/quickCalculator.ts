@@ -2,8 +2,16 @@
  * quick_calculator → one `calculator` block. The formula is validated here,
  * exactly as the renderer's evaluator will read it, so an unknown field id or
  * a malformed expression is an error the model sees, not a dead calculator.
- * A formula with bare numbers is never drawn dead either: every literal is
- * lifted into an editable field and the formula rewritten to reference it.
+ *
+ * The fields decide how bare numbers are treated — the model proposes, the
+ * code decides:
+ *   no fields    → every literal is lifted into an editable field (n1, n2…)
+ *                  and the formula rewritten to reference them;
+ *   fields given → the formula must speak in field ids alone. A bare number
+ *                  is refused unless some field holds exactly that value (the
+ *                  model may write "50 / 4" for a=50, b=4 — the ids are
+ *                  substituted), and every field must appear in the formula,
+ *                  or it would render as a dead input.
  */
 
 import { evaluateCalculatorFormula } from "./calculator";
@@ -55,11 +63,8 @@ function toNumber(value: unknown): number | undefined {
 
 /** Build the { id: number } map the calculator evaluator needs. Non-numeric
  *  field values are skipped; a formula referencing them is then rejected. */
-function fieldsToVars(
-  fields: Record<string, unknown>[] | undefined,
-): Record<string, number> {
+function fieldsToVars(fields: Record<string, unknown>[]): Record<string, number> {
   const vars: Record<string, number> = {};
-  if (!fields) return vars;
   for (const field of fields) {
     const id = asString(field.id);
     if (!id) continue;
@@ -109,22 +114,43 @@ function formulaLiterals(formula: string): Literal[] {
   return out;
 }
 
-export function buildQuickCalculator(slots: Record<string, unknown>): Miniapp | null {
+/** The formula's identifiers — the names it may reference fields by. */
+function formulaIdentifiers(formula: string): Set<string> {
+  const out = new Set<string>();
+  for (const match of formula.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) out.add(match[0]);
+  return out;
+}
+
+/** Spans rewritten to id references, left to right. */
+function rewriteFormula(formula: string, replacements: Array<Literal & { id: string }>): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const span of replacements) {
+    parts.push(formula.slice(cursor, span.start), span.id);
+    cursor = span.end;
+  }
+  return parts.join("") + formula.slice(cursor);
+}
+
+/** One planned build: the envelope, or the precise English refusal the model
+ *  retries on. A refusal is set only for the field rules a retry can fix; a
+ *  malformed formula stays a generic refusal. */
+interface QuickPlan {
+  miniapp: Miniapp | null;
+  refusal: string | null;
+}
+
+function planQuickCalculator(slots: Record<string, unknown>): QuickPlan {
   const formula = asStringCapped(slots.formula);
-  if (!formula) return null;
-
+  if (!formula) return { miniapp: null, refusal: null };
   const fields = buildCalculatorFields(slots.fields);
-  if (fields === null) return null; // provided but invalid
+  if (fields === null) return { miniapp: null, refusal: null }; // provided but invalid
 
-  // Every literal becomes an editable field, so the person can play with the
-  // numbers the model hardcoded. Lifted ids are minted n1, n2… past the
-  // model's own, and carry no label: the renderer names a lifted field in
-  // the interface's language.
-  const literals = formulaLiterals(formula);
-  const lifted: Record<string, unknown>[] = [];
-  let rewritten = formula;
-  if (literals.length > 0) {
-    const taken = new Set((fields ?? []).map((field) => asString(field.id) ?? ""));
+  if (!fields || fields.length === 0) {
+    // Lifted ids are minted n1, n2… past any id already in play, and carry
+    // no label: the renderer names a lifted field in the interface's
+    // language.
+    const taken = new Set(ids(fields ?? []));
     let next = 1;
     const idFor = (): string => {
       while (taken.has(`n${next}`)) next += 1;
@@ -133,34 +159,103 @@ export function buildQuickCalculator(slots: Record<string, unknown>): Miniapp | 
       next += 1;
       return id;
     };
-    const parts: string[] = [];
-    let cursor = 0;
-    for (const literal of literals) {
-      const id = idFor();
-      parts.push(formula.slice(cursor, literal.start), id);
-      cursor = literal.end;
-      lifted.push({ id, value: literal.value });
-    }
-    rewritten = parts.join("") + formula.slice(cursor);
+    const replacements = formulaLiterals(formula).map((span) => ({ ...span, id: idFor() }));
+    const lifted = replacements.map((span) => ({ id: span.id, value: span.value }));
+    const rewritten = replacements.length > 0 ? rewriteFormula(formula, replacements) : formula;
+    const allFields = [...(fields ?? []), ...lifted];
+    if (allFields.length > MAX_CALCULATOR_FIELDS) return { miniapp: null, refusal: null };
+    const vars = fieldsToVars(allFields);
+    const evaluated = evaluateCalculatorFormula(rewritten, vars);
+    if (!evaluated.ok) return { miniapp: null, refusal: null };
+    const block: Record<string, unknown> = { type: "calculator", formula: rewritten };
+    if (fields || lifted.length > 0) block.fields = allFields;
+    // The initial values and result are the envelope's first state, so the
+    // next turn's wire carries what the calculator shows even before anyone
+    // edits it.
+    return {
+      miniapp: {
+        ...envelope("quick_calculator", asString(slots.title) ?? "", [block]),
+        state: recordCalculatorValues({}, vars, evaluated.value),
+      },
+      refusal: null,
+    };
   }
 
-  const allFields = [...(fields ?? []), ...lifted];
-  if (allFields.length > MAX_CALCULATOR_FIELDS) return null;
+  if (fields.length > MAX_CALCULATOR_FIELDS) return { miniapp: null, refusal: null };
+  const known = new Set(ids(fields));
+
+  // The formula may only speak in field ids.
+  for (const id of formulaIdentifiers(formula)) {
+    if (!known.has(id)) {
+      return {
+        miniapp: null,
+        refusal: `create_miniapp: the formula references ${id}, which is not one of the fields. Write the formula from the field ids you gave.`,
+      };
+    }
+  }
+
+  // A bare number is refused unless a field holds exactly that value: the
+  // field's id is substituted, one literal to one field.
+  const literals = formulaLiterals(formula);
+  let rewritten = formula;
+  if (literals.length > 0) {
+    const free = new Set(ids(fields));
+    const replacements: Array<Literal & { id: string }> = [];
+    for (const literal of literals) {
+      const match = fields.find(
+        (field) => free.has(asString(field.id) ?? "") && toNumber(field.value) === literal.value,
+      );
+      const id = asString(match?.id) ?? "";
+      if (!id) {
+        return {
+          miniapp: null,
+          refusal: `create_miniapp: the formula contains the bare number ${formula.slice(literal.start, literal.end)} while fields were given. Write the formula from the field ids (for example a / b), or send no fields and the numbers become editable automatically.`,
+        };
+      }
+      free.delete(id);
+      replacements.push({ ...literal, id });
+    }
+    rewritten = rewriteFormula(formula, replacements);
+  }
+
+  // A field the formula never mentions would render as a dead input.
+  const referenced = formulaIdentifiers(rewritten);
+  const dead = ids(fields).find((id) => !referenced.has(id));
+  if (dead !== undefined) {
+    return {
+      miniapp: null,
+      refusal: `create_miniapp: the field ${dead} is not used in the formula. Every field must appear in it; drop the ones that do not.`,
+    };
+  }
 
   // Validate the rewritten formula exactly as the renderer's evaluator does
-  // (length / charset gate + field-id substitution). A formula that references
-  // an unknown id or is arithmetically invalid is rejected here, not as a
-  // dead calculator.
-  const vars = fieldsToVars(allFields);
+  // (length / charset gate + field-id substitution). A formula that is
+  // arithmetically invalid is rejected here, not as a dead calculator.
+  const vars = fieldsToVars(fields);
   const evaluated = evaluateCalculatorFormula(rewritten, vars);
-  if (!evaluated.ok) return null;
-
-  const block: Record<string, unknown> = { type: "calculator", formula: rewritten };
-  if (fields || lifted.length > 0) block.fields = allFields;
-  // The initial values and result are the envelope's first state, so the next
-  // turn's wire carries what the calculator shows even before anyone edits it.
+  if (!evaluated.ok) return { miniapp: null, refusal: null };
+  const block: Record<string, unknown> = { type: "calculator", formula: rewritten, fields };
   return {
-    ...envelope("quick_calculator", asString(slots.title) ?? "", [block]),
-    state: recordCalculatorValues({}, vars, evaluated.value),
+    miniapp: {
+      ...envelope("quick_calculator", asString(slots.title) ?? "", [block]),
+      state: recordCalculatorValues({}, vars, evaluated.value),
+    },
+    refusal: null,
   };
+}
+
+/** The field ids of a field list, in order. */
+function ids(fields: Record<string, unknown>[]): string[] {
+  return fields.map((field) => asString(field.id) ?? "");
+}
+
+export function buildQuickCalculator(slots: Record<string, unknown>): Miniapp | null {
+  return planQuickCalculator(slots).miniapp;
+}
+
+/** The model's precise error for a quick_calculator whose fields and formula
+ *  disagree, or null when this failure says nothing more than the generic
+ *  slots refusal. */
+export function quickCalculatorRefusal(slots: unknown): string | null {
+  return isPlainObject(slots) ? planQuickCalculator(slots).refusal : null;
 }
