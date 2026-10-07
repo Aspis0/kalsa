@@ -441,6 +441,8 @@ describe("create_miniapp tool definition + registry", () => {
     // The quick_calculator rule the model must follow: labelled fields first.
     expect(fn.description).toContain("labelled field");
     expect(fn.description).toContain("split into editable Number fields");
+    // And the rule that keeps the ids in this description off the screen.
+    expect(fn.description).toContain("Never show the tool's or a template's name");
     const enumValues = (fn.parameters as { properties: { template: { enum: string[] } } })
       .properties.template.enum;
     expect(enumValues).toEqual([
