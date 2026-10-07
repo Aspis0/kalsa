@@ -10,6 +10,14 @@
   border-left: 1px solid var(--border);
 }
 
+/* Wide, the panel is a column of the page: the open state decides
+   whether it is on screen at all. Without this a closed panel is laid
+   out regardless — only the narrow slide-over below ever hid it — and
+   the topbar button (and the ×) changed a class nobody could see. */
+.panel:not(.panel-open) {
+  display: none;
+}
+
 .panel-backdrop {
   display: none;
 }
@@ -235,6 +243,13 @@
     box-shadow: -8px 0 32px rgba(var(--ink-rgb), 0.18);
     transform: translateX(105%);
     transition: transform 0.3s cubic-bezier(0.22, 0.9, 0.24, 1);
+  }
+
+  /* The slide-over keeps its closed panel laid out: this is the page-wide
+     hide above, later in the source so it wins inside this range — the
+     off-screen panel is what the open transition slides in from. */
+  .panel:not(.panel-open) {
+    display: flex;
   }
 
   .panel-open {
