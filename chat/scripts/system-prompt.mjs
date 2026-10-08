@@ -139,11 +139,11 @@ try {
     SYSTEM_PROMPT_TOKENS,
   );
   check(
-    // The fixed prompt is small on purpose: every byte of it is re-prefilled
-    // whenever it changes, so the bound catches a sentence that would quietly
-    // grow it by a third.
+    // The fixed prompt is kept small on purpose: every byte of it is
+    // re-prefilled whenever it changes, so the bound is the approved app
+    // sentences plus a little slack, and any further sentence moves it on purpose.
     "the prompt costs more than nothing",
-    SYSTEM_PROMPT_TOKENS > 0 && SYSTEM_PROMPT_TOKENS < 130,
+    SYSTEM_PROMPT_TOKENS > 0 && SYSTEM_PROMPT_TOKENS < 270,
     `${SYSTEM_PROMPT_TOKENS} tokens`,
   );
   check(
@@ -154,9 +154,9 @@ try {
 
   // The prompt is fixed PER MODEL: the vision sentence follows /props, and
   // the capability changes only with the model, which restarts the engine's
-  // cache anyway. Blind keeps today's bytes; seeing names the images and
-  // still refuses audio and video.
-  equal("blind is the prompt as always", systemPrompt(false), SYSTEM_PROMPT);
+  // cache anyway. Blind is the prompt without images; seeing names the images
+  // and still refuses audio and video.
+  equal("blind is the prompt without eyes", systemPrompt(false), SYSTEM_PROMPT);
   const seeing = systemPrompt(true);
   check(
     "seeing says the images arrive as images",

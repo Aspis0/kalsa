@@ -412,8 +412,9 @@ export async function extractAttachment(file: File): Promise<Attachment> {
  * The fixed prompt that heads every request's one system message. Fixed on
  * purpose: the engine caches the prompt's prefix, so a byte that moves between
  * turns (a date, a model name, a count) would re-prefill the conversation. It
- * answers the two questions a model left to guess gets wrong — what it can
- * receive, and what it may claim — and it is the same words in every language:
+ * answers the questions a model left to guess gets wrong — what it can
+ * receive, what it may claim, and what the app around it offers — and it is
+ * the same words in every language:
  * the wire language is English whatever the interface speaks. Fixed PER MODEL:
  * the vision sentence follows `/props`, and the capability changes only when
  * the model does, which restarts the engine and its cache with it.
@@ -428,12 +429,18 @@ function promptBytes(vision: boolean): string {
     "no file reached you. " +
     "Use only the tools you are given; never claim an ability you do not have. " +
     "Use create_miniapp only when the person asks for a comparison table, calculator, quiz or checklist. " +
-    "Reply in the language the user writes in."
+    "Reply in the language the user writes in. " +
+    "The app around you: a Think button in the message box, when the model offers one, turns thinking on or off. " +
+    "When thinking is on you reason before you answer, and the reasoning is folded above your answer for the person to open. " +
+    "A paperclip in the message box attaches files. " +
+    "Miniapps (a table, calculator, quiz or checklist) open inline in the chat. " +
+    "Phones paired to this computer can get answers from you too. " +
+    "The Room is a group chat on this computer where people call you with @Kalsa or the Ask Kalsa button. " +
+    "You cannot press these buttons yourself; tell the person which one to use."
   );
 }
 
-/** The prompt as it has always been sent: the words for a model without
-    eyes, byte for byte. */
+/** The prompt for a model without eyes. */
 export const SYSTEM_PROMPT: WireMessage = {
   role: "system",
   content: promptBytes(false),
