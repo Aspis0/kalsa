@@ -246,7 +246,7 @@ try {
 
   // --- 4. the fit sheds the turn, and the document goes with it: a window
   //     that cannot hold the first turn drops the block it carried.
-  const shed = wireFor("c1", 640);
+  const shed = wireFor("c1", 800);
   check(
     "a shed turn takes its bound document with it",
     shed.status === "ok" && !JSON.stringify(shed.wire).includes("quarterly-report.pdf"),
@@ -378,7 +378,7 @@ try {
     const trialBoth = app.buildPinnedContext(
       store.get("c3").messages,
       store.getAttachments("c3"),
-      900,
+      1000,
       blind,
       0,
       app.estTokens(app.turnDocBlock([...riding, arriving])),
@@ -391,7 +391,7 @@ try {
     const trialStagedAlone = app.buildPinnedContext(
       store.get("c3").messages,
       store.getAttachments("c3"),
-      900,
+      1000,
       blind,
       0,
       app.estTokens(app.turnDocBlock([...riding])),
@@ -404,7 +404,7 @@ try {
     const trialArrivingAlone = app.buildPinnedContext(
       store.get("c4").messages,
       [],
-      900,
+      1000,
       blind,
       0,
       app.estTokens(app.turnDocBlock([arriving])),
