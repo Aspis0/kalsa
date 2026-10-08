@@ -1,0 +1,13 @@
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=g12x UBATCH=560 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=g26x UBATCH=560 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=e4bt UBATCH=1024 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=e4bw UBATCH=1024 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+EXTRA_DONE

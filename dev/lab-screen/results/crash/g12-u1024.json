@@ -1,0 +1,62 @@
+{
+  "model": "gemma-4-12B-it-Q4_K_M",
+  "base": "http://127.0.0.1:8150",
+  "engineAlive": true,
+  "results": [
+    {
+      "label": "twin-text",
+      "status": 200,
+      "reply": "Please provide an image or a description for me to look at, as I cannot see your physical surroundings.",
+      "timings": {
+        "promptN": 21,
+        "cacheN": 0,
+        "totalN": 21,
+        "promptMs": 361.435,
+        "predictedN": 22,
+        "predictedMs": 1086.604
+      }
+    },
+    {
+      "label": "frame-1920",
+      "status": 200,
+      "reply": "This is a screenshot of the GitHub repository page for the llama.cpp project, showing the file directory, recent commits, and project statistics.",
+      "timings": {
+        "promptN": 550,
+        "cacheN": 0,
+        "totalN": 550,
+        "promptMs": 3072.684,
+        "predictedN": 29,
+        "predictedMs": 1566.116
+      },
+      "imageTokens": 529
+    },
+    {
+      "label": "big-3000",
+      "status": 200,
+      "reply": "This is a screenshot of the GitHub repository page for the \"llama.cpp\" project, which is a popular open-source library for LLM inference in C/C++.",
+      "timings": {
+        "promptN": 552,
+        "cacheN": 0,
+        "totalN": 552,
+        "promptMs": 3099.459,
+        "predictedN": 36,
+        "predictedMs": 1993.73
+      },
+      "imageTokens": 531
+    },
+    {
+      "label": "two-frames-1920",
+      "status": 200,
+      "reply": "The image shows a GitHub repository page for the \"llama.cpp\" project, which is a popular open-source library for LLM inference in C/C++.",
+      "timings": {
+        "promptN": 1079,
+        "cacheN": 0,
+        "totalN": 1079,
+        "promptMs": 5752.456,
+        "predictedN": 34,
+        "predictedMs": 1915.923
+      },
+      "imageTokens": 1058
+    }
+  ]
+}

@@ -368,6 +368,74 @@ On that task, label accuracy is the metric:
 - **Still open:** the owner decides the tier and the memory line. Measurements are on a shared
   Mac with the app idle; a PC will differ. The decode figures exclude the MTP drafter.
 
+## Vision and ubatch: crash check
+
+Question: with vision ON, can a user crash the engine by attaching a large image? Measured with
+the app's vision argv (`--mmproj … --image-max-tokens 560`), one engine per row and ubatch, cold
+slots. Probes: the 1920×1080 frame, a 3000×3000 image, two 1920 frames in one message, and
+(E4B only, ubatch 1024) a 1000×6000 and a 6000×1000 image. Launcher and client:
+`dev/lab-screen/crash-check.sh`, `crash-check.mjs`, `crash-matrix.sh`; raw JSON and logs in
+`results/crash/`.
+
+| model | ubatch | 1920 frame | 3000×3000 | two 1920 frames | engine after | assert |
+|---|---:|---|---|---|---|---|
+| E4B | 512 | ok, 529 tok | ok, 531 | ok, 1058 | alive | — |
+| E4B | 256 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+| E4B | 1024 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+| **Gemma 4 12B** | **512** | **abort** (529 tok) | not reached | not reached | died, status 134 | `GGML_ASSERT … n_ubatch >= n_tokens_all … failed` |
+| **Gemma 4 12B** | **256** | **abort** (529) | not reached | not reached | died, 134 | same |
+| Gemma 4 12B | 560 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+| Gemma 4 12B | 1024 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+| **Gemma 4 26B** | **512** | **abort** (529) | not reached | not reached | died, 134 | same |
+| **Gemma 4 26B** | **256** | **abort** (529) | not reached | not reached | died, 134 | same |
+| Gemma 4 26B | 560 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+| Gemma 4 26B | 1024 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+| Qwen 3.6 35B-A3B | 512 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+| Qwen 3.6 35B-A3B | 256 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+| Qwen 3.6 35B-A3B | 1024 | ok, 529 | ok, 531 | ok, 1058 | alive | — |
+
+Tall (1000×6000) and wide (6000×1000) on E4B at ubatch 1024: **515 tokens each**, ok. The
+`--image-max-tokens 560` cap held on every shape tested: 515–531 image tokens. The default
+(uncapped) 1920 frame is 922 tokens (earlier pass), so the cap is what keeps these at ~530.
+
+The full assert line, verbatim from the 12B log: `/Users/runner/work/kalsallama/kalsallama/src/llama-context.cpp:1804: GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens") failed`. Exit status 134 is `SIGABRT` (128 + 6) as the launcher's `wait` reports it.
+
+**Answer.** Yes, for the Gemma 4 12B and 26B rows: with the app's argv and ubatch 512 (or 256), an
+ordinary 1920×1080 screenshot, capped to 529 image tokens, aborts the engine on its first decode.
+The README's note that the supervisor reports the child's exit and the app stays up therefore
+applies: the user sees the model die on every image. E4B and Qwen do not crash at any ubatch
+tested, including 256 and 512. Images under the ubatch (small dialogs, about 80 tokens) were not
+the subject of this check; they should pass, but that was not measured.
+
+**Minimal safe rule.** For a Gemma row whose image tokens are non-causal (12B and 26B in this build),
+the engine needs `ubatch ≥` the image's token count. The app caps images at `IMAGE_MAX_TOKENS` = 560,
+so `ubatch ≥ 560` is safe by construction; measured safe: 560 and 1024 on both rows. Qwen and E4B
+show no such constraint at 256. 1024 is the ceiling the app allows (`MAX_UBATCH`).
+
+**Where the values come from (not changed here).**
+- `crates/kalsa-launch/src/args.rs:24` — `pub(crate) const UBATCH: u32 = 512;` (the value every row
+  renders by default). `args.rs:40` `MIN_UBATCH = 64`, `args.rs:50` `MAX_UBATCH = 1024`.
+- `crates/kalsa-launch/src/args.rs:344` — `pub const IMAGE_MAX_TOKENS: u32 = 560;`
+- `crates/kalsa-launch/src/argv.rs:42–45` renders `--batch-size` and `--ubatch-size self.ubatch_size`.
+  `argv.rs:143–149` renders `--mmproj <path> --image-max-tokens 560` only when a projector is set.
+- The tune does not pick ubatch on this Mac: `runtime/tuning.txt` records only threads and offload.
+  The sentinel's `Step::SmallBatches` (`crates/kalsa-sentinel/src/ladder.rs:34`, rung applied at
+  `sentinel.rs:351`) says "batch and ubatch reduced" but the repo has no numeric mapping for it. If a
+  rung ever sets ubatch below 560 on a Gemma 12B/26B vision row, the engine aborts.
+- `README.md:119` still says "ubatch 128" for old hardware. That is stale: `args.rs` documents 128 as
+  the old value that was raised to 512. Do not rely on the README for ubatch.
+
+**What a fix would touch** (for the owner to decide; not done): ubatch for any vision-enabled
+row must be at least `IMAGE_MAX_TOKENS` (560). The smallest change is 512 → 1024 (`UBATCH`) for
+rows with a projector, which the args.rs comment already measures as affordable (346–414 MiB of
+compute buffers at 16k context, under the 512 MiB forfait). A cheaper alternative is to lower
+`IMAGE_MAX_TOKENS` to 512 or below; not measured. Either way the sentinel's SmallBatches rung must
+keep ubatch above that line.
+
+Not measured: a 512–529-token image exactly at the boundary; two images where each is 530 tokens at
+ubatch 560 (the two-frame probe was 2 × 529); the Gemma 26B row's own app-side sampling beyond
+the probe; Windows.
+
 ## Cleanup
 
 Downloaded models (`/tmp/lab-screen/models`) deleted; lab server on 8150 stopped. The

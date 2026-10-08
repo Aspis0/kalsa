@@ -1,0 +1,62 @@
+{
+  "model": "gemma-4-26B_q4_0-it",
+  "base": "http://127.0.0.1:8150",
+  "engineAlive": true,
+  "results": [
+    {
+      "label": "twin-text",
+      "status": 200,
+      "reply": "Please provide an image so that I can describe it for you.",
+      "timings": {
+        "promptN": 21,
+        "cacheN": 0,
+        "totalN": 21,
+        "promptMs": 176.564,
+        "predictedN": 14,
+        "predictedMs": 259.203
+      }
+    },
+    {
+      "label": "frame-1920",
+      "status": 200,
+      "reply": "This is a screenshot of the GitHub repository page for the llama.cpp project, hosted by the ggml-org organization.",
+      "timings": {
+        "promptN": 550,
+        "cacheN": 0,
+        "totalN": 550,
+        "promptMs": 4224.077,
+        "predictedN": 26,
+        "predictedMs": 542.596
+      },
+      "imageTokens": 529
+    },
+    {
+      "label": "big-3000",
+      "status": 200,
+      "reply": "This is a screenshot of the GitHub repository page for the llama.cpp project, showing its file structure, recent commits, and various repository statistics.",
+      "timings": {
+        "promptN": 552,
+        "cacheN": 0,
+        "totalN": 552,
+        "promptMs": 4409.532,
+        "predictedN": 30,
+        "predictedMs": 2066.635
+      },
+      "imageTokens": 531
+    },
+    {
+      "label": "two-frames-1920",
+      "status": 200,
+      "reply": "This is a screenshot of the GitHub repository page for llama.cpp, a project for LLM inference in C/C++.",
+      "timings": {
+        "promptN": 1079,
+        "cacheN": 0,
+        "totalN": 1079,
+        "promptMs": 8045.631,
+        "predictedN": 26,
+        "predictedMs": 579.868
+      },
+      "imageTokens": 1058
+    }
+  ]
+}

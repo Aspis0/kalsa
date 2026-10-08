@@ -1,0 +1,62 @@
+{
+  "model": "Qwen3.6-35B-A3B-UD-Q4_K_M",
+  "base": "http://127.0.0.1:8150",
+  "engineAlive": true,
+  "results": [
+    {
+      "label": "twin-text",
+      "status": 200,
+      "reply": "As an AI, I do not have physical eyes or a visual interface, so I see nothing but the text you provide.",
+      "timings": {
+        "promptN": 20,
+        "cacheN": 0,
+        "totalN": 20,
+        "promptMs": 177.679,
+        "predictedN": 26,
+        "predictedMs": 498.656
+      }
+    },
+    {
+      "label": "frame-1920",
+      "status": 200,
+      "reply": "This is a screenshot of the GitHub repository page for “llama.cpp” under the “ggml-org” organization, showing its code files, recent commits, branches, tags, an",
+      "timings": {
+        "promptN": 549,
+        "cacheN": 0,
+        "totalN": 549,
+        "promptMs": 1934.571,
+        "predictedN": 53,
+        "predictedMs": 1077.989
+      },
+      "imageTokens": 529
+    },
+    {
+      "label": "big-3000",
+      "status": 200,
+      "reply": "This is a screenshot of the GitHub repository page for `llama.cpp`, a C++ library for running large language models, showing its file structure, recent commits,",
+      "timings": {
+        "promptN": 551,
+        "cacheN": 0,
+        "totalN": 551,
+        "promptMs": 1967.17,
+        "predictedN": 42,
+        "predictedMs": 845.793
+      },
+      "imageTokens": 531
+    },
+    {
+      "label": "two-frames-1920",
+      "status": 200,
+      "reply": "The image displays a screenshot of the GitHub repository page for \"llama.cpp\" by the user \"ggml-org\". The page shows the main file and directory structure, with",
+      "timings": {
+        "promptN": 1078,
+        "cacheN": 0,
+        "totalN": 1078,
+        "promptMs": 3706.169,
+        "predictedN": 60,
+        "predictedMs": 1391.384
+      },
+      "imageTokens": 1058
+    }
+  ]
+}

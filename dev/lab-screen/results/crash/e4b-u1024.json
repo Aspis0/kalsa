@@ -1,0 +1,62 @@
+{
+  "model": "gemma-4-E4B-it-Q4_K_M",
+  "base": "http://127.0.0.1:8150",
+  "engineAlive": true,
+  "results": [
+    {
+      "label": "twin-text",
+      "status": 200,
+      "reply": "As a large language model, I do not \"see\" anything, as I process and generate text based on the data I have been trained on.",
+      "timings": {
+        "promptN": 17,
+        "cacheN": 0,
+        "totalN": 17,
+        "promptMs": 182.766,
+        "predictedN": 31,
+        "predictedMs": 809.976
+      }
+    },
+    {
+      "label": "frame-1920",
+      "status": 200,
+      "reply": "This is a screenshot of a GitHub repository page for `llama.cpp`, showing the file structure and recent commit activity.",
+      "timings": {
+        "promptN": 546,
+        "cacheN": 0,
+        "totalN": 546,
+        "promptMs": 1834.571,
+        "predictedN": 25,
+        "predictedMs": 657.829
+      },
+      "imageTokens": 529
+    },
+    {
+      "label": "big-3000",
+      "status": 200,
+      "reply": "This is a screenshot of a GitHub repository page for `llama.cpp`, showing the file structure, recent commits, and repository statistics.",
+      "timings": {
+        "promptN": 548,
+        "cacheN": 0,
+        "totalN": 548,
+        "promptMs": 1846.666,
+        "predictedN": 28,
+        "predictedMs": 736.34
+      },
+      "imageTokens": 531
+    },
+    {
+      "label": "two-frames-1920",
+      "status": 200,
+      "reply": "This image displays the file browser and repository information for the `llama.cpp` project on GitHub.",
+      "timings": {
+        "promptN": 1075,
+        "cacheN": 0,
+        "totalN": 1075,
+        "promptMs": 3439.592,
+        "predictedN": 21,
+        "predictedMs": 503.188
+      },
+      "imageTokens": 1058
+    }
+  ]
+}

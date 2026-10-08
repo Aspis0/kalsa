@@ -1,0 +1,41 @@
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=e4b UBATCH=512 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=e4b UBATCH=256 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=e4b UBATCH=1024 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+/Users/marco/Projects/kalsa-brain/dev/lab-screen/crash-check.sh: line 54: 13321 Abort trap: 6           ./kalsa-server --host 127.0.0.1 --port 8150 --model "$model" --mmproj "$mmproj" --alias "$alias" --batch-size 2048 --ubatch-size "$ubatch" --ctx-size 65536 --parallel 1 --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0 $sampling --image-max-tokens 560 --sleep-idle-seconds 300 --no-webui --slot-save-path /tmp/lab-screen/slots --ctx-checkpoints 1 > "$log" 2>&1
+ENGINE=died status=134
+TAG=g12 UBATCH=512 HEALTHY=yes CLIENT_EXIT=0
+/Users/runner/work/kalsallama/kalsallama/src/llama-context.cpp:1804: GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens") failed
+/Users/marco/Projects/kalsa-brain/dev/lab-screen/crash-check.sh: line 54: 13516 Abort trap: 6           ./kalsa-server --host 127.0.0.1 --port 8150 --model "$model" --mmproj "$mmproj" --alias "$alias" --batch-size 2048 --ubatch-size "$ubatch" --ctx-size 65536 --parallel 1 --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0 $sampling --image-max-tokens 560 --sleep-idle-seconds 300 --no-webui --slot-save-path /tmp/lab-screen/slots --ctx-checkpoints 1 > "$log" 2>&1
+ENGINE=died status=134
+TAG=g12 UBATCH=256 HEALTHY=yes CLIENT_EXIT=0
+/Users/runner/work/kalsallama/kalsallama/src/llama-context.cpp:1804: GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens") failed
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=g12 UBATCH=1024 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+/Users/marco/Projects/kalsa-brain/dev/lab-screen/crash-check.sh: line 54: 13632 Abort trap: 6           ./kalsa-server --host 127.0.0.1 --port 8150 --model "$model" --mmproj "$mmproj" --alias "$alias" --batch-size 2048 --ubatch-size "$ubatch" --ctx-size 65536 --parallel 1 --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0 $sampling --image-max-tokens 560 --sleep-idle-seconds 300 --no-webui --slot-save-path /tmp/lab-screen/slots --ctx-checkpoints 1 > "$log" 2>&1
+ENGINE=died status=134
+TAG=g26 UBATCH=512 HEALTHY=yes CLIENT_EXIT=0
+/Users/runner/work/kalsallama/kalsallama/src/llama-context.cpp:1804: GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens") failed
+/Users/marco/Projects/kalsa-brain/dev/lab-screen/crash-check.sh: line 54: 13748 Abort trap: 6           ./kalsa-server --host 127.0.0.1 --port 8150 --model "$model" --mmproj "$mmproj" --alias "$alias" --batch-size 2048 --ubatch-size "$ubatch" --ctx-size 65536 --parallel 1 --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0 $sampling --image-max-tokens 560 --sleep-idle-seconds 300 --no-webui --slot-save-path /tmp/lab-screen/slots --ctx-checkpoints 1 > "$log" 2>&1
+ENGINE=died status=134
+TAG=g26 UBATCH=256 HEALTHY=yes CLIENT_EXIT=0
+/Users/runner/work/kalsallama/kalsallama/src/llama-context.cpp:1804: GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens") failed
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=g26 UBATCH=1024 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=qwen UBATCH=512 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=qwen UBATCH=256 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+ENGINE=alive-at-end status=0 (stopped by harness)
+TAG=qwen UBATCH=1024 HEALTHY=yes CLIENT_EXIT=0
+NO_GGML_ASSERT
+MATRIX_DONE
