@@ -30,6 +30,7 @@ import { fontFamilies } from "../theme/typography";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
 import { useLabTheme } from "../ui/labTheme";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
+import { miniappDisplayTitle } from "../domain/miniappTitle";
 
 export function HostMiniappSheet({
   miniapp,
@@ -77,7 +78,7 @@ export function HostMiniappSheet({
               fontSize: 16,
             }}
           >
-            {miniapp.title}
+            {miniappDisplayTitle(miniapp, t("renderer.calculator"))}
           </Text>
           <Pressable
             accessibilityLabel={t("common.close")}

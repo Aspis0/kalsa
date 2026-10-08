@@ -566,6 +566,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     fontSize: 13,
     marginTop: 2,
   },
+  // A field's name in the formula: a nested text, so only paint applies here.
+  miniappFormulaName: {
+    backgroundColor: colors.panelBright,
+    color: colors.ink,
+  },
   miniappPlotBlock: {
     gap: spacing.xs,
   },

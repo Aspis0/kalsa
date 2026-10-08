@@ -28,6 +28,7 @@ import {
 } from "lucide-react-native";
 
 import { useLocale } from "../../i18n";
+import { miniappDisplayTitle } from "../../domain/miniappTitle";
 import { radius, spacing, type } from "../../theme/design";
 import { MIN_TOUCH_TARGET } from "./shellGeometry";
 import type { DesignColors } from "../../theme/design";
@@ -133,16 +134,17 @@ export function MiniappCard({
   const { t } = useLocale();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const Icon = miniappIcon(miniapp.kind);
+  const title = miniappDisplayTitle(miniapp, t("renderer.calculator"));
   return (
     <View
-      accessibilityLabel={t("renderer.interactiveMiniappA11y", { title: miniapp.title })}
+      accessibilityLabel={t("renderer.interactiveMiniappA11y", { title })}
       style={styles.card}
       testID={`transcript.miniapp.${id}`}
     >
       <View style={styles.header}>
         <Icon size={20} color={colors.accent} strokeWidth={1.75} />
         <Text numberOfLines={1} style={styles.title}>
-          {miniapp.title}
+          {title}
         </Text>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{t("chat.interactive")}</Text>

@@ -413,10 +413,12 @@ function normalizeMiniapp(raw) {
     .map(normalizeMiniappBlock)
     .filter(Boolean);
 
+  // A calculator is named by the view in the interface's language, so it stores
+  // no English default for an empty title.
   const miniapp = {
     schema: "miniapp_v1",
     kind,
-    title: clipString(raw.title, MAX_TITLE, "Miniapp"),
+    title: clipString(raw.title, MAX_TITLE, kind === "quick_calculator" ? "" : "Miniapp"),
     blocks: kind === "checklist" ? blocks.map(legacyChecklistBlock) : blocks,
   };
 

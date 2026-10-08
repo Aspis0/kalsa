@@ -49,7 +49,11 @@ function translator(locale: Locale) {
 }
 
 /** The calculator block as the renderer mounts it, in the given interface language. */
-function mount(block: Record<string, unknown>, locale: Locale): ReactTestRenderer {
+function mount(
+  block: Record<string, unknown>,
+  locale: Locale,
+  onStateChange: (state: Record<string, unknown>) => void = () => undefined,
+): ReactTestRenderer {
   const args = {
     block,
     context: {
@@ -59,7 +63,7 @@ function mount(block: Record<string, unknown>, locale: Locale): ReactTestRendere
       index: 0,
       inputs: {},
       locale,
-      onStateChange: () => undefined,
+      onStateChange,
       runAction: () => undefined,
       setInput: () => undefined,
       state: {},
@@ -88,6 +92,9 @@ function drawn(node: unknown): string[] {
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+/** A formula name as the view draws it: bidi-isolated, so the operators around it keep their place. */
+const token = (name: string) => `\u2068${name}\u2069`;
+
 const lifted = [
   { id: "n1", value: 50 },
   { id: "n2", value: 4 },
@@ -100,28 +107,67 @@ const named = [
 describe("calculator block", () => {
   test("draws no title of its own: the envelope's header is the only one", () => {
     const texts = drawn(mount({ type: "calculator", formula: "n1 / n2", fields: lifted }, "it").toJSON());
-    expect(texts).toContain("Numero 1 / Numero 2");
+    expect(texts).toContain(token("Numero 1"));
     expect(texts).not.toContain("Calcolatrice");
   });
 
-  test("the formula reads with the fields' names where their ids were", () => {
+  test("the formula reads with the fields' names as tokens, operators plain between them", () => {
     const texts = drawn(mount({ type: "calculator", formula: "start / div", fields: named }, "it").toJSON());
-    expect(texts).toContain("Valore iniziale / Divisore");
+    expect(texts).toContain(token("Valore iniziale"));
+    expect(texts).toContain(token("Divisore"));
+    expect(texts).toContain(" / ");
     expect(texts).not.toContain("start / div");
   });
 
   test("lifted fields read as Numero n in Italian, and the result takes a decimal comma", () => {
     const texts = drawn(mount({ type: "calculator", formula: "n1 / n2", fields: lifted }, "it").toJSON());
     expect(texts).toContain("Numero 1");
-    expect(texts).toContain("Numero 1 / Numero 2");
+    expect(texts).toContain(token("Numero 1"));
+    expect(texts).toContain(token("Numero 2"));
     expect(texts).toContain("12,5");
     expect(texts).not.toContain("12.5");
   });
 
   test("English keeps the dot", () => {
     const texts = drawn(mount({ type: "calculator", formula: "n1 / n2", fields: lifted }, "en").toJSON());
-    expect(texts).toContain("Number 1 / Number 2");
+    expect(texts).toContain(token("Number 1"));
     expect(texts).toContain("12.5");
+  });
+
+  test("an Italian input reads as Italian writes numbers: 12.500 is 12500", () => {
+    const renderer = mount({ type: "calculator", formula: "n1", fields: [{ id: "n1", value: 1 }] }, "it");
+    const input = renderer.root.find((node) => String(node.type) === "TextInput");
+    act(() => {
+      input.props.onChangeText("12.500");
+    });
+    expect(drawn(renderer.toJSON())).toContain("12.500");
+  });
+
+  test("an English input reads as English writes numbers: 12.500 is 12.5", () => {
+    const renderer = mount({ type: "calculator", formula: "n1", fields: [{ id: "n1", value: 1 }] }, "en");
+    const input = renderer.root.find((node) => String(node.type) === "TextInput");
+    act(() => {
+      input.props.onChangeText("12.500");
+    });
+    expect(drawn(renderer.toJSON())).toContain("12.5");
+  });
+
+  test("the raw text stays while typing, and the parsed number persists with a dot decimal", () => {
+    const saved: Record<string, unknown>[] = [];
+    const renderer = mount(
+      { type: "calculator", formula: "n1", fields: [{ id: "n1", value: 1 }] },
+      "it",
+      (state) => saved.push(state),
+    );
+    const input = () => renderer.root.find((node) => String(node.type) === "TextInput");
+    act(() => {
+      input().props.onChangeText("1,");
+    });
+    expect(input().props.value).toBe("1,");
+    act(() => {
+      input().props.onChangeText("12,5");
+    });
+    expect(saved[saved.length - 1]).toEqual({ calculator: { fields: { n1: 12.5 }, result: 12.5 } });
   });
 
   test("the result groups thousands the way the language does", () => {

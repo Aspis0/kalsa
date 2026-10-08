@@ -1,7 +1,7 @@
 // quick_calculator → one `calculator` block. The fields decide how bare numbers
 // are read — the model proposes, the code decides: with no fields every literal
-// is lifted into an editable field; with fields the formula must speak in their
-// ids alone, so a bare number is refused unless a field holds exactly that value.
+// is lifted into an editable field; with fields a literal takes the id of a free
+// field holding its value, and any other literal stays a constant.
 
 import type { AskAssistantMiniapp } from "./askAssistant";
 import { evaluateCalculatorFormula } from "./miniappCalculator";
@@ -9,7 +9,6 @@ import { recordCalculatorValues } from "./miniappState";
 import {
   asString,
   asStringCapped,
-  envelope,
   isPlainObject,
   isUnsafeId,
   MAX_ID_CHARS,
@@ -115,6 +114,18 @@ function formulaIdentifiers(formula: string): Set<string> {
   return new Set(formula.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []);
 }
 
+/** Where the unary minus before this literal starts, or -1 when there is none.
+ *  It is unary when the minus sits at the formula's start or after an operator
+ *  or "(" — otherwise it is the binary minus of "a - 5". */
+function unaryMinusStart(formula: string, start: number): number {
+  let at = start - 1;
+  while (at >= 0 && /\s/.test(formula[at])) at -= 1;
+  if (at < 0 || formula[at] !== "-") return -1;
+  let before = at - 1;
+  while (before >= 0 && /\s/.test(formula[before])) before -= 1;
+  return before < 0 || /[+\-*/(]/.test(formula[before]) ? at : -1;
+}
+
 /** Replaces each literal span with its field id, left to right. */
 function rewriteFormula(formula: string, replacements: Array<Literal & { id: string }>): string {
   const parts: string[] = [];
@@ -143,19 +154,20 @@ function refused(refusal: string): Plan {
 
 /** The envelope for a formula whose fields are settled. Its first state holds
  *  the values and the result, so the next turn's wire carries what the
- *  calculator shows before anyone edits it. */
+ *  calculator shows before anyone edits it. No title is stored when none was
+ *  given: the view names a calculator in the interface's language. */
 function seal(slots: Slots, formula: string, fields: Record<string, unknown>[]): Plan {
   const vars = fieldsToVars(fields);
   const evaluated = evaluateCalculatorFormula(formula, vars);
   if (!evaluated.ok) return FAILED;
-  const block = { type: "calculator", formula, fields };
-  return {
-    miniapp: {
-      ...envelope("quick_calculator", asString(slots.title) ?? "Calculator", [block]),
-      state: recordCalculatorValues({}, vars, evaluated.value),
-    },
-    refusal: null,
+  const miniapp: AskAssistantMiniapp = {
+    schema: "miniapp_v1",
+    kind: "quick_calculator",
+    title: asString(slots.title) ?? "",
+    blocks: [{ type: "calculator", formula, fields }],
+    state: recordCalculatorValues({}, vars, evaluated.value),
   };
+  return { miniapp, refusal: null };
 }
 
 /** No fields given: every literal becomes an editable field, so the person can
@@ -178,10 +190,10 @@ function liftLiterals(slots: Slots, formula: string): Plan {
   return seal(slots, rewriteFormula(formula, replacements), lifted);
 }
 
-/** Fields given: the formula must speak in their ids alone. A bare number is
- *  refused unless a field the formula does not already name holds exactly that
- *  value — one literal to one field — and every field must appear, or it would
- *  render as a dead input. */
+/** Fields given: every identifier must be a field, and every field must appear
+ *  in the formula, or it would render as a dead input. A literal takes a free
+ *  field's id when the field holds its value; any other literal stays a
+ *  constant. */
 function fieldsFormula(slots: Slots, formula: string, fields: Record<string, unknown>[]): Plan {
   if (fields.length > MAX_CALCULATOR_FIELDS) return FAILED;
   const known = new Set(fieldIds(fields));
@@ -194,24 +206,25 @@ function fieldsFormula(slots: Slots, formula: string, fields: Record<string, unk
     }
   }
 
-  const free = new Set([...known].filter((id) => !identifiers.has(id)));
+  // A literal takes the id of a field the formula does not reference yet, when
+  // that field holds the literal's value; a unary minus on the literal matches
+  // a negative field and is absorbed. Any other literal stays a constant:
+  // "amount * 1.22" is a calculator too.
+  const referenced = new Set(identifiers);
   const replacements: Array<Literal & { id: string }> = [];
   for (const literal of formulaLiterals(formula)) {
+    const minus = unaryMinusStart(formula, literal.start);
+    const target = minus >= 0 ? -literal.value : literal.value;
     const match = fields.find(
-      (field) => free.has(asString(field.id) ?? "") && toNumber(field.value) === literal.value,
+      (field) => !referenced.has(asString(field.id) ?? "") && toNumber(field.value) === target,
     );
     const id = asString(match?.id);
-    if (!id) {
-      return refused(
-        `create_miniapp: the formula contains the bare number ${formula.slice(literal.start, literal.end)} while fields were given. Write the formula from the field ids (for example a / b), or send no fields and the numbers become editable automatically.`,
-      );
-    }
-    free.delete(id);
-    replacements.push({ ...literal, id });
+    if (!id) continue;
+    referenced.add(id);
+    replacements.push({ ...literal, start: minus >= 0 ? minus : literal.start, id });
   }
 
   const rewritten = rewriteFormula(formula, replacements);
-  const referenced = formulaIdentifiers(rewritten);
   const dead = fieldIds(fields).find((id) => !referenced.has(id));
   if (dead !== undefined) {
     return refused(

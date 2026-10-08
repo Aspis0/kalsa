@@ -12,6 +12,8 @@ import { ChecklistBlockView } from "./blocks/ChecklistBlock";
 import { computeStatistics, convertVolumeDensityToMass, fitRegression } from "../domain/miniappMathCore";
 import { evaluateCalculatorFormula } from "../domain/miniappCalculator";
 import { calculatorValues, recordCalculatorValues } from "../domain/miniappState";
+import { parseLocaleNumber } from "../domain/miniappNumber";
+import { miniappDisplayTitle } from "../domain/miniappTitle";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import type { ThemeColors } from "../theme/palettes";
 import { QuizBlockView } from "./blocks/QuizBlock";
@@ -443,8 +445,8 @@ function escapeXmlText(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
-function buildMiniappSvgText(miniapp: Miniapp): string {
-  const title = escapeXmlText(toStringValue(miniapp.title, miniapp.kind));
+function buildMiniappSvgText(miniapp: Miniapp, displayTitle: string): string {
+  const title = escapeXmlText(toStringValue(displayTitle, miniapp.kind));
   const kind = escapeXmlText(toStringValue(miniapp.kind));
   // Title @28, kind @48; block rows start @72, step 24, stay inside 720 viewBox (y ≤ 660).
   const blockStartY = 72;
@@ -1240,10 +1242,21 @@ function calculatorFieldName(fieldId: string, label: string, index: number, t: T
   return label || t("renderer.numberField", { n: lifted ? Number(lifted[1]) : index + 1 });
 }
 
-/** The formula as the person reads it: each identifier that names a field
- *  shows the field's name. One pass, so a name is never read again. */
-function labelFormula(formula: string, names: Map<string, string>): string {
-  return formula.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (token) => names.get(token) ?? token);
+/** The formula as the person reads it, in order: each identifier that names a
+ *  field is a name part, drawn as its own token; the operators and numbers
+ *  between them stay plain, so the precedence reads as written. */
+function formulaParts(formula: string, names: Map<string, string>): Array<{ text: string; name: boolean }> {
+  const parts: Array<{ text: string; name: boolean }> = [];
+  let cursor = 0;
+  for (const match of formula.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
+    const at = match.index ?? 0;
+    if (at > cursor) parts.push({ text: formula.slice(cursor, at), name: false });
+    const name = names.get(match[0]);
+    parts.push(name === undefined ? { text: match[0], name: false } : { text: name, name: true });
+    cursor = at + match[0].length;
+  }
+  if (cursor < formula.length) parts.push({ text: formula.slice(cursor), name: false });
+  return parts;
 }
 
 /** A result as the interface's language writes it: a decimal comma in Italian,
@@ -1279,12 +1292,12 @@ function CalculatorBlockView({ block, context }: { block: MiniappBlock; context:
   });
   const formula = toStringValue(block.formula ?? block.expr, "");
 
-  /** The numbers the formula reads from the raw texts; a comma is a decimal
-   *  mark, as the phone's inputs write it. */
+  /** The numbers the formula reads from the raw texts, read the way the
+   *  interface's language writes them: "12.500" is 12500 in Italian. */
   const parseAll = (source: Record<string, string>): Record<string, number> => {
     const numbers: Record<string, number> = {};
     for (const [id, raw] of Object.entries(source)) {
-      const parsed = toNumber(raw, Number.NaN);
+      const parsed = parseLocaleNumber(raw, context.locale);
       if (Number.isFinite(parsed)) numbers[id] = parsed;
     }
     return numbers;
@@ -1329,7 +1342,16 @@ function CalculatorBlockView({ block, context }: { block: MiniappBlock; context:
       {formula ? (
         <View style={context.styles.miniappFormulaBox}>
           <Text style={context.styles.miniappFormulaLabel}>{context.t("renderer.formula")}</Text>
-          <Text style={context.styles.miniappFormulaText}>{labelFormula(formula, names)}</Text>
+          <Text style={context.styles.miniappFormulaText}>
+            {formulaParts(formula, names).map((part, index) =>
+              part.name ? (
+                // The isolates keep a name that runs right-to-left from pulling the operators around it.
+                <Text key={index} style={context.styles.miniappFormulaName}>{`\u2068${part.text}\u2069`}</Text>
+              ) : (
+                part.text
+              ),
+            )}
+          </Text>
         </View>
       ) : null}
       <View style={context.styles.miniappFormulaBox}>
@@ -2173,7 +2195,7 @@ export function AskAssistantMiniappRenderer({
           // Only SVG/JSON reach here: PNG/JPEG already returned in the branch above.
           const extension = actionId === LOCAL_ACTIONS.EXPORT_SVG ? "svg" : "json";
           const targetUri = buildMiniappExportFileName(localMiniapp, extension);
-          const payload = actionId === LOCAL_ACTIONS.EXPORT_SVG ? buildMiniappSvgText(localMiniapp) : JSON.stringify(localMiniapp, null, 2);
+          const payload = actionId === LOCAL_ACTIONS.EXPORT_SVG ? buildMiniappSvgText(localMiniapp, displayTitle) : JSON.stringify(localMiniapp, null, 2);
           await FileSystem.writeAsStringAsync(targetUri, payload, { encoding: "utf8" });
           // SVG/JSON are fully handled here (write + share): do not also notify onAction,
           // which routes to handleAskAssistantMiniappAction and (for JSON) used to
@@ -2227,17 +2249,18 @@ export function AskAssistantMiniappRenderer({
   const visibleBlocks = asArray<MiniappBlock>(localMiniapp.blocks, MAX_CHILD_BLOCKS)
     .map((block, envelopeIndex) => ({ block, envelopeIndex }))
     .filter(({ block }) => isBlockVisibleInActiveView(block, activeView));
+  const displayTitle = miniappDisplayTitle(localMiniapp, t("renderer.calculator"));
 
   return (
     <GlassSurface colors={colors} styles={styles} variant={glassVariant}>
-      <View accessibilityLabel={t("renderer.interactiveMiniappA11y", { title: localMiniapp.title })} ref={miniappExportSurfaceRef}>
+      <View accessibilityLabel={t("renderer.interactiveMiniappA11y", { title: displayTitle })} ref={miniappExportSurfaceRef}>
         <View style={styles.miniappHeader}>
           <View style={styles.miniappIconBadge}>
             <Ionicons color={colors.ink} name="sparkles-outline" size={18} />
           </View>
           <View style={styles.flexOne}>
             <Text style={styles.miniappEyebrow}>{t("renderer.interactiveMiniapp")}</Text>
-            <Text style={styles.miniappTitle}>{localMiniapp.title}</Text>
+            <Text style={styles.miniappTitle}>{displayTitle}</Text>
             <Text style={styles.miniappSubtitle}>{String(localMiniapp.kind || "").replace(/_/g, " ")}</Text>
           </View>
         </View>
