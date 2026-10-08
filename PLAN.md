@@ -1916,6 +1916,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   a PMIC hard reset at ~140 s (dropbox `SYSTEM_LAST_KMSG_..._KP`: PonReason HARD_RESET=1, reboot_reason 0x4; the
   kernel part is truncated, so thermal vs DSP fault is NOT established). The 2048-token legheat NPU run had kept
   >= 22 C of NPU headroom. Re-run with every arm also stopped when any leg's headroom < 10 C.
+- **OWNER 2026-10-07 night (reset plan)**: if the reset is a bug (ours, or the DSP driver/kernel) we fix or route around
+  it; if it is thermal (NPU past its trip), the governor gets an ABSOLUTE per-leg safety floor (a leg too close to
+  its trip is ineligible whatever its score) on top of today's relative choice. **Slowing down is NOT adopted**: no
+  evidence that a slower rate cools the components (it may make things worse); web research first (Explorer
+  `6ac5740b`, `research-pacing-and-npu-reset.md`), then our own test. Order: the running sustained comparison ->
+  NPU-alone to the 95 C trip with the 1 Hz zone logger (`zone-logger.sh`: cdsp cooling state vs temperature) ->
+  fix or floor. Then a back-to-back round (10 x 512-token turns, no pause) per arm, the regime arXiv 2603.23640 shows
+  (sustained plateau, not peak).
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
