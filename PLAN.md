@@ -1936,6 +1936,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (`ggml/src/ggml-hexagon/htp/main.c:495-515`, core and bus min = max = target = `HAP_DCVS_VCORNER_MAX`): the hottest
   setting there is. New lever to TEST (not adopt): an NPU corner below MAX (DVFS) - tok/s and heat per token per
   corner on the S23; and whether the MAX pin is involved in the reset (hypothesis only).
+- **Arm 2, governor hw (same file)**: ALSO stopped by the 10 C floor, sooner: 67 s / 768 tokens (NPU 12 windows, GPU 9,
+  CPU 3, 11 hops). **Finding from the 1 Hz zone trace: the NSP is a step, not a ramp** - the moment the NPU computes
+  its max zone jumps from ~55-60 to 78-87 C within 2-3 s and falls back within seconds when it stops (pinned at the
+  MAX corner). So (1) a headroom sample taken while the NPU is idle says nothing about its loaded temperature: the
+  rule sees 35 C of NPU headroom, hops back, and the NPU is at ~85 C two seconds later; (2) a 10 C floor on raw 1 Hz
+  samples excludes the NPU whenever it runs warm - the floor must read the leg's LOADED temperature (or a short
+  window), not idle samples; (3) the reset run's 90 C (5 C) is the same loaded step ~5 C higher later in the run.
+  The remaining arms (gpu, gpu, hw, npu) continue with the 10 C floor (not moved closer to the reset point without
+  the owner): the comparison now reads "time and tokens until any leg is within 10 C of its trip". The NPU-corner
+  (DVFS) test is the natural next step: a lower corner should lower the loaded step itself.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
