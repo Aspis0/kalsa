@@ -182,7 +182,8 @@
   border-color: var(--border-strong);
 }
 
-.composer-hint {
+.composer-hint,
+.composer-disclaimer {
   margin: 0.35rem 0 0;
   color: var(--silence);
   font-size: 0.72rem;

@@ -10,6 +10,7 @@ export const COMPOSER = {
     "thinkingOff": "关闭思考",
     "hintSend": "Enter 发送 · Shift+Enter 换行",
     "hintOpening": "正在打开对话…",
+    "disclaimer": "Kalsa 可能会出错。请核实重要信息。",
     "thinkingOnTitle": "思考：模型先推理再回答。关掉它就会立刻得到回答。",
     "thinkingOffTitle": "思考已关闭：模型立刻回答，不先推理。",
     "compressing": (pct: number) => `压缩中… ${pct}%`,

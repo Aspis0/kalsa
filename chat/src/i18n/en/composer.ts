@@ -10,6 +10,7 @@ export const COMPOSER = {
   thinkingOff: "Turn thinking off",
   hintSend: "Enter sends · Shift+Enter adds a line",
   hintOpening: "Opening the chat…",
+  disclaimer: "Kalsa can make mistakes. Check important information.",
   thinkingOnTitle: "Thinking: the model reasons before answering. Turn it off to be answered at once.",
   thinkingOffTitle: "Thinking off: the model answers at once, without reasoning first.",
   compressing: (pct: number) => `Compressing… ${pct}%`,

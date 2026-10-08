@@ -108,6 +108,7 @@ const CHECKS = [
   ["quiet button", ".error-block .btn-quiet", null, "failed"],
   ["composer text", ".composer-input", ".composer-box", "thread"],
   ["composer hint", ".composer-hint", null, "thread"],
+  ["composer disclaimer", ".composer-disclaimer", null, "thread"],
   ["topbar title", ".topbar-title h1", null, "thread"],
   ["topbar button", ".topbar-actions .topbar-btn", null, "thread"],
   ["empty title", ".empty-title", null, "empty"],

@@ -10,6 +10,7 @@ export const COMPOSER = {
     "thinkingOff": "Desactivar la reflexión",
     "hintSend": "Enter envía · Shift+Enter añade una línea",
     "hintOpening": "Abriendo el chat…",
+    "disclaimer": "Kalsa puede equivocarse. Comprueba la información importante.",
     "thinkingOnTitle": "Pensamiento: el modelo razona antes de responder. Apágalo para que responda al instante.",
     "thinkingOffTitle": "Pensamiento apagado: el modelo responde al instante, sin razonar antes.",
     "compressing": (pct: number) => `Comprimiendo… ${pct}%`,

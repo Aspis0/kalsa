@@ -392,6 +392,7 @@ export function Composer({
           )}
         </div>
       </div>
+      <p className="composer-disclaimer">{composer.disclaimer}</p>
       <p className="composer-hint">
         {opening ? composer.hintOpening : composer.hintSend}
       </p>
