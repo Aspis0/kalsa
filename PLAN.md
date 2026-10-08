@@ -2076,6 +2076,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   -> round-2 speed/heat may be perturbed; round 3 must run on the fixed bench (the r3 build 42667d95 has the bug).
   Fix: mimo `6e85c68b` (arm L collects only when asked). Proof planned: the exact reset config on the fixed bench
   (expect no reset, flat RSS).
+  Fix done: engine `fbf33176c` (one shared `collect_logits_rows` rule for every arm; verified on disk); audit reviewer
+  n2 (`audit-bench-logits-n2.md`): no P0/P1, no check silently lost, 512 KB/token -> 0 when unrequested; P2/P3 ->
+  BACKLOG. **Pushed: engine main = `fbf33176c`.** Android bench `~/Projects/kalsa-artifacts-loadstep-fbf`
+  (governor-bench 49f9c60f, GLM `b67fcf27`) on the S23 in `step5-s23/r3f/`; round-3 script now uses it. Repro round 2
+  also: lb_npu (two-copy NPU, ONE context, n_ctx 8960, FA off f16) ran 300 s with no reset; gb_cpu2 skipped (moot).
 - **GPU leg on other Adrenos (owner 2026-10-08: "pensavo la GPU funzionava dappertutto ma non è vero")**: precise
   state - plain OpenCL (own buffers) is correct on the 750; the ONE-COPY GPU leg (OpenCL reading the NPU's imported
   buffers) is wrong on the 750 (nondeterministic KL 0.05-0.14) and untested on the 830 (8 Elite, v79: QDC blocked by

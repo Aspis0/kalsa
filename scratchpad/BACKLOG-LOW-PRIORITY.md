@@ -232,3 +232,10 @@ P2 a new host + old skel fails only on the lab RPC; P3 the host test does not ex
 - F4 P2 PLAUSIBLE: three floats inserted mid-`llama_governor_params` shift old positional aggregate initializers and
   the by-value ABI. Only matters for downstream code built against an older header; the binding vendors the source
   and rebuilds, so no action now. Option if it ever matters: append new fields at the struct's end.
+
+## Bench logits audit leftovers (reviewer n2, `audit-bench-logits-n2.md`, engine fbf33176c, 2026-10-08)
+- F4/F5 P2: when a dump/compare IS asked, rows are still 512 KB/token with no reserve (2049-row dump peaks ~3.15 GB
+  transient) and --logits-ref loads the whole reference first. Campaigns stay safe only by convention (flags only on
+  --gen 128/256). Option: refuse or warn when (logits_out or logits_ref) and gen > ~512, or stream rows to disk.
+- F3/F6/F8/F9/F10/F11 P3: dead turn==0 conjunct for arm L; "asked but empty" indistinguishable; helper placement /
+  inline; no test pins the rule; -r 3 window-KL comment; rows never cleared across reps.
