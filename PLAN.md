@@ -1924,6 +1924,18 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   NPU-alone to the 95 C trip with the 1 Hz zone logger (`zone-logger.sh`: cdsp cooling state vs temperature) ->
   fix or floor. Then a back-to-back round (10 x 512-token turns, no pause) per arm, the regime arXiv 2603.23640 shows
   (sustained plateau, not peak).
+- **Sustained run, arm 1 npu-alone (`raw/session16-vsleg-partial.grep`, zone logger at 1 Hz)**: stopped by the 10 C leg
+  floor after 117 s / 1472 tokens (18.1 tok/s), skin 31.9 -> 37.7; NSP max 70.8 C at 10 s, then a 77-83 C plateau with
+  spikes to ~85; the `cdsp` and `cdsp_hw` cooling devices stayed at 0 the whole time (no mitigation below the 95 C
+  trip). **Research (`research-pacing-and-npu-reset.md`, Haiku; two load-bearing quotes re-checked by me)**: (1)
+  EnerInfer (arXiv 2606.23001, Mate 70 Pro NPU decode, Qwen2.5-1.5B): a lower NPU+DDR FREQUENCY setting made 1784
+  tokens in 165 s vs 690 in 40 s at peak before the 42 C back-shell cap (~10.8 vs ~17.3 tok/s) - DVFS, not sleep-pacing;
+  (2) Linux thermal patches for kodiak/lemans/talos/monaco/hamoa (not SM8550): "the CDSP does not throttle its speed
+  automatically when it reaches high temperatures" - only a software cooling device does. Nothing found on Hexagon
+  thermal resets. **Our engine pins the HTP at its MAX voltage corner with DCVS disabled and sleep disabled**
+  (`ggml/src/ggml-hexagon/htp/main.c:495-515`, core and bus min = max = target = `HAP_DCVS_VCORNER_MAX`): the hottest
+  setting there is. New lever to TEST (not adopt): an NPU corner below MAX (DVFS) - tok/s and heat per token per
+  corner on the S23; and whether the MAX pin is involved in the reset (hypothesis only).
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
