@@ -2012,6 +2012,27 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   QDC #65 NOT RUN: the Okta login form never renders in the Paseo browser while its tab is hidden (`visibilityState=
   hidden`, "The page has timed out"); no password typed, no session, no minutes, 6037 untouched (verified). Needs the
   owner to open the Paseo browser panel (or a logged-in tab), then re-run the cell.
+- **Owner decisions 2026-10-08 morning** (Marco: "ti autorizzo a riprodurre reset s23"; "per criterio di resistenza e
+  correzione del Governor, decidi tu per la npu"; the Xiaomi is UNPLUGGED and free for speed/heat runs). Mine, recorded:
+  1. **Endurance criterion**: score = decode tokens produced, back-to-back 2048-token turns (n_ctx 2816, away from the
+     reset config), unplugged, start skin <= 31 C (S23), until skin reaches **43 C** (the owner's pause line); report
+     mean tok/s next to it (a leg below the product floor does not win by being slow). Safety kills only: skin 44,
+     battery < 30 %. **No leg-headroom stop**: the NSP zone is a load step (55-60 -> 78-87 C in 2 s), its 95 C
+     passive trip never engaged a cooling device (`cdsp`/`cdsp_hw` 0 throughout) and skin is what binds (as in the
+     hop-v1 finding); round 2's "headroom < 10" stop ended the GPU and governor arms on NPU prefill spikes, not on
+     heat the user feels. Round 2 is re-run under this criterion once the rule fix below is on the bench.
+  2. **Rule fix for the NPU: judge every leg at its LOADED temperature.** Round-2 zones (`zones_vsleg2.csv`, arm
+     means after 30 s): NSP 63.5 C while the GPU leg runs vs 74.7 while the NPU runs (step ~11 C); GPU 58 vs 72 (step
+     ~14 C); idle 34-35 all. The rule compared an idle leg with the loaded current leg, so the idle leg always looked
+     11-14 C better than it would be. New per-leg `decode_load_step_{npu,gpu,cpu}_c` subtracted from every NON-current
+     leg's headroom (default 0 = today's rule byte-identical); bench flag `--load-step NPU,GPU,CPU`. Coder n2 (Haiku)
+     `4e2289cd` on worktree `~/Projects/kalsallama-gov-loadstep` (detached at engine main `2d970bdf3`); audit by a
+     different model next. CPU step unmeasured (no CPU-alone arm in round 2) - from the next zone log.
+     No prefill pricing now: the NPU prefill spike binds nothing the phone enforces (see 1).
+  3. **S23 reset repro authorised**, after the voltage-corner campaign. Plan below in its own entry when it runs.
+  4. **Xiaomi unplugged**: `xiaomi-sm8650/run-xiaomi-legs-endurance.sh` (NPU alone, CPU alone, ABBA, back-to-back
+     2048-token runs to skin 43; GPU leg excluded - it fails KL on the 750), the per-leg measurement an SM8650 row
+     needs. Running since 05:00 EDT (waits for skin <= 34 first; started at 37.6 after the night on the charger).
 - **NPU voltage-corner knob landed (engine `6e06ce5a1`, GLM; local, audit luna `aa11d6ff` running)**: IDL `power(core, bus)`,
   one shared DCVS v3 request builder (start keeps MAX/MAX), lab-only host env `GGML_HEXAGON_VCORNER` under
   `GGML_HEXAGON_LAB`; host parser test EXIT=0; artifacts `~/Projects/kalsa-artifacts-vcorner` (release skel 93f79f01).
