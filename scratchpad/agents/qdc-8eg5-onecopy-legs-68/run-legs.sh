@@ -6,7 +6,7 @@
 #   L-npu / L-gpu (x2) / L-cpu alone (128), A-gpu = plain upstream OpenCL load, A-j1 = plain {HTP0,GPUOpenCL},
 #   V-gpu = L-gpu with the E5 in-vivo check of the first 4000 TILE32 v4 GEMV calls (one "verify call=" line each;
 #   on the 750 every call matched the CPU reference within 2.9e-5 x RMS while KL still failed).
-# Battery-temperature watchdog kills the bench at 45.0 C. Touches nothing outside $R.
+# Battery-temperature watchdog kills the bench at 48.0 C (the SM8850 MRD reports a fixed 45.0 C battery: the first run at 45.0 killed G at once). Touches nothing outside $R.
 #   sh /data/local/tmp/kalsa68/run-legs.sh
 R=/data/local/tmp/kalsa68; M=$R/lfm26.gguf; B=$R/governor-bench; REPORT=$R/legs_report.txt; WS=$R/watchdog.stop
 export ADSP_LIBRARY_PATH="$R"
@@ -18,8 +18,8 @@ bt() { dumpsys battery | grep -m1 '  temperature:' | grep -oE '[0-9]+'; }
 rm -f $REPORT $WS
 echo "== legs start $(date) soc=$(getprop ro.soc.model) model=$(getprop ro.product.model) bench $(sha256sum $B | cut -c1-12) batT=$(bt)" >> $REPORT
 ( while [ ! -e $WS ]; do
-    t=$(bt); [ -n "$t" ] && [ "$t" -ge 450 ] && pgrep -f governor-bench > /dev/null && {
-      pkill -f governor-bench; echo "WATCHDOG: battery $t >= 450, bench killed $(date)" >> $REPORT; }
+    t=$(bt); [ -n "$t" ] && [ "$t" -ge 480 ] && pgrep -f governor-bench > /dev/null && {
+      pkill -f governor-bench; echo "WATCHDOG: battery $t >= 480, bench killed $(date)" >> $REPORT; }
     sleep 3
   done ) &
 cd $R

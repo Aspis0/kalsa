@@ -2226,6 +2226,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   A-j1 0.000022 - all PASS, exits 0. GPU leg 23.4 tok/s (23.2-23.3 on l4_y8: no cost). **Matrix: SM8650 and 8 Elite
   legs correct on QDC.** Audit of e01a61cee: deepseek `e3b620ac` (luna hit its usage limit again). Next: the 8 Elite
   Gen 5 cell #68, the long NPU cell #69, round 4 on the S23 when charged, the Xiaomi gain run when lent.
+- **QDC #68, Snapdragon 8 Elite Gen 5 (SM8850 MRD, v81, Adreno 840), session 877564, 20 min
+  (`qdc-8eg5-onecopy-legs-68/REPORT.md`, `raw/session1-legs-09a496d71.grep`)**: **every one-copy leg CORRECT** - L
+  (7 hops) KL 0.000049, npu 0.000115 (= A-j1), gpu 0.000010 x3 identical (incl. E5: 4000 GEMVs worst 2.3e-5 x RMS),
+  cpu 0.000012, A-gpu 0.000010; all exits 0. Indicative tok/s (plugged): gpu 30.5, npu 26.8, cpu 19.7. Run 1 was
+  killed by our own 45.0 C battery watchdog (this MRD reports a fixed 45.0 C); threshold 48.0 for this board, rerun
+  in the same session. **Matrix now: legs correct on S23 (real), SM8650 (QDC #71, fixed), 8 Elite (QDC #66), 8 Elite
+  Gen 5 (QDC #68).** Left for the owner's goal: the governor's measured gain on the real phones (S23 round 4 when
+  charged; Xiaomi when lent, with the fixed bench), the long NPU cell #69, landing e01a61cee + rule v3 on fork main.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
