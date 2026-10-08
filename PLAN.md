@@ -2038,6 +2038,17 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
 - **Reset repro: started 09:22 and STOPPED by me at model load** - the S23 was at 22 % battery: a reset there would
   not separate the bug from a low-battery brownout. Needs the charger (plugged also rules brownout out). State cleared.
   Relaunched 09:32 on the charger (owner plugged it; 21 %).
+  **RESET REPRODUCED (3rd hard reset, 1st deliberate; `step5-s23/raw/session21-repro-gb_gpu-hardreset3.grep`)**:
+  step gb_gpu, the exact config, PLUGGED (so not a brownout), cool (skin 29.4, NSP 63, GPU 75 C, no cooling device):
+  the log ends mid-line at window 46 again (45 complete = 1440 tokens + window 46 in flight -> position ~2000),
+  ~152 s after start; `PonReason.HARD_RESET = 1`, `reboot_reason = 0x4`, the same bootloader record. Deterministic in
+  token position, not heat, not battery. **New: memory.** MemAvailable ~4.5 GB idle -> ~0.8 GB right after the load
+  (n_ctx 8960, three leg contexts) -> falls steadily during decode to **411 MB** in the last sample before the reset
+  (-~380 MB in 140 s), `CmaFree` 0 throughout, Unevictable 1.25 GB (the pinned weights). Leading reading: memory
+  exhaustion while lazily touched n_ctx-sized buffers fill up (n2's H2/H3); the reset itself would be a driver or
+  kernel failing hard under it, not an OOM kill. To settle: the same series on a surviving `--gen 2049` run (control),
+  and the remaining separator steps (gb_cpu, one-context llama-bench, the app's FA + q8_0/q4_0 KV, GPU alone).
+  Relaunched; it resumes at gb_cpu.
 - **GPU leg on other Adrenos (owner 2026-10-08: "pensavo la GPU funzionava dappertutto ma non è vero")**: precise
   state - plain OpenCL (own buffers) is correct on the 750; the ONE-COPY GPU leg (OpenCL reading the NPU's imported
   buffers) is wrong on the 750 (nondeterministic KL 0.05-0.14) and untested on the 830 (8 Elite, v79: QDC blocked by

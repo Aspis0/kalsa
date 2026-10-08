@@ -1,0 +1,78 @@
+# S23 reset repro step gb_gpu (governor-bench-hw 1d74341d72fc, arm L --legs gpu --gen 8193, n_ctx 8960, FA off, f16 KV), PLUGGED (ac=true, 21 %), cool start skin 29.4. Third hard reset, first deliberate.
+== repro start Thu Oct  8 09:22:43 EDT 2026 boot 962614f9-c0c7-4f9f-a52d-55b99fd442c9 reason reboot gb 1d74341d72fc lb ddbb98027d40 [lvl=22 ac=false usb=false wl=false batT=279 skin=29.1 wake=Awake thermal=0 traced=0]
+## gb_gpu start 1791465764 after 0s cool wait [lvl=22 ac=false usb=false wl=false batT=279 skin=29.1 wake=Awake thermal=0 traced=0]
+ABORTED by operator 1791465797: battery 22 %, wait for the charger (a low-battery reset would confound brownout with the bug); state cleared
+== repro start Thu Oct  8 09:32:12 EDT 2026 boot 962614f9-c0c7-4f9f-a52d-55b99fd442c9 reason reboot gb 1d74341d72fc lb ddbb98027d40 [lvl=21 ac=true usb=false wl=false batT=282 skin=29.4 wake=Awake thermal=0 traced=0]
+## gb_gpu start 1791466333 after 0s cool wait [lvl=21 ac=true usb=false wl=false batT=282 skin=29.4 wake=Awake thermal=0 traced=0]
+begin gb_gpu 1791466333
+# uptime after reset: 246.73 s
+# leg_window count 47
+leg_window arm=L rep=0 window=43 engine=gpu rule=none tokens=32 us=2241600 tps=14.276
+leg_window arm=L rep=0 window=44 engine=gpu rule=none tokens=32 us=2211090 tps=14.472
+leg_window arm=L rep=0 window=45 engine=gpu rule=none tokens=32 us=2214611 tps=14.449
+leg_window arm=L rep=
+0 tps=14.472
+leg_window arm=L rep=0 window=45 engine=gpu rule=none tokens=32 us=2214611 tps=14.449
+leg_window arm=L rep=
+# repro_mem.txt (epoch MemAvailable Unevictable Shmem CmaFree-field)
+1791465764 MemAvailable: 4059044 kB Unevictable: 97040 kB Shmem: 9848 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791465769 MemAvailable: 986560 kB Unevictable: 665116 kB Shmem: 9248 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 26780 kB  dmabuf_kb=
+1791465774 MemAvailable: 755308 kB Unevictable: 1249832 kB Shmem: 6248 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791465779 MemAvailable: 793404 kB Unevictable: 1249968 kB Shmem: 6492 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 59848 kB  dmabuf_kb=
+1791466333 MemAvailable: 4586308 kB Unevictable: 100336 kB Shmem: 8668 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 4 kB  dmabuf_kb=
+1791466338 MemAvailable: 1463916 kB Unevictable: 666564 kB Shmem: 7696 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 280 kB  dmabuf_kb=
+1791466343 MemAvailable: 794956 kB Unevictable: 1253592 kB Shmem: 7712 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466348 MemAvailable: 792872 kB Unevictable: 1253692 kB Shmem: 7076 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 41804 kB  dmabuf_kb=
+1791466353 MemAvailable: 726384 kB Unevictable: 1253692 kB Shmem: 7084 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466359 MemAvailable: 837820 kB Unevictable: 1254080 kB Shmem: 7208 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 624 kB  dmabuf_kb=
+1791466364 MemAvailable: 864432 kB Unevictable: 1254068 kB Shmem: 7292 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 56 kB  dmabuf_kb=
+1791466369 MemAvailable: 737664 kB Unevictable: 1254980 kB Shmem: 6440 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 392 kB  dmabuf_kb=
+1791466374 MemAvailable: 799916 kB Unevictable: 1255076 kB Shmem: 6432 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 760 kB  dmabuf_kb=
+1791466379 MemAvailable: 737800 kB Unevictable: 1254996 kB Shmem: 6700 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466385 MemAvailable: 699272 kB Unevictable: 1254856 kB Shmem: 6860 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 368 kB  dmabuf_kb=
+1791466390 MemAvailable: 693416 kB Unevictable: 1254856 kB Shmem: 6952 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 336 kB  dmabuf_kb=
+1791466395 MemAvailable: 690464 kB Unevictable: 1254836 kB Shmem: 6928 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466400 MemAvailable: 656776 kB Unevictable: 1254836 kB Shmem: 6472 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 8 kB  dmabuf_kb=
+1791466405 MemAvailable: 537464 kB Unevictable: 1254836 kB Shmem: 6148 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466411 MemAvailable: 827936 kB Unevictable: 1252628 kB Shmem: 5636 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466416 MemAvailable: 716584 kB Unevictable: 1252628 kB Shmem: 6700 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 160 kB  dmabuf_kb=
+1791466421 MemAvailable: 651728 kB Unevictable: 1254916 kB Shmem: 7188 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 14544 kB  dmabuf_kb=
+1791466426 MemAvailable: 654764 kB Unevictable: 1254916 kB Shmem: 6924 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466432 MemAvailable: 629224 kB Unevictable: 1252548 kB Shmem: 7188 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 6480 kB  dmabuf_kb=
+1791466437 MemAvailable: 605380 kB Unevictable: 1254904 kB Shmem: 6632 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 336 kB  dmabuf_kb=
+1791466442 MemAvailable: 574480 kB Unevictable: 1254884 kB Shmem: 6036 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 164 kB  dmabuf_kb=
+1791466447 MemAvailable: 532424 kB Unevictable: 1254884 kB Shmem: 6396 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466453 MemAvailable: 562052 kB Unevictable: 1254884 kB Shmem: 6096 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 7188 kB  dmabuf_kb=
+1791466458 MemAvailable: 582828 kB Unevictable: 1254864 kB Shmem: 6388 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466463 MemAvailable: 558920 kB Unevictable: 1254864 kB Shmem: 5556 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466468 MemAvailable: 513704 kB Unevictable: 1254864 kB Shmem: 5600 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+1791466474 MemAvailable: 534904 kB Unevictable: 1254864 kB Shmem: 5656 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 296 kB  dmabuf_kb=
+1791466479 MemAvailable: 524620 kB Unevictable: 1254864 kB Shmem: 5544 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 1036 kB  dmabuf_kb=
+1791466485 MemAvailable: 411436 kB Unevictable: 1233140 kB Shmem: 2804 kB ShmemHugePages: 0 kB ShmemPmdMapped: 0 kB CmaFree: 0 kB  dmabuf_kb=
+# repro_zones.csv last 20 (epoch,nsp,gpu,cpu mC,cdsp,cdsp_hw,gpu_cool)
+1791466450,63300,74900,64400,0,0,0
+1791466452,62900,74500,63600,0,0,0
+1791466454,62900,74500,65200,0,0,0
+1791466455,62900,74100,65700,0,0,0
+1791466457,63300,75300,73300,0,0,0
+1791466459,64100,75700,65700,0,0,0
+1791466460,64100,76100,64500,0,0,0
+1791466462,64100,74500,65200,0,0,0
+1791466464,64100,75300,64900,0,0,0
+1791466465,63300,76100,67200,0,0,0
+1791466467,63300,75700,63600,0,0,0
+1791466469,62900,74500,68000,0,0,0
+1791466470,63700,76100,64400,0,0,0
+1791466472,62900,75300,63600,0,0,0
+1791466474,62900,70500,65700,0,0,0
+1791466475,62900,74500,66400,0,0,0
+1791466477,63300,74900,65300,0,0,0
+1791466479,63300,75700,66100,0,0,0
+1791466480,62900,75300,63700,0,0,0
+1791466482,63300,74900,67600,0,0,0
+# dropbox SYSTEM_LAST_KMSG_19_20261008_093530_KP (bootloader part)
+{ 2787852 }[ ABL ] PonReason.KPDPWR = 0
+{ 2787883 }[ ABL ] PonReason.HARD_RESET = 1
+{ 2787883 }[ ABL ] PonReason.SMPL = 0
+{ 4545293 }[ ABL ] [BLDP] reboot_reason = 0x4
+{ 4545842 }[ ABL ] [BLDP] reboot_reason = 0x4
