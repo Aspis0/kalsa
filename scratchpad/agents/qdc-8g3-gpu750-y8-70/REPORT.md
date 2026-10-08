@@ -2,6 +2,8 @@
 
 Plugged QDC device: correctness only. Evidence: `raw/session1-y8-ab-09a496d71.grep` (recon, kit sha check, legs report).
 
+Session 3:32:31-3:40:29 PM EDT (8 min), ended in the portal, status Completed.
+
 ## Setup
 
 - QDC session 877503 (job tag sa881572), device 80003b9c, SM8650, Adreno 750, OpenCL compiler E031.45.02.06.
