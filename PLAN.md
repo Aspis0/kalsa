@@ -1982,6 +1982,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   now a deterministic bug, so is the right endurance stop skin 43 / Android status, or the NPU's trip? (2) fix the rule:
   judge the NPU by its LOADED temperature (last loaded sample, or idle + measured step) and price the prefill burst;
   (3) the NPU DVFS corner test (a lower corner should lower the step itself).
+- **P0 IN APP MAIN, found 2026-10-08 02:29 (`step6-inapp/raw/gputel-3-crash.grep`)**: on APK run 37730181160 (main
+  `3edc1b14`, binding `a67d5bb8`, debuggable) the one-copy load CRASHES the app: SIGSEGV SEGV_MAPERR, fault addr
+  0x616e5f765f74718d (ASCII), `llama_model_load_from_file+212` <- `common_init_from_params` <- `loadModel`, right after
+  `KALSA_LEGS_TABLE ... one_copy:1`. Cause, verified in source: `cpp/rn-llama.cpp:332 params.devices = { npu, gpu };`
+  has no nullptr terminator, and the loader walks the raw array to the first nullptr (`vendor/llama.cpp/src/llama.cpp:163`;
+  upstream's parser always appends it, `common/arg.cpp:1151`). Yesterday's in-app PASS was luck (whatever followed the
+  vector was zero). Exposure: only the S23 with the governor on AND bench key `kalsa.bench.npu_lane` on (default off).
+  The app's crash marker then blocks every eager load (`KALSA_LOAD ... refusedBy:"marker"`, "Caricamento non
+  riuscito") - that, not the share deep link, is why the turn harness could not stage. S23 keys restored to
+  `keys-found.txt`. Fix + jest source guard dispatched (mimo `ddb378ec`), then audit, binding main, app pin.
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced

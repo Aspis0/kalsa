@@ -1,0 +1,38 @@
+10-08 02:29:17.786 18564 20239 I RNLlama : load_governor_models:452 KALSA_LEGS_TABLE {soc:"SM8550", hexagon:"Hexagon v73", gpu_name:"QUALCOMM Adreno(TM)", gpu_version:"OpenCL 3.0 Adreno(TM) 740", gpu_driver:"OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62", dotprod:1, one_copy:1, tau_s:10, heat_w:7, heat_tok_npu:2.8, heat_tok_gpu:3.2, heat_tok_cpu:4.7}
+10-08 02:29:17.786 18564 20239 I RNLlama : load_governor_one_model:329 KALSA_ONECOPY_NOTE {decode_repack:"ignored (one model, no decode copy)"}
+10-08 02:29:17.786 18564 20239 I RNLlama : load_governor_one_model:356 KALSA_KV_TYPE_OVERRIDE {requested_k:"q8_0", requested_v:"q4_0", effective_k:"q8_0", effective_v:"q8_0", reason:"htp-prefill-kv"}
+10-08 02:29:18.061 20254 20254 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+10-08 02:29:18.061 20254 20254 F DEBUG   : Build fingerprint: 'samsung/dm1qsqw/dm1q:16/BP2A.250605.031.A3/S911USQS6EYL1:user/release-keys'
+10-08 02:29:18.061 20254 20254 F DEBUG   : Revision: '13'
+10-08 02:29:18.061 20254 20254 F DEBUG   : ABI: 'arm64'
+10-08 02:29:18.061 20254 20254 F DEBUG   : Processor: '7'
+10-08 02:29:18.061 20254 20254 F DEBUG   : Timestamp: 2026-10-08 02:29:17.945072239-0400
+10-08 02:29:18.061 20254 20254 F DEBUG   : Process uptime: 233s
+10-08 02:29:18.061 20254 20254 F DEBUG   : Cmdline: com.kalsa.app
+10-08 02:29:18.061 20254 20254 F DEBUG   : pid: 18564, tid: 20239, name: mqt_v_native  >>> com.kalsa.app <<<
+10-08 02:29:18.061 20254 20254 F DEBUG   : uid: 10347
+10-08 02:29:18.061 20254 20254 F DEBUG   : tagged_addr_ctrl: 0000000000000001 (PR_TAGGED_ADDR_ENABLE)
+10-08 02:29:18.061 20254 20254 F DEBUG   : pac_enabled_keys: 000000000000000f (PR_PAC_APIAKEY, PR_PAC_APIBKEY, PR_PAC_APDAKEY, PR_PAC_APDBKEY)
+10-08 02:29:18.061 20254 20254 F DEBUG   : signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x616e5f765f74718d
+10-08 02:29:18.061 20254 20254 F DEBUG   :     x0  616e5f765f74716d  x1  b400006c3d74a640  x2  b400006e6843d448  x3  0000000000000007
+10-08 02:29:18.062 20254 20254 F DEBUG   :     x4  00ffffffffffffff  x5  0000000000288662  x6  6872741f39726462  x7  7f7f7f7f7f7f7f7f
+10-08 02:29:18.062 20254 20254 F DEBUG   :     x8  35e682d9e6c38092  x9  35e682d9e6c38092  x10 0000006c32be3200  x11 0000006c32be1c30
+10-08 02:29:18.062 20254 20254 F DEBUG   :     x12 000000000289d798  x13 000000000289d728  x14 0000000000288662  x15 0000001f27fbd3e8
+10-08 02:29:18.062 20254 20254 F DEBUG   :     x16 0000006f943b8de8  x17 0000006f9434bda0  x18 0000006c3771c000  x19 b400006c3c530c70
+10-08 02:29:18.062 20254 20254 F DEBUG   :     x20 0000006e59167d3b  x21 0000006e58f7e9d0  x22 0000006e59048744  x23 b400006c3c530c20
+10-08 02:29:18.062 20254 20254 F DEBUG   :     x24 0000006e5916697c  x25 0000006e59df1850  x26 b400006c3c530c70  x27 0000000000000008
+10-08 02:29:18.062 20254 20254 F DEBUG   :     x28 0000000000000004  x29 0000006e59df18a0
+10-08 02:29:18.062 20254 20254 F DEBUG   :     lr  0000006e595d1bd8  sp  0000006e59df15b0  pc  0000006e595d1b78  pst 0000000080001000
+10-08 02:29:18.062 20254 20254 F DEBUG   : 10 total frames
+10-08 02:29:18.062 20254 20254 F DEBUG   : backtrace:
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #00 pc 000000000077bb78  /data/app/~~EIPsdq69cV47-B6bNhTyng==/com.kalsa.app-5YpQ_FgxZqSCC9ZfphaWjQ==/base.apk!librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so (offset 0x8460000) (BuildId: 59e955635279a09e04ebafdc0cd3f737f7b74b60)
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #01 pc 000000000077c650  /data/app/~~EIPsdq69cV47-B6bNhTyng==/com.kalsa.app-5YpQ_FgxZqSCC9ZfphaWjQ==/base.apk!librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so (offset 0x8460000) (llama_model_load_from_file+212) (BuildId: 59e955635279a09e04ebafdc0cd3f737f7b74b60)
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #02 pc 0000000000949b5c  /data/app/~~EIPsdq69cV47-B6bNhTyng==/com.kalsa.app-5YpQ_FgxZqSCC9ZfphaWjQ==/base.apk!librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so (offset 0x8460000) (common_init_result::common_init_result(common_params&, bool)+1592) (BuildId: 59e955635279a09e04ebafdc0cd3f737f7b74b60)
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #03 pc 000000000094c3e0  /data/app/~~EIPsdq69cV47-B6bNhTyng==/com.kalsa.app-5YpQ_FgxZqSCC9ZfphaWjQ==/base.apk!librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so (offset 0x8460000) (common_init_from_params(common_params&, bool)+76) (BuildId: 59e955635279a09e04ebafdc0cd3f737f7b74b60)
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #04 pc 0000000000c17304  /data/app/~~EIPsdq69cV47-B6bNhTyng==/com.kalsa.app-5YpQ_FgxZqSCC9ZfphaWjQ==/base.apk!librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so (offset 0x8460000) (rnllama::llama_rn_context::loadModel(common_params&, llama_governor_params const*, llama_governor_thermo_profile const*, rnllama::governor_load_options const&)+10028) (BuildI
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #05 pc 0000000000066258  /data/app/~~EIPsdq69cV47-B6bNhTyng==/com.kalsa.app-5YpQ_FgxZqSCC9ZfphaWjQ==/base.apk!librnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl.so (offset 0x5904000) (BuildId: 7ff9491403b09786e49c0f449e8123fff88df5e1)
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #06 pc 00000000000adec0  /data/app/~~EIPsdq69cV47-B6bNhTyng==/com.kalsa.app-5YpQ_FgxZqSCC9ZfphaWjQ==/base.apk!librnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl.so (offset 0x5904000) (BuildId: 7ff9491403b09786e49c0f449e8123fff88df5e1)
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #07 pc 00000000000b8d6c  /data/app/~~EIPsdq69cV47-B6bNhTyng==/com.kalsa.app-5YpQ_FgxZqSCC9ZfphaWjQ==/base.apk!librnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl.so (offset 0x5904000) (BuildId: 7ff9491403b09786e49c0f449e8123fff88df5e1)
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #08 pc 00000000000b8c20  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+184) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+10-08 02:29:18.062 20254 20254 F DEBUG   :       #09 pc 00000000000ab420  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+68) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+10-08 02:29:18.123  2449  6091 I ActivityManager: Process com.kalsa.app (pid 18564) has died: fg  TOP (288,2721)

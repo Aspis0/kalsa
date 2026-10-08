@@ -56,6 +56,11 @@ done
 for try in 1 2 3; do
   adb -s $S shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
   adb -s $S shell cat /sdcard/ui.xml > $OUT/$LABEL-ui-dlg.txt 2>/dev/null
+  # the app's own "did not close normally" prompt (after a reboot or a kill): answer "Non ora"
+  if grep -q "non si è chiusa normalmente" $OUT/$LABEL-ui-dlg.txt; then
+    XY=$(grep -oE "text=\"Non ora\"[^>]*bounds=\"\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]\"" $OUT/$LABEL-ui-dlg.txt | grep -oE "\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]" | head -1 | awk -F'[][]' '{print int(($2+$4)/2), int(($6+$8)/2)}')
+    adb -s $S shell input tap $XY; echo "$LABEL dismissed crash-report prompt"; sleep 3; continue
+  fi
   grep -q "These apps and services" $OUT/$LABEL-ui-dlg.txt || break
   XY=$(grep -oE "text=\"Done\"[^>]*bounds=\"\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]\"" $OUT/$LABEL-ui-dlg.txt | grep -oE "\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]" | head -1 | awk -F'[][]' '{print int(($2+$4)/2), int(($6+$8)/2)}')
   adb -s $S shell input tap $XY; echo "$LABEL dismissed bg dialog"; sleep 3
