@@ -1,0 +1,42 @@
+# S23 2026-10-07 23:37-23:40 run-step5-vsleg.sh attempt 1, bench governor-bench-hw (5cb7e14a0), arm 1 npu (--legs npu), unplugged
+== vsleg start Wed Oct  7 23:37:51 EDT 2026 binary 1d74341d72fc [lvl=96 ac=false usb=false wl=false batT=317 skin=31.8 wake=Awake thermal=0 traced=0]
+## 1 arm=npu (--legs npu) start 1791430675 after 0s cool wait [lvl=96 ac=false usb=false wl=false batT=317 skin=31.8 wake=Awake thermal=0 traced=0] feed 52.1 45.7 44.7
+## csv
+t_s,skin_c,batt_dc,wake,cpu_hr,npu_hr,gpu_hr
+0,31.8,316,Awake,52.1,45.7,44.7
+10,31.9,316,Awake,59.0,28.9,44.7
+20,32.4,316,Awake,56.3,25.0,42.3
+30,33.0,316,Awake,57.4,21.8,41.5
+40,33.4,337,Awake,50.5,22.6,40.3
+50,34.5,337,Awake,54.7,22.2,39.5
+60,34.9,337,Awake,54.9,24.6,39.1
+70,35.6,350,Awake,24.1,15.4,26.9
+80,36.6,350,Awake,43.6,15.4,30.4
+90,37.1,350,Awake,46.7,16.6,32.0
+100,37.7,374,Awake,48.3,14.2,33.6
+110,38.1,374,Awake,46.3,17.0,31.6
+120,38.8,374,Awake,27.0,9.4,21.3
+130,39.9,387,Awake,21.3,5.0,18.9
+## leg_window (every 5th)
+leg_window arm=L rep=0 window=0 engine=npu rule=none tokens=32 us=1723950 tps=18.562
+leg_window arm=L rep=0 window=5 engine=npu rule=none tokens=32 us=1691683 tps=18.916
+leg_window arm=L rep=0 window=10 engine=npu rule=none tokens=32 us=1789693 tps=17.880
+leg_window arm=L rep=0 window=15 engine=npu rule=none tokens=32 us=1792492 tps=17.852
+leg_window arm=L rep=0 window=20 engine=npu rule=none tokens=32 us=1799477 tps=17.783
+leg_window arm=L rep=0 window=25 engine=npu rule=none tokens=32 us=1874829 tps=17.068
+leg_window arm=L rep=0 window=30 engine=npu rule=none tokens=32 us=1844132 tps=17.352
+leg_window arm=L rep=0 window=35 engine=npu rule=none tokens=32 us=1945273 tps=16.450
+leg_window arm=L rep=0 window=40 engine=npu rule=none tokens=32 us=1959256 tps=16.333
+leg_window arm=L rep=0 window=45 engine=npu rule=none tokens=32 us=1943651 tps=16.464
+## last window
+leg_window arm=L rep=0 window=45 engine=npu rule=none tokens=32 us=1943651 tps=16.464
+leg_window arm=L rep
+## reboot: dropbox SYSTEM_LAST_KMSG_17_20261007_234108_KP (bootloader part only; kernel part truncated)
+{ 2312784 }[ ABL ] BootReason: 1C
+{ 2441372 }[ ABL ] PonReason.KPDPWR = 0
+{ 2441372 }[ ABL ] PonReason.HARD_RESET = 1
+{ 2441372 }[ ABL ] PonReason.SMPL = 0
+{ 2446649 }[ ABL ] BAT_TEMP:400, COOLDOWN_TEMP:850 cooldown_status:0
+{ 4199423 }[ ABL ] [BLDP] reboot_reason = 0x4
+{ 4199972 }[ ABL ] [BLDP] reboot_reason = 0x4
+Last boot reason: reboot

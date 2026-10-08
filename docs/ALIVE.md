@@ -59,7 +59,8 @@ document that produced them is named instead.
 
 | what | record |
 |---|---|
-| The app's `main` is `335f9c8d` (2026-09-28): it pins `llama.rn@3d2fff25` (the JSI fix that copies the NPU stats fields before the closure; base `4e0837f8`) -> engine `kalsallama@45f097b74`, with `native/kalsallama.pin` matching and `scripts/assert-engine-provenance.sh` at exit 0 (`1121 files match`, `kalsallama@45f097b74eb6 == native/kalsallama.pin`). The NPU lane landed on main **default OFF** (`2fb5ee4a`; bench key `kalsa.bench.npu_lane auto/on/off`); device APK CI `36434636903` is building and the step-5 device soak is pending. The 2026-09-23 chain (`d69b4ce`, binding `5b966218`, engine `1577495b9`, all suites green) is history. Origin keeps `main`, `ux-2026-09-21` (`fb3239b`) and the desktop line `brain`. `remote-brain` is retired as the tag `archive/remote-brain` (`ce71e78cd`); other retired branches are `archive/<name>` tags | `scratchpad/agents/app-branch-cleanup/REPORT.md`; `scratchpad/agents/app-ci-setup-android/`; `scratchpad/agents/remote-brain-port/` (RECON, STEP1/2, AUDIT-STEP1, AUDIT-STEP2-luna/-deepseek; open follow-ups in STEP2.md) |
+| The app's `main` (2026-10-07: `5f724ee1` + later kalsa-brain commits) pins binding `kalsa.rn@a67d5bb8` -> engine `kalsallama@5cb7e14a0` (`native/kalsallama.pin`, provenance gate 1179 files at exit 0). Engine and binding forks are main-only (engine main `e2b8cc067` = `5cb7e14a0` + the merged Q8_0 fix, same tree for the app). History: the 2026-09-28 main `335f9c8d` (binding `3d2fff25`, engine `45f097b74`, NPU lane default OFF) and the 2026-09-23 chain (`d69b4ce` / `5b966218` / `1577495b9`). Origin keeps `main`, `ux-2026-09-21` and the desktop line `brain`; retired branches are `archive/<name>` tags | `REPOS.md` (app `3290099d`); `scratchpad/agents/onecopy-three-legs/step6-inapp/`; `scratchpad/agents/app-branch-cleanup/REPORT.md` |
+| One copy, three legs (S23 / SM8550 ONLY): one weight copy serves NPU, GPU and CPU decode (KL 0.000019 vs two copies), in-app 2.51 vs 4.06 GB, heat-weighted hops -15 % skin rise vs the raw rule. NOT proven: that the governor beats the NPU alone (on 2048 tokens the NPU alone is faster and cooler), and any other SoC | `PLAN.md` "One copy, three legs" -> "Where it stands"; `scratchpad/agents/onecopy-three-legs/step5-s23/raw/`, `step6-inapp/` |
 | The binding's jest was not dead code. The binding's `node_modules` had been installed with pnpm, while CI and the lockfile use `npm ci`. After `npm ci`, 12/12 pass | `scratchpad/agents/binding-jest-dead/REPORT.md` |
 | History (superseded 2026-09-22): the app shipped `llama.rn@0f313bab` → `kalsallama` `8537d097c` (`b11010-merge`), with the q4_K MoE OpenCL mask fix inside it | `PLAN.md`, "The q4_K MoE OpenCL fix is in the shipped engine"; `vendor/VERSIONS` at `0f313bab` |
 | The migration to upstream's `vendor/` layout: the measured upstream bump, the gates, the repaired consumers | `analysis/FORK-VENDOR-MIGRATION.md` |
@@ -1056,6 +1057,11 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   today. Engine and binding forks are now main-only (owner: everything lands in main); app main carries the GPU-leg
   token counter in KALSA_GOVERNOR (5f724ee1).
 - 2026-10-07 in-app RAM on the S23: one copy 2.51 GB vs today's two-model load 4.06 GB = -1.55 GB (-38 %).
+- 2026-10-07 night, owner: the governor must be PROVEN better than the NPU alone / GPU alone (CPU alone: it is - 12.8
+  tok/s and 4.7 C/1k vs the governor's 15.2 and ~3.4). On 2048-token runs the NPU alone (17.1, 2.8) beats the governor;
+  only a sustained run can show the governor's case. First sustained NPU-alone attempt: the S23 HARD-RESET after ~140 s
+  (NPU 5 C from its passive trip, skin 39.9; cause not established - kernel log truncated). Re-run with a per-leg
+  headroom stop. Xiaomi 14 and QDC: not tested at all yet (the GPU leg's gate admits only Adreno 740 / E031.41).
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.

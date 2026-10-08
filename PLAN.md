@@ -1467,6 +1467,29 @@ today's loads). Late on 2026-10-04: CPU prefill on tiles (same as today's shippe
 ACCEPTED for now; a GEMM over tiles is deferred to after the integration - recorded as open item. S23 is the
 coordinator's overnight; the engine branch may be pushed to our fork (never upstream).
 
+**Where it stands, 2026-10-07 night (read this first; the dated entries below are the journal).**
+- PROVEN on the S23 (SM8550) only: one copy serves the three legs (forced npu/gpu/cpu rotation KL 0.000019 vs the
+  two-copy governor, 0 argmax divergences); the F5 fence admits J(1); the governor adds no per-token cost; in-app one
+  copy runs NPU prefill + NPU decode with hops (2.51 GB vs today's two-model 4.06 GB, same method); per-leg decode
+  heat NPU 2.8 / GPU 3.2 / CPU 4.7 C skin per 1k tokens; the heat-weighted rule (tau 10, weight 7) cuts skin rise
+  ~15 % vs the raw rule at equal speed and is the S23 row's default. All of it is on the three mains: engine
+  `e2b8cc067`, binding `a67d5bb8`, app `5f724ee1` (+ later kalsa-brain commits).
+- NOT PROVEN:
+  1. **That the governor beats a single leg.** On 2048-token runs the NPU ALONE (17.1 tok/s, 2.8 C/1k) beats the
+     governor (15.2 tok/s, ~3.4 C/1k) on both axes; the governor beats the GPU alone on speed (14.5) but not on heat
+     (3.2), and the CPU alone (12.8, 4.7) on both. The governor's case can only be a SUSTAINED one (a single leg
+     reaches a limit first). First sustained NPU-alone attempt hard-reset the S23 (entry below); re-run with a
+     per-leg headroom stop is running (`run-step5-vsleg.sh`).
+  2. **Any SoC but SM8550.** R2 keeps every leg off off-row, by design. Xiaomi 14 (SM8650, Adreno 750, v75) and
+     QDC (8 Elite: Adreno 830, v79) need a lab-only override of the OpenCL "740"/E031.41 gate (coding) before any
+     correctness run; heat/speed claims only unplugged (QDC phones are always powered: speed indicative, heat none).
+  3. In-app `decode_tokens_gpu` (no APK with binding `a67d5bb8` yet; dispatch only after telling kalsa-brain).
+  4. The NPU-prefill two-copy RAM baseline (this APK cannot load it without forcing a demotion).
+- NEXT, in order: (a) S23 sustained governor vs NPU-alone vs GPU-alone (running); (b) engine gate override + release
+  v75/v79 skels (coder), then the Xiaomi overnight, plugged = correctness only (KL, self-checks, fence, R2 in-app
+  negative control on an untested Snapdragon); (c) QDC 8 Elite / 8 Gen 3 correctness + indicative speed; (d) APK with
+  `a67d5bb8`; (e) backlog (`scratchpad/BACKLOG-LOW-PRIORITY.md`).
+
 Design: the shared copy is the NPU's own 32x32 tiled Q4_0 layout (`scratchpad/agents/onecopy-three-legs/`:
 `DESIGN.md`, `FABLE-DESIGN.md` + Amendment A by the Fable 5.1 architect session, `PLAN-INTEGRATION.md` revisions
 1-3). Spikes on the S23: GPU mat-vec v4 reads it zero-copy at aggregate parity with the engine Adreno path, CPU
@@ -1885,6 +1908,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   Caveat: the two-model baseline is the GPU-prefill variant; the NPU-prefill two-copy cannot be loaded by this APK
   without forcing a demotion. A first two-copy attempt was killed by the harness watchdog at 43 C (phone charging,
   CPU decode, started at 34 C) - discarded. S23 bench keys restored to `keys-found.txt` (verified).
+- **Owner 2026-10-07 night: "manca provare che il Governor è meglio della sola npu o gpu", QDC + Xiaomi missing.**
+  Sustained single leg vs governor (`run-step5-vsleg.sh`, bench `5cb7e14a0`, arms npu / hw / gpu / gpu / hw / npu,
+  each until skin 43 C or 8192 tokens). **Attempt 1 HARD-RESET the S23** (`raw/session15-vsleg-attempt1-hardreset.grep`):
+  NPU alone from skin 31.8 (battery just charged to 97 %), 18.6 -> 16.4 tok/s over ~1500 tokens, skin +8.1 C in
+  130 s (twice the legheat run's slope), NPU headroom 45.7 -> 5.0 C to its lowest passive trip (CPU 21, GPU 19), then
+  a PMIC hard reset at ~140 s (dropbox `SYSTEM_LAST_KMSG_..._KP`: PonReason HARD_RESET=1, reboot_reason 0x4; the
+  kernel part is truncated, so thermal vs DSP fault is NOT established). The 2048-token legheat NPU run had kept
+  >= 22 C of NPU headroom. Re-run with every arm also stopped when any leg's headroom < 10 C.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
@@ -1914,12 +1945,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   2026-09-25). To check on the S23: placement proofs, KLD and NPU speed one vs two copies.
 - **Step 5 prerequisite** (Fable Amendment F): hop v1 lives on engine `main`, not on this branch (merge-base
   `45f097b74`, main +373 commits, branch +50): merge main into the branch before step 5.
-- Next: step 5 (leg contexts + hop v2 in the one hop site), step 6 (binding table, one model
-  load, R2 negative control on Jelly/untested Snapdragon).
+- [History, superseded: steps 5 and 6 are DONE (entries above); the main merge was done; option 3 is CLOSED (J(1)).
+  The R2 negative control ran on the Jelly; an untested Snapdragon (Xiaomi) is still open - see "Where it stands".]
 
-Open: GEMM over tiles for CPU prefill (deferred, owner 2026-10-04); GPU leg may not rest the CPU (attention,
-norms, lm_head stay on CPU) - step 4 measures it; RAM saving not measured yet (max RSS does not count dma-buf); the binding must call the step-2 setter before
-anything reads the Hexagon buffer types (step 6); a sporadic hang of the CPU-repack KLD on the S23 (2026-10-05:
+Open: GEMM over tiles for CPU prefill (deferred, owner 2026-10-04); the GPU leg's attention/norms/KV moved to the GPU
+in step 5 (2 splits) - CLOSED; RAM measured in-app (2.51 vs 4.06 GB) - CLOSED; the binding calls the step-2 setter
+before load (step 6) - CLOSED; a sporadic hang of the CPU-repack KLD on the S23 (2026-10-05:
 43 min spinning on the first pass, a re-run of both the step-0 and step-1 binaries finishes in 48 s with identical
 KLD, so not a step-1 regression; watchdog now dumps thread stacks).
 
