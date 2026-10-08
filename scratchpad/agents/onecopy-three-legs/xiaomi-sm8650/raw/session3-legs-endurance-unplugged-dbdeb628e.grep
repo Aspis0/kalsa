@@ -1,0 +1,81 @@
+# Xiaomi 14 (SM8650) UNPLUGGED, one copy, NPU alone vs CPU alone, back-to-back 2048-token runs to skin 43 (run-xiaomi-legs-endurance.sh), bench 48c80db0b2a4 (engine dbdeb628e), skel v75 6fb1cfd5
+== endur start Thu Oct  8 05:00:31 EDT 2026 bench 48c80db0b2a4 skel 6fb1cfd50a0a model a247afd64149 [lvl=99 plugged=0 batT=351 skin=37.574 wake=Awake keyguard=false thermal=0]
+## 1 arm=npu start 1791450274 after 240s cool wait [lvl=99 plugged=0 batT=349 skin=34.772 wake=Awake keyguard=false thermal=0]
+runs=4
+## 1 arm=npu exit=0 end 1791450900 [lvl=95 plugged=0 batT=394 skin=42.407 wake=Awake keyguard=false thermal=0] windows_tokens=8068 windows_us=541462162
+run_start arm=L rep=0 monotonic_us=316086874904 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=126850165 tps=16.145
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=316232769197 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=131620869 tps=15.560
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=316381878891 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=140131709 tps=14.615
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=316539950612 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=142859419 tps=14.336
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+## 2 arm=cpu start 1791451292 after 390s cool wait [lvl=94 plugged=0 batT=348 skin=34.859 wake=Awake keyguard=false thermal=0]
+ARM STOP: skin 43 >= 43 1791451427
+runs=1
+## 2 arm=cpu exit=143 end 1791451439 [lvl=93 plugged=0 batT=380 skin=42.818 wake=Awake keyguard=false thermal=0] windows_tokens=1472 windows_us=101076569
+run_start arm=L rep=0 monotonic_us=317104013254 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+## 3 arm=cpu start 1791451770 after 330s cool wait [lvl=93 plugged=0 batT=342 skin=34.829 wake=Awake keyguard=false thermal=0]
+ARM STOP: skin 43 >= 43 1791451911
+runs=1
+## 3 arm=cpu exit=143 end 1791451922 [lvl=91 plugged=0 batT=382 skin=42.739 wake=Awake keyguard=false thermal=0] windows_tokens=1472 windows_us=102554872
+run_start arm=L rep=0 monotonic_us=317582291411 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+## 4 arm=npu start 1791452253 after 330s cool wait [lvl=90 plugged=0 batT=344 skin=34.777 wake=Awake keyguard=false thermal=0]
+ARM STOP: skin 43 >= 43 1791452837
+runs=4
+## 4 arm=npu exit=143 end 1791452848 [lvl=86 plugged=0 batT=400 skin=42.646 wake=Awake keyguard=false thermal=0] windows_tokens=7523 windows_us=501133634
+run_start arm=L rep=0 monotonic_us=318065675656 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=126124187 tps=16.238
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=318208968979 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=131829272 tps=15.535
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=318358121379 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=142881443 tps=14.334
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=318518177596 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0
+== endur end Thu Oct  8 05:47:28 EDT 2026 [lvl=86 plugged=0 batT=399 skin=42.626 wake=Awake keyguard=false thermal=0]
+# endur_1_npu.csv (t_s,skin,batt_dC,wake,keyguard) every 6th sample
+t_s,skin_c,batt_dc,wake,keyguard
+0,34.772,349,Awake,false
+60,38.466,350,Awake,false
+120,39.328,362,Awake,false
+180,39.932,363,Awake,false
+240,40.687,374,Awake,false
+300,40.939,375,Awake,false
+360,41.579,380,Awake,false
+420,41.838,385,Awake,false
+480,41.96,385,Awake,false
+540,42.534,394,Awake,false
+600,42.824,394,Awake,false
+bad samples: 1
+# endur_2_cpu.csv (t_s,skin,batt_dC,wake,keyguard) every 6th sample
+t_s,skin_c,batt_dc,wake,keyguard
+0,34.859,348,Awake,false
+60,40.196,353,Awake,false
+120,42.699,380,Awake,false
+bad samples: 1
+# endur_3_cpu.csv (t_s,skin,batt_dC,wake,keyguard) every 6th sample
+t_s,skin_c,batt_dc,wake,keyguard
+0,34.835,342,Awake,false
+60,39.932,354,Awake,false
+120,42.54,372,Awake,false
+bad samples: 1
+# endur_4_npu.csv (t_s,skin,batt_dC,wake,keyguard) every 6th sample
+t_s,skin_c,batt_dc,wake,keyguard
+0,34.783,344,Awake,false
+60,38.282,350,Awake,false
+120,39.628,361,Awake,false
+180,40.273,370,Awake,false
+240,41.07,370,Awake,false
+300,41.28,381,Awake,false
+360,41.838,381,Awake,false
+420,42.254,390,Awake,false
+480,42.447,390,Awake,false
+540,42.831,398,Awake,false
+bad samples: 1

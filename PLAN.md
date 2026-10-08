@@ -2012,6 +2012,31 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   QDC #65 NOT RUN: the Okta login form never renders in the Paseo browser while its tab is hidden (`visibilityState=
   hidden`, "The page has timed out"); no password typed, no session, no minutes, 6037 untouched (verified). Needs the
   owner to open the Paseo browser panel (or a logged-in tab), then re-run the cell.
+- **S23 NPU voltage corners, 2048 tokens each, ABC-CBA, unplugged (`step5-s23/raw/session20-vcorner-6e06ce5a1.grep`)**:
+  every request 0x0, `cdsp`/`cdsp_hw` never engaged. tok/s MAX 17.42 / 17.37, TURBO 16.98 / 16.96, NOM 14.89 / 14.91
+  (repeats within 0.3 %). Skin rise per 2048 tokens (start 31.8-31.9; arm 1 started at 29.8, excluded): MAX 5.5,
+  TURBO 5.4 / 5.4, NOM 4.7 / 5.0 C -> ~2.7 / 2.6 / 2.4 C per 1k. NSP zone mean while loaded: MAX 75.6 (73.7), TURBO
+  72.4 / 72.2, NOM 63.6 / 64.1 C. **Reading: the corner is a strong lever on the NSP's OWN temperature (NOM -10 C for
+  -14 % speed) and a weak one on skin per token (-12 %, i.e. about proportional to the speed lost: no efficiency
+  win in skin terms). TURBO is MAX minus 2.5 % on everything (noise level).** So a corner is not a way to make the
+  phone cooler per token; it is a way to keep the NPU decoding at 14.9 tok/s (above the CPU's 12.8, at the GPU's
+  14.5) with its zone ~64 C instead of hopping off it. Not wired into the governor: no owner ask, and skin binds,
+  not the NSP. EnerInfer's DVFS gain (lower NPU+DDR clock) was not reproduced on skin here (bus kept at MAX).
+- **Xiaomi 14 UNPLUGGED, one copy, per-leg endurance to skin 43 (`xiaomi-sm8650/raw/session3-legs-endurance-unplugged-
+  dbdeb628e.grep`)**, every sample Awake and unlocked, start skin 34.8 each arm: **NPU alone 8068 tokens (4-run cap,
+  skin 42.4) and 7523 tokens (skin 43)**, 16.2 -> 15.5 -> 14.6 -> 14.3 tok/s per run (Thermal Status 0 throughout:
+  the frequency cap the phone hides, as before); **CPU alone 1472 and 1472 tokens** to skin 43 in ~101 s (14.6 tok/s).
+  => ~1.0 C skin per 1k tokens on the NPU vs ~5.4 on the CPU: on the SM8650 the NPU gives ~5x the tokens before the
+  pause line, at equal or better speed. GPU leg not run (fails KL alone on the 750). This is the per-leg data an
+  SM8650 row needs (NPU 1.0 / CPU 5.4 C per 1k), but no row is written while the GPU leg is defective there.
+- **Load-step rule fix landed**: mimo `25f3de4c` fixed the luna findings (EMA shift at rule-driven hops so scores
+  stay continuous - test: back within 17 windows vs 29 s stale; constructor guard for NaN/negative steps; real
+  assertions; load-step tests in their own file) -> rebased on the vcorner fixes and **pushed: engine main =
+  `9c11ebcbf`** (host `ctest -R hop` 3/3 EXIT=0 after the rebase; default 0 steps = today's decisions). Android
+  bench build (GLM `c3e733dc`, -> `~/Projects/kalsa-artifacts-loadstep`) running for S23 round 3: NPU alone vs GPU
+  alone vs governor (tau 10, weight 7, heat 2.8/3.2/4.7, load step 11/14/CPU tbd) under the new endurance criterion.
+- **Reset repro: started 09:22 and STOPPED by me at model load** - the S23 was at 22 % battery: a reset there would
+  not separate the bug from a low-battery brownout. Needs the charger (plugged also rules brownout out). State cleared.
 - **Owner decisions 2026-10-08 morning** (Marco: "ti autorizzo a riprodurre reset s23"; "per criterio di resistenza e
   correzione del Governor, decidi tu per la npu"; the Xiaomi is UNPLUGGED and free for speed/heat runs). Mine, recorded:
   1. **Endurance criterion**: score = decode tokens produced, back-to-back 2048-token turns (n_ctx 2816, away from the
