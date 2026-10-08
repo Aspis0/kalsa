@@ -1484,7 +1484,7 @@ coordinator's overnight; the engine branch may be pushed to our fork (never upst
   2. **Any SoC but SM8550.** R2 keeps every leg off off-row, by design. Xiaomi 14 (SM8650, Adreno 750, v75) and
      QDC (8 Elite: Adreno 830, v79) need a lab-only override of the OpenCL "740"/E031.41 gate (coding) before any
      correctness run; heat/speed claims only unplugged (QDC phones are always powered: speed indicative, heat none).
-  3. In-app `decode_tokens_gpu` (no APK with binding `a67d5bb8` yet; dispatch only after telling kalsa-brain).
+  3. ~~In-app `decode_tokens_gpu`~~ DONE 2026-10-08 (field wired in-app; a non-zero GPU count still needs a warm turn).
   4. The NPU-prefill two-copy RAM baseline (this APK cannot load it without forcing a demotion).
 - NEXT, in order: (a) S23 sustained governor vs NPU-alone vs GPU-alone (running); (b) engine gate override + release
   v75/v79 skels (coder), then the Xiaomi overnight, plugged = correctness only (KL, self-checks, fence, R2 in-app
@@ -1997,6 +1997,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   no P0/P1, P2/P3 -> BACKLOG. **binding main = `e97c8383`; app main `d3e0a7e5`** pins it (gates EXIT=0: npm ci,
   provenance 1179 files, tsc, apk.yml harness block, jest src/engine 1210/1210); apk.yml run 37740856001 dispatched
   (debuggable; kalsa-brain agreed). Next: install on the S23, one in-app turn, decode_tokens_gpu.
+  **VERIFIED IN-APP (S23 03:48-03:56, APK run 37740856001 = app `d3e0a7e5`, `step6-inapp/raw/gputel-4-kalsa.grep`)**:
+  one-copy load `KALSA_LEGS_TABLE ... one_copy:1`, no fallback, no crash; a short turn completed and KALSA_GOVERNOR
+  carries the new field: `decode_tokens_npu 249, decode_tokens_cpu 32, decode_tokens_gpu 0, decode_hops 2` (the GPU
+  leg was not chosen on a cool phone - the field is wired, a GPU count needs a warm turn). Keys restored to
+  `keys-found.txt`. Note: after any native crash the app's marker refuses eager loads until "Riprova" in the
+  model sheet (the turn harness's retry tap no longer finds it on the main screen - harness to update).
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced
