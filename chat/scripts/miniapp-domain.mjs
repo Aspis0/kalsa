@@ -150,6 +150,12 @@ try {
       parseLocaleNumber("12.5", "it"),
       parseLocaleNumber("0,5", "en"),
     ], [12.5, 0.5]);
+    equal("one repeated separator groups when the threes line up", [
+      parseLocaleNumber("1.234.567", "it"),
+      parseLocaleNumber("1,234,567", "en"),
+      parseLocaleNumber("-1.234.567", "it"),
+      parseLocaleNumber("1.23.456", "it"),
+    ], [1234567, 1234567, -1234567, Number.NaN]);
     equal("signs, integers and nonsense", [
       parseLocaleNumber("-5", "it"),
       parseLocaleNumber("+7", "en"),

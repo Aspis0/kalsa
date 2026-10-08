@@ -61,13 +61,11 @@ export function parseLocaleNumber(raw: string, tag: string): number {
   const mark = lastComma !== -1 ? "," : ".";
   const groups = text.split(mark);
   if (mark === decimal && groups.length === 2) return Number(text.replace(mark, "."));
-  // The grouping mark: every group after the first must be exactly three
-  // digits, or the person meant a decimal mark and is forgiven ("12.5" in
-  // Italian).
-  if (groups.length > 2 || !groups.slice(1).every((part) => /^[0-9]{3}$/.test(part))) {
-    return groups.length === 2 ? Number(text.replace(mark, ".")) : Number.NaN;
-  }
-  return Number(groups.join(""));
+  // The mark groups when every group after the first is exactly three digits,
+  // even when the same mark repeats ("1.234.567"); otherwise a lone mark is
+  // forgiven as a decimal ("12.5" in Italian) or reads as no number.
+  if (groups.slice(1).every((part) => /^[0-9]{3}$/.test(part))) return Number(groups.join(""));
+  return groups.length === 2 ? Number(text.replace(mark, ".")) : Number.NaN;
 }
 
 /** A number as the interface's language writes it — decimal comma in it/es/fr,
