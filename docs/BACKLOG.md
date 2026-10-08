@@ -223,3 +223,11 @@ they are promoted.
 - F9: `decline_for` normalises before its empty-text check, so the first empty call still compiles every pattern on the turn thread.
 - The decline reads "· read the last 1" (`read = 1`, F2): `readLast` has no singular form, so the label reads as a count. The honest value stays 1; the copy is the owner's.
 - `chat/scripts/contrast-dom.mjs` already times out at `a7d507bd` ("Seeded thread" in `.sidebar`), so the composer disclaimer's contrast is unchecked.
+
+## Disclaimer line (review of ab34891c, 127d4120, phone ebc93d90)
+
+- P3 #5: the Italian power line now opens with the same words as the "starting" line (`it/power.ts:9-10`), and the setup stepper maps two different steps to "starting" (`it/setup.ts:5`) and "Avvio in corso…" (`it/setup.ts:7`), so the boot sequence reads as a stutter. The other four locales keep the start and prepare steps apart.
+- P3 #6: the "older computer" softening reached Italian only (`it/firstPage.ts:9`, `it/power.ts:10`). English, Spanish, French and Chinese still tell the user the computer is old.
+- P3 #8: the chat has no test suite, so the disclaimer's copy and placement are checked by `tsc` alone; `chat/scripts/contrast-dom.mjs` is the only check that reaches the DOM, and it times out at `a7d507bd`. On the phone the fit test is real (`6c78de38`); the sentinel pins at `shellGeometry.test.ts:156` were not reviewed.
+- P3 #9: the design margin the transcript pins were argued from shrank. The live keyboard band is 147 dp, so 24 / 147 is 16 % against the 20 % bound (`transcriptLayout.test.ts:140`), and the clearance over the cloud falls from 47.8 dp to 27.8 dp. The commit message says "nothing overlaps" and does not state the smaller margin.
+- P3 #11: no screenshot or vision read was reported for a band-height change on a three-band partition. `docs/DESIGN.md` says the pixels are proven by screenshots at three sizes, and the phone's `mock/` holds no tracked files, so the pixel proof for this change does not exist.

@@ -10,7 +10,7 @@ export const COMPOSER = {
     "thinkingOff": "Désactiver la réflexion",
     "hintSend": "Entrée envoie · Maj+Entrée ajoute une ligne",
     "hintOpening": "Ouverture de la conversation…",
-    "disclaimer": "Kalsa peut se tromper. Vérifiez les informations importantes.",
+    "disclaimer": "Kalsa peut se tromper. Vérifie les informations importantes.",
     "thinkingOnTitle": "Réflexion : le modèle raisonne avant de répondre. Désactive-la pour être répondu aussitôt.",
     "thinkingOffTitle": "Réflexion désactivée : le modèle répond aussitôt, sans réfléchir d'abord.",
     "compressing": (pct: number) => `Compression… ${pct} %`,
