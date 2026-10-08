@@ -2043,6 +2043,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   re-pin in tree; P1 a failed power RPC was only logged -> fixing (mimo `1f622647`: fail the session; corner
   membership 1..11/255 on both sides); P1-plausible lingering vote of a stopped session (no HAP_power_destroy,
   pre-existing) -> BACKLOG (one session per process in the campaign; every arm's log carries the 0x0 request line).
+  Fixes landed: engine `3db5b3f45` (mimo; verified on disk): a non-zero power status throws in allocate, the session
+  constructor's catch releases and rethrows (no run can record a corner it did not get); corner = enum member 1..11 or
+  255 on host parser and DSP (+ static assert TURBO_L5 == 11); host ctest EXIT=0; DSP/host .cpp compile not run (SDK
+  only in the docker image). **Pushed: engine main = `3db5b3f45`** (lab-gated, default build unchanged; the skel gains
+  the `power` IDL method, so the next binding vendor bump carries a re-stamped skel).
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced
