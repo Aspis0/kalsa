@@ -1967,7 +1967,9 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   buffers; the audit's F3: norms/conv/fused norms over HOST-W have no self-check). Exactly why R2 keeps unmeasured
   phones off; the S23 is unaffected. Indicative speeds (plugged, not claims): NPU 17.1, GPU 21.6-22.1, CPU 15.0.
 - **Override audit (reviewer n2, `audit-unmeasured-override-n2.md`)**: no P0; P1 F1 the env is read in library code
-  the app would compile -> fix dispatched (mimo `a41ff810`: compile-time `GGML_OPENCL_TILE32_LAB`, default OFF);
+  the app would compile -> FIXED engine `2d970bdf3` (mimo; compile-time `GGML_OPENCL_TILE32_LAB`, default OFF; host test
+  EXIT=0 with the option off and on; getenv absent from the default object) and pushed: **engine main = `2d970bdf3`**,
+  local `feat/governor-onecopy` deleted; lab bench `b973c64d74ff` carries the waiver;
   P2 F5 warning wording (same fix); P2 F2/F3/F4 (no other gate refuses 750/830, no self-check for norms/conv, admission
   then compute miss aborts) are preconditions for any SM8650 row -> BACKLOG; P3s -> BACKLOG.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
