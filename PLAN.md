@@ -2018,6 +2018,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   **S23 smoke (`raw/session19-vcorner-smoke-6e06ce5a1.grep`, NPU leg alone, 128 tokens, bus MAX)**: core MAX 19.28,
   SVS 11.25, NOM 16.67, MAX again 19.30 tok/s - every request returned 0 and the effect is real and reversible (no
   later vote re-pins MAX). Campaign started: `run-step5-vcorner.sh`, MAX TURBO NOM NOM TURBO MAX, 2048 tokens each.
+  Luna audit (`audit-vcorner-luna.md`): default start request byte-identical (REFUTED regression), no later core/bus
+  re-pin in tree; P1 a failed power RPC was only logged -> fixing (mimo `1f622647`: fail the session; corner
+  membership 1..11/255 on both sides); P1-plausible lingering vote of a stopped session (no HAP_power_destroy,
+  pre-existing) -> BACKLOG (one session per process in the campaign; every arm's log carries the 0x0 request line).
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced

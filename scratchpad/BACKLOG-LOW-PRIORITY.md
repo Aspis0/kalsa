@@ -221,3 +221,9 @@ P3: F6 gate verdict cached per device (env flip mid-process gives a bogus reason
 - F2 (P2): the guard parses a shape, not the invariant: the copy branch trusts any `X.devices = Y.devices`; `->devices =`, `.assign/.insert` not matched; comments count as sites; brittle on trailing commas / std::vector<..>{..}. A one-line assert next to the existing kv/buft asserts at the engine's common.cpp:1610-1611 (in kalsallama, not a local patch) would enforce the contract at runtime.
 - F3 (P2, pre-existing): `params_dft.devices = draft_params.devices` (rn-llama.cpp:1500) drops the caller's HTP-filtering list for the MTP draft model (governor off + MTP only); upstream's common_base_params_to_speculative keeps the base devices.
 - P3: the model retains a pointer into the caller's devices vector (llama-model.cpp:1354; no post-load reader, latent); the WHY comment at rn-llama.cpp:332 words the contract inverted; guard file header not updated.
+
+## HTP voltage-corner lab knob (audit `onecopy-three-legs/audit-vcorner-luna.md`, 2026-10-08)
+Fixed in the follow-up commit: failed power RPC now fails the session; corner membership {1..11, 255} on both sides.
+Left: P1-PLAUSIBLE stop frees the session ctx without HAP_power_destroy (pre-existing upstream lifecycle; a stopped
+session's vote could linger within ONE process - the S23 smoke ran one session per process and saw MAX restore 19.3);
+P2 a new host + old skel fails only on the lab RPC; P3 the host test does not exercise the DSP contract.
