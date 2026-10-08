@@ -2174,6 +2174,20 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   NPU alone and beats GPU/CPU alone - that is the honest S23 claim. Next measurement for the guard's value: a long
   (20-30 min) NPU-alone run on a QDC 8 Elite (no skin limit on the board) to see whether the NSP reaches its trip and
   slows - after cell #66.
+- **QDC #66, Snapdragon 8 Elite (SM8750, v79, Adreno 830), job 877374, Haiku `db4ddd3b`
+  (`qdc-8elite-onecopy-legs-66/REPORT.md`, `raw/session1-onecopy-legs-29707db07.grep`)**: **every one-copy leg
+  CORRECT** - L (hops every 32) KL 0.000049, npu 0.000115, gpu 0.000010 twice (identical: deterministic), cpu
+  0.000012, plain A-gpu 0.000010, A-j1 0.000115; V-gpu E5 4000 GEMVs worst 2.3e-5 x RMS. All exits 0, 167 self-check
+  PASS lines per one-copy arm. Indicative tok/s (plugged): gpu 28.8, npu 27.3. **The GPU-leg defect is
+  Adreno-750-specific** (the 830 runs the same graph deterministically and right). Session 13 min (13:42-13:55),
+  ended in the portal; cap requested 75, the timer showed 120 (cost note). Matrix: 8 Elite CPU/NPU/GPU legs PASS.
+- **Round 3, arm 4 (hw replicate)**: 2785 tokens again (identical to arm 3) - the CPU-step-0 config is consistently
+  the worst; arms 5 (gpu) and 6 (npu) running.
+- **Per-node dump instrument** (Haiku `f2488652`, engine `dc48ec8cc` on 29707db07, local): `--dump-nodes FILE`
+  (+ `--dump-nodes-tokens N`) for arms A/L, one stats line per graph node, and `compare-node-dumps.py`; Android bench
+  3200a26a in `~/Projects/kalsa-artifacts-dump`. Plan on the 750: two runs of the SAME failing gpu-leg config (the KL
+  differs run to run, so the first node that differs between them is the nondeterministic one), plus the 830-clean
+  config as a reference. Audit by deepseek running.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23

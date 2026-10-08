@@ -1,0 +1,259 @@
+# QDC cell #66, Snapdragon 8 Elite (SM8750, v79, Adreno 830), job 877374 / sa881443, engine 29707db07 (bench 822862e0, skel v79 69e92a9e), plugged: correctness only, speeds indicative
+# === recon
+SM8750
+Sun for arm64
+qti/sun/sun:16/BQ2A.260305.002-BP2A.250705.008/eng.lnxbui:userdebug/test-keys
+/vendor/lib64/libOpenCL.so
+/vendor/lib64/libcdsprpc.so
+MemTotal:       15519768 kB
+/dev/block/dm-56  47183872 2389820  44794052   6% /mnt/pass_through/0/emulated
+# === kit verify
+governor-bench: OK
+libggml-htp-v79.so: OK
+libggml-htp-v75.so: OK
+run-legs.sh: OK
+# === legs_report
+== legs start Thu Oct  8 10:44:49 PDT 2026 soc=SM8750 model=Sun for arm64 bench 822862e0d304 batT=420
+## G exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+self-check PASS lines: 0
+## L exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=cpu rule=alternation tokens=32 tps=28.063 kl_mean=0.000010 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu rule=alternation tokens=32 tps=28.253 kl_mean=0.000113 kl_max=0.001143 kl_max_row=36 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=alternation tokens=32 tps=29.184 kl_mean=0.000052 kl_max=0.000322 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=alternation tokens=32 tps=27.742 kl_mean=0.000027 kl_max=0.000179 kl_max_row=126 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=npu rule=alternation tokens=32 tps=28.568 kl_mean=0.000071 kl_max=0.000379 kl_max_row=138 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=gpu rule=alternation tokens=32 tps=29.337 kl_mean=0.000040 kl_max=0.000447 kl_max_row=168 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=cpu rule=alternation tokens=32 tps=28.869 kl_mean=0.000020 kl_max=0.000141 kl_max_row=216 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu rule=alternation tokens=32 tps=29.493 kl_mean=0.000064 kl_max=0.000769 kl_max_row=252 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=96 tps=28.216
+leg_summary arm=L rep=0 engine=gpu tokens=64 tps=29.260
+leg_summary arm=L rep=0 engine=npu tokens=95 tps=28.462
+leg_total arm=L rep=0 generated=255 windows=8 hops=7 commit_bytes=17727488 commit_us=40550
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000049 max=0.001143 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-npu exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=npu rule=none tokens=32 tps=26.622 kl_mean=0.000071 kl_max=0.000593 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu rule=none tokens=32 tps=27.438 kl_mean=0.000110 kl_max=0.001106 kl_max_row=60 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu rule=none tokens=32 tps=27.614 kl_mean=0.000160 kl_max=0.001730 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=npu rule=none tokens=32 tps=28.461 kl_mean=0.000125 kl_max=0.001227 kl_max_row=126 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=127 tps=27.303
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000115 max=0.001730 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-gpu exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=27.794 kl_mean=0.000011 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=29.211 kl_mean=0.000009 kl_max=0.000101 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=29.077 kl_mean=0.000010 kl_max=0.000108 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=30.202 kl_mean=0.000007 kl_max=0.000054 kl_max_row=120 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=28.819
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-gpu2 exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=28.314 kl_mean=0.000011 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=29.187 kl_mean=0.000009 kl_max=0.000101 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=29.043 kl_mean=0.000010 kl_max=0.000108 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=30.088 kl_mean=0.000007 kl_max=0.000054 kl_max_row=120 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=28.917
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-cpu exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=cpu rule=none tokens=32 tps=22.378 kl_mean=0.000010 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=cpu rule=none tokens=32 tps=25.762 kl_mean=0.000015 kl_max=0.000168 kl_max_row=48 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=cpu rule=none tokens=32 tps=28.482 kl_mean=0.000014 kl_max=0.000113 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=none tokens=32 tps=30.070 kl_mean=0.000010 kl_max=0.000065 kl_max_row=114 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=127 tps=26.133
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000168 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## A-gpu exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+kld arm=A ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000114 kld_max=0.010000 status=PASS
+self-check PASS lines: 0
+## A-j1 exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+kld arm=A ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000115 max=0.001730 kld_max=0.010000 status=PASS
+self-check PASS lines: 1
+## V-gpu exit=0 batT=420
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=2.238 kl_mean=0.000011 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=29.271 kl_mean=0.000009 kl_max=0.000101 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=28.935 kl_mean=0.000010 kl_max=0.000108 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=30.316 kl_mean=0.000007 kl_max=0.000054 kl_max_row=120 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=7.236
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+V-gpu verify: lines=4000 worst_rel=2.285e-05
+== legs end Thu Oct  8 10:54:13 PDT 2026 batT=420
+# === per-log leg_summary / leg_total / kld
+## G
+run_start arm=G rep=0 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+## L
+run_start arm=L rep=0 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+leg_summary arm=L rep=0 engine=cpu tokens=96 us=3402269 tps=28.216
+leg_summary arm=L rep=0 engine=gpu tokens=64 us=2187271 tps=29.260
+leg_summary arm=L rep=0 engine=npu tokens=95 us=3337752 tps=28.462
+leg_pair arm=L rep=0 pair=npu-gpu hops=2 commit_bytes=11206656 commit_us=25269
+leg_pair arm=L rep=0 pair=npu-cpu hops=3 commit_bytes=3702784 commit_us=1011
+leg_pair arm=L rep=0 pair=gpu-cpu hops=2 commit_bytes=2818048 commit_us=14270
+leg_total arm=L rep=0 generated=255 windows=8 hops=7 commit_bytes=17727488 commit_us=40550
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000049 max=0.001143 kld_max=0.010000 status=PASS
+## L-npu
+run_start arm=L rep=0 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+leg_summary arm=L rep=0 engine=npu tokens=127 us=4651502 tps=27.303
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000115 max=0.001730 kld_max=0.010000 status=PASS
+## L-gpu
+run_start arm=L rep=0 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+leg_summary arm=L rep=0 engine=gpu tokens=127 us=4406876 tps=28.819
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+## L-gpu2
+run_start arm=L rep=0 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+leg_summary arm=L rep=0 engine=gpu tokens=127 us=4391945 tps=28.917
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+## L-cpu
+run_start arm=L rep=0 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+leg_summary arm=L rep=0 engine=cpu tokens=127 us=4859822 tps=26.133
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000168 kld_max=0.010000 status=PASS
+## A-gpu
+run_start arm=A rep=0 dev=GPUOpenCL hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+kld arm=A ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000114 kld_max=0.010000 status=PASS
+## A-j1
+run_start arm=A rep=0 dev=HTP0,GPUOpenCL hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+kld arm=A ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000115 max=0.001730 kld_max=0.010000 status=PASS
+## V-gpu
+run_start arm=L rep=0 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0
+leg_summary arm=L rep=0 engine=gpu tokens=127 us=17550068 tps=7.236
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa66/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+# === V-gpu: verify lines over 1e-5 x rms (tolerance F3, all within 2.3e-5)
+ggml-opencl-tile32: verify call=10 tensor=blk.1.ffn_down.weight rows=2048 max|diff|=1.043e-07 rms=7.6866e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=224 tensor=blk.10.shortconv.out_proj.weight rows=2048 max|diff|=2.235e-08 rms=2.0797e-03 sub_vs_parent_max=0.000e+00 act_off=32256 xsub_off=32256 img_px=512 dst_off=40448 dsub_off=40448 status=FAIL
+ggml-opencl-tile32: verify call=425 tensor=blk.16.ffn_down.weight rows=2048 max|diff|=8.941e-08 rms=8.8828e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=564 tensor=blk.11.ffn_down.weight rows=2048 max|diff|=2.235e-08 rms=2.1073e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=591 tensor=blk.16.ffn_down.weight rows=2048 max|diff|=1.788e-07 rms=7.8234e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=720 tensor=blk.9.ffn_down.weight rows=2048 max|diff|=4.098e-08 rms=3.2644e-03 sub_vs_parent_max=0.000e+00 act_off=134656 xsub_off=134656 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=722 tensor=blk.10.shortconv.out_proj.weight rows=2048 max|diff|=1.863e-08 rms=1.7928e-03 sub_vs_parent_max=0.000e+00 act_off=32256 xsub_off=32256 img_px=512 dst_off=40448 dsub_off=40448 status=FAIL
+ggml-opencl-tile32: verify call=735 tensor=blk.12.ffn_down.weight rows=2048 max|diff|=5.960e-08 rms=3.8315e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=852 tensor=blk.3.ffn_down.weight rows=2048 max|diff|=5.960e-08 rms=3.0085e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=923 tensor=blk.16.ffn_down.weight rows=2048 max|diff|=8.941e-08 rms=7.7761e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=962 tensor=blk.23.ffn_down.weight rows=2048 max|diff|=2.384e-07 rms=2.2979e-02 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1006 tensor=blk.1.ffn_down.weight rows=2048 max|diff|=8.941e-08 rms=8.5170e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1045 tensor=blk.8.ffn_down.weight rows=2048 max|diff|=7.451e-08 rms=4.7730e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1067 tensor=blk.12.ffn_down.weight rows=2048 max|diff|=5.960e-08 rms=3.9346e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1201 tensor=blk.6.ffn_down.weight rows=2048 max|diff|=3.725e-08 rms=3.2308e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=1421 tensor=blk.16.ffn_down.weight rows=2048 max|diff|=1.192e-07 rms=8.2300e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1477 tensor=blk.26.ffn_down.weight rows=2048 max|diff|=2.086e-07 rms=1.8382e-02 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1504 tensor=blk.1.ffn_down.weight rows=2048 max|diff|=1.192e-07 rms=1.0347e-02 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1552 tensor=blk.10.shortconv.out_proj.weight rows=2048 max|diff|=2.235e-08 rms=1.9690e-03 sub_vs_parent_max=0.000e+00 act_off=32256 xsub_off=32256 img_px=512 dst_off=40448 dsub_off=40448 status=FAIL
+ggml-opencl-tile32: verify call=1682 tensor=blk.3.ffn_down.weight rows=2048 max|diff|=5.960e-08 rms=4.7522e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=1919 tensor=blk.16.ffn_down.weight rows=2048 max|diff|=1.490e-07 rms=9.5862e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1941 tensor=blk.20.ffn_down.weight rows=2048 max|diff|=1.490e-07 rms=1.4756e-02 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=1982 tensor=blk.27.ffn_down.weight rows=2048 max|diff|=2.980e-07 rms=2.8826e-02 sub_vs_parent_max=0.000e+00 act_off=134656 xsub_off=134656 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=2241 tensor=blk.14.ffn_down.weight rows=2048 max|diff|=3.353e-08 rms=2.9873e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=2573 tensor=blk.14.ffn_down.weight rows=2048 max|diff|=2.980e-08 rms=2.6442e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=2583 tensor=blk.16.ffn_down.weight rows=2048 max|diff|=8.941e-08 rms=7.8066e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=2802 tensor=blk.26.shortconv.out_proj.weight rows=2048 max|diff|=1.490e-07 rms=1.4859e-02 sub_vs_parent_max=0.000e+00 act_off=15872 xsub_off=15872 img_px=512 dst_off=24064 dsub_off=24064 status=FAIL
+ggml-opencl-tile32: verify call=2998 tensor=blk.1.ffn_down.weight rows=2048 max|diff|=8.941e-08 rms=8.5170e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=3051 tensor=blk.11.shortconv.out_proj.weight rows=2048 max|diff|=1.863e-08 rms=1.7325e-03 sub_vs_parent_max=0.000e+00 act_off=32256 xsub_off=32256 img_px=512 dst_off=40448 dsub_off=40448 status=FAIL
+ggml-opencl-tile32: verify call=3171 tensor=blk.2.ffn_down.weight rows=2048 max|diff|=5.215e-08 rms=4.7011e-03 sub_vs_parent_max=0.000e+00 act_off=134656 xsub_off=134656 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=3225 tensor=blk.12.ffn_down.weight rows=2048 max|diff|=5.215e-08 rms=4.3854e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=3269 tensor=blk.20.ffn_down.weight rows=2048 max|diff|=1.490e-07 rms=1.3110e-02 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=3364 tensor=blk.7.ffn_down.weight rows=2048 max|diff|=5.215e-08 rms=3.5314e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=3413 tensor=blk.16.ffn_down.weight rows=2048 max|diff|=1.490e-07 rms=8.2066e-03 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=3466 tensor=blk.26.shortconv.out_proj.weight rows=2048 max|diff|=1.788e-07 rms=1.5349e-02 sub_vs_parent_max=0.000e+00 act_off=15872 xsub_off=15872 img_px=512 dst_off=24064 dsub_off=24064 status=FAIL
+ggml-opencl-tile32: verify call=3496 tensor=blk.1.ffn_down.weight rows=2048 max|diff|=1.192e-07 rms=1.0347e-02 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=3508 tensor=blk.3.ffn_down.weight rows=2048 max|diff|=5.215e-08 rms=4.3704e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=3708 tensor=blk.9.ffn_down.weight rows=2048 max|diff|=4.843e-08 rms=3.4557e-03 sub_vs_parent_max=0.000e+00 act_off=134656 xsub_off=134656 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
+ggml-opencl-tile32: verify call=3735 tensor=blk.14.ffn_down.weight rows=2048 max|diff|=5.215e-08 rms=4.2657e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=3879 tensor=blk.10.ffn_down.weight rows=2048 max|diff|=5.215e-08 rms=3.9049e-03 sub_vs_parent_max=0.000e+00 act_off=126464 xsub_off=126464 img_px=2688 dst_off=32256 dsub_off=32256 status=FAIL
+ggml-opencl-tile32: verify call=3933 tensor=blk.20.ffn_down.weight rows=2048 max|diff|=2.682e-07 rms=1.4749e-02 sub_vs_parent_max=0.000e+00 act_off=110080 xsub_off=110080 img_px=2688 dst_off=15872 dsub_off=15872 status=FAIL
