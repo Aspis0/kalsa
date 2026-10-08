@@ -11,6 +11,10 @@ time at 1920 px; its exact point is inside the target 8–15 % of the time (23�
 within 2 %). LFM2.5-VL-3B does not work at all. Short text reading works for Gemma
 on clean dialogs. Details and the product implication below.
 
+Second pass (owner's product path: the model names the element, the OS gives the box):
+see **Bigger models** at the end. Gemma 4 12B and Qwen 3.6 35B-A3B were run on the same
+20 frames; the naming numbers there are the ones that matter now. LFM is dropped.
+
 ## Setup
 
 - Machine: Mac, M1 Max 64 GB. Engine `kalsa-server-v1.1.5` (`GET /props` →
@@ -269,6 +273,100 @@ tests the product path directly.
 `label-crop.py`, `ground-truth.json`, `geometry.mjs`, `crop.mjs`, `prompts.mjs`,
 `engine.mjs`, `score.mjs`, `run.mjs`, `report.mjs`, `results/*.json` (raw replies,
 image data truncated). Screenshots and crops are in `/tmp/lab-screen/` and not committed.
+
+## Bigger models (second pass)
+
+Same harness, same 20 frames, cold cache on every call, Task A in Italian and English at
+native / 1280 / 896 px, Task B standard and line-by-line, one cache-repeat check. No zoom.
+Each model on its own engine at 127.0.0.1:8150, killed after its run. The owner's app on
+8130/8131 was idle and untouched.
+
+- **Gemma 4 12B** (`gemma-4-12B-it-Q4_K_M.gguf`, read in place, sha256 `3962624d…` = catalog pin;
+  projector `mmproj-gemma-4-12B-it-Q8_0.gguf` from `ggml-org/gemma-4-12B-it-GGUF@e3e68173`,
+  sha `59e62255…`, 158,987,616 bytes). Sampling: the row's own (temp 1.0, top_p 0.95, top_k 64).
+- **Qwen 3.6 35B-A3B** (`Qwen3.6-35B-A3B-UD-Q4_K_M.gguf` + `unsloth__…mmproj-F16.gguf`, read in
+  place; `.verified` sidecars untouched). Sampling: the row's thinking recipe (temp 1.0,
+  top_p 0.95, top_k 20). **Thinking off** via `chat_template_kwargs.enable_thinking=false`:
+  the template takes that branch (`enable_thinking is defined and enable_thinking is false`
+  emits an empty `<think></think>` block), and a live request returned `ok` with no
+  `reasoning_content`.
+- Memory before loading Qwen: free ≈ 5.0 GB, inactive ≈ 21.5 GB (≈ 27 GB reclaimable). It
+  loaded and ran. The owner's app server sat at ≈ 176 MB RSS throughout.
+
+### The 12B and the app's micro-batch: a real bug
+
+With the app's argv (`--ubatch-size 512`) the 12B **aborts on its first 1920 px frame**:
+`GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention
+requires n_ubatch >= n_tokens") failed` (engine log, `llama-context.cpp:1804`). The frame is
+922 image tokens. The E4B ran that same 922-token frame at ubatch 512 without aborting, so the
+abort depends on the model (its attention), not on the image size alone. The 12B and Qwen were
+run with `--ubatch-size 2048` (the app's own `BATCH`). **Not tested here:** Qwen at 512 (its
+1920 frames are 2 042 image tokens and would likely hit the same assertion). Product consequence:
+a vision-enabled 12B row cannot ship with ubatch 512 unless the image budget is capped at a
+size that was not measured here. Fix or cap before shipping.
+
+### Results
+
+Label is the primary metric. **Strict** = the reply names the visible text exactly (case and
+punctuation folded). **Lenient** = containment either way. Point and grid are secondary.
+All Task A replies re-scored from their stored text against the corrected ground truth
+(one ground-truth fix: the Task Manager row is `Clipchamp (9)`, not `Clipchamp`).
+
+| | E4B (Gemma 4 E4B, Q4_K_M) | Gemma 4 12B (Q4_K_M) | Qwen 3.6 35B-A3B (MoE, Q4_K_M) |
+|---|---|---|---|
+| **Label strict, all frames, Italian** (48) | 83 % (40) | 85 % (41) | 90 % (43) |
+| **Label strict, all frames, English** (48) | 81 % (39) | 90 % (43) | **98 % (47)** |
+| Label lenient, all frames, IT / EN | 94 % / 90 % | 88 % / 90 % | 92 % / 98 % |
+| Label strict @ 1920 px, IT / EN (13 frames) | 92 % / 92 % | **100 % / 100 %** | 92 % / **100 %** |
+| Strict-point @ 1920 px, IT (secondary) | 8 % | 31 % | **85 %** |
+| Tolerant point @ 1920 px, IT | 23 % | 46 % | **92 %** |
+| Strict-point, all frames, IT | 8 % | 21 % | **63 %** |
+| Wrong element, all frames, IT | 6 % | 13 % | 8 % |
+| Prefill ms, 1920 px, IT (median) | **3 702** | 5 981 | 9 236 |
+| Wall ms, 1920 px, IT (median) | **5 062** | 9 525 | 10 687 |
+| Wall ms, all frames, IT (median) | **3 264** | 6 830 | 5 059 |
+| Decode tok/s (median, all frames) | 37.6 | 17.6 | **42.8** |
+| Image tokens @ 1920 px | 922 | 922 | **2 042** |
+| Image tokens @ 896 px | 211–287 | 211–287 | 450–618 |
+| Peak RSS (engine) | **6.15 GiB** (probe) | 9.66 GiB | 21.75 GiB |
+| Task B exact, std (9 items) | 6 / 9 | **8 / 9** | 4 / 9 |
+| Task B contains, line-by-line (9 items) | 6 / 9 | 6 / 9 | 6 / 9 |
+| Cache repeat (same frame, same request) | cold 3 728 ms → 26 ms | cold 5 985 ms → 86 ms | cold 9 712 ms → 52 ms |
+
+Notes on the table:
+- "All frames" is 48 Task A items per language (16 frames × widths). 2–5 points is one or two
+  items; read the ranking as directional, not significant.
+- The 1920-px Italian strict misses: E4B said "Search" for "Search Wikipedia"; Qwen said
+  "Web Scraper Cloud" (a nav button) for "Cloud login"; the 12B had none.
+- Task B failures: the 404 heading issue (all models); Qwen also returned no exact text for the
+  BSOD standard prompt, though its line-by-line reply contained it.
+- Peak RSS: E4B from a native-1920 Italian Task A probe (36 rows, same sampler); the 12B and
+  Qwen are whole-run peaks (173 rows, incl. 1280 and 896 frames). `rss-*.txt` in `results/`.
+- Decode speed is target-only (no drafter), as the row's MTP drafter was omitted for every model.
+
+### Verdict for the naming path
+
+The owner's product path asks the model only to **name** the element; the OS supplies the box.
+On that task, label accuracy is the metric:
+
+- **Accuracy:** Qwen 3.6 35B-A3B is the most accurate (90 % Italian, 98 % English, strict, all
+  frames). Gemma 4 12B reaches 85 % Italian and 90 % English, at about half Qwen's RAM and about
+  the same wall time at 1920 px. E4B is 81–83 % strict.
+- **Seconds per frame:** E4B is the fastest by a wide margin: 5.1 s at native 1920 px, 3.3 s
+  median over all frames, 1.1 s prefill at 896 px. 12B is 9.5 s at 1920 px. Qwen is 10.7 s at
+  1920 px (prefill 9.2 s for 2 042 image tokens), 5.1 s median over all frames. Qwen has the
+  highest decode speed (42.8 tok/s) but the largest prefill; naming outputs are short, so prefill
+  dominates.
+- **Memory:** E4B ≈ 6 GiB, 12B ≈ 10 GiB, Qwen ≈ 22 GiB. On a PC this decides what can run beside
+  the OS and the user's apps; Qwen at 22 GiB is not a default-tier model for a typical machine.
+- **Recommendation:** use **E4B** for the default naming path: fastest, smallest, and its strict
+  naming (81–83 %) should be covered by the candidate list plus exact-text matching before the
+  model is asked (the product can resolve exact matches in code and send only the rest to the
+  model). Offer **Qwen 3.6 35B-A3B** as an accuracy tier on machines with enough RAM and a
+  tolerance of ~10 s per "what do I click" question; do not use it for watch mode. Do not ship the
+  12B row with ubatch 512 (see above); it is not clearly better than E4B per second.
+- **Still open:** the owner decides the tier and the memory line. Measurements are on a shared
+  Mac with the app idle; a PC will differ. The decode figures exclude the MTP drafter.
 
 ## Cleanup
 

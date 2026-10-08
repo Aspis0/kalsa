@@ -44,10 +44,20 @@ export function replyPoint(v) {
   return GRID_CELLS.includes(v.grid) ? cellCenter(v.grid) : null;
 }
 
+/** Strict label: the reply names exactly the visible text (after case and punctuation folding). */
+export function labelStrict(label, expectedLabel) {
+  return norm(label) !== "" && norm(label) === norm(expectedLabel);
+}
+
+/** Lenient label: containment either way ("Search" accepts "Search Wikipedia"). */
+export function labelLenient(label, expectedLabel) {
+  return norm(label) !== "" && (norm(label).includes(norm(expectedLabel)) || norm(expectedLabel).includes(norm(label)));
+}
+
 export function scoreGuide(parsed, expected, native) {
   const v = parsed.value ?? {};
   const refused = norm(v.label) === "";
-  const labelOk = !refused && (norm(v.label).includes(norm(expected.label)) || norm(expected.label).includes(norm(v.label)));
+  const labelOk = labelLenient(v.label, expected.label);
   const box = normBox(expected.box_px, native);
   const point = pointOf(v);
   const expectedGrid = cellOf(...boxCenter(box));
@@ -55,6 +65,7 @@ export function scoreGuide(parsed, expected, native) {
     formatOk: parsed.ok && (refused || "label" in v),
     refused,
     labelOk,
+    labelStrict: labelStrict(v.label, expected.label),
     hasPoint: point !== null,
     strict: point !== null && inside(point, box, 0),
     tolerant: point !== null && inside(point, box, TOL),

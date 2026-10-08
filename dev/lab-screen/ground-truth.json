@@ -133,7 +133,7 @@
       "sha256": "3a80a4f2fb1147b84400795cebfdb327eae3d5972ea5a279567c957af4a0e9bf", "native": [1370, 1080],
       "tasks": [
         { "id": "A-clipchamp-first", "type": "A", "goal_it": "Clipchamp non risponde. Qual è il primo passo per chiuderlo da Gestione attività?", "goal_en": "Clipchamp is not responding. What is the first step to close it from Task Manager?",
-          "expected": { "label": "Clipchamp", "box_px": [195, 310, 420, 332] } }
+          "expected": { "label": "Clipchamp (9)", "box_px": [195, 310, 420, 332] } }
       ]
     },
     {

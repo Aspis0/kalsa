@@ -16,6 +16,7 @@ engine_dir="$HOME/Library/Application Support/kalsa-brain/runtime/builds/metal/k
 case "$profile" in
   gemma) sampling="--temp 1.0 --top-p 0.95 --top-k 64" ;;
   lfm)   sampling="--temp 0.1 --top-k 50 --repeat-penalty 1.1" ;;
+  qwen)  sampling="--temp 1.0 --top-p 0.95 --top-k 20 --repeat-penalty 1.0" ;;
   *) echo "unknown profile $profile"; exit 2 ;;
 esac
 
@@ -23,7 +24,7 @@ mkdir -p /tmp/lab-screen/slots
 cd "$engine_dir" || exit 2
 ./kalsa-server --host 127.0.0.1 --port 8150 \
   --model "$model" --mmproj "$mmproj" --alias "$alias" \
-  --batch-size 2048 --ubatch-size 512 \
+  --batch-size 2048 --ubatch-size "${UBATCH:-512}" \
   --ctx-size 65536 --parallel 1 \
   --flash-attn on --cache-type-k q8_0 --cache-type-v q8_0 \
   $sampling \
