@@ -2049,6 +2049,19 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   kernel failing hard under it, not an OOM kill. To settle: the same series on a surviving `--gen 2049` run (control),
   and the remaining separator steps (gb_cpu, one-context llama-bench, the app's FA + q8_0/q4_0 KV, GPU alone).
   Relaunched; it resumes at gb_cpu.
+  **Round 1 done (`step5-s23/raw/session22-repro-round1.grep`)**: gb_cpu (cpu leg, n_ctx 8960) and gb_gpu_4k (gpu
+  leg, n_ctx 4864) were both cut by the skin-43 stop exactly at window 46-47, i.e. AT the reset position, so neither
+  separates anything (plugged + charging the S23 reaches 43 in ~150-190 s); lb_j1_fa0/lb_j1_app INVALID (my script:
+  plain llama-bench cannot build the one-copy load - "token_embd_norm.weight landed in OpenCL"); lb_gpu (GPUOpenCL
+  alone, own buffers, ONE context, n_ctx 8960) ran 268 s to the skin stop with no reset - by time ~3000 tokens, so past
+  position 2048, but llama-bench prints no progress: an estimate. **Memory falls during decode in EVERY bench run at
+  ~3 MB/s whatever n_ctx** (gpu 4864: 1.2 GB -> 650 MB in 187 s; cpu 8960: 800 -> 510 MB), so the fall is per token
+  or per second, not n_ctx-sized - n_ctx sets only the starting level (three leg contexts at 8960 start ~800 MB, the
+  one-context llama-bench ~1.6 GB). The system also has 3.2 GB of zram swap free, so "exhaustion" must mean a
+  non-swappable pool. Round 2 (`run-reset-repro2.sh`, running): logs the bench's own RSS and the GPU driver's global
+  page pool (kgsl page_alloc/mapped/vmalloc) to find WHO grows; mem_ctl (--gen 2049, never resets) vs mem_squeeze (the
+  same with a 1.2 GB anonymous hog: a reset there = memory pressure is causal); lb_npu / lb_npu_app (two-copy NPU, one
+  context, n_ctx 8960, FA off f16 vs the app's FA + q8_0/q4_0); gb_cpu2 from a cooler start.
 - **GPU leg on other Adrenos (owner 2026-10-08: "pensavo la GPU funzionava dappertutto ma non è vero")**: precise
   state - plain OpenCL (own buffers) is correct on the 750; the ONE-COPY GPU leg (OpenCL reading the NPU's imported
   buffers) is wrong on the 750 (nondeterministic KL 0.05-0.14) and untested on the 830 (8 Elite, v79: QDC blocked by

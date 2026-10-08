@@ -1,0 +1,56 @@
+# S23 reset repro round 1 (run-reset-repro.sh), plugged. Report, state, and per-step MemAvailable (MiB) every ~5 s
+== repro start Thu Oct  8 09:22:43 EDT 2026 boot 962614f9-c0c7-4f9f-a52d-55b99fd442c9 reason reboot gb 1d74341d72fc lb ddbb98027d40 [lvl=22 ac=false usb=false wl=false batT=279 skin=29.1 wake=Awake thermal=0 traced=0]
+## gb_gpu start 1791465764 after 0s cool wait [lvl=22 ac=false usb=false wl=false batT=279 skin=29.1 wake=Awake thermal=0 traced=0]
+ABORTED by operator 1791465797: battery 22 %, wait for the charger (a low-battery reset would confound brownout with the bug); state cleared
+== repro start Thu Oct  8 09:32:12 EDT 2026 boot 962614f9-c0c7-4f9f-a52d-55b99fd442c9 reason reboot gb 1d74341d72fc lb ddbb98027d40 [lvl=21 ac=true usb=false wl=false batT=282 skin=29.4 wake=Awake thermal=0 traced=0]
+## gb_gpu start 1791466333 after 0s cool wait [lvl=21 ac=true usb=false wl=false batT=282 skin=29.4 wake=Awake thermal=0 traced=0]
+== repro start Thu Oct  8 09:39:21 EDT 2026 boot 097141c0-61cf-49ca-8510-6b302168e874 reason reboot gb 1d74341d72fc lb ddbb98027d40 [lvl=22 ac=true usb=false wl=false batT=363 skin=36.1 wake=Awake thermal=1 traced=0]
+RESET during step gb_gpu (begin without end; previous boot)
+## gb_cpu start 1791467032 after 270s cool wait [lvl=25 ac=true usb=false wl=false batT=340 skin=33.9 wake=Awake thermal=0 traced=0]
+SKIN KILL 43 1791467182
+## gb_cpu exit=143 (124 = cut by timeout: survived past the reset position) end 1791467182 [lvl=25 ac=true usb=false wl=false batT=418 skin=43.0 wake=Awake thermal=3 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+windows: 47
+## lb_j1_fa0 start 1791467873 after 690s cool wait [lvl=32 ac=true usb=false wl=false batT=342 skin=33.9 wake=Awake thermal=0 traced=0]
+## lb_j1_fa0 exit=1 (124 = cut by timeout: survived past the reset position) end 1791467879 [lvl=32 ac=true usb=false wl=false batT=342 skin=33.9 wake=Awake thermal=0 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+llama_model_load: error loading model: shared weights: token_embd_norm.weight landed in OpenCL, not a shared buffer
+llama_bench: error: failed to load model '/data/local/tmp/heat3way/ship.gguf'
+windows: 0
+## lb_j1_app start 1791467879 after 0s cool wait [lvl=32 ac=true usb=false wl=false batT=342 skin=33.9 wake=Awake thermal=0 traced=0]
+## lb_j1_app exit=1 (124 = cut by timeout: survived past the reset position) end 1791467883 [lvl=32 ac=true usb=false wl=false batT=342 skin=33.9 wake=Awake thermal=0 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+llama_model_load: error loading model: shared weights: token_embd_norm.weight landed in OpenCL, not a shared buffer
+llama_bench: error: failed to load model '/data/local/tmp/heat3way/ship.gguf'
+windows: 0
+## lb_gpu start 1791467883 after 0s cool wait [lvl=32 ac=true usb=false wl=false batT=342 skin=33.9 wake=Awake thermal=0 traced=0]
+SKIN KILL 43 1791468151
+## lb_gpu exit=143 (124 = cut by timeout: survived past the reset position) end 1791468152 [lvl=32 ac=true usb=false wl=false batT=421 skin=43.0 wake=Awake thermal=3 traced=0]
+set_abort_callback: call
+windows: 0
+## gb_gpu_4k start 1791469084 after 930s cool wait [lvl=42 ac=true usb=false wl=false batT=342 skin=33.9 wake=Awake thermal=0 traced=0]
+SKIN KILL 43 1791469272
+## gb_gpu_4k exit=143 (124 = cut by timeout: survived past the reset position) end 1791469271 [lvl=42 ac=true usb=false wl=false batT=420 skin=43.0 wake=Awake thermal=3 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+windows: 47
+== repro end Thu Oct  8 10:21:12 EDT 2026 [lvl=42 ac=true usb=false wl=false batT=420 skin=43.0 wake=Awake thermal=3 traced=0]
+begin gb_gpu 1791466333
+reset gb_gpu 1791466761
+begin gb_cpu 1791467032
+end gb_cpu exit=143 1791467182
+begin lb_j1_fa0 1791467874
+end lb_j1_fa0 exit=1 1791467879
+begin lb_j1_app 1791467879
+end lb_j1_app exit=1 1791467883
+begin lb_gpu 1791467883
+end lb_gpu exit=143 1791468151
+begin gb_gpu_4k 1791469084
+end gb_gpu_4k exit=143 1791469271
+# gb_cpu MemAvailable t:MiB
+2:2454 7:1028 12:788 18:772 23:787 28:753 33:693 38:646 44:626 49:729 54:663 60:659 65:628 70:616 75:591 81:618 86:879 91:777 97:709 102:647 107:670 112:612 118:635 123:594 128:577 134:552 139:514 144:524 149:498 
+# gb_gpu_4k MemAvailable t:MiB
+3:1535 9:1233 14:1210 19:1180 24:1197 30:1189 35:1177 40:1230 45:1185 50:1150 55:1106 61:1064 66:1044 71:1003 76:1150 82:1111 87:1068 92:1023 97:999 102:959 108:788 113:833 118:788 123:804 129:806 134:769 139:770 144:777 150:643 156:969 161:854 166:793 171:869 177:783 182:704 187:654 
+# lb_gpu MemAvailable t:MiB
+0:4598 5:2580 10:1641 16:1627 21:1628 26:1626 32:1629 37:1625 42:1621 47:1621 52:1551 58:1545 63:1537 68:1540 73:1550 79:1550 84:1546 89:1586 94:1584 100:1595 105:1600 110:1598 115:1597 121:1587 126:1588 131:1588 136:1585 142:1581 147:1585 152:1580 157:1580 163:1577 168:1569 173:1575 178:1564 184:1560 189:1576 194:1573 199:1560 205:1556 210:1550 215:1544 221:1549 226:1546 231:1548 236:1539 242:1547 247:1532 252:1530 258:1525 263:1541 268:1539 
+# lb_j1 load error
+llama_model_load: error loading model: shared weights: token_embd_norm.weight landed in OpenCL, not a shared buffer
