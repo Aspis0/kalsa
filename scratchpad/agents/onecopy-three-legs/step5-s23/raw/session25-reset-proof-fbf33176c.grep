@@ -1,0 +1,74 @@
+# PROOF: exact resetting config (arm L gpu leg --gen 8193, n_ctx 8960, FA off f16) on the FIXED bench 49f9c60f (engine fbf33176c), unplugged, cool start. Resetting runs died at window 46; this one ran 94+ windows (cut by timeout) with flat memory.
+== proof start Thu Oct  8 11:49:43 EDT 2026 boot 097141c0-61cf-49ca-8510-6b302168e874 bench 49f9c60f1850 [lvl=91 ac=false usb=false wl=false batT=317 skin=31.7 wake=Awake thermal=0 traced=0]
+## start 1791474583 [lvl=91 ac=false usb=false wl=false batT=317 skin=31.7 wake=Awake thermal=0 traced=0]
+## exit=124 (124 = cut by timeout) end 1791474884 windows=94 [lvl=88 ac=false usb=false wl=false batT=423 skin=42.7 wake=Awake thermal=3 traced=0]
+== proof end Thu Oct  8 11:54:44 EDT 2026
+# uptime after: 8396.83 s (boot 097141c0 unchanged)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 us=2031760 tps=15.750
+leg_window arm=L rep=0 window=10 engine=gpu rule=none tokens=32 us=1961430 tps=16.315
+leg_window arm=L rep=0 window=20 engine=gpu rule=none tokens=32 us=1982745 tps=16.139
+leg_window arm=L rep=0 window=30 engine=gpu rule=none tokens=32 us=2230520 tps=14.346
+leg_window arm=L rep=0 window=40 engine=gpu rule=none tokens=32 us=2333849 tps=13.711
+leg_window arm=L rep=0 window=50 engine=gpu rule=none tokens=32 us=2314730 tps=13.825
+leg_window arm=L rep=0 window=60 engine=gpu rule=none tokens=32 us=2361363 tps=13.551
+leg_window arm=L rep=0 window=70 engine=gpu rule=none tokens=32 us=2476984 tps=12.919
+leg_window arm=L rep=0 window=80 engine=gpu rule=none tokens=32 us=2588820 tps=12.361
+leg_window arm=L rep=0 window=90 engine=gpu rule=none tokens=32 us=2701336 tps=11.846
+# proof_mem.txt
+1791474583 MemAvailable: 4277376 kB 
+1791474589 MemAvailable: 767272 kB RssAnon: 163920 kB RssFile: 31344 kB 
+1791474594 MemAvailable: 821748 kB RssAnon: 170120 kB RssFile: 29316 kB 
+1791474599 MemAvailable: 825348 kB RssAnon: 169944 kB RssFile: 29316 kB 
+1791474605 MemAvailable: 829340 kB RssAnon: 169940 kB RssFile: 29316 kB 
+1791474610 MemAvailable: 852824 kB RssAnon: 170132 kB RssFile: 29316 kB 
+1791474615 MemAvailable: 847964 kB RssAnon: 169900 kB RssFile: 29316 kB 
+1791474620 MemAvailable: 852364 kB RssAnon: 170016 kB RssFile: 29316 kB 
+1791474626 MemAvailable: 850116 kB RssAnon: 170268 kB RssFile: 29316 kB 
+1791474631 MemAvailable: 858320 kB RssAnon: 170652 kB RssFile: 29316 kB 
+1791474636 MemAvailable: 848664 kB RssAnon: 170332 kB RssFile: 29316 kB 
+1791474641 MemAvailable: 846040 kB RssAnon: 170092 kB RssFile: 29316 kB 
+1791474647 MemAvailable: 847484 kB RssAnon: 170740 kB RssFile: 29316 kB 
+1791474652 MemAvailable: 849492 kB RssAnon: 170308 kB RssFile: 29316 kB 
+1791474657 MemAvailable: 845780 kB RssAnon: 170360 kB RssFile: 29316 kB 
+1791474662 MemAvailable: 842384 kB RssAnon: 170200 kB RssFile: 29316 kB 
+1791474668 MemAvailable: 856272 kB RssAnon: 170292 kB RssFile: 29316 kB 
+1791474673 MemAvailable: 849152 kB RssAnon: 170868 kB RssFile: 29316 kB 
+1791474678 MemAvailable: 852232 kB RssAnon: 170244 kB RssFile: 29316 kB 
+1791474684 MemAvailable: 851404 kB RssAnon: 170404 kB RssFile: 29316 kB 
+1791474689 MemAvailable: 855136 kB RssAnon: 170368 kB RssFile: 29316 kB 
+1791474694 MemAvailable: 866324 kB RssAnon: 170520 kB RssFile: 29316 kB 
+1791474699 MemAvailable: 853260 kB RssAnon: 170604 kB RssFile: 29316 kB 
+1791474705 MemAvailable: 867796 kB RssAnon: 170092 kB RssFile: 29316 kB 
+1791474710 MemAvailable: 880612 kB RssAnon: 170452 kB RssFile: 29316 kB 
+1791474715 MemAvailable: 871852 kB RssAnon: 170576 kB RssFile: 29316 kB 
+1791474721 MemAvailable: 874288 kB RssAnon: 170608 kB RssFile: 29316 kB 
+1791474726 MemAvailable: 881616 kB RssAnon: 170352 kB RssFile: 29316 kB 
+1791474731 MemAvailable: 874892 kB RssAnon: 170288 kB RssFile: 29316 kB 
+1791474736 MemAvailable: 882564 kB RssAnon: 170596 kB RssFile: 29316 kB 
+1791474742 MemAvailable: 883176 kB RssAnon: 170428 kB RssFile: 29316 kB 
+1791474747 MemAvailable: 889640 kB RssAnon: 170132 kB RssFile: 29316 kB 
+1791474752 MemAvailable: 881888 kB RssAnon: 170204 kB RssFile: 29316 kB 
+1791474758 MemAvailable: 878620 kB RssAnon: 170368 kB RssFile: 29316 kB 
+1791474763 MemAvailable: 874876 kB RssAnon: 170196 kB RssFile: 29316 kB 
+1791474768 MemAvailable: 880532 kB RssAnon: 165972 kB RssFile: 29020 kB 
+1791474773 MemAvailable: 874232 kB RssAnon: 165916 kB RssFile: 29020 kB 
+1791474779 MemAvailable: 873688 kB RssAnon: 166272 kB RssFile: 29020 kB 
+1791474784 MemAvailable: 958292 kB RssAnon: 165944 kB RssFile: 29020 kB 
+1791474789 MemAvailable: 956260 kB RssAnon: 166164 kB RssFile: 29020 kB 
+1791474795 MemAvailable: 957712 kB RssAnon: 165900 kB RssFile: 29020 kB 
+1791474800 MemAvailable: 957388 kB RssAnon: 166148 kB RssFile: 29020 kB 
+1791474805 MemAvailable: 953164 kB RssAnon: 165988 kB RssFile: 29020 kB 
+1791474810 MemAvailable: 953052 kB RssAnon: 166468 kB RssFile: 29020 kB 
+1791474816 MemAvailable: 880104 kB RssAnon: 165920 kB RssFile: 15232 kB 
+1791474821 MemAvailable: 904444 kB RssAnon: 165880 kB RssFile: 15232 kB 
+1791474826 MemAvailable: 900080 kB RssAnon: 165892 kB RssFile: 15232 kB 
+1791474831 MemAvailable: 910876 kB RssAnon: 165808 kB RssFile: 15232 kB 
+1791474837 MemAvailable: 912936 kB RssAnon: 165720 kB RssFile: 15232 kB 
+1791474842 MemAvailable: 900288 kB RssAnon: 165476 kB RssFile: 15232 kB 
+1791474847 MemAvailable: 900928 kB RssAnon: 165960 kB RssFile: 15232 kB 
+1791474852 MemAvailable: 900420 kB RssAnon: 165656 kB RssFile: 15232 kB 
+1791474858 MemAvailable: 898852 kB RssAnon: 166340 kB RssFile: 15232 kB 
+1791474863 MemAvailable: 895300 kB RssAnon: 166508 kB RssFile: 15232 kB 
+1791474868 MemAvailable: 895788 kB RssAnon: 166264 kB RssFile: 15232 kB 
+1791474874 MemAvailable: 894560 kB RssAnon: 165892 kB RssFile: 15232 kB 
+1791474879 MemAvailable: 894124 kB RssAnon: 165548 kB RssFile: 15232 kB 

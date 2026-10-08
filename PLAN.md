@@ -2084,6 +2084,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   lb_npu_app aborted at load: `pre-allocated tensor (cache_v_l2 (view)) in a buffer (HTP0) that cannot run the
   operation (SET_ROWS)` - plain llama-bench -dev HTP0 puts a q4_0 V cache on HTP0, which cannot write it; a bench
   placement, not the app's path (`step5-s23/raw/session24-repro2-tail.grep`). Next: the proof run (unplugged), round 3.
+  **PROOF DONE (`step5-s23/raw/session25-reset-proof-fbf33176c.grep`)**: the exact resetting config (gpu leg,
+  `--gen 8193`, n_ctx 8960, three leg contexts, FA off, f16 KV) on the fixed bench, unplugged, cool start: 94+ windows
+  (~3000 tokens, position ~3500, past window 46 by 48 windows) and cut only by the 300 s timeout; bench RssAnon flat
+  166-171 MB the whole run (was +7 MB/s), MemAvailable flat 850-950 MB (was falling to 411 MB); same boot throughout.
+  **The S23 hard resets were the bench's logits growth exhausting memory. Closed.**
 - **GPU leg on other Adrenos (owner 2026-10-08: "pensavo la GPU funzionava dappertutto ma non è vero")**: precise
   state - plain OpenCL (own buffers) is correct on the 750; the ONE-COPY GPU leg (OpenCL reading the NPU's imported
   buffers) is wrong on the 750 (nondeterministic KL 0.05-0.14) and untested on the 830 (8 Elite, v79: QDC blocked by
