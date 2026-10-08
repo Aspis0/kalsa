@@ -2012,6 +2012,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   QDC #65 NOT RUN: the Okta login form never renders in the Paseo browser while its tab is hidden (`visibilityState=
   hidden`, "The page has timed out"); no password typed, no session, no minutes, 6037 untouched (verified). Needs the
   owner to open the Paseo browser panel (or a logged-in tab), then re-run the cell.
+- **NPU voltage-corner knob landed (engine `6e06ce5a1`, GLM; local, audit luna `aa11d6ff` running)**: IDL `power(core, bus)`,
+  one shared DCVS v3 request builder (start keeps MAX/MAX), lab-only host env `GGML_HEXAGON_VCORNER` under
+  `GGML_HEXAGON_LAB`; host parser test EXIT=0; artifacts `~/Projects/kalsa-artifacts-vcorner` (release skel 93f79f01).
+  **S23 smoke (`raw/session19-vcorner-smoke-6e06ce5a1.grep`, NPU leg alone, 128 tokens, bus MAX)**: core MAX 19.28,
+  SVS 11.25, NOM 16.67, MAX again 19.30 tok/s - every request returned 0 and the effect is real and reversible (no
+  later vote re-pins MAX). Campaign started: `run-step5-vcorner.sh`, MAX TURBO NOM NOM TURBO MAX, 2048 tokens each.
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced

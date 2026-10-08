@@ -1,0 +1,13 @@
+## MAX exit=0 skin=29.3
+ggml-hex: HTP0 lab vcorner request core 255 bus 255 : 0x00000000
+leg_summary arm=L rep=0 engine=npu tokens=128 us=6638111 tps=19.283
+## SVS,MAX exit=0 skin=29.8
+ggml-hex: HTP0 lab vcorner request core 2 bus 255 : 0x00000000
+leg_summary arm=L rep=0 engine=npu tokens=128 us=11382925 tps=11.245
+## NOM,MAX exit=0 skin=29.8
+ggml-hex: HTP0 lab vcorner request core 4 bus 255 : 0x00000000
+leg_summary arm=L rep=0 engine=npu tokens=128 us=7677041 tps=16.673
+## MAX exit=0 skin=29.9
+ggml-hex: HTP0 lab vcorner request core 255 bus 255 : 0x00000000
+leg_summary arm=L rep=0 engine=npu tokens=128 us=6632107 tps=19.300
+== end
