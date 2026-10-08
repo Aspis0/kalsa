@@ -231,3 +231,10 @@ they are promoted.
 - P3 #8: the chat has no test suite, so the disclaimer's copy and placement are checked by `tsc` alone; `chat/scripts/contrast-dom.mjs` is the only check that reaches the DOM, and it times out at `a7d507bd`. On the phone the fit test is real (`6c78de38`); the sentinel pins at `shellGeometry.test.ts:156` were not reviewed.
 - P3 #9: the design margin the transcript pins were argued from shrank. The live keyboard band is 147 dp, so 24 / 147 is 16 % against the 20 % bound (`transcriptLayout.test.ts:140`), and the clearance over the cloud falls from 47.8 dp to 27.8 dp. The commit message says "nothing overlaps" and does not state the smaller margin.
 - P3 #11: no screenshot or vision read was reported for a band-height change on a three-band partition. `docs/DESIGN.md` says the pixels are proven by screenshots at three sizes, and the phone's `mock/` holds no tracked files, so the pixel proof for this change does not exist.
+
+## Chat warmth after sleep and quit
+
+- Prompt processing is not logged. The door's chat line carries the completion's status and bytes only, so a slow completion (the Surface's 195 s one) cannot be split into re-prefill and generation from the logs. The door should record the engine's prompt-cache numbers per completion.
+- The engine's stderr is not kept on disk (`kalsa-supervisor/src/child.rs`). A sleep is seen only through the stderr line, and the Surface logged no sleep over a 34-minute idle gap on 08/10, so it cannot be told whether the engine slept. Keep the stderr in a file.
+- A model switch stops the door without saving the open chat (`stop_door` in `src-tauri/src/main.rs` has no save). The turns since the last timer save are lost the same way a quit lost them before the quit save.
+- The quit save runs under the exit watchdog's 15 s (`src-tauri/src/exit.rs`, `DEADLINE`), but its own patience is `PAGING_PATIENCE`, 60 s. A save slower than 15 s is cut at the deadline: the engine is killed and the turn is lost, as it was before the save existed.

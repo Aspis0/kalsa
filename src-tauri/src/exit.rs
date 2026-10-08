@@ -1,8 +1,8 @@
 //! The app's exit, on one deadline.
 //!
-//! The engine is stopped first, so a slow exit is never an exit that orphans
-//! the model server; then the rest of the cleanup, every wait of it bounded
-//! on its own (`kalsa-door` gives its threads two seconds, the supervisor's
+//! The open chat is saved and the engine stopped first, so a slow exit is never
+//! an exit that orphans the model server; then the rest of the cleanup, every
+//! wait of it bounded on its own (`kalsa-door` gives its threads two seconds, the supervisor's
 //! stop walk its graces, the pairing wake a few tries). A watchdog armed
 //! before the first step is the backstop the whole thing answers to: at the
 //! deadline it makes sure the engine is gone — killed through the identity

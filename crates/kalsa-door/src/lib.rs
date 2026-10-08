@@ -603,6 +603,16 @@ impl RunningDoor {
         self.chats.invalidate_residency();
     }
 
+    /// The app's clean quit calls this while the engine still runs, before it
+    /// stops the engine: the turns since the resident chat's last timer save
+    /// are written out, so the next start does not restore a stale file. Not
+    /// on `Drop`: a door dropped after its engine is gone would wait out the
+    /// patience for a save nothing can answer.
+    pub fn save_on_quit(&self) {
+        self.chats
+            .save_on_quit(&self.devices, self.upstream_port, paging::PAGING_PATIENCE);
+    }
+
     /// Replaces the credential set without stopping anything: the listener
     /// stays bound, the workers keep serving, the road never notices.
     ///

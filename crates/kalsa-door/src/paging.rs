@@ -42,7 +42,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use self::io::{erase_slot, restore, save, STAGING};
+use self::io::{erase_slot, restore, save, Saved, STAGING};
 // The tier's refusal, for the handover in `proxy` — one vocabulary for
 // every path that ends in one.
 pub(crate) use self::io::ChatError;
@@ -557,6 +557,47 @@ impl Chats {
     /// is the tick's own instant, so the caller's clock is the only one read.
     pub(crate) fn save_idle(&self, devices: &DeviceSet, upstream_port: u16, now: Instant) -> usize {
         cadence::save_idle(self, devices, upstream_port, now)
+    }
+
+    /// Writes out the resident chat that a completion changed since its last
+    /// save, for a clean quit: the quiet timer has not yet reached the turns
+    /// of the last few seconds, and the app is about to stop the engine that
+    /// holds them. Every bound is `patience`, shared by the slots, so the
+    /// quit waits at most that long whatever the engine does.
+    ///
+    /// Only `Resident` is written: an `Evicted` or `Unknown` slot is not in
+    /// the engine, so there is nothing to save, and writing it would overwrite
+    /// the file with a state the door cannot name.
+    pub(crate) fn save_on_quit(&self, devices: &DeviceSet, upstream_port: u16, patience: Duration) {
+        let (Some(model), Some(dir)) = (self.model.as_deref(), self.dir.as_deref()) else {
+            return;
+        };
+        let deadline = Instant::now() + patience;
+        for (index, slot) in self.slots.iter().enumerate() {
+            let mut state = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let (device, chat) = match &state.resident {
+                Residency::Resident(device, chat) if state.dirty_at.is_some() => {
+                    (*device, chat.clone())
+                }
+                _ => continue,
+            };
+            let Some(salt) = devices.cache_salt(device) else {
+                continue;
+            };
+            let engine = Engine {
+                port: upstream_port,
+                slot: index as u32,
+                salt: &salt,
+                deadline,
+                patience,
+            };
+            // The lock is held across the engine call, as in `handover`, so no
+            // turn can move the slot while its state is written out.
+            let outcome = save("quit", dir, &file_name(model, device, &chat), &engine, &|| true);
+            if let Ok(Saved::InPlace) = outcome {
+                state.dirty_at = None;
+            }
+        }
     }
 
     fn lock(&self, slot: u32) -> Result<std::sync::MutexGuard<'_, Slot>, ChatError> {

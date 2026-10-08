@@ -520,6 +520,20 @@ impl Brain {
         self.desk_address.lock().ok().and_then(|held| *held)
     }
 
+    /// The clean quit's save: the open chat's last turns reach its file while
+    /// the engine still runs. Only the exit calls it, before the engine stops;
+    /// a model switch stops the door without it.
+    fn save_open_chat(&self) {
+        let door = self
+            .door
+            .lock()
+            .ok()
+            .and_then(|stored| stored.as_ref().map(|active| Arc::clone(&active.door)));
+        if let Some(door) = door {
+            door.save_on_quit();
+        }
+    }
+
     fn stop_door(&self) {
         // Deliberately no metrics call here: shutting the door is not
         // releasing the model. The sentinel learns of a release only from the
@@ -2577,8 +2591,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // runtime reports. The platform backstop (job object, pdeathsig)
         // covers the exits that run no handler at all. The cleanup runs ONCE
         // for the app — `ExitRequested` and `Exit` both arrive for one quit —
-        // and behind the exit's own deadline: the ENGINE first, so a slow exit
-        // can never orphan it, then the rest, every wait of it bounded. A step
+        // and behind the exit's own deadline: the open chat is saved and the
+        // ENGINE stopped first, so a slow exit can never orphan it, then the
+        // rest, every wait of it bounded. A step
         // that has not come back at the deadline is named, the engine is
         // killed through the identity the supervisor still holds, and the
         // process leaves.
@@ -2610,6 +2625,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 |code, _pending| std::process::exit(code),
             );
             if let Some(brain) = app.try_state::<Arc<Brain>>() {
+                deadline.stage("the open chat");
+                brain.save_open_chat();
                 brain.supervisor.shutdown();
                 deadline.stage("the room's event pump");
                 room_events::stop_event_pump(&brain);
