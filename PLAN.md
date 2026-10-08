@@ -2104,6 +2104,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   `xiaomi-sm8650/run-xiaomi-gpu750-split3.sh` (E0 kernel lists; control x5; UNCACHED x5; FLUSH x5; op filter
   control/MUL/MUL_MAT x3). Waiting for the Xiaomi to be reconnected (adb lost it ~10:00). If UNCACHED stays dirty,
   H-B is dead and the next instrument is n2's E5 (a lab read-back of the imported bytes / sub-buffer, needs code).
+  Ladder running since 12:15 (Xiaomi plugged, after the owner's reboot). E0 before the reboot: gpu leg KL 0.055 FAIL
+  (defect reproduces on the day), npu leg 0.000025 PASS; the 4096 OPENCL_SET_TENSOR into `cache_v` views are the one-
+  time prefill->decode KV commit (512 rows x 8 layers, blocking `clEnqueueWriteBuffer(..., CL_TRUE, ...)` at
+  ggml-opencl.cpp ~13663), not a per-token host race. **Trap found**: the Xiaomi's thermalservice "Cached
+  temperatures" block held skin 46.7 C for 20+ min after the reboot while the HAL's current value was 36; my Xiaomi
+  scripts took the max of both blocks (stalled the cool wait). Fixed to read the HAL's current block. Caveat for the
+  earlier Xiaomi endurance numbers (`session3`): their skin was max(cached, current); during load the two tracked
+  each other, but the 43 C stops may have fired a little early.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23

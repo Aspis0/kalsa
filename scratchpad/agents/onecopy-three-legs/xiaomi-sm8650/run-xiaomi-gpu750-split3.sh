@@ -15,7 +15,9 @@ shared() {
   env GGML_HEXAGON_HOSTBUF=1 GGML_HEXAGON_HOSTBUF_REPACK=1 GGML_HEXAGON_MBUF=832 GGML_OP_OFFLOAD_MIN_BATCH=1 \
       GGML_HEXAGON_ADMIT_OPS=7 GGML_OPENCL_TILE32_UNMEASURED=1 "$@"
 }
-skin() { dumpsys thermalservice | grep 'mName=skin' | sed -nE 's/.*mValue=([0-9.]+),.*/\1/p' | sort -n | tail -1; }
+# the HAL's CURRENT skin reading: the "Cached temperatures" block can hold a stale value (46.7 C for 20+ min after a
+# reboot), and taking the max of both blocks then stalls every cool wait
+skin() { dumpsys thermalservice | sed -n '/Current temperatures from HAL/,$p' | grep -m1 'mName=skin' | sed -nE 's/.*mValue=([0-9.]+),.*/\1/p'; }
 st() { echo "lvl=$(dumpsys battery | grep -m1 '  level:' | grep -oE '[0-9]+') skin=$(skin) wake=$(dumpsys power | grep -m1 -o 'mWakefulness=[A-Za-z]*' | cut -d= -f2) keyguard=$(dumpsys window | grep -m1 -oE 'isKeyguardShowing=(true|false)' | cut -d= -f2)"; }
 mkdir -p $L; rm -f $REPORT $WS
 echo "== split3 start $(date) bench $(sha256sum $B | cut -c1-12) skel $(sha256sum $R/dsp-rel/libggml-htp-v75.so | cut -c1-12) [$(st)]" >> $REPORT
