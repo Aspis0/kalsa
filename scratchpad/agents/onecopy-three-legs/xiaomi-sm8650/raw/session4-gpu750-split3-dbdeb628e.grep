@@ -1,0 +1,56 @@
+# Xiaomi GPU-750 ladder split3 (run-xiaomi-gpu750-split3.sh), plugged, correctness only, bench 48c80db0b2a4 (dbdeb628e), 2026-10-08 12:15-12:29
+== split3 start Thu Oct  8 12:15:11 EDT 2026 bench 48c80db0b2a4 skel 6fb1cfd50a0a [lvl=39 skin=35.956 wake=Awake keyguard=false]
+## E0_gpu legs=gpu env=[GGML_OPENCL_LOG_KERNELS=1 GGML_OPENCL_LOG_ALLOC=1 GGML_HEXAGON_VERBOSE=1] exit=1 [lvl=39 skin=36.553 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.070942 max=1.077395 kld_max=0.010000 status=FAIL
+## E0_npu legs=npu env=[GGML_OPENCL_LOG_KERNELS=1 GGML_OPENCL_LOG_ALLOC=1 GGML_HEXAGON_VERBOSE=1] exit=0 [lvl=39 skin=37.357 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000022 max=0.000434 kld_max=0.010000 status=PASS
+## C_1 legs=gpu env=[GGML_SPLIT3_CONTROL=1] exit=1 [lvl=39 skin=37.502 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.059969 max=1.155663 kld_max=0.010000 status=FAIL
+## E1b_1 legs=gpu env=[GGML_HEXAGON_HOSTBUF_UNCACHED=1] exit=1 [lvl=39 skin=38.613 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=13 diverged=1 mean=0.207587 max=1.722332 kld_max=0.010000 status=FAIL
+## E1a_1 legs=gpu env=[GGML_HEXAGON_HOSTBUF_FLUSH=1] exit=1 [lvl=39 skin=38.924 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.054185 max=1.051027 kld_max=0.010000 status=FAIL
+## C_2 legs=gpu env=[GGML_SPLIT3_CONTROL=1] exit=1 [lvl=40 skin=38.251 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.052096 max=0.616083 kld_max=0.010000 status=FAIL
+## E1b_2 legs=gpu env=[GGML_HEXAGON_HOSTBUF_UNCACHED=1] exit=1 [lvl=40 skin=38.564 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.046565 max=0.610518 kld_max=0.010000 status=FAIL
+## E1a_2 legs=gpu env=[GGML_HEXAGON_HOSTBUF_FLUSH=1] exit=1 [lvl=40 skin=38.595 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.052259 max=1.214736 kld_max=0.010000 status=FAIL
+## C_3 legs=gpu env=[GGML_SPLIT3_CONTROL=1] exit=1 [lvl=40 skin=38.687 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.053280 max=1.071412 kld_max=0.010000 status=FAIL
+## E1b_3 legs=gpu env=[GGML_HEXAGON_HOSTBUF_UNCACHED=1] exit=1 [lvl=41 skin=38.838 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.052368 max=1.311234 kld_max=0.010000 status=FAIL
+## E1a_3 legs=gpu env=[GGML_HEXAGON_HOSTBUF_FLUSH=1] exit=1 [lvl=41 skin=38.838 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.057236 max=0.975588 kld_max=0.010000 status=FAIL
+## C_4 legs=gpu env=[GGML_SPLIT3_CONTROL=1] exit=1 [lvl=41 skin=38.399 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.061860 max=0.992871 kld_max=0.010000 status=FAIL
+## E1b_4 legs=gpu env=[GGML_HEXAGON_HOSTBUF_UNCACHED=1] exit=1 [lvl=41 skin=38.662 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.088702 max=1.482101 kld_max=0.010000 status=FAIL
+## E1a_4 legs=gpu env=[GGML_HEXAGON_HOSTBUF_FLUSH=1] exit=1 [lvl=41 skin=38.778 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.056876 max=0.841739 kld_max=0.010000 status=FAIL
+## C_5 legs=gpu env=[GGML_SPLIT3_CONTROL=1] exit=1 [lvl=42 skin=38.869 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.069484 max=0.854211 kld_max=0.010000 status=FAIL
+## E1b_5 legs=gpu env=[GGML_HEXAGON_HOSTBUF_UNCACHED=1] exit=1 [lvl=42 skin=38.405 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.068113 max=1.464577 kld_max=0.010000 status=FAIL
+## E1a_5 legs=gpu env=[GGML_HEXAGON_HOSTBUF_FLUSH=1] exit=1 [lvl=42 skin=38.632 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=24 diverged=1 mean=0.138348 max=1.214800 kld_max=0.010000 status=FAIL
+## E2ctr_1 legs=gpu env=[GGML_OPENCL_OPFILTER=ZZZ_NOMATCH] exit=1 [lvl=42 skin=38.796 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.077484 max=1.101119 kld_max=0.010000 status=FAIL
+## E2mul_1 legs=gpu env=[GGML_OPENCL_OPFILTER=MUL] exit=1 [lvl=43 skin=38.949 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.070925 max=1.436542 kld_max=0.010000 status=FAIL
+## E2mm_1 legs=gpu env=[GGML_OPENCL_OPFILTER=MUL_MAT] exit=1 [lvl=43 skin=38.656 wake=Awake keyguard=false] 
+## E2ctr_2 legs=gpu env=[GGML_OPENCL_OPFILTER=ZZZ_NOMATCH] exit=1 [lvl=43 skin=38.405 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=12 diverged=1 mean=0.082620 max=0.497470 kld_max=0.010000 status=FAIL
+## E2mul_2 legs=gpu env=[GGML_OPENCL_OPFILTER=MUL] exit=1 [lvl=43 skin=38.748 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.047007 max=0.716240 kld_max=0.010000 status=FAIL
+## E2mm_2 legs=gpu env=[GGML_OPENCL_OPFILTER=MUL_MAT] exit=1 [lvl=43 skin=38.528 wake=Awake keyguard=false] 
+## E2ctr_3 legs=gpu env=[GGML_OPENCL_OPFILTER=ZZZ_NOMATCH] exit=1 [lvl=44 skin=38.319 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.046233 max=0.726446 kld_max=0.010000 status=FAIL
+## E2mul_3 legs=gpu env=[GGML_OPENCL_OPFILTER=MUL] exit=1 [lvl=44 skin=38.748 wake=Awake keyguard=false] kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.052089 max=0.889647 kld_max=0.010000 status=FAIL
+## E2mm_3 legs=gpu env=[GGML_OPENCL_OPFILTER=MUL_MAT] exit=1 [lvl=44 skin=38.509 wake=Awake keyguard=false] 
+== split3 end Thu Oct  8 12:29:28 EDT 2026 [lvl=44 skin=38.208 wake=Awake keyguard=false]
+# E2mm_* failed to build: 'NPU leg device GPUOpenCL does not admit the output weight token_embd.weight (HOST leg import/self-check refused)' - the MUL_MAT filter removes J(1)
+# E0 (pre-reboot run) kernel/alloc summary
+4096 OPENCL_SET_TENSOR{name=cache_v_lN (view),type=fN,nbytes=N,ne=NxNxNxN,o
+ 127 OPENCL_SET_TENSOR{name=OpenCL#rs_s_copy (view)#N,type=iN,nbytes=N,ne=N
+ 127 OPENCL_SET_TENSOR{name=OpenCL#out_ids#N,type=iN,nbytes=N,ne=NxNxNxN,of
+ 127 OPENCL_SET_TENSOR{name=OpenCL#model.embed_tokens#N,type=fN,nbytes=N,ne
+ 127 OPENCL_SET_TENSOR{name=OpenCL#inp_pos#N,type=iN,nbytes=N,ne=NxNxNxN,of
+ 127 OPENCL_SET_TENSOR{name=OpenCL#attn_inp_v_idxs#N,type=iN,nbytes=N,ne=Nx
+ 127 OPENCL_SET_TENSOR{name=OpenCL#attn_inp_kq_mask#N,type=fN,nbytes=N,ne=N
+ 127 OPENCL_SET_TENSOR{name=OpenCL#attn_inp_k_idxs#N,type=iN,nbytes=N,ne=Nx
+  30 ggml-opencl-tileN: self-check blk.N.ffn_up.weight: PASS max|diff| N.Ne
+  30 ggml-opencl-tileN: self-check blk.N.ffn_gate.weight: PASS max|diff| N.
+  30 ggml-opencl-tileN: self-check blk.N.ffn_down.weight: PASS max|diff| N.
+  22 ggml-opencl-tileN: self-check blk.N.shortconv.out_proj.weight: PASS ma
+  22 ggml-opencl-tileN: self-check blk.N.shortconv.in_proj.weight: PASS max
+  22 OPENCL_SET_TENSOR{name=cache_r_lN,type=fN,nbytes=N,ne=NxNxNxN,off=N,si
+   8 ggml-opencl-tileN: self-check blk.N.attn_v.weight: PASS max|diff| N.Ne
+   8 ggml-opencl-tileN: self-check blk.N.attn_q.weight: PASS max|diff| N.Ne
+   8 ggml-opencl-tileN: self-check blk.N.attn_output.weight: PASS max|diff|
+   8 ggml-opencl-tileN: self-check blk.N.attn_k.weight: PASS max|diff| N.Ne
+   8 OPENCL_SET_TENSOR{name=cache_k_lN (view),type=fN,nbytes=N,ne=NxNxNxN,o
+   4 leg_window arm=L rep=N window=N engine=gpu rule=none tokens=N us=N tps
+   4 OPENCL_ALLOC{kind=weights_pool,bytes=N,mib=N.N,sum_mib=N.N,err=N}
+   4 OPENCL_ALLOC{kind=try.weights_pool,bytes=N,mib=N.N,sum_mib=N.N,err=N}
+   3 sched_reserve: reserving ...
+   3 sched_reserve: reserve took N.N ms, sched copies = N
+   3 resolve_fused_ops: resolving fused DeepSeek VN HC support:

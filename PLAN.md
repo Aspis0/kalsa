@@ -2112,6 +2112,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   scripts took the max of both blocks (stalled the cool wait). Fixed to read the HAL's current block. Caveat for the
   earlier Xiaomi endurance numbers (`session3`): their skin was max(cached, current); during load the two tracked
   each other, but the 43 C stops may have fired a little early.
+  **Ladder result (`xiaomi-sm8650/raw/session4-gpu750-split3-dbdeb628e.grep`)**: the GPU leg failed EVERY run today
+  (KL 0.046-0.21; not intermittent now): control 5/5 FAIL; `HOSTBUF_UNCACHED=1` 5/5 FAIL -> **H-B (CPU/GPU coherence
+  of the cached rpcmem block) REFUTED**; `HOSTBUF_FLUSH=1` 5/5 FAIL; filter control 3/3 FAIL (the filter does not
+  perturb); `OPFILTER=MUL` (f32 norm weights off OpenCL) 3/3 FAIL -> the plain norm MUL is not it; `OPFILTER=MUL_MAT`
+  cannot run (J(1) needs the GPU mat-vec for the output weight). E0 again: npu leg PASS 0.000022. Left standing: H-A
+  (the TILE32 v4 path's per-call objects: activation image / dst sub-buffer over pool offsets), SSM_CONV and the fused
+  norms over HOST-W, and the GPU leg's attention. Running: split4 (`OPFILTER=SSM_CONV` x3 + control x3). Next
+  instrument: n2's E5 - an env-gated in-vivo check of each TILE32 v4 GEMV result against a CPU reference (needs code).
+- **Round 3, arm 1 (npu alone)**: 6051 tokens to skin 43 (runs=4, 192 npu windows) from skin 31.9; arms 2-6 running.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
