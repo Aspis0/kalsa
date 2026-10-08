@@ -1,0 +1,59 @@
+# cell 69 evidence (engine 09a496d71, bench f72b761b, skel v79 69e92a9e, QRD8750 SM8750, QDC session 877592, 2026-10-08)
+## recon
+SM8750
+Sun for arm64
+qti/sun/sun:16/BQ2A.260305.002-BP2A.250705.008/eng.lnxbui:userdebug/test-keys
+/vendor/lib64/libOpenCL.so
+/vendor/lib64/libcdsprpc.so
+MemTotal:       15519768 kB
+/dev/block/dm-56  47183872 1584816  45599056   4% /mnt/pass_through/0/emulated
+## kit_verify
+governor-bench: OK
+libggml-htp-v79.so: OK
+run-legs.sh: OK
+## legs_report_sa881661.txt
+== legs start Thu Oct  8 13:43:01 PDT 2026 soc=SM8750 model=Sun for arm64 bench f72b761b197a batT=420
+## run 1 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=77350183 tps=26.477
+## run 2 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=76889930 tps=26.635
+## run 3 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=77647490 tps=26.376
+## run 4 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=78081472 tps=26.229
+## run 5 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=77446506 tps=26.444
+## run 6 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90206455 tps=22.703
+## run 7 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90155834 tps=22.716
+## run 8 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90388988 tps=22.658
+## run 9 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90202029 tps=22.705
+## run 10 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90333032 tps=22.672
+## run 11 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90638285 tps=22.595
+## run 12 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90524172 tps=22.624
+## run 13 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90834851 tps=22.546
+## run 14 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=91039633 tps=22.496
+## run 15 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=90873102 tps=22.537
+## run 16 exit=0 batT=420 leg_summary arm=L rep=0 engine=npu tokens=2048 us=91230780 tps=22.449
+== legs end Thu Oct  8 14:08:07 PDT 2026 runs=16 batT=420
+## zones per minute (max over nsphvx/nsphmx, gpuss, cpu-*; C) + every cooling-state change; full series in sa881661_zones.csv, trips in sa881661_zones_map.txt
+sec min nspmax gpumax cpumax sys-therm-0 sys-therm-2 sys-therm-8 battery gpu cdsp_hw cdsp cdsp_sw_hvx cdsp_sw_hmx
+0 0 33 35 42 32328 31350 31477 42000 0 0 0 0 0
+61 1 73 57 59 43533 36770 32001 42000 0 0 0 0 0
+120 2 80 61 62 47867 40215 33575 42000 0 0 0 0 0
+181 3 83 65 64 50625 42791 35582 42000 0 0 0 0 0
+240 4 85 68 66 53010 44879 37530 42000 0 0 0 0 0
+360 6 89 71 73 56619 48332 41271 42000 0 0 0 0 0
+420 7 91 72 73 58551 49981 42960 42000 0 0 0 0 0
+422 7 92 73 73 58622 50042 43017 42000 1 0 0 0 0
+425 7 92 72 74 58682 50120 43095 42000 3 0 0 0 0
+427 7 89 72 72 58731 50166 43165 42000 6 0 0 0 0
+430 7 89 71 73 58751 50246 43269 42000 9 0 0 0 0
+433 7 97 69 76 58721 50287 43329 42000 10 0 0 0 0
+481 8 86 70 71 58542 50824 44521 42000 10 0 0 0 0
+541 9 89 71 72 59210 51603 45738 42000 10 0 0 0 0
+660 11 90 74 74 61285 53498 47848 42000 10 0 0 0 0
+720 12 92 74 74 62307 54419 48867 42000 10 0 0 0 0
+781 13 93 76 77 63348 55327 49829 42000 10 0 0 0 0
+960 16 98 79 79 66038 57791 52406 42000 10 0 0 0 0
+1021 17 97 79 81 66708 58571 53231 42000 10 0 0 0 0
+1140 19 99 81 83 68509 60057 54704 42000 10 0 0 0 0
+1200 20 101 82 84 69347 60809 55421 42000 10 0 0 0 0
+1261 21 101 83 84 70053 61476 56147 42000 10 0 0 0 0
+1321 22 103 84 85 70601 62045 56788 42000 10 0 0 0 0
+1440 24 103 85 86 72030 63280 58054 42000 10 0 0 0 0
+1500 25 104 86 87 72657 63865 58688 42000 10 0 0 0 0

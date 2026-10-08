@@ -1,0 +1,46 @@
+thermal_zone1 cpu-0-0-0 trips: 135000 105000 118000 120000 125000 
+thermal_zone12 cpu-0-2-1 trips: 90000 105000 118000 120000 125000 
+thermal_zone14 cpu-0-3-0 trips: 135000 105000 118000 120000 125000 
+thermal_zone16 cpu-0-3-1 trips: 135000 105000 118000 120000 125000 
+thermal_zone18 cpu-0-4-0 trips: 90000 105000 118000 120000 125000 
+thermal_zone19 cpu-0-4-1 trips: 90000 105000 118000 120000 125000 
+thermal_zone20 cpu-0-5-0 trips: 90000 105000 118000 120000 125000 
+thermal_zone21 cpu-0-5-1 trips: 90000 105000 118000 120000 125000 
+thermal_zone22 cpuss-0-0 trips: 135000 125000 
+thermal_zone23 cpuss-0-1 trips: 135000 125000 
+thermal_zone25 cpu-1-0-0 trips: 90000 105000 118000 120000 125000 
+thermal_zone26 cpu-1-0-1 trips: 135000 105000 118000 120000 125000 
+thermal_zone27 cpu-1-1-0 trips: 90000 105000 118000 120000 125000 
+thermal_zone28 cpu-1-1-1 trips: 135000 105000 118000 120000 125000 
+thermal_zone29 cpuss-1-0 trips: 135000 125000 
+thermal_zone3 cpu-0-0-1 trips: 135000 105000 118000 120000 125000 
+thermal_zone30 cpuss-1-1 trips: 135000 125000 
+thermal_zone32 gpuss-0 trips: 135000 105000 105000 125000 
+thermal_zone33 gpuss-1 trips: 135000 105000 105000 125000 
+thermal_zone34 gpuss-2 trips: 135000 105000 105000 125000 
+thermal_zone35 gpuss-3 trips: 135000 105000 105000 125000 
+thermal_zone36 gpuss-4 trips: 135000 105000 105000 125000 
+thermal_zone37 gpuss-5 trips: 135000 105000 105000 125000 
+thermal_zone38 gpuss-6 trips: 135000 105000 105000 125000 
+thermal_zone39 gpuss-7 trips: 135000 105000 105000 125000 
+thermal_zone48 nsphvx-0 trips: 135000 105000 125000 
+thermal_zone49 nsphvx-1 trips: 135000 105000 125000 
+thermal_zone5 cpu-0-1-0 trips: 135000 105000 118000 120000 125000 
+thermal_zone50 nsphvx-2 trips: 135000 105000 125000 
+thermal_zone51 nsphmx-0 trips: 135000 105000 125000 
+thermal_zone52 nsphmx-1 trips: 135000 105000 125000 
+thermal_zone53 nsphmx-2 trips: 135000 105000 125000 
+thermal_zone54 nsphmx-3 trips: 135000 105000 125000 
+thermal_zone61 sys-therm-2 trips: 49000 48000 60000 
+thermal_zone62 sys-therm-3 trips: 125000 125000 
+thermal_zone63 sys-therm-4 trips: 125000 125000 
+thermal_zone64 sys-therm-5 trips: 125000 125000 
+thermal_zone65 sys-therm-7 trips: 125000 125000 
+thermal_zone66 sys-therm-6 trips: 125000 125000 
+thermal_zone67 sys-therm-0 trips: 52000 125000 78000 80000 90000 125000 125000 125000 
+thermal_zone68 sys-therm-11 trips: 125000 125000 
+thermal_zone69 sys-therm-8 trips: 43000 125000 
+thermal_zone7 cpu-0-1-1 trips: 135000 105000 118000 120000 125000 
+thermal_zone80 battery trips: 
+thermal_zone9 cpu-0-2-0 trips: 90000 105000 118000 120000 125000 
+cooling: cooling_device30=gpu-dump-skip-cdev cooling_device37=gpu cooling_device38=cdsp_hw cooling_device39=cdsp cooling_device40=cdsp_sw_hvx cooling_device41=cdsp_sw_hmx 

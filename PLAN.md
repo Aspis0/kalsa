@@ -2234,6 +2234,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   in the same session. **Matrix now: legs correct on S23 (real), SM8650 (QDC #71, fixed), 8 Elite (QDC #66), 8 Elite
   Gen 5 (QDC #68).** Left for the owner's goal: the governor's measured gain on the real phones (S23 round 4 when
   charged; Xiaomi when lent, with the fixed bench), the long NPU cell #69, landing e01a61cee + rule v3 on fork main.
+- **QDC #69, 8 Elite long NPU (QRD8750, session 877592, 28 min; `qdc-8elite-npu-long-69/REPORT.md`,
+  `raw/session1-npulong-09a496d71.grep`, `raw/sa881661_zones.csv`)**: NPU leg alone, 16 x 2048 tokens, all exit 0.
+  Runs 1-5 at 26.2-26.6 tok/s, **runs 6-16 at 22.4-22.7 (-14 %) from 431 s**, flat after. Cause (correlation, one
+  run): board zone `sys-therm-8` crossed its 43.0 C trip at 422 s and the **`gpu` cooling device went 0 -> 10 in 11 s**;
+  the NPU leg's lm_head runs on the GPU (J(1)), so the GPU cap reaches it; the cdsp cooling devices stayed 0. **The
+  NSP climbs to 104 C at 25 min (trip 105), still rising** - unlike the S23's 82-86 plateau. For rule v3: the guard
+  (5 C) would leave the NPU at ~20 min here; the board-level throttle (sys-therm-8 -> gpu cdev) is a signal the
+  governor does not watch, and a hop to the GPU at that point lands on a capped GPU. Candidate follow-ups (not
+  started): lm_head on the NPU for the NPU leg (removes the GPU dependency), read the gpu cdev state as a leg input.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
