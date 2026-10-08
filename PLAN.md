@@ -2269,8 +2269,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   over our logical-N gate 15ad4b8e3 (upstream DSP handles `valid_rows`) - to be proven by the audit and the device
   runs. **Metal**: b11514's own test-backend-ops SIGSEGVs on FLASH_ATTN_EXT f32 dk128/dv96 (missing
   `kernel_flash_attn_ext_vec_f32_dk128_dv96`, NULL pipeline); same crash on pristine de7fa0a3c, e01a61cee EXIT 0 -> an
-  upstream bug, unfixed; Brain exposed only if a model runs dk != dv vec FA on Metal. Next: hostile audit (deepseek
-  `6f1364b8`; luna hit its usage limit), QDC + S23 legs on the merged bench, kalsa-brain desktop/Metal checks, push. The
+  upstream bug; Brain exposed only if a model runs dk != dv vec FA on Metal. **Audit** (deepseek `6f1364b8`, luna hit
+  its limit; `onecopy-three-legs/audit-merge-b11514-n2.md`): claims 2-10 CONFIRMED; **F1 P1** the dropped logical-N
+  HMX gate is still needed for MUL_MAT_ID (unclamped scattered store, repacked MoE with N % 32 != 0; TILE32 not
+  exposed); F2 narrow fopen of the slot-save temp file (Windows non-ASCII); F3 n_read != n_written without
+  checkpoints; **F4 P1** Metal vec FA NULL pipeline for un-instantiated (dk,dv) is production-reachable; F5 warnings.
+  Fixes: GLM `2bd68f3d`. GLM's `build-and` was a shared/OpenMP/llamafile build, not comparable: the coordinator
+  rebuilt the static bench with the documented recipe (`build-ls-and`, governor-bench 525ad01b) ->
+  `~/Projects/kalsa-artifacts-b11514`, QDC kit `~/kalsa-qdc/merge-kit-904d38fad.tgz`, cell
+  `qdc-merge-b11514-legs-72` (QDC portal logged out: owner login needed). Then: re-audit, rebuild bench on the fix
+  commit, QDC + S23 legs, kalsa-brain desktop/Metal checks (running), push. The
   desktop session (kalsa-brain 2c574341) was asked for its server picks in
   `onecopy-three-legs/upstream-b11514-desktop-notes.md`. **Binding bump** to e01a61cee done locally (`f8cde278` in
   `~/Projects/llama.rn-kalsa-onecopy`, NOT pushed): glue needs no change, but `assert-htp-skels.sh` fails until the
