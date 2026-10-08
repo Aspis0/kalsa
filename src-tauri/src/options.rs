@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use kalsa_launch::{
-    KvCache, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS, MAX_BATCH, MAX_IDLE_UNLOAD_SECONDS,
-    MAX_UBATCH, MIN_BATCH, MIN_IDLE_UNLOAD_SECONDS, MIN_UBATCH,
+    launch_batches, KvCache, ServerSettings, DEFAULT_IDLE_UNLOAD_SECONDS, MAX_BATCH,
+    MAX_IDLE_UNLOAD_SECONDS, MAX_UBATCH, MIN_BATCH, MIN_IDLE_UNLOAD_SECONDS, MIN_UBATCH,
 };
 use serde::{Deserialize, Serialize};
 
@@ -226,6 +226,13 @@ pub(crate) struct AdvancedDto {
     pub(crate) ubatch_override: Option<u32>,
     pub(crate) batch_automatic: u32,
     pub(crate) ubatch_automatic: u32,
+    /// One short English line for the panel, present only when the vision
+    /// floor — not the owner — set the in-force micro-batch: the panel
+    /// shows it beside the field so "In force: 1024" against "Automatic:
+    /// 512" has a reason. English from Rust, like the road's sentence and
+    /// the tune line; skipped from the JSON when nothing was raised.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) ubatch_raised: Option<String>,
     pub(crate) kv_cache_type: &'static str,
     pub(crate) kv_cache_override: Option<&'static str>,
     pub(crate) kv_cache_automatic: &'static str,
@@ -268,8 +275,14 @@ pub(crate) fn dto(
         .idle_unload_seconds
         .unwrap_or(DEFAULT_IDLE_UNLOAD_SECONDS);
     // The automatic values are the shipped defaults, shown as themselves: the
-    // panel must not become a second source of truth for 2048/512/q8_0.
+    // panel must not become a second source of truth for 2048/512/q8_0. The
+    // batch pair goes through the SAME floor the plan applies, so a running
+    // vision launch's "Automatic" is the number the launcher would actually
+    // pick with the projector on — never an unreachable 512.
     let automatic = ServerSettings::defaults(idle);
+    let vision = active.is_some_and(|info| info.args.mmproj.is_some());
+    let (batch_automatic, ubatch_automatic) =
+        launch_batches(automatic.batch_size, automatic.ubatch_size, vision);
     let (settings, context_tokens, running) = match active {
         Some(info) => (info.args.settings(), Some(info.args.context_tokens), true),
         // "Next start": the owner's saved overrides on top of the automatic
@@ -292,6 +305,13 @@ pub(crate) fn dto(
     let running_cache = active.map(|info| info.args.kv_cache).unwrap_or_default();
     let price = active.and_then(|info| info.context_prices.for_cache(running_cache));
     let price_f16 = active.and_then(|info| info.context_prices.f16);
+    // The floor's own explanation, in English like the road's sentence: the
+    // panel owes the owner a reason only when the floor — not the owner —
+    // set the in-force number. An owner who saved the raised value, or a
+    // launch without a projector, was not raised by anything.
+    let raw_ubatch = overrides.ubatch_size.unwrap_or(automatic.ubatch_size);
+    let ubatch_raised = (vision && settings.ubatch_size > raw_ubatch)
+        .then(|| format!("Raised to {} because pictures are on.", settings.ubatch_size));
     AdvancedDto {
         context_tokens,
         context_max: active.and_then(|info| info.maximum_context.for_cache(running_cache)),
@@ -310,8 +330,9 @@ pub(crate) fn dto(
         ubatch_size: settings.ubatch_size,
         batch_override: overrides.batch_size,
         ubatch_override: overrides.ubatch_size,
-        batch_automatic: automatic.batch_size,
-        ubatch_automatic: automatic.ubatch_size,
+        batch_automatic,
+        ubatch_automatic,
+        ubatch_raised,
         kv_cache_type: settings.kv_cache_type,
         kv_cache_override: overrides.kv_cache.map(KvCache::flag),
         kv_cache_automatic: automatic.kv_cache_type,
@@ -602,6 +623,9 @@ mod tests {
     /// then compared by value, because a test that rewrites its own fixture
     /// cannot go red on drift — a quietly changed default is exactly the
     /// change that must be regenerated deliberately, not waved through.
+    /// Two samples are pinned: the ordinary launch, and a vision launch
+    /// whose micro-batch the floor raised — the panel's note is a field of
+    /// its own and must not appear or vanish unnoticed.
     #[test]
     fn the_json_the_advanced_page_reads_is_a_contract_pinned_here() {
         // A realistic answer: a server running, with the owner's overrides
@@ -632,52 +656,84 @@ mod tests {
             q8_0: Some(262_144),
             f16: Some(131_072),
         };
-        let sample = dto(
-            LaunchOverrides {
-                model: None,
-                context_tokens: Some(4096),
-                idle_unload_seconds: Some(600),
-                batch_size: Some(2048),
-                ubatch_size: Some(1024),
-                kv_cache: Some(KvCache::F16),
-                internet_road: true,
+        let overrides = LaunchOverrides {
+            model: None,
+            context_tokens: Some(4096),
+            idle_unload_seconds: Some(600),
+            batch_size: Some(2048),
+            ubatch_size: Some(1024),
+            kv_cache: Some(KvCache::F16),
+            internet_road: true,
+        };
+        let info = LaunchInfo {
+            args,
+            maximum_context: maxima,
+            // The automatic figures the panel will show as "Automatic":
+            // the chat default where the machine funds it.
+            automatic_context: ContextMaxima {
+                q8_0: Some(65_536),
+                f16: Some(65_536),
             },
-            Some(&LaunchInfo {
-                args,
-                maximum_context: maxima,
-                // The automatic figures the panel will show as "Automatic":
-                // the chat default where the machine funds it.
-                automatic_context: ContextMaxima {
-                    q8_0: Some(65_536),
-                    f16: Some(65_536),
-                },
-                context_prices: ContextPrices {
-                    q8_0: Some(ContextPrice {
-                        bytes_per_token: 40_960,
-                        bytes_fixed: 65_863_680,
-                    }),
-                    f16: Some(ContextPrice {
-                        bytes_per_token: 81_920,
-                        bytes_fixed: 65_863_680,
-                    }),
-                },
-                display_name: Some("Alibaba Qwen 3.6".to_string()),
-                reason: Some("It is the more capable of the two.".to_string()),
-                model_sha256: None,
-                tune: None,
-                checked: None,
+            context_prices: ContextPrices {
+                q8_0: Some(ContextPrice {
+                    bytes_per_token: 40_960,
+                    bytes_fixed: 65_863_680,
+                }),
+                f16: Some(ContextPrice {
+                    bytes_per_token: 81_920,
+                    bytes_fixed: 65_863_680,
+                }),
+            },
+            display_name: Some("Alibaba Qwen 3.6".to_string()),
+            reason: Some("It is the more capable of the two.".to_string()),
+            model_sha256: None,
+            tune: None,
+            checked: None,
             drafter_sha256: None,
             mmproj: None,
             sizing: None,
-        }),
-            Some(8130),
-            "The internet road is open.".to_string(),
-        )
-        .with_desk_port(Some((8134, true)));
+        };
+        let sentence = "The internet road is open.".to_string();
+        let sample = dto(overrides.clone(), Some(&info), Some(8130), sentence.clone())
+            .with_desk_port(Some((8134, true)));
+        // The vision case: the same launch with a proven projector and the
+        // owner's saved micro-batch BELOW the floor — the plan floored it,
+        // so the automatic is floored too and the raise gets its sentence.
+        let vision_info = LaunchInfo {
+            args: ServerArgs {
+                mmproj: Some(PathBuf::from("/models/mmproj-gemma-4-12B-it-Q8_0.gguf")),
+                ..info.args.clone()
+            },
+            ..info.clone()
+        };
+        let vision_overrides = LaunchOverrides {
+            ubatch_size: Some(512),
+            ..overrides.clone()
+        };
+        let vision = dto(vision_overrides, Some(&vision_info), Some(8130), sentence)
+            .with_desk_port(Some((8134, true)));
+        assert_eq!(
+            vision.ubatch_automatic, kalsa_launch::VISION_UBATCH,
+            "the automatic is the floored one for a vision launch"
+        );
+        assert_eq!(
+            vision.ubatch_raised.as_deref(),
+            Some("Raised to 1024 because pictures are on."),
+            "the floor that moved the number says so, in English"
+        );
+        assert!(
+            sample.ubatch_raised.is_none(),
+            "a launch the floor did not move carries no note"
+        );
         let json = serde_json::to_value(&sample).expect("serialise the advanced dto");
+        let vision_json = serde_json::to_value(&vision).expect("serialise the vision dto");
         println!(
             "{}",
             serde_json::to_string_pretty(&sample).expect("serialise")
+        );
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&vision).expect("serialise")
         );
 
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -708,6 +764,25 @@ mod tests {
                 problems.push(format!("vanished: {name}"));
             }
         }
+        // The vision sample is pinned by the same rule: its extra field —
+        // the raised note — must be in the file with the same type, or a
+        // rename or a drop names itself here.
+        let pinned_vision = field_types(&contract["vision_sample"]);
+        let actual_vision = field_types(&vision_json);
+        for (name, kind) in &actual_vision {
+            match pinned_vision.get(name) {
+                None => problems.push(format!("appeared in vision: {name} ({kind})")),
+                Some(pinned_kind) if pinned_kind != kind => {
+                    problems.push(format!("type changed in vision: {name}: {pinned_kind} -> {kind}"))
+                }
+                _ => {}
+            }
+        }
+        for name in pinned_vision.keys() {
+            if !actual_vision.contains_key(name) {
+                problems.push(format!("vanished from vision: {name}"));
+            }
+        }
         assert!(
             problems.is_empty(),
             "the advanced DTO no longer matches chat/scripts/advanced-contract.json:\n  {}",
@@ -722,7 +797,14 @@ mod tests {
         crate::contract::check_sample(
             &path,
             "the_json_the_advanced_page_reads_is_a_contract_pinned_here",
+            "sample",
             &json,
+        );
+        crate::contract::check_sample(
+            &path,
+            "the_json_the_advanced_page_reads_is_a_contract_pinned_here",
+            "vision_sample",
+            &vision_json,
         );
     }
 }

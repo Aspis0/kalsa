@@ -1082,6 +1082,11 @@ fn planned_config_with_overrides(
     overrides: LaunchOverrides,
 ) -> Result<PreparedStart, StartupFailure> {
     let automatic = ServerSettings::defaults(kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS);
+    // The raw owner choice, not yet floored: whether a projector RIDES is
+    // not settled here (the drop rule below can still take it away), and
+    // `kalsa_launch::plan` floors where it learns the projector — from the
+    // charged `mmproj_bytes`, the same `proven` fact this function later
+    // writes into `plan.args.mmproj`.
     let batch_size = overrides.batch_size.unwrap_or(automatic.batch_size);
     let ubatch_size = overrides.ubatch_size.unwrap_or(automatic.ubatch_size);
     let kv_cache = overrides.kv_cache.unwrap_or_default();
@@ -1261,8 +1266,11 @@ fn planned_config_with_overrides(
         .map(|plan| plan.args.context_tokens),
     };
     let context_prices = ContextPrices {
-        q8_0: kalsa_launch::context_price(row, KvCache::Q8_0, u64::from(ubatch_size), parallel),
-        f16: kalsa_launch::context_price(row, KvCache::F16, u64::from(ubatch_size), parallel),
+        // From the PLANNED args, not the raw owner choice: with a projector
+        // the plan floored the micro-batch, and the panel's price must be
+        // built from the same number the argv renders.
+        q8_0: kalsa_launch::context_price(row, KvCache::Q8_0, u64::from(args.ubatch_size), parallel),
+        f16: kalsa_launch::context_price(row, KvCache::F16, u64::from(args.ubatch_size), parallel),
     };
     let server = ServerConfig {
         exe,
@@ -3645,5 +3653,64 @@ mod tests {
             without.info.args.cache_ram_mib
         );
         assert_eq!(with.server.argv.len(), without.server.argv.len() + 12);
+    }
+
+    /// The projector ride's three consumers — the args, the argv and the
+    /// panel's price — must read ONE micro-batch. The plan floors it for a
+    /// projector (`kalsa_launch::VISION_UBATCH`, 1024); this pins that the
+    /// price built here uses the PLANNED args, not the raw owner choice. On
+    /// the E4B's sliding window the fixed term depends on the micro-batch,
+    /// so pricing at the raw 512 is a different, detectable number.
+    #[test]
+    fn a_vision_launch_prices_and_renders_the_same_micro_batch() {
+        let row = rows()
+            .find(|entry| entry.repo == "google/gemma-4-E4B-it")
+            .expect("the row is in the catalog");
+        let machine = machine(Backend::Cpu);
+        let config = planned_config_with_overrides(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            None,
+            PathBuf::from("/models/chosen.gguf"),
+            None,
+            Some(MmprojLaunch {
+                url: "https://example.invalid/mmproj.gguf".to_string(),
+                sha256: TEST_SHA256,
+                bytes: 559_874_816,
+                proven: Some(PathBuf::from("/models/mmproj-gemma-4-E4B-it-Q8_0.gguf")),
+            }),
+            row,
+            TEST_REASON.to_string(),
+            TEST_SHA256,
+            &machine,
+            1,
+            PathBuf::from("/state/server.state"),
+            PathBuf::from("/slots"),
+            LaunchOverrides::default(),
+        )
+        .expect("the row funds its projector on the fixture machine");
+        let joined = config.server.argv.join(" ");
+        assert_eq!(
+            rendered_value(&config.server.argv, "--ubatch-size"),
+            "1024",
+            "{joined}"
+        );
+        assert!(joined.contains("--mmproj"), "{joined}");
+        assert_eq!(config.info.args.ubatch_size, 1024);
+        // The price built here uses the PLANNED micro-batch: on this
+        // sliding-window row the fixed term depends on it, so pricing at
+        // the raw 512 would be a different number.
+        let price = config.info.context_prices.q8_0.expect("the q8_0 price");
+        let planned = kalsa_launch::context_price(
+            row,
+            KvCache::Q8_0,
+            u64::from(config.info.args.ubatch_size),
+            config.info.args.parallel,
+        )
+        .expect("the row has a price");
+        assert_eq!(price, planned, "the price uses the planned micro-batch");
+        let raw = kalsa_launch::context_price(row, KvCache::Q8_0, 512, config.info.args.parallel)
+            .expect("the row has a price");
+        assert_ne!(price, raw, "the price is not built from the raw 512");
     }
 }

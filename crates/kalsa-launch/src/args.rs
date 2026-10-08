@@ -49,6 +49,45 @@ pub const MIN_UBATCH: u32 = 64;
 /// refused with these numbers, never accepted.
 pub const MAX_UBATCH: u32 = 1024;
 
+/// The micro-batch floor for a launch that carries a projector — a vision
+/// floor, tied to [`MAX_UBATCH`] rather than to [`IMAGE_MAX_TOKENS`]: the
+/// image cap (560) is enforced inside the private engine fork, where
+/// nothing in this repo can test it, so a floor equal to the cap had zero
+/// margin — a 561-token image, or a build where the cap is a no-op, would
+/// bring the abort back. [`MAX_UBATCH`] (1024) was measured safe for the
+/// aborting rows on every probe shape in
+/// `dev/lab-screen/results/crash/matrix.txt`, covers even the uncapped
+/// 922-token frame, and its compute buffers are already priced affordable
+/// ([`MAX_UBATCH`]'s own note: 346.6–414.0 MiB at 16k, inside the forfait).
+///
+/// The floor rests on an assumption: each image chunk is decoded alone in
+/// this build, so one image's tokens are all that must fit the micro-batch
+/// at once. A build that packed text and image into one ubatch would halve
+/// the room — and this floor with it.
+pub const VISION_UBATCH: u32 = MAX_UBATCH;
+
+/// The batch pair a launch actually runs at. `projector` floors the
+/// micro-batch at [`VISION_UBATCH`] and raises the logical batch to at
+/// least that — the batch must follow because the engine silently clamps
+/// `n_ubatch = min(n_batch, params.n_ubatch)` (`src/llama-context.cpp`),
+/// so a batch below the floored micro-batch would shrink it back down and
+/// the abort would return.
+///
+/// One function for every caller, so plan, price, fit and render cannot
+/// pick different numbers: `plan` passes `input.mmproj_bytes > 0` — the
+/// proven projector being passed, the same fact `startup.rs` later copies
+/// into `ServerArgs::mmproj` — and the render passes
+/// `self.mmproj.is_some()` as the backstop. Without a projector both
+/// numbers pass through untouched.
+pub fn launch_batches(batch_size: u32, ubatch_size: u32, projector: bool) -> (u32, u32) {
+    if projector {
+        let ubatch_size = ubatch_size.max(VISION_UBATCH);
+        (batch_size.max(ubatch_size), ubatch_size)
+    } else {
+        (batch_size, ubatch_size)
+    }
+}
+
 /// How "every layer" is spelled to this build. b10950's `--help`, verbatim:
 /// "-ngl, --gpu-layers, --n-gpu-layers N   max. number of layers to store in
 /// VRAM, either an exact number, 'auto', or 'all' (default: auto)". `all` is

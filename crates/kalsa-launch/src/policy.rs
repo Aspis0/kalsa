@@ -12,7 +12,10 @@ use kalsa_catalog::manifest::{ModelEntry, SlotCache};
 use kalsa_probe::plateau;
 use kalsa_runtime::ServerBackend;
 
-use crate::args::{KvCache, LaunchPlan, MemoryAssumption, Offload, ServerArgs, DEFAULT_CONTEXT_TOKENS};
+use crate::args::{
+    launch_batches, KvCache, LaunchPlan, MemoryAssumption, Offload, ServerArgs,
+    DEFAULT_CONTEXT_TOKENS,
+};
 
 /// Everything the decision needs, already decided upstream: the build that
 /// won, the model that was chosen, the budget it was chosen against, and the
@@ -50,9 +53,13 @@ pub struct LaunchInput<'a> {
     /// A user-selected lower context. `None` keeps the largest context the
     /// budget funds; a larger request is rejected rather than silently capped.
     pub context_limit: Option<u64>,
-    /// The owner's logical prompt batch, carried into the rendered argv.
+    /// The owner's logical prompt batch, carried into the rendered argv —
+    /// floored by [`plan`] when the input charges a projector, so it and
+    /// the micro-batch always reach the engine as a legal pair.
     pub batch_size: u32,
-    /// The owner's micro-batch, carried into the rendered argv.
+    /// The owner's micro-batch, carried into the rendered argv — floored
+    /// by [`plan`] at [`crate::args::VISION_UBATCH`] when the input
+    /// charges a projector.
     pub ubatch_size: u32,
     /// The owner's KV cache precision: it scales the per-token figure the
     /// context is sized against, so the arithmetic follows the choice.
@@ -84,6 +91,21 @@ pub fn thread_count(plateau: Option<usize>, physical: Option<usize>) -> Option<u
     }
 }
 
+/// The batch pair this input plans at: [`launch_batches`] with the one
+/// projector fact the input carries — `mmproj_bytes > 0` is exactly the
+/// proven file being passed, the same condition `startup.rs` writes into
+/// `ServerArgs::mmproj` after the plan returns (`plan.args.mmproj`). The
+/// floor applies before the window and the pool are sized and before the
+/// args are built, so the window, the pool, the panel's price (which
+/// reads `args.ubatch_size`) and the rendered argv all see one number.
+fn input_batches(input: &LaunchInput) -> (u32, u32) {
+    launch_batches(
+        input.batch_size,
+        input.ubatch_size,
+        input.mmproj_bytes > 0,
+    )
+}
+
 /// The funded ceiling for one input, and the roof it was carved after: the
 /// one copy of the arithmetic shared by [`plan`], which lowers the ceiling to
 /// [`DEFAULT_CONTEXT_TOKENS`] on the automatic path, and [`funded_maximum`],
@@ -96,6 +118,7 @@ fn funded_ceiling(input: &LaunchInput) -> Option<(u64, u64, u64)> {
     // refuses a capacity of zero, so a raw field holding 0 would otherwise
     // render `--parallel 0` beside a one-slot plan.
     let slots = u64::from(input.parallel.max(1));
+    let (_, ubatch_size) = input_batches(input);
     // A card's budget never held the row's host-mapped tensors, so they are
     // not the card's to spend: the same subtraction `fits_footprint` does,
     // which is what lets the pick and the plan answer one question alike
@@ -112,7 +135,7 @@ fn funded_ceiling(input: &LaunchInput) -> Option<(u64, u64, u64)> {
         input.mmproj_bytes,
         input.kv_cache,
         slots,
-        u64::from(input.ubatch_size),
+        u64::from(ubatch_size),
     )?;
     let ceiling = per_slot_ceiling(funded, input.model.trained_context_tokens, slots)?;
     Some((ceiling, prompt_cache_roof, slots))
@@ -128,7 +151,8 @@ fn funded_ceiling(input: &LaunchInput) -> Option<(u64, u64, u64)> {
 pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
     let (ceiling, prompt_cache_roof, slots) = funded_ceiling(input)?;
     let parallel = input.parallel.max(1);
-    let ubatch = u64::from(input.ubatch_size);
+    let (batch_size, ubatch_size) = input_batches(input);
+    let ubatch = u64::from(ubatch_size);
     // The owner's request is a TOTAL, the meaning the panel's bounds already
     // carry, so it is divided by the slots exactly as the engine will divide
     // the flag. With no request the answer is the chat default where the
@@ -154,8 +178,8 @@ pub fn plan(input: &LaunchInput) -> Option<LaunchPlan> {
         // this in where the card was named.
         device: None,
         idle_unload_seconds: crate::args::DEFAULT_IDLE_UNLOAD_SECONDS,
-        batch_size: input.batch_size,
-        ubatch_size: input.ubatch_size,
+        batch_size,
+        ubatch_size,
         kv_cache: input.kv_cache,
         parallel,
         slot_save_path: input.slot_save_path.clone(),
@@ -1096,6 +1120,54 @@ mod tests {
             "reserved {reserved} over {}",
             budget.usable_bytes
         );
+    }
+
+    /// The plan decides the batch pair once and every consumer reads that
+    /// decision: with a projector charged the plan floors the micro-batch at
+    /// [`crate::args::VISION_UBATCH`] (1024 — measured safe for the aborting
+    /// rows in `dev/lab-screen/results/crash/matrix.txt`), and the argv,
+    /// the settings the panel reads, and the price built from
+    /// `args.ubatch_size` all carry that same number. Without the projector
+    /// nothing moves. The price assertion is the agreement pin: it fails if
+    /// any of them ever floors alone.
+    #[test]
+    fn a_vision_plan_floors_the_pair_every_consumer_reads() {
+        let model = shipped_row("Google Gemma 4 12B");
+        let budget = memory_budget(Backend::Metal, 64 * GIB);
+        let launched = plan(&LaunchInput {
+            mmproj_bytes: 158_987_616,
+            ..input(ServerBackend::Metal, budget, model, M1_MAX_RAMP)
+        })
+        .expect("the row funds the projector");
+        assert_eq!(
+            launched.args.ubatch_size,
+            crate::args::VISION_UBATCH,
+            "the plan floors the micro-batch for a projector"
+        );
+        let line = launched.args.argv().join(" ");
+        assert!(line.contains("--ubatch-size 1024"), "{line}");
+        assert!(line.contains("--batch-size 2048"), "{line}");
+        let settings = launched.args.settings();
+        assert_eq!(settings.ubatch_size, crate::args::VISION_UBATCH);
+        // The panel's price is built from the args' own ubatch, so it must
+        // price exactly the pair the argv renders.
+        let price = context_price(
+            model,
+            KvCache::Q8_0,
+            u64::from(launched.args.ubatch_size),
+            launched.args.parallel,
+        )
+        .expect("the row has a price");
+        assert_eq!(
+            price.at(launched.args.context_tokens),
+            launched.memory.kv_cache_bytes,
+            "the price at the rendered ubatch equals the plan's own cache"
+        );
+        // And without the projector the pair is untouched.
+        let bare = plan(&input(ServerBackend::Metal, budget, model, M1_MAX_RAMP))
+            .expect("the row is fundable");
+        assert_eq!(bare.args.ubatch_size, 512, "no projector, no floor");
+        assert!(bare.args.argv().join(" ").contains("--ubatch-size 512"));
     }
 
     #[test]

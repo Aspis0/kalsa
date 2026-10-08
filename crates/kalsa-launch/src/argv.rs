@@ -7,19 +7,20 @@
 use crate::args::{ServerArgs, ServerSettings, ALL_LAYERS, CTX_CHECKPOINTS, FLASH_ATTN, HOST};
 
 impl ServerArgs {
-    /// The batch pair as rendered: `--mmproj` floors the ubatch at the
-    /// image budget and the batch at that ubatch, because the engine
-    /// asserts `n_ubatch >= n_tokens` for non-causal image attention
-    /// (`llama-context.cpp:1804`; a 529-token frame aborting the Gemma 4
-    /// rows at ubatch 512: `dev/lab-screen/results/crash/matrix.txt`).
+    /// The batch pair as rendered — the backstop beside
+    /// [`crate::args::launch_batches`], the same function the plan floors
+    /// with: `mmproj` rides exactly when the plan charged its bytes (both
+    /// keyed on the pin's `proven`), and a hand-built or cloned
+    /// `ServerArgs` (the tune's rule, the retry) cannot render below the
+    /// floor. The engine's own check on the rendered line is
+    /// `causal_attn || n_ubatch >= n_tokens_all` (`llama-context.cpp:1804`,
+    /// quoted verbatim in `dev/lab-screen/results/crash/matrix.txt`).
     fn rendered_batches(&self) -> (u32, u32) {
-        match self.mmproj {
-            Some(_) => {
-                let ubatch = self.ubatch_size.max(crate::args::IMAGE_MAX_TOKENS);
-                (self.batch_size.max(ubatch), ubatch)
-            }
-            None => (self.batch_size, self.ubatch_size),
-        }
+        crate::args::launch_batches(
+            self.batch_size,
+            self.ubatch_size,
+            self.mmproj.is_some(),
+        )
     }
 
     /// The argv for `llama-server`, in the supervisor's order.
@@ -549,34 +550,53 @@ mod tests {
         }
     }
 
-    /// A projector floors the batch pair, and nothing else does: the
-    /// engine asserts `n_ubatch >= n_tokens` for non-causal image attention
-    /// (`llama-context.cpp:1804`), so an image capped at 560 tokens
-    /// (529 measured for a 1920×1080 frame) aborts the engine on any
-    /// smaller ubatch — 512 and 256 both did, on the Gemma 4 rows. The
-    /// batch follows the ubatch up because llama-server requires
-    /// `n_batch >= n_ubatch`. The literals, for the same reason the
+    /// A projector floors the batch pair at the vision floor (1024, the
+    /// measured [`crate::args::VISION_UBATCH`]), and nothing else does:
+    /// the engine's check is `causal_attn || n_ubatch >= n_tokens_all`
+    /// (`llama-context.cpp:1804`), a 529-token frame aborted the Gemma 4
+    /// rows at ubatch 512 and 256 (`dev/lab-screen/results/crash/matrix.txt`),
+    /// and the floor sits at the measured ceiling rather than at the
+    /// `--image-max-tokens` cap because that cap is enforced inside the
+    /// engine fork where nothing here can test it. The batch follows the
+    /// ubatch up because the engine clamps
+    /// `n_ubatch = min(n_batch, params.n_ubatch)` (`src/llama-context.cpp`):
+    /// a batch below the floor would silently shrink the micro-batch back
+    /// and the abort would return. The literals, for the same reason the
     /// projector block asserts `"560"`.
     #[test]
-    fn a_projector_floors_the_batch_pair_at_the_image_budget_and_nothing_else_does() {
-        for (batch, ubatch) in [(2048, 512), (512, 512), (512, 256)] {
+    fn a_projector_floors_the_batch_pair_at_the_vision_floor_and_nothing_else_does() {
+        // The floor cases: below it, at it, and the invalid input the
+        // panel refuses (batch < ubatch) — all three render the pair the
+        // engine needs.
+        for (batch, ubatch) in [(2048, 512), (512, 512), (512, 256), (256, 512)] {
             let mut vision = some_args();
             vision.batch_size = batch;
             vision.ubatch_size = ubatch;
             vision.mmproj = Some(PathBuf::from("/models/mmproj-gemma-4-12B-it-Q8_0.gguf"));
             let argv = vision.argv();
-            assert_eq!(rendered_value(&argv, "--ubatch-size"), "560", "{argv:?}");
+            assert_eq!(rendered_value(&argv, "--ubatch-size"), "1024", "{argv:?}");
             let rendered_batch: u32 = rendered_value(&argv, "--batch-size")
                 .parse()
                 .expect("the batch renders as a number");
             assert!(
-                rendered_batch >= 560,
-                "the batch ({rendered_batch}) must be >= the ubatch (560): {argv:?}"
+                rendered_batch >= 1024,
+                "the batch ({rendered_batch}) must be >= the ubatch (1024): {argv:?}"
             );
             let settings = vision.settings();
-            assert_eq!(settings.ubatch_size, 560, "the panel reads the rendered value");
+            assert_eq!(settings.ubatch_size, 1024, "the panel reads the rendered value");
             assert!(settings.batch_size >= settings.ubatch_size);
         }
+        // MIN_UBATCH (64) with a projector: the floor, not the owner's
+        // floor, is what the engine gets.
+        let smallest = ServerArgs {
+            batch_size: crate::args::MIN_UBATCH,
+            ubatch_size: crate::args::MIN_UBATCH,
+            mmproj: Some(PathBuf::from("/models/mmproj.gguf")),
+            ..some_args()
+        };
+        let argv = smallest.argv();
+        assert_eq!(rendered_value(&argv, "--ubatch-size"), "1024", "{argv:?}");
+        assert_eq!(rendered_value(&argv, "--batch-size"), "1024", "{argv:?}");
         // Already at or above the floor: rendered as itself — the clamp is
         // a floor, never a ceiling (MAX_UBATCH 1024 stands untouched).
         let high = ServerArgs {

@@ -717,6 +717,7 @@ mod tests {
         crate::contract::check_sample(
             &path,
             "the_json_the_page_reads_is_a_contract_pinned_here",
+            "sample",
             &json,
         );
     }

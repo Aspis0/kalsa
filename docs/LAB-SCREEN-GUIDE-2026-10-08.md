@@ -432,9 +432,9 @@ compute buffers at 16k context, under the 512 MiB forfait). A cheaper alternativ
 `IMAGE_MAX_TOKENS` to 512 or below; not measured. Either way the sentinel's SmallBatches rung must
 keep ubatch above that line.
 
-Not measured: a 512–529-token image exactly at the boundary; two images where each is 530 tokens at
-ubatch 560 (the two-frame probe was 2 × 529); the Gemma 26B row's own app-side sampling beyond
-the probe; Windows.
+Not measured: a 512–529-token image exactly at the boundary; the Gemma 26B row's own app-side
+sampling beyond the probe; Windows. (The two-image case at ubatch 560 was measured — the table
+above: `ok, 1058` for every row.)
 
 ## Cleanup
 

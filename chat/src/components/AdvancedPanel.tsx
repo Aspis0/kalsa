@@ -32,6 +32,9 @@ export interface AdvancedDto {
   ubatch_size: number;
   ubatch_override: number | null;
   ubatch_automatic: number;
+  /** The floor's own sentence, present only when it raised the in-force
+      micro-batch — English from Rust, shown beside the field. */
+  ubatch_raised?: string | null;
   kv_cache_type: string;
   kv_cache_override: string | null;
   kv_cache_automatic: string;
@@ -376,6 +379,9 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
           </AdvancedField>
           <AdvancedField id="advanced-batch" knob={BATCH_KNOB} said={said(BATCH_KNOB)} help={dto?.batch_automatic != null ? t.automaticNumber(num(dto.batch_automatic)) : t.automaticReadLater(t.batchSizeName)}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder={t.automatic} value={batch} {...trackText(setBatch)} /></AdvancedField>
           <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} said={said(UBATCH_KNOB)} help={dto?.ubatch_automatic != null ? t.automaticNumber(num(dto.ubatch_automatic)) : t.automaticReadLater(t.ubatchSizeName)}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder={t.automatic} value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
+          {dto?.ubatch_raised ? (
+            <p className="advanced-note">{dto.ubatch_raised}</p>
+          ) : null}
           <AdvancedField id="advanced-cache" knob={CACHE_KNOB} said={said(CACHE_KNOB)} help={cacheHelp(t, dto)}>
             <select id="advanced-cache" value={cache} {...trackSelect((value) => setCache(value as CacheChoice))}>
               <option value="">{t.automatic}</option>

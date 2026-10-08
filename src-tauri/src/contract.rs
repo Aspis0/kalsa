@@ -8,10 +8,11 @@
 
 use std::path::Path;
 
-/// Fail unless `sample` equals the `sample` key of the contract file at
-/// `path`; `UPDATE_CONTRACT=1` stores it instead. `test` is the test that
-/// owns the file, named in every message so the way out is copy-pasteable.
-pub(crate) fn check_sample(path: &Path, test: &str, sample: &serde_json::Value) {
+/// Fail unless `sample` equals `key` of the contract file at `path`;
+/// `UPDATE_CONTRACT=1` stores it instead. `test` is the test that owns the
+/// file, named in every message so the way out is copy-pasteable. One key
+/// per call, so a file that pins two samples pins both under its own name.
+pub(crate) fn check_sample(path: &Path, test: &str, key: &str, sample: &serde_json::Value) {
     let text = std::fs::read_to_string(path).unwrap_or_else(|_| {
         panic!(
             "the contract file is missing: {} — restore it first: regeneration \
@@ -21,17 +22,17 @@ pub(crate) fn check_sample(path: &Path, test: &str, sample: &serde_json::Value) 
     });
     let mut contract: serde_json::Value =
         serde_json::from_str(&text).expect("the contract file is json");
-    if contract.get("sample") == Some(sample) {
+    if contract.get(key) == Some(sample) {
         return;
     }
     if std::env::var("UPDATE_CONTRACT").is_ok_and(|value| value == "1") {
-        contract["sample"] = sample.clone();
+        contract[key] = sample.clone();
         let written = serde_json::to_string_pretty(&contract).expect("serialise the contract");
         std::fs::write(path, format!("{written}\n")).expect("write the contract");
         return;
     }
     panic!(
-        "the sample in {} no longer matches what the type produces. \
+        "the {key} in {} no longer matches what the type produces. \
          Regenerate it with: cd src-tauri && UPDATE_CONTRACT=1 cargo test {test}",
         path.display()
     );

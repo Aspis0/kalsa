@@ -206,3 +206,9 @@ they are promoted.
 - P2: a tick made while a turn streams stays in memory until the stream's partial (every 10 s) or final write (`src/host/miniappStateWrite.ts:42`, `useHistoryFlushes.ts:82`); the background flush is not awaited (`useHistoryFlushes.ts:108`). A crash or force-stop before it lands loses the tick.
 - P2: state lines are appended to `modelEmittedText` (`src/host/turnCorpus.ts:266`), which is replayed byte-for-byte for the KV prefix (`hostMessage.ts:47`); the replay now differs from the saved completion, so the engine re-reads from that message on. Correct, slower.
 - P3: the "transient" state lines can reach the compaction digest through retrieval units (`turnCorpus.ts:1023` → `compactor.ts:829`) and be stored in AsyncStorage (`engineTurnSlide.ts:304`).
+
+## Vision ubatch floor (review of 6c4809cd)
+
+- P3: the tune record's fingerprint has no ubatch (`crates/kalsa-tune/src/record/mod.rs:82-88`), so a tune measured before the floor is reused unchanged at the floored buffers — the rule picked under ubatch 512 runs at 1024.
+- P3: 560 is copied as a literal outside `kalsa-launch` with no pin to `args.rs`'s `IMAGE_MAX_TOKENS` — `chat/src/lib/attachments.ts:37` and `crates/kalsa-door/src/room/turn.rs:61` each hold their own copy, and a JS/Rust drift compiles clean.
+- P3: the floor's math is one-image-per-ubatch; an engine bump to a build that packs text and image into one ubatch halves the room and invalidates `VISION_UBATCH`'s derivation without failing any test here.
