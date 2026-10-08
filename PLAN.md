@@ -2278,7 +2278,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   rebuilt the static bench with the documented recipe (`build-ls-and`, governor-bench 525ad01b) ->
   `~/Projects/kalsa-artifacts-b11514`, QDC kit `~/kalsa-qdc/merge-kit-904d38fad.tgz`, cell
   `qdc-merge-b11514-legs-72` (QDC portal logged out: owner login needed). Then: re-audit, rebuild bench on the fix
-  commit, QDC + S23 legs, kalsa-brain desktop/Metal checks (running), push. The
+  commit, QDC + S23 legs, push. **kalsa-brain macOS Metal checks on 904d38fad: PASS**
+  (`onecopy-three-legs/b11514-mac-checks-904d38fad.md`): Gemma 4 12B + mmproj u512 now caps image tokens to 512 and
+  answers (baseline v1.1.5 aborts 134 on the non-causal GGML_ASSERT), E4B MTP decode +19.2 % with identical
+  acceptance/output, E4B + LFM chat and slot save/restore OK, truncated slot refused 400 with /health 200; FA dk128/dv96
+  SIGSEGV reproduced (upstream). Windows run in progress; re-run FA + Brain smoke on the fix commit. The
   desktop session (kalsa-brain 2c574341) was asked for its server picks in
   `onecopy-three-legs/upstream-b11514-desktop-notes.md`. **Binding bump** to e01a61cee done locally (`f8cde278` in
   `~/Projects/llama.rn-kalsa-onecopy`, NOT pushed): glue needs no change, but `assert-htp-skels.sh` fails until the
