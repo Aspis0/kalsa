@@ -2009,6 +2009,9 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (b) the NPU voltage-corner knob (GLM `b63f2b91`): new HTP IDL method `power(core, bus)` + lab-only
   `GGML_HEXAGON_LAB`/`GGML_HEXAGON_VCORNER` on the host, default path unchanged - then an S23 NPU-alone run per corner
   (tok/s, NSP loaded step, skin per 1k tokens). Pending the owner: the reset repro, the endurance stop, the rule fix.
+  QDC #65 NOT RUN: the Okta login form never renders in the Paseo browser while its tab is hidden (`visibilityState=
+  hidden`, "The page has timed out"); no password typed, no session, no minutes, 6037 untouched (verified). Needs the
+  owner to open the Paseo browser panel (or a logged-in tab), then re-run the cell.
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced
