@@ -2212,6 +2212,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   `kernel_mul_mat_f16_f32_l4_y8` (ne00 768 > 256). The plain load (KV 2048, V non-contiguous) never reaches it.
   Discriminating test: cell #70 (`qdc-8g3-gpu750-y8-70`, kit `~/kalsa-qdc/y8-kit-09a496d71.tgz`, same binaries):
   2 baseline gpu-leg runs + 3 with `GGML_OPENCL_MM_F16_FORCE_L4=1` (routes the op to `l4_dr`). Haiku `eead0be2`.
+- **QDC #70 (QRD8650 80003b9c, session 877503; `qdc-8g3-gpu750-y8-70/REPORT.md`,
+  `raw/session1-y8-ab-09a496d71.grep`)**: **GPU-750 defect = `kernel_mul_mat_f16_f32_l4_y8`.** Same binary: baseline
+  gpu leg FAIL 2/2 (KL 0.041, 0.120); with `GGML_OPENCL_MM_F16_FORCE_L4=1` (op -> `l4_dr`) PASS 3/3, KL 0.000010
+  identical in all three (deterministic, the 8 Elite's level). l4_y8 is upstream code (#25366); fixed in the fork only.
+  Fix dispatched: Haiku `3e7e97ff` keeps Adreno A7X off l4_y8 (worktree gov-loadstep); then audit, Android bench,
+  re-run on a 750 without the flag.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
