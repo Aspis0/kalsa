@@ -212,3 +212,14 @@ they are promoted.
 - P3: the tune record's fingerprint has no ubatch (`crates/kalsa-tune/src/record/mod.rs:82-88`), so a tune measured before the floor is reused unchanged at the floored buffers — the rule picked under ubatch 512 runs at 1024.
 - P3: 560 is copied as a literal outside `kalsa-launch` with no pin to `args.rs`'s `IMAGE_MAX_TOKENS` — `chat/src/lib/attachments.ts:37` and `crates/kalsa-door/src/room/turn.rs:61` each hold their own copy, and a JS/Rust drift compiles clean.
 - P3: the floor's math is one-image-per-ubatch; an engine bump to a build that packs text and image into one ubatch halves the room and invalidates `VISION_UBATCH`'s derivation without failing any test here.
+
+## Content gate port (review of 1d5d08c3 + cf8d90e0)
+
+- F3: no test asserts equivalence with the phone's `contentFilter.js`; `chat/scripts/content-filter.mjs` is run by nothing and partly greps `useChat.ts` source instead of driving `sendNow` and `retry`. The equivalence runs (141 lines, then the reviewer's 4066 cases) were one-off and are not kept.
+- F4: `[^.?!]{0,30}` counts UTF-16 units in the phone and the desktop and Unicode scalars in Rust, so the windows diverge on 15–29 astral-plane letters before a keyword.
+- F5 (PLAUSIBLE): Rust's `(?i)` uses Unicode simple case folding, while the phone's `/i` is ASCII-only for non-ASCII input. NFKD and lowercasing run first, so the reachable difference is probably empty; not checked.
+- F7: `compile()` rewrites every `\b` textually and `expect`s the compile, so a pattern edit that breaks compilation panics on the first gate use on the turn thread instead of failing at build or test time.
+- F8: `room_gate.rs` has no non-ASCII boundary cases (`ö` beside a keyword, Cyrillic before `kill`) and no test for the cancelled path (`running_call_text` returning `None`).
+- F9: `decline_for` normalises before its empty-text check, so the first empty call still compiles every pattern on the turn thread.
+- The decline reads "· read the last 1" (`read = 1`, F2): `readLast` has no singular form, so the label reads as a count. The honest value stays 1; the copy is the owner's.
+- `chat/scripts/contrast-dom.mjs` already times out at `a7d507bd` ("Seeded thread" in `.sidebar`), so the composer disclaimer's contrast is unchecked.

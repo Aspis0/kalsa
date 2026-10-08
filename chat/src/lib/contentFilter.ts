@@ -258,7 +258,7 @@ export function classifyChatContent(input: string): ContentFilterResult {
 function normalizeFilterText(input: string): string {
   return String(input || "")
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\p{L}\p{N}\s'-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim()

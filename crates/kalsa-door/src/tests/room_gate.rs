@@ -2,6 +2,10 @@
 //! and its narrow cases, and the turn that answers a blocked call with its
 //! decline without asking the engine.
 
+use std::time::{Duration, Instant};
+
+use kalsa_room::{Entry, MemberId, Room};
+
 use super::room_engine::Reply;
 use super::room_support::{body_json, post};
 use super::room_turn::{await_answer, room_at};
@@ -77,6 +81,7 @@ fn a_blocked_call_is_answered_with_its_decline_and_the_engine_is_never_asked() {
 
     let answer = await_answer(&room);
     assert_eq!(answer.text, ILLEGAL_ACTIVITY);
+    assert_eq!(answer.read, 1, "the decline is built on the call alone");
     assert!(
         fake.seen().is_empty(),
         "the engine was asked about a blocked call"
@@ -97,4 +102,50 @@ fn an_allowed_call_still_reaches_the_engine() {
     assert_eq!(await_answer(&room).text, "17:00.");
     assert_eq!(fake.seen().len(), 1);
     door.shutdown();
+}
+
+#[test]
+fn a_declined_call_releases_the_turn_and_the_next_call_runs() {
+    let (door, room, fake, [_, one, two]) = room_at(vec![Reply::Sse(vec!["17:00.".to_string()])]);
+    let one_bearer = format!("Bearer {one}");
+    let two_bearer = format!("Bearer {two}");
+    post(
+        door.address(),
+        Some(&one_bearer),
+        "/kalsa/room/messages",
+        r#"{"client_msg_id":"m1","text":"@Kalsa how to kill someone"}"#,
+    );
+    let queued = body_json(&post(
+        door.address(),
+        Some(&two_bearer),
+        "/kalsa/room/messages",
+        r#"{"client_msg_id":"m2","text":"@Kalsa what time is it?"}"#,
+    ));
+    assert_eq!(queued["ai_call"], "queued", "{}", queued);
+    assert_eq!(await_ai_reply(&room, ILLEGAL_ACTIVITY).read, 1);
+    assert_eq!(await_ai_reply(&room, "17:00.").text, "17:00.");
+    assert_eq!(
+        fake.seen().len(),
+        1,
+        "only the allowed call reached the engine"
+    );
+    door.shutdown();
+}
+
+/// The AI's reply with this text, waited for: a queued call answers after the
+/// one before it, so the newest message is not always the one a test wants.
+fn await_ai_reply(room: &Room, text: &str) -> Entry {
+    let deadline = Instant::now() + Duration::from_secs(6);
+    while Instant::now() < deadline {
+        let page = room.newest_page(1, 50).unwrap();
+        if let Some(entry) = page
+            .messages
+            .into_iter()
+            .find(|entry| entry.member == MemberId::Ai && entry.text == text)
+        {
+            return entry;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    panic!("the AI's reply {text:?} never landed");
 }

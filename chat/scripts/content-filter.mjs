@@ -124,6 +124,14 @@ try {
     "runAssistant runs only when the gate allowed the send",
     /if \(decline === null\) void turns\.runAssistant\(updated\.id, assistantId, /.test(useChat),
   );
+  check(
+    "retry gates the user text it re-runs",
+    useChat.includes('const decline = contentDecline(asked?.content ?? "", table.contentFilter);'),
+  );
+  check(
+    "retry starts a turn only when the gate allowed it",
+    /if \(decline === null\) void turns\.runAssistant\(active\.id, messageId, /.test(useChat),
+  );
 } finally {
   if (dir) await rm(dir, { recursive: true, force: true });
 }

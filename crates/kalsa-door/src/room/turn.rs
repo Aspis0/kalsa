@@ -263,7 +263,8 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
         if !door.room.turn_alive(turn) {
             return "cancelled";
         }
-        let _ = door.room.post_ai(decline, 0);
+        // Built on the call alone: one message read, the call itself.
+        let _ = door.room.post_ai(decline, 1);
         publish(door.room.clone(), "done", None);
         return "declined";
     }

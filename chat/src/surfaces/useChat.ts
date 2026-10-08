@@ -775,9 +775,10 @@ export function useChat(shell: ChatShell) {
   // gate can mint one: a chat that is already open never takes this path,
   // because it was offered when it was selected.
   function sendMessage(text: string, opened: ActiveChat | null = null): string | null {
-    // The one funnel every send passes — composer, brain bar, retry — and
-    // with it the attach gate: a document still reading is in no wire yet,
+    // The one funnel every new user message passes — composer and brain bar —
+    // and with it the attach gate: a document still reading is in no wire yet,
     // and the chat still to be created is held by the attach making one.
+    // `retry` re-runs an existing turn and has its own gate on the same text.
     return attachGate.run(opened !== null ? opened.id : (active?.id ?? null), () =>
       sendNow(text, opened),
     );
@@ -978,15 +979,20 @@ export function useChat(shell: ChatShell) {
     attachGate.run(active.id, () => {
       const latest = store.get(active.id);
       if (!latest) return;
+      // The turn re-runs the words of the user message it answers: a blocked
+      // one gets the decline again, and the model is not called.
+      const at = latest.messages.findIndex((m) => m.id === messageId);
+      const asked = latest.messages.slice(0, Math.max(at, 0)).filter((m) => m.role === "user").pop();
+      const decline = contentDecline(asked?.content ?? "", table.contentFilter);
       store.put({
         ...latest,
         messages: latest.messages.map((m) =>
           m.id === messageId
-            ? { ...m, content: "", stopped: false, reasoning: "", reasoningMs: undefined }
+            ? { ...m, content: decline ?? "", stopped: false, reasoning: "", reasoningMs: undefined }
             : m,
         ),
       });
-      void turns.runAssistant(active.id, messageId, effectiveSettings, vision);
+      if (decline === null) void turns.runAssistant(active.id, messageId, effectiveSettings, vision);
     });
   }
 
