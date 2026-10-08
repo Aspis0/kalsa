@@ -55,7 +55,7 @@ const JELLY_KEYBOARD: Case = { name: "Jelly keyboard 349x325", width: 349, heigh
 /**
  * The same keyboard on the live window instead of a pinned app area, and the
  * band the clearance correction is argued from: 349x621 with a 296 dp IME and
- * the status bar's 24 leaves 301 usable, so 301 - 56 - 78 = **167 dp of
+ * the status bar's 24 leaves 301 usable, so 301 - 56 - 98 = **147 dp of
  * transcript**. Shorter than the pinned 325 case (the pin replaces the whole
  * window; this one subtracts the keyboard from it), and the real one when the
  * IME is up.
@@ -126,15 +126,15 @@ describe("the clearance under the last item", () => {
     expect(source).not.toMatch(/from\s+"[^"]*thoughtMotion"/);
   });
 
-  it("leaves the last item visible on the 167 dp keyboard band", () => {
+  it("leaves the last item visible on the 147 dp keyboard band", () => {
     const live = layoutFor(JELLY_KEYBOARD_LIVE);
     // The band the whole correction is argued from, and it is the shell's number
     // rather than a constant restated here.
-    expect(live.availableHeight).toBe(167);
+    expect(live.availableHeight).toBe(147);
     expect(live.bottomPadding).toBe(TRANSCRIPT_LAST_ITEM_GAP);
-    // 24 of 167 is 14 %: the gap costs the shortest band a seventh of itself
-    // and leaves 147 dp — more than a turn. A consequence of the chosen
-    // number, not the rule that sizes it.
+    // 24 of 147 is 16 %: the gap costs the shortest band a sixth of itself
+    // and leaves 123 dp. A consequence of the chosen number, not the rule that
+    // sizes it.
     expect(live.bottomPadding / live.availableHeight).toBeLessThan(0.2);
     expect(live.availableHeight - live.bottomPadding).toBeGreaterThanOrEqual(
       CLOUD_COLLAPSED_HEIGHT_DP,
@@ -145,7 +145,7 @@ describe("the clearance under the last item", () => {
     // The defect this replaced: 96 dp at 443 and 590, 75 at 195, 51 at 171 — a
     // different clearance per band, all of them the cloud's height. Now one
     // number everywhere, measured viewports included.
-    for (const band of [167, 191, 447, 594]) {
+    for (const band of [147, 171, 427, 574]) {
       expect(transcriptBottomPadding(band)).toBe(TRANSCRIPT_LAST_ITEM_GAP);
     }
     expect(layoutFor(JELLY).bottomPadding).toBe(TRANSCRIPT_LAST_ITEM_GAP);
@@ -190,36 +190,36 @@ describe.each(CASES)("$name", (c) => {
 });
 
 describe("the two measured viewports, in numbers", () => {
-  it("is 317 x 447 with a 247 dp capsule at 349x621", () => {
+  it("is 317 x 427 with a 247 dp capsule at 349x621", () => {
     const layout = layoutFor(JELLY);
     expect(layout.contentWidth).toBe(317);
-    expect(layout.availableHeight).toBe(447);
+    expect(layout.availableHeight).toBe(427);
     expect(layout.capsuleMaxWidth).toBe(247);
     expect(layout.readingMeasure).toBe(317);
     expect(layout.showDayMarker).toBe(true);
   });
 
-  it("is 328 x 594 with a 255 dp capsule at 360x780", () => {
+  it("is 328 x 574 with a 255 dp capsule at 360x780", () => {
     const layout = layoutFor(S23);
     expect(layout.contentWidth).toBe(328);
-    expect(layout.availableHeight).toBe(594);
+    expect(layout.availableHeight).toBe(574);
     expect(layout.capsuleMaxWidth).toBe(255);
     expect(layout.readingMeasure).toBe(328);
     expect(layout.showDayMarker).toBe(true);
   });
 
-  it("is 317 x 191 with a 247 dp capsule at 349x325, keyboard open", () => {
+  it("is 317 x 171 with a 247 dp capsule at 349x325, keyboard open", () => {
     const layout = layoutFor(JELLY_KEYBOARD);
     expect(layout.contentWidth).toBe(317);
-    expect(layout.availableHeight).toBe(191);
+    expect(layout.availableHeight).toBe(171);
     expect(layout.capsuleMaxWidth).toBe(247);
     expect(layout.showDayMarker).toBe(false);
   });
 
-  it("is 317 x 167 with a 247 dp capsule on the live window, 296 dp IME", () => {
+  it("is 317 x 147 with a 247 dp capsule on the live window, 296 dp IME", () => {
     const layout = layoutFor(JELLY_KEYBOARD_LIVE);
     expect(layout.contentWidth).toBe(317);
-    expect(layout.availableHeight).toBe(167);
+    expect(layout.availableHeight).toBe(147);
     expect(layout.capsuleMaxWidth).toBe(247);
     expect(layout.showDayMarker).toBe(false);
   });
@@ -233,9 +233,9 @@ describe("the day marker", () => {
   it("is dropped at the 325 dp app area and shown at 621 dp", () => {
     const short = layoutFor(JELLY_KEYBOARD);
     const tall = layoutFor(JELLY);
-    expect(short.availableHeight).toBe(191);
+    expect(short.availableHeight).toBe(171);
     expect(short.showDayMarker).toBe(false);
-    expect(tall.availableHeight).toBe(447);
+    expect(tall.availableHeight).toBe(427);
     expect(tall.showDayMarker).toBe(true);
     expect(DAY_MARKER_MIN_TRANSCRIPT_HEIGHT).toBeGreaterThan(short.availableHeight);
     expect(DAY_MARKER_MIN_TRANSCRIPT_HEIGHT).toBeLessThanOrEqual(tall.availableHeight);

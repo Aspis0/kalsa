@@ -1537,6 +1537,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       /** The stale-pairing twin of stopFailed: same reason, past framing. */
       stopFailedStale: "Failed before the current pairing: {reason}",
     },
+    disclaimer: "Kalsa can make mistakes. Check important information.",
     a11y: {
       band: "Machine status",
       transcript: "Conversation",

@@ -1479,6 +1479,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       stopFailed: "Fermato da un errore: {reason}",
       stopFailedStale: "Fallito prima del collegamento attuale: {reason}",
     },
+    disclaimer: "Kalsa può sbagliare. Verifica le informazioni importanti.",
     a11y: {
       band: "Stato della macchina",
       transcript: "Conversazione",

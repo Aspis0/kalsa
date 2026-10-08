@@ -1,6 +1,7 @@
 jest.mock("react-native", () => ({
   ActivityIndicator: "ActivityIndicator",
   Pressable: "Pressable",
+  Text: "Text",
   TextInput: "TextInput",
   View: "View",
 }));
@@ -26,6 +27,7 @@ jest.mock("../../theme/design", () => ({
 jest.mock("./shellStyles", () => ({
   createShellStyles: () => ({
     composerBand: {},
+    disclaimer: {},
     field: {},
     fieldIcon: {},
     input: {},

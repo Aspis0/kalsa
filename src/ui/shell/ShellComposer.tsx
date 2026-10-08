@@ -1,6 +1,7 @@
 /**
- * The composer band: the field, the three in-field controls and the send face's
- * three states. A MOVE out of `Shell.tsx` (to cut a seam under that file's
+ * The composer band: the field, the three in-field controls, the send face's
+ * three states, and the disclaimer line under the field. A MOVE out of
+ * `Shell.tsx` (to cut a seam under that file's
  * ratchet), not a redesign: the JSX, the styles and every decision it draws are
  * the shell's own, still arriving as props from the host (`composerState.ts`
  * decides, this file only places).
@@ -10,7 +11,7 @@
  * imports, real 48 dp boxes and never `hitSlop`.
  */
 import { useMemo, useRef } from "react";
-import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { ArrowUp, Mic, Plus, Square } from "lucide-react-native";
 
 import { useLocale } from "../../i18n";
@@ -150,6 +151,10 @@ export function ShellComposer({
           </View>
         </Pressable>
       </View>
+
+      <Text style={styles.disclaimer} numberOfLines={1}>
+        {t("shell.disclaimer")}
+      </Text>
     </View>
   );
 }

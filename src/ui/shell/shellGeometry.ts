@@ -46,11 +46,17 @@ export function stripPillTextColumn(pillWidth: number): number {
   );
 }
 
-/** Composer: an 8 dp lift, a 56 dp field, and a 14 dp lift over the gesture
- *  bar — the mock's `.dock` and `.field`, re-measured in dp. */
-export const COMPOSER_HEIGHT = 78;
+/** Composer: an 8 dp lift, a 56 dp field, the disclaimer's line under the field,
+ *  and a 14 dp lift over the gesture bar — the mock's `.dock` and `.field`,
+ *  re-measured in dp, with the disclaimer row added under the field. */
 export const COMPOSER_SIDE_PADDING = measure.gutter;
 export const COMPOSER_FIELD_HEIGHT = 56;
+/** The disclaimer is ONE line of `type.meta`: a line that wraps would cover the
+ *  gesture-bar lift, so the band reserves exactly one. */
+export const COMPOSER_DISCLAIMER_GAP = 4;
+export const COMPOSER_DISCLAIMER_HEIGHT = type.meta.lineHeight;
+export const COMPOSER_HEIGHT =
+  8 + COMPOSER_FIELD_HEIGHT + COMPOSER_DISCLAIMER_GAP + COMPOSER_DISCLAIMER_HEIGHT + 14;
 
 /**
  * The source chip's two sizes (DESIGN.md §2.5): the painted chip stays ~28 dp —

@@ -78,7 +78,7 @@ describe("short and keyboard-limited heights", () => {
   it("keeps the strip at 56 dp at the 325 dp app height", () => {
     const geometry = shellGeometry(349, 325, { top: 0, bottom: 0 });
     expect(geometry.strip.height).toBe(56);
-    expect(geometry.transcript.height).toBe(191);
+    expect(geometry.transcript.height).toBe(171);
     expect(geometry.composer.height).toBe(COMPOSER_HEIGHT);
   });
 
@@ -86,7 +86,7 @@ describe("short and keyboard-limited heights", () => {
     const geometry = shellGeometry(349, 621, bottomInsetFor({ top: 24, bottom: 16 }, 296));
     expect(geometry.strip.height).toBe(56);
     expect(geometry.composerBottomOffset).toBe(296);
-    expect(geometry.transcript.height).toBe(167);
+    expect(geometry.transcript.height).toBe(147);
   });
 
   it("treats the keyboard and the safe area as one obstruction", () => {
