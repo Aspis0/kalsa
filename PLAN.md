@@ -2248,6 +2248,17 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   off: NPU_FIRST stays byte-identical), l4_y8 A7X gate e01a61cee. Host governor ctest 24/24 at 09a496d71; the
   OpenCL fix verified on QDC #71. Open audit leftovers are in the backlog. Not yet in the binding/app: the next
   delivery step is the binding vendor bump + app pin (rule v3 then needs the app's governor inputs to select it).
+- **Upstream watch 2026-10-08 (read-only, owner asked)**: llama.cpp is 210 commits past our merge base 81ff93ea1
+  (2026-09-30). Candidates to merge: OpenCL `2207c8e57` OOB read in the Adreno xmem GEMM (#30041); Hexagon
+  `5e03bdd87` SSM_CONV double-buffered DMA for prefill AND decode (LFM2 shortconv runs on the NPU leg), `06cad0b9e`
+  Q6_K dequant speedup (would make a Q6_K lm_head on the NPU worth trying: removes the GPU dependency cell #69 shows),
+  `8345f3339` matmul/FA multicore partitioning (v81). Open PRs to watch: #26430 Adreno decode FA widening, #26437
+  OpenCL driver submission threads off the little cores on A6x/A7x, #29354 split of ggml-opencl.cpp (merge-conflict
+  risk). llama.rn upstream (0.13.0-rc.7): `f11b8414` JSI claims the context atomically (overlapping ops race),
+  `08db609f` SWA prefix-reuse guard (Trinity is SWA), `50b20d88` Hexagon maps buffers at allocation when DMA64 is off.
+  Others: no runtime found doing thermal leg hopping; LiteRT-LM ships a Qualcomm NPU path opt-in (QAIRT), MNN 3.6.1
+  has a Hexagon backend (July); the 2026 papers put decode on the CPU (e.g. arXiv 2606.27906 on the 8 Elite), which
+  our S23 measurement contradicts for skin heat (CPU is the hottest leg per token).
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
