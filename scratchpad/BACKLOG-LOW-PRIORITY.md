@@ -256,3 +256,17 @@ P2 a new host + old skel fails only on the lab RPC; P3 the host test does not ex
   warning, `in=` token id, `--dump-nodes-filter`, the false sync comment.
 - Kept: the callback syncs every split for the whole run (the dump run's own KL is the control); keys unstable across
   legs (HTP permutes nodes; use same-config pairs); HTP fusions off under the dump; KV SET_ROWS lines diluted/skipped.
+
+## l4_y8 A7X gate audit leftovers (reviewer n2, `onecopy-three-legs/audit-y8-a7x-n2.md`, engine e01a61cee, 2026-10-08)
+
+No P0/P1; the fall-through is the exact statement FORCE_L4 reached and cell #71 is bit-identical to cell #70's forced
+arms. Open, to fold in when e01a61cee lands on fork main:
+- F2 P2: the sibling multi-out kernels stay on A7X - `l4_x8` (default, ne00 <= 256) and `l4_x8_gqa4_img`
+  (default ON, KQ with head dim 128). Not reached by LFM2.6 (head dim 64, KQV ne00 = n_kv > 256), but a head-128 model
+  on a 750 GPU path could hit them: A/B them on a 750 before trusting.
+- F3 P2: the gate keys on the generation while the evidence is one compiler (750 E031.45.02.06); 732/735 map to
+  ADRENO_UNKNOWN and keep l4_y8.
+- F1 P3: the env-gated variants (MM_KQ_GQA / KQ_PAIR / KQV_GQA, off by default) still route A7X to their kernels.
+- F4 P3: the comment says the 740 is "untested"; say "not A/B'd" (the S23 GPU leg has passing KL runs on record).
+- F5-F11 P3: no upstream anchor in the comment, FORCE_L4 is presence-only, no host test (OpenCL needs a device),
+  `diagnose-gpu750-n2.md` still records the superseded diagnosis.
