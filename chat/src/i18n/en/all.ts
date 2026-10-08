@@ -26,6 +26,7 @@ import { BROWSER } from "./browser";
 import { MARKDOWN } from "./markdown";
 import { VISION } from "./vision";
 import { RUST } from "./rust";
+import { CONTENT_FILTER } from "./contentFilter";
 
 export interface English {
   chrome: typeof CHROME;
@@ -62,6 +63,7 @@ export interface English {
     invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
     pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   };
+  contentFilter: typeof CONTENT_FILTER;
 }
 
 export const ENGLISH: English = {
@@ -93,4 +95,5 @@ export const ENGLISH: English = {
   markdown: MARKDOWN,
   vision: VISION,
   rust: RUST,
+  contentFilter: CONTENT_FILTER,
 };

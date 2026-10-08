@@ -36,6 +36,7 @@ import type { SurfaceKey } from "../app/surfaces";
 import { arrivingIn, handoff, leavingGhost } from "../app/handoff";
 import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
+import { contentDecline } from "../lib/contentFilterCopy";
 import { logUiEvent } from "../lib/uiLog";
 import { useBrain, useBrainServer, useDoorStanding, withBrainDefaults } from "./useBrain";
 import { useServerFacts } from "./useServerFacts";
@@ -827,6 +828,8 @@ export function useChat(shell: ChatShell) {
     // history without re-reading the attachments on every turn.
     const bindable = store.getAttachments(conv.id).filter((a) => a.active && !(a.pinned ?? true));
     const boundBlock = turnDocBlock(bindable);
+    // Blocked words never reach the model: the decline is the answer instead.
+    const decline = contentDecline(text, table.contentFilter);
     const updated: Conversation = {
       ...conv,
       title: conv.messages.length === 0 ? titleFor(text, t.newConversation) : conv.title,
@@ -844,7 +847,7 @@ export function useChat(shell: ChatShell) {
             ? { docs: bindable.map((a) => a.id), docTokens: estTokens(boundBlock) }
             : {}),
         },
-        { id: assistantId, role: "assistant", content: "", createdAt: Date.now() },
+        { id: assistantId, role: "assistant", content: decline ?? "", createdAt: Date.now() },
       ],
     };
     store.put(updated);
@@ -865,7 +868,7 @@ export function useChat(shell: ChatShell) {
     // Writing from the brain's bar lands here too: the chat opens with the
     // text already in the thread.
     openSurface("chat");
-    void turns.runAssistant(updated.id, assistantId, effectiveSettings, vision);
+    if (decline === null) void turns.runAssistant(updated.id, assistantId, effectiveSettings, vision);
     return userId;
   }
 

@@ -26,6 +26,7 @@ import { BROWSER } from "./browser";
 import { MARKDOWN } from "./markdown";
 import { VISION } from "./vision";
 import { RUST } from "./rust";
+import { CONTENT_FILTER } from "./contentFilter";
 import type { English } from "../en/all";
 
 export const SPANISH: English = {
@@ -57,4 +58,5 @@ export const SPANISH: English = {
   markdown: MARKDOWN,
   vision: VISION,
   rust: RUST,
+  contentFilter: CONTENT_FILTER,
 };
