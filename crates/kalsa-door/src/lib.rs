@@ -579,8 +579,8 @@ impl RunningDoor {
     ///
     /// The call is in-process, not a route: no client asks for it, no HTTP
     /// head carries it, and the residency — which the caller never says — is
-    /// the door's own map. A slot that is clean, empty or `Unknown` is not
-    /// touched, and a save the engine refuses is simply still owed.
+    /// the door's own map. A slot that is clean or not named as resident is
+    /// not touched, and a save the engine refuses is simply still owed.
     ///
     /// `now` is the tick's own instant. It is passed in rather than read here
     /// so the caller's clock is the only one that decides, which is what lets
@@ -591,9 +591,10 @@ impl RunningDoor {
 
     /// What the app's tick calls when the supervisor says the engine no longer
     /// holds what the map may claim: its model was released, or the server
-    /// died announcing nothing. Every `Resident` slot becomes `Unknown`, and
-    /// that is what makes the next activation restore from disk instead of
-    /// no-oping against a released model.
+    /// died announcing nothing. Every `Resident` slot becomes `Evicted` with
+    /// its chat still named, so the next request of that device restores the
+    /// chat's file, and the next activation restores it instead of no-oping
+    /// against a released model.
     ///
     /// Observed on the ticker's thread, not by `brain_state`: that command is
     /// polled by the webview, and with no poll nobody would ever invalidate —

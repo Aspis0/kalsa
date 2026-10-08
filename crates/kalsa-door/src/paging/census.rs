@@ -13,8 +13,9 @@ use crate::RunningDoor;
 impl Chats {
     /// How many slots say a named chat lives there. `Unknown` is not counted
     /// as a resident (the door does not know one is there) and not as an
-    /// empty slot either (the door does not know one is free): it simply
-    /// leaves this count, which is why a release makes the number drop.
+    /// empty slot either (the door does not know one is free). A release
+    /// leaves `Evicted` behind, which is not a resident either, so the number
+    /// drops.
     pub(crate) fn residents(&self) -> usize {
         self.slots
             .iter()

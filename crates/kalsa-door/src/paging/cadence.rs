@@ -35,7 +35,7 @@ use crate::DeviceSet;
 /// from `SlotTurn::drop`, and its fact is "a turn wrote into this slot" — true
 /// whether or not the door can name the chat in it: the map is born `Unknown`
 /// (a door can be built against an engine already holding state) and is
-/// relaxed to `Unknown` whenever the engine stops holding what it claimed
+/// relaxed to `Evicted` whenever the engine stops holding what it claimed
 /// (`Chats::invalidate_residency`). Gating the mark on the map would make
 /// "clean" mean "the map said so" instead of "the file holds this slot's
 /// state" — and the map is the one part of the tier that is allowed to not
@@ -134,7 +134,7 @@ pub(super) fn save_idle(
             // failure whose request never left the door (connect refused, a deadline
             // spent before the dial, `engine.rs`) stamps nothing: the engine's own
             // clock runs, the sleep arrives, `invalidate_residency` relaxes the map,
-            // and an `Unknown` slot is never offered again — those species switch
+            // and a slot that no longer names a resident chat is never offered again — those species switch
             // themselves off. Which of the two an `Unreachable` was, the arm cannot
             // know and does not ask (`Call::Unreachable` carries both).
             //

@@ -3,9 +3,11 @@
 //! makes the next activation restore from disk instead of no-oping.
 
 use std::fs;
+use std::time::Instant;
 
 use super::paging_support::{
-    activate, door_of, file_name, status_of, temp_dir, Engine, HASH,
+    activate, complete, door_of, door_of_with_save, file_name, quiet_since, status_of, temp_dir,
+    Engine, HASH, QUIET,
 };
 use super::*;
 
@@ -72,13 +74,73 @@ fn a_released_model_stops_the_map_claiming_resident_and_the_next_activate_restor
         "the restore did not put the chat back in the map"
     );
 
-    // And the claim itself: a release leaves no `Resident` behind — a second
-    // release is a second reason to say `unknown`, never `empty`.
+    // And the claim itself: a release leaves no `Resident` behind. The chat
+    // stays named on disk, so a second release keeps it `evicted`.
     door.invalidate_residency();
     assert_eq!(
         door.chats.observed(0).1,
-        "unknown",
+        "evicted",
         "a release left the map claiming a chat the engine no longer holds"
     );
+    door.shutdown();
+}
+
+#[test]
+fn the_next_completion_after_a_release_restores_the_chat_before_it_runs() {
+    let slot_dir = temp_dir("invalidate-recall");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let chat = "aaaa1111";
+    fs::write(slot_dir.join(file_name(chat)), b"state").unwrap();
+    assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
+    complete(address, &token);
+    let baseline = engine.sent().len();
+
+    // The UI never re-activates: the open chat is only what the door remembers.
+    door.invalidate_residency();
+    complete(address, &token);
+
+    let sent = engine.sent();
+    let after = &sent[baseline..];
+    let restore = after
+        .iter()
+        .position(|sent| sent.action == "restore" && sent.filename == file_name(chat))
+        .unwrap_or_else(|| panic!("the completion after the release restored nothing: {after:?}"));
+    let completion = after
+        .iter()
+        .position(|sent| sent.action.is_empty())
+        .unwrap_or_else(|| panic!("the completion never reached the engine: {after:?}"));
+    assert!(
+        restore < completion,
+        "the completion ran before the chat was restored: {after:?}"
+    );
+    assert!(
+        after.iter().all(|sent| sent.action != "save"),
+        "a save went out between the release and the completion: {after:?}"
+    );
+    assert_eq!(door.chats.observed(0).1, "resident");
+    door.shutdown();
+}
+
+#[test]
+fn a_released_slot_is_not_written_out_by_the_timer() {
+    let slot_dir = temp_dir("invalidate-tick");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of_with_save(engine.port, &slot_dir, HASH, &[&token], QUIET);
+    let chat = "aaaa1111";
+    assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
+    complete(address, &token);
+    let marked = Instant::now();
+
+    door.invalidate_residency();
+    assert_eq!(
+        door.save_idle(quiet_since(marked)),
+        0,
+        "the timer wrote out a slot the engine had released"
+    );
+    let saves = engine.sent().iter().filter(|sent| sent.action == "save").count();
+    assert_eq!(saves, 0, "the timer sent a save for a released slot");
     door.shutdown();
 }

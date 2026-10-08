@@ -42,10 +42,10 @@ fn the_panel_counts_a_named_chat_and_nothing_else() {
     assert_eq!(door.chats.observed(0).1, "empty");
     assert_eq!(door.residents(), 1, "an empty slot was counted as a resident");
 
-    // A release takes the claims away: the slot reads `Unknown` again, and
-    // "I do not know" leaves the count rather than inflating it.
+    // A release takes the slot out of the count: the chat is still named on
+    // disk (`evicted`), and it is not a resident, so the number drops.
     door.invalidate_residency();
-    assert_eq!(door.chats.observed(1).1, "unknown");
+    assert_eq!(door.chats.observed(1).1, "evicted");
     assert_eq!(door.residents(), 0, "an unknown slot was counted as a resident");
     door.shutdown();
 }

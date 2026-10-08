@@ -319,11 +319,11 @@ fn a_release_relaxes_the_map_and_says_how_many_slots() {
     }
 
     door.invalidate_residency();
-    let lines = wait_for("engine residency invalidated: 4 slot(s) -> unknown");
+    let lines = wait_for("engine residency invalidated: 4 slot(s) -> evicted");
     assert!(
         lines
             .iter()
-            .any(|line| line.contains("engine residency invalidated: 4 slot(s) -> unknown")),
+            .any(|line| line.contains("engine residency invalidated: 4 slot(s) -> evicted")),
         "the release is not on the record: {lines:?}"
     );
     door.shutdown();

@@ -7,32 +7,35 @@
 //! the app's tick reads the first and calls the method below, which only ever
 //! relaxes the second.
 //!
-//! The relaxation goes to `Unknown`, never to `Empty`: the door has not seen
-//! the slot emptied, it only knows the engine released what was in it. And it
-//! only ever takes a claim away — `Chats`' activate route is what puts one
-//! back, after the engine itself has been told what the slot holds.
+//! The relaxation goes to `Evicted`, never to `Empty`: the door has not seen
+//! the slot emptied, it only knows the engine released what was in it. The
+//! chat's name is kept, because its file holds the last state that reached
+//! disk, and the owner's next completion restores that file (`Chats::recall`)
+//! with no UI re-activation. It never invents a claim: the name it keeps is
+//! the one the map already held.
 
 use super::{Chats, Residency};
 
 impl Chats {
     /// The engine no longer holds what this map may claim: its model was
     /// released, or the server died — a crash announces nothing. Every
-    /// `Resident` becomes `Unknown`.
+    /// `Resident` becomes `Evicted`, with its chat named.
     ///
     /// Load-bearing, not cosmetic: while the map says `Resident`, activating
     /// that chat again is a no-op (`569d31e`), and against a released model
     /// that no-op skips the very restore that would bring the cache back from
-    /// the file — the warmth the tier exists for, lost silently. On `Unknown`
-    /// the no-op does not fire, the next `activate` restores from disk, and no
-    /// save writes a state out of a slot whose content is no longer known.
+    /// the file. `Evicted` does not fire the no-op, and nothing saves out of
+    /// it: only a `Resident` slot is ever written, so the file keeps its last
+    /// state and is never overwritten by a slot the engine has released.
     pub(crate) fn invalidate_residency(&self) {
         let mut relaxed = 0;
         for slot in &self.slots {
             let mut state = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-            if matches!(&state.resident, Residency::Resident(..)) {
-                state.resident = Residency::Unknown;
-                relaxed += 1;
-            }
+            let Residency::Resident(owner, chat) = &state.resident else {
+                continue;
+            };
+            state.resident = Residency::Evicted(*owner, chat.clone());
+            relaxed += 1;
         }
         // The door's own view of the engine releasing its model: the number
         // is what the next `activate` can no longer skip, and a report reads
@@ -58,8 +61,9 @@ impl Chats {
             Residency::Empty => "empty",
             Residency::Unknown => "unknown",
             Residency::Resident(..) => "resident",
-            // The chat is on disk and named, waiting for its owner's seat:
-            // its own word, because neither "empty" nor "unknown" is true.
+            // The chat is on disk and named, out of the slot until its owner's
+            // next request brings it back: its own word, because neither
+            // "empty" nor "unknown" is true.
             Residency::Evicted(..) => "evicted",
         };
         (state.dirty_at, claim)

@@ -70,7 +70,7 @@ pub(crate) fn chat_line(
 
 /// The engine stopped holding what the map claimed, as the door saw it.
 pub(crate) fn residency_line(relaxed: usize) -> String {
-    format!("engine residency invalidated: {relaxed} slot(s) -> unknown")
+    format!("engine residency invalidated: {relaxed} slot(s) -> evicted")
 }
 
 /// A refusal that never reached `handle`: the accept loop's busy answer.
@@ -154,7 +154,7 @@ mod tests {
         );
         assert_eq!(
             residency_line(2),
-            "engine residency invalidated: 2 slot(s) -> unknown"
+            "engine residency invalidated: 2 slot(s) -> evicted"
         );
         assert_eq!(
             refusal_line(503, "door.listener_busy"),

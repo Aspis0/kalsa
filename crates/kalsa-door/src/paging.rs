@@ -114,22 +114,23 @@ struct Slot {
     retry_after: Option<Instant>,
 }
 
-/// A slot is empty, resident with one chat, or unknown: an action that never
-/// reached the engine may not have run, so the slot holds what it held, and
-/// nothing is written out of it. [`io::restore`] records the two branches of a
-/// save and what each can leave behind, which is as far as the unknown's safety
-/// reaches. A slot is born unknown as well: a door built against an engine
-/// already holding state cannot call a slot it never saw `Empty`.
+/// A slot is empty, resident with one chat, unknown, or evicted. Only `Resident`
+/// is ever written out. An action that never reached the engine may not have
+/// run, so the slot holds what it held, and nothing is written out of it.
+/// [`io::restore`] records the two branches of a save and what each can leave
+/// behind, which is as far as the unknown's safety reaches. A slot is born
+/// unknown as well: a door built against an engine already holding state
+/// cannot call a slot it never saw `Empty`.
 enum Residency {
     Empty,
     Unknown,
     Resident(DeviceId, String),
-    /// The chat this device had in the slot when the seat was taken, saved
-    /// to its file by the handover: not in the slot any more, on disk and
-    /// known by name. The device's next request that takes the seat back
-    /// recalls it ([`Chats::recall`]) — a completion does not name its
-    /// conversation, so this is the only way the door can know which chat
-    /// the engine is about to be asked to rebuild from nothing.
+    /// The chat this device had in the slot, not in it any more, on disk and
+    /// known by name: either the handover saved it when the seat was taken, or
+    /// the engine released its model and the last save is what the file holds.
+    /// The device's next request recalls it ([`Chats::recall`]) — a completion
+    /// does not name its conversation, so this is the only way the door can
+    /// know which chat the engine is about to be asked to rebuild from nothing.
     Evicted(DeviceId, String),
 }
 
@@ -429,9 +430,8 @@ impl Chats {
     /// `previous`, under the same slot lock `activate` holds across its own
     /// save, which is what makes the handover atomic against `save_idle`,
     /// `activate` and `mark_dirty`, all of which take that lock — and the
-    /// slot is then `Unknown`, the one residency honest about a holder this
-    /// tier cannot name. The evicted device's next `activate` finds `Unknown`,
-    /// skips the early return, and restores its file warm.
+    /// slot is then `Evicted`: out of the slot, on disk, named. The evicted
+    /// device's next request or `activate` brings its file back warm.
     ///
     /// A refused save is `Err` with the map untouched: nothing was written
     /// into the slot on this path, so the residency it carries is still true,
@@ -495,11 +495,12 @@ impl Chats {
         Ok(true)
     }
 
-    /// Brings back the chat the handover put on disk, for the device whose
-    /// request just took the seat back: the completion that follows does not
-    /// name its conversation — the UI that never unmounted never re-activated
-    /// — so this is the moment the engine learns which chat the request
-    /// continues, instead of re-prefilling the whole history from nothing on
+    /// Brings back the chat that is on disk and named for this device — saved
+    /// by the handover or left by the engine's release — for the device whose
+    /// request just came. The completion that follows does not name its
+    /// conversation — the UI that never unmounted never re-activated — so this
+    /// is the moment the engine learns which chat the request continues,
+    /// instead of re-prefilling the whole history from nothing on
     /// a computer where that costs a minute. Nothing else acts: a slot that
     /// is not this device's evicted chat is left exactly as it is, and no
     /// outcome of the recall is allowed to fail the request it serves — a
