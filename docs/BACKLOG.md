@@ -165,6 +165,8 @@ they are promoted.
 - P3: if a discovery actor dies after bind (socket or interface error), LAN discovery stays dead until the endpoint is rebuilt. The relay still works.
 - P3: `crates/kalsa-iroh/tests/mdns_lan.rs` needs working multicast and waits up to 30 s where it is blocked.
 - P3 (from 6a43b5b5): the LAN discovery now lives for the whole process, so while the door is down (brain off, engine restarting) the PC keeps announcing its LAST record, with a stale port, and keeps querying every ~700 ms. iroh has no un-publish on close. A phone dialing then fails the same way as with the door down.
+- Phone side DONE 2026-10-08 (kalsa main 1455be66 + 3edc1b14): Android stops the bridge after 120 s in foreground with no dial or tunnel close, so the 700 ms queries and the MulticastLock end with it. Open P3s from that review: a 3 s stop wait (`irohBridge.ts` STOP_WAIT_TIMEOUT_MS) can fail one dial against a bridge being torn down; `closeDuringStop = false` on active postpones a refused stop's retry by 120 s; the idle timer callback has no identity check; `irohBackgroundStop.ts` names still say "background" though it holds both policies. Not measured on the device yet.
+- P3: the desktop cadence (700 ms forever) can only change by patching iroh-mdns-address-lookup 0.6.0 (`Discoverer::new_interactive` at its lib.rs:497, no builder knob). τ = 10 s would make a cold LAN dial take up to ~12 s, above the phone's 10 s dial deadline.
 
 ## Tune retry and sweep stop (review of 8352c5e2, c0d86f25)
 

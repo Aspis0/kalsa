@@ -145,6 +145,15 @@ behaviour (reply in background, iroh stop after 30 s) is decided and stays as is
 Phone code lives in the app repo (`/Users/marco/Projects/kalsa`, branch main); a phone-side fix
 follows that repo's rules.
 
+**Result 2026-10-08 ~00:07 EDT (Jelly, APK c48e5ddd, Mac app build of 2026-10-07 11:42):**
+- Keyboard in chat: PASS — the composer rides above the keyboard, typed text visible. Room composer not typed into.
+- Room list on reopen: NOT reproduced. Open: `mount` (0 entries, loading) → `read` 5 entries seq 14–18 epoch faa2f8f2 in ~110 ms.
+  Background 5 s → foreground: no feed event, list intact. Background 40 s (`background_stop` stopped) → foreground:
+  `start` + dial 259 ms, no feed event, list full in the first frame after the transition.
+- Room author name live: NOT run — the Mac screen had another app in front (likely another session); driving Kalsa
+  with clicks would steal its focus. With the owner.
+- Lock-screen dial from the phone: NOT run (needs the Mac locked; owner asleep, other sessions use the screen).
+
 ## Order and gates
 1, 2 and 6 first (labs; 1 and 2 may change 3). Then 3 → review → 4 → review (one hostile review each, writer and
 reviewer different models, P0/P1 fixed, the rest to `docs/BACKLOG.md`). Then 5, 8, and 7 if still open. Push to `brain`; no
