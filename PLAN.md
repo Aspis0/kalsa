@@ -2037,6 +2037,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   alone vs governor (tau 10, weight 7, heat 2.8/3.2/4.7, load step 11/14/CPU tbd) under the new endurance criterion.
 - **Reset repro: started 09:22 and STOPPED by me at model load** - the S23 was at 22 % battery: a reset there would
   not separate the bug from a low-battery brownout. Needs the charger (plugged also rules brownout out). State cleared.
+  Relaunched 09:32 on the charger (owner plugged it; 21 %).
+- **GPU leg on other Adrenos (owner 2026-10-08: "pensavo la GPU funzionava dappertutto ma non è vero")**: precise
+  state - plain OpenCL (own buffers) is correct on the 750; the ONE-COPY GPU leg (OpenCL reading the NPU's imported
+  buffers) is wrong on the 750 (nondeterministic KL 0.05-0.14) and untested on the 830 (8 Elite, v79: QDC blocked by
+  the login). Diagnosis lane opened: reviewer n2 (deepseek) `b494ddc2`, read-only, -> `diagnose-gpu750-n2.md`
+  (ops over imports the J(1) lm_head does not exercise, import flags/coherence/alignment, cheapest split runs on the
+  Xiaomi with existing knobs). Then I run the splits on the Xiaomi (correctness only).
 - **Owner decisions 2026-10-08 morning** (Marco: "ti autorizzo a riprodurre reset s23"; "per criterio di resistenza e
   correzione del Governor, decidi tu per la npu"; the Xiaomi is UNPLUGGED and free for speed/heat runs). Mine, recorded:
   1. **Endurance criterion**: score = decode tokens produced, back-to-back 2048-token turns (n_ctx 2816, away from the
