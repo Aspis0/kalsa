@@ -12,6 +12,7 @@ import {
   type MiniappTemplateId,
 } from "../domain/miniappTemplates";
 import { buildMiniappV1 } from "../domain/miniappBuilders";
+import { quickCalculatorRefusal } from "../domain/miniappQuickCalculator";
 import { normalizeMiniapp } from "../domain/askAssistant";
 import type { EngineTool, EngineToolResult } from "../engine/LlamaService";
 
@@ -27,8 +28,9 @@ export const CREATE_MINIAPP_TOOL: EngineTool = {
       "opens inline in the chat. Use " +
       "this instead of writing miniapp JSON by hand. For quick_calculator, " +
       "give every number the person might change a labelled field (id, label, " +
-      "value) and write the formula from those ids; a formula of bare numbers " +
-      "is split into editable Number fields automatically. Never show the " +
+      "value) and write the formula from those ids only; a formula of bare " +
+      "numbers with no fields is split into editable Number fields " +
+      "automatically. Never show the " +
       "tool's or a template's name (create_miniapp, compare_data…) to the " +
       "person, and never mention templates or slots: describe the mini app " +
       "in plain words, as the thing it is — a table, a calculator, a quiz, " +
@@ -103,8 +105,12 @@ export function makeCreateMiniappExecutor(
     const built = buildMiniappV1(template, raw.slots);
     const normalized = built ? normalizeMiniapp(built) : null;
     if (!normalized) {
+      // A quick_calculator whose fields and formula disagree is refused with the
+      // rule it broke, so the model can retry; the generic line covers the rest.
+      const refusal =
+        template === "quick_calculator" ? quickCalculatorRefusal(raw.slots) : null;
       return {
-        text: strings.errors.createMiniappInvalidSlots,
+        text: refusal ?? strings.errors.createMiniappInvalidSlots,
         kind: "create_miniapp",
         error: "invalid_slots",
       };

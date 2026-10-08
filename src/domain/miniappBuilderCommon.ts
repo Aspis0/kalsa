@@ -1,5 +1,5 @@
 // Slot-validation primitives shared by the two builder groups:
-// `miniappBuilders.ts` (compare_data / quick_calculator and the dispatcher)
+// `miniappBuilders.ts` (compare_data and the dispatcher), `miniappQuickCalculator.ts`
 // and `miniappBuildersNew.ts` (the C6c templates). They live here so neither
 // builder group has to import the other — the mutual import was a Metro
 // Require cycle.

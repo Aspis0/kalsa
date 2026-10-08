@@ -8,6 +8,7 @@ jest.mock("expo-secure-store", () => ({
 import { assembleTools, ALL_TOOL_NAMES, TOOL_ENTRIES } from "./toolRegistry";
 import { makeCreateMiniappExecutor, CREATE_MINIAPP_TOOL } from "./createMiniappTool";
 import { buildMiniappV1 } from "../domain/miniappBuilders";
+import { quickCalculatorRefusal } from "../domain/miniappQuickCalculator";
 import { getStrings } from "../i18n";
 import type { EngineToolResult } from "../engine/LlamaService";
 
@@ -48,23 +49,24 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
 
   test("quick_calculator → calculator with formula", () => {
     const miniapp = buildMiniappV1("quick_calculator", {
-      formula: "a + b * 0.1",
+      formula: "a + b * r",
       fields: [
         { id: "a", label: "Principal", value: 1000 },
         { id: "b", label: "Rate", value: 5 },
+        { id: "r", label: "Step", value: 0.1 },
       ],
     });
     expect(miniapp).not.toBeNull();
-    // The literal rides along as its own editable field, like the desktop's.
-    expect(miniapp?.blocks[0]).toMatchObject({ type: "calculator", formula: "a + b * n1" });
+    // Fields given: nothing is lifted, the formula reads the fields as they are.
+    expect(miniapp?.blocks[0]).toMatchObject({ type: "calculator", formula: "a + b * r" });
     expect((miniapp?.blocks[0] as any).fields).toEqual([
       { id: "a", label: "Principal", value: 1000 },
       { id: "b", label: "Rate", value: 5 },
-      { id: "n1", value: 0.1 },
+      { id: "r", label: "Step", value: 0.1 },
     ]);
     // The initial values and result seed the envelope's state: the next
     // turn's wire carries them before anyone edits anything.
-    expect(miniapp?.state).toEqual({ calculator: { fields: { a: 1000, b: 5, n1: 0.1 }, result: 1000.5 } });
+    expect(miniapp?.state).toEqual({ calculator: { fields: { a: 1000, b: 5, r: 0.1 }, result: 1000.5 } });
   });
 
   test("quick_calculator rejects a missing formula", () => {
@@ -83,29 +85,39 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     expect(miniapp?.state).toEqual({ calculator: { fields: { n1: 50, n2: 4 }, result: 12.5 } });
   });
 
-  test("lifted ids mint past the model's own, and digits inside identifiers lift nothing", () => {
-    const past = buildMiniappV1("quick_calculator", {
-      formula: "n1 + 5",
-      fields: [{ id: "n1", label: "Seed", value: 1 }],
-    });
-    expect(past?.blocks[0]).toMatchObject({ formula: "n1 + n2" });
-    expect((past?.blocks[0] as any).fields[1]).toEqual({ id: "n2", value: 5 });
-
-    // The 0 of f0 belongs to the identifier, not to the literals.
-    const identifier = buildMiniappV1("quick_calculator", {
-      formula: "f0 + 1",
-      fields: [{ id: "f0", label: "F", value: 2 }],
-    });
-    expect(identifier?.blocks[0]).toMatchObject({ formula: "f0 + n1" });
+  test("an empty field list lifts like no fields at all", () => {
+    const miniapp = buildMiniappV1("quick_calculator", { formula: "50 / 4", fields: [] });
+    expect(miniapp?.blocks[0]).toMatchObject({ formula: "n1 / n2" });
   });
 
-  test("a field value may write its decimal with a comma", () => {
+  test("a lifted id never shadows an identifier the formula already uses", () => {
+    // With no fields, n1 is unknown to the evaluator, so the build is refused
+    // rather than reading the model's n1 as the lifted literal.
+    expect(buildMiniappV1("quick_calculator", { formula: "n1 + 5" })).toBeNull();
+  });
+
+  test("digits inside identifiers lift nothing", () => {
+    // The 0 of f0 belongs to the identifier; a lifted 0 would need a field of 0.
+    const identifier = buildMiniappV1("quick_calculator", {
+      formula: "f0 + 1",
+      fields: [
+        { id: "f0", label: "F", value: 2 },
+        { id: "one", label: "One", value: 1 },
+      ],
+    });
+    expect(identifier?.blocks[0]).toMatchObject({ formula: "f0 + one" });
+  });
+
+  test("a field value may write its decimal with a comma, and a literal matches it", () => {
     const miniapp = buildMiniappV1("quick_calculator", {
       formula: "a * 2",
-      fields: [{ id: "a", label: "A", value: "1,5" }],
+      fields: [
+        { id: "a", label: "A", value: "1,5" },
+        { id: "two", label: "Two", value: "2,0" },
+      ],
     });
-    expect(miniapp?.blocks[0]).toMatchObject({ formula: "a * n1" });
-    expect(miniapp?.state).toEqual({ calculator: { fields: { a: 1.5, n1: 2 }, result: 3 } });
+    expect(miniapp?.blocks[0]).toMatchObject({ formula: "a * two" });
+    expect(miniapp?.state).toEqual({ calculator: { fields: { a: 1.5, two: 2 }, result: 3 } });
   });
 
   test("quick_calculator rejects an invalid formula (F3)", () => {
@@ -156,12 +168,87 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
       value: i,
     }));
     expect(buildMiniappV1("quick_calculator", { formula: "f0", fields })).toBeNull();
+    // Every one of the 24 fields is used, so none is a dead input.
+    const formula = fields.slice(0, 24).map((field) => field.id).join(" + ");
     expect(
       buildMiniappV1("quick_calculator", {
-        formula: "f0",
+        formula,
         fields: fields.slice(0, 24),
       }),
     ).not.toBeNull();
+  });
+
+  test("a bare number that no field holds is refused, naming the rule (the owner's case)", () => {
+    const slots = {
+      formula: "50 / 4",
+      fields: [
+        { id: "start", label: "Valore iniziale", value: 60 },
+        { id: "div", label: "Divisore", value: 4 },
+      ],
+    };
+    expect(buildMiniappV1("quick_calculator", slots)).toBeNull();
+    expect(quickCalculatorRefusal(slots)).toBe(
+      "create_miniapp: the formula contains the bare number 50 while fields were given. Write the formula from the field ids (for example a / b), or send no fields and the numbers become editable automatically.",
+    );
+  });
+
+  test("a bare number equal to a field's value is written as that field's id", () => {
+    const miniapp = buildMiniappV1("quick_calculator", {
+      formula: "50 / b",
+      fields: [
+        { id: "a", label: "A", value: 50 },
+        { id: "b", label: "B", value: 4 },
+      ],
+    });
+    expect(miniapp?.blocks[0]).toMatchObject({ formula: "a / b" });
+    expect(miniapp?.state).toEqual({ calculator: { fields: { a: 50, b: 4 }, result: 12.5 } });
+  });
+
+  test("a literal does not match a field the formula already names by id", () => {
+    // `a` is 1 and the literal is 1, but the formula names `a`: the 1 is refused
+    // rather than silently read as `a + a`.
+    const slots = {
+      formula: "a + 1",
+      fields: [
+        { id: "a", label: "A", value: 1 },
+        { id: "b", label: "B", value: 5 },
+      ],
+    };
+    expect(buildMiniappV1("quick_calculator", slots)).toBeNull();
+    expect(quickCalculatorRefusal(slots)).toContain("the formula contains the bare number 1");
+  });
+
+  test("an unknown identifier is refused, naming it", () => {
+    const slots = {
+      formula: "a / c",
+      fields: [
+        { id: "a", label: "A", value: 1 },
+        { id: "b", label: "B", value: 2 },
+      ],
+    };
+    expect(buildMiniappV1("quick_calculator", slots)).toBeNull();
+    expect(quickCalculatorRefusal(slots)).toBe(
+      "create_miniapp: the formula references c, which is not one of the fields. Write the formula from the field ids you gave.",
+    );
+  });
+
+  test("a field the formula never uses is refused as a dead input, naming it", () => {
+    const slots = {
+      formula: "a + 2",
+      fields: [
+        { id: "a", label: "A", value: 1 },
+        { id: "b", label: "B", value: 2 },
+        { id: "c", label: "C", value: 3 },
+      ],
+    };
+    expect(buildMiniappV1("quick_calculator", slots)).toBeNull();
+    expect(quickCalculatorRefusal(slots)).toBe(
+      "create_miniapp: the field c is not used in the formula. Every field must appear in it; drop the ones that do not.",
+    );
+  });
+
+  test("a formula that is merely malformed keeps the generic refusal", () => {
+    expect(quickCalculatorRefusal({ formula: "a + ", fields: [{ id: "a", value: 1 }] })).toBeNull();
   });
 
   test("reading_quiz → one quiz block per question (N questions)", () => {
@@ -402,6 +489,26 @@ describe("create_miniapp executor", () => {
     expect(result.error).toBe("invalid_slots");
     expect(result.kind).toBe("create_miniapp");
     expect(result.text).toBe(getStrings("en").errors.createMiniappInvalidSlots);
+  });
+
+  test("a refused quick_calculator returns its rule to the model, no onMiniapp", async () => {
+    const onMiniapp = jest.fn();
+    const execute = makeCreateMiniappExecutor("en", { onMiniapp });
+
+    const result = await execute("create_miniapp", {
+      template: "quick_calculator",
+      slots: {
+        formula: "50 / 4",
+        fields: [
+          { id: "start", label: "Valore iniziale", value: 60 },
+          { id: "div", label: "Divisore", value: 4 },
+        ],
+      },
+    });
+
+    expect(onMiniapp).not.toHaveBeenCalled();
+    expect(result.error).toBe("invalid_slots");
+    expect(result.text).toContain("the formula contains the bare number 50");
   });
 
   test("unknown template: no onMiniapp call, error tagged", async () => {

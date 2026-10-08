@@ -1232,8 +1232,38 @@ function ExpandableBlockView({ block, context, depth }: { block: MiniappBlock; c
   );
 }
 
+/** A calculator field's name: its label, or "Number n" in the interface's
+ *  language. A lifted field (id n1, n2…) carries no label, so it is numbered
+ *  by its id. */
+function calculatorFieldName(fieldId: string, label: string, index: number, t: TranslateFn): string {
+  const lifted = /^n(\d+)$/.exec(fieldId);
+  return label || t("renderer.numberField", { n: lifted ? Number(lifted[1]) : index + 1 });
+}
+
+/** The formula as the person reads it: each identifier that names a field
+ *  shows the field's name. One pass, so a name is never read again. */
+function labelFormula(formula: string, names: Map<string, string>): string {
+  return formula.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (token) => names.get(token) ?? token);
+}
+
+/** A result as the interface's language writes it: a decimal comma in Italian,
+ *  grouping where the language groups. */
+function formatCalculatorResult(value: number, locale: Locale): string {
+  try {
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }).format(value);
+  } catch {
+    return formatMiniappNumber(value, 4);
+  }
+}
+
 function CalculatorBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   const fields = asArray(block.fields, MAX_CHILD_BLOCKS).map(asRecord);
+  const names = new Map(
+    fields.map((field, index) => {
+      const fieldId = toStringValue(field.id, `field_${index}`);
+      return [fieldId, calculatorFieldName(fieldId, toStringValue(field.label), index, context.t)] as const;
+    }),
+  );
   const stored = calculatorValues(context.state);
   // What the inputs hold is TEXT: parsing on every keystroke would eat the
   // dot of "1." and snap "-" back the moment it is typed. The numbers the
@@ -1273,7 +1303,7 @@ function CalculatorBlockView({ block, context }: { block: MiniappBlock; context:
   const live = formula ? evaluateCalculatorFormula(formula, parseAll(texts)) : null;
   let displayValue: string;
   if (live && live.ok) {
-    displayValue = formatMiniappNumber(live.value, 4);
+    displayValue = formatCalculatorResult(live.value, context.locale);
   } else if (live && !live.ok) {
     displayValue = context.t("renderer.formulaUnsupported");
   } else {
@@ -1282,22 +1312,10 @@ function CalculatorBlockView({ block, context }: { block: MiniappBlock; context:
 
   return (
     <View style={context.styles.miniappInputGrid}>
-      <Text style={context.styles.miniappBlockTitle}>
-        {toStringValue(block.title, context.t("renderer.calculator"))}
-      </Text>
       {fields.map((field, fieldIndex) => {
         const fieldId = toStringValue(field.id, `field_${fieldIndex}`);
         const unit = toStringValue(field.unit);
-        // A lifted field (id n1, n2…) carries no label: the renderer names
-        // it in the interface's language, as does a hand-written field with
-        // no label at all.
-        const lifted = /^n(\d+)$/.exec(fieldId);
-        const name =
-          toStringValue(field.label, "") ||
-          context.t("renderer.numberField", {
-            n: lifted ? Number(lifted[1]) : fieldIndex + 1,
-          });
-        const label = name + (unit ? ` (${unit})` : "");
+        const label = (names.get(fieldId) ?? "") + (unit ? ` (${unit})` : "");
         return (
           <NumberField
             key={fieldId}
@@ -1311,7 +1329,7 @@ function CalculatorBlockView({ block, context }: { block: MiniappBlock; context:
       {formula ? (
         <View style={context.styles.miniappFormulaBox}>
           <Text style={context.styles.miniappFormulaLabel}>{context.t("renderer.formula")}</Text>
-          <Text style={context.styles.miniappFormulaText}>{formula}</Text>
+          <Text style={context.styles.miniappFormulaText}>{labelFormula(formula, names)}</Text>
         </View>
       ) : null}
       <View style={context.styles.miniappFormulaBox}>
