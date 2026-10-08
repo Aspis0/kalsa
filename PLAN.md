@@ -1878,6 +1878,13 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   The table's own refusal of non-row hardware is covered by `legs_table_test` (non-Adreno, missing token, etc.).
   Jelly restored: "Your computer", governor key deleted (verified), Kalsa relaunched; two test messages left in the open
   chat; kalsa-brain told.
+- **In-app RAM, same method (`step6-inapp/summary-ram.grep`, S23, same APK, dumpsys meminfo after a turn)**: one copy
+  (three legs, after a 1760+989-token turn) TOTAL PSS **2.51 GB**; today's two-model load with the NPU lane off
+  (prefill on the GPU copy, decode on the CPU copy; one-copy branch skipped by the kill switch; short turn) **4.06 GB**
+  (+275 MB swap PSS). So **-1.55 GB (-38 %)** in the app, measured conservatively (the one-copy turn held more KV).
+  Caveat: the two-model baseline is the GPU-prefill variant; the NPU-prefill two-copy cannot be loaded by this APK
+  without forcing a demotion. A first two-copy attempt was killed by the harness watchdog at 43 C (phone charging,
+  CPU decode, started at 34 C) - discarded. S23 bench keys restored to `keys-found.txt` (verified).
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /

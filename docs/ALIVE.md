@@ -1055,6 +1055,7 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - 2026-10-07 Jelly (no NPU): the app never hands it to the governor, so one-copy cannot happen there; local turn ran as
   today. Engine and binding forks are now main-only (owner: everything lands in main); app main carries the GPU-leg
   token counter in KALSA_GOVERNOR (5f724ee1).
+- 2026-10-07 in-app RAM on the S23: one copy 2.51 GB vs today's two-model load 4.06 GB = -1.55 GB (-38 %).
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.

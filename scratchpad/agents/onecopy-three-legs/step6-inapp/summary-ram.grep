@@ -1,0 +1,12 @@
+# S23 2026-10-07 23:22 EDT, same APK c48e5ddd, PLUGGED, kalsa.bench.npu_lane=off (one-copy branch skipped by the F4 kill switch -> today's two-model load), short prompt; dumpsys meminfo after the turn
+KALSA_LEGS_TABLE {soc:"SM8550", hexagon:"Hexagon v73", gpu_name:"QUALCOMM Adreno(TM)", gpu_version:"OpenCL 3.0 Adreno(TM) 740", gpu_driver:"OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62", dotprod:1, one_copy:1, tau_s:10, heat_w:7, heat_tok_npu:2.8, heat_tok_gpu:3.2, heat_tok_cpu:4.7}
+KALSA_GOVERNOR {"engine_prefill":"GPU","engine_decode":"CPU"
+  Native Heap   190436   189336     1068   262367   191024   913772   898336    15435
+   EGL mtrack    40288    40288        0        0    40288                           
+    GL mtrack  1860960  1860960        0        0  1860960                           
+           TOTAL PSS:  4057612            TOTAL RSS:  3908300       TOTAL SWAP PSS:   274888
+# one-copy (onecopy-1, same method):
+  Native Heap   202563   201468     1064    40318   203188   748708   728068    20639
+   EGL mtrack  1602792  1602792        0        0  1602792                           
+    GL mtrack   509452   509452        0        0   509452                           
+           TOTAL PSS:  2510169            TOTAL RSS:  2563028       TOTAL SWAP PSS:    45762
