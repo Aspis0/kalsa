@@ -19,7 +19,7 @@ function equal(name, actual, expected) {
 
 const { app, dir } = await loadApp();
 try {
-  const { buildMiniappV1, evaluateCalculatorFormula, normalizeMiniapp, MINIAPP_TEMPLATE_IDS, runCreateMiniapp, checklistItems, isItemTicked, toggleChecklistItem, quizAnswer, recordQuizAnswer, calculatorValues, calculatorResult, recordCalculatorValues, miniappStateLines } = app;
+  const { buildMiniappV1, evaluateCalculatorFormula, normalizeMiniapp, MINIAPP_TEMPLATE_IDS, runCreateMiniapp, checklistItems, isItemTicked, toggleChecklistItem, quizAnswer, recordQuizAnswer, calculatorValues, calculatorResult, recordCalculatorValues, miniappStateLines, parseLocaleNumber } = app;
 
   // ── compare_data ──────────────────────────────────────────────────────────
   {
@@ -88,14 +88,6 @@ try {
     equal("more literals than the field cap rejects the lift", buildMiniappV1("quick_calculator", { formula: Array.from({ length: 25 }, (_, i) => `${i}+`).join("") + "1" }), null);
     const named = buildMiniappV1("quick_calculator", { formula: "2 + 2", fields: [] });
     equal("a lifted id never collides with a provided one", named?.blocks[0].formula, "n1 + n2");
-    const owner = buildMiniappV1("quick_calculator", {
-      formula: "50 / 4",
-      fields: [
-        { id: "start", label: "Valore iniziale", value: 60 },
-        { id: "div", label: "Divisore", value: 4 },
-      ],
-    });
-    equal("the owner's case is refused: fields given and the literals match only some", owner, null);
     const substitute = buildMiniappV1("quick_calculator", {
       formula: "50 / 4",
       fields: [
@@ -105,12 +97,24 @@ try {
     });
     equal("a literal equal to a field's value substitutes the id", [substitute?.blocks[0].formula, substitute?.blocks[0].fields.map((field) => field.id)], ["a / b", ["a", "b"]]);
     equal("the substituted calculator seeds the same state", substitute?.state, { calculator: { fields: { a: 50, b: 4 }, result: 12.5 } });
-    equal("a bare literal beside fields is refused", buildMiniappV1("quick_calculator", { formula: "a + 50 * .5", fields: [{ id: "a", label: "A", value: 1 }] }), null);
+    const vat = buildMiniappV1("quick_calculator", { formula: "amount * 1.22", fields: [{ id: "amount", label: "Amount", value: 100 }] });
+    equal("a literal matching no field stays a constant", [vat?.blocks[0].formula, vat?.state], ["amount * 1.22", { calculator: { fields: { amount: 100 }, result: 122 } }]);
+    const vatField = buildMiniappV1("quick_calculator", { formula: "amount * 1.22", fields: [{ id: "amount", value: 100 }, { id: "vat", value: 1.22 }] });
+    equal("a constant's equal field is substituted when free", vatField?.blocks[0].formula, "amount * vat");
+    const prefer = buildMiniappV1("quick_calculator", { formula: "a + 4", fields: [{ id: "a", value: 4 }, { id: "b", value: 4 }] });
+    equal("substitution prefers a field the formula does not mention yet", [prefer?.blocks[0].formula, prefer?.state], ["a + b", { calculator: { fields: { a: 4, b: 4 }, result: 8 } }]);
+    const referenced = buildMiniappV1("quick_calculator", { formula: "a + 4", fields: [{ id: "a", value: 4 }] });
+    equal("a referenced field is never substituted again", referenced?.blocks[0].formula, "a + 4");
+    const negative = buildMiniappV1("quick_calculator", { formula: "-5 * quantity", fields: [{ id: "discount", value: -5 }, { id: "quantity", value: 3 }] });
+    equal("a unary-minus literal matches a negative field", [negative?.blocks[0].formula, negative?.state], ["discount * quantity", { calculator: { fields: { discount: -5, quantity: 3 }, result: -15 } }]);
+    const negativeConstant = buildMiniappV1("quick_calculator", { formula: "0 - 5 * quantity", fields: [{ id: "quantity", value: 3 }] });
+    equal("a binary-minus literal is a positive constant", [negativeConstant?.blocks[0].formula, negativeConstant?.state], ["0 - 5 * quantity", { calculator: { fields: { quantity: 3 }, result: -15 } }]);
+    equal("a bare literal beside fields stays a constant and builds", buildMiniappV1("quick_calculator", { formula: "a + 50 * .5", fields: [{ id: "a", label: "A", value: 1 }] })?.state, { calculator: { fields: { a: 1 }, result: 26 } });
     equal("an unknown id beside fields is refused", buildMiniappV1("quick_calculator", { formula: "a / x", fields: [{ id: "a", value: 1 }] }), null);
     equal("a dead field is refused", buildMiniappV1("quick_calculator", { formula: "a / b", fields: [{ id: "a", value: 1 }, { id: "b", value: 2 }, { id: "c", value: 3 }] }), null);
     equal("a digit inside an identifier is not a literal", buildMiniappV1("quick_calculator", { formula: "f0 + f1", fields: [{ id: "f0", value: 1 }, { id: "f1", value: 2 }] })?.blocks[0].formula, "f0 + f1");
     equal("an identifier-only formula is untouched", buildMiniappV1("quick_calculator", { formula: "a + b", fields: [{ id: "a", label: "A", value: 1 }, { id: "b", label: "B", value: 2 }] })?.blocks[0].formula, "a + b");
-    const badFields = runCreateMiniapp({
+    const owner = runCreateMiniapp({
       template: "quick_calculator",
       slots: {
         formula: "50 / 4",
@@ -120,17 +124,40 @@ try {
         ],
       },
     });
-    check("the owner's case refuses with the bare-number rule named", badFields.ok === false && badFields.text.includes("bare number 50"), badFields.text);
-    const deadField = runCreateMiniapp({
-      template: "quick_calculator",
-      slots: { formula: "a / b", fields: [{ id: "a", value: 1 }, { id: "b", value: 2 }, { id: "c", value: 3 }] },
-    });
-    check("a dead field refuses with the field named", deadField.ok === false && deadField.text.includes("the field c is not used"), deadField.text);
+    equal("the owner's case is still refused, by the dead field", [owner.ok, owner.miniapp], [false, undefined]);
+    check("the owner's case refuses with the dead field named", owner.text.includes("the field start is not used"), owner.text);
     const unknownId = runCreateMiniapp({
       template: "quick_calculator",
       slots: { formula: "a / x", fields: [{ id: "a", value: 1 }] },
     });
     check("an unknown id refuses with the id named", unknownId.ok === false && unknownId.text.includes("references x"), unknownId.text);
+  }
+
+  // ── the numbers a person types, in the interface's language ───────────────
+  {
+    equal("Italian reads dot-groups and comma decimals", [
+      parseLocaleNumber("12.500", "it"),
+      parseLocaleNumber("1.234,5", "it"),
+      parseLocaleNumber("12,5", "it"),
+      parseLocaleNumber("1.234", "it"),
+    ], [12500, 1234.5, 12.5, 1234]);
+    equal("English reads comma-groups and dot decimals", [
+      parseLocaleNumber("1,234.5", "en"),
+      parseLocaleNumber("1,234", "en"),
+      parseLocaleNumber("12.5", "en"),
+    ], [1234.5, 1234, 12.5]);
+    equal("a lone wrong-kind separator is forgiven as a decimal", [
+      parseLocaleNumber("12.5", "it"),
+      parseLocaleNumber("0,5", "en"),
+    ], [12.5, 0.5]);
+    equal("signs, integers and nonsense", [
+      parseLocaleNumber("-5", "it"),
+      parseLocaleNumber("+7", "en"),
+      parseLocaleNumber("1,2,3", "it"),
+      parseLocaleNumber("12.", "en"),
+      parseLocaleNumber("", "it"),
+      parseLocaleNumber("abc", "en"),
+    ], [-5, 7, Number.NaN, 12, Number.NaN, Number.NaN]);
   }
 
   // ── reading_quiz ──────────────────────────────────────────────────────────

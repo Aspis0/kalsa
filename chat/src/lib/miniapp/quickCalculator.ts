@@ -7,11 +7,12 @@
  * code decides:
  *   no fields    → every literal is lifted into an editable field (n1, n2…)
  *                  and the formula rewritten to reference them;
- *   fields given → the formula must speak in field ids alone. A bare number
- *                  is refused unless some field holds exactly that value (the
- *                  model may write "50 / 4" for a=50, b=4 — the ids are
- *                  substituted), and every field must appear in the formula,
- *                  or it would render as a dead input.
+ *   fields given → the formula must speak in field ids and constants. A
+ *                  literal equal to a not-yet-referenced field's value (a
+ *                  unary minus matching a negative value counts) is replaced
+ *                  by that field's id; any other literal stays a constant
+ *                  ("amount * 1.22"). Every field must appear in the final
+ *                  formula, or it would render as a dead input.
  */
 
 import { evaluateCalculatorFormula } from "./calculator";
@@ -121,6 +122,19 @@ function formulaIdentifiers(formula: string): Set<string> {
   return out;
 }
 
+/** Where the unary minus before this literal starts, or -1 when there is
+ *  none: the nearest non-space character back must be a minus whose own
+ *  predecessor is the formula's start or an operator or "(" — otherwise it
+ *  is the binary minus of "a - 5". */
+function unaryMinusStart(formula: string, start: number): number {
+  let at = start - 1;
+  while (at >= 0 && /\s/.test(formula[at])) at -= 1;
+  if (at < 0 || formula[at] !== "-") return -1;
+  let before = at - 1;
+  while (before >= 0 && /\s/.test(formula[before])) before -= 1;
+  return before < 0 || /[+\-*/(]/.test(formula[before]) ? at : -1;
+}
+
 /** Spans rewritten to id references, left to right. */
 function rewriteFormula(formula: string, replacements: Array<Literal & { id: string }>): string {
   const parts: string[] = [];
@@ -194,32 +208,33 @@ function planQuickCalculator(slots: Record<string, unknown>): QuickPlan {
     }
   }
 
-  // A bare number is refused unless a field holds exactly that value: the
-  // field's id is substituted, one literal to one field.
+  // A literal is substituted with a field's id only when that field is free
+  // (the formula does not mention it yet) and holds exactly the literal's
+  // value — a unary minus on the literal matches a negative field. Every
+  // other literal stays in the formula as a constant: "amount * 1.22" is a
+  // calculator too.
+  const referenced = formulaIdentifiers(formula);
   const literals = formulaLiterals(formula);
   let rewritten = formula;
   if (literals.length > 0) {
-    const free = new Set(ids(fields));
     const replacements: Array<Literal & { id: string }> = [];
     for (const literal of literals) {
+      const minus = unaryMinusStart(formula, literal.start);
+      const target = minus >= 0 ? -literal.value : literal.value;
       const match = fields.find(
-        (field) => free.has(asString(field.id) ?? "") && toNumber(field.value) === literal.value,
+        (field) => !referenced.has(asString(field.id) ?? "") && toNumber(field.value) === target,
       );
       const id = asString(match?.id) ?? "";
-      if (!id) {
-        return {
-          miniapp: null,
-          refusal: `create_miniapp: the formula contains the bare number ${formula.slice(literal.start, literal.end)} while fields were given. Write the formula from the field ids (for example a / b), or send no fields and the numbers become editable automatically.`,
-        };
-      }
-      free.delete(id);
-      replacements.push({ ...literal, id });
+      if (!id) continue;
+      referenced.add(id);
+      replacements.push({ ...literal, start: minus >= 0 ? minus : literal.start, id });
     }
-    rewritten = rewriteFormula(formula, replacements);
+    rewritten = replacements.length > 0 ? rewriteFormula(formula, replacements) : formula;
   }
 
-  // A field the formula never mentions would render as a dead input.
-  const referenced = formulaIdentifiers(rewritten);
+  // A field the formula never mentions would render as a dead input — this
+  // is what refuses the owner's case (fields 60 and 4, formula "50 / 4": the
+  // 4 becomes Divisore, the 50 stays a constant, and Valore iniziale is dead).
   const dead = ids(fields).find((id) => !referenced.has(id));
   if (dead !== undefined) {
     return {

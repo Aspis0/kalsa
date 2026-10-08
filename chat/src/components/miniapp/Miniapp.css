@@ -321,3 +321,14 @@
   outline: var(--focus-ring);
   outline-offset: 1px;
 }
+
+/* --- the formula's field names, as boxed tokens --- */
+
+.miniapp-formula-name {
+  display: inline-block;
+  padding: 0 0.35rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  white-space: nowrap;
+}

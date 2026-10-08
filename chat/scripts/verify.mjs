@@ -5075,12 +5075,25 @@ const tests = {
       (await first.locator(".miniapp-title").count()) === 1 && (await first.locator(".miniapp-block-title").count()) === 0,
       `titles=${await first.locator(".miniapp-title").count()} blocks=${await first.locator(".miniapp-block-title").count()}`,
     );
-    const formulaText = ((await first.locator(".miniapp-formula-text").textContent()) ?? "").trim();
-    check("minicalc: the formula reads in the fields' names", formulaText === "Totale / Quanti", formulaText);
+    const names = await first.locator(".miniapp-formula-name").allTextContents();
+    check("minicalc: the formula reads in the fields' names", JSON.stringify(names) === JSON.stringify(["Totale", "Quanti"]), JSON.stringify(names));
+    const chips = await first.locator(".miniapp-formula-name").count();
+    const isolated = await first.locator("bdi.miniapp-formula-name").count();
+    check("minicalc: each name is an isolated token", chips === 2 && isolated === 2, `chips=${chips} bdi=${isolated}`);
     const result = ((await first.locator(".miniapp-result").textContent()) ?? "").trim();
     check("minicalc: the decimal reads in Italian", result === "12,5", result);
     const grouped = ((await page.locator(".miniapp").nth(1).locator(".miniapp-result").textContent()) ?? "").trim();
     check("minicalc: thousands group in Italian", grouped === "12.500", grouped);
+
+    // The input round-trips the language: "1.234,5" is one thousand in
+    // Italian, groups and all, and the answer comes back in kind.
+    const input = first.locator(".miniapp-input").first();
+    await input.fill("1.234,5");
+    let now = ((await first.locator(".miniapp-result").textContent()) ?? "").trim();
+    check("minicalc: a grouped Italian input parses", now === "308,625", now);
+    await input.fill("125.000");
+    now = ((await first.locator(".miniapp-result").textContent()) ?? "").trim();
+    check("minicalc: a bigger grouped input parses and groups back", now === "31.250", now);
 
     await browser.close();
   },

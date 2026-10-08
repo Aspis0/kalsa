@@ -45,6 +45,7 @@ export async function loadApp() {
         export { normalizeMiniapp } from "../src/lib/miniapp/normalize.ts";
         export { checklistItems, isItemTicked, toggleChecklistItem, quizAnswer, recordQuizAnswer, calculatorValues, calculatorResult, recordCalculatorValues } from "../src/lib/miniapp/state.ts";
         export { miniappStateLines } from "../src/lib/miniapp/stateText.ts";
+        export { parseLocaleNumber } from "../src/components/miniapp/values.ts";
         export { runCreateMiniapp } from "../src/lib/tools/createMiniapp.ts";
         export { createStore } from "../src/lib/store.ts";
         export { createAttachGate, NEW_CHAT } from "../src/lib/attachGate.ts";

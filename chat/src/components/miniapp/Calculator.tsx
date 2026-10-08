@@ -3,7 +3,7 @@ import { evaluateCalculatorFormula } from "../../lib/miniapp/calculator";
 import { calculatorValues, recordCalculatorValues } from "../../lib/miniapp/state";
 import { MAX_CALCULATOR_FIELDS } from "../../lib/miniapp/quickCalculator";
 import { useLanguage } from "../../i18n/useLanguage";
-import { asArray, asNumber, asRecord, asText, formatNumber } from "./values";
+import { asArray, asRecord, asText, formatNumber, parseLocaleNumber } from "./values";
 
 /**
  * A `calculator` block: one numeric input per field, and the result evaluated
@@ -20,18 +20,19 @@ import { asArray, asNumber, asRecord, asText, formatNumber } from "./values";
 
 const LIFTED_ID = /^(?:n)(\d+)$/;
 
-/** The text of one input as a number, when it reads as one — a comma is a
- *  decimal mark, as it is on the phone. A field mid-typing ("1.", "-")
- *  parses to nothing and simply contributes no value yet. */
-function parseCell(raw: string): number | undefined {
-  const parsed = asNumber(raw, Number.NaN);
+/** The text of one input as a number, read the way the interface's language
+ *  writes numbers — "12.500" is 12500 in Italian, 12.5 in English. A field
+ *  mid-typing ("1.", "-") parses to nothing and simply contributes no value
+ *  yet. */
+function parseCell(raw: string, tag: string): number | undefined {
+  const parsed = parseLocaleNumber(raw, tag);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function parseAll(texts: Record<string, string>): Record<string, number> {
+function parseAll(texts: Record<string, string>, tag: string): Record<string, number> {
   const numbers: Record<string, number> = {};
   for (const [id, raw] of Object.entries(texts)) {
-    const n = parseCell(raw);
+    const n = parseCell(raw, tag);
     if (n !== undefined) numbers[id] = n;
   }
   return numbers;
@@ -81,12 +82,12 @@ export function Calculator({
   function edit(id: string, raw: string): void {
     const next = { ...texts, [id]: raw };
     setTexts(next);
-    const numbers = parseAll(next);
+    const numbers = parseAll(next, tag);
     const live = formula ? evaluateCalculatorFormula(formula, numbers) : null;
     onState?.(recordCalculatorValues(state ?? {}, numbers, live && live.ok ? live.value : null));
   }
 
-  const live = formula ? evaluateCalculatorFormula(formula, parseAll(texts)) : null;
+  const live = formula ? evaluateCalculatorFormula(formula, parseAll(texts, tag)) : null;
   let displayValue: string;
   if (live && live.ok) {
     displayValue = formatNumber(live.value, tag, 4);
@@ -97,16 +98,27 @@ export function Calculator({
   }
 
   // The formula as the person reads it: the fields' names where their ids
-  // were. One pass over an alternation of whole ids, so "n1" never matches
-  // inside "n12" and a name can never be re-substituted.
+  // were, one pass over whole ids so "n1" never matches inside "n12". Each
+  // name rides as its own boxed token — an operator between two boxes keeps
+  // the precedence readable, whatever spaces the name carries — and inside
+  // <bdi>, so a name that runs the other way cannot scramble the line.
   const escapeId = (id: string) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const labeledFormula =
-    formula && names.size > 0
-      ? formula.replace(
-          new RegExp(`\\b(${[...names.keys()].map(escapeId).join("|")})\\b`, "g"),
-          (matched) => names.get(matched) ?? matched,
-        )
-      : formula;
+  const formulaParts: Array<{ text: string; id?: string }> = [];
+  if (formula) {
+    if (names.size > 0) {
+      const idPattern = new RegExp(`\\b(${[...names.keys()].map(escapeId).join("|")})\\b`, "g");
+      let cursor = 0;
+      for (const matched of formula.matchAll(idPattern)) {
+        const at = matched.index ?? 0;
+        if (at > cursor) formulaParts.push({ text: formula.slice(cursor, at) });
+        formulaParts.push({ text: names.get(matched[0]) ?? matched[0], id: matched[0] });
+        cursor = at + matched[0].length;
+      }
+      formulaParts.push({ text: formula.slice(cursor) });
+    } else {
+      formulaParts.push({ text: formula });
+    }
+  }
 
   return (
     <div className="miniapp-block">
@@ -128,10 +140,20 @@ export function Calculator({
           );
         })}
       </div>
-      {labeledFormula ? (
+      {formulaParts.length > 0 ? (
         <p className="miniapp-formula">
           <span className="miniapp-note-label">{t.formula}</span>
-          <span className="miniapp-formula-text">{labeledFormula}</span>
+          <span className="miniapp-formula-text">
+            {formulaParts.map((part, index) =>
+              part.id !== undefined ? (
+                <bdi key={index} className="miniapp-formula-name">
+                  {part.text}
+                </bdi>
+              ) : (
+                <span key={index}>{part.text}</span>
+              ),
+            )}
+          </span>
         </p>
       ) : null}
       <p className="miniapp-formula">
