@@ -1849,6 +1849,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   dispatched on main for the in-app S23 check. Still to land in main afterwards: engine `feat/governor-onecopy` ->
   engine main, binding live line -> binding main. Jelly R2 negative control: right before/after kalsa-brain's Jelly
   session tonight (owner holds the Jelly).
+- **IN-APP S23 PASS (one copy, three legs) 2026-10-07 21:47 (`step6-inapp/summary-onecopy-1.txt`, app main `c48e5ddd`
+  debuggable CI APK run 37707441796 = pin `dddc8e4b` + kalsa-brain's mDNS; phone PLUGGED -> functional only)**: keys
+  governor.enabled 1, bench.npu_lane on, bench.decode_hop 32, bench.route removed (previous keys in
+  `step6-inapp/raw/keys-found.txt`, restore after the checks). `KALSA_LEGS_TABLE {soc:"SM8550", hexagon:"Hexagon v73",
+  gpu_version:"OpenCL 3.0 Adreno(TM) 740", gpu_driver:"... Compiler E031.41.03.62", dotprod:1, one_copy:1, tau_s:10,
+  heat_w:7, ...}`, NO KALSA_GOVERNOR_FALLBACK; one 1760-token prompt + 989-token answer, coherent: prefill NPU
+  (2.69 s), decode NPU with 8 hops (CPU 288 / NPU 702 tokens; the app's KALSA_GOVERNOR has no GPU token field yet),
+  commits 25.7 MB / 13 ms. App TOTAL PSS 2.51-2.53 GB (EGL mtrack 1.60 GB = the imported dma-bufs; no same-method
+  two-copy baseline yet, so no RAM claim from this number). Open: Jelly R2 negative control; app telemetry for the GPU
+  leg (decode_tokens_gpu); land engine `feat/governor-onecopy` and the binding live line in their mains.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /

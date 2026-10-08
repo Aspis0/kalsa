@@ -1049,7 +1049,9 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - Owner 2026-10-07: smoothing + heat weight becomes the one-copy default on the S23 capability row (per-device
   constants); the shipped two-model path keeps v1.
 - 2026-10-07 app main `dddc8e4b` pins binding `1eb78bfe` / engine `5cb7e14a0`: on the S23 only, with the governor on,
-  the app loads ONE model with three decode legs and heat-weighted hops; other phones unchanged. In-app S23 check next.
+  the app loads ONE model with three decode legs and heat-weighted hops; other phones unchanged.
+- 2026-10-07 IN-APP on the S23: the table says one_copy:1, no fallback, a real 1760+989-token turn ran with prefill
+  and decode on the NPU and 8 thermal hops to the CPU; coherent answer. Jelly negative control next.
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.
