@@ -2064,6 +2064,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   `xiaomi-sm8650/run-xiaomi-gpu750-split3.sh` (E0 kernel lists; control x5; UNCACHED x5; FLUSH x5; op filter
   control/MUL/MUL_MAT x3). Waiting for the Xiaomi to be reconnected (adb lost it ~10:00). If UNCACHED stays dirty,
   H-B is dead and the next instrument is n2's E5 (a lab read-back of the imported bytes / sub-buffer, needs code).
+- **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
+  HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
+  `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
+  in `step5-s23/r3/`. Script `step5-s23/run-step5-vsleg3.sh` (npu gpu hw hw gpu npu, back-to-back 2048-token runs to
+  skin 43, no headroom stop, governor with load step 11/14/0). Runs after the reset repro, UNPLUGGED, battery >= 30 %.
 - **Owner decisions 2026-10-08 morning** (Marco: "ti autorizzo a riprodurre reset s23"; "per criterio di resistenza e
   correzione del Governor, decidi tu per la npu"; the Xiaomi is UNPLUGGED and free for speed/heat runs). Mine, recorded:
   1. **Endurance criterion**: score = decode tokens produced, back-to-back 2048-token turns (n_ctx 2816, away from the
