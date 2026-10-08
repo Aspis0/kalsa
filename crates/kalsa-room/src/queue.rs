@@ -258,6 +258,14 @@ impl Queue {
             .is_some_and(|running| running.turn == turn)
     }
 
+    /// Who called the named turn, and with which `client_msg_id`.
+    pub(crate) fn running_call(&self, turn: u64) -> Option<(MemberId, String)> {
+        self.running
+            .as_ref()
+            .filter(|running| running.turn == turn)
+            .map(|running| (running.member, running.origin.clone()))
+    }
+
     pub(crate) fn state(&self) -> TurnState {
         match &self.running {
             Some(running) => TurnState {
@@ -397,6 +405,16 @@ impl Room {
 
     pub fn turn_alive(&self, turn: u64) -> bool {
         self.lock_state().queue.turn_alive(turn)
+    }
+
+    /// The words of the call the named turn answers, as the transcript holds
+    /// them. `None` once the turn is no longer the running one.
+    pub fn running_call_text(&self, turn: u64) -> Option<String> {
+        let state = self.lock_state();
+        let call = state.queue.running_call(turn)?;
+        let seq = state.by_client.get(&call)?;
+        let index = usize::try_from(*seq).ok()?.checked_sub(1)?;
+        state.messages.get(index).map(|message| message.text.clone())
     }
 
     /// The turn queue as ids, for the door to frame with names.

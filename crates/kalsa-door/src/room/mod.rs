@@ -9,6 +9,7 @@
 //! `Last-Event-ID` the client carries.
 
 mod answers;
+pub(crate) mod content_gate;
 mod media;
 mod prefill;
 mod routes;

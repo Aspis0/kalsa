@@ -35,6 +35,7 @@ use crate::devices::DeviceId;
 use crate::proxy::{self, Shared};
 use crate::response;
 use crate::room::answers::name_of;
+use crate::room::content_gate;
 use crate::room::prefill::Prefill;
 use crate::room::RoomDoor;
 use crate::slots::LeaseError;
@@ -253,6 +254,19 @@ enum Exchange {
 /// publish calls along the way said.
 fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'static str {
     publish(door.room.clone(), "thinking", None);
+    // The gate reads the call the turn answers. A turn that is no longer the
+    // running one has nothing to answer, and no engine is called either way.
+    let Some(words) = door.room.running_call_text(turn) else {
+        return "cancelled";
+    };
+    if let Some(decline) = content_gate::decline_for(&words) {
+        if !door.room.turn_alive(turn) {
+            return "cancelled";
+        }
+        let _ = door.room.post_ai(decline, 0);
+        publish(door.room.clone(), "done", None);
+        return "declined";
+    }
     // Read once per turn, never cached across turns: whether the model can
     // see is the engine's own answer, and a model switch is believed at
     // the very next call. An engine that does not answer is blind — the

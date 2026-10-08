@@ -32,6 +32,7 @@ mod paging_support;
 mod paging_sweep;
 mod revocation;
 mod room_engine;
+mod room_gate;
 mod room_handover;
 mod room_reopen;
 mod room_media;
