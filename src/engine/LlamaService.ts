@@ -1823,15 +1823,16 @@ async function emitGovernorTelemetry(
       ENGINE_AUX_CALL_TIMEOUT_MS,
       "getGovernorStats",
     );
-    // The pinned binding (kalsa.rn 3d8fc84a) adds these governor stats
-    // fields; the local intersection keeps tsc honest against an installed
-    // older binding.
+    // Only decode_tokens_gpu is missing from the installed pin's
+    // GovernorStats; the optional member gives the emission a place to read
+    // it, and ?? 0 covers builds where the pin predates the field.
     const npuStats = stats as typeof stats & {
       npu_device?: string | null;
       npu_fallback?: string | null;
       cache_type_k?: string | null;
       cache_type_v?: string | null;
       prefill_kv?: string | null;
+      decode_tokens_gpu?: number;
     };
     console.log(
       `KALSA_GOVERNOR ${JSON.stringify({
@@ -1857,14 +1858,18 @@ async function emitGovernorTelemetry(
         cache_type_k: npuStats.cache_type_k ?? null,
         cache_type_v: npuStats.cache_type_v ?? null,
         prefill_kv: npuStats.prefill_kv ?? null,
-        // Decode-hop evidence (kalsa.bench.decode_hop): hops this turn, the
-        // tokens each device generated, and what the hops cost in KV commit
-        // traffic. All 0 while the cadence is off. headroom_windows counts the
-        // windows the thermal-headroom rule decided (0 = alternation fallback,
-        // e.g. a phone whose thermal zones are unreadable).
+        // Decode-hop evidence (kalsa.bench.decode_hop): hops, tokens per leg
+        // and the KV commit they cost. Cumulative since the last cache clear:
+        // the counters carry across turns, they do not reset per turn. All 0
+        // while the cadence is off. decode_tokens_gpu is the one-model legs'
+        // GPU windows, so 0 on the two-model hop (CPU/NPU only).
+        // headroom_windows counts the windows the thermal-headroom rule decided
+        // (0 = alternation fallback, e.g. a phone whose thermal zones are
+        // unreadable).
         decode_hops: stats.decode_hops,
         decode_tokens_cpu: stats.decode_tokens_cpu,
         decode_tokens_npu: stats.decode_tokens_npu,
+        decode_tokens_gpu: npuStats.decode_tokens_gpu ?? 0,
         decode_hop_commit_bytes: stats.decode_hop_commit_bytes,
         decode_hop_commit_ms: stats.decode_hop_commit_ms,
         decode_hop_headroom_windows: stats.decode_hop_headroom_windows,
