@@ -2163,6 +2163,17 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   skin binding, the leg with the lowest skin heat per token (NPU on the S23, also the fastest) cannot be beaten by
   hopping unless a leg's cost per token grows with its own temperature - not seen here (npu tok/s 17.1 -> 16.6 over
   6k tokens). Zone headroom is the wrong primary objective when skin binds; see the rule question to the owner.
+  NSP over the npu-alone arm, per minute: 72, 79, 81, 83, 83, 86, 82, 84 C - a plateau after ~3 min, 95 C trip never
+  reached, `cdsp` cooling 0. On the S23 the NPU never gets hot enough to need a hop before skin 43.
+- **Owner 2026-10-08 ~14:00 on the governor's role** ("il governor ci deve aiutare anche nei casi dove i telefoni sono
+  diversi (stesso soc ma tutto il resto dal montaggio etc puo essere diverso), cosi limitiamo i danni teorici"):
+  the governor must not assume a ranking per SoC; it measures on the phone. **Rule v3 (my call, agreed in chat)**:
+  primary = the leg with the lowest measured skin heat per token above a tok/s floor; guard = hop away (to the
+  farthest block, GPU from NPU) when the current leg's zone nears its trip or its tok/s drops; a leg that is
+  missing or fails its correctness check is never chosen. On the S23 the guard never fires, so the governor equals
+  NPU alone and beats GPU/CPU alone - that is the honest S23 claim. Next measurement for the guard's value: a long
+  (20-30 min) NPU-alone run on a QDC 8 Elite (no skin limit on the board) to see whether the NSP reaches its trip and
+  slows - after cell #66.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
