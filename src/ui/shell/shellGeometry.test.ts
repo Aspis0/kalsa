@@ -121,6 +121,13 @@ describe("degenerate heights", () => {
   });
 });
 
+describe("the disclaimer line's band", () => {
+  it("is shown at the full composer height and dropped one dp below it", () => {
+    expect(shellGeometry(349, COMPOSER_HEIGHT, { top: 0, bottom: 0 }).disclaimerShown).toBe(true);
+    expect(shellGeometry(349, COMPOSER_HEIGHT - 1, { top: 0, bottom: 0 }).disclaimerShown).toBe(false);
+  });
+});
+
 describe("one-line pill width", () => {
   const geometry = shellGeometry(349, 621, { top: 24, bottom: 16 });
   const pillWidth = geometry.touchTargets.stripPill.width;

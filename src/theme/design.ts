@@ -147,6 +147,9 @@ export const type = {
   monoLabel: { fontFamily: "IBMPlexMono_400Regular", fontSize: 11, lineHeight: 14, letterSpacing: 0.66 },
   /** Legacy metadata style for mounted surfaces awaiting their v2 pass. */
   meta: { fontFamily: families.sansMedium, fontSize: 12, lineHeight: 16 },
+  /** The composer's one-line notice: at 12 sp the longest shipped copy is wider
+   *  than a 349 dp phone's text column, so the notice steps down to 11 sp. */
+  caption: { fontFamily: families.sansMedium, fontSize: 11, lineHeight: 16 },
 } as const;
 
 export type TypeRole = keyof typeof type;

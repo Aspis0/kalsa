@@ -13,6 +13,7 @@ import { useLocale } from "../i18n";
 import { useRoom } from "../room/useRoom";
 import { families, modes, radius, space, type DesignColors, type ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
+import { ComposerDisclaimer } from "../ui/shell/ComposerDisclaimer";
 import { bottomInsetFor } from "../ui/shell/shellGeometry";
 import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
 import { SettingsHeader } from "./SettingsHeader";
@@ -289,6 +290,7 @@ export function RoomScreen({ localId, onBack }: { localId: string; onBack: () =>
             />
           </Pressable>
         </View>
+        <ComposerDisclaimer color={colors.ink3} />
       </View>
     </View>
   );

@@ -16,8 +16,6 @@ import {
   type DesignColors,
 } from "../../theme/design";
 import {
-  COMPOSER_DISCLAIMER_GAP,
-  COMPOSER_DISCLAIMER_HEIGHT,
   COMPOSER_FIELD_HEIGHT,
   COMPOSER_SIDE_PADDING,
   MIN_TOUCH_TARGET,
@@ -51,15 +49,6 @@ export function createShellStyles(colors: DesignColors) {
       paddingBottom: 14,
       paddingHorizontal: COMPOSER_SIDE_PADDING,
       paddingTop: space.xs,
-    },
-    disclaimer: {
-      color: colors.ink3,
-      fontFamily: type.meta.fontFamily,
-      fontSize: type.meta.fontSize,
-      height: COMPOSER_DISCLAIMER_HEIGHT,
-      lineHeight: type.meta.lineHeight,
-      marginTop: COMPOSER_DISCLAIMER_GAP,
-      textAlign: "center",
     },
     field: {
       alignItems: "center",

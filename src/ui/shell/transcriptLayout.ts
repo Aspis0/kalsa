@@ -41,7 +41,7 @@ export const DAY_MARKER_HEIGHT = 42;
  * Below this transcript height the marker is dropped entirely. 320 is a
  * CHOSEN floor (labelled so a reviewer can move it): it encodes that the marker
  * may not eat more than roughly a seventh of the band — 42 marker x 7.6 = 320.
- * The measured cases straddle it: 443 dp keeps the marker, 195 (keyboard) drops it.
+ * The measured cases straddle it: 427 dp keeps the marker, 171 (keyboard) drops it.
  */
 export const DAY_MARKER_MIN_TRANSCRIPT_HEIGHT = 320;
 
@@ -51,9 +51,9 @@ export const DAY_MARKER_MIN_TRANSCRIPT_HEIGHT = 320;
  * 24 is CHOSEN, not derived — it replaced `Math.ceil(CLOUD_COLLAPSED_HEIGHT_DP)`,
  * which sized the gap from the cloud's collapsed height: wrong, because the cloud
  * need not FIT in the gap, only be visible and scrollable, and one element's
- * height charged every band (the 171 dp keyboard band spent 30 % of itself on
- * it). It is NOT a function of the cloud: `thoughtMotion` no longer feeds the
- * transcript, and a test holds that.
+ * height charged every band (a gap sized from the 95 dp cloud would take more
+ * than half of the 171 dp keyboard band). It is NOT a function of the cloud:
+ * `thoughtMotion` no longer feeds the transcript, and a test holds that.
  */
 export const TRANSCRIPT_LAST_ITEM_GAP = 24;
 

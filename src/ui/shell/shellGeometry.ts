@@ -10,6 +10,7 @@
  */
 
 import { measure, space, spacing, type } from "../../theme/design";
+import { COMPOSER_DISCLAIMER_GAP, COMPOSER_DISCLAIMER_HEIGHT } from "./disclaimerMetrics";
 
 export type Insets = { top: number; bottom: number };
 
@@ -51,10 +52,8 @@ export function stripPillTextColumn(pillWidth: number): number {
  *  re-measured in dp, with the disclaimer row added under the field. */
 export const COMPOSER_SIDE_PADDING = measure.gutter;
 export const COMPOSER_FIELD_HEIGHT = 56;
-/** The disclaimer is ONE line of `type.meta`: a line that wraps would cover the
- *  gesture-bar lift, so the band reserves exactly one. */
-export const COMPOSER_DISCLAIMER_GAP = 4;
-export const COMPOSER_DISCLAIMER_HEIGHT = type.meta.lineHeight;
+/** The disclaimer is ONE line of `type.caption`: its component truncates rather
+ *  than wraps, so the band reserves exactly one line. */
 export const COMPOSER_HEIGHT =
   8 + COMPOSER_FIELD_HEIGHT + COMPOSER_DISCLAIMER_GAP + COMPOSER_DISCLAIMER_HEIGHT + 14;
 
@@ -111,6 +110,9 @@ export type ShellGeometry = {
   strip: Band;
   transcript: Band;
   composer: Band;
+  /** False when the composer band is squeezed below its full height: the line
+   *  would spill past the gesture lift, so the field keeps the band alone. */
+  disclaimerShown: boolean;
   /** The transcript's whole band is usable: its content is clipped to it. */
   transcriptUsableHeight: number;
   /** Container bottom to the composer band's bottom edge: the bottom inset the
@@ -164,6 +166,7 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
     strip,
     transcript,
     composer,
+    disclaimerShown: usableHeight >= COMPOSER_HEIGHT,
     transcriptUsableHeight: transcript.height,
     composerBottomOffset: clamp(height - (composer.top + composer.height)),
     minTouchTarget: full,

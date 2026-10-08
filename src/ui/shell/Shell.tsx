@@ -203,6 +203,7 @@ export function Shell({
         faceLabel={faceLabel}
         faceEnabled={faceEnabled}
         sendEnabled={sendEnabled}
+        showDisclaimer={geometry.disclaimerShown}
         onAttachPress={onAttachPress}
         attachDisabled={attachDisabled}
         onMicPress={onMicPress}

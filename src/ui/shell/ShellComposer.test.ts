@@ -22,12 +22,12 @@ jest.mock("../../i18n", () => ({
 jest.mock("../../theme/design", () => ({
   families: { sans: "system" },
   space: { xxs: 4 },
+  type: { caption: { fontFamily: "system", fontSize: 11, lineHeight: 16 } },
 }));
 
 jest.mock("./shellStyles", () => ({
   createShellStyles: () => ({
     composerBand: {},
-    disclaimer: {},
     field: {},
     fieldIcon: {},
     input: {},
@@ -39,6 +39,7 @@ jest.mock("./shellStyles", () => ({
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import type { DesignColors } from "../../theme/design";
+import { ComposerDisclaimer } from "./ComposerDisclaimer";
 import { ShellComposer, type ShellComposerProps } from "./ShellComposer";
 
 const colors = {
@@ -64,6 +65,7 @@ describe("ShellComposer field naming", () => {
         face: "send",
         faceEnabled: true,
         sendEnabled: false,
+        showDisclaimer: true,
       }));
     });
 
@@ -72,6 +74,39 @@ describe("ShellComposer field naming", () => {
     expect(input.props.accessibilityLabel).toBe("Message input");
     expect(input.props.accessibilityLabel.trim()).not.toBe("");
 
+    await act(async () => renderer.unmount());
+  });
+});
+
+describe("the disclaimer line under the field", () => {
+  async function mount(showDisclaimer: boolean) {
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(React.createElement(ShellComposer, {
+        height: 98,
+        bottomOffset: 0,
+        colors,
+        draft: "",
+        editable: true,
+        face: "send",
+        faceEnabled: true,
+        sendEnabled: false,
+        showDisclaimer,
+      }));
+    });
+    return renderer;
+  }
+
+  test("is drawn when the band has its full height", async () => {
+    const renderer = await mount(true);
+    expect(renderer.root.findAllByType(ComposerDisclaimer)).toHaveLength(1);
+    await act(async () => renderer.unmount());
+  });
+
+  test("is dropped when the band is squeezed, and the field stays", async () => {
+    const renderer = await mount(false);
+    expect(renderer.root.findAllByType(ComposerDisclaimer)).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: "shell.composer.field" })).toBeTruthy();
     await act(async () => renderer.unmount());
   });
 });
@@ -86,6 +121,7 @@ describe("the keyboard's Send key obeys the button's gate", () => {
     face: "send",
     faceEnabled: true,
     sendEnabled: true,
+    showDisclaimer: true,
   };
 
   async function mount(over: Partial<ShellComposerProps>) {

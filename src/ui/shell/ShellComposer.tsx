@@ -11,11 +11,12 @@
  * imports, real 48 dp boxes and never `hitSlop`.
  */
 import { useMemo, useRef } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import { ArrowUp, Mic, Plus, Square } from "lucide-react-native";
 
 import { useLocale } from "../../i18n";
 import { families, space, type DesignColors } from "../../theme/design";
+import { ComposerDisclaimer } from "./ComposerDisclaimer";
 import { createShellStyles } from "./shellStyles";
 import type { ComposerFace } from "./composerState";
 
@@ -31,6 +32,9 @@ export interface ShellComposerProps {
   faceLabel?: string;
   faceEnabled: boolean;
   sendEnabled: boolean;
+  /** False when the band is squeezed below its full height: the line would
+   *  spill past the gesture lift, so the field keeps the band alone. */
+  showDisclaimer: boolean;
   onAttachPress?: () => void;
   /** False while the machine refuses an attach (the controller's
    *  `attachDisabled = sending || voiceBlocksComposer || pdfBlocked`,
@@ -54,6 +58,7 @@ export function ShellComposer({
   faceLabel,
   faceEnabled,
   sendEnabled,
+  showDisclaimer,
   onAttachPress,
   onMicPress,
   onSendPress,
@@ -152,9 +157,7 @@ export function ShellComposer({
         </Pressable>
       </View>
 
-      <Text style={styles.disclaimer} numberOfLines={1}>
-        {t("shell.disclaimer")}
-      </Text>
+      {showDisclaimer ? <ComposerDisclaimer color={colors.ink3} /> : null}
     </View>
   );
 }
