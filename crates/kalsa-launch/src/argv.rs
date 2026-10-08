@@ -7,6 +7,21 @@
 use crate::args::{ServerArgs, ServerSettings, ALL_LAYERS, CTX_CHECKPOINTS, FLASH_ATTN, HOST};
 
 impl ServerArgs {
+    /// The batch pair as rendered: `--mmproj` floors the ubatch at the
+    /// image budget and the batch at that ubatch, because the engine
+    /// asserts `n_ubatch >= n_tokens` for non-causal image attention
+    /// (`llama-context.cpp:1804`; a 529-token frame aborting the Gemma 4
+    /// rows at ubatch 512: `dev/lab-screen/results/crash/matrix.txt`).
+    fn rendered_batches(&self) -> (u32, u32) {
+        match self.mmproj {
+            Some(_) => {
+                let ubatch = self.ubatch_size.max(crate::args::IMAGE_MAX_TOKENS);
+                (self.batch_size.max(ubatch), ubatch)
+            }
+            None => (self.batch_size, self.ubatch_size),
+        }
+    }
+
     /// The argv for `llama-server`, in the supervisor's order.
     pub fn argv(&self) -> Vec<String> {
         let mut argv = vec![
@@ -38,11 +53,12 @@ impl ServerArgs {
                 threads.to_string(),
             ]);
         }
+        let (batch_size, ubatch_size) = self.rendered_batches();
         argv.extend([
             "--batch-size".to_string(),
-            self.batch_size.to_string(),
+            batch_size.to_string(),
             "--ubatch-size".to_string(),
-            self.ubatch_size.to_string(),
+            ubatch_size.to_string(),
             "--ctx-size".to_string(),
             self.context_tokens.to_string(),
         ]);
@@ -207,9 +223,10 @@ impl ServerArgs {
             // The engine decides the count; the panel says so as itself.
             crate::args::Offload::EngineFitted => None,
         };
+        let (batch_size, ubatch_size) = self.rendered_batches();
         ServerSettings {
-            batch_size: self.batch_size,
-            ubatch_size: self.ubatch_size,
+            batch_size,
+            ubatch_size,
             kv_cache_type: self.kv_cache.flag(),
             flash_attention: FLASH_ATTN,
             idle_unload_seconds: self.idle_unload_seconds,
@@ -530,6 +547,57 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A projector floors the batch pair, and nothing else does: the
+    /// engine asserts `n_ubatch >= n_tokens` for non-causal image attention
+    /// (`llama-context.cpp:1804`), so an image capped at 560 tokens
+    /// (529 measured for a 1920×1080 frame) aborts the engine on any
+    /// smaller ubatch — 512 and 256 both did, on the Gemma 4 rows. The
+    /// batch follows the ubatch up because llama-server requires
+    /// `n_batch >= n_ubatch`. The literals, for the same reason the
+    /// projector block asserts `"560"`.
+    #[test]
+    fn a_projector_floors_the_batch_pair_at_the_image_budget_and_nothing_else_does() {
+        for (batch, ubatch) in [(2048, 512), (512, 512), (512, 256)] {
+            let mut vision = some_args();
+            vision.batch_size = batch;
+            vision.ubatch_size = ubatch;
+            vision.mmproj = Some(PathBuf::from("/models/mmproj-gemma-4-12B-it-Q8_0.gguf"));
+            let argv = vision.argv();
+            assert_eq!(rendered_value(&argv, "--ubatch-size"), "560", "{argv:?}");
+            let rendered_batch: u32 = rendered_value(&argv, "--batch-size")
+                .parse()
+                .expect("the batch renders as a number");
+            assert!(
+                rendered_batch >= 560,
+                "the batch ({rendered_batch}) must be >= the ubatch (560): {argv:?}"
+            );
+            let settings = vision.settings();
+            assert_eq!(settings.ubatch_size, 560, "the panel reads the rendered value");
+            assert!(settings.batch_size >= settings.ubatch_size);
+        }
+        // Already at or above the floor: rendered as itself — the clamp is
+        // a floor, never a ceiling (MAX_UBATCH 1024 stands untouched).
+        let high = ServerArgs {
+            ubatch_size: 1024,
+            mmproj: Some(PathBuf::from("/models/mmproj.gguf")),
+            ..some_args()
+        };
+        let argv = high.argv();
+        assert_eq!(rendered_value(&argv, "--ubatch-size"), "1024", "{argv:?}");
+        assert_eq!(rendered_value(&argv, "--batch-size"), "2048", "{argv:?}");
+
+        // The same pair without a projector renders as decided: the floor
+        // is the projector's, not the renderer's new habit.
+        let bare = ServerArgs {
+            batch_size: 512,
+            ubatch_size: 256,
+            ..some_args()
+        };
+        let argv = bare.argv();
+        assert_eq!(rendered_value(&argv, "--ubatch-size"), "256", "{argv:?}");
+        assert_eq!(rendered_value(&argv, "--batch-size"), "512", "{argv:?}");
     }
 
     /// `--swa-full` is not this tier's flag. The committed round-trip

@@ -116,7 +116,7 @@ Without `KALSA_BRAIN_MODEL` the switch reports that no model is selected yet.
   supervisor watches the child and reports the exit, with the last lines of its
   stderr, without taking the app down.
 - **Defaults for old hardware.** Half the logical cores (2..8), batch 512,
-  ubatch 128, `--sleep-idle-seconds 300`, host `127.0.0.1`. The objective is the
+  ubatch 512, `--sleep-idle-seconds 300`, host `127.0.0.1`. The objective is the
   highest sustainable throughput, not the maximum.
 
 ### Force-quit, per platform
