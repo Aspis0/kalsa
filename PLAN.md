@@ -2218,6 +2218,14 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   identical in all three (deterministic, the 8 Elite's level). l4_y8 is upstream code (#25366); fixed in the fork only.
   Fix dispatched: Haiku `3e7e97ff` keeps Adreno A7X off l4_y8 (worktree gov-loadstep); then audit, Android bench,
   re-run on a 750 without the flag.
+- **GPU-750 FIXED (engine `e01a61cee` on 09a496d71, Haiku `3e7e97ff`, local)**: in the f16 decode chain
+  `l4_y8` is not selected when `adreno_gen == A7X` (730/740/750; the 740 untested, excluded on the safe side), so the
+  KQV falls to `l4_dr`. Android bench 151be7f0 (`~/Projects/kalsa-artifacts-y8fix`). **QDC #71** (QRD8650, session
+  877544, 13 min; `qdc-8g3-onecopy-legs-71/REPORT.md`, `raw/session1-legs-e01a61cee.grep`), no env overrides: L
+  (7 hops, all three legs) KL 0.000017, npu 0.000022, **gpu 0.000010 x3 identical**, cpu 0.000015, A-gpu 0.000012,
+  A-j1 0.000022 - all PASS, exits 0. GPU leg 23.4 tok/s (23.2-23.3 on l4_y8: no cost). **Matrix: SM8650 and 8 Elite
+  legs correct on QDC.** Audit of e01a61cee: deepseek `e3b620ac` (luna hit its usage limit again). Next: the 8 Elite
+  Gen 5 cell #68, the long NPU cell #69, round 4 on the S23 when charged, the Xiaomi gain run when lent.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23

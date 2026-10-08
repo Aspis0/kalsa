@@ -1,0 +1,94 @@
+# cell 71 evidence (engine e01a61cee, bench 151be7f0, skel v75 f88a9b96, QRD8650, QDC session 877544, 2026-10-08)
+## recon
+SM8650
+Pineapple for arm64
+qti/pineapple/pineapple:14/UKQ1.240227.001/eng.lnxbui.20240322.021741:userdebug/test-keys
+/vendor/lib64/libOpenCL.so
+/vendor/lib64/libcdsprpc.so
+MemTotal:       11544332 kB
+/dev/block/dm-51  47183872 2126332  45057540   5% /mnt/pass_through/0/emulated
+## kit_verify
+governor-bench: OK
+libggml-htp-v75.so: OK
+run-legs.sh: OK
+## legs_report_sa881613.txt
+== legs start Thu Oct  8 13:05:18 PDT 2026 soc=SM8650 model=Pineapple for arm64 bench 151be7f0aa5f batT=250
+## G exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+## L exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=cpu tokens=96 tps=14.982
+leg_summary arm=L rep=0 engine=gpu tokens=64 tps=23.065
+leg_summary arm=L rep=0 engine=npu tokens=95 tps=24.841
+leg_total arm=L rep=0 generated=255 windows=8 hops=7 commit_bytes=17727488 commit_us=40000
+kld arm=L ref=/data/local/tmp/kalsa71/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000017 max=0.000389 kld_max=0.010000 status=PASS
+## L-npu exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=npu tokens=127 tps=24.441
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa71/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000022 max=0.000434 kld_max=0.010000 status=PASS
+## L-gpu exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=23.410
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa71/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000431 kld_max=0.010000 status=PASS
+## L-gpu2 exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=23.296
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa71/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000431 kld_max=0.010000 status=PASS
+## L-gpu3 exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=23.440
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa71/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000431 kld_max=0.010000 status=PASS
+## L-cpu exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=cpu tokens=127 tps=14.810
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa71/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000015 max=0.000366 kld_max=0.010000 status=PASS
+## A-gpu exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+kld arm=A ref=/data/local/tmp/kalsa71/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000510 kld_max=0.010000 status=PASS
+## A-j1 exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+kld arm=A ref=/data/local/tmp/kalsa71/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000022 max=0.000434 kld_max=0.010000 status=PASS
+== legs end Thu Oct  8 13:13:20 PDT 2026 batT=250
