@@ -31,7 +31,8 @@ export type IrohDialReason =
   | "async_context"
   | "other";
 
-export type IrohBridgeStage = "start" | "background_stop" | "idle_stop";
+export const IROH_BRIDGE_STAGES = ["start", "background_stop", "idle_stop"] as const;
+export type IrohBridgeStage = (typeof IROH_BRIDGE_STAGES)[number];
 export type IrohBridgeReason = "started" | "stopped" | "tunnels_open" | "error" | "stop_timeout";
 
 export const IROH_DIAL_ERROR_REASONS = {

@@ -194,8 +194,8 @@ export async function openIrohTunnel(
     if (module === null) {
       throw dialError("KALSA_IROH_NO_MODULE", "iroh module unavailable");
     }
-    // Reset the idle clock first: a stop that already fired serializes
-    // inside ensureStarted instead of racing this dial.
+    // An already-aborted dial must not extend the bridge's idle clock.
+    if (signal?.aborted === true) throw dialError("KALSA_IROH_ABORTED", "dial aborted");
     notifyIrohDial();
     await ensureStarted(module, signal);
     const id = await raceDial(() => module.openTunnel(nodeHex, lane), signal, module);

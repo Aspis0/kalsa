@@ -319,7 +319,7 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
   KALSA_ROAD: {
     road: enumOf("https", "iroh"),
     lane: enumOf("desk", "door"),
-    stage: enumOf("dial", "start", "background_stop"),
+    stage: enumOf("dial", "start", "background_stop", "idle_stop"),
     reason: enumOf(
       "no_node",
       "module_absent",

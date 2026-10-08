@@ -23,7 +23,7 @@ import { ALL_TOOL_NAMES } from "../../agent/toolNames";
 import { STRATEGY_SET } from "../../engine/turnTelemetry";
 import { GPU_PREFILL_CORRECT } from "../../engine/governorInputs";
 import { ANCHORED_HISTORY_DROPPED_REASON } from "../../context/compactor";
-import { IROH_DIAL_ERROR_REASONS } from "../../remote/road";
+import { IROH_BRIDGE_STAGES, IROH_DIAL_ERROR_REASONS } from "../../remote/road";
 import { pauseReasonOf } from "../../engine/thermalResume";
 
 function enumValues(tag: string, field: string): readonly string[] {
@@ -63,6 +63,13 @@ describe("schema sets equal the real emitter sets", () => {
     for (const reason of Object.values(IROH_DIAL_ERROR_REASONS)) {
       expect(roadReasons.has(reason)).toBe(true);
     }
+  });
+
+  it("KALSA_ROAD stage = the dial stage plus every bridge decision stage", () => {
+    // "dial" is emitted inline by logIrohDial; the bridge stages are exported.
+    expect(new Set(enumValues("KALSA_ROAD", "stage"))).toEqual(
+      new Set(["dial", ...IROH_BRIDGE_STAGES]),
+    );
   });
 
   it("every schema pause reason is accepted by the real pauseReasonOf", () => {

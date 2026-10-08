@@ -41,6 +41,8 @@ export function bindIrohBackgroundStop(
   let idleTimer: TimerHandle | null = null;
   let idleDue = false;
   let dialed = false;
+  // Dials landing while a stop is in flight must outlive that stop.
+  let dialGeneration = 0;
   let stopping: Promise<void> | null = null;
   let closeDuringStop = false;
 
@@ -52,12 +54,14 @@ export function bindIrohBackgroundStop(
       closeDuringStop = true;
       return;
     }
+    const generation = dialGeneration;
     let keptBridge = false;
     stopping = stopBridge()
       .then((stopped) => {
         logIrohBridgeDecision(stage, stopped ? "stopped" : "tunnels_open");
         keptBridge = !stopped;
-        if (stopped) dialed = false;
+        // A dial that arrived during this stop keeps its own idle window.
+        if (stopped && generation === dialGeneration) dialed = false;
       })
       .catch(() => {
         logIrohBridgeDecision(stage, "error");
@@ -87,12 +91,21 @@ export function bindIrohBackgroundStop(
   };
 
   const onDial = (): void => {
+    dialGeneration += 1;
     dialed = true;
     // Background owns the clock until active re-arms it.
     if (!background) armIdleTimer();
   };
 
-  const onTunnelClosed = () => attemptStop();
+  const onTunnelClosed = () => {
+    if (background) {
+      attemptStop();
+      return;
+    }
+    // Foreground close restarts the full window: stopping at the instant of
+    // close would make the reconnecting dial pay a cold start.
+    if (dialed) armIdleTimer();
+  };
   tunnelCloseListener = onTunnelClosed;
   dialListener = onDial;
 

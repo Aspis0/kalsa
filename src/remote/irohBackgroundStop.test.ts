@@ -220,7 +220,7 @@ describe("Android iroh foreground idle stop", () => {
     expect(stopBridge).toHaveBeenCalledTimes(1);
   });
 
-  test("open tunnels keep the bridge and the final close retries", async () => {
+  test("a tunnel close in foreground re-arms the full idle window", async () => {
     const app = appStateSource();
     const stopBridge = jest.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     bind(app.source, "android", stopBridge);
@@ -228,11 +228,63 @@ describe("Android iroh foreground idle stop", () => {
     notifyIrohDial();
     jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS);
     await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
     expect(stopBridge).toHaveBeenCalledTimes(1);
 
     notifyIrohTunnelClosed();
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS - 1);
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1);
+    expect(stopBridge).toHaveBeenCalledTimes(2);
+  });
+
+  test("a dial while the idle stop is pending keeps its own window", async () => {
+    const app = appStateSource();
+    let resolveStop!: (stopped: boolean) => void;
+    const stopBridge = jest.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveStop = resolve;
+        }),
+    );
+    bind(app.source, "android", stopBridge);
+    app.change("active");
+    notifyIrohDial();
+
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS);
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+
+    notifyIrohDial();
+    resolveStop(true);
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
+
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS - 1);
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1);
+    expect(stopBridge).toHaveBeenCalledTimes(2);
+  });
+
+  test("a second idle cycle after a successful stop stops again", async () => {
+    const app = appStateSource();
+    const stopBridge = jest.fn(async () => true);
+    bind(app.source, "android", stopBridge);
+    app.change("active");
+    notifyIrohDial();
+
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+
+    notifyIrohDial();
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS - 1);
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1);
     expect(stopBridge).toHaveBeenCalledTimes(2);
   });
 
