@@ -2183,6 +2183,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   ended in the portal; cap requested 75, the timer showed 120 (cost note). Matrix: 8 Elite CPU/NPU/GPU legs PASS.
 - **Round 3, arm 4 (hw replicate)**: 2785 tokens again (identical to arm 3) - the CPU-step-0 config is consistently
   the worst; arms 5 (gpu) and 6 (npu) running.
+- **ROUND 3 DONE (`step5-s23/raw/session26-vsleg3-fbf33176c.grep`)**, ABC-CBA, all Awake, starts 31.9-32.2 C:
+  npu 6051 / 6051 tokens to skin 43 (16.6 tok/s), gpu 5506 / 5506 (12.3-12.4), headroom governor (load step 11,14,0)
+  2785 / 2785 (15.0 / 14.8). Counts are quantised by 32-token windows (identical replicates = the stop landed in the
+  same window). Verdict: the round-3 governor LOSES to both single legs; NPU alone is the best leg on the S23 on
+  both axes. Round 4 = rule v3 HEAT_RANK vs NPU alone (npu hr hr npu), bench r4 f72b761b (engine 09a496d71) and
+  `run-step5-vsleg4.sh` staged on the S23; needs the battery recharged first (45 % at the end of round 3).
 - **Per-node dump instrument** (Haiku `f2488652`, engine `dc48ec8cc` on 29707db07, local): `--dump-nodes FILE`
   (+ `--dump-nodes-tokens N`) for arms A/L, one stats line per graph node, and `compare-node-dumps.py`; Android bench
   3200a26a in `~/Projects/kalsa-artifacts-dump`. Plan on the 750: two runs of the SAME failing gpu-leg config (the KL
