@@ -4,7 +4,7 @@ export const SETUP = {
     "start": "Avvia",
     "starting": "Si sta avviando…",
     "checkingComputer": "Sta controllando il tuo computer…",
-    "gettingReady": "Si sta preparando…",
+    "gettingReady": "Avvio in corso…",
     "downloading": "Scaricamento…",
     "tuning": "Kalsa sta cercando le impostazioni più veloci…",
     "suggests": "Kalsa controlla il tuo computer e sceglie l'AI che ci gira meglio.",
