@@ -1,0 +1,190 @@
+{
+  "_note": "Hand-labelled from the images (pixel grids, label-grid.py, native crops via label-crop.py). Boxes are native pixels [x0,y0,x1,y1] of the image as captured; the harness normalises them. Each A task has ONE right target on that frame; goals are written so no other element is a legitimate first step. grid/centre are derived from the box by geometry.mjs. Written before any model ran in the full set.",
+  "images": [
+    {
+      "id": "gh-llamacpp", "file": "github-llamacpp-1920.png", "class": "web", "dense": false,
+      "source": "https://github.com/ggml-org/llama.cpp (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "bb4fc1d129208663a32e635e075e6f56f6d5b072c88b158b71017610a6a82f1a", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-code", "type": "A", "goal_it": "scaricare il codice di questo progetto", "goal_en": "download this project's code",
+          "expected": { "label": "Code", "box_px": [1147, 265, 1256, 297] } }
+      ]
+    },
+    {
+      "id": "wiki-home", "file": "wiki-en-home-1920.png", "class": "web", "dense": false,
+      "source": "https://en.wikipedia.org/wiki/Main_Page (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "95648971f7ac6865cdde7964420a7fe23b6af16334497009bc002b6f5ab20f5b", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-search", "type": "A", "goal_it": "scrivere il termine da cercare su Wikipedia", "goal_en": "type the term to search for on Wikipedia",
+          "expected": { "label": "Search Wikipedia", "box_px": [488, 17, 891, 48] } }
+      ]
+    },
+    {
+      "id": "wiki-404", "file": "wiki-404-en-1920.png", "class": "web", "dense": false,
+      "source": "https://en.wikipedia.org/wiki/Zzqxk_no_such_page_2026 (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "3521c6ab8ccd41294383378c9c86ee51c24bc1543df029e38951232259d26f54", "native": [1920, 1080],
+      "tasks": [
+        { "id": "B-text", "type": "B", "goal_it": "capire cosa dice questa pagina",
+          "expected": { "text": "Wikipedia does not have an article with this exact name." } }
+      ]
+    },
+    {
+      "id": "hn-front", "file": "hn-front-1920.png", "class": "web", "dense": true,
+      "source": "https://news.ycombinator.com/ (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "138d3713363f24fa58e0a075e52288b2dd8d999f84d9bf256dbd91e57a0ef43d", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-new", "type": "A", "goal_it": "andare alla pagina delle notizie più recenti usando il menu in alto", "goal_en": "open the newest submissions page using the top menu",
+          "expected": { "label": "new", "box_px": [280, 16, 309, 34] } }
+      ]
+    },
+    {
+      "id": "saucedemo-login", "file": "saucedemo-login-1920.png", "class": "web", "dense": false,
+      "source": "https://www.saucedemo.com/ (public demo login, Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "253b2a41878e5cc1ae70e70529ab7907a612fd74d5ddc3454b7be480d5a8c3a2", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-login", "type": "A", "goal_it": "dopo aver scritto nome utente e password, dove clicco per inviare il modulo?", "goal_en": "after typing the username and password, where do I click to submit the form?",
+          "expected": { "label": "Login", "box_px": [814, 302, 1106, 351] } }
+      ]
+    },
+    {
+      "id": "webscraper-shop", "file": "webscraper-shop-1920.png", "class": "web", "dense": false,
+      "source": "https://webscraper.io/test-sites/e-commerce/allinone (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "7f35d69a23ab86368e3090c4ba1638f7583870c6f8cf95df7b1a04d0d4f5f110", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-cloud", "type": "A", "goal_it": "accedere al cloud di Web Scraper", "goal_en": "sign in to the Web Scraper cloud",
+          "expected": { "label": "Cloud login", "box_px": [1504, 54, 1607, 92] } }
+      ]
+    },
+    {
+      "id": "wiki-edit-dense", "file": "wiki-edit-dense-1920.png", "class": "web", "dense": true,
+      "source": "https://en.wikipedia.org/w/index.php?title=Italy&action=edit (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "3db36e2926e49a62a35236744038f32cc34e2f239ccafdd46d81d19216f4acf4", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-submit", "type": "A", "goal_it": "inviare una richiesta di modifica di questo articolo", "goal_en": "send a request to change this article",
+          "expected": { "label": "Submit an edit request", "box_px": [1043, 731, 1241, 762] } }
+      ]
+    },
+    {
+      "id": "github-cpython", "file": "github-cpython-1920.png", "class": "web", "dense": false,
+      "source": "https://github.com/python/cpython (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "0b6da67d490a201240a08db2bbd06bb533b427b18f5a2eaa43d2412e454d7f3e", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-code", "type": "A", "goal_it": "scaricare il codice del progetto come file ZIP", "goal_en": "download the project's code as a ZIP file",
+          "expected": { "label": "Code", "box_px": [1147, 265, 1256, 297] } }
+      ]
+    },
+    {
+      "id": "docs-python-funcs", "file": "docs-python-funcs-1920.png", "class": "web", "dense": true,
+      "source": "https://docs.python.org/3/library/functions.html (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "85dffc3c546a6a2d43520cb51fdb9ba1d980c4497722617568c95557b0e28469", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-search", "type": "A", "goal_it": "cercare una parola nella documentazione", "goal_en": "search the documentation for a word",
+          "expected": { "label": "Quick search", "box_px": [1486, 20, 1623, 39] } }
+      ]
+    },
+    {
+      "id": "wiki-italy", "file": "wiki-italy-1920.png", "class": "web", "dense": false,
+      "source": "https://en.wikipedia.org/wiki/Italy (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "2ad4ceda756b301feafda3ffed09abb57c7d500e395c0295cfb1e1c8b9e23a8b", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-lang", "type": "A", "goal_it": "leggere questo articolo in un'altra lingua", "goal_en": "read this article in another language",
+          "expected": { "label": "322 languages", "box_px": [1294, 222, 1433, 242] } }
+      ]
+    },
+    {
+      "id": "wiki-login", "file": "wiki-login-1920.png", "class": "web", "dense": false,
+      "source": "https://en.wikipedia.org/wiki/Special:UserLogin (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "59e9b131ed0e8997968855292741f33fac08bfe6e2e3ee4b48a061cd76a2b946", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-login", "type": "A", "goal_it": "dopo aver scritto nome utente e password, dove clicco per entrare?", "goal_en": "after typing the username and password, where do I click to log in?",
+          "expected": { "label": "Log in", "box_px": [350, 341, 798, 385] } }
+      ]
+    },
+    {
+      "id": "github-login", "file": "github-login-1920.png", "class": "web", "dense": false,
+      "source": "https://github.com/login (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "e5adfe7fbd1815c3d7abf21616aa78fda905d71d611afab5a6e5f85fedeb98a7", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-signin", "type": "A", "goal_it": "dopo aver scritto username e password, dove clicco per accedere?", "goal_en": "after typing the username and password, where do I click to sign in?",
+          "expected": { "label": "Sign in", "box_px": [784, 324, 1136, 364] } }
+      ]
+    },
+    {
+      "id": "python-home", "file": "python-home-1920.png", "class": "web", "dense": true,
+      "source": "https://www.python.org/ (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "5ba349bbacc341d7b2be4f58fa9ea5e014bbfe5f80a7ede8fdc74d3d4753362b", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-downloads", "type": "A", "goal_it": "aprire la pagina Downloads dal menu in alto", "goal_en": "open the Downloads page from the top menu",
+          "expected": { "label": "Downloads", "box_px": [637, 176, 729, 199] } }
+      ]
+    },
+    {
+      "id": "mdn-button", "file": "mdn-button-1920.png", "class": "web", "dense": true,
+      "source": "https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button (Chrome headless 1920x1080, 2026-10-08)",
+      "sha256": "68c02e6feff75fe46c17a266e0c65aad926646ede9ca431aa3a0439516019bc8", "native": [1920, 1080],
+      "tasks": [
+        { "id": "A-reset", "type": "A", "goal_it": "azzerare il codice di esempio della demo", "goal_en": "reset the demo's example code",
+          "expected": { "label": "Reset", "box_px": [1280, 620, 1334, 653] } }
+      ]
+    },
+    {
+      "id": "win11-taskmgr", "file": "win11-task-manager-1370.png", "class": "windows", "dense": false,
+      "source": "https://commons.wikimedia.org/wiki/File:File_Explorer_App_windows_11.png (filename says File Explorer; the picture is Windows 11 Task Manager; retouched by uploader)",
+      "sha256": "3a80a4f2fb1147b84400795cebfdb327eae3d5972ea5a279567c957af4a0e9bf", "native": [1370, 1080],
+      "tasks": [
+        { "id": "A-clipchamp-first", "type": "A", "goal_it": "Clipchamp non risponde. Qual è il primo passo per chiuderlo da Gestione attività?", "goal_en": "Clipchamp is not responding. What is the first step to close it from Task Manager?",
+          "expected": { "label": "Clipchamp", "box_px": [195, 310, 420, 332] } }
+      ]
+    },
+    {
+      "id": "win10-scale-settings", "file": "win10-scale-settings.jpg", "class": "windows", "dense": false,
+      "source": "https://commons.wikimedia.org/wiki/File:Windows_10_Scale_and_Layout_Settings.jpg (Windows 10 Settings > Display)",
+      "sha256": "2589caa96cb59f0e82e534e86c477bcafe0ca7e9b35b58a9db740fb26538419c", "native": [1172, 718],
+      "tasks": [
+        { "id": "A-resolution", "type": "A", "goal_it": "cambiare la risoluzione dello schermo", "goal_en": "change the screen resolution",
+          "expected": { "label": "1366 × 768 (Recommended)", "box_px": [430, 523, 779, 563] } },
+        { "id": "A-textsize", "type": "A", "goal_it": "cambiare la dimensione del testo e delle app", "goal_en": "change the size of text and apps",
+          "expected": { "label": "125%", "box_px": [430, 377, 779, 417] } }
+      ]
+    },
+    {
+      "id": "win-generic-error", "file": "win-generic-error-dialog.png", "class": "windows", "dense": false,
+      "source": "https://commons.wikimedia.org/wiki/File:Generic_error_message.png (Windows-style error dialog)",
+      "sha256": "a778498236abdf46661aee9d70283054092cef8f71b493e5b4febc5935692748", "native": [304, 230],
+      "tasks": [
+        { "id": "A-cancel", "type": "A", "goal_it": "annullare l'operazione senza confermarla", "goal_en": "cancel the action without confirming it",
+          "expected": { "label": "Cancel", "box_px": [169, 182, 278, 212] } },
+        { "id": "B-text", "type": "B", "goal_it": "capire cosa dice questa finestra",
+          "expected": { "text": "An error occurred." } }
+      ]
+    },
+    {
+      "id": "win10-dhcp-config", "file": "win10-dhcp-config.png", "class": "windows", "dense": false,
+      "source": "https://commons.wikimedia.org/wiki/File:DHCP_Configuration_Setting_in_Windows_10.png (Windows 10 Edit IP settings)",
+      "sha256": "dd868e5eb1124e497e285e7015951cfb36055c5f5d59c36df6b5012e27ac3358", "native": [692, 201],
+      "tasks": [
+        { "id": "A-save", "type": "A", "goal_it": "salvare queste impostazioni", "goal_en": "save these settings",
+          "expected": { "label": "Save", "box_px": [470, 147, 560, 179] } }
+      ]
+    },
+    {
+      "id": "win10-bsod-2020", "file": "win10-bsod-2020.png", "class": "windows", "dense": false,
+      "source": "https://commons.wikimedia.org/wiki/File:BSoD_in_Windows_10_May_2020_Update_till_Windows_10_2022_Update.png",
+      "sha256": "71ee507a276a7e7479268b18d2bc6ddab6e17772ad691dc70e80387ddcac7608", "native": [1024, 768],
+      "tasks": [
+        { "id": "B-text", "type": "B", "goal_it": "capire cosa dice questa schermata",
+          "expected": { "text": "Your device ran into a problem and needs to restart. We're just collecting some error info, and then we'll restart for you." } }
+      ]
+    },
+    {
+      "id": "win10-update-22h2", "file": "win10-update-22h2.png", "class": "windows", "dense": false,
+      "source": "https://commons.wikimedia.org/wiki/File:Windows_10_version_22H2_Update_screen.png",
+      "sha256": "29bfb3b3f7e0134d4f14a85b5e72c81c9b4915355c222f13c1125baee123f2d5", "native": [1920, 1080],
+      "tasks": [
+        { "id": "B-text", "type": "B", "goal_it": "capire cosa dice questa schermata",
+          "expected": { "text": "Working on updates 30% complete Don't turn off your computer" } }
+      ]
+    }
+  ],
+  "smoke": ["gh-llamacpp", "win11-taskmgr", "wiki-404"]
+}

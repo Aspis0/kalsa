@@ -1,0 +1,153 @@
+{
+  "set": "smoke",
+  "width": 1920,
+  "model": "gemma-4-E4B-it-Q4_K_M",
+  "base": "http://127.0.0.1:8150",
+  "thinking": false,
+  "rows": [
+    {
+      "id": "gh-llamacpp",
+      "file": "github-llamacpp-1920.png",
+      "sha256": "bb4fc1d129208663a32e635e075e6f56f6d5b072c88b158b71017610a6a82f1a",
+      "width": 1920,
+      "task": "A",
+      "expected": {
+        "label": "Code",
+        "bbox": [
+          0.5974,
+          0.2454,
+          0.6542,
+          0.275
+        ],
+        "center": [
+          0.6258,
+          0.2602
+        ],
+        "grid": "top-center"
+      },
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "thinking": false,
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo esatto dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: scaricare il codice di questo progetto. Dove devo cliccare?",
+        "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB4…(base64 truncated)",
+        "imageBytes": 349842
+      },
+      "status": 200,
+      "wallMs": 5079,
+      "timings": {
+        "promptN": 1121,
+        "promptMs": 3742.488,
+        "cacheN": 0,
+        "predictedN": 52,
+        "predictedMs": 1279.469
+      },
+      "reply": "{\"label\": \"Code\", \"grid\": \"top-center\", \"x\": 0.65, \"y\": 0.24, \"instruction\": \"Clicca su 'Code' per scaricare il codice del progetto.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": true,
+        "pointOk": false,
+        "gridOk": true,
+        "hit": true,
+        "wrongElement": false
+      }
+    },
+    {
+      "id": "win11-taskmgr",
+      "file": "win11-task-manager-1370.png",
+      "sha256": "3a80a4f2fb1147b84400795cebfdb327eae3d5972ea5a279567c957af4a0e9bf",
+      "width": 1920,
+      "task": "A",
+      "expected": {
+        "label": "End task",
+        "bbox": [
+          0.6993,
+          0.2037,
+          0.7607,
+          0.2278
+        ],
+        "center": [
+          0.7299,
+          0.2157
+        ],
+        "grid": "top-right"
+      },
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "thinking": false,
+        "system": "Sei una guida per lo schermo. Guardi la schermata e dici dove cliccare. Non agisci al posto dell'utente.\nRispondi SOLO con un oggetto JSON, senza altro testo:\n{\"label\": \"<testo esatto dell'elemento come appare>\", \"grid\": \"<una di: top-left, top-center, top-right, middle-left, middle-center, middle-right, bottom-left, bottom-center, bottom-right>\", \"x\": <numero 0-1>, \"y\": <numero 0-1>, \"instruction\": \"<una frase in italiano>\"}\nSe l'elemento non c'è: {\"label\": null, \"grid\": null, \"x\": null, \"y\": null, \"instruction\": \"<cosa manca>\"}",
+        "user": "Obiettivo: chiudere un programma che non risponde. Dove devo cliccare?",
+        "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABV…(base64 truncated)",
+        "imageBytes": 140746
+      },
+      "status": 200,
+      "wallMs": 3658,
+      "timings": {
+        "promptN": 696,
+        "promptMs": 2331.364,
+        "cacheN": 173,
+        "predictedN": 54,
+        "predictedMs": 1300.427
+      },
+      "reply": "{\"label\": \"Clipchamp (9)\", \"grid\": \"middle-left\", \"x\": 0.15, \"y\": 0.37, \"instruction\": \"Clicca sul processo Clipchamp (9) per selezionarlo.\"}",
+      "score": {
+        "formatOk": true,
+        "refused": false,
+        "labelOk": false,
+        "pointOk": false,
+        "gridOk": false,
+        "hit": false,
+        "wrongElement": true
+      }
+    },
+    {
+      "id": "wiki-404",
+      "file": "wiki-404-en-1920.png",
+      "sha256": "3521c6ab8ccd41294383378c9c86ee51c24bc1543df029e38951232259d26f54",
+      "width": 1920,
+      "task": "B",
+      "expected": {
+        "text": "Wikipedia does not have an article with this exact name."
+      },
+      "request": {
+        "model": "gemma-4-E4B-it-Q4_K_M",
+        "temperature": 0,
+        "max_tokens": 300,
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        },
+        "thinking": false,
+        "system": "Leggi la schermata. Rispondi SOLO con un oggetto JSON, senza altro testo:\n{\"text\": \"<il messaggio principale della pagina, copiato parola per parola nella lingua in cui è scritto>\"}",
+        "user": "Cosa dice questa pagina? Copia il messaggio principale parola per parola.",
+        "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB4…(base64 truncated)",
+        "imageBytes": 278430
+      },
+      "status": 200,
+      "wallMs": 3931,
+      "timings": {
+        "promptN": 993,
+        "promptMs": 3492.032,
+        "cacheN": 0,
+        "predictedN": 18,
+        "predictedMs": 412.943
+      },
+      "reply": "{\"text\": \"Zzqqx no such page 2026\"}",
+      "score": {
+        "formatOk": true,
+        "exact": false,
+        "similarity": 0.1636363636363637
+      }
+    }
+  ]
+}
