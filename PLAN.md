@@ -2055,6 +2055,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   the login). Diagnosis lane opened: reviewer n2 (deepseek) `b494ddc2`, read-only, -> `diagnose-gpu750-n2.md`
   (ops over imports the J(1) lm_head does not exercise, import flags/coherence/alignment, cheapest split runs on the
   Xiaomi with existing knobs). Then I run the splits on the Xiaomi (correctness only).
+  Diagnosis done (`diagnose-gpu750-n2.md`): the GPU leg reads 5 imported families (TILE32 v4 GEMV over pool-offset
+  sub-buffers/images, HOST-W Q6_K lm_head, f32 norm MUL, fused norms, SSM_CONV weight); J(1) exercises only the Q6_K
+  one, so the passing NPU leg clears that and nothing else. No imported byte is written after load. Leading: H-A an
+  unvalidated run-time object of the v4 path (activation image / dst sub-buffer over pool offsets) and H-B CPU/GPU
+  coherence of the cached rpcmem block ("io-coherent" in our log is our own label, not the driver's answer).
+  Refuted: xmem, both Q6_K arms, fusion, alignment/OOB, writers, the KV commit. Ladder scripted:
+  `xiaomi-sm8650/run-xiaomi-gpu750-split3.sh` (E0 kernel lists; control x5; UNCACHED x5; FLUSH x5; op filter
+  control/MUL/MUL_MAT x3). Waiting for the Xiaomi to be reconnected (adb lost it ~10:00). If UNCACHED stays dirty,
+  H-B is dead and the next instrument is n2's E5 (a lab read-back of the imported bytes / sub-buffer, needs code).
 - **Owner decisions 2026-10-08 morning** (Marco: "ti autorizzo a riprodurre reset s23"; "per criterio di resistenza e
   correzione del Governor, decidi tu per la npu"; the Xiaomi is UNPLUGGED and free for speed/heat runs). Mine, recorded:
   1. **Endurance criterion**: score = decode tokens produced, back-to-back 2048-token turns (n_ctx 2816, away from the
