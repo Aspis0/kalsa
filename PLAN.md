@@ -2124,6 +2124,23 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   FAIL (KL 0.09-0.21, argmax diverged at tokens 12-24), interleaved control 3/3 FAIL (KL 0.045-0.069) -> **SSM_CONV
   over HOST-W REFUTED** (off the GPU it is no better). Left standing: H-A (TILE32 v4 per-call objects), the fused
   norms, the GPU leg's attention; E5 decides H-A.
+- **E5 instrument** (Haiku `a585c33d`, engine commit `29707db07` on fbf33176c, local only, lab-gated:
+  `GGML_OPENCL_TILE32_VERIFY=N` checks the first N v4 GEMV calls after clFinish against the self-check's CPU
+  reference, reading the activation at its offset and the result through the dst sub-buffer AND its parent). Hostile
+  audit by deepseek (`audit-e5-verify-n2.md`, verified by me on disk): no P0; `host_tiles` is the live rpcmem bytes
+  (`ggml-opencl-tile32.cpp:211` `v.host_tiles = wbytes`); F1 P1 limitation: offsets come from the caller, so a wrong
+  pool offset would fool both sides (that arithmetic is shared with the HOST leg and plain kernels); F2 the queried
+  sub-buffer offsets / image width are printed, not compared; F3 the 1e-5 x RMS rule is too tight in vivo; F4 RMS is
+  device-side in the self-check, reference-side in the verify; F6 strtol overflow. Android bench 822862e0 built by me
+  (docker v0.7, incremental `build-ls-and`, EXIT=0) -> `~/Projects/kalsa-artifacts-e5`.
+- **E5 result (`xiaomi-sm8650/raw/session6-gpu750-e5-verify-29707db07.grep`)**: **H-A REFUTED.** 9947 v4 GEMV calls
+  over 3 verified runs (166 per token, the first ~24 tokens of each): worst max|diff|/rms 2.9e-5 (float rounding;
+  the 85 "FAIL" lines are F3 - ffn_down K=10752 just over 1e-5, absolute 4e-8..3.6e-7), sub-buffer == parent
+  everywhere, act_off == sub-buffer offset and dst_off == sub-buffer offset on every call, image width = K/4. Yet KL
+  still FAILs with the verify on (V_1 0.058; the per-call clFinish does not hide it) and in the 3 interleaved controls
+  (0.037-0.092; C_3 argmax diverged at token 12, inside the verified window). The GEMVs are right; the defect is in
+  another GPU-leg op. Left: fused norms over HOST-W, the GPU leg's attention/KV, the remaining non-GEMV OpenCL ops.
+  Next: a per-node localisation (first diverging node of the one-copy GPU leg vs a passing leg).
 - **Round 3, arm 1 (npu alone)**: 6051 tokens to skin 43 (runs=4, 192 npu windows) from skin 31.9; arms 2-6 running.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
