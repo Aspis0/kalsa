@@ -2187,7 +2187,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (+ `--dump-nodes-tokens N`) for arms A/L, one stats line per graph node, and `compare-node-dumps.py`; Android bench
   3200a26a in `~/Projects/kalsa-artifacts-dump`. Plan on the 750: two runs of the SAME failing gpu-leg config (the KL
   differs run to run, so the first node that differs between them is the nondeterministic one), plus the 830-clean
-  config as a reference. Audit by deepseek running.
+  config as a reference. Deepseek audit (`audit-node-dump-n2.md`): no P0; P1s - the callback syncs every split for
+  the whole run (a race could vanish: the dump run's own KL is the control), node keys unstable ACROSS legs (fine for
+  same-config twice), sum/first written but never compared (sign errors invisible), no input token id, KV SET_ROWS
+  diluted; P2 truncation/malformed/structure exits. Fixes (compare sum+first with an abs floor, exit 2/3, write-error
+  check, `in=` token id, `--dump-nodes-filter`) dispatched to mimo `f4a88a7c`.
+- **Rule v3 `HEAT_RANK`** dispatched to Haiku `8c8e29a7` in a separate worktree `~/Projects/kalsallama-gov-rulev3`
+  (at dc48ec8cc): rank present legs by heat per token, stay while headroom >= guard (default 5 C), a non-current leg
+  must have headroom - load step >= guard + hysteresis; none fit -> NPU_FIRST loop; bench `--hop-mode heat_rank
+  --guard-headroom C`; NPU_FIRST/GPU_BURST byte-identical.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
