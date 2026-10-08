@@ -2062,6 +2062,20 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   page pool (kgsl page_alloc/mapped/vmalloc) to find WHO grows; mem_ctl (--gen 2049, never resets) vs mem_squeeze (the
   same with a 1.2 GB anonymous hog: a reset there = memory pressure is causal); lb_npu / lb_npu_app (two-copy NPU, one
   context, n_ctx 8960, FA off f16 vs the app's FA + q8_0/q4_0); gb_cpu2 from a cooler start.
+  **CAUSE FOUND - it is the benchmark, not the engine (`step5-s23/raw/session23-repro2-bench-rss.grep`)**: the bench
+  process's RssAnon grows linearly ~7 MB/s = ~600 KB per decoded token (107 MB -> 1053 MB in 125 s on a 2048-token
+  gpu-leg run; RssFile flat 43 MB; the GPU driver pool kgsl page_alloc flat ~704 MB). Source:
+  `tools/governor-bench/governor-bench.cpp:372-373` - arm L passes `rep == 0 ? &logits_rows : nullptr`, so it keeps
+  every token's full logits row (n_vocab 128000 x 4 B = 512 KB) even when neither `--logits-out` nor `--logits-ref`
+  was asked (arms A/G collect only when asked, line 383). `--gen 8193` runs therefore needed ~4 GB on top of three
+  n_ctx-8960 leg contexts: MemAvailable hit ~400 MB at ~1500 tokens and the S23 HARD-RESET (three times, same window).
+  `--gen 2049` runs peak ~1 GB and survive. **The app does not keep logits rows: this trigger is bench-only.** What
+  stays real: on the S23, userland memory exhaustion while the NPU/GPU hold imported buffers ends in a PMIC hard
+  reset instead of an OOM kill (a platform fragility worth remembering for the app's memory budget). Side effect:
+  every arm-L bench result so far ran with ~1 GB of logits growth per 2048 tokens (zram swapping ~370 MB in mem_ctl)
+  -> round-2 speed/heat may be perturbed; round 3 must run on the fixed bench (the r3 build 42667d95 has the bug).
+  Fix: mimo `6e85c68b` (arm L collects only when asked). Proof planned: the exact reset config on the fixed bench
+  (expect no reset, flat RSS).
 - **GPU leg on other Adrenos (owner 2026-10-08: "pensavo la GPU funzionava dappertutto ma non è vero")**: precise
   state - plain OpenCL (own buffers) is correct on the 750; the ONE-COPY GPU leg (OpenCL reading the NPU's imported
   buffers) is wrong on the 750 (nondeterministic KL 0.05-0.14) and untested on the 830 (8 Elite, v79: QDC blocked by

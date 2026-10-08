@@ -1,0 +1,39 @@
+# S23 repro round 2: mem_ctl and mem_squeeze (gpu leg --gen 2049, n_ctx 2816; the hog never held memory - toybox pipeline exited - so mem_squeeze = a 2nd control). bench_rss_kb from the fixed logger (mem_squeeze only).
+== repro2 start Thu Oct  8 10:30:17 EDT 2026 boot 097141c0-61cf-49ca-8510-6b302168e874 gb 1d74341d72fc lb ddbb98027d40 [lvl=48 ac=true usb=false wl=false batT=349 skin=34.5 wake=Awake thermal=0 traced=0]
+## mem_ctl start 1791470178 after 360s cool wait [lvl=52 ac=true usb=false wl=false batT=342 skin=33.9 wake=Awake thermal=0 traced=0]
+## mem_ctl exit=0 (124 = cut by timeout: survived past the reset position) end 1791470330 [lvl=52 ac=true usb=false wl=false batT=406 skin=41.3 wake=Awake thermal=2 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+windows: 64
+== repro2 start Thu Oct  8 10:40:02 EDT 2026 boot 097141c0-61cf-49ca-8510-6b302168e874 gb 1d74341d72fc lb ddbb98027d40 [lvl=52 ac=true usb=false wl=false batT=396 skin=38.5 wake=Awake thermal=2 traced=0]
+## mem_squeeze start 1791471244 after 840s cool wait [lvl=62 ac=true usb=false wl=false batT=341 skin=33.9 wake=Awake thermal=0 traced=0]
+hog up: MemAvailable:    4806020 kB
+## mem_squeeze exit=0 (124 = cut by timeout: survived past the reset position) end 1791471440 [lvl=62 ac=true usb=false wl=false batT=405 skin=41.3 wake=Awake thermal=2 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+windows: 64
+begin mem_ctl 1791470178
+end mem_ctl exit=0 1791470330
+begin mem_squeeze 1791471244
+end mem_squeeze exit=0 1791471440
+# mem_squeeze bench RSS (s since 1791471290 : MiB)
+2:107 8:226 13:267 18:310 24:351 29:392 34:433 40:472 45:512 50:549 56:588 61:626 66:663 72:701 77:734 82:771 88:808 93:845 98:880 104:915 109:950 114:984 120:1018 125:1053 130:1087 136:1122 141:1155 146:1188 151:0 
+# mem_squeeze full lines every 3rd
+1791471245 MemFree: 1601000 kB MemAvailable: 4736776 kB Unevictable: 44864 kB SwapFree: 3032920 kB CmaFree: 0 kB  bench_rss_kb= kgsl_page_alloc=39747584 kgsl_mapped=150986752 kgsl_vmalloc=970752
+1791471261 MemFree: 1743156 kB MemAvailable: 4820676 kB Unevictable: 44864 kB SwapFree: 3032664 kB CmaFree: 11128 kB  bench_rss_kb= kgsl_page_alloc=39747584 kgsl_mapped=150986752 kgsl_vmalloc=970752
+1791471277 MemFree: 1730760 kB MemAvailable: 4810832 kB Unevictable: 44864 kB SwapFree: 3032920 kB CmaFree: 312 kB  bench_rss_kb= kgsl_page_alloc=39747584 kgsl_mapped=150986752 kgsl_vmalloc=970752
+1791471292 MemFree: 108256 kB MemAvailable: 3129828 kB Unevictable: 59508 kB SwapFree: 3033176 kB CmaFree: 636 kB  bench_rss_kb=110440 kgsl_page_alloc=54743040 kgsl_mapped=150986752 kgsl_vmalloc=970752
+1791471308 MemFree: 76820 kB MemAvailable: 1753768 kB Unevictable: 693688 kB SwapFree: 3046744 kB CmaFree: 0 kB  bench_rss_kb=317816 kgsl_page_alloc=704147456 kgsl_mapped=1750990848 kgsl_vmalloc=974848
+1791471324 MemFree: 89844 kB MemAvailable: 1637408 kB Unevictable: 693800 kB SwapFree: 3047000 kB CmaFree: 76 kB  bench_rss_kb=444044 kgsl_page_alloc=704262144 kgsl_mapped=1750990848 kgsl_vmalloc=974848
+1791471340 MemFree: 212400 kB MemAvailable: 1514728 kB Unevictable: 693808 kB SwapFree: 3047512 kB CmaFree: 0 kB  bench_rss_kb=562880 kgsl_page_alloc=704270336 kgsl_mapped=1750990848 kgsl_vmalloc=974848
+1791471356 MemFree: 85512 kB MemAvailable: 1393988 kB Unevictable: 693816 kB SwapFree: 3048024 kB CmaFree: 0 kB  bench_rss_kb=679340 kgsl_page_alloc=704278528 kgsl_mapped=1750990848 kgsl_vmalloc=974848
+1791471372 MemFree: 431160 kB MemAvailable: 1313848 kB Unevictable: 693816 kB SwapFree: 2930008 kB CmaFree: 0 kB  bench_rss_kb=790260 kgsl_page_alloc=704278528 kgsl_mapped=1761296384 kgsl_vmalloc=974848
+1791471388 MemFree: 247220 kB MemAvailable: 1162292 kB Unevictable: 693816 kB SwapFree: 2930008 kB CmaFree: 0 kB  bench_rss_kb=901372 kgsl_page_alloc=704278528 kgsl_mapped=1750990848 kgsl_vmalloc=974848
+1791471404 MemFree: 158512 kB MemAvailable: 1080828 kB Unevictable: 693816 kB SwapFree: 2933080 kB CmaFree: 0 kB  bench_rss_kb=1007868 kgsl_page_alloc=704278528 kgsl_mapped=1750990848 kgsl_vmalloc=974848
+1791471420 MemFree: 78132 kB MemAvailable: 992824 kB Unevictable: 693816 kB SwapFree: 2926936 kB CmaFree: 0 kB  bench_rss_kb=1114092 kgsl_page_alloc=704278528 kgsl_mapped=1750990848 kgsl_vmalloc=974848
+1791471436 MemFree: 51348 kB MemAvailable: 968740 kB Unevictable: 693816 kB SwapFree: 2928728 kB CmaFree: 96 kB  bench_rss_kb=1217192 kgsl_page_alloc=704278528 kgsl_mapped=1761296384 kgsl_vmalloc=974848
+# manual /proc/<pid>/status during mem_squeeze, 8 s apart
+VmRSS: 778208 kB RssAnon: 703680 kB RssFile: 43532 kB RssShmem: 30996 kB VmSwap: 0 kB
+VmRSS: 836592 kB RssAnon: 762064 kB RssFile: 43532 kB RssShmem: 30996 kB VmSwap: 0 kB
+VmRSS: 891640 kB RssAnon: 817112 kB RssFile: 43532 kB RssShmem: 30996 kB VmSwap: 0 kB
+# cause (source): tools/governor-bench/governor-bench.cpp:372-373 arm L passes rep == 0 ? &logits_rows : nullptr -> every token's 128000-float row appended (512 KB/token) even with no --logits-out/--logits-ref
