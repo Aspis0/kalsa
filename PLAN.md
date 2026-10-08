@@ -2141,6 +2141,17 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (0.037-0.092; C_3 argmax diverged at token 12, inside the verified window). The GEMVs are right; the defect is in
   another GPU-leg op. Left: fused norms over HOST-W, the GPU leg's attention/KV, the remaining non-GEMV OpenCL ops.
   Next: a per-node localisation (first diverging node of the one-copy GPU leg vs a passing leg).
+- **OWNER GOAL 2026-10-08 13:30, due end of this week (Sun 2026-10-11)**: "supportare GPU e npu e CPU e il Governor
+  di almeno 3/4 snapdragon. Due con test su telefono reale, s23 e xiaomi, e gli altri su qdc. Quindi Governor
+  funzionante e che da una vera miglioria, anche se piccola, e ogni componente che funziona correttamente, senza crash
+  o errori." Matrix (each cell = correct, no crash/error; governor = a measured gain, even small):
+  S23 8 Gen 2 (v73, Adreno 740, real phone) | Xiaomi 14 8 Gen 3 (v75, Adreno 750, real phone, owner's daily driver:
+  when he lends it) | QDC 8 Elite (v79, Adreno 830) | QDC 8 Elite Gen 5 (v81, SM8850, 1000 free min) - CPU / NPU /
+  GPU legs + governor. Known blockers: the one-copy GPU leg is WRONG on the 750 (GEMV cleared, localisation next);
+  the 830 is untested; QDC needs the owner's Paseo browser panel for the Okta login. QDC agents: never Sonnet (owner
+  08/10) - Haiku / luna / other profile. Kit for the 8 Elite ready: cell `qdc-8elite-onecopy-legs-66` (#65's arms +
+  V-gpu = E5 verify), `~/kalsa-qdc/onecopy-kit-29707db07.tgz` (bench 822862e0, v79 skel 69e92a9e built by me from
+  `build-ls-rel` at 29707db07, v75 f88a9b96).
 - **Round 3, arm 1 (npu alone)**: 6051 tokens to skin 43 (runs=4, 192 npu windows) from skin 31.9; arms 2-6 running.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
