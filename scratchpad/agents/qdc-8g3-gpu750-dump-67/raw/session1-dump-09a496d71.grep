@@ -1,0 +1,144 @@
+# cell 67 evidence (engine 09a496d71, bench f72b761b, QRD8650 cacfeec9, 2026-10-08). Full .dump files stay local (1.6 MB each).
+## legs_report_sa881544.txt
+== legs start Thu Oct  8 12:19:47 PDT 2026 soc=SM8650 model=Pineapple for arm64 bench f72b761b197a batT=250
+## G exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+## L-npu exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=npu tokens=127 tps=24.663
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa67/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000022 max=0.000434 kld_max=0.010000 status=PASS
+## L-gpu exit=1 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=23.225
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa67/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.041334 max=0.978824 kld_max=0.010000 status=FAIL
+## L-gpu2 exit=1 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=23.240
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa67/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.038273 max=0.595899 kld_max=0.010000 status=FAIL
+## D-gpu1 exit=1 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=13.868
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa67/twocopy.gbl vocab=128000 tokens=128 compared=7 diverged=1 mean=0.176283 max=0.827721 kld_max=0.010000 status=FAIL
+dump lines: 8432
+## D-gpu2 exit=1 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=13.900
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa67/twocopy.gbl vocab=128000 tokens=128 compared=5 diverged=1 mean=0.102176 max=0.367619 kld_max=0.010000 status=FAIL
+dump lines: 8432
+## D-agpu exit=0 batT=250
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+kld arm=A ref=/data/local/tmp/kalsa67/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000510 kld_max=0.010000 status=PASS
+dump lines: 8432
+== legs end Thu Oct  8 12:25:48 PDT 2026 batT=250
+## compare D-gpu1 vs D-gpu2 (rc=1)
+input differs at tok=5
+tok=0 first divergence: node=kqv-2 occ=0 leg=A:gpu/B:gpu op=MUL_MAT fields=sum,sumabs,sumsq,first[2],first[3] rel_sum=6.432e-02 rel_sumabs=1.864e-02 rel_sumsq=4.287e-02 rel_first[2]=3.797e-01 rel_first[3]=1.204e+00
+tok=1 first divergence: node=kqv-2 occ=0 leg=A:gpu/B:gpu op=MUL_MAT fields=sum,sumabs,sumsq rel_sum=1.892e+00 rel_sumabs=1.380e-02 rel_sumsq=3.300e-02
+tok=2 first divergence: node=kqv-2 occ=0 leg=A:gpu/B:gpu op=MUL_MAT fields=sum,sumabs,sumsq rel_sum=4.730e-01 rel_sumabs=6.312e-03 rel_sumsq=2.053e-02
+tok=3 first divergence: node=kqv-2 occ=0 leg=A:gpu/B:gpu op=MUL_MAT fields=sum,sumabs,sumsq,first[3] rel_sum=5.287e-01 rel_sumabs=2.345e-02 rel_sumsq=3.791e-02 rel_first[3]=1.072e-01
+tok=4 first divergence: node=kqv-2 occ=0 leg=A:gpu/B:gpu op=MUL_MAT fields=sum,sumabs,sumsq rel_sum=4.355e-01 rel_sumabs=1.490e-02 rel_sumsq=3.525e-02
+10 largest relative differences (threshold 0.001, abs floor 1e-06):
+  tok=0 node=model.layers.{}.conv.in_proj-10 occ=2 leg=A:gpu/B:gpu op=VIEW fields=sum,sumabs,sumsq,first[0],first[1],first[2],first[3] rel_sum=1.696e-01 rel_sumabs=3.711e-02 rel_sumsq=7.469e-02 rel_first[0]=1.999e+00 rel_first[1]=1.400e-01 rel_first[2]=2.197e-01 rel_first[3]=1.640e-01
+  tok=0 node=ffn_gate-13 occ=0 leg=A:gpu/B:gpu op=MUL_MAT fields=sumabs,sumsq,first[0],first[1],first[2],first[3] rel_sumabs=2.513e-02 rel_sumsq=4.168e-02 rel_first[0]=1.145e+00 rel_first[1]=4.348e-01 rel_first[2]=1.680e-01 rel_first[3]=1.999e+00
+  tok=1 node=node_156 occ=0 leg=A:gpu/B:gpu op=MUL fields=sum,sumabs,sumsq,first[1],first[2],first[3] rel_sum=2.231e-01 rel_sumabs=3.335e-02 rel_sumsq=5.392e-02 rel_first[1]=1.998e+00 rel_first[2]=3.380e-01 rel_first[3]=7.944e-02
+  tok=1 node= occ=6 leg=A:gpu/B:gpu op=TRANSPOSE fields=sum,sumabs,sumsq,first[1],first[2],first[3] rel_sum=2.231e-01 rel_sumabs=3.335e-02 rel_sumsq=5.392e-02 rel_first[1]=1.998e+00 rel_first[2]=3.380e-01 rel_first[3]=7.944e-02
+  tok=1 node=cache_r_l4 occ=6 leg=A:gpu/B:gpu op=CPY fields=sum,sumabs,sumsq,first[2],first[3] rel_sum=1.433e-01 rel_sumabs=1.761e-03 rel_sumsq=1.534e-02 rel_first[2]=2.101e-01 rel_first[3]=1.998e+00
+  tok=2 node=cache_r_l4 occ=0 leg=A:gpu/B:gpu op=RESHAPE fields=sum,sumabs,sumsq,first[2],first[3] rel_sum=1.433e-01 rel_sumabs=1.761e-03 rel_sumsq=1.534e-02 rel_first[2]=2.101e-01 rel_first[3]=1.998e+00
+  tok=2 node=node_132 occ=0 leg=A:gpu/B:gpu op=GET_ROWS fields=sum,sumabs,sumsq,first[2],first[3] rel_sum=1.433e-01 rel_sumabs=1.761e-03 rel_sumsq=1.534e-02 rel_first[2]=2.101e-01 rel_first[3]=1.998e+00
+  tok=2 node=node_132 occ=1 leg=A:gpu/B:gpu op=RESHAPE fields=sum,sumabs,sumsq,first[2],first[3] rel_sum=1.433e-01 rel_sumabs=1.761e-03 rel_sumsq=1.534e-02 rel_first[2]=2.101e-01 rel_first[3]=1.998e+00
+  tok=2 node=cache_r_l4 occ=5 leg=A:gpu/B:gpu op=VIEW fields=sum,sumabs,sumsq,first[2],first[3] rel_sum=1.433e-01 rel_sumabs=1.761e-03 rel_sumsq=1.534e-02 rel_first[2]=2.101e-01 rel_first[3]=1.998e+00
+  tok=2 node=cache_r_l4 occ=6 leg=A:gpu/B:gpu op=CPY fields=sum,sumabs,sumsq,first[2],first[3] rel_sum=1.543e-01 rel_sumabs=1.802e-02 rel_sumsq=2.663e-02 rel_first[2]=1.998e+00 rel_first[3]=2.164e-01
+only in A: 0 node lines
+only in B: 0 node lines
+summary: compared=5070 divergent=3979 not_compared_skip=200 only_in_A=0 only_in_B=0
+## compare D-gpu1 vs D-agpu
+input differs at tok=7
+tok=0 first divergence: node=cache_r_l0 occ=0 leg=A:gpu/B:single op=RESHAPE fields=sumsq,first[0],first[1],first[2],first[3] rel_sumsq=1.753e-03 rel_first[0]=1.807e-02 rel_first[1]=3.588e-03 rel_first[2]=1.229e-03 rel_first[3]=1.217e-03
+tok=1 first divergence: node=cache_r_l0 occ=0 leg=A:gpu/B:single op=RESHAPE fields=sumsq,first[0],first[2] rel_sumsq=1.137e-03 rel_first[0]=3.588e-03 rel_first[2]=1.217e-03
+tok=2 first divergence: node=model.layers.{}.conv.in_proj-0 occ=0 leg=A:gpu/B:single op=MUL_MAT fields=first[1] rel_first[1]=1.365e-03
+tok=3 first divergence: node=cache_r_l0 occ=0 leg=A:gpu/B:single op=RESHAPE fields=first[3] rel_first[3]=1.336e-03
+tok=4 first divergence: node=cache_r_l0 occ=0 leg=A:gpu/B:single op=RESHAPE fields=first[2],first[3] rel_first[2]=1.336e-03 rel_first[3]=3.058e-02
+tok=5 first divergence: node=cache_r_l0 occ=0 leg=A:gpu/B:single op=RESHAPE fields=first[2] rel_first[2]=3.058e-02
+tok=6 first divergence: node=cache_r_l0 occ=0 leg=A:gpu/B:single op=RESHAPE fields=first[1],first[3] rel_first[1]=1.411e-03 rel_first[3]=1.858e-03
+10 largest relative differences (threshold 0.001, abs floor 1e-06):
+  tok=0 node=cache_k_l2 occ=0 leg=A:gpu/B:single op=SET_ROWS fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_v_l2 occ=0 leg=A:gpu/B:single op=RESHAPE fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_v_l2 occ=1 leg=A:gpu/B:single op=SET_ROWS fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_k_l5 occ=0 leg=A:gpu/B:single op=SET_ROWS fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_v_l5 occ=0 leg=A:gpu/B:single op=RESHAPE fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_v_l5 occ=1 leg=A:gpu/B:single op=SET_ROWS fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_k_l9 occ=0 leg=A:gpu/B:single op=SET_ROWS fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_v_l9 occ=0 leg=A:gpu/B:single op=RESHAPE fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_v_l9 occ=1 leg=A:gpu/B:single op=SET_ROWS fields=shape/type rel_shape/type=inf
+  tok=0 node=cache_k_l13 occ=0 leg=A:gpu/B:single op=SET_ROWS fields=shape/type rel_shape/type=inf
+only in A: 0 node lines
+## D-gpu1 tok=0 layer-2 attention
+tok=0 leg=gpu in=13330 node=cache_k_l2 (view) op=SET_ROWS type=f16 ne=512,768,1,1 sum=15313.0658 sumabs=273299.476 sumsq=519817.42 nan=0 inf=0 first=-0.407470703,0.106628418,0.126220703,0.032623291
+tok=0 leg=gpu in=13330 node=cache_v_l2 (reshaped) op=RESHAPE type=f16 ne=1,393216,1,1 sum=9.51347327 sumabs=2844.13364 sumsq=56.8713582 nan=0 inf=0 first=0.00322723389,-0.000197887421,0.0315551758,0.00560379028
+tok=0 leg=gpu in=13330 node=cache_v_l2 (reshaped) (view) op=SET_ROWS type=f16 ne=1,393216,1,1 sum=9.82402623 sumabs=2849.94414 sumsq=56.9835686 nan=0 inf=0 first=0.00322723389,-0.000197887421,0.0315551758,0.00560379028
+tok=0 leg=gpu in=13330 node=cache_v_l2 (view) op=VIEW type=f16 ne=768,8,64,1 skip=noncontiguous
+tok=0 leg=gpu in=13330 node=cache_v_l2 (view) (permuted) op=PERMUTE type=f16 ne=768,64,8,1 sum=9.82402623 sumabs=2849.94414 sumsq=56.9835686 nan=0 inf=0 first=0.00322723389,-0.000197887421,0.0315551758,0.00560379028
+tok=0 leg=gpu in=13330 node=cache_k_l2 (view) op=VIEW type=f16 ne=64,8,768,1 sum=15313.0658 sumabs=273299.476 sumsq=519817.42 nan=0 inf=0 first=-0.407470703,0.106628418,0.126220703,0.032623291
+tok=0 leg=gpu in=13330 node=cache_k_l2 (view) (permuted) op=PERMUTE type=f16 ne=64,768,8,1 skip=noncontiguous
+tok=0 leg=gpu in=13330 node=kq-2 op=MUL_MAT type=f32 ne=768,1,32,1 sum=582371.095 sumabs=589696.878 sumsq=26662490.3 nan=0 inf=0 first=37.8892822,50.5912094,-17.6541271,-14.4222794
+tok=0 leg=gpu in=13330 node=kq_soft_max-2 op=SOFT_MAX type=f32 ne=768,1,32,1 sum=32.0000001 sumabs=32.0000001 sumsq=2.27010432 nan=0 inf=0 first=0.000142020217,0.000694860064,1.37112053e-07,2.05363278e-07
+tok=0 leg=gpu in=13330 node=kqv-2 op=MUL_MAT type=f32 ne=64,1,32,1 sum=0.297168073 sumabs=10.2741791 sumsq=0.106565241 nan=0 inf=0 first=0.00915426761,-0.0134594282,-0.00242564199,0.0128229419
+tok=0 leg=gpu in=13330 node=kqv-2 (permuted) op=PERMUTE type=f32 ne=64,32,1,1 sum=0.297168073 sumabs=10.2741791 sumsq=0.106565241 nan=0 inf=0 first=0.00915426761,-0.0134594282,-0.00242564199,0.0128229419
+## D-gpu2 tok=0 layer-2 attention
+tok=0 leg=gpu in=13330 node=cache_k_l2 (view) op=SET_ROWS type=f16 ne=512,768,1,1 sum=15313.0658 sumabs=273299.476 sumsq=519817.42 nan=0 inf=0 first=-0.407470703,0.106628418,0.126220703,0.032623291
+tok=0 leg=gpu in=13330 node=cache_v_l2 (reshaped) op=RESHAPE type=f16 ne=1,393216,1,1 sum=9.51347327 sumabs=2844.13364 sumsq=56.8713582 nan=0 inf=0 first=0.00322723389,-0.000197887421,0.0315551758,0.00560379028
+tok=0 leg=gpu in=13330 node=cache_v_l2 (reshaped) (view) op=SET_ROWS type=f16 ne=1,393216,1,1 sum=9.82402623 sumabs=2849.94414 sumsq=56.9835686 nan=0 inf=0 first=0.00322723389,-0.000197887421,0.0315551758,0.00560379028
+tok=0 leg=gpu in=13330 node=cache_v_l2 (view) op=VIEW type=f16 ne=768,8,64,1 skip=noncontiguous
+tok=0 leg=gpu in=13330 node=cache_v_l2 (view) (permuted) op=PERMUTE type=f16 ne=768,64,8,1 sum=9.82402623 sumabs=2849.94414 sumsq=56.9835686 nan=0 inf=0 first=0.00322723389,-0.000197887421,0.0315551758,0.00560379028
+tok=0 leg=gpu in=13330 node=cache_k_l2 (view) op=VIEW type=f16 ne=64,8,768,1 sum=15313.0658 sumabs=273299.476 sumsq=519817.42 nan=0 inf=0 first=-0.407470703,0.106628418,0.126220703,0.032623291
+tok=0 leg=gpu in=13330 node=cache_k_l2 (view) (permuted) op=PERMUTE type=f16 ne=64,768,8,1 skip=noncontiguous
+tok=0 leg=gpu in=13330 node=kq-2 op=MUL_MAT type=f32 ne=768,1,32,1 sum=582371.095 sumabs=589696.878 sumsq=26662490.3 nan=0 inf=0 first=37.8892822,50.5912094,-17.6541271,-14.4222794
+tok=0 leg=gpu in=13330 node=kq_soft_max-2 op=SOFT_MAX type=f32 ne=768,1,32,1 sum=32.0000001 sumabs=32.0000001 sumsq=2.27010432 nan=0 inf=0 first=0.000142020217,0.000694860064,1.37112053e-07,2.05363278e-07
+tok=0 leg=gpu in=13330 node=kqv-2 op=MUL_MAT type=f32 ne=64,1,32,1 sum=0.27805565 sumabs=10.4693046 sumsq=0.111338636 nan=0 inf=0 first=0.00915426761,-0.0134594282,-0.00391067797,-0.0026210323
+tok=0 leg=gpu in=13330 node=kqv-2 (permuted) op=PERMUTE type=f32 ne=64,32,1,1 sum=0.27805565 sumabs=10.4693046 sumsq=0.111338636 nan=0 inf=0 first=0.00915426761,-0.0134594282,-0.00391067797,-0.0026210323
+## D-agpu tok=0 layer-2 attention
+tok=0 leg=single in=13330 node=cache_k_l2 (view) op=SET_ROWS type=f16 ne=512,2048,1,1 sum=15315.8268 sumabs=273299.791 sumsq=519841.076 nan=0 inf=0 first=-0.406982422,0.106384277,0.125976562,0.032989502
+tok=0 leg=single in=13330 node=cache_v_l2 (reshaped) op=RESHAPE type=f16 ne=1,1048576,1,1 sum=9.55009609 sumabs=2841.93872 sumsq=56.7865062 nan=0 inf=0 first=0.00323295593,-0.000199437141,0.0314941406,0.0055809021
+tok=0 leg=single in=13330 node=cache_v_l2 (reshaped) (view) op=SET_ROWS type=f16 ne=1,1048576,1,1 sum=9.86016333 sumabs=2847.75001 sumsq=56.8987466 nan=0 inf=0 first=0.00323295593,-0.000199437141,0.0314941406,0.0055809021
+tok=0 leg=single in=13330 node=cache_v_l2 (view) op=VIEW type=f16 ne=768,8,64,1 skip=noncontiguous
+tok=0 leg=single in=13330 node=cache_v_l2 (view) (permuted) op=PERMUTE type=f16 ne=768,64,8,1 skip=noncontiguous
+tok=0 leg=single in=13330 node=cache_k_l2 (view) op=VIEW type=f16 ne=64,8,768,1 sum=15315.8268 sumabs=273299.791 sumsq=519841.076 nan=0 inf=0 first=-0.406982422,0.106384277,0.125976562,0.032989502
+tok=0 leg=single in=13330 node=cache_k_l2 (view) (permuted) op=PERMUTE type=f16 ne=64,768,8,1 skip=noncontiguous
+tok=0 leg=single in=13330 node=kq-2 op=MUL_MAT type=f32 ne=768,1,32,1 sum=582535.509 sumabs=589853.459 sumsq=26673437.1 nan=0 inf=0 first=37.8956871,50.5472183,-17.6647663,-14.4583282
+tok=0 leg=single in=13330 node=kq_soft_max-2 op=SOFT_MAX type=f32 ne=768,1,32,1 sum=31.9999999 sumabs=31.9999999 sumsq=2.26917976 nan=0 inf=0 first=0.000141773475,0.00068929675,1.36582614e-07,2.03921147e-07
+tok=0 leg=single in=13330 node=kqv-2 op=MUL_MAT type=f32 ne=64,1,32,1 sum=0.25889212 sumabs=10.5049599 sumsq=0.112821615 nan=0 inf=0 first=0.00914564915,-0.0134474318,-0.0038900096,-0.00262390682
+tok=0 leg=single in=13330 node=kqv-2 (permuted) op=PERMUTE type=f32 ne=64,32,1,1 sum=0.25889212 sumabs=10.5049599 sumsq=0.112821615 nan=0 inf=0 first=0.00914564915,-0.0134474318,-0.0038900096,-0.00262390682

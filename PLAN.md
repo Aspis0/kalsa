@@ -2202,6 +2202,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (at dc48ec8cc): rank present legs by heat per token, stay while headroom >= guard (default 5 C), a non-current leg
   must have headroom - load step >= guard + hysteresis; none fit -> NPU_FIRST loop; bench `--hop-mode heat_rank
   --guard-headroom C`; NPU_FIRST/GPU_BURST byte-identical.
+- **QDC #67, Snapdragon 8 Gen 3 QRD8650 (SM8650, v75, Adreno 750), session 877475, 13 min, Haiku `396b0a01`
+  (`qdc-8g3-gpu750-dump-67/REPORT.md`, `raw/session1-dump-09a496d71.grep`)**: **the GPU-leg defect reproduces on a
+  second 750** (one-copy gpu leg FAIL 4/4, KL mean 0.04-0.18; npu leg PASS 0.000022; plain two-copy OpenCL PASS
+  0.000012) - it is the SoC + code path, not the Xiaomi unit. **Localised**: the first node that differs between two
+  identical runs is `kqv-2` (attention MUL_MAT f16 V x f32 softmax, first attention layer) at token 0, with
+  bit-identical inputs. Cause of the routing: the one-copy leg's KV size (768) equals n_kv, so the permuted V view is
+  contiguous and skips the Adreno kq/kqv arm (`!ggml_is_contiguous(src0)`); the generic f16 decode branch then picks
+  `kernel_mul_mat_f16_f32_l4_y8` (ne00 768 > 256). The plain load (KV 2048, V non-contiguous) never reaches it.
+  Discriminating test: cell #70 (`qdc-8g3-gpu750-y8-70`, kit `~/kalsa-qdc/y8-kit-09a496d71.tgz`, same binaries):
+  2 baseline gpu-leg runs + 3 with `GGML_OPENCL_MM_F16_FORCE_L4=1` (routes the op to `l4_dr`). Haiku `eead0be2`.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
