@@ -2003,6 +2003,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   leg was not chosen on a cool phone - the field is wired, a GPU count needs a warm turn). Keys restored to
   `keys-found.txt`. Note: after any native crash the app's marker refuses eager loads until "Riprova" in the
   model sheet (the turn harness's retry tap no longer finds it on the main screen - harness to update).
+- **2026-10-08 morning, started without owner decisions (both lab-only, reversible)**: (a) QDC cell #65
+  (`scratchpad/agents/qdc-8elite-onecopy-legs-65/`, Sonnet QDC agent `4375773e`): the Xiaomi correctness arms on a
+  Snapdragon 8 Elite (v79, Adreno 830) with the lab bench `b973c64d74ff` + release v79 skel - plugged, correctness only;
+  (b) the NPU voltage-corner knob (GLM `b63f2b91`): new HTP IDL method `power(core, bus)` + lab-only
+  `GGML_HEXAGON_LAB`/`GGML_HEXAGON_VCORNER` on the host, default path unchanged - then an S23 NPU-alone run per corner
+  (tok/s, NSP loaded step, skin per 1k tokens). Pending the owner: the reset repro, the endurance stop, the rule fix.
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced
