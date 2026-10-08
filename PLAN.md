@@ -2153,6 +2153,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   V-gpu = E5 verify), `~/kalsa-qdc/onecopy-kit-29707db07.tgz` (bench 822862e0, v79 skel 69e92a9e built by me from
   `build-ls-rel` at 29707db07, v75 f88a9b96).
 - **Round 3, arm 1 (npu alone)**: 6051 tokens to skin 43 (runs=4, 192 npu windows) from skin 31.9; arms 2-6 running.
+- **Round 3, arms 2-3**: gpu alone 5506 tokens to 43 from 32.1 (12.3 tok/s); **governor (hw, load step 11,14,0)
+  2785 tokens** from 32.2 (15.0 tok/s) - worst of the three: 25 hops in 2 runs, 50 cpu / 39 npu windows, GPU never.
+  Cause: the unmeasured CPU step 0 left the idle CPU undocked, so it always looked coolest (hop log: on the NPU, cpu
+  48.9 C headroom vs npu 29.3). **Load steps re-measured on the fixed bench** (`zones_vsleg3.csv`, arm means after
+  30 s): NSP 82.5 loaded vs 63.8 idle (**~19**, not 11); GPU 71.7 vs 62.8 (**~9**, not 14); CPU 87.0 on its own
+  windows vs 63.7-66.6 idle (**~22**). Round 2's 11/14 came from the bench that swapped ~1 GB per 2048 tokens.
+  Skin cost per 1k tokens from these arms: npu 1.83 C, gpu 1.98 C, governor-with-CPU ~3.9 C. With sequential legs and
+  skin binding, the leg with the lowest skin heat per token (NPU on the S23, also the fastest) cannot be beaten by
+  hopping unless a leg's cost per token grows with its own temperature - not seen here (npu tok/s 17.1 -> 16.6 over
+  6k tokens). Zone headroom is the wrong primary objective when skin binds; see the rule question to the owner.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
