@@ -7,11 +7,12 @@
 #   9c11ebcbf): tau 10 s, heat weight 7, per-token 2.8/3.2/4.7, load step NPU 11 / GPU 14 / CPU 0 C (round-2 zone
 #   means; the CPU step is unmeasured, so 0 - its heat weight 4.7 x 7 already docks it hardest), free-running on the
 #   1 Hz headroom feeder. Order npu gpu hw hw gpu npu (ABC CBA), each from skin <= COOL_SKIN (max 25 min wait).
-# Bench r3/governor-bench 42667d95 + release skel r3/dsp v73 f89da3d8 (~/Projects/kalsa-artifacts-loadstep).
+# Bench r3f/governor-bench 49f9c60f (engine fbf33176c: arm L keeps no logits rows unless asked - the 512 KB/token
+# growth that hard-reset the S23) + release skel r3/dsp v73 f89da3d8 (~/Projects/kalsa-artifacts-loadstep-fbf).
 # CSVs every 10 s (skin, battery temp, wakefulness, three headrooms); 1 Hz zone logger; non-Awake = INVALID.
 #   . /data/local/tmp/govhtp/step5-s23/run-step5-vsleg3.sh
 [ -n "${D:-}" ] || . /data/local/tmp/govhtp/step5-s23/env.sh
-D=$R/step5-s23; REPORT=$D/vsleg3_report.txt; B=$D/r3/governor-bench
+D=$R/step5-s23; REPORT=$D/vsleg3_report.txt; B=$D/r3f/governor-bench
 HR=$R/headroom.txt; HS=$R/headroom.stop; WS=$D/watchdog.stop
 COOL_SKIN=31; STOP_AT=43; MIN_LEVEL=30; RUNS=6
 export ADSP_LIBRARY_PATH="$D/r3/dsp;$R/lib"
