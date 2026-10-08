@@ -78,7 +78,7 @@ export function HostMiniappSheet({
               fontSize: 16,
             }}
           >
-            {miniappDisplayTitle(miniapp, t("renderer.calculator"))}
+            {miniappDisplayTitle(miniapp, t)}
           </Text>
           <Pressable
             accessibilityLabel={t("common.close")}

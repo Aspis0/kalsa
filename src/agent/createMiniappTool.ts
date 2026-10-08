@@ -5,20 +5,17 @@
 // text for the model's synthesis round. On invalid template/slots it returns a
 // clear error string and does NOT call onMiniapp (no broken UI).
 
-import { getStrings, type Locale } from "../i18n";
+import { getStrings, makeT, type Locale } from "../i18n";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import {
   MINIAPP_TEMPLATE_IDS,
   type MiniappTemplateId,
 } from "../domain/miniappTemplates";
 import { buildMiniappV1 } from "../domain/miniappBuilders";
+import { miniappDisplayTitle } from "../domain/miniappTitle";
 import { quickCalculatorRefusal } from "../domain/miniappQuickCalculator";
 import { normalizeMiniapp } from "../domain/askAssistant";
 import type { EngineTool, EngineToolResult } from "../engine/LlamaService";
-
-/** A calculator built without a title is stored with none; the model reads
- *  this English name in the result, while the person sees the view's name. */
-const CALCULATOR_WIRE_TITLE = "Calculator";
 
 export const CREATE_MINIAPP_TOOL: EngineTool = {
   type: "function",
@@ -126,7 +123,7 @@ export function makeCreateMiniappExecutor(
     return {
       text: strings.errors.createMiniappCreated?.replace(
         "{title}",
-        normalized.title || CALCULATOR_WIRE_TITLE,
+        miniappDisplayTitle(normalized, makeT(locale)),
       ),
       kind: "create_miniapp",
     };

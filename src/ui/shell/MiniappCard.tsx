@@ -134,7 +134,7 @@ export function MiniappCard({
   const { t } = useLocale();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const Icon = miniappIcon(miniapp.kind);
-  const title = miniappDisplayTitle(miniapp, t("renderer.calculator"));
+  const title = miniappDisplayTitle(miniapp, t);
   return (
     <View
       accessibilityLabel={t("renderer.interactiveMiniappA11y", { title })}

@@ -88,7 +88,20 @@ describe("create_miniapp executor", () => {
       template: "quick_calculator",
       slots: { formula: "2 * 3" },
     });
-    expect(result.text).toBe(getStrings("en").errors.createMiniappCreated.replace("{title}", "Calculator"));
+    expect(result.text).toBe(
+      getStrings("en").errors.createMiniappCreated.replace("{title}", getStrings("en").renderer.calculator),
+    );
+  });
+
+  test("a calculator built without a title is named in the interface's language in the result", async () => {
+    const execute = makeCreateMiniappExecutor("it");
+    const result = await execute("create_miniapp", {
+      template: "quick_calculator",
+      slots: { formula: "2 * 3" },
+    });
+    expect(result.text).toBe(
+      getStrings("it").errors.createMiniappCreated.replace("{title}", getStrings("it").renderer.calculator),
+    );
   });
 
   test("unknown template: no onMiniapp call, error tagged", async () => {

@@ -13,7 +13,7 @@ import { computeStatistics, convertVolumeDensityToMass, fitRegression } from "..
 import { evaluateCalculatorFormula } from "../domain/miniappCalculator";
 import { calculatorValues, recordCalculatorValues } from "../domain/miniappState";
 import { parseLocaleNumber } from "../domain/miniappNumber";
-import { miniappDisplayTitle } from "../domain/miniappTitle";
+import { miniappDisplayTitle, miniappFileStem } from "../domain/miniappTitle";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import type { ThemeColors } from "../theme/palettes";
 import { QuizBlockView } from "./blocks/QuizBlock";
@@ -420,20 +420,13 @@ function formatDateForExport(): string {
   return `${date}-${time}`;
 }
 
-function sanitizeExportName(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "")
-    .slice(0, 40) || "miniapp";
-}
-
-function buildMiniappExportFileName(miniapp: Miniapp, extension: "csv" | "jpg" | "jpeg" | "json" | "png" | "svg"): string {
+function buildMiniappExportFileName(
+  miniapp: Miniapp,
+  displayTitle: string,
+  extension: "csv" | "jpg" | "jpeg" | "json" | "png" | "svg",
+): string {
   const directory = FileSystem.cacheDirectory || FileSystem.documentDirectory || "";
-  const safeKind = sanitizeExportName(miniapp.kind);
-  const safeTitle = sanitizeExportName(miniapp.title || miniapp.kind);
-  return `${directory}${safeKind}-${safeTitle}-${formatDateForExport()}.${extension}`;
+  return `${directory}${miniappFileStem(miniapp, displayTitle)}-${formatDateForExport()}.${extension}`;
 }
 
 function escapeXmlText(value: unknown): string {
@@ -2194,7 +2187,7 @@ export function AskAssistantMiniappRenderer({
 
           // Only SVG/JSON reach here: PNG/JPEG already returned in the branch above.
           const extension = actionId === LOCAL_ACTIONS.EXPORT_SVG ? "svg" : "json";
-          const targetUri = buildMiniappExportFileName(localMiniapp, extension);
+          const targetUri = buildMiniappExportFileName(localMiniapp, displayTitle, extension);
           const payload = actionId === LOCAL_ACTIONS.EXPORT_SVG ? buildMiniappSvgText(localMiniapp, displayTitle) : JSON.stringify(localMiniapp, null, 2);
           await FileSystem.writeAsStringAsync(targetUri, payload, { encoding: "utf8" });
           // SVG/JSON are fully handled here (write + share): do not also notify onAction,
@@ -2249,7 +2242,7 @@ export function AskAssistantMiniappRenderer({
   const visibleBlocks = asArray<MiniappBlock>(localMiniapp.blocks, MAX_CHILD_BLOCKS)
     .map((block, envelopeIndex) => ({ block, envelopeIndex }))
     .filter(({ block }) => isBlockVisibleInActiveView(block, activeView));
-  const displayTitle = miniappDisplayTitle(localMiniapp, t("renderer.calculator"));
+  const displayTitle = miniappDisplayTitle(localMiniapp, t);
 
   return (
     <GlassSurface colors={colors} styles={styles} variant={glassVariant}>

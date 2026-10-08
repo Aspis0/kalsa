@@ -863,6 +863,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     result: "Result",
     formulaUnsupported: "Unsupported formula",
     numberField: "Number {n}",
+    kindCompareData: "Comparison",
+    kindReadingQuiz: "Quiz",
+    kindChecklist: "Checklist",
   },
 
   quiz: {

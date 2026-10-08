@@ -857,6 +857,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     result: "Risultato",
     formulaUnsupported: "Formula non supportata",
     numberField: "Numero {n}",
+    kindCompareData: "Confronto",
+    kindReadingQuiz: "Quiz",
+    kindChecklist: "Checklist",
   },
 
   quiz: {
