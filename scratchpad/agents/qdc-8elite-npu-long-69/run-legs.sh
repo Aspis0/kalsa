@@ -3,7 +3,7 @@
 # 82-86 C and tok/s drops only 3 % before skin 43 binds. Here: NPU leg alone (one-copy lab bench, engine 09a496d71),
 # back-to-back 2048-token runs for LONG_S seconds, per-window tok/s in npu-long.log; every thermal zone whose type
 # names nsp/cdsp/gpu/cpu/skin/batt/sys every 2 s in zones.csv (zone map + trip points in zones_map.txt), plus the
-# cdsp/gpu cooling-device states. Battery-temperature watchdog kills the bench at 45.0 C.
+# cdsp/gpu cooling-device states. Battery-temperature watchdog kills the bench at 48.0 C (QDC boards report a fixed battery temp: 42.0 on the 8 Elite in #66, 45.0 on the SM8850 MRD in #68).
 #   sh /data/local/tmp/kalsa69/run-legs.sh
 R=/data/local/tmp/kalsa69; M=$R/lfm26.gguf; B=$R/governor-bench; REPORT=$R/legs_report.txt; WS=$R/watchdog.stop
 LONG_S=${LONG_S:-1500}
@@ -27,8 +27,8 @@ echo "cooling: $(for c in $C; do echo -n "$(basename $c)=$(cat $c/type) "; done)
 echo "epoch,$(for z in $Z; do echo -n "$(cat $z/type),"; done)$(for c in $C; do echo -n "$(cat $c/type),"; done)" > $R/zones.csv
 ( while [ ! -e $WS ]; do
     echo "$(date +%s),$(for z in $Z; do echo -n "$(cat $z/temp),"; done)$(for c in $C; do echo -n "$(cat $c/cur_state),"; done)" >> $R/zones.csv
-    t=$(bt); [ -n "$t" ] && [ "$t" -ge 450 ] && pgrep -f governor-bench > /dev/null && {
-      pkill -f governor-bench; echo "WATCHDOG: battery $t >= 450, bench killed $(date)" >> $REPORT; }
+    t=$(bt); [ -n "$t" ] && [ "$t" -ge 480 ] && pgrep -f governor-bench > /dev/null && {
+      pkill -f governor-bench; echo "WATCHDOG: battery $t >= 480, bench killed $(date)" >> $REPORT; }
     sleep 2
   done ) &
 cd $R
