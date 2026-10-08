@@ -2118,8 +2118,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   perturb); `OPFILTER=MUL` (f32 norm weights off OpenCL) 3/3 FAIL -> the plain norm MUL is not it; `OPFILTER=MUL_MAT`
   cannot run (J(1) needs the GPU mat-vec for the output weight). E0 again: npu leg PASS 0.000022. Left standing: H-A
   (the TILE32 v4 path's per-call objects: activation image / dst sub-buffer over pool offsets), SSM_CONV and the fused
-  norms over HOST-W, and the GPU leg's attention. Running: split4 (`OPFILTER=SSM_CONV` x3 + control x3). Next
-  instrument: n2's E5 - an env-gated in-vivo check of each TILE32 v4 GEMV result against a CPU reference (needs code).
+  norms over HOST-W, and the GPU leg's attention. Next instrument: n2's E5 - an env-gated in-vivo check of each
+  TILE32 v4 GEMV result against a CPU reference (needs code; Haiku `a585c33d` writing it).
+- **Split4 result (`xiaomi-sm8650/raw/session5-gpu750-split4-ssmconv-dbdeb628e.grep`)**: `OPFILTER=SSM_CONV` 3/3
+  FAIL (KL 0.09-0.21, argmax diverged at tokens 12-24), interleaved control 3/3 FAIL (KL 0.045-0.069) -> **SSM_CONV
+  over HOST-W REFUTED** (off the GPU it is no better). Left standing: H-A (TILE32 v4 per-call objects), the fused
+  norms, the GPU leg's attention; E5 decides H-A.
 - **Round 3, arm 1 (npu alone)**: 6051 tokens to skin 43 (runs=4, 192 npu windows) from skin 31.9; arms 2-6 running.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
