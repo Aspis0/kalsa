@@ -2029,6 +2029,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
      `4e2289cd` on worktree `~/Projects/kalsallama-gov-loadstep` (detached at engine main `2d970bdf3`); audit by a
      different model next. CPU step unmeasured (no CPU-alone arm in round 2) - from the next zone log.
      No prefill pricing now: the NPU prefill spike binds nothing the phone enforces (see 1).
+     Done: engine `47aa1cc4a` (Haiku; verified on disk: step docks only non-current legs; host `ctest -R governor`
+     EXIT=0, 22 of 22 with 7 model-gated skips; mutation check docking the current leg fails). Luna audit
+     (`audit-loadstep-luna.md`): F1 P2 CONFIRMED with tau > 0 the EMA lags the step, so identity docking jumps the
+     scores at a hop and holds the new leg ~3 tau (~29 s in its example) -> fix: shift the two EMAs by their steps
+     at a rule-driven hop; F2 P2 NaN/negative steps via direct params -> constructor guard like tau's; F3 P3 two
+     vacuous assertions -> real ones; F4 ABI -> BACKLOG. Fixing: mimo `25f3de4c`.
   3. **S23 reset repro authorised**, after the voltage-corner campaign. Plan below in its own entry when it runs.
   4. **Xiaomi unplugged**: `xiaomi-sm8650/run-xiaomi-legs-endurance.sh` (NPU alone, CPU alone, ABBA, back-to-back
      2048-token runs to skin 43; GPU leg excluded - it fails KL on the 750), the per-leg measurement an SM8650 row

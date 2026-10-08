@@ -227,3 +227,8 @@ Fixed in the follow-up commit: failed power RPC now fails the session; corner me
 Left: P1-PLAUSIBLE stop frees the session ctx without HAP_power_destroy (pre-existing upstream lifecycle; a stopped
 session's vote could linger within ONE process - the S23 smoke ran one session per process and saw MAX restore 19.3);
 P2 a new host + old skel fails only on the lab RPC; P3 the host test does not exercise the DSP contract.
+
+## Load-step audit leftovers (luna, `audit-loadstep-luna.md`, engine 47aa1cc4a, 2026-10-08)
+- F4 P2 PLAUSIBLE: three floats inserted mid-`llama_governor_params` shift old positional aggregate initializers and
+  the by-value ABI. Only matters for downstream code built against an older header; the binding vendors the source
+  and rebuilds, so no action now. Option if it ever matters: append new fields at the struct's end.
