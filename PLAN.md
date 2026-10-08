@@ -1849,7 +1849,7 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   dispatched on main for the in-app S23 check. Still to land in main afterwards: engine `feat/governor-onecopy` ->
   engine main, binding live line -> binding main. Jelly R2 negative control: right before/after kalsa-brain's Jelly
   session tonight (owner holds the Jelly).
-- **IN-APP S23 PASS (one copy, three legs) 2026-10-07 21:47 (`step6-inapp/summary-onecopy-1.txt`, app main `c48e5ddd`
+- **IN-APP S23 PASS (one copy, three legs) 2026-10-07 21:47 (`step6-inapp/summary-onecopy-1.grep`, app main `c48e5ddd`
   debuggable CI APK run 37707441796 = pin `dddc8e4b` + kalsa-brain's mDNS; phone PLUGGED -> functional only)**: keys
   governor.enabled 1, bench.npu_lane on, bench.decode_hop 32, bench.route removed (previous keys in
   `step6-inapp/raw/keys-found.txt`, restore after the checks). `KALSA_LEGS_TABLE {soc:"SM8550", hexagon:"Hexagon v73",

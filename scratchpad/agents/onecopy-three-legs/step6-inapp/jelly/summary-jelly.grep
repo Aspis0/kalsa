@@ -1,0 +1,5 @@
+# Jelly Star 2026-10-07 22:47-22:52 EDT, APK c48e5ddd debuggable, kalsa.governor.enabled=1 temporarily, local turn: KALSA_ lines (no KALSA_LEGS_TABLE / KALSA_GOVERNOR present)
+10-07 22:51:12.760  9552  9575 I ReactNativeJS: KALSA_PREFIX_FALLBACK {"tokens":2968,"reason":"measurement_not_persisted"}
+10-07 22:51:12.810  9552  9575 I ReactNativeJS: KALSA_WINDOW {"turnId":"2","kvHeld":false,"nPast":null,"lastSaveTokens":null,"loadedB":null,"hasDigest":true,"legacyWindowStart":0,"textEst":102,"measuredCharsPerToken":null,"windowTokens":102}
+10-07 22:52:32.209  9552  9575 I ReactNativeJS: KALSA_PREFIX_MEASURED {"tokens":2078}
+10-07 22:52:51.993  9552  9575 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"2","attempt":1,"round":0,"tokensCached":2286,"tokensEvaluated":2208,"tokensPredicted":77,"draftTokens":0,"draftAccepted":0,"promptMs":6977.275000000001,"predictedMs":12343.053,"predictedPerSecond":6.238326935807535,"contextFull":false,"interrupted":false,"truncated":false,"prompt_n":130,"ciswireFlags":1}
