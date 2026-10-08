@@ -239,3 +239,20 @@ P2 a new host + old skel fails only on the lab RPC; P3 the host test does not ex
   --gen 128/256). Option: refuse or warn when (logits_out or logits_ref) and gen > ~512, or stream rows to disk.
 - F3/F6/F8/F9/F10/F11 P3: dead turn==0 conjunct for arm L; "asked but empty" indistinguishable; helper placement /
   inline; no test pins the rule; -r 3 window-KL comment; rows never cleared across reps.
+
+## Rule v3 HEAT_RANK audit leftovers (reviewer n2, `onecopy-three-legs/audit-rulev3-n2.md`, engine 08ca9a82b / 09a496d71, 2026-10-08)
+- P1 (spec property, kept): a non-current leg re-enters only at headroom - load step >= guard + 4 C (S23 NPU with
+  step 19: idle headroom >= 28 C); with tau > 0 the EMA must clear it. Watch the round-4 hop log: if the NPU never
+  returns after a guard exit, lower the hysteresis for the return or use the raw sample for the return test.
+- P2: all-zero heat params rank by enum order (NPU > GPU > CPU) - every HEAT_RANK caller must pass measured heat;
+  the fallback window can be relabelled heat_rank next window (label only); decode_hop_headroom_windows counts only
+  fallback windows; guard field inserted mid-struct without a schema_version bump (by-value export); tests are all
+  tau = 0 (no smoothing/shift case, no floors, no one/two-leg masks, no NaN, no headroom == guard boundary).
+- P3: window-0 bypass while NPU is present[0]; sentinel GPU_COOLMODE as an implicit optional; 1e30 guard accepted;
+  hop log cannot name the deciding rule (leg_window rule= does); stale label vocabulary in three headers.
+
+## Node-dump audit leftovers (reviewer n2, `onecopy-three-legs/audit-node-dump-n2.md`, engine dc48ec8cc, 2026-10-08)
+- Fixed in f17855a68 (mimo): sum/first compared with an abs floor, exit 2 malformed / 3 structure, write-error
+  warning, `in=` token id, `--dump-nodes-filter`, the false sync comment.
+- Kept: the callback syncs every split for the whole run (the dump run's own KL is the control); keys unstable across
+  legs (HTP permutes nodes; use same-config pairs); HTP fusions off under the dump; KV SET_ROWS lines diluted/skipped.
