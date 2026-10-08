@@ -39,7 +39,9 @@ Only editing the sha in `package.json` and the lockfile does, and
 
 **Remote branches (owner rule):** `main` - the ONLY engine line for phone and desktop since 2026-10-01 (it
 merged `feat/governor-platform-status`, now tag `archive/feat/governor-platform-status`, and upstream b11304) -
-plus at most the active spike(s) (`spike/onecopy-hmx-raw`).
+plus at most the active spike(s). **2026-10-07 (owner: "tutto nel main"):** the one-copy three-leg work
+(`feat/governor-onecopy`) is merged into `main` (`e2b8cc067`) and the branch deleted; `spike/onecopy-hmx-raw` is tag
+`archive/spike/onecopy-hmx-raw`. The fork has ONE branch: `main`.
 **Actions (2026-10-01, owner):** only `kalsa-server.yml` and `check-vendor.yml` are enabled on the fork; the 47
 workflows inherited from upstream are DISABLED with `gh workflow disable` (a repo setting, not a tree change, so
 upstream merges never conflict on it; undo with `gh workflow enable <id>`). Their schedules (Build Actions Cache
@@ -102,10 +104,12 @@ dead. It is not — see its section above.)
 
 Renamed on GitHub from `llama.rn`; the npm package name is still `llama.rn`.
 
-Local clone: `~/Projects/llama.rn-kalsa` (its checked-out branch is stale; the live line is the
-worktree `~/Projects/llama.rn-kalsa-gov-platform`). **Pruned 2026-10-01 to two remote branches:**
-`feat/governor-platform-status` (the app's pin, `b1c7ffc5` = engine `5b596ce43`) and `main` (an old
-upstream sync, the GitHub default). Former branches are `archive/<name>` tags at their tips
+Local clone: `~/Projects/llama.rn-kalsa` (its checked-out branch is stale). **Since 2026-10-07 the fork has ONE
+branch, `main`, and it is the live line** (owner: "tutto nel main"): `main` (an old upstream sync until then) was
+fast-forwarded to the former live line `feat/governor-platform-status`, which was deleted at the identical commit
+`a67d5bb8` (one-copy three-leg load + capability table, engine `5cb7e14a0`). Working worktree:
+`~/Projects/llama.rn-kalsa-onecopy`. History: pruned 2026-10-01 to two remote branches,
+`feat/governor-platform-status` (then the app's pin, `b1c7ffc5` = engine `5b596ce43`) and `main`. Former branches are `archive/<name>` tags at their tips
 (`archive/kalsa` = `0f313bab`, the pin until 20/09; `archive/vendor-migration` = `0288dc27`;
 `archive/kalsa-step1`, `archive/kalsarn-governor-engine`, `archive/feat-governor-npu-prefill`); the
 163 tags that duplicate `mybigday/llama.rn` were deleted. Full pre-prune backup:
