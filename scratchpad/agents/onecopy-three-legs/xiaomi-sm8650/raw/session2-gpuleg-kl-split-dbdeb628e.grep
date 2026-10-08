@@ -1,0 +1,62 @@
+# round 1 splits (run-xiaomi-gpu-split.sh)
+## rep legs=gpu exit=1 skin=36.67
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=21.156 kl_mean=0.177464 kl_max=1.347481 kl_max_row=12 kl_diverged=1
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=22.139 kl_mean=0.000000 kl_max=0.000000 kl_max_row=33 kl_diverged=1
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=22.197 kl_mean=0.000000 kl_max=0.000000 kl_max_row=65 kl_diverged=1
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=22.956 kl_mean=0.000000 kl_max=0.000000 kl_max_row=97 kl_diverged=1
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=24 diverged=1 mean=0.170071 max=1.347481 kld_max=0.010000 status=FAIL
+## gc legs=gpu,cpu exit=1 skin=37.029
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=21.501 kl_mean=0.111020 kl_max=1.083297 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=cpu rule=none tokens=32 tps=15.247 kl_mean=0.018123 kl_max=0.198043 kl_max_row=48 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=22.088 kl_mean=0.034982 kl_max=0.169298 kl_max_row=72 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=none tokens=32 tps=15.980 kl_mean=0.020507 kl_max=0.242450 kl_max_row=108 kl_diverged=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.045998 max=1.083297 kld_max=0.010000 status=FAIL
+## cg legs=cpu,gpu exit=1 skin=37.005
+leg_window arm=L rep=0 window=0 engine=cpu rule=none tokens=32 tps=15.657 kl_mean=0.000013 kl_max=0.000199 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=21.642 kl_mean=0.132828 kl_max=0.823744 kl_max_row=36 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=cpu rule=none tokens=32 tps=14.866 kl_mean=0.020287 kl_max=0.229822 kl_max_row=72 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=22.935 kl_mean=0.023367 kl_max=0.176834 kl_max_row=108 kl_diverged=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.043941 max=0.823744 kld_max=0.010000 status=FAIL
+## nofuse legs=gpu exit=1 skin=36.834
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=21.528 kl_mean=0.089059 kl_max=1.227674 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=22.146 kl_mean=0.065872 kl_max=1.125148 kl_max_row=36 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=22.118 kl_mean=0.030349 kl_max=0.334522 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=22.937 kl_mean=0.034019 kl_max=0.636287 kl_max_row=120 kl_diverged=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.054559 max=1.227674 kld_max=0.010000 status=FAIL
+== end
+# round 2 (run-xiaomi-gpu-split2.sh)
+## ng legs=npu,gpu exit=1 skin=36.327
+leg_window arm=L rep=0 window=0 engine=npu rule=none tokens=32 tps=19.067 kl_mean=0.000020 kl_max=0.000174 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=21.261 kl_mean=0.087077 kl_max=0.242421 kl_max_row=35 kl_diverged=1
+leg_window arm=L rep=0 window=2 engine=npu rule=none tokens=32 tps=19.253 kl_mean=0.000000 kl_max=0.000000 kl_max_row=65 kl_diverged=1
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=22.219 kl_mean=0.000000 kl_max=0.000000 kl_max_row=97 kl_diverged=1
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=36 diverged=1 mean=0.007275 max=0.242421 kld_max=0.010000 status=FAIL
+## xmem0 legs=gpu exit=1 skin=36.375
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=21.205 kl_mean=0.095548 kl_max=0.677227 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=22.189 kl_mean=0.064056 kl_max=0.402131 kl_max_row=36 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=22.064 kl_mean=0.039162 kl_max=0.570097 kl_max_row=73 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=22.860 kl_mean=0.057056 kl_max=0.676890 kl_max_row=121 kl_diverged=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.063510 max=0.677227 kld_max=0.010000 status=FAIL
+## q6plain legs=gpu exit=1 skin=36.747
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=15.683 kl_mean=0.137150 kl_max=1.035968 kl_max_row=13 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=16.137 kl_mean=0.055797 kl_max=0.376295 kl_max_row=61 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=16.055 kl_mean=0.034114 kl_max=0.240047 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=16.623 kl_mean=0.051929 kl_max=0.574737 kl_max_row=108 kl_diverged=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.069342 max=1.035968 kld_max=0.010000 status=FAIL
+## ngng legs=npu,gpu,npu,gpu exit=1 skin=37.418
+leg_window arm=L rep=0 window=0 engine=npu rule=none tokens=32 tps=19.198 kl_mean=0.000020 kl_max=0.000174 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=21.385 kl_mean=0.144333 kl_max=0.766837 kl_max_row=61 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu rule=none tokens=32 tps=19.194 kl_mean=0.035449 kl_max=0.369578 kl_max_row=73 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=22.140 kl_mean=0.029542 kl_max=0.215942 kl_max_row=108 kl_diverged=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.052106 max=0.766837 kld_max=0.010000 status=FAIL
+== end
+# plain OpenCL vs J(1) (run-xiaomi-plain-gpu.sh)
+## A-gpu exit=0
+sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/govhtp-xiaomi/model/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=3296.683 de
+kld arm=A ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000510 kld_max=0.010000 status=PASS
+## A-j1 exit=0
+sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/govhtp-xiaomi/model/ship.gguf model_bytes=1593894944 build_commit=unknown n_threads=5 n_ubatch=512 prefill_backend=HTP0,GPUOpenCL decode_backend=HTP0,GPUOpenCL ttft_ms=7
+kld arm=A ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000022 max=0.000434 kld_max=0.010000 status=PASS
+== end

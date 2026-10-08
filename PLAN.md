@@ -1946,6 +1946,30 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   The remaining arms (gpu, gpu, hw, npu) continue with the 10 C floor (not moved closer to the reset point without
   the owner): the comparison now reads "time and tokens until any leg is within 10 C of its trip". The NPU-corner
   (DVFS) test is the natural next step: a lower corner should lower the loaded step itself.
+- **SECOND HARD RESET -> the reset is NOT thermal (2026-10-08 00:33, `raw/session17-vsleg-gpu-hardreset2.grep`)**: arm 3
+  (GPU alone, `--gen 8193`) reset the S23 with NSP 66 C / GPU 77 C / skin 39.6 (far from every trip), same PMIC
+  HARD_RESET / reboot_reason 0x4. Both reset logs end mid-line printing decode window 46: **both died right after
+  1504 generated tokens (KV position ~2016)**, one on the NPU leg, one on the GPU leg. Common factors: n_ctx 8960
+  (`--gen 8193`; KV 140 MiB per leg) and the position. `--gen 2049` (n_ctx 2816) passed position 2560 in many
+  sessions; in-app 1760+989 tokens (NPU leg + CPU hops) did not reset. So a deterministic BUG tied to a large n_ctx
+  near position 2048, common to the NPU leg (HTP attention + OpenCL lm_head) and the GPU leg (OpenCL) - OpenCL is the
+  shared component. Read-only diagnosis dispatched (reviewer n2 `b126c25f`, `diagnose-hardreset-n2.md`). NOT
+  reproduced on purpose: each repro is a hard reset of the owner's phone - the owner decides. The comparison
+  restarted as round 2 (`run-step5-vsleg2.sh`): back-to-back 2048-token runs (n_ctx 2816), up to 4 per arm.
+- **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
+  the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
+  HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced
+  npu/gpu/cpu rotation KL **0.000017 PASS**; NPU leg alone 0.000022 PASS; CPU leg alone 0.000012 PASS; **GPU leg
+  alone FAILS: KL 0.05-0.14 in 7 of 8 runs** (argmax diverged in 2), whatever precedes it (prefill, cpu, npu window)
+  and with xmem GEMM off, fusion off, or the plain Q6_K lm_head kernel; the first rotation's GPU windows were clean
+  (0.000006) - so nondeterministic. Controls PASS: plain upstream OpenCL decode on the 750 (own buffers) 0.000012,
+  J(1) plain context 0.000022. => a one-copy GPU-leg defect on Adreno 750 (race or coherence on the imported
+  buffers; the audit's F3: norms/conv/fused norms over HOST-W have no self-check). Exactly why R2 keeps unmeasured
+  phones off; the S23 is unaffected. Indicative speeds (plugged, not claims): NPU 17.1, GPU 21.6-22.1, CPU 15.0.
+- **Override audit (reviewer n2, `audit-unmeasured-override-n2.md`)**: no P0; P1 F1 the env is read in library code
+  the app would compile -> fix dispatched (mimo `a41ff810`: compile-time `GGML_OPENCL_TILE32_LAB`, default OFF);
+  P2 F5 warning wording (same fix); P2 F2/F3/F4 (no other gate refuses 750/830, no self-check for norms/conv, admission
+  then compute miss aborts) are preconditions for any SM8650 row -> BACKLOG; P3s -> BACKLOG.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /

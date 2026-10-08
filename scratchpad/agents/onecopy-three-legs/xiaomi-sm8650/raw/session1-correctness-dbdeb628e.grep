@@ -1,0 +1,231 @@
+== xiaomi start Thu Oct  8 00:24:51 EDT 2026 bench 48c80db0b2a4 skel 6fb1cfd50a0a model a247afd64149 [lvl=35 ac=true batT=343 skin=35.842 wake=Awake thermal=0]
+soc=SM8650 model=23127PN0CG build=Xiaomi/houji_global/houji:16/BP2A.250605.031.A3/OS3.0.303.0.WNCMIXM:user/release-keys
+## G exit=0 [lvl=36 ac=true batT=364 skin=41.273 wake=Awake thermal=0]
+      1 sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+      1 sched_reserve: graph: nodes = 1054, splits = 1, input objects = 4, input tensors = 7
+      1 llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 750) (unknown id) - 4560 MiB free
+      1 ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+      1 ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml_opencl: device max workgroup size: 1024
+      1 ggml_opencl: device max image2d size: 16384 x 16384
+      1 ggml_opencl: device max image buffer size (pixels): 134217728
+      1 ggml_opencl: device FP16 support: true
+      1 ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0762.36.1 Compiler E031.45.02.25
+      1 ggml_opencl: OpenCL device: QUALCOMM Adreno(TM) 750
+      1 ggml_opencl: Adreno xmem F16xF32 GEMM enabled (temporary weight prepack)
+      1 ggml-hex: Loading driver libcdsprpc.so
+## L exit=0 [lvl=36 ac=true batT=362 skin=39.435 wake=Awake thermal=0]
+      2 ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+      2 ggml_opencl: device max workgroup size: 1024
+      2 ggml_opencl: device max image2d size: 16384 x 16384
+      2 ggml_opencl: device max image buffer size (pixels): 134217728
+      2 ggml_opencl: device FP16 support: true
+      2 ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0762.36.1 Compiler E031.45.02.25
+      2 ggml_opencl: OpenCL device: QUALCOMM Adreno(TM) 750
+      2 ggml_opencl: Adreno xmem F16xF32 GEMM enabled (temporary weight prepack)
+      1 sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+      1 sched_reserve: graph: nodes = 1054, splits = 1, input objects = 4, input tensors = 7
+      1 sched_reserve: graph (pp bs=512, tg bs=1): nodes = 1054 / 1054, splits = 199 / 2, input objects = 4 / 4, input tensors = 7 / 7
+      1 llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 750) (unknown id) - 4560 MiB free
+      1 leg_window arm=L rep=0 window=7 engine=npu rule=alternation tokens=32 us=1795040 tps=17.827 kl_mean=0.000018 kl_max=0.000128 kl_max_row=228 kl_diverged=0
+      1 leg_window arm=L rep=0 window=6 engine=cpu rule=alternation tokens=32 us=2117852 tps=15.110 kl_mean=0.000008 kl_max=0.000077 kl_max_row=216 kl_diverged=0
+      1 leg_window arm=L rep=0 window=5 engine=gpu rule=alternation tokens=32 us=1464473 tps=21.851 kl_mean=0.000007 kl_max=0.000071 kl_max_row=168 kl_diverged=0
+      1 leg_window arm=L rep=0 window=4 engine=npu rule=alternation tokens=32 us=1843597 tps=17.357 kl_mean=0.000028 kl_max=0.000250 kl_max_row=132 kl_diverged=0
+      1 leg_window arm=L rep=0 window=3 engine=cpu rule=alternation tokens=32 us=2178231 tps=14.691 kl_mean=0.000013 kl_max=0.000117 kl_max_row=108 kl_diverged=0
+      1 leg_window arm=L rep=0 window=2 engine=gpu rule=alternation tokens=32 us=1494589 tps=21.411 kl_mean=0.000006 kl_max=0.000041 kl_max_row=90 kl_diverged=0
+      1 leg_window arm=L rep=0 window=1 engine=npu rule=alternation tokens=32 us=1914226 tps=16.717 kl_mean=0.000040 kl_max=0.000389 kl_max_row=60 kl_diverged=0
+      1 leg_window arm=L rep=0 window=0 engine=cpu rule=alternation tokens=32 us=2116727 tps=15.118 kl_mean=0.000013 kl_max=0.000199 kl_max_row=24 kl_diverged=0
+      1 leg_total arm=L rep=0 generated=255 windows=8 hops=7 commit_bytes=17727488 commit_us=80619
+      1 leg_summary arm=L rep=0 engine=npu tokens=95 us=5552863 tps=17.108
+      1 leg_summary arm=L rep=0 engine=gpu tokens=64 us=2959062 tps=21.628
+      1 leg_summary arm=L rep=0 engine=cpu tokens=96 us=6412810 tps=14.970
+      1 kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000017 max=0.000389 kld_max=0.010000 status=PASS
+      1 ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+      1 ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+      1 ggml-opencl-tile32: self-check blk.9.ffn_up.weight: PASS max|diff| 2.235e-08 rms 0.0146
+      1 ggml-opencl-tile32: self-check blk.9.ffn_gate.weight: PASS max|diff| 2.049e-08 rms 0.0157
+      1 ggml-opencl-tile32: self-check blk.9.ffn_down.weight: PASS max|diff| 4.098e-08 rms 0.0142
+      1 ggml-opencl-tile32: self-check blk.9.attn_v.weight: PASS max|diff| 1.490e-08 rms 0.0157
+      1 ggml-opencl-tile32: self-check blk.9.attn_q.weight: PASS max|diff| 2.608e-08 rms 0.0149
+      1 ggml-opencl-tile32: self-check blk.9.attn_output.weight: PASS max|diff| 3.725e-08 rms 0.0126
+      1 ggml-opencl-tile32: self-check blk.9.attn_k.weight: PASS max|diff| 1.490e-08 rms 0.0142
+      1 ggml-opencl-tile32: self-check blk.8.shortconv.out_proj.weight: PASS max|diff| 1.490e-08 rms 0.0160
+      1 ggml-opencl-tile32: self-check blk.8.shortconv.in_proj.weight: PASS max|diff| 1.863e-08 rms 0.0175
+      1 ggml-opencl-tile32: self-check blk.8.ffn_up.weight: PASS max|diff| 1.863e-08 rms 0.0147
+      1 ggml-opencl-tile32: self-check blk.8.ffn_gate.weight: PASS max|diff| 2.235e-08 rms 0.0153
+## L-npu exit=0 [lvl=37 ac=true batT=359 skin=38.164 wake=Awake thermal=0]
+      2 ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+      2 ggml_opencl: device max workgroup size: 1024
+      2 ggml_opencl: device max image2d size: 16384 x 16384
+      2 ggml_opencl: device max image buffer size (pixels): 134217728
+      2 ggml_opencl: device FP16 support: true
+      2 ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0762.36.1 Compiler E031.45.02.25
+      2 ggml_opencl: OpenCL device: QUALCOMM Adreno(TM) 750
+      2 ggml_opencl: Adreno xmem F16xF32 GEMM enabled (temporary weight prepack)
+      1 sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+      1 sched_reserve: graph: nodes = 1054, splits = 1, input objects = 4, input tensors = 7
+      1 sched_reserve: graph (pp bs=512, tg bs=1): nodes = 1054 / 1054, splits = 199 / 2, input objects = 4 / 4, input tensors = 7 / 7
+      1 llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 750) (unknown id) - 4560 MiB free
+      1 leg_window arm=L rep=0 window=3 engine=npu rule=none tokens=32 us=1800691 tps=17.771 kl_mean=0.000020 kl_max=0.000198 kl_max_row=120 kl_diverged=0
+      1 leg_window arm=L rep=0 window=2 engine=npu rule=none tokens=32 us=1869683 tps=17.115 kl_mean=0.000025 kl_max=0.000434 kl_max_row=84 kl_diverged=0
+      1 leg_window arm=L rep=0 window=1 engine=npu rule=none tokens=32 us=1868152 tps=17.129 kl_mean=0.000024 kl_max=0.000167 kl_max_row=36 kl_diverged=0
+      1 leg_window arm=L rep=0 window=0 engine=npu rule=none tokens=32 us=1887913 tps=16.950 kl_mean=0.000020 kl_max=0.000174 kl_max_row=24 kl_diverged=0
+      1 leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+      1 leg_summary arm=L rep=0 engine=npu tokens=127 us=7426439 tps=17.101
+      1 kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000022 max=0.000434 kld_max=0.010000 status=PASS
+      1 ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+      1 ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+      1 ggml-opencl-tile32: self-check blk.9.ffn_up.weight: PASS max|diff| 2.235e-08 rms 0.0146
+      1 ggml-opencl-tile32: self-check blk.9.ffn_gate.weight: PASS max|diff| 2.049e-08 rms 0.0157
+      1 ggml-opencl-tile32: self-check blk.9.ffn_down.weight: PASS max|diff| 4.098e-08 rms 0.0142
+      1 ggml-opencl-tile32: self-check blk.9.attn_v.weight: PASS max|diff| 1.490e-08 rms 0.0157
+      1 ggml-opencl-tile32: self-check blk.9.attn_q.weight: PASS max|diff| 2.608e-08 rms 0.0149
+      1 ggml-opencl-tile32: self-check blk.9.attn_output.weight: PASS max|diff| 3.725e-08 rms 0.0126
+      1 ggml-opencl-tile32: self-check blk.9.attn_k.weight: PASS max|diff| 1.490e-08 rms 0.0142
+      1 ggml-opencl-tile32: self-check blk.8.shortconv.out_proj.weight: PASS max|diff| 1.490e-08 rms 0.0160
+      1 ggml-opencl-tile32: self-check blk.8.shortconv.in_proj.weight: PASS max|diff| 1.863e-08 rms 0.0175
+      1 ggml-opencl-tile32: self-check blk.8.ffn_up.weight: PASS max|diff| 1.863e-08 rms 0.0147
+      1 ggml-opencl-tile32: self-check blk.8.ffn_gate.weight: PASS max|diff| 2.235e-08 rms 0.0153
+      1 ggml-opencl-tile32: self-check blk.8.ffn_down.weight: PASS max|diff| 2.608e-08 rms 0.0148
+      1 ggml-opencl-tile32: self-check blk.7.shortconv.out_proj.weight: PASS max|diff| 1.490e-08 rms 0.0160
+      1 ggml-opencl-tile32: self-check blk.7.shortconv.in_proj.weight: PASS max|diff| 1.863e-08 rms 0.0170
+      1 ggml-opencl-tile32: self-check blk.7.ffn_up.weight: PASS max|diff| 1.863e-08 rms 0.0147
+      1 ggml-opencl-tile32: self-check blk.7.ffn_gate.weight: PASS max|diff| 2.049e-08 rms 0.0156
+      1 ggml-opencl-tile32: self-check blk.7.ffn_down.weight: PASS max|diff| 3.912e-08 rms 0.0144
+## L-gpu exit=1 [lvl=37 ac=true batT=354 skin=37.424 wake=Awake thermal=0]
+      2 ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+      2 ggml_opencl: device max workgroup size: 1024
+      2 ggml_opencl: device max image2d size: 16384 x 16384
+      2 ggml_opencl: device max image buffer size (pixels): 134217728
+      2 ggml_opencl: device FP16 support: true
+      2 ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0762.36.1 Compiler E031.45.02.25
+      2 ggml_opencl: OpenCL device: QUALCOMM Adreno(TM) 750
+      2 ggml_opencl: Adreno xmem F16xF32 GEMM enabled (temporary weight prepack)
+      1 sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+      1 sched_reserve: graph: nodes = 1054, splits = 1, input objects = 4, input tensors = 7
+      1 sched_reserve: graph (pp bs=512, tg bs=1): nodes = 1054 / 1054, splits = 199 / 2, input objects = 4 / 4, input tensors = 7 / 7
+      1 llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 750) (unknown id) - 4560 MiB free
+      1 leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 us=1384220 tps=23.118 kl_mean=0.075964 kl_max=0.740215 kl_max_row=97 kl_diverged=0
+      1 leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 us=1444890 tps=22.147 kl_mean=0.044869 kl_max=0.496251 kl_max_row=85 kl_diverged=0
+      1 leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 us=1432963 tps=22.331 kl_mean=0.066335 kl_max=0.524326 kl_max_row=48 kl_diverged=0
+      1 leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 us=1484275 tps=21.559 kl_mean=0.091335 kl_max=0.610969 kl_max_row=12 kl_diverged=0
+      1 leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+      1 leg_summary arm=L rep=0 engine=gpu tokens=127 us=5746348 tps=22.101
+      1 kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.069033 max=0.740215 kld_max=0.010000 status=FAIL
+      1 ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+      1 ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+      1 ggml-opencl-tile32: self-check blk.9.ffn_up.weight: PASS max|diff| 2.235e-08 rms 0.0146
+      1 ggml-opencl-tile32: self-check blk.9.ffn_gate.weight: PASS max|diff| 2.049e-08 rms 0.0157
+      1 ggml-opencl-tile32: self-check blk.9.ffn_down.weight: PASS max|diff| 4.098e-08 rms 0.0142
+      1 ggml-opencl-tile32: self-check blk.9.attn_v.weight: PASS max|diff| 1.490e-08 rms 0.0157
+      1 ggml-opencl-tile32: self-check blk.9.attn_q.weight: PASS max|diff| 2.608e-08 rms 0.0149
+      1 ggml-opencl-tile32: self-check blk.9.attn_output.weight: PASS max|diff| 3.725e-08 rms 0.0126
+      1 ggml-opencl-tile32: self-check blk.9.attn_k.weight: PASS max|diff| 1.490e-08 rms 0.0142
+      1 ggml-opencl-tile32: self-check blk.8.shortconv.out_proj.weight: PASS max|diff| 1.490e-08 rms 0.0160
+      1 ggml-opencl-tile32: self-check blk.8.shortconv.in_proj.weight: PASS max|diff| 1.863e-08 rms 0.0175
+      1 ggml-opencl-tile32: self-check blk.8.ffn_up.weight: PASS max|diff| 1.863e-08 rms 0.0147
+      1 ggml-opencl-tile32: self-check blk.8.ffn_gate.weight: PASS max|diff| 2.235e-08 rms 0.0153
+      1 ggml-opencl-tile32: self-check blk.8.ffn_down.weight: PASS max|diff| 2.608e-08 rms 0.0148
+      1 ggml-opencl-tile32: self-check blk.7.shortconv.out_proj.weight: PASS max|diff| 1.490e-08 rms 0.0160
+      1 ggml-opencl-tile32: self-check blk.7.shortconv.in_proj.weight: PASS max|diff| 1.863e-08 rms 0.0170
+      1 ggml-opencl-tile32: self-check blk.7.ffn_up.weight: PASS max|diff| 1.863e-08 rms 0.0147
+      1 ggml-opencl-tile32: self-check blk.7.ffn_gate.weight: PASS max|diff| 2.049e-08 rms 0.0156
+      1 ggml-opencl-tile32: self-check blk.7.ffn_down.weight: PASS max|diff| 3.912e-08 rms 0.0144
+## L-cpu exit=0 [lvl=38 ac=true batT=355 skin=38.22 wake=Awake thermal=0]
+      2 ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+      2 ggml_opencl: device max workgroup size: 1024
+      2 ggml_opencl: device max image2d size: 16384 x 16384
+      2 ggml_opencl: device max image buffer size (pixels): 134217728
+      2 ggml_opencl: device FP16 support: true
+      2 ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0762.36.1 Compiler E031.45.02.25
+      2 ggml_opencl: OpenCL device: QUALCOMM Adreno(TM) 750
+      2 ggml_opencl: Adreno xmem F16xF32 GEMM enabled (temporary weight prepack)
+      1 sched_reserve: graph: nodes = 1054, splits = 3, input objects = 4, input tensors = 7
+      1 sched_reserve: graph: nodes = 1054, splits = 1, input objects = 4, input tensors = 7
+      1 sched_reserve: graph (pp bs=512, tg bs=1): nodes = 1054 / 1054, splits = 199 / 2, input objects = 4 / 4, input tensors = 7 / 7
+      1 llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 750) (unknown id) - 4560 MiB free
+      1 leg_window arm=L rep=0 window=3 engine=cpu rule=none tokens=32 us=2054975 tps=15.572 kl_mean=0.000017 kl_max=0.000151 kl_max_row=126 kl_diverged=0
+      1 leg_window arm=L rep=0 window=2 engine=cpu rule=none tokens=32 us=2020624 tps=15.837 kl_mean=0.000008 kl_max=0.000049 kl_max_row=96 kl_diverged=0
+      1 leg_window arm=L rep=0 window=1 engine=cpu rule=none tokens=32 us=2164800 tps=14.782 kl_mean=0.000009 kl_max=0.000071 kl_max_row=48 kl_diverged=0
+      1 leg_window arm=L rep=0 window=0 engine=cpu rule=none tokens=32 us=2134812 tps=14.990 kl_mean=0.000013 kl_max=0.000199 kl_max_row=24 kl_diverged=0
+      1 leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+      1 leg_summary arm=L rep=0 engine=cpu tokens=127 us=8375211 tps=15.164
+      1 kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000199 kld_max=0.010000 status=PASS
+      1 ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+      1 ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)
+      1 ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+      1 ggml-opencl-tile32: self-check blk.9.ffn_up.weight: PASS max|diff| 2.235e-08 rms 0.0146
+      1 ggml-opencl-tile32: self-check blk.9.ffn_gate.weight: PASS max|diff| 2.049e-08 rms 0.0157
+      1 ggml-opencl-tile32: self-check blk.9.ffn_down.weight: PASS max|diff| 4.098e-08 rms 0.0142
+      1 ggml-opencl-tile32: self-check blk.9.attn_v.weight: PASS max|diff| 1.490e-08 rms 0.0157
+      1 ggml-opencl-tile32: self-check blk.9.attn_q.weight: PASS max|diff| 2.608e-08 rms 0.0149
+      1 ggml-opencl-tile32: self-check blk.9.attn_output.weight: PASS max|diff| 3.725e-08 rms 0.0126
+      1 ggml-opencl-tile32: self-check blk.9.attn_k.weight: PASS max|diff| 1.490e-08 rms 0.0142
+      1 ggml-opencl-tile32: self-check blk.8.shortconv.out_proj.weight: PASS max|diff| 1.490e-08 rms 0.0160
+      1 ggml-opencl-tile32: self-check blk.8.shortconv.in_proj.weight: PASS max|diff| 1.863e-08 rms 0.0175
+      1 ggml-opencl-tile32: self-check blk.8.ffn_up.weight: PASS max|diff| 1.863e-08 rms 0.0147
+      1 ggml-opencl-tile32: self-check blk.8.ffn_gate.weight: PASS max|diff| 2.235e-08 rms 0.0153
+      1 ggml-opencl-tile32: self-check blk.8.ffn_down.weight: PASS max|diff| 2.608e-08 rms 0.0148
+      1 ggml-opencl-tile32: self-check blk.7.shortconv.out_proj.weight: PASS max|diff| 1.490e-08 rms 0.0160
+      1 ggml-opencl-tile32: self-check blk.7.shortconv.in_proj.weight: PASS max|diff| 1.863e-08 rms 0.0170
+      1 ggml-opencl-tile32: self-check blk.7.ffn_up.weight: PASS max|diff| 1.863e-08 rms 0.0147
+      1 ggml-opencl-tile32: self-check blk.7.ffn_gate.weight: PASS max|diff| 2.049e-08 rms 0.0156
+      1 ggml-opencl-tile32: self-check blk.7.ffn_down.weight: PASS max|diff| 3.912e-08 rms 0.0144
+== xiaomi end Thu Oct  8 00:32:44 EDT 2026 [lvl=38 ac=true batT=356 skin=37.382 wake=Awake thermal=0]
+## L windows/kld
+leg_window arm=L rep=0 window=0 engine=cpu rule=alternation tokens=32 us=2116727 tps=15.118 kl_mean=0.000013 kl_max=0.000199 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu rule=alternation tokens=32 us=1914226 tps=16.717 kl_mean=0.000040 kl_max=0.000389 kl_max_row=60 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=alternation tokens=32 us=1494589 tps=21.411 kl_mean=0.000006 kl_max=0.000041 kl_max_row=90 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=alternation tokens=32 us=2178231 tps=14.691 kl_mean=0.000013 kl_max=0.000117 kl_max_row=108 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=npu rule=alternation tokens=32 us=1843597 tps=17.357 kl_mean=0.000028 kl_max=0.000250 kl_max_row=132 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=gpu rule=alternation tokens=32 us=1464473 tps=21.851 kl_mean=0.000007 kl_max=0.000071 kl_max_row=168 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=cpu rule=alternation tokens=32 us=2117852 tps=15.110 kl_mean=0.000008 kl_max=0.000077 kl_max_row=216 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu rule=alternation tokens=32 us=1795040 tps=17.827 kl_mean=0.000018 kl_max=0.000128 kl_max_row=228 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=96 us=6412810 tps=14.970
+leg_summary arm=L rep=0 engine=gpu tokens=64 us=2959062 tps=21.628
+leg_summary arm=L rep=0 engine=npu tokens=95 us=5552863 tps=17.108
+leg_total arm=L rep=0 generated=255 windows=8 hops=7 commit_bytes=17727488 commit_us=80619
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000017 max=0.000389 kld_max=0.010000 status=PASS
+## L-npu windows/kld
+leg_window arm=L rep=0 window=0 engine=npu rule=none tokens=32 us=1887913 tps=16.950 kl_mean=0.000020 kl_max=0.000174 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu rule=none tokens=32 us=1868152 tps=17.129 kl_mean=0.000024 kl_max=0.000167 kl_max_row=36 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu rule=none tokens=32 us=1869683 tps=17.115 kl_mean=0.000025 kl_max=0.000434 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=npu rule=none tokens=32 us=1800691 tps=17.771 kl_mean=0.000020 kl_max=0.000198 kl_max_row=120 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=127 us=7426439 tps=17.101
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000022 max=0.000434 kld_max=0.010000 status=PASS
+## L-gpu windows/kld
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 us=1484275 tps=21.559 kl_mean=0.091335 kl_max=0.610969 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 us=1432963 tps=22.331 kl_mean=0.066335 kl_max=0.524326 kl_max_row=48 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 us=1444890 tps=22.147 kl_mean=0.044869 kl_max=0.496251 kl_max_row=85 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 us=1384220 tps=23.118 kl_mean=0.075964 kl_max=0.740215 kl_max_row=97 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 us=5746348 tps=22.101
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.069033 max=0.740215 kld_max=0.010000 status=FAIL
+## L-cpu windows/kld
+leg_window arm=L rep=0 window=0 engine=cpu rule=none tokens=32 us=2134812 tps=14.990 kl_mean=0.000013 kl_max=0.000199 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=cpu rule=none tokens=32 us=2164800 tps=14.782 kl_mean=0.000009 kl_max=0.000071 kl_max_row=48 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=cpu rule=none tokens=32 us=2020624 tps=15.837 kl_mean=0.000008 kl_max=0.000049 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=none tokens=32 us=2054975 tps=15.572 kl_mean=0.000017 kl_max=0.000151 kl_max_row=126 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=127 us=8375211 tps=15.164
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/govhtp-xiaomi/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000199 kld_max=0.010000 status=PASS
+## L placement
+ggml-hex: Hexagon Arch version v75, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+load_tensors:  HTP0-HOST-W model buffer size =   219.75 MiB
+load_tensors:  HTP0-TILE32 model buffer size =  1306.12 MiB
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: GGML_OPENCL_TILE32_UNMEASURED=1 admits an unmeasured device (QUALCOMM Adreno(TM) 750, OpenCL 3.0 Adreno(TM) 750, OpenCL 3.0 QUALCOMM build: 0762.36.1 Compiler E031.45.02.25) - lab only
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 25, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 26, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 27, io-coherent)
