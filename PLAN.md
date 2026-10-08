@@ -1956,6 +1956,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   shared component. Read-only diagnosis dispatched (reviewer n2 `b126c25f`, `diagnose-hardreset-n2.md`). NOT
   reproduced on purpose: each repro is a hard reset of the owner's phone - the owner decides. The comparison
   restarted as round 2 (`run-step5-vsleg2.sh`): back-to-back 2048-token runs (n_ctx 2816), up to 4 per arm.
+  **Diagnosis (reviewer n2, read-only, `diagnose-hardreset-n2.md`)**: the bench config is NOT the app's - bench FA
+  DISABLED + f16 KV (16,384 B/token) + one leg sustained ~1500 tokens; app n_ctx 8192, KV q8_0/q4_0 (6,656 B/token),
+  FA auto, hops every window. n_ctx sizes the reserve graph (n_kv = n_ctx): compute plan 265.51 MiB at n_ctx 768 ->
+  599.51 MiB at 8960 (host-measured). REFUTED: a mid-decode gallocr realloc (none at any n_kv, host 8192 tokens) and
+  any 2048 constant on the executed path (all FA-only or HMX tile bytes). Leading family: a device fault inside the
+  n_ctx-sized, lazily mapped KV/compute buffers (v73 maps FASTRPC_MAP_FD_DELAYED; cell 2048 = 2 MiB/layer) or driver
+  resource exhaustion; thermal/power not excluded. Caveat: the flushed log bounds the crash to positions 1984-2111.
+  Discriminators need the S23 and may reset it (owner's call): llama-bench `-n 1600` at n_ctx 8960 x {`-fa 0`,
+  `-fa 1`, `-ctk q8_0 -ctv q4_0`, `-dev GPUOpenCL`}, then `-c 8960 -p 1900 -n 200` (position vs time).
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced
