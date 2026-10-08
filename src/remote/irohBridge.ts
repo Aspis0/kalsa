@@ -9,7 +9,7 @@ import type { IrohLane } from "../../modules/kalsa-iroh/src/index";
 import type { IrohTunnel } from "./irohHttp";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "../util/base64";
 import { irohDialReason, logIrohBridgeDecision, logIrohDial } from "./road";
-import { notifyIrohTunnelClosed } from "./irohBackgroundStop";
+import { notifyIrohDial, notifyIrohTunnelClosed } from "./irohBackgroundStop";
 
 type IrohModule = typeof import("../../modules/kalsa-iroh/src/index");
 
@@ -194,6 +194,9 @@ export async function openIrohTunnel(
     if (module === null) {
       throw dialError("KALSA_IROH_NO_MODULE", "iroh module unavailable");
     }
+    // Reset the idle clock first: a stop that already fired serializes
+    // inside ensureStarted instead of racing this dial.
+    notifyIrohDial();
     await ensureStarted(module, signal);
     const id = await raceDial(() => module.openTunnel(nodeHex, lane), signal, module);
     logIrohDial(lane, nodeHex, "ok", Date.now() - startedAt);

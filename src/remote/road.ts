@@ -31,7 +31,7 @@ export type IrohDialReason =
   | "async_context"
   | "other";
 
-export type IrohBridgeStage = "start" | "background_stop";
+export type IrohBridgeStage = "start" | "background_stop" | "idle_stop";
 export type IrohBridgeReason = "started" | "stopped" | "tunnels_open" | "error" | "stop_timeout";
 
 export const IROH_DIAL_ERROR_REASONS = {
@@ -117,7 +117,7 @@ export function logIrohDial(
   }
 }
 
-/** Privacy-safe lifecycle decision for lazy bridge start and background stop. */
+/** Privacy-safe lifecycle decision for lazy bridge start, background and idle stops. */
 export function logIrohBridgeDecision(
   stage: IrohBridgeStage,
   reason: IrohBridgeReason,

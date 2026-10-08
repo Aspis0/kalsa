@@ -1,6 +1,8 @@
 import {
   bindIrohBackgroundStop,
   IROH_BACKGROUND_STOP_DELAY_MS,
+  IROH_IDLE_STOP_DELAY_MS,
+  notifyIrohDial,
   notifyIrohTunnelClosed,
   type IrohBackgroundAppState,
 } from "./irohBackgroundStop";
@@ -49,19 +51,19 @@ function appStateSource(): {
   };
 }
 
+beforeEach(() => {
+  jest.useFakeTimers();
+  jest.spyOn(console, "log").mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  unbind?.();
+  unbind = null;
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
+
 describe("Android iroh background stop", () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.spyOn(console, "log").mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    unbind?.();
-    unbind = null;
-    jest.useRealTimers();
-    jest.restoreAllMocks();
-  });
-
   test("stops after the background delay", async () => {
     const app = appStateSource();
     const stopBridge = jest.fn(async () => true);
@@ -178,5 +180,106 @@ describe("Android iroh background stop", () => {
     expect(stopBridge).not.toHaveBeenCalled();
     expect(app.remove).not.toHaveBeenCalled();
     iosUnbind();
+  });
+});
+
+describe("Android iroh foreground idle stop", () => {
+  test("stops 120 s after a dial with no further dial", async () => {
+    const app = appStateSource();
+    const stopBridge = jest.fn(async () => true);
+    bind(app.source, "android", stopBridge);
+    app.change("active");
+    notifyIrohDial();
+
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS - 1);
+    expect(stopBridge).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    await Promise.resolve();
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+
+    const log = jest.spyOn(console, "log");
+    const decisions = log.mock.calls
+      .filter((call) => call[0] === "KALSA_ROAD")
+      .map((call) => String(call[1]));
+    expect(decisions.some((line) => line.includes('"stage":"idle_stop"'))).toBe(true);
+  });
+
+  test("a dial at 100 s pushes the idle deadline out", () => {
+    const app = appStateSource();
+    const stopBridge = jest.fn(async () => true);
+    bind(app.source, "android", stopBridge);
+    app.change("active");
+    notifyIrohDial();
+
+    jest.advanceTimersByTime(100_000);
+    expect(stopBridge).not.toHaveBeenCalled();
+    notifyIrohDial();
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS - 1);
+    expect(stopBridge).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+  });
+
+  test("open tunnels keep the bridge and the final close retries", async () => {
+    const app = appStateSource();
+    const stopBridge = jest.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    bind(app.source, "android", stopBridge);
+    app.change("active");
+    notifyIrohDial();
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS);
+    await Promise.resolve();
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+
+    notifyIrohTunnelClosed();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(stopBridge).toHaveBeenCalledTimes(2);
+  });
+
+  test("background cancels the idle timer and takes over", async () => {
+    const app = appStateSource();
+    const stopBridge = jest.fn(async () => true);
+    bind(app.source, "android", stopBridge);
+    app.change("active");
+    notifyIrohDial();
+    app.change("background");
+
+    jest.advanceTimersByTime(IROH_BACKGROUND_STOP_DELAY_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+
+    // Well past the idle deadline: the cancelled idle timer must stay silent.
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS);
+    expect(stopBridge).toHaveBeenCalledTimes(1);
+  });
+
+  test("no stop before the first dial", () => {
+    const app = appStateSource();
+    const stopBridge = jest.fn(async () => true);
+    bind(app.source, "android", stopBridge);
+    app.change("active");
+
+    jest.advanceTimersByTime(10 * IROH_IDLE_STOP_DELAY_MS);
+    expect(stopBridge).not.toHaveBeenCalled();
+  });
+
+  test("returning active re-arms only when a dial happened", () => {
+    const app = appStateSource();
+    const stopBridge = jest.fn(async () => true);
+    bind(app.source, "android", stopBridge);
+
+    app.change("background");
+    app.change("active");
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS);
+    expect(stopBridge).not.toHaveBeenCalled();
+
+    notifyIrohDial();
+    app.change("background");
+    app.change("active");
+    jest.advanceTimersByTime(IROH_IDLE_STOP_DELAY_MS - 1);
+    expect(stopBridge).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1);
+    expect(stopBridge).toHaveBeenCalledTimes(1);
   });
 });
