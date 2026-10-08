@@ -1475,7 +1475,8 @@ coordinator's overnight; the engine branch may be pushed to our fork (never upst
   ~15 % vs the raw rule at equal speed and is the S23 row's default. All of it is on the three mains: engine
   `e2b8cc067`, binding `a67d5bb8`, app `5f724ee1` (+ later kalsa-brain commits).
 - NOT PROVEN:
-  1. **That the governor beats a single leg.** On 2048-token runs the NPU ALONE (17.1 tok/s, 2.8 C/1k) beats the
+  1. **That the governor beats a single leg - and round 2 (2026-10-08) says it does NOT, as tuned: back-to-back turns,
+     governor 768 tokens before a leg limit vs NPU alone 2017 and GPU alone 4034 (see the round-2 entry).** On 2048-token runs the NPU ALONE (17.1 tok/s, 2.8 C/1k) beats the
      governor (15.2 tok/s, ~3.4 C/1k) on both axes; the governor beats the GPU alone on speed (14.5) but not on heat
      (3.2), and the CPU alone (12.8, 4.7) on both. The governor's case can only be a SUSTAINED one (a single leg
      reaches a limit first). First sustained NPU-alone attempt hard-reset the S23 (entry below); re-run with a
@@ -1965,6 +1966,22 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   resource exhaustion; thermal/power not excluded. Caveat: the flushed log bounds the crash to positions 1984-2111.
   Discriminators need the S23 and may reset it (owner's call): llama-bench `-n 1600` at n_ctx 8960 x {`-fa 0`,
   `-fa 1`, `-ctk q8_0 -ctv q4_0`, `-dev GPUOpenCL`}, then `-c 8960 -p 1900 -n 200` (position vs time).
+- **ROUND 2 RESULT: governor vs NPU alone vs GPU alone, back-to-back 2048-token turns (`raw/session18-vsleg2-backtoback.grep`,
+  ABC CBA, every arm from skin 31.x, all samples Awake, n=2 per arm, stop = skin 43 or any leg < 10 C from its trip)**:
+  | arm | tokens before the stop | decode tok/s | skin at stop | what stopped it |
+  |---|---|---|---|---|
+  | GPU alone | 4034 / 4034 (2 full turns) | 15.0 then 12.5 (throttles in turn 2) | 41.9 / 42.1, Android status 3 | the NPU PREFILL of turn 3 (NSP 96.7-97.5 C, past its 95 C trip) |
+  | NPU alone | 2017 / 2017 (1 full turn) | 17.7 / 17.8 | 37.8 / 37.7 | the NPU prefill of turn 2 |
+  | governor (S23 default) | 768 / 768 (mid turn 1) | ~17.2 | 38.0 / 34.8 | its own return to the NPU (17 / 9 hops) |
+  Reading, honest: **under this stop rule the governor is the WORST arm, the NPU alone holds the coolest skin, the GPU
+  alone lasts longest but reaches SEVERE (status 3) and slows to 12.5.** Cause for the governor: it reads the NPU's
+  headroom while the NPU is idle (55-60 C), goes back to it, and the loaded step puts the NSP at 82-87 C within 2 s.
+  Prefill on the NPU spikes past the 95 C trip once the phone is warm; the `cdsp` cooling device never engaged.
+  So it is NOT proven that the governor beats a single leg; it is shown that today's rule cannot see the NPU's loaded
+  temperature. Open questions for the owner: (1) the 10 C floor was set when the reset looked thermal - the resets are
+  now a deterministic bug, so is the right endurance stop skin 43 / Android status, or the NPU's trip? (2) fix the rule:
+  judge the NPU by its LOADED temperature (last loaded sample, or idle + measured step) and price the prefill burst;
+  (3) the NPU DVFS corner test (a lower corner should lower the step itself).
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced

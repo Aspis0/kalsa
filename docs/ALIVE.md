@@ -1062,6 +1062,15 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
   only a sustained run can show the governor's case. First sustained NPU-alone attempt: the S23 HARD-RESET after ~140 s
   (NPU 5 C from its passive trip, skin 39.9; cause not established - kernel log truncated). Re-run with a per-leg
   headroom stop. Xiaomi 14 and QDC: not tested at all yet (the GPU leg's gate admits only Adreno 740 / E031.41).
+- 2026-10-08 night: the S23 HARD-RESET twice, both right after 1504 generated tokens with n_ctx 8960 (bench-only config:
+  FA off, f16 KV), once on the NPU leg (NSP 90 C) and once on the GPU leg (NSP 66 C): a deterministic bug, not heat;
+  the app's config differs (FA auto, q8_0/q4_0 KV, hops) and its 2749-position turn did not reset. Repro = owner's call.
+- 2026-10-08 governor vs single legs, back-to-back 2048-token turns until a leg is 10 C from its trip or skin 43:
+  GPU alone 4034 tokens (skin 42, SEVERE, 15 -> 12.5 tok/s), NPU alone 2017 (skin 37.8, 17.7 tok/s), governor 768.
+  The governor LOSES as tuned: it sees the NPU idle (55-60 C), returns, and the NPU is at 82-87 C two seconds later.
+- 2026-10-08 Xiaomi 14 (SM8650): one copy loads and the three-leg rotation is correct (KL 0.000017), NPU and CPU legs
+  alone correct, the GPU leg alone is WRONG on Adreno 750 (KL 0.05-0.14, nondeterministic; plain OpenCL is fine) -
+  why R2 keeps unmeasured phones off. Engine main `2d970bdf3`: the lab-only gate waiver exists only in lab builds.
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.
