@@ -2262,8 +2262,15 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
 - **Upstream merge b11514 (owner 2026-10-08: "prendiamo quasi tutto e lasciamo le nostre patch")**: worktree
   `~/Projects/kalsallama-upstream-b11514` at e01a61cee, `git merge de7fa0a3c` (upstream tag b11514, 210 commits past
   our base 81ff93ea1): 11 conflicted files / 27 hunks (hexagon ggml-hexagon.cpp 3, matmul-ops.c 2; server-context.cpp
-  5, test_slot_save.py 9; backend-impl.h, repack.cpp, llama-context.h, llama-ext.h, tests). GLM `9e7a7cb9` resolves,
-  builds host + Android + skels v73-v81, commits locally; then hostile audit, QDC + S23 legs correctness, push. The
+  5, test_slot_save.py 9; backend-impl.h, repack.cpp, llama-context.h, llama-ext.h, tests). **Merged locally by GLM
+  `9e7a7cb9` (archived): `904d38fad` (parents e01a61cee + de7fa0a3c), NOT pushed.** Host build EXIT 0, `ctest -R
+  governor` 24/24, tile32 host tests and CPU MUL_MAT/MUL_MAT_ID/GET_ROWS/SSM_CONV/CPY filters EXIT 0; Android
+  governor-bench 907e26e7 + skels v73/v75/v79/v81 built. Hexagon HMX gate: upstream's relaxed `is_matmul_id` gate taken
+  over our logical-N gate 15ad4b8e3 (upstream DSP handles `valid_rows`) - to be proven by the audit and the device
+  runs. **Metal**: b11514's own test-backend-ops SIGSEGVs on FLASH_ATTN_EXT f32 dk128/dv96 (missing
+  `kernel_flash_attn_ext_vec_f32_dk128_dv96`, NULL pipeline); same crash on pristine de7fa0a3c, e01a61cee EXIT 0 -> an
+  upstream bug, unfixed; Brain exposed only if a model runs dk != dv vec FA on Metal. Next: hostile audit (deepseek
+  `6f1364b8`; luna hit its usage limit), QDC + S23 legs on the merged bench, kalsa-brain desktop/Metal checks, push. The
   desktop session (kalsa-brain 2c574341) was asked for its server picks in
   `onecopy-three-legs/upstream-b11514-desktop-notes.md`. **Binding bump** to e01a61cee done locally (`f8cde278` in
   `~/Projects/llama.rn-kalsa-onecopy`, NOT pushed): glue needs no change, but `assert-htp-skels.sh` fails until the
