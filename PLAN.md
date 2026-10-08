@@ -2259,6 +2259,16 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   Others: no runtime found doing thermal leg hopping; LiteRT-LM ships a Qualcomm NPU path opt-in (QAIRT), MNN 3.6.1
   has a Hexagon backend (July); the 2026 papers put decode on the CPU (e.g. arXiv 2606.27906 on the 8 Elite), which
   our S23 measurement contradicts for skin heat (CPU is the hottest leg per token).
+- **Upstream merge b11514 (owner 2026-10-08: "prendiamo quasi tutto e lasciamo le nostre patch")**: worktree
+  `~/Projects/kalsallama-upstream-b11514` at e01a61cee, `git merge de7fa0a3c` (upstream tag b11514, 210 commits past
+  our base 81ff93ea1): 11 conflicted files / 27 hunks (hexagon ggml-hexagon.cpp 3, matmul-ops.c 2; server-context.cpp
+  5, test_slot_save.py 9; backend-impl.h, repack.cpp, llama-context.h, llama-ext.h, tests). GLM `9e7a7cb9` resolves,
+  builds host + Android + skels v73-v81, commits locally; then hostile audit, QDC + S23 legs correctness, push. The
+  desktop session (kalsa-brain 2c574341) was asked for its server picks in
+  `onecopy-three-legs/upstream-b11514-desktop-notes.md`. **Binding bump** to e01a61cee done locally (`f8cde278` in
+  `~/Projects/llama.rn-kalsa-onecopy`, NOT pushed): glue needs no change, but `assert-htp-skels.sh` fails until the
+  shipped skels are rebuilt (`scripts/build-htp-skels.sh`, they are from 5cb7e14a0) -> redo the bump on the merged
+  engine and rebuild the skels once.
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
