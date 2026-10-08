@@ -215,3 +215,9 @@ Preconditions for ANY new capability-table row (SM8650 / 8 Elite), not for the S
 - F3 (P2): f32 norm MUL, SSM_CONV and fused norms over HOST-W have NO numeric self-check (only TILE32 v4 and the Q6_K lm_head). The Xiaomi GPU-leg KL failure (2026-10-08) sits exactly here.
 - F4 (P2): admission success + compute-time miss is GGML_ABORT, not a demotion.
 P3: F6 gate verdict cached per device (env flip mid-process gives a bogus reason); F7 getenv per op + bool param next to pointers; F8 test gaps (exact-match, override-on max_alloc, _WIN32 skip); F10 flag undocumented, not a full lab recipe.
+
+## One-copy devices-list fix (audit `onecopy-three-legs/audit-devices-nullptr-n2.md`, 2026-10-08) - no P0/P1
+- F1 (P2): the jest guard scans only cpp/rn-llama.cpp; the same raw device handoff is built in cpp/jsi/RNLlamaJSI.cpp:547/555 (terminated by :158) and cpp/jsi/JSIParams.cpp:438 - extend the guard to those files.
+- F2 (P2): the guard parses a shape, not the invariant: the copy branch trusts any `X.devices = Y.devices`; `->devices =`, `.assign/.insert` not matched; comments count as sites; brittle on trailing commas / std::vector<..>{..}. A one-line assert next to the existing kv/buft asserts at the engine's common.cpp:1610-1611 (in kalsallama, not a local patch) would enforce the contract at runtime.
+- F3 (P2, pre-existing): `params_dft.devices = draft_params.devices` (rn-llama.cpp:1500) drops the caller's HTP-filtering list for the MTP draft model (governor off + MTP only); upstream's common_base_params_to_speculative keeps the base devices.
+- P3: the model retains a pointer into the caller's devices vector (llama-model.cpp:1354; no post-load reader, latent); the WHY comment at rn-llama.cpp:332 words the contract inverted; guard file header not updated.

@@ -1992,6 +1992,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   The app's crash marker then blocks every eager load (`KALSA_LOAD ... refusedBy:"marker"`, "Caricamento non
   riuscito") - that, not the share deep link, is why the turn harness could not stage. S23 keys restored to
   `keys-found.txt`. Fix + jest source guard dispatched (mimo `ddb378ec`), then audit, binding main, app pin.
+  **FIXED**: binding `e97c8383` (mimo; `{ npu, gpu, nullptr }` + a jest guard over every devices list in
+  rn-llama.cpp, non-vacuous: EXIT=1 with the fix reverted, 0 with it); audit reviewer n2 `audit-devices-nullptr-n2.md`:
+  no P0/P1, P2/P3 -> BACKLOG. **binding main = `e97c8383`; app main `d3e0a7e5`** pins it (gates EXIT=0: npm ci,
+  provenance 1179 files, tsc, apk.yml harness block, jest src/engine 1210/1210); apk.yml run 37740856001 dispatched
+  (debuggable; kalsa-brain agreed). Next: install on the S23, one in-app turn, decode_tokens_gpu.
 - **Xiaomi 14 (SM8650, v75, Adreno 750), plugged, correctness only (`xiaomi-sm8650/raw/`)**, engine `dbdeb628e` with
   the lab-only `GGML_OPENCL_TILE32_UNMEASURED=1`: one copy LOADS and PLACES as on the S23 (v75 session, TILE32 x2 +
   HOST-W imports, `shared weights: TILE32 1369571328 HOST 230420480 CPU 0`, 167 self-checks PASS); forced
