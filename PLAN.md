@@ -2081,6 +2081,9 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   BACKLOG. **Pushed: engine main = `fbf33176c`.** Android bench `~/Projects/kalsa-artifacts-loadstep-fbf`
   (governor-bench 49f9c60f, GLM `b67fcf27`) on the S23 in `step5-s23/r3f/`; round-3 script now uses it. Repro round 2
   also: lb_npu (two-copy NPU, ONE context, n_ctx 8960, FA off f16) ran 300 s with no reset; gb_cpu2 skipped (moot).
+  lb_npu_app aborted at load: `pre-allocated tensor (cache_v_l2 (view)) in a buffer (HTP0) that cannot run the
+  operation (SET_ROWS)` - plain llama-bench -dev HTP0 puts a q4_0 V cache on HTP0, which cannot write it; a bench
+  placement, not the app's path (`step5-s23/raw/session24-repro2-tail.grep`). Next: the proof run (unplugged), round 3.
 - **GPU leg on other Adrenos (owner 2026-10-08: "pensavo la GPU funzionava dappertutto ma non è vero")**: precise
   state - plain OpenCL (own buffers) is correct on the 750; the ONE-COPY GPU leg (OpenCL reading the NPU's imported
   buffers) is wrong on the 750 (nondeterministic KL 0.05-0.14) and untested on the 830 (8 Elite, v79: QDC blocked by

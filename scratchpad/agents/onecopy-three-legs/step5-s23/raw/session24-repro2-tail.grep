@@ -1,0 +1,36 @@
+# S23 repro round 2 tail: lb_npu (llama-bench -dev HTP0 two-copy, ONE context, n_ctx 8960, FA off f16) 300 s no reset; lb_npu_app aborted at load (HTP0 cannot SET_ROWS into a q4_0 V cache - a llama-bench placement, not a reset); gb_cpu2 skipped
+== repro2 start Thu Oct  8 10:30:17 EDT 2026 boot 097141c0-61cf-49ca-8510-6b302168e874 gb 1d74341d72fc lb ddbb98027d40 [lvl=48 ac=true usb=false wl=false batT=349 skin=34.5 wake=Awake thermal=0 traced=0]
+## mem_ctl start 1791470178 after 360s cool wait [lvl=52 ac=true usb=false wl=false batT=342 skin=33.9 wake=Awake thermal=0 traced=0]
+## mem_ctl exit=0 (124 = cut by timeout: survived past the reset position) end 1791470330 [lvl=52 ac=true usb=false wl=false batT=406 skin=41.3 wake=Awake thermal=2 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+windows: 64
+== repro2 start Thu Oct  8 10:40:02 EDT 2026 boot 097141c0-61cf-49ca-8510-6b302168e874 gb 1d74341d72fc lb ddbb98027d40 [lvl=52 ac=true usb=false wl=false batT=396 skin=38.5 wake=Awake thermal=2 traced=0]
+## mem_squeeze start 1791471244 after 840s cool wait [lvl=62 ac=true usb=false wl=false batT=341 skin=33.9 wake=Awake thermal=0 traced=0]
+hog up: MemAvailable:    4806020 kB
+## mem_squeeze exit=0 (124 = cut by timeout: survived past the reset position) end 1791471440 [lvl=62 ac=true usb=false wl=false batT=405 skin=41.3 wake=Awake thermal=2 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+windows: 64
+## lb_npu start 1791472252 after 810s cool wait [lvl=71 ac=true usb=false wl=false batT=341 skin=33.9 wake=Awake thermal=0 traced=0]
+## lb_npu exit=124 (124 = cut by timeout: survived past the reset position) end 1791472552 [lvl=71 ac=true usb=false wl=false batT=426 skin=42.9 wake=Awake thermal=3 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+set_abort_callback: call
+windows: 0
+gb_cpu2 SKIPPED by operator 1791472842: cause found (bench logits rows); a cpu-leg run on the buggy bench proves nothing
+## lb_npu_app start 1791473544 after 990s cool wait [lvl=81 ac=true usb=false wl=false batT=341 skin=33.9 wake=Awake thermal=0 traced=0]
+## lb_npu_app exit=134 (124 = cut by timeout: survived past the reset position) end 1791473549 [lvl=81 ac=true usb=false wl=false batT=341 skin=34.0 wake=Awake thermal=0 traced=0]
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+set_abort_callback: call
+windows: 0
+== repro2 end Thu Oct  8 11:32:29 EDT 2026 [lvl=81 ac=true usb=false wl=false batT=341 skin=34.0 wake=Awake thermal=0 traced=0]
+begin mem_ctl 1791470178
+end mem_ctl exit=0 1791470330
+begin mem_squeeze 1791471244
+end mem_squeeze exit=0 1791471440
+begin lb_npu 1791472252
+end lb_npu exit=124 1791472552
+end gb_cpu2 exit=skipped-cause-found 1791472842
+begin lb_npu_app 1791473544
+end lb_npu_app exit=134 1791473549
+/workspace/ggml/src/ggml-backend.cpp:964: pre-allocated tensor (cache_v_l2 (view)) in a buffer (HTP0) that cannot run the operation (SET_ROWS)
