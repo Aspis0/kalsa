@@ -1051,7 +1051,10 @@ Lab `scratchpad/agents/onecopy-three-legs/REPORT.md`; engine `feat/governor-onec
 - 2026-10-07 app main `dddc8e4b` pins binding `1eb78bfe` / engine `5cb7e14a0`: on the S23 only, with the governor on,
   the app loads ONE model with three decode legs and heat-weighted hops; other phones unchanged.
 - 2026-10-07 IN-APP on the S23: the table says one_copy:1, no fallback, a real 1760+989-token turn ran with prefill
-  and decode on the NPU and 8 thermal hops to the CPU; coherent answer. Jelly negative control next.
+  and decode on the NPU and 8 thermal hops to the CPU; coherent answer.
+- 2026-10-07 Jelly (no NPU): the app never hands it to the governor, so one-copy cannot happen there; local turn ran as
+  today. Engine and binding forks are now main-only (owner: everything lands in main); app main carries the GPU-leg
+  token counter in KALSA_GOVERNOR (5f724ee1).
 - Owner 2026-10-05: tied output = J(1) (GPU reads the flat Q6_K in place inside the NPU decode); options 2 and 3 closed.
 - Session handover 2026-10-05: `scratchpad/HANDOVER-GOVERNOR-2026-10-05.md` (next: AoS kernel profiling on a charged
   S23, step-4b G re-run, step 5, step 6). Closed worktrees removed; option 3 and the revert experiment kept as archive tags.

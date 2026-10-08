@@ -1864,8 +1864,20 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   unchanged) -> **engine main = `e2b8cc067`**, `feat/governor-onecopy` deleted, old `spike/onecopy-hmx-raw` archived as
   tag `archive/spike/onecopy-hmx-raw` and deleted: the engine fork has ONE branch, main. Binding: main fast-forwarded
   (old upstream sync, 208 behind) to the live line -> **binding main = feat/governor-platform-status = `1eb78bfe`**.
-  Open owner question: retire the name `feat/governor-platform-status` (REPOS.md and other sessions use it as the live
-  line).
+  Owner "Si" 2026-10-07: `feat/governor-platform-status` deleted on the binding fork (identical to main) -> **binding fork =
+  main only**; REPOS.md updated (app main `3290099d`); kalsa-brain told.
+- **GPU-leg telemetry landed** (mimo `a20590ed`, audit reviewer n2 `audit-gpu-telemetry-n2.md`, comment findings fixed):
+  binding main `a67d5bb8` bridges `decode_tokens_gpu` through JSI; **app main `5f724ee1`** pins it and KALSA_GOVERNOR
+  carries `decode_tokens_gpu` (gates EXIT=0: npm ci, provenance 1179 files, tsc, harness block, jest src/engine
+  1210/1210). Not yet in an APK (no apk.yml dispatch without telling kalsa-brain; agreed rule 2026-10-07).
+- **Jelly R2 negative control 2026-10-07 22:52 (`step6-inapp/jelly/`, APK c48e5ddd, owner handed the Jelly unplugged)**:
+  with kalsa.governor.enabled=1 written temporarily, a local turn ("On this phone - LFM2.5 2.6B") ran on the CPU
+  (2208-token prompt, 77 tokens at 6.2 tok/s) with NO KALSA_LEGS_TABLE and NO KALSA_GOVERNOR line: the app's JS gate
+  (`governorLoad` in LlamaService.ts: base.enabled, thermo sensor, gpu_fit, no mmproj) never hands the Jelly
+  (MT6789, no HTP) to the governor, so the native table is not even consulted - the one-copy load cannot occur there.
+  The table's own refusal of non-row hardware is covered by `legs_table_test` (non-Adreno, missing token, etc.).
+  Jelly restored: "Your computer", governor key deleted (verified), Kalsa relaunched; two test messages left in the open
+  chat; kalsa-brain told.
 - **Governor overhead: none measurable (`raw/session12-overhead-3a7fbec44.grep`, bench `3a7fbec44`, ABBA x2, both arms
   `arm_env_shared`, unplugged)**: plain context over the same one-copy {HTP0, GPUOpenCL} load, turn 0 at the same KV
   depth: 16.57 / 16.92 / 16.29 / 15.92 tok/s (mean 16.4); one-copy governor forced NPU leg: 19.08 / 18.91 / 19.05 /
