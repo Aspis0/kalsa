@@ -29,7 +29,7 @@ ZS=$D/repro2_zones.stop; sh $D/zone-logger.sh $D/repro2_zones.csv $ZS &
 ( while [ ! -e $ZS ]; do
     # who grows: system MemAvailable falls ~3 MB/s during decode at n_ctx 4864 and 8960 alike (round 1), so log the
     # bench's own RSS and the GPU driver's global page pool next to it
-    p=$(pgrep -f 'governor-bench|repro/llama-bench' | head -1)
+    p=$(pgrep -f '^/data/local/tmp/govhtp/step5-s23/(bin|repro)/' | head -1)  # not `timeout`, whose args match too
     rss=$([ -n "$p" ] && grep -E '^VmRSS' /proc/$p/status | tr -s ' ' | cut -d' ' -f2)
     echo "$(date +%s) $(grep -E '^(MemAvailable|MemFree|Unevictable|CmaFree|SwapFree)' /proc/meminfo | tr -s ' ' | tr '\n' ' ') bench_rss_kb=$rss kgsl_page_alloc=$(cat /sys/class/kgsl/kgsl/page_alloc) kgsl_mapped=$(cat /sys/class/kgsl/kgsl/mapped) kgsl_vmalloc=$(cat /sys/class/kgsl/kgsl/vmalloc)" >> $D/repro2_mem.txt
     sync
@@ -45,9 +45,10 @@ lb() {  # plain llama-bench, ONE context, n_ctx 8960, decode from depth 512
 gb() {
   ADSP_LIBRARY_PATH="$DSP_REL;$R/lib" arm_env_legs timeout $CUT_S $GB --arm L -m $M -t 5 -r 1 --hop 32 -v "$@"
 }
-hog_gb() {  # an anonymous-memory hog (toybox tail buffers a newline-free stream) held for the whole run
-  head -c $((HOG_MB * 1048576)) /dev/zero | tail -n 1 > /dev/null &
-  sleep 20
+hog_gb() {  # an anonymous-memory hog (toybox tail buffers a newline-free stream) held for the whole run; RANDOM bytes:
+  # zero pages cost nothing in the S23's zram swap (same-filled pages), so a /dev/zero hog would press on nothing
+  tr -d '\n' < /dev/urandom | head -c $((HOG_MB * 1048576)) | tail -n 1 > /dev/null &
+  sleep 45
   echo "hog up: $(grep -E '^MemAvailable' /proc/meminfo)" >> $REPORT
   gb "$@"; rc=$?
   pkill -f "tail -n 1"
