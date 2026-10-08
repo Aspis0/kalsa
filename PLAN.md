@@ -2243,6 +2243,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (5 C) would leave the NPU at ~20 min here; the board-level throttle (sys-therm-8 -> gpu cdev) is a signal the
   governor does not watch, and a hop to the GPU at that point lands on a capped GPU. Candidate follow-ups (not
   started): lm_head on the NPU for the NPU leg (removes the GPU dependency), read the gpu cdev state as a leg input.
+- **LANDED on engine fork main 2026-10-08 (owner OK "sisi va bene")**: `fbf33176c..e01a61cee` fast-forward - E5
+  verify (lab-gated) 29707db07, node dump dc48ec8cc + f17855a68 (bench-only), rule v3 HEAT_RANK 09a496d71 (default
+  off: NPU_FIRST stays byte-identical), l4_y8 A7X gate e01a61cee. Host governor ctest 24/24 at 09a496d71; the
+  OpenCL fix verified on QDC #71. Open audit leftovers are in the backlog. Not yet in the binding/app: the next
+  delivery step is the binding vendor bump + app pin (rule v3 then needs the app's governor inputs to select it).
 - **Round-3 bench ready**: GLM `c3e733dc` built engine `9c11ebcbf` (docker v0.7, TILE32_LAB + HEXAGON_LAB, host
   HTP_DEBUG as every lab bench, release skels) -> `~/Projects/kalsa-artifacts-loadstep` (governor-bench 42667d95 with
   `--load-step`, llama-bench ccc1e98e, skels v73 f89da3d8, v75 f88a9b96; `shasum -c` OK, verified by me). On the S23
