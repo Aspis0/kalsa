@@ -1,7 +1,7 @@
 // The desktop half of create_miniapp: which tools the web switch offers, that
 // the local build is not gated, that a stored miniapp survives the store or is
-// dropped, and that the wire never carries one. Pure: a stub door, a memory
-// localStorage, no server.
+// dropped, what title a stored one is shown under, and that the wire never
+// carries one. Pure: a stub door, a memory localStorage, no server.
 //
 // Run: node scripts/miniapp-desktop.mjs   (from chat/)
 
@@ -84,7 +84,7 @@ const CONV = (miniapp) => ({
 
 const { app, dir } = await loadApp();
 try {
-  const { offeredTools, executeToolCall, runCreateMiniapp, createStore, buildPinnedContext } = app;
+  const { offeredTools, executeToolCall, runCreateMiniapp, createStore, buildPinnedContext, displayTitle, ITALIAN_MINIAPP } = app;
 
   // ── the web switch, and nothing else, gates the web tools ─────────────────
   {
@@ -168,6 +168,23 @@ try {
     const cleaned = createStore().get("c1")?.messages[1].toolRuns?.[0]?.miniapp;
     check("a stored miniapp is re-normalized on load", cleaned?.blocks[0].question.length === 500 && cleaned?.blocks[0].answerIndex === null);
     check("a miniapp that cannot be read at all never crashes the thread", runCreateMiniapp({ template: "bogus" }).ok === false);
+  }
+
+  // ── an English default an earlier build saved shows the interface's name ──
+  {
+    const named = ITALIAN_MINIAPP.named;
+    equal("a saved English default reads as no title", [
+      displayTitle("Calculator", "quick_calculator", named),
+      displayTitle("Checklist", "checklist", named),
+      displayTitle("Comparison", "compare_data", named),
+    ], ["Calcolatrice", "Lista", "Confronto"]);
+    equal("a title the person chose is shown whole", displayTitle("Split the bill", "quick_calculator", named), "Split the bill");
+    equal("a localized default saved as a title is shown whole", displayTitle("Calcolatrice", "quick_calculator", named), "Calcolatrice");
+    equal("with no saved title the interface's name shows, else the kind", [
+      displayTitle("", "quick_calculator", named),
+      displayTitle("", "kpi_strip", named),
+      displayTitle("KPIs", "kpi_strip", named),
+    ], ["Calcolatrice", "kpi_strip", "KPIs"]);
   }
 } finally {
   await rm(dir, { recursive: true, force: true });

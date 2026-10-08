@@ -6,7 +6,8 @@
  * The fields decide how bare numbers are treated — the model proposes, the
  * code decides:
  *   no fields    → every literal is lifted into an editable field (n1, n2…)
- *                  and the formula rewritten to reference them;
+ *                  and the formula rewritten to reference them; a formula
+ *                  naming an identifier no field gives is refused;
  *   fields given → the formula must speak in field ids and constants. A
  *                  literal equal to a not-yet-referenced field's value (a
  *                  unary minus matching a negative value counts) is replaced
@@ -161,10 +162,19 @@ function planQuickCalculator(slots: Record<string, unknown>): QuickPlan {
   if (fields === null) return { miniapp: null, refusal: null }; // provided but invalid
 
   if (!fields || fields.length === 0) {
-    // Lifted ids are minted n1, n2… past any id already in play, and carry
-    // no label: the renderer names a lifted field in the interface's
-    // language.
-    const taken = new Set(ids(fields ?? []));
+    // Lifted ids are minted n1, n2… past any identifier the formula already
+    // reads, and carry no label: the renderer names a lifted field in the
+    // interface's language.
+    const taken = formulaIdentifiers(formula);
+    // With no field given, an identifier the formula reads belongs to no
+    // field: refused with the id, as the field rules name it.
+    const unknown = [...taken][0];
+    if (unknown !== undefined) {
+      return {
+        miniapp: null,
+        refusal: `create_miniapp: the formula references ${unknown}, which is not one of the fields. Write the formula from numbers, or give the fields.`,
+      };
+    }
     let next = 1;
     const idFor = (): string => {
       while (taken.has(`n${next}`)) next += 1;

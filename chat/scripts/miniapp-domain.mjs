@@ -88,6 +88,10 @@ try {
     equal("more literals than the field cap rejects the lift", buildMiniappV1("quick_calculator", { formula: Array.from({ length: 25 }, (_, i) => `${i}+`).join("") + "1" }), null);
     const named = buildMiniappV1("quick_calculator", { formula: "2 + 2", fields: [] });
     equal("a lifted id never collides with a provided one", named?.blocks[0].formula, "n1 + n2");
+    equal("5 + 4 with no fields lifts to n1 + n2", buildMiniappV1("quick_calculator", { formula: "5 + 4" })?.blocks[0].formula, "n1 + n2");
+    const shadow = runCreateMiniapp({ template: "quick_calculator", slots: { formula: "n1 + 5" } });
+    equal("a formula naming an identifier no field gives is refused", [shadow.ok, shadow.miniapp], [false, undefined]);
+    check("the refusal names that identifier", shadow.text.includes("create_miniapp: the formula references n1"), shadow.text);
     const substitute = buildMiniappV1("quick_calculator", {
       formula: "50 / 4",
       fields: [
