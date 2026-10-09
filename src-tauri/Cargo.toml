@@ -44,6 +44,7 @@ tauri = { version = "2", features = [] }
 # The report upload's HTTP client — the same one kalsa-download already
 # runs every download on, so nothing new enters the graph.
 ureq = "2"
+regex = "1"
 # The iroh road runs on tokio; the app owns the executor (see road.rs).
 tokio = { version = "1", features = ["rt-multi-thread", "time"] }
 
@@ -59,6 +60,7 @@ windows-sys = { version = "0.59", features = [
     # CurrentVersion keys behind `os_description`: the build the machine
     # runs, past GetVersionExW's unmanifested-compat lie.
     "Win32_System_Registry",
+    "Win32_System_Threading",
     "Win32_System_SystemInformation",
 ] }
 

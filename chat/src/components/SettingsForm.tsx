@@ -4,6 +4,7 @@ import type { ChatSettings } from "../lib/types";
 import { LANGUAGE_OPTIONS } from "../i18n";
 import { useLanguage } from "../i18n/useLanguage";
 import "./Settings.css";
+import { TelemetrySettings } from "./TelemetrySettings";
 
 interface SettingsFormProps {
   initial: ChatSettings;
@@ -14,14 +15,6 @@ interface SettingsFormProps {
   onTheme: (theme: Theme) => void;
 }
 
-/**
- * The Settings surface: the search switch, the theme, and the language.
- * The switch is a privacy control, not a field of a form — it used to
- * share the form's Save, which returns early unless a server address and
- * model are filled in — and on a normal install they are not, because the
- * brain runs on this computer. So the switch could never be changed, and
- * it defaults to on.
- */
 export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: SettingsFormProps) {
   const [saved, setSaved] = useState(false);
   const { table, override, choose } = useLanguage();
@@ -84,6 +77,8 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
         </label>
         <p className="settings-note">{t.webSearchNote}</p>
       </div>
+
+      <TelemetrySettings />
 
       <p className="settings-lede">{t.lede}</p>
 

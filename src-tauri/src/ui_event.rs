@@ -41,6 +41,7 @@ pub(crate) fn event_line(code: &str) -> String {
 /// caller's text.
 #[tauri::command]
 pub(crate) fn brain_log_event(code: String) {
+    crate::telemetry::events::ui_event(&code);
     log::info!("{}", event_line(&code));
 }
 

@@ -307,3 +307,15 @@ Fixed in the same pass: engine-log filter and redaction, Help privacy/default/la
 - The content-filter refusal path in `sendHost.ts` (~:180) stores its user turn without `sentOn`.
 - `engineTurn.ts:63` still takes a dead positional `_lastUserBare`.
 - Not run on a device or the simulator yet.
+
+## Alpha telemetry (phone kalsa fb6bcd2a, desktop, Worker e29f75b4, 2026-10-09)
+
+Owner: on by default for the alpha on phone and desktop; revisit the default for the beta (EU consent). Deferred from the two-reviewer review:
+
+- The Worker `/report` has no sender authentication; the in-memory IP limiter is per isolate and the 50/hour global cap can be eaten by fabricated valid reports (`kalsa/workers/telemetry/index.ts:63-64, :163-182, :405-427`).
+- The desktop report's local save fsyncs inline on the engine-failure path (`src-tauri/src/telemetry/store.rs`, called from `main.rs` ~:1693); a slow disk delays the next fallback.
+- A crash between saving ON and removing the `off` marker can silently revert ON to OFF (safe direction).
+- `npm run command-contract` stops at the pre-existing `window_visibility::window_hidden` entry, so the new telemetry commands are not guarded.
+- `dev/generate-telemetry-spec.mjs` reads the contract from the sibling phone repo path; a moved checkout breaks `--check`.
+- The phone notice is a 4-second toast through the notice slot, marked seen on the next launch; not seen on a device yet.
+- Not verified: a real POST from an installed app (only a live 400 check against the deployed Worker), Windows/Linux hardware capture; Linux gives no GPU inventory; thermal and battery are not sent.

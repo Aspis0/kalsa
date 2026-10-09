@@ -80,11 +80,15 @@ fn a_server_dying_after_it_served_is_reported_without_taking_us_down() {
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     match state {
         ServerState::Failed {
-            reason: Failure::ServerExited { detail },
-        } => assert!(
+            reason: Failure::ServerExited { detail, exit_code, exit_signal },
+        } => {
+            assert_eq!(exit_code, Some(7));
+            assert_eq!(exit_signal, None);
+            assert!(
             detail.contains("failed to load the model"),
             "detail: {detail}"
-        ),
+        );
+        },
         other => panic!("unexpected state {other:?}"),
     }
     // The supervisor is still usable: this process is alive and answering.

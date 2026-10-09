@@ -9,6 +9,8 @@ import type { StreamOptions, WireMessage } from "./chat";
 import { accumulate } from "./toolCalls";
 import { createToolMarkupStripper } from "./toolMarkup";
 import type { ToolCall } from "./toolCalls";
+import { logUiEvent } from "./uiLog";
+import { telemetryPrefill } from "./telemetry";
 import type { ToolDefinition } from "./tools/definitions";
 
 /**
@@ -190,6 +192,7 @@ export async function runRound(
 
   let response: Response;
   try {
+    logUiEvent("chat.prefill");
     response = await fetch(url, {
       method: "POST",
       headers: {
@@ -315,6 +318,7 @@ export async function runRound(
       // A prefill report is a sign of life and nothing else: its delta is
       // role-only, so it can never become text below.
       if (data.prompt_progress !== undefined && data.prompt_progress !== null) {
+        telemetryPrefill(data.prompt_progress);
         allowance = prefill.report(data.prompt_progress);
         poke();
       }
@@ -326,6 +330,7 @@ export async function runRound(
     if (choice.delta && typeof choice.delta === "object") {
       const thought = pickReasoning(choice.delta as Record<string, unknown>);
       if (thought) {
+        if (!gotToken && !gotReasoning) logUiEvent("chat.decode");
         gotReasoning = true;
         alive();
         onReasoning(thought);
@@ -334,6 +339,7 @@ export async function runRound(
       if (typeof content === "string" && content) {
         // Text arrived, so this is not an empty stream — even when all of it
         // turns out to be markup and nothing is shown.
+        if (!gotToken && !gotReasoning) logUiEvent("chat.decode");
         gotToken = true;
         alive();
         const visible = markup === null ? content : markup.push(content);
@@ -344,6 +350,7 @@ export async function runRound(
       // turn asked for an answer and the model did not give one. Nothing
       // reaches the wire or the transcript from here.
       if (tools.length > 0 && calls !== toolCalls) {
+        if (!gotToken && !gotReasoning && toolCalls.length === 0) logUiEvent("chat.decode");
         toolCalls = calls;
         alive();
       }

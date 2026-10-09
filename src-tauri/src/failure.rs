@@ -386,6 +386,8 @@ mod tests {
                 detail: DETAIL.into(),
             }),
             StartupFailure::Supervisor(Failure::ServerExited {
+                exit_code: None,
+                exit_signal: None,
                 detail: DETAIL.into(),
             }),
             StartupFailure::Supervisor(Failure::NotReady { seconds: 600 }),

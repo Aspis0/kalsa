@@ -241,10 +241,12 @@ pub(crate) fn tune_launch(
     let rule = prepared.server.clone();
     let rule_info = prepared.info.args.clone();
     prepared.rule_launch = Some((rule.clone(), rule_info.clone()));
+    crate::telemetry::transition("tune", "tune_measure");
     let result = catch_unwind(AssertUnwindSafe(|| {
         tune_launch_inner(prepared, machine, root, main, memo, progress, measure)
     }));
     if result.is_err() {
+        crate::telemetry::events::tune_failure();
         // One line, no argv: a panic here is our bug, and the walk's plan
         // is still a launch this machine can run.
         log::warn!("the tune failed unexpectedly; running the plan's launch");
@@ -567,6 +569,7 @@ fn tune_launch_inner(
                 rule_args.offload,
                 rule_args.draft.as_ref().map(|draft| draft.n_max),
             );
+            crate::telemetry::events::tune_failure();
             prepared.info.tune = Some(Tune::NoWinner(record));
             if winner.is_some() {
                 log::warn!("the winning candidate's build could not be resolved; the rule stands");

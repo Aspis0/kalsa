@@ -405,6 +405,8 @@ pub(crate) fn run(
             // about to be placed; without it nothing is used — not even a
             // copy already on disk.
             let placed = place_model(&plan, root, consented(chosen, row), progress)?;
+            crate::telemetry::context::model(row);
+            crate::telemetry::transition("download", "download");
             log::info!("model picked: {} ({} bytes)", model_token(row), plan.bytes);
             let drafter = placed
                 .drafter
@@ -473,6 +475,7 @@ pub(crate) fn run(
                 cores: (kalsa_probe::physical_cores(), kalsa_probe::logical_cores()),
                 processor: None,
             };
+            crate::telemetry::context::launch(&prepared);
             crate::tune_step::tune_launch(
                 &mut prepared,
                 &machine,

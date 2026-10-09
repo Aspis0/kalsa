@@ -105,7 +105,7 @@ fn without_host(value: &str, host: &str) -> String {
 /// user-name and host-name redaction every other line already gets. The
 /// Windows inventory can hand back vendor strings with control characters
 /// and local spelling; the log takes none of that.
-fn clean_gathered(text: &str, max: usize, host: &str) -> String {
+pub(crate) fn clean_gathered(text: &str, max: usize, host: &str) -> String {
     let ascii: String = text
         .chars()
         .filter(|c| c.is_ascii_graphic() || c.is_ascii_whitespace())
@@ -257,6 +257,7 @@ pub(crate) fn log_engine_now(config: &kalsa_supervisor::ServerConfig) {
 /// Writes the machine's half, once per session: the second call (a second
 /// turn-on) writes nothing.
 pub(crate) fn log_machine(machine: &Machine, host: &str) {
+    crate::telemetry::context::machine(machine, host);
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         for line in machine_lines(machine, host) {
@@ -269,6 +270,7 @@ pub(crate) fn log_machine(machine: &Machine, host: &str) {
 /// the walk launched, and the vision enable stops that one and launches
 /// another in the same process — the first start's facts are not the second's.
 pub(crate) fn log_engine(engine: &Engine, host: &str) {
+    crate::telemetry::context::engine(engine);
     for line in engine_lines(engine, host) {
         // The seam: the process-wide logger may belong to another test in this
         // binary, so a test counts what came through here.

@@ -81,6 +81,11 @@ cargo check -p kalsa-brain                   # the app shell
 cargo run -p kalsa-brain                     # opens the window
 ```
 
+During the alpha, technical error reports are on by default. They include
+which AI, processor, graphics card and memory use, never chats or text. Turn
+them off in Settings; a report already on its way may still arrive. The Rust
+backend sends them to telemetry.kalsa.io; the renderer CSP stays local.
+
 The frontend type-checks and keeps its Tauri command vocabulary honest:
 
 ```sh

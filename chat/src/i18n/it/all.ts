@@ -1,3 +1,4 @@
+import { TELEMETRY } from "./telemetry";
 import { HELP } from "./help";
 // Tradotto dal copy inglese approvato.
 
@@ -31,6 +32,7 @@ import { CONTENT_FILTER } from "./contentFilter";
 import type { English } from "../en/all";
 
 export const ITALIAN: English = {
+  telemetry: TELEMETRY,
   help: HELP,
   chrome: CHROME,
   settings: SETTINGS,

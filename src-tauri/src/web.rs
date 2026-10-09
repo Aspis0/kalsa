@@ -80,7 +80,7 @@ impl WebCommandError {
                 "Kalsa couldn't open that page. Try again.",
             ),
         };
-        let _ = error;
+        crate::telemetry::events::web_failure(&error, searching);
         Self::new(code, text)
     }
 }
@@ -92,6 +92,7 @@ pub(crate) async fn brain_web_search(
     query: String,
     calls: State<'_, WebCalls>,
 ) -> Result<String, WebCommandError> {
+    crate::telemetry::transition("web", "tool_call");
     let stop = calls.start(id);
     let outcome =
         tauri::async_runtime::spawn_blocking(move || kalsa_web::search(&query, &stop)).await;
@@ -115,6 +116,7 @@ pub(crate) async fn brain_web_fetch(
     url: String,
     calls: State<'_, WebCalls>,
 ) -> Result<String, WebCommandError> {
+    crate::telemetry::transition("web", "tool_call");
     let stop = calls.start(id);
     let outcome = tauri::async_runtime::spawn_blocking(move || kalsa_web::fetch(&url, &stop)).await;
     calls.finish(id);

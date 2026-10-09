@@ -1735,6 +1735,8 @@ fn the_ticks_predicate_separates_a_lost_engine_from_an_unknown_one() {
     let running = ServerState::Running { pid: 1, port: 8123 };
     let failed = ServerState::Failed {
         reason: kalsa_supervisor::Failure::ServerExited {
+            exit_code: None,
+            exit_signal: None,
             detail: "gone".into(),
         },
     };
@@ -3157,7 +3159,11 @@ fn the_retry_comes_from_the_starts_own_settled_report() {
 
     assert!(
         retry_after(
-            Some(StartSettled::Failed(Failure::ServerExited { detail: "died while loading".into() })),
+            Some(StartSettled::Failed(Failure::ServerExited {
+                detail: "died while loading".into(),
+                exit_code: None,
+                exit_signal: None,
+            })),
             true
         ),
         "exited while loading is the retry's case"

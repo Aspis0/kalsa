@@ -101,7 +101,7 @@ export const HELP = {
     },
     {
       title: "When something goes wrong",
-      paragraphs: [],
+      paragraphs: ["During the alpha, Kalsa sends error reports with technical details (which AI, your computer's processor, graphics card and memory use) to help fix problems. Never your chats or text. You can turn this off in Settings."],
       items: [
         `On the **${CHROME.pages.models}** page, **${REPORT.title}** → **${REPORT.send}**. The log never contains your messages, Kalsa's answers, your files, or any code or key. You get a report number to tell us.`,
       ],
@@ -111,7 +111,7 @@ export const HELP = {
       paragraphs: [],
       items: [
         "Most of what people ask chatbots is everyday help: practical advice, looking things up, and writing. Nearly 80% of ChatGPT conversations are of this kind (NBER study, September 2025).",
-        "That kind of help does not need a giant AI in a datacenter. A good AI on the computer you already have can do it, and your conversations stay at home: only web searches go out, and only the search words.",
+        "That kind of help does not need a giant AI in a datacenter. A good AI on the computer you already have can do it, and your conversations stay at home: web search words and technical error reports can leave the computer.",
         "Datacenters used about 415 TWh of electricity in 2024, roughly 1.5% of the world's electricity, and the International Energy Agency expects that to more than double by 2030.",
         "Most of a computer's lifetime footprint comes from making it (Dell product reports), and the world produced 62 million tonnes of e-waste in 2022 (Global E-waste Monitor 2024). Kalsa tries to make good use of the computer you already own, even if it is not new.",
       ],

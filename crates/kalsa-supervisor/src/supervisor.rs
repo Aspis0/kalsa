@@ -76,9 +76,13 @@ pub enum Failure {
     InstanceUnwritable { detail: String },
     /// The server binary could not be started.
     ServerNotStarted { detail: String },
-    /// The server stopped by itself. `detail` is its last stderr line, or its
-    /// exit status when it said nothing.
-    ServerExited { detail: String },
+    /// The server stopped by itself. `detail` is a filtered fatal diagnostic,
+    /// its last stderr line, or its exit status when it said nothing.
+    ServerExited {
+        detail: String,
+        exit_code: Option<i64>,
+        exit_signal: Option<i64>,
+    },
     /// It never answered the readiness probe within the deadline.
     NotReady { seconds: u64 },
     /// The command line did not bind loopback on the supervised port: a
@@ -627,6 +631,8 @@ fn work(
                                         &state,
                                         ServerState::Failed {
                                             reason: Failure::ServerExited {
+                                                exit_code: None,
+                                                exit_signal: None,
                                                 detail: format!(
                                                     "the adopted server (pid {pid}) is no longer alive"
                                                 ),
@@ -645,6 +651,8 @@ fn work(
                                     &state,
                                     ServerState::Failed {
                                         reason: Failure::ServerExited {
+                                            exit_code: None,
+                                            exit_signal: None,
                                             detail: "the adopted server stopped answering /health"
                                                 .to_string(),
                                         },
@@ -1216,25 +1224,37 @@ fn preflight_port(config: &ServerConfig) -> Result<(), Failure> {
     }
 }
 
-/// What the supervisor knows when the server stopped by itself: its last
-/// stderr line, or its exit status when it said nothing. The detail is for
-/// logs; the caller owns the words. A last line that carries request bytes
-/// is not repeated here either — the detail travels into the log through
-/// the failure itself, so it goes through the same rule.
+// Fatal diagnostics can precede backtrace frames; prefer them through the same request-text filter.
 fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> Failure {
+    let tail = sanitized_tail(&child.output_tail());
+    let fatal = tail.iter().rev().find(|line| ["GGML_ASSERT", "vk::DeviceLostError", "vk::OutOfDeviceMemoryError", "CUDA error", "out of memory", "segmentation fault"].iter().any(|shape| line.contains(shape)));
     Failure::ServerExited {
-        detail: match sanitized_tail(&child.output_tail()).last() {
-            Some(line) => line.clone(),
-            None => format!("exit status {status}"),
-        },
+        exit_code: status.code().map(i64::from),
+        exit_signal: exit_signal(status),
+        detail: fatal.or_else(|| tail.last()).cloned().unwrap_or_else(|| format!("exit status {status}")),
     }
 }
+
+fn exit_signal(status: std::process::ExitStatus) -> Option<i64> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        status.signal().map(i64::from)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = status;
+        None
+    }
+}
+
 
 /// The exit as one number for the log. The reason above prefers the engine's
 /// own last line, which is the more useful sentence — and which is exactly
 /// why the code gets a line of its own: a report must be able to tell a clean
 /// exit from an access violation, and the tail cannot say that. A status with
 /// no code is a killed process on a platform with signals.
+
 fn exit_code(status: std::process::ExitStatus) -> String {
     match status.code() {
         Some(code) => code.to_string(),

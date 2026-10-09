@@ -20,6 +20,7 @@ import { useChat } from "./surfaces/useChat";
 import { useLanguage } from "./i18n/useLanguage";
 import type { Table } from "./i18n";
 import { HelpSurface } from "./surfaces/HelpSurface";
+import { TelemetryNotice } from "./components/TelemetryNotice";
 import { SettingsForm } from "./components/SettingsForm";
 import { BrainSurface } from "./surfaces/BrainSurface";
 import { useBrain } from "./surfaces/useBrain";
@@ -313,6 +314,7 @@ export function App() {
         ) : null}
         {crashAsk.ask ? <CrashDialog ask={crashAsk.ask} onClose={crashAsk.dismiss} /> : null}
         <ErrorBoundary>
+          <TelemetryNotice />
           {surface === "brain" ? (
             <BrainSurface
               onNavigate={openSurface}

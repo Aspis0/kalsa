@@ -1,3 +1,4 @@
+import { TELEMETRY } from "./telemetry";
 import { HELP } from "./help";
 // The English source: every other language is typed against this shape.
 
@@ -30,6 +31,7 @@ import { RUST } from "./rust";
 import { CONTENT_FILTER } from "./contentFilter";
 
 export interface English {
+  telemetry: typeof TELEMETRY;
   help: typeof HELP;
   chrome: typeof CHROME;
   settings: typeof SETTINGS;
@@ -69,6 +71,7 @@ export interface English {
 }
 
 export const ENGLISH: English = {
+  telemetry: TELEMETRY,
   help: HELP,
   chrome: CHROME,
   settings: SETTINGS,

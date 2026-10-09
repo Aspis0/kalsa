@@ -36,6 +36,7 @@ mod road;
 mod startup;
 mod system;
 mod tailnet;
+mod telemetry;
 mod tune_step;
 mod ticker;
 mod transport;
@@ -1132,6 +1133,7 @@ struct CommandError {
 
 impl From<failure::StartupFailure> for CommandError {
     fn from(failure: failure::StartupFailure) -> Self {
+        telemetry::events::startup_failure(&failure);
         let message = failure.message();
         Self {
             code: message.code,
@@ -1557,6 +1559,7 @@ pub(crate) async fn settle(
     stops_seen: u64,
 ) -> Result<(), CommandError> {
     brain.metrics.reset();
+    telemetry::context::clear_engine();
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
     let kept = brain
@@ -1672,6 +1675,7 @@ fn settle_walk(
     keep_measurement(brain, walked.1, record_dir);
     match walked.0 {
         Ok(mut prepared) => {
+            telemetry::context::launch(&prepared);
             // The plan's own launch, kept before the tuned one goes up: the
             // config the single retry uses if the tuned one cannot load.
             let rule = prepared.rule_launch.clone();
@@ -1689,6 +1693,9 @@ fn settle_walk(
             let settled = (outcome == StartOutcome::Accepted)
                 .then(|| waiter.settle())
                 .flatten();
+            if let Some(StartSettled::Failed(reason)) = &settled {
+                telemetry::supervisor_failure(reason, "load");
+            }
             let mut last = settled.clone();
             // Which launch each fallback follows: the count below is
             // about the RECORD's own launch, so a later failure of the
@@ -1826,6 +1833,7 @@ fn queue_start(
         return None;
     }
     between();
+    telemetry::starting();
     Some(brain.supervisor.start(config))
 }
 
@@ -1877,9 +1885,11 @@ fn adopt_relaunch(
     let settled = (outcome == StartOutcome::Accepted)
         .then(|| waiter.settle())
         .flatten();
+    if let Some(StartSettled::Failed(reason)) = &settled { telemetry::supervisor_failure(reason, "load"); }
     prepared.info.args = args;
     prepared.info.tune = None;
     prepared.server = config;
+    telemetry::context::launch(prepared);
     crate::system::log_engine_now(&prepared.server);
     (outcome, settled)
 }
@@ -2319,6 +2329,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .manage(web::WebCalls::default())
         .manage(files::Searches::default())
         .invoke_handler(tauri::generate_handler![
+            telemetry::commands::brain_telemetry_status,
+            telemetry::commands::brain_telemetry_set,
+            telemetry::commands::brain_telemetry_notice_seen,
+            telemetry::commands::brain_telemetry_progress,
             brain_state,
             brain_advanced,
             brain_set_advanced,
@@ -2423,6 +2437,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .app_log_dir()
                 .unwrap_or_else(|_| parent.to_path_buf());
             logging::attach_file(log_dir.clone(), env!("CARGO_PKG_VERSION"));
+            telemetry::init(parent);
             // The engine's stderr keeps itself in the same folder, under the
             // same roof the log-folder button and the report already name —
             // set here, before any start can run, so the first child already
@@ -2582,6 +2597,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     state_file.as_deref(),
                     DoorCaller::Tick { leaving: &leaving },
                 );
+                telemetry::observe(&watch.state());
                 tick(&brain.door, &watch);
             }) {
                 Ok(ticker) => {
