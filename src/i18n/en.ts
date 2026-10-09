@@ -252,12 +252,14 @@ export const en = {
     whereSwitchDocumentsBusy: "Wait for the document operation to finish before changing where it responds.",
     privacy: "Privacy",
     privacyBody:
-      "In local mode, the model runs on this device. When computer mode is available: To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names. Document files are not sent. Network calls include model downloads from Hugging Face, web search through your chosen provider, optional page fetches (web_fetch), and opt-in telemetry. API keys are stored securely on this device. There is no account or cloud sync. Telemetry is off by default.",
+      "In local mode, the model runs on this device. When computer mode is available: To answer, your computer receives the conversation: messages, notes you attach, memory, summaries and document names. Document files are not sent. Network calls include model downloads from Hugging Face, web search through your chosen provider, optional page fetches (web_fetch), and telemetry. API keys are stored securely on this device. There is no account or cloud sync. During the alpha, error reports with technical details are on by default; you can turn them off in Settings.",
     telemetry: "Telemetry",
     telemetryBodyOff:
-      "Off by default. No telemetry leaves this device.",
+      "Off. Kalsa sends no error reports.",
     telemetryBodyOn:
       "Pseudonymous error reports help fix bugs. They do not include chat text, documents or API keys.",
+    alphaTelemetryNotice:
+      "During the alpha, Kalsa sends error reports with technical details (which AI, the phone's model and memory use) to help fix problems. Never your chats or text. You can turn this off in Settings.",
     telemetryOptInTitle: "Share error reports?",
     telemetryOptInBody:
       `When enabled, Kalsa may send pseudonymous diagnostic reports about crashes and function failures (error category, coarse device RAM bucket, OS major version, app version — never chat text, documents, API keys, exact device model, or stack traces).
@@ -564,7 +566,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     privacy: {
       title: "Privacy",
       body:
-        "Kalsa does not require an account, and telemetry is off by default. If you enable diagnostic reports, they include the error category, a broad RAM range, the operating system's major version and the app version. They do not include chat text, documents or API keys.",
+        "Kalsa does not require an account. During the alpha, error reports with technical details are on by default; you can turn them off in Settings. They include the error category, a broad RAM range, the operating system's major version and the app version. They do not include chat text, documents or API keys.",
       voice:
         "The microphone is used only for dictation. Speech is transcribed entirely on this device — audio is never uploaded, shared, or stored after transcription.",
     },

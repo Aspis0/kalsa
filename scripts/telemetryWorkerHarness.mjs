@@ -101,8 +101,13 @@ function main() {
   test("platform ios accepted", () => {
     assert(mod.validateReport(validBody({ platform: "ios" })) === null, "ios");
   });
-  test("platform outside android|ios rejected", () => {
-    for (const p of ["windows", "Android", "linux", 1, null]) {
+  for (const platform of ["windows", "macos", "linux"]) {
+    test(`platform ${platform} accepted`, () => {
+      assert(mod.validateReport(validBody({ platform })) === null, platform);
+    });
+  }
+  test("platform outside supported set rejected", () => {
+    for (const p of ["desktop", "Android", "unknown", 1, null]) {
       const err = mod.validateReport(validBody({ platform: p }));
       assert(
         typeof err === "string" && /platform/.test(err),

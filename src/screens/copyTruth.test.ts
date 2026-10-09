@@ -295,7 +295,7 @@ describe("copy that remains truthful across local and computer modes", () => {
       expect(prompt).not.toMatch(/running entirely on this device|gira interamente su questo dispositivo|small on-device model|modello piccolo sul dispositivo/i);
     }
 
-    expect(catalog.help.privacy.body).toMatch(catalog === en ? /telemetry is off by default/i : /telemetria è disattivata di default/i);
+    expect(catalog.help.privacy.body).toMatch(catalog === en ? /error reports with technical details are on by default/i : /report di errore con dettagli tecnici sono attivi di default/i);
     expect(catalog.help.privacy.body).toMatch(catalog === en ? /do not include chat text, documents or API keys/i : /non includono testo delle chat, documenti o chiavi API/i);
     expect(catalog.embedding.hint).toMatch(catalog === en ? /in local mode.*runs fully on-device/i : /in modalità locale.*gira tutto sul dispositivo/i);
   });

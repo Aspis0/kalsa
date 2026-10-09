@@ -719,7 +719,7 @@ async function main() {
     tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
   });
 
-  await serviceTest("default OFF: no fetch", async () => {
+  await serviceTest("fresh install: default ON, the report is sent", async () => {
     let fetches = 0;
     const storage = makeMemoryStorage();
     await storage.setItem("kalsa.telemetry.url", "https://example.test");
@@ -741,6 +741,37 @@ async function main() {
         hadWebTools: true,
       }),
     });
+    const fresh = tel.__getTelemetrySnapshotForTests();
+    assert(fresh.enabled === true, `enabled=${fresh.enabled}`);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    await new Promise((r) => setTimeout(r, 80));
+    assert(fetches >= 1, `fetches=${fetches}`);
+  });
+
+  await serviceTest("explicit off: no fetch", async () => {
+    let fetches = 0;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => {
+        fetches += 1;
+        return new Response("{}", { status: 200 });
+      },
+      now: () => 1_000_000,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: 3e9,
+        osVersion: "13",
+        modelId: "lfm2.5-2.6b",
+        hadWebTools: true,
+      }),
+    });
+    const off = await tel.setTelemetryEnabled(false);
+    assert(off === true, "durable off");
     tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
     await new Promise((r) => setTimeout(r, 80));
     assert(fetches === 0, `fetches=${fetches}`);

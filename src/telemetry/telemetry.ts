@@ -1,7 +1,8 @@
 /**
- * Opt-in crash/error telemetry for Kalsa (TELEMETRY_OPTIN.md v14 FINAL).
+ * Crash/error telemetry for Kalsa (TELEMETRY_OPTIN.md v14 FINAL).
  *
- * Default OFF. Fire-and-forget. Never throws to callers.
+ * Fresh installs load enabled (TELEMETRY_DEFAULT_ENABLED — alpha default on);
+ * an explicit OFF is durable and always wins. Fire-and-forget, never throws.
  * Allowlist-only reports — no chat, docs, keys, stacks, URLs, paths.
  */
 
@@ -20,6 +21,7 @@ import {
   STATE_KEY_A,
   STATE_KEY_B,
   STATE_POINTER_KEY,
+  TELEMETRY_DEFAULT_ENABLED,
   TELEMETRY_URL_OVERRIDE_KEY,
   TELEMETRY_WORKER_URL,
   type ReasonCode,
@@ -429,11 +431,14 @@ async function readJournal(
   const hint =
     pointer === "A" || pointer === "B" ? (pointer as "A" | "B") : null;
   const selected = selectJournalSlot(slotA, slotB, hint);
-  if (!selected) {
-    // Both corrupt → fail-closed reset
-    return emptyEnvelope({ enabled: false, generation: 1, transitionEpoch: 0, seq: 0 });
+  if (selected) return selected.envelope;
+  // Nothing stored at all → fresh install, so the alpha default applies here
+  // and nowhere else: a stored OFF envelope or tombstone never reaches this.
+  if (!rawA && !rawB && !pointer) {
+    return emptyEnvelope({ enabled: TELEMETRY_DEFAULT_ENABLED, generation: 1, transitionEpoch: 0, seq: 0 });
   }
-  return selected.envelope;
+  // Stored but unreadable → fail-closed reset
+  return emptyEnvelope({ enabled: false, generation: 1, transitionEpoch: 0, seq: 0 });
 }
 
 async function writeJournal(
@@ -460,6 +465,35 @@ async function writeJournal(
 }
 
 let activeSlot: "A" | "B" | null = null;
+
+/**
+ * OFF: stamp the queue-free envelope into BOTH slots and drop the pointer, so
+ * no queued report survives in either journal slot after the user turns OFF.
+ */
+async function purgeJournal(
+  storage: StorageLike,
+  env: TelemetryEnvelope,
+): Promise<void> {
+  const next = withIntegrity({
+    v: 1,
+    enabled: false,
+    generation: env.generation,
+    transitionEpoch: env.transitionEpoch,
+    queue: [],
+    dead: [],
+    seq: (env.seq ?? 0) + 1,
+  });
+  const body = JSON.stringify(next);
+  await storage.setItem(STATE_KEY_A, body);
+  await storage.setItem(STATE_KEY_B, body);
+  if (storage.multiRemove) {
+    await storage.multiRemove([STATE_POINTER_KEY]);
+  } else {
+    await storage.removeItem(STATE_POINTER_KEY);
+  }
+  envelope = next;
+  activeSlot = null;
+}
 
 async function persist(env: TelemetryEnvelope): Promise<void> {
   if (!deps) return;
@@ -707,7 +741,7 @@ export async function setTelemetryEnabled(enabled: boolean): Promise<boolean> {
         });
         let journalOk = false;
         try {
-          activeSlot = await writeJournal(storage, purged, activeSlot);
+          await purgeJournal(storage, purged);
           journalOk = true;
         } catch {
           // Disk may still hold a prior enabled envelope. Best-effort delete

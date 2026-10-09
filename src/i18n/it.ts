@@ -251,12 +251,14 @@ export const it: typeof en = {
     whereSwitchDocumentsBusy: "Attendi che l'operazione sui documenti finisca prima di cambiare dove risponde.",
     privacy: "Privacy",
     privacyBody:
-      "In modalità locale, il modello gira su questo dispositivo. Quando la modalità computer sarà disponibile: Per rispondere, il tuo computer riceve la conversazione: messaggi, note che alleghi, memoria, riassunti e nomi dei documenti. I file dei documenti non vengono inviati. Le chiamate di rete comprendono download dei modelli da Hugging Face, ricerca web tramite il provider che scegli, fetch di pagine opzionali (web_fetch) e telemetria attiva solo se la abiliti. Le chiavi API sono salvate in modo sicuro su questo dispositivo. Kalsa non richiede un account e non sincronizza le chat sul cloud. La telemetria è disattivata di default.",
+      "In modalità locale, il modello gira su questo dispositivo. Quando la modalità computer sarà disponibile: Per rispondere, il tuo computer riceve la conversazione: messaggi, note che alleghi, memoria, riassunti e nomi dei documenti. I file dei documenti non vengono inviati. Le chiamate di rete comprendono download dei modelli da Hugging Face, ricerca web tramite il provider che scegli, fetch di pagine opzionali (web_fetch) e telemetria. Le chiavi API sono salvate in modo sicuro su questo dispositivo. Kalsa non richiede un account e non sincronizza le chat sul cloud. Durante la alpha, i report di errore con dettagli tecnici sono attivi di default; puoi disattivarli nelle Impostazioni.",
     telemetry: "Telemetria",
     telemetryBodyOff:
-      "Disattivata di default. Nessuna telemetria lascia questo dispositivo.",
+      "Disattivata. Kalsa non invia report di errore.",
     telemetryBodyOn:
       "I report di errore pseudonimi aiutano a correggere i bug. Non includono testo delle chat, documenti o chiavi API.",
+    alphaTelemetryNotice:
+      "Durante la alpha, Kalsa invia report di errore con dettagli tecnici (quale IA, il modello del telefono e l'uso della memoria) per aiutarci a risolvere i problemi. Mai le tue chat o i testi. Puoi disattivarlo nelle Impostazioni.",
     telemetryOptInTitle: "Condividere i report di errore?",
     telemetryOptInBody:
       `Se attiva, Kalsa può inviare report diagnostici pseudonimi su crash e fallimenti di funzioni (categoria di errore, fascia grezza di RAM del dispositivo, major version del SO, versione app — mai testo delle chat, documenti, chiavi API, modello esatto del device o stack trace).
@@ -559,7 +561,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     privacy: {
       title: "Privacy",
       body:
-        "Kalsa non richiede un account e la telemetria è disattivata di default. Se attivi i report diagnostici, includono la categoria dell'errore, una fascia ampia di RAM, la versione principale del sistema operativo e quella dell'app. Non includono testo delle chat, documenti o chiavi API.",
+        "Kalsa non richiede un account. Durante la alpha, i report di errore con dettagli tecnici sono attivi di default; puoi disattivarli nelle Impostazioni. Includono la categoria dell'errore, una fascia ampia di RAM, la versione principale del sistema operativo e quella dell'app. Non includono testo delle chat, documenti o chiavi API.",
       voice:
         "Il microfono serve solo per la dettatura. L'audio è trascritto interamente sul dispositivo: non viene mai inviato, condiviso o conservato dopo la trascrizione.",
     },

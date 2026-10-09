@@ -21,6 +21,9 @@ export const TELEMETRY_WORKER_URL: string =
 /** AsyncStorage key for local mock / staging URL override (device tests). */
 export const TELEMETRY_URL_OVERRIDE_KEY = "kalsa.telemetry.url";
 
+/** Fresh-install default: alpha builds default on (owner 2026-10-09). Applies only when nothing is stored — a tombstone or a stored `enabled: false` envelope always wins. */
+export const TELEMETRY_DEFAULT_ENABLED = true;
+
 /** Dual-slot journal + pointer (never a single mutable blob). */
 export const STATE_KEY_A = "kalsa.telemetry.state.A";
 export const STATE_KEY_B = "kalsa.telemetry.state.B";

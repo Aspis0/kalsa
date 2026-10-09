@@ -1,6 +1,7 @@
 /**
  * The root's lifecycle effects: the static-prefix skip-first notifier (rule
- * pinned by `staticPrefixNotify.test.ts` — D2 row 21), the conversation-
+ * pinned by `staticPrefixNotify.test.ts` — D2 row 21), the one-time alpha
+ * notice (`alphaTelemetryNotice.ts`), the conversation-
  * change abort (trimmed to the systems this host mounts) and the unmount
  * flush-then-abort: the partial reaches the store BEFORE the abort,
  * epoch-stamped, because `updateMessage` no-ops once unmounted.
@@ -19,6 +20,7 @@ import { bindRoomStreamsToAppState } from "../room/roomAppState";
 import { bindIrohBackgroundStop } from "../remote/irohBackgroundStop";
 import { stopIrohBridge } from "../remote/irohBridge";
 import { createStaticPrefixNotifier } from "./staticPrefixNotify";
+import { maybeShowAlphaTelemetryNotice } from "./alphaTelemetryNotice";
 import { notifyNativeWorkSettled } from "../engine/nativeWorkSettle";
 import { idleDiscardAbortRef } from "./foregroundIdle";
 import { useIosBackgroundGuard } from "./iosBackgroundGuard";
@@ -124,6 +126,12 @@ export function useHostEffects(params: HostEffectParams): void {
   // — background closes every wire, active dials each room back — beside the
   // iOS guard above.
   useEffect(() => bindRoomStreamsToAppState(), []);
+
+  // The one-time alpha notice rides this same first-mount slot, through the
+  // host's notice toast — never gated on the chat being empty.
+  useEffect(() => {
+    void maybeShowAlphaTelemetryNotice();
+  }, []);
 
   // Android iroh bridge idle stop shares the same process lifecycle wiring;
   // native stopBridge preserves any tunnel that is still open.

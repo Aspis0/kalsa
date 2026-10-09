@@ -1,3 +1,5 @@
+import { validateV2, v2SignatureFields, v2IssueLines } from "./schema-v2";
+
 /**
  * Pure Worker helpers — no Cloudflare bindings.
  * Used by workers/telemetry/index.ts and scripts/telemetryWorkerHarness.mjs.
@@ -71,7 +73,7 @@ export const EMBED_DETAILS = new Set([
 ]);
 
 export const DEVICE_BUCKETS = new Set(["low", "mid", "high"]);
-const PLATFORMS = new Set(["android", "ios"]);
+const PLATFORMS = new Set(["android", "ios", "windows", "macos", "linux"]);
 export const MEMORY_CLASSES = new Set(["lt-4gb", "4-6gb", "ge-6gb", "unknown"]);
 export const MODEL_CATEGORIES = new Set(["dense.2b", "dense.4b", "moe", "unknown"]);
 export const PHASES = new Set(["download", "load", "turn", "embed", "flush"]);
@@ -163,6 +165,14 @@ export function acceptSignal(value: unknown): boolean {
 
 /** Strict schema validation. Returns error string or null if ok. */
 export function validateReport(body: unknown): string | null {
+  if (body && typeof body === "object" && !Array.isArray(body) && (body as Record<string, unknown>).v === 2) {
+    const report = body as Record<string, unknown>;
+    const extra = validateV2(report);
+    if (extra) return extra;
+    const { diagnostics: _diagnostics, ...base } = report;
+    const error = validateReport({ ...base, v: 1 });
+    return error;
+  }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return "body must be object";
   }
@@ -173,7 +183,7 @@ export function validateReport(body: unknown): string | null {
   if (o.v !== 1) return "v must be 1";
   if (o.app !== "kalsa") return "app must be kalsa";
   if (typeof o.platform !== "string" || !PLATFORMS.has(o.platform)) {
-    return "platform must be android or ios";
+    return "platform invalid";
   }
   if (typeof o.appVersion !== "string" || !isValidAppVersion(o.appVersion)) {
     return "appVersion invalid";
@@ -428,7 +438,7 @@ export function canonicalSignatureInput(report: Record<string, unknown>): Record
 }
 
 export function signatureFields(report: Record<string, unknown>): string {
-  return stableStringify(canonicalSignatureInput(report));
+  return stableStringify(report.v === 2 ? { ...canonicalSignatureInput(report), ...v2SignatureFields(report) } : canonicalSignatureInput(report));
 }
 
 /** HTTP status for a rejected append. Quota must be 429 so clients back off. */
@@ -543,7 +553,7 @@ export function buildIssueBody(sig: string, report: unknown): string {
     `dateBucket: ${p.dateBucket}`,
     `manual: ${p.manual}`,
   ];
-  return lines.join("\n");
+  return [...lines, ...v2IssueLines(report, escapeIssueText)].join("\n");
 }
 
 export function issueTitleFromProjection(p: IssueProjection): string {

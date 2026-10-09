@@ -79,7 +79,9 @@ Inference, chat history, memory facts and model files stay on the device. Androi
 disabled so multi-GB models and conversations are not copied off the phone. The only outbound
 traffic is a web search you explicitly trigger, and the model download from Hugging Face.
 
-**Telemetry** is off by default and opt-in. A release/store build **must** set
+**Telemetry** (error reports with technical details, never chats or text) is on
+by default during the alpha; an explicit off in Settings is never re-enabled.
+A release/store build **must** set
 `TELEMETRY_WORKER_URL` in `src/telemetry/config.ts` to the production Worker
 origin `https://telemetry.kalsa.io` (see `workers/telemetry/README.md`).
 Leaving it empty silently disables network send — correct for local/dev, not

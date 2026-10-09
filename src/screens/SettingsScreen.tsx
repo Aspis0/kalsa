@@ -312,7 +312,7 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
   const [benchNoRepack, setBenchNoRepack] = useState<boolean | undefined>(undefined);
   const [benchUseMmap, setBenchUseMmap] = useState<boolean | undefined>(undefined);
 
-  // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
+  // ── Telemetry: fresh installs default ON (alpha); explicit OFF is durable ──
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
   const [telemetryBusy, setTelemetryBusy] = useState(false);
 
@@ -398,10 +398,17 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
             const tel = require("../telemetry/telemetry") as {
               setTelemetryEnabled: (v: boolean) => Promise<boolean>;
             };
-            await tel.setTelemetryEnabled(false);
-            if (mountedRef.current) setTelemetryEnabled(false);
+            const ok = await tel.setTelemetryEnabled(false);
+            if (!mountedRef.current) return;
+            // In-memory OFF holds either way; the boolean is the durable-off
+            // proof (the ON path reads it too), so a failed write is told.
+            setTelemetryEnabled(false);
+            if (!ok) Alert.alert(t("settings.remoteBrainSaveFailed"));
           } catch {
-            if (mountedRef.current) setTelemetryEnabled(false);
+            if (mountedRef.current) {
+              setTelemetryEnabled(false);
+              Alert.alert(t("settings.remoteBrainSaveFailed"));
+            }
           } finally {
             if (mountedRef.current) setTelemetryBusy(false);
           }
