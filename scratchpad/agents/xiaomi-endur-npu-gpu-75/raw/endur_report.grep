@@ -1,0 +1,24 @@
+== endur start Fri Oct  9 09:18:57 EDT 2026 bench 50f338304020 skel 938e432be538 model a247afd64149 [lvl=83 plugged=0 batT=313 skin=33.426 wake=Awake keyguard=false thermal=0]
+## 1 arm=npu start 1791551940 after 0s cool wait [lvl=83 plugged=0 batT=313 skin=33.414 wake=Awake keyguard=false thermal=0]
+runs=4
+## 1 arm=npu exit=0 end 1791552531 [lvl=78 plugged=0 batT=390 skin=42.234 wake=Awake keyguard=false thermal=0] windows_tokens=8068 windows_us=533394279
+run_start arm=L rep=0 monotonic_us=62333415912 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=117320410 tps=17.456
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=62461640888 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=132989925 tps=15.400
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=62605936610 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=136541351 tps=14.999
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=62754189250 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=146542593 tps=13.975
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+## 2 arm=gpu start 1791552893 after 360s cool wait [lvl=78 plugged=0 batT=359 skin=35.801 wake=Awake keyguard=false thermal=0]
+ARM STOP: skin 43 >= 43 1791553034
+runs=2
+## 2 arm=gpu exit=143 end 1791553045 [lvl=76 plugged=0 batT=391 skin=43.111 wake=Awake keyguard=false thermal=0] windows_tokens=2017 windows_us=104131452
+run_start arm=L rep=0 monotonic_us=63286198755 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=gpu tokens=2048 us=104131452 tps=19.667
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+== endur end Fri Oct  9 09:37:26 EDT 2026 [lvl=76 plugged=0 batT=391 skin=43.084 wake=Awake keyguard=false thermal=0]
