@@ -2296,7 +2296,8 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   4000 calls worst 2.285e-05 x RMS, no error lines. **QDC #72 SM8650 (session 877885) on 23b2a44d7: every arm PASS** (GPU KL 0.000010 x3, E5 4000 calls worst
   2.208e-05, GPU 23.4 tok/s = #71); **SM8850 (877895) and 8 Elite SM8750 (877904) every arm PASS too** (SM8850 KL identical
   to #68; the 877904 QRD8750 reads a fixed 48.0 C battery -> run 1 killed by the 48.0 watchdog, QDC watchdog now 52.0,
-  run 2 PASS). Cell `qdc-merge-b11514-legs-72/REPORT.md`. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
+  run 2 PASS). Cell `qdc-merge-b11514-legs-72/REPORT.md`. **Engine fork main PUSHED: e01a61cee..23b2a44d7
+  (2026-10-09 ~00:35 EDT, owner-approved).** Binding bump on 23b2a44d7 (glue adapt + skels rebuilt): GLM `b1dbc1f1`. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
   fork main once the QDC legs pass ("si"); (2) binding bump on the merged engine with rebuilt skels, push binding main
   ("tutto tuo pusha"); app pin/APK stay the owner's.** Round 4 launched 23:55 EDT (S23 unplugged, 83 %). The
   desktop session (kalsa-brain 2c574341) was asked for its server picks in
