@@ -1,0 +1,6 @@
+governor-bench: OK
+libggml-htp-v73.so: OK
+libggml-htp-v75.so: OK
+libggml-htp-v79.so: OK
+libggml-htp-v81.so: OK
+run-legs.sh: OK

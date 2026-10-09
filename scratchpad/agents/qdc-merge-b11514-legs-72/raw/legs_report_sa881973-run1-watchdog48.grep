@@ -1,0 +1,38 @@
+== legs start Thu Oct  8 21:14:11 PDT 2026 soc=SM8750 model=Sun for arm64 bench 50f338304020 batT=480
+WATCHDOG: battery 480 >= 480, bench killed Thu Oct  8 21:14:11 PDT 2026
+## G exit=143 batT=480
+self-check PASS lines: 0
+## L exit=1 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+self-check PASS lines: 0
+## L-npu exit=1 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+self-check PASS lines: 0
+## L-gpu exit=1 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+self-check PASS lines: 0
+## L-gpu2 exit=1 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+self-check PASS lines: 0
+## L-cpu exit=1 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+self-check PASS lines: 0
+## A-gpu exit=1 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+self-check PASS lines: 0
+## A-j1 exit=1 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+self-check PASS lines: 0
+## V-gpu exit=1 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+self-check PASS lines: 0
+V-gpu verify: lines=0 worst_rel=0.000e+00
+== legs end Thu Oct  8 21:20:58 PDT 2026 batT=480

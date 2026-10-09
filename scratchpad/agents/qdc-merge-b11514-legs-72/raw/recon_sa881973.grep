@@ -1,0 +1,7 @@
+SM8750
+Sun for arm64
+qti/sun/sun:16/BQ2A.260305.002-BP2A.250705.008/eng.lnxbui:userdebug/test-keys
+/vendor/lib64/libOpenCL.so
+/vendor/lib64/libcdsprpc.so
+MemTotal:       15519768 kB
+/dev/block/dm-56  47183872 4006820  43177052   9% /mnt/pass_through/0/emulated

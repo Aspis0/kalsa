@@ -1,0 +1,158 @@
+== legs start Thu Oct  8 21:22:12 PDT 2026 soc=SM8750 model=Sun for arm64 bench 50f338304020 batT=480
+## G exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+self-check PASS lines: 0
+## L exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=cpu rule=alternation tokens=32 tps=22.939 kl_mean=0.000010 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu rule=alternation tokens=32 tps=27.118 kl_mean=0.000113 kl_max=0.001143 kl_max_row=36 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=alternation tokens=32 tps=29.178 kl_mean=0.000052 kl_max=0.000322 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=alternation tokens=32 tps=27.997 kl_mean=0.000027 kl_max=0.000179 kl_max_row=126 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=npu rule=alternation tokens=32 tps=27.841 kl_mean=0.000071 kl_max=0.000379 kl_max_row=138 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=gpu rule=alternation tokens=32 tps=29.359 kl_mean=0.000040 kl_max=0.000447 kl_max_row=168 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=cpu rule=alternation tokens=32 tps=29.033 kl_mean=0.000020 kl_max=0.000141 kl_max_row=216 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu rule=alternation tokens=32 tps=28.683 kl_mean=0.000064 kl_max=0.000769 kl_max_row=252 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=96 tps=26.372
+leg_summary arm=L rep=0 engine=gpu tokens=64 tps=29.269
+leg_summary arm=L rep=0 engine=npu tokens=95 tps=27.576
+leg_total arm=L rep=0 generated=255 windows=8 hops=7 commit_bytes=17727488 commit_us=35275
+kld arm=L ref=/data/local/tmp/kalsa72/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000049 max=0.001143 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-npu exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=npu rule=none tokens=32 tps=26.595 kl_mean=0.000071 kl_max=0.000593 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu rule=none tokens=32 tps=26.744 kl_mean=0.000110 kl_max=0.001106 kl_max_row=60 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu rule=none tokens=32 tps=26.906 kl_mean=0.000160 kl_max=0.001730 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=npu rule=none tokens=32 tps=27.591 kl_mean=0.000125 kl_max=0.001227 kl_max_row=126 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=127 tps=26.743
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa72/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000115 max=0.001730 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-gpu exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=27.949 kl_mean=0.000011 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=29.236 kl_mean=0.000009 kl_max=0.000101 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=29.231 kl_mean=0.000010 kl_max=0.000108 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=30.035 kl_mean=0.000007 kl_max=0.000054 kl_max_row=120 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=28.866
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa72/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-gpu2 exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=27.813 kl_mean=0.000011 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=29.173 kl_mean=0.000009 kl_max=0.000101 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=29.169 kl_mean=0.000010 kl_max=0.000108 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=29.833 kl_mean=0.000007 kl_max=0.000054 kl_max_row=120 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=28.752
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa72/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-cpu exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=cpu rule=none tokens=32 tps=21.474 kl_mean=0.000010 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=cpu rule=none tokens=32 tps=28.079 kl_mean=0.000015 kl_max=0.000168 kl_max_row=48 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=cpu rule=none tokens=32 tps=29.696 kl_mean=0.000014 kl_max=0.000113 kl_max_row=84 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=none tokens=32 tps=29.367 kl_mean=0.000010 kl_max=0.000065 kl_max_row=114 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=127 tps=26.475
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa72/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000168 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## A-gpu exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+kld arm=A ref=/data/local/tmp/kalsa72/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000114 kld_max=0.010000 status=PASS
+self-check PASS lines: 0
+## A-j1 exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+kld arm=A ref=/data/local/tmp/kalsa72/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000115 max=0.001730 kld_max=0.010000 status=PASS
+self-check PASS lines: 1
+## V-gpu exit=0 batT=480
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Hexagon Arch version v79, DMA64 disabled
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+TILE32 gate: unmeasured-device waiver (lab build) admits QUALCOMM Adreno(TM) 830, OpenCL 3.0 Adreno(TM) 830, OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 24, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 25, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 26, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=2.271 kl_mean=0.000011 kl_max=0.000084 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=29.019 kl_mean=0.000009 kl_max=0.000101 kl_max_row=35 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=29.224 kl_mean=0.000010 kl_max=0.000108 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=30.288 kl_mean=0.000007 kl_max=0.000054 kl_max_row=120 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=7.322
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa72/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000108 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+V-gpu verify: lines=4000 worst_rel=2.285e-05
+== legs end Thu Oct  8 21:31:36 PDT 2026 batT=480

@@ -1,0 +1,7 @@
+SM8850
+Canoe for arm64
+qti/canoe/canoe:16/BQ2A.251217.002-BP2A.250705.008/eng.lnxbui:userdebug/test-keys
+/vendor/lib64/libOpenCL.so
+/vendor/lib64/libcdsprpc.so
+MemTotal:       23760480 kB
+/dev/block/dm-56  47183872 2130388  45053484   5% /mnt/pass_through/0/emulated
