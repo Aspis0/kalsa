@@ -15,6 +15,7 @@ mod engine_id;
 mod health;
 mod instance;
 mod presence;
+mod stderr_log;
 mod supervisor;
 mod suspect;
 

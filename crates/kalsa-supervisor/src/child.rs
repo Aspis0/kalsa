@@ -187,6 +187,12 @@ impl ChildHandle {
     /// fact the same lines tell — released, then loaded again — and stays
     /// unknown for a server this drain never watches.
     ///
+    /// `stderr_dir` names the folder the engine's stderr keeps itself in
+    /// (`stderr_log`): every line the drain reads is carried through the
+    /// denylist and appended there, so a fact that shows only on stderr —
+    /// a sleep — survives past the in-memory tail. `None` keeps the tail
+    /// in memory only.
+    ///
     /// The working directory is pinned to the binary's own directory because
     /// ggml's backend scan puts the process' current directory in its module
     /// search path and loads the first `ggml-*` name it scores — a module
@@ -198,6 +204,7 @@ impl ChildHandle {
         inherit: Option<&File>,
         releases: Arc<AtomicU64>,
         residency: Residency,
+        stderr_dir: Option<&Path>,
     ) -> io::Result<Self> {
         let mut cmd = Command::new(exe);
         cmd.args(args)
@@ -261,7 +268,7 @@ impl ChildHandle {
             );
         }
         let stdin = child.stdin.take();
-        let tail = drain_stderr(child.stderr.take(), releases, residency);
+        let tail = drain_stderr(child.stderr.take(), releases, residency, stderr_dir);
         Ok(Self {
             child,
             stdin,
@@ -569,16 +576,23 @@ fn signal_group(pid: u32, signal: i32) -> io::Result<()> {
 /// watching for the release line here is how a model unload becomes an event:
 /// the drain sees every line the moment the server writes it, so no release
 /// can fall between polls.
+///
+/// When `stderr_dir` names a folder, every line also reaches the engine's
+/// stderr file — AFTER the denylist, which is the only thing standing
+/// between the server's own words and the disk: a line that carries request
+/// bytes is written as the withheld sentence, never as itself.
 fn drain_stderr(
     stderr: Option<std::process::ChildStderr>,
     releases: Arc<AtomicU64>,
     residency: Residency,
+    stderr_dir: Option<&Path>,
 ) -> Arc<Mutex<VecDeque<String>>> {
     let tail = Arc::new(Mutex::new(VecDeque::new()));
     let Some(stderr) = stderr else {
         return tail;
     };
     let sink = Arc::clone(&tail);
+    let file = stderr_dir.map(|dir| crate::stderr_log::StderrLog::open(dir.to_path_buf()));
     std::thread::spawn(move || {
         // A pipe of ours is what makes the residency knowable: this child is
         // loading (or has already loaded) its model and no line has announced
@@ -592,6 +606,14 @@ fn drain_stderr(
                 residency.set(RESIDENCY_RELEASED);
             } else if line.contains(MODEL_RELOADED_LINE) {
                 residency.set(RESIDENCY_IN_MEMORY);
+            }
+            if let Some(file) = file.as_ref() {
+                let safe = if crate::supervisor::carries_request_text(&line) {
+                    crate::supervisor::WITHHELD.to_string()
+                } else {
+                    crate::stderr_log::clip_line(&line)
+                };
+                file.write_line(&safe);
             }
             if let Ok(mut lines) = sink.lock() {
                 if lines.len() == OUTPUT_TAIL {
@@ -730,6 +752,7 @@ mod tests {
             None,
             Arc::clone(&releases),
             residency.clone(),
+            None,
         )
         .expect("spawn the announcing child");
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -763,6 +786,7 @@ mod tests {
             None,
             Arc::clone(&releases),
             residency.clone(),
+            None,
         )
         .expect("spawn the quiet child");
         std::thread::sleep(Duration::from_millis(300));
@@ -797,6 +821,7 @@ mod tests {
             None,
             Arc::clone(&releases),
             residency.clone(),
+            None,
         )
         .expect("spawn the sleeping-then-waking child");
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -851,6 +876,7 @@ mod tests {
             None,
             releases,
             residency,
+            None,
         )
         .expect("spawn the stand-in");
         let grace = Duration::from_secs(2);
@@ -881,6 +907,7 @@ mod tests {
             None,
             releases,
             residency,
+            None,
         )
         .expect("spawn the stand-in");
         let grace = Duration::from_secs(1);
@@ -904,12 +931,62 @@ mod tests {
         // announcement can ever arrive. The answer must stay unknown — a
         // defaulted bit would claim the model is in memory on no evidence.
         let residency = Residency::new();
-        let _tail = drain_stderr(None, Arc::new(AtomicU64::new(0)), residency.clone());
+        let _tail = drain_stderr(None, Arc::new(AtomicU64::new(0)), residency.clone(), None);
         assert_eq!(
             residency.asleep(),
             None,
             "a server whose stderr we do not hold must be unknown, not assumed loaded"
         );
+    }
+
+    /// The stderr file's privacy wall is the drain's denylist: a line that
+    /// carries request bytes reaches the disk only as the withheld sentence,
+    /// while the lines a diagnosis wants — the sleep announcement, the load
+    /// banner — reach it whole.
+    #[cfg(unix)]
+    #[test]
+    fn the_stderr_file_receives_only_lines_the_denylist_allows() {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-stderr-drain-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let mut child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &["-c".into(),
+              "printf '%s\\n' 'I srv  handle_sleep: server is entering sleeping state' 'got exception: PROMPT-CANARY walked in' 'main: device 3 loaded' >&2; sleep 30".into()],
+            None,
+            Arc::new(AtomicU64::new(0)),
+            Residency::new(),
+            Some(&dir),
+        )
+        .expect("spawn the talking child");
+        let file = dir.join("kalsa-engine.log");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut on_disk = None;
+        while Instant::now() < deadline {
+            if let Ok(text) = std::fs::read_to_string(&file) {
+                if text.contains("main: device 3 loaded") && text.contains("withheld") {
+                    on_disk = Some(text);
+                    break;
+                }
+            }
+            std::thread::sleep(WAIT_POLL);
+        }
+        let _ = child.terminate(Duration::from_millis(200));
+        let text = on_disk.expect("the drain never wrote the engine's stderr file");
+        assert!(
+            text.contains("server is entering sleeping state"),
+            "the sleep announcement never reached the disk: {text}"
+        );
+        assert!(!text.contains("PROMPT-CANARY"), "{text}");
+        assert!(text.contains(crate::supervisor::WITHHELD), "{text}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(windows)]
@@ -998,6 +1075,7 @@ mod tests {
             None,
             Arc::new(AtomicU64::new(0)),
             Residency::new(),
+            None,
         )
         .expect("spawn the stand-in");
         let begun = Instant::now();

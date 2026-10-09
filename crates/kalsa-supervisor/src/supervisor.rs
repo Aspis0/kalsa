@@ -7,7 +7,7 @@
 //! must report, not an exception it may assume away.
 
 use std::net::TcpListener;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
@@ -206,6 +206,11 @@ pub struct Supervisor {
     /// a count that never goes down can say a release happened, never that
     /// the model is back.
     residency: Residency,
+    /// Where the engine's stderr keeps itself (`keep_stderr_in`), read at
+    /// each start. `None` until the app names its log folder, and in every
+    /// test: a child spawned against `None` keeps its tail in memory only,
+    /// which is the shape every test before the file existed still sees.
+    stderr_dir: Arc<Mutex<Option<PathBuf>>>,
 }
 
 /// Read-only, `Clone`able view of the facts the supervisor owns: the
@@ -277,12 +282,14 @@ impl Supervisor {
         let releases = Arc::new(AtomicU64::new(0));
         let engine = Arc::new(EngineId::new());
         let residency = Residency::new();
+        let stderr_dir = Arc::new(Mutex::new(None));
         let worker = std::thread::spawn({
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
             let engine = Arc::clone(&engine);
-            move || work(inbox, state, releases, residency, engine, presence::probe)
+            let stderr_dir = Arc::clone(&stderr_dir);
+            move || work(inbox, state, releases, residency, engine, presence::probe, stderr_dir)
         });
         Self {
             commands,
@@ -291,6 +298,19 @@ impl Supervisor {
             engine,
             releases,
             residency,
+            stderr_dir,
+        }
+    }
+
+    /// Names the folder the engine's stderr keeps itself in: a
+    /// size-capped, rotating file beside the app's other logs
+    /// (`kalsa-engine.log`), every line through the drain's denylist.
+    /// Called once, when the app knows its log folder and before any start
+    /// can run; a start queued before it ran keeps its stderr to the
+    /// in-memory tail, which is the honest fallback, not a fault.
+    pub fn keep_stderr_in(&self, dir: PathBuf) {
+        if let Ok(mut held) = self.stderr_dir.lock() {
+            *held = Some(dir);
         }
     }
 
@@ -452,6 +472,11 @@ fn work(
     // parameter, and the test that drives `Supervisor::stop` must not
     // depend on a socket it (or a neighbour) can rebind under its feet.
     probe: presence::Probe,
+    // Where the engine's stderr keeps itself, set once by the app before
+    // any start can run (and `None` where nobody did — the tests): read at
+    // each start, so the value the child's drain sees is the one that
+    // was standing when the start was queued.
+    stderr_dir: Arc<Mutex<Option<PathBuf>>>,
 ) {
     let mut owned: Option<Owned> = None;
     // The last start's config, kept after `owned` goes: §18's second stop
@@ -484,8 +509,15 @@ fn work(
                 // before the handshake, because the handshake's success is what
                 // reports the new server as running.
                 residency.forget();
-                let started =
-                    start_blocking(&config, Arc::clone(&releases), residency.clone(), starts, &engine);
+                let stderr_dir = stderr_dir.lock().ok().and_then(|held| held.clone());
+                let started = start_blocking(
+                    &config,
+                    Arc::clone(&releases),
+                    residency.clone(),
+                    starts,
+                    &engine,
+                    stderr_dir.as_deref(),
+                );
                 match started {
                     Ok(Started::Adopted { pid }) => {
                         set(
@@ -863,6 +895,7 @@ fn start_blocking(
     residency: Residency,
     start: u64,
     engine: &EngineId,
+    stderr_dir: Option<&Path>,
 ) -> Result<Started, Failure> {
     // Before anything exists: an unsafe binding must be refused, not started
     // and then failed to be found.
@@ -900,6 +933,7 @@ fn start_blocking(
         Some(instance.handle()),
         releases,
         residency,
+        stderr_dir,
     )
     .map_err(|e| Failure::ServerNotStarted {
         detail: format!("could not start the server: {e}"),
@@ -1013,12 +1047,15 @@ const STDERR_CLIP: usize = 300;
 ///   `old: ...`/`new: ...` lines when `LLAMA_SERVER_SLOTS_DEBUG` is set —
 ///   the spawn strips that variable, and this is the second wall;
 /// - `api_keys:` — `server-http.cpp:229-234`, the key's last characters,
-///   printed when verbosity was raised (also stripped at the spawn).
+///   printed when verbosity was raised (also stripped at the spawn);
+/// - `awaiting trigger` — the scheduler's idle wake line, not printed at
+///   default verbosity and absent from the shipped build's own strings;
+///   kept out as defence in depth (docs/BACKLOG.md, "Log and report").
 ///
 /// Everything else the fork prints at this verbosity is argv, model paths
 /// or counters — checked across `server.cpp`, `server-chat.cpp`,
 /// `server-common.cpp` and `server-context.cpp`.
-const REQUEST_LINE_MARKS: [&str; 11] = [
+const REQUEST_LINE_MARKS: [&str; 12] = [
     "got exception",
     "got another exception",
     "last read",
@@ -1030,13 +1067,15 @@ const REQUEST_LINE_MARKS: [&str; 11] = [
     "old: ...",
     "new: ...",
     "api_keys:",
+    "awaiting trigger",
 ];
 
 /// The withheld lines' replacement, named once so the log reads the same
-/// wherever the filter bites.
-const WITHHELD: &str = "<a request error line was withheld>";
+/// wherever the filter bites — the app log's stderr lines and the engine's
+/// stderr file alike.
+pub(crate) const WITHHELD: &str = "<a request error line was withheld>";
 
-fn carries_request_text(line: &str) -> bool {
+pub(crate) fn carries_request_text(line: &str) -> bool {
     REQUEST_LINE_MARKS.iter().any(|mark| line.contains(mark))
 }
 
@@ -1219,6 +1258,14 @@ mod tests {
     use super::*;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+
+    #[test]
+    fn the_awaiting_trigger_line_is_withheld() {
+        // Defence in depth, not an observed line: absent from the shipped
+        // build's own strings and from the default verbosity, kept on the
+        // list so a future build that prints it prints it nowhere.
+        assert!(carries_request_text("srv  update_slots: awaiting trigger"));
+    }
 
     /// The exception family the fork's server prints with request bytes in
     /// it, beside an ordinary line and the load banner — the tail as a dead
@@ -1438,7 +1485,7 @@ mod tests {
             "--port".into(),
             "8290".into(),
         ];
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new())
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new(), None)
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1458,7 +1505,7 @@ mod tests {
             "--port".into(),
             "9999".into(),
         ];
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new())
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new(), None)
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1472,7 +1519,7 @@ mod tests {
         // The exe does not exist: getting as far as ServerNotStarted proves
         // the binding gate let a correct argv through.
         let config = config(8292);
-        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new())
+        let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new(), None)
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
         match err {
@@ -1524,7 +1571,7 @@ mod tests {
         crate::hold_state_lock(&lock).expect("hold the lock as an earlier run would");
 
         let residency = Residency::new();
-        let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone(), 1, &EngineId::new());
+        let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone(), 1, &EngineId::new(), None);
         let announced = residency.asleep();
 
         // Teardown before the assertions, so a failing one cannot leave the
@@ -1569,6 +1616,7 @@ mod tests {
             None,
             Arc::clone(&releases),
             residency.clone(),
+            None,
         )
         .expect("spawn the server that released its model");
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -1590,7 +1638,7 @@ mod tests {
             let state = Arc::clone(&state);
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
-            move || work(inbox, state, releases, residency, Arc::new(EngineId::new()), presence::probe)
+            move || work(inbox, state, releases, residency, Arc::new(EngineId::new()), presence::probe, Arc::new(Mutex::new(None)))
         });
         let config = config(8294);
         let state_file = config.state_file.clone();
@@ -1908,6 +1956,7 @@ mod tests {
             None,
             Arc::new(AtomicU64::new(0)),
             residency,
+            None,
         )
         .expect("spawn the child that is already on its way out");
         #[cfg(windows)]
@@ -1917,6 +1966,7 @@ mod tests {
             None,
             Arc::new(AtomicU64::new(0)),
             residency,
+            None,
         )
         .expect("spawn the child that is already on its way out");
         let answering: presence::Probe = |_, _| presence::Presence::There {
@@ -2075,7 +2125,7 @@ mod tests {
             let releases = Arc::clone(&releases);
             let residency = residency.clone();
             let engine = Arc::clone(&engine);
-            move || work(inbox, state, releases, residency, engine, probe)
+            move || work(inbox, state, releases, residency, engine, probe, Arc::new(Mutex::new(None)))
         });
         let _ = commands.send(Command::Plant(Box::new(run)));
         set(&state, ServerState::Running { pid, port });
@@ -2086,6 +2136,7 @@ mod tests {
             engine,
             releases,
             residency,
+            stderr_dir: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -2154,6 +2205,7 @@ mod tests {
             None,
             Arc::clone(&releases),
             Residency::new(),
+            None,
         )
         .expect("spawn the stand-in engine");
         let pid = child.pid();
@@ -2222,6 +2274,7 @@ mod tests {
                 Residency::new(),
                 1,
                 &shared,
+                None,
             ));
         });
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -2269,6 +2322,7 @@ mod tests {
             None,
             Arc::clone(&releases),
             residency.clone(),
+            None,
         )
         .expect("spawn the stand-in engine");
         let pid = child.pid();
@@ -2459,6 +2513,7 @@ mod tests {
             engine: Arc::new(EngineId::new()),
             releases: Arc::new(AtomicU64::new(0)),
             residency: Residency::new(),
+            stderr_dir: Arc::new(Mutex::new(None)),
         };
         match supervisor.state() {
             ServerState::Failed {
@@ -2487,6 +2542,7 @@ mod tests {
             engine: Arc::new(EngineId::new()),
             releases: Arc::new(AtomicU64::new(0)),
             residency: Residency::new(),
+            stderr_dir: Arc::new(Mutex::new(None)),
         };
         assert_eq!(
             live.state(),

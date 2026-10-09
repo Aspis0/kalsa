@@ -2416,10 +2416,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // attaches now — the session header is written into the file as
             // its first lines of this session — and only now may anything
             // be said on the record.
-            logging::attach_file(
-                app.path().app_log_dir().unwrap_or_else(|_| parent.to_path_buf()),
-                env!("CARGO_PKG_VERSION"),
-            );
+            let log_dir = app
+                .path()
+                .app_log_dir()
+                .unwrap_or_else(|_| parent.to_path_buf());
+            logging::attach_file(log_dir.clone(), env!("CARGO_PKG_VERSION"));
+            // The engine's stderr keeps itself in the same folder, under the
+            // same roof the log-folder button and the report already name —
+            // set here, before any start can run, so the first child already
+            // writes it.
+            app.state::<Arc<Brain>>()
+                .supervisor
+                .keep_stderr_in(log_dir);
             log::info!("app start");
             // Under the lock, and only here: the unclean-exit marker is
             // this session's own, so a launch refused as a second one (it

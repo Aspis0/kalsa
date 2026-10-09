@@ -114,6 +114,12 @@ pub(crate) fn header_is_well_formed(value: &str) -> bool {
 /// the files can hold lines an older build wrote before the sink learned to
 /// redact, and this body is uploaded as it sits, so the joined body goes
 /// through the same rule here, before any send.
+///
+/// The engine's stderr file (`kalsa-engine.log`, beside these two) is
+/// deliberately NOT a half: its lines pass the drain's denylist, but they
+/// never pass the sink's redaction this body is built on, so sending it
+/// would upload home paths and hostnames the log's promise keeps back. It
+/// stays a local diagnostic.
 pub(crate) fn read_body(log_dir: &Path) -> String {
     let body = crate::logging::with_log_held(|| {
         let halves = [
