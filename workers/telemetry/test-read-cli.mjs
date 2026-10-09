@@ -21,7 +21,8 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { BASE, entry, makeEnv, seeded, storageWith, worker } from "./test-support.mjs";
+import { LOG_REF_PATTERN } from "./read-logs.mjs";
+import { BASE, contractV2, entry, makeEnv, seeded, storageWith, worker } from "./test-support.mjs";
 
 const execAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -44,17 +45,21 @@ const server = http.createServer(async (req, res) => {
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const url = `http://127.0.0.1:${server.address().port}`;
 
-// Stands in for `npx wrangler r2 object get`: writes --file only for keys in FAKE_R2_KEYS.
+// Stands in for `npx wrangler r2 object get`: records each call in FAKE_R2_CALLS and
+// writes --file only for keys in FAKE_R2_KEYS.
 const r2dir = path.join(work, "r2read");
+const r2calls = path.join(work, "r2-calls.log");
 const fakeBin = mkdtempSync(path.join(work, "bin-"));
 const fakeNpx = path.join(fakeBin, "npx");
 writeFileSync(
   fakeNpx,
   `#!${process.execPath}
-const { writeFileSync } = require("node:fs");
+const { writeFileSync, appendFileSync } = require("node:fs");
 const args = process.argv.slice(2);
-const key = args[args.indexOf("get") + 1].replace("kalsa-reports/", "");
+const object = args[args.indexOf("get") + 1];
+const key = object.replace("kalsa-reports/", "");
 const file = args[args.indexOf("--file") + 1];
+appendFileSync(process.env.FAKE_R2_CALLS, object + "\\n");
 if (!(process.env.FAKE_R2_KEYS ?? "").split(",").includes(key)) {
   console.error("The specified key does not exist.");
   process.exit(1);
@@ -72,6 +77,7 @@ async function run(args, token = READ_TOKEN) {
     TELEMETRY_WORKER_URL: url,
     R2READ_DIR: r2dir,
     FAKE_R2_KEYS: fakeR2Keys,
+    FAKE_R2_CALLS: r2calls,
   };
   try {
     const r = await execAsync(process.execPath, ["workers/telemetry/read.mjs", ...args], { cwd: root, env });
@@ -164,6 +170,26 @@ await test("without --logs no log is fetched", async () => {
   assert.equal(plain.status, 0, plain.stderr);
   assert.ok(!plain.stdout.includes("found"), "a log was looked up without --logs");
   assert.ok(!existsSync(r2dir), "a log was written without --logs");
+});
+await test("--logs skips malformed refs without calling wrangler and still reads the rest", async () => {
+  const mixed = {
+    ...entry(0),
+    count: 4,
+    logRefs: ["2026-10-09/../../ABCD2345", "2026-13-45/ABCD2345", "2026-02-30/ABCD2345", "2026-10-09/ABCD2345"],
+  };
+  currentEnv = makeEnv(storageWith([mixed]), { READ_TOKEN });
+  fakeR2Keys = "2026-10-09/ABCD2345.log";
+  rmSync(r2calls, { force: true });
+  const r = await run(["--logs", "--out", path.join(work, "mixed.json")]);
+  assert.equal(r.status, 0, r.stderr);
+  for (const ref of ["2026-10-09/../../ABCD2345", "2026-13-45/ABCD2345", "2026-02-30/ABCD2345"]) {
+    assert.ok(r.stdout.includes(`"${ref}"  invalid logRef`), r.stdout);
+  }
+  assert.ok(r.stdout.includes("2026-10-09/ABCD2345  found 2026-10-09/ABCD2345.log"), r.stdout);
+  assert.deepEqual(readFileSync(r2calls, "utf8").trim().split("\n"), ["kalsa-reports/2026-10-09/ABCD2345.log"]);
+});
+await test("--logs validates refs with the contract's logRef pattern", async () => {
+  assert.equal(LOG_REF_PATTERN, contractV2.patterns.logRef);
 });
 await test("--seen-since finds an old report that recurred, on the last page; paging unchanged", async () => {
   const old = { ...entry(0), count: 4, lastSeenAt: BASE + 30 * 3600_000 };

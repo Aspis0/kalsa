@@ -188,11 +188,9 @@ if (opts.logs) {
     console.log(`# sig=${e.sig.slice(0, 12)} x${e.count}`);
     for (const ref of e.logRefs) {
       const found = await fetchLog(ref, logDir);
-      console.log(
-        found.missing
-          ? `  ${ref}  missing (tried ${found.tried.join(", ")})`
-          : `  ${ref}  found ${found.key} → ${found.file}`,
-      );
+      if (found.invalid) console.log(`  ${JSON.stringify(ref)}  invalid logRef`);
+      else if (found.missing) console.log(`  ${ref}  missing (tried ${found.tried.join(", ")})`);
+      else console.log(`  ${ref}  found ${found.key} → ${found.file}`);
     }
   }
 }

@@ -41,6 +41,7 @@ const require = createRequire(import.meta.url);
 const built = require(path.join(out, "index.js"));
 export const worker = built.default;
 export const TelemetryBuffer = built.TelemetryBuffer;
+export const contractV2 = require(path.join(out, "contract-v2.js")).V2;
 
 /** Hands out the raw stored object (no clone), so in-place edits show up. */
 export class FakeStorage {

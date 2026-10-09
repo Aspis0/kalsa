@@ -8,9 +8,23 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
+// Same string as V2.patterns.logRef in contract-v2.ts. This CLI is plain .mjs and
+// cannot load that TypeScript file; a test keeps the two equal.
+export const LOG_REF_PATTERN = "^[0-9]{4}-[0-9]{2}-[0-9]{2}/[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$";
+const LOG_REF = new RegExp(LOG_REF_PATTERN);
+
 const execAsync = promisify(execFile);
 const DAY_MS = 86_400_000;
 const GET_TIMEOUT_MS = 120_000;
+
+/** The ref is stored data: it is checked before any path or key is built from it. */
+function parseLogRef(ref) {
+  if (typeof ref !== "string" || !LOG_REF.test(ref)) return null;
+  const [day, id] = ref.split("/");
+  const time = Date.parse(`${day}T00:00:00Z`);
+  if (Number.isNaN(time) || new Date(time).toISOString().slice(0, 10) !== day) return null;
+  return { day, id };
+}
 
 function shiftDay(day, days) {
   return new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
@@ -21,20 +35,21 @@ function shiftDay(day, days) {
  * either one moves the lookup on to the next day.
  */
 export async function fetchLog(ref, dir) {
+  const parsed = parseLogRef(ref);
+  if (parsed === null) return { invalid: true };
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const [day, id] = ref.split("/");
   const tried = [];
   for (const delta of [0, -1, 1]) {
-    const candidate = shiftDay(day, delta);
+    const candidate = shiftDay(parsed.day, delta);
     tried.push(candidate);
-    const file = path.join(dir, `${candidate}_${id}.log`);
+    const file = path.join(dir, `${candidate}_${parsed.id}.log`);
     try {
       await execAsync(
         "npx",
-        ["wrangler", "r2", "object", "get", `kalsa-reports/${candidate}/${id}.log`, "--remote", "--file", file],
+        ["wrangler", "r2", "object", "get", `kalsa-reports/${candidate}/${parsed.id}.log`, "--remote", "--file", file],
         { timeout: GET_TIMEOUT_MS },
       );
-      return { key: `${candidate}/${id}.log`, file };
+      return { key: `${candidate}/${parsed.id}.log`, file };
     } catch {}
   }
   return { missing: true, tried };
