@@ -266,3 +266,8 @@ they are promoted.
 - Still missing on iOS: Share Extension (send to Kalsa from other apps), the `https://kalsa.io/pair` universal link (associatedDomains + apple-app-site-association), LAN discovery (off on purpose since 150c5e03, entitlement and prompt undecided), CPU threads fixed at 4 (`threadProfile.ts:51`).
 - Simulator build from main 6c78de38: BUILD SUCCEEDED with no fixes, and the app ran LFM on the simulator. A device build, the iroh road at runtime and a Release build are not verified (no iPhone yet).
 - iOS Governor: research in docs/RESEARCH-IOS-GOVERNOR-2026-10-08.md. No llama.cpp ANE backend exists and no Core ML to ggml KV handoff exists, so the ANE route is a Lab only. First Lab on a real iPhone: 600 s of sustained decode, Metal vs CPU, wall-clock timing.
+
+## Before the desktop engine pin moves to 23b2a44d7 (governor note, 2026-10-09)
+
+- `LLAMA_STATE_SEQ_VERSION` goes from 3 to 4. Every slot file saved by v1.1.5 under `ai.kalsa.brain/slots` is refused by the new engine with a 400 on restore. Before the bump, check that the door's recall (`crates/kalsa-door/src/paging*`) treats that 400 as a cold start: it should delete or ignore the stale file, should not retry it on every completion, and should not mark the chat broken. Test it with one real v1.1.5 slot file against the new engine.
+- The phone has the same issue: rn-slot-manager reports a load failure instead of a cold start. The phone pin is the owner's call.
