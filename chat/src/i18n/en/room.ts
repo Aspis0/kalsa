@@ -77,7 +77,8 @@ export const ROOM: RoomTable = {
   youAre: (name) => `You are ${name}`,
   left: " · left",
   askedKalsa: "asked Kalsa ·",
-  readLast: (count) => ` · read the last ${count}`,
+  readLast: (count) =>
+    count === 1 ? " · read the last message" : ` · read the last ${count} messages`,
   noteFallback: "Something did not work. Try again.",
   defaultHostName: "This computer",
   notes: {
