@@ -273,3 +273,11 @@ Owner 2026-10-09: not a blocker, we are in dev with no released users. Old slot 
 
 - `LLAMA_STATE_SEQ_VERSION` goes from 3 to 4. Every slot file saved by v1.1.5 under `ai.kalsa.brain/slots` is refused by the new engine with a 400 on restore. Before the bump, check that the door's recall (`crates/kalsa-door/src/paging*`) treats that 400 as a cold start: it should delete or ignore the stale file, should not retry it on every completion, and should not mark the chat broken. Test it with one real v1.1.5 slot file against the new engine.
 - The phone has the same issue: rn-slot-manager reports a load failure instead of a cold start. The phone pin is the owner's call.
+
+## Sent-on date (review of dc83864a, 2026-10-09)
+
+- By design, a Room call posted at 23:59 and answered after midnight tells the model the day it was sent, not the day of the answer.
+- Downgrade: an older build ignores `sent_on` in the Room log and replays those calls without their date, so their bytes change once.
+- No test pins the Room budget boundary with the date line counted (`turn.rs` windowing and halving).
+- The send-path check in `chat/scripts/sent-date.mjs` matches source text: a different call shape in `useChat.ts` would slip past it.
+- Live check on Qwen 3.6 35B-A3B (engine 8130): with "Sent on Friday, 9 October 2026." it answered "Today is Friday, October 9, 2026.", and with an older turn from 5 October it counted "4 days ago" correctly.
