@@ -261,7 +261,7 @@ they are promoted.
 
 ## Phone iOS parity (phone main b36552ee, 2026-10-08)
 
-- Deploy order: redeploy the telemetry Worker (`workers/telemetry`) before any iOS build ships. The live Worker answers 400 to `platform: "ios"`, and the client drops a 4xx report without retry. Waits for the owner's OK.
+- Telemetry Worker redeployed 2026-10-08 from phone main b36552ee (version ae0db10c-ea59-435e-be03-7c481075c816). It accepts android and ios; live probe with "windows" answers 400 "platform must be android or ios".
 - The Worker's dedupe signature (`workers/telemetry/schema.ts` ~:420) omits platform, so an iOS and an Android report with the same fields count once.
 - Still missing on iOS: Share Extension (send to Kalsa from other apps), the `https://kalsa.io/pair` universal link (associatedDomains + apple-app-site-association), LAN discovery (off on purpose since 150c5e03, entitlement and prompt undecided), CPU threads fixed at 4 (`threadProfile.ts:51`).
 - Simulator build from main 6c78de38: BUILD SUCCEEDED with no fixes, and the app ran LFM on the simulator. A device build, the iroh road at runtime and a Release build are not verified (no iPhone yet).
