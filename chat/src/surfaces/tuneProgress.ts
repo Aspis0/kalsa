@@ -65,7 +65,8 @@ const MINIMUM_SAMPLES = 2;
     budget and never kills one mid-measurement, naming a lifetime's ready
     deadline (READY_TIMEOUT) as the overshoot — a lifetime may run on past
     even that (`crates/kalsa-tune/src/measure/mod.rs`). So the number is
-    said as "up to", and the budget's passing drops to "any moment now". */
+    said as "about", never as a bound, and the budget's passing drops to
+    "any moment now". */
 const LIFETIME_SLACK_SECONDS = 120;
 
 /** The line's own high-water: the figure it last showed is the most it may
@@ -140,7 +141,7 @@ export function tuneDone(face: TuneFace): boolean {
     all, where the rule stands — and then the figure. Before two candidates
     have finished there is nothing to average, so the budget — the point no
     lifetime BEGINS past — plus one lifetime's slack is a CEILING, said as
-    such. From two on, the smaller of that ceiling and the estimate
+    "about". From two on, the smaller of that ceiling and the estimate
     (`wholeSeconds` over the candidates measured so far, the running one's
     share counted in both, which is the rate one candidate really costs on
     THIS tune) answers. Once the budget's seconds are spent, no figure is

@@ -153,7 +153,7 @@ function waitWord(wait: TuneWait, t: English["setup"]): string {
     case "almost":
       return t.almostDone;
     case "ceiling":
-      return t.upToMinutes(wait.minutes);
+      return t.aboutMinutes(wait.minutes);
     case "minutes":
       return t.minutesLeft(wait.minutes);
   }

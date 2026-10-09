@@ -34,7 +34,7 @@ export const SETUP = {
   // of the wait — the budget's own ceiling until two tests have finished,
   // the average's estimate from then on.
   attempt: (index: number, total: number) => `Test ${index} of ${total}`,
-  upToMinutes: (minutes: number) => `up to ${minutes} min`,
+  aboutMinutes: (minutes: number) => `about ${minutes} min`,
   minutesLeft: (minutes: number) => `about ${minutes} min left`,
   // The once-only note under the tune's line: one run, and the window
   // can go away while it happens.

@@ -29,7 +29,7 @@ export const SETUP = {
     "receiving": "Recibiendo.",
     "pickingUp": (text: string) => `Retomando donde se detuvo — ${text}`,
     "attempt": (index: number, total: number) => `Prueba ${index} de ${total}`,
-    "upToMinutes": (minutes: number) => `hasta ${minutes} min`,
+    "aboutMinutes": (minutes: number) => `unos ${minutes} min`,
     "minutesLeft": (minutes: number) => `quedan unos ${minutes} min`,
     "tuneOnce": "Esto sucede solo una vez. Puedes minimizar Kalsa y seguir usando tu equipo.",
     "finishNextStart": "Kalsa terminará las pruebas en el próximo inicio",

@@ -29,7 +29,7 @@ export const SETUP = {
     "receiving": "正在接收。",
     "pickingUp": (text: string) => `从停止处继续 —— ${text}`,
     "attempt": (index: number, total: number) => `测试 ${index}/${total}`,
-    "upToMinutes": (minutes: number) => `最多 ${minutes} 分钟`,
+    "aboutMinutes": (minutes: number) => `约 ${minutes} 分钟`,
     "minutesLeft": (minutes: number) => `约剩 ${minutes} 分钟`,
     "tuneOnce": "这个过程只会出现一次。你可以最小化 Kalsa，继续使用你的电脑。",
     "finishNextStart": "Kalsa 下次启动时会完成测试",
