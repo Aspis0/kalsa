@@ -318,7 +318,7 @@ fn a_release_relaxes_the_map_and_says_how_many_slots() {
         assert_eq!(status_of(&activate(address, Some(token), &chat)), 204);
     }
 
-    door.invalidate_residency();
+    door.invalidate_residency(&door.residency_sample());
     let lines = wait_for("engine residency invalidated: 4 slot(s) -> evicted");
     assert!(
         lines

@@ -28,8 +28,17 @@ use std::time::Duration;
 /// still cuts one that overruns — far from the minutes a stuck handler used
 /// to cost, and not an exit a person would reach for the force-quit over. A
 /// thread that has not stopped by then is one the process will not be held
-/// for.
+/// for. That sum leaves out the quit save, which runs first and takes up to
+/// `SAVE_BUDGET`: a slow save pushes the rest past the deadline, and the
+/// watchdog then cuts the tail, the engine included.
 pub(crate) const DEADLINE: Duration = Duration::from_secs(15);
+
+/// How long the clean quit's save may take. The save is the only step that
+/// can wait on a restore's slot lock or an engine that has stopped answering,
+/// so it is bounded here instead of by the engine's patience. Past it the save
+/// is skipped, and the turns since the last timer save are lost as they were
+/// before the save existed.
+pub(crate) const SAVE_BUDGET: Duration = Duration::from_secs(8);
 
 /// How long each rung of the last-resort kill waits. It is spent after the
 /// deadline has already passed, so it is short: two rungs of this is the
@@ -143,6 +152,14 @@ mod tests {
         Killed,
         Noted(String),
         Exited(i32, &'static str),
+    }
+
+    /// The quit save may not outlast the watchdog it runs under: a budget at
+    /// or past the deadline would be cut by the very watchdog it exists to
+    /// beat.
+    #[test]
+    fn the_save_budget_is_inside_the_deadline() {
+        assert!(SAVE_BUDGET < DEADLINE, "the save may outlast the watchdog");
     }
 
     /// The deadline fires: the engine is killed before anything is said or

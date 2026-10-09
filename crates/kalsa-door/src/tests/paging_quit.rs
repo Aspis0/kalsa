@@ -2,12 +2,16 @@
 //! the engine still runs, and nothing the engine no longer holds is written.
 
 use std::fs;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use super::paging_support::{
-    activate, complete, door_of, file_name, status_of, temp_dir, Engine, Sent, HASH,
+    activate, complete, door_of, file_name, status_of, temp_dir, wait_for, Engine, Sent, HASH,
 };
 use super::*;
+
+/// The budget the app hands the quit save (`exit::SAVE_BUDGET`).
+const BUDGET: Duration = Duration::from_secs(8);
 
 fn saves_since(engine: &Engine, from: usize) -> Vec<Sent> {
     engine.sent()[from..]
@@ -28,7 +32,7 @@ fn a_clean_quit_writes_the_resident_chat_out_once() {
     complete(address, &token);
     let before = engine.sent().len();
 
-    door.save_on_quit();
+    door.save_on_quit(BUDGET);
 
     let saves = saves_since(&engine, before);
     assert_eq!(saves.len(), 1, "the quit did not save the open chat once: {saves:?}");
@@ -53,7 +57,7 @@ fn a_clean_resident_chat_is_not_written_again_on_quit() {
     assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
     let before = engine.sent().len();
 
-    door.save_on_quit();
+    door.save_on_quit(BUDGET);
 
     assert!(
         saves_since(&engine, before).is_empty(),
@@ -74,7 +78,7 @@ fn an_unknown_slot_writes_nothing_on_quit() {
     assert_eq!(door.chats.observed(0).1, "unknown");
     let before = engine.sent().len();
 
-    door.save_on_quit();
+    door.save_on_quit(BUDGET);
 
     assert!(
         saves_since(&engine, before).is_empty(),
@@ -92,10 +96,10 @@ fn a_released_slot_writes_nothing_on_quit() {
     let chat = "aaaa1111";
     assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
     complete(address, &token);
-    door.invalidate_residency();
+    door.invalidate_residency(&door.residency_sample());
     let before = engine.sent().len();
 
-    door.save_on_quit();
+    door.save_on_quit(BUDGET);
 
     assert!(
         saves_since(&engine, before).is_empty(),
@@ -125,5 +129,44 @@ fn a_hung_engine_cannot_hold_the_quit_past_its_patience() {
         took < Duration::from_secs(1),
         "the quit waited {took:?} for a save the engine held past its patience"
     );
+    door.shutdown();
+}
+
+#[test]
+fn a_quit_under_a_restore_returns_in_bound_and_saves_nothing() {
+    let slot_dir = temp_dir("quit-restore");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let (first, second) = ("aaaa1111", "bbbb2222");
+    assert_eq!(status_of(&activate(address, Some(&token), first)), 204);
+    complete(address, &token);
+    fs::write(slot_dir.join(file_name(second)), b"state").unwrap();
+    let opened = engine.sent().len();
+    // The switch saves `first` at once, then restores `second`, which the
+    // engine holds for two seconds while the restore keeps the slot's lock.
+    engine.delay(Duration::ZERO);
+    engine.delay(Duration::from_secs(2));
+
+    thread::scope(|scope| {
+        let switching = scope.spawn(|| status_of(&activate(address, Some(&token), second)));
+        wait_for(&engine, opened + 2);
+        let before = engine.sent().len();
+
+        let started = Instant::now();
+        door.chats
+            .save_on_quit(&door.devices, engine.port, Duration::from_millis(200));
+        let took = started.elapsed();
+
+        assert!(
+            took < Duration::from_secs(1),
+            "the quit waited {took:?} for a slot a restore held"
+        );
+        assert!(
+            saves_since(&engine, before).is_empty(),
+            "the quit saved a slot a restore was still writing"
+        );
+        assert_eq!(switching.join().unwrap(), 204, "the switch itself failed");
+    });
     door.shutdown();
 }

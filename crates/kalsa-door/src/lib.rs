@@ -599,18 +599,25 @@ impl RunningDoor {
     /// Observed on the ticker's thread, not by `brain_state`: that command is
     /// polled by the webview, and with no poll nobody would ever invalidate —
     /// the door, the map and the timer would outlive the engine.
-    pub fn invalidate_residency(&self) {
-        self.chats.invalidate_residency();
+    pub fn invalidate_residency(&self, sample: &[u64]) {
+        self.chats.invalidate_residency(sample);
+    }
+
+    /// The claim counts for [`Self::invalidate_residency`]. Read it before the
+    /// supervisor's release is read, so a claim made in between is never
+    /// demoted by a release it outlived.
+    pub fn residency_sample(&self) -> Vec<u64> {
+        self.chats.residency_sample()
     }
 
     /// The app's clean quit calls this while the engine still runs, before it
     /// stops the engine: the turns since the resident chat's last timer save
-    /// are written out, so the next start does not restore a stale file. Not
-    /// on `Drop`: a door dropped after its engine is gone would wait out the
-    /// patience for a save nothing can answer.
-    pub fn save_on_quit(&self) {
-        self.chats
-            .save_on_quit(&self.devices, self.upstream_port, paging::PAGING_PATIENCE);
+    /// are written out, so the next start does not restore a stale file. The
+    /// caller owns the budget, which bounds the engine calls and the wait for
+    /// a slot a restore holds. Not on `Drop`: a door dropped after its engine
+    /// is gone would wait out the budget for a save nothing can answer.
+    pub fn save_on_quit(&self, budget: Duration) {
+        self.chats.save_on_quit(&self.devices, self.upstream_port, budget);
     }
 
     /// Replaces the credential set without stopping anything: the listener

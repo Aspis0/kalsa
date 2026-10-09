@@ -203,7 +203,6 @@ fn engine_lost_its_state(state: &ServerState, asleep: Option<bool>) -> bool {
 /// the lock and the lock is released before the call, which is the whole
 /// reason it is an `Arc`.
 fn tick(door: &Mutex<Option<ActiveDoor>>, watch: &Watch) {
-    let lost = engine_lost_its_state(&watch.state(), watch.model_asleep());
     let active = match door.lock() {
         Ok(stored) => stored.as_ref().map(|active| Arc::clone(&active.door)),
         // A panic with the lock in hand poisons it, and `.ok()` used to
@@ -223,11 +222,14 @@ fn tick(door: &Mutex<Option<ActiveDoor>>, watch: &Watch) {
         }
     };
     if let Some(active) = active {
+        // The claim counts come before the release is read, so a chat the
+        // door restores in between is not demoted by a release it outlived.
         // Before the save of this same tick: an engine that released its
         // model or died must not be asked to write anything, and no slot it
         // no longer holds may keep claiming a chat.
-        if lost {
-            active.invalidate_residency();
+        let sample = active.residency_sample();
+        if engine_lost_its_state(&watch.state(), watch.model_asleep()) {
+            active.invalidate_residency(&sample);
         }
         active.save_idle(Instant::now());
     }
@@ -530,7 +532,7 @@ impl Brain {
             .ok()
             .and_then(|stored| stored.as_ref().map(|active| Arc::clone(&active.door)));
         if let Some(door) = door {
-            door.save_on_quit();
+            door.save_on_quit(exit::SAVE_BUDGET);
         }
     }
 

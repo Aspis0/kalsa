@@ -154,7 +154,7 @@ fn an_asleep_engine_and_a_room_turn_still_hand_the_seat_back() {
     tier::wait_for(&engine, 1);
     // The engine went idle and released the slot: the tick learns it, and
     // the map stops claiming to know the slot.
-    door.invalidate_residency();
+    door.invalidate_residency(&door.residency_sample());
     assert_eq!(door.save_idle(tier::quiet_since(Instant::now())), 0);
 
     host_calls(&door, &room, "host-1", "@Kalsa ciao");

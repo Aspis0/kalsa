@@ -54,7 +54,7 @@ fn a_released_model_stops_the_map_claiming_resident_and_the_next_activate_restor
 
     // The engine releases the model (`--sleep-idle-seconds`): the state in
     // the slot is gone, and the app's tick tells the door.
-    door.invalidate_residency();
+    door.invalidate_residency(&door.residency_sample());
 
     // THE test. On a map that still says `Resident` this activation is the
     // no-op, the restore that would bring the cache back from the file never
@@ -76,7 +76,7 @@ fn a_released_model_stops_the_map_claiming_resident_and_the_next_activate_restor
 
     // And the claim itself: a release leaves no `Resident` behind. The chat
     // stays named on disk, so a second release keeps it `evicted`.
-    door.invalidate_residency();
+    door.invalidate_residency(&door.residency_sample());
     assert_eq!(
         door.chats.observed(0).1,
         "evicted",
@@ -98,7 +98,7 @@ fn the_next_completion_after_a_release_restores_the_chat_before_it_runs() {
     let baseline = engine.sent().len();
 
     // The UI never re-activates: the open chat is only what the door remembers.
-    door.invalidate_residency();
+    door.invalidate_residency(&door.residency_sample());
     complete(address, &token);
 
     let sent = engine.sent();
@@ -134,7 +134,7 @@ fn a_released_slot_is_not_written_out_by_the_timer() {
     complete(address, &token);
     let marked = Instant::now();
 
-    door.invalidate_residency();
+    door.invalidate_residency(&door.residency_sample());
     assert_eq!(
         door.save_idle(quiet_since(marked)),
         0,
@@ -142,5 +142,40 @@ fn a_released_slot_is_not_written_out_by_the_timer() {
     );
     let saves = engine.sent().iter().filter(|sent| sent.action == "save").count();
     assert_eq!(saves, 0, "the timer sent a save for a released slot");
+    door.shutdown();
+}
+
+#[test]
+fn a_release_sampled_before_a_restore_does_not_demote_the_restored_chat() {
+    let slot_dir = temp_dir("invalidate-stale");
+    let engine = Engine::start(&slot_dir);
+    let token = credential();
+    let (door, address) = door_of(engine.port, Some(&slot_dir), Some(HASH), &[&token]);
+    let chat = "aaaa1111";
+    fs::write(slot_dir.join(file_name(chat)), b"state").unwrap();
+    assert_eq!(status_of(&activate(address, Some(&token), chat)), 204);
+    complete(address, &token);
+    door.invalidate_residency(&door.residency_sample());
+    assert_eq!(door.chats.observed(0).1, "evicted");
+
+    // The tick reads the claim counts, then asks the supervisor whether the
+    // engine slept. Between those two reads the next completion restores the
+    // chat, which wakes the engine: the release the tick reads afterwards came
+    // before that restore, so it must not demote the chat the restore claimed.
+    let sample = door.residency_sample();
+    complete(address, &token);
+    let restored = engine
+        .sent()
+        .iter()
+        .any(|sent| sent.action == "restore" && sent.filename == file_name(chat));
+    assert!(restored, "the completion did not restore the chat");
+    assert_eq!(door.chats.observed(0).1, "resident");
+
+    door.invalidate_residency(&sample);
+    assert_eq!(
+        door.chats.observed(0).1,
+        "resident",
+        "a release sampled before the restore demoted the chat the restore claimed"
+    );
     door.shutdown();
 }

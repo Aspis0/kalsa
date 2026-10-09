@@ -17,6 +17,15 @@
 use super::{Chats, Residency};
 
 impl Chats {
+    /// The claim counts, read BEFORE the supervisor is asked whether the engine
+    /// released its model. Pass the result to [`Self::invalidate_residency`].
+    pub(crate) fn residency_sample(&self) -> Vec<u64> {
+        self.slots
+            .iter()
+            .map(|slot| slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).claims)
+            .collect()
+    }
+
     /// The engine no longer holds what this map may claim: its model was
     /// released, or the server died — a crash announces nothing. Every
     /// `Resident` becomes `Evicted`, with its chat named.
@@ -27,10 +36,18 @@ impl Chats {
     /// the file. `Evicted` does not fire the no-op, and nothing saves out of
     /// it: only a `Resident` slot is ever written, so the file keeps its last
     /// state and is never overwritten by a slot the engine has released.
-    pub(crate) fn invalidate_residency(&self) {
+    ///
+    /// `sample` is [`Self::residency_sample`] taken before the release was
+    /// read. A slot whose claim was set after that sample was taken woke the
+    /// engine itself, so the release the sample saw came before that claim: the
+    /// claim stands.
+    pub(crate) fn invalidate_residency(&self, sample: &[u64]) {
         let mut relaxed = 0;
-        for slot in &self.slots {
+        for (index, slot) in self.slots.iter().enumerate() {
             let mut state = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            if sample.get(index) != Some(&state.claims) {
+                continue;
+            }
             let Residency::Resident(owner, chat) = &state.resident else {
                 continue;
             };

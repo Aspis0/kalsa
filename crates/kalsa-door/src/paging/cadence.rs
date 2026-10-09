@@ -134,9 +134,10 @@ pub(super) fn save_idle(
             // failure whose request never left the door (connect refused, a deadline
             // spent before the dial, `engine.rs`) stamps nothing: the engine's own
             // clock runs, the sleep arrives, `invalidate_residency` relaxes the map,
-            // and a slot that no longer names a resident chat is never offered again — those species switch
-            // themselves off. Which of the two an `Unreachable` was, the arm cannot
-            // know and does not ask (`Call::Unreachable` carries both).
+            // and a slot that no longer names a resident chat is never offered
+            // again — those species switch themselves off. Which of the two an
+            // `Unreachable` was, the arm cannot know and does not ask
+            // (`Call::Unreachable` carries both).
             //
             // What attempt three does NOT do is "coincide with the release" (the
             // claim an older comment here carried): its bound IS mark+3Q,

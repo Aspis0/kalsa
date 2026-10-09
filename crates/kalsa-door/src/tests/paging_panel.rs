@@ -44,7 +44,7 @@ fn the_panel_counts_a_named_chat_and_nothing_else() {
 
     // A release takes the slot out of the count: the chat is still named on
     // disk (`evicted`), and it is not a resident, so the number drops.
-    door.invalidate_residency();
+    door.invalidate_residency(&door.residency_sample());
     assert_eq!(door.chats.observed(1).1, "evicted");
     assert_eq!(door.residents(), 0, "an unknown slot was counted as a resident");
     door.shutdown();

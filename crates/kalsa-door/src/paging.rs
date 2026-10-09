@@ -39,7 +39,7 @@ use std::fs;
 use std::io::Read;
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard, TryLockError};
 use std::time::{Duration, Instant};
 
 use self::io::{erase_slot, restore, save, Saved, STAGING};
@@ -112,6 +112,9 @@ struct Slot {
     /// The flag above stays set across a failure — the state is still not on
     /// disk — and this is what keeps the next tick from asking again at once.
     retry_after: Option<Instant>,
+    /// How many times a chat action set this slot's claim after waking the
+    /// engine. A release sampled before a count changed is stale for this slot.
+    claims: u64,
 }
 
 /// A slot is empty, resident with one chat, unknown, or evicted. Only `Resident`
@@ -165,7 +168,14 @@ impl Chats {
         idle_save: Option<Duration>,
     ) -> Self {
         let slots = (0..capacity)
-            .map(|_| Mutex::new(Slot { resident: Residency::Unknown, dirty_at: None, retry_after: None }))
+            .map(|_| {
+                Mutex::new(Slot {
+                    resident: Residency::Unknown,
+                    dirty_at: None,
+                    retry_after: None,
+                    claims: 0,
+                })
+            })
             .collect();
         Self { slots, model, dir, idle_save }
     }
@@ -300,6 +310,9 @@ impl Chats {
         if matches!(&state.resident, Residency::Resident(owner, chat) if *owner == device && chat == id) {
             return Ok(());
         }
+        // Every path below wakes the engine and may set a claim: a release
+        // sampled before this point must not demote what it claims.
+        state.claims += 1;
         let target = file_name(model, device, id);
         // `Unknown` is the one residency with no previous chat to save: what is
         // in the slot cannot be named, so nothing is written out of it.
@@ -544,6 +557,7 @@ impl Chats {
             Ok(()) => {
                 // The claim carries the chat's ID, the vocabulary of every
                 // other claim — the filename is the engine's word for it.
+                state.claims += 1;
                 state.resident = Residency::Resident(device, chat.clone());
                 state.dirty_at = None;
                 Some(chat)
@@ -562,19 +576,22 @@ impl Chats {
     /// Writes out the resident chat that a completion changed since its last
     /// save, for a clean quit: the quiet timer has not yet reached the turns
     /// of the last few seconds, and the app is about to stop the engine that
-    /// holds them. Every bound is `patience`, shared by the slots, so the
-    /// quit waits at most that long whatever the engine does.
+    /// holds them. One `budget` covers the slot locks and the engine calls,
+    /// so the quit waits at most that long whatever the engine or a restore
+    /// does; a slot still held when it runs out is skipped.
     ///
     /// Only `Resident` is written: an `Evicted` or `Unknown` slot is not in
     /// the engine, so there is nothing to save, and writing it would overwrite
     /// the file with a state the door cannot name.
-    pub(crate) fn save_on_quit(&self, devices: &DeviceSet, upstream_port: u16, patience: Duration) {
+    pub(crate) fn save_on_quit(&self, devices: &DeviceSet, upstream_port: u16, budget: Duration) {
         let (Some(model), Some(dir)) = (self.model.as_deref(), self.dir.as_deref()) else {
             return;
         };
-        let deadline = Instant::now() + patience;
+        let deadline = Instant::now() + budget;
         for (index, slot) in self.slots.iter().enumerate() {
-            let mut state = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let Some(mut state) = lock_until(slot, deadline) else {
+                continue;
+            };
             let (device, chat) = match &state.resident {
                 Residency::Resident(device, chat) if state.dirty_at.is_some() => {
                     (*device, chat.clone())
@@ -589,7 +606,7 @@ impl Chats {
                 slot: index as u32,
                 salt: &salt,
                 deadline,
-                patience,
+                patience: budget,
             };
             // The lock is held across the engine call, as in `handover`, so no
             // turn can move the slot while its state is written out.
@@ -607,6 +624,22 @@ impl Chats {
             .ok_or(ChatError::NoSlot)?
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner()))
+    }
+}
+
+/// A slot's lock if it frees before `deadline`, `None` otherwise. The mutex has
+/// no timed wait, so this polls: the quit must not wait without bound on a
+/// restore that holds the slot across an engine call.
+fn lock_until(slot: &Mutex<Slot>, deadline: Instant) -> Option<MutexGuard<'_, Slot>> {
+    loop {
+        match slot.try_lock() {
+            Ok(state) => return Some(state),
+            Err(TryLockError::Poisoned(poisoned)) => return Some(poisoned.into_inner()),
+            Err(TryLockError::WouldBlock) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            Err(TryLockError::WouldBlock) => return None,
+        }
     }
 }
 
