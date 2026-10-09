@@ -38,3 +38,9 @@
   A's surviving KV, so B's first send may assemble over A's tokens. Same path since the governor went default ON
   (2026-10-02); not introduced by the A1 fix. Fix: keep an identity-independent "native KV may remain" state that
   forces reconciliation, or block the send until a clear succeeds.
+- B7 (P2, 2026-10-09, cost one 40-min CI round) The binding globs vendor source dirs, so a lab-only engine TU landing in
+  a globbed dir breaks only the Android CI: `ggml-opencl-tile32-verify.cpp` (engine-built only under
+  GGML_OPENCL_TILE32_LAB) entered with vendor 1babccb9 and failed app run 37949782564; fixed per-file in binding
+  `76768fb2`. `scripts/assert-rnllama-sources.sh` skips globs, so nothing local catches the class. Fix: diff each
+  globbed dir against the engine's own source lists (allow-list binding-local `common/parsers/function-gemma.cpp`);
+  optionally mirror the engine's per-variant ARM defines (GGML_USE_DOTPROD / MATMUL_INT8).

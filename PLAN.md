@@ -144,7 +144,7 @@ One weight copy read by NPU, GPU and CPU; the governor hops decode between legs.
   guarded only by its estimate-based fit; V75 enablement rests on one board plus the Xiaomi lab.
 - Owner approved 2026-10-09: rule v3 ON by default in the app + per-SoC v3 values in the legs
   table + an SM8650 row, then APK, then the S23 in-app test; fix A1 (App / UX below). DONE
-  2026-10-09 (two audits, deepseek + Luna): binding main `77677ff9` - the S23 row carries rule v3
+  2026-10-09 (two audits, deepseek + Luna): binding main `f0ca4692` - the S23 row carries rule v3
   (hop 32, HEAT_RANK, load step 19/9/22, guard 5) as the default of every key the app JSON leaves
   absent (an explicit key wins; the app sends none), `KALSA_LEGS_TABLE_OUTCOME {mode, row_tuning}`
   says whether the row tuning is in force, `GovernorStats.decode_hop_rule` names the rule.
@@ -237,10 +237,10 @@ landed (`cc4ede9b`). LAN direct path is step 6 of kalsa-brain's plan
 
 ### Release pipeline
 
-Phone chain: engine main `2e723bd9d` -> binding main `77677ff9` (vendors `2e723bd9d`, HTP skels
-rebuilt) -> app main `23854676` pins `kalsa.rn#77677ff9` / kalsallama `2e723bd9d` (provenance
+Phone chain: engine main `2e723bd9d` -> binding main `f0ca4692` (vendors `2e723bd9d`, HTP skels
+rebuilt) -> app main `1f0e967b` pins `kalsa.rn#f0ca4692` / kalsallama `2e723bd9d` (provenance
 1198 files EXIT 0, apk.yml harness block and jest src/engine 1218 EXIT 0; includes the A1 fix).
-APK: CI run `37949782564` (debuggable, arm64) dispatched 2026-10-09 after telling kalsa-brain. Desktop: v1.1.5 published on R2 + HF; the
+APK: CI run `37949782564` on `23854676` FAILED (the binding's OpenCL glob compiled the lab-only `ggml-opencl-tile32-verify.cpp` since vendor `1babccb9`; backlog B7); fixed in binding `76768fb2` + skels `f0ca4692`; re-dispatched as run `37961298208` (debuggable, arm64). Desktop: v1.1.5 published on R2 + HF; the
 next tag carries b11514 (desktop checks PASS, see above). Operational procedure, manifest
 contract and the Cloudflare cache traps:
 `archived/ALIVE-2026-10-09-full.md`, "Engine release pipeline" (unchanged procedure). The
@@ -250,7 +250,7 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
 
 ## Next steps (ordered, 2026-10-09)
 
-1. DONE 2026-10-09: binding `77677ff9`, app `23854676` (pin + A1), APK run `37949782564`.
+1. DONE 2026-10-09: binding `f0ca4692`, app `1f0e967b` (pin + A1), APK run `37961298208`.
 2. Engine: admit Adreno 750 / E031.45 in the TILE32 measured gate, re-vendor, then the SM8650 row
    (`84ac0d57`) - needed before the Xiaomi in-app round.
 3. On the APK: S23 in-app smoke, then a 20-30 turn long session (G2 on the S23).
