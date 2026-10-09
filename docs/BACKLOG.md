@@ -258,3 +258,11 @@ they are promoted.
 - Think toggle cache cost: on Gemma 4 the template puts `<|think|>` at the start of the system turn, so switching Think mid-chat drops the prefix cache and the whole history is read again (measured cache_n 0, prompt_n 1452). Budget-0 and empty-thought prefill keep the cache but leak planning into the answer (4/4 probes). Proposal: Think chosen per conversation, with a warning when it is switched mid-chat. Owner: decide after the alpha.
 - LFM2.5-VL ignores `--image-max-tokens`: a 1920-wide frame costs ~2480 tokens, while the chat's budget assumes 560 per image. Pre-existing.
 - Chooser speed estimate on the Surface: predicted LFM 9-13 and E4B 5-8 tok/s; the owner saw E4B 9.9 (MTP on) and LFM 8.3. Measure both without MTP before changing the estimate.
+
+## Phone iOS parity (phone main b36552ee, 2026-10-08)
+
+- Deploy order: redeploy the telemetry Worker (`workers/telemetry`) before any iOS build ships. The live Worker answers 400 to `platform: "ios"`, and the client drops a 4xx report without retry. Waits for the owner's OK.
+- The Worker's dedupe signature (`workers/telemetry/schema.ts` ~:420) omits platform, so an iOS and an Android report with the same fields count once.
+- Still missing on iOS: Share Extension (send to Kalsa from other apps), the `https://kalsa.io/pair` universal link (associatedDomains + apple-app-site-association), LAN discovery (off on purpose since 150c5e03, entitlement and prompt undecided), CPU threads fixed at 4 (`threadProfile.ts:51`).
+- Simulator build from main 6c78de38: BUILD SUCCEEDED with no fixes, and the app ran LFM on the simulator. A device build, the iroh road at runtime and a Release build are not verified (no iPhone yet).
+- iOS Governor: research in /tmp/ios-governor-research.md. No llama.cpp ANE backend exists and no Core ML to ggml KV handoff exists, so the ANE route is a Lab only. First Lab on a real iPhone: 600 s of sustained decode, Metal vs CPU, wall-clock timing.
