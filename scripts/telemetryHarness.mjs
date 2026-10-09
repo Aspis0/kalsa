@@ -175,6 +175,7 @@ async function main() {
   console.log("\n[sanitizer]");
   test("accepts allowlisted code+detail", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "web.fetch",
       detail: "timeout",
       appVersion: "0.1.0",
@@ -186,8 +187,22 @@ async function main() {
     assert(r.app === "kalsa" && r.platform === "android", "identity");
   });
 
+  test("platform is carried through; unknown or absent means no report", () => {
+    const ios = pure.sanitizeReport({ code: "web.fetch", platform: "ios" });
+    assert(ios && ios.platform === "ios", `got ${ios?.platform}`);
+    assert(
+      pure.sanitizeReport({ code: "web.fetch", platform: "windows" }) === null,
+      "unknown platform drops the report",
+    );
+    assert(
+      pure.sanitizeReport({ code: "web.fetch" }) === null,
+      "absent platform drops the report",
+    );
+  });
+
   test("omits free-text detail (URL)", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "web.fetch",
       detail: "https://evil.example/x?key=1",
       appVersion: "0.1.0",
@@ -206,7 +221,7 @@ async function main() {
       "arbitrary user text about my cat",
       "unicode café ☕ long enough to fail",
     ]) {
-      const r = pure.sanitizeReport({ code: "web.fetch", detail: d });
+      const r = pure.sanitizeReport({ platform: "android", code: "web.fetch", detail: d });
       assert(r && r.error.detail === undefined, `should omit: ${d}`);
     }
   });
@@ -216,6 +231,7 @@ async function main() {
     const toolStyle =
       "Fetch failed for https://example.com/path?q=1 after redirect";
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "web.fetch",
       detail: toolStyle,
       rawMessage: toolStyle,
@@ -248,7 +264,7 @@ async function main() {
       ["embed.native", "model_corrupt"],
     ];
     for (const [code, detail] of cases) {
-      const r = pure.sanitizeReport({ code, detail, appVersion: "0.1.0" });
+      const r = pure.sanitizeReport({ platform: "android", code, detail, appVersion: "0.1.0" });
       assert(r && r.error.detail === detail, `${code}/${detail}`);
     }
   });
@@ -262,7 +278,7 @@ async function main() {
       ["embed.native", "timeout"],
     ];
     for (const [code, detail] of bad) {
-      const r = pure.sanitizeReport({ code, detail });
+      const r = pure.sanitizeReport({ platform: "android", code, detail });
       assert(r && r.error.detail === undefined, `${code}/${detail} must omit`);
     }
   });
@@ -298,6 +314,7 @@ async function main() {
   });
   test("sanitizeReport attaches signal from rawMessage", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "engine.init",
       detail: "disk_full",
       rawMessage: "No space left on device (ENOSPC)",
@@ -306,6 +323,7 @@ async function main() {
   });
   test("reject free-text signal field", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "engine.init",
       signal: "user typed free text here",
     });
@@ -313,6 +331,7 @@ async function main() {
   });
   test("ggml suffix claimed as signal normalizes to ggml_*", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "engine.init",
       signal: "ggml_opencl",
     });
@@ -320,6 +339,7 @@ async function main() {
   });
   test("charset * rejected as signal", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "engine.init",
       signal: "bad*star",
     });
@@ -327,6 +347,7 @@ async function main() {
   });
   test("unknown code does not accept engine-init details", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "unknown",
       detail: "disk_full",
       appVersion: "0.1.0",
@@ -334,6 +355,7 @@ async function main() {
     assert(r && r.error.code === "unknown", "code");
     assert(r.error.detail === undefined, `detail leaked: ${r.error.detail}`);
     const ok = pure.sanitizeReport({
+      platform: "android",
       code: "unknown",
       detail: "unknown",
       appVersion: "0.1.0",
@@ -342,6 +364,7 @@ async function main() {
   });
   test("unsafe appVersion rewritten to 0.0.0", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "web.fetch",
       detail: "timeout",
       appVersion: "1.0.0](https://evil)",
@@ -368,7 +391,7 @@ async function main() {
     ];
     for (const code of codes) {
       for (const detail of engineInit) {
-        const r = pure.sanitizeReport({ code, detail, appVersion: "0.1.0" });
+        const r = pure.sanitizeReport({ platform: "android", code, detail, appVersion: "0.1.0" });
         assert(r, `${code}/${detail} must sanitize`);
         if (code === "unknown") {
           assert(
@@ -389,6 +412,7 @@ async function main() {
     const expected = ["ENOSPC", "ggml_*", "ggml_*", undefined, undefined];
     sigs.forEach((s, i) => {
       const r = pure.sanitizeReport({
+        platform: "android",
         code: "engine.init",
         signal: s,
         appVersion: "0.1.0",
@@ -464,6 +488,7 @@ async function main() {
   });
   test("phase/attempt/chunks context", () => {
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "embed.native",
       detail: "oom",
       phase: "embed",
@@ -474,6 +499,7 @@ async function main() {
     assert(r.context.attempt === 2, "attempt");
     assert(r.context.chunks === 7, "chunks");
     const r2 = pure.sanitizeReport({
+      platform: "android",
       code: "web.fetch",
       chunks: 7, // not embed → omit
     });
@@ -535,6 +561,7 @@ async function main() {
     assert(pure.isValidDateBucket("2026-13-01") === false, "month");
     assert(pure.isValidDateBucket("2026-00-10") === false, "zero month");
     const r = pure.sanitizeReport({
+      platform: "android",
       code: "web.fetch",
       detail: "timeout",
       dateBucket: "2026-02-29",
@@ -550,7 +577,7 @@ async function main() {
     let q = [];
     for (let i = 0; i < 55; i++) {
       const item = pure.makeQueueItem(
-        pure.sanitizeReport({ code: "unknown", appVersion: "0.1.0" }),
+        pure.sanitizeReport({ platform: "android", code: "unknown", appVersion: "0.1.0" }),
         1,
         0,
         `id${i}`,
@@ -573,7 +600,7 @@ async function main() {
   });
   test("finalize: gen mismatch → drop even on accepted", () => {
     const item = pure.makeQueueItem(
-      pure.sanitizeReport({ code: "web.fetch", detail: "timeout" }),
+      pure.sanitizeReport({ platform: "android", code: "web.fetch", detail: "timeout" }),
       1,
       0,
       "x",
@@ -590,7 +617,7 @@ async function main() {
   });
   test("finalize: epoch mismatch → drop", () => {
     const item = pure.makeQueueItem(
-      pure.sanitizeReport({ code: "web.fetch", detail: "timeout" }),
+      pure.sanitizeReport({ platform: "android", code: "web.fetch", detail: "timeout" }),
       1,
       0,
       "x",
@@ -607,7 +634,7 @@ async function main() {
   });
   test("finalize: retry ceiling → dead at retryCount==5", () => {
     let item = pure.makeQueueItem(
-      pure.sanitizeReport({ code: "web.fetch", detail: "timeout" }),
+      pure.sanitizeReport({ platform: "android", code: "web.fetch", detail: "timeout" }),
       1,
       0,
       "ceil",
@@ -630,7 +657,7 @@ async function main() {
   });
   test("markSending stamps attempt and bumps retryCount before dispatch", () => {
     let item = pure.makeQueueItem(
-      pure.sanitizeReport({ code: "engine.init", detail: "oom" }),
+      pure.sanitizeReport({ platform: "android", code: "engine.init", detail: "oom" }),
       1,
       0,
       "ms",
@@ -642,7 +669,7 @@ async function main() {
   });
   test("recoverExpiredLeases requeues sending", () => {
     let item = pure.makeQueueItem(
-      pure.sanitizeReport({ code: "web.fetch", detail: "dns" }),
+      pure.sanitizeReport({ platform: "android", code: "web.fetch", detail: "dns" }),
       1,
       0,
       "lease",
@@ -655,7 +682,7 @@ async function main() {
     const dead = [
       {
         ...pure.makeQueueItem(
-          pure.sanitizeReport({ code: "unknown" }),
+          pure.sanitizeReport({ platform: "android", code: "unknown" }),
           1,
           0,
           "d1",
@@ -706,6 +733,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: 3e9,
         osVersion: "13",
@@ -736,6 +764,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "ios",
         ramTier: "mid",
         totalMemoryBytes: 6e9,
         osVersion: "14",
@@ -766,6 +795,7 @@ async function main() {
     assert(b.error.detail === "http_404", "detail");
     assert(!JSON.stringify(b).includes("http://"), "no url in payload");
     assert(b.deviceBucket === "mid", "bucket");
+    assert(b.platform === "ios", `platform=${b.platform}`);
     assert(b.error.message === undefined, "no message field");
   });
 
@@ -780,6 +810,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -804,6 +835,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -826,6 +858,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "high",
         totalMemoryBytes: 8e9,
         osVersion: "15",
@@ -856,6 +889,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -884,6 +918,7 @@ async function main() {
       getAppState: () => "background",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -909,6 +944,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -943,6 +979,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -992,6 +1029,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1017,6 +1055,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1044,6 +1083,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1085,6 +1125,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1111,6 +1152,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1138,6 +1180,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1162,6 +1205,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1187,6 +1231,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1214,6 +1259,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1234,6 +1280,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1252,6 +1299,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1284,6 +1332,7 @@ async function main() {
       getAppState: () => appState,
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1329,6 +1378,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1361,6 +1411,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1396,6 +1447,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",
@@ -1424,6 +1476,7 @@ async function main() {
       getAppState: () => "active",
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
+        platform: "android",
         ramTier: "low",
         totalMemoryBytes: null,
         osVersion: "13",

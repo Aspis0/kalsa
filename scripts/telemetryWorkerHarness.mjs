@@ -98,6 +98,18 @@ function main() {
   test("valid report → null", () => {
     assert(mod.validateReport(validBody()) === null, "ok");
   });
+  test("platform ios accepted", () => {
+    assert(mod.validateReport(validBody({ platform: "ios" })) === null, "ios");
+  });
+  test("platform outside android|ios rejected", () => {
+    for (const p of ["windows", "Android", "linux", 1, null]) {
+      const err = mod.validateReport(validBody({ platform: p }));
+      assert(
+        typeof err === "string" && /platform/.test(err),
+        `${String(p)}: ${String(err)}`,
+      );
+    }
+  });
   test("unknown top-level key → 400 reason", () => {
     const err = mod.validateReport({ ...validBody(), extra: 1 });
     assert(typeof err === "string" && /unknown key/.test(err), err);

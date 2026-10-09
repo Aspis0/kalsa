@@ -71,6 +71,7 @@ export const EMBED_DETAILS = new Set([
 ]);
 
 export const DEVICE_BUCKETS = new Set(["low", "mid", "high"]);
+const PLATFORMS = new Set(["android", "ios"]);
 export const MEMORY_CLASSES = new Set(["lt-4gb", "4-6gb", "ge-6gb", "unknown"]);
 export const MODEL_CATEGORIES = new Set(["dense.2b", "dense.4b", "moe", "unknown"]);
 export const PHASES = new Set(["download", "load", "turn", "embed", "flush"]);
@@ -171,7 +172,9 @@ export function validateReport(body: unknown): string | null {
   }
   if (o.v !== 1) return "v must be 1";
   if (o.app !== "kalsa") return "app must be kalsa";
-  if (o.platform !== "android") return "platform must be android";
+  if (typeof o.platform !== "string" || !PLATFORMS.has(o.platform)) {
+    return "platform must be android or ios";
+  }
   if (typeof o.appVersion !== "string" || !isValidAppVersion(o.appVersion)) {
     return "appVersion invalid";
   }

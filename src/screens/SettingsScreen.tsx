@@ -2671,30 +2671,33 @@ export function SettingsScreen({ onBack, onOpenHelp, onOpenPro, webToolsEnabled,
                 : ""}
             </Text>
           ) : null}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-            }}
-          >
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[typography.bodySm, { color: colors.ink }]}>
-                {t("settings.governor")}
-              </Text>
-              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
-                {t("settings.governorBody")}
-              </Text>
+          {/* The governor load is Android-only (LlamaService governorLoad guard), so the switch does nothing on iOS. */}
+          {!isIos ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: spacing.sm,
+              }}
+            >
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[typography.bodySm, { color: colors.ink }]}>
+                  {t("settings.governor")}
+                </Text>
+                <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                  {t("settings.governorBody")}
+                </Text>
+              </View>
+              <Switch
+                value={governorEnabled}
+                onValueChange={handleToggleGovernor}
+                trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+                thumbColor={governorEnabled ? colors.accent : colors.muted}
+                accessibilityLabel={t("settings.governor")}
+              />
             </View>
-            <Switch
-              value={governorEnabled}
-              onValueChange={handleToggleGovernor}
-              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={governorEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("settings.governor")}
-            />
-          </View>
+          ) : null}
 
           <View style={{ gap: spacing.sm }}>
             {modelChoices.map(({ entry, active, profilePending, gate, hardBlocked, hardBlockLabel, selectDisabled }) => {

@@ -240,7 +240,7 @@ export type TelemetryReport = {
   v: 1;
   app: "kalsa";
   appVersion: string;
-  platform: "android";
+  platform: "android" | "ios";
   deviceBucket: DeviceBucket;
   osMajor: string;
   error: TelemetryErrorField;
@@ -257,6 +257,8 @@ export type SanitizeInput = {
   /** Pre-extracted signal (still re-validated). */
   signal?: string;
   appVersion?: string;
+  /** android | ios; any other value drops the report. */
+  platform?: string;
   deviceBucket?: DeviceBucket | string;
   osMajor?: string;
   modelCategory?: ModelCategory | string;
@@ -297,6 +299,11 @@ function isPhase(v: unknown): v is Phase {
   return typeof v === "string" && (PHASES as readonly string[]).includes(v);
 }
 
+/** The Worker accepts exactly these two; anything else must not reach the wire. */
+function isTelemetryPlatform(v: unknown): v is "android" | "ios" {
+  return v === "android" || v === "ios";
+}
+
 /**
  * Allowlist-only sanitizer. NEVER accepts free text, stacks, URLs, paths.
  * detail is accepted ONLY if in the per-code enum; otherwise omitted.
@@ -306,6 +313,9 @@ function isPhase(v: unknown): v is Phase {
 export function sanitizeReport(input: SanitizeInput): TelemetryReport | null {
   try {
     if (!input || typeof input !== "object") return null;
+    // Drop rather than guess: the Worker refuses anything but android/ios.
+    const platform = isTelemetryPlatform(input.platform) ? input.platform : null;
+    if (platform === null) return null;
     const code = isReasonCode(input.code) ? input.code : "unknown";
 
     let detail: DetailValue | undefined;
@@ -383,7 +393,7 @@ export function sanitizeReport(input: SanitizeInput): TelemetryReport | null {
       v: TELEMETRY_SCHEMA_V,
       app: "kalsa",
       appVersion,
-      platform: "android",
+      platform,
       deviceBucket,
       osMajor,
       error,

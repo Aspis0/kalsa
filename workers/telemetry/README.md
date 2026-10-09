@@ -101,7 +101,8 @@ Unset / empty `TELEMETRY_WORKER_URL` → client silently disables network send.
 `error.detail` is per-code enum (`unknown` accepts only `unknown`).
 `error.signal` is allowlisted token only (max 80, charset `[A-Za-z0-9_ .-]`;
 any `ggml_<id>` is stored as `ggml_*`). `appVersion` must match
-`^\d+(\.\d+){1,3}[a-z0-9.-]*$`. Invalid detail/signal/unknown keys → `400`.
+`^\d+(\.\d+){1,3}[a-z0-9.-]*$`. `platform` must be `android` or `ios`.
+Invalid detail/signal/unknown keys → `400`.
 Body > 4KB (Content-Length or streamed) → `413`. Malformed UTF-8 → `400`.
 
 Canonical dedupe signature is

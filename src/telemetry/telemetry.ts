@@ -99,6 +99,8 @@ export type TelemetryDeps = {
   getAppState: () => string;
   getAppVersion: () => string;
   getDeviceContext: () => {
+    /** Set only where React Native is present; absent → no report. */
+    platform?: string;
     ramTier: RamTierLike | null;
     totalMemoryBytes: number | null;
     osVersion: string | null;
@@ -155,10 +157,11 @@ function defaultStorage(): StorageLike {
 
 function defaultDeps(): TelemetryDeps {
   let appState = "active";
+  let platform: string | undefined;
   let subscribe: TelemetryDeps["subscribeAppState"];
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { AppState } = require("react-native") as {
+    const { AppState, Platform } = require("react-native") as {
       AppState: {
         currentState: string;
         addEventListener: (
@@ -166,8 +169,10 @@ function defaultDeps(): TelemetryDeps {
           cb: (s: string) => void,
         ) => { remove: () => void };
       };
+      Platform: { OS: string };
     };
     appState = AppState.currentState ?? "active";
+    platform = Platform.OS;
     subscribe = (cb) => {
       const sub = AppState.addEventListener("change", cb);
       return () => sub.remove();
@@ -198,6 +203,7 @@ function defaultDeps(): TelemetryDeps {
       }
     },
     getDeviceContext: () => ({
+      platform,
       ramTier: "low",
       totalMemoryBytes: null,
       osVersion: null,
@@ -923,6 +929,7 @@ async function reportTelemetryAsync(input: ReportTelemetryInput): Promise<void> 
       detail: input.detail,
       rawMessage: input.rawMessage,
       appVersion: deps.getAppVersion(),
+      platform: ctx.platform,
       deviceBucket: deviceBucketFromRamTier(ctx.ramTier),
       osMajor: osMajorFromVersion(ctx.osVersion),
       modelCategory: modelCategoryFromId(
@@ -979,17 +986,19 @@ export function buildManualReportPreview(input?: {
   detail?: string;
 }): TelemetryReport | null {
   try {
-    const ctx = deps?.getDeviceContext() ?? {
-      ramTier: "low" as const,
-      totalMemoryBytes: null,
-      osVersion: null,
-      modelId: null,
-      hadWebTools: false,
-    };
+    const ctx: ReturnType<TelemetryDeps["getDeviceContext"]> =
+      deps?.getDeviceContext() ?? {
+        ramTier: "low" as const,
+        totalMemoryBytes: null,
+        osVersion: null,
+        modelId: null,
+        hadWebTools: false,
+      };
     return sanitizeReport({
       code: input?.code ?? "unknown",
       detail: input?.detail,
       appVersion: deps?.getAppVersion() ?? "0.1.0",
+      platform: ctx.platform,
       deviceBucket: deviceBucketFromRamTier(ctx.ramTier),
       osMajor: osMajorFromVersion(ctx.osVersion),
       modelCategory: modelCategoryFromId(ctx.modelId),

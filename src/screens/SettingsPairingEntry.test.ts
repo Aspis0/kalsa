@@ -166,7 +166,7 @@ jest.mock("../hooks/useProcessHealth", () => ({ useProcessHealth: jest.fn(() => 
 jest.mock("../hooks/useThermalMonitor", () => ({ useThermalMonitor: jest.fn(() => ({})) }));
 
 import React from "react";
-import { BackHandler } from "react-native";
+import { BackHandler, Platform } from "react-native";
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from "react-test-renderer";
 import type { DeviceBandwidthCalibration } from "../engine/deviceThroughput";
 import type {
@@ -392,5 +392,32 @@ describe("the governor switch on the advanced page", () => {
         .props.value,
     ).toBe(true);
     await act(async () => renderer.unmount());
+  });
+
+  it("is absent on iOS, where the governor never loads", async () => {
+    (Platform as { OS: string }).OS = "ios";
+    try {
+      const renderer = await renderSettings();
+
+      await act(async () => {
+        renderer.root
+          .findByProps({ testID: "settings.home.advanced" })
+          .props.onPress();
+      });
+
+      expect(
+        renderer.root.findAllByProps({ accessibilityLabel: "settings.governor" }),
+      ).toHaveLength(0);
+      const governorCopy = renderer.root.findAll(
+        (node) =>
+          String(node.type) === "Text" &&
+          (node.props.children === "settings.governor" ||
+            node.props.children === "settings.governorBody"),
+      );
+      expect(governorCopy).toHaveLength(0);
+      await act(async () => renderer.unmount());
+    } finally {
+      (Platform as { OS: string }).OS = "android";
+    }
   });
 });

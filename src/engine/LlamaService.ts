@@ -2483,7 +2483,10 @@ export function initEngine(
             benchDecodeHop,
           )
           : null;
+      // Android-only: on iOS the sensor gate is reachable through a bench
+      // thermo profile (kalsa.bench.thermo) alone — no battery read exists.
       const governorLoad =
+        Platform.OS === "android" &&
         governorBase != null &&
         governorBase.enabled &&
         governorThermo != null &&

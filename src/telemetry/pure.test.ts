@@ -13,6 +13,7 @@ describe("telemetry pure helpers", () => {
       detail: "timeout",
       signal: "ENOSPC",
       appVersion: "1.2.3",
+      platform: "android",
     });
 
     expect(report?.error).toEqual({
@@ -27,7 +28,7 @@ describe("telemetry pure helpers", () => {
     "https://example.com/private?token=secret",
     "/data/user/0/com.kalsa/files/chat.db",
   ])("omits unsafe free-text detail: %s", (detail) => {
-    const report = sanitizeReport({ code: "web.fetch", detail });
+    const report = sanitizeReport({ code: "web.fetch", detail, platform: "android" });
     expect(report?.error.detail).toBeUndefined();
   });
 
@@ -39,6 +40,7 @@ describe("telemetry pure helpers", () => {
       code: "web.fetch",
       detail: url,
       rawMessage: `${chat} ${url} ${path} ENOSPC`,
+      platform: "android",
     });
 
     const serialized = JSON.stringify(report);
@@ -52,6 +54,7 @@ describe("telemetry pure helpers", () => {
     const report = sanitizeReport({
       code: "engine.init",
       signal: "https://example.com/stack/path",
+      platform: "android",
     });
 
     expect(report?.error.signal).toBeUndefined();
@@ -105,5 +108,34 @@ describe("telemetry pure helpers", () => {
     ["unexpected failure", "unknown"],
   ] as const)("classifies network failure %s", (message, expected) => {
     expect(classifyNetworkFailure(message)).toBe(expected);
+  });
+
+  test("sends the injected platform; unknown or absent drops the report", () => {
+    expect(sanitizeReport({ code: "web.fetch", platform: "ios" })?.platform).toBe(
+      "ios",
+    );
+    expect(
+      sanitizeReport({ code: "web.fetch", platform: "android" })?.platform,
+    ).toBe("android");
+    expect(
+      sanitizeReport({ code: "web.fetch", platform: "windows" }),
+    ).toBeNull();
+    expect(sanitizeReport({ code: "web.fetch" })).toBeNull();
+  });
+
+  test("the platform value is the only field that changes", () => {
+    const input = {
+      code: "web.fetch" as const,
+      detail: "timeout",
+      appVersion: "1.2.3",
+      deviceBucket: "mid" as const,
+      osMajor: "14",
+      dateBucket: "2026-08-12",
+    };
+    const ios = sanitizeReport({ ...input, platform: "ios" });
+    const android = sanitizeReport({ ...input, platform: "android" });
+    expect(ios).not.toBeNull();
+    expect(android).not.toBeNull();
+    expect(ios).toEqual({ ...android, platform: "ios" });
   });
 });
