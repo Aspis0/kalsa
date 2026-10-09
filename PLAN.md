@@ -2306,8 +2306,12 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   env-seeded opt_hostbuf" -> mimo 985c6eb8f; re-audit OK; comment fix 2e723bd9d); **engine fork main pushed
   23b2a44d7..2e723bd9d**; binding re-vendor + true F2 comment + skels rebuilt (fingerprint covers the host file): GLM `277625e0` ->
   **binding fork main pushed 1632a4a2..1babccb9** (gates EXIT 0, jest 82/82, vendored setter == engine; not
-  re-audited: mechanical re-vendor of the twice-audited engine change). App pin target: binding 1babccb9 / engine
-  2e723bd9d. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
+  re-audited: mechanical re-vendor of the twice-audited engine change). **App main PUSHED b36552ee..44609814
+  (2026-10-09, owner: "il PIN dell'app devi farlo tu")**: pin e8707470 = kalsa.rn 1babccb9 / kalsallama 2e723bd9d
+  (GLM `fcf32ecc`; provenance 1198 files EXIT 0, tsc, apk.yml harness block, jest src/engine 1211 all EXIT 0; NDK
+  overlay gate host-clang variant only, no NDK on the Mac) + REPOS.md. Old .kvs/snapshot files die on the engineBuild
+  meta gate -> cold start, no user error. Audit deepseek `6220ecfa`: no P0/P1; leftovers A1-A3 in the backlog (A1 P2
+  pre-existing: governor-mode restore deletes a valid .kvs). No APK dispatched. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
   fork main once the QDC legs pass ("si"); (2) binding bump on the merged engine with rebuilt skels, push binding main
   ("tutto tuo pusha"); app pin/APK stay the owner's.** **Round 4 DONE (S23 unplugged, ABBA npu hr hr npu, skin 43):
   rule v3 = NPU alone within noise** - every arm 3 full 2048-token runs (6144 tokens), seconds to skin 43 npu 453/431

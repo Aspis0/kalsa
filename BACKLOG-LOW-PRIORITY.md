@@ -15,3 +15,14 @@
 - B5 (P3) `common_chat_input(std::string)` allocates a token vector per streamed parse (twice), unused by the parser.
 - B6 (note for the app pin) `LLAMA_STATE_SEQ_VERSION` 3 -> 4: state files saved by the old engine are refused and
   `rn-slot-manager.cpp:613` reports a load failure, not a cold start.
+
+## App pin e8707470 (binding 1babccb9 / engine 2e723bd9d) - audit leftovers (deepseek 6220ecfa, 2026-10-09)
+
+- A1 (P2, pre-existing) Governor mode: `restoreEngineSession` (src/engine/LlamaService.ts ~4085) has no governor
+  guard; the JSI refuses session loads under the governor ("Session load is not supported while governor mode is
+  enabled"), the generic catch classifies it as an unexpected failure and `deleteSessionArtifacts` removes a .kvs
+  whose meta matched (governor ON by default; chat switch calls restore).
+- A2 (P3, latent) `staticPrefixSnapshot.ts:178-180` native-throw path does not delete the file its doc says it
+  deletes (unreachable with a content-hash engineBuild; the caller goes cold).
+- A3 (P3, pre-existing) The app's `assert-htp-skels-installed.sh` trusts the manifest's ENGINE_COMMIT / fingerprint;
+  the recomputing gate lives only in the binding repo.
