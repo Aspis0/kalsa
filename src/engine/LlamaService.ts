@@ -223,6 +223,7 @@ import {
   sessionMetaMismatchField,
   SESSION_FORMAT_VERSION,
   buildKvDiagPayload,
+  GOVERNOR_SESSION_REASON,
   sessionNativeErrorReason,
   sessionAssembleBoundary,
   shouldDeleteSessionArtifactsOnLoadFailure,
@@ -3490,7 +3491,7 @@ export async function saveEngineSession(
   historyMessageCount?: number,
 ): Promise<boolean> {
   if (activeGovernorActive) {
-    logGovernorSessionSkip("save");
+    logGovernorSessionSkip();
     return false;
   }
   // Capture identity NOW: the FIFO serializes work but not conversation id.
@@ -4086,13 +4087,6 @@ export async function invalidateConversationSessions(
  */
 export async function restoreEngineSession(modelId: string): Promise<boolean> {
   if (!modelId) return false;
-  // Under the governor the native JSI refuses load every time; return before
-  // the locks and disk work for a call that cannot succeed, and skip the
-  // failure path (hold-drop) the refusal would trigger.
-  if (activeGovernorActive) {
-    logGovernorSessionSkip("load");
-    return false;
-  }
   return withLifecycleLock(() =>
     withEngineJob(async () => {
       if (!context || activeModelId !== modelId) return false;
@@ -6089,10 +6083,14 @@ function nativeSessionPath(uri: string): string {
   return uri.replace(/^file:\/\//, "");
 }
 
-function logGovernorSessionSkip(op: "load" | "save"): void {
+function logGovernorSessionSkip(): void {
   try {
     console.log(
-      `KALSA_SESSION ${JSON.stringify({ op, ok: false, reason: "governor_mode" })}`,
+      `KALSA_SESSION ${JSON.stringify({
+        op: "save",
+        ok: false,
+        reason: GOVERNOR_SESSION_REASON,
+      })}`,
     );
   } catch {
     // telemetry must never throw
@@ -6104,7 +6102,7 @@ async function snapshotNativeSession(
   destPath: string,
 ): Promise<boolean> {
   if (activeGovernorActive && engine === context) {
-    logGovernorSessionSkip("save");
+    logGovernorSessionSkip();
     return false;
   }
   try {
@@ -6159,7 +6157,7 @@ async function restoreNativeSession(
     }
   };
   if (activeGovernorActive && engine === context) {
-    log(false, { reason: "governor_mode" });
+    log(false, { reason: GOVERNOR_SESSION_REASON });
     return false;
   }
   try {

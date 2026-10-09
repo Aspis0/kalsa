@@ -67,11 +67,25 @@ test("save and load session payloads stay hash-only", () => {
   );
 });
 
-test("governor mode answers restore before the native load", () => {
-  // The refusal must come from the early return, not from the native JSI:
-  // a thrown refusal travelled the load catch, which classified it as
-  // unexpected and deleted a .kvs whose meta matched.
-  expect(llamaServiceSource).toMatch(
-    /if \(activeGovernorActive\) \{\s*logGovernorSessionSkip\("load"\);\s*return false;\s*\}/,
+test("restoreEngineSession reaches the native load under the governor", () => {
+  // No governor early return before withLifecycleLock: the refusal must
+  // travel tryLoadEngineSession's failure path, which drops the hold and
+  // resets the baked tails — the chat-switch state conversation B's first
+  // send depends on. An early return leaves conversation A's hold across
+  // the switch and B's send then reconciles (and discards B's .kvs).
+  const fnStart = llamaServiceSource.indexOf(
+    "export async function restoreEngineSession",
   );
+  if (fnStart < 0) throw new Error("restoreEngineSession not found");
+  const lockAt = llamaServiceSource.indexOf("withLifecycleLock", fnStart);
+  if (lockAt < 0) {
+    throw new Error("restoreEngineSession no longer takes the lifecycle lock");
+  }
+  const loadAt = llamaServiceSource.indexOf("return tryLoadEngineSession", fnStart);
+  if (loadAt < 0) {
+    throw new Error("restoreEngineSession no longer calls tryLoadEngineSession");
+  }
+  const preamble = llamaServiceSource.slice(fnStart, loadAt);
+  expect(preamble).not.toMatch(/activeGovernorActive/);
+  expect(preamble).not.toMatch(/logGovernorSessionSkip/);
 });

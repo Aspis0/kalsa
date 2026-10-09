@@ -800,6 +800,11 @@ export function lastSaveAfterHoldDrop(
   return nativeEmpty ? null : lastSave;
 }
 
+/** Telemetry reason for the native governor's load/save refusal. One
+ *  constant shared by the classifier and the KALSA_SESSION line so the log
+ *  and the keep-the-.kvs rule cannot drift apart. */
+export const GOVERNOR_SESSION_REASON = "governor_mode";
+
 /** Native throw "kv_inconsistent" — keep the previous .kvs, do not delete. */
 export function sessionNativeErrorReason(error: unknown): string | null {
   const blob =
@@ -810,7 +815,7 @@ export function sessionNativeErrorReason(error: unknown): string | null {
   // The native JSI refuses load and save while the governor runs the context;
   // the sentence is the same except for the verb.
   if (blob.includes("not supported while governor mode is enabled")) {
-    return "governor_mode";
+    return GOVERNOR_SESSION_REASON;
   }
   return null;
 }
@@ -823,7 +828,7 @@ export function sessionNativeErrorReason(error: unknown): string | null {
 export function isExpectedSessionFailureReason(reason: string): boolean {
   return (
     reason === "kv_inconsistent" ||
-    reason === "governor_mode" ||
+    reason === GOVERNOR_SESSION_REASON ||
     reason.includes("history_not_reproducible")
   );
 }
