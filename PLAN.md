@@ -2311,7 +2311,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (GLM `fcf32ecc`; provenance 1198 files EXIT 0, tsc, apk.yml harness block, jest src/engine 1211 all EXIT 0; NDK
   overlay gate host-clang variant only, no NDK on the Mac) + REPOS.md. Old .kvs/snapshot files die on the engineBuild
   meta gate -> cold start, no user error. Audit deepseek `6220ecfa`: no P0/P1; leftovers A1-A3 in the backlog (A1 P2
-  pre-existing: governor-mode restore deletes a valid .kvs). No APK dispatched. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
+  pre-existing: governor-mode restore deletes a valid .kvs). No APK dispatched. **Xiaomi real phone (cell
+  `xiaomi-merge-b11514-legs-74`, unplugged, 2026-10-09): every one-copy leg PASS on the merged engine; the GPU-750 leg
+  that failed KL on this phone is now deterministic 0.000010 (= QDC #72 digit for digit); GPU 22 tok/s > NPU 15 here.**
+  Owner 2026-10-09: APK with the new pin + rule v3 ON by default, tested on the S23; fix A1; Xiaomi without APK.
+  Binding: v3 knobs exposed (GLM `43823f48` -> 70de0d22 + lib types 80d585ac), audit next. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
   fork main once the QDC legs pass ("si"); (2) binding bump on the merged engine with rebuilt skels, push binding main
   ("tutto tuo pusha"); app pin/APK stay the owner's.** **Round 4 DONE (S23 unplugged, ABBA npu hr hr npu, skin 43):
   rule v3 = NPU alone within noise** - every arm 3 full 2048-token runs (6144 tokens), seconds to skin 43 npu 453/431
