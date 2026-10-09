@@ -53,6 +53,7 @@ export async function loadApp() {
         export { createAttachGate, NEW_CHAT } from "../src/lib/attachGate.ts";
         export { buildPinnedContext, estTokens, turnDocBlock } from "../src/lib/attachments.ts";
         export { sentDatePhrase } from "../src/lib/sentDate.ts";
+        export { newUserTurn } from "../src/lib/userTurn.ts";
       `,
       resolveDir: SCRIPTS_DIR,
       loader: "ts",

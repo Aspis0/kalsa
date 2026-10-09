@@ -8,7 +8,7 @@
 //
 // Run: node scripts/sent-date.mjs   (from chat/)
 
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { loadApp } from "./lib/app-bundle.mjs";
 
 let fail = 0;
@@ -74,7 +74,7 @@ let dir = null;
 try {
   const loaded = await loadApp();
   dir = loaded.dir;
-  const { buildPinnedContext, estTokens, sentDatePhrase, createStore } = loaded.app;
+  const { buildPinnedContext, estTokens, sentDatePhrase, createStore, newUserTurn } = loaded.app;
 
   // Local midday, so the day is the same in every timezone the check runs in.
   const THURSDAY = new RealDate(2026, 9, 8, 12).getTime();
@@ -85,6 +85,28 @@ try {
     "Thursday, 8 October 2026",
   );
   equal("the phrase names a weekday from the calendar", sentDatePhrase(new RealDate(2026, 0, 1)), "Thursday, 1 January 2026");
+
+  // The send path builds its user turn through newUserTurn, which sets the day.
+  // The source check is what stops the send path from building one inline again.
+  const sentAt = new RealDate(2026, 9, 8, 12);
+  const turn = newUserTurn("u9", "hello", sentAt);
+  equal("a new user turn carries its day", turn.sentOn, "Thursday, 8 October 2026");
+  equal("a new user turn carries its send time", turn.createdAt, sentAt.getTime());
+  equal("a new user turn without riders has only its own keys", Object.keys(turn).sort(), [
+    "content",
+    "createdAt",
+    "id",
+    "role",
+    "sentOn",
+  ]);
+  const riding = newUserTurn("u10", "see this", sentAt, { docs: ["a1"], docTokens: 3 });
+  equal("riders ride on the turn", [riding.docs, riding.docTokens, riding.sentOn], [["a1"], 3, "Thursday, 8 October 2026"]);
+  const useChat = await readFile(new URL("../src/surfaces/useChat.ts", import.meta.url), "utf8");
+  check(
+    "the send path builds its user turn with newUserTurn",
+    useChat.includes("newUserTurn(userId, text, sentAt"),
+    "useChat.ts no longer calls newUserTurn for the user turn",
+  );
 
   const SENT = "Thursday, 8 October 2026";
   const LINE = `Sent on ${SENT}.`;

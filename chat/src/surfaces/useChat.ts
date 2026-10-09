@@ -38,7 +38,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
 import { contentDecline } from "../lib/contentFilterCopy";
 import { logUiEvent } from "../lib/uiLog";
-import { sentDatePhrase } from "../lib/sentDate";
+import { newUserTurn } from "../lib/userTurn";
 import { useBrain, useBrainServer, useDoorStanding, withBrainDefaults } from "./useBrain";
 import { useServerFacts } from "./useServerFacts";
 import { useVisionOffer } from "./useVisionOffer";
@@ -832,24 +832,20 @@ export function useChat(shell: ChatShell) {
     const boundBlock = turnDocBlock(bindable);
     // Blocked words never reach the model: the decline is the answer instead.
     const decline = contentDecline(text, table.contentFilter);
+    const sentAt = new Date();
     const updated: Conversation = {
       ...conv,
       title: conv.messages.length === 0 ? titleFor(text, t.newConversation) : conv.title,
       updatedAt: Date.now(),
       messages: [
         ...conv.messages,
-        {
-          id: userId,
-          role: "user",
-          content: text,
-          createdAt: Date.now(),
-          sentOn: sentDatePhrase(new Date()),
+        newUserTurn(userId, text, sentAt, {
           ...(images.length > 0 ? { images } : {}),
           ...(videos.length > 0 ? { videos } : {}),
           ...(bindable.length > 0
             ? { docs: bindable.map((a) => a.id), docTokens: estTokens(boundBlock) }
             : {}),
-        },
+        }),
         { id: assistantId, role: "assistant", content: decline ?? "", createdAt: Date.now() },
       ],
     };

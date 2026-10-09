@@ -40,6 +40,30 @@ fn scratch(name: &str) -> PathBuf {
     dir
 }
 
+/// Removes a test's scratch tree when the test ends, however it ends: the
+/// shared `scratch` removes only before a run, so a test that does not clean
+/// up leaves its tree — and any locked subdirectory — for the next run to
+/// trip over.
+pub(super) struct Scratch(PathBuf);
+
+impl Scratch {
+    /// The tree a room directory hangs in.
+    pub(super) fn of(room_dir: &std::path::Path) -> Self {
+        Self(
+            room_dir
+                .parent()
+                .expect("a room dir has a parent")
+                .to_path_buf(),
+        )
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 /// Opens a room in a fresh scratch DATA directory and hands back the
 /// room's own directory (`<data>/room`) — where every file the store
 /// keeps lives.

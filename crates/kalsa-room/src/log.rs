@@ -35,6 +35,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::media::MediaAsset;
 use crate::recovery;
+use crate::sent;
 use crate::{MemberId, RoomError};
 
 pub(crate) const LOG_NAME: &str = "room-log.jsonl";
@@ -81,8 +82,8 @@ struct Record {
     /// same never-released rule `read` rides on.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     media: Vec<MediaAsset>,
-    /// The day a call was sent (see `Entry::sent_on`). Absent on every line
-    /// written before it existed, which replays as it was first sent.
+    /// The day a call was sent (see `Entry::sent_on`). Optional: a line
+    /// without it replays without a date.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     sent_on: Option<String>,
 }
@@ -341,6 +342,11 @@ impl Checker {
                 }
             }
         }
+        // A day rides only on a member's call, and only in the writer's own
+        // spelling; anything else is dropped, and the line itself is kept.
+        let sent_on = record.sent_on.filter(|day| {
+            record.kind == LineKind::Member && record.call_ai && sent::is_sent_on(day)
+        });
         Some(Message {
             seq: record.seq,
             member,
@@ -350,7 +356,7 @@ impl Checker {
             call_ai: record.call_ai,
             read: record.read,
             media: record.media,
-            sent_on: record.sent_on,
+            sent_on,
         })
     }
 }

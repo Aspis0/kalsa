@@ -11,7 +11,7 @@ use crate::media::{
 };
 use crate::{Entry, Event, MediaAsset, MediaEvent, MediaSpec, MemberId, PostError, Room};
 
-use super::{open, phone};
+use super::{open, phone, Scratch};
 
 fn sha256_of(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
@@ -955,30 +955,6 @@ fn craft_index(dir: &Path, records: &[serde_json::Value]) {
     let stored = serde_json::json!({ "v": crate::shelf::INDEX_VERSION, "media": records });
     let bytes = serde_json::to_vec(&stored).expect("the index serializes");
     std::fs::write(index_path(dir), bytes).expect("the index is written");
-}
-
-/// Removes a test's scratch tree when the test ends, however it ends: the
-/// shared `scratch` (tests.rs) removes only before a run, so a test that
-/// does not clean up leaves its tree — and any locked subdirectory — for
-/// the next run to trip over.
-struct Scratch(PathBuf);
-
-impl Scratch {
-    /// The tree a room directory hangs in.
-    fn of(room_dir: &Path) -> Self {
-        Self(
-            room_dir
-                .parent()
-                .expect("a room dir has a parent")
-                .to_path_buf(),
-        )
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
 }
 
 #[test]
