@@ -328,3 +328,20 @@ Owner: on by default for the alpha on phone and desktop; revisit the default for
 - Phone v2 sends no RAM figures: the only JS source is the process-cached device profile. A fresh available-memory read at report time needs a small native module (app module, not kalsa.rn — coordinate with the governor session). CPU load likewise has no source.
 - Phone v2 has no KALSA_SESSION (save/restore) hooks yet: that LlamaService code belongs to the governor session; add after its work lands. Leg failures are native-only (KALSA_GOVERNOR_FALLBACK); ask the governor session to expose them in stats if needed.
 - Bearer compare leaks the token length through timing (Worker `auth.ts`); accepted: READ/FLUSH/ADMIN tokens are long random values. The read route has no rate limit (authenticated only).
+
+## Automatic log upload + recovered line (2026-10-09)
+
+Owner: on serious errors the desktop uploads the redacted log by itself (max 3 per UTC day), the report carries its logRef, the crash card is gone. Deferred from the two-reviewer review:
+
+- The Worker `count` counts deliveries: a report stored whose response was lost is retried and counted twice (no idempotency key; `kalsa/workers/telemetry/index.ts` duplicate branch).
+- Without KV every duplicate rewrites the whole DO state, which grows until purge (`index.ts` ~:417-433). Fine at alpha volume; cap or shard before the beta.
+- The redactor is not a general path/secret scrubber: external-volume or network paths and odd error strings can reach R2 (`src-tauri/src/logging.rs` pass list; `main.rs` ~:1176 logs command error text). The report Worker stores the bytes as sent.
+- LOG_SETTLE (5 s) is a window, not a completion signal: slow restart diagnostics written later miss the upload.
+- The 3/day cap is client-side only (deleting the telemetry folder resets it) and shares the manual send's Worker limits (5/IP/min, 300/day); a rate-limited automatic log is not retried, the report goes without it.
+- logRef is unauthenticated client input; the maintainer tool only prints what it would fetch.
+- The engine's own stderr (kalsa-engine.log) is not in the uploaded body, by privacy choice; assertion text is therefore missing.
+- A failed start that never recovers uploads the log with no notice in the UI (by design: the notice is only for recoveries).
+- v1-shaped phone reports changed signature (platform added); their first recurrence after the deploy is a new entry.
+- `chat/scripts/verify.mjs` ~:2152 still pins the old 78-token prompt/889 total; `dev/lab-restraint/` (uncommitted lab) sends the old prompt sentence.
+- `chat/scripts/turn-failures.mjs` is red at HEAD (one "retry of the older row" check, date stamp in the expected text); the new UI (recovered line, Turn Kalsa on) has no harness coverage.
+- `record`/`record_locked` carry `#[allow(clippy::too_many_arguments)]`; a report-shape type would remove both.

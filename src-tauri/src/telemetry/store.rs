@@ -13,6 +13,11 @@ const DEAD_TTL: u64 = 30 * 24 * 60 * 60;
 /// A queued report that never reaches a server is dropped, not dead-lettered,
 /// one month after it was enqueued.
 const QUEUE_TTL: u64 = 30 * 24 * 60 * 60;
+/// How long a report that owes an automatic log upload waits past its
+/// enqueue before the log is read. The crash lines are already in the file
+/// when the report is enqueued; what the wait buys is the restart's own
+/// lines, written while the walk it runs is still going.
+const LOG_SETTLE: u64 = 5;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -26,6 +31,10 @@ pub(super) struct Item {
     pub(super) offline_streak: u8,
     #[serde(default)]
     pub(super) in_flight: bool,
+    /// A serious report owes the redacted log an automatic upload before it
+    /// goes out; cleared once the log is stored, refused, or sent without.
+    #[serde(default)]
+    pub(super) log_pending: bool,
 }
 
 impl Item {
@@ -46,6 +55,14 @@ impl Item {
             context.insert("attempt".into(), self.attempts.into());
         }
     }
+
+    /// Whether the item may be dispatched now. A report that owes an
+    /// automatic log upload waits past its enqueue, so the crash lines are
+    /// in the log before the upload reads it.
+    pub(super) fn ready(&self, now: u64) -> bool {
+        self.ready_at <= now
+            && (!self.log_pending || self.enqueued_at.saturating_add(LOG_SETTLE) <= now)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -63,6 +80,11 @@ pub(super) struct Store {
     pub(super) queue: Vec<Item>,
     dead: Vec<Dead>,
     seq: u64,
+    /// The UTC day the automatic log uploads below were counted against.
+    #[serde(default)]
+    log_day: String,
+    #[serde(default)]
+    log_uploads: u8,
     #[serde(skip)]
     dir: PathBuf,
 }
@@ -109,6 +131,8 @@ impl Store {
             queue: Vec::new(),
             dead: Vec::new(),
             seq: 0,
+            log_day: String::new(),
+            log_uploads: 0,
             dir: PathBuf::new(),
         });
         store.dir = dir;
@@ -221,7 +245,7 @@ impl Store {
         Ok(())
     }
 
-    pub(super) fn enqueue(&mut self, report: Value) {
+    pub(super) fn enqueue(&mut self, report: Value, log_pending: bool) {
         if !self.enabled {
             return;
         }
@@ -232,6 +256,7 @@ impl Store {
             enqueued_at: super::now(),
             offline_streak: 0,
             in_flight: false,
+            log_pending,
         });
         self.queue
             .drain(..self.queue.len().saturating_sub(QUEUE_CAP));
@@ -245,6 +270,24 @@ impl Store {
         self.queue
             .retain(|item| item.enqueued_at.saturating_add(QUEUE_TTL) > now);
         self.queue.len() != kept
+    }
+
+    /// Whether an automatic log upload is still inside `cap` for this UTC
+    /// day. A day the store has not counted yet starts a fresh budget.
+    pub(super) fn log_budget_left(&self, day: &str, cap: u8) -> bool {
+        if self.log_day != day {
+            return true;
+        }
+        self.log_uploads < cap
+    }
+
+    /// Counts one automatic log upload against its day's budget.
+    pub(super) fn note_log_upload(&mut self, day: &str) {
+        if self.log_day != day {
+            self.log_day = day.to_string();
+            self.log_uploads = 0;
+        }
+        self.log_uploads = self.log_uploads.saturating_add(1);
     }
 
     pub(super) fn dead(&mut self, item: Item, now: u64) {

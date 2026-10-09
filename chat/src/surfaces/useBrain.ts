@@ -12,7 +12,7 @@ import type { ProgressStep } from "./SetupProgress";
 import type { ChatSettings, LiveSettings } from "../lib/types";
 
 // Two seconds, not one: the state this carries changes on a person's scale —
-// a start, a stop, a death — and the crash prompt watches the same read, for
+// a start, a stop, a death — and the recovery line watches the same read, for
 // which two seconds is still prompt. Nothing downstream polls faster than
 // this; the UI's liveness is events, not this clock.
 const POLL_MS = 2000;

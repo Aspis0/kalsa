@@ -14,6 +14,8 @@ export const THREAD = {
     "stoppedHalfwayTitle": "回答中途停了。",
     "stoppedHalfwayBody": "连接在结束前断开了 —— 已到达的内容在上方。再试一次可获得完整回答。",
     "tryAgain": "再试一次",
+    "turnKalsaOn": "启动 Kalsa",
+    "engineOffBody": "Kalsa 已关闭。",
     "waitingFirstWord": "等待第一个字",
     "readingMessage": "Kalsa 正在阅读你的消息，很快就会回复。",
     "stoppedEarly": "回答已中断。",

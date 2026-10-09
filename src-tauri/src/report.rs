@@ -1,5 +1,7 @@
 //! The tester's report: the log files joined and trimmed into one body,
-//! sent to the one endpoint — only ever on a press, never automatically.
+//! sent to the one endpoint. The tester presses a button, and a serious
+//! telemetry error sends the same body the same way on its own (see
+//! `telemetry::log`).
 //!
 //! The body is the same two files the log folder holds, oldest first
 //! behind a one-line separator, kept to the newest [`MAX_BYTES`] cut at a

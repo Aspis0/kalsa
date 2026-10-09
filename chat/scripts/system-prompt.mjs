@@ -17,9 +17,9 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "../node_modules/esbuild/lib/main.js";
 
-// The largest variant (seeing, Think) is 263 tokens today; the ceiling is that
+// The largest variant (seeing, Think) is 288 tokens today; the ceiling is that
 // plus a little slack, so the next sentence moves it on purpose.
-const PROMPT_CEILING_TOKENS = 275;
+const PROMPT_CEILING_TOKENS = 300;
 
 const VARIANTS = [
   { name: "blind, no Think", vision: false, think: false },
@@ -34,6 +34,7 @@ const SENTENCES = [
   { label: "blind clause", text: "You cannot see images, audio or video.", when: (v) => !v.vision },
   { label: "seeing: no audio or video", text: "You cannot see audio or video.", when: (v) => v.vision },
   { label: "Think button", text: "A Think button sits in the message box", when: (v) => v.think },
+  { label: "writing needs no tool", text: "You can write, explain, translate, summarise and answer from your own knowledge; that needs no tool.", when: () => true },
   { label: "paperclip", text: "A paperclip in the message box attaches files.", when: () => true },
   { label: "miniapps", text: "Miniapps (a table, calculator, quiz or checklist) open inline in the chat.", when: () => true },
   { label: "phones", text: "Phones paired to this computer can get answers from you too.", when: () => true },

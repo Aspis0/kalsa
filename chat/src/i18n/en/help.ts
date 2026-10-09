@@ -101,9 +101,9 @@ export const HELP = {
     },
     {
       title: "When something goes wrong",
-      paragraphs: ["During the alpha, Kalsa sends error reports with technical details (which AI, your computer's processor, graphics card and memory use) to help fix problems. Never your chats or text. You can turn this off in Settings."],
+      paragraphs: ["During the alpha, Kalsa sends error reports with technical details, and the app's log when something serious goes wrong. Never your chats or text. You can turn this off in Settings."],
       items: [
-        `On the **${CHROME.pages.models}** page, **${REPORT.title}** → **${REPORT.send}**. The log never contains your messages, Kalsa's answers, your files, or any code or key. You get a report number to tell us.`,
+        `On the **${CHROME.pages.models}** page, **${REPORT.title}** → **${REPORT.send}**. The log never contains your messages, Kalsa's answers, your files, or any code or key.`,
       ],
     },
     {

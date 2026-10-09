@@ -159,6 +159,8 @@ pub(super) const SIGNATURE_PATTERN: &str = r#"^(GGML_ASSERT (ggml|ggml-vulkan|gg
 pub(super) const ASSERT_LOCATION_PATTERN: &str = r#"(?:^|[/\\\s])(ggml(?:-vulkan|-metal|-cuda|-opencl|-backend)?|llama(?:-context)?|server-(?:context|slot))\.(cpp|c|m|cu):([0-9]{1,7})\b"#;
 pub(super) const ENGINE_ERROR_PATTERN: &str = r#"\bvk::(?:DeviceLostError|OutOfDeviceMemoryError|OutOfHostMemoryError|InitializationFailedError)\b|\bCUDA error\b|\bout of memory\b|\bsegmentation fault\b"#;
 pub(super) const ENGINE_RELEASE_PATTERN: &str = r#"^v\d+\.\d+\.\d+$"#;
+pub(super) const LOG_REF_PATTERN: &str =
+    r#"^[0-9]{4}-[0-9]{2}-[0-9]{2}/[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$"#;
 pub(super) const BODY_BYTES: i64 = 4096;
 pub(super) const SIGNATURE_CHARS: i64 = 80;
 pub(super) const HARDWARE_CHARS: i64 = 80;

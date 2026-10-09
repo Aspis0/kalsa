@@ -1,6 +1,6 @@
 // The shell: which surface is on screen, the ways between them, the topbar,
 // and the pieces that outlive any one surface — the slot banner, the web-call
-// ask, the crash prompt, the screen-reader status line. The surfaces render
+// ask, the recovery notice, the screen-reader status line. The surfaces render
 // themselves from their own files; the chat's state lives in the `useChat`
 // hook (surfaces/useChat.ts), called HERE so it survives the chat page's
 // unmounts.
@@ -28,8 +28,8 @@ import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ServerSurface } from "./surfaces/ServerSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { WebGateDialog } from "./components/WebGateDialog";
-import { CrashDialog } from "./components/CrashDialog";
-import { useCrashAsk } from "./surfaces/useCrashAsk";
+import { RecoveredNotice } from "./components/RecoveredNotice";
+import { useEngineRecovery } from "./surfaces/useEngineRecovery";
 import "./App.css";
 
 // How far the settings path may grow before the oldest step falls off. The
@@ -81,11 +81,10 @@ export function App() {
     return () => mq.removeEventListener("change", apply);
   }, []);
 
-  // The crash prompt: the previous session's unclean exit, and the engine
-  // dying under a running app — the card is rendered at the stage's level
-  // so it survives navigation like the web-call ask does.
+  // The engine dying under a running app and coming back by itself: the
+  // notice is rendered at the stage's level so it survives navigation.
   const { state } = useBrain();
-  const crashAsk = useCrashAsk(state?.kind ?? null, state?.reason_code ?? null);
+  const engine = useEngineRecovery(state?.kind ?? null);
 
   // One hop along the surfaces. Hops between settings surfaces extend the
   // walk so back can retrace it one step at a time; the chat is not on the
@@ -312,7 +311,9 @@ export function App() {
         {chat.gateShown ? (
           <WebGateDialog id={chat.gateShown.id} check={chat.gateShown.check} waiting={chat.gateWaiting} onAnswer={chat.answerGate} />
         ) : null}
-        {crashAsk.ask ? <CrashDialog ask={crashAsk.ask} onClose={crashAsk.dismiss} /> : null}
+        {engine.recovered ? (
+          <RecoveredNotice onSendLog={() => openSurface("models")} onDismiss={engine.dismiss} />
+        ) : null}
         <ErrorBoundary>
           <TelemetryNotice />
           {surface === "brain" ? (

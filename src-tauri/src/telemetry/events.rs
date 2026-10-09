@@ -23,6 +23,7 @@ pub(crate) fn startup_failure(failure: &StartupFailure) {
                 "unknown",
                 "",
                 json!({}),
+                true,
             );
             return;
         }
@@ -40,6 +41,7 @@ pub(crate) fn startup_failure(failure: &StartupFailure) {
         detail,
         "",
         json!({}),
+        false,
     );
 }
 
@@ -52,6 +54,7 @@ pub(crate) fn tune_failure() {
         "unknown",
         "",
         json!({}),
+        true,
     );
 }
 
@@ -75,6 +78,7 @@ pub(crate) fn web_failure(error: &kalsa_web::WebError, searching: bool) {
         detail,
         "",
         json!({}),
+        false,
     );
 }
 
@@ -82,6 +86,9 @@ pub(crate) fn ui_event(code: &str) {
     match code {
         "chat.prefill" => super::transition("engine", "prefill"),
         "chat.decode" => super::transition("engine", "decode"),
+        // The round is over in every direction; the engine is idle now, and a
+        // death while idle must not look like a death mid-answer.
+        "chat.turn_end" => super::transition("engine", "other"),
         "chat.turn_network"
         | "chat.turn_timeout"
         | "chat.turn_truncated"
@@ -99,6 +106,10 @@ pub(crate) fn ui_event(code: &str) {
                 .get()
                 .and_then(|s| s.inner.lock().ok().map(|i| i.engine_stage))
                 .unwrap_or("other");
+            // The round's end moves the stage to idle before this failure is
+            // reported; a stream failure is a failure to produce an answer,
+            // and decode is the stage that says so.
+            let stage = if stage == "other" { "decode" } else { stage };
             super::record(
                 "chat.generation",
                 "engine",
@@ -107,6 +118,7 @@ pub(crate) fn ui_event(code: &str) {
                 detail,
                 "",
                 json!({}),
+                false,
             );
         }
         _ => {}

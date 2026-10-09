@@ -1,0 +1,40 @@
+/* The recovery line: one slim row over the top-right corner. It floats, so
+   the page under it never moves while it is on screen. */
+
+.recovered-note {
+  position: fixed;
+  top: 3.75rem;
+  right: 1rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.3rem 0.4rem 0.3rem 0.8rem;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(var(--ink-rgb), 0.12);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.recovered-link {
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+
+.recovered-dismiss {
+  min-height: 24px;
+  padding: 0 0.6rem;
+  color: var(--silence);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.76rem;
+}

@@ -4,9 +4,11 @@
 //! Crates call `log::info!` and friends; this module is the only thing that
 //! decides where the words land. One live file (`kalsa-brain.log`) and at
 //! most one rotated file (`kalsa-brain.1.log`), in the folder Tauri names
-//! for logs. A tester finds the folder and sends the file by hand — nothing
-//! here ever uploads anything, and nothing here may stop the app: a folder
-//! that cannot be opened or written degrades to stderr for the whole run.
+//! for logs. A tester finds the folder and sends the file by hand;
+//! telemetry's serious-error path sends the same two files on its own. What
+//! this module owns is where the words land — and nothing here may stop the
+//! app: a folder that cannot be opened or written degrades to stderr for
+//! the whole run.
 //!
 //! Every message passes through one redaction before it is written — in
 //! the file and on stderr alike: a path that starts with the user's home

@@ -2,10 +2,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::{Service, store::Item};
+use serde_json::Value;
 
 const ENDPOINT: &str = "https://telemetry.kalsa.io/report";
 /// The ceiling an offline report's growing backoff cannot pass.
-const MAX_DELAY: u64 = 60 * 60;
+pub(super) const MAX_DELAY: u64 = 60 * 60;
 /// ureq reports a TLS handshake that dies once the socket is up with the
 /// same ConnectionFailed kind as a refused connect, so its message is the
 /// only thing that separates the two (ureq 2.12.1, pinned in Cargo.lock).
@@ -31,44 +32,148 @@ fn drain(service: &Service, agent: &ureq::Agent) {
     let Ok(_send) = service.send_gate.lock() else {
         return;
     };
+    let outbound = Outbound {
+        body: &|| {
+            crate::logging::folder()
+                .map(|dir| crate::report::read_body(&dir))
+                .unwrap_or_default()
+        },
+        upload: &|body| {
+            crate::report::send(
+                body,
+                &crate::report::app_header(
+                    env!("CARGO_PKG_VERSION"),
+                    std::env::consts::OS,
+                    std::env::consts::ARCH,
+                ),
+            )
+        },
+        report: &|report| send(agent, report),
+    };
     let now = super::now();
-    let (work, epoch) = {
+    let Some((work, epoch)) = pick(service, now) else {
+        return;
+    };
+    dispatch(service, work, epoch, now, &outbound);
+}
+
+/// The three outbound calls one cycle makes. Production wires the real
+/// network; the tests stand them in.
+pub(super) struct Outbound<'a> {
+    pub(super) body: &'a dyn Fn() -> String,
+    pub(super) upload: &'a dyn Fn(&str) -> Result<String, crate::report::SendFailure>,
+    pub(super) report: &'a dyn Fn(&Value) -> Outcome,
+}
+
+/// The pick half of a cycle: the ready report leaves the queue with its
+/// attempt bumped and the in-flight marker persisted, and comes back with
+/// the epoch it was picked under — the epoch every consent re-check in the
+/// cycle compares against.
+pub(super) fn pick(service: &Service, now: u64) -> Option<(Item, u64)> {
+    let Ok(mut inner) = service.inner.lock() else {
+        return None;
+    };
+    if !inner.store.enabled {
+        return None;
+    }
+    if inner.store.expire(now) && inner.store.save().is_err() {
+        inner.store.enabled = false;
+        return None;
+    }
+    let index = inner.store.queue.iter().position(|q| q.ready(now))?;
+    let item = &mut inner.store.queue[index];
+    item.attempts += 1;
+    item.in_flight = true;
+    item.ready_at = now + 60;
+    item.stamp_attempt();
+    let work = item.clone();
+    if inner.store.save().is_err() {
+        inner.store.enabled = false;
+        return None;
+    }
+    Some((work, inner.epoch))
+}
+
+/// Whether the cycle may still transmit: the switch is ON and no preference
+/// change has invalidated the epoch its work was picked under.
+pub(super) fn consent(service: &Service, epoch: u64) -> bool {
+    service
+        .inner
+        .lock()
+        .is_ok_and(|inner| inner.epoch == epoch && inner.store.enabled)
+}
+
+/// One item's cycle: the log it owes, then the report that names it, then
+/// the answer both of them got. The consent is re-checked under the lock
+/// before each transmission, because each one is preceded by slow work —
+/// the log read, the log upload — that a preference change can outlast.
+pub(super) fn dispatch(service: &Service, work: Item, epoch: u64, now: u64, out: &Outbound) {
+    let day = {
         let Ok(mut inner) = service.inner.lock() else {
             return;
         };
-        if !inner.store.enabled {
+        if inner.epoch != epoch || !inner.store.enabled {
             return;
         }
-        if inner.store.expire(now) && inner.store.save().is_err() {
-            inner.store.enabled = false;
-            return;
+        match super::log::owed(&mut inner, &work, now) {
+            super::log::Owed::Day(day) => Some(day),
+            super::log::Owed::None => None,
         }
-        let Some(index) = inner.store.queue.iter().position(|q| q.ready_at <= now) else {
-            return;
-        };
-        let item = &mut inner.store.queue[index];
-        item.attempts += 1;
-        item.in_flight = true;
-        item.ready_at = now + 60;
-        item.stamp_attempt();
-        let work = item.clone();
-        if inner.store.save().is_err() {
-            inner.store.enabled = false;
-            return;
-        }
-        (work, inner.epoch)
     };
-    let outcome = send(agent, &work);
+    let mut report = work.report.clone();
+    if let Some(day) = day {
+        let body = (out.body)();
+        if body.trim().is_empty() {
+            let Ok(mut inner) = service.inner.lock() else {
+                return;
+            };
+            super::log::clear(&mut inner, &work);
+        } else {
+            if !consent(service, epoch) {
+                return;
+            }
+            let sent = (out.upload)(&body);
+            {
+                let Ok(mut inner) = service.inner.lock() else {
+                    return;
+                };
+                if inner.epoch != epoch || !inner.store.enabled {
+                    return;
+                }
+                match super::log::answered(sent) {
+                    // The log found no network: the item waits exactly like
+                    // a report that found no network.
+                    super::log::Answered::Offline => {
+                        drop(inner);
+                        settle(service, &work.report, epoch, now, Outcome::Offline);
+                        return;
+                    }
+                    super::log::Answered::Refused => super::log::clear(&mut inner, &work),
+                    super::log::Answered::Stored(id) => {
+                        if let Some(log_ref) = super::log::reference(&day, &id) {
+                            report = super::log::attach(&mut inner, &work, &day, log_ref);
+                        } else {
+                            super::log::clear(&mut inner, &work);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if !consent(service, epoch) {
+        return;
+    }
+    let outcome = (out.report)(&report);
+    settle(service, &report, epoch, now, outcome);
+}
+
+/// The post-send bookkeeping: the queued item takes the outcome's answer.
+fn settle(service: &Service, sent: &Value, epoch: u64, now: u64, outcome: Outcome) {
     if let Ok(mut inner) = service.inner.lock() {
         if inner.epoch != epoch || !inner.store.enabled {
             return;
         }
-        if let Some(index) = inner
-            .store
-            .queue
-            .iter()
-            .position(|q| q.report == work.report)
-        {
+        if let Some(index) = inner.store.queue.iter().position(|q| &q.report == sent) {
             let item = inner.store.queue.remove(index);
             complete(&mut inner.store, item, now, outcome);
             if inner.store.save().is_err() {
@@ -79,7 +184,7 @@ fn drain(service: &Service, agent: &ureq::Agent) {
     }
 }
 
-fn complete(store: &mut super::store::Store, mut item: Item, now: u64, outcome: Outcome) {
+pub(super) fn complete(store: &mut super::store::Store, mut item: Item, now: u64, outcome: Outcome) {
     // Every outcome answers the question the pre-dispatch save asked.
     item.in_flight = false;
     if let Outcome::Rejected(status) = outcome {
@@ -117,7 +222,7 @@ fn entropy(item: &Item) -> u64 {
 }
 
 #[derive(PartialEq, Debug)]
-enum Outcome {
+pub(super) enum Outcome {
     Done,
     Retry,
     Rejected(u16),
@@ -125,8 +230,8 @@ enum Outcome {
     Offline,
 }
 
-fn send(agent: &ureq::Agent, item: &Item) -> Outcome {
-    let Ok(body) = serde_json::to_string(&item.report) else {
+fn send(agent: &ureq::Agent, report: &Value) -> Outcome {
+    let Ok(body) = serde_json::to_string(report) else {
         return Outcome::Done;
     };
     if body.len() > super::spec::BODY_BYTES as usize {
@@ -140,7 +245,7 @@ fn send(agent: &ureq::Agent, item: &Item) -> Outcome {
     classify(response)
 }
 
-fn classify(response: Result<ureq::Response, ureq::Error>) -> Outcome {
+pub(super) fn classify(response: Result<ureq::Response, ureq::Error>) -> Outcome {
     match response {
         Ok(response) if response.status() == 200 => {
             // The phone also backs off for a legacy HTTP-200 quota refusal.
@@ -180,202 +285,8 @@ fn classify(response: Result<ureq::Response, ureq::Error>) -> Outcome {
     }
 }
 
-fn backoff(attempts: u8, entropy: u64) -> u64 {
+pub(super) fn backoff(attempts: u8, entropy: u64) -> u64 {
     let base = (30 * 2u64.pow(u32::from(attempts.min(20)))).min(3600);
     let jitter = (entropy % 50) as f64 / 100.0 - 0.25;
     ((base as f64 * (1.0 + jitter)) as u64).max(1)
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn contract_rejections_are_retained_with_a_bounded_dead_letter_queue() {
-        let response = ureq::Response::new(400, "Bad Request", "PRIVATE-BODY-CANARY").unwrap();
-        let outcome = super::classify(Err(ureq::Error::Status(400, response)));
-        assert_eq!(outcome, super::Outcome::Rejected(400));
-        let dir =
-            std::env::temp_dir().join(format!("kalsa-contract-rejection-{}", std::process::id()));
-        let mut store = super::super::store::Store::load(dir.clone());
-        for _ in 0..105 {
-            let item = super::Item {
-                report: super::super::privacy_tests::sample(),
-                attempts: 1,
-                ready_at: 0,
-                enqueued_at: 0,
-                offline_streak: 0,
-                in_flight: false,
-            };
-            super::complete(
-                &mut store,
-                item,
-                super::super::now(),
-                super::Outcome::Rejected(400),
-            );
-        }
-        store.save().unwrap();
-        let state = serde_json::to_value(super::super::store::Store::load(dir.clone())).unwrap();
-        assert_eq!(state["dead"].as_array().unwrap().len(), 100);
-        assert!(!state.to_string().contains("PRIVATE-BODY-CANARY"));
-        std::fs::remove_dir_all(dir).unwrap();
-    }
-
-    #[test]
-    fn retry_bands_match_phone_and_are_bounded() {
-        assert_eq!(super::backoff(1, 25), 60);
-        assert_eq!(super::backoff(4, 25), 480);
-        assert_eq!(super::backoff(20, 25), 3600);
-    }
-
-    fn offline() -> super::Outcome {
-        let agent = ureq::AgentBuilder::new()
-            .timeout(std::time::Duration::from_secs(2))
-            .build();
-        let error = agent.post("http://127.0.0.1:1/report").send_string("{}");
-        super::classify(error)
-    }
-
-    /// A listener that accepts a connection and then says nothing.
-    fn silent_listener(closes: bool) -> u16 {
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = listener.local_addr().unwrap().port();
-        std::thread::spawn(move || {
-            if let Ok((stream, _)) = listener.accept() {
-                if closes {
-                    drop(stream);
-                } else {
-                    std::thread::sleep(std::time::Duration::from_secs(1));
-                }
-            }
-        });
-        port
-    }
-
-    /// One drain cycle: the queued report leaves the queue, its attempt is
-    /// bumped and persisted before dispatch, and the answer lands in complete.
-    fn dispatch(store: &mut super::super::store::Store, now: u64, outcome: super::Outcome) {
-        let mut item = store.queue.remove(0);
-        item.attempts += 1;
-        super::complete(store, item, now, outcome);
-    }
-
-    fn queued(name: &str, now: u64) -> super::super::store::Store {
-        let dir = std::env::temp_dir().join(format!("kalsa-{name}-{}", std::process::id()));
-        let mut store = super::super::store::Store::load(dir.clone());
-        store.queue.push(super::Item {
-            report: super::super::privacy_tests::sample(),
-            attempts: 0,
-            ready_at: 0,
-            enqueued_at: now,
-            offline_streak: 0,
-            in_flight: false,
-        });
-        std::fs::remove_dir_all(dir).unwrap();
-        store
-    }
-
-    #[test]
-    fn a_refused_connection_is_an_attempt_the_server_never_answered() {
-        assert_eq!(offline(), super::Outcome::Offline);
-    }
-
-    #[test]
-    fn a_name_that_never_resolves_is_offline() {
-        let agent = ureq::AgentBuilder::new()
-            .timeout(std::time::Duration::from_secs(2))
-            .resolver(|_host: &str| Err(std::io::Error::other("no resolver in the test")))
-            .build();
-        let error = agent.post("http://kalsa.invalid/report").send_string("{}");
-        assert_eq!(super::classify(error), super::Outcome::Offline);
-    }
-
-    #[test]
-    fn a_server_that_connects_then_stalls_is_a_server_answer() {
-        let port = silent_listener(false);
-        let agent = ureq::AgentBuilder::new()
-            .timeout(std::time::Duration::from_millis(300))
-            .build();
-        let error = agent
-            .post(&format!("http://127.0.0.1:{port}/report"))
-            .send_string("{}");
-        assert_eq!(super::classify(error), super::Outcome::Retry);
-    }
-
-    #[test]
-    fn a_tls_handshake_that_never_completes_is_a_server_answer() {
-        let port = silent_listener(true);
-        let agent = ureq::AgentBuilder::new()
-            .timeout(std::time::Duration::from_secs(2))
-            .build();
-        let error = agent
-            .post(&format!("https://127.0.0.1:{port}/report"))
-            .send_string("{}");
-        assert_eq!(super::classify(error), super::Outcome::Retry);
-    }
-
-    #[test]
-    fn the_offline_streak_grows_the_backoff_to_the_hour_cap() {
-        let mut store = queued("streak", super::super::now());
-        let mut now = super::super::now();
-        let mut delays = Vec::new();
-        for _ in 0..10 {
-            dispatch(&mut store, now, offline());
-            delays.push(store.queue[0].ready_at - now);
-            now += 4_000;
-        }
-        assert_eq!(store.queue[0].offline_streak, 10);
-        assert_eq!(store.queue[0].attempts, 0);
-        assert!(delays[9] >= 30 * 60, "the backoff must grow: {delays:?}");
-        assert!(delays[9] <= super::MAX_DELAY);
-        assert!(delays[9] > delays[0], "the backoff must grow: {delays:?}");
-        // A server answer ends the streak: the next offline gap starts over.
-        dispatch(&mut store, now, super::Outcome::Retry);
-        now += 5_000;
-        assert_eq!(store.queue[0].offline_streak, 0);
-        dispatch(&mut store, now, offline());
-        assert_eq!(store.queue[0].offline_streak, 1);
-        assert_eq!(store.queue[0].attempts, 1);
-        assert!(store.queue[0].ready_at - now < 30 * 60);
-    }
-
-    #[test]
-    fn twenty_offline_failures_then_success_is_sent_and_never_dead_lettered() {
-        let mut store = queued("offline", super::super::now());
-        let mut now = super::super::now();
-        for cycle in 0..20 {
-            dispatch(&mut store, now, offline());
-            assert_eq!(
-                store.queue.len(),
-                1,
-                "cycle {cycle}: an offline failure requeues the report"
-            );
-            assert_eq!(
-                store.queue[0].attempts, 0,
-                "cycle {cycle}: an offline failure consumes no attempt"
-            );
-            assert!(store.queue[0].ready_at - now <= super::MAX_DELAY);
-            now += 4_000;
-        }
-        dispatch(&mut store, now, super::Outcome::Done);
-        assert!(store.queue.is_empty());
-        let state = serde_json::to_value(&store).unwrap();
-        assert!(state["dead"].as_array().unwrap().is_empty());
-    }
-
-    #[test]
-    fn five_server_errors_still_dead_letter_the_report() {
-        let response = ureq::Response::new(503, "Service Unavailable", "BODY").unwrap();
-        assert_eq!(
-            super::classify(Err(ureq::Error::Status(503, response))),
-            super::Outcome::Retry
-        );
-        let mut store = queued("server", super::super::now());
-        let mut now = super::super::now();
-        for _ in 0..5 {
-            dispatch(&mut store, now, super::Outcome::Retry);
-            now += 5_000;
-        }
-        assert!(store.queue.is_empty());
-        let state = serde_json::to_value(&store).unwrap();
-        assert_eq!(state["dead"].as_array().unwrap().len(), 1);
-    }
 }

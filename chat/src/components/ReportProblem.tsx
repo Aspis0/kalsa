@@ -9,21 +9,17 @@ import "./ReportProblem.css";
 type SendState =
   | { kind: "idle" }
   | { kind: "sending" }
-  | { kind: "sent"; id: string }
+  | { kind: "sent" }
   | { kind: "refused"; code: SendRefusal };
 
-/** The privacy sentence and the Send button, shared by the three places a
-    report can be asked for: the AI page's advanced section, the crash
-    prompt, and the webview's own error screen. `big` sets the sentence in the large
-    type the owner asked for on the report section; the dialog shows it
-    the same way. */
-export function SendLogBlock({ words }: { words: English["report"] }) {
+/** One Send press: its state and the action that makes it. */
+function useSendLog(): { state: SendState; send: () => Promise<void> } {
   const [state, setState] = useState<SendState>({ kind: "idle" });
   const send = useCallback(async () => {
     setState({ kind: "sending" });
     try {
-      const id = await sendLog();
-      setState({ kind: "sent", id });
+      await sendLog();
+      setState({ kind: "sent" });
     } catch (error) {
       const code = String(error).replace(/^"|"$/g, "");
       const refusal: SendRefusal =
@@ -31,6 +27,35 @@ export function SendLogBlock({ words }: { words: English["report"] }) {
       setState({ kind: "refused", code: refusal });
     }
   }, []);
+  return { state, send };
+}
+
+/** What a Send press leaves on screen: a thank-you, or why the log did not go. */
+function SendFeedback({ state, words }: { state: SendState; words: English["report"] }) {
+  return (
+    <>
+      {state.kind === "sent" ? (
+        <p className="report-sent" role="status">{words.sent}</p>
+      ) : null}
+      {state.kind === "refused" ? (
+        <p className="report-error" role="alert">
+          {state.code === "rate_limited"
+            ? words.errRateLimited
+            : state.code === "try_tomorrow"
+              ? words.errTryTomorrow
+              : state.code === "offline"
+                ? words.errUnreachable
+                : words.errSend}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** The privacy sentence and the Send button, as the advanced panel and the
+    webview's own error screen show them. */
+export function SendLogBlock({ words }: { words: English["report"] }) {
+  const { state, send } = useSendLog();
   return (
     <div className="report-send">
       <p className="report-privacy">{words.privacy}</p>
@@ -44,21 +69,7 @@ export function SendLogBlock({ words }: { words: English["report"] }) {
           {state.kind === "sending" ? words.sending : words.send}
         </button>
       </div>
-      {state.kind === "sent" ? (
-        // The number is the one thing the tester must be able to copy.
-        <p className="report-sent" role="status">{words.sentWithId(state.id)}</p>
-      ) : null}
-      {state.kind === "refused" ? (
-        <p className="report-error" role="alert">
-          {state.code === "rate_limited"
-            ? words.errRateLimited
-            : state.code === "try_tomorrow"
-              ? words.errTryTomorrow
-              : state.code === "offline"
-                ? words.errUnreachable
-                : words.errSend}
-        </p>
-      ) : null}
+      <SendFeedback state={state} words={words} />
     </div>
   );
 }

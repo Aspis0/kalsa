@@ -17,6 +17,8 @@ export const THREAD = {
   stoppedHalfwayTitle: "The answer stopped halfway.",
   stoppedHalfwayBody: "The connection closed before the end — what arrived is above. Try again for the full answer.",
   tryAgain: "Try again",
+  turnKalsaOn: "Turn Kalsa on",
+  engineOffBody: "Kalsa is off.",
   waitingFirstWord: "Waiting for the first word",
   readingMessage: "Reading your message — Kalsa will answer soon.",
   stoppedEarly: "Reply stopped.",

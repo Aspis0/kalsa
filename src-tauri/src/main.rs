@@ -147,10 +147,6 @@ struct Brain {
     /// bump+send, the walk side over claim+snapshot and check+send — so on
     /// the channel's FIFO no Turn off can land between a check and its send.
     gate: Mutex<()>,
-    /// Whether the PREVIOUS session exited uncleanly (its `running` marker
-    /// was still in the data directory at this session's start). Read once
-    /// by the crash prompt's command, which clears it in the same breath.
-    prev_crash: AtomicBool,
     crash_restart: CrashRestart,
 }
 
@@ -480,7 +476,6 @@ impl Brain {
             turning_on: AtomicBool::new(false),
             stops: AtomicU64::new(0),
             gate: Mutex::new(()),
-            prev_crash: AtomicBool::new(false),
             crash_restart: CrashRestart::default(),
             room: OnceLock::new(),
             room_events: Mutex::new(None),
@@ -1600,6 +1595,10 @@ fn restart_after_exit(app: &tauri::AppHandle, brain: &Arc<Brain>, leaving: &Arc<
         return;
     };
     log::warn!("the engine stopped by itself while Kalsa was on: starting it once more");
+    // The page samples the state clock and can miss a failed window this
+    // short: the restart says so the moment it is decided, and only here —
+    // a Turn on the person pressed never emits it.
+    let _ = app.emit("engine_recovering", ());
     let app = app.clone();
     let brain = Arc::clone(brain);
     let leaving = Arc::clone(leaving);
@@ -2449,7 +2448,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             files::brain_files_search,
             brain_open_log_folder,
             brain_send_log,
-            brain_previous_session_crashed,
             brain_log_webview_error,
             ui_event::brain_log_event,
             window_visibility::window_hidden
@@ -2526,13 +2524,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Under the lock, and only here: the unclean-exit marker is
             // this session's own, so a launch refused as a second one (it
             // returned above, before the lock existed) never touches it.
-            // The answer it gives is for the crash prompt to read once the
-            // window is up; this is also the one place it is logged.
+            // The previous session's own lines are in the rotated log the
+            // report body already reads, so the log rides along: one report
+            // per unclean exit, under the same consent as every other
+            // report, and the tester never has to send anything.
             if instance::session_marker::begin(parent) {
                 log::warn!("the previous session did not exit cleanly");
-                app.state::<Arc<Brain>>()
-                    .prev_crash
-                    .store(true, Ordering::SeqCst);
+                telemetry::record(
+                    "unknown",
+                    "ui",
+                    "other",
+                    "load",
+                    "unknown",
+                    "",
+                    serde_json::json!({}),
+                    true,
+                );
             }
             // A machine that has not changed does not measure again: seed
             // the kept measurement from the record, before any turn-on can
@@ -2872,16 +2879,6 @@ async fn brain_send_log() -> Result<String, String> {
     })
     .await
     .map_err(|_| "failed".to_string())?
-}
-
-/// Whether the previous session exited uncleanly — its `running` marker
-/// was still there when this one started. Reading it clears it: the prompt
-/// is asked once per session, however many times the page mounts.
-#[tauri::command]
-fn brain_previous_session_crashed(brain: State<Arc<Brain>>) -> bool {
-    brain
-        .prev_crash
-        .swap(false, Ordering::SeqCst)
 }
 
 /// The webview's own error, from the boundary that caught it: the error's

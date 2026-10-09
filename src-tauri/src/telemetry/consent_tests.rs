@@ -30,7 +30,7 @@ fn fresh_install_is_on() {
 fn explicit_off_survives_restart_and_stale_enabled_journal() {
     let dir = scratch("off");
     let mut store = Store::load(dir.clone());
-    store.enqueue(sample());
+    store.enqueue(sample(), false);
     store.save().unwrap();
     let stale = std::fs::read(dir.join("state.a")).unwrap();
     store.set_enabled(false).unwrap();
@@ -52,7 +52,7 @@ fn queue_cap_keeps_newest_reports_and_persists_them() {
         let mut report = sample();
         report["osMajor"] = json!(format!("{n:08}"));
         report["context"]["attempt"] = ((n % 5) + 1).into();
-        store.enqueue(report);
+        store.enqueue(report, false);
     }
     assert_eq!(store.queue.len(), QUEUE_CAP);
     store.save().unwrap();
@@ -67,7 +67,7 @@ fn queue_cap_keeps_newest_reports_and_persists_them() {
 fn an_unsent_report_expires_thirty_days_after_enqueue_and_is_dropped() {
     let dir = scratch("expiry");
     let mut store = Store::load(dir.clone());
-    store.enqueue(sample());
+    store.enqueue(sample(), false);
     store.save().unwrap();
     let now = super::now();
     store.queue[0].enqueued_at = now - 31 * 24 * 60 * 60;
@@ -83,7 +83,7 @@ fn an_unsent_report_expires_thirty_days_after_enqueue_and_is_dropped() {
 fn a_report_without_an_enqueue_stamp_starts_its_window_at_load() {
     let dir = scratch("expiry-legacy");
     let mut store = Store::load(dir.clone());
-    store.enqueue(sample());
+    store.enqueue(sample(), false);
     store.save().unwrap();
     store.save().unwrap();
     let bytes = std::fs::read(dir.join("state.b")).unwrap();
@@ -105,7 +105,7 @@ fn a_report_without_an_enqueue_stamp_starts_its_window_at_load() {
 fn the_running_queue_expires_reports_the_same_way_load_does() {
     let dir = scratch("expiry-live");
     let mut store = Store::load(dir.clone());
-    store.enqueue(sample());
+    store.enqueue(sample(), false);
     store.save().unwrap();
     let now = super::now();
     store.queue[0].enqueued_at = now - 31 * 24 * 60 * 60;
@@ -116,7 +116,7 @@ fn the_running_queue_expires_reports_the_same_way_load_does() {
     assert_eq!(state["queue"], json!([]));
     assert_eq!(state["dead"], json!([]));
     // A report inside its window survives the sweep untouched.
-    store.enqueue(sample());
+    store.enqueue(sample(), false);
     assert!(!store.expire(now));
     assert_eq!(store.queue.len(), 1);
     std::fs::remove_dir_all(dir).unwrap();
@@ -126,7 +126,7 @@ fn the_running_queue_expires_reports_the_same_way_load_does() {
 fn a_crash_mid_send_returns_the_attempt_the_server_never_charged() {
     let dir = scratch("inflight");
     let mut store = Store::load(dir.clone());
-    store.enqueue(sample());
+    store.enqueue(sample(), false);
     store.save().unwrap();
     store.save().unwrap();
     let bytes = std::fs::read(dir.join("state.b")).unwrap();
@@ -175,7 +175,7 @@ fn notice_acknowledgement_survives_restart() {
 fn off_physically_purges_both_state_slots() {
     let dir = scratch("purge");
     let mut store = Store::load(dir.clone());
-    store.enqueue(sample());
+    store.enqueue(sample(), false);
     store.dead(store.queue[0].clone(), super::now());
     store.save().unwrap();
     store.save().unwrap();

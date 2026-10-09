@@ -9,6 +9,7 @@ import { IMAGE_TOKENS } from "../lib/attachments";
 import { Panel } from "../components/Panel";
 import { Sidebar } from "../components/Sidebar";
 import { Thread } from "../components/Thread";
+import { useBrain } from "./useBrain";
 import { VisionOffer } from "../components/VisionOffer";
 import { useLanguage } from "../i18n/useLanguage";
 import type { Chat } from "./useChat";
@@ -16,6 +17,7 @@ import type { Chat } from "./useChat";
 export function ChatSurface({ chat }: { chat: Chat }) {
   const { table } = useLanguage();
   const t = table.shell;
+  const brain = useBrain();
   const {
     active,
     activeId,
@@ -133,6 +135,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
             failures={failures}
             tails={tails}
             onRetry={retry}
+            onTurnOn={() => void brain.act()}
             onMiniappState={chat.saveMiniappState}
           />
         )}

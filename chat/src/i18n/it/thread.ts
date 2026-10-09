@@ -14,6 +14,8 @@ export const THREAD = {
     "stoppedHalfwayTitle": "La risposta si è interrotta a metà.",
     "stoppedHalfwayBody": "La connessione si è chiusa prima della fine — quello che è arrivato è qui sopra. Riprova per la risposta completa.",
     "tryAgain": "Riprova",
+    "turnKalsaOn": "Accendi Kalsa",
+    "engineOffBody": "Kalsa è spenta.",
     "waitingFirstWord": "In attesa della prima parola",
     "readingMessage": "Kalsa sta leggendo il tuo messaggio e risponderà presto.",
     "stoppedEarly": "Risposta interrotta.",

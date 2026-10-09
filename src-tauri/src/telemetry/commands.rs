@@ -29,7 +29,10 @@ pub(crate) async fn brain_telemetry_set(enabled: bool) -> Result<(), &'static st
     .map_err(|_| "telemetry unavailable")?
 }
 
-fn set_preference(service: &super::Service, enabled: bool) -> Result<(), &'static str> {
+pub(super) fn set_preference(
+    service: &super::Service,
+    enabled: bool,
+) -> Result<(), &'static str> {
     let mut inner = service.inner.lock().map_err(|_| "telemetry unavailable")?;
     inner.epoch += 1;
     inner.recent.clear();
@@ -74,9 +77,9 @@ pub(crate) fn brain_telemetry_progress(prompt_tokens: u32, tokens_per_second: Op
 #[cfg(test)]
 mod tests {
     #[test]
-    fn off_returns_while_a_post_is_in_flight() {
+    fn off_answers_while_a_send_holds_the_gate_and_invalidates_the_cycle() {
         let dir = std::env::temp_dir().join(format!("kalsa-off-in-flight-{}", std::process::id()));
-        let service = super::super::Service {
+        let service = std::sync::Arc::new(super::super::Service {
             inner: std::sync::Mutex::new(super::super::Inner {
                 store: super::super::store::Store::load(dir.clone()),
                 epoch: 0,
@@ -91,16 +94,24 @@ mod tests {
                 last_state: None,
                 last_failure: None,
                 engine_stage: "load",
+                crash_at: None,
+                stream_error_at: None,
             }),
             send_gate: std::sync::Mutex::new(()),
-        };
+        });
+        let epoch = service.inner.lock().unwrap().epoch;
         let (send, recv) = std::sync::mpsc::channel();
         std::thread::scope(|scope| {
+            // A send is running: the drain holds this gate for the whole
+            // cycle, the upload and the report POST included.
             let in_flight = service.send_gate.lock().unwrap();
             scope.spawn(|| send.send(super::set_preference(&service, false)).unwrap());
             let result = recv.recv_timeout(std::time::Duration::from_millis(500));
             drop(in_flight);
             assert_eq!(result.unwrap(), Ok(()));
+            // The in-flight cycle's consent check now fails on the epoch
+            // alone, whatever its socket was doing.
+            assert!(!super::super::network::consent(&service, epoch));
         });
         assert!(!service.inner.lock().unwrap().store.enabled);
         std::fs::remove_dir_all(dir).unwrap();

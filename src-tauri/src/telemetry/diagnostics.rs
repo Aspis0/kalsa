@@ -59,6 +59,7 @@ pub(super) fn sanitize(input: &Value) -> Value {
         ("engineRelease", spec::ENGINE_RELEASE_PATTERN),
         ("cpuModel", spec::CPU_MODEL_PATTERN),
         ("gpuDriver", spec::GPU_DRIVER_PATTERN),
+        ("logRef", spec::LOG_REF_PATTERN),
     ] {
         if let Some(value) = fields.get(key).and_then(|v| hardware(v, pattern)) {
             if key == "gpuDriver" && value.as_str().is_some_and(ipv4) {

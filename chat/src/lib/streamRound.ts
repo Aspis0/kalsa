@@ -191,6 +191,18 @@ export async function runRound(
   else signal.addEventListener("abort", forwardAbort, { once: true });
 
   let response: Response;
+  // The round's last act in every direction — answer, error or Stop — is to
+  // say so: the engine is idle again, and only an idle engine's death is an
+  // init failure rather than a failed answer.
+  // A throw after a normal finish reaches it again from the catch: once only.
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    window.clearTimeout(idle);
+    signal.removeEventListener("abort", forwardAbort);
+    logUiEvent("chat.turn_end");
+  };
   try {
     logUiEvent("chat.prefill");
     response = await fetch(url, {
@@ -205,19 +217,13 @@ export async function runRound(
       signal: linked.signal,
     });
   } catch (error) {
-    window.clearTimeout(idle);
-    signal.removeEventListener("abort", forwardAbort);
+    finish();
     if (timedOut) throw new ChatRequestError("timeout", "Idle too long", undefined, url);
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ChatRequestError("aborted", "Stopped", undefined, url);
     }
     throw new ChatRequestError("network", "Network failure", undefined, url);
   }
-
-  const finish = () => {
-    window.clearTimeout(idle);
-    signal.removeEventListener("abort", forwardAbort);
-  };
 
   if (response.status === 401 || response.status === 403) {
     finish();

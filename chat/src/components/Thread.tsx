@@ -25,20 +25,17 @@ interface ThreadProps {
   failures: Record<string, FailedState>;
   tails: Record<string, string>;
   onRetry: (messageId: string) => void;
+  /** Starts the engine, for an answer that failed while it is off. */
+  onTurnOn: () => void;
   /** A mini app widget's next state, into the run that drew it. */
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
 }
 
-function errorCopy(
-  t: English["thread"],
-  kind: ChatErrorKind,
-  kalsaOff: boolean,
-): { title: string; body: string } {
+function errorCopy(t: English["thread"], kind: ChatErrorKind): { title: string; body: string } {
   switch (kind) {
     case "unauthorized":
     case "bad-response":
-      // An off brain has nothing to restart; its advice is to turn it on.
-      return { title: t.couldntAnswerTitle, body: kalsaOff ? t.notRunningBody : t.couldntAnswerBody };
+      return { title: t.couldntAnswerTitle, body: t.couldntAnswerBody };
     case "network":
       return { title: t.notRunningTitle, body: t.notRunningBody };
     case "truncated":
@@ -108,6 +105,7 @@ function AssistantRow({
   failures,
   tail,
   onRetry,
+  onTurnOn,
   onMiniappState,
 }: {
   message: ChatMessage;
@@ -115,13 +113,23 @@ function AssistantRow({
   failures: Record<string, FailedState>;
   tail?: string;
   onRetry: (messageId: string) => void;
+  onTurnOn: () => void;
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
 }) {
   const { table, tag } = useLanguage();
   const t = table.thread;
   const failedHere: FailedState | null = failures[message.id] ?? null;
   const brain = useBrainState();
-  const kalsaOff = brain?.kind === "stopped" || brain?.kind === "stopping" || brain?.kind === "failed";
+  // The states Home's start acts on. While stopping, that path would stop the
+  // engine again, so no button is offered then.
+  const engineOff = brain?.kind === "stopped" || brain?.kind === "failed";
+  const engineStopping = brain?.kind === "stopping";
+  // With the engine off, a retry would only fail again: the button starts it
+  // (the same start as Home) and the retry comes once it is on.
+  const failure = failedHere !== null ? errorCopy(t, failedHere.kind) : null;
+  const retry = engineOff
+    ? { label: t.turnKalsaOn, run: onTurnOn }
+    : { label: t.tryAgain, run: () => onRetry(message.id) };
   const hasReasoning = (message.reasoning ?? "") !== "";
   const toolRuns = message.toolRuns ?? [];
   const toolWorking = toolRuns.some((run) => run.state === "running");
@@ -164,20 +172,24 @@ function AssistantRow({
         ) : null}
         {showNoAnswer ? (
           <div className="no-answer">
-            <p>{t.noAnswer}</p>
-            <button type="button" className="btn-quiet" onClick={() => onRetry(message.id)}>
-              {t.tryAgain}
-            </button>
+            <p>{engineOff ? t.engineOffBody : t.noAnswer}</p>
+            {engineStopping ? null : (
+              <button type="button" className="btn-quiet" onClick={retry.run}>
+                {retry.label}
+              </button>
+            )}
           </div>
         ) : null}
-        {failedHere !== null ? (
+        {failure !== null ? (
           <div className="error-block" role="alert">
-            <p className="error-title">{errorCopy(t, failedHere.kind, kalsaOff).title}</p>
-            <p className="error-body">{errorCopy(t, failedHere.kind, kalsaOff).body}</p>
+            <p className="error-title">{failure.title}</p>
+            <p className="error-body">{engineOff ? t.engineOffBody : failure.body}</p>
             <div className="error-actions">
-              <button type="button" className="btn-primary" onClick={() => onRetry(message.id)}>
-                {t.tryAgain}
-              </button>
+              {engineStopping ? null : (
+                <button type="button" className="btn-primary" onClick={retry.run}>
+                  {retry.label}
+                </button>
+              )}
             </div>
           </div>
         ) : null}
@@ -192,6 +204,7 @@ export function Thread({
   failures,
   tails,
   onRetry,
+  onTurnOn,
   onMiniappState,
 }: ThreadProps) {
   const { table, tag } = useLanguage();
@@ -223,6 +236,7 @@ export function Thread({
                 failures={failures}
                 tail={tails[message.id]}
                 onRetry={onRetry}
+                onTurnOn={onTurnOn}
                 onMiniappState={onMiniappState}
               />
             ),

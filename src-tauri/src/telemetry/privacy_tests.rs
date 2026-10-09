@@ -189,3 +189,30 @@ fn drivers_exclude_ipv4_but_keep_intel_versions_and_future_releases() {
             .is_none()
     );
 }
+
+#[test]
+fn a_contract_log_reference_survives_the_sanitizer_and_a_broken_one_does_not() {
+    let mut report = sample();
+    report["diagnostics"]["logRef"] = json!("2026-10-09/K7XQ2M9P");
+    let kept = sanitize::report(&report).unwrap();
+    assert_eq!(kept["diagnostics"]["logRef"], "2026-10-09/K7XQ2M9P");
+    for broken in [
+        // Lowercase is off the id alphabet.
+        "2026-10-09/k7xq2m9p",
+        // Zero is off it too.
+        "2026-10-09/K7XQ2M90",
+        // The id is short.
+        "2026-10-09/K7XQ2M9",
+        // The day is not a date.
+        "yesterday/K7XQ2M9P",
+        // A path instead of a reference.
+        "../../K7XQ2M9P/K7XQ2M9P",
+    ] {
+        report["diagnostics"]["logRef"] = json!(broken);
+        let cleaned = sanitize::report(&report).unwrap();
+        assert!(
+            cleaned["diagnostics"].get("logRef").is_none(),
+            "{broken} must not survive: {cleaned}"
+        );
+    }
+}
