@@ -319,3 +319,12 @@ Owner: on by default for the alpha on phone and desktop; revisit the default for
 - `dev/generate-telemetry-spec.mjs` reads the contract from the sibling phone repo path; a moved checkout breaks `--check`.
 - The phone notice is a 4-second toast through the notice slot, marked seen on the next launch; not seen on a device yet.
 - Not verified: a real POST from an installed app (only a live 400 check against the deployed Worker), Windows/Linux hardware capture; Linux gives no GPU inventory; thermal and battery are not sent.
+
+## Crash restart + phone telemetry v2 (2026-10-09)
+
+- The restart walk (`restart_after_exit`, the `decided_at` veto, Home's "starting" during the walk) has no test: it needs an AppHandle harness. Live kill -9 check on the Mac is the proof.
+- The restart re-measures like "Try again", so the same model/launch is likely, not guaranteed. `exit_code` of a crash is ignored by the policy.
+- `slot_restore` failures are coded `engine.init` with phase `turn` (desktop `telemetry/mod.rs` ~:195-204).
+- Phone v2 sends no RAM figures: the only JS source is the process-cached device profile. A fresh available-memory read at report time needs a small native module (app module, not kalsa.rn — coordinate with the governor session). CPU load likewise has no source.
+- Phone v2 has no KALSA_SESSION (save/restore) hooks yet: that LlamaService code belongs to the governor session; add after its work lands. Leg failures are native-only (KALSA_GOVERNOR_FALLBACK); ask the governor session to expose them in stats if needed.
+- Bearer compare leaks the token length through timing (Worker `auth.ts`); accepted: READ/FLUSH/ADMIN tokens are long random values. The read route has no rate limit (authenticated only).

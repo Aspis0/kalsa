@@ -12,6 +12,7 @@
 mod capability;
 #[cfg(test)]
 mod contract;
+mod crash_restart;
 mod door;
 mod exit;
 mod failure;
@@ -23,6 +24,7 @@ mod legacy_choice;
 mod logging;
 mod measurement;
 mod metrics;
+mod oom;
 mod options;
 mod pairing;
 mod room;
@@ -54,6 +56,7 @@ use std::sync::{Arc, OnceLock};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime};
 
+use crash_restart::CrashRestart;
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
 use kalsa_supervisor::{
@@ -148,6 +151,7 @@ struct Brain {
     /// was still in the data directory at this session's start). Read once
     /// by the crash prompt's command, which clears it in the same breath.
     prev_crash: AtomicBool,
+    crash_restart: CrashRestart,
 }
 
 struct ActiveDoor {
@@ -477,6 +481,7 @@ impl Brain {
             stops: AtomicU64::new(0),
             gate: Mutex::new(()),
             prev_crash: AtomicBool::new(false),
+            crash_restart: CrashRestart::default(),
             room: OnceLock::new(),
             room_events: Mutex::new(None),
         }
@@ -1269,6 +1274,12 @@ fn brain_state(app: tauri::AppHandle, brain: State<Arc<Brain>>, desk: State<Desk
         ServerState::Starting => StateDto::Starting,
         ServerState::Stopping => StateDto::Stopping,
         ServerState::Stopped => StateDto::Stopped,
+        // A walk in flight answers for a failure it is replacing: the
+        // automatic restart after a crash must read as starting, not as the
+        // stopped sentence.
+        ServerState::Failed { .. } if brain.turning_on.load(Ordering::SeqCst) => {
+            StateDto::Starting
+        }
         ServerState::Failed { reason } => {
             let message = failure::StartupFailure::Supervisor(reason).message();
             StateDto::Failed {
@@ -1527,6 +1538,29 @@ pub(crate) async fn walk_and_settle(
     app: &tauri::AppHandle,
     brain: &Brain,
 ) -> Result<(), CommandError> {
+    walk(app, brain, None).await
+}
+
+/// The automatic restart's walk: the same walk as Try again, except that it
+/// starts nothing if a Turn off or quit has moved the stop generation since
+/// the crash was decided. `decided_at` is the generation that decision read.
+async fn restart_after_crash(
+    app: &tauri::AppHandle,
+    brain: &Brain,
+    decided_at: u64,
+) -> Result<(), CommandError> {
+    walk(app, brain, Some(decided_at)).await
+}
+
+/// `decided_at` is set only by the automatic restart. The comparison is
+/// exact because the claim reads the generation under the gate a Turn off
+/// holds; `queue_start` checks it again under that gate just before the
+/// start, which is where a Turn off that lands mid-walk is caught.
+async fn walk(
+    app: &tauri::AppHandle,
+    brain: &Brain,
+    decided_at: Option<u64>,
+) -> Result<(), CommandError> {
     let state_file = state_file(app)?;
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
@@ -1541,7 +1575,43 @@ pub(crate) async fn walk_and_settle(
     // Every `?` below returns through this: the claim (and the door's
     // raise) must not stay stuck behind a fallible call.
     let _walk = WalkGuard(brain);
+    if decided_at.is_some_and(|decided| decided != stops_seen) {
+        return Ok(());
+    }
+    brain.crash_restart.walk_started();
     settle(app, brain, state_file, stops_seen).await
+}
+
+/// The tick's answer to the engine's exit: one automatic restart through the
+/// walk Try again runs. The decision reads the live quit flag and the stop
+/// generation under the gate a Turn off holds.
+fn restart_after_exit(app: &tauri::AppHandle, brain: &Arc<Brain>, leaving: &Arc<AtomicBool>) {
+    let decided_at = {
+        let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+        let state = brain.supervisor.state();
+        brain.crash_restart.observe(
+            &state,
+            leaving.load(Ordering::SeqCst),
+            Instant::now(),
+            brain.stops.load(Ordering::SeqCst),
+        )
+    };
+    let Some(decided_at) = decided_at else {
+        return;
+    };
+    log::warn!("the engine stopped by itself while Kalsa was on: starting it once more");
+    let app = app.clone();
+    let brain = Arc::clone(brain);
+    let leaving = Arc::clone(leaving);
+    tauri::async_runtime::spawn(async move {
+        // Quit may have begun since the decision; it wins over the restart.
+        if leaving.load(Ordering::SeqCst) {
+            return;
+        }
+        if let Err(error) = restart_after_crash(&app, &brain, decided_at).await {
+            log::warn!("the automatic restart did not start: {}", error.code);
+        }
+    });
 }
 
 /// The walk's body once the single-walk claim is held: the measurement,
@@ -2078,6 +2148,14 @@ fn take_own_seat(file: &Path) -> Result<(), kalsa_pairing::StoreError> {
 
 #[tauri::command]
 async fn brain_stop(brain: State<'_, Arc<Brain>>, desk: State<'_, Desk>) -> Result<(), String> {
+    // The Turn off is declared before the save: a restart decided while the
+    // save runs finds the generation moved and is vetoed, and a Running the
+    // tick sees meanwhile does not re-arm it.
+    {
+        let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+        brain.stops.fetch_add(1, Ordering::SeqCst);
+        brain.crash_restart.disarm();
+    }
     // The model switch is this stop followed by a start (`chooseModel` in the
     // chat), and a Turn off is the same shape: the engine about to stop holds
     // the turns since the last timer save, and the save must write them under
@@ -2092,7 +2170,6 @@ async fn brain_stop(brain: State<'_, Arc<Brain>>, desk: State<'_, Desk>) -> Resu
     // poll from here reads the drain — never `Running` behind a lowered door.
     {
         let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
-        brain.stops.fetch_add(1, Ordering::SeqCst);
         brain.supervisor.stop();
     }
     brain.stop_door();
@@ -2585,6 +2662,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let state_file = state_file(app.handle()).ok();
             let leaving = Arc::clone(&exiting);
             let watch = app.state::<Arc<Brain>>().supervisor.watch();
+            let restart_app = app.handle().clone();
             match ticker::Ticker::start(ticker::PERIOD, move || {
                 let (Some(brain), Some(desk)) = (brain.upgrade(), desk.upgrade()) else {
                     return;
@@ -2597,7 +2675,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     state_file.as_deref(),
                     DoorCaller::Tick { leaving: &leaving },
                 );
+                // Observed before the restart: starting clears the record of
+                // the failure, so a crash not yet reported would go unreported.
                 telemetry::observe(&watch.state());
+                restart_after_exit(&restart_app, &brain, &leaving);
                 tick(&brain.door, &watch);
             }) {
                 Ok(ticker) => {
@@ -2643,6 +2724,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // The watch, not a pid read: the identity is loaded at the
             // deadline, after the steps below have decided what the
             // supervisor still vouches for.
+            // Quit is a Turn off for the restart's purposes: the generation
+            // moves under the gate, so a restart walk cannot queue a start
+            // after this point.
+            if let Some(brain) = app.try_state::<Arc<Brain>>() {
+                let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+                brain.stops.fetch_add(1, Ordering::SeqCst);
+                brain.crash_restart.disarm();
+            }
             let engine = app
                 .try_state::<Arc<Brain>>()
                 .map(|brain| brain.supervisor.watch());
