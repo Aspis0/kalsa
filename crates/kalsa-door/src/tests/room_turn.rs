@@ -251,6 +251,18 @@ fn a_member_cancels_their_own_call_and_the_queue_moves_on() {
         "/kalsa/room/messages",
         r#"{"client_msg_id":"a1","text":"@Kalsa first"}"#,
     );
+    // The Hang belongs to the first call's own request. A cancel that lands
+    // before that request would hand the Hang to the second call, so the
+    // test waits until the engine has the first request, as it is streaming.
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while fake.seen().is_empty() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        fake.seen().len(),
+        1,
+        "the first call reached the engine before its cancel"
+    );
     post(
         door.address(),
         Some(&second),
