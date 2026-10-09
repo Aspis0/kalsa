@@ -1348,7 +1348,7 @@ async function main() {
     assert(snap.tombstoneGate === true, "tombstoneGate held");
   });
 
-  await serviceTest("stale-epoch items terminal-drop on background", async () => {
+  await serviceTest("background keeps queued items; only the in-flight send is dropped", async () => {
     let appState = "active";
     let appCb = null;
     const storage = makeMemoryStorage();
@@ -1380,9 +1380,14 @@ async function main() {
     await tel.setTelemetryEnabled(true);
     tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
     tel.reportTelemetry({ code: "web.search", detail: "dns" });
-    await new Promise((r) => setTimeout(r, 40));
+    for (let i = 0; i < 15; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+      const probe = tel.__getTelemetrySnapshotForTests();
+      if (probe.envelope.queue.some((q) => q.state === "sending")) break;
+    }
     const before = tel.__getTelemetrySnapshotForTests();
-    assert(before.queueLen >= 1, `queued before bg queue=${before.queueLen}`);
+    assert(before.queueLen === 2, `one sending + one queued before bg: queue=${before.queueLen}`);
     const epochBefore = before.transitionEpoch;
     appState = "background";
     if (appCb) appCb("background");
@@ -1390,12 +1395,89 @@ async function main() {
     const after = tel.__getTelemetrySnapshotForTests();
     assert(after.transitionEpoch === epochBefore + 1, "epoch advanced");
     assert(
-      after.queueLen === 0,
-      `stale-epoch dropped queue=${after.queueLen} dead=${after.deadLen}`,
+      after.queueLen === 1,
+      `only the in-flight send is dropped: queue=${after.queueLen} dead=${after.deadLen}`,
+    );
+    const survivor = after.envelope.queue[0];
+    assert(survivor.state === "queued", `survivor state ${survivor.state}`);
+    assert(
+      survivor.transitionEpoch === after.transitionEpoch,
+      "survivor carried onto the new epoch",
     );
   });
 
-  await serviceTest("timeout requeue", async () => {
+  await serviceTest("offline report survives background → foreground and still sends", async () => {
+    let now = 11_500_000;
+    let appState = "active";
+    let appCb = null;
+    let offline = true;
+    let fetches = 0;
+    const bodies = [];
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async (_url, init) => {
+        fetches += 1;
+        if (offline) throw new Error("network request failed");
+        bodies.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ accepted: true }), { status: 200 });
+      },
+      now: () => now,
+      getAppState: () => appState,
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+      subscribeAppState: (cb) => {
+        appCb = cb;
+        return () => {
+          appCb = null;
+        };
+      },
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    for (let i = 0; i < 6 && fetches < 1; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    assert(fetches === 1, `offline attempt fetches=${fetches}`);
+    const queuedBefore = tel.__getTelemetrySnapshotForTests();
+    assert(queuedBefore.queueLen === 1, `queue ${queuedBefore.queueLen}`);
+
+    appState = "background";
+    appCb("background");
+    await new Promise((r) => setTimeout(r, 50));
+    const afterBg = tel.__getTelemetrySnapshotForTests();
+    assert(
+      afterBg.transitionEpoch === queuedBefore.transitionEpoch + 1,
+      "epoch bumped by the barrier",
+    );
+    assert(afterBg.queueLen === 1, `queued report must survive background: queue=${afterBg.queueLen}`);
+    assert(
+      afterBg.envelope.queue[0].transitionEpoch === afterBg.transitionEpoch,
+      "carried onto the new epoch",
+    );
+
+    offline = false;
+    appState = "active";
+    appCb("active");
+    await new Promise((r) => setTimeout(r, 60));
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(bodies.length === 1, `sent ${bodies.length}`);
+    assert(
+      snap.queueLen === 0 && snap.deadLen === 0,
+      `queue=${snap.queueLen} dead=${snap.deadLen}`,
+    );
+  });
+
+  await serviceTest("thrown fetch (AbortError) requeues without spending the ceiling", async () => {
     const storage = makeMemoryStorage();
     await storage.setItem("kalsa.telemetry.url", "https://example.test");
     await tel.initTelemetry({
@@ -1427,8 +1509,366 @@ async function main() {
     assert(snap.queueLen === 1, `requeued queue=${snap.queueLen}`);
     assert(snap.deadLen === 0, "not dead");
     const item = snap.envelope.queue[0];
-    assert(item.retryCount >= 1, `retryCount=${item.retryCount}`);
+    assert(item.retryCount === 0, `ceiling untouched retryCount=${item.retryCount}`);
+    assert(item.noResponseStreak === 1, `streak ${item.noResponseStreak}`);
+    assert(item.nextRetryAt > 12_000_000, `backoff scheduled ${item.nextRetryAt}`);
     assert(item.state === "queued", item.state);
+  });
+
+  await serviceTest("20 offline failures then one success → sent, never dead", async () => {
+    let now = 15_000_000;
+    let offline = true;
+    let fetches = 0;
+    const bodies = [];
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async (_url, init) => {
+        fetches += 1;
+        if (offline) throw new Error("network request failed");
+        bodies.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ accepted: true }), { status: 200 });
+      },
+      now: () => now,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    for (let i = 0; i < 20; i++) {
+      now += 2 * 60 * 60 * 1000; // outlive the (≤1h) no-response backoff
+      for (let j = 0; j < 6; j++) {
+        tel.requestTelemetryDrain();
+        await new Promise((r) => setTimeout(r, 12));
+      }
+    }
+    const mid = tel.__getTelemetrySnapshotForTests();
+    assert(mid.deadLen === 0, `dead while offline: ${mid.deadLen}`);
+    assert(mid.queueLen === 1, `queue ${mid.queueLen}`);
+    assert(fetches >= 20, `offline attempts ${fetches}`);
+
+    offline = false;
+    now += 2 * 60 * 60 * 1000;
+    for (let j = 0; j < 8 && bodies.length === 0; j++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(bodies.length === 1, `sent ${bodies.length}`);
+    assert(snap.deadLen === 0, `dead ${snap.deadLen}`);
+    assert(snap.queueLen === 0, `queue ${snap.queueLen}`);
+  });
+
+  await serviceTest("5 server 503s → dead at the ceiling", async () => {
+    let now = 16_000_000;
+    let fetches = 0;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => {
+        fetches += 1;
+        return new Response("err", { status: 503 });
+      },
+      now: () => now,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "engine.init", detail: "oom" });
+    for (let attempt = 0; attempt < 5; attempt++) {
+      now += 2 * 60 * 60 * 1000;
+      for (let i = 0; i < 6; i++) {
+        tel.requestTelemetryDrain();
+        await new Promise((r) => setTimeout(r, 12));
+      }
+    }
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.queueLen === 0, `queue ${snap.queueLen}`);
+    assert(snap.deadLen === 1, `dead ${snap.deadLen}`);
+    assert(
+      snap.envelope.dead[0].retryCount >= 5,
+      `retryCount ${snap.envelope.dead[0].retryCount}`,
+    );
+    assert(fetches >= 5, `server answers ${fetches}`);
+  });
+
+  await serviceTest("hanging server: local timeout spends the ceiling → dead", async () => {
+    let now = 16_500_000;
+    let fetches = 0;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: (_url, init) => {
+        fetches += 1;
+        // hangs until the local send timeout aborts the request
+        return new Promise((_resolve, reject) => {
+          init.signal.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+      },
+      fetchTimeoutMs: 25,
+      now: () => now,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    for (let attempt = 0; attempt < 5; attempt++) {
+      now += 2 * 60 * 60 * 1000;
+      for (let i = 0; i < 8; i++) {
+        tel.requestTelemetryDrain();
+        await new Promise((r) => setTimeout(r, 15));
+      }
+    }
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.deadLen === 1, `a hanging server must dead-letter: dead=${snap.deadLen}`);
+    assert(snap.queueLen === 0, `queue ${snap.queueLen}`);
+    const dead = snap.envelope.dead[0];
+    assert(dead.retryCount >= 5, `retryCount ${dead.retryCount}`);
+    assert(dead.noResponseStreak === 0, `counted as an answer, streak=${dead.noResponseStreak}`);
+    assert(fetches >= 5, `attempts ${fetches}`);
+  });
+
+  await serviceTest("queued report unsent for 30 days → dropped, not dead", async () => {
+    let now = 17_000_000;
+    let offline = true;
+    let fetches = 0;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => {
+        fetches += 1;
+        if (offline) throw new Error("network request failed");
+        return new Response(JSON.stringify({ accepted: true }), { status: 200 });
+      },
+      now: () => now,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "dns" });
+    for (let i = 0; i < 6 && fetches < 1; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    assert(fetches === 1, `first offline attempt fetches=${fetches}`);
+
+    offline = false;
+    now += 31 * 24 * 60 * 60 * 1000;
+    const before = fetches;
+    tel.requestTelemetryDrain();
+    await new Promise((r) => setTimeout(r, 40));
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.queueLen === 0, `queue ${snap.queueLen}`);
+    assert(snap.deadLen === 0, `dead ${snap.deadLen}`);
+    assert(fetches === before, `expired report was sent: ${fetches - before}`);
+  });
+
+  await serviceTest("expired queued report is dropped at load, not sent", async () => {
+    let now = 17_500_000;
+    let offline = true;
+    let fetches = 0;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    const deps = {
+      storage,
+      fetchImpl: async () => {
+        fetches += 1;
+        if (offline) throw new Error("network request failed");
+        return new Response(JSON.stringify({ accepted: true }), { status: 200 });
+      },
+      now: () => now,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    };
+    await tel.initTelemetry(deps);
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "dns" });
+    for (let i = 0; i < 6 && fetches < 1; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    assert(fetches === 1, `offline attempt fetches=${fetches}`);
+
+    // Restart 31 days later with the network back: the stale item must be
+    // gone from the journal before any drain could send it.
+    offline = false;
+    now += 31 * 24 * 60 * 60 * 1000;
+    const before = fetches;
+    tel.__resetTelemetryForTests();
+    await tel.initTelemetry(deps);
+    for (let i = 0; i < 6; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.queueLen === 0, `queue ${snap.queueLen}`);
+    assert(snap.deadLen === 0, `dead ${snap.deadLen}`);
+    assert(fetches === before, `expired report was sent on load: ${fetches - before}`);
+  });
+
+  await serviceTest("foreground resume retries a no-response item before its backoff", async () => {
+    let now = 18_000_000;
+    let offline = true;
+    let fetches = 0;
+    const bodies = [];
+    let appCb = null;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async (_url, init) => {
+        fetches += 1;
+        if (offline) throw new Error("network request failed");
+        bodies.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ accepted: true }), { status: 200 });
+      },
+      now: () => now,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+      subscribeAppState: (cb) => {
+        appCb = cb;
+        return () => {
+          appCb = null;
+        };
+      },
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    for (let i = 0; i < 6 && fetches < 1; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    assert(fetches === 1, `first offline attempt fetches=${fetches}`);
+    const queued = tel.__getTelemetrySnapshotForTests().envelope.queue[0];
+    assert(
+      queued && queued.nextRetryAt > now,
+      `backoff pending nextRetryAt=${queued && queued.nextRetryAt}`,
+    );
+
+    offline = false;
+    tel.requestTelemetryDrain();
+    await new Promise((r) => setTimeout(r, 30));
+    assert(fetches === 1, `backoff held without foreground: fetches=${fetches}`);
+
+    appCb("active");
+    await new Promise((r) => setTimeout(r, 60));
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(fetches === 2, `foreground retry fetches=${fetches}`);
+    assert(bodies.length === 1, `sent ${bodies.length}`);
+    assert(
+      snap.queueLen === 0 && snap.deadLen === 0,
+      `queue=${snap.queueLen} dead=${snap.deadLen}`,
+    );
+  });
+
+  await serviceTest("foreground bypass is debounced to once per minute", async () => {
+    let now = 21_000_000;
+    let appCb = null;
+    let fetches = 0;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => {
+        fetches += 1;
+        throw new Error("network request failed");
+      },
+      now: () => now,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        platform: "android",
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+      subscribeAppState: (cb) => {
+        appCb = cb;
+        return () => {
+          appCb = null;
+        };
+      },
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "dns" });
+    for (let i = 0; i < 6 && fetches < 1; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    assert(fetches === 1, `offline attempt fetches=${fetches}`);
+
+    appCb("active");
+    await new Promise((r) => setTimeout(r, 40));
+    assert(fetches === 2, `first foreground retries at once: fetches=${fetches}`);
+
+    appCb("active");
+    await new Promise((r) => setTimeout(r, 40));
+    assert(fetches === 2, `second foreground in the same minute must not retry: fetches=${fetches}`);
+
+    now += 61_000;
+    tel.requestTelemetryDrain();
+    await new Promise((r) => setTimeout(r, 40));
+    assert(fetches === 2, `backoff still holds without a flush: fetches=${fetches}`);
+
+    appCb("active");
+    await new Promise((r) => setTimeout(r, 40));
+    assert(fetches === 3, `foreground retries after the debounce window: fetches=${fetches}`);
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.deadLen === 0, `dead ${snap.deadLen}`);
   });
 
   await serviceTest("429 backoff then dead-letter at ceiling", async () => {
@@ -1465,7 +1905,7 @@ async function main() {
     assert(snap.envelope.dead[0].retryCount >= 5, "ceiling");
   });
 
-  await serviceTest("crash-after-dequeue requeues with persisted retryCount", async () => {
+  await serviceTest("crash-after-dequeue requeues with the bump undone", async () => {
     const storage = makeMemoryStorage();
     await storage.setItem("kalsa.telemetry.url", "https://example.test");
     await tel.initTelemetry({
@@ -1504,7 +1944,7 @@ async function main() {
       storage,
       fetchImpl: async () => new Response(JSON.stringify({ accepted: true }), { status: 200 }),
       now: () => 14_000_000 + 120_000, // lease expired
-      getAppState: () => "active",
+      getAppState: () => "background", // keep the drain off until the recovered item is read
       getAppVersion: () => "0.1.0",
       getDeviceContext: () => ({
         platform: "android",
@@ -1518,8 +1958,8 @@ async function main() {
     const snap = tel.__getTelemetrySnapshotForTests();
     const recovered = snap.envelope.queue[0];
     assert(recovered, "requeued after crash");
-    assert(recovered.state === "queued" || recovered.state === "sending", recovered.state);
-    assert(recovered.retryCount >= 1, `retryCount kept ${recovered.retryCount}`);
+    assert(recovered.state === "queued", recovered.state);
+    assert(recovered.retryCount === 0, `bump undone on recovery retryCount=${recovered.retryCount}`);
   });
 
   // ── i18n deep key parity (inline, mirrors extended harness) ──────────────

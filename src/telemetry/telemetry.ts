@@ -11,6 +11,7 @@ import {
   FETCH_TIMEOUT_MS,
   GITHUB_ISSUE_CHOOSE_URL,
   LOCAL_FINGERPRINT_CACHE,
+  NO_RESPONSE_FLUSH_MIN_MS,
   OPTED_OUT_KEY,
   OPTED_OUT_KEY_A,
   OPTED_OUT_KEY_B,
@@ -36,6 +37,7 @@ import {
   dateBucketUtc,
   deviceBucketFromRamTier,
   dropStaleEpochItems,
+  dropExpiredQueued,
   emptyEnvelope,
   enqueueCapped,
   expungeDead,
@@ -59,6 +61,7 @@ import {
   withIntegrity,
   type QueueItem,
   type RamTierLike,
+  type ResponseClass,
   type SanitizeInput,
   type TelemetryEnvelope,
   type TelemetryReport,
@@ -96,6 +99,8 @@ export type StorageLike = {
 export type TelemetryDeps = {
   storage: StorageLike;
   fetchImpl: typeof fetch;
+  /** Local send timeout; aborting after it counts as a server answer. */
+  fetchTimeoutMs: number;
   now: () => number;
   /** "active" | "background" | "inactive" | … */
   getAppState: () => string;
@@ -126,6 +131,10 @@ let tombstoneGate = false;
 /** True when a durable valid tombstone is present (or uncertain → fail-closed). */
 let optedOut = true; // fail-closed until load proves otherwise
 let drainRunning = false;
+/** Set when the app returns to the foreground; the next drain skips no-response backoff. */
+let flushNoResponseBackoff = false;
+/** When the no-response bypass was last armed (debounce: at most once per minute). */
+let lastNoResponseFlushAt = 0;
 const abortRegistry = new Set<AbortController>();
 const recentFingerprints: string[] = [];
 let idSeq = 0;
@@ -186,6 +195,7 @@ function defaultDeps(): TelemetryDeps {
   return {
     storage: defaultStorage(),
     fetchImpl: globalThis.fetch.bind(globalThis),
+    fetchTimeoutMs: FETCH_TIMEOUT_MS,
     now: () => Date.now(),
     getAppState: () => appState,
     getAppVersion: () => {
@@ -513,6 +523,7 @@ export async function initTelemetry(overrides?: Partial<TelemetryDeps>): Promise
     deps = { ...defaultDeps(), ...overrides };
     if (overrides?.storage) deps.storage = overrides.storage;
     if (overrides?.fetchImpl) deps.fetchImpl = overrides.fetchImpl;
+    if (overrides?.fetchTimeoutMs) deps.fetchTimeoutMs = overrides.fetchTimeoutMs;
     if (overrides?.now) deps.now = overrides.now;
     if (overrides?.getAppState) deps.getAppState = overrides.getAppState;
     if (overrides?.getAppVersion) deps.getAppVersion = overrides.getAppVersion;
@@ -574,6 +585,7 @@ export async function initTelemetry(overrides?: Partial<TelemetryDeps>): Promise
       const env = await readJournal(storage);
       const now = deps!.now();
       let queue = recoverExpiredLeases(env.queue, now);
+      queue = dropExpiredQueued(queue, now);
       const dropped = dropStaleEpochItems(
         queue,
         env.generation,
@@ -610,6 +622,11 @@ export async function initTelemetry(overrides?: Partial<TelemetryDeps>): Promise
         if (state !== "active") {
           void onBackgroundTransition();
         } else {
+          const now = deps!.now();
+          if (now - lastNoResponseFlushAt >= NO_RESPONSE_FLUSH_MIN_MS) {
+            lastNoResponseFlushAt = now;
+            flushNoResponseBackoff = true;
+          }
           void maybeDrain();
         }
       });
@@ -632,6 +649,8 @@ export function __resetTelemetryForTests(): void {
   tombstoneGate = false;
   optedOut = true;
   drainRunning = false;
+  flushNoResponseBackoff = false;
+  lastNoResponseFlushAt = 0;
   abortRegistry.clear();
   recentFingerprints.length = 0;
   idSeq = 0;
@@ -893,14 +912,12 @@ async function onBackgroundTransition(): Promise<void> {
   try {
     if (!deps || !envelope.enabled) return;
     await withMutex(async () => {
-      // Barrier commit BEFORE abort. Stale-epoch items are terminally
-      // dropped — never rewritten onto the new epoch (audit MEDIUM 10).
+      // Epoch bump = abort barrier: an in-flight send's outcome can never land
+      // in the new epoch (audit MEDIUM 10). Queued items never dispatched stay.
       const nextEpoch = envelope.transitionEpoch + 1;
-      const queue = envelope.queue.filter((it) => {
-        if (it.state === "sending") return false; // in-flight → terminal drop
-        if (it.transitionEpoch !== nextEpoch) return false; // stale → drop
-        return true;
-      });
+      const queue = envelope.queue.flatMap((it) =>
+        it.state === "sending" ? [] : [{ ...it, transitionEpoch: nextEpoch }],
+      );
       const next = withIntegrity({
         ...envelope,
         transitionEpoch: nextEpoch,
@@ -996,7 +1013,7 @@ async function reportTelemetryAsync(input: ReportTelemetryInput): Promise<void> 
       const epoch = envelope.transitionEpoch;
       idSeq += 1;
       const id = `t${deps!.now().toString(36)}_${idSeq}`;
-      const item = makeQueueItem(sanitized, gen, epoch, id);
+      const item = makeQueueItem(sanitized, gen, epoch, id, deps!.now());
       const queue = enqueueCapped(envelope.queue, item);
       const next = withIntegrity({
         ...envelope,
@@ -1067,6 +1084,7 @@ async function maybeDrain(): Promise<void> {
 
 async function drainOnce(): Promise<void> {
   if (!deps) return;
+  const timeoutMs = deps.fetchTimeoutMs;
   const baseUrl = await resolveWorkerUrl();
   if (!baseUrl) {
     // Silently disabled — no endpoint configured
@@ -1089,8 +1107,12 @@ async function drainOnce(): Promise<void> {
     if (!isForeground()) return;
 
     const now = deps!.now();
-    // Recover leases / expunge
-    let queue = recoverExpiredLeases(envelope.queue, now);
+    // Lease recovery first: a crashed "sending" item must flip back to queued
+    // before the TTL can drop it.
+    let queue = dropExpiredQueued(
+      recoverExpiredLeases(envelope.queue, now),
+      now,
+    );
     const stale = dropStaleEpochItems(
       queue,
       envelope.generation,
@@ -1099,7 +1121,11 @@ async function drainOnce(): Promise<void> {
     queue = stale.kept;
     const dead = expungeDead(envelope.dead, now);
 
-    const idx = queue.findIndex((it) => isReadyToSend(it, now));
+    const flushNoResponse = flushNoResponseBackoff;
+    flushNoResponseBackoff = false;
+    const idx = queue.findIndex((it) =>
+      isReadyToSend(it, now, { ignoreNoResponseBackoff: flushNoResponse }),
+    );
     if (idx < 0) {
       if (queue !== envelope.queue || dead !== envelope.dead) {
         const next = withIntegrity({
@@ -1149,8 +1175,7 @@ async function drainOnce(): Promise<void> {
 
   // Mutex released — fetch outside
   const { item, controller, generation, transitionEpoch } = work;
-  let responseClass: ReturnType<typeof classifyHttpStatus> | "requeue" =
-    "requeue";
+  let responseClass: ResponseClass = "no_response";
   let duplicate = false;
   let transitionAbort = false;
 
@@ -1160,7 +1185,7 @@ async function drainOnce(): Promise<void> {
     } catch {
       /* ignore */
     }
-  }, FETCH_TIMEOUT_MS);
+  }, timeoutMs);
 
   try {
     if (controller.signal.aborted) {
@@ -1202,20 +1227,20 @@ async function drainOnce(): Promise<void> {
       }
     }
   } catch {
-    // abort or network
-    if (controller.signal.aborted) {
-      // If generation/epoch already advanced, treat as transition drop
-      if (
-        envelope.generation !== generation ||
+    if (
+      controller.signal.aborted &&
+      (envelope.generation !== generation ||
         envelope.transitionEpoch !== transitionEpoch ||
-        !envelope.enabled
-      ) {
-        transitionAbort = true;
-      } else {
-        responseClass = "requeue"; // timeout
-      }
-    } else {
+        !envelope.enabled)
+    ) {
+      // Barrier/OFF abort: terminal, that outcome must not land in the new epoch.
+      transitionAbort = true;
+    } else if (controller.signal.aborted) {
+      // Our local timeout: the request went out, so it spends RETRY_CEILING.
       responseClass = "requeue";
+    } else {
+      // fetch threw before any answer (offline/DNS/TLS): never spends the ceiling.
+      responseClass = "no_response";
     }
   } finally {
     clearTimeout(timer);

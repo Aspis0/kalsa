@@ -40,6 +40,7 @@ preview_id = "913e744484794fd990922c7dad701c6f"
 #   GITHUB_TOKEN   — fine-grained, issues:write on the target repo
 #   FLUSH_TOKEN    — random long token for GET /flush
 #   ADMIN_TOKEN    — separate random token for POST /admin/flush-and-purge
+#   READ_TOKEN     — separate random token for GET /admin/reports
 # Vars:
 #   GITHUB_REPO=Aspis0/kalsa          (staging: use a test repo)
 #   AUTO_OPEN_ISSUES=false

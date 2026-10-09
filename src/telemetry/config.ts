@@ -57,11 +57,15 @@ export const TELEMETRY_SCHEMA_V = 1 as const;
 export const QUEUE_CAP = 50;
 export const DEAD_CAP = 100;
 export const DEAD_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/** A queued report never sent is stale after this — dropped, not dead-lettered. */
+export const QUEUE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const RETRY_CEILING = 5; // total attempts: retryCount 0..4 then dead at ==5
 export const SENDING_LEASE_MS = 60_000;
 export const FETCH_TIMEOUT_MS = 10_000;
 export const BACKOFF_BASE_MS = 30_000;
 export const BACKOFF_CAP_MS = 60 * 60 * 1000; // 1h
+/** Flapping active/inactive must not storm the network: bypass the no-response backoff at most this often. */
+export const NO_RESPONSE_FLUSH_MIN_MS = 60_000;
 export const LOCAL_FINGERPRINT_CACHE = 32;
 export const BODY_SOFT_LIMIT_BYTES = 4 * 1024;
 export const SIGNAL_MAX_LEN = 80;

@@ -1,4 +1,5 @@
 import { validateV2, v2SignatureFields, v2IssueLines } from "./schema-v2";
+import { validBearer } from "./auth";
 
 /**
  * Pure Worker helpers — no Cloudflare bindings.
@@ -397,20 +398,12 @@ export function applyLeaseTransition(
   return { ok: true, state: next };
 }
 
-export function validFlushAuth(flushToken: string | undefined, authHeader: string | null):
-  | { ok: true }
-  | { ok: false; status: 503 | 401 } {
-  if (!flushToken) return { ok: false, status: 503 };
-  if (authHeader !== `Bearer ${flushToken}`) return { ok: false, status: 401 };
-  return { ok: true };
+export function validFlushAuth(flushToken: string | undefined, authHeader: string | null) {
+  return validBearer(flushToken, authHeader);
 }
 
-export function validAdminAuth(adminToken: string | undefined, authHeader: string | null):
-  | { ok: true }
-  | { ok: false; status: 503 | 401 } {
-  if (!adminToken) return { ok: false, status: 503 };
-  if (authHeader !== `Bearer ${adminToken}`) return { ok: false, status: 401 };
-  return { ok: true };
+export function validAdminAuth(adminToken: string | undefined, authHeader: string | null) {
+  return validBearer(adminToken, authHeader);
 }
 
 export function stableStringify(value: unknown): string {

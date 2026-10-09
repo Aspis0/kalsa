@@ -11,6 +11,10 @@ const require = createRequire(import.meta.url);
 const out = mkdtempSync(path.join(tmpdir(), "kalsa-worker-v2-"));
 const legacy = spawnSync("node", ["scripts/telemetryWorkerHarness.mjs"], { cwd: root, stdio: "inherit" });
 assert.equal(legacy.status, 0, "v1 Worker harness");
+const reads = spawnSync("node", ["workers/telemetry/test-admin-read.mjs"], { cwd: root, stdio: "inherit" });
+assert.equal(reads.status, 0, "admin reports routes");
+const cli = spawnSync("node", ["workers/telemetry/test-read-cli.mjs"], { cwd: root, stdio: "inherit" });
+assert.equal(cli.status, 0, "read.mjs end-to-end");
 try {
   const compile = spawnSync("npx", ["tsc", "workers/telemetry/schema.ts", "--outDir", out, "--module", "commonjs", "--target", "es2020", "--skipLibCheck", "--ignoreConfig", "--types", "node"], { cwd: root, encoding: "utf8" });
   assert.equal(compile.status, 0, compile.stdout + compile.stderr);

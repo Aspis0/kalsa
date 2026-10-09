@@ -18,6 +18,13 @@ Design contract: `docs/TELEMETRY_OPTIN.md` (v14 FINAL + diag-addendum).
   allowlisted projection (no raw JSON, no `_reportId`).
 - `POST /admin/flush-and-purge` — `Authorization: Bearer ADMIN_TOKEN` (separate
   from `FLUSH_TOKEN`). Wipes DO buffer. Fail-closed `503` if unset.
+- `GET /admin/reports` — `Authorization: Bearer READ_TOKEN` (separate from the
+  other two). Read-only: newest first, `?since=<ISO>` (inclusive), `?before=<ISO>`
+  (exclusive cursor), `?limit=<n>` (default 100, cap 500). Returns `{total, count,
+  skipped, nextBefore, entries}`; each entry is `{sig, receivedAt, reviewAck,
+  report}` exactly as stored. A page never splits one receive-time millisecond.
+  Stored entries that cannot be served are counted in `skipped`, not fatal.
+  `Cache-Control: no-store`. Fail-closed `503` if unset.
 
 Accepted reports are never silently evicted. The buffer keeps every accepted
 entry until a maintainer flush or `/admin/flush-and-purge`. There is no
@@ -55,6 +62,7 @@ Inventing hex strings will bind the Worker to a namespace you do not own.
    npx wrangler secret put GITHUB_TOKEN    # fine-grained, issues:write on GITHUB_REPO
    npx wrangler secret put FLUSH_TOKEN     # long random; GET /flush
    npx wrangler secret put ADMIN_TOKEN     # different long random; POST /admin/flush-and-purge
+   npx wrangler secret put READ_TOKEN      # third long random; GET /admin/reports
    ```
 
 5. **Deploy**:
@@ -89,6 +97,20 @@ Point the app at the Worker:
    `kalsa.telemetry.url = http://<lan-host>:8787` (or staging URL).
 
 Unset / empty `TELEMETRY_WORKER_URL` → client silently disables network send.
+
+## Reading reports
+
+```bash
+READ_TOKEN=… TELEMETRY_WORKER_URL=https://telemetry.kalsa.io \
+  node workers/telemetry/read.mjs [--since 2026-10-01T00:00:00Z] [--out file]
+```
+
+Pages through the whole buffer (500 per request, until empty) and writes the
+entries to `--out`, default `/tmp/kalsa-telemetry-<timestamp>.json`. The file is
+created exclusively with mode 0600: an existing path or symlink is refused and
+never overwritten. Prints counts by platform, version, error, diagnostics
+component/stage, top-10 engine signatures, and the newest five. Reads never
+change buffer state.
 
 ## Deletion
 

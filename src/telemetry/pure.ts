@@ -13,6 +13,7 @@ import {
   MODEL_CATEGORIES,
   PHASES,
   QUEUE_CAP,
+  QUEUE_TTL_MS,
   REASON_CODES,
   RETRY_CEILING,
   APP_VERSION_RE,
@@ -442,6 +443,10 @@ export type QueueItem = {
   reviewAck: boolean;
   /** Stable id for in-process tracking (not sent to Worker). */
   id: string;
+  /** Enqueue wall-clock ms — the queue TTL counts from here. Absent on legacy journal items. */
+  enqueuedAt?: number;
+  /** Consecutive sends with no HTTP answer; drives offline backoff, never the ceiling. */
+  noResponseStreak?: number;
 };
 
 export type TelemetryEnvelope = {
@@ -630,6 +635,7 @@ export function makeQueueItem(
   generation: number,
   transitionEpoch: number,
   id: string,
+  enqueuedAt: number,
 ): QueueItem {
   return {
     report,
@@ -642,6 +648,8 @@ export function makeQueueItem(
     deadExpiresAt: 0,
     reviewAck: false,
     id,
+    enqueuedAt,
+    noResponseStreak: 0,
   };
 }
 
@@ -679,7 +687,7 @@ export function expungeDead(
 
 /**
  * On load: recover sending leases that expired → requeue (unless epoch/gen stale —
- * caller applies barrier rules). Here we only flip lease-expired sending → queued.
+ * caller applies barrier rules). A recovered send got no answer, so its bump is undone.
  */
 export function recoverExpiredLeases(
   queue: QueueItem[],
@@ -688,7 +696,13 @@ export function recoverExpiredLeases(
   return queue.map((item) => {
     if (item.state !== "sending") return item;
     if (item.leaseUntil > nowMs) return item;
-    return { ...item, state: "queued" as const, leaseUntil: 0 };
+    // Crashed before any answer arrived: undo the pre-dispatch bump (same rule as no_response).
+    return {
+      ...item,
+      state: "queued" as const,
+      leaseUntil: 0,
+      retryCount: Math.max(0, item.retryCount - 1),
+    };
   });
 }
 
@@ -717,12 +731,35 @@ export function dropStaleEpochItems(
   return { kept, dropped };
 }
 
+/** Enqueue stamp for the TTL: legacy items predate enqueuedAt, so use dateBucket. */
+function queuedSinceMs(item: QueueItem): number {
+  const at = item.enqueuedAt;
+  if (typeof at === "number" && at > 0) return at;
+  const parsed = Date.parse(`${item.report.dateBucket}T00:00:00Z`);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * Drop queued reports never sent within ttlMs of their own enqueue time —
+ * dropped, not dead-lettered: the server never refused them.
+ */
+export function dropExpiredQueued(
+  queue: QueueItem[],
+  nowMs: number,
+  ttlMs: number = QUEUE_TTL_MS,
+): QueueItem[] {
+  return queue.filter(
+    (it) => it.state !== "queued" || nowMs - queuedSinceMs(it) <= ttlMs,
+  );
+}
+
 export type ResponseClass =
   | "accepted"
   | "duplicate"
   | "definitive_drop" // 400/413/4xx non-429
   | "backoff" // 429
-  | "requeue" // 5xx / timeout / network
+  | "requeue" // 5xx or our local timeout — spends RETRY_CEILING
+  | "no_response" // fetch threw before any answer — never spends the ceiling
   | "transition_drop"; // generation/epoch mismatch or abort(transition)
 
 export function classifyHttpStatus(status: number): ResponseClass {
@@ -734,6 +771,16 @@ export function classifyHttpStatus(status: number): ResponseClass {
   if (status >= 400 && status < 500) return "definitive_drop";
   if (status >= 500) return "requeue";
   return "requeue";
+}
+
+/** Jittered backoff; exp capped at 20 so 2**exp stays finite at any streak. */
+function backoffDelayMs(exp: number, id: string): number {
+  const base = Math.min(
+    BACKOFF_BASE_MS * 2 ** Math.min(exp, 20),
+    BACKOFF_CAP_MS,
+  );
+  const jitterFrac = (parseInt(fnv1a64Hex(id).slice(0, 4), 16) % 50) / 100 - 0.25;
+  return Math.max(1000, Math.floor(base * (1 + jitterFrac)));
 }
 
 /**
@@ -786,6 +833,25 @@ export function finalizeItemOutcome(opts: {
     return { action: "done", item: null };
   }
 
+  if (responseClass === "no_response") {
+    // No server answer: undo the pre-dispatch bump so an offline stretch never
+    // spends RETRY_CEILING. Growth moves to noResponseStreak (backoff ≤ 1h).
+    const streak = (item.noResponseStreak ?? 0) + 1;
+    const backoffMs = Math.min(BACKOFF_CAP_MS, backoffDelayMs(streak, item.id));
+    return {
+      action: "requeue",
+      item: {
+        ...item,
+        state: "queued",
+        leaseUntil: 0,
+        retryCount: Math.max(0, item.retryCount - 1),
+        noResponseStreak: streak,
+        nextRetryAt: nowMs + backoffMs,
+      },
+      backoffMs,
+    };
+  }
+
   const retryCount = item.retryCount;
   if (retryCount >= RETRY_CEILING) {
     return {
@@ -800,11 +866,7 @@ export function finalizeItemOutcome(opts: {
     };
   }
 
-  const exp = Math.min(retryCount, 20);
-  const base = Math.min(BACKOFF_BASE_MS * 2 ** exp, BACKOFF_CAP_MS);
-  const jitterFrac =
-    (parseInt(fnv1a64Hex(item.id).slice(0, 4), 16) % 50) / 100 - 0.25;
-  const backoffMs = Math.max(1000, Math.floor(base * (1 + jitterFrac)));
+  const backoffMs = backoffDelayMs(retryCount, item.id);
 
   return {
     action: "requeue",
@@ -812,6 +874,7 @@ export function finalizeItemOutcome(opts: {
       ...item,
       state: "queued",
       leaseUntil: 0,
+      noResponseStreak: 0,
       nextRetryAt: nowMs + backoffMs,
     },
     backoffMs,
@@ -845,10 +908,17 @@ export function markSending(
   };
 }
 
-export function isReadyToSend(item: QueueItem, nowMs: number): boolean {
+export function isReadyToSend(
+  item: QueueItem,
+  nowMs: number,
+  opts?: { ignoreNoResponseBackoff?: boolean },
+): boolean {
   if (item.state !== "queued") return false;
-  if (item.nextRetryAt > nowMs) return false;
-  return true;
+  // Foreground resume retries offline items at once; a server backoff still holds.
+  if (opts?.ignoreNoResponseBackoff && (item.noResponseStreak ?? 0) > 0) {
+    return true;
+  }
+  return item.nextRetryAt <= nowMs;
 }
 
 /** Format a manual report preview (user pastes into GitHub). No secrets. */

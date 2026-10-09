@@ -4,6 +4,7 @@
  * POST /report  — strict schema validation → IP rate limit → DO TelemetryBuffer
  * GET  /flush   — Authorization: Bearer FLUSH_TOKEN → maintainer flush
  * POST /admin/flush-and-purge — Authorization: Bearer ADMIN_TOKEN → wipe DO buffer
+ * GET  /admin/reports — Authorization: Bearer READ_TOKEN → read-only listing
  *
  * Never auto-creates issues from /report. No payload logging.
  * GITHUB_TOKEN stays in the Worker (never serialized into the DO).
@@ -36,6 +37,8 @@ import {
   type BufferState,
   type GithubSearchOutcome,
 } from "./schema";
+import { listReports, parseReadQuery, toReadQuery, type ReadQuery } from "./admin-read";
+import { validBearer } from "./auth";
 
 export {
   validateReport,
@@ -53,6 +56,7 @@ export interface Env {
   GITHUB_REPO?: string;
   FLUSH_TOKEN?: string;
   ADMIN_TOKEN?: string;
+  READ_TOKEN?: string;
   AUTO_OPEN_ISSUES?: string;
 }
 
@@ -68,6 +72,12 @@ function json(status: number, body: unknown): Response {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+/** Stored reports must never land in a shared cache. */
+function noStore(res: Response): Response {
+  res.headers.set("cache-control", "no-store");
+  return res;
 }
 
 async function sha256Hex(text: string): Promise<string> {
@@ -111,6 +121,9 @@ export default {
       }
       if (request.method === "POST" && url.pathname === "/admin/flush-and-purge") {
         return await handleAdminPurge(request, env);
+      }
+      if (request.method === "GET" && url.pathname === "/admin/reports") {
+        return noStore(await handleAdminReports(request, env));
       }
       return json(404, { error: "not_found" });
     } catch {
@@ -340,6 +353,27 @@ async function handleAdminPurge(request: Request, env: Env): Promise<Response> {
   return json(res.status, body);
 }
 
+async function handleAdminReports(request: Request, env: Env): Promise<Response> {
+  const auth = validBearer(env.READ_TOKEN, request.headers.get("authorization"));
+  if (!auth.ok) {
+    return json(auth.status, {
+      error: auth.status === 503 ? "read_token_unset" : "unauthorized",
+    });
+  }
+  const parsed = parseReadQuery(new URL(request.url).searchParams);
+  if (!parsed.ok) {
+    return json(400, { error: "invalid_query", reason: parsed.reason });
+  }
+  const stub = bufferStub(env);
+  const res = await stub.fetch("https://do/reports", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(parsed.query),
+  });
+  const body = await res.json();
+  return json(res.status, body);
+}
+
 // ── Durable Object: TelemetryBuffer ─────────────────────────────────────────
 
 export class TelemetryBuffer {
@@ -379,6 +413,15 @@ export class TelemetryBuffer {
     }
     if (request.method === "POST" && url.pathname === "/purge") {
       return this.purge();
+    }
+    if (request.method === "POST" && url.pathname === "/reports") {
+      let raw: unknown = null;
+      try {
+        raw = await request.json();
+      } catch {
+        /* no usable body: default query */
+      }
+      return this.reports(toReadQuery(raw));
     }
     return json(404, { error: "not_found" });
   }
@@ -495,6 +538,12 @@ export class TelemetryBuffer {
       return true;
     });
     return json(200, { ok });
+  }
+
+  private async reports(query: ReadQuery): Promise<Response> {
+    const st =
+      (await this.state.storage.get<BufferState>("state")) ?? emptyBufferState();
+    return json(200, listReports(st, query));
   }
 
   private async purge(): Promise<Response> {
