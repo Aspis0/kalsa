@@ -8,10 +8,9 @@
 ## What Kalsa is
 
 Kalsa is an Android and iOS chat app that runs language models on the phone itself, no server in
-the loop, plus a desktop app (kalsa-brain) it pairs with. Standing goal (owner;
-`archived/PLAN-2026-09-full.md:9`): a kernel that uses NPU, GPU and CPU per phase according to
+the loop, plus a desktop app (kalsa-brain) it pairs with. Standing goal (owner): a kernel that uses NPU, GPU and CPU per phase according to
 temperature, battery and device profile, optimised for Snapdragon, and for MediaTek/Jelly where
-possible. The engine is our llama.cpp fork, consumed through our `llama.rn` binding fork pinned
+possible (`archived/PLAN-2026-09-full.md`, section "Il goal"). The engine is our llama.cpp fork, consumed through our `llama.rn` binding fork pinned
 by commit; the app is React Native. Device measurements are the arbiter; this lab repo holds the
 method, the raw evidence and the audits. Scope (owner, 2026-09-29): DENSE models in Q4_0
 (one-copy NPU prefill reader, governor) first; MoE and our own quantisations later.
@@ -44,14 +43,14 @@ purpose. Every other `.md` is frozen, in `archived/` or in place. The count is w
 `git ls-files '*.md' | rg -v '^(archived/|PLAN\.md$|docs/ALIVE\.md$)' | wc -l` prints, so it
 cannot go stale. Archive blobs are byte-fidelity copies, original language kept.
 
-### The four repos and the delivery chain
+### The four repos, their checkouts and the delivery chain
 
-The authoritative map is `REPOS.md` in the app repo. The four live checkouts:
+The authoritative map is `REPOS.md` in the app repo. The live checkouts:
 
 | repo | local checkout | role |
 |---|---|---|
-| `Aspis0/kalsa` | `~/Projects/kalsa` | the app |
-| `Aspis0/kalsallama` | `~/Projects/kalsallama` (worktree `kalsallama-upstream-b11514`) | the llama.cpp fork: OpenCL MoE kernels, Hexagon, repack, governor |
+| `Aspis0/kalsa` | governor/app work: worktree `~/Projects/kalsa-wt-gov`. `~/Projects/kalsa` is shared and holds another session's uncommitted UX work - do not edit it. `~/Projects/kalsa-brain` = branch `brain` (desktop) | the app |
+| `Aspis0/kalsallama` | worktree `~/Projects/kalsallama-upstream-b11514` (the live tree). `~/Projects/kalsallama`'s local `main` is stale (`5b596ce43`) | the llama.cpp fork: OpenCL MoE kernels, Hexagon, repack, governor |
 | `Aspis0/kalsa.rn` | `~/Projects/llama.rn-kalsa-onecopy` | the React Native binding fork, upstream `vendor/` layout |
 | `Aspis0/kalsa-moe-experiments` | `~/Projects/kalsa-moe-experiments` | the lab: this repo |
 
@@ -65,13 +64,18 @@ must exit 0) -> CI APK -> device verification. The app pin moves only with the o
 
 ### Other standing rules (owner, 2026-10-02)
 
-- Audits are triaged: fix P0/P1 and P2 that touch app/users/performance; the rest goes to
-  `scratchpad/BACKLOG-LOW-PRIORITY.md` and work moves on.
+- Audits are triaged: fix P0/P1 and P2 that touch app/users/performance; the rest goes to the
+  root `BACKLOG-LOW-PRIORITY.md` (current; `scratchpad/BACKLOG-LOW-PRIORITY.md` holds older
+  leftovers) and work moves on.
 - ONE max-recall cross-file review per piece of work, then triage as above.
 - An artefact whose hash is cited must be archived before any cleanup touches build output.
 - Measurement hygiene: heat and speed claims only unplugged on our phones (never benchmark
   charging); every timing ratio states the screen state of both arms; every published number
   carries its load condition. QDC boards are always powered: speed indicative, heat none.
+- Endurance criterion (owner 2026-10-08): start at skin <= 31 C (S23), run until skin 43 C,
+  report mean tok/s next to it. Safety kills only: skin 44 C, battery < 30 %. No leg-headroom stop.
+- S23 before every session: `persist.traced.enable` must be 0 (the DSP-daemon spin fix).
+- No `apk.yml` dispatch without telling kalsa-brain first (agreed 2026-10-07).
 
 ## Gates and dates (recovered 2026-09-21; statuses as the record shows on 2026-10-09)
 
@@ -90,7 +94,9 @@ publication promises (`archived/PLAN-2026-09-full.md:408-431`).
 | 30 Oct | **M2** | second dense model on validated devices | future |
 | 20 Nov (reserve 27 Nov) | **M3** | first large MoE within the declared perimeter | future; the MoE lane itself is PARKED (see workstreams) |
 
-Riders kept with the table: the GPU/V75/q4_K generations, the NPU and the governor were
+Rules kept with the table: G3 - NPU without evidence stays out; M2 - the second model must add
+useful capability, not be the automatic loser of the first comparison; a release candidate has
+no dependency on hidden debug flags; never promote an incomplete build. Riders: the GPU/V75/q4_K generations, the NPU and the governor were
 evidence-gated in the 24-29 Sep window, NOT "after M1"; a separate gate on 12 Oct reopens the
 MiniCPM5 fine-tuning decision (LFM licence revenue threshold one input). Owner decision
 2026-09-21: the governor work was brought forward because G2's long-session criterion is
@@ -117,14 +123,29 @@ One weight copy read by NPU, GPU and CPU; the governor hops decode between legs.
   the governor equals NPU alone, no gain where the NPU is best on both axes; its value is
   cross-device robustness (owner 2026-10-08) and SoCs where the NPU trips.
 - 8 Elite long NPU (QDC #69, `qdc-8elite-npu-long-69`): NSP reached 104 C vs trip 105 at
-  25 min; the slowdown came from the board's `gpu` cooling device (the J(1) lm_head runs on the
-  GPU), not from cdsp. Xiaomi NPU-vs-GPU endurance cell `xiaomi-endur-npu-gpu-75` is RUNNING.
+  25 min; the slowdown is tied (one-run correlation, not an ablation) to the board's `gpu`
+  cooling device - the J(1) lm_head runs on the GPU - while cdsp never engaged. That board
+  throttle (sys-therm-8 -> gpu cdev) is a signal the governor does not watch today.
+- Xiaomi 14 real phone, unplugged (cells `xiaomi-endur-npu-gpu-75`, `xiaomi-legheat-76`): GPU
+  19.7-21.3 tok/s but ~3.2 C skin per 1k tokens; NPU 14-17.5 tok/s at ~1.1 (8192 tokens, never
+  reached 43 C); CPU 14.7 tok/s at ~7.3. Load steps ~5/11/26 C (npu/gpu/cpu; npu/gpu lower
+  bounds). Under HEAT_RANK SM8650 runs mostly on the NPU: v3 buys heat there, not speed; spending
+  the GPU when there is margin is the learning governor's job (owner 2026-10-09).
 - In-app one-copy runs on the S23 ONLY. The binding's legs table (`cpp/rn-legs-table.cpp`) has
-  one row (SM8550). An SM8650 row needs the lab per-leg data: cells 74/75. In-app RAM one copy
+  one row (SM8550); the SM8650 row's inputs are measured (cells 75/76). In-app RAM one copy
   2.51 GB vs two-model 4.06 GB (`step6-inapp/summary-ram.grep`).
+- The governor is ON by default in the app since 2026-10-02 (absent `kalsa.governor.enabled` =
+  ON; an explicit "0"/"false" from Settings stays OFF). mmproj models stay OUT of the governor
+  until it has a vision lane (owner 2026-09-25; app gate `!options.mmprojPath`).
+- The platform thermal status floors the classifier since engine `6892d0415` (2026-09-29), and
+  the app feeds it. The 2026-09-28 SEVERE-while-FAST blind spot predates it and has not been
+  re-verified in-app.
+- Blast radius: Mali/MediaTek/unknown SoCs and iOS never load the governor; low-RAM phones are
+  guarded only by its estimate-based fit; V75 enablement rests on one board plus the Xiaomi lab.
 - Owner approved 2026-10-09: rule v3 ON by default in the app + per-SoC v3 values in the legs
-  table + an SM8650 row, then APK, then the S23 in-app test; fix A1 (see backlog below).
-  Binding v3 knobs exposed (`70de0d22` + `80d585ac`), audit next. The NPU voltage-corner knob
+  table + an SM8650 row, then APK, then the S23 in-app test; fix A1 (App / UX below). Binding
+  (local, unpushed): v3 knobs `70de0d22` + `80d585ac`; the S23 row carries the full v3 tuning
+  and an explicit app JSON key wins (`c97f2e39` + `d687551c`); its audit is running. The NPU voltage-corner knob
   (engine `6e06ce5a1`) stays lab-only, not wired into the governor.
 
 ### Engine and upstream
@@ -133,7 +154,7 @@ Engine fork main = `2e723bd9d`: upstream llama.cpp b11514 merged (merge `904d38f
 fixes `35233cf8e` (MUL_MAT_ID HMX gate, Metal vec-FA NULL-pipeline guard, Windows `ggml_fopen`,
 n_read) and `23b2a44d7` (u8path on the Windows slot path), plus the B1 one-copy Hexagon cap
 restore `e2d2ac01b`/`985c6eb8f`/`2e723bd9d`. Audit chain:
-`onecopy-three-legs/audit-merge-b11514-n2.md`; B1 in `scratchpad/BACKLOG-LOW-PRIORITY.md`.
+`onecopy-three-legs/audit-merge-b11514-n2.md`; B1 in the root `BACKLOG-LOW-PRIORITY.md`.
 Earlier landings still in main: the upstream Q8_0 quantizer fix `837334a74`, the bench-logits
 fix `fbf33176c` (the S23 hard resets were bench-only memory exhaustion; closed), rule v3
 `09a496d71` (default off: NPU_FIRST byte-identical). Upstream watch (2026-10-08, read-only:
@@ -144,7 +165,7 @@ partitioning) is recorded in `archived/PLAN-2026-10-09-full.md`.
 
 The q4_K small-batch `_cok` accumulator fix `319b53937` IS in engine main (verified: ancestor
 of `2e723bd9d`). Its record's shipping checklist requires an app-shaped verification; there is
-no record on disk that it ran -> OPEN VERIFICATION, not "not shippable"
+no record on disk that it ran, and its audit refuses shipment until it does: NOT YET SHIPPABLE
 (`scratchpad/agents/cok-accumulator-audit/REPORT.md`). The 2026-09-22 GPU-numerics verdicts
 (fp16 activation scale as the 57x cause; the acceptance gate not reachable by batched-GEMM
 precision work; the KV-term magnitude unresolved) stand as measured:
@@ -173,14 +194,15 @@ only by allow-list). Telemetry parity + governor Android-only: `b36552ee`. Compo
 truncate reasoning silently; persistent SEVERE means a sustainable slow rate, the pause is only
 an emergency brake. App backlog A1 (P2): under the governor the JSI refuses session save/load,
 so a chat switch re-prefills the whole history and the generic catch deletes a meta-valid .kvs
-(audit `6220ecfa` leftovers, recorded at `archived/PLAN-2026-10-09-full.md:2313`).
+(root `BACKLOG-LOW-PRIORITY.md`, A1).
 
 ### iOS / Metal
 
 Engine line: llama.cpp on Metal (same GGUF, KV and governor); measured +6 % over MLX on LFM2.5
 (`ios-engine-choice/REPORT.md`); MLX only if it clearly wins. iOS resolves KV to q8_0/q8_0
-(`ee8b5f25`; the mixed q8_0/q4_0 cliff is Metal-only - Android CPU has no penalty,
-`qdc-kv-mixed-decode`). Background generation poisons and reloads the context (`30038004`).
+(`ee8b5f25`; the mixed q8_0/q4_0 cliff is Metal-only; one QDC SM8650 board at depths 0/2048
+showed no CPU penalty, S23 not measured, `qdc-kv-mixed-decode`). Core ML / ANE is NOT the plan
+(own model format, no shared weights): a later prefill-only research lane at most. Background generation poisons and reloads the context (`30038004`).
 Desktop link (iroh, `c4cd72ab`) and quick-switch pill shipped. Perf track: memory warnings,
 mlock off, root error boundary landed (`2e5e13cd`); transcript virtualization is the app track's
 `e110a56b`; real-iPhone numbers (jetsam, frames, Metal speed) still owed. Parity gaps
@@ -213,18 +235,24 @@ rebuilt) -> app main `44609814` pins `kalsa.rn#1babccb9` / kalsallama `2e723bd9d
 1198 files EXIT 0). NO APK exists yet with this pin. Desktop: v1.1.5 published on R2 + HF; the
 next tag carries b11514 (desktop checks PASS, see above). Operational procedure, manifest
 contract and the Cloudflare cache traps:
-`archived/ALIVE-2026-10-09-full.md`, "Engine release pipeline" (unchanged procedure).
+`archived/ALIVE-2026-10-09-full.md`, "Engine release pipeline" (unchanged procedure). The
+Cloudflare/R2 inventory, the telemetry opt-in guarantees and the release dead ends (immutable
+tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
+`archived/PLAN-2026-10-09-full.md:2773-2815`.
 
 ## Next steps (ordered, 2026-10-09)
 
-1. Binding: rule v3 per-SoC values in the legs table + the SM8650 row (lab data cells 74/75) +
-   audit fixes. App: v3 ON by default, re-pin, fix A1. Build the APK.
-2. On that APK: S23 in-app smoke, then a 20-30 turn long session (this is G2 on the S23).
-3. `_cok` app-shaped verification, and in-APK consumption (Meter), on the same APK.
-4. The same on the Xiaomi (SM8650 row; governor gain measurement, not correctness only).
-5. Owner decision on the Jelly (G3).
-6. M1 dossier (raw results, limits, reproduction instructions).
-7. Then: the learning governor (owner idea 2026-10-09), iOS/Metal on a real iPhone, MoE unpark.
+1. Binding: audit `c97f2e39`/`d687551c`, add the SM8650 row (cells 75/76), audit, push.
+2. App (in `~/Projects/kalsa-wt-gov`): re-pin (v3 is ON by default through the row), fix A1,
+   gates, push. Tell kalsa-brain, then dispatch `apk.yml`.
+3. On that APK: S23 in-app smoke, then a 20-30 turn long session (G2 on the S23).
+4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
+   needs a tracked bench build or a channel without `run-as` (the release APK is not debuggable).
+5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76); the in-app round
+   when the owner lends it.
+6. Owner decisions: the Jelly (G3), the safety marking (below).
+7. M1 dossier (raw results, limits, reproduction instructions).
+8. Then: the learning governor, iOS/Metal on a real iPhone, MoE unpark.
 
 ## Open decisions (owner)
 
@@ -233,8 +261,14 @@ contract and the Cloudflare cache traps:
 - G3 on the Jelly Star: LFM on the Jelly CPU is thermally non-viable
   (`analysis/CISWIRE-CHAR3GRAM-KV-AND-THERMAL-2026-09-19.md`); what the Jelly ships instead is
   an owner call.
-- SM8850/v81 in the app's generation map needs a GPU-prefill correctness check on v81 first
-  (`scratchpad/agents/qdc-governor-on-off-1d51f196/REPORT.md`).
+- SM8850 is in the app's generation map (V81, app `0cf38a79`); its GPU-prefill correctness on
+  v81 is still unchecked (`scratchpad/agents/qdc-governor-on-off-1d51f196/REPORT.md`).
+- Safety marking on the ship model: complied 0/24 with parity on all 6 categories, but 4
+  pre-answer cells are flagged RELEASE BLOCKER CANDIDATE (S1_t07, S4_t0, S6_t0, S6_t07); a
+  budget-up re-run (n >= 160) is required before acting on it (`archived/ALIVE-2026-10-09-full.md:259-263`).
+- App interface: the 2026-09-21 decision to redo it from scratch keeping only the palette
+  (`archived/PLAN-2026-10-09-full.md:2919-2953`) has no later record superseding it, while later
+  work patched the current UI. The owner to confirm which holds.
 - Beta debts (owner, 2026-09-28): private release signing key + `assetlinks.json` SHA-256 +
   CI gate; APK size (target under 70 MB: fewer engine variants, R8, App Bundle) - estimate,
   not measured.
@@ -250,8 +284,8 @@ contract and the Cloudflare cache traps:
   `GOVERNOR-DEVICE-PLAN.md`, `README-governor-kv-contract.md`, `README-qwen-think-replay.md`).
 - `scratchpad/agents/<cell>/`: one folder per measurement cell (`PREREG.md` where relevant,
   driver scripts, `raw/`, `REPORT.md`).
-- `scratchpad/BACKLOG-LOW-PRIORITY.md`: triaged audit leftovers; `scratchpad/COORDINATOR-STATE.md`:
-  cross-session state.
+- root `BACKLOG-LOW-PRIORITY.md` (current: B1-B6, A1-A3) and `scratchpad/BACKLOG-LOW-PRIORITY.md`
+  (older): triaged audit leftovers. `scratchpad/COORDINATOR-STATE.md`: cross-session state.
 - `archived/PLAN-2026-09-full.md`: full Italian history to 2026-09-20.
 - `archived/PLAN-2026-10-09-full.md`: the full PLAN to 2026-10-09 (diary, engine release
   history, MoE research, pairing detail, every dated decision).

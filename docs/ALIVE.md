@@ -17,13 +17,17 @@
   tokens vs NPU-alone 6051); round 4 with rule v3 HEAT_RANK TIES NPU alone (449/420 s vs
   453/431 s to 43 C, same 6144 tokens). Records: `onecopy-three-legs/step5-s23/raw/
   session26-vsleg3-fbf33176c.grep`, `onecopy-three-legs/step5-s23/raw/r4/REPORT.md`.
-- 8 Elite long NPU (QDC #69): NSP reached 104 C vs its 105 C trip at 25 min; the speed loss came
-  from the board's `gpu` cooling device (the J(1) lm_head runs on the GPU), cdsp never engaged
-  (`qdc-8elite-npu-long-69`). Xiaomi NPU-vs-GPU endurance cell `xiaomi-endur-npu-gpu-75` RUNNING.
+- 8 Elite long NPU (QDC #69): NSP reached 104 C vs its 105 C trip at 25 min; the speed loss is
+  tied (one-run correlation) to the board's `gpu` cooling device (the J(1) lm_head runs on the
+  GPU), cdsp never engaged (`qdc-8elite-npu-long-69`).
+- Xiaomi 14 real phone, unplugged: GPU fastest (19.7-21.3 tok/s) but ~3x the NPU's skin heat per
+  token; the NPU ran 8192 tokens without reaching 43 C (cells `xiaomi-endur-npu-gpu-75`,
+  `xiaomi-legheat-76`). Under HEAT_RANK SM8650 stays mostly on the NPU.
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs
-  table, then APK, S23 in-app test, fix A1.
+  table, then APK, S23 in-app test, fix A1. Binding v3 per-SoC committed locally (`c97f2e39`,
+  `d687551c`), under audit.
 
 ## How to read this file
 
@@ -34,9 +38,9 @@ concurrent work are not copied here; the record that produced them is named inst
 
 | what is proven | record |
 |---|---|
-| The delivery chain, current: engine main `2e723bd9d` -> binding main `1babccb9` (`vendor/VERSIONS`, skels rebuilt, skew gate) -> app main `44609814` pins `kalsa.rn#1babccb9`, provenance 1198 files EXIT 0; no APK yet with this pin. Forks are main-only; retired lines are `archive/*` tags | app repo `package.json` + `REPOS.md` at `44609814`; `scratchpad/agents/onecopy-three-legs/audit-merge-b11514-n2.md` |
-| Engine main content: b11514 merge `904d38fad` + audit fixes `35233cf8e` (MUL_MAT_ID HMX gate, Metal vec-FA NULL-pipeline guard, Windows `ggml_fopen`, n_read) and `23b2a44d7` (u8path); B1 mbuf-cap restore `e2d2ac01b`/`985c6eb8f`/`2e723bd9d`; Q8_0 quantizer fix `837334a74`; bench-logits fix `fbf33176c` | `onecopy-three-legs/audit-merge-b11514-n2.md`; `scratchpad/BACKLOG-LOW-PRIORITY.md` (B1); `bisect-npu-kld/` under `onecopy-three-legs/` |
-| One copy, three legs: one weight copy serves NPU+GPU+CPU; KL vs two copies ~1e-5 everywhere measured; correct on the merged engine on S23 (real), Xiaomi (real), QDC SM8650/SM8750/SM8850 | `s23-merge-b11514-legs-73/`, `xiaomi-merge-b11514-legs-74/`, `qdc-merge-b11514-legs-72/` REPORTs |
+| The delivery chain, current: engine main `2e723bd9d` -> binding main `1babccb9` (`vendor/VERSIONS`, skels rebuilt, skew gate) -> app main `44609814` pins `kalsa.rn#1babccb9`, provenance 1198 files EXIT 0; no APK yet with this pin. Forks are main-only; retired lines are `archive/*` tags | app repo `package.json` + `REPOS.md` at `44609814`; provenance run: `archived/PLAN-2026-10-09-full.md:2311` |
+| Engine main content: b11514 merge `904d38fad` + audit fixes `35233cf8e` (MUL_MAT_ID HMX gate, Metal vec-FA NULL-pipeline guard, Windows `ggml_fopen`, n_read) and `23b2a44d7` (u8path); B1 mbuf-cap restore `e2d2ac01b`/`985c6eb8f`/`2e723bd9d`; Q8_0 quantizer fix `837334a74`; bench-logits fix `fbf33176c` | `onecopy-three-legs/audit-merge-b11514-n2.md`; root `BACKLOG-LOW-PRIORITY.md` (B1); `bisect-npu-kld/` under `onecopy-three-legs/` |
+| One copy, three legs: one weight copy serves NPU+GPU+CPU; KL mean vs two copies 1e-5 to 1.2e-4 (L-npu on SM8750/SM8850), E5 residual <= 2.3e-5; correct on the merged engine on S23 (real), Xiaomi (real), QDC SM8650/SM8750/SM8850 | `s23-merge-b11514-legs-73/`, `xiaomi-merge-b11514-legs-74/`, `qdc-merge-b11514-legs-72/` REPORTs |
 | GPU-750 one-copy defect root cause: upstream `kernel_mul_mat_f16_f32_l4_y8` on the decode KQV; fixed by keeping Adreno A7X off it (engine `e01a61cee`, no speed cost); reproduced on a second 750 (QRD8650) | `qdc-8g3-gpu750-dump-67/`, `qdc-8g3-gpu750-y8-70/`, `qdc-8g3-onecopy-legs-71/` |
 | Governor round 3: headroom rule lost to both single legs (2785 vs npu 6051 / gpu 5506 tokens to skin 43); round 4: rule v3 HEAT_RANK ties NPU alone; round-3 hard resets were bench-only (512 KB logits/token; fixed `fbf33176c`) | `onecopy-three-legs/step5-s23/raw/session26-vsleg3-fbf33176c.grep`; `onecopy-three-legs/step5-s23/raw/r4/REPORT.md`; `step5-s23/raw/session25-reset-proof-fbf33176c.grep` |
 | In-app one-copy: S23 ONLY (binding legs table `cpp/rn-legs-table.cpp` has one row, SM8550); RAM 2.51 GB one copy vs 4.06 GB two-model, same method; `decode_tokens_gpu` telemetry wired and verified in-app | `onecopy-three-legs/step6-inapp/` (`summary-ram.grep`, `raw/gputel-4-kalsa.grep`); binding repo `cpp/rn-legs-table.cpp` at `1babccb9` |
@@ -44,12 +48,12 @@ concurrent work are not copied here; the record that produced them is named inst
 | `_cok` q4_K small-batch accumulator fix `319b53937` is IN engine main (ancestor of `2e723bd9d`); the audit's app-shaped verification has NO record of having run - open verification | `cok-accumulator-audit/REPORT.md`; `git merge-base --is-ancestor 319b53937 2e723bd9d` in the engine repo |
 | 2026-09-22 GPU numerics: the fp16 activation block scale was the 57x divergence cause (shipped default 0.005412 / 93.982 %); the acceptance gate (<= 0.005 KLD) is not reachable by batched-GEMM precision work; the KV-term magnitude is unsettled (two reference orientations disagree 3.2x) | `s23-kld-740-q4-0/REPORT.md` sec. 17-35 |
 | Per-backend heat: NPU is the coolest leg for prefill on both chips, CPU prefill never coolest; S23 decode heat per 1k tokens NPU 2.8 / GPU 3.2 / CPU 4.7 C skin | `s23-heat-arms-engine/`, `qdc-8elite-heat-arms/`, `qdc-8elite-hopping-heat/`, `onecopy-three-legs/step5-s23/raw/session13-legheat-3a7fbec44.grep` |
-| The governor engages in-app and hops (S23), and its classifier reads the battery only: one long turn drove Android status 0 -> 3 SEVERE while it logged FAST; no later verification on disk | `s23-governor-lfm-long/REPORT.md` |
+| The governor engages in-app and hops (S23). On 2026-09-28 one long turn drove Android status 0 -> 3 SEVERE while it logged FAST (battery-only classifier then); engine `6892d0415` (2026-09-29) made the platform status a classifier input, fed by the app; no in-app re-verification on disk | `s23-governor-lfm-long/REPORT.md`; engine `src/llama-governor-policy.cpp:248` |
 | Governor trend producer: inert at production cadence, unproven - not to be shipped as an escalation trigger on this evidence | `governor-trend/REPORT.md` (rounds 1-4, `replay-wrongfire.cjs`) |
 | Meter: owner rule (nearly zero consumption -> release APK), the 1 %/5 % bar against the measured 1,045 mA turn draw, and the pre-registered thresholds; the sampler-overhead A/B is still PENDING; energy is unsound as within-turn control | `s23-kld-740-q4-0/REPORT.md` sec. 30; `governor-meter-recon/REPORT.md` |
 | 8 Elite long NPU: 16 x 2048-token runs, -14 % from run 6, tied to the board's `gpu` cooling device; NSP 104 C vs trip 105 at 25 min, cdsp cooling 0 | `qdc-8elite-npu-long-69/REPORT.md` |
 | Xiaomi 14 endurance (unplugged, to skin 43): NPU alone ~7.5-8k tokens vs CPU alone ~1.5k (~1.0 vs ~5.4 C skin per 1k tokens); GPU leg excluded then (pre-fix) | `onecopy-three-legs/xiaomi-sm8650/raw/session3-legs-endurance-unplugged-dbdeb628e.grep` |
-| Mixed K/V has no decode penalty on Android CPU (Metal-only cliff); Android keeps q8_0/q4_0, iOS resolves q8_0/q8_0 | `qdc-kv-mixed-decode/`; `ios-engine-choice/REPORT.md` |
+| Mixed K/V showed no CPU decode penalty on one QDC SM8650 board at depths 0/2048 (S23 not measured; Metal cliff at depth 15744 not tested on CPU); Android keeps q8_0/q4_0, iOS resolves q8_0/q8_0 | `qdc-kv-mixed-decode/`; `ios-engine-choice/REPORT.md` |
 | iOS engine line: llama.cpp on Metal beats MLX on LFM2.5 (+6 % decode) and loses on Qwen3.5-2B (-26 %); engine line confirmed llama.cpp; AFM not a main engine | `ios-engine-choice/REPORT.md` |
 | Iroh pairing passes on the Jelly (invite link, desk Allow, Forget + re-pair); the `kalsa-pair` Worker is live (HTTP 200 both endpoints); doorless node-only invites pair over iroh, LIVE PASS 2026-10-03 | `pair-worker-reachability/2026-09-28.txt`; `archived/PLAN-2026-10-09-full.md` (Pairing section, LIVE PASS) |
 | The binding's jest is green after `npm ci` (the old 12/12 failures were a pnpm-installed `node_modules`) | `binding-jest-dead/REPORT.md` |
@@ -65,9 +69,9 @@ heat is meaningless.
 | device (SoC) | legs correct (KL vs two copies) | decode tok/s NPU / GPU / CPU | notes |
 |---|---|---|---|
 | Galaxy S23 (SM8550, v73) real | yes, incl. hops (cell 73) | 17.1 / 14.5-15.7 / 12.8-13.5 | heat 2.8 / 3.2 / 4.7 C per 1k; endurance NPU 6051 tokens to skin 43; rule v3 = NPU alone (round 4). In-app: prefill 706.7/661.4 tok/s with KV on device, RAM 2.51 GB |
-| Xiaomi 14 (SM8650, v75) real | yes on the merged engine (cell 74); GPU-750 fixed, KL 1.0e-5 | 15-16.2 / 22-23.4 / 14.6-15.0 | endurance: NPU ~8k vs CPU ~1.5k tokens to skin 43; GPU leg was the fast leg here; NPU-vs-GPU endurance cell 75 RUNNING |
-| 8 Elite (SM8750, v79) QDC | yes (cells 66, 72) | gpu 28.8 / npu 27.3 (plugged, indicative) | long NPU: NSP 104 C vs 105 trip at 25 min; throttle via the `gpu` cooling device (cell 69) |
-| 8 Elite Gen 5 (SM8850, v81) QDC | yes (cells 68, 72) | gpu 30.5 / npu 26.8 / cpu 19.7 (plugged, indicative) | in-app: not in the app's generation map yet (owner decision pending) |
+| Xiaomi 14 (SM8650, v75) real | yes on the merged engine (cell 74); GPU-750 fixed, KL 1.0e-5 | 14-17.5 / 19.7-22.2 / 13.6-14.7 (cells 74-76) | heat ~1.1 / 3.2 / 7.3 C skin per 1k; load step ~5 / 11 / 26 C; NPU 8192 tokens without reaching skin 43, GPU to 43 in one 2048-token run (cells 75, 76) |
+| 8 Elite (SM8750, v79) QDC | yes (cells 66, 72) | 26.7 / 28.9 / 26.5 (cell 72, plugged, indicative) | long NPU: NSP 104 C vs 105 trip at 25 min; throttle via the `gpu` cooling device (cell 69) |
+| 8 Elite Gen 5 (SM8850, v81) QDC | yes (cells 68, 72) | 27.1 / 30.6 / 19.2 (cell 72, plugged, indicative) | in the app's generation map as V81 (`0cf38a79`); GPU-prefill on v81 unchecked |
 
 ## Standing cautions
 
@@ -81,8 +85,10 @@ heat is meaningless.
   (`s23-governor-npu-gpu-cpu/AUDIT-r1.md`; proven in-app by `s23-layers-device-proof/`).
 - In-app NPU speed is context-dependent; quote it with its KV placement and depth
   (`htp-kv-attention/`).
-- The governor's classifier reads the battery only; the platform thermal status is not an engine
-  input, and the 2026-09-28 SEVERE-vs-FAST blind spot has no later verification on disk.
+- The 2026-09-28 SEVERE-vs-FAST blind spot predates the platform-status input (`6892d0415`) and
+  has no in-app re-verification on disk.
+- Safety marking: 4 pre-answer cells flagged RELEASE BLOCKER CANDIDATE; a budget-up re-run
+  (n >= 160) is required before acting (`archived/ALIVE-2026-10-09-full.md:259-263`).
 - Open since 2026-09-22, unverified since: the KV-term magnitude (orientations disagree 3.2x)
   and the thermal limb of the Jelly prefill stall (both reruns sat at SEVERE).
 - An artefact whose hash is cited must be archived before any cleanup touches build output.
@@ -98,4 +104,4 @@ heat is meaningless.
   procedure is unchanged, read it there.
 - `archived/ALIVE-2026-09-full.md`: diary to 2026-09-20. `archived/PLAN-2026-10-09-full.md` /
   `archived/PLAN-2026-09-full.md`: the PLAN archives.
-- Current state and next steps: `PLAN.md` (living). Current gate statuses: `PLAN.md`, "Gates".
+- Current state and next steps: `PLAN.md` (living). Current gate statuses: `PLAN.md`, "Gates and dates".
