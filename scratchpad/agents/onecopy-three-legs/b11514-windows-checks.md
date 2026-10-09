@@ -63,3 +63,21 @@ No Vulkan SDK on the machine (VULKAN_SDK empty; no C:\VulkanSDK; no glslc). Per 
 
 ## Exit-code ledger
 build 0; tbo MUL_MAT 0; tbo MUL_MAT_ID 0; 05/06 (check 1 servers) 0; 07 (MTP slots) 0; 08 (LFM vision) 0; 09 (baseline slots) 0; 10 (invalid curl quoting — discarded, superseded by 11/12) 0; 11 (curl re-capture) 0; 12 (controlled non-ASCII) 0; cleanup 0.
+
+## 23b2a44d7 non-ASCII slot case
+Scope: the non-ASCII slot case only. Engine `23b2a44d7` ("u8path for slot-save filesystem calls...", parent `35233cf8e`, itself on 904d38fad), archived read-only via `git -C ~/Projects/kalsallama archive 23b2a44d7`, unpacked to NEW dir `C:\Users\gualt\kb11514\src-23b2a44d7`.
+Build: same generator/flags as before, llama-server target only → configure OK, **build exit code 0**.
+
+Harness = controlled run 12 (fresh server by PID, fresh empty slot dir `C:\Users\gualt\slots-tmp2`, E4B + MTP drafter, full app flag set, port 18192). Populate: gen 40 tokens (`tokens_cached:45`), wire body identical to before (`63 6b 70 74 5f c3 a9 2e 62 69 6e`).
+
+a. save `ckpt_é.bin` → **HTTP 200**: `{"id_slot":0,"filename":"ckpt_é.bin","n_saved":45,"n_written":1416988,"timings":{"save_ms":6.266}}`
+b. restore `ckpt_é.bin` → **HTTP 200**: `{"id_slot":0,"filename":"ckpt_é.bin","n_restored":45,"n_read":1416988,"timings":{"restore_ms":3.794}}`; replay completion after restore: **cache_n=1, prompt_n=5** (tokens_cached 45) — same warm signature as the ASCII restore on 904d38fad.
+c. slot dir listing (complete):
+   `ckpt_é.bin  1416988 bytes`
+   `slot-ascii.bin  1416988 bytes`
+   **TMP_COUNT: 0** — no `.tmp` left; the non-ASCII file is full-size on disk.
+d. ASCII control: save `slot-ascii.bin` → **200** `{"n_saved":45,"n_written":1416988,"timings":{"save_ms":5.886}}`; restore → **200** `{"n_restored":45,"n_read":1416988,"timings":{"restore_ms":1.56}}`.
+
+Expected result confirmed: **FAIL on 904d38fad (measured earlier, 500 + orphan tmp), PASS on 23b2a44d7.** Server log of the fix run has zero send_error/exception/fopen lines; health after = 200. Nothing fixed or changed beyond running the harness.
+
+Cleanup: server stopped by PID (47628, verified gone; port 18192 free); slot dir `slots-tmp2` deleted; no name-based kill sweeps used. `C:\Users\gualt\kb11514` kept, now **679.8 MB** (adds src-23b2a44d7 + its build dir).

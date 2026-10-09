@@ -2287,7 +2287,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   (`onecopy-three-legs/b11514-mac-checks-904d38fad.md`): Gemma 4 12B + mmproj u512 now caps image tokens to 512 and
   answers (baseline v1.1.5 aborts 134 on the non-causal GGML_ASSERT), E4B MTP decode +19.2 % with identical
   acceptance/output, E4B + LFM chat and slot save/restore OK, truncated slot refused 400 with /health 200; FA dk128/dv96
-  SIGSEGV reproduced (upstream). Windows run in progress; re-run FA + Brain smoke on the fix commit. The
+  SIGSEGV reproduced (upstream). **Windows (Surface, CPU) PASS** (`onecopy-three-legs/b11514-windows-checks.md`):
+  MUL_MAT 2515/2515 + MUL_MAT_ID 967/967, E4B temp-0 first 64 tokens byte-identical to v1.1.5 (decode 8.98 vs 7.26),
+  MTP slot round trip, truncated slot 400, LFM+mmproj correct; non-ASCII slot `ckpt_é.bin` FAILS on 904d38fad and on
+  v1.1.5 (500 + orphan .tmp, pre-existing) and **PASSES on 23b2a44d7** (200/200, full size, 0 .tmp). Desktop side of
+  the merge is done; engine push waits for the QDC + S23 legs on kit 23b2a44d7. The
   desktop session (kalsa-brain 2c574341) was asked for its server picks in
   `onecopy-three-legs/upstream-b11514-desktop-notes.md`. **Binding bump** to e01a61cee done locally (`f8cde278` in
   `~/Projects/llama.rn-kalsa-onecopy`, NOT pushed): glue needs no change, but `assert-htp-skels.sh` fails until the
