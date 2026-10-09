@@ -69,10 +69,12 @@ test("save and load session payloads stay hash-only", () => {
 
 test("restoreEngineSession reaches the native load under the governor", () => {
   // No governor early return before withLifecycleLock: the refusal must
-  // travel tryLoadEngineSession's failure path, which drops the hold and
-  // resets the baked tails — the chat-switch state conversation B's first
-  // send depends on. An early return leaves conversation A's hold across
-  // the switch and B's send then reconciles (and discards B's .kvs).
+  // travel tryLoadEngineSession's failure path, which attempts the native
+  // clear, drops the hold and resets the baked tails — the chat-switch state
+  // conversation B's first send depends on. (If that clear itself fails, the
+  // hold still drops while A's KV may remain: pre-existing, backlog A6.) An
+  // early return leaves conversation A's hold across the switch and B's send
+  // then reconciles (and discards B's .kvs).
   const fnStart = llamaServiceSource.indexOf(
     "export async function restoreEngineSession",
   );
