@@ -2297,7 +2297,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   2.208e-05, GPU 23.4 tok/s = #71); **SM8850 (877895) and 8 Elite SM8750 (877904) every arm PASS too** (SM8850 KL identical
   to #68; the 877904 QRD8750 reads a fixed 48.0 C battery -> run 1 killed by the 48.0 watchdog, QDC watchdog now 52.0,
   run 2 PASS). Cell `qdc-merge-b11514-legs-72/REPORT.md`. **Engine fork main PUSHED: e01a61cee..23b2a44d7
-  (2026-10-09 ~00:35 EDT, owner-approved).** Binding bump on 23b2a44d7 (glue adapt + skels rebuilt): GLM `b1dbc1f1`. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
+  (2026-10-09 ~00:35 EDT, owner-approved).** Binding bump on 23b2a44d7 (glue adapt + skels rebuilt): GLM `b1dbc1f1`; hostile audit deepseek
+  `e75f5d18` (no P0/P1; vendor tree == engine subset + patches, skel sha256 == manifest, patch intent unchanged; F3
+  glue commit did not compile alone -> squashed); **binding fork main PUSHED e97c8383..1632a4a2 (2026-10-09,
+  owner-approved)**. Leftovers B1-B6 in BACKLOG-LOW-PRIORITY.md (B1 one-copy Hexagon caps leak after unload, P2; B6
+  state files v3 refused after the app pin). App pin + APK: owner's. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
   fork main once the QDC legs pass ("si"); (2) binding bump on the merged engine with rebuilt skels, push binding main
   ("tutto tuo pusha"); app pin/APK stay the owner's.** **Round 4 DONE (S23 unplugged, ABBA npu hr hr npu, skin 43):
   rule v3 = NPU alone within noise** - every arm 3 full 2048-token runs (6144 tokens), seconds to skin 43 npu 453/431
