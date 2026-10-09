@@ -207,6 +207,53 @@ pub(crate) fn engine_lines(engine: &Engine, host: &str) -> Vec<String> {
     lines
 }
 
+/// The device pin a launch's argv actually passes, if any.
+fn pinned_device(argv: &[String]) -> Option<String> {
+    argv.windows(2)
+        .find(|pair| pair[0] == "--device")
+        .map(|pair| pair[1].clone())
+}
+
+/// The engine's facts, from the launch that really starts: the tuned
+/// winner's build when one was applied, the plan's build otherwise; the
+/// device pin only when the launch's argv passes one.
+pub(crate) fn engine_facts(
+    launch: &crate::startup::PreparedStart,
+    planned: kalsa_runtime::ServerBackend,
+    listed_devices: Vec<(String, String)>,
+    row: Option<String>,
+) -> Engine {
+    let backend = match &launch.info.tune {
+        // A `Measured` record exists only for a winner that was applied.
+        Some(crate::tune_step::Tune::Measured(record)) => record
+            .winner
+            .as_ref()
+            .map_or(planned, |win| win.candidate.backend),
+        _ => planned,
+    };
+    Engine {
+        release: kalsa_runtime::RELEASE,
+        build: backend.name(),
+        listed_devices,
+        device: pinned_device(&launch.server.argv),
+        model: launch.info.display_name.clone(),
+        row,
+        context_tokens: launch.info.args.context_tokens,
+        drafter: launch.info.args.draft.is_some(),
+    }
+}
+
+/// One line when a swap inside the process replaces the launch the block
+/// described — a retry's rule config, the processor fallback, the check's
+/// switch: the build the new exe belongs to and the device its argv pins.
+pub(crate) fn log_engine_now(config: &kalsa_supervisor::ServerConfig) {
+    let build = kalsa_runtime::backend_of_exe(&config.exe)
+        .map(|backend| backend.name())
+        .unwrap_or("unknown");
+    let device = pinned_device(&config.argv).unwrap_or_else(|| "none".to_string());
+    log::info!("engine now: {build} build · device pin {device}");
+}
+
 /// Writes the machine's half, once per session: the second call (a second
 /// turn-on) writes nothing.
 pub(crate) fn log_machine(machine: &Machine, host: &str) {

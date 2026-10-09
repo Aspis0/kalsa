@@ -49,6 +49,8 @@ pub fn runtime_root() -> std::path::PathBuf {
     store::root()
 }
 
+pub use store::backend_of_exe;
+
 pub use assets::{Platform, ServerBackend};
 pub use candidates::candidates_for;
 pub use decide::{decide, decide_cpu, DecideError, Decision};

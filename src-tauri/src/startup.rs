@@ -495,16 +495,13 @@ pub(crate) fn run(
             // an in-process restart included. The tune's winner is logged by
             // the tune itself and is not repeated here.
             crate::system::log_engine(
-                &crate::system::Engine {
-                    release: kalsa_runtime::RELEASE,
-                    build: backend.name(),
+                &crate::system::engine_facts(
+                    &prepared,
+                    // The walk's build, not the probe verdict: the processor fallback runs CPU.
+                    build,
                     listed_devices,
-                    device: prepared.info.args.device.clone(),
-                    model: prepared.info.display_name.clone(),
-                    row: Some(model_token(row)),
-                    context_tokens: prepared.info.args.context_tokens,
-                    drafter: prepared.info.args.draft.is_some(),
-                },
+                    Some(model_token(row)),
+                ),
                 &crate::system::host_name(),
             );
             return Ok(prepared);

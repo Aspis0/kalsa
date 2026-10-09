@@ -176,7 +176,7 @@ they are promoted.
 
 ## Surface walk (2026-10-07, build 8f30e43c)
 
-- P3: when the tuned winner is a processor shape, the start still logs `engine: kalsa-server v1.1.5 · vulkan build` and `device pin: Vulkan0 (target and drafter)`, though the engine that runs is `builds\cpu\…\kalsa-server.exe` with no device flags (checked on the Surface). These lines describe the machine's backend, not the launch. Log the launch's real build and devices.
+- FIXED 2026-10-09: the start block now names the launch's build and pin (tuned winner or the walk's build, pin read from argv), and `engine now:` logs every later swap. Still open (P3): the `engine device:` list comes from the pre-tune exe's `--list-devices`, so a CPU winner still lists the Vulkan adapters; the speed check's failed-processor → graphics restore (`src-tauri/src/main.rs` ~:1988) logs no `engine now:` line.
 
 ## Tune "100%" batch (review of fb03c060, 454a1f14, 288c022f, 84da8025, 4e769a3c)
 

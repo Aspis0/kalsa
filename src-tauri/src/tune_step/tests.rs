@@ -399,6 +399,91 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A kept record whose winner is the processor build on a Vulkan machine:
+/// the block says `cpu build` and prints no `device pin:` line — the CPU
+/// binary's argv passes none.
+#[test]
+fn a_processor_winner_logs_cpu_build_and_no_device_pin() {
+    let dir = scratch("cpu-winner");
+    let machine = machine(Backend::DiscreteGpu {
+        vram_bytes: Some(6_439_305_216),
+    });
+    let pinned = ServerArgs {
+        device: Some("Vulkan0".to_string()),
+        ..rule_args()
+    };
+    let mut prepared = prepared_with("/builds/vulkan/kalsa-server", pinned);
+    let fingerprint = tune_fingerprint(&machine, &prepared.info, ServerBackend::Vulkan, CORES)
+        .expect("this walk has a platform and a digest");
+    let winner_candidate = kalsa_tune::Candidate {
+        backend: ServerBackend::Cpu,
+        threads: Some(8),
+        offload: Offload::NoGpuBuild,
+        draft: None,
+    };
+    let record = kalsa_tune::record::Record {
+        fingerprint,
+        winner: Some(kalsa_tune::Winner {
+            candidate: winner_candidate,
+            reply: reply(700.0, 30.0),
+        }),
+        trials: vec![replied(winner_candidate, 700.0, 30.0)],
+    };
+    kalsa_tune::record::save(
+        &dir,
+        prepared.info.model_sha256.as_deref().unwrap(),
+        &record,
+    )
+    .expect("save");
+    let mut memo = Memo {
+        cores: CORES,
+        processor: Some(Ok(PathBuf::from("/builds/cpu/kalsa-server"))),
+    };
+
+    tune_launch(
+        &mut prepared,
+        &machine,
+        &dir,
+        (
+            ServerBackend::Vulkan,
+            PathBuf::from("/builds/vulkan/kalsa-server"),
+        ),
+        &mut memo,
+        &mut |_: Progress| {},
+        |_, _, _, _, _| panic!("a kept record must not measure"),
+    );
+
+    let engine = crate::system::engine_facts(
+        &prepared,
+        ServerBackend::Vulkan,
+        Vec::new(),
+        None,
+    );
+    let joined = crate::system::engine_lines(&engine, "").join("\n");
+    assert!(joined.contains("· cpu build"), "{joined}");
+    assert!(!joined.contains("device pin:"), "{joined}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The plan arm: no winner was applied and the plan's build is the CPU
+/// build the processor fallback chose — the block names that build, never
+/// the probe's verdict still saying Vulkan, and a plan pin the CPU argv
+/// renders away leaves no `device pin:` line.
+#[test]
+fn the_plan_arm_logs_the_walks_build_not_the_probe_verdict() {
+    let fallback_plan = ServerArgs {
+        device: Some("Vulkan0".to_string()),
+        offload: Offload::NoGpuBuild,
+        ..rule_args()
+    };
+    let launch = prepared_with("/builds/cpu/kalsa-server", fallback_plan);
+
+    let engine = crate::system::engine_facts(&launch, ServerBackend::Cpu, Vec::new(), None);
+    let joined = crate::system::engine_lines(&engine, "").join("\n");
+    assert!(joined.contains("· cpu build"), "{joined}");
+    assert!(!joined.contains("device pin:"), "{joined}");
+}
+
 /// The owner's own case: the same machine and model with one seat, then
 /// two — a phone paired — is the same tune. The first start measures; the
 /// second answers from that record and launches the SECOND plan,

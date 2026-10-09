@@ -109,6 +109,23 @@ fn builds_dir(root: &Path, backend: ServerBackend) -> PathBuf {
     root.join("builds").join(backend.name())
 }
 
+/// The backend a shipped engine exe belongs to, read from this crate's own
+/// layout (`builds/<backend>/…`); `None` for a binary that sits in no such
+/// path — a dev-pinned exe.
+pub fn backend_of_exe(exe: &Path) -> Option<ServerBackend> {
+    let mut following_builds = false;
+    for component in exe.parent()?.components() {
+        if following_builds {
+            return component
+                .as_os_str()
+                .to_str()
+                .and_then(ServerBackend::from_name);
+        }
+        following_builds = component.as_os_str() == std::ffi::OsStr::new("builds");
+    }
+    None
+}
+
 fn models_dir(root: &Path) -> PathBuf {
     root.join("models")
 }
@@ -989,5 +1006,17 @@ mod tests {
             "the pinned tar.gz stays, upstream's tar.gz goes"
         );
         let _ = std::fs::remove_dir_all(&mac);
+    }
+
+    /// The backend is the store's own `builds/<backend>/` directory, read
+    /// off the exe's path; a binary outside that layout names none.
+    #[test]
+    fn backend_of_exe_reads_the_store_layout() {
+        let cpu = Path::new("/home/owner/.local/share/kalsa/builds/cpu/kalsa-server.exe");
+        assert_eq!(backend_of_exe(cpu), Some(ServerBackend::Cpu));
+        let vulkan = Path::new("/data/builds/vulkan/bin/llama-server.exe");
+        assert_eq!(backend_of_exe(vulkan), Some(ServerBackend::Vulkan));
+        let dev = Path::new("/home/owner/src/llama.cpp/build/bin/llama-server");
+        assert_eq!(backend_of_exe(dev), None);
     }
 }

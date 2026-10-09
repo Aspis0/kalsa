@@ -1880,6 +1880,7 @@ fn adopt_relaunch(
     prepared.info.args = args;
     prepared.info.tune = None;
     prepared.server = config;
+    crate::system::log_engine_now(&prepared.server);
     (outcome, settled)
 }
 
@@ -1973,6 +1974,7 @@ pub(crate) fn speed_check(
         None => CheckResult::Down,
         Some((outcome, Some(StartSettled::Up))) => {
             prepared.server = processor_config;
+            crate::system::log_engine_now(&prepared.server);
             // The panel's "In force" must describe what runs: the
             // processor's own threads and offload.
             prepared.info.args = processor_args;
