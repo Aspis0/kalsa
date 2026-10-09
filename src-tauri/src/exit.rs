@@ -29,16 +29,19 @@ use std::time::Duration;
 /// to cost, and not an exit a person would reach for the force-quit over. A
 /// thread that has not stopped by then is one the process will not be held
 /// for. That sum leaves out the quit save, which runs first and takes up to
-/// `SAVE_BUDGET`: a slow save pushes the rest past the deadline, and the
-/// watchdog then cuts the tail, the engine included.
+/// `SAVE_BUDGET`, so the steps after it get what the deadline leaves: a
+/// shutdown that runs long is cut by the watchdog, engine included.
 pub(crate) const DEADLINE: Duration = Duration::from_secs(15);
 
-/// How long the clean quit's save may take. The save is the only step that
-/// can wait on a restore's slot lock or an engine that has stopped answering,
-/// so it is bounded here instead of by the engine's patience. Past it the save
+/// How long the clean quit's save may take. It is bounded here instead of by
+/// the engine's patience because the save is the only step that can wait on a
+/// restore's slot lock or an engine that has stopped answering. It is long on
+/// purpose: a save of the open chat took 9.3 s on the Surface under load, and
+/// a shorter bound would skip exactly the save that matters. Past it the save
 /// is skipped, and the turns since the last timer save are lost as they were
-/// before the save existed.
-pub(crate) const SAVE_BUDGET: Duration = Duration::from_secs(8);
+/// before the save existed. The unit test keeps 3 s of the deadline for the
+/// shutdown after it.
+pub(crate) const SAVE_BUDGET: Duration = Duration::from_secs(12);
 
 /// How long each rung of the last-resort kill waits. It is spent after the
 /// deadline has already passed, so it is short: two rungs of this is the
@@ -154,12 +157,16 @@ mod tests {
         Exited(i32, &'static str),
     }
 
-    /// The quit save may not outlast the watchdog it runs under: a budget at
-    /// or past the deadline would be cut by the very watchdog it exists to
-    /// beat.
+    /// The quit save runs under the watchdog and leaves the shutdown after it
+    /// at least 3 s of the deadline: a budget that eats the rest would have the
+    /// watchdog cut the shutdown before the engine stop it exists to finish.
     #[test]
-    fn the_save_budget_is_inside_the_deadline() {
-        assert!(SAVE_BUDGET < DEADLINE, "the save may outlast the watchdog");
+    fn the_save_budget_leaves_three_seconds_for_the_shutdown() {
+        assert!(
+            DEADLINE.saturating_sub(SAVE_BUDGET) >= Duration::from_secs(3),
+            "the save leaves {:?} of the deadline for the shutdown after it",
+            DEADLINE.saturating_sub(SAVE_BUDGET)
+        );
     }
 
     /// The deadline fires: the engine is killed before anything is said or

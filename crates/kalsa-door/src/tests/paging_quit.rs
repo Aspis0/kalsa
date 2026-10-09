@@ -11,7 +11,7 @@ use super::paging_support::{
 use super::*;
 
 /// The budget the app hands the quit save (`exit::SAVE_BUDGET`).
-const BUDGET: Duration = Duration::from_secs(8);
+const BUDGET: Duration = Duration::from_secs(12);
 
 fn saves_since(engine: &Engine, from: usize) -> Vec<Sent> {
     engine.sent()[from..]
