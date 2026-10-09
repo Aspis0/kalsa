@@ -206,11 +206,9 @@ pub struct Supervisor {
     /// a count that never goes down can say a release happened, never that
     /// the model is back.
     residency: Residency,
-    /// Where the engine's stderr keeps itself (`keep_stderr_in`), read at
-    /// each start. `None` until the app names its log folder, and in every
-    /// test: a child spawned against `None` keeps its tail in memory only,
-    /// which is the shape every test before the file existed still sees.
-    stderr_dir: Arc<Mutex<Option<PathBuf>>>,
+    /// Each start snapshots the file configuration; without it, only the
+    /// in-memory tail is kept.
+    stderr_dir: Arc<Mutex<Option<crate::stderr_log::StderrLogConfig>>>,
 }
 
 /// Read-only, `Clone`able view of the facts the supervisor owns: the
@@ -302,15 +300,18 @@ impl Supervisor {
         }
     }
 
-    /// Names the folder the engine's stderr keeps itself in: a
-    /// size-capped, rotating file beside the app's other logs
-    /// (`kalsa-engine.log`), every line through the drain's denylist.
-    /// Called once, when the app knows its log folder and before any start
-    /// can run; a start queued before it ran keeps its stderr to the
-    /// in-memory tail, which is the honest fallback, not a fault.
-    pub fn keep_stderr_in(&self, dir: PathBuf) {
+    /// Configure the rotating stderr file with the app's identifying-data redactor.
+    /// Call before starting the engine so its first lines are covered.
+    pub fn keep_stderr_in(
+        &self,
+        dir: PathBuf,
+        redact: impl Fn(&str) -> String + Send + Sync + 'static,
+    ) {
         if let Ok(mut held) = self.stderr_dir.lock() {
-            *held = Some(dir);
+            *held = Some(crate::stderr_log::StderrLogConfig {
+                dir,
+                redact: Arc::new(redact),
+            });
         }
     }
 
@@ -472,11 +473,8 @@ fn work(
     // parameter, and the test that drives `Supervisor::stop` must not
     // depend on a socket it (or a neighbour) can rebind under its feet.
     probe: presence::Probe,
-    // Where the engine's stderr keeps itself, set once by the app before
-    // any start can run (and `None` where nobody did — the tests): read at
-    // each start, so the value the child's drain sees is the one that
-    // was standing when the start was queued.
-    stderr_dir: Arc<Mutex<Option<PathBuf>>>,
+    // Snapshot the file configuration for each child when handling its start.
+    stderr_dir: Arc<Mutex<Option<crate::stderr_log::StderrLogConfig>>>,
 ) {
     let mut owned: Option<Owned> = None;
     // The last start's config, kept after `owned` goes: §18's second stop
@@ -516,7 +514,7 @@ fn work(
                     residency.clone(),
                     starts,
                     &engine,
-                    stderr_dir.as_deref(),
+                    stderr_dir.as_ref(),
                 );
                 match started {
                     Ok(Started::Adopted { pid }) => {
@@ -895,7 +893,7 @@ fn start_blocking(
     residency: Residency,
     start: u64,
     engine: &EngineId,
-    stderr_dir: Option<&Path>,
+    stderr_dir: Option<&crate::stderr_log::StderrLogConfig>,
 ) -> Result<Started, Failure> {
     // Before anything exists: an unsafe binding must be refused, not started
     // and then failed to be found.
@@ -1029,33 +1027,9 @@ fn argv_line(argv: &[String]) -> String {
 /// not cannot carry much of it.
 const STDERR_CLIP: usize = 300;
 
-/// Substrings that mark an engine stderr line as carrying REQUEST bytes.
-/// Each was read out of the fork's own sources (`tools/server` in
-/// kalsallama) — at default verbosity these are the lines that print what
-/// somebody sent:
-///
-/// - `got exception` / `got another exception` — `server.cpp:79,81`, the
-///   whole request body (`res->data`) and the exception text;
-/// - `last read`, `parse_error`, `json.exception` — nlohmann's parse
-///   errors quote the input around the failure, whatever printed them;
-/// - `unsupported Responses tool type` — `server-chat.cpp:277`, a field
-///   value out of the request;
-/// - `downloading image from`, `loading image from local file` —
-///   `server-common.cpp:1094,1115`, a URL or path out of the request;
-/// - `old: ...` / `new: ...` — the prompt-cache debug dump
-///   (`server-context.cpp:3712-3747`), which prints PROMPT TEXT as
-///   `old: ...`/`new: ...` lines when `LLAMA_SERVER_SLOTS_DEBUG` is set —
-///   the spawn strips that variable, and this is the second wall;
-/// - `api_keys:` — `server-http.cpp:229-234`, the key's last characters,
-///   printed when verbosity was raised (also stripped at the spawn);
-/// - `awaiting trigger` — the scheduler's idle wake line, not printed at
-///   default verbosity and absent from the shipped build's own strings;
-///   kept out as defence in depth (docs/BACKLOG.md, "Log and report").
-///
-/// Everything else the fork prints at this verbosity is argv, model paths
-/// or counters — checked across `server.cpp`, `server-chat.cpp`,
-/// `server-common.cpp` and `server-context.cpp`.
-const REQUEST_LINE_MARKS: [&str; 12] = [
+// These families can quote request or generated text at default verbosity.
+// Keep the same filter on the file and the app log's exit tail.
+const REQUEST_LINE_MARKS: &[&str] = &[
     "got exception",
     "got another exception",
     "last read",
@@ -1068,6 +1042,30 @@ const REQUEST_LINE_MARKS: [&str; 12] = [
     "new: ...",
     "api_keys:",
     "awaiting trigger",
+    "unparsed",
+    "Failed to format input",
+    "anthropic string not as expected",
+    "Ignoring content part type",
+    "Tool call mismatch",
+    "Ignoring non-text content part",
+    "failed to apply template",
+    "common_chat_templates_init: error:",
+    "failed to parse tool use chat template",
+    "chat template parsing error",
+    "pre_decode() failed:",
+    "decode() failed:",
+    "post_decode() failed:",
+    "on unknown completion id=",
+    "conv_id=",
+    "name=",
+    "proxying request to model ",
+    " is not ready",
+    "unknown error while validating model",
+    "starting download for model",
+    "(CORS) skip non-localhost origin:",
+    "MCP tool \"",
+    "MCP warmup: failed to spawn",
+    "MCP '",
 ];
 
 /// The withheld lines' replacement, named once so the log reads the same
@@ -1077,6 +1075,7 @@ pub(crate) const WITHHELD: &str = "<a request error line was withheld>";
 
 pub(crate) fn carries_request_text(line: &str) -> bool {
     REQUEST_LINE_MARKS.iter().any(|mark| line.contains(mark))
+        || (line.contains("task id = ") && line.contains("error:"))
 }
 
 /// The engine's own last words, made safe for the log: a line that carries
@@ -1101,12 +1100,8 @@ fn sanitized_tail(lines: &[String]) -> Vec<String> {
     out
 }
 
-/// The engine's own last words on the record, after an exit or a failed
-/// start: the in-memory stderr tail through [`sanitized_tail`], one log
-/// line per stderr line. The argv renderer cannot emit a verbose flag
-/// (`kalsa-launch/src/argv.rs` pins it), so at default verbosity the only
-/// request text llama-server can print is the exception family the filter
-/// takes out.
+/// Withhold request/generated-text families before the app logger redacts
+/// identifying data from the remaining exit diagnostics.
 fn log_stderr_tail(child: &ChildHandle) {
     for line in sanitized_tail(&child.output_tail()) {
         log::warn!("engine stderr: {line}");
@@ -1277,6 +1272,11 @@ mod tests {
             "[json.exception.parse_error.101] parse error at line 1, column 9: syntax error - last read: 'marco's que'".to_string(),
             "unsupported Responses tool type 'interpretive dance' skipped".to_string(),
             "downloading image from 'https://example.invalid/marco-house.jpg'".to_string(),
+            "common_chat_parse: unparsed json output: marco's answer".to_string(),
+            "anthropic string not as expected: marco's system prompt".to_string(),
+            "srv send_error: task id = 7, error: arbitrary marco text".to_string(),
+            "Ignoring content part type: marco-custom".to_string(),
+            "Tool call mismatch: prev='marco' new='other'".to_string(),
             "srv  update_slots: all slots are idle".to_string(),
         ]
     }

@@ -187,11 +187,8 @@ impl ChildHandle {
     /// fact the same lines tell — released, then loaded again — and stays
     /// unknown for a server this drain never watches.
     ///
-    /// `stderr_dir` names the folder the engine's stderr keeps itself in
-    /// (`stderr_log`): every line the drain reads is carried through the
-    /// denylist and appended there, so a fact that shows only on stderr —
-    /// a sleep — survives past the in-memory tail. `None` keeps the tail
-    /// in memory only.
+    /// The optional file configuration keeps redacted stderr beyond the
+    /// in-memory tail, so sleep announcements survive until diagnosis.
     ///
     /// The working directory is pinned to the binary's own directory because
     /// ggml's backend scan puts the process' current directory in its module
@@ -204,7 +201,7 @@ impl ChildHandle {
         inherit: Option<&File>,
         releases: Arc<AtomicU64>,
         residency: Residency,
-        stderr_dir: Option<&Path>,
+        stderr_dir: Option<&crate::stderr_log::StderrLogConfig>,
     ) -> io::Result<Self> {
         let mut cmd = Command::new(exe);
         cmd.args(args)
@@ -577,22 +574,25 @@ fn signal_group(pid: u32, signal: i32) -> io::Result<()> {
 /// the drain sees every line the moment the server writes it, so no release
 /// can fall between polls.
 ///
-/// When `stderr_dir` names a folder, every line also reaches the engine's
-/// stderr file — AFTER the denylist, which is the only thing standing
-/// between the server's own words and the disk: a line that carries request
-/// bytes is written as the withheld sentence, never as itself.
+/// The file withholds request/generated-text families, then applies the
+/// app's redactor to identifying data before clipping and writing each line.
 fn drain_stderr(
     stderr: Option<std::process::ChildStderr>,
     releases: Arc<AtomicU64>,
     residency: Residency,
-    stderr_dir: Option<&Path>,
+    stderr_dir: Option<&crate::stderr_log::StderrLogConfig>,
 ) -> Arc<Mutex<VecDeque<String>>> {
     let tail = Arc::new(Mutex::new(VecDeque::new()));
     let Some(stderr) = stderr else {
         return tail;
     };
     let sink = Arc::clone(&tail);
-    let file = stderr_dir.map(|dir| crate::stderr_log::StderrLog::open(dir.to_path_buf()));
+    let file = stderr_dir.map(|config| {
+        (
+            crate::stderr_log::StderrLog::open(config.dir.clone()),
+            Arc::clone(&config.redact),
+        )
+    });
     std::thread::spawn(move || {
         // A pipe of ours is what makes the residency knowable: this child is
         // loading (or has already loaded) its model and no line has announced
@@ -607,11 +607,11 @@ fn drain_stderr(
             } else if line.contains(MODEL_RELOADED_LINE) {
                 residency.set(RESIDENCY_IN_MEMORY);
             }
-            if let Some(file) = file.as_ref() {
+            if let Some((file, redact)) = file.as_ref() {
                 let safe = if crate::supervisor::carries_request_text(&line) {
                     crate::supervisor::WITHHELD.to_string()
                 } else {
-                    crate::stderr_log::clip_line(&line)
+                    crate::stderr_log::clip_line(&redact(&line))
                 };
                 file.write_line(&safe);
             }
@@ -939,10 +939,6 @@ mod tests {
         );
     }
 
-    /// The stderr file's privacy wall is the drain's denylist: a line that
-    /// carries request bytes reaches the disk only as the withheld sentence,
-    /// while the lines a diagnosis wants — the sleep announcement, the load
-    /// banner — reach it whole.
     #[cfg(unix)]
     #[test]
     fn the_stderr_file_receives_only_lines_the_denylist_allows() {
@@ -954,16 +950,30 @@ mod tests {
                 .unwrap_or_default()
                 .subsec_nanos()
         ));
-        let _ = std::fs::remove_dir_all(&dir);
+        struct Scratch(std::path::PathBuf);
+        impl Drop for Scratch {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _scratch = Scratch(dir.clone());
         std::fs::create_dir_all(&dir).expect("mkdir");
+        let config = crate::stderr_log::StderrLogConfig {
+            dir: dir.clone(),
+            redact: Arc::new(|line| {
+                line.replace("/Users/HOME-CANARY", "<home>")
+                    .replace("USER-CANARY", "<user>")
+                    .replace("HOST-CANARY", "<host>")
+            }),
+        };
         let mut child = ChildHandle::spawn(
             Path::new("/bin/sh"),
             &["-c".into(),
-              "printf '%s\\n' 'I srv  handle_sleep: server is entering sleeping state' 'got exception: PROMPT-CANARY walked in' 'main: device 3 loaded' >&2; sleep 30".into()],
+              "printf '%s\\n' 'I srv  handle_sleep: server is entering sleeping state' 'got exception: PROMPT-CANARY walked in' 'common_chat_parse: unparsed json output: ANSWER-CANARY' 'anthropic string not as expected: SYSTEM-CANARY' 'restored 1 context checkpoint(s) from /Users/HOME-CANARY/cache USER-CANARY HOST-CANARY' 'main: device 3 loaded' >&2; sleep 30".into()],
             None,
             Arc::new(AtomicU64::new(0)),
             Residency::new(),
-            Some(&dir),
+            Some(&config),
         )
         .expect("spawn the talking child");
         let file = dir.join("kalsa-engine.log");
@@ -984,9 +994,18 @@ mod tests {
             text.contains("server is entering sleeping state"),
             "the sleep announcement never reached the disk: {text}"
         );
-        assert!(!text.contains("PROMPT-CANARY"), "{text}");
+        for canary in [
+            "PROMPT-CANARY",
+            "ANSWER-CANARY",
+            "SYSTEM-CANARY",
+            "HOME-CANARY",
+            "USER-CANARY",
+            "HOST-CANARY",
+        ] {
+            assert!(!text.contains(canary), "leaked {canary}: {text}");
+        }
+        assert!(text.contains("from <home>/cache <user> <host>"), "{text}");
         assert!(text.contains(crate::supervisor::WITHHELD), "{text}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(windows)]

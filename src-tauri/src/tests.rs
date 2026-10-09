@@ -2805,13 +2805,8 @@ fn the_pin_bites_when_the_square_is_taken_away() {
     assert_eq!(non_running_arms_stop_the_door(&source), Ok(()));
 }
 
-/// The switch save's pin. A model switch is `brain_stop` then `brain_start`
-/// (`chooseModel` in the chat), so the stop is the one moment the engine's
-/// unsaved turns can still be written under the old model's identity. If the
-/// save drifts after `supervisor.stop()` — or leaves the command — a switch
-/// loses those turns exactly the way a quit did before the quit save. The
-/// exit's save is pinned by reading `main.rs`'s exit handler and is not
-/// repeated here; this pin is about the stop the UI drives.
+// A model switch stops the old engine before starting the new one; its
+// unsaved turns must finish saving under the old model's identity.
 fn brain_stop_saves_the_open_chat_before_the_engine_stops(source: &str) -> Result<(), String> {
     let at = source
         .find("async fn brain_stop(")
@@ -2820,6 +2815,13 @@ fn brain_stop_saves_the_open_chat_before_the_engine_stops(source: &str) -> Resul
     let save = body
         .find("save_open_chat()")
         .ok_or_else(|| "brain_stop no longer saves the open chat".to_string())?;
+    let save_end = body[save..]
+        .find(';')
+        .map(|end| save + end)
+        .ok_or_else(|| "the save statement is unfinished".to_string())?;
+    if !body[save..save_end].trim_end().ends_with(".await") {
+        return Err("brain_stop no longer awaits the open chat save".to_string());
+    }
     let stop = body
         .find("supervisor.stop()")
         .ok_or_else(|| "brain_stop no longer stops the engine".to_string())?;
@@ -2842,29 +2844,41 @@ fn the_stop_behind_a_model_switch_saves_the_open_chat_first() {
 }
 
 #[test]
-fn the_switch_save_pin_bites_when_the_save_is_taken_away() {
-    // The edit a future cleanup makes by accident, replayed on a COPY of the
-    // source: the save moves after the stop (as if ordering did not matter).
-    // The pin must go red on exactly that copy...
+fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_or_unawaited() {
     let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
         .expect("main.rs is readable");
-    let at = source
-        .find("async fn brain_stop(")
-        .expect("the stop the model switch drives");
-    let mutated = format!(
+    let at = source.find("async fn brain_stop(").expect("brain_stop");
+    let save = "tauri::async_runtime::spawn_blocking(move || saver.save_open_chat()).await;";
+    assert!(source[at..].contains(save), "the save mutation must apply");
+    let removed = format!("{}{}", &source[..at], source[at..].replacen(save, "();", 1));
+    let reordered = format!(
         "{}{}",
-        &source[..at],
-        source[at..].replace(
-            "tauri::async_runtime::spawn_blocking(move || saver.save_open_chat()).await;",
-            "",
+        &removed[..at],
+        removed[at..].replacen(
+            "supervisor.stop();",
+            &format!("supervisor.stop(); {save}"),
+            1
         )
     );
-    assert!(
-        brain_stop_saves_the_open_chat_before_the_engine_stops(&mutated).is_err(),
-        "the pin passed on a brain_stop with no save in it"
+    let unawaited = format!(
+        "{}{}",
+        &source[..at],
+        source[at..].replacen(save, &save.replace(".await", ""), 1)
     );
-    // ...and stay green on the untouched source.
-    assert_eq!(brain_stop_saves_the_open_chat_before_the_engine_stops(&source), Ok(()));
+    for (mutation, label) in [
+        (&removed, "deleted"),
+        (&reordered, "after stop"),
+        (&unawaited, "unawaited"),
+    ] {
+        assert!(
+            brain_stop_saves_the_open_chat_before_the_engine_stops(mutation).is_err(),
+            "the pin passed with the save {label}"
+        );
+    }
+    assert_eq!(
+        brain_stop_saves_the_open_chat_before_the_engine_stops(&source),
+        Ok(())
+    );
 }
 
 /// The companion pin: `every_non_running_arm_of_the_reconcile_stops_the_door`

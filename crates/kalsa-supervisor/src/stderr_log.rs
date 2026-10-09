@@ -1,25 +1,13 @@
 //! The engine's stderr, kept: a size-capped rotating file beside the app's
 //! other logs.
 //!
-//! The drain in `child` sees every line the server writes, but the app log
-//! carries only the sanitized tail at an exit (40 lines, gone by the next
-//! one), so a fact that shows only on stderr — the model entering or
-//! leaving its sleeping state above all — vanished unless an exit happened
-//! to follow it. This file keeps the stream, capped the way the app's own
-//! log is capped: one live file, at most one rotated one, the live file
-//! reset in place when a rotation cannot happen. The folder is handed in
-//! by the app; nothing here knows where it is.
-//!
-//! The privacy wall is the drain's denylist (`carries_request_text`), the
-//! same wall the app log's stderr lines stand behind: a line that carries
-//! request bytes is written as the withheld sentence, never as itself.
-//! No other redaction runs here — which is exactly why the Send-report
-//! does not read this file (see `src-tauri/src/report.rs`).
+//! Request/generated-text families are withheld by the drain; the app's
+//! redactor removes identifying paths and names before file writes.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// The live file, inside the folder the app hands over.
 const LIVE_NAME: &str = "kalsa-engine.log";
@@ -31,6 +19,12 @@ const CAP_BYTES: u64 = 2 * 1024 * 1024;
 /// No single line may be longer than this, whatever the server wrote: a
 /// runaway line must not eat the cap on its own. The app log's own rule.
 const LINE_CHAR_CAP: usize = 8 * 1024;
+
+#[derive(Clone)]
+pub(crate) struct StderrLogConfig {
+    pub(crate) dir: PathBuf,
+    pub(crate) redact: Arc<dyn Fn(&str) -> String + Send + Sync>,
+}
 
 pub(crate) struct StderrLog {
     state: Mutex<Option<(File, u64)>>,

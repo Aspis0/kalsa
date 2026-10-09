@@ -2427,7 +2427,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // writes it.
             app.state::<Arc<Brain>>()
                 .supervisor
-                .keep_stderr_in(log_dir);
+                .keep_stderr_in(log_dir, logging::redact_str);
             log::info!("app start");
             // Under the lock, and only here: the unclean-exit marker is
             // this session's own, so a launch refused as a second one (it
