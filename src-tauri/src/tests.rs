@@ -2805,6 +2805,68 @@ fn the_pin_bites_when_the_square_is_taken_away() {
     assert_eq!(non_running_arms_stop_the_door(&source), Ok(()));
 }
 
+/// The switch save's pin. A model switch is `brain_stop` then `brain_start`
+/// (`chooseModel` in the chat), so the stop is the one moment the engine's
+/// unsaved turns can still be written under the old model's identity. If the
+/// save drifts after `supervisor.stop()` — or leaves the command — a switch
+/// loses those turns exactly the way a quit did before the quit save. The
+/// exit's save is pinned by reading `main.rs`'s exit handler and is not
+/// repeated here; this pin is about the stop the UI drives.
+fn brain_stop_saves_the_open_chat_before_the_engine_stops(source: &str) -> Result<(), String> {
+    let at = source
+        .find("async fn brain_stop(")
+        .ok_or_else(|| "brain_stop is the command the model switch drives".to_string())?;
+    let body = brace_block(source, at);
+    let save = body
+        .find("save_open_chat()")
+        .ok_or_else(|| "brain_stop no longer saves the open chat".to_string())?;
+    let stop = body
+        .find("supervisor.stop()")
+        .ok_or_else(|| "brain_stop no longer stops the engine".to_string())?;
+    if save > stop {
+        return Err("brain_stop saves the open chat after queuing the engine's stop".to_string());
+    }
+    Ok(())
+}
+
+#[test]
+fn the_stop_behind_a_model_switch_saves_the_open_chat_first() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    if let Err(error) = brain_stop_saves_the_open_chat_before_the_engine_stops(&source) {
+        panic!(
+            "{error} — a model switch would lose the turns since the last timer save, the \
+             fault the quit save exists for"
+        );
+    }
+}
+
+#[test]
+fn the_switch_save_pin_bites_when_the_save_is_taken_away() {
+    // The edit a future cleanup makes by accident, replayed on a COPY of the
+    // source: the save moves after the stop (as if ordering did not matter).
+    // The pin must go red on exactly that copy...
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    let at = source
+        .find("async fn brain_stop(")
+        .expect("the stop the model switch drives");
+    let mutated = format!(
+        "{}{}",
+        &source[..at],
+        source[at..].replace(
+            "tauri::async_runtime::spawn_blocking(move || saver.save_open_chat()).await;",
+            "",
+        )
+    );
+    assert!(
+        brain_stop_saves_the_open_chat_before_the_engine_stops(&mutated).is_err(),
+        "the pin passed on a brain_stop with no save in it"
+    );
+    // ...and stay green on the untouched source.
+    assert_eq!(brain_stop_saves_the_open_chat_before_the_engine_stops(&source), Ok(()));
+}
+
 /// The companion pin: `every_non_running_arm_of_the_reconcile_stops_the_door`
 /// demands arms that STOP the door; this one demands that the RAISE lives in
 /// exactly one arm of the reconcile, the `Running` one. `start_door_if_paired`

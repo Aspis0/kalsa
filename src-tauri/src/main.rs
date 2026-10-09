@@ -523,8 +523,9 @@ impl Brain {
     }
 
     /// The clean quit's save: the open chat's last turns reach its file while
-    /// the engine still runs. Only the exit calls it, before the engine stops;
-    /// a model switch stops the door without it.
+    /// the engine still runs. The exit calls it, and so does `brain_stop` —
+    /// a model switch is a stop followed by a start, and the stop is the
+    /// moment the engine's unsaved turns would die.
     fn save_open_chat(&self) {
         let door = self
             .door
@@ -2064,7 +2065,17 @@ fn take_own_seat(file: &Path) -> Result<(), kalsa_pairing::StoreError> {
 }
 
 #[tauri::command]
-fn brain_stop(brain: State<Arc<Brain>>, desk: State<Desk>) {
+async fn brain_stop(brain: State<'_, Arc<Brain>>, desk: State<'_, Desk>) -> Result<(), String> {
+    // The model switch is this stop followed by a start (`chooseModel` in the
+    // chat), and a Turn off is the same shape: the engine about to stop holds
+    // the turns since the last timer save, and the save must write them under
+    // the OLD model's identity while the old door is still up. The quit
+    // save's own rule applies — only a resident, dirty slot, bounded by
+    // SAVE_BUDGET, skipped while a restore holds the slot — so the stop can
+    // wait out a save, never hang on one. Off the main thread, so the window
+    // keeps painting while a slow save runs.
+    let saver = Arc::clone(&brain);
+    let _ = tauri::async_runtime::spawn_blocking(move || saver.save_open_chat()).await;
     // `stop` is non-blocking and sets `Stopping` before it queues, so every
     // poll from here reads the drain — never `Running` behind a lowered door.
     {
@@ -2075,6 +2086,7 @@ fn brain_stop(brain: State<Arc<Brain>>, desk: State<Desk>) {
     brain.stop_door();
     brain.clear_launch();
     desk.desk.stop_serving();
+    Ok(())
 }
 
 /// The Pairing page's one read, polled. A square is only offered while the
