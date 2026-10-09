@@ -108,7 +108,9 @@ trap 'exit 130' INT TERM
 command -v campaign_metro_preflight >/dev/null 2>&1 || die "Metro gate unavailable: campaign_metro_preflight is not defined"
 campaign_metro_preflight
 
-COMPACTION_VAL="ciswire"
+# T20C is the ciswire cell; T20C_COMPACTION reruns the same 20 turns under another regime (G2 on the
+# shipped default, anchored). flags.sh validates the literal and reads it back from the device.
+COMPACTION_VAL="${T20C_COMPACTION:-ciswire}"
 MEMORY_VAL="0"
 TOOLHELP_VAL="0"
 FLAG_PARAMS=""
@@ -366,7 +368,7 @@ campaign_abort_turn() {
   campaign_record_recovery "$reason"
 }
 
-log "arm begin: flags->ciswire, wipe chat, launch"
+log "arm begin: flags->$COMPACTION_VAL, wipe chat, launch"
 # The pref must be in storage BEFORE the launch whose load gate reads it;
 # a post-load write would satisfy the readback and change nothing.
 campaign_governor_enable || die "governor pref: could not write $GOVERNOR_PREF_KEY=1"

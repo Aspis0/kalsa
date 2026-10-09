@@ -215,7 +215,7 @@ campaign_reinstall_r() {
 
 campaign_app_running() {
   local pid
-  pid=$(campaign_pidof)
+  pid=$(campaign_pidof_settled)
   case "$pid" in ''|*[!0-9]*) return 1 ;; esac
   return 0
 }

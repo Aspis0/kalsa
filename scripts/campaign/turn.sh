@@ -256,6 +256,10 @@ print(len(asst[-1]) if asst else 0)
 # field `executed`). executed > 0 means a tool ran and a continuation round
 # will follow; executed 0 is the final round (the branch that also emits
 # KALSA_GOVERNOR). "absent" = no line yet for this round.
+# KALSA_TOOLROUND_EXHAUSTED also ends the turn: the round that hits the round cap
+# emits no KALSA_TOOLCALL, so the last one still says executed > 0 (S23 G2,
+# 2026-10-09: round 2 pending, then round 3 + EXHAUSTED + KALSA_GOVERNOR, and the
+# harness waited 600 s for a round that never comes).
 # Prints pending | final | absent; never throws.
 campaign_turn_tool_state() {
   python3 - "$1" <<'PY'
@@ -269,10 +273,15 @@ import sys
 # stops BEFORE the payload's opening quote so the JSON slices cleanly.
 NEEDLE = "KALSA_TOOLCALL "
 QUOTED = "'KALSA_TOOLCALL', "
+EXHAUSTED = ("KALSA_TOOLROUND_EXHAUSTED ", "'KALSA_TOOLROUND_EXHAUSTED', ")
 last = None
+exhausted = False
 try:
     with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
         for line in fh:
+            if any(e in line for e in EXHAUSTED):
+                exhausted = True
+                continue
             at = max(line.rfind(NEEDLE), line.rfind(QUOTED))
             if at < 0:
                 continue
@@ -288,7 +297,9 @@ try:
                 last = obj
 except OSError:
     pass
-if last is None:
+if exhausted:
+    print("final")
+elif last is None:
     print("absent")
 else:
     executed = int(last.get("executed", 0) or 0)
@@ -347,7 +358,7 @@ campaign_wait_turn() {
       CAMPAIGN_TURN_STATUS="adb-drop"
       return 1
     fi
-    pid=$(campaign_pidof)
+    pid=$(campaign_pidof_settled)
     case "$pid" in
       ''|*[!0-9]*)
         CAMPAIGN_TURN_STATUS="pid-death"

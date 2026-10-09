@@ -11,6 +11,19 @@ campaign_pidof() {
   adb shell "pidof $PKG" </dev/null 2>/dev/null | tr -d '\r' | awk '{print $1}'
 }
 
+# A single empty pidof is not a death: one failed wireless `adb shell` returns
+# nothing, and the S23 G2 run of 2026-10-09 force-stopped a decoding app on it
+# (every ApplicationExitInfo was FORCE STOP from adb, none a crash). Dead means
+# three empty reads one second apart; the first live pid wins.
+campaign_pidof_settled() {
+  local p i
+  for i in 1 2 3; do
+    p=$(campaign_pidof)
+    case "$p" in ''|*[!0-9]*) [ "$i" -lt 3 ] && sleep 1 ;; *) printf '%s\n' "$p"; return 0 ;; esac
+  done
+  printf '%s\n' "$p"
+}
+
 campaign_slice_has_telemetry() {
   local slice="$1"
   [ -f "$slice" ] || return 1

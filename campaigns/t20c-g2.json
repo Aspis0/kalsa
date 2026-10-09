@@ -1,0 +1,86 @@
+{
+ "name": "t20c",
+ "device": "192.168.1.152:36299",
+ "model": "lfm2.5-2.6b",
+ "pkg": "com.kalsa.app",
+ "resultsDir": "results/t20c-g2-campaign",
+ "turns": 20,
+ "conversations": 1,
+ "locale": "it",
+ "arms": [
+  {
+   "id": "T20C",
+   "flags": {
+    "kalsa.context.compaction": "anchored",
+    "kalsa.memory.enabled": "0",
+    "kalsa.ciswire.toolhelp": "0"
+   }
+  }
+ ],
+ "variants": [
+  {
+   "id": "V1",
+   "label": "G2 S23: shipped context (anchored), memory off, tools off, governor ON, rule v3 default, 20 turns",
+   "params": {}
+  }
+ ],
+ "telemetry": [
+  {
+   "prefix": "KALSA_TELEMETRY",
+   "absentZero": [
+    "ciswireFlags"
+   ],
+   "sentinels": {},
+   "timingInvalidOnCharge": [
+    "promptMs",
+    "predictedPerSecond",
+    "predictedMs"
+   ]
+  },
+  {
+   "prefix": "KALSA_MEMORY",
+   "absentZero": [
+    "ciswireFlags"
+   ],
+   "sentinels": {
+    "dnaDeferred": -1,
+    "dnaInjected": -1,
+    "dnaBudgetTokens": -1
+   },
+   "timingInvalidOnCharge": []
+  },
+  {
+   "prefix": "KALSA_MEMORY_EXTRACT",
+   "absentZero": [
+    "ciswireFlags"
+   ],
+   "sentinels": {},
+   "timingInvalidOnCharge": []
+  },
+  {
+   "prefix": "KALSA_DIGEST",
+   "absentZero": [
+    "ciswireFlags"
+   ],
+   "sentinels": {},
+   "timingInvalidOnCharge": [
+    "durationMs"
+   ],
+   "expectedWhen": {
+    "kalsa.context.compaction": "ciswire"
+   }
+  }
+ ],
+ "watchdog": {
+  "turnTimeoutMs": 2700000,
+  "telemetryGapMs": 1800000,
+  "pollMs": 5000
+ },
+ "recovery": {
+  "thermalPause": 5,
+  "neverUninstall": true,
+  "neverPmClear": true,
+  "thermalMaxC": 42
+ },
+ "scorers": []
+}

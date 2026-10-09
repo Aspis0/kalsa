@@ -1925,6 +1925,9 @@ tool_state_forms_case() {
   printf '%s\n' '09-27 16:42:10.885 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"executed":1}' > "$out/unquoted.txt"
   printf '%s\n' "09-27 16:44:33.975 18337 18368 I ReactNativeJS: 'KALSA_TOOLCALL', '{\"turnId\":\"1\",\"round\":2,\"executed\":0}'" > "$out/quoted.txt"
   printf '%s\n' "09-27 16:44:33.975 18337 18368 I ReactNativeJS: 'KALSA_TOOLCALL', '{\"turnId\":\"1\",\"round\":3,\"executed\":1}'" > "$out/quoted-pending.txt"
+  # S23 2026-10-09: the cap round emits no KALSA_TOOLCALL, only EXHAUSTED.
+  printf '%s\n' '10-09 14:33:37.317 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":1}' \
+    '10-09 14:34:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLROUND_EXHAUSTED {"turnId":"1","roundsUsed":3,"streamedLen":0,"fallbackFired":true,"fallbackOk":false}' > "$out/exhausted.txt"
   (
     log() { :; }
     source "$HERE/turn.sh"
@@ -1932,11 +1935,12 @@ tool_state_forms_case() {
     q=$(campaign_turn_tool_state "$out/quoted.txt")
     qp=$(campaign_turn_tool_state "$out/quoted-pending.txt")
     a=$(campaign_turn_tool_state "$out/nonexistent.txt")
-    [ "$u" = "pending 0" ] && [ "$q" = "final" ] && [ "$qp" = "pending 3" ] && [ "$a" = "absent" ]
+    x=$(campaign_turn_tool_state "$out/exhausted.txt")
+    [ "$u" = "pending 0" ] && [ "$q" = "final" ] && [ "$qp" = "pending 3" ] && [ "$a" = "absent" ] && [ "$x" = "final" ]
   )
   rc=$?
   if [ "$rc" -eq 0 ]; then
-    ok "tool state parses both wire forms: unquoted pending, quoted final/pending, absent"
+    ok "tool state parses both wire forms: unquoted pending, quoted final/pending, absent, round-cap EXHAUSTED final"
   else
     bad "tool state wire forms wrong (rc=$rc)"
   fi

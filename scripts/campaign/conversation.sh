@@ -98,7 +98,7 @@ campaign_launch() {
 # relaunch and pass the startup-marker gate before another message is sent.
 campaign_ensure_launch_pid() {
   local expected="${CAMPAIGN_LAUNCHED_PID:-}" current
-  current=$(campaign_pidof)
+  current=$(campaign_pidof_settled)
   case "$expected" in ''|*[!0-9]*) ;; *)
     case "$current" in
       ''|*[!0-9]*) ;;

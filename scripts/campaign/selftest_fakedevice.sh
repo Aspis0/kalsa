@@ -154,12 +154,14 @@ _screen_wake() {
   return 0
 }
 
-# Consume the one-shot crash flag: the app was alive for the send and dead at
-# the next poll. In `vanish` mode the crash also loses the turn's messages.
+# The crash flag: the app was alive for the send and is dead from the next poll
+# until the harness relaunches it (am force-stop / am start -n clear the flag),
+# as a real crashed process stays dead. In `vanish` mode the crash also loses the
+# turn's messages, once.
 app_pid() {
   if [ -f "$F/pid_dead_once" ]; then
-    rm -f "$F/pid_dead_once"
-    if [ "$(_mode)" = "vanish" ]; then
+    if [ "$(_mode)" = "vanish" ] && [ ! -f "$F/vanished" ]; then
+      : > "$F/vanished"
       sqlite3 "$DEV/databases/RKStorage" \
         "DELETE FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" 2>/dev/null || true
     fi
@@ -361,12 +363,14 @@ PY
       "input keyevent KEYCODE_WAKEUP") _screen_wake ;;
       "input "*) : ;;
       "am force-stop"*)
+        rm -f "$F/pid_dead_once" "$F/vanished"
         : > "$F/pid"
         # Teardown leaves the app off-screen — nothing keeps focus until
         # somebody foregrounds it again (s23 post-exit: NotificationShade).
         printf 'other' > "$F/focus"
         ;;
       "am start -n "*)
+        rm -f "$F/pid_dead_once" "$F/vanished"
         printf '%s' "$(cat "$F/pid_base")" > "$F/pid"
         # Bringing Kalsa to the front is what makes it the focused app.
         printf 'kalsa' > "$F/focus"

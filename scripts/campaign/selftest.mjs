@@ -810,7 +810,9 @@ const pidFixture = bash([
   "-c",
   `set -euo pipefail
 source '${path.join(here, "conversation.sh")}'
+source '${path.join(here, "watchdog.sh")}'
 log() { :; }
+sleep() { :; }
 current_pid=123
 next_pid=789
 forced=0
