@@ -438,6 +438,13 @@ export function RoomSurface() {
   // the same hue every message of theirs washes with.
   const colors = assignNameColors(info?.members ?? []);
   const tints = assignNameTints(info?.members ?? []);
+  // The live turn joins a Kalsa run that ends the feed, as a finished
+  // message would. It carries no day label, so an earlier day's run is not
+  // joined: its name would be the only thing marking the new day.
+  const aiId = info?.members.find((member) => member.kind === "ai")?.member_id;
+  const lastEntry = entries[entries.length - 1];
+  const liveGrouped =
+    lastEntry !== undefined && lastEntry.member_id === aiId && sameLocalDay(lastEntry.time * 1000, now);
 
   return (
     <div className="surface-page room-page">
@@ -549,12 +556,14 @@ export function RoomSurface() {
               // No clock on the live turn: the feed holds no moment for it,
               // and an invented one would be a lie. The message's own time
               // arrives with the message.
-              <div className="row room-row">
-                <div className="room-author">
-                  <span className="room-author-name" style={{ color: KALSA_NAME_COLOR }}>
-                    Kalsa
-                  </span>
-                </div>
+              <div className={`row room-row${liveGrouped ? " room-row-grouped" : ""}`}>
+                {!liveGrouped ? (
+                  <div className="room-author">
+                    <span className="room-author-name" style={{ color: KALSA_NAME_COLOR }}>
+                      Kalsa
+                    </span>
+                  </div>
+                ) : null}
                 <div
                   className="room-bubble"
                   style={{ "--room-bubble-color": KALSA_NAME_COLOR, "--room-bubble-tint": KALSA_TINT } as React.CSSProperties}
