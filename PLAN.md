@@ -2299,7 +2299,11 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   run 2 PASS). Cell `qdc-merge-b11514-legs-72/REPORT.md`. **Engine fork main PUSHED: e01a61cee..23b2a44d7
   (2026-10-09 ~00:35 EDT, owner-approved).** Binding bump on 23b2a44d7 (glue adapt + skels rebuilt): GLM `b1dbc1f1`. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
   fork main once the QDC legs pass ("si"); (2) binding bump on the merged engine with rebuilt skels, push binding main
-  ("tutto tuo pusha"); app pin/APK stay the owner's.** Round 4 launched 23:55 EDT (S23 unplugged, 83 %). The
+  ("tutto tuo pusha"); app pin/APK stay the owner's.** **Round 4 DONE (S23 unplugged, ABBA npu hr hr npu, skin 43):
+  rule v3 = NPU alone within noise** - every arm 3 full 2048-token runs (6144 tokens), seconds to skin 43 npu 453/431
+  vs hr 449/420, tok/s 16.97/16.86 vs 16.72/16.86; hr left the NPU once by its own rule (arm 2 run 2 started with NPU
+  headroom 8.6 C -> GPU 416 tokens -> back at 28.2 C); cdsp/gpu cooling 0; NSP max 90-96 C. Round 3's loss (2785) is
+  gone, no gain on the S23 (NPU best on both axes, guard idle). `step5-s23/raw/r4/REPORT.md`. The
   desktop session (kalsa-brain 2c574341) was asked for its server picks in
   `onecopy-three-legs/upstream-b11514-desktop-notes.md`. **Binding bump** to e01a61cee done locally (`f8cde278` in
   `~/Projects/llama.rn-kalsa-onecopy`, NOT pushed): glue needs no change, but `assert-htp-skels.sh` fails until the

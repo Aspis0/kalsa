@@ -1,0 +1,401 @@
+### run 1 start 1791522074
+governor: decode hop cpu->npu at token 0 (headroom cpu 54.1 C, npu 53.2 C, gpu 48.7 C, hysteresis 4 C)
+run_start arm=L rep=0 monotonic_us=55565558482 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_headroom arm=L rep=0 cpu=54.10 npu=53.20 gpu=48.70
+leg_headroom arm=L rep=0 cpu=59.10 npu=9.40 gpu=49.10
+leg_window arm=L rep=0 window=0 engine=npu rule=heat_rank tokens=32 us=1651695 tps=19.374
+leg_headroom arm=L rep=0 cpu=53.30 npu=20.60 gpu=43.50
+leg_window arm=L rep=0 window=1 engine=npu rule=heat_rank tokens=32 us=1671878 tps=19.140
+leg_headroom arm=L rep=0 cpu=54.30 npu=19.80 gpu=42.70
+leg_window arm=L rep=0 window=2 engine=npu rule=heat_rank tokens=32 us=1691355 tps=18.920
+leg_headroom arm=L rep=0 cpu=56.20 npu=21.40 gpu=41.90
+leg_window arm=L rep=0 window=3 engine=npu rule=heat_rank tokens=32 us=1671684 tps=19.142
+leg_headroom arm=L rep=0 cpu=54.30 npu=19.00 gpu=40.70
+leg_window arm=L rep=0 window=4 engine=npu rule=heat_rank tokens=32 us=1669091 tps=19.172
+leg_headroom arm=L rep=0 cpu=53.50 npu=19.00 gpu=40.70
+leg_window arm=L rep=0 window=5 engine=npu rule=heat_rank tokens=32 us=1671299 tps=19.147
+leg_headroom arm=L rep=0 cpu=55.10 npu=18.60 gpu=39.50
+leg_window arm=L rep=0 window=6 engine=npu rule=heat_rank tokens=32 us=1679272 tps=19.056
+leg_headroom arm=L rep=0 cpu=54.30 npu=17.80 gpu=39.90
+leg_window arm=L rep=0 window=7 engine=npu rule=heat_rank tokens=32 us=1657669 tps=19.304
+leg_headroom arm=L rep=0 cpu=53.90 npu=18.60 gpu=38.70
+leg_window arm=L rep=0 window=8 engine=npu rule=heat_rank tokens=32 us=1735979 tps=18.433
+leg_headroom arm=L rep=0 cpu=52.10 npu=17.00 gpu=39.10
+leg_window arm=L rep=0 window=9 engine=npu rule=heat_rank tokens=32 us=1718321 tps=18.623
+leg_headroom arm=L rep=0 cpu=53.50 npu=18.20 gpu=37.60
+leg_window arm=L rep=0 window=10 engine=npu rule=heat_rank tokens=32 us=1724755 tps=18.553
+leg_headroom arm=L rep=0 cpu=51.90 npu=17.40 gpu=38.40
+leg_window arm=L rep=0 window=11 engine=npu rule=heat_rank tokens=32 us=1747014 tps=18.317
+leg_headroom arm=L rep=0 cpu=52.30 npu=17.40 gpu=38.70
+leg_window arm=L rep=0 window=12 engine=npu rule=heat_rank tokens=32 us=1751836 tps=18.267
+leg_headroom arm=L rep=0 cpu=51.70 npu=19.00 gpu=38.70
+leg_window arm=L rep=0 window=13 engine=npu rule=heat_rank tokens=32 us=1735176 tps=18.442
+leg_headroom arm=L rep=0 cpu=50.30 npu=16.60 gpu=38.70
+leg_window arm=L rep=0 window=14 engine=npu rule=heat_rank tokens=32 us=1727932 tps=18.519
+leg_headroom arm=L rep=0 cpu=51.70 npu=15.40 gpu=37.60
+leg_window arm=L rep=0 window=15 engine=npu rule=heat_rank tokens=32 us=1743895 tps=18.350
+leg_headroom arm=L rep=0 cpu=52.10 npu=19.40 gpu=37.20
+leg_window arm=L rep=0 window=16 engine=npu rule=heat_rank tokens=32 us=1808874 tps=17.691
+leg_headroom arm=L rep=0 cpu=52.50 npu=18.20 gpu=38.40
+leg_window arm=L rep=0 window=17 engine=npu rule=heat_rank tokens=32 us=1803792 tps=17.740
+leg_headroom arm=L rep=0 cpu=51.70 npu=16.60 gpu=37.60
+leg_window arm=L rep=0 window=18 engine=npu rule=heat_rank tokens=32 us=1814416 tps=17.637
+leg_headroom arm=L rep=0 cpu=52.30 npu=16.20 gpu=38.40
+leg_window arm=L rep=0 window=19 engine=npu rule=heat_rank tokens=32 us=1794510 tps=17.832
+leg_headroom arm=L rep=0 cpu=48.70 npu=17.00 gpu=37.20
+leg_window arm=L rep=0 window=20 engine=npu rule=heat_rank tokens=32 us=1776272 tps=18.015
+leg_headroom arm=L rep=0 cpu=51.10 npu=14.60 gpu=36.80
+leg_window arm=L rep=0 window=21 engine=npu rule=heat_rank tokens=32 us=1795729 tps=17.820
+leg_headroom arm=L rep=0 cpu=52.10 npu=20.60 gpu=37.20
+leg_window arm=L rep=0 window=22 engine=npu rule=heat_rank tokens=32 us=1775799 tps=18.020
+leg_headroom arm=L rep=0 cpu=50.90 npu=15.00 gpu=36.80
+leg_window arm=L rep=0 window=23 engine=npu rule=heat_rank tokens=32 us=1784117 tps=17.936
+leg_headroom arm=L rep=0 cpu=50.50 npu=15.40 gpu=36.80
+leg_window arm=L rep=0 window=24 engine=npu rule=heat_rank tokens=32 us=1838595 tps=17.405
+leg_headroom arm=L rep=0 cpu=49.10 npu=13.80 gpu=36.00
+leg_window arm=L rep=0 window=25 engine=npu rule=heat_rank tokens=32 us=1808733 tps=17.692
+leg_headroom arm=L rep=0 cpu=48.90 npu=15.00 gpu=36.40
+leg_window arm=L rep=0 window=26 engine=npu rule=heat_rank tokens=32 us=1828397 tps=17.502
+leg_headroom arm=L rep=0 cpu=49.70 npu=19.40 gpu=36.40
+leg_window arm=L rep=0 window=27 engine=npu rule=heat_rank tokens=32 us=1835743 tps=17.432
+leg_headroom arm=L rep=0 cpu=44.80 npu=18.60 gpu=35.20
+leg_window arm=L rep=0 window=28 engine=npu rule=heat_rank tokens=32 us=1834584 tps=17.443
+leg_headroom arm=L rep=0 cpu=50.10 npu=15.80 gpu=36.00
+leg_window arm=L rep=0 window=29 engine=npu rule=heat_rank tokens=32 us=1862565 tps=17.181
+leg_headroom arm=L rep=0 cpu=50.30 npu=17.00 gpu=36.40
+leg_window arm=L rep=0 window=30 engine=npu rule=heat_rank tokens=32 us=1834348 tps=17.445
+leg_headroom arm=L rep=0 cpu=49.50 npu=17.00 gpu=36.00
+leg_window arm=L rep=0 window=31 engine=npu rule=heat_rank tokens=32 us=1817737 tps=17.604
+leg_headroom arm=L rep=0 cpu=49.50 npu=17.40 gpu=34.80
+leg_window arm=L rep=0 window=32 engine=npu rule=heat_rank tokens=32 us=1886807 tps=16.960
+leg_headroom arm=L rep=0 cpu=50.30 npu=16.60 gpu=36.00
+leg_window arm=L rep=0 window=33 engine=npu rule=heat_rank tokens=32 us=1890154 tps=16.930
+leg_headroom arm=L rep=0 cpu=51.90 npu=18.20 gpu=35.60
+leg_window arm=L rep=0 window=34 engine=npu rule=heat_rank tokens=32 us=1902863 tps=16.817
+leg_headroom arm=L rep=0 cpu=52.30 npu=15.40 gpu=36.40
+leg_window arm=L rep=0 window=35 engine=npu rule=heat_rank tokens=32 us=1930833 tps=16.573
+leg_headroom arm=L rep=0 cpu=47.60 npu=12.20 gpu=36.00
+leg_window arm=L rep=0 window=36 engine=npu rule=heat_rank tokens=32 us=1853612 tps=17.264
+leg_headroom arm=L rep=0 cpu=50.10 npu=17.80 gpu=34.00
+leg_window arm=L rep=0 window=37 engine=npu rule=heat_rank tokens=32 us=1866101 tps=17.148
+leg_headroom arm=L rep=0 cpu=49.30 npu=16.60 gpu=34.80
+leg_window arm=L rep=0 window=38 engine=npu rule=heat_rank tokens=32 us=1863450 tps=17.172
+leg_headroom arm=L rep=0 cpu=51.10 npu=19.00 gpu=34.40
+leg_window arm=L rep=0 window=39 engine=npu rule=heat_rank tokens=32 us=1881340 tps=17.009
+leg_headroom arm=L rep=0 cpu=50.10 npu=21.00 gpu=34.00
+leg_window arm=L rep=0 window=40 engine=npu rule=heat_rank tokens=32 us=1931294 tps=16.569
+leg_headroom arm=L rep=0 cpu=51.10 npu=16.60 gpu=35.20
+leg_window arm=L rep=0 window=41 engine=npu rule=heat_rank tokens=32 us=1907209 tps=16.778
+leg_headroom arm=L rep=0 cpu=49.10 npu=15.00 gpu=34.80
+leg_window arm=L rep=0 window=42 engine=npu rule=heat_rank tokens=32 us=1899723 tps=16.845
+leg_headroom arm=L rep=0 cpu=49.70 npu=14.20 gpu=35.20
+leg_window arm=L rep=0 window=43 engine=npu rule=heat_rank tokens=32 us=1963476 tps=16.298
+leg_headroom arm=L rep=0 cpu=50.90 npu=17.00 gpu=35.60
+leg_window arm=L rep=0 window=44 engine=npu rule=heat_rank tokens=32 us=1939270 tps=16.501
+leg_headroom arm=L rep=0 cpu=49.10 npu=20.20 gpu=34.80
+leg_window arm=L rep=0 window=45 engine=npu rule=heat_rank tokens=32 us=1952931 tps=16.386
+leg_headroom arm=L rep=0 cpu=50.10 npu=15.00 gpu=35.60
+leg_window arm=L rep=0 window=46 engine=npu rule=heat_rank tokens=32 us=1936953 tps=16.521
+leg_headroom arm=L rep=0 cpu=49.50 npu=13.00 gpu=34.80
+leg_window arm=L rep=0 window=47 engine=npu rule=heat_rank tokens=32 us=1931863 tps=16.564
+leg_headroom arm=L rep=0 cpu=47.10 npu=14.20 gpu=35.20
+leg_window arm=L rep=0 window=48 engine=npu rule=heat_rank tokens=32 us=1994858 tps=16.041
+leg_headroom arm=L rep=0 cpu=49.90 npu=13.00 gpu=34.80
+leg_window arm=L rep=0 window=49 engine=npu rule=heat_rank tokens=32 us=2013922 tps=15.889
+leg_headroom arm=L rep=0 cpu=47.50 npu=16.60 gpu=35.20
+leg_window arm=L rep=0 window=50 engine=npu rule=heat_rank tokens=32 us=1991523 tps=16.068
+leg_headroom arm=L rep=0 cpu=49.30 npu=13.00 gpu=34.40
+leg_window arm=L rep=0 window=51 engine=npu rule=heat_rank tokens=32 us=1958096 tps=16.342
+leg_headroom arm=L rep=0 cpu=49.10 npu=13.40 gpu=34.40
+leg_window arm=L rep=0 window=52 engine=npu rule=heat_rank tokens=32 us=1995070 tps=16.040
+leg_headroom arm=L rep=0 cpu=48.90 npu=12.60 gpu=34.80
+leg_window arm=L rep=0 window=53 engine=npu rule=heat_rank tokens=32 us=1963786 tps=16.295
+leg_headroom arm=L rep=0 cpu=48.70 npu=13.00 gpu=34.40
+leg_window arm=L rep=0 window=54 engine=npu rule=heat_rank tokens=32 us=1983660 tps=16.132
+leg_headroom arm=L rep=0 cpu=49.50 npu=15.40 gpu=34.80
+leg_window arm=L rep=0 window=55 engine=npu rule=heat_rank tokens=32 us=1969346 tps=16.249
+leg_headroom arm=L rep=0 cpu=49.90 npu=12.60 gpu=33.60
+leg_window arm=L rep=0 window=56 engine=npu rule=heat_rank tokens=32 us=2042525 tps=15.667
+leg_headroom arm=L rep=0 cpu=48.50 npu=15.40 gpu=34.00
+leg_window arm=L rep=0 window=57 engine=npu rule=heat_rank tokens=32 us=2036003 tps=15.717
+leg_headroom arm=L rep=0 cpu=46.30 npu=12.60 gpu=34.00
+leg_window arm=L rep=0 window=58 engine=npu rule=heat_rank tokens=32 us=2014463 tps=15.885
+leg_headroom arm=L rep=0 cpu=49.50 npu=13.80 gpu=34.00
+leg_window arm=L rep=0 window=59 engine=npu rule=heat_rank tokens=32 us=2085022 tps=15.348
+leg_headroom arm=L rep=0 cpu=49.90 npu=14.60 gpu=34.80
+leg_window arm=L rep=0 window=60 engine=npu rule=heat_rank tokens=32 us=2040752 tps=15.680
+leg_headroom arm=L rep=0 cpu=50.30 npu=14.60 gpu=33.60
+leg_window arm=L rep=0 window=61 engine=npu rule=heat_rank tokens=32 us=2026095 tps=15.794
+leg_headroom arm=L rep=0 cpu=47.90 npu=13.40 gpu=34.00
+leg_window arm=L rep=0 window=62 engine=npu rule=heat_rank tokens=32 us=2042143 tps=15.670
+leg_window arm=L rep=0 window=64 engine=npu rule=heat_rank tokens=1 us=2058007 tps=0.486
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119016212 tps=17.208
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+### run 2 start 1791522203
+governor: decode hop cpu->npu at token 0 (headroom cpu 19.3 C, npu 40.5 C, gpu 35.6 C, hysteresis 4 C)
+run_start arm=L rep=0 monotonic_us=55694640150 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_headroom arm=L rep=0 cpu=19.30 npu=40.50 gpu=35.60
+leg_headroom arm=L rep=0 cpu=48.50 npu=12.60 gpu=34.80
+leg_window arm=L rep=0 window=0 engine=npu rule=heat_rank tokens=32 us=1679974 tps=19.048
+leg_headroom arm=L rep=0 cpu=48.90 npu=13.00 gpu=34.00
+leg_window arm=L rep=0 window=1 engine=npu rule=heat_rank tokens=32 us=1660325 tps=19.273
+leg_headroom arm=L rep=0 cpu=49.10 npu=11.80 gpu=32.80
+leg_window arm=L rep=0 window=2 engine=npu rule=heat_rank tokens=32 us=1683406 tps=19.009
+leg_headroom arm=L rep=0 cpu=49.10 npu=10.60 gpu=32.00
+leg_window arm=L rep=0 window=3 engine=npu rule=heat_rank tokens=32 us=1689972 tps=18.935
+leg_headroom arm=L rep=0 cpu=48.70 npu=9.40 gpu=32.80
+leg_window arm=L rep=0 window=4 engine=npu rule=heat_rank tokens=32 us=1678231 tps=19.068
+leg_headroom arm=L rep=0 cpu=45.50 npu=9.80 gpu=30.80
+leg_window arm=L rep=0 window=5 engine=npu rule=heat_rank tokens=32 us=1696876 tps=18.858
+leg_headroom arm=L rep=0 cpu=49.10 npu=9.40 gpu=32.40
+leg_window arm=L rep=0 window=6 engine=npu rule=heat_rank tokens=32 us=1711196 tps=18.700
+leg_headroom arm=L rep=0 cpu=48.90 npu=14.20 gpu=32.40
+leg_window arm=L rep=0 window=7 engine=npu rule=heat_rank tokens=32 us=1692432 tps=18.908
+leg_headroom arm=L rep=0 cpu=46.30 npu=8.60 gpu=32.40
+leg_window arm=L rep=0 window=8 engine=npu rule=heat_rank tokens=32 us=1756480 tps=18.218
+leg_headroom arm=L rep=0 cpu=48.50 npu=9.40 gpu=32.80
+leg_window arm=L rep=0 window=9 engine=npu rule=heat_rank tokens=32 us=1778795 tps=17.990
+leg_headroom arm=L rep=0 cpu=48.50 npu=11.00 gpu=32.40
+leg_window arm=L rep=0 window=10 engine=npu rule=heat_rank tokens=32 us=1712644 tps=18.685
+leg_headroom arm=L rep=0 cpu=47.50 npu=11.00 gpu=32.40
+leg_window arm=L rep=0 window=11 engine=npu rule=heat_rank tokens=32 us=1752611 tps=18.258
+leg_headroom arm=L rep=0 cpu=48.30 npu=11.40 gpu=32.40
+leg_window arm=L rep=0 window=12 engine=npu rule=heat_rank tokens=32 us=1742919 tps=18.360
+leg_headroom arm=L rep=0 cpu=47.50 npu=9.80 gpu=32.40
+leg_window arm=L rep=0 window=13 engine=npu rule=heat_rank tokens=32 us=1744007 tps=18.349
+leg_headroom arm=L rep=0 cpu=48.30 npu=9.00 gpu=31.60
+leg_window arm=L rep=0 window=14 engine=npu rule=heat_rank tokens=32 us=1713906 tps=18.671
+leg_headroom arm=L rep=0 cpu=47.10 npu=9.40 gpu=31.60
+leg_window arm=L rep=0 window=15 engine=npu rule=heat_rank tokens=32 us=1763183 tps=18.149
+leg_headroom arm=L rep=0 cpu=43.90 npu=8.60 gpu=32.00
+leg_window arm=L rep=0 window=16 engine=npu rule=heat_rank tokens=32 us=1771211 tps=18.067
+leg_headroom arm=L rep=0 cpu=45.10 npu=15.40 gpu=31.60
+leg_window arm=L rep=0 window=17 engine=npu rule=heat_rank tokens=32 us=1759083 tps=18.191
+leg_headroom arm=L rep=0 cpu=45.90 npu=11.40 gpu=31.60
+leg_window arm=L rep=0 window=18 engine=npu rule=heat_rank tokens=32 us=1772090 tps=18.058
+leg_headroom arm=L rep=0 cpu=47.10 npu=10.60 gpu=32.00
+leg_window arm=L rep=0 window=19 engine=npu rule=heat_rank tokens=32 us=1781021 tps=17.967
+leg_headroom arm=L rep=0 cpu=47.20 npu=9.00 gpu=31.20
+leg_window arm=L rep=0 window=20 engine=npu rule=heat_rank tokens=32 us=1780665 tps=17.971
+leg_headroom arm=L rep=0 cpu=45.90 npu=8.60 gpu=30.80
+leg_window arm=L rep=0 window=21 engine=npu rule=heat_rank tokens=32 us=1766727 tps=18.113
+leg_headroom arm=L rep=0 cpu=45.50 npu=8.20 gpu=31.20
+leg_window arm=L rep=0 window=22 engine=npu rule=heat_rank tokens=32 us=1772370 tps=18.055
+leg_headroom arm=L rep=0 cpu=45.90 npu=8.60 gpu=28.80
+leg_window arm=L rep=0 window=23 engine=npu rule=heat_rank tokens=32 us=1773452 tps=18.044
+leg_headroom arm=L rep=0 cpu=47.20 npu=11.00 gpu=31.60
+leg_window arm=L rep=0 window=24 engine=npu rule=heat_rank tokens=32 us=1849725 tps=17.300
+leg_headroom arm=L rep=0 cpu=47.10 npu=8.60 gpu=31.20
+leg_window arm=L rep=0 window=25 engine=npu rule=heat_rank tokens=32 us=1878531 tps=17.035
+leg_headroom arm=L rep=0 cpu=46.80 npu=9.00 gpu=32.00
+leg_window arm=L rep=0 window=26 engine=npu rule=heat_rank tokens=32 us=1840162 tps=17.390
+leg_headroom arm=L rep=0 cpu=46.30 npu=7.80 gpu=31.60
+leg_window arm=L rep=0 window=27 engine=npu rule=heat_rank tokens=32 us=1827251 tps=17.513
+leg_headroom arm=L rep=0 cpu=47.90 npu=14.20 gpu=31.20
+leg_window arm=L rep=0 window=28 engine=npu rule=heat_rank tokens=32 us=1840978 tps=17.382
+leg_headroom arm=L rep=0 cpu=47.10 npu=8.20 gpu=30.80
+leg_window arm=L rep=0 window=29 engine=npu rule=heat_rank tokens=32 us=1829622 tps=17.490
+leg_headroom arm=L rep=0 cpu=47.50 npu=12.60 gpu=31.60
+leg_window arm=L rep=0 window=30 engine=npu rule=heat_rank tokens=32 us=1844544 tps=17.348
+leg_headroom arm=L rep=0 cpu=46.70 npu=9.00 gpu=31.20
+leg_window arm=L rep=0 window=31 engine=npu rule=heat_rank tokens=32 us=1828730 tps=17.498
+leg_headroom arm=L rep=0 cpu=44.40 npu=8.60 gpu=30.40
+leg_window arm=L rep=0 window=32 engine=npu rule=heat_rank tokens=32 us=1895955 tps=16.878
+leg_headroom arm=L rep=0 cpu=45.10 npu=13.80 gpu=30.80
+leg_window arm=L rep=0 window=33 engine=npu rule=heat_rank tokens=32 us=1882852 tps=16.995
+leg_headroom arm=L rep=0 cpu=45.50 npu=9.40 gpu=31.20
+leg_window arm=L rep=0 window=34 engine=npu rule=heat_rank tokens=32 us=1854292 tps=17.257
+leg_headroom arm=L rep=0 cpu=46.30 npu=11.80 gpu=31.20
+leg_window arm=L rep=0 window=35 engine=npu rule=heat_rank tokens=32 us=1878555 tps=17.034
+leg_headroom arm=L rep=0 cpu=47.10 npu=11.40 gpu=31.20
+leg_window arm=L rep=0 window=36 engine=npu rule=heat_rank tokens=32 us=1908713 tps=16.765
+leg_headroom arm=L rep=0 cpu=42.00 npu=9.40 gpu=31.20
+leg_window arm=L rep=0 window=37 engine=npu rule=heat_rank tokens=32 us=1849483 tps=17.302
+leg_headroom arm=L rep=0 cpu=46.40 npu=15.80 gpu=30.80
+leg_window arm=L rep=0 window=38 engine=npu rule=heat_rank tokens=32 us=1897642 tps=16.863
+leg_headroom arm=L rep=0 cpu=42.80 npu=7.80 gpu=30.40
+leg_window arm=L rep=0 window=39 engine=npu rule=heat_rank tokens=32 us=1883254 tps=16.992
+leg_headroom arm=L rep=0 cpu=44.30 npu=9.40 gpu=31.20
+leg_window arm=L rep=0 window=40 engine=npu rule=heat_rank tokens=32 us=1942078 tps=16.477
+leg_headroom arm=L rep=0 cpu=46.80 npu=10.20 gpu=31.20
+leg_window arm=L rep=0 window=41 engine=npu rule=heat_rank tokens=32 us=1927343 tps=16.603
+leg_headroom arm=L rep=0 cpu=43.50 npu=14.20 gpu=30.40
+leg_window arm=L rep=0 window=42 engine=npu rule=heat_rank tokens=32 us=1931426 tps=16.568
+leg_headroom arm=L rep=0 cpu=46.30 npu=11.40 gpu=31.20
+leg_window arm=L rep=0 window=43 engine=npu rule=heat_rank tokens=32 us=1933712 tps=16.548
+leg_headroom arm=L rep=0 cpu=46.30 npu=9.80 gpu=30.40
+leg_window arm=L rep=0 window=44 engine=npu rule=heat_rank tokens=32 us=1929257 tps=16.587
+leg_headroom arm=L rep=0 cpu=46.80 npu=9.00 gpu=30.80
+leg_window arm=L rep=0 window=45 engine=npu rule=heat_rank tokens=32 us=1930539 tps=16.576
+leg_headroom arm=L rep=0 cpu=46.30 npu=14.60 gpu=30.80
+leg_window arm=L rep=0 window=46 engine=npu rule=heat_rank tokens=32 us=1950556 tps=16.406
+leg_headroom arm=L rep=0 cpu=45.90 npu=11.00 gpu=31.20
+leg_window arm=L rep=0 window=47 engine=npu rule=heat_rank tokens=32 us=1941309 tps=16.484
+leg_headroom arm=L rep=0 cpu=43.50 npu=12.60 gpu=30.80
+leg_window arm=L rep=0 window=48 engine=npu rule=heat_rank tokens=32 us=1969232 tps=16.250
+leg_headroom arm=L rep=0 cpu=44.70 npu=11.80 gpu=30.80
+leg_window arm=L rep=0 window=49 engine=npu rule=heat_rank tokens=32 us=1985254 tps=16.119
+leg_headroom arm=L rep=0 cpu=45.50 npu=8.60 gpu=30.00
+leg_window arm=L rep=0 window=50 engine=npu rule=heat_rank tokens=32 us=1986386 tps=16.110
+leg_headroom arm=L rep=0 cpu=44.70 npu=9.00 gpu=29.20
+leg_window arm=L rep=0 window=51 engine=npu rule=heat_rank tokens=32 us=1962990 tps=16.302
+leg_headroom arm=L rep=0 cpu=45.10 npu=8.60 gpu=29.60
+leg_window arm=L rep=0 window=52 engine=npu rule=heat_rank tokens=32 us=1978513 tps=16.174
+leg_headroom arm=L rep=0 cpu=44.70 npu=8.60 gpu=29.60
+leg_window arm=L rep=0 window=53 engine=npu rule=heat_rank tokens=32 us=1951164 tps=16.400
+leg_headroom arm=L rep=0 cpu=44.70 npu=7.00 gpu=29.20
+leg_window arm=L rep=0 window=54 engine=npu rule=heat_rank tokens=32 us=2000103 tps=15.999
+leg_headroom arm=L rep=0 cpu=43.50 npu=11.80 gpu=30.80
+leg_window arm=L rep=0 window=55 engine=npu rule=heat_rank tokens=32 us=1997039 tps=16.024
+leg_headroom arm=L rep=0 cpu=45.50 npu=12.60 gpu=31.20
+leg_window arm=L rep=0 window=56 engine=npu rule=heat_rank tokens=32 us=2049118 tps=15.616
+leg_headroom arm=L rep=0 cpu=44.80 npu=11.00 gpu=30.40
+leg_window arm=L rep=0 window=57 engine=npu rule=heat_rank tokens=32 us=2027931 tps=15.780
+leg_headroom arm=L rep=0 cpu=43.90 npu=8.20 gpu=30.80
+leg_window arm=L rep=0 window=58 engine=npu rule=heat_rank tokens=32 us=2040355 tps=15.684
+leg_headroom arm=L rep=0 cpu=45.50 npu=9.00 gpu=30.00
+leg_window arm=L rep=0 window=59 engine=npu rule=heat_rank tokens=32 us=2042815 tps=15.665
+leg_headroom arm=L rep=0 cpu=46.30 npu=11.80 gpu=30.80
+leg_window arm=L rep=0 window=60 engine=npu rule=heat_rank tokens=32 us=2039303 tps=15.692
+leg_headroom arm=L rep=0 cpu=45.90 npu=9.40 gpu=30.80
+leg_window arm=L rep=0 window=61 engine=npu rule=heat_rank tokens=32 us=2043781 tps=15.657
+leg_headroom arm=L rep=0 cpu=46.80 npu=13.40 gpu=30.80
+leg_window arm=L rep=0 window=62 engine=npu rule=heat_rank tokens=32 us=2033183 tps=15.739
+leg_window arm=L rep=0 window=64 engine=npu rule=heat_rank tokens=1 us=2058606 tps=0.486
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119075858 tps=17.199
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+### run 3 start 1791522333
+governor: decode hop cpu->npu at token 0 (headroom cpu 38.3 C, npu 37.7 C, gpu 35.6 C, hysteresis 4 C)
+run_start arm=L rep=0 monotonic_us=55824096441 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_headroom arm=L rep=0 cpu=38.30 npu=37.70 gpu=35.60
+leg_headroom arm=L rep=0 cpu=47.10 npu=9.00 gpu=33.60
+leg_window arm=L rep=0 window=0 engine=npu rule=heat_rank tokens=32 us=1655184 tps=19.333
+leg_headroom arm=L rep=0 cpu=45.50 npu=11.40 gpu=30.40
+leg_window arm=L rep=0 window=1 engine=npu rule=heat_rank tokens=32 us=1679397 tps=19.054
+leg_headroom arm=L rep=0 cpu=42.70 npu=7.80 gpu=30.00
+leg_window arm=L rep=0 window=2 engine=npu rule=heat_rank tokens=32 us=1719620 tps=18.609
+leg_headroom arm=L rep=0 cpu=44.70 npu=7.00 gpu=30.40
+leg_window arm=L rep=0 window=3 engine=npu rule=heat_rank tokens=32 us=1692241 tps=18.910
+leg_headroom arm=L rep=0 cpu=45.20 npu=6.60 gpu=29.60
+leg_window arm=L rep=0 window=4 engine=npu rule=heat_rank tokens=32 us=1699841 tps=18.825
+leg_headroom arm=L rep=0 cpu=43.90 npu=5.80 gpu=28.40
+leg_window arm=L rep=0 window=5 engine=npu rule=heat_rank tokens=32 us=1702583 tps=18.795
+leg_headroom arm=L rep=0 cpu=45.10 npu=5.00 gpu=29.20
+leg_window arm=L rep=0 window=6 engine=npu rule=heat_rank tokens=32 us=1639760 tps=19.515
+leg_headroom arm=L rep=0 cpu=41.60 npu=5.00 gpu=28.80
+leg_window arm=L rep=0 window=7 engine=npu rule=heat_rank tokens=32 us=1702160 tps=18.800
+leg_headroom arm=L rep=0 cpu=43.50 npu=7.40 gpu=29.20
+leg_window arm=L rep=0 window=8 engine=npu rule=heat_rank tokens=32 us=1745879 tps=18.329
+leg_headroom arm=L rep=0 cpu=44.70 npu=7.40 gpu=28.40
+leg_window arm=L rep=0 window=9 engine=npu rule=heat_rank tokens=32 us=1742165 tps=18.368
+leg_headroom arm=L rep=0 cpu=43.10 npu=13.80 gpu=29.20
+leg_window arm=L rep=0 window=10 engine=npu rule=heat_rank tokens=32 us=1759108 tps=18.191
+leg_headroom arm=L rep=0 cpu=44.30 npu=5.80 gpu=29.20
+leg_window arm=L rep=0 window=11 engine=npu rule=heat_rank tokens=32 us=1763163 tps=18.149
+leg_headroom arm=L rep=0 cpu=40.80 npu=5.40 gpu=28.80
+leg_window arm=L rep=0 window=12 engine=npu rule=heat_rank tokens=32 us=1733954 tps=18.455
+leg_headroom arm=L rep=0 cpu=43.10 npu=5.40 gpu=28.00
+leg_window arm=L rep=0 window=13 engine=npu rule=heat_rank tokens=32 us=1738231 tps=18.410
+leg_headroom arm=L rep=0 cpu=41.60 npu=10.20 gpu=28.40
+leg_window arm=L rep=0 window=14 engine=npu rule=heat_rank tokens=32 us=1738462 tps=18.407
+leg_headroom arm=L rep=0 cpu=44.30 npu=7.40 gpu=28.40
+leg_window arm=L rep=0 window=15 engine=npu rule=heat_rank tokens=32 us=1720865 tps=18.595
+leg_headroom arm=L rep=0 cpu=44.30 npu=9.00 gpu=28.00
+leg_window arm=L rep=0 window=16 engine=npu rule=heat_rank tokens=32 us=1801626 tps=17.762
+leg_headroom arm=L rep=0 cpu=44.40 npu=7.00 gpu=28.80
+leg_window arm=L rep=0 window=17 engine=npu rule=heat_rank tokens=32 us=1786262 tps=17.915
+leg_headroom arm=L rep=0 cpu=41.20 npu=4.60 gpu=28.00
+leg_window arm=L rep=0 window=18 engine=npu rule=heat_rank tokens=32 us=1758980 tps=18.192
+leg_headroom arm=L rep=0 cpu=43.20 npu=7.00 gpu=27.30
+leg_window arm=L rep=0 window=19 engine=npu rule=heat_rank tokens=32 us=1805281 tps=17.726
+leg_headroom arm=L rep=0 cpu=44.30 npu=6.60 gpu=27.60
+leg_window arm=L rep=0 window=20 engine=npu rule=heat_rank tokens=32 us=1810650 tps=17.673
+leg_headroom arm=L rep=0 cpu=43.10 npu=7.40 gpu=28.00
+leg_window arm=L rep=0 window=21 engine=npu rule=heat_rank tokens=32 us=1794962 tps=17.828
+leg_headroom arm=L rep=0 cpu=45.10 npu=5.00 gpu=28.40
+leg_window arm=L rep=0 window=22 engine=npu rule=heat_rank tokens=32 us=1823474 tps=17.549
+leg_headroom arm=L rep=0 cpu=38.40 npu=6.60 gpu=28.40
+leg_window arm=L rep=0 window=23 engine=npu rule=heat_rank tokens=32 us=1790078 tps=17.876
+leg_headroom arm=L rep=0 cpu=42.70 npu=8.60 gpu=27.60
+leg_window arm=L rep=0 window=24 engine=npu rule=heat_rank tokens=32 us=1838164 tps=17.409
+leg_headroom arm=L rep=0 cpu=43.90 npu=5.40 gpu=28.00
+leg_window arm=L rep=0 window=25 engine=npu rule=heat_rank tokens=32 us=1891033 tps=16.922
+leg_headroom arm=L rep=0 cpu=44.70 npu=14.60 gpu=29.60
+leg_window arm=L rep=0 window=26 engine=npu rule=heat_rank tokens=32 us=2209525 tps=14.483
+leg_headroom arm=L rep=0 cpu=44.70 npu=12.60 gpu=30.40
+leg_window arm=L rep=0 window=27 engine=npu rule=heat_rank tokens=32 us=2229498 tps=14.353
+leg_headroom arm=L rep=0 cpu=43.20 npu=8.20 gpu=30.00
+leg_window arm=L rep=0 window=28 engine=npu rule=heat_rank tokens=32 us=1894168 tps=16.894
+leg_headroom arm=L rep=0 cpu=43.90 npu=6.20 gpu=29.20
+leg_window arm=L rep=0 window=29 engine=npu rule=heat_rank tokens=32 us=1811942 tps=17.661
+leg_headroom arm=L rep=0 cpu=44.30 npu=6.20 gpu=28.80
+leg_window arm=L rep=0 window=30 engine=npu rule=heat_rank tokens=32 us=1921169 tps=16.657
+leg_headroom arm=L rep=0 cpu=44.40 npu=11.40 gpu=29.60
+leg_window arm=L rep=0 window=31 engine=npu rule=heat_rank tokens=32 us=2218619 tps=14.423
+leg_headroom arm=L rep=0 cpu=46.00 npu=13.00 gpu=31.20
+leg_window arm=L rep=0 window=32 engine=npu rule=heat_rank tokens=32 us=2278773 tps=14.043
+leg_headroom arm=L rep=0 cpu=44.70 npu=10.60 gpu=30.00
+leg_window arm=L rep=0 window=33 engine=npu rule=heat_rank tokens=32 us=1881056 tps=17.012
+leg_headroom arm=L rep=0 cpu=45.50 npu=8.20 gpu=29.60
+leg_window arm=L rep=0 window=34 engine=npu rule=heat_rank tokens=32 us=1884579 tps=16.980
+leg_headroom arm=L rep=0 cpu=44.70 npu=5.80 gpu=29.20
+leg_window arm=L rep=0 window=35 engine=npu rule=heat_rank tokens=32 us=2052989 tps=15.587
+leg_headroom arm=L rep=0 cpu=44.70 npu=9.40 gpu=30.00
+leg_window arm=L rep=0 window=36 engine=npu rule=heat_rank tokens=32 us=2263182 tps=14.139
+leg_headroom arm=L rep=0 cpu=46.30 npu=10.20 gpu=30.80
+leg_window arm=L rep=0 window=37 engine=npu rule=heat_rank tokens=32 us=2197324 tps=14.563
+leg_headroom arm=L rep=0 cpu=45.60 npu=8.20 gpu=29.20
+leg_window arm=L rep=0 window=38 engine=npu rule=heat_rank tokens=32 us=1879627 tps=17.025
+leg_headroom arm=L rep=0 cpu=45.50 npu=9.80 gpu=29.60
+leg_window arm=L rep=0 window=39 engine=npu rule=heat_rank tokens=32 us=1910068 tps=16.753
+leg_headroom arm=L rep=0 cpu=43.90 npu=17.00 gpu=29.60
+leg_window arm=L rep=0 window=40 engine=npu rule=heat_rank tokens=32 us=2175336 tps=14.710
+leg_headroom arm=L rep=0 cpu=45.50 npu=9.40 gpu=30.40
+leg_window arm=L rep=0 window=41 engine=npu rule=heat_rank tokens=32 us=2331628 tps=13.724
+leg_headroom arm=L rep=0 cpu=45.90 npu=9.40 gpu=30.40
+leg_window arm=L rep=0 window=42 engine=npu rule=heat_rank tokens=32 us=2121334 tps=15.085
+leg_headroom arm=L rep=0 cpu=45.10 npu=7.80 gpu=29.60
+leg_window arm=L rep=0 window=43 engine=npu rule=heat_rank tokens=32 us=1922740 tps=16.643
+leg_headroom arm=L rep=0 cpu=45.10 npu=8.60 gpu=29.20
+leg_window arm=L rep=0 window=44 engine=npu rule=heat_rank tokens=32 us=1924505 tps=16.628
+leg_headroom arm=L rep=0 cpu=43.10 npu=11.40 gpu=29.20
+leg_window arm=L rep=0 window=45 engine=npu rule=heat_rank tokens=32 us=2252256 tps=14.208
+leg_headroom arm=L rep=0 cpu=45.10 npu=13.40 gpu=30.40
+leg_window arm=L rep=0 window=46 engine=npu rule=heat_rank tokens=32 us=2318784 tps=13.800
+leg_headroom arm=L rep=0 cpu=43.50 npu=9.00 gpu=30.00
+leg_window arm=L rep=0 window=47 engine=npu rule=heat_rank tokens=32 us=2036701 tps=15.712
+leg_headroom arm=L rep=0 cpu=43.10 npu=8.60 gpu=28.80
+leg_window arm=L rep=0 window=48 engine=npu rule=heat_rank tokens=32 us=1984019 tps=16.129
+leg_headroom arm=L rep=0 cpu=43.90 npu=7.80 gpu=29.20
+leg_window arm=L rep=0 window=49 engine=npu rule=heat_rank tokens=32 us=2087534 tps=15.329
+leg_headroom arm=L rep=0 cpu=45.50 npu=10.60 gpu=30.00
+leg_window arm=L rep=0 window=50 engine=npu rule=heat_rank tokens=32 us=2360332 tps=13.557
+leg_headroom arm=L rep=0 cpu=45.10 npu=13.80 gpu=30.40
+leg_window arm=L rep=0 window=51 engine=npu rule=heat_rank tokens=32 us=2330142 tps=13.733
+leg_headroom arm=L rep=0 cpu=43.90 npu=7.80 gpu=29.60
+leg_window arm=L rep=0 window=52 engine=npu rule=heat_rank tokens=32 us=1957830 tps=16.345
+leg_headroom arm=L rep=0 cpu=44.30 npu=10.20 gpu=29.20
+leg_window arm=L rep=0 window=53 engine=npu rule=heat_rank tokens=32 us=2011230 tps=15.911
+leg_headroom arm=L rep=0 cpu=43.90 npu=11.40 gpu=30.40
+leg_window arm=L rep=0 window=54 engine=npu rule=heat_rank tokens=32 us=2278396 tps=14.045
+leg_headroom arm=L rep=0 cpu=45.10 npu=9.00 gpu=30.40
+leg_window arm=L rep=0 window=55 engine=npu rule=heat_rank tokens=32 us=2374439 tps=13.477
+leg_headroom arm=L rep=0 cpu=45.90 npu=10.60 gpu=30.40
+leg_window arm=L rep=0 window=56 engine=npu rule=heat_rank tokens=32 us=2196383 tps=14.569
+leg_headroom arm=L rep=0 cpu=41.60 npu=8.60 gpu=30.00
+leg_window arm=L rep=0 window=57 engine=npu rule=heat_rank tokens=32 us=2081805 tps=15.371
+leg_headroom arm=L rep=0 cpu=43.90 npu=10.60 gpu=28.40
+leg_window arm=L rep=0 window=58 engine=npu rule=heat_rank tokens=32 us=2145083 tps=14.918
+leg_headroom arm=L rep=0 cpu=44.70 npu=13.00 gpu=30.40
+leg_window arm=L rep=0 window=59 engine=npu rule=heat_rank tokens=32 us=2428437 tps=13.177
+leg_headroom arm=L rep=0 cpu=45.50 npu=12.60 gpu=30.80
+leg_window arm=L rep=0 window=60 engine=npu rule=heat_rank tokens=32 us=2375627 tps=13.470
+leg_headroom arm=L rep=0 cpu=44.70 npu=11.00 gpu=29.20
+leg_window arm=L rep=0 window=61 engine=npu rule=heat_rank tokens=32 us=2031947 tps=15.748
+leg_headroom arm=L rep=0 cpu=44.00 npu=8.60 gpu=29.60
+leg_window arm=L rep=0 window=62 engine=npu rule=heat_rank tokens=32 us=2033500 tps=15.736
+leg_window arm=L rep=0 window=64 engine=npu rule=heat_rank tokens=1 us=2362734 tps=0.423
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=126288364 tps=16.217
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+### run 4 start 1791522469
+governor: decode hop cpu->npu at token 0 (headroom cpu 28.2 C, npu 36.1 C, gpu 32.8 C, hysteresis 4 C)

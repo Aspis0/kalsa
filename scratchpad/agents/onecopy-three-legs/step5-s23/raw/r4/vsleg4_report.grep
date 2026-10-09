@@ -1,0 +1,63 @@
+== vsleg4 start Thu Oct  8 23:55:28 EDT 2026 binary f72b761b197a [lvl=83 ac=false usb=false wl=false batT=317 skin=31.8 wake=Awake thermal=0 traced=0]
+## 1 arm=npu (--legs npu) start 1791518132 after 0s cool wait [lvl=83 ac=false usb=false wl=false batT=317 skin=31.8 wake=Awake thermal=0 traced=0] feed 57.8 45.7 45.9
+ARM STOP: skin 43 >= 43 1791518585
+runs=4
+## 1 arm=npu exit=143 end 1791518597 [lvl=78 ac=false usb=false wl=false batT=423 skin=42.6 wake=Awake thermal=3 traced=0] windows_tokens=6051 windows_us=361861820
+run_start arm=L rep=0 monotonic_us=51623368112 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119189283 tps=17.183
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=51752521847 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119549451 tps=17.131
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=51882268068 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=123123086 tps=16.634
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+hops: 0; windows by engine:     192 engine=npu 
+cool wait gave up at skin 32
+## 2 arm=hr (--hop-mode heat_rank --headroom-tau 10 --heat-weight 7 --heat-per-token 2.8,3.2,4.7 --load-step 19,9,22 --guard-headroom 5 --headroom-file /data/local/tmp/govhtp/headroom.txt) start 1791520105 after 1500s cool wait [lvl=76 ac=false usb=false wl=false batT=322 skin=32.1 wake=Awake thermal=0 traced=0] feed 57.8 60.8 60.2
+ARM STOP: skin 43 >= 43 1791520554
+runs=4
+## 2 arm=hr exit=143 end 1791520566 [lvl=70 ac=false usb=false wl=false batT=431 skin=42.6 wake=Awake thermal=3 traced=0] windows_tokens=6051 windows_us=367324558
+run_start arm=L rep=0 monotonic_us=53596342122 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119070668 tps=17.200
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=53725257041 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_summary arm=L rep=0 engine=gpu tokens=416 us=25055566 tps=16.603
+leg_summary arm=L rep=0 engine=npu tokens=1632 us=97320865 tps=16.769
+leg_pair arm=L rep=0 pair=npu-gpu hops=1 commit_bytes=7176192 commit_us=26976
+leg_total arm=L rep=0 generated=2048 windows=65 hops=1 commit_bytes=7176192 commit_us=26976
+run_start arm=L rep=0 monotonic_us=53857954251 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=125877459 tps=16.270
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+hops: 6; windows by engine:      13 engine=gpu     179 engine=npu 
+cool wait gave up at skin 32
+## 3 arm=hr (--hop-mode heat_rank --headroom-tau 10 --heat-weight 7 --heat-per-token 2.8,3.2,4.7 --load-step 19,9,22 --guard-headroom 5 --headroom-file /data/local/tmp/govhtp/headroom.txt) start 1791522074 after 1500s cool wait [lvl=68 ac=false usb=false wl=false batT=328 skin=32.3 wake=Awake thermal=0 traced=0] feed 72.6 60.0 59.4
+ARM STOP: skin 43 >= 43 1791522494
+runs=4
+## 3 arm=hr exit=143 end 1791522506 [lvl=63 ac=false usb=false wl=false batT=428 skin=42.5 wake=Awake thermal=3 traced=0] windows_tokens=6051 windows_us=364380434
+run_start arm=L rep=0 monotonic_us=55565558482 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119016212 tps=17.208
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=55694640150 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119075858 tps=17.199
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=55824096441 dev=auto hop_mode=heat_rank headroom_tau=10.000 heat_weight=7 heat_per_token=2.8,3.2,4.7 load_step=19,9,22 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=126288364 tps=16.217
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+hops: 4; windows by engine:     192 engine=npu 
+cool wait gave up at skin 32
+## 4 arm=npu (--legs npu) start 1791524013 after 1500s cool wait [lvl=61 ac=false usb=false wl=false batT=331 skin=32.2 wake=Awake thermal=0 traced=0] feed 69.8 60.8 59.8
+ARM STOP: skin 43 >= 43 1791524444
+runs=4
+## 4 arm=npu exit=143 end 1791524456 [lvl=56 ac=false usb=false wl=false batT=424 skin=42.6 wake=Awake thermal=3 traced=0] windows_tokens=6051 windows_us=364255757
+run_start arm=L rep=0 monotonic_us=57505215496 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119081560 tps=17.198
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=57633984780 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=119139157 tps=17.190
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=0 monotonic_us=57763118212 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=126035040 tps=16.249
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+hops: 0; windows by engine:     192 engine=npu 
+== vsleg4 end Fri Oct  9 01:40:56 EDT 2026 [lvl=56 ac=false usb=false wl=false batT=424 skin=42.6 wake=Awake thermal=3 traced=0]
