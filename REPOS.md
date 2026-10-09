@@ -108,8 +108,9 @@ Local clone: `~/Projects/llama.rn-kalsa` (its checked-out branch is stale). **Si
 branch, `main`, and it is the live line** (owner: "tutto nel main"): `main` (an old upstream sync until then) was
 fast-forwarded to the former live line `feat/governor-platform-status`, which was deleted at the identical commit
 `a67d5bb8` (one-copy three-leg load + capability table, engine `5cb7e14a0`). Since 2026-10-09 the app pins
-`main` at `1babccb9` (engine `2e723bd9d`: upstream llama.cpp b11514 merged into the fork, plus audit fixes and the
-exact Hexagon cap restore; HTP skels rebuilt). Working worktree:
+`main` at `77677ff9` (engine `2e723bd9d`: upstream llama.cpp b11514 merged into the fork, plus audit fixes and the
+exact Hexagon cap restore; HTP skels rebuilt; the S23 legs-table row carries rule v3 HEAT_RANK as the one-copy
+default, and the governor stats expose `decode_hop_rule`). Working worktree:
 `~/Projects/llama.rn-kalsa-onecopy`. History: pruned 2026-10-01 to two remote branches,
 `feat/governor-platform-status` (then the app's pin, `b1c7ffc5` = engine `5b596ce43`) and `main`. Former branches are `archive/<name>` tags at their tips
 (`archive/kalsa` = `0f313bab`, the pin until 20/09; `archive/vendor-migration` = `0288dc27`;
