@@ -2293,7 +2293,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   v1.1.5 (500 + orphan .tmp, pre-existing) and **PASSES on 23b2a44d7** (200/200, full size, 0 .tmp). Desktop side of
   the merge is done. **S23 legs on 23b2a44d7: all PASS** (cell `s23-merge-b11514-legs-73`, charging = correctness only):
   L hop KL 0.000014/0.000272, L-npu = A-j1 0.000021, GPU legs deterministic 0.000010 (L-gpu = L-gpu2 = V-gpu), E5
-  4000 calls worst 2.285e-05 x RMS, no error lines. Engine push waits for the QDC legs (cell 72, portal logged out). The
+  4000 calls worst 2.285e-05 x RMS, no error lines. **QDC #72 SM8650 (session 877885) on 23b2a44d7: every arm PASS** (GPU KL 0.000010 x3, E5 4000 calls worst
+  2.208e-05, GPU 23.4 tok/s = #71); SM8850 and 8 Elite next. **Owner 2026-10-08 night: (1) push 23b2a44d7 to engine
+  fork main once the QDC legs pass ("si"); (2) binding bump on the merged engine with rebuilt skels, push binding main
+  ("tutto tuo pusha"); app pin/APK stay the owner's.** Round 4 launched 23:55 EDT (S23 unplugged, 83 %). The
   desktop session (kalsa-brain 2c574341) was asked for its server picks in
   `onecopy-three-legs/upstream-b11514-desktop-notes.md`. **Binding bump** to e01a61cee done locally (`f8cde278` in
   `~/Projects/llama.rn-kalsa-onecopy`, NOT pushed): glue needs no change, but `assert-htp-skels.sh` fails until the

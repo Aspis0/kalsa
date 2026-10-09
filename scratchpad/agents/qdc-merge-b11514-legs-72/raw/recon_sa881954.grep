@@ -1,0 +1,7 @@
+SM8650
+Pineapple for arm64
+qti/pineapple/pineapple:14/UKQ1.240227.001/eng.lnxbui.20240322.021741:userdebug/test-keys
+/vendor/lib64/libOpenCL.so
+/vendor/lib64/libcdsprpc.so
+MemTotal:       11544332 kB
+/dev/block/dm-51  47183872 2250828  44933044   5% /mnt/pass_through/0/emulated
