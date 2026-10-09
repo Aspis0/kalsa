@@ -57,3 +57,23 @@ Two notes:
 - **Build and ctest:** CPU-only /tmp build, then `ctest -R "tile32|governor|leg-contexts|bench-logits|save-load"`: 12/12 passed, 7 env-gated skips.
 - **OpenCL:** the 9 TUs compile against Khronos headers.
 - **Not built:** no DSP or Metal build. The DSP and Metal conclusions are line-level code reading.
+
+## Re-audit of the fix commit 35233cf8e
+
+- **Auditor:** deepseek `606bca5c`, archived. It ran its own /tmp Metal build: `-o FLASH_ATTN_EXT` 4965/4965, fa_vec slice 240/240, exit 0. It found no P0/P1.
+- **F1: CONFIRMED.**
+  - The gate `if (is_matmul_id && src0->ne[1] % 32 != 0)` covers repacked and non-repacked weights. It also covers the fused MUL_MAT_ID_NX path, whose precompute reuses `ggml_hexagon_precompute_matmul_params_impl` with dst = MUL_MAT_ID.
+  - Plain MUL_MAT is clamped on all three HMX store variants (pipelined, sync, grouped batched).
+  - Nothing was lost by dropping the `ne01_padded` check: for non-repack, `ne01_padded == ne01`.
+- **F2: CONFIRMED for the hunk, NOT closed (P2).** `std::filesystem::rename/file_size/remove` still take narrow std::string paths (`server-context.cpp:3205/2729/2687`). MSVC decodes those with the ANSI code page (microsoft/STL#2511). Fix delegated to mimo `63838d6d`.
+- **F3: CONFIRMED.** `remaining == SLOT_ID_SIZE` is enforced at :2771. The only use is `res->n_bytes`. The "bytes consumed" comment is a P3 nit.
+- **F4: CONFIRMED, mechanically re-derived from the .metal sources.**
+  - The helper equals the 11 vec pairs of all 8 families.
+  - The non-vec kernels cover 16 pairs (the 11 plus the 40/48/72/80/112 diagonals), and supports_op now admits exactly those 16. No pair that used to run on Metal falls to CPU.
+  - The old supports_op admitted 85 pairs with no kernel at all.
+  - The sparse gate is bit-identical over (0..699)².
+- **F5: CONFIRMED.**
+- **P3 items:**
+  - In ggml-hexagon.cpp, `GGML_UNUSED(ne01_padded)` sits after `return true;`. Delegated to mimo with F2.
+  - The F1 comment names only the repack reason.
+  - The pre-existing tile32.cpp:84 unused `ne00` is untouched.

@@ -2274,7 +2274,10 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   HMX gate is still needed for MUL_MAT_ID (unclamped scattered store, repacked MoE with N % 32 != 0; TILE32 not
   exposed); F2 narrow fopen of the slot-save temp file (Windows non-ASCII); F3 n_read != n_written without
   checkpoints; **F4 P1** Metal vec FA NULL pipeline for un-instantiated (dk,dv) is production-reachable; F5 warnings.
-  Fixes: GLM `2bd68f3d`. GLM's `build-and` was a shared/OpenMP/llamafile build, not comparable: the coordinator
+  Fixes: GLM `2bd68f3d` -> **`35233cf8e`** (parent 904d38fad); re-audit deepseek `606bca5c`: F1/F3/F4/F5 CONFIRMED,
+  no P0/P1, F2 not closed on Windows (filesystem rename/file_size/remove on narrow paths) -> mimo `63838d6d`. Metal on
+  35233cf8e (kalsa-brain): FLASH_ATTN_EXT 4965/4965 EXIT 0, 12B+mmproj and E4B+MTP OK. Static bench on 35233cf8e
+  754377af (`build-ls-and`, EXIT 0, compiles the F1 hexagon change), kit `merge-kit-35233cf8e.tgz`. GLM's `build-and` was a shared/OpenMP/llamafile build, not comparable: the coordinator
   rebuilt the static bench with the documented recipe (`build-ls-and`, governor-bench 525ad01b) ->
   `~/Projects/kalsa-artifacts-b11514`, QDC kit `~/kalsa-qdc/merge-kit-904d38fad.tgz`, cell
   `qdc-merge-b11514-legs-72` (QDC portal logged out: owner login needed). Then: re-audit, rebuild bench on the fix
