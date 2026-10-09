@@ -3,6 +3,7 @@ import type { ChatErrorKind } from "../lib/chat";
 import { useEffect, useState } from "react";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
+import { useBrainState } from "../surfaces/useBrain";
 import { useStickToBottom } from "../lib/stickToBottom";
 import { Markdown } from "./Markdown";
 import { MessageImages } from "./MessageImages";
@@ -28,11 +29,16 @@ interface ThreadProps {
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
 }
 
-function errorCopy(t: English["thread"], kind: ChatErrorKind): { title: string; body: string } {
+function errorCopy(
+  t: English["thread"],
+  kind: ChatErrorKind,
+  kalsaOff: boolean,
+): { title: string; body: string } {
   switch (kind) {
     case "unauthorized":
     case "bad-response":
-      return { title: t.couldntAnswerTitle, body: t.couldntAnswerBody };
+      // An off brain has nothing to restart; its advice is to turn it on.
+      return { title: t.couldntAnswerTitle, body: kalsaOff ? t.notRunningBody : t.couldntAnswerBody };
     case "network":
       return { title: t.notRunningTitle, body: t.notRunningBody };
     case "truncated":
@@ -114,6 +120,8 @@ function AssistantRow({
   const { table, tag } = useLanguage();
   const t = table.thread;
   const failedHere: FailedState | null = failures[message.id] ?? null;
+  const brain = useBrainState();
+  const kalsaOff = brain?.kind === "stopped" || brain?.kind === "stopping" || brain?.kind === "failed";
   const hasReasoning = (message.reasoning ?? "") !== "";
   const toolRuns = message.toolRuns ?? [];
   const toolWorking = toolRuns.some((run) => run.state === "running");
@@ -164,8 +172,8 @@ function AssistantRow({
         ) : null}
         {failedHere !== null ? (
           <div className="error-block" role="alert">
-            <p className="error-title">{errorCopy(t, failedHere.kind).title}</p>
-            <p className="error-body">{errorCopy(t, failedHere.kind).body}</p>
+            <p className="error-title">{errorCopy(t, failedHere.kind, kalsaOff).title}</p>
+            <p className="error-body">{errorCopy(t, failedHere.kind, kalsaOff).body}</p>
             <div className="error-actions">
               <button type="button" className="btn-primary" onClick={() => onRetry(message.id)}>
                 {t.tryAgain}
