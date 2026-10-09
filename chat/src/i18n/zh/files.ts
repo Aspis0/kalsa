@@ -9,6 +9,7 @@ export const FILES = {
     "empty": "添加一个文档，让 Kalsa 在这条对话中使用它。拖到这里、使用夹子，或在“文件”下挑选一个。",
     "remove": "移除",
     "reattach": "重新附加",
+    "pinName": "固定",
     "pinDoc": "固定：随每条消息发送",
     "previouslyAttached": "之前附加过",
     "onePage": "1 页",

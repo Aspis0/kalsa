@@ -9,6 +9,7 @@ export const FILES = {
     "empty": "Ajoute un document pour que Kalsa puisse l'utiliser dans cette conversation. Dépose-le ici, utilise le trombone, ou choisis-en un sous Fichiers.",
     "remove": "Retirer",
     "reattach": "Joindre de nouveau",
+    "pinName": "Épingler",
     "pinDoc": "Épingler : envoyer avec chaque message",
     "previouslyAttached": "Joints auparavant",
     "onePage": "1 page",

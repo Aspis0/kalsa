@@ -6,6 +6,7 @@ export const COMPOSER = {
   send: "Send",
   stopGenerating: "Stop generating",
   attachAria: "Attach a file",
+  think: "Think",
   thinkingOn: "Turn thinking on",
   thinkingOff: "Turn thinking off",
   hintSend: "Enter sends · Shift+Enter adds a line",

@@ -1,8 +1,11 @@
 // English for now: the vision offer ships before its translation. The keys
 // are the same as `en/vision.ts`, and tsc enforces that.
 
+const offerName = "Let Kalsa see images";
+
 export const VISION = {
-  offer: (size: string) => `Let Kalsa see images (downloads ${size})`,
+  offerName,
+  offer: (size: string) => `${offerName} (downloads ${size})`,
   downloadQ: (size: string) =>
     `Download ${size} so Kalsa can see images? Kalsa restarts when it's done.`,
   download: "Download",

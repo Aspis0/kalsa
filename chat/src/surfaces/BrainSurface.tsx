@@ -230,7 +230,7 @@ export function BrainSurface({ onNavigate, onWrite, onOpenChat, onOpenRoom }: Br
         <button
           type="submit"
           className="brain-bar-action"
-          disabled={text.trim().length === 0}
+          disabled={text.trim().length === 0 || busy}
           aria-label={bar.send}
         >
           <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">

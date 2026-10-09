@@ -1,5 +1,5 @@
 import { CHROME } from "./chrome";
-import { BRAIN_BAR } from "./composer";
+import { BRAIN_BAR, COMPOSER } from "./composer";
 import { SETUP } from "./setup";
 import { POWER } from "./power";
 import { SIDEBAR } from "./sidebar";
@@ -13,11 +13,14 @@ import { INVITE } from "./invite";
 import { REPORT } from "./report";
 import { ROOM } from "./room";
 
+// Setup labels end with a full stop for their own sentence; in bold it looks like a typo.
+const bare = (label: string) => label.replace(/\.$/, "");
+
 export const HELP = {
   sections: [
     {
       title: "What Kalsa is",
-      paragraphs: ["Kalsa is an AI assistant that runs on your own computer. Your questions are answered here, on this computer: they are not sent to a company's servers. Kalsa also lives on your phone. The two work together:"],
+      paragraphs: ["Kalsa is an AI assistant that runs on your own computer. Your questions are answered here, on this computer, not on a company's servers. Kalsa also lives on your phone. The two work together:"],
       items: [
         "The phone has its own small AI, so it works even when the computer is off.",
         "When the computer is on, the phone can use it as its \"brain\": the computer runs a bigger AI and sends the answers to the phone.",
@@ -38,7 +41,7 @@ export const HELP = {
       paragraphs: [],
       items: [
         `Press **${SETUP.start}**. Kalsa checks your computer and suggests the AI that runs best on it.`,
-        `Pick **${SETUP.smarter}** or **${SETUP.faster}**, then confirm the download. The size is shown first.`,
+        `Pick **${bare(SETUP.smarter)}** or **${bare(SETUP.faster)}**, then confirm the download. The size is shown first.`,
         "Kalsa then tests your computer to find the fastest way to run it. This happens only once.",
         "If no AI runs well enough on this computer, Kalsa tells you so and does not start.",
       ],
@@ -48,7 +51,7 @@ export const HELP = {
       paragraphs: [],
       items: [
         "The big button turns Kalsa **on** or **off**.",
-        `**${POWER.onAsleep}**: after 5 minutes without messages Kalsa rests to free memory. Your next message wakes her up in a few seconds.`,
+        `**${POWER.onAsleep}**: after a few minutes without messages (5 by default) Kalsa rests to free memory. Your next message wakes her up.`,
         `Three pages under **${BRAIN_BAR.thisComputer}**: **${CHROME.pages.models}** (which AI Kalsa uses, and how fast), **${CHROME.pages.server}** (speed and connected phones), **${CHROME.pages.devices}** (connect a phone).`,
       ],
     },
@@ -58,7 +61,7 @@ export const HELP = {
       items: [
         "Write in the box and press Enter. Shift+Enter starts a new line.",
         `**${SIDEBAR.newChat}** starts a fresh conversation. Your past chats are in the list on the left: you can search, rename or delete them.`,
-        "**Think**: Kalsa reasons before answering. Answers are slower but more careful. Not every AI has it.",
+        `**${COMPOSER.think}**: Kalsa reasons before answering. Answers are slower but more careful. Not every AI has it.`,
         `**${THREAD.tryAgain}** appears when an answer fails.`,
         "Kalsa can make mistakes. Check important information.",
       ],
@@ -68,9 +71,9 @@ export const HELP = {
       paragraphs: [],
       items: [
         "Use the paperclip, or drag a file onto the window: text, PDF, Word (.docx), PowerPoint (.pptx), CSV.",
-        `A file is read with your next message. Press the **${FILES.pinDoc}** to keep it for the whole conversation.`,
+        `A file is read with your next message. Click the pin (**${FILES.pinName}**) to keep it for the whole conversation.`,
         "Scanned PDFs (photos of pages) can't be read yet.",
-        `Pictures and videos work only with an AI that can see. If yours can, Kalsa may offer a small download first: **${VISION.offer("…")}**. From a video Kalsa sees a few still frames.`,
+        `Pictures and videos work only with an AI that can see. If yours can, Kalsa may offer a small download first: **${VISION.offerName}**. From a video Kalsa sees a few still frames.`,
       ],
     },
     {
@@ -108,7 +111,7 @@ export const HELP = {
       paragraphs: [],
       items: [
         "Most of what people ask chatbots is everyday help: practical advice, looking things up, and writing. Nearly 80% of ChatGPT conversations are of this kind (NBER study, September 2025).",
-        "That kind of help does not need a giant AI in a datacenter. A good AI on the computer you already have can do it, and your messages never leave your home.",
+        "That kind of help does not need a giant AI in a datacenter. A good AI on the computer you already have can do it, and your conversations stay at home: only web searches go out, and only the search words.",
         "Datacenters used about 415 TWh of electricity in 2024, roughly 1.5% of the world's electricity, and the International Energy Agency expects that to more than double by 2030.",
         "Most of a computer's lifetime footprint comes from making it (Dell product reports), and the world produced 62 million tonnes of e-waste in 2022 (Global E-waste Monitor 2024). Kalsa tries to make good use of the computer you already own, even if it is not new.",
       ],

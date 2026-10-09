@@ -9,6 +9,7 @@ export const FILES = {
     "empty": "Aggiungi un documento perché Kalsa possa usarlo in questa conversazione. Trascinalo qui, usa la graffetta, oppure scegline uno da File.",
     "remove": "Rimuovi",
     "reattach": "Riallega",
+    "pinName": "Fissa",
     "pinDoc": "Fissa: invia con ogni messaggio",
     "previouslyAttached": "Allegati in passato",
     "onePage": "1 pagina",

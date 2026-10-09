@@ -10,6 +10,7 @@ export const FILES = {
   empty: "Add a document so Kalsa can use it in this conversation. Drop it here, use the paperclip, or pick one from Files.",
   remove: "Remove",
   reattach: "Reattach",
+  pinName: "Pin",
   pinDoc: "Pin: send with every message",
   previouslyAttached: "Previously attached",
   onePage: "1 page",

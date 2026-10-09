@@ -6,6 +6,7 @@ export const COMPOSER = {
     "send": "Invia",
     "stopGenerating": "Interrompi la risposta",
     "attachAria": "Allega un file",
+    "think": "Ragiona",
     "thinkingOn": "Attiva la riflessione",
     "thinkingOff": "Spegni la riflessione",
     "hintSend": "Invio invia · Shift+Invio va a capo",

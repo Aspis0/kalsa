@@ -6,6 +6,7 @@ export const COMPOSER = {
     "send": "发送",
     "stopGenerating": "停止回答",
     "attachAria": "附加文件",
+    "think": "Think",
     "thinkingOn": "开启思考",
     "thinkingOff": "关闭思考",
     "hintSend": "Enter 发送 · Shift+Enter 换行",

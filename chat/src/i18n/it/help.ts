@@ -1,5 +1,5 @@
 import { CHROME } from "./chrome";
-import { BRAIN_BAR } from "./composer";
+import { BRAIN_BAR, COMPOSER } from "./composer";
 import { SETUP } from "./setup";
 import { POWER } from "./power";
 import { SIDEBAR } from "./sidebar";
@@ -14,11 +14,14 @@ import { REPORT } from "./report";
 import { ROOM } from "./room";
 import type { English } from "../en/all";
 
+// Setup labels end with a full stop for their own sentence; in bold it looks like a typo.
+const bare = (label: string) => label.replace(/\.$/, "");
+
 export const HELP: English["help"] = {
   sections: [
     {
       title: "Cos'è Kalsa",
-      paragraphs: ["Kalsa è un assistente AI che funziona sul tuo computer. Le tue domande ricevono risposta qui, su questo computer: non vengono mandate ai server di un'azienda. Kalsa vive anche sul tuo telefono. I due lavorano insieme:"],
+      paragraphs: ["Kalsa è un assistente AI che funziona sul tuo computer. Le tue domande ricevono risposta qui, su questo computer, non sui server di un'azienda. Kalsa vive anche sul tuo telefono. I due lavorano insieme:"],
       items: [
         "Il telefono ha una sua piccola AI, quindi funziona anche a computer spento.",
         "Quando il computer è acceso, il telefono può usarlo come \"cervello\": il computer fa girare un'AI più grande e manda le risposte al telefono.",
@@ -39,7 +42,7 @@ export const HELP: English["help"] = {
       paragraphs: [],
       items: [
         `Premi **${SETUP.start}**. Kalsa controlla il computer e propone l'AI che ci gira meglio.`,
-        `Scegli **${SETUP.smarter}** o **${SETUP.faster}**, poi conferma il download. Prima vedi quanto pesa.`,
+        `Scegli **${bare(SETUP.smarter)}** o **${bare(SETUP.faster)}**, poi conferma il download. Prima vedi quanto pesa.`,
         "Poi Kalsa prova il computer per trovare il modo più veloce di farla girare. Succede una volta sola.",
         "Se nessuna AI gira abbastanza bene su questo computer, Kalsa te lo dice e non parte.",
       ],
@@ -49,7 +52,7 @@ export const HELP: English["help"] = {
       paragraphs: [],
       items: [
         "Il pulsante grande **accende** o **spegne** Kalsa.",
-        `**${POWER.onAsleep}**: dopo 5 minuti senza messaggi Kalsa si riposa per liberare memoria. Il messaggio dopo la risveglia in pochi secondi.`,
+        `**${POWER.onAsleep}**: dopo qualche minuto senza messaggi (5 di default) Kalsa si riposa per liberare memoria. Il messaggio successivo la risveglia.`,
         `Tre pagine sotto **${BRAIN_BAR.thisComputer}**: **${CHROME.pages.models}** (quale AI usa Kalsa, e quanto è veloce), **${CHROME.pages.server}** (velocità e telefoni collegati), **${CHROME.pages.devices}** (collegare un telefono).`,
       ],
     },
@@ -59,7 +62,7 @@ export const HELP: English["help"] = {
       items: [
         "Scrivi nel riquadro e premi Invio. Maiuscolo+Invio va a capo.",
         `**${SIDEBAR.newChat}** apre una conversazione nuova. Le chat passate sono nell'elenco a sinistra: puoi cercarle, rinominarle o cancellarle.`,
-        "**Think**: Kalsa ragiona prima di rispondere. Le risposte sono più lente ma più accurate. Non tutte le AI ce l'hanno.",
+        `**${COMPOSER.think}**: Kalsa ragiona prima di rispondere. Le risposte sono più lente ma più ponderate. Non tutte le AI ce l'hanno.`,
         `**${THREAD.tryAgain}** compare quando una risposta non va a buon fine.`,
         "Kalsa può sbagliare. Controlla le informazioni importanti.",
       ],
@@ -69,9 +72,9 @@ export const HELP: English["help"] = {
       paragraphs: [],
       items: [
         "Usa la graffetta, o trascina un file sulla finestra: testo, PDF, Word (.docx), PowerPoint (.pptx), CSV.",
-        `Un file viene letto con il tuo prossimo messaggio. Premi la **${FILES.pinDoc}** per tenerlo per tutta la conversazione.`,
+        `Un file viene letto con il tuo prossimo messaggio. Premi la puntina (**${FILES.pinName}**) per tenerlo per tutta la conversazione.`,
         "I PDF scansionati (foto di pagine) per ora non si possono leggere.",
-        `Foto e video funzionano solo con un'AI che vede. Se la tua può, Kalsa può proporti prima un piccolo download: **${VISION.offer("…")}**. Di un video Kalsa vede alcuni fotogrammi.`,
+        `Foto e video funzionano solo con un'AI che vede. Se la tua può, Kalsa può proporti prima un piccolo download: **${VISION.offerName}**. Di un video Kalsa vede alcuni fotogrammi.`,
       ],
     },
     {
@@ -109,7 +112,7 @@ export const HELP: English["help"] = {
       paragraphs: [],
       items: [
         "Quasi tutto quello che si chiede ai chatbot è aiuto quotidiano: consigli pratici, cercare informazioni, scrivere. Quasi l'80% delle conversazioni su ChatGPT è di questo tipo (studio NBER, settembre 2025).",
-        "Per questo tipo di aiuto non serve un'AI gigante in un data center. Una buona AI sul computer che hai già può farlo, e i tuoi messaggi non escono di casa.",
+        "Per questo tipo di aiuto non serve un'AI gigante in un data center. Una buona AI sul computer che hai già può farlo, e le tue conversazioni restano in casa: escono solo le ricerche sul web, e solo le parole cercate.",
         "Nel 2024 i data center hanno usato circa 415 TWh di elettricità, circa l'1,5% di quella mondiale, e l'Agenzia Internazionale dell'Energia prevede che più che raddoppi entro il 2030.",
         "La maggior parte dell'impatto di un computer nella sua vita viene dalla sua fabbricazione (report di prodotto Dell), e nel 2022 il mondo ha prodotto 62 milioni di tonnellate di rifiuti elettronici (Global E-waste Monitor 2024). Kalsa prova a usare bene il computer che hai già, anche se non è nuovo.",
       ],

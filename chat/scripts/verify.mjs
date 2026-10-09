@@ -4275,7 +4275,7 @@ const tests = {
     const first = await page.locator(".surface-walk").innerText();
     check(
       "tuneLine: the first test says the budget's ceiling, as a ceiling",
-      first.includes("Test 1 of 16") && first.includes("up to 27 min"),
+      first.includes("Test 1 of 16") && first.includes("about 27 min"),
       first,
     );
     // The elapsed clock ticks every second below this line; the line itself

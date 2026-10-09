@@ -351,7 +351,7 @@ export function Composer({
               title={thinking ? composer.thinkingOnTitle : composer.thinkingOffTitle}
               onClick={() => onThinking?.(!thinking)}
             >
-              Think
+              {composer.think}
             </button>
           )}
           {ask && !streaming ? (

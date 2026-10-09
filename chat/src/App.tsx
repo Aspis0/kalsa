@@ -239,7 +239,7 @@ export function App() {
               {chrome.settings}
             </button>
           ) : null}
-          {surface !== "settings" && surface !== "chat" && surface !== "room" ? (
+          {surface !== "settings" && surface !== "chat" && surface !== "room" && surface !== "help" ? (
             <button
               type="button"
               className="topbar-btn"
