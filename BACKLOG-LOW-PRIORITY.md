@@ -44,3 +44,10 @@
   `76768fb2`. `scripts/assert-rnllama-sources.sh` skips globs, so nothing local catches the class. Fix: diff each
   globbed dir against the engine's own source lists (allow-list binding-local `common/parsers/function-gemma.cpp`);
   optionally mirror the engine's per-variant ARM defines (GGML_USE_DOTPROD / MATMUL_INT8).
+- E1 (P2, pre-existing, audit of engine b89014244, 2026-10-09) On the TWO-MODEL governor, a COOLMODE reached by battery
+  heat (temp >= cool_enter clears state_from_platform_) selects GPU_COOLMODE with requires_reload, and the binding ends
+  the completion with pause_reason "reload" instead of pacing (`llama-governor-policy.cpp:252-264, :524-533`). The
+  one-copy hop path returns before that rule. Fix when the two-model path gets pacing: gate GPU_COOLMODE eligibility
+  on pacing being off, or never request it mid-turn.
+- E2 (P3, pre-existing) `llama_governor::stats()` is an unsynchronized struct copy read from the JS thread while the
+  decode thread writes (now also decode_paced_*); torn reads possible. Fix: snapshot under a mutex.

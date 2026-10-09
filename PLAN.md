@@ -251,12 +251,21 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
 ## Next steps (ordered, 2026-10-09)
 
 1. DONE 2026-10-09: binding `f0ca4692`, app `1f0e967b` (pin + A1), APK run `37961298208`.
-2. Engine: admit Adreno 750 / E031.45 in the TILE32 measured gate, re-vendor, then the SM8650 row
-   (`84ac0d57`) - needed before the Xiaomi in-app round.
-3. G2 on the S23 failed on heat (cell `s23-g2-inapp-1f0e967b`): feed the platform thermal status into the
-   decode loop natively (NDK `AThermal_getCurrentThermalStatus`, beside the per-leg headroom reader) so the
-   governor sees SEVERE mid-turn; then repeat G2 on a cold phone. Owner decision pending on the COOLMODE
-   behaviour (slow sustainable rate vs stop at turn end).
+2. DONE 2026-10-09: engine `0012f97f2` pushed (TILE32 gate admits Adreno 750 / E031.45; COOLMODE decode
+   pacing, `decode_coolmode_duty`, 250 ms cap; bench `--coolmode-duty` / `--platform-status`, arm L only).
+   Binding `a9bf7a26` pushed: engine vendored, native platform status (AThermal, read <= 1 Hz in the decode
+   loop, escalation debounced 5 s, carry of the last status bounded to a native read in the last 10 s),
+   `decode_coolmode_duty` binding default 0.5, SM8650 row, `decode_paced_*` stats in JS, skels rebuilt
+   (engine 0012f97, fingerprint 900bf79). Each step hostile-audited by a model other than its writer.
+3. G2 on the S23 failed on heat (cell `s23-g2-inapp-1f0e967b`). Owner decision 2026-10-09: COOLMODE slows
+   decode to a sustainable rate. Next: app pin to `a9bf7a26` (after the harness fixes below), APK, G2 on a
+   cold phone, then a shorter session with tools ON as shipped. Harness: `9c8c001f`, `d7724b77`,
+   `3b9a26ec` (app, unpushed); a hostile audit found two P1s (force-stop on an unhealthy transport,
+   `unknown` read as dead) - fix in progress before any push.
+   Cell 77 (`s23-paced-legs-77`, does pacing cool, NPU vs GPU): the paced NPU arm decoded 2048 tokens at
+   7.5 tok/s (duty 0.5 achieved), then the S23 rebooted (wireless adb back on a new port, refusing the
+   key); cause unknown - the bench carries the logits fix `fbf33176c`. Read the report and the boot
+   reason when adb is back; log RssAnon/MemAvailable every 5 s on any rerun.
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
 5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76); the in-app round
