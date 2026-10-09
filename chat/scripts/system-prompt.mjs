@@ -1,7 +1,8 @@
-// The fixed system prompt: first in every wire, exactly once, with the pinned
-// documents still right behind it — driven through the real
-// `buildPinnedContext` and the real tool loop against a real stream, not a
-// copy of either.
+// The fixed system prompt: four variants (vision on or off, Think offered or
+// not), each under the ceiling; every app sentence present exactly where it
+// belongs; and the one system message first on the wire, with the pinned
+// documents still right behind it — driven through the real `buildPinnedContext`
+// and the real tool loop against a real stream, not a copy of either.
 //
 // The loop's round two is the point: the conversation array grows by the
 // assistant's call and the tool's answer, and the prompt must still be the
@@ -15,6 +16,30 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "../node_modules/esbuild/lib/main.js";
+
+// The largest variant (seeing, Think) is 263 tokens today; the ceiling is that
+// plus a little slack, so the next sentence moves it on purpose.
+const PROMPT_CEILING_TOKENS = 275;
+
+const VARIANTS = [
+  { name: "blind, no Think", vision: false, think: false },
+  { name: "blind, Think", vision: false, think: true },
+  { name: "seeing, no Think", vision: true, think: false },
+  { name: "seeing, Think", vision: true, think: true },
+];
+
+// Each sentence, the text it must contain, and the variants it belongs to.
+const SENTENCES = [
+  { label: "pictures reach you", text: "Images the user attaches reach you as images.", when: (v) => v.vision },
+  { label: "blind clause", text: "You cannot see images, audio or video.", when: (v) => !v.vision },
+  { label: "seeing: no audio or video", text: "You cannot see audio or video.", when: (v) => v.vision },
+  { label: "Think button", text: "A Think button sits in the message box", when: (v) => v.think },
+  { label: "paperclip", text: "A paperclip in the message box attaches files.", when: () => true },
+  { label: "miniapps", text: "Miniapps (a table, calculator, quiz or checklist) open inline in the chat.", when: () => true },
+  { label: "phones", text: "Phones paired to this computer can get answers from you too.", when: () => true },
+  { label: "Room", text: "The Room is a group chat on this computer where people call you by writing @Kalsa", when: () => true },
+  { label: "buttons", text: "You cannot press these buttons yourself; tell the person which one to use.", when: () => true },
+];
 
 let fail = 0;
 function check(label, condition, detail) {
@@ -38,7 +63,7 @@ try {
   await build({
     stdin: {
       contents: `
-        export { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, systemPrompt, wireTokens } from "../src/lib/attachments.ts";
+        export { buildPinnedContext, historyTokens, systemPrompt, wireTokens } from "../src/lib/attachments.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { TOOL_DEFINITIONS } from "../src/lib/tools/definitions.ts";
       `,
@@ -71,8 +96,53 @@ try {
   globalThis.window = { setTimeout, clearTimeout };
 
   const app = await import(pathToFileURL(outfile).href);
-  const { buildPinnedContext, historyTokens, SYSTEM_PROMPT, SYSTEM_PROMPT_TOKENS, systemPrompt, wireTokens, streamChatCompletion } = app;
+  const { buildPinnedContext, historyTokens, systemPrompt, wireTokens, streamChatCompletion } = app;
 
+  // The token counts are printed on every run, pass or fail, so a drift shows
+  // its number instead of a silent green.
+  console.log("prompt variants (tokens, chars):");
+  for (const v of VARIANTS) {
+    const content = systemPrompt(v.vision, v.think).content;
+    console.log(`  ${v.name}: ${wireTokens([], v.vision, v.think)} tokens, ${content.length} chars`);
+  }
+
+  for (const v of VARIANTS) {
+    const content = systemPrompt(v.vision, v.think).content;
+    const tokens = wireTokens([], v.vision, v.think);
+    check(
+      `${v.name}: under the ${PROMPT_CEILING_TOKENS}-token ceiling`,
+      tokens > 0 && tokens < PROMPT_CEILING_TOKENS,
+      `${tokens} tokens`,
+    );
+    for (const s of SENTENCES) {
+      const want = s.when(v);
+      check(
+        `${v.name}: "${s.label}" is ${want ? "present" : "absent"}`,
+        content.includes(s.text) === want,
+        JSON.stringify(content.slice(0, 120)),
+      );
+    }
+    // The Think button is named only where the switch is drawn, and the
+    // sentence never claims the switch turns thinking on or off.
+    check(
+      v.think ? `${v.name}: the Think button is named` : `${v.name}: no Think button is named`,
+      v.think ? content.includes("Think button") : !content.includes("Think"),
+    );
+    check(`${v.name}: no "turns thinking on or off" claim`, !content.includes("turns thinking"));
+    // The wire budget spends the variant's prompt on top of the history.
+    const turn = [{ id: "u0", role: "user", content: "hi", createdAt: 1 }];
+    equal(
+      `${v.name}: the budget counts that prompt on top of the history`,
+      wireTokens(turn, v.vision, v.think) - historyTokens(turn),
+      tokens,
+    );
+  }
+
+  // The wire carries ONE system message — several chat templates render only
+  // the one at index 0 — and it is the fixed prompt with the pinned documents
+  // appended to the same content, which keeps the prompt as the byte prefix the
+  // engine's cache holds onto. Checked on the blind variant: no media, no Think.
+  const BLIND = systemPrompt(false, false).content;
   const MESSAGES = [{ id: "u1", role: "user", content: "Look at my picture.", createdAt: 1 }];
   const ATTACHMENT = {
     id: "a1",
@@ -85,11 +155,6 @@ try {
     active: true,
     pinned: true,
   };
-
-  // The wire carries ONE system message — several chat templates render only
-  // the one at index 0 — and it is the fixed prompt with the pinned documents
-  // appended to the same content, which keeps the prompt as the byte prefix the
-  // engine's cache holds onto.
   const withDocs = buildPinnedContext(MESSAGES, [ATTACHMENT], null);
   equal(
     "one system message with documents attached",
@@ -99,7 +164,7 @@ try {
   equal("the system message is first", withDocs.wire[0], withDocs.wire.find((m) => m.role === "system"));
   check(
     "it starts with the fixed prompt, byte for byte",
-    (withDocs.wire[0]?.content ?? "").startsWith(SYSTEM_PROMPT.content),
+    (withDocs.wire[0]?.content ?? "").startsWith(BLIND),
     JSON.stringify((withDocs.wire[0]?.content ?? "").slice(0, 70)),
   );
   check(
@@ -111,7 +176,7 @@ try {
   );
   check(
     "the prompt is followed by a blank line, then the block",
-    (withDocs.wire[0]?.content ?? "").includes(`${SYSTEM_PROMPT.content}\n\nAttached documents`),
+    (withDocs.wire[0]?.content ?? "").includes(`${BLIND}\n\nAttached documents`),
   );
   check(
     "the turn follows the one system message",
@@ -125,55 +190,16 @@ try {
     withoutDocs.wire.filter((m) => m.role === "system").length,
     1,
   );
-  equal("without documents the content is the prompt itself", withoutDocs.wire[0], SYSTEM_PROMPT);
+  equal("without documents the content is the prompt itself", withoutDocs.wire[0], systemPrompt(false, false));
   check(
     "without documents no block is appended",
     !(withoutDocs.wire[0]?.content ?? "").includes("Attached documents"),
   );
 
-  // The fit counts it: what the wire costs for a conversation is the stored
-  // history plus the fixed prompt, and the difference is exactly the prompt.
-  equal(
-    "the budget counts the prompt",
-    wireTokens(MESSAGES) - historyTokens(MESSAGES),
-    SYSTEM_PROMPT_TOKENS,
-  );
-  check(
-    // The fixed prompt is kept small on purpose: every byte of it is
-    // re-prefilled whenever it changes, so the bound is the approved app
-    // sentences plus a little slack, and any further sentence moves it on purpose.
-    "the prompt costs more than nothing",
-    SYSTEM_PROMPT_TOKENS > 0 && SYSTEM_PROMPT_TOKENS < 270,
-    `${SYSTEM_PROMPT_TOKENS} tokens`,
-  );
-  check(
-    "the prompt's own cost is the wire cost",
-    SYSTEM_PROMPT_TOKENS === Math.max(1, Math.ceil(SYSTEM_PROMPT.content.length / 4)),
-    `${SYSTEM_PROMPT_TOKENS} tokens for ${SYSTEM_PROMPT.content.length} chars`,
-  );
-
-  // The prompt is fixed PER MODEL: the vision sentence follows /props, and
-  // the capability changes only with the model, which restarts the engine's
-  // cache anyway. Blind is the prompt without images; seeing names the images
-  // and still refuses audio and video.
-  equal("blind is the prompt without eyes", systemPrompt(false), SYSTEM_PROMPT);
-  const seeing = systemPrompt(true);
-  check(
-    "seeing says the images arrive as images",
-    seeing.content.includes("Images the user attaches reach you as images."),
-    JSON.stringify(seeing.content.slice(0, 140)),
-  );
-  check(
-    "seeing still refuses audio and video",
-    seeing.content.includes("You cannot see audio or video.") &&
-      !seeing.content.includes("cannot see images"),
-    JSON.stringify(seeing.content.slice(0, 160)),
-  );
-  check(
-    "seeing costs a few tokens more, and the wire says so",
-    wireTokens([], true) > wireTokens([], false),
-    `${wireTokens([], true)} vs ${wireTokens([], false)}`,
-  );
+  // The wire's prompt follows the media view: a seeing, Think-offering model
+  // gets its own variant on the wire, not the blind one.
+  const served = buildPinnedContext(MESSAGES, [], null, { vision: true, think: true, url: () => null });
+  equal("the wire carries the variant the model is served", served.wire[0], systemPrompt(true, true));
 
   // One turn through the tool loop: round one asks for a call, round two
   // answers after the result, and both requests carry the one system message,
@@ -233,7 +259,7 @@ try {
     equal(`round ${round}: it is the first message`, body.messages[0], systems[0]);
     check(
       `round ${round}: it still starts with the fixed prompt`,
-      (body.messages[0]?.content ?? "").startsWith(SYSTEM_PROMPT.content),
+      (body.messages[0]?.content ?? "").startsWith(BLIND),
       JSON.stringify((body.messages[0]?.content ?? "").slice(0, 70)),
     );
     check(
@@ -246,12 +272,10 @@ try {
     bodies[1].messages.some((m) => m.role === "tool" && m.content === "SEARCH RESULT"),
     JSON.stringify(bodies[1].messages.map((m) => m.role)),
   );
-
 } finally {
   if (server) server.close();
   if (dir) await rm(dir, { recursive: true, force: true });
 }
-
 
 if (fail > 0) {
   console.log(`\n${fail} check(s) failed`);

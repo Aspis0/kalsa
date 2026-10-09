@@ -167,6 +167,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       assistantId: string,
       currentSettings: LiveSettings,
       vision: boolean,
+      think: boolean,
     ) => {
       const shell = words.current.shell;
       const conv = store.get(conversationId);
@@ -203,7 +204,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       // The token fit is answered once, on the wire where every picture is
       // the placeholder sentence: each stored picture costs IMAGE_TOKENS
       // whether it rides or not, so the fit is the same for both shapes.
-      const dry = buildPinnedContext(turns, all, known, { vision, url: () => null });
+      const dry = buildPinnedContext(turns, all, known, { vision, think, url: () => null });
 
       function refuseOversize(code: string): void {
         // History outgrew the context after attaching — or the pictures the
@@ -287,7 +288,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           urlMap.set(image.id, await blobToDataUrl(blobs.get(image.id) ?? new Blob()));
         }
       }
-      const media: MediaView = { vision, url: (id) => urlMap.get(id) ?? null };
+      const media: MediaView = { vision, think, url: (id) => urlMap.get(id) ?? null };
       const ctx = buildPinnedContext(turns, all, known, media);
       // Unreachable by construction: this build spends the same tokens the
       // dry one already passed above (a picture costs IMAGE_TOKENS riding

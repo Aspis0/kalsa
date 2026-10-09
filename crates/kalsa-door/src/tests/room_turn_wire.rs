@@ -63,10 +63,10 @@ fn an_engine_error_once_heals_into_an_answer_with_no_note() {
 
 #[test]
 fn a_room_too_large_for_the_engine_is_halved_until_it_fits() {
-    // The engine takes 700-byte requests and no more; the room carries
-    // ten chunky messages past that. The turn halves until the window
-    // fits, and the answer's read count is what was actually sent.
-    let (door, room, fake, [_, one, _]) = room_at(vec![Reply::RefuseIfOver(700)]);
+    // The engine takes 1200-byte requests and no more: the system prompt
+    // and one message fit, the whole room does not. The turn halves until
+    // the window fits, and the answer's read count is what was actually sent.
+    let (door, room, fake, [_, one, _]) = room_at(vec![Reply::RefuseIfOver(1200)]);
     let bearer = format!("Bearer {one}");
     // Plain talk, then one call: the transcript is the room's, not ten
     // calls queued.

@@ -246,7 +246,7 @@ try {
 
   // --- 4. the fit sheds the turn, and the document goes with it: a window
   //     that cannot hold the first turn drops the block it carried.
-  const shed = wireFor("c1", 800);
+  const shed = wireFor("c1", 756);
   check(
     "a shed turn takes its bound document with it",
     shed.status === "ok" && !JSON.stringify(shed.wire).includes("quarterly-report.pdf"),

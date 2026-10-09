@@ -296,8 +296,8 @@ export function useChat(shell: ChatShell) {
   }, [conversations, activeId, live]);
 
   const convoTokens = useMemo(
-    () => wireTokens(active?.messages ?? [], vision),
-    [active, vision],
+    () => wireTokens(active?.messages ?? [], vision, thinkingSupported),
+    [active, vision, thinkingSupported],
   );
 
   const tails = useMemo(() => {
@@ -598,7 +598,7 @@ export function useChat(shell: ChatShell) {
         history,
         store.getAttachments(target),
         nctx,
-        { vision, url: () => null },
+        { vision, think: thinkingSupported, url: () => null },
         pendingTokens,
         estTokens(turnDocBlock([...riding, ...extracted])),
       );
@@ -869,7 +869,7 @@ export function useChat(shell: ChatShell) {
     // Writing from the brain's bar lands here too: the chat opens with the
     // text already in the thread.
     openSurface("chat");
-    if (decline === null) void turns.runAssistant(updated.id, assistantId, effectiveSettings, vision);
+    if (decline === null) void turns.runAssistant(updated.id, assistantId, effectiveSettings, vision, thinkingSupported);
     return userId;
   }
 
@@ -992,7 +992,7 @@ export function useChat(shell: ChatShell) {
             : m,
         ),
       });
-      if (decline === null) void turns.runAssistant(active.id, messageId, effectiveSettings, vision);
+      if (decline === null) void turns.runAssistant(active.id, messageId, effectiveSettings, vision, thinkingSupported);
     });
   }
 

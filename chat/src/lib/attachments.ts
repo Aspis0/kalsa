@@ -414,12 +414,13 @@ export async function extractAttachment(file: File): Promise<Attachment> {
  * turns (a date, a model name, a count) would re-prefill the conversation. It
  * answers the questions a model left to guess gets wrong — what it can
  * receive, what it may claim, and what the app around it offers — and it is
- * the same words in every language:
- * the wire language is English whatever the interface speaks. Fixed PER MODEL:
- * the vision sentence follows `/props`, and the capability changes only when
- * the model does, which restarts the engine and its cache with it.
+ * the same words in every language: the wire language is English whatever the
+ * interface speaks. Fixed PER MODEL on two axes: the vision sentence follows
+ * `/props`, and the Think sentence follows the chat template's own switch (the
+ * sentence is sent only where the button is drawn). A model's capabilities
+ * change only when the model does, which restarts the engine and its cache.
  */
-function promptBytes(vision: boolean): string {
+function promptBytes(vision: boolean, think: boolean): string {
   return (
     "You are Kalsa, a private assistant running on this computer. " +
     (vision
@@ -430,35 +431,27 @@ function promptBytes(vision: boolean): string {
     "Use only the tools you are given; never claim an ability you do not have. " +
     "Use create_miniapp only when the person asks for a comparison table, calculator, quiz or checklist. " +
     "Reply in the language the user writes in. " +
-    "The app around you: a Think button in the message box, when the model offers one, turns thinking on or off. " +
-    "When thinking is on you reason before you answer, and the reasoning is folded above your answer for the person to open. " +
+    "The app around you: " +
+    (think
+      ? "A Think button sits in the message box: when it is off you answer at once, without reasoning first; when it is on, any reasoning you do is folded above your answer for the person to open. "
+      : "") +
     "A paperclip in the message box attaches files. " +
     "Miniapps (a table, calculator, quiz or checklist) open inline in the chat. " +
     "Phones paired to this computer can get answers from you too. " +
-    "The Room is a group chat on this computer where people call you with @Kalsa or the Ask Kalsa button. " +
+    "The Room is a group chat on this computer where people call you by writing @Kalsa or with the button in the message box that asks you. " +
     "You cannot press these buttons yourself; tell the person which one to use."
   );
 }
 
-/** The prompt for a model without eyes. */
-export const SYSTEM_PROMPT: WireMessage = {
-  role: "system",
-  content: promptBytes(false),
-};
-
 /** The prompt for the model now being served. */
-export function systemPrompt(vision: boolean): WireMessage {
-  return vision ? { role: "system", content: promptBytes(true) } : SYSTEM_PROMPT;
+export function systemPrompt(vision: boolean, think: boolean): WireMessage {
+  return { role: "system", content: promptBytes(vision, think) };
 }
-
-/** What the fixed prompt costs the window: every request pays it, so the fit
-    and the meter count it too. */
-export const SYSTEM_PROMPT_TOKENS = estTokens(promptBytes(false));
 
 /** What the wire spends on a conversation: the stored messages plus the fixed
     system prompt — the whole of it that is not documents. */
-export function wireTokens(messages: ChatMessage[], vision = false): number {
-  return historyTokens(messages) + estTokens(promptBytes(vision));
+export function wireTokens(messages: ChatMessage[], vision = false, think = false): number {
+  return historyTokens(messages) + estTokens(promptBytes(vision, think));
 }
 
 /**
@@ -514,9 +507,10 @@ export function turnDocBlock(docs: Attachment[]): string {
  * the engine's cache holds onto; the documents' own weight is the fit's
  * `docTokens`, so nothing is counted twice.
  */
-function systemMessage(docs: Attachment[], vision = false): WireMessage {
-  if (docs.length === 0) return systemPrompt(vision);
-  return { role: "system", content: `${systemPrompt(vision).content}\n\n${docBlockText(docs)}` };
+function systemMessage(docs: Attachment[], vision: boolean, think: boolean): WireMessage {
+  const prompt = systemPrompt(vision, think);
+  if (docs.length === 0) return prompt;
+  return { role: "system", content: `${prompt.content}\n\n${docBlockText(docs)}` };
 }
 
 /**
@@ -546,10 +540,12 @@ function wireResultFor(run: ToolRun): string {
  * How the model now being served sees pictures: `vision` says whether it can
  * look at all, and `url` hands back the data URI of a stored image — null
  * when its bytes are gone. Absent (harnesses, attach trials) is the same as
- * a model without eyes.
+ * a model without eyes. `think` says whether the chat template offers the
+ * Think switch, which is what the prompt may describe; absent is no switch.
  */
 export interface MediaView {
   vision: boolean;
+  think?: boolean;
   url: (id: string) => string | null;
 }
 
@@ -670,7 +666,7 @@ export function buildPinnedContext(
   const byId = new Map(docs.map((d) => [d.id, d]));
   const docTokens = pinned.reduce((sum, d) => sum + d.tokens, 0);
   const turns = [...messages];
-  let histTokens = wireTokens(turns, media?.vision ?? false);
+  let histTokens = wireTokens(turns, media?.vision ?? false, media?.think ?? false);
   let dropped = 0;
   const shedOne = (): void => {
     const shed = turns.shift();
@@ -698,6 +694,6 @@ export function buildPinnedContext(
     }
   }
   const wire = turns.flatMap((message) => wireFor(message, media, byId));
-  wire.unshift(systemMessage(pinned, media?.vision ?? false));
+  wire.unshift(systemMessage(pinned, media?.vision ?? false, media?.think ?? false));
   return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
 }

@@ -135,14 +135,29 @@ impl Drop for StallGuard {
     }
 }
 
-/// Copy in the repo's own voice; the owner approves every line.
-const SYSTEM_PROMPT: &str = "You are Kalsa, a guest in this family's room on their own computer. \
+/// The Room's system prompt for one engine. Copy in the repo's own voice; the
+/// owner approves every line. The one clause that varies is whether the engine
+/// can see: the engine's own answer on `/props`, which changes only when its
+/// model does, and a model change restarts the engine and its prefix cache.
+pub(crate) fn room_system_prompt(vision: bool) -> String {
+    let sight = if vision {
+        "Pictures and videos that people attach reach you as images; a video reaches you as still frames. "
+    } else {
+        "You cannot see pictures or video. Where someone attached one, you see only its words, or [Image] or [Video] when they wrote none. "
+    };
+    format!("{ROOM_PROMPT_OPENING}{sight}{ROOM_PROMPT_APP}")
+}
+
+const ROOM_PROMPT_OPENING: &str =
+    "You are Kalsa, a guest in this family's room on their own computer. \
 You speak only when called. Answer briefly and plainly, in the language of the room, \
-and say so plainly when you are unsure. \
-The app around you: this room is a group chat on this computer, and people call you \
-with @Kalsa or the Ask Kalsa button. Phones paired to this computer join the room and \
-can call you too. A paperclip attaches pictures and videos to a message. You cannot \
-press these buttons yourself; tell the person which one to use.";
+and say so plainly when you are unsure. ";
+
+const ROOM_PROMPT_APP: &str =
+    "The app around you: this room is a group chat on this computer, and people call you \
+by writing @Kalsa or with the button in the message box that asks you. Phones paired to this \
+computer join the room and can call you too. A paperclip attaches pictures and videos to a \
+message. You cannot press these buttons yourself; tell the person which one to use.";
 
 /// The sentences a status can carry. One line each, no secrets, no paths.
 const BUSY_WAITING: (&str, &str) = (
@@ -273,6 +288,7 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
     // the very next call. An engine that does not answer is blind — the
     // honest default.
     let vision = engine_vision(shared.port);
+    let prompt_bytes = room_system_prompt(vision).len();
     let mut budget = budget_of(shared.slot_context);
     // One free retry for an engine problem: a stream that broke, a socket
     // that died, an error that is not about size. The second failure is
@@ -385,7 +401,7 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
             // room told — and told as an engine problem, because the
             // healing had its chance and the size was never the room's
             // to fix by dropping more of it.
-            Exchange::TooLarge => match halve_budget(door, shared, budget) {
+            Exchange::TooLarge => match halve_budget(door, shared, budget, prompt_bytes) {
                 Some(smaller) => {
                     budget = smaller;
                     continue;
@@ -599,14 +615,20 @@ fn budget_of(slot_context: Option<u64>) -> usize {
 
 /// The transcript window `budget` carries, newest-first into the budget.
 /// One shape, shared by the request builder and the halving step, so both
-/// agree on what a budget buys.
-fn window(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> (Vec<Entry>, usize) {
+/// agree on what a budget buys. `prompt_bytes` is the system prompt the turn
+/// sends, which the budget already spends.
+fn window(
+    door: &Arc<RoomDoor>,
+    shared: &Arc<Shared>,
+    budget: usize,
+    prompt_bytes: usize,
+) -> (Vec<Entry>, usize) {
     let entries = door.room.entries_for_ai();
     let devices = shared.set.current();
     // Cloned, not borrowed: the window is one turn's working set, the
     // room's transcript is household-sized, and one turn runs at a time.
     let mut kept: Vec<Entry> = Vec::new();
-    let mut bytes = SYSTEM_PROMPT.len();
+    let mut bytes = prompt_bytes;
     for entry in entries.iter().rev() {
         let name = frame_name(door, &devices, entry.member);
         let cost = name.len() + entry.text.len() + 8;
@@ -623,8 +645,13 @@ fn window(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> (Vec<Ent
 /// carried, so a refusal shrinks the room by what the engine named too
 /// large. `None` when there is nothing left to halve — the newest message
 /// alone is the floor, and a budget that cannot carry it cannot shrink.
-fn halve_budget(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> Option<usize> {
-    let (kept, _) = window(door, shared, budget);
+fn halve_budget(
+    door: &Arc<RoomDoor>,
+    shared: &Arc<Shared>,
+    budget: usize,
+    prompt_bytes: usize,
+) -> Option<usize> {
+    let (kept, _) = window(door, shared, budget, prompt_bytes);
     let half = kept.len() / 2;
     if half < MIN_TRANSCRIPT {
         return None;
@@ -641,8 +668,8 @@ fn halve_budget(door: &Arc<RoomDoor>, shared: &Arc<Shared>, budget: usize) -> Op
             name.len() + entry.text.len() + 8
         })
         .sum::<usize>()
-        .saturating_add(SYSTEM_PROMPT.len());
-    Some(bytes.max(SYSTEM_PROMPT.len() + 1))
+        .saturating_add(prompt_bytes);
+    Some(bytes.max(prompt_bytes + 1))
 }
 
 /// The transcript one turn is built on, newest-first into the budget, then
@@ -662,17 +689,23 @@ fn transcript(
     budget: usize,
     vision: bool,
 ) -> (serde_json::Value, u32, usize) {
-    let (windowed, _) = window(door, shared, budget);
+    let system = room_system_prompt(vision);
+    let (windowed, _) = window(door, shared, budget, system.len());
     let images = if vision {
-        turn_images(&windowed, budget)
+        turn_images(&windowed, budget, system.len())
     } else {
         Vec::new()
     };
-    let (mut kept, _) = window(door, shared, budget - images.len() * IMAGE_TOKEN_BYTES);
+    let (mut kept, _) = window(
+        door,
+        shared,
+        budget - images.len() * IMAGE_TOKEN_BYTES,
+        system.len(),
+    );
     let devices = shared.set.current();
     kept.reverse();
     let read = kept.len() as u32;
-    let mut messages = vec![json!({"role": "system", "content": SYSTEM_PROMPT})];
+    let mut messages = vec![json!({"role": "system", "content": system})];
     for entry in kept {
         let name = frame_name(door, &devices, entry.member);
         let text = format!("[{name}] {}", entry.text);
@@ -708,7 +741,7 @@ struct TurnImage {
 /// video lending its still frames, all under the turn's cap and the
 /// budget's room. The first entry the window always keeps is protected —
 /// the images never eat the message the turn is about.
-fn turn_images(windowed: &[Entry], budget: usize) -> Vec<TurnImage> {
+fn turn_images(windowed: &[Entry], budget: usize, prompt_bytes: usize) -> Vec<TurnImage> {
     let mut out: Vec<TurnImage> = Vec::new();
     for entry in windowed {
         if entry.member == MemberId::Ai {
@@ -721,7 +754,7 @@ fn turn_images(windowed: &[Entry], budget: usize) -> Vec<TurnImage> {
             };
             for id in frames {
                 let spent = (out.len() + 1) * IMAGE_TOKEN_BYTES;
-                if out.len() >= MAX_TURN_IMAGES || spent + SYSTEM_PROMPT.len() > budget {
+                if out.len() >= MAX_TURN_IMAGES || spent + prompt_bytes > budget {
                     return out;
                 }
                 out.push(TurnImage {
