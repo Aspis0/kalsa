@@ -1,5 +1,6 @@
 use super::privacy_tests::sample;
 use super::store::{QUEUE_CAP, Store};
+use serde_json::json;
 use std::path::PathBuf;
 
 fn scratch(name: &str) -> PathBuf {
@@ -49,12 +50,101 @@ fn queue_cap_keeps_newest_reports_and_persists_them() {
     let mut store = Store::load(dir.clone());
     for n in 0..60 {
         let mut report = sample();
+        report["osMajor"] = json!(format!("{n:08}"));
         report["context"]["attempt"] = ((n % 5) + 1).into();
         store.enqueue(report);
     }
     assert_eq!(store.queue.len(), QUEUE_CAP);
     store.save().unwrap();
-    assert_eq!(Store::load(dir.clone()).queue.len(), QUEUE_CAP);
+    let reloaded = Store::load(dir.clone());
+    assert_eq!(reloaded.queue.len(), QUEUE_CAP);
+    assert_eq!(reloaded.queue[0].report["osMajor"], "00000010");
+    assert_eq!(reloaded.queue[QUEUE_CAP - 1].report["osMajor"], "00000059");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn an_unsent_report_expires_thirty_days_after_enqueue_and_is_dropped() {
+    let dir = scratch("expiry");
+    let mut store = Store::load(dir.clone());
+    store.enqueue(sample());
+    store.save().unwrap();
+    let now = super::now();
+    store.queue[0].enqueued_at = now - 31 * 24 * 60 * 60;
+    store.save().unwrap();
+    let reloaded = Store::load(dir.clone());
+    assert!(reloaded.queue.is_empty());
+    let state = serde_json::to_value(&reloaded).unwrap();
+    assert_eq!(state["dead"], serde_json::json!([]));
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_report_without_an_enqueue_stamp_starts_its_window_at_load() {
+    let dir = scratch("expiry-legacy");
+    let mut store = Store::load(dir.clone());
+    store.enqueue(sample());
+    store.save().unwrap();
+    store.save().unwrap();
+    let bytes = std::fs::read(dir.join("state.b")).unwrap();
+    let mut state: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    state["queue"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("enqueued_at");
+    std::fs::write(dir.join("state.a"), serde_json::to_vec(&state).unwrap()).unwrap();
+    std::fs::remove_file(dir.join("state.b")).unwrap();
+    let reloaded = Store::load(dir.clone());
+    assert_eq!(reloaded.queue.len(), 1);
+    let aged = super::now().saturating_sub(30 * 24 * 60 * 60 + 1);
+    assert!(reloaded.queue[0].enqueued_at > aged);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn the_running_queue_expires_reports_the_same_way_load_does() {
+    let dir = scratch("expiry-live");
+    let mut store = Store::load(dir.clone());
+    store.enqueue(sample());
+    store.save().unwrap();
+    let now = super::now();
+    store.queue[0].enqueued_at = now - 31 * 24 * 60 * 60;
+    assert!(store.expire(now));
+    assert!(store.queue.is_empty());
+    store.save().unwrap();
+    let state = serde_json::to_value(Store::load(dir.clone())).unwrap();
+    assert_eq!(state["queue"], json!([]));
+    assert_eq!(state["dead"], json!([]));
+    // A report inside its window survives the sweep untouched.
+    store.enqueue(sample());
+    assert!(!store.expire(now));
+    assert_eq!(store.queue.len(), 1);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_crash_mid_send_returns_the_attempt_the_server_never_charged() {
+    let dir = scratch("inflight");
+    let mut store = Store::load(dir.clone());
+    store.enqueue(sample());
+    store.save().unwrap();
+    store.save().unwrap();
+    let bytes = std::fs::read(dir.join("state.b")).unwrap();
+    let mut state: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let item = state["queue"][0].as_object_mut().unwrap();
+    item.insert("attempts".into(), json!(3));
+    item.insert("in_flight".into(), json!(true));
+    std::fs::write(dir.join("state.a"), serde_json::to_vec(&state).unwrap()).unwrap();
+    std::fs::remove_file(dir.join("state.b")).unwrap();
+    let mut reloaded = Store::load(dir.clone());
+    assert_eq!(reloaded.queue.len(), 1);
+    assert_eq!(reloaded.queue[0].attempts, 2);
+    assert!(!reloaded.queue[0].in_flight);
+    // The undo is durable: a second load does not take a second attempt off.
+    reloaded.save().unwrap();
+    let again = Store::load(dir.clone());
+    assert_eq!(again.queue[0].attempts, 2);
+    assert!(!again.queue[0].in_flight);
     std::fs::remove_dir_all(dir).unwrap();
 }
 

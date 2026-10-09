@@ -10,6 +10,9 @@ use super::sanitize;
 pub(super) const QUEUE_CAP: usize = 50;
 const DEAD_CAP: usize = 100;
 const DEAD_TTL: u64 = 30 * 24 * 60 * 60;
+/// A queued report that never reaches a server is dropped, not dead-lettered,
+/// one month after it was enqueued.
+const QUEUE_TTL: u64 = 30 * 24 * 60 * 60;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -17,6 +20,32 @@ pub(super) struct Item {
     pub(super) report: Value,
     pub(super) attempts: u8,
     pub(super) ready_at: u64,
+    #[serde(default)]
+    pub(super) enqueued_at: u64,
+    #[serde(default)]
+    pub(super) offline_streak: u8,
+    #[serde(default)]
+    pub(super) in_flight: bool,
+}
+
+impl Item {
+    /// Mirrors the attempt counter into the report, keeping the field inside
+    /// the wire contract's 1-5: between dispatches the counter can sit at 0,
+    /// a value the contract forbids and the sanitizer strips.
+    pub(super) fn stamp_attempt(&mut self) {
+        let Some(context) = self
+            .report
+            .get_mut("context")
+            .and_then(Value::as_object_mut)
+        else {
+            return;
+        };
+        if self.attempts == 0 {
+            context.remove("attempt");
+        } else {
+            context.insert("attempt".into(), self.attempts.into());
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -86,12 +115,25 @@ impl Store {
         if damaged || store.dir.join("off").try_exists().unwrap_or(true) {
             store.enabled = false;
         }
+        let now = super::now();
         store.queue = store
             .queue
             .into_iter()
             .filter_map(|mut item| {
+                // State written before the stamp existed starts its window now,
+                // so an upgrade never drops a pending report outright.
+                if item.enqueued_at == 0 {
+                    item.enqueued_at = now;
+                }
+                if item.in_flight {
+                    // The dispatch that persisted this marker never returned
+                    // an answer, so its pre-dispatch bump is undone.
+                    item.attempts = item.attempts.saturating_sub(1);
+                    item.in_flight = false;
+                    item.stamp_attempt();
+                }
                 item.report = sanitize::report(&item.report)?;
-                (item.attempts < 5).then_some(item)
+                (item.enqueued_at.saturating_add(QUEUE_TTL) > now).then_some(item)
             })
             .collect();
         store
@@ -187,9 +229,22 @@ impl Store {
             report,
             attempts: 0,
             ready_at: 0,
+            enqueued_at: super::now(),
+            offline_streak: 0,
+            in_flight: false,
         });
         self.queue
             .drain(..self.queue.len().saturating_sub(QUEUE_CAP));
+    }
+
+    /// The running process's half of load's expiry filter: drops reports
+    /// past their enqueue window. True when the queue changed, so the caller
+    /// persists only when there is something to persist.
+    pub(super) fn expire(&mut self, now: u64) -> bool {
+        let kept = self.queue.len();
+        self.queue
+            .retain(|item| item.enqueued_at.saturating_add(QUEUE_TTL) > now);
+        self.queue.len() != kept
     }
 
     pub(super) fn dead(&mut self, item: Item, now: u64) {
