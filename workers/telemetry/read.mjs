@@ -4,21 +4,27 @@
  *
  * Usage:
  *   READ_TOKEN=… TELEMETRY_WORKER_URL=https://telemetry.kalsa.io \
- *     node workers/telemetry/read.mjs [--since ISO] [--out file]
+ *     node workers/telemetry/read.mjs [--since ISO] [--seen-since ISO] [--out file] [--logs]
  *
- * Pages through the whole buffer, newest first, and writes the entries to --out
+ * --logs downloads each stored log with wrangler into R2READ_DIR (default /tmp/r2read).
+ *
+ * Pages through the whole buffer, newest first, and writes the entries to --out.
+ * --seen-since keeps entries whose lastSeenAt is at or after the instant, so an old
+ * report that recurred shows up; it filters after paging, so --since still bounds
+ * what the server returns.
  * (default /tmp/kalsa-telemetry-<timestamp>.json). The file is created exclusively
  * with mode 0600: an existing path or symlink is refused, never overwritten.
  * Never prints the token or the raw body.
  */
 import { closeSync, constants as fsConstants, lstatSync, openSync, writeSync } from "node:fs";
+import { fetchLog } from "./read-logs.mjs";
 
 const PAGE_LIMIT = 500;
 const FETCH_TIMEOUT_MS = 30_000;
 
 function usage(msg) {
   console.error(
-    `${msg}\nusage: READ_TOKEN=… TELEMETRY_WORKER_URL=… node workers/telemetry/read.mjs [--since ISO] [--out file]`,
+    `${msg}\nusage: READ_TOKEN=… TELEMETRY_WORKER_URL=… node workers/telemetry/read.mjs [--since ISO] [--seen-since ISO] [--out file] [--logs]`,
   );
   process.exit(1);
 }
@@ -30,13 +36,18 @@ function fail(msg) {
 
 const opts = {};
 const args = process.argv.slice(2);
-for (let i = 0; i < args.length; i += 2) {
+for (let i = 0; i < args.length; i++) {
   const flag = args[i];
+  if (flag === "--logs") {
+    opts.logs = true;
+    continue;
+  }
   const value = args[i + 1];
-  if (!["--since", "--out"].includes(flag) || value === undefined) {
+  if (!["--since", "--seen-since", "--out"].includes(flag) || value === undefined) {
     usage(`bad argument: ${flag ?? "(missing)"}`);
   }
   opts[flag.slice(2)] = value;
+  i += 1;
 }
 
 const base = (process.env.TELEMETRY_WORKER_URL || "").replace(/\/$/, "");
@@ -45,6 +56,9 @@ if (!base) usage("TELEMETRY_WORKER_URL unset");
 if (!token) usage("READ_TOKEN unset");
 if (opts.since !== undefined && Number.isNaN(Date.parse(opts.since))) {
   usage("--since is not a date");
+}
+if (opts["seen-since"] !== undefined && Number.isNaN(Date.parse(opts["seen-since"]))) {
+  usage("--seen-since is not a date");
 }
 const outPath =
   opts.out ?? `/tmp/kalsa-telemetry-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
@@ -116,38 +130,69 @@ for (;;) {
   page = await fetchPage(before);
 }
 
-writeNew(outPath, JSON.stringify({ total, count: entries.length, skipped, entries }));
+const seenSince = opts["seen-since"];
+const shown =
+  seenSince === undefined
+    ? entries
+    : entries.filter((e) => Date.parse(e.lastSeenAt) >= Date.parse(seenSince));
 
-console.log(`${entries.length} reports (total ${total}, skipped ${skipped}) → ${outPath}`);
+writeNew(outPath, JSON.stringify({ total, count: shown.length, skipped, entries: shown }));
 
-function tally(label, values, top = Infinity) {
-  const counts = new Map();
-  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+const occurrences = shown.reduce((sum, e) => sum + e.count, 0);
+const scope = seenSince === undefined ? "" : ` seen since ${seenSince} (of ${entries.length} fetched)`;
+console.log(
+  `${shown.length} reports, ${occurrences} occurrences${scope} (total ${total}, skipped ${skipped}) → ${outPath}`,
+);
+
+/** Sums each entry's occurrence count under its key; `reports` counts distinct stored reports. */
+function tally(label, keyOf, top = Infinity) {
+  const sums = new Map();
+  for (const e of shown) {
+    const key = keyOf(e);
+    const t = sums.get(key) ?? { weight: 0, reports: 0 };
+    t.weight += e.count;
+    t.reports += 1;
+    sums.set(key, t);
+  }
   console.log(`\n${label}`);
-  for (const [value, n] of [...counts].sort((a, b) => b[1] - a[1]).slice(0, top)) {
-    console.log(`  ${String(n).padStart(4)}  ${value}`);
+  const rows = [...sums].sort((a, b) => b[1].weight - a[1].weight).slice(0, top);
+  for (const [key, t] of rows) {
+    console.log(`  ${key.padEnd(32)} ${String(t.weight).padStart(5)} (${t.reports} reports)`);
   }
 }
 
-tally("platform", entries.map((e) => e.report.platform ?? "(none)"));
-tally("appVersion", entries.map((e) => e.report.appVersion ?? "(none)"));
-tally("error.code", entries.map((e) => e.report.error?.code ?? "(none)"));
-tally("error.detail", entries.map((e) => e.report.error?.detail ?? "(none)"));
-tally("diagnostics.component", entries.map((e) => e.report.diagnostics?.component ?? "(none)"));
-tally("diagnostics.stage", entries.map((e) => e.report.diagnostics?.stage ?? "(none)"));
-tally(
-  "diagnostics.signature (top 10)",
-  entries.map((e) => e.report.diagnostics?.signature ?? "(none)"),
-  10,
-);
+tally("platform", (e) => e.report.platform ?? "(none)");
+tally("appVersion", (e) => e.report.appVersion ?? "(none)");
+tally("error.code", (e) => e.report.error?.code ?? "(none)");
+tally("error.detail", (e) => e.report.error?.detail ?? "(none)");
+tally("diagnostics.component", (e) => e.report.diagnostics?.component ?? "(none)");
+tally("diagnostics.stage", (e) => e.report.diagnostics?.stage ?? "(none)");
+tally("diagnostics.signature (top 10)", (e) => e.report.diagnostics?.signature ?? "(none)", 10);
 
 console.log("\nnewest 5");
-for (const e of entries.slice(0, 5)) {
+for (const e of shown.slice(0, 5)) {
   const r = e.report;
   console.log(
     `  ${e.receivedAt}  ${r.platform ?? "-"}  v${r.appVersion ?? "-"}  ` +
       `${r.error?.code ?? "-"}/${r.error?.detail ?? "-"}  ` +
       `${r.diagnostics?.component ?? "-"}/${r.diagnostics?.stage ?? "-"}  ` +
+      `x${e.count} last=${e.lastSeenAt}  logs=${e.logRefs.length ? e.logRefs.join(",") : "-"}  ` +
       `sig=${e.sig.slice(0, 12)}  ack=${e.reviewAck}`,
   );
+}
+
+if (opts.logs) {
+  const logDir = process.env.R2READ_DIR || "/tmp/r2read";
+  console.log("\nlogs");
+  for (const e of shown.filter((x) => x.logRefs.length > 0)) {
+    console.log(`# sig=${e.sig.slice(0, 12)} x${e.count}`);
+    for (const ref of e.logRefs) {
+      const found = await fetchLog(ref, logDir);
+      console.log(
+        found.missing
+          ? `  ${ref}  missing (tried ${found.tried.join(", ")})`
+          : `  ${ref}  found ${found.key} → ${found.file}`,
+      );
+    }
+  }
 }

@@ -2,7 +2,7 @@ import { V2 } from "./contract-v2";
 
 const enumFields: Record<string, readonly string[]> = V2.enums;
 const bucketFields: Record<string, { labels: readonly string[] }> = Object.fromEntries(Object.entries(V2.buckets).filter(([key]) => key !== "deviceBucket"));
-const special = new Set(["onBattery", "exitCode", "exitSignal", "signature", "breadcrumbs", "gpuModel", "gpuDriver", "cpuModel", "engineRelease"]);
+const special = new Set(["onBattery", "exitCode", "exitSignal", "signature", "breadcrumbs", "gpuModel", "gpuDriver", "cpuModel", "engineRelease", "logRef"]);
 const ascii = (s: unknown): s is string => typeof s === "string" && s.length <= V2.limits.hardwareChars && /^[\x20-\x7e]+$/.test(s);
 const matches = (pattern: string, s: unknown): boolean => ascii(s) && new RegExp(pattern).test(s);
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -31,6 +31,7 @@ export function validateV2(report: Record<string, unknown>): string | null {
   if (d.signature !== undefined && (!matches(V2.patterns.signature, d.signature) || (d.signature as string).length > V2.limits.signatureChars)) return "signature invalid";
   if (d.cpuModel !== undefined && !matches(V2.patterns.cpuModel, d.cpuModel)) return "cpuModel invalid";
   if (d.engineRelease !== undefined && !matches(V2.patterns.engineRelease, d.engineRelease)) return "engineRelease invalid";
+  if (d.logRef !== undefined && !matches(V2.patterns.logRef, d.logRef)) return "logRef invalid";
   if (d.gpuDriver !== undefined && (!matches(V2.patterns.gpuDriver, d.gpuDriver) || ipv4(d.gpuDriver))) return "gpuDriver invalid";
   if (d.gpuModel !== undefined) {
     const patterns: Record<string, string> = V2.patterns.gpuModel;

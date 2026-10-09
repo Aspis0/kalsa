@@ -7,6 +7,8 @@ import http from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import {
+  chmodSync,
+  existsSync,
   lstatSync,
   mkdtempSync,
   readFileSync,
@@ -42,8 +44,35 @@ const server = http.createServer(async (req, res) => {
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const url = `http://127.0.0.1:${server.address().port}`;
 
+// Stands in for `npx wrangler r2 object get`: writes --file only for keys in FAKE_R2_KEYS.
+const r2dir = path.join(work, "r2read");
+const fakeBin = mkdtempSync(path.join(work, "bin-"));
+const fakeNpx = path.join(fakeBin, "npx");
+writeFileSync(
+  fakeNpx,
+  `#!${process.execPath}
+const { writeFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+const key = args[args.indexOf("get") + 1].replace("kalsa-reports/", "");
+const file = args[args.indexOf("--file") + 1];
+if (!(process.env.FAKE_R2_KEYS ?? "").split(",").includes(key)) {
+  console.error("The specified key does not exist.");
+  process.exit(1);
+}
+writeFileSync(file, "redacted log body");
+`,
+);
+chmodSync(fakeNpx, 0o755);
+let fakeR2Keys = "";
+
 async function run(args, token = READ_TOKEN) {
-  const env = { PATH: process.env.PATH, READ_TOKEN: token, TELEMETRY_WORKER_URL: url };
+  const env = {
+    PATH: `${fakeBin}:${process.env.PATH}`,
+    READ_TOKEN: token,
+    TELEMETRY_WORKER_URL: url,
+    R2READ_DIR: r2dir,
+    FAKE_R2_KEYS: fakeR2Keys,
+  };
   try {
     const r = await execAsync(process.execPath, ["workers/telemetry/read.mjs", ...args], { cwd: root, env });
     return { status: 0, stdout: r.stdout, stderr: r.stderr };
@@ -104,19 +133,78 @@ await test("--since bounds the paged read", async () => {
   assert.equal(data.count, 1103);
   assert.equal(data.entries.at(-1).sig, "sig-100");
 });
+await test("--logs finds each log on the logged day or a neighbouring UTC day", async () => {
+  const withLogs = { ...entry(0), count: 2, logRefs: ["2026-10-09/ABCD2345", "2026-10-09/WXYZ2345"] };
+  currentEnv = makeEnv(storageWith([withLogs, entry(1)]), { READ_TOKEN });
+  fakeR2Keys = "2026-10-10/ABCD2345.log,2026-10-08/WXYZ2345.log";
+  const r = await run(["--logs", "--out", path.join(work, "logs.json")]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /logs=2026-10-09\/ABCD2345,2026-10-09\/WXYZ2345/);
+  assert.ok(r.stdout.includes("2026-10-09/ABCD2345  found 2026-10-10/ABCD2345.log → " + path.join(r2dir, "2026-10-10_ABCD2345.log")), r.stdout);
+  assert.ok(r.stdout.includes("2026-10-09/WXYZ2345  found 2026-10-08/WXYZ2345.log → " + path.join(r2dir, "2026-10-08_WXYZ2345.log")), r.stdout);
+  assert.equal(readFileSync(path.join(r2dir, "2026-10-10_ABCD2345.log"), "utf8"), "redacted log body");
+});
+await test("--logs reports a log missing after trying the logged day and both neighbours", async () => {
+  const lost = { ...entry(0), count: 1, logRefs: ["2026-10-09/QQQQ2345"] };
+  currentEnv = makeEnv(storageWith([lost]), { READ_TOKEN });
+  fakeR2Keys = "";
+  const r = await run(["--logs", "--out", path.join(work, "lost.json")]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(
+    r.stdout.includes("2026-10-09/QQQQ2345  missing (tried 2026-10-09, 2026-10-08, 2026-10-10)"),
+    r.stdout,
+  );
+});
+await test("without --logs no log is fetched", async () => {
+  const withLogs = { ...entry(0), count: 2, logRefs: ["2026-10-09/ABCD2345"] };
+  currentEnv = makeEnv(storageWith([withLogs]), { READ_TOKEN });
+  fakeR2Keys = "2026-10-09/ABCD2345.log";
+  rmSync(r2dir, { recursive: true, force: true });
+  const plain = await run(["--out", path.join(work, "nologs.json")]);
+  assert.equal(plain.status, 0, plain.stderr);
+  assert.ok(!plain.stdout.includes("found"), "a log was looked up without --logs");
+  assert.ok(!existsSync(r2dir), "a log was written without --logs");
+});
+await test("--seen-since finds an old report that recurred, on the last page; paging unchanged", async () => {
+  const old = { ...entry(0), count: 4, lastSeenAt: BASE + 30 * 3600_000 };
+  const others = Array.from({ length: 1202 }, (_, i) => entry(i + 1));
+  currentEnv = makeEnv(storageWith([old, ...others]), { READ_TOKEN });
+  const out = path.join(work, "seen.json");
+  const r = await run(["--seen-since", iso(BASE + 25 * 3600_000), "--out", out]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /1 reports, 4 occurrences seen since .* \(of 1203 fetched\)/);
+  const data = JSON.parse(readFileSync(out, "utf8"));
+  assert.deepEqual(data.entries.map((e) => e.sig), ["sig-0"]);
+  assert.equal(requests, 4, "paging must still read every page");
+});
+await test("--seen-since rejects a non-date", async () => {
+  const r = await run(["--seen-since", "nope"]);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /--seen-since is not a date/);
+  assert.equal(requests, 0);
+});
 await test("malformed entries are reported as skipped, not fatal", async () => {
   currentEnv = makeEnv(storageWith([entry(0), entry(1), { ...entry(2), createdAt: undefined }]), { READ_TOKEN });
   const out = path.join(work, "skipped.json");
   const r = await run(["--out", out]);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /2 reports \(total 2, skipped 1\)/);
+  assert.match(r.stdout, /2 reports, 2 occurrences \(total 2, skipped 1\)/);
 });
-await test("summary prints the engine signature tally", async () => {
-  const diag = (i) => ({ ...entry(i), report: { ...entry(i).report, diagnostics: { signature: "GGML_ASSERT ggml-vulkan.cpp:1234" } } });
-  currentEnv = makeEnv(storageWith([diag(0), diag(1), entry(2)]), { READ_TOKEN });
+await test("summary prints the engine signature tally, weighted by count", async () => {
+  const diag = (i, count) => ({ ...entry(i), count, report: { ...entry(i).report, diagnostics: { signature: "GGML_ASSERT ggml-vulkan.cpp:1234" } } });
+  currentEnv = makeEnv(storageWith([diag(0, 4), diag(1, 1), entry(2)]), { READ_TOKEN });
   const r = await run(["--out", path.join(work, "sig.json")]);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /diagnostics\.signature \(top 10\)\n\s+2  GGML_ASSERT ggml-vulkan\.cpp:1234\n\s+1  \(none\)/);
+  assert.match(r.stdout, /diagnostics\.signature \(top 10\)\n\s+GGML_ASSERT ggml-vulkan\.cpp:1234\s+5 \(2 reports\)\n\s+\(none\)\s+1 \(1 reports\)/);
+});
+await test("summary weights each report by its occurrence count", async () => {
+  const seven = { ...entry(0), count: 7 };
+  currentEnv = makeEnv(storageWith([seven, entry(1)]), { READ_TOKEN });
+  const r = await run(["--out", path.join(work, "weighted.json")]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /2 reports, 8 occurrences/);
+  assert.match(r.stdout, /error\.code\n\s+engine\.init\s+8 \(2 reports\)/);
+  assert.match(r.stdout, /engine\.init\/native_crash\s+-\/-\s+x7 last=/);
 });
 
 console.log("\n[read.mjs output file safety]");

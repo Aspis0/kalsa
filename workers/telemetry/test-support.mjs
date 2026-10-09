@@ -99,9 +99,23 @@ export function makeEnv(storage, secrets = {}) {
       idFromName: () => "singleton",
       get: () => ({ fetch: (input, init) => buffer.fetch(new Request(input, init)) }),
     },
-    DEDUPE_KV: { get: async () => null, put: async () => {} },
     ...secrets,
   };
+}
+
+let ipSeq = 0;
+
+/** POST /report from a fresh client IP unless one is given (the per-IP limit is 10/h). */
+export async function postReport(env, body, ip = `test-ip-${ipSeq++}`) {
+  const res = await worker.fetch(
+    new Request(`${ENDPOINT}/report`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "cf-connecting-ip": ip },
+      body: JSON.stringify(body),
+    }),
+    env,
+  );
+  return { status: res.status, body: await res.json() };
 }
 
 export async function getReports(env, query = "", authorization = null) {

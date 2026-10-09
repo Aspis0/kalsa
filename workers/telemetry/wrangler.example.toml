@@ -1,10 +1,5 @@
-# Template only. Copy to wrangler.toml after creating namespaces.
+# Template only. Copy to wrangler.toml and adjust vars.
 # Never commit real IDs into this file.
-#
-# Create namespaces (once per environment):
-#   npx wrangler kv namespace create TELEMETRY_DEDUPE
-#   npx wrangler kv namespace create TELEMETRY_DEDUPE --preview
-# Paste the printed 32-hex ids below. Staging and production MUST differ.
 
 name = "kalsa-telemetry"
 main = "index.ts"
@@ -21,11 +16,6 @@ class_name = "TelemetryBuffer"
 [[migrations]]
 tag = "v1"
 new_classes = ["TelemetryBuffer"]
-
-[[kv_namespaces]]
-binding = "DEDUPE_KV"
-# id = "<paste TELEMETRY_DEDUPE id>"
-# preview_id = "<paste TELEMETRY_DEDUPE --preview id>"
 
 [vars]
 GITHUB_REPO = "Aspis0/kalsa"

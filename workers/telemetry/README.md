@@ -6,9 +6,12 @@ Design contract: `docs/TELEMETRY_OPTIN.md` (v14 FINAL + diag-addendum).
 ## What it does
 
 - `POST /report` — strict schema validation (§7), IP rate limit 10/h (best-effort,
-  `cf-connecting-ip` only), DO `TelemetryBuffer` (singleton) for atomic dedupe →
-  quota (50/h) → append. Quota rejection is **HTTP 429**. KV is **read-cache only**
-  for dedupe (TTL 180d). **Never** opens GitHub issues.
+  `cf-connecting-ip` only), then DO `TelemetryBuffer` (singleton), the only dedupe
+  authority. A duplicate signature increments `count` and sets `lastSeenAt` on the
+  stored entry in one storage write and answers `accepted:false, reason:"duplicate"`
+  (HTTP 200, no quota used, clients must not retry). A new signature goes through
+  quota (50/h) → append. Quota rejection is **HTTP 429**. No KV is used.
+  **Never** opens GitHub issues.
 - `GET /flush` — `Authorization: Bearer FLUSH_TOKEN` only. Fail-closed `503` if
   token unset. With `AUTO_OPEN_ISSUES=false` (default): sets `reviewAck` only.
   With `true`: Worker leases via the DO, then searches GitHub itself
@@ -21,8 +24,12 @@ Design contract: `docs/TELEMETRY_OPTIN.md` (v14 FINAL + diag-addendum).
 - `GET /admin/reports` — `Authorization: Bearer READ_TOKEN` (separate from the
   other two). Read-only: newest first, `?since=<ISO>` (inclusive), `?before=<ISO>`
   (exclusive cursor), `?limit=<n>` (default 100, cap 500). Returns `{total, count,
-  skipped, nextBefore, entries}`; each entry is `{sig, receivedAt, reviewAck,
-  report}` exactly as stored. A page never splits one receive-time millisecond.
+  skipped, nextBefore, entries}`; each entry is `{sig, receivedAt, lastSeenAt,
+  count, logRefs, reviewAck, report}`: `report` is the first accepted copy, `count`
+  the number of occurrences, `lastSeenAt` the latest one, `logRefs` the log
+  references of the newest occurrences. Entries stored before counting read as
+  `count` 1, `lastSeenAt` = `receivedAt`, `logRefs` `[]`. `since`/`before`/paging
+  use `receivedAt` (first arrival). A page never splits one receive-time millisecond.
   Stored entries that cannot be served are counted in `skipped`, not fatal.
   `Cache-Control: no-store`. Fail-closed `503` if unset.
 
@@ -32,31 +39,12 @@ entry until a maintainer flush or `/admin/flush-and-purge`. There is no
 
 ## Staging deploy runbook (required order)
 
-Do **not** deploy with the `REPLACE_WITH_KV_*` sentinels. Those are not IDs.
-Inventing hex strings will bind the Worker to a namespace you do not own.
-
-1. **Create KV namespaces** (once per environment; staging ≠ production):
-
-   ```bash
-   cd workers/telemetry
-   npx wrangler kv namespace create TELEMETRY_DEDUPE
-   npx wrangler kv namespace create TELEMETRY_DEDUPE --preview
-   ```
-
-   Wrangler prints two 32-hex ids. Copy them.
-
-2. **Paste IDs into `wrangler.toml`** (`[[kv_namespaces]]` `id` and
-   `preview_id`). The template with commented placeholders lives in
-   `wrangler.example.toml`. Confirm the ids you paste belong to **this**
-   account / this environment. Staging must use a different pair than
-   production so a staging flush cannot read or write prod dedupe keys.
-
-3. **Set `GITHUB_REPO`** in `[vars]`:
+1. **Set `GITHUB_REPO`** in `[vars]`:
    - staging: a throwaway test repo you control
    - production: `Aspis0/kalsa`
    Keep `AUTO_OPEN_ISSUES = "false"` until the first reviewed flush.
 
-4. **Put secrets** (never commit; never put in `[vars]`):
+2. **Put secrets** (never commit; never put in `[vars]`):
 
    ```bash
    npx wrangler secret put GITHUB_TOKEN    # fine-grained, issues:write on GITHUB_REPO
@@ -65,7 +53,7 @@ Inventing hex strings will bind the Worker to a namespace you do not own.
    npx wrangler secret put READ_TOKEN      # third long random; GET /admin/reports
    ```
 
-5. **Deploy**:
+3. **Deploy**:
 
    ```bash
    npx wrangler deploy
@@ -77,7 +65,7 @@ Inventing hex strings will bind the Worker to a namespace you do not own.
    `*.workers.dev` host is retired because no released build ever used it.
    That custom-domain origin is the production `TELEMETRY_WORKER_URL`.
 
-6. **Flush**:
+4. **Flush**:
 
    ```bash
    FLUSH_TOKEN=… TELEMETRY_WORKER_URL=https://telemetry.example.com \
@@ -110,7 +98,12 @@ entries to `--out`, default `/tmp/kalsa-telemetry-<timestamp>.json`. The file is
 created exclusively with mode 0600: an existing path or symlink is refused and
 never overwritten. Prints counts by platform, version, error, diagnostics
 component/stage, top-10 engine signatures, and the newest five. Reads never
-change buffer state.
+change buffer state. `--logs` downloads each stored log reference with `npx
+wrangler r2 object get` into `R2READ_DIR` (default `/tmp/r2read`) as
+`<day>_<ID>.log`. The report Worker stamps the object with its own receive day,
+which can differ from the logRef day, so the logged day is tried first, then the
+previous and next UTC day. The summary prints the key actually found, or
+`missing` with the days tried.
 
 ## Deletion
 
@@ -128,8 +121,22 @@ Invalid detail/signal/unknown keys → `400`.
 Body > 4KB (Content-Length or streamed) → `413`. Malformed UTF-8 → `400`.
 
 Canonical dedupe signature is
-`{code, detail, appVersion, deviceBucket, modelCategory, dateBucket}`.
-`signal` is **not** in the signature.
+`{platform, code, detail, appVersion, deviceBucket, modelCategory, dateBucket}`
+for v1; v2 adds its diagnostics fields to the same set. `platform` is in both,
+so android and ios reports never merge. v2 already included `platform`; the
+change only affects v1. `signal` is **not** in the signature.
+
+v1 entries stored before `platform` joined the signature keep their old
+signature, so the first recurrence of one is stored as a new entry. Accepted
+for the alpha (production holds about 10 reports); there is no migration.
+
+`diagnostics.logRef` (v2, optional) names the desktop's redacted log in the
+report Worker bucket `kalsa-reports`, key `<logRef>.log`. Accepted only as
+`^[0-9]{4}-[0-9]{2}-[0-9]{2}/[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$` (the report
+Worker's UTC day and id alphabet; the regex does not check calendar validity).
+It is not part of the signature. A duplicate appends its logRef to the stored
+entry's `logRefs` (no repeats, newest last, at most 10: the oldest fall off;
+`count` still counts every occurrence).
 
 ## Privacy
 
@@ -143,7 +150,7 @@ Canonical dedupe signature is
 The shared wire contract is [contract-v2.ts](contract-v2.ts). `schema.ts` keeps
 v1 validation for phones and validates optional v2 diagnostics through
 `schema-v2.ts`. v2 issue signatures distinguish component, stage, backend,
-engine/model and GPU/driver; v1 signatures remain unchanged.
+engine/model and GPU/driver (see the dedupe signature above).
 
 Run `node workers/telemetry/test.mjs` from the repository root. It runs the
 existing Worker harness (`node scripts/telemetryWorkerHarness.mjs`),

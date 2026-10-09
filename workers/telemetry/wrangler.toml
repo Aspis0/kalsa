@@ -12,16 +12,6 @@ routes = [ { pattern = "telemetry.kalsa.io", custom_domain = true } ]
 # Client constant: TELEMETRY_WORKER_URL in src/telemetry/config.ts
 # Dev override: AsyncStorage key kalsa.telemetry.url
 #
-# === KV namespace IDs (required before deploy) ===
-# Do NOT invent IDs. Leave id/preview_id commented until real values exist.
-# Run these once, then paste the printed ids into id / preview_id:
-#   cd workers/telemetry
-#   npx wrangler kv namespace create TELEMETRY_DEDUPE
-#   npx wrangler kv namespace create TELEMETRY_DEDUPE --preview
-# Copy the template from wrangler.example.toml if you start from scratch.
-# Deploy will fail (invalid namespace) until real 32-hex IDs are pasted.
-# Staging MUST use a different pair of IDs than production.
-
 [[durable_objects.bindings]]
 name = "TELEMETRY_BUFFER"
 class_name = "TelemetryBuffer"
@@ -30,11 +20,6 @@ class_name = "TelemetryBuffer"
 tag = "v1"
 # Free plan requires SQLite-backed DOs. First deploy — v1 has never been applied.
 new_sqlite_classes = ["TelemetryBuffer"]
-
-[[kv_namespaces]]
-binding = "DEDUPE_KV"
-id = "a3c61b5e1ee94367ae8637c11118ce24"
-preview_id = "913e744484794fd990922c7dad701c6f"
 
 # Secrets (wrangler secret put …) — never commit values:
 #   GITHUB_TOKEN   — fine-grained, issues:write on the target repo

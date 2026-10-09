@@ -214,7 +214,8 @@ export const V2 = {
     "signature": "^(GGML_ASSERT (ggml|ggml-vulkan|ggml-metal|ggml-cuda|ggml-opencl|ggml-backend|llama|llama-context|server-context|server-slot)\\.(cpp|c|m|cu):[0-9]{1,7}|vk::(DeviceLostError|OutOfDeviceMemoryError|OutOfHostMemoryError|InitializationFailedError)|CUDA error|out of memory|segmentation fault)$",
     "assertLocation": "(?:^|[/\\\\\\s])(ggml(?:-vulkan|-metal|-cuda|-opencl|-backend)?|llama(?:-context)?|server-(?:context|slot))\\.(cpp|c|m|cu):([0-9]{1,7})\\b",
     "engineError": "\\bvk::(?:DeviceLostError|OutOfDeviceMemoryError|OutOfHostMemoryError|InitializationFailedError)\\b|\\bCUDA error\\b|\\bout of memory\\b|\\bsegmentation fault\\b",
-    "engineRelease": "^v\\d+\\.\\d+\\.\\d+$"
+    "engineRelease": "^v\\d+\\.\\d+\\.\\d+$",
+    "logRef": "^[0-9]{4}-[0-9]{2}-[0-9]{2}/[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$"
   },
   "limits": {
     "bodyBytes": 4096,
@@ -234,6 +235,7 @@ export const V2 = {
     "signature": "On a line containing GGML_ASSERT, extract assertLocation (before or after ASSERT) and emit GGML_ASSERT basename:line. Otherwise extract engineError. Keep only source line numbers, max 80 characters; canonical signature must match signature pattern. Apply identifying-data redaction to the resulting token. No arbitrary filenames.",
     "hardware": "Apply existing redaction first, then full-match known naming shapes, ASCII <=80. gpuModel requires matching gpuVendor. gpuDriver is dotted numbers only, excluding four-part values whose parts are all <=255 (IPv4 literals). engineRelease matches ^v\\d+\\.\\d+\\.\\d+$ . Unknown naming shapes are omitted.",
     "modelId": "Exact public catalog tokens (desktop model_token FNV, including Q8 variants) or phone registry IDs. Never accept a syntactically plausible caller-supplied ID not in this list.",
+    "logRef": "Optional. `<YYYY-MM-DD>/<ID>` naming the redacted log in the report Worker bucket: UTC day, then 8 chars of the report Worker id alphabet. Must match patterns.logRef exactly. Not part of the dedupe signature.",
     "offload": "Only emit observed gpu/cpu/mixed. An EngineFitted launch is not evidence of mixed offload.",
     "tokensPerSecond": "Rate of the observed stage; during prefill, processed tokens divided by engine-reported elapsed time. Omit on transition to decode unless a decode rate is observed.",
     "resources": "Most recent aggregate system RAM/CPU sample before the failure; sampling freezes on a failed engine so freed post-crash memory is not mistaken for failure headroom. Exact counters and elapsed times are never transmitted."

@@ -15,6 +15,10 @@ const reads = spawnSync("node", ["workers/telemetry/test-admin-read.mjs"], { cwd
 assert.equal(reads.status, 0, "admin reports routes");
 const cli = spawnSync("node", ["workers/telemetry/test-read-cli.mjs"], { cwd: root, stdio: "inherit" });
 assert.equal(cli.status, 0, "read.mjs end-to-end");
+const dups = spawnSync("node", ["workers/telemetry/test-duplicates.mjs"], { cwd: root, stdio: "inherit" });
+assert.equal(dups.status, 0, "duplicate counting");
+const refs = spawnSync("node", ["workers/telemetry/test-log-refs.mjs"], { cwd: root, stdio: "inherit" });
+assert.equal(refs.status, 0, "log references");
 try {
   const compile = spawnSync("npx", ["tsc", "workers/telemetry/schema.ts", "--outDir", out, "--module", "commonjs", "--target", "es2020", "--skipLibCheck", "--ignoreConfig", "--types", "node"], { cwd: root, encoding: "utf8" });
   assert.equal(compile.status, 0, compile.stdout + compile.stderr);

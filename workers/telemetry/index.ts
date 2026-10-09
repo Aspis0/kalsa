@@ -17,6 +17,7 @@ import {
   GITHUB_SEARCH_TIMEOUT_MS,
   IP_MAP_MAX,
   LEASE_MS,
+  appendLogRef,
   applyLeaseTransition,
   buildIssueBody,
   classifyGithubSearchResponse,
@@ -27,6 +28,7 @@ import {
   issueTitleFromProjection,
   projectIssueFields,
   pruneIpMap,
+  reportLogRef,
   reportRejectStatus,
   signatureFields,
   tryAcquireLease,
@@ -51,7 +53,6 @@ export {
 
 export interface Env {
   TELEMETRY_BUFFER: DurableObjectNamespace;
-  DEDUPE_KV: KVNamespace;
   GITHUB_TOKEN?: string;
   GITHUB_REPO?: string;
   FLUSH_TOKEN?: string;
@@ -62,7 +63,6 @@ export interface Env {
 
 const IP_RATE_LIMIT = 10;
 const IP_WINDOW_MS = 60 * 60 * 1000;
-const DEDUPE_TTL_SEC = 180 * 24 * 60 * 60; // 180 days
 
 // Best-effort in-memory IP rate (single isolate; not global).
 const ipHits = new Map<string, number[]>();
@@ -198,16 +198,6 @@ async function handleReport(request: Request, env: Env): Promise<Response> {
   const report = parsed as Record<string, unknown>;
   const sig = await sha256Hex(signatureFields(report));
 
-  // KV read-cache only (not authority)
-  try {
-    const cached = await env.DEDUPE_KV.get(`dedupe:${sig}`);
-    if (cached) {
-      return json(200, { accepted: false, reason: "duplicate" });
-    }
-  } catch {
-    /* continue to DO */
-  }
-
   const stub = bufferStub(env);
   const res = await stub.fetch("https://do/append", {
     method: "POST",
@@ -220,13 +210,6 @@ async function handleReport(request: Request, env: Env): Promise<Response> {
   };
 
   if (body.accepted) {
-    try {
-      await env.DEDUPE_KV.put(`dedupe:${sig}`, "1", {
-        expirationTtl: DEDUPE_TTL_SEC,
-      });
-    } catch {
-      /* best-effort cache */
-    }
     return json(200, body);
   }
 
@@ -440,8 +423,13 @@ export class TelemetryBuffer {
           nextLeaseToken: 1,
         };
 
-      // Dedupe inside transaction (source of truth)
-      if (st.entries.some((e) => e.sig === sig)) {
+      // Duplicates are counted, not stored again; the response stays "duplicate".
+      const existing = st.entries.find((e) => e.sig === sig);
+      if (existing) {
+        existing.count = (existing.count ?? 1) + 1;
+        existing.lastSeenAt = now;
+        existing.logRefs = appendLogRef(existing.logRefs, reportLogRef(report as Record<string, unknown>));
+        await txn.put("state", st);
         return { accepted: false, reason: "duplicate" as const };
       }
 
@@ -464,6 +452,9 @@ export class TelemetryBuffer {
         leaseUntil: 0,
         leaseToken: 0,
         createdAt: now,
+        count: 1,
+        lastSeenAt: now,
+        logRefs: appendLogRef([], reportLogRef(report as Record<string, unknown>)),
       });
       st.hourCount += 1;
       // No silent eviction: accepted reports stay until maintainer flush/purge.

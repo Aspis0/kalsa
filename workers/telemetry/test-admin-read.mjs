@@ -17,7 +17,7 @@ import {
 const READ_TOKEN = "read-token-fixture";
 const ADMIN_TOKEN = "admin-token-fixture";
 const FLUSH_TOKEN = "flush-token-fixture";
-const ENTRY_KEYS = ["receivedAt", "report", "reviewAck", "sig"];
+const ENTRY_KEYS = ["count", "lastSeenAt", "logRefs", "receivedAt", "report", "reviewAck", "sig"];
 const bearer = `Bearer ${READ_TOKEN}`;
 
 let passed = 0;
@@ -85,6 +85,8 @@ await test("correct token → newest first, exact entry fields", async () => {
   const first = r.body.entries[0];
   assert.deepEqual(Object.keys(first).sort(), ENTRY_KEYS);
   assert.equal(first.receivedAt, iso(2));
+  assert.equal(first.lastSeenAt, iso(2), "entry stored before counting: lastSeenAt falls back to createdAt");
+  assert.equal(first.count, 1, "entry stored before counting: one occurrence");
   assert.equal(first.reviewAck, false);
   assert.equal(first.report.error.code, "engine.init");
 });
@@ -165,11 +167,12 @@ await test("malformed stored entries are skipped and counted, never a 500", asyn
     { ...entry(4), createdAt: 9e15 },
     { ...entry(5), report: null },
     { ...entry(6), sig: 7 },
+    { ...entry(8), lastSeenAt: 9e15 },
   ];
   const env = makeEnv(storageWith([...good, ...bad]), { READ_TOKEN });
   const r = await getReports(env, "", bearer);
   assert.equal(r.status, 200);
-  assert.equal(r.body.skipped, 5);
+  assert.equal(r.body.skipped, 6);
   assert.equal(r.body.count, 2);
   assert.deepEqual(sigsOf(r), ["sig-1", "sig-0"]);
 });

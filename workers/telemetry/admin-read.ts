@@ -45,10 +45,19 @@ export function toReadQuery(raw: unknown): ReadQuery {
 }
 
 /** Entries that cannot be served (bad timestamp, missing fields) are skipped and counted. */
+function isMs(t: unknown): boolean {
+  return typeof t === "number" && !Number.isNaN(new Date(t).getTime());
+}
+
+/** Entries stored before counting have no `count`: they were one occurrence. */
+function countOf(count: number | undefined): number {
+  return count !== undefined && Number.isInteger(count) && count >= 1 ? count : 1;
+}
+
 function isServable(e: BufferEntry): boolean {
   return (
-    typeof e.createdAt === "number" &&
-    !Number.isNaN(new Date(e.createdAt).getTime()) &&
+    isMs(e.createdAt) &&
+    (e.lastSeenAt === undefined || isMs(e.lastSeenAt)) &&
     typeof e.sig === "string" &&
     typeof e.reviewAck === "boolean" &&
     typeof e.report === "object" &&
@@ -85,6 +94,9 @@ export function listReports(st: BufferState, query: ReadQuery) {
   const page = matched.slice(0, pageEnd(matched, query.limit)).map((e) => ({
     sig: e.sig,
     receivedAt: new Date(e.createdAt).toISOString(),
+    lastSeenAt: new Date(e.lastSeenAt ?? e.createdAt).toISOString(),
+    count: countOf(e.count),
+    logRefs: e.logRefs ?? [],
     reviewAck: e.reviewAck,
     report: e.report,
   }));

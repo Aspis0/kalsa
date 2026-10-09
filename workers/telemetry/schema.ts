@@ -314,7 +314,28 @@ export type BufferEntry = {
   leaseUntil: number;
   leaseToken: number;
   createdAt: number;
+  /** Absent on entries stored before duplicates were counted: read as 1 / createdAt. */
+  count?: number;
+  lastSeenAt?: number;
+  /** Log references of the occurrences, newest last. Absent before log refs existed. */
+  logRefs?: string[];
 };
+
+export const LOG_REF_CAP = 10;
+
+/** Adds a logRef unless already listed; the oldest fall off past LOG_REF_CAP. */
+export function appendLogRef(refs: string[] | undefined, ref: string | undefined): string[] {
+  const base = refs ?? [];
+  if (ref === undefined || base.includes(ref)) return base;
+  return [...base, ref].slice(-LOG_REF_CAP);
+}
+
+export function reportLogRef(report: Record<string, unknown>): string | undefined {
+  const d = report.diagnostics;
+  if (!d || typeof d !== "object") return undefined;
+  const ref = (d as Record<string, unknown>).logRef;
+  return typeof ref === "string" ? ref : undefined;
+}
 
 export type BufferState = {
   entries: BufferEntry[];
@@ -423,6 +444,7 @@ export function canonicalSignatureInput(report: Record<string, unknown>): Record
   return {
     code: String(err.code ?? ""),
     detail: String(err.detail ?? ""),
+    platform: String(report.platform ?? ""),
     appVersion: String(report.appVersion ?? ""),
     deviceBucket: String(report.deviceBucket ?? ""),
     modelCategory: String(ctx.modelCategory ?? ""),

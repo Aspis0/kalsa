@@ -297,7 +297,7 @@ function main() {
     assert(
       JSON.stringify(keys) ===
         JSON.stringify(
-          ["appVersion", "code", "dateBucket", "detail", "deviceBucket", "modelCategory"].sort(),
+          ["appVersion", "code", "dateBucket", "detail", "deviceBucket", "modelCategory", "platform"].sort(),
         ),
       keys.join(","),
     );
