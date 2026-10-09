@@ -2291,7 +2291,9 @@ Steps (each: code -> verify on disk -> one hostile audit by a different model ->
   MUL_MAT 2515/2515 + MUL_MAT_ID 967/967, E4B temp-0 first 64 tokens byte-identical to v1.1.5 (decode 8.98 vs 7.26),
   MTP slot round trip, truncated slot 400, LFM+mmproj correct; non-ASCII slot `ckpt_é.bin` FAILS on 904d38fad and on
   v1.1.5 (500 + orphan .tmp, pre-existing) and **PASSES on 23b2a44d7** (200/200, full size, 0 .tmp). Desktop side of
-  the merge is done; engine push waits for the QDC + S23 legs on kit 23b2a44d7. The
+  the merge is done. **S23 legs on 23b2a44d7: all PASS** (cell `s23-merge-b11514-legs-73`, charging = correctness only):
+  L hop KL 0.000014/0.000272, L-npu = A-j1 0.000021, GPU legs deterministic 0.000010 (L-gpu = L-gpu2 = V-gpu), E5
+  4000 calls worst 2.285e-05 x RMS, no error lines. Engine push waits for the QDC legs (cell 72, portal logged out). The
   desktop session (kalsa-brain 2c574341) was asked for its server picks in
   `onecopy-three-legs/upstream-b11514-desktop-notes.md`. **Binding bump** to e01a61cee done locally (`f8cde278` in
   `~/Projects/llama.rn-kalsa-onecopy`, NOT pushed): glue needs no change, but `assert-htp-skels.sh` fails until the

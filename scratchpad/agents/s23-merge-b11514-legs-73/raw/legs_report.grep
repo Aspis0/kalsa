@@ -1,0 +1,158 @@
+== legs start Thu Oct  8 22:21:18 EDT 2026 soc=SM8550 model=SM-S911U bench 50f338304020 batT=295
+## G exit=0 batT=352
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+self-check PASS lines: 0
+## L exit=0 batT=340
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+leg_window arm=L rep=0 window=0 engine=cpu rule=alternation tokens=32 tps=18.615 kl_mean=0.000018 kl_max=0.000243 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu rule=alternation tokens=32 tps=18.469 kl_mean=0.000026 kl_max=0.000211 kl_max_row=48 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=alternation tokens=32 tps=16.107 kl_mean=0.000006 kl_max=0.000040 kl_max_row=90 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=alternation tokens=32 tps=17.178 kl_mean=0.000014 kl_max=0.000212 kl_max_row=120 kl_diverged=0
+leg_window arm=L rep=0 window=4 engine=npu rule=alternation tokens=32 tps=18.374 kl_mean=0.000013 kl_max=0.000097 kl_max_row=144 kl_diverged=0
+leg_window arm=L rep=0 window=5 engine=gpu rule=alternation tokens=32 tps=15.139 kl_mean=0.000005 kl_max=0.000026 kl_max_row=167 kl_diverged=0
+leg_window arm=L rep=0 window=6 engine=cpu rule=alternation tokens=32 tps=12.984 kl_mean=0.000008 kl_max=0.000058 kl_max_row=216 kl_diverged=0
+leg_window arm=L rep=0 window=7 engine=npu rule=alternation tokens=32 tps=18.660 kl_mean=0.000021 kl_max=0.000272 kl_max_row=252 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=96 tps=15.877
+leg_summary arm=L rep=0 engine=gpu tokens=64 tps=15.608
+leg_summary arm=L rep=0 engine=npu tokens=95 tps=18.307
+leg_total arm=L rep=0 generated=255 windows=8 hops=7 commit_bytes=17727488 commit_us=57574
+kld arm=L ref=/data/local/tmp/kalsa73/twocopy.gbl vocab=128000 tokens=256 compared=256 diverged=0 mean=0.000014 max=0.000272 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-npu exit=0 batT=338
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+leg_window arm=L rep=0 window=0 engine=npu rule=none tokens=32 tps=18.708 kl_mean=0.000022 kl_max=0.000208 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=npu rule=none tokens=32 tps=18.522 kl_mean=0.000026 kl_max=0.000293 kl_max_row=60 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=npu rule=none tokens=32 tps=18.586 kl_mean=0.000020 kl_max=0.000212 kl_max_row=96 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=npu rule=none tokens=32 tps=19.093 kl_mean=0.000016 kl_max=0.000070 kl_max_row=114 kl_diverged=0
+leg_summary arm=L rep=0 engine=npu tokens=127 tps=18.579
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa73/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000021 max=0.000293 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-gpu exit=0 batT=338
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=16.640 kl_mean=0.000006 kl_max=0.000062 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=16.291 kl_mean=0.000013 kl_max=0.000093 kl_max_row=60 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=16.748 kl_mean=0.000006 kl_max=0.000034 kl_max_row=90 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=16.943 kl_mean=0.000013 kl_max=0.000141 kl_max_row=126 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=16.522
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa73/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000141 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-gpu2 exit=0 batT=336
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=16.554 kl_mean=0.000006 kl_max=0.000062 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=17.570 kl_mean=0.000013 kl_max=0.000093 kl_max_row=60 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=17.348 kl_mean=0.000006 kl_max=0.000034 kl_max_row=90 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=17.320 kl_mean=0.000013 kl_max=0.000141 kl_max_row=126 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=17.055
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa73/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000141 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## L-cpu exit=0 batT=338
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+leg_window arm=L rep=0 window=0 engine=cpu rule=none tokens=32 tps=19.515 kl_mean=0.000018 kl_max=0.000243 kl_max_row=24 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=cpu rule=none tokens=32 tps=16.694 kl_mean=0.000011 kl_max=0.000062 kl_max_row=48 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=cpu rule=none tokens=32 tps=14.438 kl_mean=0.000011 kl_max=0.000051 kl_max_row=83 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=cpu rule=none tokens=32 tps=13.415 kl_mean=0.000010 kl_max=0.000054 kl_max_row=108 kl_diverged=0
+leg_summary arm=L rep=0 engine=cpu tokens=127 tps=15.567
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa73/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000243 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+## A-gpu exit=0 batT=362
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+kld arm=A ref=/data/local/tmp/kalsa73/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000012 max=0.000204 kld_max=0.010000 status=PASS
+self-check PASS lines: 0
+## A-j1 exit=0 batT=363
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+kld arm=A ref=/data/local/tmp/kalsa73/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000021 max=0.000293 kld_max=0.010000 status=PASS
+self-check PASS lines: 1
+## V-gpu exit=0 batT=366
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml-hex: Hexagon Arch version v73, DMA64 disabled
+ggml-hex: HTP0 failed to get URI (physical 0, virtual 0) : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0
+shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+ggml-opencl: TILE32 leg enabled on QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)
+ggml-opencl-tile32: imported HTP0-HOST-W buffer of 230424576 bytes (fd 21, io-coherent)
+ggml-opencl: HOST self-check token_embd.weight: PASS max|diff| 7.916e-09 rms 0.0188 (32 of 128000 rows, aos kernel)
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 867635200 bytes (fd 22, io-coherent)
+ggml-opencl-tile32: imported HTP0-TILE32 buffer of 501944320 bytes (fd 23, io-coherent)
+leg_window arm=L rep=0 window=0 engine=gpu rule=none tokens=32 tps=1.293 kl_mean=0.000006 kl_max=0.000062 kl_max_row=12 kl_diverged=0
+leg_window arm=L rep=0 window=1 engine=gpu rule=none tokens=32 tps=14.638 kl_mean=0.000013 kl_max=0.000093 kl_max_row=60 kl_diverged=0
+leg_window arm=L rep=0 window=2 engine=gpu rule=none tokens=32 tps=14.170 kl_mean=0.000006 kl_max=0.000034 kl_max_row=90 kl_diverged=0
+leg_window arm=L rep=0 window=3 engine=gpu rule=none tokens=32 tps=16.610 kl_mean=0.000013 kl_max=0.000141 kl_max_row=126 kl_diverged=0
+leg_summary arm=L rep=0 engine=gpu tokens=127 tps=4.080
+leg_total arm=L rep=0 generated=127 windows=4 hops=0 commit_bytes=0 commit_us=0
+kld arm=L ref=/data/local/tmp/kalsa73/twocopy.gbl vocab=128000 tokens=128 compared=128 diverged=0 mean=0.000010 max=0.000141 kld_max=0.010000 status=PASS
+self-check PASS lines: 167
+V-gpu verify: lines=4000 worst_rel=2.285e-05
+== legs end Thu Oct  8 22:32:35 EDT 2026 batT=360
