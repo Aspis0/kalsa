@@ -16,12 +16,35 @@ campaign_pidof() {
 # (every ApplicationExitInfo was FORCE STOP from adb, none a crash). Dead means
 # three empty reads one second apart; the first live pid wins.
 campaign_pidof_settled() {
-  local p i
-  for i in 1 2 3; do
-    p=$(campaign_pidof)
-    case "$p" in ''|*[!0-9]*) [ "$i" -lt 3 ] && sleep 1 ;; *) printf '%s\n' "$p"; return 0 ;; esac
+  local p previous="" empty_reads=0
+  while :; do
+    p=$(campaign_pidof) || true
+    if [ -z "$p" ]; then
+      previous=""
+      empty_reads=$((empty_reads + 1))
+      if [ "$empty_reads" -ge 3 ]; then
+        printf '\n'
+        return 0
+      fi
+    else
+      empty_reads=0
+      case "$p" in
+        *[!0-9]*)
+          log "pidof returned non-numeric output: '$p'"
+          printf '\n'
+          return 0
+          ;;
+        *)
+          if [ "$p" = "$previous" ]; then
+            printf '%s\n' "$p"
+            return 0
+          fi
+          previous="$p"
+          ;;
+      esac
+    fi
+    sleep 1
   done
-  printf '%s\n' "$p"
 }
 
 campaign_slice_has_telemetry() {

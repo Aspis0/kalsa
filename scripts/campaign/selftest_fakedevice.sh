@@ -4,14 +4,15 @@
 # talks to a device. Put this file on PATH as `adb`.
 #
 # State files (all under $FAKE_DEV/fake):
-#   mode         marker-turn1 | never | fail-send | vanish | hot | db-lag |
+#   mode         marker-turn1 | never | fail-send | vanish | pid-blip | sql-read-garbage |
+#                sql-read-blip | hot | db-lag |
 #                throttled | thermal-rise-fall | thermal-hard-abort |
 #                thermal-status-abort | thermal-unreadable-status | thermal-giveup |
 #                thermal-plugged-rise |
 #                thermal-sustained-rise | thermal-unknown-power
 #   turn         share-intent counter (the fake's clock)
 #   pid          app pid served by `pidof` (empty file = app dead)
-#   pid_dead_once  set at a turn boundary; the NEXT pidof reports the app dead
+#   pid_dead_once  set at a turn boundary; the app stays dead until am force-stop / am start -n
 #   stream.txt   logcat stream the fake `logcat` tails
 #   ui.xml       uiautomator dump served by `adb shell cat /data/local/tmp/ui.xml`
 #   composer     text the share put in the EditText ("" when the share missed)
@@ -251,7 +252,7 @@ PY
   if [ "$mode" = "marker-turn1" ] && [ "$turn" -eq 1 ]; then
     _append "$(cat "$F/telemetry.line")"
   fi
-  # The app dies at the first poll AFTER this turn, except for the one turn
+  # The app stays dead until am force-stop / am start -n after this turn, except for the one turn
   # that is supposed to complete (turn 1 in marker-turn1).
   if [ "$mode" = "marker-turn1" ] && [ "$turn" -eq 1 ]; then :
   elif [ "$mode" = throttled ]; then :
@@ -297,9 +298,23 @@ case "${1:-}" in
     shift
     s="$*"
     case "$s" in
-      "pidof $PKG") app_pid ;;
+      "pidof $PKG")
+        if [ "$(_mode)" = pid-blip ]; then
+          reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/pidof_reads"
+          [ "$reads" -eq 1 ] || app_pid
+        else
+          app_pid
+        fi
+        ;;
       "if pidof $PKG"*)
-        if [ -n "$(app_pid)" ]; then printf '%s\n' RUNNING; else printf '%s\n' STOPPED; fi
+        if [ "$(_mode)" = sql-read-garbage ]; then
+          printf '%s\n' MAYBE
+        elif [ "$(_mode)" = sql-read-blip ]; then
+          reads=$(( $(cat "$F/app-state-reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/app-state-reads"
+          if [ "$reads" -eq 1 ]; then printf '%s\n' STOPPED; else printf '%s\n' RUNNING; fi
+        elif [ -n "$(app_pid)" ]; then printf '%s\n' RUNNING; else printf '%s\n' STOPPED; fi
         ;;
       "dumpsys battery") _battery_dump ;;
       "dumpsys thermalservice") _thermal_dump ;;

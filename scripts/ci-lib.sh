@@ -123,15 +123,7 @@ sql_write() {
   fi
 
   local statement="$1" key="$2" expected="$3" dir remote actual escaped_key
-  local app_state
-  app_state=$(adb shell "if pidof $PKG >/dev/null 2>&1; then echo RUNNING; else echo STOPPED; fi" 2>/dev/null | tr -d '\r') || {
-    die "cannot determine whether $PKG is running before device SQL write"
-  }
-  case "$app_state" in
-    RUNNING) die "refusing device SQL write while $PKG is running; force-stop the app first" ;;
-    STOPPED) ;;
-    *) die "cannot determine whether $PKG is running before device SQL write (got '$app_state')" ;;
-  esac
+  ci_app_state_settled
 
   dir=$(mktemp -d "${TMPDIR:-/tmp}/kalsa-rkstorage.XXXXXX") || die "cannot create temporary directory for device SQL write"
   if ! _device_pull_db "$dir"; then
@@ -164,6 +156,22 @@ sql_write() {
     [ "$actual" = "$expected" ] \
       || die "device SQL write verification for key '$key' got '$actual', expected '$expected'"
   fi
+}
+
+# A blank wireless shell response is not proof of process death. Require three
+# explicit STOPPED answers; any unreadable answer fails closed before touching
+# RKStorage. Keep this lower-level gate independent of campaign/ helpers.
+ci_app_state_settled() {
+  local app_state i
+  for i in 1 2 3; do
+    app_state=$(adb shell "if pidof $PKG >/dev/null 2>&1; then echo RUNNING; else echo STOPPED; fi" 2>/dev/null | tr -d '\r') ||
+      die "cannot determine whether $PKG is running before device SQL write"
+    case "$app_state" in
+      RUNNING) die "refusing device SQL write while $PKG is running; force-stop the app first" ;;
+      STOPPED) [ "$i" -eq 3 ] || sleep 1 ;;
+      *) die "cannot determine whether $PKG is running before device SQL write (got '${app_state:-empty}')" ;;
+    esac
+  done
 }
 
 # Wipe kalsa.ciswire.gateAudit (src/rules/gateAuditLog.ts GATE_AUDIT_KEY).

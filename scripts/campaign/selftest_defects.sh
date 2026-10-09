@@ -115,6 +115,94 @@ EOF
 EOF
 }
 
+pidof_settled_case() {
+  local out="$WORK/pidof-settled" dead transient status
+  mkdir -p "$out"
+  fake_reset marker-turn1
+  : > "$FAKE_DEV/fake/pid_dead_once"
+  dead=$(PKG=com.kalsa.app bash -c 'source "$1/watchdog.sh"; campaign_pidof_settled' _ "$HERE")
+  fake_reset pid-blip
+  transient=$(PKG=com.kalsa.app bash -c 'source "$1/watchdog.sh"; campaign_pidof_settled' _ "$HERE")
+  fake_reset marker-turn1
+  : > "$FAKE_DEV/fake/pid_dead_once"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/turn.sh"
+    campaign_logcat_start "$out/logcat.txt"
+    campaign_wait_turn 0 "$out/dead-slice.txt" 0
+    printf '%s' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    campaign_logcat_stop
+  ) > "$out/wait.log" 2>&1
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ -z "$dead" ] && [ "$transient" = 4242 ] && [ "$status" = pid-death ]; then
+    ok "persistent death settles to pid-death; one empty read blip preserves the live PID"
+  else
+    bad "pidof settle wrong (dead='${dead:-empty}' transient='${transient:-empty}')"
+  fi
+}
+
+sql_write_state_gate_case() {
+  local out="$WORK/sql-state-gate" garbage_rc blip_rc reads
+  mkdir -p "$out"
+  fake_reset sql-read-garbage
+  ( export PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/garbage.log" 2>&1
+  garbage_rc=$?
+  fake_reset sql-read-blip
+  ( export PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/blip.log" 2>&1
+  blip_rc=$?
+  reads=$(cat "$FAKE_DEV/fake/app-state-reads" 2>/dev/null || printf 0)
+  if [ "$garbage_rc" -eq 9 ] && [ "$blip_rc" -eq 9 ] && [ "$reads" -eq 2 ]; then
+    ok "device SQL gate rejects an unknown read and a STOPPED blip followed by RUNNING"
+  else
+    bad "device SQL gate wrong (garbage_rc=$garbage_rc blip_rc=$blip_rc reads=$reads)"
+  fi
+}
+
+pidof_settled_case
+sql_write_state_gate_case
+
+t20c_config_flags_case() {
+  local out="$WORK/t20c-g2-flags" no_flags="$WORK/t20c-no-flags" serial rc
+  fake_reset marker-turn1
+  mkdir -p "$out"
+  serial=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["device"])' "$REPO/campaigns/t20c-g2.json")
+  env FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
+    ANDROID_SERIAL="$serial" OUT="$out" CAMPAIGN_CONFIG="$REPO/campaigns/t20c-g2.json" \
+    CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ] && grep -Fq 'T20C config flags compaction=anchored memory=0 toolhelp=0' "$out/run.log"; then
+    ok "run-t20c resolves compaction=anchored and sibling flags from campaigns/t20c-g2.json"
+  else
+    bad "run-t20c config flags did not resolve from G2 (rc=$rc)"
+    tail -5 "$out/run.log" | sed 's/^/   | /'
+  fi
+  mkdir -p "$no_flags/t20c" "$no_flags/out"
+  cp "$REPO/campaigns/t20c/script.json" "$no_flags/t20c/script.json"
+  python3 - "$REPO/campaigns/t20c-g2.json" "$no_flags/config.json" <<'PY'
+import json, sys
+cfg = json.load(open(sys.argv[1], encoding="utf-8"))
+cfg.pop("arms", None)
+json.dump(cfg, open(sys.argv[2], "w", encoding="utf-8"))
+PY
+  env FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
+    ANDROID_SERIAL="$serial" OUT="$no_flags/out" CAMPAIGN_CONFIG="$no_flags/config.json" \
+    CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    bash "$HERE/run-t20c.sh" > "$no_flags/out/run.log" 2>&1
+  rc=$?
+  if [ "$rc" -eq 2 ] && grep -Fq 'has no complete T20C arm flags' "$no_flags/out/run.log"; then
+    ok "run-t20c refuses a config without arm flags"
+  else
+    bad "run-t20c did not refuse missing arm flags (rc=$rc)"
+  fi
+}
+
+t20c_config_flags_case
+
 db_put_messages() {
   python3 - "$FAKE_DEV/databases/RKStorage" "$1" <<'PY'
 import sqlite3, sys
@@ -634,7 +722,8 @@ write_synthetic_config() {
  "name": "selftest-synthetic",
  "device": $device_json,
  "resultsDir": "results/t20c-jelly-campaign",
- "turns": $turns$model_member
+ "turns": $turns$model_member,
+ "arms": [{"id":"T20C","flags":{"kalsa.context.compaction":"ciswire","kalsa.memory.enabled":"0","kalsa.ciswire.toolhelp":"0"}}]
 }
 JSON
   # The runner writes its telemetry schema from the config before the identity
@@ -1901,6 +1990,54 @@ REC
 
 tool_continuation_case
 
+tool_exhausted_record_case() {
+  local out="$WORK/tool-exhausted-record" rc status
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    export CAMPAIGN_ROOT="$HERE" CAMPAIGN_ARM_ID=T20C CAMPAIGN_VARIANT_ID=V1 CAMPAIGN_CONV_ID=c1-V1
+    export COMPACTION_VAL=ciswire
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_TIMEOUT_MS=5000
+    CAMPAIGN_TELEMETRY_GAP_MS=5000
+    CAMPAIGN_POLL_MS=250
+    printf '%s\n' '[{"role":"user","text":"question"}]' > "$FAKE_DEV/fake/live.json"
+    db_put_messages "$FAKE_DEV/fake/live.json"
+    printf '%s\n' '10-09 14:33:37.300 14923 14950 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","attempt":1,"round":2,"ciswireFlags":1}' >> "$FAKE_DEV/fake/stream.txt"
+    printf '%s\n' '10-09 14:33:37.317 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":1}' >> "$FAKE_DEV/fake/stream.txt"
+    printf '%s\n' '10-09 14:34:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLROUND_EXHAUSTED {"turnId":"1","roundsUsed":3,"streamedLen":0,"fallbackFired":true,"fallbackOk":false}' >> "$FAKE_DEV/fake/stream.txt"
+    campaign_logcat_start "$out/logcat.txt"
+    campaign_wait_turn 0 "$out/slice.txt" 0
+    printf '%s' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    node "$HERE/config.mjs" --telemetry-schema "$REPO/campaigns/t20c.json" "$OUT/.telemetry-schema.json" >/dev/null || exit 7
+    printf '%s\n' '{"intent":"toolcap","user":"question","probes":[]}' > "$OUT/.turn-script.json"
+    campaign_collect_file "$out/slice.txt" "$FAKE_DEV/fake/live.json" false "$out/rec.json" || exit 8
+    campaign_logcat_stop
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ "$rc" -eq 0 ] && [ "$status" = toolcap ] \
+    && python3 - "$out/rec.json" <<'PY'
+import json, sys
+rec = json.load(open(sys.argv[1], encoding="utf-8"))
+rows = rec.get("telemetry", {}).get("KALSA_TOOLROUND_EXHAUSTED", [])
+raise SystemExit(0 if len(rows) == 1 and rec.get("assistant") == "" else 1)
+PY
+  then
+    ok "EXHAUSTED without a persisted canned reply ends as toolcap and writes its telemetry record"
+  else
+    bad "EXHAUSTED record wrong (rc=$rc status=$status)"
+    tail -8 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+tool_exhausted_record_case
+
 # ── the tool gate's knobs: quiet window, round bound, both wire forms ───────
 # Quiet window: explicit and poll-aware — max(1500, 2 x poll), env override.
 toolcall_quiet_ms_case() {
@@ -1928,6 +2065,15 @@ tool_state_forms_case() {
   # S23 2026-10-09: the cap round emits no KALSA_TOOLCALL, only EXHAUSTED.
   printf '%s\n' '10-09 14:33:37.317 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":1}' \
     '10-09 14:34:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLROUND_EXHAUSTED {"turnId":"1","roundsUsed":3,"streamedLen":0,"fallbackFired":true,"fallbackOk":false}' > "$out/exhausted.txt"
+  printf '%s\n' "10-09 14:33:37.317 14923 14950 I ReactNativeJS: 'KALSA_TOOLCALL', '{\"turnId\":\"1\",\"round\":2,\"executed\":1}'" \
+    "10-09 14:34:52.364 14923 14950 I ReactNativeJS: 'KALSA_TOOLROUND_EXHAUSTED', '{\"turnId\":\"1\",\"roundsUsed\":3}'" > "$out/exhausted-quoted.txt"
+  printf '%s\n' '10-09 14:33:37.317 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":1}' \
+    '10-09 14:34:52.364 14923 14950 I ReactNativeJS: diagnostic mentions KALSA_TOOLROUND_EXHAUSTED {"turnId":"1","roundsUsed":3}' > "$out/mention.txt"
+  printf '%s\n' '10-09 14:33:37.317 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":1}' \
+    '10-09 14:34:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLROUND_EXHAUSTED {"turnId":"2","roundsUsed":3}' > "$out/mismatch.txt"
+  printf '%s\n' '10-09 14:33:37.317 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":1}' \
+    '10-09 14:34:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLROUND_EXHAUSTED {"turnId":"1","roundsUsed":3}' \
+    '10-09 14:35:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":3,"executed":1}' > "$out/un-stuck.txt"
   (
     log() { :; }
     source "$HERE/turn.sh"
@@ -1936,11 +2082,17 @@ tool_state_forms_case() {
     qp=$(campaign_turn_tool_state "$out/quoted-pending.txt")
     a=$(campaign_turn_tool_state "$out/nonexistent.txt")
     x=$(campaign_turn_tool_state "$out/exhausted.txt")
-    [ "$u" = "pending 0" ] && [ "$q" = "final" ] && [ "$qp" = "pending 3" ] && [ "$a" = "absent" ] && [ "$x" = "final" ]
+    xq=$(campaign_turn_tool_state "$out/exhausted-quoted.txt")
+    m=$(campaign_turn_tool_state "$out/mention.txt")
+    mm=$(campaign_turn_tool_state "$out/mismatch.txt")
+    us=$(campaign_turn_tool_state "$out/un-stuck.txt")
+    [ "$u" = "pending 0" ] && [ "$q" = "final" ] && [ "$qp" = "pending 3" ] \
+      && [ "$a" = "absent" ] && [ "$x" = "exhausted" ] && [ "$xq" = "exhausted" ] && [ "$m" = "pending 2" ] \
+      && [ "$mm" = "pending 2" ] && [ "$us" = "pending 3" ]
   )
   rc=$?
   if [ "$rc" -eq 0 ]; then
-    ok "tool state parses both wire forms: unquoted pending, quoted final/pending, absent, round-cap EXHAUSTED final"
+    ok "tool state parses both wire forms and rejects EXHAUSTED mentions/mismatches; higher rounds un-stick it"
   else
     bad "tool state wire forms wrong (rc=$rc)"
   fi

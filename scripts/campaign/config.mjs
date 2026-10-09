@@ -29,6 +29,7 @@ export const EXTRA_TELEMETRY = [
   { prefix: "KALSA_THERMAL_COOLING", timingInvalidOnCharge: ["waitedMs", "generationMs"] },
   { prefix: "KALSA_GPU_FALLBACK" },
   { prefix: "KALSA_TOOLCALL" },
+  { prefix: "KALSA_TOOLROUND_EXHAUSTED" },
 ];
 
 /** The campaign's telemetry[] plus the governor rows, deduplicated by prefix. */

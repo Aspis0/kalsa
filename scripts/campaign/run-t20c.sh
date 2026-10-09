@@ -55,6 +55,29 @@ if [ -z "${CAMPAIGN_APK_PATH:-}" ] && [ -z "${FAKE_DEV:-}" ]; then
   exit 2
 fi
 
+ARM_FLAGS="$(python3 - "$CONFIG" <<'PY'
+import json
+import sys
+
+cfg = json.load(open(sys.argv[1], encoding="utf-8"))
+arm = next((item for item in cfg.get("arms", []) if item.get("id") == "T20C"), None)
+keys = ("kalsa.context.compaction", "kalsa.memory.enabled", "kalsa.ciswire.toolhelp")
+flags = arm.get("flags") if isinstance(arm, dict) else None
+if not isinstance(flags, dict) or any(key not in flags for key in keys):
+    raise SystemExit("missing T20C arm flags")
+values = [flags[key] for key in keys]
+if any(not isinstance(value, str) for value in values):
+    raise SystemExit("T20C arm flags must be strings")
+print(*values)
+PY
+)" || { echo "refuse: $CONFIG has no complete T20C arm flags" >&2; exit 2; }
+read -r COMPACTION_VAL MEMORY_VAL TOOLHELP_VAL <<<"$ARM_FLAGS"
+FLAG_PARAMS=""
+CAMPAIGN_ARM_ID="T20C"
+CAMPAIGN_VARIANT_ID="V1"
+CAMPAIGN_CONV_ID="c1-V1"
+echo "T20C config flags compaction=$COMPACTION_VAL memory=$MEMORY_VAL toolhelp=$TOOLHELP_VAL"
+
 CAMPAIGN_ROOT="$REPO/scripts/campaign"
 
 export PKG="com.kalsa.app"
@@ -107,16 +130,6 @@ trap 'exit 130' INT TERM
 
 command -v campaign_metro_preflight >/dev/null 2>&1 || die "Metro gate unavailable: campaign_metro_preflight is not defined"
 campaign_metro_preflight
-
-# T20C is the ciswire cell; T20C_COMPACTION reruns the same 20 turns under another regime (G2 on the
-# shipped default, anchored). flags.sh validates the literal and reads it back from the device.
-COMPACTION_VAL="${T20C_COMPACTION:-ciswire}"
-MEMORY_VAL="0"
-TOOLHELP_VAL="0"
-FLAG_PARAMS=""
-CAMPAIGN_ARM_ID="T20C"
-CAMPAIGN_VARIANT_ID="V1"
-CAMPAIGN_CONV_ID="c1-V1"
 
 # --- delta 1: charging gate -------------------------------------------------
 CHARGING_FLAG="$OUT/.STOP-CHARGING"
@@ -455,12 +468,13 @@ import json
 import sys
 
 turns = set()
+toolcaps = set()
 recoveries = 0
 unparseable = 0
 try:
     stream = open(sys.argv[1], encoding="utf-8")
 except OSError:
-    print("0 0 0")
+    print("0 0 0 0")
     raise SystemExit(0)
 with stream:
     for line in stream:
@@ -474,22 +488,27 @@ with stream:
         elif "event" in record:
             recoveries += 1
         elif isinstance(record.get("i"), int) and not isinstance(record.get("i"), bool):
-            turns.add(record["i"])
+            exhausted = record.get("telemetry", {}).get("KALSA_TOOLROUND_EXHAUSTED", [])
+            if exhausted:
+                toolcaps.add(record["i"])
+            else:
+                turns.add(record["i"])
         else:
             unparseable += 1
-print(len(turns), recoveries, unparseable)
+print(len(turns), len(toolcaps), recoveries, unparseable)
 PY
 ) || die "T20C footer: could not count acceptance records in $jsonl"
 turn_count=0
+toolcap_count=0
 recovery_count=0
 unparseable_count=0
-read -r turn_count recovery_count unparseable_count <<EOF
+read -r turn_count toolcap_count recovery_count unparseable_count <<EOF
 $record_stats
 EOF
 if [ "$turn_count" -eq 20 ]; then
-  log "T20C RUN COMPLETE — turns=$turn_count/20 recoveries=$recovery_count unparseable=$unparseable_count jsonl=$jsonl"
+  log "T20C RUN COMPLETE — turns=$turn_count/20 toolcap=$toolcap_count recoveries=$recovery_count unparseable=$unparseable_count jsonl=$jsonl"
 else
-  log "T20C RUN INCOMPLETE — turns=$turn_count/20 recoveries=$recovery_count unparseable=$unparseable_count jsonl=$jsonl"
+  log "T20C RUN INCOMPLETE — turns=$turn_count/20 toolcap=$toolcap_count recoveries=$recovery_count unparseable=$unparseable_count jsonl=$jsonl"
   [ "$rc" -ne 0 ] || rc=1
 fi
 exit "$rc"

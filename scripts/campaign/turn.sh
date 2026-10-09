@@ -248,7 +248,7 @@ print(len(asst[-1]) if asst else 0)
 # An interrupted bubble completes the turn without requiring count/telemetry.
 # Liveness (the hang watchdog) is NOT the completion marker: see
 # campaign_progress_fingerprint above.
-# Sets CAMPAIGN_TURN_STATUS=ok|interrupted|timeout|hang|pid-death|adb-drop|toolround
+# Sets CAMPAIGN_TURN_STATUS=ok|toolcap|interrupted|timeout|hang|pid-death|adb-drop|toolround
 # The LAST KALSA_TOOLCALL in this turn's slice decides whether the turn is
 # over: KALSA_TELEMETRY is emitted PER ROUND (baseline raw: round 0 at
 # 16:42:10.870, round 1 at 16:44:33.975), and every round also emits one
@@ -260,45 +260,65 @@ print(len(asst[-1]) if asst else 0)
 # emits no KALSA_TOOLCALL, so the last one still says executed > 0 (S23 G2,
 # 2026-10-09: round 2 pending, then round 3 + EXHAUSTED + KALSA_GOVERNOR, and the
 # harness waited 600 s for a round that never comes).
-# Prints pending | final | absent; never throws.
+# Prints pending | exhausted | final | absent; never throws.
 campaign_turn_tool_state() {
   python3 - "$1" <<'PY'
 import json
+import re
 import sys
 
-# Two wire forms, the shared dual-needle pattern (parsePrefixedLines in
-# telemetryParse.mjs, governor.sh): React Native renders a multi-argument
-# console.log quoted — 'KALSA_TOOLCALL', '{...}' — and a single needle would
-# read "absent" forever on it, truncating every turn at round 0. The needle
-# stops BEFORE the payload's opening quote so the JSON slices cleanly.
-NEEDLE = "KALSA_TOOLCALL "
-QUOTED = "'KALSA_TOOLCALL', "
-EXHAUSTED = ("KALSA_TOOLROUND_EXHAUSTED ", "'KALSA_TOOLROUND_EXHAUSTED', ")
-last = None
-exhausted = False
-try:
-    with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
-        for line in fh:
-            if any(e in line for e in EXHAUSTED):
-                exhausted = True
-                continue
-            at = max(line.rfind(NEEDLE), line.rfind(QUOTED))
-            if at < 0:
-                continue
-            brace = line.find("{", at)
-            end = line.rfind("}")
-            if brace < 0 or end <= brace:
-                continue
+# React Native emits each event either as a single-string logcat line or as a
+# quoted multi-argument console.log; both forms need exact event-tag parsing.
+def payload(line, name):
+    # Match complete events after the logcat tag; diagnostic mentions are not telemetry.
+    prefix = re.escape(name)
+    patterns = (
+        rf":\s*{prefix}\s+(\{{.*\}})\s*$",
+        rf":\s*'{prefix}',\s*'(.+)'\s*$",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, line)
+        if match:
             try:
-                obj = json.loads(line[brace:end + 1])
+                obj = json.loads(match.group(1))
             except ValueError:
                 continue
             if isinstance(obj, dict):
+                return obj
+    return None
+
+last = None
+calls = []
+exhausted = None
+exhausted_after_round = None
+try:
+    with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            obj = payload(line, "KALSA_TOOLCALL")
+            if obj is not None:
+                calls.append(obj)
                 last = obj
+                if exhausted is not None and obj.get("turnId") == exhausted.get("turnId"):
+                    try:
+                        if exhausted_after_round is not None and int(obj.get("round", -1)) > exhausted_after_round:
+                            exhausted = None
+                            exhausted_after_round = None
+                    except (TypeError, ValueError):
+                        pass
+            obj = payload(line, "KALSA_TOOLROUND_EXHAUSTED")
+            if obj is not None:
+                exhausted = obj
+                prior_rounds = [
+                    int(call["round"]) for call in calls
+                    if call.get("turnId") == obj.get("turnId")
+                    and isinstance(call.get("round"), int)
+                    and not isinstance(call.get("round"), bool)
+                ]
+                exhausted_after_round = max(prior_rounds) if prior_rounds else None
 except OSError:
     pass
-if exhausted:
-    print("final")
+if exhausted is not None and (not calls or all(call.get("turnId") == exhausted.get("turnId") for call in calls)):
+    print("exhausted")
 elif last is None:
     print("absent")
 else:
@@ -352,6 +372,13 @@ campaign_wait_turn() {
     elapsed=$((now - start))
     campaign_logcat_ensure
     campaign_logcat_slice "$offset" "$dest"
+    tool_state=$(campaign_turn_tool_state "$dest")
+    if [ "$tool_state" = "exhausted" ]; then
+      # EXHAUSTED is the completion marker even if TELEMETRY or its canned
+      # reply never persisted; count>prev would otherwise leave this polling.
+      CAMPAIGN_TURN_STATUS="toolcap"
+      return 0
+    fi
 
     state=$(campaign_adb_state)
     if [ "$state" != "device" ]; then
@@ -399,7 +426,6 @@ campaign_wait_turn() {
         # the latest KALSA_TOOLCALL says a tool ran; only executed 0 (or no
         # toolcall line at all, once the telemetry has aged past the ~15 ms
         # emission gap) ends the turn.
-        tool_state=$(campaign_turn_tool_state "$dest")
         case "$tool_state" in
           pending\ *)
             current_round="${tool_state##* }"
