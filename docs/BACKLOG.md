@@ -252,3 +252,9 @@ they are promoted.
 - P3 (new): `engine_vision` fails closed. A `/props` probe that fails returns blind for that turn, so one turn can carry the blind Room prompt while the engine can see. That turn's engine request usually fails too, and the cost is one cache miss. Not fixed.
 - P3 (new): the attach-send-race windows (trial 1000, shed 756) are pinned to the blind no-Think prompt's size. Any prompt change moves the shed boundary; the script's own check brackets it (756 sheds, 790 keeps).
 - P3 (new): `chat/scripts/image-attach.mjs:728` pins "You cannot see images, audio or video.", which is unchanged, but that script was not run for this change.
+
+## After the alpha (owner 2026-10-08)
+
+- Think toggle cache cost: on Gemma 4 the template puts `<|think|>` at the start of the system turn, so switching Think mid-chat drops the prefix cache and the whole history is read again (measured cache_n 0, prompt_n 1452). Budget-0 and empty-thought prefill keep the cache but leak planning into the answer (4/4 probes). Proposal: Think chosen per conversation, with a warning when it is switched mid-chat. Owner: decide after the alpha.
+- LFM2.5-VL ignores `--image-max-tokens`: a 1920-wide frame costs ~2480 tokens, while the chat's budget assumes 560 per image. Pre-existing.
+- Chooser speed estimate on the Surface: predicted LFM 9-13 and E4B 5-8 tok/s; the owner saw E4B 9.9 (MTP on) and LFM 8.3. Measure both without MTP before changing the estimate.
