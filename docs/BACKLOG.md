@@ -281,3 +281,29 @@ Owner 2026-10-09: not a blocker, we are in dev with no released users. Old slot 
 - No test pins the Room budget boundary with the date line counted (`turn.rs` windowing and halving).
 - The send-path check in `chat/scripts/sent-date.mjs` matches source text: a different call shape in `useChat.ts` would slip past it.
 - Live check on Qwen 3.6 35B-A3B (engine 8130): with "Sent on Friday, 9 October 2026." it answered "Today is Friday, October 9, 2026.", and with an older turn from 5 October it counted "4 days ago" correctly.
+
+## Alpha polish batch (two-reviewer review of 87a49860..37cfc56c, 2026-10-09)
+
+Fixed in the same pass: engine-log filter and redaction, Help privacy/default/label copy, Brain composer locked while busy, `?` hidden on Help, the brain_stop pin (order + await). Deferred:
+
+- Attach error crosses chats: a late rejection in `chat/src/surfaces/useChat.ts:703-714` (and `attachFromDisk` :735-741) writes its status after a chat switch. Rare timing; the switch-time clear covers the common case.
+- Vision restart (`src-tauri/src/vision.rs:274-286`) calls `supervisor.stop()` without the save `brain_stop` now does: the warm checkpoint can lag one turn. Transcript is safe.
+- The 12 s save budget is not a hard wall: socket reads re-arm per byte (`crates/kalsa-door/src/response.rs:83-96`); a trickling engine could stretch it. Pathological.
+- The save in `brain_stop` runs outside the start/stop gate (`src-tauri/src/main.rs:2077`): a start during the save could bind-fail against the old engine. Not seen; the UI blocks it via `busy`.
+- Turn off can now take up to 12 s before the button changes (save before stop). Show progress if it is noticed.
+- A failed switch save is swallowed (`brain_stop` returns Ok). Log only.
+- `keep_stderr_in` wiring (`main.rs:2430`) has no test; removing it drops the engine log silently.
+- `completion_timings.rs` no-counter test matches a generic line other unlocked tests also emit; can pass on a foreign line.
+- Timing parser: non-stream last-key-wins can be spoofed by model text, and multi-line SSE `data:` yields no counters. Log-only.
+- Each `AssistantRow` subscribes to the brain-state store (`chat/src/components/Thread.tsx:120`): O(rows) callbacks per publish.
+- Help is not rendered by any test; "Up to four phones" is inherited copy, not a limit in code.
+- Long module comments in `timings.rs` / `stderr_log.rs` exceed the two-line WHY rule.
+- The engine-log filter is a denylist built from the v1.1.5 source: re-grep the engine's `LOG_WRN/ERR` with `%s` on every engine bump. Lines with `name=` are withheld whole, which also hides some model-load diagnostics.
+- `chat/scripts/verify.mjs` needs `npm run dev` and a brain stub; on a plain dev server nearly every UI case times out at `locator.fill` (2026-10-09), so it gave no signal for this batch. `dev/smoke-react.mjs` imports a missing `AdvancedSurface`.
+
+## Phone date stamp (kalsa main 82c9c9ba, 2026-10-09)
+
+- Pre-existing: on attachment, notes and research-trigger sends the model sees `modelText` but the record stores `trimmed`, so the replayed turn differs from the first send and the KV prefix breaks there (`src/host/sendHost.ts:222-282`). Not caused by the date.
+- The content-filter refusal path in `sendHost.ts` (~:180) stores its user turn without `sentOn`.
+- `engineTurn.ts:63` still takes a dead positional `_lastUserBare`.
+- Not run on a device or the simulator yet.
