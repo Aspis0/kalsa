@@ -1408,7 +1408,7 @@ try {
     const FIRST_PAGE = {
       off: ["Kalsa is off.", "Turn Kalsa on"],
       service: ["Kalsa can't be reached from this page right now. Open Devices to fix it.", "Go to Devices"],
-      starting: ["Getting ready. On an older computer this can take a minute.", "Turn Kalsa on"],
+      starting: ["Getting ready. On a less recent computer this can take a minute.", "Turn Kalsa on"],
       key: ["Kalsa is still setting up this computer. Open Devices to finish.", "Devices"],
       "key-read": ["This computer could not read its own connection key.", "Devices"],
       "key-junk": ["Kalsa is still setting up this computer. Open Devices to finish.", "Devices"],

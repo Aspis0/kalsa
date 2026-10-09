@@ -6,7 +6,7 @@ export const FIRST_PAGE = {
     "goToServer": "Allumer Kalsa",
     "serviceArm": "Kalsa est injoignable depuis cette page pour le moment. Ouvre Appareils pour réparer.",
     "goToDevices": "Aller aux Appareils",
-    "startingArm": "Ça se prépare. Sur un ordinateur plus vieux, cela peut prendre une minute.",
+    "startingArm": "Ça se prépare. Sur un ordinateur moins récent, cela peut prendre une minute.",
     "keyArm": "Kalsa prépare encore cet ordinateur. Ouvre Appareils pour finir.",
     "devices": "Appareils",
     "ready": "Écris ci-dessous ton premier message pour parler avec Kalsa.",

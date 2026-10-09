@@ -7,7 +7,7 @@ export const FIRST_PAGE = {
   goToServer: "Turn Kalsa on",
   serviceArm: "Kalsa can't be reached from this page right now. Open Devices to fix it.",
   goToDevices: "Go to Devices",
-  startingArm: "Getting ready. On an older computer this can take a minute.",
+  startingArm: "Getting ready. On a less recent computer this can take a minute.",
   keyArm: "Kalsa is still setting up this computer. Open Devices to finish.",
   devices: "Devices",
   ready: "Write your first message below to talk with Kalsa.",

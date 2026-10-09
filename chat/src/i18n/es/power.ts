@@ -7,7 +7,7 @@ export const POWER = {
     "stopping": "Kalsa se está apagando…",
     "puttingAway": "Kalsa se está apagando. La próxima vez arranca con tu elección.",
     "starting": "Kalsa se está encendiendo…",
-    "gettingReady": "Preparándose. En un equipo más viejo esto puede tardar un minuto.",
+    "gettingReady": "Preparándose. En un equipo menos reciente esto puede tardar un minuto.",
     "didNotStart": "Kalsa no arrancó. Prueba de nuevo.",
     "off": "Apagada",
     "notRunningAnything": "Kalsa está apagada.",

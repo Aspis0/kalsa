@@ -7,7 +7,7 @@ export const POWER = {
     "stopping": "Kalsa 正在关闭…",
     "puttingAway": "Kalsa 正在关闭。下次她会以你的选择启动。",
     "starting": "Kalsa 正在启动…",
-    "gettingReady": "正在准备。在较旧的电脑上可能需要一分钟。",
+    "gettingReady": "正在准备。在不是最新的电脑上可能需要一分钟。",
     "didNotStart": "Kalsa 没能启动。请再试。",
     "off": "已关闭",
     "notRunningAnything": "Kalsa 已关闭。",

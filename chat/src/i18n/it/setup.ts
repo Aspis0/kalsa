@@ -2,7 +2,7 @@
 
 export const SETUP = {
     "start": "Avvia",
-    "starting": "Si sta avviando…",
+    "starting": "Si sta accendendo…",
     "checkingComputer": "Sta controllando il tuo computer…",
     "gettingReady": "Avvio in corso…",
     "downloading": "Scaricamento…",

@@ -8,7 +8,7 @@ export const POWER = {
   stopping: "Kalsa is turning off…",
   puttingAway: "Kalsa is turning off. Next time she starts with your choice.",
   starting: "Kalsa is starting…",
-  gettingReady: "Getting ready. On an older computer this can take a minute.",
+  gettingReady: "Getting ready. On a less recent computer this can take a minute.",
   didNotStart: "Kalsa couldn't start. Try again.",
   off: "Off",
   notRunningAnything: "Kalsa is off.",
