@@ -87,7 +87,7 @@ publication promises (`archived/PLAN-2026-09-full.md:408-431`).
 |---|---|---|---|
 | 9 Sep | **G0** | reproducible baseline, real device matrix, schedulable slots | closed (2026-09; QDC + our two phones in use) |
 | 14-15 Sep | **G1** | model chosen, baseline with per-phone targets written before tuning | closed 10 Sep: LFM2.5-2.6B QAD Q4_0, sha `a247afd6` |
-| 21-23 Sep | **G2** | complete chat, 20-30 turn sessions, recovery without corruption | never claimed; needs an in-app long session on the 2026-10-09 APK (not built yet) |
+| 21-23 Sep | **G2** | complete chat, 20-30 turn sessions, recovery without corruption | NOT met: first in-app run 2026-10-09 (APK `1f0e967b`) stopped at turn 4 on Android SEVERE; the governor stayed FAST because the app feeds the platform status once per completion (`s23-g2-inapp-1f0e967b`) |
 | 28-29 Sep | **G3** | every phone has at least one correct path; every ENABLED path passes its tests | partial: S23 yes in-app; Xiaomi correct in lab, in-app still two-copy until the SM8650 row ships; Jelly Star open |
 | 30 Sep-2 Oct | **G4** | sustained quality; consumption measured or limits declared | open: Meter A/B pending; consumption measured in the lab, not in the APK; the 2026-09-28 governor blind spot has no later verification |
 | 9 Oct (reserve 16 Oct) | **M1** | first model complete and banked on the three phones, or a precise list of missing gates | NOT met as of 2026-10-09: no APK exists with the 2026-10-09 pin; G2 open |
@@ -253,7 +253,10 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
 1. DONE 2026-10-09: binding `f0ca4692`, app `1f0e967b` (pin + A1), APK run `37961298208`.
 2. Engine: admit Adreno 750 / E031.45 in the TILE32 measured gate, re-vendor, then the SM8650 row
    (`84ac0d57`) - needed before the Xiaomi in-app round.
-3. On the APK: S23 in-app smoke, then a 20-30 turn long session (G2 on the S23).
+3. G2 on the S23 failed on heat (cell `s23-g2-inapp-1f0e967b`): feed the platform thermal status into the
+   decode loop natively (NDK `AThermal_getCurrentThermalStatus`, beside the per-leg headroom reader) so the
+   governor sees SEVERE mid-turn; then repeat G2 on a cold phone. Owner decision pending on the COOLMODE
+   behaviour (slow sustainable rate vs stop at turn end).
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
 5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76); the in-app round

@@ -1,0 +1,45 @@
+          timestamp=2026-10-09 14:54:23.256 pid=24394 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=0.00 description=stop com.kalsa.app due to from pid 24522 state=empty trace=null
+          timestamp=2026-10-09 14:54:17.027 pid=19866 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=2.6GB description=stop com.kalsa.app due to from pid 24282 state=empty trace=null
+          timestamp=2026-10-09 14:45:05.152 pid=14923 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=2.4GB description=stop com.kalsa.app due to from pid 19767 state=empty trace=null
+          timestamp=2026-10-09 14:30:46.035 pid=13890 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=2.4GB description=stop com.kalsa.app due to from pid 14315 state=empty trace=null
+          timestamp=2026-10-09 14:30:00.407 pid=13386 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=2.4GB description=stop com.kalsa.app due to from pid 13802 state=empty trace=null
+          timestamp=2026-10-09 14:28:44.132 pid=11577 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=302MB description=stop com.kalsa.app due to from pid 13061 state=empty trace=null
+          timestamp=2026-10-09 14:05:51.068 pid=11423 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=0.00 description=stop com.kalsa.app due to from pid 11524 state=empty trace=null
+          timestamp=2026-10-09 14:05:46.089 pid=11143 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=0.00 description=stop com.kalsa.app due to from pid 11310 state=empty trace=null
+          timestamp=2026-10-09 14:04:52.346 pid=10955 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=0.00 description=stop com.kalsa.app due to from pid 11102 state=empty trace=null
+          timestamp=2026-10-09 14:04:48.669 pid=10743 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=0.00 description=stop com.kalsa.app due to from pid 10878 state=empty trace=null
+          timestamp=2026-10-09 14:04:43.869 pid=8403 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=2.4GB description=stop com.kalsa.app due to from pid 10623 state=empty trace=null
+          timestamp=2026-10-09 14:02:05.797 pid=6525 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=2.4GB description=stop com.kalsa.app due to from pid 8308 state=empty trace=null
+          timestamp=2026-10-09 13:57:57.449 pid=6449 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=1000 pss=0.00 rss=0.00 description=stop com.kalsa.app due to from pid 6457 state=empty trace=null
+          timestamp=2026-10-09 13:57:55.179 pid=5761 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=2.4GB description=stop com.kalsa.app due to from pid 6314 state=empty trace=null
+          timestamp=2026-10-09 13:56:23.030 pid=3494 realUid=10347 packageUid=10347 definingUid=10347 user=0
+          process=com.kalsa.app reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0.00 rss=2.4GB description=stop com.kalsa.app due to from pid 4631 state=empty trace=null

@@ -25,6 +25,9 @@
 - Xiaomi 14 real phone, unplugged: GPU fastest (19.7-21.3 tok/s) but ~3x the NPU's skin heat per
   token; the NPU ran 8192 tokens without reaching 43 C (cells `xiaomi-endur-npu-gpu-75`,
   `xiaomi-legheat-76`). Under HEAT_RANK SM8650 stays mostly on the NPU.
+- G2 in-app on the S23 (APK `1f0e967b`, 2026-10-09): the one-copy load (RSS 2.4 GB vs 3.9 GB two-copy), NPU
+  prefill+decode and rule v3 hops all ran in-app, no crash; the session stopped at turn 4 on Android SEVERE while
+  the governor stayed FAST - the platform status reaches it once per completion (`s23-g2-inapp-1f0e967b`).
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs

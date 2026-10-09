@@ -1,0 +1,127 @@
+[ci] JavaScript provenance gate passed; evidence=/Users/marco/Projects/kalsa-wt-gov/results/t20c-g2-campaign/.metro-preflight.9K2zCf
+[ci] T20C rerun2 start serial=192.168.1.152:36299 out=/Users/marco/Projects/kalsa-wt-gov/results/t20c-g2-campaign
+[ci] battery preflight floor=enforced level=84 temp=29.7C charging=false
+[ci] battery level=84 temp=29.7C charging=false
+[ci] DEVICE IDENTITY: model=SM-S911U (CAMPAIGN_EXPECT_MODEL unset; not enforcing)
+[ci] thermal preflight status=0 battery_deci=297
+[ci] keep-awake: saved screen_off_timeout=2147483647
+[ci] keep-awake: saved stay_on_while_plugged_in=15
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] screen: timeout pinned to 2147483647 (saved: 86400000), keyguard dismissed — no restore at exit
+[ci] logcat pid=78320 file=/Users/marco/Projects/kalsa-wt-gov/results/t20c-g2-campaign/logcat.txt
+[ci] charging monitor pid=78321 (30s poll)
+[ci] arm begin: flags->anchored, wipe chat, launch
+[ci] flags: force-stop com.kalsa.app before governor pref write
+[ci] governor pref: kalsa.governor.enabled=1 written before launch
+[ci] share preflight: launch PID changed or missing (expected=none current=none); relaunching
+[ci] startup marker present for PID 13386: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 13386
+[ci] ready after 10s (KALSA_PREWARM op=done since launch + composer enabled)
+[ci] share-send attempt 1/3: bench:nativelog on
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2010
+[ci] share-send: submitted prev=2 count=3
+[ci] startup marker present for PID 13890: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 13890
+[ci] ready after 10s (KALSA_PREWARM op=done since launch + composer enabled)
+[ci] share-send attempt 1/3: bench:show
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2010
+[ci] share-send: submitted prev=3 count=4
+[ci] native log mirror verified on via bench:show
+[ci] flags: force-stop com.kalsa.app before sql_write
+[ci] flags readback ok compaction=anchored memory=0 toolhelp=0 web.enabled=0 device.tools=0 calendar.tools=0
+[ci] conversation: wipe chat+compactor+summary+memory.facts (app stopped)
+[ci] logcat pid=81877 file=/Users/marco/Projects/kalsa-wt-gov/results/t20c-g2-campaign/logcat.txt
+[ci] logcat cleared at arm start
+[ci] startup marker present for PID 14923: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 14923
+[ci] ready after 10s (KALSA_PREWARM op=done since launch + composer enabled)
+[ci] battery level=84 temp=31.1C charging=false
+[ci] --- hot flags readback (app running) ---
+[ci] kalsa.bench.toolchoice=ABSENT (ABSENT = auto = app-default tools ON; this run writes no toolchoice)
+[ci] --- end hot flags readback ---
+[ci] --- engine init lines ---
+[ci] --- end engine init lines ---
+[ci] --- governor engagement ---
+[ci] governor readback: kalsa.governor.enabled=1 plan={"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":4047.48,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"auto","npu_fit":"Fit","available_src":"fresh"}
+[ci] governor verified: kalsa.governor.enabled=1 gpu_fit=Fit plan={"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":4047.48,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"auto","npu_fit":"Fit","available_src":"fresh"}
+[ci] --- end governor engagement ---
+[ci] === turn 1 begins ===
+[ci] turn 1 send: [Argomento 1: Viaggio in Portogallo] Sto organizzando con due amici un viaggio i
+[ci] share composer try=1 t=0s — wait engine
+[ci] engine: no dispose in 20s, tapping
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2010
+[ci] engine started the turn try=1 t=3s — send landed (DB copy may lag)
+[ci] health device 14923 0 elapsed=55ms
+[ci] health device 14923 0 elapsed=121821ms
+[ci] tool round pending — waiting for the continuation
+[ci] health device 14923 1 elapsed=246100ms
+[ci] health device 14923 0 elapsed=372158ms
+[ci] health device 14923 0 elapsed=494314ms
+[ci] health device 14923 0 elapsed=618960ms
+[ci] health device 14923 0 elapsed=739111ms
+[ci] tool continuation lost: round 2 pending for 600000ms — ending the turn
+[ci] RECOVERY reason=toolround (force-stop com.kalsa.app)
+{"i": 1, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "toolround", "retried": false, "scores": null}
+[ci] pulled RKStorage into /Users/marco/Projects/kalsa-wt-gov/results/t20c-g2-campaign/db-before-restart
+[ci] startup marker present for PID 19866: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 19866
+[ci] ready after 0s (KALSA_PREWARM op=done since launch + composer enabled)
+[ci] turn 1 user+assistant already landed — skip retry send (no duplicate share)
+{"i": 1, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "already-landed-skip-send", "retried": true, "scores": null}
+[ci] battery level=80 temp=32.9C charging=false
+[ci] === turn 2 begins ===
+[ci] turn 2 send: [Argomento 2: Fotosintesi] Mia nipote di tredici anni mi ha chiesto come fa una 
+[ci] share composer try=1 t=0s — wait engine
+[ci] engine: no dispose in 20s, tapping
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2010
+[ci] engine started the turn try=1 t=3s — send landed (DB copy may lag)
+[ci] health device 19866 0 elapsed=59ms
+[ci] turn 2 collected charging=false
+[ci] battery level=79 temp=37.9C charging=false
+[ci] === turn 3 begins ===
+[ci] turn 3 send: [Argomento 3: Repubblica di Venezia] Sto leggendo un saggio sulla Repubblica di 
+[ci] share composer try=1 t=0s — wait engine
+[ci] engine: no dispose in 20s, tapping
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2010
+[ci] engine started the turn try=1 t=3s — send landed (DB copy may lag)
+[ci] health device 19866 1 elapsed=58ms
+[ci] health device 19866 2 elapsed=122689ms
+[ci] turn 3 collected charging=false
+[ci] battery level=77 temp=41.1C charging=false
+[ci] === turn 4 begins ===
+[ci] turn 4 send: [Argomento 4: Focaccia pugliese] La domenica voglio provare a fare la focaccia p
+[ci] share composer try=1 t=0s — wait engine
+[ci] engine: no dispose in 20s, tapping
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 945,2010
+[ci] engine started the turn try=1 t=3s — send landed (DB copy may lag)
+[ci] health device 19866 2 elapsed=56ms
+[ci] health device 19866 3 elapsed=124133ms
+[ci] RECOVERY reason=thermal (record only — app NOT force-stopped)
+{"i": 4, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal", "retried": false, "scores": null}
+[ci] RECOVERY reason=thermal — pause (battery > 42°C or status >= 5; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through; overshoot window=120s)
+[ci] THERMAL HARD ABORT: unplugged thermal status 3 >= 3 — stopping the unplugged run; it will not resume
+{"i": 4, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal-hard-abort: unplugged thermal status 3 >= 3", "retried": false, "scores": null}
+[ci] FATAL: thermal hard abort turn 4: unplugged thermal status 3 >= 3
+[ci] native log teardown: restoring previous preference
+[ci] startup marker present for PID 24394: KALSA_FOREGROUND_IDLE_PROTOCOL revision=854cd50
+[ci] launch gated for PID 24394
+[ci] keep-awake: restored screen_off_timeout=2147483647 (was 86400000)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+[ci] keep-awake: restored stay_on_while_plugged_in=15
+[ci] keep-awake: force-stop com.kalsa.app
+[ci] keep-awake: stay_on_while_plugged_in=15
+[ci] keep-awake: screen_off_timeout=2147483647
+[ci] screen finalize: screen_off_timeout=2147483647
+[ci] screen finalize: Awake + keyguard dismissed + Kalsa foreground
+[ci] screen finalize: readback screen_off_timeout=2147483647
