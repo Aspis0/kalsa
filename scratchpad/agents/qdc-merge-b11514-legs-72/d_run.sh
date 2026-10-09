@@ -1,5 +1,5 @@
 #!/bin/bash
-# Cell #72 driver - one copy, three legs with the upstream-b11514 merge bench (engine 904d38fad): CORRECTNESS on QDC
+# Cell #72 driver - one copy, three legs with the upstream-b11514 merge bench (engine 35233cf8e): CORRECTNESS on QDC
 # legs on an unmeasured SoC (QDC devices are always powered: speeds indicative only, no heat). Mirrors the Xiaomi 14
 # (SM8650) run of 2026-10-08. Run on the Mac AFTER connect.sh has the 6037 tunnel up (connect.sh execs this).
 # Usage: ./d_run.sh <JOB_TAG>. No `timeout` on the Mac or the device: Mac-side perl alarms + polls.
@@ -7,7 +7,7 @@ set -u
 JOB="${1:?usage: d_run.sh <job_tag>}"
 DIR="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-merge-b11514-legs-72"
 RAW="$DIR/raw"; mkdir -p "$RAW"
-KIT="$HOME/kalsa-qdc/merge-kit-904d38fad.tgz"
+KIT="$HOME/kalsa-qdc/merge-kit-35233cf8e.tgz"
 MODEL="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-newapk/raw/host-materials/LFM2.5-2.6B-QAD-Q4_0.gguf"
 MODEL_SHA="a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03"
 D=/data/local/tmp/kalsa72

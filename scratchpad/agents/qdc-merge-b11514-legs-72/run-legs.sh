@@ -1,5 +1,5 @@
 # Device-side (QDC, plugged = CORRECTNESS ONLY; speeds indicative, never claims): one copy, three legs on an
-# UNMEASURED Snapdragon with the lab bench (engine 904d38fad = upstream b11514 merged into e01a61cee, GGML_OPENCL_TILE32_LAB build: the OpenCL leg's
+# UNMEASURED Snapdragon with the lab bench (engine 35233cf8e = upstream b11514 merged into e01a61cee + audit fixes, GGML_OPENCL_TILE32_LAB build: the OpenCL leg's
 # "740"/E031.41 gate is waived by GGML_OPENCL_TILE32_UNMEASURED=1, every self-check stays). Same arms as the
 # Xiaomi 14 run (xiaomi-sm8650/run-xiaomi-correctness.sh + the GPU-leg splits + the plain controls):
 #   G = two-copy governor reference (greedy logits, 256), L = forced npu/gpu/cpu hops every 32 over 256, KL vs G,
