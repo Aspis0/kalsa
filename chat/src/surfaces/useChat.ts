@@ -895,6 +895,7 @@ export function useChat(shell: ChatShell) {
       // The task can land after the person chose another chat, and a chat that
       // is no longer current must not be sent into.
       if (!result.opened || !gate.isCurrent(result.opened)) return;
+      setAttachStatus(null);
       // Only if the box still holds what was sent: the wait is a round trip,
       // and the next message may already be in it.
       setDraft((current) => (current.trim() === text ? "" : current));
@@ -928,7 +929,10 @@ export function useChat(shell: ChatShell) {
         if (result === null || !result.opened || !gate.isCurrent(result.opened)) return;
         // Committed before the measurement below: the slot sentence sits above
         // the bar the flight aims at.
-        flushSync(() => noteSlot(result.notice));
+        flushSync(() => {
+          noteSlot(result.notice);
+          setAttachStatus(null);
+        });
         flyBarInto(text, result.opened, calm);
       })();
       return;
@@ -1033,6 +1037,7 @@ export function useChat(shell: ChatShell) {
     // The gate's own active chat, not the rendered one: an open of this chat can
     // be in flight, and the render still names the previous chat while it is.
     gate.clearIf(id);
+    if (id === activeId) setAttachStatus(null);
     // A chat the door kept leaves two things behind — its file, and the state
     // in the slot when that slot holds it — and this is the one call that takes
     // them. `no-tier` says nothing here: a door without the tier kept no file,
@@ -1045,6 +1050,7 @@ export function useChat(shell: ChatShell) {
 
   function newConversation(): void {
     gate.clear();
+    setAttachStatus(null);
     setDrawerOpen(false);
   }
 
@@ -1105,6 +1111,8 @@ export function useChat(shell: ChatShell) {
       const result = await gate.open(id);
       noteSlot(result.notice);
       if (!result.opened || !gate.isCurrent(result.opened)) return;
+      // An attachment's sentence belongs to the chat it was said in.
+      setAttachStatus(null);
       openSurface("chat");
       setDrawerOpen(false);
     })();
