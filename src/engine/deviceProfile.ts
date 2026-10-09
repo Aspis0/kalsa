@@ -32,6 +32,7 @@ import {
   type ModelSpeedAdvisory,
 } from "./deviceThroughput";
 import type { ModelWeightBytesPerToken } from "./ModelRegistry";
+import { noteDeviceProfile } from "../telemetry/deviceFacts";
 
 export type DeviceFamily = "xiaomi" | "samsung" | "pixel" | "generic";
 
@@ -735,7 +736,10 @@ export function getCachedDeviceProfile(): Promise<DeviceProfile> {
       isMiuiFamily: false,
       isFoldableCandidate: false,
       isTablet: false,
-    }));
+    })).then((profile) => {
+      noteDeviceProfile(profile);
+      return profile;
+    });
   }
   return cachedProfilePromise;
 }

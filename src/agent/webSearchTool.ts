@@ -94,6 +94,8 @@ export function makeWebSearchExecutor(
             rawMessage:
               error instanceof Error ? error.message : String(error ?? ""),
             phase: "turn",
+            component: "web",
+            stage: "tool_call",
           });
         } catch {
           /* telemetry never throws */

@@ -40,6 +40,7 @@ import type { ConversationsState } from "../conversations/ConversationsStore";
 import type { ModelPipelineState } from "./hostPipelineState";
 import type { Locale, TranslateFn } from "../i18n";
 import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
+import { markStage } from "../telemetry/diagnosticsCollector";
 
 /** Injected store for load markers + last-good bookkeeping (boot-loop defence). */
 export const loadMarkerStore: LoadMarkerStore = AsyncStorage;
@@ -155,6 +156,7 @@ export async function reportLoadRefusal(
         otherModelAvailable = hasOtherDownloadedModel(downloadedIds, model.id);
         smallerExists = smallerModelExists(otherSizes, model.sizeBytes);
       }
+      markStage("engine", "load");
       // eslint-disable-next-line no-console
       console.log(
         `KALSA_LOAD ${JSON.stringify({

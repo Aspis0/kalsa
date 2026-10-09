@@ -283,6 +283,14 @@ import {
 } from "./windowKvInvariant";
 import { getModelById } from "./ModelRegistry";
 import { notifyNativeWorkSettled } from "./nativeWorkSettle";
+import {
+  beginLoad,
+  beginPrefill,
+  markFirstToken,
+  markStage,
+  recordGovernorTurn,
+  recordLoad,
+} from "../telemetry/diagnosticsCollector";
 import type { ModelInfo } from "./ModelRegistry";
 import type { DecodeMeasurement } from "./deviceThroughput";
 import { getDecodeTokPerSec, recordDecodeSample } from "./decodeSpeed";
@@ -1835,6 +1843,7 @@ async function emitGovernorTelemetry(
       prefill_kv?: string | null;
       decode_tokens_gpu?: number;
     };
+    recordGovernorTurn(stats, completionResult);
     console.log(
       `KALSA_GOVERNOR ${JSON.stringify({
         engine_prefill: stats.engine_prefill,
@@ -2315,6 +2324,7 @@ export function initEngine(
 ): Promise<EngineInitResult> {
   let loadOk = false;
   return withLifecycleLock(async () => {
+    beginLoad();
     // A runtime governor fallback announces its own reload; every other load
     // is explicit and re-arms the governor.
     if (runtimeGovernorState === "fallback-reload") {
@@ -2812,6 +2822,7 @@ export function initEngine(
       // it described. This also self-heals a mark whose "active" release never
       // finished (the poisoned KV stays unwritten until here).
       clearContextPoison();
+      recordLoad({ modelId, contextTokens: params.n_ctx ?? 0 });
       // Which .so actually loaded. RNLlama.java tries the CPU-feature variants
       // in order and tryLoadLibrary swallows UnsatisfiedLinkError silently, so
       // a phone can quietly run a different kernel than the one being measured
@@ -2842,6 +2853,8 @@ export function initEngine(
             rawMessage?: string;
             phase?: "load";
             modelId?: string | null;
+            component?: "engine" | "governor";
+            stage?: "load";
           }) => void;
           classifyEngineInitFailure: (e: unknown) => string;
         };
@@ -2854,6 +2867,8 @@ export function initEngine(
           rawMessage,
           phase: "load",
           modelId: modelId ?? null,
+          component: governorLoad ? "governor" : "engine",
+          stage: "load",
         });
       } catch {
         /* telemetry never throws into engine path */
@@ -3272,6 +3287,7 @@ function reportChatGenerationTelemetry(error: unknown): void {
         detail?: string;
         rawMessage?: string;
         phase?: "turn";
+        component?: "engine";
       }) => void;
       classifyChatFailure: (e: unknown) => string;
     };
@@ -3281,6 +3297,7 @@ function reportChatGenerationTelemetry(error: unknown): void {
       detail: tel.classifyChatFailure(errObj),
       rawMessage: errObj.message,
       phase: "turn",
+      component: "engine",
     });
   } catch {
     /* telemetry never throws into engine path */
@@ -5260,7 +5277,8 @@ export async function streamAssistantTurn(
         // The completion is called through `runCompletionRound` so the
         // governor cooling loop can re-attempt the SAME round (same messages,
         // same think-cleaner state) after a thermal pause.
-        const runCompletionRound = () => trackCompletion(
+        // Per attempt: a cooling retry prefills the same round again.
+        const runCompletionRound = () => (beginPrefill(), trackCompletion(
           engine.completion(
             applyBenchSampling(
               {
@@ -5295,6 +5313,7 @@ export async function streamAssistantTurn(
               // the native evaluated the prompt from its window start.
               // Latched before the stop guards: evidence, not UI work.
               promptAdopted = true;
+              markFirstToken();
               // Token callbacks run inside this job — not blocked by the FIFO gate.
               // Always use data.token (incremental sent_count slice). data.content
               // is a CUMULATIVE parse of accumulated text (llama.rn TokenData
@@ -5325,7 +5344,7 @@ export async function streamAssistantTurn(
               }
             },
           ),
-        );
+        ));
         noteCompletionPromptEnv();
         armPrefillDeadline();
         // Governor thermal pause → visible cooling → auto-resume (owner
@@ -5853,6 +5872,7 @@ export async function streamAssistantTurn(
         }
         // Emit telemetry regardless of outcome (bench needs to measure frequency).
         try {
+          markStage("engine", "tool_call");
           console.log(formatToolRoundExhaustedLine(turnId, exhaustedTel));
         } catch {
           // Telemetry must never break a turn.

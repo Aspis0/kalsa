@@ -562,9 +562,9 @@ function reportWebFetchTelemetry(input: {
     // makes require type-check here.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const tel = require("../telemetry/telemetry") as {
-      reportTelemetry: (i: typeof input) => void;
+      reportTelemetry: (i: typeof input & { component: "web"; stage: "tool_call" }) => void;
     };
-    tel.reportTelemetry(input);
+    tel.reportTelemetry({ ...input, component: "web", stage: "tool_call" });
   } catch {
     /* telemetry never throws */
   }

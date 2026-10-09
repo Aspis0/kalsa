@@ -30,6 +30,11 @@ import {
   type ReasonCode,
 } from "./config";
 import { MODEL_REGISTRY } from "../engine/ModelRegistry";
+import {
+  sanitizeDiagnostics,
+  type Diagnostics,
+  type RawDiagnosticInput,
+} from "./diagnosticsSanitize";
 
 // ── FNV-1a 64 (same constants as embeddingPure.hashChunkContent) ────────────
 
@@ -238,7 +243,8 @@ export type TelemetryContext = {
 };
 
 export type TelemetryReport = {
-  v: 1;
+  /** 2 only when `diagnostics` is present. */
+  v: 1 | 2;
   app: "kalsa";
   appVersion: string;
   platform: "android" | "ios";
@@ -248,6 +254,7 @@ export type TelemetryReport = {
   context: TelemetryContext;
   dateBucket: string;
   manual: boolean;
+  diagnostics?: Diagnostics;
 };
 
 export type SanitizeInput = {
@@ -270,6 +277,8 @@ export type SanitizeInput = {
   chunks?: number;
   dateBucket?: string;
   manual?: boolean;
+  /** Failure location and state facts; present → v2 report. */
+  diagnostics?: RawDiagnosticInput;
 };
 
 function isReasonCode(v: unknown): v is ReasonCode {
@@ -402,7 +411,10 @@ export function sanitizeReport(input: SanitizeInput): TelemetryReport | null {
       dateBucket,
       manual: input.manual === true,
     };
-    return report;
+    const diagnostics = input.diagnostics
+      ? sanitizeDiagnostics(input.diagnostics, platform)
+      : undefined;
+    return diagnostics ? { ...report, v: 2, diagnostics } : report;
   } catch {
     return null;
   }
@@ -418,6 +430,10 @@ export function localFingerprint(report: TelemetryReport): string {
     report.deviceBucket,
     report.context.modelCategory ?? "",
     report.dateBucket,
+    report.diagnostics?.component ?? "",
+    report.diagnostics?.stage ?? "",
+    report.diagnostics?.signature ?? "",
+    report.diagnostics?.backend ?? "",
   ];
   return fnv1a64Hex(parts.join("|"));
 }

@@ -68,6 +68,9 @@ import {
   type Tombstone,
 } from "./pure";
 import type { Phase } from "./config";
+import type { DiagComponent, DiagStage } from "./diagnosticsContract";
+import { snapshotDiagnostics } from "./diagnosticsCollector";
+import { resolvedDeviceFacts } from "./deviceFacts";
 
 export {
   sanitizeReport,
@@ -214,14 +217,18 @@ function defaultDeps(): TelemetryDeps {
         return "0.1.0";
       }
     },
-    getDeviceContext: () => ({
-      platform,
-      ramTier: "low",
-      totalMemoryBytes: null,
-      osVersion: null,
-      modelId: null,
-      hadWebTools: false,
-    }),
+    // Until the device profile resolves, the default stays "low" / unknown OS.
+    getDeviceContext: () => {
+      const facts = resolvedDeviceFacts();
+      return {
+        platform,
+        ramTier: facts?.ramTier ?? "low",
+        totalMemoryBytes: facts?.totalMemoryBytes ?? null,
+        osVersion: facts?.osVersion ?? null,
+        modelId: null,
+        hadWebTools: false,
+      };
+    },
     subscribeAppState: subscribe
       ? (cb) => {
           // Keep getAppState in sync if caller uses default.
@@ -953,6 +960,9 @@ export type ReportTelemetryInput = {
   /** Optional overrides (tests / manual dialog). */
   modelId?: string | null;
   hadWebTools?: boolean;
+  /** Failure location; present → v2 report with diagnostics. */
+  component?: DiagComponent;
+  stage?: DiagStage;
 };
 
 /**
@@ -979,6 +989,14 @@ async function reportTelemetryAsync(input: ReportTelemetryInput): Promise<void> 
       code: input.code,
       detail: input.detail,
       rawMessage: input.rawMessage,
+      diagnostics: input.component
+        ? snapshotDiagnostics({
+            component: input.component,
+            stage: input.stage,
+            rawMessage: input.rawMessage,
+            modelId: input.modelId,
+          })
+        : undefined,
       appVersion: deps.getAppVersion(),
       platform: ctx.platform,
       deviceBucket: deviceBucketFromRamTier(ctx.ramTier),
