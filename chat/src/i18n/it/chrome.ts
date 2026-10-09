@@ -9,6 +9,7 @@ export const CHROME = {
     "chatMenu": "Menu della chat",
     // The settings surfaces' names, keyed as the shell looks them up.
     pages: {
+    "help": "Aiuto",
       "models": "AI",
       "server": "Accensione",
       "devices": "Dispositivi",

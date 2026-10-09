@@ -1,3 +1,4 @@
+import { HELP } from "./help";
 // The English source: every other language is typed against this shape.
 
 import { CHROME, SETTINGS } from "./chrome";
@@ -29,6 +30,7 @@ import { RUST } from "./rust";
 import { CONTENT_FILTER } from "./contentFilter";
 
 export interface English {
+  help: typeof HELP;
   chrome: typeof CHROME;
   settings: typeof SETTINGS;
   composer: typeof COMPOSER;
@@ -67,6 +69,7 @@ export interface English {
 }
 
 export const ENGLISH: English = {
+  help: HELP,
   chrome: CHROME,
   settings: SETTINGS,
   composer: COMPOSER,

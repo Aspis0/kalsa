@@ -1,0 +1,41 @@
+.help-page {
+  width: min(calc(var(--measure) + 4rem), 100%);
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.help-page section {
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.help-page h2 {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.help-page p,
+.help-page ul {
+  margin: 0.65rem 0 0;
+}
+
+.help-page ul {
+  padding-left: 1.3rem;
+}
+
+.help-page li + li {
+  margin-top: 0.45rem;
+}
+
+.help-page .help-sources {
+  color: var(--silence);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}

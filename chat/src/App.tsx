@@ -19,6 +19,7 @@ import { ChatSurface } from "./surfaces/ChatSurface";
 import { useChat } from "./surfaces/useChat";
 import { useLanguage } from "./i18n/useLanguage";
 import type { Table } from "./i18n";
+import { HelpSurface } from "./surfaces/HelpSurface";
 import { SettingsForm } from "./components/SettingsForm";
 import { BrainSurface } from "./surfaces/BrainSurface";
 import { useBrain } from "./surfaces/useBrain";
@@ -155,22 +156,28 @@ export function App() {
     // house's shared conversation.
     { key: "room", label: chrome.room, onSelect: () => openSurface("room") },
     { key: "settings", label: chrome.settings, onSelect: () => openSurface("settings") },
+    { key: "help", label: chrome.pages.help, onSelect: () => openSurface("help") },
   ];
 
+  // Navigation can unmount the focused button, leaving keyboard events on the body.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        // Escape over a held call refuses it: the safest reading of a slam
+        // on Escape is "no", never "send it".
+        if (chat.gateShown) chat.answerGate(chat.gateShown.id, false);
+        else if (navOpen) setNavOpen(false);
+        else if (chat.drawerOpen) chat.setDrawerOpen(false);
+        else if (surface === "chat" || surface === "room") openSurface("brain");
+        else if (surface === "settings" || surface === "help") goBack();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [chat, navOpen, surface, path]);
+
   return (
-    <div
-      className={`shell${chat.streamingAny ? " is-streaming" : ""}`}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          // Escape over a held call refuses it: the safest reading of a slam
-          // on Escape is "no", never "send it".
-          if (chat.gateShown) chat.answerGate(chat.gateShown.id, false);
-          else if (navOpen) setNavOpen(false);
-          else if (chat.drawerOpen) chat.setDrawerOpen(false);
-          else if (surface === "chat" || surface === "room") openSurface("brain");
-        }
-      }}
-    >
+    <div className={`shell${chat.streamingAny ? " is-streaming" : ""}`}>
       {/* The crescent lives in the chat and the room, overlaid at the
           shell's level: an open menu dims the page beneath it, so it must
           not sit inside what gets dimmed. It is a way between pages: the
@@ -230,6 +237,16 @@ export function App() {
                 />
               </svg>
               {chrome.settings}
+            </button>
+          ) : null}
+          {surface !== "settings" && surface !== "chat" && surface !== "room" ? (
+            <button
+              type="button"
+              className="topbar-btn"
+              onClick={() => openSurface("help")}
+              aria-label={chrome.pages.help}
+            >
+              <span aria-hidden="true">?</span>
             </button>
           ) : null}
           {surface !== "brain" && surface !== "chat" ? (
@@ -330,6 +347,8 @@ export function App() {
                 chat.clearContextCache();
               }}
             />
+          ) : surface === "help" ? (
+            <HelpSurface />
           ) : surface === "models" ? (
             <ModelsSurface
               onNavigate={openSurface}

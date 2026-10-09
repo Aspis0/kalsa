@@ -1,3 +1,4 @@
+import { HELP } from "./help";
 // Tradotto dal copy inglese approvato.
 
 import { CHROME, SETTINGS } from "./chrome";
@@ -30,6 +31,7 @@ import { CONTENT_FILTER } from "./contentFilter";
 import type { English } from "../en/all";
 
 export const ITALIAN: English = {
+  help: HELP,
   chrome: CHROME,
   settings: SETTINGS,
   composer: COMPOSER,
