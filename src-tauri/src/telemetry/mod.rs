@@ -166,6 +166,12 @@ pub(crate) fn observe(state: &ServerState) {
             inner.started = Some(Instant::now());
             inner.engine_stage = "load";
         }
+        if matches!(state, ServerState::Running { .. }) {
+            // A running engine is an idle engine: the stage leaves "load"
+            // the moment the engine answers, so only a turn moves it away
+            // from here.
+            inner.engine_stage = "other";
+        }
         inner.engine_stage
     };
     match state {
@@ -583,6 +589,21 @@ mod failure_tests {
             },
             "other",
         );
+        // A running engine is an idle one: the stage leaves "load" the
+        // moment the engine answers, so a death that finds it idle is not a
+        // load crash.
+        super::observe(&kalsa_supervisor::ServerState::Starting);
+        super::observe(&kalsa_supervisor::ServerState::Running {
+            pid: 4242,
+            port: 8080,
+        });
+        super::observe(&kalsa_supervisor::ServerState::Failed {
+            reason: kalsa_supervisor::Failure::ServerExited {
+                detail: "engine exited: segmentation fault".into(),
+                exit_code: None,
+                exit_signal: Some(11),
+            },
+        });
         let inner = service.inner.lock().unwrap();
         assert_eq!(inner.engine_stage, "other");
         let queued = |code: &str, detail: &str, stage: &str| {
@@ -600,6 +621,18 @@ mod failure_tests {
         assert!(queued("engine.init", "init_timeout", "load"));
         assert!(queued("chat.generation", "oom", "decode"));
         assert!(queued("engine.init", "native_crash", "other"));
+        // The idle death walked the real state path: its signal is what
+        // tells this report from the one handed "other" directly, so the
+        // assertion cannot pass on that one alone.
+        assert!(
+            inner.store.queue.iter().any(|item| {
+                item.report["error"]["code"] == "engine.init"
+                    && item.report["error"]["detail"] == "native_crash"
+                    && item.report["diagnostics"]["stage"] == "other"
+                    && item.report["error"]["signal"] == "segmentation fault"
+            }),
+            "an idle death reports stage other, never load"
+        );
         drop(inner);
         std::fs::remove_dir_all(dir).unwrap();
     }
