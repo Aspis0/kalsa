@@ -290,7 +290,6 @@ def payload(line, name):
 last = None
 calls = []
 exhausted = None
-exhausted_after_round = None
 try:
     with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
         for line in fh:
@@ -299,22 +298,10 @@ try:
                 calls.append(obj)
                 last = obj
                 if exhausted is not None and obj.get("turnId") == exhausted.get("turnId"):
-                    try:
-                        if exhausted_after_round is not None and int(obj.get("round", -1)) > exhausted_after_round:
-                            exhausted = None
-                            exhausted_after_round = None
-                    except (TypeError, ValueError):
-                        pass
+                    exhausted = None
             obj = payload(line, "KALSA_TOOLROUND_EXHAUSTED")
             if obj is not None:
                 exhausted = obj
-                prior_rounds = [
-                    int(call["round"]) for call in calls
-                    if call.get("turnId") == obj.get("turnId")
-                    and isinstance(call.get("round"), int)
-                    and not isinstance(call.get("round"), bool)
-                ]
-                exhausted_after_round = max(prior_rounds) if prior_rounds else None
 except OSError:
     pass
 if exhausted is not None and (not calls or all(call.get("turnId") == exhausted.get("turnId") for call in calls)):
@@ -355,7 +342,7 @@ campaign_wait_turn() {
   local gap_ms="${CAMPAIGN_TELEMETRY_GAP_MS:-1800000}"
   local poll_ms="${CAMPAIGN_POLL_MS:-5000}"
   local start now elapsed last_progress pid state count poll_s last_health fingerprint last_fingerprint
-  local telemetry_seen_at="" pending_logged="" tool_state
+  local telemetry_seen_at="" pending_logged="" tool_state exhausted_seen_at=""
   local toolcall_quiet_ms current_round pending_round="" pending_since=0
   local tool_round_max_ms="${CAMPAIGN_TOOL_ROUND_MAX_MS:-600000}"
   case "$tool_round_max_ms" in ''|*[!0-9]*) tool_round_max_ms=600000 ;; esac
@@ -373,12 +360,6 @@ campaign_wait_turn() {
     campaign_logcat_ensure
     campaign_logcat_slice "$offset" "$dest"
     tool_state=$(campaign_turn_tool_state "$dest")
-    if [ "$tool_state" = "exhausted" ]; then
-      # EXHAUSTED is the completion marker even if TELEMETRY or its canned
-      # reply never persisted; count>prev would otherwise leave this polling.
-      CAMPAIGN_TURN_STATUS="toolcap"
-      return 0
-    fi
 
     state=$(campaign_adb_state)
     if [ "$state" != "device" ]; then
@@ -387,14 +368,31 @@ campaign_wait_turn() {
     fi
     pid=$(campaign_pidof_settled)
     case "$pid" in
-      ''|*[!0-9]*)
+      '')
         CAMPAIGN_TURN_STATUS="pid-death"
         return 1
         ;;
+      *[!0-9]*) : ;;
     esac
 
     count=$(campaign_assistant_count)
     case "$count" in ''|*[!0-9]*) count=0 ;; esac
+
+    if [ "$tool_state" = "exhausted" ]; then
+      # The EXHAUSTED log precedes the fallback bubble; accept its text if it lands, else stop after the same quiet window.
+      if [ "$count" -gt "$prev" ]; then
+        CAMPAIGN_TURN_STATUS="toolcap"
+        return 0
+      fi
+      [ -n "$exhausted_seen_at" ] || exhausted_seen_at="$now"
+      if [ $((now - exhausted_seen_at)) -ge "$toolcall_quiet_ms" ]; then
+        CAMPAIGN_TURN_STATUS="toolcap"
+        return 0
+      fi
+      sleep "$poll_s"
+      continue
+    fi
+    exhausted_seen_at=""
 
     campaign_snapshot_messages "$OUT/.messages.json"
     # Liveness advances on ANY evidence of progress. Reading it from the

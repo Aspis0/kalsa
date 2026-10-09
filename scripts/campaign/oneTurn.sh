@@ -26,6 +26,10 @@ campaign_store_turn() {
     "$CAMPAIGN_CONV_ID" "${CAMPAIGN_TURN_I:-0}"
 }
 
+campaign_stamp_toolcap_record() {
+  python3 -c 'import json,sys; p=sys.argv[1]; r=json.load(open(p)); r["toolcap"]=True; json.dump(r,open(p,"w"))' "${1:?}"
+}
+
 # Recover enough to retry the SAME turn. die only if recovery itself fails.
 campaign_recover_status() {
   local status="${1:?}"
@@ -67,6 +71,9 @@ campaign_recover_status() {
       campaign_wait_ready || die "ready timeout after pid-death turn $CAMPAIGN_TURN_I"
       return 0
       ;;
+    toolcap)
+      return 0
+      ;;
     *)
       die "unknown turn status $status"
       ;;
@@ -85,6 +92,9 @@ campaign_finish_turn() {
   rec="$OUT/.turn.json"
   campaign_env_snapshot "$OUT/.turn-env.txt"
   campaign_collect_file "$slice" "$OUT/.messages.json" "$charging" "$rec"
+  if [ "${CAMPAIGN_TURN_STATUS:-}" = toolcap ]; then
+    campaign_stamp_toolcap_record "$rec"
+  fi
   campaign_score_record "$rec"
   campaign_store_turn "$rec"
   log "turn $CAMPAIGN_TURN_I collected charging=$charging"

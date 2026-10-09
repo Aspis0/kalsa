@@ -11,40 +11,42 @@ campaign_pidof() {
   adb shell "pidof $PKG" </dev/null 2>/dev/null | tr -d '\r' | awk '{print $1}'
 }
 
-# A single empty pidof is not a death: one failed wireless `adb shell` returns
-# nothing, and the S23 G2 run of 2026-10-09 force-stopped a decoding app on it
-# (every ApplicationExitInfo was FORCE STOP from adb, none a crash). Dead means
-# three empty reads one second apart; the first live pid wins.
+# WHY: wireless adb can flap, so six reads bound the wait; only three trailing empties prove death, two identical live reads settle early, and otherwise the last live PID (or unknown) survives.
 campaign_pidof_settled() {
-  local p previous="" empty_reads=0
-  while :; do
+  local p previous="" last_live="" empty_reads=0 read=0 garbage_logged=0
+  while [ "$read" -lt 6 ]; do
+    read=$((read + 1))
     p=$(campaign_pidof) || true
-    if [ -z "$p" ]; then
+    case "$p" in
+      '' )
       previous=""
       empty_reads=$((empty_reads + 1))
       if [ "$empty_reads" -ge 3 ]; then
         printf '\n'
         return 0
       fi
-    else
+      ;;
+      *[!0-9]*)
+        previous=""
+        empty_reads=0
+        if [ "$garbage_logged" -eq 0 ]; then
+          log "pidof returned non-numeric output: '$p'" >&2
+          garbage_logged=1
+        fi
+        ;;
+      *)
       empty_reads=0
-      case "$p" in
-        *[!0-9]*)
-          log "pidof returned non-numeric output: '$p'"
-          printf '\n'
-          return 0
-          ;;
-        *)
-          if [ "$p" = "$previous" ]; then
-            printf '%s\n' "$p"
-            return 0
-          fi
-          previous="$p"
-          ;;
-      esac
-    fi
-    sleep 1
+      last_live="$p"
+      if [ "$p" = "$previous" ]; then
+        printf '%s\n' "$p"
+        return 0
+      fi
+      previous="$p"
+      ;;
+    esac
+    [ "$read" -lt 6 ] && sleep 1
   done
+  if [ -n "$last_live" ]; then printf '%s\n' "$last_live"; else printf '%s\n' unknown; fi
 }
 
 campaign_slice_has_telemetry() {

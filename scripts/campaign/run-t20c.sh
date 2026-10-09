@@ -66,9 +66,7 @@ flags = arm.get("flags") if isinstance(arm, dict) else None
 if not isinstance(flags, dict) or any(key not in flags for key in keys):
     raise SystemExit("missing T20C arm flags")
 values = [flags[key] for key in keys]
-if any(not isinstance(value, str) for value in values):
-    raise SystemExit("T20C arm flags must be strings")
-print(*values)
+print(*(str(value) for value in values))
 PY
 )" || { echo "refuse: $CONFIG has no complete T20C arm flags" >&2; exit 2; }
 read -r COMPACTION_VAL MEMORY_VAL TOOLHELP_VAL <<<"$ARM_FLAGS"
@@ -448,7 +446,7 @@ for i in $(seq 1 20); do
   # Defect 2 (2026-09-16): a run whose completion signal is already gone can
   # only repeat the same 30-45 min wait. Stop at the first turn (from 2 on)
   # that ends without KALSA_TELEMETRY instead of grinding through the rest.
-  if campaign_completion_signal_lost "$i" "$OUT/.slice.txt"; then
+  if [ "${CAMPAIGN_TURN_STATUS:-}" != toolcap ] && campaign_completion_signal_lost "$i" "$OUT/.slice.txt"; then
     rc=4
     break
   fi
@@ -488,11 +486,10 @@ with stream:
         elif "event" in record:
             recoveries += 1
         elif isinstance(record.get("i"), int) and not isinstance(record.get("i"), bool):
-            exhausted = record.get("telemetry", {}).get("KALSA_TOOLROUND_EXHAUSTED", [])
-            if exhausted:
+            # Toolcap records count as completed for this footer and resume.mjs, which accepts every non-RECOVERY turn.
+            turns.add(record["i"])
+            if record.get("toolcap") is True:
                 toolcaps.add(record["i"])
-            else:
-                turns.add(record["i"])
         else:
             unparseable += 1
 print(len(turns), len(toolcaps), recoveries, unparseable)

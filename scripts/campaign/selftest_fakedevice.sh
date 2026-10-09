@@ -4,8 +4,8 @@
 # talks to a device. Put this file on PATH as `adb`.
 #
 # State files (all under $FAKE_DEV/fake):
-#   mode         marker-turn1 | never | fail-send | vanish | pid-blip | sql-read-garbage |
-#                sql-read-blip | hot | db-lag |
+#   mode         marker-turn1 | never | fail-send | vanish | pid-blip | pidof-garbage |
+#                pidof-flap | sql-read-garbage | sql-read-blank | sql-read-blip | sql-read-settled | hot | db-lag |
 #                throttled | thermal-rise-fall | thermal-hard-abort |
 #                thermal-status-abort | thermal-unreadable-status | thermal-giveup |
 #                thermal-plugged-rise |
@@ -299,21 +299,41 @@ case "${1:-}" in
     s="$*"
     case "$s" in
       "pidof $PKG")
-        if [ "$(_mode)" = pid-blip ]; then
+        if [ "$(_mode)" = pidof-garbage ]; then
+          reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/pidof_reads"
+          printf '%s\n' 'device-side pidof error'
+        elif [ "$(_mode)" = pidof-flap ]; then
+          reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/pidof_reads"
+          [ $((reads % 2)) -eq 0 ] && app_pid
+        elif [ "$(_mode)" = pid-blip ]; then
           reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
           printf '%s' "$reads" > "$F/pidof_reads"
           [ "$reads" -eq 1 ] || app_pid
         else
+          reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/pidof_reads"
           app_pid
         fi
         ;;
       "if pidof $PKG"*)
         if [ "$(_mode)" = sql-read-garbage ]; then
+          reads=$(( $(cat "$F/app-state-reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/app-state-reads"
           printf '%s\n' MAYBE
+        elif [ "$(_mode)" = sql-read-blank ]; then
+          reads=$(( $(cat "$F/app-state-reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/app-state-reads"
+          printf '\n'
         elif [ "$(_mode)" = sql-read-blip ]; then
           reads=$(( $(cat "$F/app-state-reads" 2>/dev/null || printf 0) + 1 ))
           printf '%s' "$reads" > "$F/app-state-reads"
           if [ "$reads" -eq 1 ]; then printf '%s\n' STOPPED; else printf '%s\n' RUNNING; fi
+        elif [ "$(_mode)" = sql-read-settled ]; then
+          reads=$(( $(cat "$F/app-state-reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/app-state-reads"
+          printf '%s\n' STOPPED
         elif [ -n "$(app_pid)" ]; then printf '%s\n' RUNNING; else printf '%s\n' STOPPED; fi
         ;;
       "dumpsys battery") _battery_dump ;;
