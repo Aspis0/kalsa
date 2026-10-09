@@ -143,9 +143,16 @@ One weight copy read by NPU, GPU and CPU; the governor hops decode between legs.
 - Blast radius: Mali/MediaTek/unknown SoCs and iOS never load the governor; low-RAM phones are
   guarded only by its estimate-based fit; V75 enablement rests on one board plus the Xiaomi lab.
 - Owner approved 2026-10-09: rule v3 ON by default in the app + per-SoC v3 values in the legs
-  table + an SM8650 row, then APK, then the S23 in-app test; fix A1 (App / UX below). Binding
-  (local, unpushed): v3 knobs `70de0d22` + `80d585ac`; the S23 row carries the full v3 tuning
-  and an explicit app JSON key wins (`c97f2e39` + `d687551c`); its audit is running. The NPU voltage-corner knob
+  table + an SM8650 row, then APK, then the S23 in-app test; fix A1 (App / UX below). DONE
+  2026-10-09 (two audits, deepseek + Luna): binding main `77677ff9` - the S23 row carries rule v3
+  (hop 32, HEAT_RANK, load step 19/9/22, guard 5) as the default of every key the app JSON leaves
+  absent (an explicit key wins; the app sends none), `KALSA_LEGS_TABLE_OUTCOME {mode, row_tuning}`
+  says whether the row tuning is in force, `GovernorStats.decode_hop_rule` names the rule.
+- SM8650 row NOT shipped (audit P1): the engine's TILE32 gate admits only Adreno 740 / E031.41
+  outside lab builds (`ggml-opencl-tile32-facts.cpp`), so the row (binding `84ac0d57`, unpushed,
+  values from cells 75/76) would load one-copy, fail the J(1) fence and reload two-copy on every
+  Xiaomi load. Enabling it = add Adreno 750 / E031.45 to the engine's measured gate (correctness
+  evidence: cells 72, 74), re-vendor, then the row. The NPU voltage-corner knob
   (engine `6e06ce5a1`) stays lab-only, not wired into the governor.
 
 ### Engine and upstream
@@ -230,9 +237,10 @@ landed (`cc4ede9b`). LAN direct path is step 6 of kalsa-brain's plan
 
 ### Release pipeline
 
-Phone chain: engine main `2e723bd9d` -> binding main `1babccb9` (vendors `2e723bd9d`, HTP skels
-rebuilt) -> app main `44609814` pins `kalsa.rn#1babccb9` / kalsallama `2e723bd9d` (provenance
-1198 files EXIT 0). NO APK exists yet with this pin. Desktop: v1.1.5 published on R2 + HF; the
+Phone chain: engine main `2e723bd9d` -> binding main `77677ff9` (vendors `2e723bd9d`, HTP skels
+rebuilt) -> app main `23854676` pins `kalsa.rn#77677ff9` / kalsallama `2e723bd9d` (provenance
+1198 files EXIT 0, apk.yml harness block and jest src/engine 1218 EXIT 0; includes the A1 fix).
+APK: CI run `37949782564` (debuggable, arm64) dispatched 2026-10-09 after telling kalsa-brain. Desktop: v1.1.5 published on R2 + HF; the
 next tag carries b11514 (desktop checks PASS, see above). Operational procedure, manifest
 contract and the Cloudflare cache traps:
 `archived/ALIVE-2026-10-09-full.md`, "Engine release pipeline" (unchanged procedure). The
@@ -242,12 +250,12 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
 
 ## Next steps (ordered, 2026-10-09)
 
-1. Binding: audit `c97f2e39`/`d687551c`, add the SM8650 row (cells 75/76), audit, push.
-2. App (in `~/Projects/kalsa-wt-gov`): re-pin (v3 is ON by default through the row), fix A1,
-   gates, push. Tell kalsa-brain, then dispatch `apk.yml`.
-3. On that APK: S23 in-app smoke, then a 20-30 turn long session (G2 on the S23).
+1. DONE 2026-10-09: binding `77677ff9`, app `23854676` (pin + A1), APK run `37949782564`.
+2. Engine: admit Adreno 750 / E031.45 in the TILE32 measured gate, re-vendor, then the SM8650 row
+   (`84ac0d57`) - needed before the Xiaomi in-app round.
+3. On the APK: S23 in-app smoke, then a 20-30 turn long session (G2 on the S23).
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
-   needs a tracked bench build or a channel without `run-as` (the release APK is not debuggable).
+   needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
 5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76); the in-app round
    when the owner lends it.
 6. Owner decisions: the Jelly (G3), the safety marking (below).

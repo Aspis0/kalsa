@@ -7,8 +7,10 @@
 ## Headline (2026-10-09)
 
 - Engine fork main `2e723bd9d` (upstream b11514 merged + audit fixes + the B1 Hexagon cap
-  restore); binding main `1babccb9` (vendors the engine, HTP skels rebuilt); app main `44609814`
-  pins the pair, provenance 1198 files EXIT 0. NO APK exists yet with this pin.
+  restore); binding main `77677ff9` (rule v3 HEAT_RANK default on the S23 one-copy row,
+  `decode_hop_rule` stat); app main `23854676` pins the pair + the A1 fix, provenance 1198 files
+  EXIT 0. APK building (CI run `37949782564`, debuggable). SM8650 row held back: the engine's
+  TILE32 gate does not admit Adreno 750 outside lab builds.
 - One-copy three-leg loads are CORRECT on the merged engine on every measured device: S23 real
   phone (cell `s23-merge-b11514-legs-73`), Xiaomi 14 real phone - the GPU-750 leg that failed
   here is fixed and deterministic (cell `xiaomi-merge-b11514-legs-74`) - and QDC SM8650/SM8750/
@@ -26,8 +28,7 @@
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs
-  table, then APK, S23 in-app test, fix A1. Binding v3 per-SoC committed locally (`c97f2e39`,
-  `d687551c`), under audit.
+  table, then APK, S23 in-app test, fix A1. Done up to the APK build (S23 row only).
 
 ## How to read this file
 
@@ -38,7 +39,7 @@ concurrent work are not copied here; the record that produced them is named inst
 
 | what is proven | record |
 |---|---|
-| The delivery chain, current: engine main `2e723bd9d` -> binding main `1babccb9` (`vendor/VERSIONS`, skels rebuilt, skew gate) -> app main `44609814` pins `kalsa.rn#1babccb9`, provenance 1198 files EXIT 0; no APK yet with this pin. Forks are main-only; retired lines are `archive/*` tags | app repo `package.json` + `REPOS.md` at `44609814`; provenance run: `archived/PLAN-2026-10-09-full.md:2311` |
+| The delivery chain, current: engine main `2e723bd9d` -> binding main `77677ff9` (`vendor/VERSIONS`, skels rebuilt, skew gate) -> app main `23854676` pins `kalsa.rn#77677ff9`, provenance 1198 files EXIT 0; APK CI run `37949782564`. Forks are main-only; retired lines are `archive/*` tags | app repo `package.json` + `REPOS.md` at `44609814`; provenance run: `archived/PLAN-2026-10-09-full.md:2311` |
 | Engine main content: b11514 merge `904d38fad` + audit fixes `35233cf8e` (MUL_MAT_ID HMX gate, Metal vec-FA NULL-pipeline guard, Windows `ggml_fopen`, n_read) and `23b2a44d7` (u8path); B1 mbuf-cap restore `e2d2ac01b`/`985c6eb8f`/`2e723bd9d`; Q8_0 quantizer fix `837334a74`; bench-logits fix `fbf33176c` | `onecopy-three-legs/audit-merge-b11514-n2.md`; root `BACKLOG-LOW-PRIORITY.md` (B1); `bisect-npu-kld/` under `onecopy-three-legs/` |
 | One copy, three legs: one weight copy serves NPU+GPU+CPU; KL mean vs two copies 1e-5 to 1.2e-4 (L-npu on SM8750/SM8850), E5 residual <= 2.3e-5; correct on the merged engine on S23 (real), Xiaomi (real), QDC SM8650/SM8750/SM8850 | `s23-merge-b11514-legs-73/`, `xiaomi-merge-b11514-legs-74/`, `qdc-merge-b11514-legs-72/` REPORTs |
 | GPU-750 one-copy defect root cause: upstream `kernel_mul_mat_f16_f32_l4_y8` on the decode KQV; fixed by keeping Adreno A7X off it (engine `e01a61cee`, no speed cost); reproduced on a second 750 (QRD8650) | `qdc-8g3-gpu750-dump-67/`, `qdc-8g3-gpu750-y8-70/`, `qdc-8g3-onecopy-legs-71/` |

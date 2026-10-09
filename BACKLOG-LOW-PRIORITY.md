@@ -26,3 +26,15 @@
   deletes (unreachable with a content-hash engineBuild; the caller goes cold).
 - A3 (P3, pre-existing) The app's `assert-htp-skels-installed.sh` trusts the manifest's ENGINE_COMMIT / fingerprint;
   the recomputing gate lives only in the binding repo.
+- A4 (P2, audit of A1 fix `45d3989d`, 2026-10-09) `staticPrefixSnapshot.ts:165/225` (prewarm snapshot load/save) still
+  maps the governor refusal to `load_error` / `save_error` in `KALSA_PREWARM`; no data loss (load deletes nothing, save
+  only its tmp). Fix: share the `governor_mode` reason/guard with `sessionPersistence.ts`.
+- A5 (P3, same audit) the `KALSA_SESSION` governor skip line has no `source` field, so a save skip and a
+  memory-extract restore skip are indistinguishable to `scripts/restoreVerdict.mjs`; the source-pin privacy guard
+  checks only `stem`.
+- A6 (P2, pre-existing, Luna audit of `ffc84ee9`, 2026-10-09) On a chat switch the load-failure path calls
+  `dropHoldAfterOptionalNativeClear`; if the native `clearCache()` fails it still drops the hold
+  (`LlamaService.ts:3419/3435`), and B's identity-scoped save hint (`sessionPersistence.ts:173-174`) cannot reveal
+  A's surviving KV, so B's first send may assemble over A's tokens. Same path since the governor went default ON
+  (2026-10-02); not introduced by the A1 fix. Fix: keep an identity-independent "native KV may remain" state that
+  forces reconciliation, or block the send until a clear succeeds.
