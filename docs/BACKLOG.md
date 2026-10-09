@@ -312,7 +312,7 @@ Fixed in the same pass: engine-log filter and redaction, Help privacy/default/la
 
 Owner: on by default for the alpha on phone and desktop; revisit the default for the beta (EU consent). Deferred from the two-reviewer review:
 
-- The Worker `/report` has no sender authentication; the in-memory IP limiter is per isolate and the 50/hour global cap can be eaten by fabricated valid reports (`kalsa/workers/telemetry/index.ts:63-64, :163-182, :405-427`).
+- Owner 2026-10-09: no authentication is fine for the alpha; decide for the beta. The Worker `/report` has no sender authentication; the in-memory IP limiter is per isolate and the 50/hour global cap can be eaten by fabricated valid reports (`kalsa/workers/telemetry/index.ts:63-64, :163-182, :405-427`).
 - The desktop report's local save fsyncs inline on the engine-failure path (`src-tauri/src/telemetry/store.rs`, called from `main.rs` ~:1693); a slow disk delays the next fallback.
 - A crash between saving ON and removing the `off` marker can silently revert ON to OFF (safe direction).
 - `npm run command-contract` stops at the pre-existing `window_visibility::window_hidden` entry, so the new telemetry commands are not guarded.
