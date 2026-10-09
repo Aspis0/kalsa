@@ -81,6 +81,10 @@ struct Record {
     /// same never-released rule `read` rides on.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     media: Vec<MediaAsset>,
+    /// The day a call was sent (see `Entry::sent_on`). Absent on every line
+    /// written before it existed, which replays as it was first sent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sent_on: Option<String>,
 }
 
 /// One transcript entry, in memory. Not the public shape: the door never
@@ -100,6 +104,8 @@ pub(crate) struct Message {
     pub(crate) read: u32,
     /// The media this entry carries; empty on the AI's own lines.
     pub(crate) media: Vec<MediaAsset>,
+    /// The day a call was sent; `None` unless this is a member's call.
+    pub(crate) sent_on: Option<String>,
 }
 
 impl std::fmt::Debug for Message {
@@ -132,6 +138,7 @@ impl Message {
             call_ai: self.call_ai,
             read: self.read,
             media: self.media.clone(),
+            sent_on: self.sent_on.clone(),
         }
     }
 }
@@ -343,6 +350,7 @@ impl Checker {
             call_ai: record.call_ai,
             read: record.read,
             media: record.media,
+            sent_on: record.sent_on,
         })
     }
 }

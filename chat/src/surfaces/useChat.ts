@@ -38,6 +38,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
 import { contentDecline } from "../lib/contentFilterCopy";
 import { logUiEvent } from "../lib/uiLog";
+import { sentDatePhrase } from "../lib/sentDate";
 import { useBrain, useBrainServer, useDoorStanding, withBrainDefaults } from "./useBrain";
 import { useServerFacts } from "./useServerFacts";
 import { useVisionOffer } from "./useVisionOffer";
@@ -842,6 +843,7 @@ export function useChat(shell: ChatShell) {
           role: "user",
           content: text,
           createdAt: Date.now(),
+          sentOn: sentDatePhrase(new Date()),
           ...(images.length > 0 ? { images } : {}),
           ...(videos.length > 0 ? { videos } : {}),
           ...(bindable.length > 0

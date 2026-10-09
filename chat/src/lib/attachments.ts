@@ -4,6 +4,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { TOOL_STOPPED } from "./types";
 import type { ChatMessage, ToolRun } from "./types";
 import { miniappStateLines } from "./miniapp/stateText";
+import { sentLine } from "./sentDate";
 import type { WireContentPart, WireMessage } from "./chat";
 
 export type AttachmentKind = "txt" | "md" | "csv" | "pdf" | "docx" | "pptx";
@@ -110,7 +111,8 @@ export function messageTokens(message: ChatMessage): number {
     frameTokens +
     // The documents bound to this turn weigh what their rendered block
     // weighs — history, like the words they ride with.
-    (message.docTokens ?? 0)
+    (message.docTokens ?? 0) +
+    (message.sentOn ? estTokens(sentLine(message.sentOn)) : 0)
   );
 }
 
@@ -569,7 +571,12 @@ function userWireContent(
   // The block sits before the words: the model reads what was attached, then
   // what was asked about it.
   const block = turnDocBlock(docs);
-  const words = block ? `${block}\n\n${message.content}` : message.content;
+  // The date a turn was sent rides after its words, as it was stored.
+  const said =
+    message.role === "user" && message.sentOn
+      ? [message.content, sentLine(message.sentOn)].filter(Boolean).join("\n\n")
+      : message.content;
+  const words = block ? `${block}\n\n${said}` : said;
   if (images.length === 0 && videos.length === 0) return words;
   if (!media?.vision) {
     return words ? `${words}\n${IMAGE_PLACEHOLDER}` : IMAGE_PLACEHOLDER;

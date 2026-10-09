@@ -631,7 +631,7 @@ fn window(
     let mut bytes = prompt_bytes;
     for entry in entries.iter().rev() {
         let name = frame_name(door, &devices, entry.member);
-        let cost = name.len() + entry.text.len() + 8;
+        let cost = name.len() + entry.text.len() + 8 + sent_bytes(entry);
         if bytes + cost > budget && !kept.is_empty() {
             break;
         }
@@ -665,7 +665,7 @@ fn halve_budget(
         .iter()
         .map(|entry| {
             let name = frame_name(door, &devices, entry.member);
-            name.len() + entry.text.len() + 8
+            name.len() + entry.text.len() + 8 + sent_bytes(entry)
         })
         .sum::<usize>()
         .saturating_add(prompt_bytes);
@@ -708,7 +708,7 @@ fn transcript(
     let mut messages = vec![json!({"role": "system", "content": system})];
     for entry in kept {
         let name = frame_name(door, &devices, entry.member);
-        let text = format!("[{name}] {}", entry.text);
+        let text = wire_words(&name, &entry);
         let mut parts = Vec::new();
         if vision {
             for image in images.iter().filter(|image| image.seq == entry.seq) {
@@ -822,6 +822,28 @@ fn engine_vision(port: u16) -> bool {
 fn frame_name(door: &RoomDoor, devices: &crate::Devices, member: MemberId) -> String {
     let name = name_of(&door.room, devices, door.host, member);
     name.replace(['[', ']'], "")
+}
+
+/// What one transcript entry says on the wire: its frame, its words, and the
+/// day a call was sent. The day was stored at post, so every turn replays it
+/// byte for byte.
+fn wire_words(name: &str, entry: &Entry) -> String {
+    match &entry.sent_on {
+        Some(sent) => format!("[{name}] {}{}", entry.text, sent_line(sent)),
+        None => format!("[{name}] {}", entry.text),
+    }
+}
+
+fn sent_line(sent: &str) -> String {
+    format!("\n\nSent on {sent}.")
+}
+
+/// The bytes a call's day adds to its wire words, which the budget counts.
+fn sent_bytes(entry: &Entry) -> usize {
+    entry
+        .sent_on
+        .as_deref()
+        .map_or(0, |sent| sent_line(sent).len())
 }
 
 fn publish(

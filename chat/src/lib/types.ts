@@ -94,6 +94,10 @@ export interface ChatMessage {
   /** What the bound documents' block weighs (estTokens of its text), so the
       fit counts it as history without re-reading the attachments. */
   docTokens?: number;
+  /** The local date this turn was sent, in English ("Thursday, 8 October
+      2026"). Set once at send and replayed on the wire as stored: a changed
+      byte in an old turn makes the engine re-read the conversation from it. */
+  sentOn?: string;
   /** The failure this turn ended in, so a reload can show its sentence and
       Retry again; absent on every turn that did not fail. */
   failed?: ChatErrorKind;

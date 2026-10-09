@@ -162,6 +162,7 @@ function cleanMessage(value: unknown): ChatMessage | null {
       ? { reasoning: value.reasoning }
       : {}),
     ...(typeof value.reasoningMs === "number" ? { reasoningMs: value.reasoningMs } : {}),
+    ...(typeof value.sentOn === "string" && value.sentOn ? { sentOn: value.sentOn } : {}),
     ...(typeof value.failed === "string" && (FAILED_KINDS as readonly string[]).includes(value.failed)
       ? { failed: value.failed as ChatErrorKind }
       : {}),

@@ -56,6 +56,7 @@ mod queue;
 mod recovery;
 mod room;
 mod roster;
+mod sent;
 mod shelf;
 
 #[cfg(test)]
@@ -126,6 +127,10 @@ pub struct Entry {
     /// own entries. The bytes live behind the ids, in the room's media
     /// shelf.
     pub media: Vec<MediaAsset>,
+    /// The local day a call was sent, as the AI's wire words it. Set once at
+    /// post and kept, so a replayed turn is byte-identical; `None` on every
+    /// entry that is not a member's call, and on calls posted before it existed.
+    pub sent_on: Option<String>,
 }
 
 impl Entry {
@@ -138,6 +143,7 @@ impl Entry {
             call_ai: message.call_ai,
             read: message.read,
             media: message.media.clone(),
+            sent_on: message.sent_on.clone(),
         }
     }
 }

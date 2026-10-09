@@ -11,6 +11,7 @@ mod mention;
 mod permissions;
 mod post;
 mod queue;
+mod sent;
 mod subscribe;
 
 use std::path::PathBuf;

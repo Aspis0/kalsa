@@ -78,8 +78,8 @@ fn a_turn_with_vision_carries_the_room_pictures_and_one_without_carries_none() {
             assert!(
                 seen[0]
                     .body
-                    .contains("\"text\":\"[Paired phone] @Kalsa look\""),
-                "the words ride as the text part: {}",
+                    .contains("\"text\":\"[Paired phone] @Kalsa look\\n\\nSent on "),
+                "the words ride as the text part, then the day they were sent: {}",
                 seen[0].body
             );
         } else {
@@ -91,8 +91,8 @@ fn a_turn_with_vision_carries_the_room_pictures_and_one_without_carries_none() {
             assert!(
                 seen[0]
                     .body
-                    .contains("\"content\":\"[Paired phone] @Kalsa look\""),
-                "the words ride as the string they always were: {}",
+                    .contains("\"content\":\"[Paired phone] @Kalsa look\\n\\nSent on "),
+                "the words ride as the string, then the day they were sent: {}",
                 seen[0].body
             );
         }

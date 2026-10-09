@@ -24,3 +24,5 @@ kalsa-pairing = { path = "../kalsa-pairing" }
 # installs the logger for. This crate only writes lines.
 log = "0.4"
 unicode-properties = { version = "0.1.4", features = ["general-category"] }
+# The local calendar day a call was posted on, read once at post and kept.
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

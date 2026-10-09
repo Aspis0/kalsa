@@ -13,6 +13,7 @@ use crate::media::{MediaAsset, MediaError};
 use crate::mention::calls_ai;
 use crate::room::{Room, Writer};
 use crate::roster;
+use crate::sent;
 use crate::{Entry, MemberId, PostError, RoomError};
 
 impl Room {
@@ -61,6 +62,7 @@ impl Room {
         if !writer.writable {
             return Err(PostError::ReadOnly);
         }
+        let time = now();
         let fresh = {
             let state = self.lock_state();
             if !state.roster.is_live(member) {
@@ -86,10 +88,11 @@ impl Room {
                     member,
                     client_msg_id: client_msg_id.to_string(),
                     text,
-                    time: now(),
+                    time,
                     call_ai,
                     read: 0,
                     media: assets,
+                    sent_on: if call_ai { sent::sent_on(time) } else { None },
                 },
             }
         };
@@ -131,6 +134,7 @@ impl Room {
                 call_ai: true,
                 read,
                 media: Vec::new(),
+                sent_on: None,
             }
         };
         if let Err(error) = append(&mut writer.file, &fresh) {

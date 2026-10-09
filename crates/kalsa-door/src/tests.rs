@@ -42,6 +42,7 @@ mod room_media_turn;
 mod room_names;
 mod room_routes;
 mod room_seat;
+mod room_sent_on;
 mod room_support;
 mod room_turn;
 mod room_turn_wire;
