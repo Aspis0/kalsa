@@ -1,7 +1,7 @@
 
 ## Binding bump to engine 23b2a44d7 (kalsa.rn 1632a4a2) - audit leftovers (deepseek e75f5d18, 2026-10-09)
 
-- B1 (P2) [FIXED engine 2e723bd9d, pushed 2026-10-09; binding re-vendor in progress] One-copy Hexagon caps leak: `restore_hexagon_shared_weights` passes `{false, 0}` because the engine
+- B1 (P2) [FIXED: engine 2e723bd9d + binding 1babccb9, both pushed 2026-10-09] One-copy Hexagon caps leak: `restore_hexagon_shared_weights` passes `{false, 0}` because the engine
   setter writes ONE cap to both `opt_mbuf_dyn` (512 MiB) and `opt_mbuf_static` (1 GiB); after a one-copy load every
   later two-copy load in the process runs with both at 832 MiB (+320 MiB dyn ceiling, more static splits; a user's
   `GGML_HEXAGON_MBUF=dyn,static,total` overridden). Fix engine-side: snapshot both caps at init/first enable and
