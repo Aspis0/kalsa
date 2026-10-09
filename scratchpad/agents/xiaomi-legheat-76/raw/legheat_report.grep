@@ -1,0 +1,17 @@
+== legheat start Fri Oct  9 09:52:27 EDT 2026 bench 50f338304020 [lvl=75 plugged=0 batT=323 skin=32.934 wake=Awake] zones nsp:6 gpu:8 cpu:15
+## leg=cpu gen=1024 start 1791553947 [lvl=75 plugged=0 batT=323 skin=32.929 wake=Awake]
+## leg=cpu exit=0 end 1791554033 [lvl=74 plugged=0 batT=350 skin=40.349 wake=Awake]
+run_start arm=L rep=0 monotonic_us=63922851691 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=cpu tokens=1023 us=69549895 tps=14.709
+leg_total arm=L rep=0 generated=1023 windows=32 hops=0 commit_bytes=0 commit_us=0
+## leg=npu gen=512 start 1791554033 [lvl=74 plugged=0 batT=350 skin=40.343 wake=Awake]
+## leg=npu exit=0 end 1791554080 [lvl=73 plugged=0 batT=363 skin=39.87 wake=Awake]
+run_start arm=L rep=0 monotonic_us=64008712252 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=npu tokens=511 us=30926792 tps=16.523
+leg_total arm=L rep=0 generated=511 windows=16 hops=0 commit_bytes=0 commit_us=0
+## leg=gpu gen=512 start 1791554080 [lvl=73 plugged=0 batT=363 skin=39.851 wake=Awake]
+## leg=gpu exit=0 end 1791554119 [lvl=73 plugged=0 batT=370 skin=40.718 wake=Awake]
+run_start arm=L rep=0 monotonic_us=64055571122 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5
+leg_summary arm=L rep=0 engine=gpu tokens=511 us=24038408 tps=21.258
+leg_total arm=L rep=0 generated=511 windows=16 hops=0 commit_bytes=0 commit_us=0
+== legheat end Fri Oct  9 09:55:19 EDT 2026 [lvl=73 plugged=0 batT=370 skin=40.712 wake=Awake]
