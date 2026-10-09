@@ -299,6 +299,11 @@ fn split_append_and_serve(
     deadline: Instant,
 ) {
     for raw in raw_events.drain(..) {
+        // The engine's counters ride the events this loop relays; the byte
+        // search inside costs nothing on an event that names no keys.
+        if let Some(timings) = crate::timings::from_event(&raw) {
+            crate::audit::note_timings(timings);
+        }
         let id = job.token().event_id(job.next_index());
         if let Some(event) = sse::rewrite(&raw, &id) {
             if matches!(job.append(event.into()), Appended::Stopped) {

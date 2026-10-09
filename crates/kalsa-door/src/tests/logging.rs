@@ -63,6 +63,17 @@ pub(super) fn capture() {
     });
 }
 
+/// The shape tests, one at a time. A test that asserts on its line's SHAPE —
+/// a suffix that must not be there, a `b` that must be — can be answered by
+/// a concurrent test's line that shares its marker (the route and device
+/// are the door's vocabulary, so they repeat across tests); the tests that
+/// look at shapes hold this while they drive and read. Tests that find
+/// their lines by markers unique to them need none.
+pub(super) fn serial() -> std::sync::MutexGuard<'static, ()> {
+    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 /// Waits for a line containing `marker`, then answers every line written so
 /// far. A marker that never arrives costs the wait and returns anyway, so the
 /// assertion that reports it is the test's own.
@@ -94,7 +105,7 @@ pub(super) fn line_count() -> usize {
 /// [`wait_for`], but only a line at or after `since` counts. Two tests can
 /// drive the same route through two doors, and the capture is one for the
 /// whole binary; the index is what makes the marker this test's.
-fn wait_for_new(marker: &str, since: usize) -> Vec<String> {
+pub(super) fn wait_for_new(marker: &str, since: usize) -> Vec<String> {
     let until = Instant::now() + Duration::from_secs(2);
     loop {
         let found = lines()
@@ -114,6 +125,7 @@ fn wait_for_new(marker: &str, since: usize) -> Vec<String> {
 #[test]
 fn a_request_line_names_the_route_and_never_the_query_or_the_body() {
     capture();
+    let _serial = serial();
     let upstream = RecordingUpstream::start();
     let token = credential();
     let (door, address) = door(upstream.port, &[&token]);
@@ -155,6 +167,7 @@ fn a_request_line_names_the_route_and_never_the_query_or_the_body() {
 #[test]
 fn an_absolute_form_target_with_credentials_logs_as_other() {
     capture();
+    let _serial = serial();
     let upstream = RecordingUpstream::start();
     let token = credential();
     let (door, address) = door(upstream.port, &[&token]);

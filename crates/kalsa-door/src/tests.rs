@@ -13,6 +13,7 @@ use kalsa_pairing::{ClaimResult, Pairing, PhoneDeclaration};
 
 mod cors;
 mod cors_answers;
+mod completion_timings;
 mod exit_deadline;
 mod stop_warning;
 mod logging;

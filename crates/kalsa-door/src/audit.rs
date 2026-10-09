@@ -2,8 +2,10 @@
 //!
 //! One request leaves one line, written by the guard [`begin`] installs for the
 //! whole call: the status and the byte count are fed by the answers as they go
-//! out ([`note_answer`], through `proxy::answer`), so a refusal no branch
-//! remembered to report still says what it answered. The guard is a
+//! out ([`note_answer`], through `proxy::answer`), and a completion's own
+//! counters arrive through [`note_timings`] (`crate::timings`), so a refusal
+//! no branch remembered to report still says what it answered and a slow
+//! completion can be split into re-reading versus generating. The guard is a
 //! thread-local because the answer writers sit deep below `handle` — the
 //! room's routes, the disk tier's — and every connection is served by one
 //! worker thread from accept to return, so the slot belongs to exactly one
@@ -21,6 +23,7 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use crate::devices::DeviceId;
+use crate::timings::Timings;
 
 pub(crate) mod line;
 
@@ -41,6 +44,7 @@ struct RequestLog {
     reason: RefCell<Option<String>>,
     bytes: Cell<u64>,
     streamed: Cell<bool>,
+    timings: RefCell<Option<Timings>>,
 }
 
 /// The guard `handle` holds for the whole request. Dropping it clears the
@@ -57,6 +61,7 @@ pub(crate) fn begin() -> Audit {
         reason: RefCell::new(None),
         bytes: Cell::new(0),
         streamed: Cell::new(false),
+        timings: RefCell::new(None),
     });
     CURRENT.with(|slot| *slot.borrow_mut() = Some(Rc::clone(&log)));
     Audit(Some(log))
@@ -117,6 +122,15 @@ pub(crate) fn streamed() {
     current(|log| log.streamed.set(true));
 }
 
+/// The engine's own counters for a completion, as its answer carried them.
+/// The stream sends them more than once (the final chunk most completely),
+/// so the LAST writer wins — it is the final value that says how the whole
+/// completion was spent. The type is numbers only, so nothing a client or
+/// the model wrote can ride in beside them.
+pub(crate) fn note_timings(timings: Timings) {
+    current(|log| *log.timings.borrow_mut() = Some(timings));
+}
+
 /// Whether the answer so far is a refusal. The room branch's own fallback
 /// code is set only when the room's route answered one — its answers carry
 /// their own codes inside the body, which this line does not read.
@@ -154,8 +168,14 @@ fn request_line(log: &RequestLog) -> String {
         None => String::new(),
     };
     let streamed = if log.streamed.get() { " stream" } else { "" };
+    let timings = log
+        .timings
+        .borrow()
+        .as_ref()
+        .map(|timings| timings.line_suffix())
+        .unwrap_or_default();
     format!(
-        "door request: {} {} device {device} status {status}{reason} {}ms {}b{streamed}",
+        "door request: {} {} device {device} status {status}{reason} {}ms {}b{streamed}{timings}",
         log.method.borrow(),
         log.route.borrow(),
         log.started.elapsed().as_millis(),
@@ -288,6 +308,7 @@ mod tests {
             reason: RefCell::new(None),
             bytes: Cell::new(4096),
             streamed: Cell::new(false),
+            timings: RefCell::new(None),
         });
         assert!(
             line.starts_with("door request: POST /v1/chat/completions device 3 status 200 "),
@@ -312,6 +333,7 @@ mod tests {
             reason: RefCell::new(Some("door.no_slot".to_string())),
             bytes: Cell::new(61),
             streamed: Cell::new(false),
+            timings: RefCell::new(None),
         });
         assert!(
             line.starts_with(
@@ -414,6 +436,7 @@ mod tests {
             reason: RefCell::new(None),
             bytes: Cell::new(1),
             streamed: Cell::new(false),
+            timings: RefCell::new(None),
         })
     }
 }

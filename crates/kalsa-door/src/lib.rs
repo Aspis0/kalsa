@@ -70,6 +70,7 @@ mod slot_routes;
 mod slots;
 mod sse;
 mod stream;
+mod timings;
 mod token;
 
 #[cfg(test)]

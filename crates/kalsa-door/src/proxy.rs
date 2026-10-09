@@ -824,6 +824,9 @@ fn relay_response(
     observer: Option<&Observed>,
 ) -> io::Result<()> {
     let mut buffer = [0u8; 16 * 1024];
+    // A non-stream completion signs its body with the engine's counters at
+    // the end; the tail window sees them without holding the body.
+    let mut tail = crate::timings::Tail::new();
     let mut last_byte = Instant::now();
     loop {
         if cancel.stopped() {
@@ -850,6 +853,9 @@ fn relay_response(
         last_byte = Instant::now();
         to.write_all(&buffer[..read])?;
         audit::note_answer(&buffer[..read]);
+        if let Some(timings) = tail.feed(&buffer[..read]) {
+            audit::note_timings(timings);
+        }
         if let Some(observer) = observer {
             observer(&buffer[..read]);
         }
