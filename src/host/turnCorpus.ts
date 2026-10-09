@@ -226,6 +226,13 @@ export function validateHistoryMessages(
         (m as { interrupted?: unknown }).interrupted === true ? true : undefined;
       const edited =
         (m as { edited?: unknown }).edited === true ? true : undefined;
+      // The stored date line, replayed byte-identical; turns from before the
+      // stamp simply have none.
+      const rawSentOn = (m as { sentOn?: unknown }).sentOn;
+      const sentOn =
+        typeof rawSentOn === "string" && rawSentOn.trim().length > 0
+          ? rawSentOn.slice(0, 120)
+          : undefined;
       const rawEmitted = (m as { modelEmittedText?: unknown }).modelEmittedText;
       // Load applies the save path's own rule (readModelEmittedText):
       // whitespace-only means absent, everything else preserved byte-for-byte.
@@ -262,6 +269,7 @@ export function validateHistoryMessages(
       if (images.length > 0) rec.images = images;
       if (interrupted !== undefined) rec.interrupted = interrupted;
       if (edited !== undefined) rec.edited = edited;
+      if (sentOn !== undefined) rec.sentOn = sentOn;
       if (modelEmittedText !== undefined) {
         rec.modelEmittedText = modelEmittedText + stateText;
         if (emissionSource !== undefined) rec.emissionSource = emissionSource;

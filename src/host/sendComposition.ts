@@ -11,6 +11,7 @@
  * Pure: strings and booleans in, one string plus at most ONE notice out.
  */
 import { hasDeepResearchTrigger, stripDeepResearchTrigger } from "../research/plan";
+import { formatSentOnLine } from "../engine/sentOnLine";
 import type { TranslationKey } from "../i18n";
 import { documentHints, visionInputPresent } from "./attachments";
 import type { LocalAttachment } from "./hostMessage";
@@ -28,6 +29,10 @@ export interface SendCompositionInput {
   visionCapable: boolean;
   /** `t("chat.lookAtAttachedFile")`, captured already-translated. */
   attachedFileLabel: string;
+  /** The send's timestamp (epoch ms) — the one the date line is stamped from. */
+  now: number;
+  /** A regenerated turn keeps its original date line; absent stamps `now`. */
+  sentOn?: string;
 }
 
 export interface SendComposition {
@@ -37,6 +42,8 @@ export interface SendComposition {
    *  mutually exclusive by construction (one needs `!visionCapable`, the
    *  other `visionCapable`), so the one-slot notice can never drop one. */
   notice: TranslationKey | null;
+  /** The date line stamped once for this send; stored with the turn, never UI. */
+  sentOn: string;
 }
 
 export function composeSendText(input: SendCompositionInput): SendComposition {
@@ -60,5 +67,9 @@ export function composeSendText(input: SendCompositionInput): SendComposition {
     // be silently dropped — say so (controller `Chat:2465-2468`).
     notice = "chat.deepResearchIgnoringImages";
   }
-  return { modelText, notice };
+  return {
+    modelText,
+    notice,
+    sentOn: input.sentOn ?? formatSentOnLine(new Date(input.now)),
+  };
 }

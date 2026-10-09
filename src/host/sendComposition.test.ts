@@ -25,10 +25,12 @@ const pdfPage: LocalAttachment = {
 };
 const pdfNoPages: LocalAttachment = { id: "p2", kind: "pdf", name: "q.pdf", uri: "file:///q" };
 
+const NOW = new Date(2026, 9, 8, 12).getTime();
 const base = {
   research: false,
   visionCapable: true,
   attachedFileLabel: "Look at the attached file.",
+  now: NOW,
 };
 
 describe("the model-facing text (Chat:2471-2477)", () => {
@@ -36,7 +38,18 @@ describe("the model-facing text (Chat:2471-2477)", () => {
     expect(composeSendText({ ...base, trimmed: "what is entropy", attachments: [] })).toEqual({
       modelText: "what is entropy",
       notice: null,
+      sentOn: "Sent on Thursday, 8 October 2026.",
     });
+  });
+
+  it("a regenerated turn keeps its own date line; the send's now is not re-stamped", () => {
+    const out = composeSendText({
+      ...base,
+      trimmed: "hi",
+      attachments: [],
+      sentOn: "Sent on Monday, 5 October 2026.",
+    });
+    expect(out.sentOn).toBe("Sent on Monday, 5 October 2026.");
   });
 
   it("an attachment-only send falls back to the controller's attached-file line, never \"\"", () => {

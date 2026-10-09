@@ -65,6 +65,7 @@ export function handleSendStream(
     research?: boolean;
     notes?: boolean;
     onNotice?: () => void;
+    sentOn?: string;
   },
 ): Promise<{ afterSessionSave?: () => void }> {
   const {
@@ -212,6 +213,7 @@ export function handleSendStream(
               remoteBackend: isRemoteEngineBackend(),
               locale,
               text,
+              sentOn: sendOpts?.sentOn,
               attachments,
               docs: documentLibraryRef.current.docs ?? [],
               executeTool: agentOptionsRef.current.executeTool,

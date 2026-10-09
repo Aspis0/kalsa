@@ -95,6 +95,13 @@ export type Message = {
   failureStale?: boolean;
   /** True when the user edited this message text (edit-then-regen flow). */
   edited?: boolean;
+  /**
+   * The date line stamped once at send time ("Sent on Thursday, 8 October
+   * 2026."). Stored with the turn and appended to the model-facing text on
+   * every later request, byte-identical — never re-derived, never rendered:
+   * absent on turns stored before the stamp existed.
+   */
+  sentOn?: string;
   statusLabel?: string;
   statusHistory?: string[];
   sources?: MessageSource[];

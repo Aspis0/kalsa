@@ -32,6 +32,9 @@ export interface ResendPlan {
    *  staged rows: a foreign send leaves those alone (`send`'s third
    *  argument distinguishes them). */
   attachments?: LocalAttachment[] | undefined;
+  /** The target's date line, re-sent with its text; absent means today's
+   *  (an edit is a new message). */
+  sentOn?: string | undefined;
 }
 
 export interface ResendDeps {
@@ -64,7 +67,7 @@ export async function truncateAndResend(
   // Third argument = FOREIGN attachments: `send` then knows not to consume
   // (or clear) the composer's own rows. One line so `messageActions.test`'s
   // ordering needle (lock → truncate → send → declare) keeps its shape.
-  const run = sendHost.send(plan.text, opts.edited ? { edited: true } : undefined, plan.attachments ?? []);
+  const run = sendHost.send(plan.text, { edited: opts.edited, sentOn: plan.sentOn }, plan.attachments ?? []);
   if (!sendHost.sendingRef.current) {
     // `send` refused synchronously — impossible after the caller's checks
     // (identical gates, no await between), so this is a defensive rollback

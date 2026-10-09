@@ -25,6 +25,7 @@ import {
 import { historyBudgetCharge, historyThinkPlacementForModel } from "../engine/modelEmittedText";
 import { buildMemoryFactsBlock } from "../engine/memoryFactsTail";
 import { applyPersonaTail } from "../engine/personaTail";
+import { appendSentOnLine } from "../engine/sentOnLine";
 import { findPersona } from "../conversations/PersonasStore";
 import { builtinCopyFromT } from "../screens/PersonasScreen";
 import {
@@ -149,10 +150,13 @@ export async function prepareEngineWindow(
               (memoryEnabledRef.current && promptFacts.length > 0
                 ? buildMemoryFactsBlock(locale, promptFacts).length
                 : 0);
+            // Not in userTailChars: every history user turn gets its OWN stamp
+            // in historyBudgetCharge, and this send's stamp is the current one's.
+            const currentSentOnChars = appendSentOnLine("", input.sendOpts?.sentOn).length;
             const baseMessageCap = hasImages
               ? LEGACY_MAX_CHARS_IMAGES
               : LEGACY_MAX_CHARS;
-            const currentTurnChars = promptText.length + userTailChars;
+            const currentTurnChars = promptText.length + userTailChars + currentSentOnChars;
             const historyThink = historyThinkPlacementForModel(
               currentModel.preserveThinking,
             );

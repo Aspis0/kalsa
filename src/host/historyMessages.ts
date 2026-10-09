@@ -127,6 +127,11 @@ export function sanitizeHistoryMessages(
     if (record.edited === true) {
       message.edited = true;
     }
+    // The stamped date line: replayed byte-identical after a reload, so the
+    // KV prefix the turn was sent with stays valid across restarts.
+    if (typeof record.sentOn === "string" && record.sentOn.trim().length > 0) {
+      message.sentOn = record.sentOn.slice(0, 120);
+    }
     // Model-emitted text (assistant only) for prompt replay / KV prefix match.
     const emitted = readModelEmittedText(record.role, record.modelEmittedText);
     if (emitted !== undefined) {

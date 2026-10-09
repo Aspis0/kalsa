@@ -154,7 +154,7 @@ describe("the edited bubble: stamped at creation, drawn as the badge", () => {
   it("both append sites stamp `edited: true` on the re-sent user message", () => {
     const stamps = SEND_CODE.match(/\.\.\.\(opts\?\.edited \? \{ edited: true \} : \{\}\)/g) ?? [];
     expect(stamps).toHaveLength(2);
-    expect(SEND_CODE).toContain("opts?: { edited?: boolean }");
+    expect(SEND_CODE).toContain("opts?: { edited?: boolean; sentOn?: string }");
   });
 
   it("the save asks for the stamp; regenerate does not (its bubble must stay unbadged)", () => {

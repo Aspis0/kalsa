@@ -126,6 +126,9 @@ export type HistoryRoleMessage = {
    * renderer from the native KV.
    */
   emissionSource?: EmissionSource;
+  /** The stored date line ("Sent on …"), appended to this turn's model text
+   *  on every request; absent on turns stored before the stamp existed. */
+  sentOn?: string;
 };
 
 export type EngineHistoryMessage = {
@@ -137,6 +140,8 @@ export type EngineHistoryMessage = {
   modelEmittedText?: string;
   /** See HistoryRoleMessage.emissionSource — carried into EngineMessage. */
   emissionSource?: EmissionSource;
+  /** See HistoryRoleMessage.sentOn — carried into EngineMessage. */
+  sentOn?: string;
 };
 
 // ── Defaults & storage key layout ──────────────────────────────────────────
@@ -1004,6 +1009,7 @@ function toEngineHistoryMessage(
     out.modelEmittedText = m.modelEmittedText;
     if (m.emissionSource !== undefined) out.emissionSource = m.emissionSource;
   }
+  if (m.role === "user" && m.sentOn !== undefined) out.sentOn = m.sentOn;
   return out;
 }
 

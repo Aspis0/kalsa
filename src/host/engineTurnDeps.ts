@@ -83,7 +83,7 @@ export interface TurnInputs {
   signal: AbortSignal;
   attachments?: LocalAttachment[];
   history?: unknown[];
-  sendOpts?: { research?: boolean; notes?: boolean; onNotice?: () => void };
+  sendOpts?: { research?: boolean; notes?: boolean; onNotice?: () => void; sentOn?: string };
   chatId: string;
   hasImages: boolean;
   validatedHistory: HistoryRoleMessage[];

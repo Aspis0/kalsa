@@ -64,4 +64,13 @@ describe("the engine research phase is local-only and still runs locally", () =>
     expect(ENGINE_TURN).toContain("runEngineResearchTurn({");
     expect(ENGINE_TURN).toContain("executeTool: agentOptionsRef.current.executeTool");
   });
+
+  test("the turn's date line reaches the research pipeline", async () => {
+    const stamp = "Sent on Thursday, 8 October 2026.";
+    mockRunDeepResearch.mockResolvedValue({ kind: "report", text: "Found it", partial: false });
+
+    await runEngineResearchTurn(input({ sentOn: stamp }));
+
+    expect(mockRunDeepResearch.mock.calls[0][0].sentOn).toBe(stamp);
+  });
 });

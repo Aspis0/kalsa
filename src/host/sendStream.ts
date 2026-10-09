@@ -37,8 +37,8 @@ export interface SendRequest {
   attachments?: readonly SendAttachment[];
   /** UI history snapshot assembled for this turn. */
   history?: readonly unknown[];
-  /** Persistable user text without doc hints. */
-  lastUserBare?: string;
+  /** The date line stamped for this send; appended to user turns at assembly. */
+  sentOn?: string;
   options?: {
     research?: boolean;
     notes?: boolean;

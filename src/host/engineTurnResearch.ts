@@ -9,6 +9,7 @@ export interface EngineResearchTurnInput {
   remoteBackend: boolean;
   locale: Locale;
   text: string;
+  sentOn?: string;
   attachments?: LocalAttachment[];
   docs: LibraryDoc[];
   executeTool?: EngineTurnOptions["executeTool"];
@@ -55,6 +56,7 @@ export async function runEngineResearchTurn(
     .trim();
   const outcome = await runDeepResearch({
     question,
+    sentOn: input.sentOn,
     locale: input.locale,
     docs: filtered.length > 0 ? filtered : libraryDocs,
     execute: (name, args, toolSignal) => input.executeTool

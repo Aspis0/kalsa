@@ -16,6 +16,7 @@ import {
 } from "../documents/DocumentLibrary";
 import type { Locale } from "../i18n/types";
 import { getStrings } from "../i18n";
+import { appendSentOnLine } from "../engine/sentOnLine";
 import {
   PLANNER_JSON_SCHEMA,
   fallbackSubqueries,
@@ -70,6 +71,8 @@ export type RunDeepResearchOpts = {
   nCtx: number;
   signal?: AbortSignal;
   callbacks?: DeepResearchCallbacks;
+  /** The turn's date line: the planner and the writer read it; retrieval never does. */
+  sentOn?: string;
 };
 
 function throwIfAborted(signal?: AbortSignal): void {
@@ -241,6 +244,7 @@ export async function runDeepResearch(
       opts.callbacks?.onDelta?.(text, text);
       return { kind: "no_results", text };
     }
+    const modelQuestion = appendSentOnLine(question, opts.sentOn);
     const deadlineAt = Date.now() + DEEP_RESEARCH_DEADLINE_MS;
     const pastDeadline = () => Date.now() >= deadlineAt;
     status(chat.deepResearchPlanning ?? "Planning research…");
@@ -251,7 +255,7 @@ export async function runDeepResearch(
         "You plan library searches. Reply with JSON only: " +
         '{ "subqueries": ["short keyword phrase", ...] }. ' +
         "Return 3 to 5 phrases, each at most 12 words. No prose.",
-      user: question,
+      user: modelQuestion,
       temperature: 0.3,
       nPredict: PLANNER_N_PREDICT,
       jsonSchema: PLANNER_JSON_SCHEMA,
@@ -336,7 +340,7 @@ export async function runDeepResearch(
 
     const map = buildCitationMap(packed, docs);
     const writerUser =
-      `Question:\n${question}\n\n` +
+      `Question:\n${modelQuestion}\n\n` +
       `Search plan:\n${subqueries.map((q, i) => `${i + 1}. ${q}`).join("\n")}\n\n` +
       `Cited passages (cite ONLY with [[n]] matching these numbers):\n\n` +
       formatPassagesForWriter(packed);

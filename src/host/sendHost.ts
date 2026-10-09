@@ -85,12 +85,12 @@ export interface SendHostParams {
 }
 
 export interface SendHost {
-  /** `opts.edited` badges the re-sent user bubble (edit-then-resend);
-   *  `attachments` is a FOREIGN attachment set (edit/regenerate re-send the
-   *  target's own) — absent means "consume the composer's rows". */
+  /** `opts.edited` badges the re-sent user bubble; `opts.sentOn` keeps a
+   *  regenerated turn's date line; `attachments` is a FOREIGN set (edit and
+   *  regenerate re-send the target's own) — absent means "consume the rows". */
   send: (
     text: string,
-    opts?: { edited?: boolean },
+    opts?: { edited?: boolean; sentOn?: string },
     attachments?: readonly LocalAttachment[],
   ) => Promise<void>;
   stop: () => void;
@@ -128,7 +128,7 @@ export function useSendHost(params: SendHostParams): SendHost {
 
   const send = async (
     text: string,
-    opts?: { edited?: boolean },
+    opts?: { edited?: boolean; sentOn?: string },
     attachments?: readonly LocalAttachment[],
   ): Promise<void> => {
     const trimmed = text.trim();
@@ -212,7 +212,7 @@ export function useSendHost(params: SendHostParams): SendHost {
       // The doc-hint annotation, the empty-caption fallback and this send's
       // ONE notice live in `sendComposition.ts` (controller `Chat:2438-2477`).
       const composition = composeSendText({
-        trimmed,
+        trimmed, now, sentOn: opts?.sentOn,
         attachments: snapshot,
         research: useResearch,
         visionCapable: params.visionCapable,
@@ -224,7 +224,7 @@ export function useSendHost(params: SendHostParams): SendHost {
       params.setMessages((prev) =>
         fence.apply(token, prev, (state) => [
           ...state,
-          { id: userMsgId, role: "user", text: trimmed, createdAt: now, attachments: stamped, ...(opts?.edited ? { edited: true } : {}) },
+          { id: userMsgId, role: "user", text: trimmed, createdAt: now, sentOn: composition.sentOn, attachments: stamped, ...(opts?.edited ? { edited: true } : {}) },
           {
             id: assistantId,
             role: "assistant",
@@ -283,7 +283,7 @@ export function useSendHost(params: SendHostParams): SendHost {
         // The typed seam carries the same frozen snapshot the engine half
         // receives below (`sendStream.SendRequest.attachments`).
         attachments: snapshot,
-        history: params.messagesRef.current,
+        history: params.messagesRef.current, sentOn: composition.sentOn,
         // Research or armed notes hand the engine its options. A truncated
         // notes context speaks through this build's single notice slot
         // (D1 row 40) — the controller sent the same catalogue line to its

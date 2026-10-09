@@ -7,6 +7,7 @@
 
 import { THINK_OPEN } from "./thinkStream";
 import { qwenHistoryAssistantFields } from "./qwenHistoryFields";
+import { appendSentOnLine } from "./sentOnLine";
 
 /** Named restore refusal: history cannot re-render the saved KV byte-for-byte. */
 export const HISTORY_NOT_REPRODUCIBLE = "history_not_reproducible";
@@ -200,6 +201,7 @@ export function historyBudgetCharge(
     content?: string;
     modelEmittedText?: string;
     emissionSource?: EmissionSource;
+    sentOn?: string;
   },
   opts: {
     historyThink: HistoryThinkPlacement;
@@ -215,7 +217,14 @@ export function historyBudgetCharge(
     typeof message.modelEmittedText === "string" &&
     message.modelEmittedText.length > 0;
   const charged = replaysEmitted ? replay : Math.min(replay, opts.baseMessageCap);
-  return charged + (message.role === "user" ? (opts.userTailChars ?? 0) : 0);
+  if (message.role !== "user") return charged;
+  // The turn's own stamp, not the shared tail: each user turn carries its
+  // own date line and nobody else's.
+  return (
+    charged +
+    (opts.userTailChars ?? 0) +
+    appendSentOnLine("", message.sentOn).length
+  );
 }
 
 /**

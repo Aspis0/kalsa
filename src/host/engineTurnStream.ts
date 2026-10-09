@@ -18,6 +18,7 @@ import {
 import { streamHostTurn } from "./engineBackendStream";
 import { hostStreamErrorText } from "./remoteEngineError";
 import { applyPersonaTail } from "../engine/personaTail";
+import { appendSentOnLine } from "../engine/sentOnLine";
 import { boundMemoryFacts } from "../memory/dnaBounding";
 import { attachmentImageUris, remoteAttachmentImageUris } from "./attachments";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
@@ -61,6 +62,7 @@ export async function streamEngineTurn(
     contextMode,
     hasImages,
     turnCiswireFlags,
+    sendOpts,
   } = run.inputs;
   const {
     armMemoryExtract,
@@ -170,9 +172,15 @@ export async function streamEngineTurn(
             const engineMessages: EngineMessage[] = assembled.map((m) => {
               const msg: EngineMessage = {
                 role: m.role,
+                // The stored date line rides the turn it was stamped with,
+                // byte-identical on every later request (KV prefix stays
+                // valid); turns from before the stamp carry none.
                 content:
                   m.role === "user"
-                    ? applyPersonaTail(m.content, persona?.instructions)
+                    ? appendSentOnLine(
+                        applyPersonaTail(m.content, persona?.instructions),
+                        m.sentOn,
+                      )
                     : m.content,
               };
               if (
@@ -203,11 +211,13 @@ export async function streamEngineTurn(
               : attachmentImageUris(attachments);
             // Last-user composition (engine, format B):
             //   factsBlock + "\n\n" + applyPersonaTail(userText, persona)
-            // Persona applied here; facts are prefixed in streamAssistantTurn
-            // so they never rewrite the system prefix.
-            const lastUserHistoryContent = applyPersonaTail(
-              promptText,
-              persona?.instructions,
+            //   + "\n\n" + sentOn
+            // Persona applied here; the stamped date line follows the words;
+            // facts are prefixed in streamAssistantTurn so they never rewrite
+            // the system prefix.
+            const lastUserHistoryContent = appendSentOnLine(
+              applyPersonaTail(promptText, persona?.instructions),
+              sendOpts?.sentOn,
             );
             const userMessage: EngineMessage = {
               role: "user",

@@ -29,6 +29,8 @@ export type RegenPlan = {
   text: string;
   /** The target turn's attachments, re-sent with it (controller `Chat:3412`). */
   attachments: LocalAttachment[] | undefined;
+  /** The target turn's own date line: a regenerate re-sends the same turn. */
+  sentOn: string | undefined;
   /** History BEFORE the target user turn — the truncate target. */
   base: Message[];
 };
@@ -58,6 +60,7 @@ export function planRegenerate(
     userId: target.id,
     text: target.text,
     attachments,
+    sentOn: targetMessage.sentOn,
     base: messages.slice(0, index),
   };
 }
