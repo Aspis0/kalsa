@@ -1,6 +1,6 @@
 /**
- * Source-text guard for session marker privacy: the payload shape lives in
- * closures inside LlamaService.ts, a module no Jest test may import because it
+ * Source-text guards for LlamaService session wiring: the payload shape lives
+ * in closures inside LlamaService.ts, a module no Jest test may import because it
  * value-imports llama.rn. Until save-wiring-coverage extracts that orchestration,
  * this is the only guard available. That behavior test replaces this guard
  * when the extraction lands; it must not be kept alongside it.
@@ -64,5 +64,14 @@ test("save and load session payloads stay hash-only", () => {
   );
   expect(llamaServiceSource).not.toMatch(
     /warnUnexpectedSessionFailure\([^)]*error/,
+  );
+});
+
+test("governor mode answers restore before the native load", () => {
+  // The refusal must come from the early return, not from the native JSI:
+  // a thrown refusal travelled the load catch, which classified it as
+  // unexpected and deleted a .kvs whose meta matched.
+  expect(llamaServiceSource).toMatch(
+    /if \(activeGovernorActive\) \{\s*logGovernorSessionSkip\("load"\);\s*return false;\s*\}/,
   );
 });

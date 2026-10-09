@@ -807,17 +807,29 @@ export function sessionNativeErrorReason(error: unknown): string | null {
       ? `${error.name} ${error.message}`
       : String(error ?? "");
   if (blob.includes("kv_inconsistent")) return "kv_inconsistent";
+  // The native JSI refuses load and save while the governor runs the context;
+  // the sentence is the same except for the verb.
+  if (blob.includes("not supported while governor mode is enabled")) {
+    return "governor_mode";
+  }
   return null;
 }
 
-/** The refusals that ARE the protocol: the .kvs is deliberately kept and the
+/** The refusals that ARE the protocol — kv_inconsistent /
+ *  history_not_reproducible, and the governor's own load/save refusal while it
+ *  holds the context (governor_mode): the .kvs is deliberately kept and the
  *  structured `KALSA_SESSION` line already reports the reason. Anything else
  *  thrown out of a save/load is unexpected. */
 export function isExpectedSessionFailureReason(reason: string): boolean {
-  return reason === "kv_inconsistent" || reason.includes("history_not_reproducible");
+  return (
+    reason === "kv_inconsistent" ||
+    reason === "governor_mode" ||
+    reason.includes("history_not_reproducible")
+  );
 }
 
-/** Keep the .kvs on kv_inconsistent / history_not_reproducible; delete otherwise. */
+/** Keep the .kvs on kv_inconsistent / history_not_reproducible / governor_mode;
+ *  delete otherwise. */
 export function shouldDeleteSessionArtifactsOnLoadFailure(reason: string): boolean {
   return !isExpectedSessionFailureReason(reason);
 }

@@ -3490,7 +3490,7 @@ export async function saveEngineSession(
   historyMessageCount?: number,
 ): Promise<boolean> {
   if (activeGovernorActive) {
-    logGovernorSessionSaveSkip();
+    logGovernorSessionSkip("save");
     return false;
   }
   // Capture identity NOW: the FIFO serializes work but not conversation id.
@@ -4086,6 +4086,13 @@ export async function invalidateConversationSessions(
  */
 export async function restoreEngineSession(modelId: string): Promise<boolean> {
   if (!modelId) return false;
+  // Under the governor the native JSI refuses load every time; return before
+  // the locks and disk work for a call that cannot succeed, and skip the
+  // failure path (hold-drop) the refusal would trigger.
+  if (activeGovernorActive) {
+    logGovernorSessionSkip("load");
+    return false;
+  }
   return withLifecycleLock(() =>
     withEngineJob(async () => {
       if (!context || activeModelId !== modelId) return false;
@@ -6082,9 +6089,11 @@ function nativeSessionPath(uri: string): string {
   return uri.replace(/^file:\/\//, "");
 }
 
-function logGovernorSessionSaveSkip(): void {
+function logGovernorSessionSkip(op: "load" | "save"): void {
   try {
-    console.log('KALSA_SESSION {"op":"save","ok":false,"reason":"governor-mode"}');
+    console.log(
+      `KALSA_SESSION ${JSON.stringify({ op, ok: false, reason: "governor_mode" })}`,
+    );
   } catch {
     // telemetry must never throw
   }
@@ -6095,7 +6104,7 @@ async function snapshotNativeSession(
   destPath: string,
 ): Promise<boolean> {
   if (activeGovernorActive && engine === context) {
-    logGovernorSessionSaveSkip();
+    logGovernorSessionSkip("save");
     return false;
   }
   try {
@@ -6150,7 +6159,7 @@ async function restoreNativeSession(
     }
   };
   if (activeGovernorActive && engine === context) {
-    log(false, { reason: "governor-mode" });
+    log(false, { reason: "governor_mode" });
     return false;
   }
   try {

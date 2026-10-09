@@ -502,8 +502,24 @@ describe("hybrid snapshot consistency", () => {
     );
   });
 
-  test("load failure keeps the .kvs for kv_inconsistent and history_not_reproducible", () => {
+  test("maps the governor load/save refusal to a stable reason", () => {
+    expect(
+      sessionNativeErrorReason(
+        new Error("Session load is not supported while governor mode is enabled"),
+      ),
+    ).toBe("governor_mode");
+    expect(
+      sessionNativeErrorReason(
+        new Error("Session save is not supported while governor mode is enabled"),
+      ),
+    ).toBe("governor_mode");
+  });
+
+  test("load failure keeps the .kvs for kv_inconsistent, history_not_reproducible and governor_mode", () => {
     expect(shouldDeleteSessionArtifactsOnLoadFailure("kv_inconsistent")).toBe(
+      false,
+    );
+    expect(shouldDeleteSessionArtifactsOnLoadFailure("governor_mode")).toBe(
       false,
     );
     expect(
@@ -523,6 +539,7 @@ describe("hybrid snapshot consistency", () => {
 
   test("only the protocol's own refusals count as expected session failures", () => {
     expect(isExpectedSessionFailureReason("kv_inconsistent")).toBe(true);
+    expect(isExpectedSessionFailureReason("governor_mode")).toBe(true);
     expect(
       isExpectedSessionFailureReason("meta_mismatch:history_not_reproducible"),
     ).toBe(true);
