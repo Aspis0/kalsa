@@ -269,5 +269,7 @@ they are promoted.
 
 ## Before the desktop engine pin moves to the b11514 engine (fork main 2e723bd9d, binding 1babccb9; governor note, 2026-10-09)
 
+Owner 2026-10-09: not a blocker, we are in dev with no released users. Old slot files may just be lost on the bump.
+
 - `LLAMA_STATE_SEQ_VERSION` goes from 3 to 4. Every slot file saved by v1.1.5 under `ai.kalsa.brain/slots` is refused by the new engine with a 400 on restore. Before the bump, check that the door's recall (`crates/kalsa-door/src/paging*`) treats that 400 as a cold start: it should delete or ignore the stale file, should not retry it on every completion, and should not mark the chat broken. Test it with one real v1.1.5 slot file against the new engine.
 - The phone has the same issue: rn-slot-manager reports a load failure instead of a cold start. The phone pin is the owner's call.
