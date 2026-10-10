@@ -37,6 +37,7 @@ pub(super) fn set_preference(
     inner.epoch += 1;
     inner.recent.clear();
     inner.breadcrumbs.clear();
+    inner.reach = super::network::Reach::Through;
     inner
         .store
         .set_enabled(enabled)
@@ -94,6 +95,7 @@ mod tests {
                 last_state: None,
                 last_failure: None,
                 engine_stage: "load",
+                reach: super::super::network::Reach::Through,
                 crash_at: None,
                 stream_error_at: None,
             }),

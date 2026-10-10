@@ -16,6 +16,8 @@ import "./Thread.css";
 export interface FailedState {
   messageId: string;
   kind: ChatErrorKind;
+  /** When the turn failed; a failure read back from storage has none. */
+  at?: number;
 }
 
 interface ThreadProps {
@@ -27,17 +29,26 @@ interface ThreadProps {
   onRetry: (messageId: string) => void;
   /** Starts the engine, for an answer that failed while it is off. */
   onTurnOn: () => void;
+  /** The engine's last automatic restart, when the desktop announced one. */
+  restartedAt: number | null;
   /** A mini app widget's next state, into the run that drew it. */
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
 }
 
-function errorCopy(t: English["thread"], kind: ChatErrorKind): { title: string; body: string } {
+function errorCopy(
+  t: English["thread"],
+  kind: ChatErrorKind,
+  engineLive: boolean,
+): { title: string; body: string } {
   switch (kind) {
     case "unauthorized":
     case "bad-response":
       return { title: t.couldntAnswerTitle, body: t.couldntAnswerBody };
     case "network":
-      return { title: t.notRunningTitle, body: t.notRunningBody };
+      // "Not running" is only true while the engine is down.
+      return engineLive
+        ? { title: t.tryAgainTitle, body: t.tryAgainBody }
+        : { title: t.notRunningTitle, body: t.notRunningBody };
     case "truncated":
       return { title: t.stoppedHalfwayTitle, body: t.stoppedHalfwayBody };
     case "timeout":
@@ -47,6 +58,27 @@ function errorCopy(t: English["thread"], kind: ChatErrorKind): { title: string; 
     default:
       return { title: t.tryAgainTitle, body: t.tryAgainBody };
   }
+}
+
+/** The restart is decided a second or two after the death, and the stream's
+    failure follows the death by a read: the two may fall either side. */
+const RESTART_WINDOW_MS = 30_000;
+
+/** What a dead engine surfaces as: a cut after words arrived, a failed read
+    before any, or a clean close with no words. An idle timeout is the engine
+    going silent, and a status answer (401, 400, HTTP) means the engine was up. */
+const DEATH_KINDS: ReadonlySet<ChatErrorKind> = new Set<ChatErrorKind>(["network", "truncated", "bad-response"]);
+
+/** A failure the engine's own restart interrupted: the restart was announced
+    after the turn began and within the window around the failure. */
+function interruptedByRestart(failure: FailedState, turnStart: number, restartedAt: number | null): boolean {
+  return (
+    DEATH_KINDS.has(failure.kind) &&
+    failure.at !== undefined &&
+    restartedAt !== null &&
+    restartedAt >= turnStart &&
+    Math.abs(restartedAt - failure.at) <= RESTART_WINDOW_MS
+  );
 }
 
 /** The waiting face the chat shows while the answer has not begun: three
@@ -106,6 +138,7 @@ function AssistantRow({
   tail,
   onRetry,
   onTurnOn,
+  restartedAt,
   onMiniappState,
 }: {
   message: ChatMessage;
@@ -114,6 +147,7 @@ function AssistantRow({
   tail?: string;
   onRetry: (messageId: string) => void;
   onTurnOn: () => void;
+  restartedAt: number | null;
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
 }) {
   const { table, tag } = useLanguage();
@@ -123,10 +157,13 @@ function AssistantRow({
   // The states Home's start acts on. While stopping, that path would stop the
   // engine again, so no button is offered then.
   const engineOff = brain?.kind === "stopped" || brain?.kind === "failed";
+  const engineLive = brain?.kind === "starting" || brain?.kind === "running";
   const engineStopping = brain?.kind === "stopping";
+  const interrupted =
+    failedHere !== null && engineLive && interruptedByRestart(failedHere, message.createdAt, restartedAt);
+  const failure = failedHere !== null ? errorCopy(t, failedHere.kind, engineLive) : null;
   // With the engine off, a retry would only fail again: the button starts it
   // (the same start as Home) and the retry comes once it is on.
-  const failure = failedHere !== null ? errorCopy(t, failedHere.kind) : null;
   const retry = engineOff
     ? { label: t.turnKalsaOn, run: onTurnOn }
     : { label: t.tryAgain, run: () => onRetry(message.id) };
@@ -180,7 +217,14 @@ function AssistantRow({
             )}
           </div>
         ) : null}
-        {failure !== null ? (
+        {interrupted ? (
+          <p className="row-note interrupted-note">
+            <span>{t.interruptedNote}</span>
+            <button type="button" className="interrupted-retry" onClick={() => onRetry(message.id)}>
+              {t.interruptedRetry}
+            </button>
+          </p>
+        ) : failure !== null ? (
           <div className="error-block" role="alert">
             <p className="error-title">{failure.title}</p>
             <p className="error-body">{engineOff ? t.engineOffBody : failure.body}</p>
@@ -205,6 +249,7 @@ export function Thread({
   tails,
   onRetry,
   onTurnOn,
+  restartedAt,
   onMiniappState,
 }: ThreadProps) {
   const { table, tag } = useLanguage();
@@ -237,6 +282,7 @@ export function Thread({
                 tail={tails[message.id]}
                 onRetry={onRetry}
                 onTurnOn={onTurnOn}
+                restartedAt={restartedAt}
                 onMiniappState={onMiniappState}
               />
             ),

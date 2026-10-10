@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::observability;
 use super::{Service, store::Item};
 use serde_json::Value;
 
@@ -10,7 +11,7 @@ pub(super) const MAX_DELAY: u64 = 60 * 60;
 /// ureq reports a TLS handshake that dies once the socket is up with the
 /// same ConnectionFailed kind as a refused connect, so its message is the
 /// only thing that separates the two (ureq 2.12.1, pinned in Cargo.lock).
-const TLS_HANDSHAKE: &str = "tls connection init failed";
+pub(super) const TLS_HANDSHAKE: &str = "tls connection init failed";
 
 pub(super) fn start(service: Arc<Service>) {
     let _ = std::thread::Builder::new()
@@ -145,13 +146,24 @@ pub(super) fn dispatch(service: &Service, work: Item, epoch: u64, now: u64, out:
                     // a report that found no network.
                     super::log::Answered::Offline => {
                         drop(inner);
-                        settle(service, &work.report, epoch, now, Outcome::Offline);
+                        note_reach(service, &Outcome::Offline(Why::Other));
+                        settle(service, &work.report, epoch, now, Outcome::Offline(Why::Other));
                         return;
                     }
-                    super::log::Answered::Refused => super::log::clear(&mut inner, &work),
+                    super::log::Answered::Refused(code) => {
+                        observability::say(
+                            log::Level::Warn,
+                            format!("telemetry: log upload failed ({code})"),
+                        );
+                        super::log::clear(&mut inner, &work)
+                    }
                     super::log::Answered::Stored(id) => {
                         if let Some(log_ref) = super::log::reference(&day, &id) {
                             report = super::log::attach(&mut inner, &work, &day, log_ref);
+                            observability::say(
+                                log::Level::Info,
+                                "telemetry: log uploaded".to_string(),
+                            );
                         } else {
                             super::log::clear(&mut inner, &work);
                         }
@@ -164,6 +176,7 @@ pub(super) fn dispatch(service: &Service, work: Item, epoch: u64, now: u64, out:
         return;
     }
     let outcome = (out.report)(&report);
+    note_reach(service, &outcome);
     settle(service, &report, epoch, now, outcome);
 }
 
@@ -189,11 +202,14 @@ pub(super) fn complete(store: &mut super::store::Store, mut item: Item, now: u64
     item.in_flight = false;
     if let Outcome::Rejected(status) = outcome {
         store.dead(item, now);
-        log::warn!(
-            "telemetry rejected: code={status} reports=1 queued={}",
-            store.queue.len()
+        observability::say(
+            log::Level::Warn,
+            format!(
+                "telemetry rejected: code={status} reports=1 queued={}",
+                store.queue.len()
+            ),
         );
-    } else if let Outcome::Offline = outcome {
+    } else if let Outcome::Offline(_) = outcome {
         // The request never reached a server, so the ceiling counts machines
         // that said no, not machines the report could not leave from; the
         // offline streak, not the attempt count, paces the next try.
@@ -203,11 +219,15 @@ pub(super) fn complete(store: &mut super::store::Store, mut item: Item, now: u64
         let entropy = entropy(&item);
         item.ready_at = now + backoff(item.offline_streak, entropy).min(MAX_DELAY);
         store.queue.push(item);
-    } else if outcome == Outcome::Retry {
+    } else if matches!(outcome, Outcome::Retry(_)) {
         // A server answered, so the offline streak ends and only real
         // answers count toward the ceiling.
         item.offline_streak = 0;
         if item.attempts >= 5 {
+            observability::say(
+                log::Level::Warn,
+                format!("telemetry: report dropped after {} attempts", item.attempts),
+            );
             store.dead(item, now);
         } else {
             let entropy = entropy(&item);
@@ -221,13 +241,107 @@ fn entropy(item: &Item) -> u64 {
     u64::from_str_radix(&super::sanitize::fingerprint(&item.report)[..4], 16).unwrap_or(0)
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(super) enum Outcome {
     Done,
-    Retry,
+    /// A server answered and said wait.
+    Retry(Why),
     Rejected(u16),
-    /// The request never reached a server: no network, no name, or no route.
-    Offline,
+    /// No answer came.
+    Offline(Why),
+}
+
+/// What a failed send was, in the transport's own word. It rides the outcome
+/// into one log line per change of reach: never a URL, never a query, never
+/// a body.
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub(super) enum Why {
+    Dns,
+    Refused,
+    ConnectTimeout,
+    /// The connect failed for a reason with no shorter word than that.
+    ConnectFailed,
+    Tls,
+    /// The server accepted the connection and then stopped talking.
+    Stalled,
+    /// The transport failed for a kind that names nothing more.
+    Transport,
+    /// A server's own answer: the status, or 200 for the legacy quota refusal.
+    Status(u16),
+    /// The path that lost the word for it — the log upload's own transport.
+    Other,
+}
+
+impl std::fmt::Display for Why {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Why::Dns => write!(f, "dns"),
+            Why::Refused => write!(f, "connect refused"),
+            Why::ConnectTimeout => write!(f, "connect timeout"),
+            Why::ConnectFailed => write!(f, "connect failed"),
+            Why::Tls => write!(f, "tls handshake failed"),
+            Why::Stalled => write!(f, "read timeout"),
+            Why::Transport => write!(f, "transport error"),
+            Why::Status(status) => write!(f, "server answered {status}"),
+            Why::Other => write!(f, "offline"),
+        }
+    }
+}
+
+/// What the transport last answered, for the once-per-change log line.
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub(super) enum Reach {
+    /// The last send went.
+    Through,
+    /// No answer has arrived since this streak began.
+    Unreachable,
+    /// A server answered; it said wait.
+    Answered,
+}
+
+/// One line per CHANGE of what the transport last answered, never one per
+/// attempt: a day offline writes one line, not 86 400.
+fn note_reach(service: &Service, outcome: &Outcome) {
+    let reach = match outcome {
+        Outcome::Done => Reach::Through,
+        Outcome::Offline(_) => Reach::Unreachable,
+        // A server that refused still answered, so the state moves: the next
+        // offline streak is a change again and says its line.
+        Outcome::Retry(_) | Outcome::Rejected(_) => Reach::Answered,
+    };
+    let Ok(mut inner) = service.inner.lock() else {
+        return;
+    };
+    if inner.reach == reach {
+        return;
+    }
+    inner.reach = reach;
+    match outcome {
+        Outcome::Offline(Why::Other) => observability::say(
+            log::Level::Warn,
+            format!(
+                "telemetry: cannot reach the server, {} reports waiting",
+                inner.store.queue.len()
+            ),
+        ),
+        Outcome::Offline(why) => observability::say(
+            log::Level::Warn,
+            format!(
+                "telemetry: cannot reach the server ({why}), {} reports waiting",
+                inner.store.queue.len()
+            ),
+        ),
+        Outcome::Retry(why) => observability::say(
+            log::Level::Warn,
+            format!("telemetry: {why}, retrying"),
+        ),
+        Outcome::Done => observability::say(
+            log::Level::Info,
+            "telemetry: reports delivered again".to_string(),
+        ),
+        // The dead letter's own line already said it.
+        Outcome::Rejected(_) => {}
+    }
 }
 
 fn send(agent: &ureq::Agent, report: &Value) -> Outcome {
@@ -256,7 +370,7 @@ pub(super) fn classify(response: Result<ureq::Response, ureq::Error>) -> Outcome
                 .ok()
                 .is_some_and(|v| v["reason"] == "quota" && v["accepted"] == false)
             {
-                Outcome::Retry
+                Outcome::Retry(Why::Status(200))
             } else {
                 Outcome::Done
             }
@@ -265,24 +379,56 @@ pub(super) fn classify(response: Result<ureq::Response, ureq::Error>) -> Outcome
         Err(ureq::Error::Status(status, _)) if (400..500).contains(&status) && status != 429 => {
             Outcome::Rejected(status)
         }
-        Err(ureq::Error::Transport(transport)) => {
-            // The request never reached a server: no network, an
-            // unresolvable name, or no route to the host.
-            let never_arrived = match transport.kind() {
-                ureq::ErrorKind::Dns => true,
-                ureq::ErrorKind::ConnectionFailed => transport.message() != Some(TLS_HANDSHAKE),
-                _ => false,
-            };
-            if never_arrived {
-                Outcome::Offline
-            } else {
-                // It connected and then failed to talk: a read timeout or a
-                // failed TLS handshake is a machine that was there.
-                Outcome::Retry
-            }
-        }
-        _ => Outcome::Retry,
+        Err(ureq::Error::Transport(transport)) => transport_answer(&transport),
+        Err(ureq::Error::Status(status, _)) => Outcome::Retry(Why::Status(status)),
+        Ok(response) => Outcome::Retry(Why::Status(response.status())),
     }
+}
+
+/// What a transport failure means. A connection that never came up — no
+/// name, refused, or a SYN that black-holed until the deadline — has not
+/// been answered, so it waits like an offline machine; anything that failed
+/// once the socket was up is a server that was there.
+fn transport_answer(transport: &ureq::Transport) -> Outcome {
+    let io = std::error::Error::source(transport)
+        .and_then(|source| source.downcast_ref::<std::io::Error>())
+        .map(std::io::Error::kind);
+    answer(transport.kind(), transport.message(), io)
+}
+
+/// What a transport failure means, from the parts a `ureq::Transport` reads
+/// with: its kind, its message, and the io error it wraps when it has one.
+/// `Transport`'s own fields are private — it cannot be built outside ureq —
+/// so these parts are also what a test builds instead of opening a socket.
+pub(super) fn answer(
+    kind: ureq::ErrorKind,
+    message: Option<&str>,
+    io: Option<std::io::ErrorKind>,
+) -> Outcome {
+    if kind == ureq::ErrorKind::Dns {
+        return Outcome::Offline(Why::Dns);
+    }
+    if kind == ureq::ErrorKind::ConnectionFailed {
+        if message == Some(TLS_HANDSHAKE) {
+            return Outcome::Retry(Why::Tls);
+        }
+        // ureq wraps the connect's own io error: refused and timed out share
+        // the ConnectionFailed kind, and other sources say nothing more
+        // specific, so the word follows the source.
+        return Outcome::Offline(match io {
+            Some(std::io::ErrorKind::TimedOut) => Why::ConnectTimeout,
+            Some(std::io::ErrorKind::ConnectionRefused) => Why::Refused,
+            _ => Why::ConnectFailed,
+        });
+    }
+    // Only a read that stopped talking is a read timeout; the rest of the
+    // kinds proxy, header or protocol errors included, say nothing more
+    // specific than that the transport failed.
+    Outcome::Retry(if io == Some(std::io::ErrorKind::TimedOut) {
+        Why::Stalled
+    } else {
+        Why::Transport
+    })
 }
 
 pub(super) fn backoff(attempts: u8, entropy: u64) -> u64 {

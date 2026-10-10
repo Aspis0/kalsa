@@ -63,6 +63,21 @@
   font-size: 0.82rem;
 }
 
+.interrupted-note {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.interrupted-retry {
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
 .no-answer {
   margin-top: 0.75rem;
 }

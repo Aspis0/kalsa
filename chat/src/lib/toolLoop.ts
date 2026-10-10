@@ -2,10 +2,13 @@ import { ChatRequestError, completionsUrl } from "./chat";
 import type { StreamOptions, ToolPhrases, WireMessage } from "./chat";
 import { runRound } from "./streamRound";
 import type { Round } from "./streamRound";
+import { isToolRefusal } from "./refusal";
+import { logUiEvent } from "./uiLog";
 import { readArguments } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
 import type { ToolRun } from "./types";
 import type { Miniapp } from "./miniapp/types";
+import type { ToolDefinition } from "./tools/definitions";
 
 /**
  * Answer, calling tools for as long as the model asks for them.
@@ -63,14 +66,30 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   // overflow is retried — every other failure, and an overflow with nothing
   // left to shed, leaves as it came, and the caller shows the oversize
   // sentence for that one.
-  async function askRound(toolChoice: "auto" | "none", hideInventedCalls: boolean): Promise<Round> {
+  async function askRound(
+    offer: ToolDefinition[],
+    toolChoice: "auto" | "none",
+    hideInventedCalls: boolean,
+  ): Promise<Round> {
     for (;;) {
       try {
-        return await runRound(options, conversation, tools, toolChoice, hideInventedCalls);
+        return await runRound(options, conversation, offer, toolChoice, hideInventedCalls);
       } catch (error) {
         if (!(error instanceof ChatRequestError) || error.kind !== "oversize") throw error;
         if (!shedOlderHalf(conversation)) throw error;
       }
+    }
+  }
+
+  // The current turn's own tool results stay: a page the model reads in a
+  // silently truncated form is worse than a smaller window, so only the
+  // history before this turn's last user message falls. The engine remains
+  // the authority on what fits — this only spares the round trip when the
+  // estimator already knows the answer.
+  function fitHistory(): void {
+    if (fit === null) return;
+    while (fit.size(conversation) > fit.budget && shedOlderHalf(conversation)) {
+      // Each pass re-measures what is left.
     }
   }
 
@@ -81,22 +100,37 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // a silent model for words can be answering "show me the tags", and eating
     // that is how the answer disappeared in the first place.
     const hideInventedCalls = tools.length > 0 && round >= toolRounds;
-    // The current turn's own tool results stay: a page the model reads in a
-    // silently truncated form is worse than a smaller window, so only the
-    // history before this turn's last user message falls. The engine remains
-    // the authority on what fits — this only spares the round trip when the
-    // estimator already knows the answer.
-    if (round > 0 && fit !== null) {
-      while (fit.size(conversation) > fit.budget && shedOlderHalf(conversation)) {
-        // Each pass re-measures what is left.
-      }
-    }
-    const answered = await askRound(last ? "none" : "auto", hideInventedCalls);
+    if (round > 0) fitHistory();
+    const answered = await askRound(tools, last ? "none" : "auto", hideInventedCalls);
     // The server numbers its calls per response, so round two can hand back the
     // id round one used. The transcript replaces a run by id and the wire pairs
     // a result to its call by id, so an id has to be unique for the whole turn:
     // the round is the only thing here that makes it so.
     const calls = answered.toolCalls.map((call) => ({ ...call, id: `${round}-${call.id}` }));
+    // A refusal while tools were offered is the tool definitions talking, not
+    // the question: the same question is asked once more without them. Only
+    // before this turn's first tool has run, so no tool exchange of this turn
+    // is on the wire without the contract that declares it.
+    if (
+      round === 0 &&
+      calls.length === 0 &&
+      tools.length > 0 &&
+      !signal.aborted &&
+      isToolRefusal(answered.text, answered.toolCalls)
+    ) {
+      options.onWithdraw?.(answered.text, answered.reasoning);
+      logUiEvent("chat.retry_without_tools");
+      try {
+        fitHistory();
+        await askRound([], "none", false);
+      } catch (error) {
+        // A Stop is the person's own end of the turn; any other failure keeps the
+        // refused answer, as if no retry had been made.
+        if (signal.aborted) throw error;
+        options.onRestore?.();
+      }
+      return;
+    }
     // A round that said nothing in words leaves the reader with an empty turn,
     // whether it spent itself on calls or simply stopped after thinking. Ask
     // once for words, in a round that cannot call anything. Live, 2026-09-19:

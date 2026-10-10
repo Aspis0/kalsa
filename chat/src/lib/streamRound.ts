@@ -30,6 +30,9 @@ export interface Round {
   sawDone: boolean;
   finishReason: string | null;
   toolCalls: ToolCall[];
+  /** The answer text and the reasoning the sinks were given this round, exactly. */
+  text: string;
+  reasoning: string;
 }
 
 function firstPresent(values: unknown[]): string | null {
@@ -156,6 +159,17 @@ export async function runRound(
 ): Promise<Round> {
   const { token, model, sampling, signal, onToken, onReasoning } = options;
   const url = completionsUrl(options.endpoint);
+  // Kept as the sinks saw it, so a refused round can be withdrawn by its exact text.
+  let shown = "";
+  const show = (text: string): void => {
+    shown += text;
+    onToken(text);
+  };
+  let reasoningShown = "";
+  const think = (text: string): void => {
+    reasoningShown += text;
+    onReasoning(text);
+  };
 
   // Invented markup was seen in exactly one situation: the capped round, where
   // `tool_choice: "none"` forbids a structured call and the model writes one out
@@ -266,20 +280,22 @@ export async function runRound(
       ) {
         throw new Error("not a completion");
       }
-      if (complete.reasoning) onReasoning(complete.reasoning);
+      if (complete.reasoning) think(complete.reasoning);
       // A server that ignored `stream: true` can carry the same tool-call
       // markup the streamed path filters, so it is filtered the same way.
       const visible =
         markup === null
           ? (complete.content ?? "")
           : markup.push(complete.content ?? "") + markup.flush();
-      if (visible) onToken(visible);
+      if (visible) show(visible);
       return {
         gotContent: complete.content !== null,
         gotReasoning: complete.reasoning !== null,
         sawDone: true,
         finishReason: complete.finishReason,
         toolCalls: accumulate([], complete.toolCalls),
+        text: shown,
+        reasoning: reasoningShown,
       };
     } catch (error) {
       finish();
@@ -301,11 +317,19 @@ export async function runRound(
   let toolCalls: ToolCall[] = [];
   let finishReason: string | null = null;
 
-  const round = (): Round => ({ gotContent: gotToken, gotReasoning, sawDone, finishReason, toolCalls });
+  const round = (): Round => ({
+    gotContent: gotToken,
+    gotReasoning,
+    sawDone,
+    finishReason,
+    toolCalls,
+    text: shown,
+    reasoning: reasoningShown,
+  });
 
   function releaseMarkup(): void {
     const tail = markup === null ? "" : markup.flush();
-    if (tail) onToken(tail);
+    if (tail) show(tail);
   }
 
   function handleLine(line: string): void {
@@ -339,7 +363,7 @@ export async function runRound(
         if (!gotToken && !gotReasoning) logUiEvent("chat.decode");
         gotReasoning = true;
         alive();
-        onReasoning(thought);
+        think(thought);
       }
       const content = (choice.delta as { content?: unknown }).content;
       if (typeof content === "string" && content) {
@@ -349,7 +373,7 @@ export async function runRound(
         gotToken = true;
         alive();
         const visible = markup === null ? content : markup.push(content);
-        if (visible) onToken(visible);
+        if (visible) show(visible);
       }
       const calls = accumulate(toolCalls, (choice.delta as { tool_calls?: unknown }).tool_calls);
       // With no tools offered, a tool call is a contradiction, not news: the

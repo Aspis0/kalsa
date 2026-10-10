@@ -355,6 +355,41 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
         });
       }
 
+      function publish(): void {
+        const b = bufs.current.get(assistantId);
+        if (!b) return;
+        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail, toolRuns: b.toolRuns };
+        setLiveState((prev) => ({ ...prev, [assistantId]: snapshot }));
+        schedulePersist();
+      }
+
+      // What the row held before a refused round was taken out, kept until the
+      // retry is known to have answered: a failed retry puts it back.
+      let withheld: { content: string; reasoning: string; tail: string } | null = null;
+
+      // The refused round is the turn's first, so its text and reasoning are the
+      // buffer's whole content; they leave by exact suffix and are persisted now,
+      // not on the debounce, so the refusal is never the stored copy.
+      function withdraw(text: string, reasoning: string): void {
+        const b = bufs.current.get(assistantId);
+        if (!b || !b.content.endsWith(text) || !b.reasoning.endsWith(reasoning)) return;
+        withheld = { content: b.content, reasoning: b.reasoning, tail: b.tail };
+        b.content = b.content.slice(0, b.content.length - text.length);
+        b.reasoning = b.reasoning.slice(0, b.reasoning.length - reasoning.length);
+        b.tail = appendTail("", b.reasoning);
+        publish();
+        persistLive();
+      }
+
+      function restore(): void {
+        const b = bufs.current.get(assistantId);
+        if (!b || withheld === null) return;
+        Object.assign(b, withheld);
+        withheld = null;
+        publish();
+        persistLive();
+      }
+
       function ingest(kind: "content" | "reasoning", text: string): void {
         let b = bufs.current.get(assistantId);
         if (!b) {
@@ -363,9 +398,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
         }
         b[kind] += text;
         if (kind === "reasoning") b.tail = appendTail(b.tail, text);
-        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail, toolRuns: b.toolRuns };
-        setLiveState((prev) => ({ ...prev, [assistantId]: snapshot }));
-        schedulePersist();
+        publish();
       }
 
       // A running tool is replaced by its answer, matched by the call's id:
@@ -379,9 +412,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
         b.toolRuns = b.toolRuns.some((existing) => existing.id === run.id)
           ? b.toolRuns.map((existing) => (existing.id === run.id ? run : existing))
           : [...b.toolRuns, run];
-        const snapshot = { convId: conversationId, content: b.content, reasoning: b.reasoning, tail: b.tail, toolRuns: b.toolRuns };
-        setLiveState((prev) => ({ ...prev, [assistantId]: snapshot }));
-        schedulePersist();
+        publish();
       }
       try {
         await streamChatCompletion({
@@ -419,6 +450,8 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
               confirm: (check) => askOwner(check, runSignal),
             }),
           onToolRun: ingestToolRun,
+          onWithdraw: withdraw,
+          onRestore: restore,
           toolPhrases: words.current.tools,
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {
@@ -452,7 +485,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
         } else {
           const kind: ChatErrorKind =
             error instanceof ChatRequestError ? error.kind : "network";
-          const state: FailedState = { messageId: assistantId, kind };
+          const state: FailedState = { messageId: assistantId, kind, at: Date.now() };
           persistLive({ failed: kind });
           setFailedById((prev) => ({ ...prev, [assistantId]: state }));
           // The kind is the code's tail; the hyphen in `bad-response` is not

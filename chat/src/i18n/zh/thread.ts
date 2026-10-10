@@ -16,6 +16,8 @@ export const THREAD = {
     "tryAgain": "再试一次",
     "turnKalsaOn": "启动 Kalsa",
     "engineOffBody": "Kalsa 已关闭。",
+    "interruptedNote": "回答被中断了。",
+    "interruptedRetry": "重试",
     "waitingFirstWord": "等待第一个字",
     "readingMessage": "Kalsa 正在阅读你的消息，很快就会回复。",
     "stoppedEarly": "回答已中断。",

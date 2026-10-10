@@ -324,7 +324,7 @@ export function App() {
               onOpenRoom={() => openSurface("room")}
             />
           ) : surface === "chat" ? (
-            <ChatSurface chat={chat} />
+            <ChatSurface chat={chat} restartedAt={engine.restartedAt} />
           ) : surface === "room" ? (
             <RoomSurface />
           ) : surface === "settings" ? (

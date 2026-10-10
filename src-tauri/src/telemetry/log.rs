@@ -45,8 +45,9 @@ pub(super) enum Answered {
     /// The log is stored under this id.
     Stored(String),
     /// No reference will ride: the server refused it, or the id it answered
-    /// with is not the contract's shape.
-    Refused,
+    /// with is not the contract's shape. The word is the refusal's own
+    /// stable code.
+    Refused(&'static str),
     /// No network reached the endpoint.
     Offline,
 }
@@ -57,7 +58,7 @@ pub(super) fn answered(sent: Result<String, crate::report::SendFailure>) -> Answ
         // Offline is the one answer that keeps the item waiting; every
         // server answer, its refusals included, lets the report go alone.
         Err(crate::report::SendFailure::Offline) => Answered::Offline,
-        Err(_) => Answered::Refused,
+        Err(failure) => Answered::Refused(failure.code()),
     }
 }
 

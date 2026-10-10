@@ -345,3 +345,12 @@ Owner: on serious errors the desktop uploads the redacted log by itself (max 3 p
 - `chat/scripts/verify.mjs` ~:2152 still pins the old 78-token prompt/889 total; `dev/lab-restraint/` (uncommitted lab) sends the old prompt sentence.
 - `chat/scripts/turn-failures.mjs` is red at HEAD (one "retry of the older row" check, date stamp in the expected text); the new UI (recovered line, Turn Kalsa on) has no harness coverage.
 - `record`/`record_locked` carry `#[allow(clippy::too_many_arguments)]`; a report-shape type would remove both.
+
+## Refusal retry, interrupted line, telemetry log lines (2026-10-10)
+
+Owner: when a model refuses because tools are in the request (LFM2.5-VL-3B refuses EN stories with any tool, lab 2026-10-10), the app re-asks once without tools. Deferred from the two-reviewer review:
+
+- A genuine policy refusal is also re-asked without tools; safety then rests on the model refusing again. The detector is lexical only.
+- The re-ask is a fresh request: a second prefill, and the prompt reorder misses old cached prefixes once after the upgrade. Not measured.
+- The interrupted-turn line is session-only: after a reload the failed row shows the ordinary card again (the failure's time and the restart event are not persisted).
+- Surface network (2026-10-09): `kalsa.io` and `telemetry.kalsa.io` resolve to `::1` / `100.64.255.100` there, so nothing from that PC reaches either Worker. Check where the resolution comes from before testing telemetry on it again.

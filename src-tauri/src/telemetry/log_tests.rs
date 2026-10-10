@@ -35,6 +35,7 @@ fn service(name: &str, count: usize, on: bool) -> (Arc<super::Service>, std::pat
             last_state: None,
             last_failure: None,
             engine_stage: "decode",
+            reach: super::network::Reach::Through,
             crash_at: None,
             stream_error_at: None,
         }),
@@ -70,7 +71,7 @@ fn cycle(
         },
         report: &|report| {
             sent.set(Some(report.clone()));
-            super::network::Outcome::Offline
+            super::network::Outcome::Offline(super::network::Why::Refused)
         },
     };
     super::network::dispatch(service, work, epoch, when, &out);
@@ -94,6 +95,15 @@ fn a_crash_log_is_uploaded_once_and_the_report_names_it() {
     let day = super::resources::date(when);
     assert_eq!(sent["diagnostics"]["logRef"], format!("{day}/K7XQ2M9P"));
     assert_eq!(uploads.get(), 1);
+    assert_eq!(
+        super::observability::mine()
+            .iter()
+            .filter(|line| line.contains("telemetry: log uploaded"))
+            .count(),
+        1,
+        "the upload is said once: {:?}",
+        super::observability::mine()
+    );
     {
         let inner = service.inner.lock().unwrap();
         assert!(!inner.store.queue[0].log_pending);
@@ -221,6 +231,13 @@ fn a_refused_upload_sends_the_report_without_the_reference() {
         assert_eq!(uploads.get(), 1, "{name}");
         let inner = service.inner.lock().unwrap();
         assert!(!inner.store.queue[0].log_pending, "{name}");
+        assert!(
+            super::observability::mine()
+                .iter()
+                .any(|line| line.contains(&format!("log upload failed ({})", answer.code()))),
+            "{name}: {:?}",
+            super::observability::mine()
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

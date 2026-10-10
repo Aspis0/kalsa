@@ -95,6 +95,11 @@ export interface StreamOptions {
   /** Called when a call starts and again when it answers, so the thread can
       say what is happening while it happens. */
   onToolRun?: (run: ToolRun) => void;
+  /** Takes the answer and the reasoning of a refused round out of the row before
+      it is asked again without tools. `onRestore` puts back what the row held. */
+  onWithdraw?: (text: string, reasoning: string) => void;
+  /** Puts back what the row held before `onWithdraw`, when the retry fails. */
+  onRestore?: () => void;
   /** The reader's thinking choice for this model: `false` asks the model's own
       template not to think. `undefined` leaves it to the template. */
   thinking?: boolean;

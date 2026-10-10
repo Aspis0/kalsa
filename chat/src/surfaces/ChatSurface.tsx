@@ -14,7 +14,7 @@ import { VisionOffer } from "../components/VisionOffer";
 import { useLanguage } from "../i18n/useLanguage";
 import type { Chat } from "./useChat";
 
-export function ChatSurface({ chat }: { chat: Chat }) {
+export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: number | null }) {
   const { table } = useLanguage();
   const t = table.shell;
   const brain = useBrain();
@@ -136,6 +136,7 @@ export function ChatSurface({ chat }: { chat: Chat }) {
             tails={tails}
             onRetry={retry}
             onTurnOn={() => void brain.act()}
+            restartedAt={restartedAt}
             onMiniappState={chat.saveMiniappState}
           />
         )}

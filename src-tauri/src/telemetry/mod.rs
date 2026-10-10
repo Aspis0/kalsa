@@ -5,6 +5,7 @@ pub(crate) mod context;
 mod diagnostics;
 pub(crate) mod events;
 mod log;
+mod observability;
 mod network;
 #[cfg(test)]
 mod log_tests;
@@ -41,6 +42,8 @@ struct Inner {
     last_state: Option<ServerState>,
     last_failure: Option<Failure>,
     engine_stage: &'static str,
+    /// What the transport last answered, for the once-per-change log line.
+    reach: network::Reach,
     crash_at: Option<Instant>,
     stream_error_at: Option<Instant>,
 }
@@ -72,6 +75,7 @@ pub(crate) fn init(dir: &Path) {
             last_state: None,
             last_failure: None,
             engine_stage: "load",
+            reach: network::Reach::Through,
             crash_at: None,
             stream_error_at: None,
         }),
@@ -553,6 +557,7 @@ mod failure_tests {
                 last_state: None,
                 last_failure: None,
                 engine_stage: "load",
+                reach: super::network::Reach::Through,
                 crash_at: None,
                 stream_error_at: None,
             }),
@@ -652,6 +657,7 @@ mod failure_tests {
             last_state: None,
             last_failure: None,
             engine_stage: stage,
+            reach: super::network::Reach::Through,
             crash_at: None,
             stream_error_at: None,
         }

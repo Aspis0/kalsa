@@ -123,6 +123,15 @@ try {
         JSON.stringify(content.slice(0, 120)),
       );
     }
+    // Writing is allowed before any other rule: a small model reads the first
+    // rules it sees as the whole job.
+    check(
+      `${v.name}: the writing sentence follows the identity sentence`,
+      content.startsWith(
+        "You are Kalsa, a private assistant running on this computer. You can write, explain, translate, summarise and answer from your own knowledge; that needs no tool. ",
+      ),
+      JSON.stringify(content.slice(0, 200)),
+    );
     // The Think button is named only where the switch is drawn, and the
     // sentence never claims the switch turns thinking on or off.
     check(
