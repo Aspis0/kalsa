@@ -86,10 +86,20 @@ export function brokenBucket(): R2Bucket {
   return { get: fail, head: fail };
 }
 
+/** A test key only: real keys are set as a Worker secret and never appear in the repo. */
+export const LINK_KEY = "fake_link_key_for_tests_only_0123456789";
+export const BASE = `/download/${LINK_KEY}`;
+
 export function envWith(objects: Record<string, string>, options?: FakeOptions): Env {
-  return { DOWNLOADS: fakeBucket(objects, options) };
+  return { DOWNLOADS: fakeBucket(objects, options), LINK_KEY };
 }
 
-export function send(env: Env, path: string, init: RequestInit = {}, host = "kalsa.io"): Promise<Response> {
-  return worker.fetch(new Request(`https://${host}${path}`, init), env);
+export function send(
+  env: Env,
+  path: string,
+  init: RequestInit = {},
+  host = "kalsa.io",
+  scheme: "https" | "http" = "https",
+): Promise<Response> {
+  return worker.fetch(new Request(`${scheme}://${host}${path}`, init), env);
 }

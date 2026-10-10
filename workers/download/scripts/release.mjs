@@ -144,4 +144,4 @@ if (
 }
 
 rmSync(work, { recursive: true, force: true });
-console.log(dryRun ? "dry run: nothing was run" : `released ${platform} ${version}; check https://kalsa.io/download`);
+console.log(dryRun ? "dry run: nothing was run" : `released ${platform} ${version}; check the private link (README)`);

@@ -1,46 +1,52 @@
 /**
  * kalsa-download Cloudflare Worker: the alpha download page and its two
- * installer routes. Only kalsa.io/download* reaches it (see wrangler.toml).
+ * installer routes, behind a secret link. Only kalsa.io/download* reaches it
+ * (see wrangler.toml); a request without the key gets the same 404 as any other.
  */
 
 import { sha256Hex } from "./hash";
 import { methodNotAllowed, notFound, notModified, serviceUnavailable } from "./http";
-import { INSTALLER_PATHS, installerResponse } from "./installer";
+import { installerResponse } from "./installer";
+import { admit, installerPath } from "./link";
 import { readManifest } from "./manifest";
 import { PAGE_HEADERS, downloadPageHtml } from "./page";
 
 export interface Env {
   DOWNLOADS: R2Bucket;
+  /** Worker secret, set with `wrangler secret put LINK_KEY`. */
+  LINK_KEY?: string;
 }
-
-const ZONE_HOST = "kalsa.io";
-const PAGE_PATHS = new Set(["/download", "/download/"]);
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // A bucket or manifest failure answers 503 rather than a bare 500.
+    let response: Response;
     try {
-      return await route(request, env);
+      response = await route(request, env);
     } catch {
-      return serviceUnavailable();
+      // Only reached after the key matched: a bucket or manifest failure answers 503.
+      response = serviceUnavailable();
     }
+    return withLinkHeaders(response);
   },
 };
 
+// The key sits in the URL, so no Referer may carry it and no crawler may index it.
+function withLinkHeaders(res: Response): Response {
+  res.headers.set("x-robots-tag", "noindex, nofollow");
+  res.headers.set("referrer-policy", "no-referrer");
+  return res;
+}
+
 async function route(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
-  if (url.hostname !== ZONE_HOST) return notFound();
-  const { pathname } = url;
-  const isPage = PAGE_PATHS.has(pathname);
-  const isWindows = pathname === INSTALLER_PATHS.windows;
-  const isInstaller = isWindows || pathname === INSTALLER_PATHS.mac;
-  if (!isPage && !isInstaller) return notFound();
+  const admission = await admit(request.url, env.LINK_KEY);
+  if (admission === null) return notFound();
   if (request.method !== "GET" && request.method !== "HEAD") return methodNotAllowed();
   const method = request.method === "HEAD" ? "HEAD" : "GET";
+  const url = new URL(request.url);
   const manifest = await readManifest(env.DOWNLOADS);
 
-  if (isPage) {
-    const html = downloadPageHtml(manifest);
+  if (admission.kind === "page") {
+    const html = downloadPageHtml(manifest, admission.key);
     const etag = `"${await sha256Hex(html)}"`;
     if (request.headers.get("if-none-match") === etag) return notModified(etag);
     return new Response(method === "HEAD" ? null : html, {
@@ -48,10 +54,14 @@ async function route(request: Request, env: Env): Promise<Response> {
       headers: { ...PAGE_HEADERS, etag },
     });
   }
-  return installerResponse(env.DOWNLOADS, isWindows ? manifest.windows : manifest.mac, {
-    method,
-    path: isWindows ? INSTALLER_PATHS.windows : INSTALLER_PATHS.mac,
-    requestedSha: url.searchParams.get("v"),
-    ifNoneMatch: request.headers.get("if-none-match"),
-  });
+  return installerResponse(
+    env.DOWNLOADS,
+    admission.platform === "windows" ? manifest.windows : manifest.mac,
+    {
+      method,
+      path: installerPath(admission.key, admission.platform),
+      requestedSha: url.searchParams.get("v"),
+      ifNoneMatch: request.headers.get("if-none-match"),
+    },
+  );
 }

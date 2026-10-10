@@ -34,7 +34,7 @@ export function redirect(location: string): Response {
 }
 
 export function notModified(etag: string): Response {
-  return new Response(null, { status: 304, headers: { etag, "cache-control": "no-cache" } });
+  return new Response(null, { status: 304, headers: { etag, "cache-control": "private, no-cache" } });
 }
 
 /** Bucket or manifest failure, or bytes that do not match the manifest. */
@@ -46,7 +46,6 @@ export function serviceUnavailable(): Response {
       "content-security-policy": "default-src 'none'",
       "cache-control": "no-store",
       "retry-after": "300",
-      "referrer-policy": "no-referrer",
       "x-content-type-options": "nosniff",
     },
   });

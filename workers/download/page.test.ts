@@ -1,15 +1,15 @@
 import { createHash } from "node:crypto";
 
-import { MAC, WIN, entryFor, envWith, manifestJson, send, standardObjects } from "./fakes";
+import { BASE, MAC, WIN, entryFor, envWith, manifestJson, send, standardObjects } from "./fakes";
 import { CSP_HEADER, STYLE, STYLE_HASH, downloadPageHtml } from "./page";
 
 async function page(objects = standardObjects()) {
-  const res = await send(envWith(objects), "/download");
+  const res = await send(envWith(objects), BASE);
   return { res, html: await res.text() };
 }
 
 describe("page content", () => {
-  test("both buttons carry the installer link, size and sha256 from the manifest", async () => {
+  test("both buttons carry the keyed installer link, size and sha256 from the manifest", async () => {
     const winSha = entryFor(WIN).sha256;
     const macSha = entryFor(MAC).sha256;
     const objects = standardObjects({
@@ -20,8 +20,8 @@ describe("page content", () => {
     });
     const { res, html } = await page(objects);
     expect(res.status).toBe(200);
-    expect(html).toContain(`href="/download/windows?v=${winSha}">Download for Windows</a>`);
-    expect(html).toContain(`href="/download/mac?v=${macSha}">Download for Mac (Apple silicon)</a>`);
+    expect(html).toContain(`href="${BASE}/windows?v=${winSha}">Download for Windows</a>`);
+    expect(html).toContain(`href="${BASE}/mac?v=${macSha}">Download for Mac (Apple silicon)</a>`);
     expect(html).toContain("2.30 GB");
     expect(html).toContain("45.2 MB");
     expect(html).toContain(`<code class="sha">sha256 ${winSha}</code>`);
@@ -42,8 +42,8 @@ describe("page content", () => {
     expect(res.status).toBe(200);
     expect(html).toContain("Download for Windows: coming soon");
     expect(html).toContain("Download for Mac (Apple silicon): coming soon");
-    expect(html).not.toContain("/download/windows?v=");
-    expect(html).not.toContain("/download/mac?v=");
+    expect(html).not.toContain(`${BASE}/windows?v=`);
+    expect(html).not.toContain(`${BASE}/mac?v=`);
   });
 
   test("one invalid platform entry hides only that button", async () => {
@@ -52,7 +52,7 @@ describe("page content", () => {
     });
     const { html } = await page(objects);
     expect(html).toContain("Download for Windows: coming soon");
-    expect(html).toContain(`/download/mac?v=${entryFor(MAC).sha256}`);
+    expect(html).toContain(`${BASE}/mac?v=${entryFor(MAC).sha256}`);
   });
 
   test("the Read this first line links the install sections of the guide", async () => {
@@ -62,6 +62,11 @@ describe("page content", () => {
     expect(html).toContain('<h2 id="windows">3. Install on Windows</h2>');
     expect(html).toContain('<h2 id="mac">2. Install on Mac</h2>');
     expect(html).not.toContain("[Guide text pending]");
+  });
+
+  test("the page never shows the link key outside its own links", async () => {
+    const { html } = await page();
+    expect(html.split(BASE).length - 1).toBe(2);
   });
 });
 
@@ -87,23 +92,23 @@ describe("strict headers", () => {
     expect(res.headers.get("content-security-policy")).toBe(CSP_HEADER);
     expect(res.headers.get("referrer-policy")).toBe("no-referrer");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(res.headers.get("cache-control")).toBe("no-cache");
+    expect(res.headers.get("cache-control")).toBe("private, no-cache");
     expect(res.headers.get("etag")).toMatch(/^"[0-9a-f]{64}"$/);
   });
 
   test("If-None-Match with the page's etag answers 304", async () => {
     const env = envWith(standardObjects());
-    const first = await send(env, "/download");
+    const first = await send(env, BASE);
     const etag = first.headers.get("etag")!;
-    const second = await send(env, "/download", { headers: { "if-none-match": etag } });
+    const second = await send(env, BASE, { headers: { "if-none-match": etag } });
     expect(second.status).toBe(304);
     expect(second.headers.get("etag")).toBe(etag);
   });
 
   test("the etag follows the content: a new manifest changes it", async () => {
-    const before = (await send(envWith(standardObjects()), "/download")).headers.get("etag");
+    const before = (await send(envWith(standardObjects()), BASE)).headers.get("etag");
     const objects = standardObjects({ "current.json": manifestJson({ mac: null }) });
-    const after = (await send(envWith(objects), "/download")).headers.get("etag");
+    const after = (await send(envWith(objects), BASE)).headers.get("etag");
     expect(after).not.toBe(before);
   });
 
@@ -120,13 +125,13 @@ describe("strict headers", () => {
   });
 
   test("the inline style in the page is exactly STYLE", () => {
-    expect(downloadPageHtml({ windows: null, mac: null })).toContain(`<style>${STYLE}</style>`);
+    expect(downloadPageHtml({ windows: null, mac: null }, "k".repeat(32))).toContain(`<style>${STYLE}</style>`);
   });
 });
 
 describe("HEAD on the page", () => {
   test("same status and headers, empty body", async () => {
-    const res = await send(envWith(standardObjects()), "/download", { method: "HEAD" });
+    const res = await send(envWith(standardObjects()), BASE, { method: "HEAD" });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-security-policy")).toBe(CSP_HEADER);
     expect(await res.text()).toBe("");

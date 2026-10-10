@@ -1,9 +1,9 @@
 /**
- * The /download page: one static document listing the current installers from
- * the manifest. No script, no cookies, no third-party requests.
+ * The download page behind the secret link: one static document listing the
+ * current installers from the manifest. No script, no cookies, no third-party requests.
  */
 import { GUIDE_HTML } from "./guide";
-import { INSTALLER_PATHS } from "./installer";
+import { installerPath } from "./link";
 import type { Installer, Manifest } from "./manifest";
 
 export const STYLE = `:root { color-scheme: light dark; }
@@ -72,17 +72,16 @@ export const CSP_HEADER = [
 export const PAGE_HEADERS: Record<string, string> = {
   "content-type": "text/html; charset=utf-8",
   "content-security-policy": CSP_HEADER,
-  "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff",
-  "cache-control": "no-cache",
+  "cache-control": "private, no-cache",
 };
 
 function formatSize(bytes: number): string {
   return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(2)} GB` : `${(bytes / 1e6).toFixed(1)} MB`;
 }
 
-// Only manifest-validated values reach this markup (hex sha256, integer size,
-// constant labels), so nothing is escaped.
+// Nothing here is escaped: the sha256, the size, the constant labels and the
+// link key are all restricted to characters that need no escaping.
 function platformBlock(label: string, path: string, installer: Installer | null): string {
   if (installer === null) return `<div class="platform"><p class="soon">${label}: coming soon</p></div>`;
   return `<div class="platform">
@@ -92,7 +91,7 @@ function platformBlock(label: string, path: string, installer: Installer | null)
 </div>`;
 }
 
-export function downloadPageHtml(manifest: Manifest): string {
+export function downloadPageHtml(manifest: Manifest, key: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -105,8 +104,8 @@ export function downloadPageHtml(manifest: Manifest): string {
 <main>
 <h1>Kalsa alpha</h1>
 <p class="lead">An AI that runs on your own computer: your messages are answered there, not in the cloud.</p>
-${platformBlock("Download for Windows", INSTALLER_PATHS.windows, manifest.windows)}
-${platformBlock("Download for Mac (Apple silicon)", INSTALLER_PATHS.mac, manifest.mac)}
+${platformBlock("Download for Windows", installerPath(key, "windows"), manifest.windows)}
+${platformBlock("Download for Mac (Apple silicon)", installerPath(key, "mac"), manifest.mac)}
 <p class="first">Read this first: <a href="#windows">Windows</a> · <a href="#mac">Mac (Apple silicon)</a></p>
 <section id="tester-guide">
 <h2>Tester guide</h2>

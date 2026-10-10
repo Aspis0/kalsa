@@ -1,17 +1,16 @@
 /**
- * The two installer routes. A URL names the installer's sha256 as `?v=`; any
- * other URL redirects to the current one. Bytes are served only when they match
- * the manifest's size and, if R2 carries one, its sha256.
+ * The installer routes behind the secret link. A URL names the installer's
+ * sha256 as `?v=`; any other URL redirects to the current one. Bytes are served
+ * only when they match the manifest's size and, if R2 carries one, its sha256.
  */
 import { hexOf } from "./hash";
 import { notFound, notModified, redirect, serviceUnavailable } from "./http";
 import type { Installer } from "./manifest";
 
-export const INSTALLER_PATHS = { windows: "/download/windows", mac: "/download/mac" } as const;
-
 export type InstallerRequest = {
   method: "GET" | "HEAD";
-  path: (typeof INSTALLER_PATHS)[keyof typeof INSTALLER_PATHS];
+  /** The keyed path of this installer, without the query. */
+  path: string;
   requestedSha: string | null;
   ifNoneMatch: string | null;
 };
@@ -49,7 +48,7 @@ function fileHeaders(installer: Installer): Record<string, string> {
     "content-length": String(installer.size),
     "content-disposition": `attachment; filename="${installer.name}"`,
     etag: `"${installer.sha256}"`,
-    "cache-control": "no-cache",
+    "cache-control": "private, no-cache",
     "x-content-type-options": "nosniff",
   };
 }
