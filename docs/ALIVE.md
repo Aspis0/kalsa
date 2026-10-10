@@ -35,6 +35,10 @@
 - G2 attempt on APK `2a1d1055` (2026-10-10): the governor held the S23 at Android status 2 for 65 min (COOLMODE,
   paced ~6 tok/s, skin 40-41.4 C, MemAvailable >= 1.24 GB, no crash) through 15 turns; stopped by a harness DB-read
   abort, since fixed. Repeat pending on a charged phone.
+- Graduated decode pacing (2026-10-10, engine `74b75037f`, binding `2b85937b`, app `41ab9149`, all pushed): the
+  engine slows decode by Android's own thermal forecast (S23: full speed below skin ~38 C, floor duty 0.35 at
+  ~41 C), a battery ramp 39.5-43 C and a cap from Android's status; the binding reads the forecast natively every
+  2 s. Host tests only; not yet measured on a phone (APK CI run `38076349748`).
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs
