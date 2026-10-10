@@ -1883,6 +1883,16 @@ async function emitGovernorTelemetry(
         decode_hop_commit_bytes: stats.decode_hop_commit_bytes,
         decode_hop_commit_ms: stats.decode_hop_commit_ms,
         decode_hop_headroom_windows: stats.decode_hop_headroom_windows,
+        // Decode pacing: idle the engine injects after single-token decode
+        // steps. The paced_* counters are cumulative since the last cache
+        // clear, like the hop counters above; duty_last is the last step's
+        // realized duty (1 = unpaced) and headroom_last the thermal headroom
+        // the policy last read (null = no forecast).
+        decode_paced_ms: stats.decode_paced_ms,
+        decode_paced_tokens: stats.decode_paced_tokens,
+        decode_paced_capped: stats.decode_paced_capped,
+        decode_pacing_duty_last: stats.decode_pacing_duty_last,
+        decode_pacing_headroom_last: stats.decode_pacing_headroom_last,
         fallback_reason: activeGovernorFallbackReason,
         // A latched governor failure is sticky: every later turn dies on it.
         // Surface it here so it is visible in telemetry, not just in the
