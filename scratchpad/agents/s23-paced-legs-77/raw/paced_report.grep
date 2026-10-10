@@ -1,0 +1,15 @@
+== paced start Sat Oct 10 08:42:45 EDT 2026 bench bd26f1b22334 skel eb78db498bc3 model a247afd64149 [lvl=100 plugged=0 batT=276 skin=28.8 status=0 wake=Awake]
+## arm=npu-paced start 1791636168 after 0s cool wait [lvl=100 plugged=0 batT=276 skin=28.8 status=0 wake=Awake]
+ARM END: 600s reached
+## arm=npu-paced exit=143 end 1791636794 [lvl=98 plugged=0 batT=342 skin=34.9 status=0 wake=Awake]
+run_start arm=L rep=0 monotonic_us=57906119535 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5 decode_coolmode_duty=0.5 platform_status=3 decode_paced_ms=0 decode_paced_tokens=0 decode_paced_capped=0
+## arm=gpu-paced start 1791637036 after 240s cool wait [lvl=98 plugged=0 batT=314 skin=31.9 status=0 wake=Awake]
+ARM END: 600s reached
+## arm=gpu-paced exit=143 end 1791637661 [lvl=94 plugged=0 batT=377 skin=37.6 status=0 wake=Awake]
+run_start arm=L rep=0 monotonic_us=58774029933 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5 decode_coolmode_duty=0.5 platform_status=3 decode_paced_ms=0 decode_paced_tokens=0 decode_paced_capped=0
+## arm=npu-full start 1791638294 after 630s cool wait [lvl=93 plugged=0 batT=316 skin=31.8 status=0 wake=Awake]
+## arm=npu-full exit=0 end 1791638586 [lvl=90 plugged=0 batT=395 skin=39.9 status=1 wake=Awake]
+run_start arm=L rep=0 monotonic_us=60032649484 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5 decode_coolmode_duty=1 platform_status=-1 decode_paced_ms=0 decode_paced_tokens=0 decode_paced_capped=0
+leg_summary arm=L rep=0 engine=npu tokens=4096 us=263483596 tps=15.546 decode_coolmode_duty=1 platform_status=-1 decode_paced_ms=0 decode_paced_tokens=0 decode_paced_capped=0
+leg_total arm=L rep=0 generated=4096 windows=129 hops=0 commit_bytes=0 commit_us=0
+== paced end Sat Oct 10 09:23:07 EDT 2026 [lvl=90 plugged=0 batT=395 skin=39.9 status=1 wake=Awake]
