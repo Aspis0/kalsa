@@ -1,179 +1,185 @@
-# Kalsa per chi prova l'alpha
+# Kalsa: guida per chi prova l'alpha
 
-Kalsa fa girare un'AI privata sul tuo computer. Ai tuoi messaggi risponde questo
-computer; quando Kalsa cerca sul web, le parole di quella ricerca escono dal computer. Il
-tuo telefono parla con questo computer. Questa pagina ti accompagna nell'installazione e
-nel primo avvio. È scritta per chi non è del mestiere: non serve sapere come funziona.
+Kalsa è un'intelligenza artificiale che lavora direttamente sul tuo computer: i tuoi
+messaggi restano lì e le risposte nascono lì. L'unica eccezione sono le ricerche sul web:
+quando Kalsa cerca qualcosa online, le parole cercate escono dal computer. Puoi usare
+Kalsa anche dal telefono, collegandolo al computer. Qui trovi tutto quello che serve per
+installarla e farla partire la prima volta. Non servono conoscenze tecniche.
 
 ## 1. Cosa ti serve
 
-- **Un Mac con Apple Silicon** (M1 o più recente). I Mac Intel per ora non sono supportati.
-- **Oppure un PC Windows a 64 bit.** Abbiamo provato Windows 11. Windows su ARM arriverà più avanti.
-- **Memoria:** abbiamo provato 16 GB e 32 GB. Con 8 GB l'app può comunque proporti
-  un'AI piccola. Se la schermata del primo avvio dice **Scegli l'AI** e non offre nessuna
-  scelta, nessuna AI di Kalsa gira abbastanza bene su questo computer. La schermata lo
-  dice in inglese: "This computer is not worth using: it can give a model … and the
-  smallest one in the catalog needs …." Sotto **Mostra i dettagli** dice: "Kalsa non ha
-  ancora un'AI che giri bene su questo computer. Controlla se c'è un aggiornamento
-  dell'app." Controlla se c'è un aggiornamento. Se ancora non hai nessuna scelta,
-  scrivici.
-- **Circa 30 GB di spazio libero sul disco, per stare tranquilli.** A seconda del
-  computer, il primo download va da circa 3 GB a circa 22 GB.
-- **Una connessione a internet** per il primo avvio: per prima cosa Kalsa scarica l'AI.
-  Su alcune reti di lavoro o di scuola il download è bloccato: Kalsa dice "Kalsa non ha
-  potuto scaricare quello che le serve su questa rete. Prova un'altra rete." Riprova da
-  casa.
-- **Il tuo telefono:** installa l'app Kalsa per il telefono dal link che ti mandiamo e
-  tienila aggiornata. <!-- PHONE-APP-LINK -->
+- **Un Mac con processore Apple** (M1 o successivi). I Mac con processore Intel per ora
+  non sono supportati.
+- **Oppure un PC con Windows a 64 bit.** L'abbiamo provata su Windows 11. I PC Windows
+  con processore ARM arriveranno più avanti.
+- **Memoria (RAM):** l'abbiamo provata con 16 GB e 32 GB. Anche con 8 GB l'app potrebbe
+  proporti un'intelligenza artificiale più piccola. Se al primo avvio la schermata
+  **Scegli l'AI** non ti propone niente, vuol dire che nessuna delle nostre AI gira
+  abbastanza bene sul tuo computer. Il messaggio compare in inglese: "This computer is
+  not worth using: it can give a model … and the smallest one in the catalog needs …."
+  Aprendo **Mostra i dettagli** leggerai: "Kalsa non ha ancora un'AI che giri bene su
+  questo computer. Controlla se c'è un aggiornamento dell'app." Prova ad aggiornare
+  l'app; se il problema resta, scrivici.
+- **Circa 30 GB liberi sul disco**, per avere margine. Il primo download pesa fra i 3 e i
+  22 GB circa, a seconda del computer.
+- **Una connessione a internet** per il primo avvio, perché Kalsa deve scaricare l'AI.
+  Alcune reti aziendali o scolastiche bloccano il download; in quel caso Kalsa mostra
+  "Kalsa non ha potuto scaricare quello che le serve su questa rete. Prova un'altra
+  rete." Riprova da casa.
+- **Il telefono:** installa l'app Kalsa dal link che ti mandiamo e tienila aggiornata.
+  <!-- PHONE-APP-LINK -->
 
-## 2. Installare sul Mac
+## 2. Installazione su Mac
 
-L'app non è firmata da Apple, quindi macOS ti avvisa prima di aprirla. Ci sono due modi
-per andare avanti, a seconda della versione di macOS.
+L'app non è ancora firmata da Apple, quindi al primo avvio macOS la blocca. Per aprirla
+lo stesso, segui i passaggi adatti alla tua versione di macOS.
 
-**macOS 15 (Sequoia) o più recente**: qui il vecchio trucco del clic destro non funziona
-più.
+**macOS 15 (Sequoia) o successivi** (qui il vecchio trucco del clic destro non funziona
+più):
 
-1. Apri l'app una volta (doppio clic). macOS dice che non si può aprire. Chiudi il messaggio.
+1. Fai doppio clic sull'app. macOS ti dirà che non può aprirla: chiudi il messaggio.
 2. Apri **Impostazioni di Sistema → Privacy e sicurezza**.
-3. Scorri un po' in basso. Vedrai una nota che dice che Kalsa è stata bloccata. Fai clic
-   su **Apri comunque**.
-4. Conferma (password o Touch ID), poi apri di nuovo Kalsa.
+3. Scorri un po' verso il basso: troverai un avviso che dice che Kalsa è stata bloccata.
+   Fai clic su **Apri comunque**.
+4. Conferma con la password o con Touch ID, poi riapri Kalsa.
 
-**macOS meno recenti:**
+**Versioni precedenti di macOS:**
 
-1. Fai clic destro (o Ctrl-clic) sull'app, scegli **Apri**, poi di nuovo **Apri**.
+1. Fai clic con il tasto destro (oppure Ctrl-clic) sull'app, scegli **Apri** e poi di
+   nuovo **Apri**.
 
-Se l'app si apre da un'immagine disco, trascinala prima in **Applicazioni**.
+Se l'app si apre da un'immagine disco (.dmg), prima trascinala nella cartella
+**Applicazioni**.
 
-## 3. Installare su Windows
+## 3. Installazione su Windows
 
-1. Avvia il programma di installazione di Kalsa. Installa solo per te: non serve la
-   password di amministratore.
-2. Windows può mostrare **"Windows ha protetto il PC"**. Fai clic su **Ulteriori
-   informazioni**, poi su **Esegui comunque**.
-3. Avvia Kalsa dal menu Start.
+1. Avvia il file di installazione. Kalsa viene installata solo per il tuo utente, quindi
+   non serve la password di amministratore.
+2. Windows potrebbe mostrare l'avviso **"Windows ha protetto il PC"**. Fai clic su
+   **Ulteriori informazioni** e poi su **Esegui comunque**.
+3. Apri Kalsa dal menu Start.
 
-## 4. Il primo avvio (una volta sola)
+## 4. Il primo avvio (si fa una volta sola)
 
-1. Apri Kalsa e premi **Avvia**. Sotto il pulsante, Kalsa dice che controlla il tuo
-   computer e sceglie l'AI che ci gira meglio.
-2. Kalsa controlla il computer, poi propone le AI adatte (di solito due). Ognuna mostra
-   il nome, una dimensione e "Risposte più intelligenti." oppure "Risposte più rapide.",
-   con il suo pulsante **Usa questo**. Scegline una. Se l'AI è già sul computer, non c'è
-   la domanda sul download. **Annulla** ti riporta indietro di un passo.
-3. Kalsa chiede "Scaricare … GB?" con la dimensione. Premi **Scarica**. Poi scarica l'AI
-   e misura il tuo computer: "Kalsa sta cercando le impostazioni più veloci…". La
-   schermata mostra circa quanti minuti mancano.
-4. Quando ha finito, puoi chattare.
+1. Apri Kalsa e premi **Avvia**. Kalsa esamina il tuo computer e sceglie l'AI più adatta.
+2. Dopo il controllo ti propone le AI che vanno bene per il tuo computer (di solito due).
+   Per ognuna vedi il nome, quanto pesa e una nota: "Risposte più intelligenti." oppure
+   "Risposte più rapide.". Scegli quella che preferisci con il pulsante **Usa questo**. Se
+   l'AI è già sul computer, il download viene saltato. Con **Annulla** torni al passo
+   precedente.
+3. Kalsa ti chiede "Scaricare … GB?" indicando la dimensione. Premi **Scarica**. Finito il
+   download, Kalsa prova diverse impostazioni per capire quale va più veloce sul tuo
+   computer ("Kalsa sta cercando le impostazioni più veloci…"). Sullo schermo vedi
+   quanti minuti mancano, più o meno.
+4. Quando ha finito, puoi iniziare a chattare.
 
-Tieni il computer collegato alla corrente e acceso, senza farlo andare in stop, finché il primo
-avvio non finisce.
-Puoi ridurre Kalsa a icona mentre lavora. Se qualcosa non va, l'app mostra **Riprova**:
-premilo. Questa misura si fa una volta sola. In seguito Kalsa parte da sola quando la
-apri; la schermata dice "Kalsa si sta preparando. Su un computer meno recente può
-volerci un minuto."
+Fino alla fine del primo avvio tieni il computer acceso, collegato alla corrente e senza
+farlo andare in stop. Puoi ridurre Kalsa a icona mentre lavora. Se qualcosa va storto,
+compare il pulsante **Riprova**: premilo. Queste prove si fanno solo la prima volta. Dopo,
+Kalsa parte da sola ogni volta che la apri; vedrai "Kalsa si sta preparando. Su un
+computer meno recente può volerci un minuto."
 
-Il primo avvio può durare a lungo. Quasi tutto il tempo è il download, quindi dipende
-dalla velocità della tua connessione.
+Il primo avvio può richiedere parecchio tempo, soprattutto per il download: dipende dalla
+velocità della tua connessione.
 
 ## 5. Collegare il telefono
 
-Kalsa deve essere accesa. Se la Home dice che Kalsa è spenta, premi **Accendi**.
-Nella Home di Kalsa, sotto **Questo computer**, apri **Dispositivi**. Inquadra il
-quadrato con la fotocamera del telefono, oppure premi **Invita con un link** e manda il
-link al tuo telefono: funziona una volta sola, per un giorno. L'app avvisa: "Chiunque
-veda questo quadrato può collegare un telefono — mostralo solo al tuo."
+Kalsa deve essere accesa: se nella Home risulta spenta, premi **Accendi**. Poi, nella
+Home, sotto **Questo computer**, apri **Dispositivi**. Inquadra con la fotocamera del
+telefono il quadrato che compare sullo schermo, oppure premi **Invita con un link** e
+mandati il link sul telefono: vale una volta sola e scade dopo un giorno. L'app ti
+avvisa: "Chiunque veda questo quadrato può collegare un telefono — mostralo solo al tuo."
 
-Il pulsante **Consenti** è su questo computer, non sul telefono. La pagina Dispositivi
-mostra "In attesa del tuo OK", poi "Un telefono si sta collegando. Scegli Consenti o
-Rifiuta qui sotto." Premi **Consenti**.
+Il collegamento si conferma dal computer, non dal telefono. Nella pagina Dispositivi
+compare prima "In attesa del tuo OK" e poi "Un telefono si sta collegando. Scegli
+Consenti o Rifiuta qui sotto." A quel punto premi **Consenti**.
 
-Se Windows chiede se Kalsa può usare la rete, scegli Consenti. Può succedere la prima
-volta.
+La prima volta Windows potrebbe chiederti se Kalsa può usare la rete: rispondi di sì.
 
-## 6. Quando qualcosa va storto
+## 6. Se qualcosa non funziona
 
-Kalsa tiene un log: un registro di quello che l'app ha fatto. È la prima cosa che ci
-serve quando qualcosa va storto.
+Kalsa tiene un log, cioè un registro di quello che fa l'app. Quando qualcosa non va, è
+la prima cosa che ci serve.
 
-**Kalsa invia alcune segnalazioni da sola.** Durante l'alpha, Kalsa invia segnalazioni
-degli errori con dettagli tecnici. Per questi problemi gravi invia anche il log dell'app:
+**Alcune segnalazioni Kalsa le invia da sola.** Durante l'alpha Kalsa ci manda
+segnalazioni degli errori con alcuni dettagli tecnici. Nei casi più gravi allega anche il
+log dell'app:
 
-- il motore dell'AI si ferma o va in crash, in qualsiasi momento;
-- il motore dell'AI non può girare su questo computer, o non si riesce a scaricare il
-  suo programma. La schermata dice "Kalsa non può ancora girare su questo computer." o
-  "Kalsa non ha potuto scaricare quello che le serve.";
-- il controllo del computer al primo avvio non riesce a finire in modo affidabile. La
-  schermata dice "Kalsa non è riuscita a controllare questo computer."
+- quando il motore dell'AI si blocca o si chiude all'improvviso;
+- quando il motore dell'AI non può funzionare sul tuo computer o non si riesce a
+  scaricare. In questi casi compare "Kalsa non può ancora girare su questo computer."
+  oppure "Kalsa non ha potuto scaricare quello che le serve.";
+- quando il controllo del computer al primo avvio non va a buon fine. Compare "Kalsa
+  non è riuscita a controllare questo computer."
 
-Un download dell'AI fallito, una ricerca sul web fallita e un disco pieno non inviano il
-log. Kalsa non invia mai le tue chat o i tuoi testi. In questo modo si inviano al
-massimo tre log al giorno.
+Il log invece non viene inviato se fallisce il download dell'AI o una ricerca sul web, né
+se il disco è pieno. Kalsa non invia mai le tue chat né i tuoi testi, e in automatico
+manda al massimo tre log al giorno.
 
-Il log non contiene mai i tuoi messaggi, le risposte di Kalsa, i tuoi file, né codici o
-chiavi. Contiene cosa ha fatto Kalsa e cosa ha questo computer: versioni,
-processore, scheda grafica, memoria, errori.
+Nel log non finiscono mai i tuoi messaggi, le risposte di Kalsa, i tuoi file, né codici o
+chiavi. Contiene cosa ha fatto Kalsa e cosa ha questo computer: versioni, processore,
+scheda grafica, memoria, errori.
 
-La prima volta che apri Kalsa, un avviso dice:
+La prima volta che apri Kalsa compare questo avviso:
 
 > Durante l'alpha, Kalsa invia segnalazioni degli errori con dettagli tecnici, e il log
 > dell'app quando succede qualcosa di grave. Mai le tue chat o i tuoi testi. Puoi
 > disattivarle nelle Impostazioni.
 
-Premi **Chiudi** per chiuderlo.
+Premi **Chiudi** per toglierlo.
 
-**Per disattivarle:** apri **Impostazioni** (in alto a destra), trova **Segnalazioni
-degli errori** e togli la spunta. Se le disattivi, restano disattivate, anche dopo aver
-riavviato Kalsa.
+**Per disattivare le segnalazioni:** apri le **Impostazioni** (in alto a destra) e togli
+la spunta a **Segnalazioni degli errori**. La scelta resta valida anche quando riavvii
+Kalsa.
 
-**Per inviare tu il log:** apri la pagina **AI** (nella Home, sotto **Questo
-computer**). Scorri fino a **Segnala un problema** in fondo e premi **Invia il log**.
-Kalsa dice "Inviato. Grazie." Scrivici cosa stavi facendo e quando.
+**Per mandarci tu il log:** apri la pagina **AI** (dalla Home, sotto **Questo
+computer**), scorri fino a **Segnala un problema** e premi **Invia il log**. Quando Kalsa
+risponde "Inviato. Grazie.", scrivici cosa stavi facendo e a che ora.
 
-**Se il motore dell'AI si ferma da solo:** se Kalsa era accesa, Kalsa riavvia il motore,
-una volta. Non lo fa dopo un arresto per memoria esaurita, né quando il motore si ferma di
-nuovo prima di aver girato dieci minuti dopo il riavvio. Allora la Home dice **Ferma** e
-"Kalsa si è fermata da sola. Riaccendila." Premi **Riprova**.
+**Se il motore dell'AI si ferma da solo:** se Kalsa era accesa, prova a riavviarlo da
+sola, una volta. Non ci riprova se il motore si è fermato per mancanza di memoria, né se
+si ferma di nuovo entro dieci minuti dal riavvio. In quel caso nella Home compare
+**Ferma** con il messaggio "Kalsa si è fermata da sola. Riaccendila." Premi **Riprova**.
 
-Se il riavvio funziona, compare una piccola riga: "Kalsa si è ripresa da un errore."
-Sparisce dopo sei secondi. Se le segnalazioni sono disattivate, la riga ha anche **Invia
-il log**. Premi **Chiudi** per chiuderla.
+Se invece il riavvio riesce, compare per sei secondi una piccola riga: "Kalsa si è
+ripresa da un errore." Se hai disattivato le segnalazioni, nella riga trovi anche **Invia
+il log**. Per toglierla prima, premi **Chiudi**.
 
-**Se una risposta si è interrotta:** quando il motore si ferma da solo e Kalsa lo
-riavvia, una risposta tagliata da quell'arresto dice "La risposta si è interrotta."
-Premi **Riprova** per chiedere di nuovo. Qualsiasi altra risposta tagliata dice "La
-risposta si è interrotta a metà." e ha un pulsante **Riprova**. Se Kalsa è spenta,
-quel riquadro dice "Kalsa è spenta." e propone **Accendi Kalsa**.
+**Se una risposta si interrompe:** quando il motore si è fermato e Kalsa l'ha riavviato,
+la risposta rimasta a metà mostra "La risposta si è interrotta." Premi **Riprova** per
+ripetere la domanda. Se la risposta si è interrotta per altri motivi, vedrai invece "La
+risposta si è interrotta a metà." con il pulsante **Riprova**. Se in quel momento Kalsa è
+spenta, il riquadro dice "Kalsa è spenta." e ti propone **Accendi Kalsa**.
 
-**Se Kalsa dice "La tua rete (ad esempio quella aziendale) blocca l'invio."** quando
-premi **Invia il log**, il log non è stato inviato. Premi invece **Apri la cartella dei
-log**: sul tuo computer si apre una cartella. Manda il file **kalsa-brain.log** per email
-a chi ti ha dato Kalsa. Se vedi anche **kalsa-brain.1.log**, manda anche quello.
+**Se premendo Invia il log Kalsa risponde "La tua rete (ad esempio quella aziendale)
+blocca l'invio."**, il log non è partito. Premi allora **Apri la cartella dei log**: si
+apre una cartella sul tuo computer. Manda per email il file **kalsa-brain.log** alla
+persona che ti ha fatto provare Kalsa. Se c'è anche **kalsa-brain.1.log**, allega anche
+quello.
 
-**Su una rete di lavoro o di scuola** le segnalazioni potrebbero non passare. Kalsa le
-tiene fino a 30 giorni e le invia quando il computer è su un'altra rete. Non devi fare
-niente.
+**Se sei su una rete aziendale o scolastica**, le segnalazioni potrebbero non partire.
+Kalsa le conserva fino a 30 giorni e le invia appena il computer si collega a un'altra
+rete. Non devi fare niente.
 
-La cartella dei log è:
+Il log si trova qui:
 
 - **Mac:** `~/Library/Logs/ai.kalsa.brain/`
 - **Windows:** `%LOCALAPPDATA%\ai.kalsa.brain\logs\`
 
 ## 7. Download
 
-Scarica Kalsa dal link privato che ti abbiamo mandato. Non condividerlo.
+Scarica Kalsa dal link privato che ti abbiamo mandato, e per favore non condividerlo.
 
-## 8. Disinstallare
+## 8. Disinstallare Kalsa
 
-**Mac:** trascina Kalsa da Applicazioni al Cestino, poi svuota il Cestino. Per togliere
-anche i suoi dati, nel Finder premi **⌘ ⇧ G**, incolla uno per volta questi percorsi e
-cancella la cartella:
-`~/Library/Application Support/kalsa-brain` (l'AI scaricata, quella grande),
+**Mac:** trascina Kalsa da Applicazioni nel Cestino e svuota il Cestino. Per cancellare
+anche i suoi dati, nel Finder premi **⌘ ⇧ G**, incolla uno alla volta questi percorsi e
+cancella la cartella che si apre:
+`~/Library/Application Support/kalsa-brain` (l'AI scaricata, la più pesante),
 `~/Library/Application Support/ai.kalsa.brain` e `~/Library/Logs/ai.kalsa.brain`.
 
 **Windows:** apri **Impostazioni → App → App installate → Kalsa → Disinstalla**. Per
-togliere anche i suoi dati, premi **Windows + R**, incolla uno per volta questi percorsi,
-premi Invio e cancella quello che c'è dentro: `%LOCALAPPDATA%\kalsa-brain` (l'AI
-scaricata, quella grande), `%APPDATA%\ai.kalsa.brain` e `%LOCALAPPDATA%\ai.kalsa.brain`
-(i dati della vista web e i log).
+cancellare anche i suoi dati, premi **Windows + R**, incolla uno alla volta questi
+percorsi, premi Invio e cancella il contenuto della cartella che si apre:
+`%LOCALAPPDATA%\kalsa-brain` (l'AI scaricata, la più pesante), `%APPDATA%\ai.kalsa.brain`
+e `%LOCALAPPDATA%\ai.kalsa.brain` (i dati interni dell'app e i log).
