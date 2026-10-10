@@ -40,7 +40,7 @@
   ~41 C), a battery ramp 39.5-43 C and a cap from Android's status; the binding reads the forecast natively every
   2 s. S23 G2 run 2026-10-10 (`s23-g2-graduated-867affaa`): faster first turns (5 completions >= 10 tok/s vs 2),
   about 10 % slower in the hot steady state than the flat 0.5, never SEVERE, no crash; stopped by the harness's
-  thermal hard abort, whose 42 C pause ignores the config's 43 (fix pending).
+  thermal hard abort, whose 42 C pause ignored the config's 43 (fixed in app `e0ae695d`).
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs

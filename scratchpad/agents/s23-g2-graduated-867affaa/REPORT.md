@@ -53,7 +53,7 @@ Speed is `predictedPerSecond` per completion (`raw/telemetry-speed.csv`).
 
 `run-t20c.sh` hard-codes `CAMPAIGN_THERMAL_MAX_C=42` and ignores `recovery.thermalMaxC` in the campaign config; only
 `supervisor.sh` reads it. The owner's 43 C (app `64b05470`) never reached this runner, so both pauses fired at 42.
-With 43 C neither pause would have fired at 42.2-42.6 C. Fix pending.
+With 43 C neither pause would have fired at 42.2-42.6 C. Fixed in app `e0ae695d` (pushed 2026-10-10).
 
 ## Reading
 

@@ -284,7 +284,7 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    repeat on a charged cold S23 with it. DONE 2026-10-10 (`s23-g2-graduated-867affaa`): 16 turns, no crash, status
    never 3; 5 completions at >= 10 tok/s (vs 2 with the flat 0.5), hot steady state 5.3-5.6 then 4.4-5.0 tok/s at the
    0.35 floor (vs 5.6-6.4); stopped by the harness thermal hard abort at battery 42.5 C. Found: `run-t20c.sh`
-   hard-codes the 42 C pause and ignores `recovery.thermalMaxC` (fix pending); a 600 s "tool round" wait at turn 10
+   hard-coded the 42 C pause and ignored `recovery.thermalMaxC` (fixed in app `e0ae695d`, pushed); a 600 s "tool round" wait at turn 10
    with tools OFF (open). Owner decision pending: move the full line toward SEVERE for steady-state speed.
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
