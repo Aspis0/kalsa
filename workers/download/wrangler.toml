@@ -1,0 +1,20 @@
+name = "kalsa-download"
+main = "index.ts"
+compatibility_date = "2024-11-01"
+# Routes on the kalsa.io zone are the only origin (like kalsa-pair and kalsa-report):
+# workers.dev stays disabled. The Worker's exact pathname check 404s the extra
+# paths the trailing * captures (/downloads, /download/linux, …).
+workers_dev = false
+
+routes = [ { pattern = "kalsa.io/download*", zone_name = "kalsa.io" } ]
+
+# Private bucket, created once by the owner (README "One-time setup"). It must
+# never get a public r2.dev domain or a custom domain: installers leave only
+# through this Worker.
+[[r2_buckets]]
+binding = "DOWNLOADS"
+bucket_name = "kalsa-downloads"
+
+# Static page and streamed installers: nothing to observe, logs off.
+[observability]
+enabled = false
