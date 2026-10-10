@@ -63,3 +63,15 @@
 - H5 (P3) Five consecutive unknown pid rounds (~30 s of a half-open wireless link) abort the run (safe, no recovery
   force-stop). A reconnect would heal it, but `adb disconnect` is forbidden in a multi-device lab; needs a per-serial
   reconnect that cannot touch other devices.
+- E3 (P2, audit of engine 74b75037f, 2026-10-10) Graduated pacing: a COOLMODE latched by its dwell after the platform
+  status falls to 1 paces only by the forecast and battery ramps, so a cool forecast + cool battery decodes at duty 1.0
+  inside COOLMODE. Intended (slow only as much as needed, owner 2026-10-10 "Fai 1"); revisit only if the S23 G2 repeat
+  shows a re-escalation sawtooth.
+- E4 (P2) `decode_pacing_duty_last` is computed from the requested delay before the sleep; an oversleeping scheduler
+  makes the real duty lower than reported. Fix if the stat drives a decision: measure the sleep.
+- E5 (P2/P3) governor-bench: the start<full order check runs only when both flags are given (`--pacing-headroom-start
+  1.1` alone is reset by the policy while the bench echoes the request is no longer true since run_start prints the
+  applied values, but the run silently uses defaults); `--battery-temp` has no upper bound before the int32 tenths cast.
+- E6 (P3) `sanitize_coolmode_duty` WARN says "pacing is off" but a SEVERE status still caps at min_duty; two
+  test-governor-pacing comments/cases: :352 comment names SEVERE on a status-2 case, :249 status-2 integration case
+  would pass with a broken NaN fallback (the pure duty test covers it).
