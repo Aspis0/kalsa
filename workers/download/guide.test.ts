@@ -35,10 +35,9 @@ describe("guide content", () => {
     expect(GUIDE_HTML).toContain('<h2 id="windows">3. Install on Windows</h2>');
   });
 
-  test("the phone placeholder renders nothing", () => {
-    expect(GUIDE_HTML).not.toContain("PHONE-APP-LINK");
+  test("the phone section only says the apps come later", () => {
+    expect(GUIDE_HTML).toContain('<h2 id="phone">5. Phone</h2>\n<p>The Kalsa apps for Android and iOS will be released later.</p>');
     expect(GUIDE_HTML).not.toContain("<!--");
-    expect(GUIDE_HTML).toMatch(/keep it updated\.<\/li>/);
   });
 
   test("no markdown syntax survives the conversion", () => {
