@@ -259,9 +259,10 @@ fn every_row_has_a_name_a_person_can_say() {
             ("google/gemma-4-E4B-it", "Google Gemma 4 E4B"),
             ("Qwen/Qwen3.6-35B-A3B", "Alibaba Qwen 3.6"),
             ("google/gemma-4-12B-it", "Google Gemma 4 12B"),
-            // One name for the two compressions of one model: the name rule
+            // One name for the three files of one model: the name rule
             // above bans the quantisation from it, and the card tells the
-            // two apart by the file's size.
+            // files apart by their size.
+            ("LiquidAI/LFM2.5-VL-3B", "Liquid LFM 2.5"),
             ("LiquidAI/LFM2.5-VL-3B", "Liquid LFM 2.5"),
             ("LiquidAI/LFM2.5-VL-3B", "Liquid LFM 2.5"),
             ("Qwen/Qwen3.8-27B", "Alibaba Qwen 3.8"),
@@ -310,6 +311,7 @@ fn only_the_download_rows_know_where_their_files_live() {
             "bartowski/gemma-4-12B-it-GGUF",
             "bartowski/gemma-4-12B-it-GGUF",
             "ggml-org/gemma-4-12B-it-GGUF",
+            "LiquidAI/LFM2.5-VL-3B-GGUF",
             "LiquidAI/LFM2.5-VL-3B-GGUF",
             "LiquidAI/LFM2.5-VL-3B-GGUF",
             "unsloth/Qwen3.8-27B-GGUF",
@@ -400,13 +402,17 @@ fn a_source_serves_its_exact_file_at_its_commit() {
         .filter(|row| row.model.repo == "LiquidAI/LFM2.5-VL-3B")
         .map(|row| row.source.url())
         .collect();
-    assert_eq!(urls.len(), 2, "the row's two files are pinned");
+    assert_eq!(urls.len(), 3, "the row's three files are pinned");
     assert_eq!(
         urls[0],
         "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/6f730e9a2c454e8af9adc29db58e638e01e5957f/LFM2.5-VL-3B-Q8_0.gguf"
     );
     assert_eq!(
         urls[1],
+        "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/6f730e9a2c454e8af9adc29db58e638e01e5957f/LFM2.5-VL-3B-Q4_K_M.gguf"
+    );
+    assert_eq!(
+        urls[2],
         "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/6f730e9a2c454e8af9adc29db58e638e01e5957f/LFM2.5-VL-3B-F16.gguf"
     );
 }
@@ -436,6 +442,7 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("google/gemma-4-12B-it", 7_662_533_088),
             ("google/gemma-4-12B-it", 12_669_647_328),
             ("LiquidAI/LFM2.5-VL-3B", 2_874_779_680),
+            ("LiquidAI/LFM2.5-VL-3B", 1_674_455_072),
             ("LiquidAI/LFM2.5-VL-3B", 5_403_158_560),
             ("Qwen/Qwen3.8-27B", 16_464_440_224),
         ]
@@ -560,6 +567,7 @@ fn every_usable_file_stem_is_distinct() {
         stems,
         vec![
             "LFM2.5-VL-3B-F16",
+            "LFM2.5-VL-3B-Q4_K_M",
             "LFM2.5-VL-3B-Q8_0",
             "Qwen3.6-35B-A3B-UD-Q4_K_M",
             "Qwen3.8-27B-UD-Q4_K_M",
@@ -637,8 +645,9 @@ fn the_vision_rows_carry_a_projector() {
         .collect();
     assert_eq!(
         projectors.len(),
-        7,
-        "six models see; LiquidAI's two files each carry their own projector"
+        8,
+        "six models see; each of LiquidAI's three files carries a projector pin, \
+         the Q4_K_M row sharing the Q8_0 projector file"
     );
     let for_row = |repo: &str| {
         projectors

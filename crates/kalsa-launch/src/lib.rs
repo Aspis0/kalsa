@@ -55,5 +55,5 @@ pub use args::{
 };
 pub use policy::{
     context_price, funded_context, funded_maximum, plan, thread_count,
-    trained_context_unreadable, ContextPrice, LaunchInput,
+    trained_context_unreadable, ContextPrice, LaunchInput, PromptCache,
 };

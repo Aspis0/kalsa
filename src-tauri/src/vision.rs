@@ -195,6 +195,7 @@ fn projector_fits(
     let sizing = info.sizing?;
     let measurement = brain.kept_measurement()?;
     let overrides = crate::options::load(state_file);
+    let (default_window, prompt_cache) = crate::startup::small_machine_launch(sizing.small_machine);
     let input = LaunchInput {
         backend: sizing.backend,
         model: sizing.row,
@@ -205,12 +206,13 @@ fn projector_fits(
         physical_cores: kalsa_probe::physical_cores(),
         model_path: info.args.model_path.clone(),
         port: crate::startup::PORT,
-        context_limit: overrides.context_tokens,
+        context_limit: overrides.context_tokens.or(default_window),
         batch_size: info.args.batch_size,
         ubatch_size: info.args.ubatch_size,
         kv_cache: info.args.kv_cache,
         parallel: info.args.parallel,
         slot_save_path: info.args.slot_save_path.clone(),
+        prompt_cache,
     };
     Some(kalsa_launch::plan(&input).is_some())
 }
@@ -399,6 +401,7 @@ mod tests {
             ),
             row,
             drafter_bytes: 0,
+            small_machine: false,
         });
         info.mmproj = Some(crate::startup::MmprojLaunch {
             url: "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/a483e9e6/mmproj-F16.gguf"

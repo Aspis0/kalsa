@@ -973,14 +973,17 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     },
     // ── LiquidAI LFM2.5-VL-3B, verified against the Hugging Face API on 2026-10-04 ──
     // Pinned at commit `6f730e9a2c454e8af9adc29db58e638e01e5957f` ("Update
-    // GGUFs", the repo's last), one weights file: Q8_0. `curl -sIL` on the
-    // resolve URL returned exactly the `x-linked-size` 2_874_779_680 and the
-    // `x-linked-etag` below, and `shasum -a 256` of the downloaded file
-    // equals that etag. At 2.87 GB of weights it fits the 8 GB tier at the
-    // window it is priced at — the header's own 32 768 (`trained_context_tokens`
+    // GGUFs", the repo's last). This row's weights are the Q8_0 file; the
+    // repo's Q4_K_M and F16 files are their own rows below, at the same
+    // commit. `curl -sIL` on the resolve URL returned exactly the
+    // `x-linked-size` 2_874_779_680 and the `x-linked-etag` below, and
+    // `shasum -a 256` of the downloaded file equals that etag. Not offered on
+    // a machine of 8 GiB or less
+    // (`choice::offered_on`): there the Q4_K_M row below is the file. Above
+    // that line it is priced at the header's own 32 768 (`trained_context_tokens`
     // below), which is also the window the launcher funds: 3.4 GiB of
     // footprint (weights + 512 MiB of compute buffers + 32 768 tokens at
-    // 8_704 bytes) against a 5.0 GiB budget.
+    // 8_704 bytes).
     //
     // The header facts are from THIS pinned file, parsed whole:
     // `general.architecture` `lfm2` (llama-arch.cpp:127 at b10950,
@@ -1061,6 +1064,61 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
         // the q8_0 build — `general.file_type 7` (mostly q8_0), 137 q8_0
         // tensors beside the f32 norms, read from the file's own GGUF
         // header. ON DEMAND: see [`DownloadableEntry::mmproj`].
+        mmproj: Some(GgufSource {
+            repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
+            commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",
+            file: "mmproj-LFM2.5-VL-3B-Q8_0.gguf",
+            bytes: 583_109_984,
+            sha256: "ecbbe7097f696dba67172738d79c9f01132cdb6c0b457606315e268df3d67e64",
+        }),
+        drafter: None,
+        q8: None,
+    },
+    // ── LiquidAI LFM2.5-VL-3B, Q4_K_M: the file for machines of 8 GiB or less ──
+    // Same repo and commit as the Q8 row. Bytes and sha256 are the Hugging Face
+    // tree API's own (`lfs.size`, `lfs.oid`), read 2026-10-10 from
+    // https://huggingface.co/api/models/LiquidAI/LFM2.5-VL-3B-GGUF/tree/main.
+    // The file has not been downloaded or run: its architecture, KV figure,
+    // window and sampling are the Q8 file's header, the same model. The
+    // projector is the Q8 row's own file, a separate vision tower that is
+    // assumed, not run, to serve a Q4 text model.
+    //
+    // No measured decode: the bandwidth floor does the gating.
+    DownloadableEntry {
+        model: ModelEntry {
+            repo: "LiquidAI/LFM2.5-VL-3B",
+            display_name: "Liquid LFM 2.5",
+            last_modified: "2026-08-31T22:26:13.000Z",
+            licence: Licence::Conditional {
+                id: "lfm1.0",
+                condition: "commercial use only for entities under $10M annual revenue",
+            },
+            parameters: Parameters::dense(2_697_198_592),
+            quant: "Q4_K_M",
+            weights_bytes: 1_674_455_072,
+            kv_bytes_per_token: Some(8_704),
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 360_448,
+            },
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            trained_context_tokens: Some(32_768),
+            stale: None,
+            sampling: Sampling {
+                temperature: Some(0.2),
+                top_p: None,
+                top_k: Some(50),
+                repeat_penalty: Some(1.0),
+            },
+        },
+        source: GgufSource {
+            repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
+            commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",
+            file: "LFM2.5-VL-3B-Q4_K_M.gguf",
+            bytes: 1_674_455_072,
+            sha256: "2436cf4bbac9a16e5dfc7799a140e583c2bc15958f4b24a391f8a8b10ecb8884",
+        },
         mmproj: Some(GgufSource {
             repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
             commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",

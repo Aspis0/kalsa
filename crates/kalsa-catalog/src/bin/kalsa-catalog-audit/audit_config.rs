@@ -1,4 +1,5 @@
-use kalsa_catalog::{Backend, ChoiceInput, Parameters, PhoneModel, CHOOSER_CONTEXT_TOKENS, GIB};
+use kalsa_catalog::choice::chooser_context_tokens;
+use kalsa_catalog::{Backend, ChoiceInput, Parameters, PhoneModel, GIB};
 
 const DEFAULT_TIERS: &[u64] = &[8, 16, 32, 64];
 const PHONE_WEIGHTS: u64 = 2_834_975_040;
@@ -9,7 +10,8 @@ pub(super) struct Config {
     pub(super) backend: Backend,
     pub(super) bandwidth: f64,
     pub(super) compute: f64,
-    pub(super) context: u64,
+    /// `--ctx` when given; `None` means each tier's own window.
+    pub(super) context: Option<u64>,
 }
 
 impl Config {
@@ -20,7 +22,8 @@ impl Config {
             bandwidth_bytes_per_second: 80.0e9,
             bandwidth_is_lower_bound: false,
             compute_flops_per_second: 100.0e9,
-            context_tokens: CHOOSER_CONTEXT_TOKENS,
+            // Replaced per tier in `print_tier` unless `--ctx` is given.
+            context_tokens: chooser_context_tokens(16 * GIB),
             phone: Some(PhoneModel {
                 weights_bytes: PHONE_WEIGHTS,
                 parameters: Some(Parameters::dense(4_000_000_000)),
@@ -29,6 +32,7 @@ impl Config {
             }),
         };
         let mut tiers = DEFAULT_TIERS.to_vec();
+        let mut context: Option<u64> = None;
         let mut args = std::env::args().skip(1);
         while let Some(flag) = args.next() {
             match flag.as_str() {
@@ -47,7 +51,7 @@ impl Config {
                 }
                 "--lower-bound" => input.bandwidth_is_lower_bound = true,
                 "--gflops" => input.compute_flops_per_second = float(&mut args, &flag)? * 1e9,
-                "--ctx" => input.context_tokens = number(&mut args, &flag, 1.0)? as u64,
+                "--ctx" => context = Some(number(&mut args, &flag, 1.0)? as u64),
                 "--phone-gb" => set_phone_weights(&mut input, float(&mut args, &flag)?),
                 "--phone-params" => {
                     let billions = float(&mut args, &flag)?;
@@ -88,7 +92,7 @@ impl Config {
             backend: input.backend,
             bandwidth: input.bandwidth_bytes_per_second,
             compute: input.compute_flops_per_second,
-            context: input.context_tokens,
+            context,
             input,
         })
     }

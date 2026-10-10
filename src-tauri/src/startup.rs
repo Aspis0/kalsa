@@ -33,7 +33,7 @@ use kalsa_download::default_roots;
 // The cheap first pass over stores that name blobs by digest; find_local
 // stays underneath it, so this is an optimization on top of the engine the
 // download path already used.
-use kalsa_launch::{KvCache, LaunchInput, Offload, ServerArgs, ServerSettings};
+use kalsa_launch::{KvCache, LaunchInput, Offload, PromptCache, ServerArgs, ServerSettings};
 use kalsa_probe::Measurement;
 use kalsa_reuse::find_reusable;
 use kalsa_runtime::ServerBackend;
@@ -205,6 +205,20 @@ pub(crate) struct LaunchSizing {
     pub(crate) budget: MemoryBudget,
     pub(crate) row: &'static ModelEntry,
     pub(crate) drafter_bytes: u64,
+    pub(crate) small_machine: bool,
+}
+
+/// The window and prompt cache a small machine gets when the owner set
+/// neither: one function, so the walk and vision's fit check agree.
+pub(crate) fn small_machine_launch(small: bool) -> (Option<u64>, PromptCache) {
+    if small {
+        (
+            Some(kalsa_catalog::choice::SMALL_MACHINE_CONTEXT_TOKENS),
+            PromptCache::Off,
+        )
+    } else {
+        (None, PromptCache::Kept)
+    }
 }
 
 /// The exact launch data kept by the shell after the supervisor receives it.
@@ -581,6 +595,7 @@ fn choose_model(
             entry.repo == row.repo
                 && entry.quant == row.quant
                 && entry.weights_bytes == row.weights_bytes
+                && kalsa_catalog::choice::offered_on(entry, input.ram_bytes)
         });
         if !on_the_menu {
             return Err(StartupFailure::AwaitingChoice);
@@ -899,7 +914,7 @@ fn choice_input(
         // refuse one. Hardcoding this false re-creates the bug that refused
         // a runnable model with a precise and wrong number.
         bandwidth_is_lower_bound: machine.measurement.bandwidth_is_lower_bound(),
-        context_tokens: CHOOSER_CONTEXT_TOKENS,
+        context_tokens: kalsa_catalog::choice::chooser_context_tokens(machine.ram_bytes),
         phone,
     }
 }
@@ -1103,6 +1118,8 @@ fn planned_config_with_overrides(
             .and_then(|m| m.proven.as_ref().map(|_| m.bytes))
             .unwrap_or(0)
     };
+    let small = kalsa_catalog::choice::is_small_machine(machine.ram_bytes);
+    let (default_window, prompt_cache) = small_machine_launch(small);
     let build = |cache: KvCache, context_limit: Option<u64>, parallel: u32, charged: u64| {
         LaunchInput {
             backend,
@@ -1114,12 +1131,13 @@ fn planned_config_with_overrides(
             physical_cores: kalsa_probe::physical_cores(),
             model_path: model.clone(),
             port: PORT,
-            context_limit,
+            context_limit: context_limit.or(default_window),
             batch_size,
             ubatch_size,
             kv_cache: cache,
             parallel,
             slot_save_path: slot_save_path.clone(),
+            prompt_cache,
         }
     };
     // The requested count is the ENROLLED devices — this computer and every
@@ -1301,6 +1319,7 @@ fn planned_config_with_overrides(
                 budget,
                 row,
                 drafter_bytes,
+                small_machine: small,
             }),
             tune: None,
             checked: None,
@@ -1956,31 +1975,23 @@ mod tests {
 
     #[test]
     fn a_stored_choice_on_a_slow_seven_gb_machine_fails_for_speed_not_for_memory() {
-        // The band where the walk's two predicates used to disagree: the
-        // budget sits between what LFM's Q8 file costs at its 32 768-token
-        // cap and what a flat 65 536-token window would cost. The row fits
-        // the window it is priced at, and at this bandwidth its pessimistic
-        // end is below reading speed — the floors' verdict. Pricing the
-        // flat window answered "over budget" for a machine that funds the
-        // row and only refuses its speed.
+        // A stored choice on a small machine: the lighter LFM file fits the
+        // window the machine is priced at, and at this bandwidth its
+        // pessimistic end is below reading speed — the floors' verdict, not
+        // the budget's.
         let machine = Machine {
             measurement: measured(5.0e9, Backend::Cpu),
             ram_bytes: 7_000_000_000,
         };
         let row = rows()
-            .find(|entry| entry.repo == "LiquidAI/LFM2.5-VL-3B" && entry.quant == "Q8_0")
-            .expect("the Q8 row is in the catalog");
+            .find(|entry| entry.repo == "LiquidAI/LFM2.5-VL-3B" && entry.quant == "Q4_K_M")
+            .expect("the Q4 row is in the catalog");
         let budget = memory_budget(Backend::Cpu, machine.ram_bytes);
+        let window = kalsa_catalog::choice::chooser_context_tokens(machine.ram_bytes);
         assert!(
-            kalsa_catalog::footprint_bytes(row, row.priced_context(CHOOSER_CONTEXT_TOKENS))
-                .total_bytes()
+            kalsa_catalog::footprint_bytes(row, row.priced_context(window)).total_bytes()
                 <= budget.usable_bytes,
             "the premise: the row fits the window it is priced at"
-        );
-        assert!(
-            kalsa_catalog::footprint_bytes(row, CHOOSER_CONTEXT_TOKENS).total_bytes()
-                > budget.usable_bytes,
-            "the premise: the flat window is what this budget cannot hold"
         );
         let token = model_token(row);
         let failure = match choose_model(ServerBackend::Cpu, &machine, None, Some(&token)) {
@@ -1991,6 +2002,26 @@ mod tests {
             matches!(failure, StartupFailure::NothingFastEnough),
             "{failure:?}"
         );
+    }
+
+    #[test]
+    fn a_stored_q8_choice_on_a_small_machine_asks_again_and_keeps_its_file() {
+        // The Q8 file is no longer offered at 8 GiB or less. The stored token
+        // stops the walk like any choice the menu no longer offers, so the
+        // owner picks again; nothing is fetched and the Q8 file stays on disk.
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let q8 = rows()
+            .find(|entry| entry.repo == "LiquidAI/LFM2.5-VL-3B" && entry.quant == "Q8_0")
+            .expect("the Q8 row is in the catalog");
+        let token = model_token(q8);
+        let failure = match choose_model(ServerBackend::Cpu, &machine, None, Some(&token)) {
+            Err(failure) => failure,
+            Ok((_, row, _)) => panic!("{} must not start on 8 GiB", row.quant),
+        };
+        assert!(matches!(failure, StartupFailure::AwaitingChoice), "{failure:?}");
     }
 
     #[test]
@@ -2825,14 +2856,13 @@ mod tests {
     #[test]
     fn the_server_starts_with_the_launch_plan_not_the_supervisor_constants() {
         // The product path: the context comes from the chosen row's cache
-        // geometry against the real budget. Liquid LFM 2.5 on 8 GiB funds
-        // its trained 32_768 at q8_0 — the same figure the row's header
-        // caps the launch's 65_536 chat default at — with the plan's own
-        // cache roof of 466 MiB. The flags are still the launch
+        // geometry against the real budget. On 8 GiB the lighter Liquid LFM 2.5
+        // file starts at the small window with no prompt cache, so the plan's
+        // figures are 16_384 and no cache roof. The flags are still the launch
         // decision's — q8_0 cache under flash attention, no GPU flags on a
         // CPU build.
         let row = rows()
-            .find(|entry| entry.display_name == "Liquid LFM 2.5")
+            .find(|entry| entry.display_name == "Liquid LFM 2.5" && entry.quant == "Q4_K_M")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -2850,12 +2880,12 @@ mod tests {
         let joined = config.server.argv.join(" ");
         assert_eq!(
             rendered_value(&config.server.argv, "--ctx-size"),
-            "32768",
+            "16384",
             "{joined}"
         );
         assert_eq!(
             rendered_value(&config.server.argv, "--cache-ram"),
-            "466",
+            "0",
             "{joined}"
         );
         assert!(!joined.contains("8192"), "the old constant, back: {joined}");
@@ -2920,6 +2950,7 @@ mod tests {
             kv_cache: KvCache::Q8_0,
             parallel,
             slot_save_path: PathBuf::from("/slots"),
+            prompt_cache: PromptCache::Kept,
         };
 
         // No inlet: the requested four slots must not reach the plan, and the
@@ -3048,9 +3079,11 @@ mod tests {
     /// The plan stays at one seat; the door then refuses the second device
     /// with words.
     #[test]
-    fn a_machine_that_cannot_fund_the_family_keeps_the_smaller_number() {
+    fn a_small_machine_shares_its_small_window_across_the_family() {
+        // The small window is one total for every seat, so two seats cost what
+        // one seat costs: both are funded, each at half of 16_384.
         let row = rows()
-            .find(|entry| entry.display_name == "Liquid LFM 2.5")
+            .find(|entry| entry.display_name == "Liquid LFM 2.5" && entry.quant == "Q4_K_M")
             .expect("the test row left the catalog");
         let machine = Machine {
             measurement: measured(80.0e9, Backend::Cpu),
@@ -3076,11 +3109,9 @@ mod tests {
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
         )
-        .expect("one seat is fundable even when two are not");
-        assert_eq!(
-            config.info.args.parallel, 1,
-            "two seats would starve both slots; the machine keeps one"
-        );
+        .expect("two seats share the small window");
+        assert_eq!(config.info.args.parallel, 2, "both seats are funded");
+        assert_eq!(config.info.args.context_tokens, 16_384, "one total for both");
         if let Some(dir) = fork.parent() {
             let _ = std::fs::remove_dir_all(dir);
         }
@@ -3312,11 +3343,12 @@ mod tests {
 
     #[test]
     fn a_context_only_q8_0_funds_is_refused_when_f16_is_chosen() {
-        // Liquid LFM 2.5 (the Q8_0 file, 2.87 GB) on 6.95 GB of CPU funds
-        // 27_284 tokens at q8_0 and 13_642 at f16: the halved per-token
-        // price is what moves the f16 maximum (both below the row's
-        // 32_768 trained cap, which would otherwise level them). 20_000
-        // fits the q8_0 cache and not the f16 one — choosing f16 must
+        // Liquid LFM 2.5 (the Q8_0 file, 2.87 GB) on 6.95 GB of CPU, which is a
+        // small machine: no prompt cache, so the 317 MB left after weights and
+        // buffers all funds context. At q8_0 that reaches the row's 32_768
+        // trained cap; at f16 the halved per-token price funds 18_196 — below
+        // the cap, so the two maxima differ. 20_000 fits the q8_0 cache and
+        // not the f16 one — choosing f16 must
         // refuse it, not start a server whose f16 cache would
         // oversubscribe the machine. If the guard read the q8_0 maximum
         // instead of the chosen cache's, this would be accepted.
@@ -3349,7 +3381,7 @@ mod tests {
                 ..LaunchOverrides::default()
             },
         )
-        .expect_err("20000 is beyond the f16 funded maximum of 13642");
+        .expect_err("20000 is beyond the f16 funded maximum of 18196");
         assert!(
             matches!(err, StartupFailure::ContextTooLarge { .. }),
             "{err:?}"
@@ -3375,9 +3407,9 @@ mod tests {
             LaunchOverrides::default(),
         )
         .expect("20000 fits the q8_0 cache");
-        // The override is a ceiling, not a target: below the funded maximum
-        // the plan starts the window the machine funds.
-        assert_eq!(fits_q8.info.args.context_tokens, 27_284);
+        // The override is a ceiling, not a target: with no owner window, a
+        // small machine starts at its 16_384 default, below what it funds.
+        assert_eq!(fits_q8.info.args.context_tokens, 16_384);
         assert_eq!(
             crate::failure::words(&err),
             "This conversation length is too long for this AI. Choose a smaller one in \
@@ -3385,7 +3417,7 @@ mod tests {
         );
         match err {
             StartupFailure::ContextTooLarge { maximum_tokens, cache } => {
-                assert_eq!(maximum_tokens, 13_642, "the funded maximum travels");
+                assert_eq!(maximum_tokens, 18_196, "the funded maximum travels");
                 assert!(matches!(cache, Some(KvCache::F16)), "{cache:?}");
             }
             other => panic!("{other:?}"),

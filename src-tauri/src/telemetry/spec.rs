@@ -30,6 +30,7 @@ pub(super) fn values(key: &str) -> Option<&'static [&'static str]> {
         "backend" => Some(&["metal", "vulkan", "cuda", "cpu", "opencl", "unknown"]),
         "offload" => Some(&["gpu", "cpu", "mixed"]),
         "modelId" => Some(&[
+            "0d59929a1d6c96db",
             "2cba59c35d6c921d",
             "5aa3a7df6a68207f",
             "6cf2d69e925c832b",

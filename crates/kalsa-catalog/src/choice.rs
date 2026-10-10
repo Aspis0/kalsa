@@ -66,14 +66,53 @@ pub struct ChoiceInput {
     pub phone: Option<PhoneModel>,
 }
 
-/// The context the desktop pick is priced at, everywhere the chooser is
-/// asked: 65_536 tokens, the chat default this product launches with, and
+/// The context the desktop pick is priced at on a machine above
+/// [`SMALL_MACHINE_RAM_BYTES`] (see [`chooser_context_tokens`]): 65_536 tokens,
+/// the chat default this product launches with, and
 /// never past a row's own trained cap ([`ModelEntry::priced_context`]). One
 /// machine serves several users, so a model that only holds a small window
 /// is not a suggestion — a row must FIT at the window it is priced at to be
 /// offered, and the cache that window costs is part of every footprint
 /// measured here.
 pub const CHOOSER_CONTEXT_TOKENS: u64 = 65_536;
+
+/// The OS and one open app leave an 8 GiB machine too little for the Q8 file's
+/// window and prompt cache, so machines at or below this RAM get the small
+/// menu. Every backend: the cache is host RAM even when the weights decode on
+/// a card.
+pub const SMALL_MACHINE_RAM_BYTES: u64 = 8 * GIB;
+
+/// The window a small machine is priced at, and starts at unless the owner's
+/// Advanced setting names another.
+pub const SMALL_MACHINE_CONTEXT_TOKENS: u64 = 16_384;
+
+pub fn is_small_machine(ram_bytes: u64) -> bool {
+    ram_bytes <= SMALL_MACHINE_RAM_BYTES
+}
+
+/// The window the chooser prices every row at on a machine with this RAM.
+pub fn chooser_context_tokens(ram_bytes: u64) -> u64 {
+    if is_small_machine(ram_bytes) {
+        SMALL_MACHINE_CONTEXT_TOKENS
+    } else {
+        CHOOSER_CONTEXT_TOKENS
+    }
+}
+
+/// The LFM2.5-VL-3B row whose two files the small-machine line splits.
+const LFM_VL_3B: &str = "LiquidAI/LFM2.5-VL-3B";
+
+/// Whether the menu offers a row's file on a machine with this RAM: the Q8_0
+/// file only above the small-machine line, its Q4_K_M sibling only at or below
+/// it, and every other file everywhere.
+pub fn offered_on(entry: &ModelEntry, ram_bytes: u64) -> bool {
+    let small = is_small_machine(ram_bytes);
+    match (entry.repo, entry.quant) {
+        (LFM_VL_3B, "Q8_0") => !small,
+        (LFM_VL_3B, "Q4_K_M") => small,
+        _ => true,
+    }
+}
 
 /// The PC must beat the phone, not match it. The bar is a proxy, and says so:
 /// what would replace it is a bake-off on the user's own machine, which the
@@ -706,8 +745,8 @@ pub const QUICK_SPEED_ADVANTAGE: f64 = 1.5;
 /// ordinary answer (or takes it outright when the bar found none),
 /// whenever it is faster than the pick — the higher-quality file is worth
 /// showing on a big machine even without the usual margin — and the file
-/// is offered only at or above this line: below it the Q8 file is the LFM
-/// row on offer.
+/// is offered only at or above this line: below it the LFM row on offer is
+/// the Q8 file above 8 GiB and the lighter file at or below it.
 pub const ROOMY_RAM_BYTES: u64 = 32 * GIB;
 
 /// The row this exception is about: LiquidAI's full-precision (F16) file of
@@ -965,8 +1004,8 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
         // The roomy-machine rule: the full-precision file is not on this
         // machine's menu at all below [`ROOMY_RAM_BYTES`] — it fits and
         // clears its speed line, but as a pick it would shove the smaller
-        // rows aside on a machine that should be seeing them, and the Q8
-        // file is the LFM row down there.
+        // rows aside on a machine that should be seeing them, and the LFM
+        // row's lighter or Q8 file is what that machine is offered instead.
         if full_precision_file(candidate.entry) && input.ram_bytes < ROOMY_RAM_BYTES {
             continue;
         }

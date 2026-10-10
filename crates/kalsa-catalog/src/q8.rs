@@ -13,7 +13,8 @@
 
 use crate::candidate::{candidate, Candidate};
 use crate::choice::{
-    dense_speed_floor, full_precision_file, provably_too_slow, ChoiceInput, ROOMY_RAM_BYTES,
+    dense_speed_floor, full_precision_file, offered_on, provably_too_slow, ChoiceInput,
+    ROOMY_RAM_BYTES,
 };
 use crate::footprint::{fits_footprint, memory_budget, MemoryBudget};
 use crate::manifest::{self, ModelEntry, UsableEntry};
@@ -63,6 +64,7 @@ pub(crate) fn resolved_in<'a>(
     input: &ChoiceInput,
 ) -> Vec<(&'a ModelEntry, Candidate<'a>)> {
     pairs
+        .filter(|(row, _)| offered_on(row.entry(), input.ram_bytes))
         .map(|(row, variant)| {
             let served = served_entry(row, variant, input);
             (row.entry(), candidate(served, input))
@@ -81,6 +83,7 @@ pub(crate) fn resolved(input: &ChoiceInput) -> Vec<(&'static ModelEntry, Candida
 /// with the pick.
 pub fn served(input: &ChoiceInput) -> Vec<UsableEntry<'static>> {
     manifest::usable_with_q8()
+        .filter(|(row, _)| offered_on(row.entry(), input.ram_bytes))
         .map(|(row, variant)| served_entry(row, variant, input))
         .collect()
 }

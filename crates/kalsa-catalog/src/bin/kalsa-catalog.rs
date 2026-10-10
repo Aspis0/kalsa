@@ -11,10 +11,11 @@
 //! `--phone-params` reports the phone's dense parameter count, without which
 //! nothing is claimed as capability.
 
+use kalsa_catalog::choice::chooser_context_tokens;
 use kalsa_catalog::{
     candidate_footprint, capability_basis, choose, largest_that_runs_well, memory_budget,
     quicker_alternative, served, Backend, ChoiceInput, Decision, DownloadPlan, Parameters,
-    PhoneModel, Prediction, CHOOSER_CONTEXT_TOKENS, GIB,
+    PhoneModel, Prediction, GIB,
 };
 
 fn main() {
@@ -189,9 +190,8 @@ fn configured() -> Result<ChoiceInput, String> {
         bandwidth_bytes_per_second: 80.0e9,
         bandwidth_is_lower_bound: false,
         compute_flops_per_second: 100.0e9,
-        // The chooser's window: what the pick has to fit, not the launch's
-        // own default. `--ctx` overrides it to ask what another window does.
-        context_tokens: CHOOSER_CONTEXT_TOKENS,
+        // Replaced below once the flags are read: the RAM sets the window.
+        context_tokens: chooser_context_tokens(16 * GIB),
         phone: Some(PhoneModel {
             weights_bytes: 2_834_975_040,
             parameters: None,
@@ -199,6 +199,9 @@ fn configured() -> Result<ChoiceInput, String> {
             battery_powered: None,
         }),
     };
+    // `--ctx` asks what another window does; without it the window is the
+    // one the RAM gets, as the start and the walk price it.
+    let mut context: Option<u64> = None;
     let mut args = std::env::args().skip(1);
     while let Some(flag) = args.next() {
         match flag.as_str() {
@@ -220,7 +223,7 @@ fn configured() -> Result<ChoiceInput, String> {
             }
             "--lower-bound" => input.bandwidth_is_lower_bound = true,
             "--gflops" => input.compute_flops_per_second = float(&mut args, &flag)? * 1e9,
-            "--ctx" => input.context_tokens = number(&mut args, &flag, 1.0)? as u64,
+            "--ctx" => context = Some(number(&mut args, &flag, 1.0)? as u64),
             "--phone-gb" => {
                 let gb = float(&mut args, &flag)?;
                 let phone = input.phone.take().unwrap_or(PhoneModel {
@@ -261,6 +264,7 @@ fn configured() -> Result<ChoiceInput, String> {
             }
         }
     }
+    input.context_tokens = context.unwrap_or_else(|| chooser_context_tokens(input.ram_bytes));
     Ok(input)
 }
 

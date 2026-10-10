@@ -3,6 +3,7 @@
 //! and we say so" case is tested like any other — it is the answer nobody
 //! remembers to prove.
 
+use kalsa_catalog::choice::chooser_context_tokens;
 use kalsa_catalog::{
     candidate_footprint, capability_basis, choose, decode_prediction, dense_speed_floor,
     footprint_bytes, largest_that_runs_well, quicker_alternative, runnable_row, usable_bytes,
@@ -27,9 +28,9 @@ fn phone(battery_powered: Option<bool>) -> PhoneModel {
 }
 
 /// Numbers from the probe on the development machine, at the product's own
-/// pricing window: the chooser prices every candidate at
-/// [`CHOOSER_CONTEXT_TOKENS`] — lowered to a row's own trained cap where
-/// that is shorter — so the arithmetic in the expectations is the
+/// pricing window: the chooser prices every candidate at the window its RAM
+/// gets ([`chooser_context_tokens`]) — lowered to a row's own trained cap
+/// where that is shorter — so the arithmetic in the expectations is the
 /// arithmetic the product would do.
 fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
     ChoiceInput {
@@ -38,7 +39,7 @@ fn input(ram_gib: u64, phone_known: bool) -> ChoiceInput {
         bandwidth_bytes_per_second: 85.0e9,
         bandwidth_is_lower_bound: false,
         compute_flops_per_second: 100.0e9,
-        context_tokens: CHOOSER_CONTEXT_TOKENS,
+        context_tokens: chooser_context_tokens(ram_gib * GIB),
         phone: phone_known.then_some(phone(Some(true))),
     }
 }
@@ -69,6 +70,20 @@ fn input_with_phone(ram_gib: u64, battery_powered: Option<bool>) -> ChoiceInput 
     ChoiceInput {
         phone: Some(phone(battery_powered)),
         ..input(ram_gib, true)
+    }
+}
+
+/// A phone whose model is smaller than the lighter LFM file and reports no
+/// parameters, so nothing is a capability claim and the PC beats it by relief.
+fn small_phone_input(battery_powered: Option<bool>) -> ChoiceInput {
+    ChoiceInput {
+        phone: Some(PhoneModel {
+            weights_bytes: 1_500_000_000,
+            parameters: None,
+            measured_tokens_per_second: Some(9.0),
+            battery_powered,
+        }),
+        ..input(8, true)
     }
 }
 
@@ -112,14 +127,14 @@ fn refusal(input: &ChoiceInput) -> (RefusalReason, String) {
 }
 
 #[test]
-fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
+fn eight_gigabytes_offers_no_relief_against_a_phone_of_this_size() {
     // The premise: nothing that fits admits a capability claim against the
-    // phone's reported parameters — the one row that fits here is the dense
-    // 2.69B at its only compression, under the phone's own 4B.
+    // phone's reported parameters — the dense 2.69B at either compression,
+    // under the phone's own 4B.
     let usable = usable_bytes(8 * GIB);
     for entry in kalsa_catalog::usable() {
         let entry = entry.entry();
-        if footprint_bytes(entry, CHOOSER_CONTEXT_TOKENS).total_bytes() <= usable {
+        if footprint_bytes(entry, chooser_context_tokens(8 * GIB)).total_bytes() <= usable {
             assert!(
                 capability_basis(entry.parameters, entry.dense_equivalent, Some(PHONE_PARAMS))
                     .is_none(),
@@ -129,76 +144,40 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
         }
     }
 
-    // But every token the PC generates is one the phone did not, so the
-    // recommendation comes through the relief axis, and says so.
-    match choose(&input(8, true)) {
-        Decision::Pick(selection) => {
-            assert_eq!(
-                selection.justification,
-                Justification::Relief { same_class: true }
-            );
-            assert_eq!(selection.repo, "LiquidAI/LFM2.5-VL-3B");
-            assert_eq!(selection.display_name, "Liquid LFM 2.5");
-            assert_eq!(selection.quant, "Q8_0", "the tier's own file");
-            assert!(
-                selection.details.contains("relief"),
-                "{}",
-                selection.details
-            );
-            assert!(
-                !selection.details.contains("on capability"),
-                "a lateral move must not be sold as an upgrade: {}",
-                selection.details
-            );
-            // The details are the user's sentence too: no repo path, no quant,
-            // and the prefill floor prints as a floor, never as a range.
-            assert!(
-                !selection.details.contains("LiquidAI/"),
-                "{}",
-                selection.details
-            );
-            assert!(!selection.details.contains("Q4"), "{}", selection.details);
-            assert!(
-                selection.details.contains("at least 18.5"),
-                "{}",
-                selection.details
-            );
-            assert!(
-                !selection.details.contains("50–50"),
-                "{}",
-                selection.details
-            );
-            assert_eq!(selection.budget.usable_bytes, usable);
-        }
-        other => panic!("expected a relief pick, got {other:?}"),
-    }
+    // The lighter file is smaller than the phone's model, so the PC cannot beat
+    // the phone and the upgrade is refused. Startup then runs the phone-free
+    // pick, which is the file `every_pick_carries_its_pinned_plan` pins.
+    let (reason, _) = refusal(&input(8, true));
+    assert_eq!(reason, RefusalReason::NothingBetter);
+    let fallback = largest_that_runs_well(&input(8, false))
+        .expect("an 8 GiB machine runs a model")
+        .entry;
+    assert_eq!(
+        (fallback.repo, fallback.quant),
+        ("LiquidAI/LFM2.5-VL-3B", "Q4_K_M")
+    );
 }
 
 #[test]
 fn every_pick_carries_its_pinned_plan() {
     // There is no "pick without a plan" case to test: the selection's plan
     // is not an Option, because the chooser only sees rows that carry their
-    // file's address. The 8 GiB tier's pick — the bigger of the LFM
-    // compressions — hands the shell the exact file at the pinned commit,
-    // the size every byte must add up to, and the digest nothing
-    // unverified gets past.
-    match choose(&input(8, true)) {
-        Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "LiquidAI/LFM2.5-VL-3B");
-            assert_eq!(selection.quant, "Q8_0");
-            let plan = &selection.download;
-            assert_eq!(
-                plan.url,
-                "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/6f730e9a2c454e8af9adc29db58e638e01e5957f/LFM2.5-VL-3B-Q8_0.gguf"
-            );
-            assert_eq!(plan.bytes, 2_874_779_680);
-            assert_eq!(
-                plan.sha256,
-                "69b49ceddf61c65cce4a8938a0791c364a8d38cd2d87db2ca7ea359232a8b17e"
-            );
-        }
-        other => panic!("expected a pick, got {other:?}"),
-    }
+    // file's address. The 8 GiB tier's pick — the lighter LFM file — hands
+    // the shell the exact file at the pinned commit, the size every byte must
+    // add up to, and the digest nothing unverified gets past.
+    let run = largest_that_runs_well(&input(8, false)).expect("an 8 GiB machine runs a model");
+    assert_eq!(run.entry.repo, "LiquidAI/LFM2.5-VL-3B");
+    assert_eq!(run.entry.quant, "Q4_K_M");
+    let plan = &run.download;
+    assert_eq!(
+        plan.url,
+        "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/6f730e9a2c454e8af9adc29db58e638e01e5957f/LFM2.5-VL-3B-Q4_K_M.gguf"
+    );
+    assert_eq!(plan.bytes, 1_674_455_072);
+    assert_eq!(
+        plan.sha256,
+        "2436cf4bbac9a16e5dfc7799a140e583c2bc15958f4b24a391f8a8b10ecb8884"
+    );
 }
 
 #[test]
@@ -348,7 +327,7 @@ fn a_battery_powered_phone_gets_relief_whether_or_not_it_is_charging() {
     // Charging is a moment, not a property: the catalog asks only whether the
     // device runs on battery at all, so the relief offer cannot depend on
     // which second of the day the question is asked.
-    match choose(&input_with_phone(8, Some(true))) {
+    match choose(&small_phone_input(Some(true))) {
         Decision::Pick(selection) => {
             assert_eq!(
                 selection.justification,
@@ -366,7 +345,7 @@ fn a_battery_powered_phone_gets_relief_whether_or_not_it_is_charging() {
 
 #[test]
 fn a_phone_that_has_not_said_it_runs_on_battery_gets_no_relief() {
-    let (reason, explanation) = refusal(&input_with_phone(8, None));
+    let (reason, explanation) = refusal(&small_phone_input(None));
     assert_eq!(reason, RefusalReason::NothingBetter);
     assert!(explanation.contains("has not said"), "{explanation}");
 }
@@ -376,7 +355,7 @@ fn a_device_that_does_not_run_on_battery_gets_no_relief() {
     // For a phone the answer is always yes, so this is not a phone — but the
     // rule still holds: relief is about saving a battery, and a wall-powered
     // device has none to save.
-    let (reason, explanation) = refusal(&input_with_phone(8, Some(false)));
+    let (reason, explanation) = refusal(&small_phone_input(Some(false)));
     assert_eq!(reason, RefusalReason::NothingBetter);
     assert!(
         explanation.contains("does not run on battery"),
@@ -616,7 +595,7 @@ fn the_revenue_conditional_licence_is_visible_and_does_not_close_the_door() {
     // Every selection carries its row's licence as data, so a conditional row
     // can never present itself as unconditional — and here the pick IS the
     // conditional row, which is the case the rule exists for.
-    match choose(&input(8, true)) {
+    match choose(&small_phone_input(Some(true))) {
         Decision::Pick(selection) => {
             assert_eq!(selection.licence.id(), "lfm1.0");
             assert_eq!(
@@ -745,6 +724,17 @@ fn a_much_bigger_relief_pick_does_not_claim_to_be_about_as_good() {
     );
 }
 
+/// One machine per tier the plain-reason sentences are asserted on: the 8 GiB
+/// tier is asked with the small phone, where relief is the honest offer.
+fn tiers() -> Vec<(u64, ChoiceInput)> {
+    vec![
+        (8, small_phone_input(Some(true))),
+        (16, input(16, true)),
+        (32, input(32, true)),
+        (64, input(64, true)),
+    ]
+}
+
 #[test]
 fn the_plain_reason_speaks_the_readers_language() {
     // The same two sentences the shell shows, at every tier: what the offer
@@ -760,8 +750,8 @@ fn the_plain_reason_speaks_the_readers_language() {
         "MiB",
         "KiB",
     ];
-    for ram in [8, 16, 32, 64] {
-        match choose(&input(ram, true)) {
+    for (ram, machine) in tiers() {
+        match choose(&machine) {
             Decision::Pick(selection) => {
                 let reason = &selection.plain_reason;
                 assert!(!reason.is_empty(), "{ram}: the plain reason is missing");
@@ -784,9 +774,9 @@ fn the_plain_reason_speaks_the_readers_language() {
     // on the Parameters basis, whose honest bit is the admission that
     // "bigger" was not measured as "better"; 32 and 64 are MoE picks that
     // stay on the expected-but-unmeasured sentence.
-    let reasons: Vec<(u64, String)> = [8, 16, 32, 64]
+    let reasons: Vec<(u64, String)> = tiers()
         .into_iter()
-        .map(|ram| match choose(&input(ram, true)) {
+        .map(|(ram, machine)| match choose(&machine) {
             Decision::Pick(selection) => (ram, selection.plain_reason),
             other => panic!("{ram}: expected a pick, got {other:?}"),
         })
@@ -940,13 +930,15 @@ fn a_machine_seven_gb_short_is_priced_at_the_rows_own_trained_cap() {
         "the row must be over the budget at the flat window, or this proves nothing"
     );
     assert!(footprint_bytes(lfm.entry(), 32_768).total_bytes() <= usable);
-    // And the chooser prices it there: the row is the answer, carrying the
-    // capped footprint — not the flat one this machine cannot fund.
-    let row = largest_that_runs_well(&machine).expect("the machine runs this row");
-    assert_eq!(row.entry.repo, "LiquidAI/LFM2.5-VL-3B");
-    assert_eq!(row.entry.quant, "Q8_0");
+    // This machine is below the small-machine line, so the chooser now offers
+    // the Q4 file; the cap is still what prices the Q8 candidate at a flat
+    // window, which is the path this test is about.
+    let flat = ChoiceInput {
+        context_tokens: CHOOSER_CONTEXT_TOKENS,
+        ..machine
+    };
     assert_eq!(
-        row.footprint.total_bytes(),
+        candidate_footprint(lfm, &flat).total_bytes(),
         footprint_bytes(lfm.entry(), 32_768).total_bytes()
     );
 }
@@ -1018,10 +1010,16 @@ fn the_research_only_row_is_never_chosen_even_when_it_would_win() {
         footprint_bytes(e2b, CHOOSER_CONTEXT_TOKENS).total_bytes() <= usable_bytes(8 * GIB),
         "the research row does fit, which is what makes this test meaningful"
     );
-    let pick = chosen(&input(8, true));
-    assert_eq!(pick, "LiquidAI/LFM2.5-VL-3B");
+    // With the phone's 2.6 GiB model on 8 GiB the lighter LFM file is smaller
+    // than the phone's, so `choose` refuses the upgrade and startup falls back
+    // to the phone-free pick: that is the answer the research row must lose.
+    let picked = largest_that_runs_well(&input(8, false))
+        .expect("an 8 GiB machine runs a model")
+        .entry;
+    assert_eq!(picked.repo, "LiquidAI/LFM2.5-VL-3B");
+    assert_eq!(picked.quant, "Q4_K_M");
     let chosen_row = kalsa_catalog::usable()
-        .find(|entry| entry.entry().repo == pick)
+        .find(|entry| entry.entry().repo == picked.repo && entry.entry().quant == picked.quant)
         .expect("the pick is on the menu");
     assert!(
         e2b.weights_bytes > chosen_row.entry().weights_bytes,
@@ -1301,9 +1299,9 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
 
 #[test]
 fn a_machine_with_one_honest_answer_is_not_given_two() {
-    // The 8 GiB tier: the rows that fit are two compressions of ONE model,
-    // so a second option would be the same model wearing a different file.
-    // None is the answer.
+    // The 8 GiB tier: the only row that fits is the lighter file of one
+    // model, so a second option would be the same model wearing a different
+    // file. None is the answer.
     let machine = input(8, false);
     let first = largest_that_runs_well(&machine).expect("the 8 GiB tier runs a row");
     if let Some(quick) = quicker_alternative(&machine, &first.decode) {
@@ -1606,14 +1604,11 @@ fn a_small_dense_row_is_offered_only_at_ten_tokens_a_second() {
     let pick = largest_that_runs_well(&fast).expect("a 16 GiB machine runs something");
     assert_eq!(pick.entry.repo, "google/gemma-4-12B-it");
 
-    // The lines stand down when nothing clears them: at 40 GB/s the 8 GiB
-    // tier's only fitting row (the LFM file, ~8 tok/s) is under its line,
-    // no row on the tier clears one, and the reading floor alone decides —
-    // the tier starts the Q8 file.
+    // At 40 GB/s the 8 GiB tier's LFM file is the one it starts.
     let tier = metal(8, 40.0e9);
     let pick = largest_that_runs_well(&tier).expect("the 8 GiB tier starts the LFM file");
     assert_eq!(pick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
-    assert_eq!(pick.entry.quant, "Q8_0");
+    assert_eq!(pick.entry.quant, "Q4_K_M");
 
     // And the refusal sentence is about the READING floor, and only fires
     // under it: at half a GB/s the same row decodes below 3 tok/s, so the
@@ -1865,9 +1860,9 @@ fn the_full_precision_file_is_not_the_first_card_below_the_roomy_line() {
         "google/gemma-4-E4B-it",
         "the row the owner expects on a small machine — the rule, not luck"
     );
-    // And at 8 GiB, where F16 does not even fit, the pick is the Q8 file.
+    // And at 8 GiB, where F16 does not even fit, the pick is the lighter file.
     let pick = largest_that_runs_well(&metal(8, 100.0e9)).expect("an 8 GiB machine runs something");
-    assert_eq!(pick.entry.quant, "Q8_0");
+    assert_eq!(pick.entry.quant, "Q4_K_M");
 }
 
 #[test]

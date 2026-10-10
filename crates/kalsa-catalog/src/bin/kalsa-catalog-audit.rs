@@ -2,7 +2,8 @@
 //!
 //! Defaults describe a CPU machine with a paired, battery-powered dense 4B
 //! phone, 80 GB/s bandwidth, 100 GFLOP/s compute and the chooser's own
-//! pricing window — 65_536 tokens, lowered to each row's trained cap.
+//! pricing window for each tier's RAM — 16_384 tokens at or below 8 GiB,
+//! 65_536 above — lowered to each row's trained cap.
 //! Use --tiers and the other flags to inspect a different machine.
 //!
 //! ```text
@@ -12,6 +13,7 @@
 #[path = "kalsa-catalog-audit/audit_config.rs"]
 mod audit_config;
 
+use kalsa_catalog::choice::{chooser_context_tokens, offered_on};
 use kalsa_catalog::{
     audit::{inspect, RowAssessment},
     choose, fits_footprint, largest_that_runs_well, memory_budget, quicker_alternative,
@@ -30,16 +32,20 @@ fn main() {
         }
     };
     print_catalog_facts();
+    let context = match config.context {
+        Some(tokens) => tokens.to_string(),
+        None => "each tier's RAM window".to_string(),
+    };
     println!(
         "inputs: {:?}, {:.1} GB/s, {:.1} GFLOP/s, {} context",
         config.backend,
         config.bandwidth / 1e9,
         config.compute / 1e9,
-        config.context
+        context
     );
     println!("phone: {}", phone_description(config.input.phone));
     for tier in config.tiers {
-        print_tier(tier, config.input);
+        print_tier(tier, config.input, config.context);
     }
 }
 
@@ -64,9 +70,11 @@ fn print_catalog_facts() {
     }
 }
 
-fn print_tier(tier: u64, base: ChoiceInput) {
+fn print_tier(tier: u64, base: ChoiceInput, context: Option<u64>) {
+    let ram_bytes = tier * GIB;
     let input = ChoiceInput {
-        ram_bytes: tier * GIB,
+        ram_bytes,
+        context_tokens: context.unwrap_or_else(|| chooser_context_tokens(ram_bytes)),
         ..base
     };
     let budget = memory_budget(input.backend, input.ram_bytes);
@@ -229,6 +237,7 @@ fn on_the_menu(
     ram_bytes: u64,
 ) -> bool {
     !matches!(row.standing, Standing::Excluded { .. })
+        && offered_on(row.entry, ram_bytes)
         && fits_footprint(row.entry, &row.footprint, &budget)
         && !row.too_slow
         && !(kalsa_catalog::full_precision_file(row.entry)
@@ -269,6 +278,12 @@ fn rejection(
     if let Standing::Excluded { reason } = row.standing {
         reasons.push(format!("excluded by manifest: {reason}"));
     } else {
+        if !offered_on(row.entry, ram_bytes) {
+            reasons.push(format!(
+                "not offered at {}: the small-machine line keeps the other file",
+                gibs(ram_bytes)
+            ));
+        }
         if row.footprint.total_bytes() > budget.usable_bytes {
             reasons.push(format!("too big for {}", gibs(budget.usable_bytes)));
         }

@@ -75,6 +75,17 @@ pub struct LaunchInput<'a> {
     /// `slots`), created and permissioned there; [`plan`] only carries it
     /// into the argv, so a launch without the folder is impossible by type.
     pub slot_save_path: PathBuf,
+    /// Whether the prompt cache is kept. `Off` gives its share to the context
+    /// and renders `--cache-ram 0`: on a small machine that RAM is what the OS
+    /// and open apps do not have.
+    pub prompt_cache: PromptCache,
+}
+
+/// Whether a launch keeps a prompt cache beside its context.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PromptCache {
+    Kept,
+    Off,
 }
 
 /// The thread count the engine gets: the plateau capped at the machine's
@@ -134,6 +145,7 @@ fn funded_ceiling(input: &LaunchInput) -> Option<(u64, u64, u64)> {
         input.drafter_bytes,
         input.mmproj_bytes,
         input.kv_cache,
+        input.prompt_cache,
         slots,
         u64::from(ubatch_size),
     )?;
@@ -305,6 +317,9 @@ pub fn funded_context(model: &ModelEntry, usable_bytes: u64, parallel: u32) -> O
         0,
         0,
         KvCache::Q8_0,
+        // The preview keeps the cache's share, so it never promises more context
+        // than a launch that keeps the cache; a launch without it funds at least this.
+        PromptCache::Kept,
         slots,
         u64::from(crate::args::UBATCH),
     )?;
@@ -359,6 +374,7 @@ fn context_and_prompt_cache_roof(
     drafter_bytes: u64,
     mmproj_bytes: u64,
     kv_cache: KvCache,
+    prompt_cache: PromptCache,
     slots: u64,
     ubatch_size: u64,
 ) -> Option<(u64, u64)> {
@@ -378,7 +394,10 @@ fn context_and_prompt_cache_roof(
         // funded from what is left only after it.
         .saturating_add(drafter_bytes);
     let leftover = usable_bytes.checked_sub(fixed)?;
-    let prompt_cache_roof = prompt_cache_roof_bytes(leftover, kv_cache);
+    let prompt_cache_roof = match prompt_cache {
+        PromptCache::Kept => prompt_cache_roof_bytes(leftover, kv_cache),
+        PromptCache::Off => 0,
+    };
     let kv_budget = leftover.checked_sub(prompt_cache_roof)?;
     let funded = funded_cache_tokens(model, kv_budget, per_token, slots, kv_cache, ubatch_size)?;
     // The memory-funded ceiling, before the length the model was trained for
@@ -725,6 +744,7 @@ mod tests {
             kv_cache: KvCache::Q8_0,
             parallel: crate::args::DEFAULT_PARALLEL,
             slot_save_path: PathBuf::from("/slots"),
+            prompt_cache: PromptCache::Kept,
         }
     }
 

@@ -14,6 +14,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use kalsa_catalog::choice::chooser_context_tokens;
 use kalsa_catalog::{
     choose, largest_that_runs_well, memory_budget, quicker_alternative, rows, runnable_row, usable,
     ChoiceInput, Decision, DownloadPlan, MemoryBudget, ModelEntry, PhoneModel, Prediction,
@@ -230,7 +231,7 @@ fn input_for(measurement: &Measurement, ram_bytes: u64, phone: Option<PhoneModel
         bandwidth_bytes_per_second: measurement.decode_bandwidth_bytes_per_second(),
         bandwidth_is_lower_bound: measurement.bandwidth_is_lower_bound(),
         compute_flops_per_second: measurement.compute.max(),
-        context_tokens: CHOOSER_CONTEXT_TOKENS,
+        context_tokens: chooser_context_tokens(ram_bytes),
         phone,
     }
 }
@@ -264,9 +265,9 @@ fn window_budget(budget: MemoryBudget, row: &ModelEntry, download: &DownloadPlan
 /// The answer, computed. The catalog's input is rebuilt here rather than
 /// borrowed from `startup::choice_input`, whose backend is the budget path of
 /// a build that has won — this preview has no winner, so it hands the catalog
-/// the detected backend and says so. The context is the same
-/// [`CHOOSER_CONTEXT_TOKENS`] the real walk prices candidates at, never a
-/// second constant.
+/// the detected backend and says so. The window is
+/// [`chooser_context_tokens`] for this RAM, the one the real walk prices
+/// candidates at, never a second constant.
 pub(crate) fn dto(
     measurement: &Measurement,
     ram_bytes: u64,
@@ -345,7 +346,7 @@ pub(crate) fn dto(
                                 window_budget(budget, row.entry, &row.download),
                                 DEFAULT_PARALLEL,
                             ),
-                            speed_context_tokens: row.entry.priced_context(CHOOSER_CONTEXT_TOKENS),
+                            speed_context_tokens: row.entry.priced_context(chooser_context_tokens(ram_bytes)),
                             speed: speed(&row.decode),
                             measured: measured_speed(root, row.entry),
                             reason: PHONE_FREE_REASON.to_string(),
@@ -387,7 +388,7 @@ pub(crate) fn dto(
     // phone paired those can differ, and "faster" has to mean faster than
     // what the owner is looking at. The FIT is the chooser's own question and
     // travels in `context_tokens`; the band both cards quote is the one the
-    // chooser judged — [`CHOOSER_CONTEXT_TOKENS`] — so the bar the second
+    // chooser judged — [`chooser_context_tokens`] — so the bar the second
     // card must clear and the number the page shows are one number.
     let quicker = decode
         .and_then(|prediction| {
@@ -419,7 +420,7 @@ pub(crate) fn dto(
                         window_budget(budget, row.entry, &row.download),
                         DEFAULT_PARALLEL,
                     ),
-                    speed_context_tokens: row.entry.priced_context(CHOOSER_CONTEXT_TOKENS),
+                    speed_context_tokens: row.entry.priced_context(chooser_context_tokens(ram_bytes)),
                     speed: speed(&row.decode),
                     measured,
                     reason: reason.to_string(),
@@ -1136,13 +1137,31 @@ mod tests {
                         .expect("the card names a row the catalog holds");
                     assert_eq!(
                         option.speed_context_tokens,
-                        row.priced_context(CHOOSER_CONTEXT_TOKENS),
+                        row.priced_context(chooser_context_tokens(ram * GIB)),
                         "{ram} GiB: {} was priced at a window the rule did not judge",
                         option.name
                     );
                 }
             }
         }
+    }
+
+    #[test]
+    fn an_eight_gib_first_run_prices_the_lighter_file_at_the_small_window() {
+        // No phone: the first-run suggestion is the phone-free pick, and on
+        // 8 GiB that is the lighter LFM file, judged and quoted at the small
+        // window the walk launches it with.
+        let CapabilityDto::Measured { model, .. } =
+            dto(&measured(Backend::Cpu), 8 * GIB, None, true, &records_root("eight-gib"))
+        else {
+            panic!("a measured machine answers Measured");
+        };
+        let model = model.expect("an 8 GiB machine suggests a model");
+        assert_eq!(
+            (model.name.as_str(), model.quant.as_str()),
+            ("Liquid LFM 2.5", "Q4_K_M")
+        );
+        assert_eq!(model.speed_context_tokens, 16_384);
     }
 
     /// The band as the page says it, to one decimal — the same rendering the
