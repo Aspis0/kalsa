@@ -17,3 +17,6 @@ dev/results/**/*.log
 # Python bytecode from the dev/ tools. Not this project's: a test importing a
 # module leaves a __pycache__ beside it, and a blanket `git add .` would carry it.
 __pycache__/
+
+# Vite output of the stream-app preview build; regenerated on every build.
+chat/.stream-app-dist/
