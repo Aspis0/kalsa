@@ -51,3 +51,15 @@
   on pacing being off, or never request it mid-turn.
 - E2 (P3, pre-existing) `llama_governor::stats()` is an unsynchronized struct copy read from the JS thread while the
   decode thread writes (now also decode_paced_*); torn reads possible. Fix: snapshot under a mutex.
+- H1 (P2, app harness, audits of 2026-10-09 on kalsa `2a1d1055`) Supervisor path (Jelly campaigns): after an adb-drop,
+  `campaign_restore_same_conv` in `scripts/campaign/conversation.sh` force-stops a live app (the T20C runner overrides
+  it with a no-force-stop-while-alive version; the supervisor does not). Fix: the same alive guard in the shared one.
+- H2 (P2) Every reconnect re-dumps the logcat ring into the campaign log; `campaign_telemetry_total` and the progress
+  fingerprint count duplicate lines as progress. Fix: dedupe by timestamp+pid, or count from a slice offset.
+- H3 (P2) `campaign_mdns_for_serial` takes the first whitespace field; adb 37 prints instance, service, addr:port
+  (three fields) while the selftest fixture pins two. Verify on a real `adb mdns services` and align the fixture.
+- H4 (P3) Every `die` runs the EXIT trap, which force-stops the app unconditionally (`ci-lib.sh` keep-awake restore):
+  "aborting without force-stop" holds for the recovery action, not the teardown. State it or make it conditional.
+- H5 (P3) Five consecutive unknown pid rounds (~30 s of a half-open wireless link) abort the run (safe, no recovery
+  force-stop). A reconnect would heal it, but `adb disconnect` is forbidden in a multi-device lab; needs a per-serial
+  reconnect that cannot touch other devices.

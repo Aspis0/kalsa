@@ -258,10 +258,11 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    `decode_coolmode_duty` binding default 0.5, SM8650 row, `decode_paced_*` stats in JS, skels rebuilt
    (engine 0012f97, fingerprint 900bf79). Each step hostile-audited by a model other than its writer.
 3. G2 on the S23 failed on heat (cell `s23-g2-inapp-1f0e967b`). Owner decision 2026-10-09: COOLMODE slows
-   decode to a sustainable rate. Next: app pin to `a9bf7a26` (after the harness fixes below), APK, G2 on a
-   cold phone, then a shorter session with tools ON as shipped. Harness: `9c8c001f`, `d7724b77`,
-   `3b9a26ec` (app, unpushed); a hostile audit found two P1s (force-stop on an unhealthy transport,
-   `unknown` read as dead) - fix in progress before any push.
+   decode to a sustainable rate. App `2a1d1055` pushed 2026-10-09: pin `a9bf7a26` / engine `0012f97f2`
+   (provenance, skels, apk.yml harness block, jest src/engine 1218/1218) plus the campaign harness fixes
+   (no force-stop on adb-drop or an unknown pid; toolcap turns without an answer fail the gate; four audit
+   rounds, leftovers H1-H5 in the backlog). Debuggable APK: CI run `38022468371`. Next: G2 on a cold S23,
+   then a shorter session with tools ON as shipped.
    Cell 77 (`s23-paced-legs-77`, does pacing cool, NPU vs GPU): the paced NPU arm decoded 2048 tokens at
    7.5 tok/s (duty 0.5 achieved), then the S23 rebooted (wireless adb back on a new port, refusing the
    key); cause unknown - the bench carries the logits fix `fbf33176c`. Read the report and the boot
