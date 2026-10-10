@@ -92,5 +92,4 @@ the big one), in Finder press **⌘ ⇧ G**, paste each path and delete the fold
 `~/Library/Application Support/ai.kalsa.brain`, `~/Library/Logs/ai.kalsa.brain`.
 
 **Windows:** **Settings → Apps → Installed apps → Kalsa → Uninstall**. To also delete its
-data, press **Windows + R**, paste each path, press Enter and delete what's inside:
-`%LOCALAPPDATA%\kalsa-brain`, `%APPDATA%\ai.kalsa.brain`, `%LOCALAPPDATA%\ai.kalsa.brain`.
+data, including the downloaded AI, tick **Delete the application data** in the uninstaller.

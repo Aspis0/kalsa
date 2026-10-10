@@ -96,6 +96,5 @@ volta e cancella la cartella:
 `~/Library/Application Support/ai.kalsa.brain`, `~/Library/Logs/ai.kalsa.brain`.
 
 **Windows:** **Impostazioni → App → App installate → Kalsa → Disinstalla**. Per
-cancellare anche i suoi dati, premi **Windows + R**, incolla un percorso alla volta,
-premi Invio e cancella quello che c'è dentro:
-`%LOCALAPPDATA%\kalsa-brain`, `%APPDATA%\ai.kalsa.brain`, `%LOCALAPPDATA%\ai.kalsa.brain`.
+cancellare anche i suoi dati, compresa l'AI scaricata, nel disinstallatore spunta la
+casella **Cancella i dati dell'applicazione**.

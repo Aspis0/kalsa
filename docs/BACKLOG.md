@@ -365,3 +365,9 @@ Owner: when a model refuses because tools are in the request (LFM2.5-VL-3B refus
 - The English diagnostic quoted in the Italian guide has no `lang="en"` markup.
 - The app shows "Getting ready" as "si sta preparando" (power) and "si sta avviando" (first page) — two Italian strings for one English line.
 - "Windows ha protetto il PC" / "Ulteriori informazioni" / "Esegui comunque" not verified on an Italian Windows 11.
+
+## After tester feedback (owner 2026-10-10)
+
+- Mac: in-app "Delete the downloaded AIs (X GB)" on the AI page — a Mac uninstall (drag to Trash) leaves 3–22 GB in ~/Library/Application Support/kalsa-brain. Owner: a new feature, so later, once testers have reported.
+- After switching to another AI (e.g. the 8 GB machines moved from LFM Q8_0 to Q4_K_M), the old model file stays on disk (2.9 GB for LFM Q8). Ask or delete automatically — owner call, same timing.
+- `chat/scripts/command-contract.mjs` fails on base: `window_visibility::window_hidden` in generate_handler! is a name the guard cannot parse.
