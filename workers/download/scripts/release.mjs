@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const BUCKET = "kalsa-downloads";
+const BUCKET = "kalsa-installers";
 const MANIFEST_KEY = "current.json";
 const PLATFORMS = new Set(["windows", "mac"]);
 const VERSION = /^\d+\.\d+\.\d+$/;

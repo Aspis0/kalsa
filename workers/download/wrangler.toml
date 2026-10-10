@@ -13,7 +13,7 @@ routes = [ { pattern = "kalsa.io/download*", zone_name = "kalsa.io" } ]
 # through this Worker.
 [[r2_buckets]]
 binding = "DOWNLOADS"
-bucket_name = "kalsa-downloads"
+bucket_name = "kalsa-installers"
 
 # Static page and streamed installers: nothing to observe, logs off.
 [observability]

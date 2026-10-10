@@ -26,10 +26,10 @@ afterAll(() => rmSync(work, { recursive: true, force: true }));
 describe("release --dry-run", () => {
   test("prints the publish, read-back, manifest read and manifest write, and runs none of them", () => {
     const res = release(["windows", installer, "0.0.1", "--dry-run"]);
-    expect(res.out).toContain(`npx wrangler r2 object put kalsa-downloads/releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe --file ${installer} --remote`);
-    expect(res.out).toContain("npx wrangler r2 object get kalsa-downloads/releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe --remote --file");
-    expect(res.out).toContain("npx wrangler r2 object get kalsa-downloads/current.json --remote --file");
-    expect(res.out).toContain("npx wrangler r2 object put kalsa-downloads/current.json --file");
+    expect(res.out).toContain(`npx wrangler r2 object put kalsa-installers/releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe --file ${installer} --remote`);
+    expect(res.out).toContain("npx wrangler r2 object get kalsa-installers/releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe --remote --file");
+    expect(res.out).toContain("npx wrangler r2 object get kalsa-installers/current.json --remote --file");
+    expect(res.out).toContain("npx wrangler r2 object put kalsa-installers/current.json --file");
     expect(res.out).toContain("--content-type application/json");
     expect(res.out).toContain("dry run: nothing was run");
     expect({ status: res.status }).toEqual({ status: 0 });

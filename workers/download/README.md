@@ -2,7 +2,7 @@
 
 Download page and two installer routes for the alpha testers, behind a secret
 link on the `kalsa.io` zone. No KV, no Durable Objects, no vars. Bindings: the
-private R2 bucket `kalsa-downloads` (binding `DOWNLOADS`) and the secret
+private R2 bucket `kalsa-installers` (binding `DOWNLOADS`) and the secret
 `LINK_KEY`. `[observability] enabled = false` in `wrangler.toml` turns off Workers
 Logs for this script; it says nothing about the other systems listed below.
 
@@ -167,10 +167,12 @@ private link they were sent.
 ```bash
 npx wrangler login
 cd workers/download
-npx wrangler r2 bucket create kalsa-downloads
+npx wrangler r2 bucket create kalsa-installers
 npx wrangler secret put LINK_KEY    # publishes a version; see "Generate and set the key"
 npx wrangler deploy                  # only with the owner's explicit OK
 ```
+
+> **`kalsa-installers` must never get an `r2.dev` URL or a custom domain.** The bucket `kalsa-downloads` is a different one: public, served at `dl.kalsa.io`, and it holds the desktop app's engine downloads. Never use it here.
 
 Before deploying:
 
