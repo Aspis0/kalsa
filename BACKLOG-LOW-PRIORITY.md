@@ -75,3 +75,13 @@
 - E6 (P3) `sanitize_coolmode_duty` WARN says "pacing is off" but a SEVERE status still caps at min_duty; two
   test-governor-pacing comments/cases: :352 comment names SEVERE on a status-2 case, :249 status-2 integration case
   would pass with a broken NaN fallback (the pure duty test covers it).
+- B8 (P2, audit of binding 2b85937b, 2026-10-10) A native-only resend (headroom every 2 s, or a status change, the
+  latter pre-existing) re-runs the engine's battery state machine on the battery value of the last APP profile, which
+  JSI refuses during a completion; after the COOLMODE dwell a long turn can leave COOLMODE on a stale cool battery while
+  the battery is hot. Pacing still follows the fresh forecast and the status cap. Fix: read battery temperature
+  natively too, or skip state transitions on native-only resends.
+- B9 (P2, pre-existing) `rn_governor::failure_reason()` returns a reference to a string decode may assign while the JSI
+  stats worker reads it. Fix: copy under engine_mutex_.
+- B10 (P3) `KALSA_GOVERNOR_HEADROOM {available:1}` means only that the symbol resolved; a device that answers NaN
+  forever looks available. Host tests cover the pure helpers, not the dlsym or refresh-to-engine path; params tests miss
+  numeric NaN/Infinity.
