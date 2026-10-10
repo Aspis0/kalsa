@@ -1328,11 +1328,15 @@ serial_refusal_case
 # script the runner derives from it. `device` is injected as raw JSON so a case
 # can hand it a non-string (`null`) as well as a string.
 write_synthetic_config() {
-  local dir="$1" device_json="$2" turns="$3" model_json="${4:-}" model_member=""
+  local dir="$1" device_json="$2" turns="$3" model_json="${4:-}" recovery_json="${5:-}"
+  local model_member="" recovery_member=""
   # deviceModel is emitted only when a case declares one: a config without the
-  # key must stay on the pre-existing "not enforcing" path.
+  # key must stay on the pre-existing "not enforcing" path. Same for recovery:
+  # a config without it must keep the runner's default pause line.
   [ -n "$model_json" ] && model_member=",
  \"deviceModel\": $model_json"
+  [ -n "$recovery_json" ] && recovery_member=",
+ \"recovery\": $recovery_json"
   mkdir -p "$dir/t20c"
   cp "$REPO/campaigns/t20c/script.json" "$dir/t20c/script.json"
   cat > "$dir/config.json" <<JSON
@@ -1340,7 +1344,7 @@ write_synthetic_config() {
  "name": "selftest-synthetic",
  "device": $device_json,
  "resultsDir": "results/t20c-jelly-campaign",
- "turns": $turns$model_member,
+ "turns": $turns$model_member$recovery_member,
  "arms": [{"id":"T20C","flags":{"kalsa.context.compaction":"ciswire","kalsa.memory.enabled":"0","kalsa.ciswire.toolhelp":"0"}}]
 }
 JSON
@@ -1473,6 +1477,58 @@ string_turns_case() {
 
 untrimmed_device_case
 string_turns_case
+
+printf '\n== (a4) the pause line reads recovery.thermalMaxC ==\n'
+
+# Runs the runner on a synthetic config carrying the given recovery member (or
+# none). Sets THERMAL_RC and THERMAL_LOG; the runner exits before any device
+# operation on every path these cases take.
+thermal_run() {
+  local label="$1" recovery_json="$2" dir="$WORK/thermal-$1"
+  rm -rf "$dir"
+  write_synthetic_config "$dir" '"10.0.0.5:9999"' 20 "" "$recovery_json"
+  THERMAL_LOG="$dir/out/run.log"
+  mkdir -p "$dir/out"
+  env -i PATH="$WORK/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" HOME="$HOME" \
+    FAKE_DEV="$dir/device" CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_CONFIG="$dir/config.json" \
+    CAMPAIGN_APK_PATH="$dir/not-installed.apk" \
+    ANDROID_SERIAL=10.0.0.5:9999 OUT="$dir/out" \
+    bash "$HERE/run-t20c.sh" > "$THERMAL_LOG" 2>&1
+  THERMAL_RC=$?
+}
+
+# thermalMaxC 43 is the owner's line (campaigns/t20c-g2.json); the runner must
+# log it, not its old hard-coded 42.
+thermal_run g2 '{"thermalMaxC": 43}'
+if grep -Fq 'T20C thermal pause battery > 43 C' "$THERMAL_LOG" && ! grep -Fq 'refuse:' "$THERMAL_LOG"; then
+  ok "recovery.thermalMaxC 43 is the runner's pause line"
+else
+  bad "thermalMaxC 43 was not read (rc=$THERMAL_RC; output: $(cat "$THERMAL_LOG"))"
+fi
+
+# A config without the key keeps the default 42.
+thermal_run absent ''
+if grep -Fq 'T20C thermal pause battery > 42 C' "$THERMAL_LOG"; then
+  ok "a config without recovery.thermalMaxC keeps the 42 default"
+else
+  bad "absent thermalMaxC did not default to 42 (rc=$THERMAL_RC; output: $(cat "$THERMAL_LOG"))"
+fi
+
+# Out of range and wrong type refuse; neither falls back to 42.
+thermal_run high '{"thermalMaxC": 45}'
+if [ "$THERMAL_RC" -eq 2 ] && grep -Fq 'recovery.thermalMaxC must be a number from 35 to 44 (got 45)' "$THERMAL_LOG"; then
+  ok "thermalMaxC 45 is refused"
+else
+  bad "thermalMaxC 45 was not refused (rc=$THERMAL_RC; output: $(cat "$THERMAL_LOG"))"
+fi
+
+thermal_run stringy '{"thermalMaxC": "43"}'
+if [ "$THERMAL_RC" -eq 2 ] && grep -Fq 'recovery.thermalMaxC must be a number from 35 to 44 (got "43")' "$THERMAL_LOG"; then
+  ok "thermalMaxC as the string \"43\" is refused"
+else
+  bad "string thermalMaxC was not refused (rc=$THERMAL_RC; output: $(cat "$THERMAL_LOG"))"
+fi
 
 printf '\n== (a3) the identity gate reads the config deviceModel ==\n'
 

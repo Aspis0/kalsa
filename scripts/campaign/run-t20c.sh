@@ -88,7 +88,17 @@ CAMPAIGN_TURN_TIMEOUT_MS="${CAMPAIGN_TURN_TIMEOUT_MS:-2700000}"
 CAMPAIGN_TELEMETRY_GAP_MS="${CAMPAIGN_TELEMETRY_GAP_MS:-1800000}"
 CAMPAIGN_POLL_MS="${CAMPAIGN_POLL_MS:-5000}"
 CAMPAIGN_THERMAL_PAUSE=5
-CAMPAIGN_THERMAL_MAX_C=42
+# recovery.thermalMaxC is the owner's pause line, and supervisor.sh reads the
+# same key: the runner must not carry a second copy. Absent means 42. The kill
+# line is battery >= 44.0 (recovery.sh), so 44 leaves no pause band below it.
+CAMPAIGN_THERMAL_MAX_C="$(python3 -c 'import json,math,sys
+r=json.load(open(sys.argv[1], encoding="utf-8")).get("recovery", {})
+t=r.get("thermalMaxC", 42) if isinstance(r, dict) else r
+if type(t) in (int, float) and math.isfinite(t) and 35 <= t <= 44: print(t)
+else:
+    sys.stderr.write("refuse: %s recovery.thermalMaxC must be a number from 35 to 44 (got %s)\n" % (sys.argv[1], json.dumps(t)))
+    sys.exit(2)' "$CONFIG")" || exit 2
+echo "T20C thermal pause battery > ${CAMPAIGN_THERMAL_MAX_C} C"
 CAMPAIGN_THERMAL_COOLDOWN_CAP_S="${CAMPAIGN_THERMAL_COOLDOWN_CAP_S:-600}"
 export CAMPAIGN_TURN_TIMEOUT_MS CAMPAIGN_TELEMETRY_GAP_MS CAMPAIGN_POLL_MS \
   CAMPAIGN_THERMAL_PAUSE CAMPAIGN_THERMAL_MAX_C CAMPAIGN_THERMAL_COOLDOWN_CAP_S
