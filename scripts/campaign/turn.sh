@@ -360,7 +360,7 @@ campaign_wait_turn() {
   local start now elapsed last_progress pid state count poll_s last_health fingerprint last_fingerprint
   local telemetry_seen_at="" pending_logged="" tool_state exhausted_seen_at=""
   local toolcall_quiet_ms current_round pending_round="" pending_since=0
-  local unknown_health_rounds=0
+  local unknown_health_rounds=0 unreadable_count_rounds=0
   local tool_round_max_ms="${CAMPAIGN_TOOL_ROUND_MAX_MS:-600000}"
   CAMPAIGN_TOOLCAP_NO_ANSWER=0
   case "$tool_round_max_ms" in ''|*[!0-9]*) tool_round_max_ms=600000 ;; esac
@@ -404,10 +404,18 @@ campaign_wait_turn() {
     count=$(campaign_assistant_count)
     case "$count" in
       ''|*[!0-9]*)
-        log "assistant count unreadable while waiting for turn ${CAMPAIGN_TURN_I:-?}"
-        CAMPAIGN_TURN_STATUS="db-read-error"
-        return 1
+        # The app rewrites RKStorage while it generates, so one pulled copy can
+        # be unreadable; only a run of them means the DB cannot be read.
+        unreadable_count_rounds=$((unreadable_count_rounds + 1))
+        log "assistant count unreadable while waiting for turn ${CAMPAIGN_TURN_I:-?} (round $unreadable_count_rounds/5)"
+        if [ "$unreadable_count_rounds" -ge 5 ]; then
+          CAMPAIGN_TURN_STATUS="db-read-error"
+          return 1
+        fi
+        sleep "$poll_s"
+        continue
         ;;
+      *) unreadable_count_rounds=0 ;;
     esac
 
     if [ "$tool_state" = "exhausted" ]; then

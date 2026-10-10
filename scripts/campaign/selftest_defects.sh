@@ -630,6 +630,41 @@ PY
 
 t20c_config_flags_case
 
+assistant_count_transient_case() {
+  local out="$WORK/assistant-count-transient" wait_rc status reads
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_I=7
+    sleep() { :; }
+    campaign_logcat_ensure() { :; }
+    campaign_logcat_slice() { :; }
+    campaign_turn_tool_state() { printf '%s\n' exhausted; }
+    campaign_adb_state() { printf '%s\n' device; }
+    campaign_pidof_settled() { printf '%s\n' 4242; }
+    # Two unreadable pulled copies (the app mid-write), then a readable one.
+    campaign_assistant_count() {
+      local n; n=$(cat "$out/reads" 2>/dev/null || printf 0); n=$((n + 1)); printf '%s\n' "$n" > "$out/reads"
+      if [ "$n" -le 2 ]; then printf '%s\n' err; else printf '%s\n' 1; fi
+    }
+    CAMPAIGN_TOOLCALL_QUIET_MS=0
+    campaign_wait_turn 0 "$out/slice.txt" 0
+    printf '%s\n' "$?" > "$out/wait-rc.txt"
+    printf '%s\n' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+  ) > "$out/count.log" 2>&1
+  wait_rc=$(cat "$out/wait-rc.txt" 2>/dev/null || printf missing)
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  reads=$(cat "$out/reads" 2>/dev/null || printf 0)
+  if [ "$wait_rc" = 0 ] && [ "$status" != db-read-error ] && [ "$reads" -ge 3 ]; then
+    ok "two unreadable assistant-count copies are retried, not fatal"
+  else
+    bad "transient assistant count read was fatal (rc=$wait_rc status=$status reads=$reads)"
+    tail -5 "$out/count.log" | sed 's/^/   | /'
+  fi
+}
+
 assistant_count_failure_case() {
   local out="$WORK/assistant-count-failure" failed malformed wait_rc status
   rm -rf "$out"; mkdir -p "$out"
@@ -706,6 +741,7 @@ stale_toolcap_status_case() {
 }
 
 assistant_count_failure_case
+assistant_count_transient_case
 
 one_turn_unreadable_count_case() {
   local out="$WORK/one-turn-unreadable-count" stage rc sends expected
