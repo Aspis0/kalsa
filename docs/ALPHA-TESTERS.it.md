@@ -11,14 +11,8 @@ installarla e farla partire la prima volta. Non servono conoscenze tecniche.
   non sono supportati.
 - **Oppure un PC con Windows a 64 bit.** L'abbiamo provata su Windows 11. I PC Windows
   con processore ARM arriveranno più avanti.
-- **Memoria (RAM):** l'abbiamo provata con 16 GB e 32 GB. Anche con 8 GB l'app potrebbe
-  proporti un'intelligenza artificiale più piccola. Se al primo avvio la schermata
-  **Scegli l'AI** non ti propone niente, vuol dire che nessuna delle nostre AI gira
-  abbastanza bene sul tuo computer. Il messaggio compare in inglese: "This computer is
-  not worth using: it can give a model … and the smallest one in the catalog needs …."
-  Aprendo **Mostra i dettagli** leggerai: "Kalsa non ha ancora un'AI che giri bene su
-  questo computer. Controlla se c'è un aggiornamento dell'app." Prova ad aggiornare
-  l'app; se il problema resta, scrivici.
+- **Memoria (RAM): almeno 16 GB.** Con meno, Kalsa potrebbe proporti solo un'AI piccola,
+  oppure nessuna. In quel caso scrivici.
 - **Circa 30 GB liberi sul disco**, per avere margine. Il primo download pesa fra i 3 e i
   22 GB circa, a seconda del computer.
 - **Una connessione a internet** per il primo avvio, perché Kalsa deve scaricare l'AI.

@@ -8,13 +8,8 @@ written for non-technical testers — you don't need to know how anything works.
 
 - **A Mac with Apple Silicon** (M1 or newer). Intel Macs are not supported yet.
 - **Or a Windows PC, 64-bit.** Windows 11 is what we have tested. Windows on ARM comes later.
-- **Memory:** we have tested 16 GB and 32 GB. With 8 GB the app may still offer you a
-  small AI. If the first-start screen says **Pick the AI** and offers no choice, no AI
-  Kalsa has runs well enough on this computer. The screen says, in English: "This computer
-  is not worth using: it can give a model … and the smallest one in the catalog needs …."
-  Under **Show details** it says: "Kalsa doesn't have an AI that runs well on this computer
-  yet. Check for an app update." Check for an app update. If you still get no choice,
-  tell us.
+- **Memory (RAM): 16 GB or more.** With less, Kalsa may offer only a small AI, or none.
+  If it offers none, tell us.
 - **About 30 GB of free disk space, to be safe.** Depending on your computer, the first
   download is about 3 GB up to about 22 GB.
 - **An internet connection** for the first start: Kalsa downloads the AI first. On some
