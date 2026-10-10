@@ -1,67 +1,52 @@
 # Kalsa for alpha testers
 
-Kalsa runs a private AI on your own computer. Your messages are answered on this
-computer; when Kalsa searches the web, the words of that search leave it. This page gets you installed and through the first start. It is
-written for non-technical testers — you don't need to know how anything works.
+Kalsa is an AI that runs on your own computer: your messages stay there and the answers
+are made there. Only web searches go out to the internet. You don't need any technical
+knowledge to follow this guide.
 
 ## 1. What you need
 
-- **A Mac with Apple Silicon** (M1 or newer). Intel Macs are not supported yet.
-- **Or a Windows PC, 64-bit.** Windows 11 is what we have tested. Windows on ARM comes later.
+- **A Mac with Apple Silicon** (M1 or newer), **or a 64-bit Windows PC** (tested on
+  Windows 11).
 - **Memory (RAM): 16 GB or more.** With less, Kalsa may offer only a small AI, or none.
   If it offers none, tell us.
-- **About 30 GB of free disk space, to be safe.** Depending on your computer, the first
-  download is about 3 GB up to about 22 GB.
-- **An internet connection** for the first start: Kalsa downloads the AI first. On some
-  work or school networks the download is blocked — Kalsa says
-  "Kalsa couldn't download what she needs on this network. Try another network." Try
-  again at home.
+- **About 30 GB of free disk space.** The AI download is 3 to 22 GB, depending on the
+  computer.
+- **An internet connection** for the first start. Some work or school networks block the
+  download: if so, try again from home.
 
 ## 2. Install on Mac
 
-The app is not signed by Apple, so macOS warns you before opening it. There are two ways
-through, depending on your macOS version.
+The app is not signed by Apple yet, so macOS blocks it the first time.
 
-**macOS 15 (Sequoia) or newer** — the old right-click trick no longer works here:
+**macOS 15 (Sequoia) or newer:**
 
-1. Open the app once (double-click). macOS says it can't be opened. Close that message.
-2. Open **System Settings → Privacy & Security**.
-3. Scroll down a little. You will see a note that Kalsa was blocked. Click **Open Anyway**.
-4. Confirm (your password or Touch ID), then open Kalsa again.
+1. Double-click the app. macOS says it can't open it: close the message.
+2. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+3. Confirm with your password or Touch ID, then open Kalsa again.
 
-**Older macOS:**
+**Older macOS:** right-click the app, choose **Open**, then **Open** again.
 
-1. Right-click (or Control-click) the app, choose **Open**, then **Open** again.
-
-If the app opens from a disk image, drag it into **Applications** first.
+If the app opens from a disk image (.dmg), drag it into **Applications** first.
 
 ## 3. Install on Windows
 
-1. Run the Kalsa installer. It installs for you only — no administrator password needed.
-2. Windows may show **"Windows protected your PC"**. Click **More info**, then **Run anyway**.
-3. Start Kalsa from the Start menu.
-4. If Windows asks whether Kalsa may use the network, choose **Allow**.
+1. Run the installer. No administrator password is needed.
+2. If Windows shows **"Windows protected your PC"**, click **More info**, then **Run
+   anyway**.
+3. Start Kalsa from the Start menu. If Windows asks whether Kalsa may use the network,
+   choose **Allow**.
 
-## 4. The first start (once)
+## 4. The first start
 
-1. Open Kalsa and press **Start**. Under the button, Kalsa says it checks your computer
-   and picks the AI that runs best on it.
-2. Kalsa checks your computer, then offers the AIs that suit it (usually two). Each one
-   shows its name, a size, and either "Smarter answers." or "Faster answers.", with its
-   own **Use this** button. Pick one. If the AI is already on the computer, there is no
-   download question. **Cancel** takes you back a step.
-3. Kalsa asks "Download … GB?" with the size. Press **Download**. Then it downloads the
-   AI and measures your computer: "Finding what runs fastest on your computer…". The
-   screen shows about how many minutes are left.
+1. Open Kalsa and press **Start**: Kalsa checks your computer.
+2. Pick one of the AIs it suggests with **Use this**.
+3. Press **Download**. After the download, Kalsa tries a few settings to find the
+   fastest one. The screen shows how many minutes are left.
 4. When it finishes, you can chat.
 
-Keep the computer plugged in and awake until the first start finishes. You can minimize
-Kalsa while it works. If something fails, the app shows **Try again** — press it. This
-measuring happens only once. Later, Kalsa starts by itself when you open it; the screen
-says "Getting ready." and this can take a minute on a slower computer.
-
-The first start can take a long time. Most of it is the download, so it depends on your
-internet speed.
+This happens only once and can take a while, mostly for the download. Keep the computer
+plugged in and don't let it go to sleep. If something fails, press **Try again**.
 
 ## 5. Phone
 
@@ -69,63 +54,26 @@ The Kalsa apps for Android and iOS will be released later.
 
 ## 6. When something goes wrong
 
-Kalsa keeps a log: a record of what the app did. It is the first thing we need when
-something goes wrong.
-
-**Kalsa sends some reports by itself.** During the alpha, Kalsa sends error reports with
-technical details. For these serious problems it also sends the app's log:
-
-- the AI engine stops or crashes, at any time;
-- the AI engine cannot run on this computer, or its program cannot be downloaded. The
-  screen says "Kalsa can't run on this computer yet." or "Kalsa couldn't download what
-  she needs.";
-- the first-start check of this computer cannot finish reliably. The screen says "Kalsa
-  couldn't check this computer."
-
-A failed AI download, a failed web search and a full disk do not send the log. Kalsa
-never sends your chats or your text. At most three logs a day are sent this way.
-
-The log never contains your messages, Kalsa's answers, your files, or any code or key.
-It holds what Kalsa did and what this computer has: versions, processor, graphics card,
-memory, errors.
-
-The first time you open Kalsa, a notice says:
+During the alpha Kalsa sends us error reports on its own. When something serious
+happens (for example the AI engine crashes), it also sends the app's log: a technical
+record of what the app did. Neither ever contains your chats, your messages or your
+files. When you first open Kalsa, a notice says:
 
 > During the alpha, Kalsa sends error reports with technical details, and the app's log
 > when something serious goes wrong. Never your chats or text. You can turn this off in
 > Settings.
 
-Press **Dismiss** to close it.
+**To turn reports off:** **Settings** (top right) → untick **Error reports**.
 
-**To turn it off:** open **Settings** (top right), find **Error reports**, and untick it.
-If you turn it off, it stays off, also after you restart Kalsa.
+**To send us the log yourself:** open the **AI** page, scroll to **Report a problem** and
+press **Send the log**. Then tell us what you were doing and when.
 
-**To send a log yourself:** open the **AI** page (on the home page, under **This
-computer**). Scroll to **Report a problem** at the bottom and press **Send the log**. Kalsa
-says "Sent. Thank you." Tell us what you were doing and when.
+**If the AI stops:** Kalsa restarts it on its own once. If that doesn't work, Home shows
+**Stopped**: press **Try again**. If an answer was cut off, press **Retry** or **Try
+again** under it.
 
-**If the AI engine stops by itself:** if Kalsa was on, it starts the engine again, once.
-It does not do this after an out-of-memory stop, or when the engine stops again before it
-has run for ten minutes after the restart. Then Home says **Stopped** and "Kalsa stopped
-by herself. Turn her on again." Press **Try again**.
-
-If the restart works, a small line appears: "Kalsa recovered from an error." It goes
-away after six seconds. If error reports are off, the line also has **Send the log**.
-Press **Dismiss** to close it.
-
-**If a reply was cut:** when the engine stops by itself and Kalsa restarts it, a reply that
-the stop cut off says "The answer was interrupted." Press **Retry** to ask again. Any other
-cut reply says "The answer stopped halfway." and has a **Try again** button. If Kalsa is
-off, that box says "Kalsa is off." and offers **Turn Kalsa on**.
-
-**If Kalsa says "Your network (e.g. a company network) blocks the upload."** when you
-press **Send the log**, the log was not sent. Press **Open the log folder** instead: a
-folder opens on your computer. Send the file **kalsa-brain.log** by email to the person
-who gave you Kalsa. If you also see **kalsa-brain.1.log**, send that file too.
-
-**On a work or school network** the reports may not get through. Kalsa keeps them for up
-to 30 days and sends them when the computer is on another network. You do not need to do
-anything.
+**If the log can't be sent** (for example on a company network), press **Open the log
+folder** and email us the file **kalsa-brain.log**.
 
 The log folder is:
 
@@ -134,17 +82,15 @@ The log folder is:
 
 ## 7. Download
 
-Download Kalsa from the private link we sent you. Do not share it.
+Download Kalsa from the private link we sent you. Please don't share it.
 
 ## 8. Uninstall
 
-**Mac:** Drag Kalsa from Applications to the Trash, then empty the Trash. To remove its
-data, in Finder press **⌘ ⇧ G**, paste each of these, and delete the folder:
-`~/Library/Application Support/kalsa-brain` (the downloaded AI — the big one),
-`~/Library/Application Support/ai.kalsa.brain`, and `~/Library/Logs/ai.kalsa.brain`.
+**Mac:** drag Kalsa from Applications to the Trash. To also delete its data (the AI is
+the big one), in Finder press **⌘ ⇧ G**, paste each path and delete the folder:
+`~/Library/Application Support/kalsa-brain`,
+`~/Library/Application Support/ai.kalsa.brain`, `~/Library/Logs/ai.kalsa.brain`.
 
-**Windows:** Open **Settings → Apps → Installed apps → Kalsa → Uninstall**. To remove
-its data, press **Windows + R**, paste each of these, press Enter, and delete what is
-inside: `%LOCALAPPDATA%\kalsa-brain` (the downloaded AI — the big one),
-`%APPDATA%\ai.kalsa.brain`, and `%LOCALAPPDATA%\ai.kalsa.brain` (the web view's own
-data and the logs).
+**Windows:** **Settings → Apps → Installed apps → Kalsa → Uninstall**. To also delete its
+data, press **Windows + R**, paste each path, press Enter and delete what's inside:
+`%LOCALAPPDATA%\kalsa-brain`, `%APPDATA%\ai.kalsa.brain`, `%LOCALAPPDATA%\ai.kalsa.brain`.
