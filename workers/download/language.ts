@@ -28,11 +28,11 @@ export const COPY: Record<Lang, PageCopy> = {
     switchTo: { lang: "it", label: "Italiano" },
   },
   it: {
-    lead: "Un'AI che gira sul tuo computer: le risposte ai tuoi messaggi nascono lì, non nel cloud.",
+    lead: "Un'intelligenza artificiale che lavora sul tuo computer: le risposte nascono lì, non nel cloud.",
     windows: "Scarica per Windows",
     mac: "Scarica per Mac (Apple silicon)",
     comingSoon: "in arrivo",
-    readFirst: "Leggi prima qui",
+    readFirst: "Prima di installare, leggi la guida",
     guideTitle: "Guida per chi prova l'alpha",
     guide: GUIDE_HTML_IT,
     switchTo: { lang: "en", label: "English" },
