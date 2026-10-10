@@ -210,7 +210,7 @@ abort_turn_allow_list_case() {
     for reason in adb-drop failed-missing-post-crash-resume-adb-drop thermal timeout; do
       expected=0
       [ "$reason" = timeout ] && expected=1
-      fake_reset normal
+      fake_reset state-flap
       (
         export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
         export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
@@ -421,17 +421,13 @@ unknown_turn_health_case() {
     campaign_toolcall_quiet_ms() { printf '0\n'; }
     campaign_turn_tool_state() { printf 'none\n'; }
     campaign_wait_turn 0 "$out/slice.txt" 0
-    rc=$?
-    printf 'STATUS=%s\n' "$CAMPAIGN_TURN_STATUS"
-    exit "$rc"
   ) > "$out/run.log" 2>&1
   rc=$?
   reads=$(cat "$FAKE_DEV/fake/pidof_reads" 2>/dev/null || printf 0)
   force_stops=$(fake_force_stop_count)
-  if [ "$rc" -eq 1 ] && [ "$reads" -eq 15 ] && [ "$force_stops" -eq 0 ] \
-    && grep -q '^STATUS=adb-drop$' "$out/run.log" \
-    && grep -q 'unknown for 5 consecutive health rounds; reconnecting adb' "$out/run.log"; then
-    ok "five unknown turn health rounds hand over to adb-drop recovery without force-stop"
+  if [ "$rc" -eq 7 ] && [ "$reads" -eq 15 ] && [ "$force_stops" -eq 0 ] \
+    && grep -q '5 consecutive turn health rounds; aborting without force-stop' "$out/run.log"; then
+    ok "five unknown turn health rounds abort the run without force-stop"
   else
     bad "unknown turn health did not abort safely (rc=$rc pid_reads=$reads force_stops=$force_stops)"
     tail -5 "$out/run.log" | sed 's/^/   | /'

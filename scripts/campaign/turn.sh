@@ -391,16 +391,9 @@ campaign_wait_turn() {
         return 1
         ;;
       *[!0-9]*)
-        # A half-open wireless transport keeps get-state at "device" while
-        # every shell fails. After five consecutive unknown rounds, drop the
-        # transport and hand over to the adb-drop recovery, which reconnects,
-        # re-settles the pid and never force-stops on unknown.
         unknown_health_rounds=$((unknown_health_rounds + 1))
         if [ "$unknown_health_rounds" -ge 5 ]; then
-          log "app process state unknown for 5 consecutive health rounds; reconnecting adb"
-          adb disconnect "${ANDROID_SERIAL:-}" </dev/null >/dev/null 2>&1 || true
-          CAMPAIGN_TURN_STATUS="adb-drop"
-          return 1
+          die "app process state stayed unknown for 5 consecutive turn health rounds; aborting without force-stop"
         fi
         sleep "$poll_s"
         continue
