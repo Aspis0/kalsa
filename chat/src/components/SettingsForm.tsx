@@ -5,6 +5,8 @@ import { LANGUAGE_OPTIONS } from "../i18n";
 import { useLanguage } from "../i18n/useLanguage";
 import "./Settings.css";
 import { TelemetrySettings } from "./TelemetrySettings";
+import { UpdatesSettings } from "./UpdatesSettings";
+import type { UpdatesApi } from "../lib/useUpdates";
 
 interface SettingsFormProps {
   initial: ChatSettings;
@@ -13,9 +15,12 @@ interface SettingsFormProps {
   onWebTools: (enabled: boolean) => void;
   theme: Theme;
   onTheme: (theme: Theme) => void;
+  updates: UpdatesApi;
+  /** A reply is being written: the update install waits for it. */
+  busy: boolean;
 }
 
-export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: SettingsFormProps) {
+export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme, updates, busy }: SettingsFormProps) {
   const [saved, setSaved] = useState(false);
   const { table, override, choose } = useLanguage();
   const t = table.settings;
@@ -79,6 +84,8 @@ export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme }: Se
       </div>
 
       <TelemetrySettings />
+
+      <UpdatesSettings updates={updates} busy={busy} />
 
       <p className="settings-lede">{t.lede}</p>
 

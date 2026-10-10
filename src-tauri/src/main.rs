@@ -43,6 +43,7 @@ mod tune_step;
 mod ticker;
 mod transport;
 mod ui_event;
+mod updater;
 mod vision;
 mod verified;
 mod web;
@@ -521,6 +522,32 @@ impl Brain {
 
     fn desk_address(&self) -> Option<SocketAddr> {
         self.desk_address.lock().ok().and_then(|held| *held)
+    }
+
+    /// Whether a walk is going: the first run's and a Turn on's both hold the
+    /// one claim `begin_walk` takes.
+    pub(crate) fn walk_in_flight(&self) -> bool {
+        self.turning_on.load(Ordering::SeqCst)
+    }
+
+    /// Whether the engine answers as running right now.
+    pub(crate) fn engine_running(&self) -> bool {
+        matches!(self.supervisor.state(), ServerState::Running { .. })
+    }
+
+    /// Whether a reply is being written: some authenticated device is inside
+    /// a request the door is serving. The door holds the count for exactly
+    /// the span of a request, so this is true for as long as the reply is.
+    pub(crate) fn reply_in_flight(&self) -> bool {
+        self.door
+            .lock()
+            .ok()
+            .and_then(|stored| {
+                stored
+                    .as_ref()
+                    .map(|active| !active.door.active_devices().is_empty())
+            })
+            .unwrap_or(false)
     }
 
     /// The clean quit's save: the open chat's last turns reach its file while
@@ -2372,6 +2399,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // down. See `reconcile_door` for how the two ends order themselves.
     let exiting = Arc::new(AtomicBool::new(false));
     let app = tauri::Builder::default()
+        // The app's own update: the plugin does the download, the signature
+        // check and the installer; updater.rs decides when they run.
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // The window's own state, for the page: a minimized Windows window
         // keeps `document.hidden` false, so this is the only word the page
         // gets on being an icon.
@@ -2450,6 +2480,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_send_log,
             brain_log_webview_error,
             ui_event::brain_log_event,
+            updater::brain_app_version,
+            updater::brain_update_check,
+            updater::brain_update_install,
             window_visibility::window_hidden
         ])
         .setup({
@@ -2707,6 +2740,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let _ = window.set_focus();
                 }
             });
+            updater::start_startup_check(app.handle().clone());
             Ok(())
         }})
         .build(tauri::generate_context!())
@@ -2735,9 +2769,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // moves under the gate, so a restart walk cannot queue a start
             // after this point.
             if let Some(brain) = app.try_state::<Arc<Brain>>() {
-                let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
-                brain.stops.fetch_add(1, Ordering::SeqCst);
-                brain.crash_restart.disarm();
+                declare_turn_off(&brain);
             }
             let engine = app
                 .try_state::<Arc<Brain>>()
@@ -2760,20 +2792,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 logging::warn_urgent,
                 |code, _pending| std::process::exit(code),
             );
-            if let Some(brain) = app.try_state::<Arc<Brain>>() {
-                deadline.stage("the open chat");
-                brain.save_open_chat();
-                brain.supervisor.shutdown();
-                deadline.stage("the room's event pump");
-                room_events::stop_event_pump(&brain);
-                deadline.stage("the door");
-                brain.stop_door();
-            }
-            if let Some(desk) = app.try_state::<Desk>() {
-                deadline.stage("the pairing listener");
-                desk.desk.stop_serving();
-                desk.listener.shutdown();
-            }
+            shut_down_services(app, &|what| deadline.stage(what));
             // A stop that came back with the engine's going unproven — a
             // kill issued, no proof it landed — leaves the engine's identity
             // held. The steps have returned, so the watchdog is about to
@@ -2801,6 +2820,60 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     });
+    Ok(())
+}
+
+/// The Turn off a quit and an update's stop both declare first: the stop
+/// generation moves under the gate and the watchdog that restarts a crashed
+/// engine is disarmed, so nothing starts after this point.
+fn declare_turn_off(brain: &Brain) {
+    let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+    brain.stops.fetch_add(1, Ordering::SeqCst);
+    brain.crash_restart.disarm();
+}
+
+/// The services a quit stops, in the quit path's order: the open chat saved,
+/// the engine drained and joined, the event pump and the door down, the
+/// pairing listener shut. Blocks until the engine has stopped, so it runs off
+/// the event loop. `stage` is told each step's name.
+fn shut_down_services(app: &tauri::AppHandle, stage: &dyn Fn(&'static str)) {
+    if let Some(brain) = app.try_state::<Arc<Brain>>() {
+        stage("the open chat");
+        brain.save_open_chat();
+        brain.supervisor.shutdown();
+        stage("the room's event pump");
+        room_events::stop_event_pump(&brain);
+        stage("the door");
+        brain.stop_door();
+    }
+    if let Some(desk) = app.try_state::<Desk>() {
+        stage("the pairing listener");
+        desk.desk.stop_serving();
+        desk.listener.shutdown();
+    }
+}
+
+/// An update's stop: the Turn off, the services' shutdown, and any engine the
+/// stop cannot prove gone killed, so the installer finds nothing running. The
+/// busy question is asked first, so a walk or a reply that began while the
+/// update came down stops nothing and the update waits. Blocks; the caller
+/// runs it off the async runtime.
+pub(crate) fn stop_for_update(app: &tauri::AppHandle) -> Result<(), updater::Failure> {
+    if let Some(brain) = app.try_state::<Arc<Brain>>() {
+        if let Some(failure) =
+            updater::busy_failure(brain.walk_in_flight(), brain.reply_in_flight())
+        {
+            return Err(failure);
+        }
+        declare_turn_off(&brain);
+    }
+    shut_down_services(app, &|what| log::info!("the update is stopping {what}"));
+    let unproven = app
+        .try_state::<Arc<Brain>>()
+        .and_then(|brain| brain.supervisor.watch().finish_engine(exit::KILL_GRACE));
+    if let Some(report) = unproven {
+        log::warn!("the update's stop left the engine unproven; it was killed: {report:?}");
+    }
     Ok(())
 }
 

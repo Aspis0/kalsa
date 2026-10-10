@@ -30,6 +30,8 @@ import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { WebGateDialog } from "./components/WebGateDialog";
 import { RecoveredNotice } from "./components/RecoveredNotice";
 import { useEngineRecovery } from "./surfaces/useEngineRecovery";
+import { useUpdates } from "./lib/useUpdates";
+import { UpdateNotice } from "./components/UpdateNotice";
 import "./App.css";
 
 // How far the settings path may grow before the oldest step falls off. The
@@ -67,6 +69,7 @@ export function App() {
   // and the chat reads them through the hook.
   const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
   const chat = useChat({ openSurface, announce: setLiveMessage, setSlotNotice, settings });
+  const updates = useUpdates(chat.streamingAny);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -316,6 +319,7 @@ export function App() {
         ) : null}
         <ErrorBoundary>
           <TelemetryNotice />
+          <UpdateNotice updates={updates} busy={chat.streamingAny} />
           {surface === "brain" ? (
             <BrainSurface
               onNavigate={openSurface}
@@ -332,6 +336,8 @@ export function App() {
               initial={settings}
               theme={theme}
               onTheme={chooseTheme}
+              updates={updates}
+              busy={chat.streamingAny}
               onWebTools={(webTools) => {
                 // Writes only itself, from the settings that are already
                 // stored: the text sitting unsaved in the connection fields is

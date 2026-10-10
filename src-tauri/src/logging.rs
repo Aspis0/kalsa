@@ -735,12 +735,11 @@ fn redact_urls(text: &[char]) -> Vec<char> {
                     .rposition(|c| *c == '@')
                     .map(|stop| end_of_scheme + stop + 1);
                 out.extend(text[at..end_of_scheme].iter().copied());
-                if let Some(host_begins) = host_begins {
+                if host_begins.is_some() {
                     out.extend(CRED.chars());
-                    out.extend(text[host_begins..address_end].iter().copied());
-                } else {
-                    out.extend(text[end_of_scheme..address_end].iter().copied());
                 }
+                let shown_from = host_begins.unwrap_or(end_of_scheme);
+                out.extend(redact_download_key(&text[shown_from..address_end]));
                 if cut.is_some() {
                     out.extend(MARK.chars());
                 }
@@ -753,6 +752,41 @@ fn redact_urls(text: &[char]) -> Vec<char> {
         }
     }
     out
+}
+
+/// The key segments of the app's own download routes, which are bearer-like
+/// and must not reach a log: the updater's `/download/update/<key>/…` and the
+/// tester's `/download/<key>` link. `artifact` and the bare page are names,
+/// not keys. Called only on a URL's address, so a local `download` folder
+/// stays as it is.
+fn redact_download_key(address: &[char]) -> Vec<char> {
+    const MARK: &str = "<redacted>";
+    const ROUTE: &str = "/download/";
+    let text: String = address.iter().collect();
+    let Some(found) = text.find(ROUTE) else {
+        return address.to_vec();
+    };
+    let head = &text[..found + ROUTE.len()];
+    let rest = &text[head.len()..];
+    let (segment, tail) = match rest.find('/') {
+        Some(stop) => (&rest[..stop], Some(&rest[stop..])),
+        None => (rest, None),
+    };
+    let shown = match (segment, tail) {
+        ("" | "artifact", _) => rest.to_string(),
+        ("update", Some(tail)) => {
+            // `tail` starts at the key's own slash: `/<key>/platform/version`.
+            let after_key = match tail[1..].find('/') {
+                Some(stop) => &tail[1 + stop..],
+                None => "",
+            };
+            format!("update/{MARK}{after_key}")
+        }
+        ("update", None) => rest.to_string(),
+        (_, Some(tail)) => format!("{MARK}{tail}"),
+        (_, None) => MARK.to_string(),
+    };
+    format!("{head}{shown}").chars().collect()
 }
 
 /// The scheme in front of `://` at `at` — `http`, `https`, `ws`, `wss`,

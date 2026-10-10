@@ -4,7 +4,7 @@
 
 export type RustSentence = (params: Record<string, unknown>, tag: string) => string;
 
-export const RUST: { startup: Record<string, RustSentence>; choice: Record<string, RustSentence>; app: Record<string, RustSentence>; invite: Record<string, RustSentence>; pairing: Record<string, RustSentence> } = {
+export const RUST: { startup: Record<string, RustSentence>; choice: Record<string, RustSentence>; app: Record<string, RustSentence>; invite: Record<string, RustSentence>; pairing: Record<string, RustSentence>; update: Record<string, RustSentence> } = {
   startup: {
     cannot_run_yet: () => "Kalsa can't run on this computer yet. Check for an app update.",
     no_suitable_choice: () =>
@@ -56,5 +56,15 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
         : "Phone without its own AI",
     "pairing.phone_without_ai": () => "Phone without its own AI",
     "pairing.host_forget": () => "This computer's own connection cannot be forgotten.",
+  },
+  update: {
+    check_failed: () => "Kalsa couldn't check for updates. Try again later.",
+    download_failed: () => "Kalsa couldn't download the update. Try again.",
+    signature_failed: () => "The update could not be verified, so Kalsa did not install it.",
+    install_failed: () => "Kalsa couldn't install the update. Try again.",
+    busy: () => "Kalsa is starting. Try again when she is ready.",
+    up_to_date: () => "Kalsa is already up to date.",
+    replying: () => "Kalsa is writing a reply. Install the update when it finishes.",
+    changed: () => "The update changed since it was checked. Check again.",
   },
 };

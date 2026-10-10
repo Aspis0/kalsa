@@ -1,4 +1,5 @@
 import { TELEMETRY } from "../en/telemetry";
+import { UPDATES } from "./updates";
 import { HELP } from "../en/help";
 // Tradotto dal copy inglese approvato.
 
@@ -33,6 +34,7 @@ import type { English } from "../en/all";
 
 export const CHINESE: English = {
   telemetry: TELEMETRY,
+  updates: UPDATES,
   help: HELP,
   chrome: CHROME,
   settings: SETTINGS,

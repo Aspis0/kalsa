@@ -6,6 +6,7 @@ export const RUST: {
   app: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  update: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa non può ancora girare su questo computer. Controlla se c'è un aggiornamento dell'app.",
@@ -54,5 +55,15 @@ export const RUST: {
         : "Telefono senza una sua AI",
     "pairing.phone_without_ai": () => "Telefono senza una sua AI",
     "pairing.host_forget": () => "La connessione di questo computer non si può dimenticare.",
+  },
+  update: {
+    check_failed: () => "Kalsa non è riuscita a cercare aggiornamenti. Riprova più tardi.",
+    download_failed: () => "Kalsa non è riuscita a scaricare l'aggiornamento. Riprova.",
+    signature_failed: () => "Non è stato possibile verificare l'aggiornamento, quindi Kalsa non l'ha installato.",
+    install_failed: () => "Kalsa non è riuscita a installare l'aggiornamento. Riprova.",
+    busy: () => "Kalsa si sta avviando. Riprova quando è pronta.",
+    up_to_date: () => "Kalsa è già aggiornata.",
+    replying: () => "Kalsa sta scrivendo una risposta. Installa l'aggiornamento quando ha finito.",
+    changed: () => "L'aggiornamento è cambiato dopo il controllo. Cerca di nuovo.",
   },
 };

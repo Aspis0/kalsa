@@ -437,6 +437,36 @@ fn a_rotation_that_cannot_happen_resets_the_live_file() {
 /// A signed URL inside any logged string keeps its scheme, host and path,
 /// and loses its query and fragment: ureq's transport errors carry the
 /// failed URL (`error.rs` Display), the downloader follows redirects, and
+/// The updater's key is a path segment, so the key rides in the error text
+/// reqwest prints for a failed check: " for url (…)".
+#[test]
+fn the_update_route_key_never_reaches_a_log_line() {
+    let redactions = Redactions::new(None, None, None, false);
+    let message = "failed to check for updates: error sending request for url (https://kalsa.io/download/update/AbCdEfGh0123456789xyz/darwin/aarch64/0.0.2)";
+    let redacted = redact(message, &redactions);
+    assert!(
+        redacted.ends_with("(https://kalsa.io/download/update/<redacted>/darwin/aarch64/0.0.2)"),
+        "{redacted}"
+    );
+    assert!(!redacted.contains("AbCdEfGh"), "{redacted}");
+}
+
+#[test]
+fn the_tester_link_key_is_redacted_but_the_named_routes_are_not() {
+    let redactions = Redactions::new(None, None, None, false);
+    let link = redact("opened https://kalsa.io/download/Zk9wQ2xT8rLm/ now", &redactions);
+    assert!(link.contains("https://kalsa.io/download/<redacted>/ now"), "{link}");
+    assert!(!link.contains("Zk9wQ2xT8rLm"), "{link}");
+    for kept in [
+        "https://kalsa.io/download/artifact/mac",
+        "https://kalsa.io/download",
+        "https://kalsa.io/download/update",
+    ] {
+        let line = redact(&format!("at {kept} next"), &redactions);
+        assert!(line.contains(kept), "{line}");
+    }
+}
+
 /// a Hugging Face `/resolve/` redirect answers with a signed CDN URL whose
 /// query is a credential.
 #[test]

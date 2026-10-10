@@ -1,4 +1,5 @@
 import { TELEMETRY } from "./telemetry";
+import { UPDATES } from "./updates";
 import { HELP } from "./help";
 // The English source: every other language is typed against this shape.
 
@@ -32,6 +33,7 @@ import { CONTENT_FILTER } from "./contentFilter";
 
 export interface English {
   telemetry: typeof TELEMETRY;
+  updates: typeof UPDATES;
   help: typeof HELP;
   chrome: typeof CHROME;
   settings: typeof SETTINGS;
@@ -66,12 +68,14 @@ export interface English {
     app: Record<string, (params: Record<string, unknown>, tag: string) => string>;
     invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
     pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+    update: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   };
   contentFilter: typeof CONTENT_FILTER;
 }
 
 export const ENGLISH: English = {
   telemetry: TELEMETRY,
+  updates: UPDATES,
   help: HELP,
   chrome: CHROME,
   settings: SETTINGS,

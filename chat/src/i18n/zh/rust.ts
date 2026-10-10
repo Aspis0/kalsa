@@ -6,6 +6,7 @@ export const RUST: {
   app: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  update: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa 还不能在这台电脑上运行。请检查应用更新。",
@@ -54,5 +55,15 @@ export const RUST: {
         : "没有自己 AI 的手机",
     "pairing.phone_without_ai": () => "没有自己 AI 的手机",
     "pairing.host_forget": () => "无法忘记这台电脑自己的连接。",
+  },
+  update: {
+    check_failed: () => "Kalsa 无法检查更新。请稍后再试。",
+    download_failed: () => "Kalsa 无法下载更新。请再试一次。",
+    signature_failed: () => "无法验证该更新，因此 Kalsa 没有安装它。",
+    install_failed: () => "Kalsa 无法安装更新。请再试一次。",
+    busy: () => "Kalsa 正在启动。准备好后再试。",
+    up_to_date: () => "Kalsa 已是最新版本。",
+    replying: () => "Kalsa 正在回复。回复完成后安装更新。",
+    changed: () => "更新自检查后已经变化。请重新检查。",
   },
 };

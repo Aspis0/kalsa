@@ -6,6 +6,7 @@ export const RUST: {
   app: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  update: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa ne peut pas encore tourner sur cet ordinateur. Cherche une mise à jour de l'app.",
@@ -54,5 +55,15 @@ export const RUST: {
         : "Téléphone sans IA propre",
     "pairing.phone_without_ai": () => "Téléphone sans IA propre",
     "pairing.host_forget": () => "La connexion de cet ordinateur ne peut pas être oubliée.",
+  },
+  update: {
+    check_failed: () => "Kalsa n'a pas pu rechercher les mises à jour. Réessayez plus tard.",
+    download_failed: () => "Kalsa n'a pas pu télécharger la mise à jour. Réessayez.",
+    signature_failed: () => "La mise à jour n'a pas pu être vérifiée, donc Kalsa ne l'a pas installée.",
+    install_failed: () => "Kalsa n'a pas pu installer la mise à jour. Réessayez.",
+    busy: () => "Kalsa démarre. Réessayez quand elle sera prête.",
+    up_to_date: () => "Kalsa est déjà à jour.",
+    replying: () => "Kalsa est en train de répondre. Installez la mise à jour quand elle a fini.",
+    changed: () => "La mise à jour a changé depuis la vérification. Recherchez-la de nouveau.",
   },
 };

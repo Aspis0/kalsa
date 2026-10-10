@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Kalsa",
-  "version": "0.0.1",
   "identifier": "ai.kalsa.brain",
   "build": {
     "frontendDist": "../chat/dist",
@@ -27,6 +26,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["app", "dmg", "nsis"],
     "icon": ["icons/icon.icns", "icons/icon.ico"],
     "macOS": {
@@ -36,6 +36,18 @@
       "nsis": {
         "installerHooks": "windows/hooks.nsh",
         "languages": ["English", "Italian", "Spanish", "French", "SimpChinese"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMyN0Q0QzM5MzkyOEMzNTAKUldSUXd5ZzVPVXg5d20xTlRoMjYwbWI5LzZacE1NUy9SZEY0RjdFUUpYYmhWeTBqc1BqWlBJYVYK",
+      "endpoints": [
+        "https://kalsa.io/download/update/REPLACE_WITH_UPDATE_KEY/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
       }
     }
   }
