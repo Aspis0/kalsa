@@ -281,7 +281,11 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    App `41ab9149` pushed: pin + pacing fields in KALSA_GOVERNOR. Harness pause for G2 raised to battery > 43 C
    (app `64b05470`, owner). Each step hostile-audited by a model other than its writer (gpt-6-luna; opencode-go
    was out of quota); leftovers E3-E6, B8-B10 in the backlog. Debuggable APK: CI run `38078019923` (app `867affaa`, kalsa.rn `52718a55` with the skels rebuilt for 74b7503; run `38076349748` had failed the skels gate), sha256 `cbd27007`. Next: G2
-   repeat on a charged cold S23 with it.
+   repeat on a charged cold S23 with it. DONE 2026-10-10 (`s23-g2-graduated-867affaa`): 16 turns, no crash, status
+   never 3; 5 completions at >= 10 tok/s (vs 2 with the flat 0.5), hot steady state 5.3-5.6 then 4.4-5.0 tok/s at the
+   0.35 floor (vs 5.6-6.4); stopped by the harness thermal hard abort at battery 42.5 C. Found: `run-t20c.sh`
+   hard-codes the 42 C pause and ignores `recovery.thermalMaxC` (fix pending); a 600 s "tool round" wait at turn 10
+   with tools OFF (open). Owner decision pending: move the full line toward SEVERE for steady-state speed.
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
 5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76); the in-app round

@@ -1,0 +1,66 @@
+[ci] battery level=96 temp=30.4C charging=false
+[ci] thermal preflight status=0 battery_deci=304
+[ci] battery level=95 temp=31.8C charging=false
+[ci] === turn 1 begins ===
+[ci] battery level=94 temp=37.9C charging=false
+[ci] === turn 2 begins ===
+[ci] battery level=92 temp=39.7C charging=false
+[ci] === turn 3 begins ===
+[ci] battery level=90 temp=40.3C charging=false
+[ci] === turn 4 begins ===
+[ci] battery level=88 temp=41.0C charging=false
+[ci] === turn 5 begins ===
+[ci] battery level=85 temp=41.5C charging=false
+[ci] === turn 6 begins ===
+[ci] battery level=83 temp=41.7C charging=false
+[ci] === turn 7 begins ===
+[ci] battery level=80 temp=41.8C charging=false
+[ci] === turn 8 begins ===
+[ci] battery level=78 temp=41.8C charging=false
+[ci] === turn 9 begins ===
+[ci] battery level=76 temp=41.7C charging=false
+[ci] === turn 10 begins ===
+[ci] RECOVERY reason=toolround (force-stop com.kalsa.app)
+{"i": 10, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "toolround", "retried": false, "scores": null}
+{"i": 10, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "already-landed-skip-send", "retried": true, "scores": null}
+[ci] battery level=72 temp=35.9C charging=false
+[ci] === turn 11 begins ===
+[ci] battery level=71 temp=39.9C charging=false
+[ci] === turn 12 begins ===
+[ci] battery level=68 temp=41.3C charging=false
+[ci] === turn 13 begins ===
+[ci] battery level=66 temp=42.0C charging=false
+[ci] === turn 14 begins ===
+[ci] RECOVERY reason=thermal (record only — app NOT force-stopped)
+{"i": 14, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal", "retried": false, "scores": null}
+[ci] RECOVERY reason=thermal — pause (battery > 42°C or status >= 5; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through; overshoot window=120s)
+[ci] thermal overshoot window (60s/120s, battery=42.2°C, trend=steady) — rise is expected after load stops
+[ci] thermal overshoot window (120s/120s, battery=42.3°C, trend=rising) — rise is expected after load stops
+[ci] thermal still hot (180s, battery=42.3°C, trend=steady, rising_samples=0/3, readings:42.3)
+[ci] thermal cool after 240s (battery=41.3°C, trend=falling; below resume threshold)
+[ci] restore: app still running (thermal path) — no force-stop, no relaunch
+{"i": 14, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "already-landed-skip-send", "retried": true, "scores": null}
+[ci] battery level=63 temp=41.3C charging=false
+[ci] === turn 15 begins ===
+[ci] RECOVERY reason=thermal (record only — app NOT force-stopped)
+{"i": 15, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal", "retried": false, "scores": null}
+[ci] RECOVERY reason=thermal — pause (battery > 42°C or status >= 5; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through; overshoot window=120s)
+[ci] thermal overshoot window (60s/120s, battery=42.6°C, trend=steady) — rise is expected after load stops
+[ci] thermal overshoot window (120s/120s, battery=42.5°C, trend=falling) — rise is expected after load stops
+[ci] thermal still hot (180s, battery=42.5°C, trend=steady, rising_samples=0/3, readings:42.5)
+[ci] thermal still hot (240s, battery=42.5°C, trend=steady, rising_samples=0/3, readings:42.5)
+[ci] thermal still hot (300s, battery=42.5°C, trend=steady, rising_samples=0/3, readings:42.5)
+[ci] thermal cool after 360s (battery=41.4°C, trend=falling; below resume threshold)
+[ci] restore: app still running (thermal path) — no force-stop, no relaunch
+{"i": 15, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "already-landed-skip-send", "retried": true, "scores": null}
+[ci] battery level=60 temp=41.4C charging=false
+[ci] === turn 16 begins ===
+[ci] RECOVERY reason=thermal (record only — app NOT force-stopped)
+{"i": 16, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal", "retried": false, "scores": null}
+[ci] RECOVERY reason=thermal — pause (battery > 42°C or status >= 5; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through; overshoot window=120s)
+[ci] thermal overshoot window (60s/120s, battery=42.2°C, trend=steady) — rise is expected after load stops
+[ci] thermal overshoot window (120s/120s, battery=42.2°C, trend=steady) — rise is expected after load stops
+[ci] thermal still hot (180s, battery=42.3°C, trend=rising, rising_samples=1/3, readings:42.2 42.3)
+[ci] thermal still hot (240s, battery=42.4°C, trend=rising, rising_samples=2/3, readings:42.2 42.3 42.4)
+{"i": 16, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "thermal-hard-abort: unplugged battery kept rising for 3 consecutive samples after the 120s overshoot window (readings:42.2 42.3 42.4 42.5)", "retried": false, "scores": 
+[ci] FATAL: thermal hard abort turn 16: unplugged battery kept rising for 3 consecutive samples after the 120s overshoot window (readings:42.2 42.3 42.4 42.5)
