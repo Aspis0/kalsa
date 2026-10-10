@@ -354,3 +354,4 @@ Owner: when a model refuses because tools are in the request (LFM2.5-VL-3B refus
 - The re-ask is a fresh request: a second prefill, and the prompt reorder misses old cached prefixes once after the upgrade. Not measured.
 - The interrupted-turn line is session-only: after a reload the failed row shows the ordinary card again (the failure's time and the restart event are not persisted).
 - Surface network (2026-10-09): `kalsa.io` and `telemetry.kalsa.io` resolve to `::1` / `100.64.255.100` there, so nothing from that PC reaches either Worker. Check where the resolution comes from before testing telemetry on it again.
+- LFM2.5-VL-3B (Mac Q4 run, 2026-10-10): asked for a story with web tools on, it sometimes web-searches first and then answers "I wasn't able to locate a story…" with no story; the retry covers only a first-round refusal, so that turn ends without the story (1 of 4 runs). Post-alpha fix: [small tool model / big writer split].
