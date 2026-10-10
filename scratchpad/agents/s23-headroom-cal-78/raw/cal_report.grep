@@ -1,0 +1,7 @@
+== cal start Sat Oct 10 12:14:56 EDT 2026 skin=32.5
+## run 1 start 1791648896 skin=32.5
+## run 1 exit=0 end 1791649172 skin=40.4
+## run 2 start 1791649177 skin=40.4
+STOP: status >= 3 for 60 s at 396s
+## run 2 exit=143 end 1791649349 skin=42.4
+== cal end Sat Oct 10 12:22:37 EDT 2026 skin=42.4
