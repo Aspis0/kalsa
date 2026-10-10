@@ -264,9 +264,10 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    rounds, leftovers H1-H5 in the backlog). Debuggable APK: CI run `38022468371`. Next: G2 on a cold S23,
    then a shorter session with tools ON as shipped.
    Cell 77 (`s23-paced-legs-77`, does pacing cool, NPU vs GPU): the paced NPU arm decoded 2048 tokens at
-   7.5 tok/s (duty 0.5 achieved), then the S23 rebooted (wireless adb back on a new port, refusing the
-   key); cause unknown - the bench carries the logits fix `fbf33176c`. Read the report and the boot
-   reason when adb is back; log RssAnon/MemAvailable every 5 s on any rerun.
+   7.5 tok/s (duty 0.5 achieved), then a PMIC hard reset (PonReason.HARD_RESET) during the next rep's
+   model load in the same process. Measured after: one one-copy NPU load leaves ~0.9 GB MemAvailable (the
+   rpcmem is outside process RSS). Rerun 2026-10-10 morning (owner): one 4096-token rep per arm, MemAvailable
+   logged, bench killed below 500 MB. The app's reloads run on the same margin: watch it in G2.
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
 5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76); the in-app round

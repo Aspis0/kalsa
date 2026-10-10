@@ -30,8 +30,8 @@
   the governor stayed FAST - the platform status reaches it once per completion (`s23-g2-inapp-1f0e967b`).
 - COOLMODE pacing exists end to end (engine `0012f97f2`, binding `a9bf7a26`, both pushed 2026-10-09):
   decode at duty 0.5 measured 7.5 tok/s on the S23 NPU; the binding reads Android's thermal status natively
-  mid-turn. Not yet in an APK. Cell 77 (paced NPU vs paced GPU skin slope) is incomplete: the S23 rebooted
-  after the first arm, cause unknown.
+  mid-turn. Not yet in an APK. Cell 77 (paced NPU vs paced GPU skin slope) is incomplete: a memory hard reset
+  in the bench's second model load (one-copy NPU leaves ~0.9 GB MemAvailable); rerun 2026-10-10.
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs
