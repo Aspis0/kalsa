@@ -248,7 +248,7 @@ print(len(asst[-1]) if asst else 0)
 # An interrupted bubble completes the turn without requiring count/telemetry.
 # Liveness (the hang watchdog) is NOT the completion marker: see
 # campaign_progress_fingerprint above.
-# Sets CAMPAIGN_TURN_STATUS=ok|toolcap|interrupted|timeout|hang|pid-death|adb-drop|toolround
+# Sets CAMPAIGN_TURN_STATUS=ok|toolcap|interrupted|timeout|hang|pid-death|adb-drop|toolround|db-read-error
 # The LAST KALSA_TOOLCALL in this turn's slice decides whether the turn is
 # over: KALSA_TELEMETRY is emitted PER ROUND (baseline raw: round 0 at
 # 16:42:10.870, round 1 at 16:44:33.975), and every round also emits one
@@ -281,7 +281,7 @@ def payload(line, name):
         if match:
             try:
                 obj = json.loads(match.group(1))
-            except ValueError:
+            except Exception:
                 continue
             if isinstance(obj, dict):
                 return obj
@@ -309,7 +309,23 @@ if exhausted is not None and (not calls or all(call.get("turnId") == exhausted.g
 elif last is None:
     print("absent")
 else:
-    executed = int(last.get("executed", 0) or 0)
+    try:
+        if "executed" not in last:
+            raise ValueError("missing executed value")
+        raw_executed = last.get("executed", 0)
+        if isinstance(raw_executed, bool):
+            raise ValueError("boolean executed value")
+        if isinstance(raw_executed, int):
+            executed = raw_executed
+        elif isinstance(raw_executed, str) and raw_executed.strip().isdigit():
+            executed = int(raw_executed.strip())
+        else:
+            raise ValueError("unparseable executed value")
+        if executed < 0:
+            raise ValueError("negative executed value")
+    except (TypeError, ValueError, OverflowError):
+        print("absent")
+        raise SystemExit(0)
     if executed > 0:
         round_no = last.get("round", -1)
         print("pending %d" % (round_no if isinstance(round_no, int) else -1))
@@ -345,6 +361,7 @@ campaign_wait_turn() {
   local telemetry_seen_at="" pending_logged="" tool_state exhausted_seen_at=""
   local toolcall_quiet_ms current_round pending_round="" pending_since=0
   local tool_round_max_ms="${CAMPAIGN_TOOL_ROUND_MAX_MS:-600000}"
+  CAMPAIGN_TOOLCAP_NO_ANSWER=0
   case "$tool_round_max_ms" in ''|*[!0-9]*) tool_round_max_ms=600000 ;; esac
   toolcall_quiet_ms=$(campaign_toolcall_quiet_ms)
   start=$(python3 -c 'import time; print(int(time.time()*1000))')
@@ -376,7 +393,13 @@ campaign_wait_turn() {
     esac
 
     count=$(campaign_assistant_count)
-    case "$count" in ''|*[!0-9]*) count=0 ;; esac
+    case "$count" in
+      ''|*[!0-9]*)
+        log "assistant count unreadable while waiting for turn ${CAMPAIGN_TURN_I:-?}"
+        CAMPAIGN_TURN_STATUS="db-read-error"
+        return 1
+        ;;
+    esac
 
     if [ "$tool_state" = "exhausted" ]; then
       # The EXHAUSTED log precedes the fallback bubble; accept its text if it lands, else stop after the same quiet window.
@@ -386,6 +409,7 @@ campaign_wait_turn() {
       fi
       [ -n "$exhausted_seen_at" ] || exhausted_seen_at="$now"
       if [ $((now - exhausted_seen_at)) -ge "$toolcall_quiet_ms" ]; then
+        CAMPAIGN_TOOLCAP_NO_ANSWER=1
         CAMPAIGN_TURN_STATUS="toolcap"
         return 0
       fi

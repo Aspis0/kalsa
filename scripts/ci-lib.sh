@@ -182,10 +182,22 @@ ci_app_state_settled() {
 }
 
 ci_app_state_after_write() {
-  local app_state
-  app_state=$(adb shell "if pidof $PKG >/dev/null 2>&1; then echo RUNNING; else echo STOPPED; fi" 2>/dev/null | tr -d '\r') ||
-    die "cannot determine whether $PKG is running after device SQL write"
-  [ "$app_state" != RUNNING ] || die "$PKG started during device SQL write; database was pushed while the app became active"
+  local app_state i
+  for i in 1 2 3; do
+    if app_state=$(adb shell "if pidof $PKG >/dev/null 2>&1; then echo RUNNING; else echo STOPPED; fi" 2>/dev/null | tr -d '\r'); then
+      :
+    else
+      app_state=""
+    fi
+    case "$app_state" in
+      RUNNING) die "$PKG started during device SQL write; database was pushed while the app became active" ;;
+      STOPPED) [ "$i" -eq 3 ] || sleep 1 ;;
+      *)
+        [ "$i" -eq 3 ] && die "cannot determine whether $PKG is running after device SQL write after 3 reads (got '${app_state:-empty}')"
+        sleep 1
+        ;;
+    esac
+  done
 }
 
 # Wipe kalsa.ciswire.gateAudit (src/rules/gateAuditLog.ts GATE_AUDIT_KEY).

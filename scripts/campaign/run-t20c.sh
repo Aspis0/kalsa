@@ -356,9 +356,15 @@ campaign_thermal_cooldown() {
 # Same-conversation restore is only needed when the app actually died. On a
 # thermal pause the app is alive mid-conversation — do NOT touch it.
 campaign_restore_same_conv() {
+  local app_state_rc=0
   if campaign_app_running; then
     log "restore: app still running (thermal path) — no force-stop, no relaunch"
     return 0
+  else
+    app_state_rc=$?
+  fi
+  if [ "$app_state_rc" -eq 2 ]; then
+    die "restore: app process state stayed unknown after 3 settle rounds; aborting without force-stop"
   fi
   campaign_force_stop
   COMPACTION_VAL="${COMPACTION_VAL:?}" MEMORY_VAL="${MEMORY_VAL:?}" TOOLHELP_VAL="${TOOLHELP_VAL:?}" \
@@ -461,51 +467,20 @@ done
 battery_line
 jsonl="$OUT/$CAMPAIGN_ARM_ID/$CAMPAIGN_CONV_ID.jsonl"
 # Turn records have no event key; recovery records do. Count distinct turns, not lines.
-record_stats=$(python3 - "$jsonl" <<'PY'
-import json
-import sys
-
-turns = set()
-toolcaps = set()
-recoveries = 0
-unparseable = 0
-try:
-    stream = open(sys.argv[1], encoding="utf-8")
-except OSError:
-    print("0 0 0 0")
-    raise SystemExit(0)
-with stream:
-    for line in stream:
-        try:
-            record = json.loads(line)
-        except (TypeError, ValueError):
-            unparseable += 1
-            continue
-        if not isinstance(record, dict):
-            unparseable += 1
-        elif "event" in record:
-            recoveries += 1
-        elif isinstance(record.get("i"), int) and not isinstance(record.get("i"), bool):
-            # Toolcap records count as completed for this footer and resume.mjs, which accepts every non-RECOVERY turn.
-            turns.add(record["i"])
-            if record.get("toolcap") is True:
-                toolcaps.add(record["i"])
-        else:
-            unparseable += 1
-print(len(turns), len(toolcaps), recoveries, unparseable)
-PY
-) || die "T20C footer: could not count acceptance records in $jsonl"
+record_stats=$(python3 "$CAMPAIGN_ROOT/acceptanceStats.py" "$jsonl") \
+  || die "T20C footer: could not count acceptance records in $jsonl"
 turn_count=0
 toolcap_count=0
+toolcap_no_answer_count=0
 recovery_count=0
 unparseable_count=0
-read -r turn_count toolcap_count recovery_count unparseable_count <<EOF
+read -r turn_count toolcap_count toolcap_no_answer_count recovery_count unparseable_count <<EOF
 $record_stats
 EOF
 if [ "$turn_count" -eq 20 ]; then
-  log "T20C RUN COMPLETE — turns=$turn_count/20 toolcap=$toolcap_count recoveries=$recovery_count unparseable=$unparseable_count jsonl=$jsonl"
+  log "T20C RUN COMPLETE — turns=$turn_count/20 toolcap=$toolcap_count toolcap_no_answer=$toolcap_no_answer_count recoveries=$recovery_count unparseable=$unparseable_count jsonl=$jsonl"
 else
-  log "T20C RUN INCOMPLETE — turns=$turn_count/20 toolcap=$toolcap_count recoveries=$recovery_count unparseable=$unparseable_count jsonl=$jsonl"
+  log "T20C RUN INCOMPLETE — turns=$turn_count/20 toolcap=$toolcap_count toolcap_no_answer=$toolcap_no_answer_count recoveries=$recovery_count unparseable=$unparseable_count jsonl=$jsonl"
   [ "$rc" -ne 0 ] || rc=1
 fi
 exit "$rc"

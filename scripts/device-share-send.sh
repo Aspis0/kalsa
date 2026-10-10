@@ -140,26 +140,33 @@ device_composer_from_ui() {
 # only the count leaves — it is never written to $OUT (the old
 # .share_hist.json dump landed the user text and every modelEmittedText on
 # disk, twice per attempt, and was never removed).
-# KNOWN LIMITATION, declared: the python prints 0 on any exception, so a
-# failed DB read is indistinguishable from an empty conversation — the cause
-# of the "no reply within Ns" shape. Do not change that return before a
-# trusted device run; rp_wait_reply's control flow depends on it.
-# Exit status note: since the stdin conversion this function returns sql's
-# status under pipefail (it was always-0 when the python read a file); every
-# current caller captures stdout in an assignment and ignores the status.
+# `err` is deliberately outside the numeric count range so a failed or invalid
+# database read cannot become evidence that a toolcap answer was absent.
 device_history_assistant_count() {
-  local index_raw id key
-  index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
-  id=$(resolve_active_conversation_id "$index_raw")
+  local index_raw id key messages
+  if ! index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null); then
+    printf '%s\n' err
+    return 0
+  fi
+  if ! id=$(resolve_active_conversation_id "$index_raw" 2>/dev/null); then
+    printf '%s\n' err
+    return 0
+  fi
   key=$(messages_storage_key "$id")
-  sql "SELECT value FROM catalystLocalStorage WHERE key='$key';" 2>/dev/null \
-    | python3 -c '
+  if ! messages=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$key';" 2>/dev/null); then
+    printf '%s\n' err
+    return 0
+  fi
+  printf '%s' "$messages" | python3 -c '
 import json, sys
 try:
-    data = json.loads(sys.stdin.read() or "[]")
+    raw = sys.stdin.read()
+    data = json.loads(raw) if raw else []
+    if not isinstance(data, list):
+        raise ValueError("conversation messages must be a list")
     print(sum(1 for m in data if isinstance(m, dict) and m.get("role") == "assistant"))
 except Exception:
-    print(0)
+    print("err")
 '
 }
 
@@ -212,7 +219,7 @@ device_share_send() {
   mkdir -p "$OUT"
   device_collapse_shade
   prev=$(device_history_assistant_count)
-  case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
+  case "$prev" in ''|*[!0-9]*) log "share-send: assistant count unreadable before send"; return 1 ;; esac
   needle=$(printf '%s' "$msg" | awk '{s=$0} END {if (length(s)>48) print substr(s,1,48); else print s}')
 
   device_tap_reload_if_needed || true

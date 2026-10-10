@@ -214,23 +214,35 @@ campaign_reinstall_r() {
 }
 
 campaign_app_running() {
-  local pid
-  pid=$(campaign_pidof_settled)
+  local pid probe_rc=0
+  pid=$(campaign_pidof_settled_retry) || probe_rc=$?
+  [ "$probe_rc" -eq 2 ] && return 2
   case "$pid" in ''|*[!0-9]*) return 1 ;; esac
   return 0
 }
 
 campaign_relaunch_or_reinstall() {
+  local state_rc=0
   campaign_launch || return 1
   sleep 8
   if campaign_app_running; then
     return 0
+  else
+    state_rc=$?
+  fi
+  if [ "$state_rc" -eq 2 ]; then
+    log "ERROR: app process state stayed unknown after launch; aborting without reinstall or force-stop"
+    return 1
   fi
   log "app did not start — install -r same apk"
   campaign_reinstall_r || return 1
   campaign_launch || return 1
   sleep 8
-  campaign_app_running
+  if campaign_app_running; then return 0; else state_rc=$?; fi
+  if [ "$state_rc" -eq 2 ]; then
+    log "ERROR: app process state stayed unknown after reinstall; aborting without force-stop"
+  fi
+  return 1
 }
 
 campaign_thermal_should_pause() {

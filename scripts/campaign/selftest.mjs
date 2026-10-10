@@ -818,7 +818,7 @@ next_pid=789
 forced=0
 launched=0
 ready=0
-campaign_pidof() { printf '%s\\n' "$current_pid"; }
+campaign_pidof_settled() { printf '%s\\n' "$current_pid"; }
 campaign_force_stop() { forced=$((forced + 1)); current_pid=""; }
 campaign_launch() { launched=$((launched + 1)); current_pid="$next_pid"; CAMPAIGN_LAUNCHED_PID="$current_pid"; }
 campaign_wait_ready() { ready=$((ready + 1)); }

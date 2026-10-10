@@ -11,7 +11,15 @@ campaign_pidof() {
   adb shell "pidof $PKG" </dev/null 2>/dev/null | tr -d '\r' | awk '{print $1}'
 }
 
-# WHY: wireless adb can flap, so six reads bound the wait; only three trailing empties prove death, two identical live reads settle early, and otherwise the last live PID (or unknown) survives.
+# A shell round trip distinguishes a dead process from pidof output lost with
+# the wireless transport.
+campaign_transport_healthy() {
+  local response
+  response=$(adb shell echo kalsa-alive </dev/null 2>/dev/null | tr -d '\r') || return 1
+  [ "$response" = kalsa-alive ]
+}
+
+# WHY: wireless adb can flap, so six reads bound the wait; three trailing empties plus a healthy shell probe prove death, two identical live reads settle early, and otherwise the last live PID (or unknown) survives.
 campaign_pidof_settled() {
   local p previous="" last_live="" empty_reads=0 read=0 garbage_logged=0
   while [ "$read" -lt 6 ]; do
@@ -22,7 +30,11 @@ campaign_pidof_settled() {
       previous=""
       empty_reads=$((empty_reads + 1))
       if [ "$empty_reads" -ge 3 ]; then
-        printf '\n'
+        if campaign_transport_healthy; then
+          printf '\n'
+        else
+          printf '%s\n' unknown
+        fi
         return 0
       fi
       ;;
@@ -47,6 +59,22 @@ campaign_pidof_settled() {
     [ "$read" -lt 6 ] && sleep 1
   done
   if [ -n "$last_live" ]; then printf '%s\n' "$last_live"; else printf '%s\n' unknown; fi
+}
+
+# Unknown process state is retried in bounded settle windows; callers must
+# handle status 2 without stopping or relaunching the app.
+campaign_pidof_settled_retry() {
+  local attempt pid
+  for attempt in 1 2 3; do
+    pid=$(campaign_pidof_settled)
+    if [ "$pid" != unknown ]; then
+      printf '%s\n' "$pid"
+      return 0
+    fi
+    [ "$attempt" -eq 3 ] || sleep 1
+  done
+  printf '%s\n' unknown
+  return 2
 }
 
 campaign_slice_has_telemetry() {

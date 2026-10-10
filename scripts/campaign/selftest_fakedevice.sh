@@ -5,6 +5,7 @@
 #
 # State files (all under $FAKE_DEV/fake):
 #   mode         marker-turn1 | never | fail-send | vanish | pid-blip | pidof-garbage |
+#                pidof-transport-fail | pidof-live-then-empty-probe-fail | sql-after-write-blank |
 #                pidof-flap | sql-read-garbage | sql-read-blank | sql-read-blip | sql-read-settled | hot | db-lag |
 #                throttled | thermal-rise-fall | thermal-hard-abort |
 #                thermal-status-abort | thermal-unreadable-status | thermal-giveup |
@@ -12,7 +13,8 @@
 #                thermal-sustained-rise | thermal-unknown-power
 #   turn         share-intent counter (the fake's clock)
 #   pid          app pid served by `pidof` (empty file = app dead)
-#   pid_dead_once  set at a turn boundary; the app stays dead until am force-stop / am start -n
+#   pid_dead_once  set at a turn boundary; the app stays dead until am start -n
+#   force-stops.log records every force-stop request for destructive-path assertions
 #   stream.txt   logcat stream the fake `logcat` tails
 #   ui.xml       uiautomator dump served by `adb shell cat /data/local/tmp/ui.xml`
 #   composer     text the share put in the EditText ("" when the share missed)
@@ -156,7 +158,7 @@ _screen_wake() {
 }
 
 # The crash flag: the app was alive for the send and is dead from the next poll
-# until the harness relaunches it (am force-stop / am start -n clear the flag),
+# until the harness relaunches it (am start -n clears the flag),
 # as a real crashed process stays dead. In `vanish` mode the crash also loses the
 # turn's messages, once.
 app_pid() {
@@ -252,7 +254,7 @@ PY
   if [ "$mode" = "marker-turn1" ] && [ "$turn" -eq 1 ]; then
     _append "$(cat "$F/telemetry.line")"
   fi
-  # The app stays dead until am force-stop / am start -n after this turn, except for the one turn
+  # The app stays dead until am start -n after this turn, except for the one turn
   # that is supposed to complete (turn 1 in marker-turn1).
   if [ "$mode" = "marker-turn1" ] && [ "$turn" -eq 1 ]; then :
   elif [ "$mode" = throttled ]; then :
@@ -303,6 +305,13 @@ case "${1:-}" in
           reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
           printf '%s' "$reads" > "$F/pidof_reads"
           printf '%s\n' 'device-side pidof error'
+        elif [ "$(_mode)" = pidof-transport-fail ]; then
+          reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/pidof_reads"
+        elif [ "$(_mode)" = pidof-live-then-empty-probe-fail ]; then
+          reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/pidof_reads"
+          [ "$reads" -eq 1 ] && app_pid
         elif [ "$(_mode)" = pidof-flap ]; then
           reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
           printf '%s' "$reads" > "$F/pidof_reads"
@@ -316,6 +325,12 @@ case "${1:-}" in
           printf '%s' "$reads" > "$F/pidof_reads"
           app_pid
         fi
+        ;;
+      "echo kalsa-alive")
+        case "$(_mode)" in
+          pidof-transport-fail|pidof-live-then-empty-probe-fail) exit 1 ;;
+          *) printf '%s\n' kalsa-alive ;;
+        esac
         ;;
       "if pidof $PKG"*)
         if [ "$(_mode)" = sql-read-garbage ]; then
@@ -334,6 +349,10 @@ case "${1:-}" in
           reads=$(( $(cat "$F/app-state-reads" 2>/dev/null || printf 0) + 1 ))
           printf '%s' "$reads" > "$F/app-state-reads"
           printf '%s\n' STOPPED
+        elif [ "$(_mode)" = sql-after-write-blank ]; then
+          reads=$(( $(cat "$F/app-state-reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/app-state-reads"
+          if [ "$reads" -le 3 ]; then printf '%s\n' STOPPED; else printf '\n'; fi
         elif [ -n "$(app_pid)" ]; then printf '%s\n' RUNNING; else printf '%s\n' STOPPED; fi
         ;;
       "dumpsys battery") _battery_dump ;;
@@ -398,14 +417,14 @@ PY
       "input keyevent KEYCODE_WAKEUP") _screen_wake ;;
       "input "*) : ;;
       "am force-stop"*)
-        rm -f "$F/pid_dead_once" "$F/vanished"
+        printf '%s\n' "$s" >> "$F/force-stops.log"
         : > "$F/pid"
         # Teardown leaves the app off-screen — nothing keeps focus until
         # somebody foregrounds it again (s23 post-exit: NotificationShade).
         printf 'other' > "$F/focus"
         ;;
       "am start -n "*)
-        rm -f "$F/pid_dead_once" "$F/vanished"
+        rm -f "$F/pid_dead_once"
         printf '%s' "$(cat "$F/pid_base")" > "$F/pid"
         # Bringing Kalsa to the front is what makes it the focused app.
         printf 'kalsa' > "$F/focus"

@@ -27,7 +27,19 @@ campaign_store_turn() {
 }
 
 campaign_stamp_toolcap_record() {
-  python3 -c 'import json,sys; p=sys.argv[1]; r=json.load(open(p)); r["toolcap"]=True; json.dump(r,open(p,"w"))' "${1:?}"
+  python3 - "${1:?}" "${CAMPAIGN_TOOLCAP_NO_ANSWER:-0}" <<'PY'
+import json
+import sys
+
+path, no_answer = sys.argv[1:]
+with open(path, encoding="utf-8") as stream:
+    record = json.load(stream)
+record["toolcap"] = True
+if no_answer == "1":
+    record["toolcapNoAnswer"] = True
+with open(path, "w", encoding="utf-8") as stream:
+    json.dump(record, stream)
+PY
 }
 
 # Recover enough to retry the SAME turn. die only if recovery itself fails.
@@ -192,10 +204,12 @@ campaign_one_turn() {
   local i="$1" user="$2" prev offset slice rec_rc=0
   CAMPAIGN_TURN_I="$i"
   CAMPAIGN_RETRIED=""
+  CAMPAIGN_TURN_STATUS=""
+  CAMPAIGN_TOOLCAP_NO_ANSWER=0
   python3 -c 'import json,sys; json.dump(json.load(open(sys.argv[1]))["turns"][int(sys.argv[2])], open(sys.argv[3],"w"))' \
     "$SCRIPT" "$((i - 1))" "$OUT/.turn-script.json"
   prev=$(campaign_assistant_count)
-  case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
+  case "$prev" in ''|*[!0-9]*) die "assistant count unreadable before turn $i; aborting before send" ;; esac
   offset=$(campaign_logcat_offset)
   slice="$OUT/.slice.txt"
   log "turn $i send: ${user:0:80}"
@@ -240,6 +254,10 @@ campaign_one_turn() {
     campaign_finish_turn "$slice"
     return 0
   fi
+  if [ "$CAMPAIGN_TURN_STATUS" = db-read-error ]; then
+    campaign_record_recovery "assistant-count-unreadable"
+    die "assistant count unreadable turn $i; aborting without force-stop or completion record"
+  fi
   campaign_abort_turn "$CAMPAIGN_TURN_STATUS"
   rec_rc=0
   campaign_recover_status "$CAMPAIGN_TURN_STATUS" || rec_rc=$?
@@ -268,7 +286,7 @@ campaign_one_turn() {
   fi
   log "turn $i $CAMPAIGN_TURN_STATUS — retry send (user never landed)"
   prev=$(campaign_assistant_count)
-  case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
+  case "$prev" in ''|*[!0-9]*) die "assistant count unreadable before retry turn $i; aborting before resend" ;; esac
   offset=$(campaign_logcat_offset)
   campaign_send_turn "$user" || { log "turn $i retry send failed — skip"; campaign_record_recovery "retry-send-failed"; return 0; }
   if campaign_wait_turn "$prev" "$slice" "$offset"; then

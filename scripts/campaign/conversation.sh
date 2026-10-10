@@ -97,8 +97,12 @@ campaign_launch() {
 # Check the process immediately before a share intent. A process death must
 # relaunch and pass the startup-marker gate before another message is sent.
 campaign_ensure_launch_pid() {
-  local expected="${CAMPAIGN_LAUNCHED_PID:-}" current
-  current=$(campaign_pidof_settled)
+  local expected="${CAMPAIGN_LAUNCHED_PID:-}" current probe_rc=0
+  current=$(campaign_pidof_settled_retry) || probe_rc=$?
+  if [ "$probe_rc" -eq 2 ]; then
+    die "share preflight: app process state stayed unknown after 3 settle rounds; aborting without force-stop"
+    return 1
+  fi
   case "$expected" in ''|*[!0-9]*) ;; *)
     case "$current" in
       ''|*[!0-9]*) ;;
@@ -195,6 +199,12 @@ campaign_new_conversation() {
 # Same conversation recovery (KV restore). Expect seconds, not the 1.8s KEXP figure.
 # Does NOT wipe chat. Caller must have pulled RKStorage already if it wanted a snapshot.
 campaign_restore_same_conv() {
+  local probe_rc=0
+  campaign_pidof_settled_retry >/dev/null || probe_rc=$?
+  if [ "$probe_rc" -eq 2 ]; then
+    die "restore: app process state stayed unknown after 3 settle rounds; aborting without force-stop"
+    return 1
+  fi
   campaign_force_stop
   COMPACTION_VAL="${COMPACTION_VAL:?}" MEMORY_VAL="${MEMORY_VAL:?}" TOOLHELP_VAL="${TOOLHELP_VAL:?}" \
     campaign_write_flags

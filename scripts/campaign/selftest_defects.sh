@@ -115,8 +115,17 @@ EOF
 EOF
 }
 
+fake_force_stop_count() {
+  if [ -f "$FAKE_DEV/fake/force-stops.log" ]; then
+    wc -l < "$FAKE_DEV/fake/force-stops.log" | tr -d ' '
+  else
+    printf '0\n'
+  fi
+}
+
 pidof_settled_case() {
-  local out="$WORK/pidof-settled" dead transient garbage flap dead_reads transient_reads garbage_reads flap_reads garbage_log_lines status
+  local out="$WORK/pidof-settled" dead transient garbage flap unknown live_then_empty
+  local dead_reads transient_reads garbage_reads flap_reads garbage_log_lines status unknown_reads live_then_empty_reads
   mkdir -p "$out"
   fake_reset marker-turn1
   : > "$FAKE_DEV/fake/pid_dead_once"
@@ -132,6 +141,12 @@ pidof_settled_case() {
   fake_reset pidof-flap
   flap=$(PKG=com.kalsa.app bash -c 'log(){ :; }; sleep(){ :; }; source "$1/watchdog.sh"; campaign_pidof_settled' _ "$HERE")
   flap_reads=$(cat "$FAKE_DEV/fake/pidof_reads")
+  fake_reset pidof-transport-fail
+  unknown=$(PKG=com.kalsa.app bash -c 'log(){ :; }; sleep(){ :; }; source "$1/watchdog.sh"; campaign_pidof_settled' _ "$HERE")
+  unknown_reads=$(cat "$FAKE_DEV/fake/pidof_reads")
+  fake_reset pidof-live-then-empty-probe-fail
+  live_then_empty=$(PKG=com.kalsa.app bash -c 'log(){ :; }; sleep(){ :; }; source "$1/watchdog.sh"; campaign_pidof_settled' _ "$HERE")
+  live_then_empty_reads=$(cat "$FAKE_DEV/fake/pidof_reads")
   fake_reset pidof-garbage
   (
     export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
@@ -142,6 +157,7 @@ pidof_settled_case() {
     source "$REPO/scripts/ci-lib.sh"
     source "$HERE/logcat.sh"
     source "$HERE/watchdog.sh"
+    source "$REPO/scripts/device-share-send.sh"
     source "$HERE/turn.sh"
     campaign_logcat_start "$out/garbage-logcat.txt"
     campaign_wait_turn 0 "$out/garbage-slice.txt" 0 || :
@@ -168,45 +184,161 @@ pidof_settled_case() {
     && [ "$transient_reads" -eq 3 ] && [ "$garbage" = unknown ] && [ "$garbage_reads" -eq 6 ] \
     && [ "$garbage_log_lines" -eq 1 ] \
     && [ "$flap" = 4242 ] && [ "$flap_reads" -eq 6 ] && [ "$garbage_status" != pid-death ] \
+    && [ "$unknown" = unknown ] && [ "$unknown_reads" -eq 3 ] \
+    && [ "$live_then_empty" = unknown ] && [ "$live_then_empty_reads" -eq 4 ] \
     && [ "$status" = pid-death ]; then
-    ok "pidof settles after 3 death reads, preserves live/flapping PIDs, and treats garbage as unknown"
+    ok "pidof requires a healthy transport to settle death and treats failed probes as unknown"
   else
-    bad "pidof settle wrong (dead='${dead:-empty}'/$dead_reads transient=$transient/$transient_reads garbage=$garbage/$garbage_reads logs=$garbage_log_lines flap=$flap/$flap_reads status=$garbage_status death=$status)"
+    bad "pidof settle wrong (dead='${dead:-empty}'/$dead_reads transient=$transient/$transient_reads garbage=$garbage/$garbage_reads logs=$garbage_log_lines flap=$flap/$flap_reads unknown=$unknown/$unknown_reads live_then_empty=$live_then_empty/$live_then_empty_reads status=$garbage_status death=$status)"
+  fi
+}
+
+unknown_pid_callers_case() {
+  local out="$WORK/unknown-pid-callers" rc force_stops
+  rm -rf "$out"; mkdir -p "$out"
+  fake_reset pidof-transport-fail
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/conversation.sh"
+    source "$HERE/watchdog.sh"
+    CAMPAIGN_LAUNCHED_PID=4242
+    sleep() { :; }
+    campaign_ensure_launch_pid
+  ) > "$out/conversation-ensure.log" 2>&1
+  rc=$?
+  force_stops=$(fake_force_stop_count)
+  if [ "$rc" -ne 0 ] && [ "$force_stops" -eq 0 ] \
+    && grep -q 'process state stayed unknown.*without force-stop' "$out/conversation-ensure.log"; then
+    ok "share preflight aborts on bounded unknown state without force-stop"
+  else
+    bad "share preflight acted on unknown state (rc=$rc force_stops=$force_stops)"
+    tail -5 "$out/conversation-ensure.log" | sed 's/^/   | /'
+  fi
+
+  fake_reset pidof-transport-fail
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    sleep() { :; }
+    campaign_launch() { :; }
+    campaign_reinstall_r() { : > "$out/reinstalled"; }
+    campaign_relaunch_or_reinstall
+  ) > "$out/recovery-relaunch.log" 2>&1
+  rc=$?
+  force_stops=$(fake_force_stop_count)
+  if [ "$rc" -ne 0 ] && [ "$force_stops" -eq 0 ] && [ ! -e "$out/reinstalled" ] \
+    && grep -q 'process state stayed unknown.*without reinstall or force-stop' "$out/recovery-relaunch.log"; then
+    ok "recovery aborts on bounded unknown state without reinstall or force-stop"
+  else
+    bad "recovery acted on unknown state (rc=$rc force_stops=$force_stops)"
+    tail -5 "$out/recovery-relaunch.log" | sed 's/^/   | /'
+  fi
+
+  fake_reset pidof-transport-fail
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/conversation.sh"
+    sleep() { :; }
+    campaign_restore_same_conv
+  ) > "$out/conversation-restore.log" 2>&1
+  rc=$?
+  force_stops=$(fake_force_stop_count)
+  if [ "$rc" -ne 0 ] && [ "$force_stops" -eq 0 ] \
+    && grep -q 'process state stayed unknown.*without force-stop' "$out/conversation-restore.log"; then
+    ok "same-conversation recovery aborts on unknown state without force-stop"
+  else
+    bad "same-conversation recovery acted on unknown state (rc=$rc force_stops=$force_stops)"
+    tail -5 "$out/conversation-restore.log" | sed 's/^/   | /'
+  fi
+
+  fake_reset pidof-transport-fail
+  sed -n '/^campaign_restore_same_conv() {/,/^}/p' "$HERE/run-t20c.sh" > "$out/t20c-restore.sh"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    source "$REPO/scripts/ci-lib.sh"
+    campaign_app_running() { return 2; }
+    campaign_force_stop() { : > "$FAKE_DEV/fake/force-stops.log"; }
+    campaign_write_flags() { :; }
+    campaign_launch() { :; }
+    campaign_wait_ready() { :; }
+    source "$out/t20c-restore.sh"
+    campaign_restore_same_conv
+  ) > "$out/t20c-restore.log" 2>&1
+  rc=$?
+  force_stops=$(fake_force_stop_count)
+  if [ "$rc" -ne 0 ] && [ "$force_stops" -eq 0 ] \
+    && grep -q 'process state stayed unknown.*without force-stop' "$out/t20c-restore.log"; then
+    ok "T20C thermal restore aborts on unknown state without force-stop"
+  else
+    bad "T20C thermal restore acted on unknown state (rc=$rc force_stops=$force_stops)"
+    tail -5 "$out/t20c-restore.log" | sed 's/^/   | /'
   fi
 }
 
 sql_write_state_gate_case() {
-  local out="$WORK/sql-state-gate" garbage_rc garbage_reads blank_rc blank_reads blip_rc reads settled_rc settled_reads settled_value
+  local out="$WORK/sql-state-gate" garbage_rc garbage_reads blank_rc blank_reads blip_rc reads settled_rc settled_reads settled_value after_blank_rc after_blank_reads
   mkdir -p "$out"
   fake_reset sql-read-garbage
-  ( export PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/garbage.log" 2>&1
+  ( export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/garbage.log" 2>&1
   garbage_rc=$?
   garbage_reads=$(cat "$FAKE_DEV/fake/app-state-reads" 2>/dev/null || printf 0)
   fake_reset sql-read-blank
-  ( export PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/blank.log" 2>&1
+  ( export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/blank.log" 2>&1
   blank_rc=$?
   blank_reads=$(cat "$FAKE_DEV/fake/app-state-reads" 2>/dev/null || printf 0)
   fake_reset sql-read-blip
-  ( export PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/blip.log" 2>&1
+  ( export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/blip.log" 2>&1
   blip_rc=$?
   reads=$(cat "$FAKE_DEV/fake/app-state-reads" 2>/dev/null || printf 0)
   fake_reset sql-read-settled
-  ( export PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('sql-settled-test','written');" sql-settled-test written ) >"$out/settled.log" 2>&1
+  ( export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('sql-settled-test','written');" sql-settled-test written ) >"$out/settled.log" 2>&1
   settled_rc=$?
   settled_reads=$(cat "$FAKE_DEV/fake/app-state-reads" 2>/dev/null || printf 0)
   settled_value=$(sqlite3 "$FAKE_DEV/databases/RKStorage" "SELECT value FROM catalystLocalStorage WHERE key='sql-settled-test';")
+  fake_reset sql-after-write-blank
+  ( export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device; source "$REPO/scripts/ci-lib.sh"; die() { exit 9; }; sql_write "SELECT 1;" x y ) >"$out/after-blank.log" 2>&1
+  after_blank_rc=$?
+  after_blank_reads=$(cat "$FAKE_DEV/fake/app-state-reads" 2>/dev/null || printf 0)
   if [ "$garbage_rc" -eq 9 ] && [ "$garbage_reads" -eq 3 ] \
     && [ "$blank_rc" -eq 9 ] && [ "$blank_reads" -eq 3 ] \
     && [ "$blip_rc" -eq 9 ] && [ "$reads" -eq 2 ] && [ "$settled_rc" -eq 0 ] \
-    && [ "$settled_reads" -eq 4 ] && [ "$settled_value" = written ]; then
-    ok "SQL gate retries three blank/garbage reads, rejects a running app, and verifies a settled database write"
+    && [ "$settled_reads" -eq 6 ] && [ "$settled_value" = written ] \
+    && [ "$after_blank_rc" -eq 9 ] && [ "$after_blank_reads" -eq 6 ]; then
+    ok "SQL gates require three settled reads before and after a database write"
   else
-    bad "device SQL gate wrong (garbage_rc=$garbage_rc garbage_reads=$garbage_reads blank_rc=$blank_rc blank_reads=$blank_reads blip_rc=$blip_rc blip_reads=$reads settled_rc=$settled_rc settled_reads=$settled_reads value=$settled_value)"
+    bad "device SQL gate wrong (garbage_rc=$garbage_rc garbage_reads=$garbage_reads blank_rc=$blank_rc blank_reads=$blank_reads blip_rc=$blip_rc blip_reads=$reads settled_rc=$settled_rc settled_reads=$settled_reads value=$settled_value after_blank_rc=$after_blank_rc after_blank_reads=$after_blank_reads)"
+  fi
+}
+
+fake_force_stop_markers_case() {
+  fake_reset vanish
+  : > "$FAKE_DEV/fake/pid_dead_once"
+  : > "$FAKE_DEV/fake/vanished"
+  adb shell am force-stop com.kalsa.app
+  local force_stops
+  force_stops=$(fake_force_stop_count)
+  if [ -f "$FAKE_DEV/fake/pid_dead_once" ] && [ -f "$FAKE_DEV/fake/vanished" ] \
+    && [ "$force_stops" -eq 1 ]; then
+    ok "fake force-stop preserves crash and vanish markers until relaunch"
+  else
+    bad "fake force-stop erased its crash oracle (force_stops=$force_stops)"
   fi
 }
 
 pidof_settled_case
+unknown_pid_callers_case
 sql_write_state_gate_case
+fake_force_stop_markers_case
 
 t20c_config_flags_case() {
   local out="$WORK/t20c-g2-flags" no_flags="$WORK/t20c-no-flags" serial rc
@@ -215,13 +347,18 @@ t20c_config_flags_case() {
   serial=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["device"])' "$REPO/campaigns/t20c-g2.json")
   env FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
     ANDROID_SERIAL="$serial" OUT="$out" CAMPAIGN_CONFIG="$REPO/campaigns/t20c-g2.json" \
-    CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" CAMPAIGN_METRO_BUNDLE_URL= \
     bash "$HERE/run-t20c.sh" > "$out/run.log" 2>&1
   rc=$?
-  if [ "$rc" -ne 0 ] && grep -Fq 'T20C config flags compaction=anchored memory=0 toolhelp=0' "$out/run.log"; then
-    ok "run-t20c resolves compaction=anchored and sibling flags from campaigns/t20c-g2.json"
+  if [ "$serial" = "adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp" ] \
+    && [ "$rc" -eq 1 ] \
+    && grep -Fq 'T20C config flags compaction=anchored memory=0 toolhelp=0' "$out/run.log" \
+    && grep -Fq 'JavaScript provenance gate failed before any device operation; set CAMPAIGN_METRO_BUNDLE_URL' "$out/run.log" \
+    && ! grep -Fq 'ANDROID_SERIAL must be exactly' "$out/run.log" \
+    && ! grep -Fq 'battery preflight' "$out/run.log"; then
+    ok "G2 flags load and its mDNS serial passes the exact check before the expected Metro gate refusal"
   else
-    bad "run-t20c config flags did not resolve from G2 (rc=$rc)"
+    bad "G2 config preflight wrong (rc=$rc serial=$serial)"
     tail -5 "$out/run.log" | sed 's/^/   | /'
   fi
   mkdir -p "$no_flags/t20c" "$no_flags/out"
@@ -234,7 +371,7 @@ json.dump(cfg, open(sys.argv[2], "w", encoding="utf-8"))
 PY
   env FAKE_DEV="$FAKE_DEV" PKG=com.kalsa.app BENCH_TARGET=device \
     ANDROID_SERIAL="$serial" OUT="$no_flags/out" CAMPAIGN_CONFIG="$no_flags/config.json" \
-    CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" \
+    CAMPAIGN_STARTUP_MARKER="$CAMPAIGN_STARTUP_MARKER" CAMPAIGN_METRO_BUNDLE_URL= \
     bash "$HERE/run-t20c.sh" > "$no_flags/out/run.log" 2>&1
   rc=$?
   if [ "$rc" -eq 2 ] && grep -Fq 'has no complete T20C arm flags' "$no_flags/out/run.log"; then
@@ -245,6 +382,84 @@ PY
 }
 
 t20c_config_flags_case
+
+assistant_count_failure_case() {
+  local out="$WORK/assistant-count-failure" failed malformed wait_rc status
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    sql() {
+      case "$1" in
+        *"$CONVERSATIONS_INDEX_KEY"*) printf '\n' ;;
+        *) return 1 ;;
+      esac
+    }
+    failed=$(device_history_assistant_count)
+    printf '%s\n' "$failed" > "$out/failed.txt"
+    sql() {
+      case "$1" in
+        *"$CONVERSATIONS_INDEX_KEY"*) printf '\n' ;;
+        *) printf '%s\n' '{broken json' ;;
+      esac
+    }
+    malformed=$(device_history_assistant_count)
+    printf '%s\n' "$malformed" > "$out/malformed.txt"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_I=7
+    campaign_logcat_ensure() { :; }
+    campaign_logcat_slice() { :; }
+    campaign_turn_tool_state() { printf '%s\n' exhausted; }
+    campaign_adb_state() { printf '%s\n' device; }
+    campaign_pidof_settled() { printf '%s\n' 4242; }
+    campaign_assistant_count() { printf '%s\n' err; }
+    CAMPAIGN_TURN_TIMEOUT_MS=1 CAMPAIGN_TOOLCALL_QUIET_MS=0
+    campaign_wait_turn 0 "$out/slice.txt" 0
+    wait_rc=$?
+    printf '%s\n' "$wait_rc" > "$out/wait-rc.txt"
+    printf '%s\n' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+  ) > "$out/count.log" 2>&1
+  failed=$(cat "$out/failed.txt" 2>/dev/null || printf missing)
+  malformed=$(cat "$out/malformed.txt" 2>/dev/null || printf missing)
+  wait_rc=$(cat "$out/wait-rc.txt" 2>/dev/null || printf missing)
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ "$failed" = err ] && [ "$malformed" = err ] \
+    && [ "$wait_rc" -ne 0 ] && [ "$status" = db-read-error ]; then
+    ok "failed and malformed assistant counts stay err and cannot complete a toolcap turn"
+  else
+    bad "assistant count failure was treated as completion (failed=$failed malformed=$malformed rc=$wait_rc status=$status)"
+    tail -5 "$out/count.log" | sed 's/^/   | /'
+  fi
+}
+
+stale_toolcap_status_case() {
+  local out="$WORK/stale-toolcap-status" status
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" SCRIPT="$REPO/campaigns/t20c/script.json"
+    source "$HERE/oneTurn.sh"
+    campaign_assistant_count() { printf '%s\n' 0; }
+    campaign_logcat_offset() { printf '%s\n' 0; }
+    campaign_send_turn() { return 1; }
+    campaign_record_recovery() { printf '%s\n' "$1" > "$out/recovery.txt"; }
+    log() { :; }
+    sleep() { :; }
+    CAMPAIGN_TURN_STATUS=toolcap
+    campaign_one_turn 1 'stale status reset probe'
+    printf '%s\n' "${CAMPAIGN_TURN_STATUS:-empty}" > "$out/status.txt"
+  ) > "$out/turn.log" 2>&1
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ "$status" = empty ] && [ "$(cat "$out/recovery.txt" 2>/dev/null)" = send-failed ]; then
+    ok "oneTurn clears a stale toolcap status before retry and the completion-signal gate"
+  else
+    bad "oneTurn retained stale toolcap status (status=$status)"
+    tail -5 "$out/turn.log" | sed 's/^/   | /'
+  fi
+}
+
+assistant_count_failure_case
+stale_toolcap_status_case
 
 db_put_messages() {
   python3 - "$FAKE_DEV/databases/RKStorage" "$1" <<'PY'
@@ -486,6 +701,7 @@ completion_backstop_case() {
     source "$REPO/scripts/device-share-send.sh"
     source "$HERE/logcat.sh"
     source "$HERE/watchdog.sh"
+    source "$REPO/scripts/device-share-send.sh"
     source "$HERE/turn.sh"
     source "$HERE/oneTurn.sh"
     CAMPAIGN_TURN_TIMEOUT_MS=180000 CAMPAIGN_COMPLETION_PROGRESS_WAIT_MS=30000
@@ -2045,6 +2261,7 @@ tool_exhausted_record_case() {
     source "$REPO/scripts/ci-lib.sh"
     source "$HERE/logcat.sh"
     source "$HERE/watchdog.sh"
+    source "$REPO/scripts/device-share-send.sh"
     source "$HERE/turn.sh"
     source "$HERE/oneTurn.sh"
     campaign_pidof_settled() { printf '%s\n' 4242; }
@@ -2091,6 +2308,59 @@ PY
 
 tool_exhausted_record_case
 
+toolcap_no_answer_case() {
+  local out="$WORK/toolcap-no-answer" status no_answer stats
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/turn.sh"
+    source "$HERE/oneTurn.sh"
+    log() { :; }
+    campaign_logcat_ensure() { :; }
+    campaign_logcat_slice() { :; }
+    campaign_turn_tool_state() { printf '%s\n' exhausted; }
+    campaign_adb_state() { printf '%s\n' device; }
+    campaign_pidof_settled() { printf '%s\n' 4242; }
+    campaign_assistant_count() { printf '%s\n' 19; }
+    sleep() { :; }
+    CAMPAIGN_TURN_I=20 CAMPAIGN_TOOLCALL_QUIET_MS=0
+    campaign_wait_turn 19 "$out/slice.txt" 0
+    printf '%s\n' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    printf '%s\n' "${CAMPAIGN_TOOLCAP_NO_ANSWER:-0}" > "$out/no-answer.txt"
+    printf '%s\n' '{"i":20}' > "$out/no-answer-record.json"
+    campaign_stamp_toolcap_record "$out/no-answer-record.json"
+    python3 - "$out/acceptance.jsonl" "$out/no-answer-record.json" <<'PY'
+import json, sys
+path, no_answer_path = sys.argv[1:]
+with open(path, "w", encoding="utf-8") as stream:
+    for turn in range(1, 20):
+        stream.write(json.dumps({"i": turn}) + "\n")
+    with open(no_answer_path, encoding="utf-8") as source:
+        stream.write(source.read() + "\n")
+PY
+  ) > "$out/no-answer.log" 2>&1
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  no_answer=$(cat "$out/no-answer.txt" 2>/dev/null || printf missing)
+  stats=$(python3 "$HERE/acceptanceStats.py" "$out/acceptance.jsonl" 2>/dev/null || printf missing)
+  if [ "$status" = toolcap ] && [ "$no_answer" = 1 ] \
+    && [ "$stats" = '19 1 1 0 0' ] \
+    && python3 - "$out/no-answer-record.json" <<'PY'
+import json, sys
+record = json.load(open(sys.argv[1], encoding="utf-8"))
+raise SystemExit(0 if record.get("toolcapNoAnswer") is True else 1)
+PY
+  then
+    ok "toolcap without an assistant bubble is recorded and excluded from the 20-turn acceptance count"
+  else
+    bad "no-answer toolcap passed or was not recorded (status=$status no_answer=$no_answer stats=$stats)"
+    tail -5 "$out/no-answer.log" | sed 's/^/   | /'
+  fi
+}
+
+toolcap_no_answer_case
+
 # ── the tool gate's knobs: quiet window, round bound, both wire forms ───────
 # Quiet window: explicit and poll-aware — max(1500, 2 x poll), env override.
 toolcall_quiet_ms_case() {
@@ -2110,7 +2380,7 @@ toolcall_quiet_ms_case
 
 # Both wire forms of KALSA_TOOLCALL parse (shared dual-needle pattern).
 tool_state_forms_case() {
-  local out="$WORK/tool-forms" unquoted quoted pending_q rc
+  local out="$WORK/tool-forms" unquoted quoted pending_q invalid missing_executed rc
   rm -rf "$out"; mkdir -p "$out"
   printf '%s\n' '09-27 16:42:10.885 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"executed":1}' > "$out/unquoted.txt"
   printf '%s\n' "09-27 16:44:33.975 18337 18368 I ReactNativeJS: 'KALSA_TOOLCALL', '{\"turnId\":\"1\",\"round\":2,\"executed\":0}'" > "$out/quoted.txt"
@@ -2127,6 +2397,8 @@ tool_state_forms_case() {
   printf '%s\n' '10-09 14:33:37.317 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":1}' \
     '10-09 14:34:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLROUND_EXHAUSTED {"turnId":"1","roundsUsed":3}' \
     '10-09 14:35:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":2,"executed":1}' > "$out/un-stuck.txt"
+  printf '%s\n' '10-09 14:35:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":3,"executed":"not-a-number"}' > "$out/invalid.txt"
+  printf '%s\n' '10-09 14:35:52.364 14923 14950 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":3}' > "$out/missing-executed.txt"
   (
     log() { :; }
     source "$HERE/turn.sh"
@@ -2139,13 +2411,16 @@ tool_state_forms_case() {
     m=$(campaign_turn_tool_state "$out/mention.txt")
     mm=$(campaign_turn_tool_state "$out/mismatch.txt")
     us=$(campaign_turn_tool_state "$out/un-stuck.txt")
+    invalid=$(campaign_turn_tool_state "$out/invalid.txt")
+    missing_executed=$(campaign_turn_tool_state "$out/missing-executed.txt")
     [ "$u" = "pending 0" ] && [ "$q" = "final" ] && [ "$qp" = "pending 3" ] \
       && [ "$a" = "absent" ] && [ "$x" = "exhausted" ] && [ "$xq" = "exhausted" ] && [ "$m" = "pending 2" ] \
-      && [ "$mm" = "pending 2" ] && [ "$us" = "pending 2" ]
+      && [ "$mm" = "pending 2" ] && [ "$us" = "pending 2" ] \
+      && [ "$invalid" = absent ] && [ "$missing_executed" = absent ]
   )
   rc=$?
   if [ "$rc" -eq 0 ]; then
-    ok "tool state parses both wire forms and clears EXHAUSTED on any later same-turn toolcall"
+    ok "tool state parses both wire forms, clears stale EXHAUSTED, and fails closed on invalid executed values"
   else
     bad "tool state wire forms wrong (rc=$rc)"
   fi

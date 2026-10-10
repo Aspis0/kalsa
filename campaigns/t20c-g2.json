@@ -1,6 +1,6 @@
 {
  "name": "t20c",
- "device": "192.168.1.152:36299",
+ "device": "adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp",
  "model": "lfm2.5-2.6b",
  "pkg": "com.kalsa.app",
  "resultsDir": "results/t20c-g2-campaign",
