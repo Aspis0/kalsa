@@ -7,6 +7,7 @@
 import { sha256Hex } from "./hash";
 import { methodNotAllowed, notFound, notModified, serviceUnavailable } from "./http";
 import { installerResponse } from "./installer";
+import { pickLang } from "./language";
 import { admit, installerPath } from "./link";
 import { readManifest } from "./manifest";
 import { PAGE_HEADERS, downloadPageHtml } from "./page";
@@ -46,12 +47,16 @@ async function route(request: Request, env: Env): Promise<Response> {
   const manifest = await readManifest(env.DOWNLOADS);
 
   if (admission.kind === "page") {
-    const html = downloadPageHtml(manifest, admission.key);
+    const html = downloadPageHtml(manifest, admission.key, pickLang(url, request.headers.get("accept-language")));
     const etag = `"${await sha256Hex(html)}"`;
-    if (request.headers.get("if-none-match") === etag) return notModified(etag);
+    if (request.headers.get("if-none-match") === etag) {
+      const unchanged = notModified(etag);
+      unchanged.headers.set("vary", "accept-language");
+      return unchanged;
+    }
     return new Response(method === "HEAD" ? null : html, {
       status: 200,
-      headers: { ...PAGE_HEADERS, etag },
+      headers: { ...PAGE_HEADERS, etag, vary: "accept-language" },
     });
   }
   return installerResponse(

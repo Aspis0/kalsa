@@ -156,11 +156,16 @@ base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
 is pinned by hash; `page.test.ts` recomputes it.
 
 The tester guide is generated: `guide.ts` is written by `scripts/build-guide.mjs`
-from `kalsa-brain/docs/ALPHA-TESTERS.md`. Edit the markdown, then run
+from `kalsa-brain/docs/ALPHA-TESTERS.md` and its Italian sibling `ALPHA-TESTERS.it.md`
+(both must exist; keep them in step). Edit the markdown, then run
 `node scripts/build-guide.mjs <path to the markdown>` and commit `guide.ts`. The
 release script refuses to publish while `guide.ts` is stale. The guide contains no
 URL: section 7 is dropped from the page, and the markdown asks testers to use the
 private link they were sent.
+
+The page is in English or Italian: `?lang=it` / `?lang=en` (the switch link at the
+top) wins, otherwise the browser's first preferred language, otherwise English. Page
+responses carry `Vary: accept-language`.
 
 ## One-time setup (owner)
 

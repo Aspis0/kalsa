@@ -2,7 +2,7 @@
  * The download page behind the secret link: one static document listing the
  * current installers from the manifest. No script, no cookies, no third-party requests.
  */
-import { GUIDE_HTML } from "./guide";
+import { COPY, type Lang } from "./language";
 import { installerPath } from "./link";
 import type { Installer, Manifest } from "./manifest";
 
@@ -39,6 +39,7 @@ h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
 }
 .soon { margin: 0; opacity: 0.7; }
 .first { margin-top: 1.5rem; }
+.lang { margin: 0 0 1rem; text-align: right; font-size: 0.9rem; }
 #tester-guide { margin-top: 2.5rem; border-top: 1px solid currentColor; }
 h2[id] { scroll-margin-top: 1rem; }
 p { margin: 0.6rem 0; }
@@ -58,7 +59,7 @@ code {
 }
 `;
 
-export const STYLE_HASH = "4BK+0qDdiKp7Ke191sF/qAr3bMRnXCYdmfVo8AXf+5s=";
+export const STYLE_HASH = "uw8nF51Bjr/3SoEkbyYc+QyFBSVKHwE7vDEX8mSxu6o=";
 
 export const CSP_HEADER = [
   "default-src 'none'",
@@ -82,8 +83,8 @@ function formatSize(bytes: number): string {
 
 // Nothing here is escaped: the sha256, the size, the constant labels and the
 // link key are all restricted to characters that need no escaping.
-function platformBlock(label: string, path: string, installer: Installer | null): string {
-  if (installer === null) return `<div class="platform"><p class="soon">${label}: coming soon</p></div>`;
+function platformBlock(label: string, soon: string, path: string, installer: Installer | null): string {
+  if (installer === null) return `<div class="platform"><p class="soon">${label}: ${soon}</p></div>`;
   return `<div class="platform">
 <a class="button" href="${path}?v=${installer.sha256}">${label}</a>
 <p class="meta">${formatSize(installer.size)}</p>
@@ -91,9 +92,11 @@ function platformBlock(label: string, path: string, installer: Installer | null)
 </div>`;
 }
 
-export function downloadPageHtml(manifest: Manifest, key: string): string {
+export function downloadPageHtml(manifest: Manifest, key: string, lang: Lang): string {
+  const copy = COPY[lang];
+  const other = copy.switchTo;
   return `<!doctype html>
-<html lang="en">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -102,14 +105,15 @@ export function downloadPageHtml(manifest: Manifest, key: string): string {
 </head>
 <body>
 <main>
+<p class="lang"><a href="?lang=${other.lang}" hreflang="${other.lang}" lang="${other.lang}">${other.label}</a></p>
 <h1>Kalsa alpha</h1>
-<p class="lead">An AI that runs on your own computer: your messages are answered there, not in the cloud.</p>
-${platformBlock("Download for Windows", installerPath(key, "windows"), manifest.windows)}
-${platformBlock("Download for Mac (Apple silicon)", installerPath(key, "mac"), manifest.mac)}
-<p class="first">Read this first: <a href="#windows">Windows</a> · <a href="#mac">Mac (Apple silicon)</a></p>
+<p class="lead">${copy.lead}</p>
+${platformBlock(copy.windows, copy.comingSoon, installerPath(key, "windows"), manifest.windows)}
+${platformBlock(copy.mac, copy.comingSoon, installerPath(key, "mac"), manifest.mac)}
+<p class="first">${copy.readFirst}: <a href="#windows">Windows</a> · <a href="#mac">Mac (Apple silicon)</a></p>
 <section id="tester-guide">
-<h2>Tester guide</h2>
-${GUIDE_HTML}
+<h2>${copy.guideTitle}</h2>
+${copy.guide}
 </section>
 </main>
 </body>

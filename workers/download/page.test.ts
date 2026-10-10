@@ -125,7 +125,7 @@ describe("strict headers", () => {
   });
 
   test("the inline style in the page is exactly STYLE", () => {
-    expect(downloadPageHtml({ windows: null, mac: null }, "k".repeat(32))).toContain(`<style>${STYLE}</style>`);
+    expect(downloadPageHtml({ windows: null, mac: null }, "k".repeat(32), "en")).toContain(`<style>${STYLE}</style>`);
   });
 });
 
