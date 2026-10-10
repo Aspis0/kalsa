@@ -15,8 +15,8 @@ use crate::room;
 use crate::sample::{post_to, request_ask, serves_id, Ask};
 
 /// The tune's budget in whole seconds, for the walk's own report: the page
-/// has nothing to average before two lifetimes have finished, and this is
-/// the clock its wait counts down from instead.
+/// has nothing to average before the first lifetime has finished, and
+/// scales this to the plan's size for its first estimate instead.
 pub const TOTAL_BUDGET_SECONDS: u64 = 1500;
 
 /// One clock over both passes, checked before each lifetime and never

@@ -4057,11 +4057,13 @@ const tests = {
     check("walkProgress: the closing report fills it", tunePercent(closed(4, 4), 0) === 100);
     check("walkProgress: a plan of nothing shows none", tunePercent(closed(0, 0), 0) === 0);
 
-    // The wait: hidden until two candidates have finished — one sample
-    // anchors it to whatever that candidate happened to cost.
+    // The wait: nothing before a candidate has finished, and the first one
+    // that does sets the rate.
+    check("walkProgress: no wait before a candidate has finished", tuneWait(at(0, 4, 1), 0, 0, 0) === null);
     check(
-      "walkProgress: no wait until two candidates have finished",
-      tuneWait(at(1, 4, 2), 0, 100, 1) === null && tuneWait(at(0, 4, 1), 0, 0, 0) === null,
+      "walkProgress: one finished candidate sets the rate",
+      JSON.stringify(tuneWait(at(1, 4, 2), 0, 100, 1)) === '{"kind":"minutes","minutes":5}',
+      JSON.stringify(tuneWait(at(1, 4, 2), 0, 100, 1)),
     );
     // The rate is the whole tune's: everything measured so far over the
     // candidates measured, the running one's share counted in both.
@@ -4156,20 +4158,20 @@ const tests = {
     check("walkProgress: the running one is timed against the average", tuneShare(at(1, 4, 2), 50, 100) === 0.5);
     check("walkProgress: no average means no share", tuneShare(at(1, 4, 2), 50, 0) === 0);
 
-    // The first test's own wait: nothing to average yet, so the budget —
-    // the end no lifetime may begin past — carries it as a CEILING, and the
-    // figure only comes down as that test spends the tune's clock. (Budget
-    // 1500 s plus the one running lifetime's 120 s is 27 min; the extra 15 s
-    // a tick is what the wall clock adds between two reports.)
+    // The first test's own wait: nothing to average yet, so the plan-scaled
+    // estimate carries it, said as "about", and the figure only comes down as
+    // that test spends the tune's clock. (Sixteen tests at 1500 s / 16 each plus
+    // the one running lifetime's 120 s is 27 min; the extra 15 s a tick is
+    // what the wall clock adds between two reports.)
     const budgeted = [0, 15, 30, 45, 60, 75, 90].map((elapsed) =>
       tuneWait(at(0, 16, 1), 0, elapsed, 0, 1500),
     );
     check(
-      "walkProgress: the first test says the budget's ceiling",
-      JSON.stringify(budgeted[0]) === '{"kind":"ceiling","minutes":27}' &&
+      "walkProgress: the first test says the plan-scaled estimate",
+      JSON.stringify(budgeted[0]) === '{"kind":"planned","minutes":27}' &&
         budgeted.every(
           (wait, index) =>
-            wait !== null && wait.kind === "ceiling" && (index === 0 || wait.minutes <= budgeted[index - 1].minutes),
+            wait !== null && wait.kind === "planned" && (index === 0 || wait.minutes <= budgeted[index - 1].minutes),
         ),
       `${JSON.stringify(budgeted[0])} … ${JSON.stringify(budgeted[budgeted.length - 1])}`,
     );
@@ -4193,36 +4195,76 @@ const tests = {
       JSON.stringify(ticks),
     );
 
-    // Before two samples the figure is the budget's ceiling and says so —
-    // the page has an "up to" for it and an "about" for the estimate, and
-    // the kind is what picks between them.
+    // Before a candidate has finished the figure is the plan-scaled estimate,
+    // and the kind is what the page words as "about".
     check(
-      "walkProgress: before two samples the wait is the budget's ceiling",
-      JSON.stringify(tuneWait(at(0, 16, 1), 0, 5, 0, 1500)) === '{"kind":"ceiling","minutes":27}' &&
-        tuneWait(at(1, 16, 2), 0, 200, 1, 1500)?.kind === "ceiling" &&
+      "walkProgress: before a candidate finishes the wait is the plan-scaled estimate",
+      JSON.stringify(tuneWait(at(0, 16, 1), 0, 5, 0, 1500)) === '{"kind":"planned","minutes":27}' &&
+        tuneWait(at(1, 16, 2), 0, 200, 1, 1500)?.kind === "minutes" &&
         tuneWait(at(2, 16, 3), 0, 400, 2, 1500)?.kind === "minutes",
       `${JSON.stringify(tuneWait(at(0, 16, 1), 0, 5, 0, 1500))} … ${JSON.stringify(tuneWait(at(2, 16, 3), 0, 400, 2, 1500))}`,
     );
 
-    // A candidate that closes slower than the ones behind it lifts the raw
-    // estimate (150 s → 600 s here, 3 min → 10): the figure the line shows
-    // may not lift with it, because the page hands back the smallest one it
-    // has already shown this tune.
-    const beforeClose = tuneWait(at(2, 8, 3), 1, 90, 2, 1500);
-    const rawClose = tuneWait(at(3, 8, 3), 0, 360, 3, 1500);
-    const heldClose = tuneWait(at(3, 8, 3), 0, 360, 3, 1500, beforeClose?.minutes ?? null);
+    // A three-test plan at t=0: 3 × 93.75 s + 120 s is 401 s, so 7 min.
     check(
-      "walkProgress: a slow candidate's close cannot raise the figure",
-      beforeClose?.kind === "minutes" &&
-        beforeClose.minutes === 3 &&
-        rawClose?.minutes === 10 &&
-        heldClose?.minutes === 3,
-      `${JSON.stringify(beforeClose)} → ${JSON.stringify(rawClose)} → ${JSON.stringify(heldClose)}`,
+      "walkProgress: a three-test plan's estimate is 7 min before any finishes",
+      JSON.stringify(tuneWait(at(0, 3, 1), 0, 0, 0, 1500)) === '{"kind":"planned","minutes":7}',
+      JSON.stringify(tuneWait(at(0, 3, 1), 0, 0, 0, 1500)),
+    );
+    // One candidate of 70 s with two left: 2 × 70 s = 140 s, which the page
+    // rounds to 2 min (2.33 min).
+    check(
+      "walkProgress: one finished candidate of 70 s, two left, reads 2 min",
+      JSON.stringify(tuneWait(at(1, 3, 2), 0, 70, 1, 1500)) === '{"kind":"minutes","minutes":2}',
+      JSON.stringify(tuneWait(at(1, 3, 2), 0, 70, 1, 1500)),
+    );
+    // A fast first candidate reads 2 min; a slow second one (120 s, whole
+    // tune 140 s) moves the rate estimate to 7 min: five minutes larger, so
+    // the figure rises. The 8-test plan's own estimate is not spent yet.
+    const fastFirst = tuneWait(at(1, 8, 2), 0, 20, 1, 1500);
+    const slowSecond = tuneWait(at(2, 8, 3), 0, 140, 2, 1500, fastFirst?.minutes ?? null);
+    check(
+      "walkProgress: a slow second candidate raises a fast first figure",
+      fastFirst?.kind === "minutes" &&
+        fastFirst.minutes === 2 &&
+        slowSecond?.kind === "minutes" &&
+        slowSecond.minutes === 7,
+      `${JSON.stringify(fastFirst)} → ${JSON.stringify(slowSecond)}`,
+    );
+    // A raw estimate only a minute above the figure shown is held: the line
+    // falls with fresher figures and rises only by two minutes or more.
+    const smallRise = tuneWait(at(3, 8, 3), 0, 144, 3, 1500, 3);
+    check(
+      "walkProgress: a rise under two minutes is held at the shown figure",
+      JSON.stringify(smallRise) === '{"kind":"minutes","minutes":3}',
+      JSON.stringify(smallRise),
+    );
+    // The plan-scaled estimate of a 360 s tune: 510 s left of the 8-test
+    // plan's 870 s, 9 min, against the 3 min shown — the figure rises.
+    check(
+      "walkProgress: a slow close past two minutes raises the figure",
+      JSON.stringify(tuneWait(at(3, 8, 3), 0, 360, 3, 1500, 3)) === '{"kind":"minutes","minutes":9}',
+      JSON.stringify(tuneWait(at(3, 8, 3), 0, 360, 3, 1500, 3)),
+    );
+    // The plan's estimate spent while the tune still runs: no figure, the
+    // "any moment now" line — never a 0.
+    check(
+      "walkProgress: a spent estimate with the tune still running is almost done",
+      JSON.stringify(tuneWait(at(2, 3, 3), 0, 500, 2, 1500)) === '{"kind":"almost"}' &&
+        JSON.stringify(tuneWait(at(0, 3, 1), 0, 500, 0, 1500)) === '{"kind":"almost"}',
+      `${JSON.stringify(tuneWait(at(2, 3, 3), 0, 500, 2, 1500))} … ${JSON.stringify(tuneWait(at(0, 3, 1), 0, 500, 0, 1500))}`,
+    );
+    // Under a minute left of the plan's estimate is still a figure, and the
+    // floor is one minute, never zero.
+    check(
+      "walkProgress: a figure under a minute reads one minute, never zero",
+      JSON.stringify(tuneWait(at(0, 3, 1), 0, 350, 0, 1500)) === '{"kind":"planned","minutes":1}',
+      JSON.stringify(tuneWait(at(0, 3, 1), 0, 350, 0, 1500)),
     );
 
     // The budget spent: a lifetime that began inside it is never killed
     // mid-measurement, so the end is not knowable and no figure is honest —
-    // not the ceiling's 1 min, not the estimate's 54.
+    // not the plan's 1 min, not the estimate's 54.
     check(
       "walkProgress: past the budget the wait shows no figure",
       JSON.stringify(tuneWait(at(2, 6, 3), 0, 1600, 2, 1500)) === '{"kind":"almost"}' &&
@@ -4234,8 +4276,8 @@ const tests = {
   // The owner's own reading of the first-run tune — a bare count-up beside
   // "Test 1 of 16", which he read as time still to come, when the line had
   // nothing else for the first two tests. On the real surface, through the
-  // real payload: the line names the test, says the budget's ceiling from
-  // the very first one and says it as a ceiling, holds still while the
+  // real payload: the line names the test, says the plan-scaled estimate from
+  // the very first one and says it as "about", holds still while the
   // clock under it ticks, and drops the figure altogether once the budget
   // is spent.
   async tuneLine() {
@@ -4274,7 +4316,7 @@ const tests = {
     await page.waitForTimeout(500);
     const first = await page.locator(".surface-walk").innerText();
     check(
-      "tuneLine: the first test says the budget's ceiling, as a ceiling",
+      "tuneLine: the first test says the plan-scaled estimate, as about",
       first.includes("Test 1 of 16") && first.includes("about 27 min"),
       first,
     );

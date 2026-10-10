@@ -39,6 +39,7 @@ export async function loadApp() {
         export { thinkingSupport } from "../src/lib/thinking.ts";
         export { createToolMarkupStripper } from "../src/lib/toolMarkup.ts";
         export { getBrainRead, subscribeBrainRead } from "../src/surfaces/useBrain.ts";
+        export { heldStepAfter, progressTaken, walkArmedAfter, walkStepShown } from "../src/surfaces/walkStep.ts";
         export { buildMiniappV1 } from "../src/lib/miniapp/build.ts";
         export { evaluateCalculatorFormula } from "../src/lib/miniapp/calculator.ts";
         export { MINIAPP_TEMPLATE_IDS } from "../src/lib/miniapp/templates.ts";

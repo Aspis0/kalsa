@@ -9,6 +9,7 @@ import { isPageVisible, visibleInterval } from "../lib/pageVisible";
 import { logUiEvent } from "../lib/uiLog";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./SetupProgress";
+import { heldStepAfter, progressTaken, walkArmedAfter, walkStepShown } from "./walkStep";
 import type { ChatSettings, LiveSettings } from "../lib/types";
 
 // Two seconds, not one: the state this carries changes on a person's scale —
@@ -111,6 +112,9 @@ interface BrainRead {
 
 let currentState: BrainState | null = null;
 let currentStep: ProgressStep | null = null;
+// Progress is taken only while a walk is armed (see progressTaken): a late
+// event must not write a step back after its walk has ended.
+let walkArmed = false;
 let readSnapshot: BrainRead = { state: null, step: null };
 let serverSnapshot: BrainServer | null = null;
 // This computer's own credential, fetched from Rust while the door is up.
@@ -245,6 +249,7 @@ function poll(): Promise<void> {
 
 /** One read of `brain_state` and the credential behind it, published. */
 async function readBrainState(): Promise<void> {
+  const previous = currentState?.kind ?? null;
   // A poll that does not answer keeps what this window already knows. Writing
   // `null` here — "not known" flattened into "no brain" — threw away exactly
   // the information that a door exists, and the next open in that second was
@@ -258,6 +263,8 @@ async function readBrainState(): Promise<void> {
   } else {
     currentState = null;
   }
+  currentStep = heldStepAfter(previous, currentState?.kind ?? null, currentStep);
+  walkArmed = walkArmedAfter(walkArmed, { kind: "state", previous, next: currentState?.kind ?? null });
   // The credential is fetched through its own command, never through
   // `brain_state`: the state is polled and logged-about everywhere, and the
   // secret belongs in exactly one IPC answer. Cached, but it CAN change under
@@ -323,6 +330,7 @@ function startProgress(): void {
   let registration: Promise<() => void>;
   try {
     registration = listen("brain_progress", (step: unknown) => {
+      if (!progressTaken(walkArmed, currentState !== null)) return;
       currentStep = (step as ProgressStep) || null;
       // The step IS the bar's motion: it renders from the event itself, not
       // from the read below. Hidden, the read is skipped — a walk would cost
@@ -372,6 +380,7 @@ export function subscribeBrainRead(listener: () => void): () => void {
       // The walk's step is live only while someone reads it: the next
       // reader starts from nothing, never from a stale phase.
       currentStep = null;
+      walkArmed = false;
       readSnapshot = { state: null, step: null };
     }
   };
@@ -454,14 +463,22 @@ export function withBrainDefaults(
   };
 }
 
-/** The state as words: headline, sentence, and the one honest button. */
-/// Drops the walk's live step: the walk it belonged to has answered, and
-/// its last phase must not hang on the progress screen over the answer.
+/// Drops the walk's live step and disarms it: the walk it belonged to has
+/// answered, and its last phase must not hang on the progress screen over the
+/// answer, nor come back from a late event.
 export function clearWalkStep(): void {
   currentStep = null;
+  walkArmed = walkArmedAfter(walkArmed, { kind: "end" });
   publish();
 }
 
+/// The owner starts a walk (Turn on, a model chosen, the vision download):
+/// its progress is taken from here until it ends.
+export function beginWalk(): void {
+  walkArmed = walkArmedAfter(walkArmed, { kind: "begin" });
+}
+
+/** The state as words: headline, sentence, and the one honest button. */
 export interface BrainWords {
   headline: string;
   sentence: string;
@@ -633,8 +650,7 @@ export function useBrain() {
   // suppressing it there hid the progress bar for the whole walk and put the
   // previous measurement's card in its place, which is the one thing the
   // surface's own comment says must not happen.
-  const walking = state?.kind === "stopped" || state?.kind === "starting";
-  const liveStep = walking && heldFailure === null ? read.step : null;
+  const liveStep = walkStepShown(state?.kind ?? null, heldFailure, read.step);
 
   async function act(): Promise<void> {
     if (!state) {
@@ -650,8 +666,8 @@ export function useBrain() {
         // answering goes, and so does the previous walk's last step, so what
         // appears is this walk and not the one before it.
         holdFailure(null);
-        currentStep = null;
-        publish();
+        clearWalkStep();
+        beginWalk();
         await invoke("brain_start");
         // A walk that ended without starting anything — a Turn off that
         // landed mid-walk — leaves the state stopped: its last step would
@@ -659,11 +675,11 @@ export function useBrain() {
         // before it: a start that took answers `starting` here and keeps
         // its step.
         await poll();
-        if (currentState?.kind === "stopped") {
-          currentStep = null;
-          publish();
-        }
+        if (currentState?.kind === "stopped") clearWalkStep();
       } else {
+        // A walk the owner turns off must not leave its last step behind for
+        // the stopped page to show.
+        clearWalkStep();
         await invoke("brain_stop");
       }
     } catch (error) {
@@ -698,8 +714,8 @@ export function useBrain() {
         await invoke("brain_stop");
       }
       holdFailure(null);
-      currentStep = null;
-      publish();
+      clearWalkStep();
+      beginWalk();
       await invoke("brain_start");
     } catch (error) {
       failure = rustSentence(table.rust, error, tag);

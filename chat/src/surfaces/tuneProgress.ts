@@ -4,9 +4,10 @@
 // the bar and its line must never break: full only when the tune's own report
 // says the plan ran to the end (a `cut` report never says that), a stop that
 // still owes a next start named as such (and one that does not named for what
-// it kept), a wait from the first test — said as the budget's CEILING, where
-// nothing has been averaged yet — one that never climbs inside one tune, and
-// no figure at all once the budget is spent.
+// it kept), a wait from the first test — said as the plan-scaled ESTIMATE,
+// where nothing has been averaged yet — one that falls freely and rises only
+// when a fresher figure is clearly larger, and no figure at all once the
+// budget is spent.
 
 /** The tuning half of a `brain_progress` step, as the page reads it. */
 export interface TuningStep {
@@ -17,8 +18,9 @@ export interface TuningStep {
   cut?: boolean;
   retry_next?: boolean;
   kept_winner?: boolean;
-  /** The tune's budget in whole seconds: no lifetime begins past it, so it
-      is the one end the page may name before it has anything to average. */
+  /** The tune's budget in whole seconds: no lifetime begins past it, so the
+      page sizes its plan-scaled estimate from it before anything has been
+      averaged. */
   budget_seconds?: number;
 }
 
@@ -41,13 +43,13 @@ export interface TuneFace {
 }
 
 /** What the line under the bar says about the wait: the stop's three words,
-    the budget's ceiling where nothing has been averaged yet, the minutes
+    the plan-scaled estimate where nothing has been averaged yet, the minutes
     left, or the last half minute before its end. */
 export type TuneWait =
   | { kind: "cut" }
   | { kind: "kept" }
   | { kind: "standard" }
-  | { kind: "ceiling"; minutes: number }
+  | { kind: "planned"; minutes: number }
   | { kind: "minutes"; minutes: number }
   | { kind: "almost" };
 
@@ -55,25 +57,33 @@ export type TuneWait =
     rather than a minute figure that would be wrong by the time it is read. */
 const ALMOST_SECONDS = 30;
 
-/** Two finished candidates before the wait is an average of them: one
-    sample anchors an estimate to whatever that candidate happened to cost,
-    and below two the budget's ceiling answers alone. */
-const MINIMUM_SAMPLES = 2;
+/** One finished candidate sets the rate: a measurement of this machine
+    replaces the plan-scaled estimate as the figure. */
+const MINIMUM_SAMPLES = 1;
 
-/** What the ceiling adds to the budget for the one lifetime that may be
-    running past it: kalsa-tune stops a lifetime from BEGINNING past the
-    budget and never kills one mid-measurement, naming a lifetime's ready
-    deadline (READY_TIMEOUT) as the overshoot — a lifetime may run on past
-    even that (`crates/kalsa-tune/src/measure/mod.rs`). So the number is
-    said as "about", never as a bound, and the budget's passing drops to
-    "any moment now". */
+/** The budget is sized for sixteen lifetimes averaging 93.75 s apiece
+    (`crates/kalsa-tune/src/measure/mod.rs`); the plan-scaled estimate gives
+    each planned candidate one sixteenth of it, whatever the plan's real size. */
+const LIFETIMES_IN_BUDGET = 16;
+
+/** What the plan-scaled estimate adds for the one lifetime that may be running
+    past its allowance: kalsa-tune checks the budget in aggregate, stops a
+    lifetime from BEGINNING past it and never kills one mid-measurement, so a
+    started lifetime runs on (`crates/kalsa-tune/src/measure/mod.rs`). The
+    figure is an estimate, said as "about", never a bound. */
 const LIFETIME_SLACK_SECONDS = 120;
 
-/** The line's own high-water: the figure it last showed is the most it may
-    show again, so a candidate that closes slower than the ones behind it
-    cannot wind the number up. A fresh tune passes none. */
+/** The line may fall freely, but rise only when a fresher figure is at least
+    this many minutes larger: a fast first candidate must not pin a low number
+    while a slow tune runs on, and small wobble must not climb the line. */
+const RISE_MINUTES = 2;
+
+/** The line's own memory of the figure it last showed: it follows a fresher
+    figure down, and up only when that one is clearly larger (RISE_MINUTES).
+    A fresh tune passes none. */
 function held(minutes: number, shown: number | null | undefined): number {
-  return typeof shown === "number" && Number.isFinite(shown) ? Math.min(minutes, shown) : minutes;
+  if (typeof shown !== "number" || !Number.isFinite(shown)) return minutes;
+  return minutes >= shown + RISE_MINUTES ? minutes : Math.min(minutes, shown);
 }
 
 /** A count that may be missing or nonsense: zero, whole, never below. */
@@ -138,17 +148,18 @@ export function tuneDone(face: TuneFace): boolean {
 /** The wait under the bar. The stop's three answers come first — a cut
     that still owes a next start; one whose verdict was saved WITH a
     winner, which is what may be called kept; and one with no winner at
-    all, where the rule stands — and then the figure. Before two candidates
-    have finished there is nothing to average, so the budget — the point no
-    lifetime BEGINS past — plus one lifetime's slack is a CEILING, said as
-    "about". From two on, the smaller of that ceiling and the estimate
-    (`wholeSeconds` over the candidates measured so far, the running one's
-    share counted in both, which is the rate one candidate really costs on
-    THIS tune) answers. Once the budget's seconds are spent, no figure is
-    honest at all: a lifetime that began inside it runs on to its own
-    limits, so the line says "any moment now" and nothing numeric — as it
-    does under half a minute left. `shownMinutes` is the figure this tune
-    has already put on screen, and none of them is exceeded. */
+    all, where the rule stands — and then the figure. Before any candidate
+    has finished there is nothing to average, so the plan-scaled estimate
+    answers: each planned candidate takes its sixteenth of the budget, and the
+    plan's total of those plus one lifetime's slack, less what has run, is
+    said as "about". From the first finished candidate on, the smaller of that
+    estimate and the rate (`wholeSeconds` over the candidates measured so far,
+    the running one's share counted in both, which is the rate one candidate
+    really costs on THIS tune) answers. Once an estimate is spent, or the
+    budget's seconds are, the line says "any moment now" and nothing numeric:
+    a lifetime that began inside the budget runs on to its own limits, and so
+    does a tune that outlives its estimate. `shownMinutes` is the figure this
+    tune has already put on screen; see `held`. */
 export function tuneWait(
   face: TuneFace,
   share: number,
@@ -175,12 +186,14 @@ export function tuneWait(
     const rate = wholeSeconds / (finished + running);
     if (rate > 0) estimate = (face.total - face.done - Math.min(running, 1)) * rate;
   }
-  const bound = budget > 0 ? budget + LIFETIME_SLACK_SECONDS - wholeSeconds : null;
+  const allowance = budget / LIFETIMES_IN_BUDGET;
+  const planned = budget > 0 ? face.total * allowance + LIFETIME_SLACK_SECONDS - wholeSeconds : null;
   if (estimate === null) {
-    if (bound === null) return null;
-    return { kind: "ceiling", minutes: held(Math.max(1, Math.ceil(bound / 60)), shownMinutes) };
+    if (planned === null) return null;
+    if (planned < ALMOST_SECONDS) return { kind: "almost" };
+    return { kind: "planned", minutes: held(Math.max(1, Math.ceil(planned / 60)), shownMinutes) };
   }
-  const left = bound === null ? estimate : Math.min(estimate, bound);
+  const left = planned === null ? estimate : Math.min(estimate, planned);
   if (left < ALMOST_SECONDS) return { kind: "almost" };
   return { kind: "minutes", minutes: held(Math.max(1, Math.round(left / 60)), shownMinutes) };
 }

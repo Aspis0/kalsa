@@ -16,10 +16,10 @@ import type { TuneFace } from "./tuneProgress";
 // phases { kind: "runtime_bytes" | "model_bytes", done, total }, and on the
 // tuning step: `candidate` (the 1-based index a report is about — `done + 1`
 // when it starts, `done` when it closes), `budget_seconds` (the tune's own
-// clock, which the wait counts down from before two candidates have
-// finished) and `cut` (the budget stopped the tune short of its plan: the
-// bar holds where it reached, the line says the next start finishes, and no
-// finish is played for a tune that owes work).
+// clock; a sixteenth of it per planned candidate sizes the plan-scaled
+// estimate until a candidate has finished) and `cut` (the budget stopped the
+// tune short of its plan: the bar holds where it reached, the line says the
+// next start finishes, and no finish is played for a tune that owes work).
 // This view replaces the Server surface body while the walk runs; the walk's
 // failures arrive as brain_start rejections and are spoken by the Server
 // surface. The words are this page's.
@@ -140,7 +140,7 @@ function walkView(
 }
 
 /** The wait's sentence in the page's language: one word per answer the
-    pure layer gives (the stop's three, the budget's ceiling, the estimate,
+    pure layer gives (the stop's three, the plan-scaled estimate, the rate,
     and the overrun). */
 function waitWord(wait: TuneWait, t: English["setup"]): string {
   switch (wait.kind) {
@@ -152,7 +152,7 @@ function waitWord(wait: TuneWait, t: English["setup"]): string {
       return t.standardSettings;
     case "almost":
       return t.almostDone;
-    case "ceiling":
+    case "planned":
       return t.aboutMinutes(wait.minutes);
     case "minutes":
       return t.minutesLeft(wait.minutes);
@@ -169,8 +169,7 @@ function clock(seconds: number): string {
 /** What one step commits to: its view (computed once, so the resumed line
     does not flicker between ticks) and its pace — which candidate is under
     the clock, which finished ones the average runs on, a cut's frozen
-    time — plus the wait's own high-water, this tune's smallest figure so
-    far. */
+    time — plus the figure the wait last showed. */
 interface Walk {
   step: ProgressStep;
   table: English["setup"];
@@ -305,12 +304,11 @@ export function SetupProgress({ step }: { step: ProgressStep }) {
     durations.reduce((sum, value) => sum + value, 0) +
     (face !== null && !face.closing ? elapsed : 0);
   const wait = face !== null ? tuneWait(face, share, whole, durations.length, step.budget_seconds, current.waitMinutes) : null;
-  const shownMinutes = wait !== null && (wait.kind === "minutes" || wait.kind === "ceiling") ? wait.minutes : null;
+  const shownMinutes = wait !== null && (wait.kind === "minutes" || wait.kind === "planned") ? wait.minutes : null;
   if (shownMinutes !== null && shownMinutes !== current.waitMinutes) {
-    // The wait's high-water, kept in the same render-time state: the figure
-    // on screen is the most this tune may show again, so a candidate that
-    // closes slower than the ones behind it cannot wind it up — a number
-    // that grows beside "Test 3 of 16" is the countdown the owner read.
+    // The wait's last figure, kept in the same render-time state. It falls
+    // with each fresher figure and rises only by a clear jump (`held` in
+    // tuneProgress.ts): a slow candidate may raise it, a tick may not.
     current = { ...current, waitMinutes: shownMinutes };
     setWalk(current);
   }

@@ -9,7 +9,7 @@ import { invoke } from "../lib/tauri";
 import { rustSentence } from "../lib/rustText";
 import { offeredBytes, parseVision } from "../lib/vision";
 import { useLanguage } from "../i18n/useLanguage";
-import { clearWalkStep, useBrainState, useBrainStep } from "./useBrain";
+import { beginWalk, clearWalkStep, useBrainState, useBrainStep } from "./useBrain";
 import type { ProgressStep } from "./SetupProgress";
 import type { VisionOfferPhase } from "../components/VisionOffer";
 
@@ -82,6 +82,7 @@ export function useVisionOffer(): VisionOffer {
     busy.current = true;
     // The walk's last step belongs to whatever walked before this download.
     clearWalkStep();
+    beginWalk();
     setFlow({ kind: "running", bytes, restarting: false });
     try {
       await invoke("brain_vision_enable");
