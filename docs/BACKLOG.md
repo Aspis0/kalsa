@@ -355,3 +355,13 @@ Owner: when a model refuses because tools are in the request (LFM2.5-VL-3B refus
 - The interrupted-turn line is session-only: after a reload the failed row shows the ordinary card again (the failure's time and the restart event are not persisted).
 - Surface network (2026-10-09): `kalsa.io` and `telemetry.kalsa.io` resolve to `::1` / `100.64.255.100` there, so nothing from that PC reaches either Worker. Check where the resolution comes from before testing telemetry on it again.
 - LFM2.5-VL-3B (Mac Q4 run, 2026-10-10): asked for a story with web tools on, it sometimes web-searches first and then answers "I wasn't able to locate a story…" with no story; the retry covers only a first-round refusal, so that turn ends without the story (1 of 4 runs). Post-alpha fix: [small tool model / big writer split].
+
+## Download page, Italian guide (2026-10-10)
+
+- kalsa `workers/download` tests (168) do not run in CI: `jest.config.js` roots is `src` and ci.yml never points at the worker config.
+- No IT/EN parity gate: build-guide checks section numbers only; a sentence added to one guide and not the other passes.
+- `If-None-Match` matches one exact strong tag only (`*`, lists, weak tags → 200).
+- `pickLang` reads only the first Accept-Language tag (q-values ignored); `?lang=IT` uppercase is ignored.
+- The English diagnostic quoted in the Italian guide has no `lang="en"` markup.
+- The app shows "Getting ready" as "si sta preparando" (power) and "si sta avviando" (first page) — two Italian strings for one English line.
+- "Windows ha protetto il PC" / "Ulteriori informazioni" / "Esegui comunque" not verified on an Italian Windows 11.
