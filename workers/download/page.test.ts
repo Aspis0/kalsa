@@ -55,15 +55,6 @@ describe("page content", () => {
     expect(html).toContain(`${BASE}/mac?v=${entryFor(MAC).sha256}`);
   });
 
-  test("the Read this first line links the install sections of the guide", async () => {
-    const { html } = await page();
-    expect(html).toContain('<p class="first">Read this first: <a href="#windows">Windows</a>');
-    expect(html).toContain('<a href="#mac">Mac (Apple silicon)</a>');
-    expect(html).toContain('<h2 id="windows">3. Install on Windows</h2>');
-    expect(html).toContain('<h2 id="mac">2. Install on Mac</h2>');
-    expect(html).not.toContain("[Guide text pending]");
-  });
-
   test("the page never shows the link key outside its own links", async () => {
     const { html } = await page();
     expect(html.split(BASE).length - 1).toBe(2);

@@ -10,7 +10,6 @@ export interface PageCopy {
   windows: string;
   mac: string;
   comingSoon: string;
-  readFirst: string;
   guideTitle: string;
   guide: string;
   switchTo: { lang: Lang; label: string };
@@ -22,7 +21,6 @@ export const COPY: Record<Lang, PageCopy> = {
     windows: "Download for Windows",
     mac: "Download for Mac (Apple silicon)",
     comingSoon: "coming soon",
-    readFirst: "Read this first",
     guideTitle: "Tester guide",
     guide: GUIDE_HTML,
     switchTo: { lang: "it", label: "Italiano" },
@@ -32,7 +30,6 @@ export const COPY: Record<Lang, PageCopy> = {
     windows: "Scarica per Windows",
     mac: "Scarica per Mac (Apple silicon)",
     comingSoon: "in arrivo",
-    readFirst: "Prima di installare, leggi la guida",
     guideTitle: "Guida per chi prova l'alpha",
     guide: GUIDE_HTML_IT,
     switchTo: { lang: "en", label: "English" },

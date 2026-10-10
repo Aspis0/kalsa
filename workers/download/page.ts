@@ -38,7 +38,6 @@ h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
   opacity: 0.8;
 }
 .soon { margin: 0; opacity: 0.7; }
-.first { margin-top: 1.5rem; }
 .lang { margin: 0 0 1rem; text-align: right; font-size: 0.9rem; }
 #tester-guide { margin-top: 2.5rem; border-top: 1px solid currentColor; }
 h2[id] { scroll-margin-top: 1rem; }
@@ -59,7 +58,7 @@ code {
 }
 `;
 
-export const STYLE_HASH = "uw8nF51Bjr/3SoEkbyYc+QyFBSVKHwE7vDEX8mSxu6o=";
+export const STYLE_HASH = "jxjn4MPSCr5VTziOj64LHZ5qvAGHOY7j1NCY1zli14E=";
 
 export const CSP_HEADER = [
   "default-src 'none'",
@@ -110,7 +109,6 @@ export function downloadPageHtml(manifest: Manifest, key: string, lang: Lang): s
 <p class="lead">${copy.lead}</p>
 ${platformBlock(copy.windows, copy.comingSoon, installerPath(key, "windows"), manifest.windows)}
 ${platformBlock(copy.mac, copy.comingSoon, installerPath(key, "mac"), manifest.mac)}
-<p class="first">${copy.readFirst}: <a href="#windows">Windows</a> · <a href="#mac">Mac (Apple silicon)</a></p>
 <section id="tester-guide">
 <h2>${copy.guideTitle}</h2>
 ${copy.guide}
