@@ -1,0 +1,4 @@
+run_start arm=L rep=0 monotonic_us=111161027436 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5 decode_coolmode_duty=0.5 platform_status=3 decode_paced_ms=0 decode_paced_tokens=0 decode_paced_capped=0
+leg_summary arm=L rep=0 engine=npu tokens=2048 us=273058280 tps=7.500 decode_coolmode_duty=0.5 platform_status=3 decode_paced_ms=136125 decode_paced_tokens=2048 decode_paced_capped=0
+leg_total arm=L rep=0 generated=2048 windows=65 hops=0 commit_bytes=0 commit_us=0
+run_start arm=L rep=1 monotonic_us=111445103501 dev=auto hop_mode=npu_first headroom_tau=0.000 heat_weight=0 heat_per_token=0,0,0 load_step=0,0,0 guard=5 decode_coolmode_duty=0.5 platform_status=3 decode_paced_ms=0 decode_paced_tokens=0 decode_paced_capped=0

@@ -1,0 +1,5 @@
+{ 2312601 }[ ABL ] BootReason: 1C
+{ 2352861 }[ ABL ] SetDdiRebootReason: Saving RebootReason mode: [0x4] in DDI.
+{ 2441616 }[ ABL ] PonReason.KPDPWR = 0
+{ 2441616 }[ ABL ] PonReason.HARD_RESET = 1
+{ 2441616 }[ ABL ] PonReason.SMPL = 0

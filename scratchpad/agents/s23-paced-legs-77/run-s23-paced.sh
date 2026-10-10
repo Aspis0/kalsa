@@ -3,7 +3,9 @@
 #   npu-paced  --legs npu --coolmode-duty 0.5 --platform-status 3   (status 3 floors the state to COOLMODE)
 #   gpu-paced  --legs gpu --coolmode-duty 0.5 --platform-status 3
 #   npu-full   --legs npu                                            (same-day control, no pacing)
-# A 10 s sampler logs skin (HAL SKIN), battery temperature, Android thermal status and wakefulness.
+# A 10 s sampler logs skin (HAL SKIN), battery temperature, Android thermal status, wakefulness and MemAvailable.
+# One rep per arm: on 2026-10-09 a second rep's model load in the same process (MemAvailable floor ~0.9 GB with
+# one copy loaded) ended in a PMIC hard reset; a mem guard kills the bench below 500 MB.
 #   sh run-s23-paced.sh
 R=/data/local/tmp/kalsa77; M=/data/local/tmp/heat3way/ship.gguf; B=$R/governor-bench; REPORT=$R/paced_report.txt
 COOL_SKIN=31; STOP_AT=43; DURATION_S=600; MIN_LEVEL=30
@@ -37,15 +39,16 @@ for spec in npu-paced gpu-paced npu-full; do
   input keyevent 224; wm dismiss-keyguard
   CSV=$R/paced_$spec.csv; LOG=$R/paced_$spec.log
   echo "## arm=$spec start $(date +%s) after ${waited}s cool wait [$(st)]" >> $REPORT
-  echo "t_s,skin_c,batt_dc,status,wake" > $CSV
+  echo "t_s,skin_c,batt_dc,status,wake,mem_avail_kb" > $CSV
   ( t=0; while [ ! -e $CSV.stop ]; do
-      s=$(skin); echo "$t,$s,$(batt),$(tstatus),$(wake)" >> $CSV
+      s=$(skin); ma=$(grep MemAvailable /proc/meminfo | grep -oE '[0-9]+'); echo "$t,$s,$(batt),$(tstatus),$(wake),$ma" >> $CSV
+      if [ -n "$ma" ] && [ "$ma" -lt 500000 ]; then pkill -x governor-bench; echo "ARM STOP: MemAvailable $ma kB at ${t}s" >> $REPORT; fi
       si=${s%.*}
       if [ -n "$si" ] && [ "$si" -ge $STOP_AT ]; then pkill -x governor-bench; echo "ARM STOP: skin $s at ${t}s" >> $REPORT; fi
       if [ $t -ge $DURATION_S ]; then pkill -x governor-bench; echo "ARM END: ${DURATION_S}s reached" >> $REPORT; fi
       input keyevent 224; sleep 10; t=$((t + 10))
     done ) &
-  shared $B --arm L -m $M -t 5 -r 20 --hop 32 --gen 2049 --legs $leg $extra -v > $LOG 2>&1
+  shared $B --arm L -m $M -t 5 -r 1 --hop 32 --gen 4097 --legs $leg $extra -v > $LOG 2>&1
   rc=$?
   touch $CSV.stop; sleep 11; rm -f $CSV.stop
   echo "## arm=$spec exit=$rc end $(date +%s) [$(st)]" >> $REPORT
