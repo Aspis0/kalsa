@@ -24,8 +24,7 @@ describe("page content", () => {
     expect(html).toContain(`href="${BASE}/mac?v=${macSha}">Download for Mac (Apple silicon)</a>`);
     expect(html).toContain("2.30 GB");
     expect(html).toContain("45.2 MB");
-    expect(html).toContain(`<code class="sha">sha256 ${winSha}</code>`);
-    expect(html).toContain(`<code class="sha">sha256 ${macSha}</code>`);
+    expect(html).not.toContain("sha256 ");
   });
 
   test("the title and the scoped one-line description", async () => {

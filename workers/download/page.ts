@@ -29,14 +29,6 @@ h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
   font-weight: 600;
 }
 .meta { margin: 0.35rem 0 0; font-size: 0.85rem; }
-.sha {
-  display: block;
-  margin-top: 0.15rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.7rem;
-  word-break: break-all;
-  opacity: 0.8;
-}
 .soon { margin: 0; opacity: 0.7; }
 .lang { margin: 0 0 1rem; text-align: right; font-size: 0.9rem; }
 #tester-guide { margin-top: 2.5rem; border-top: 1px solid currentColor; }
@@ -58,7 +50,7 @@ code {
 }
 `;
 
-export const STYLE_HASH = "jxjn4MPSCr5VTziOj64LHZ5qvAGHOY7j1NCY1zli14E=";
+export const STYLE_HASH = "j5ZlJV3EWY3N12LxmOUP3QyHPUxYAMfxS8CRrKNvfwE=";
 
 export const CSP_HEADER = [
   "default-src 'none'",
@@ -87,7 +79,6 @@ function platformBlock(label: string, soon: string, path: string, installer: Ins
   return `<div class="platform">
 <a class="button" href="${path}?v=${installer.sha256}">${label}</a>
 <p class="meta">${formatSize(installer.size)}</p>
-<code class="sha">sha256 ${installer.sha256}</code>
 </div>`;
 }
 
