@@ -1,8 +1,7 @@
 # Kalsa for alpha testers
 
 Kalsa runs a private AI on your own computer. Your messages are answered on this
-computer; when Kalsa searches the web, the words of that search leave it. Your phone
-talks to this computer. This page gets you installed and through the first start. It is
+computer; when Kalsa searches the web, the words of that search leave it. This page gets you installed and through the first start. It is
 written for non-technical testers — you don't need to know how anything works.
 
 ## 1. What you need
@@ -22,8 +21,6 @@ written for non-technical testers — you don't need to know how anything works.
   work or school networks the download is blocked — Kalsa says
   "Kalsa couldn't download what she needs on this network. Try another network." Try
   again at home.
-- **Your phone:** install the Kalsa phone app from the link we send you, and keep it
-  updated. <!-- PHONE-APP-LINK -->
 
 ## 2. Install on Mac
 
@@ -48,6 +45,7 @@ If the app opens from a disk image, drag it into **Applications** first.
 1. Run the Kalsa installer. It installs for you only — no administrator password needed.
 2. Windows may show **"Windows protected your PC"**. Click **More info**, then **Run anyway**.
 3. Start Kalsa from the Start menu.
+4. If Windows asks whether Kalsa may use the network, choose **Allow**.
 
 ## 4. The first start (once)
 
@@ -70,20 +68,9 @@ says "Getting ready." and this can take a minute on a slower computer.
 The first start can take a long time. Most of it is the download, so it depends on your
 internet speed.
 
-## 5. Connecting your phone
+## 5. Phone
 
-Kalsa must be on. If the Home page says Kalsa is off, press **Turn on**.
-On Kalsa's home page, under **This computer**, open **Devices**. Point your phone's
-camera at the square, or press **Invite by link** and send the link to your phone — it
-works once, for one day. The app warns: "Anyone who can see this square can connect a
-phone — show it only to yours."
-
-The **Allow** button is on this computer, not on the phone. The Devices page shows
-"Waiting for your OK", then "A phone is connecting. Choose Allow or Refuse below." —
-press **Allow**.
-
-If Windows asks whether Kalsa may use the network, choose Allow. This may appear the
-first time.
+The Kalsa apps for Android and iOS will be released later.
 
 ## 6. When something goes wrong
 

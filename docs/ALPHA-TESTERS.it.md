@@ -2,8 +2,7 @@
 
 Kalsa è un'intelligenza artificiale che lavora direttamente sul tuo computer: i tuoi
 messaggi restano lì e le risposte nascono lì. L'unica eccezione sono le ricerche sul web:
-quando Kalsa cerca qualcosa online, le parole cercate escono dal computer. Puoi usare
-Kalsa anche dal telefono, collegandolo al computer. Qui trovi tutto quello che serve per
+quando Kalsa cerca qualcosa online, le parole cercate escono dal computer. Qui trovi tutto quello che serve per
 installarla e farla partire la prima volta. Non servono conoscenze tecniche.
 
 ## 1. Cosa ti serve
@@ -26,8 +25,6 @@ installarla e farla partire la prima volta. Non servono conoscenze tecniche.
   Alcune reti aziendali o scolastiche bloccano il download; in quel caso Kalsa mostra
   "Kalsa non ha potuto scaricare quello che le serve su questa rete. Prova un'altra
   rete." Riprova da casa.
-- **Il telefono:** installa l'app Kalsa dal link che ti mandiamo e tienila aggiornata.
-  <!-- PHONE-APP-LINK -->
 
 ## 2. Installazione su Mac
 
@@ -58,6 +55,7 @@ Se l'app si apre da un'immagine disco (.dmg), prima trascinala nella cartella
 2. Windows potrebbe mostrare l'avviso **"Windows ha protetto il PC"**. Fai clic su
    **Ulteriori informazioni** e poi su **Esegui comunque**.
 3. Apri Kalsa dal menu Start.
+4. Se Windows ti chiede se Kalsa può usare la rete, scegli **Consenti**.
 
 ## 4. Il primo avvio (si fa una volta sola)
 
@@ -82,19 +80,9 @@ computer meno recente può volerci un minuto."
 Il primo avvio può richiedere parecchio tempo, soprattutto per il download: dipende dalla
 velocità della tua connessione.
 
-## 5. Collegare il telefono
+## 5. Telefono
 
-Kalsa deve essere accesa: se nella Home risulta spenta, premi **Accendi**. Poi, nella
-Home, sotto **Questo computer**, apri **Dispositivi**. Inquadra con la fotocamera del
-telefono il quadrato che compare sullo schermo, oppure premi **Invita con un link** e
-mandati il link sul telefono: vale una volta sola e scade dopo un giorno. L'app ti
-avvisa: "Chiunque veda questo quadrato può collegare un telefono — mostralo solo al tuo."
-
-Il collegamento si conferma dal computer, non dal telefono. Nella pagina Dispositivi
-compare prima "In attesa del tuo OK" e poi "Un telefono si sta collegando. Scegli
-Consenti o Rifiuta qui sotto." A quel punto premi **Consenti**.
-
-La prima volta Windows potrebbe chiederti se Kalsa può usare la rete: rispondi di sì.
+Le app di Kalsa per Android e iOS usciranno più avanti.
 
 ## 6. Se qualcosa non funziona
 
