@@ -124,8 +124,8 @@ fake_force_stop_count() {
 }
 
 pidof_settled_case() {
-  local out="$WORK/pidof-settled" dead transient garbage flap unknown live_then_empty
-  local dead_reads transient_reads garbage_reads flap_reads garbage_log_lines status unknown_reads live_then_empty_reads
+  local out="$WORK/pidof-settled" dead transient garbage flap unknown live_then_empty live_after_probe garbage_after_probe
+  local dead_reads transient_reads garbage_reads flap_reads garbage_log_lines status unknown_reads live_then_empty_reads live_after_probe_reads garbage_after_probe_reads
   mkdir -p "$out"
   fake_reset marker-turn1
   : > "$FAKE_DEV/fake/pid_dead_once"
@@ -147,6 +147,12 @@ pidof_settled_case() {
   fake_reset pidof-live-then-empty-probe-fail
   live_then_empty=$(PKG=com.kalsa.app bash -c 'log(){ :; }; sleep(){ :; }; source "$1/watchdog.sh"; campaign_pidof_settled' _ "$HERE")
   live_then_empty_reads=$(cat "$FAKE_DEV/fake/pidof_reads")
+  fake_reset pidof-live-after-probe
+  live_after_probe=$(PKG=com.kalsa.app bash -c 'log(){ :; }; sleep(){ :; }; source "$1/watchdog.sh"; campaign_pidof_settled' _ "$HERE")
+  live_after_probe_reads=$(cat "$FAKE_DEV/fake/pidof_reads")
+  fake_reset pidof-garbage-after-probe
+  garbage_after_probe=$(PKG=com.kalsa.app bash -c 'log(){ :; }; sleep(){ :; }; source "$1/watchdog.sh"; campaign_pidof_settled' _ "$HERE" 2>"$out/post-probe-garbage.stderr")
+  garbage_after_probe_reads=$(cat "$FAKE_DEV/fake/pidof_reads")
   fake_reset pidof-garbage
   (
     export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
@@ -180,16 +186,222 @@ pidof_settled_case() {
     campaign_logcat_stop
   ) > "$out/wait.log" 2>&1
   status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
-  if [ -z "$dead" ] && [ "$dead_reads" -eq 3 ] && [ "$transient" = 4242 ] \
+  if [ -z "$dead" ] && [ "$dead_reads" -eq 4 ] && [ "$transient" = 4242 ] \
     && [ "$transient_reads" -eq 3 ] && [ "$garbage" = unknown ] && [ "$garbage_reads" -eq 6 ] \
     && [ "$garbage_log_lines" -eq 1 ] \
     && [ "$flap" = 4242 ] && [ "$flap_reads" -eq 6 ] && [ "$garbage_status" != pid-death ] \
     && [ "$unknown" = unknown ] && [ "$unknown_reads" -eq 3 ] \
     && [ "$live_then_empty" = unknown ] && [ "$live_then_empty_reads" -eq 4 ] \
+    && [ "$live_after_probe" = 4242 ] && [ "$live_after_probe_reads" -eq 4 ] \
+    && [ "$garbage_after_probe" = unknown ] && [ "$garbage_after_probe_reads" -eq 4 ] \
     && [ "$status" = pid-death ]; then
-    ok "pidof requires a healthy transport to settle death and treats failed probes as unknown"
+    ok "pidof re-reads after a healthy probe and keeps failed or malformed reads unknown"
   else
-    bad "pidof settle wrong (dead='${dead:-empty}'/$dead_reads transient=$transient/$transient_reads garbage=$garbage/$garbage_reads logs=$garbage_log_lines flap=$flap/$flap_reads unknown=$unknown/$unknown_reads live_then_empty=$live_then_empty/$live_then_empty_reads status=$garbage_status death=$status)"
+    bad "pidof settle wrong (dead='${dead:-empty}'/$dead_reads transient=$transient/$transient_reads garbage=$garbage/$garbage_reads logs=$garbage_log_lines flap=$flap/$flap_reads unknown=$unknown/$unknown_reads live_then_empty=$live_then_empty/$live_then_empty_reads live_after_probe=$live_after_probe/$live_after_probe_reads garbage_after_probe=$garbage_after_probe/$garbage_after_probe_reads status=$garbage_status death=$status)"
+  fi
+}
+
+adb_drop_flap_case() {
+  local out="$WORK/adb-drop-flap" rc state_reads pid_reads force_stops status
+  rm -rf "$out"; mkdir -p "$out"
+  fake_reset state-flap
+  sed -n '/^campaign_abort_turn() {/,/^}/p' "$HERE/run-t20c.sh" > "$out/abort-turn.sh"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    export CAMPAIGN_TURN_I=3 CAMPAIGN_ARM_ID= CAMPAIGN_VARIANT_ID= CAMPAIGN_CONV_ID=
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/flags.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    source "$HERE/oneTurn.sh"
+    source "$out/abort-turn.sh"
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    sleep() { :; }
+    campaign_toolcall_quiet_ms() { printf '0\n'; }
+    campaign_logcat_ensure() { :; }
+    campaign_logcat_slice() { :; }
+    campaign_logcat_on_reconnect() { :; }
+    campaign_turn_tool_state() { printf 'none\n'; }
+    campaign_restore_same_conv() { :; }
+    campaign_wait_turn 0 "$out/slice.txt" 0 || :
+    printf '%s\n' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    campaign_abort_turn "$CAMPAIGN_TURN_STATUS"
+    campaign_recover_status "$CAMPAIGN_TURN_STATUS"
+  ) > "$out/run.log" 2>&1
+  rc=$?
+  state_reads=$(cat "$FAKE_DEV/fake/state_reads" 2>/dev/null || printf 0)
+  pid_reads=$(cat "$FAKE_DEV/fake/pidof_reads" 2>/dev/null || printf 0)
+  force_stops=$(fake_force_stop_count)
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ "$rc" -eq 0 ] && [ "$status" = adb-drop ] && [ "$state_reads" -eq 2 ] \
+    && [ "$pid_reads" -eq 2 ] && [ "$force_stops" -eq 0 ]; then
+    ok "adb-drop waits through a transport flap, rechecks PID, and never force-stops"
+  else
+    bad "adb-drop flap recovery wrong (rc=$rc status=$status state_reads=$state_reads pid_reads=$pid_reads force_stops=$force_stops)"
+    tail -5 "$out/run.log" | sed 's/^/   | /'
+  fi
+}
+
+adb_drop_verdict_case() {
+  local out="$WORK/adb-drop-verdict" rc force_stops reads
+  rm -rf "$out"; mkdir -p "$out"
+  fake_reset pidof-transport-fail
+  (
+    export OUT="$out/unknown" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555 CAMPAIGN_TURN_I=3
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/flags.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/oneTurn.sh"
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    campaign_logcat_on_reconnect() { :; }
+    campaign_recover_pid_death() { : > "$out/unknown-pid-death-called"; }
+    campaign_recover_status adb-drop
+  ) > "$out/unknown.log" 2>&1
+  rc=$?
+  force_stops=$(fake_force_stop_count)
+  if [ "$rc" -eq 7 ] && [ ! -e "$out/unknown-pid-death-called" ] \
+    && [ "$force_stops" -eq 0 ] && grep -q 'process state stayed unknown.*without force-stop' "$out/unknown.log"; then
+    ok "adb-drop with unknown PID aborts without entering pid-death recovery"
+  else
+    bad "adb-drop unknown verdict was not fail-closed (rc=$rc force_stops=$force_stops)"
+    tail -5 "$out/unknown.log" | sed 's/^/   | /'
+  fi
+
+  fake_reset marker-turn1
+  : > "$FAKE_DEV/fake/pid_dead_once"
+  (
+    export OUT="$out/dead" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555 CAMPAIGN_TURN_I=3
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/flags.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/oneTurn.sh"
+    campaign_logcat_on_reconnect() { :; }
+    campaign_recover_pid_death() { : > "$out/dead-pid-death-called"; }
+    campaign_recover_status adb-drop
+  ) > "$out/dead.log" 2>&1
+  rc=$?
+  reads=$(cat "$FAKE_DEV/fake/pidof_reads" 2>/dev/null || printf 0)
+  force_stops=$(fake_force_stop_count)
+  if [ "$rc" -eq 0 ] && [ -e "$out/dead-pid-death-called" ] \
+    && [ "$reads" -eq 4 ] && [ "$force_stops" -eq 0 ]; then
+    ok "adb-drop enters pid-death recovery only after a settled empty PID"
+  else
+    bad "adb-drop settled-death verdict wrong (rc=$rc reads=$reads force_stops=$force_stops)"
+    tail -5 "$out/dead.log" | sed 's/^/   | /'
+  fi
+}
+
+adb_drop_offline_case() {
+  local out="$WORK/adb-drop-offline" rc force_stops connects
+  rm -rf "$out"; mkdir -p "$out"
+  fake_reset marker-turn1
+  printf '%s\n' offline > "$FAKE_DEV/fake/adb_state"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555 CAMPAIGN_TURN_I=3
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/flags.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/oneTurn.sh"
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    sleep() { :; }
+    campaign_logcat_on_reconnect() { :; }
+    campaign_recover_status adb-drop
+  ) > "$out/run.log" 2>&1
+  rc=$?
+  force_stops=$(fake_force_stop_count)
+  connects=$(grep -c '^connect fake:5555$' "$FAKE_DEV/fake/invocations.log" || true)
+  if [ "$rc" -eq 7 ] && [ "$connects" -eq 5 ] && [ "$force_stops" -eq 0 ] \
+    && grep -q 'device lost turn 3; aborting without force-stop' "$out/run.log"; then
+    ok "adb-drop aborts after bounded reconnect failure without force-stop"
+  else
+    bad "adb-drop offline path did not abort safely (rc=$rc connects=$connects force_stops=$force_stops)"
+    tail -5 "$out/run.log" | sed 's/^/   | /'
+  fi
+}
+
+mdns_serial_case() {
+  local out="$WORK/mdns-serial" rc ip_found service_found ip_reconnect service_reconnect
+  rm -rf "$out"; mkdir -p "$out"
+  fake_reset marker-turn1
+  cat > "$FAKE_DEV/fake/mdns-services.txt" <<'EOF'
+adb-OTHER-000._adb-tls-connect._tcp. 192.168.1.152:11111
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp. 192.168.1.153:43089
+EOF
+  (
+    export CAMPAIGN_SERIAL=192.168.1.152:5555 ANDROID_SERIAL=192.168.1.152:5555
+    source "$HERE/recovery.sh"
+    log() { :; }
+    campaign_logcat_on_reconnect() { :; }
+    ip_found=$(campaign_mdns_for_serial "$CAMPAIGN_SERIAL")
+    CAMPAIGN_SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+    ANDROID_SERIAL="$CAMPAIGN_SERIAL"
+    service_found=$(campaign_mdns_for_serial "$CAMPAIGN_SERIAL")
+    campaign_adb_state() { printf 'offline\n'; }
+    campaign_connect() {
+      printf '%s\n' "$1" >> "$out/connect.log"
+      case "$1" in
+        192.168.1.152:11111|192.168.1.153:43089) return 0 ;;
+        *) return 1 ;;
+      esac
+    }
+    CAMPAIGN_SERIAL=192.168.1.152:5555
+    ANDROID_SERIAL="$CAMPAIGN_SERIAL"
+    campaign_ensure_device || exit 3
+    ip_reconnect=$(tail -1 "$out/connect.log")
+    : > "$out/connect.log"
+    CAMPAIGN_SERIAL=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+    ANDROID_SERIAL="$CAMPAIGN_SERIAL"
+    campaign_ensure_device || exit 4
+    service_reconnect=$(tail -1 "$out/connect.log")
+    printf '%s\n' "$ip_found|$service_found|$ip_reconnect|$service_reconnect" > "$out/result.txt"
+  ) > "$out/run.log" 2>&1
+  rc=$?
+  local result
+  result=$(cat "$out/result.txt" 2>/dev/null || printf missing)
+  if [ "$rc" -eq 0 ] \
+    && [ "$result" = '192.168.1.152:11111|192.168.1.153:43089|192.168.1.152:11111|192.168.1.153:43089' ]; then
+    ok "mDNS recovery resolves both configured IP and service-name serials"
+  else
+    bad "mDNS serial recovery wrong (rc=$rc result=$result)"
+    tail -5 "$out/run.log" | sed 's/^/   | /'
+  fi
+}
+
+unknown_turn_health_case() {
+  local out="$WORK/unknown-turn-health" rc reads force_stops
+  rm -rf "$out"; mkdir -p "$out"
+  fake_reset pidof-transport-fail
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555 CAMPAIGN_TURN_I=5
+    source "$REPO/scripts/ci-lib.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/turn.sh"
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    sleep() { :; }
+    campaign_logcat_ensure() { :; }
+    campaign_logcat_slice() { :; }
+    campaign_toolcall_quiet_ms() { printf '0\n'; }
+    campaign_turn_tool_state() { printf 'none\n'; }
+    campaign_wait_turn 0 "$out/slice.txt" 0
+  ) > "$out/run.log" 2>&1
+  rc=$?
+  reads=$(cat "$FAKE_DEV/fake/pidof_reads" 2>/dev/null || printf 0)
+  force_stops=$(fake_force_stop_count)
+  if [ "$rc" -eq 7 ] && [ "$reads" -eq 15 ] && [ "$force_stops" -eq 0 ] \
+    && grep -q '5 consecutive turn health rounds; aborting without force-stop' "$out/run.log"; then
+    ok "five unknown turn health rounds abort the run without force-stop"
+  else
+    bad "unknown turn health did not abort safely (rc=$rc pid_reads=$reads force_stops=$force_stops)"
+    tail -5 "$out/run.log" | sed 's/^/   | /'
   fi
 }
 
@@ -336,6 +548,11 @@ fake_force_stop_markers_case() {
 }
 
 pidof_settled_case
+adb_drop_flap_case
+adb_drop_verdict_case
+adb_drop_offline_case
+mdns_serial_case
+unknown_turn_health_case
 unknown_pid_callers_case
 sql_write_state_gate_case
 fake_force_stop_markers_case
@@ -459,6 +676,82 @@ stale_toolcap_status_case() {
 }
 
 assistant_count_failure_case
+
+one_turn_unreadable_count_case() {
+  local out="$WORK/one-turn-unreadable-count" stage rc sends expected
+  rm -rf "$out"; mkdir -p "$out"
+  for stage in before wait retry; do
+    mkdir -p "$out/$stage"
+    (
+      export OUT="$out/$stage" SCRIPT="$REPO/campaigns/t20c/script.json"
+      export CAMPAIGN_ARM_ID=T20C CAMPAIGN_VARIANT_ID=V1 CAMPAIGN_CONV_ID=c1-V1
+      source "$HERE/oneTurn.sh"
+      die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+      log() { :; }
+      sleep() { :; }
+      send_count=0
+      campaign_assistant_count() {
+        case "$stage" in
+          before) printf 'err\n' ;;
+          wait) printf '0\n' ;;
+          retry)
+            if [ -n "${CAMPAIGN_RETRIED:-}" ]; then printf 'err\n'; else printf '0\n'; fi
+            ;;
+        esac
+      }
+      campaign_logcat_offset() { printf '0\n'; }
+      campaign_send_turn() { send_count=$((send_count + 1)); printf '%s\n' "$send_count" > "$OUT/send-count"; return 0; }
+      campaign_wait_turn() {
+        if [ "$stage" = wait ]; then CAMPAIGN_TURN_STATUS=db-read-error; else CAMPAIGN_TURN_STATUS=pid-death; fi
+        return 1
+      }
+      campaign_record_recovery() { :; }
+      campaign_abort_turn() { :; }
+      campaign_recover_status() { :; }
+      campaign_user_landed() { return 1; }
+      campaign_one_turn 4 'unreadable assistant count probe'
+    ) > "$out/$stage/run.log" 2>&1
+    rc=$?
+    sends=$(cat "$out/$stage/send-count" 2>/dev/null || printf 0)
+    case "$stage" in
+      before) expected='assistant count unreadable before turn 4; aborting before send';;
+      wait) expected='assistant count unreadable turn 4; aborting without force-stop or completion record';;
+      retry) expected='assistant count unreadable before retry turn 4; aborting before resend';;
+    esac
+    if [ "$rc" -ne 7 ] || ! grep -Fq "$expected" "$out/$stage/run.log"; then
+      bad "oneTurn $stage unreadable count did not die at its guard (rc=$rc)"
+      tail -5 "$out/$stage/run.log" | sed 's/^/   | /'
+      return
+    fi
+    if [ "$stage" = before ] && [ "$sends" -ne 0 ]; then
+      bad "oneTurn before-send unreadable count sent a message"
+      return
+    fi
+    if [ "$stage" != before ] && [ "$sends" -ne 1 ]; then
+      bad "oneTurn $stage unreadable count sent an unexpected number of messages ($sends)"
+      return
+    fi
+  done
+  ok "oneTurn dies on unreadable counts before send, during wait, and before retry"
+}
+
+acceptance_stats_encoding_case() {
+  local out="$WORK/acceptance-stats-encoding" stats rc
+  rm -rf "$out"; mkdir -p "$out"
+  printf '%s\n\n' '{"i":1}' > "$out/input.jsonl"
+  printf '\377\n' >> "$out/input.jsonl"
+  stats=$(python3 "$HERE/acceptanceStats.py" "$out/input.jsonl" 2>"$out/stderr")
+  rc=$?
+  if [ "$rc" -eq 0 ] && [ "$stats" = '1 0 0 0 1' ]; then
+    ok "acceptance stats count invalid UTF-8 as unparseable and skip blank lines"
+  else
+    bad "acceptance stats encoding handling wrong (rc=$rc stats=$stats)"
+    tail -5 "$out/stderr" | sed 's/^/   | /'
+  fi
+}
+
+one_turn_unreadable_count_case
+acceptance_stats_encoding_case
 stale_toolcap_status_case
 
 db_put_messages() {

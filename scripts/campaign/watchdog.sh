@@ -19,7 +19,7 @@ campaign_transport_healthy() {
   [ "$response" = kalsa-alive ]
 }
 
-# WHY: wireless adb can flap, so six reads bound the wait; three trailing empties plus a healthy shell probe prove death, two identical live reads settle early, and otherwise the last live PID (or unknown) survives.
+# WHY: six reads bound the wait; two identical PIDs settle early. Three empties trigger a shell probe, then a healthy probe gets one final read: empty means death, numeric means live, malformed or failed means unknown. At the bound, the last live PID survives or the result is unknown.
 campaign_pidof_settled() {
   local p previous="" last_live="" empty_reads=0 read=0 garbage_logged=0
   while [ "$read" -lt 6 ]; do
@@ -30,11 +30,21 @@ campaign_pidof_settled() {
       previous=""
       empty_reads=$((empty_reads + 1))
       if [ "$empty_reads" -ge 3 ]; then
-        if campaign_transport_healthy; then
-          printf '\n'
-        else
+        if ! campaign_transport_healthy; then
           printf '%s\n' unknown
+          return 0
         fi
+        p=$(campaign_pidof) || true
+        case "$p" in
+          '') printf '\n' ;;
+          *[!0-9]*)
+            if [ "$garbage_logged" -eq 0 ]; then
+              log "pidof returned non-numeric output: '$p'" >&2
+            fi
+            printf '%s\n' unknown
+            ;;
+          *) printf '%s\n' "$p" ;;
+        esac
         return 0
       fi
       ;;
@@ -61,8 +71,8 @@ campaign_pidof_settled() {
   if [ -n "$last_live" ]; then printf '%s\n' "$last_live"; else printf '%s\n' unknown; fi
 }
 
-# Unknown process state is retried in bounded settle windows; callers must
-# handle status 2 without stopping or relaunching the app.
+# Unknown process state is retried in bounded settle windows. It never
+# authorizes a caller to stop or relaunch the app.
 campaign_pidof_settled_retry() {
   local attempt pid
   for attempt in 1 2 3; do
@@ -119,8 +129,10 @@ sys.stdout.write("\n")
 # Force-stop and append a recovery record. Never just stdout.
 campaign_abort_turn() {
   local reason="${1:-timeout}"
-  log "RECOVERY reason=$reason (force-stop $PKG)"
-  campaign_force_stop
+  case "$reason" in
+    thermal|adb-drop|*adb-drop*) log "RECOVERY reason=$reason (record only — app NOT force-stopped)" ;;
+    *) log "RECOVERY reason=$reason (force-stop $PKG)"; campaign_force_stop ;;
+  esac
   campaign_record_recovery "$reason"
 }
 

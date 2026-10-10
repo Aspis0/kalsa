@@ -6,7 +6,8 @@
 # State files (all under $FAKE_DEV/fake):
 #   mode         marker-turn1 | never | fail-send | vanish | pid-blip | pidof-garbage |
 #                pidof-transport-fail | pidof-live-then-empty-probe-fail | sql-after-write-blank |
-#                pidof-flap | sql-read-garbage | sql-read-blank | sql-read-blip | sql-read-settled | hot | db-lag |
+#                pidof-flap | pidof-live-after-probe | pidof-garbage-after-probe | state-flap |
+#                sql-read-garbage | sql-read-blank | sql-read-blip | sql-read-settled | hot | db-lag |
 #                throttled | thermal-rise-fall | thermal-hard-abort |
 #                thermal-status-abort | thermal-unreadable-status | thermal-giveup |
 #                thermal-plugged-rise |
@@ -266,7 +267,19 @@ PY
 if [ "${1:-}" = "-s" ]; then shift 2; fi
 
 case "${1:-}" in
-  get-state) cat "$F/adb_state" ;;
+  get-state)
+    if [ "$(_mode)" = state-flap ]; then
+      reads=$(( $(cat "$F/state_reads" 2>/dev/null || printf 0) + 1 ))
+      printf '%s' "$reads" > "$F/state_reads"
+      [ "$reads" -eq 1 ] && printf '%s\n' offline || printf '%s\n' device
+    else
+      cat "$F/adb_state"
+    fi
+    ;;
+  mdns)
+    shift
+    [ "$*" = services ] && cat "$F/mdns-services.txt" 2>/dev/null
+    ;;
   connect|disconnect|wait-for-device|install)
     exit 0
     ;;
@@ -312,6 +325,14 @@ case "${1:-}" in
           reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
           printf '%s' "$reads" > "$F/pidof_reads"
           [ "$reads" -eq 1 ] && app_pid
+        elif [ "$(_mode)" = pidof-live-after-probe ]; then
+          reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/pidof_reads"
+          [ "$reads" -ge 4 ] && app_pid
+        elif [ "$(_mode)" = pidof-garbage-after-probe ]; then
+          reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
+          printf '%s' "$reads" > "$F/pidof_reads"
+          [ "$reads" -ge 4 ] && printf '%s\n' bad-pid
         elif [ "$(_mode)" = pidof-flap ]; then
           reads=$(( $(cat "$F/pidof_reads" 2>/dev/null || printf 0) + 1 ))
           printf '%s' "$reads" > "$F/pidof_reads"

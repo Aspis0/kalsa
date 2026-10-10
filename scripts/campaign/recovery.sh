@@ -129,18 +129,31 @@ campaign_connect() {
 }
 
 campaign_mdns_for_serial() {
-  local configured_serial="${1:-$CAMPAIGN_SERIAL}" configured_ip line ip discovered_ip
-  configured_ip="${configured_serial%%:*}"
-  # mDNS only helps IP change; pairing persists.
+  local configured_serial="${1:-$CAMPAIGN_SERIAL}" configured_ip="" configured_instance=""
+  local line ip discovered_ip service_name
+  configured_serial="${configured_serial%.}"
+  case "$configured_serial" in
+    *._adb-tls-*._tcp) configured_instance="$configured_serial" ;;
+    *:*) configured_ip="${configured_serial%%:*}" ;;
+    *) return 1 ;;
+  esac
+  # Pairing persists; mDNS resolves a changed IP or the configured service name.
   while IFS= read -r line; do
+    service_name="${line%%[[:space:]]*}"
+    service_name="${service_name%.}"
     ip=$(printf '%s' "$line" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+' | head -1)
     [ -z "$ip" ] && continue
     discovered_ip="${ip%%:*}"
-    if [ "$discovered_ip" = "$configured_ip" ]; then
+    if [ -n "$configured_instance" ]; then
+      [ "$service_name" = "$configured_instance" ] || continue
       printf '%s\n' "$ip"
       return 0
+    elif [ "$discovered_ip" = "$configured_ip" ]; then
+      printf '%s\n' "$ip"
+      return 0
+    else
+      log "RECOVERY refusal: mdns serial=$ip has different IP from configured serial=$configured_serial" >&2
     fi
-    log "RECOVERY refusal: mdns serial=$ip has different IP from configured serial=$configured_serial" >&2
   done <<EOF
 $(adb mdns services </dev/null 2>/dev/null || true)
 EOF

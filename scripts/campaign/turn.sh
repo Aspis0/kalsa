@@ -360,6 +360,7 @@ campaign_wait_turn() {
   local start now elapsed last_progress pid state count poll_s last_health fingerprint last_fingerprint
   local telemetry_seen_at="" pending_logged="" tool_state exhausted_seen_at=""
   local toolcall_quiet_ms current_round pending_round="" pending_since=0
+  local unknown_health_rounds=0
   local tool_round_max_ms="${CAMPAIGN_TOOL_ROUND_MAX_MS:-600000}"
   CAMPAIGN_TOOLCAP_NO_ANSWER=0
   case "$tool_round_max_ms" in ''|*[!0-9]*) tool_round_max_ms=600000 ;; esac
@@ -389,7 +390,15 @@ campaign_wait_turn() {
         CAMPAIGN_TURN_STATUS="pid-death"
         return 1
         ;;
-      *[!0-9]*) : ;;
+      *[!0-9]*)
+        unknown_health_rounds=$((unknown_health_rounds + 1))
+        if [ "$unknown_health_rounds" -ge 5 ]; then
+          die "app process state stayed unknown for 5 consecutive turn health rounds; aborting without force-stop"
+        fi
+        sleep "$poll_s"
+        continue
+        ;;
+      *) unknown_health_rounds=0 ;;
     esac
 
     count=$(campaign_assistant_count)

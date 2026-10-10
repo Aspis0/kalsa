@@ -379,7 +379,7 @@ campaign_restore_same_conv() {
 campaign_abort_turn() {
   local reason="${1:-timeout}"
   case "$reason" in
-    thermal) log "RECOVERY reason=$reason (record only — app NOT force-stopped)" ;;
+    thermal|adb-drop|*adb-drop*) log "RECOVERY reason=$reason (record only — app NOT force-stopped)" ;;
     *)       log "RECOVERY reason=$reason (force-stop $PKG)"; campaign_force_stop ;;
   esac
   campaign_record_recovery "$reason"

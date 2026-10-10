@@ -44,7 +44,7 @@ PY
 
 # Recover enough to retry the SAME turn. die only if recovery itself fails.
 campaign_recover_status() {
-  local status="${1:?}"
+  local status="${1:?}" pid
   case "$status" in
     timeout|hang|toolround)
       # A timeout/hang is usually a lost engine (zombie: app alive but
@@ -72,15 +72,24 @@ campaign_recover_status() {
       return 0
       ;;
     adb-drop)
-      campaign_ensure_device || die "device lost turn $CAMPAIGN_TURN_I"
+      campaign_ensure_device || die "device lost turn $CAMPAIGN_TURN_I; aborting without force-stop"
       campaign_logcat_on_reconnect
+      pid=$(campaign_pidof_settled)
+      case "$pid" in
+        '')
+          log "adb-drop recovery found a settled app death turn $CAMPAIGN_TURN_I"
+          campaign_recover_pid_death
+          return 0
+          ;;
+        unknown|*[!0-9]*)
+          die "app process state stayed unknown after adb-drop turn $CAMPAIGN_TURN_I; aborting without force-stop"
+          ;;
+      esac
       campaign_restore_same_conv || die "restore after adb-drop failed turn $CAMPAIGN_TURN_I"
       return 0
       ;;
     pid-death)
-      campaign_pull_db "$OUT/db-before-restart" || die "RKStorage pull failed turn $CAMPAIGN_TURN_I"
-      campaign_relaunch_or_reinstall || die "reinstall/relaunch failed turn $CAMPAIGN_TURN_I"
-      campaign_wait_ready || die "ready timeout after pid-death turn $CAMPAIGN_TURN_I"
+      campaign_recover_pid_death
       return 0
       ;;
     toolcap)
@@ -90,6 +99,12 @@ campaign_recover_status() {
       die "unknown turn status $status"
       ;;
   esac
+}
+
+campaign_recover_pid_death() {
+  campaign_pull_db "$OUT/db-before-restart" || die "RKStorage pull failed turn $CAMPAIGN_TURN_I"
+  campaign_relaunch_or_reinstall || die "reinstall/relaunch failed turn $CAMPAIGN_TURN_I"
+  campaign_wait_ready || die "ready timeout after pid-death turn $CAMPAIGN_TURN_I"
 }
 
 campaign_finish_turn() {
@@ -280,7 +295,12 @@ campaign_one_turn() {
       campaign_finish_turn "$slice"
       return 0
     fi
-    campaign_abort_turn "failed-missing-post-crash-resume-$CAMPAIGN_TURN_STATUS"
+    if [ "$CAMPAIGN_TURN_STATUS" = adb-drop ]; then
+      campaign_abort_turn adb-drop
+      campaign_recover_status adb-drop
+    else
+      campaign_abort_turn "failed-missing-post-crash-resume-$CAMPAIGN_TURN_STATUS"
+    fi
     log "ERROR: turn $i FAILED/missing — post-crash resume status=$CAMPAIGN_TURN_STATUS; same user was not resent"
     return 0
   fi
@@ -294,6 +314,9 @@ campaign_one_turn() {
     return 0
   fi
   campaign_abort_turn "$CAMPAIGN_TURN_STATUS"
+  if [ "$CAMPAIGN_TURN_STATUS" = adb-drop ]; then
+    campaign_recover_status "$CAMPAIGN_TURN_STATUS"
+  fi
   log "turn $i skipped after retry status=$CAMPAIGN_TURN_STATUS"
   return 0
 }

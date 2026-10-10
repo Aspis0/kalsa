@@ -12,12 +12,19 @@ def main(path):
     recoveries = 0
     unparseable = 0
     try:
-        stream = open(path, encoding="utf-8")
+        stream = open(path, "rb")
     except OSError:
         print("0 0 0 0 0")
         return
     with stream:
-        for line in stream:
+        for raw_line in stream:
+            try:
+                line = raw_line.decode("utf-8")
+            except UnicodeDecodeError:
+                unparseable += 1
+                continue
+            if not line.strip():
+                continue
             try:
                 record = json.loads(line)
             except (TypeError, ValueError):
