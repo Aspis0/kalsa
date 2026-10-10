@@ -274,8 +274,9 @@ campaign_thermal_should_pause() {
     ''|unknown|*[!0-9]*) campaign_reading_invalid "thermal-status"; return 1 ;;
   esac
   campaign_reading_valid "thermal-status"
-  # Pause only on REAL heat: battery temp > CAMPAIGN_THERMAL_MAX_C (T20C sets
-  # 42 in run-t20c.sh:32; the 45 default here only applies if nothing sets it)
+  # Pause only on REAL heat: battery temp > CAMPAIGN_THERMAL_MAX_C (run-t20c.sh
+  # sets it from the config's recovery.thermalMaxC, default 42; the 45 default
+  # here only applies if nothing sets it)
   # or a critical system
   # status (≥5, genuine overheating). Status 2-3 while charging is the Jelly's
   # normal equilibrium — work through it; the battery temp is the honest gate.
