@@ -280,7 +280,7 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    pacing params in JSON; duty/headroom stats to JS; engine_mutex_ serializes decode vs profile/stats/cache calls.
    App `41ab9149` pushed: pin + pacing fields in KALSA_GOVERNOR. Harness pause for G2 raised to battery > 43 C
    (app `64b05470`, owner). Each step hostile-audited by a model other than its writer (gpt-6-luna; opencode-go
-   was out of quota); leftovers E3-E6, B8-B10 in the backlog. Debuggable APK: CI run `38076349748`. Next: G2
+   was out of quota); leftovers E3-E6, B8-B10 in the backlog. Debuggable APK: CI run `38078019923` (app `867affaa`, kalsa.rn `52718a55` with the skels rebuilt for 74b7503; run `38076349748` had failed the skels gate), sha256 `cbd27007`. Next: G2
    repeat on a charged cold S23 with it.
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
