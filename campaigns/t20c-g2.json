@@ -80,7 +80,7 @@
   "thermalPause": 5,
   "neverUninstall": true,
   "neverPmClear": true,
-  "thermalMaxC": 42
+  "thermalMaxC": 43
  },
  "scorers": []
 }
