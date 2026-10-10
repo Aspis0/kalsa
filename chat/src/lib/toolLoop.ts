@@ -3,6 +3,8 @@ import type { StreamOptions, ToolPhrases, WireMessage } from "./chat";
 import { runRound } from "./streamRound";
 import type { Round } from "./streamRound";
 import { isToolRefusal } from "./refusal";
+import { createAnswerHold } from "./answerHold";
+import type { AnswerHold } from "./answerHold";
 import { logUiEvent } from "./uiLog";
 import { readArguments } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
@@ -70,10 +72,12 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     offer: ToolDefinition[],
     toolChoice: "auto" | "none",
     hideInventedCalls: boolean,
+    hold: AnswerHold | null,
   ): Promise<Round> {
+    const sinks = hold === null ? options : { ...options, onToken: hold.push };
     for (;;) {
       try {
-        return await runRound(options, conversation, offer, toolChoice, hideInventedCalls);
+        return await runRound(sinks, conversation, offer, toolChoice, hideInventedCalls);
       } catch (error) {
         if (!(error instanceof ChatRequestError) || error.kind !== "oversize") throw error;
         if (!shedOlderHalf(conversation)) throw error;
@@ -101,7 +105,16 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // that is how the answer disappeared in the first place.
     const hideInventedCalls = tools.length > 0 && round >= toolRounds;
     if (round > 0) fitHistory();
-    const answered = await askRound(tools, last ? "none" : "auto", hideInventedCalls);
+    // The first round of a turn that offered tools may be a refusal the retry
+    // replaces, so its answer text is held through the opening sentence.
+    const hold = round === 0 && tools.length > 0 ? createAnswerHold(options.onToken) : null;
+    let answered: Round;
+    try {
+      answered = await askRound(tools, last ? "none" : "auto", hideInventedCalls, hold);
+    } catch (error) {
+      hold?.settle(false);
+      throw error;
+    }
     // The server numbers its calls per response, so round two can hand back the
     // id round one used. The transcript replaces a run by id and the wire pairs
     // a result to its call by id, so an id has to be unique for the whole turn:
@@ -111,24 +124,14 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // the question: the same question is asked once more without them. Only
     // before this turn's first tool has run, so no tool exchange of this turn
     // is on the wire without the contract that declares it.
-    if (
-      round === 0 &&
-      calls.length === 0 &&
-      tools.length > 0 &&
-      !signal.aborted &&
-      isToolRefusal(answered.text, answered.toolCalls)
-    ) {
-      options.onWithdraw?.(answered.text, answered.reasoning);
+    const refused =
+      round === 0 && tools.length > 0 && !signal.aborted && isToolRefusal(answered.text, answered.toolCalls);
+    hold?.settle(refused);
+    if (refused) {
+      options.onWithdraw?.(answered.reasoning);
       logUiEvent("chat.retry_without_tools");
-      try {
-        fitHistory();
-        await askRound([], "none", false);
-      } catch (error) {
-        // A Stop is the person's own end of the turn; any other failure keeps the
-        // refused answer, as if no retry had been made.
-        if (signal.aborted) throw error;
-        options.onRestore?.();
-      }
+      fitHistory();
+      await askRound([], "none", false, null);
       return;
     }
     // A round that said nothing in words leaves the reader with an empty turn,

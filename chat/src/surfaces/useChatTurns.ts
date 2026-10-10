@@ -363,29 +363,14 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
         schedulePersist();
       }
 
-      // What the row held before a refused round was taken out, kept until the
-      // retry is known to have answered: a failed retry puts it back.
-      let withheld: { content: string; reasoning: string; tail: string } | null = null;
-
-      // The refused round is the turn's first, so its text and reasoning are the
-      // buffer's whole content; they leave by exact suffix and are persisted now,
-      // not on the debounce, so the refusal is never the stored copy.
-      function withdraw(text: string, reasoning: string): void {
+      // The refused round is the turn's first, so its reasoning is the buffer's
+      // whole reasoning. It leaves by exact suffix and is persisted now, not on
+      // the debounce. The refused answer text was never published.
+      function withdraw(reasoning: string): void {
         const b = bufs.current.get(assistantId);
-        if (!b || !b.content.endsWith(text) || !b.reasoning.endsWith(reasoning)) return;
-        withheld = { content: b.content, reasoning: b.reasoning, tail: b.tail };
-        b.content = b.content.slice(0, b.content.length - text.length);
+        if (!b || !b.reasoning.endsWith(reasoning)) return;
         b.reasoning = b.reasoning.slice(0, b.reasoning.length - reasoning.length);
         b.tail = appendTail("", b.reasoning);
-        publish();
-        persistLive();
-      }
-
-      function restore(): void {
-        const b = bufs.current.get(assistantId);
-        if (!b || withheld === null) return;
-        Object.assign(b, withheld);
-        withheld = null;
         publish();
         persistLive();
       }
@@ -451,7 +436,6 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
             }),
           onToolRun: ingestToolRun,
           onWithdraw: withdraw,
-          onRestore: restore,
           toolPhrases: words.current.tools,
           onReasoning: (text) => {
             if (thoughtStartedAt === null) {

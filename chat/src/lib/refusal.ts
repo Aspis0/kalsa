@@ -77,10 +77,12 @@ const REFUSALS = [
   "我没有这个工具",
 ];
 
-/** A refusal is short; a long reply that mentions a refusal phrase is an answer. */
+/** A refusal is short: past this, a reply is an answer whatever it says. */
 const MAX_WORDS = 80;
 
 const CJK = /[㐀-鿿豈-﫿]/g;
+
+const SENTENCE_END = /[.!?。！？\n]/;
 
 /** Whitespace words, with each CJK character counted as half a word. */
 function wordCount(text: string): number {
@@ -89,13 +91,28 @@ function wordCount(text: string): number {
   return words + Math.round(cjk / 2);
 }
 
+/** Whether the text has grown past the length a refusal can have. */
+export function isLongerThanRefusal(text: string): boolean {
+  return wordCount(text.trim()) > MAX_WORDS;
+}
+
+/** The first sentence, folded for matching, and whether its end has arrived. */
+export function openingSentence(text: string): { sentence: string; complete: boolean } {
+  const folded = text.trim().replace(/[‘’]/g, "'").toLowerCase();
+  const end = folded.search(SENTENCE_END);
+  return end === -1
+    ? { sentence: folded, complete: false }
+    : { sentence: folded.slice(0, end), complete: true };
+}
+
+/** Whether the first sentence says the model cannot do what was asked. */
+export function opensWithRefusal(text: string): boolean {
+  const { sentence } = openingSentence(text);
+  return REFUSALS.some((phrase) => sentence.includes(phrase));
+}
+
 /** A reply that refuses while tools were in the request: no tool call, short,
     and a refusal phrase in its first sentence. */
 export function isToolRefusal(text: string, toolCalls: readonly ToolCall[]): boolean {
-  if (toolCalls.length > 0) return false;
-  const trimmed = text.trim();
-  if (trimmed === "" || wordCount(trimmed) > MAX_WORDS) return false;
-  const folded = trimmed.replace(/[‘’]/g, "'").toLowerCase();
-  const firstSentence = folded.split(/[.!?。！？\n]/)[0];
-  return REFUSALS.some((phrase) => firstSentence.includes(phrase));
+  return toolCalls.length === 0 && text.trim() !== "" && !isLongerThanRefusal(text) && opensWithRefusal(text);
 }

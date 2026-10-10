@@ -159,7 +159,7 @@ export async function runRound(
 ): Promise<Round> {
   const { token, model, sampling, signal, onToken, onReasoning } = options;
   const url = completionsUrl(options.endpoint);
-  // Kept as the sinks saw it, so a refused round can be withdrawn by its exact text.
+  // The round as the caller will judge it: every chunk, whether or not the caller shows it yet.
   let shown = "";
   const show = (text: string): void => {
     shown += text;
