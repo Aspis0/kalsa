@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /**
- * Publishes one installer, reads it back from R2, and only then rewrites that
- * platform's entry in current.json.
+ * Publishes one platform's installer and its updater artifact, reads both back
+ * from R2, and only then rewrites current.json.
  *
- *   node scripts/release.mjs <windows|mac> <installer file> <version> [--dry-run] [--new-manifest]
+ *   node scripts/release.mjs <windows|mac> <installer file> <version> \
+ *     --update <artifact file> --sig <file.sig> [--dry-run] [--new-manifest] [--allow-mixed]
  *
  * --dry-run runs the local checks and prints the wrangler commands without running them.
  * --new-manifest lets an unreadable current.json start empty; use it for the first release only.
+ * --allow-mixed publishes this platform alone; the other platform keeps its installer
+ * and loses its update until it is released at the same version.
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -15,17 +18,25 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { mergeRelease } from "./merge-manifest.mjs";
+
 const BUCKET = "kalsa-installers";
 const MANIFEST_KEY = "current.json";
 const PLATFORMS = new Set(["windows", "mac"]);
-const VERSION = /^\d+\.\d+\.\d+$/;
+const VALUE_OPTIONS = new Set(["--update", "--sig"]);
+const FLAGS = new Set(["--dry-run", "--new-manifest", "--allow-mixed"]);
+// The Worker's SemVer rule, copied from semver.ts; a test keeps the two equal.
+const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const SIGNATURE = /^[A-Za-z0-9+/=]{1,4096}$/;
 // Mirrors KEY in manifest.ts; a test keeps the two equal.
 const KEY = /^releases\/[A-Za-z0-9][A-Za-z0-9._-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BUILD_GUIDE = path.join(HERE, "build-guide.mjs");
 const DEFAULT_MARKDOWN = path.resolve(HERE, "../../../../kalsa-brain/docs/ALPHA-TESTERS.md");
+const USAGE =
+  "usage: release.mjs <windows|mac> <installer file> <version> --update <artifact> --sig <file.sig> [--dry-run] [--new-manifest] [--allow-mixed]";
 
 let work = null;
 
@@ -33,6 +44,11 @@ function die(message, code = 1) {
   console.error(message);
   if (work !== null) rmSync(work, { recursive: true, force: true });
   process.exit(code);
+}
+
+function usage(message) {
+  console.error(`${message}\n${USAGE}`);
+  process.exit(2);
 }
 
 function quote(arg) {
@@ -53,95 +69,127 @@ function digestOf(file) {
   });
 }
 
-const args = process.argv.slice(2);
-const flags = new Set(args.filter((arg) => arg.startsWith("--")));
-const [platform, file, version] = args.filter((arg) => !arg.startsWith("--"));
+function parseArgs(argv) {
+  const flags = new Set();
+  const options = {};
+  const positional = [];
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (FLAGS.has(arg)) flags.add(arg);
+    else if (VALUE_OPTIONS.has(arg) && argv[i + 1] !== undefined) options[arg.slice(2)] = argv[++i];
+    else if (arg.startsWith("--")) usage(`bad argument ${arg}`);
+    else positional.push(arg);
+  }
+  return { flags, options, positional };
+}
+
+const { flags, options, positional } = parseArgs(process.argv.slice(2));
+const [platform, file, version] = positional;
 const dryRun = flags.has("--dry-run");
 const newManifest = flags.has("--new-manifest");
-
-if (!PLATFORMS.has(platform) || !file || !version) {
-  die("usage: release.mjs <windows|mac> <installer file> <version> [--dry-run] [--new-manifest]", 2);
-}
+if (!PLATFORMS.has(platform) || !file || !version || positional.length !== 3) usage("missing or extra arguments");
+if (!options.update || !options.sig) usage("--update and --sig are required");
 if (!VERSION.test(version)) die(`version must be X.Y.Z, got ${version}`);
-if (!statSync(file, { throwIfNoEntry: false })?.isFile()) die(`not a file: ${file}`);
+for (const candidate of [file, options.update, options.sig]) {
+  if (!statSync(candidate, { throwIfNoEntry: false })?.isFile()) die(`not a file: ${candidate}`);
+}
 const name = path.basename(file);
-if (!NAME.test(name)) die(`file name must be letters, digits, dot, underscore or hyphen: ${name}`);
+const updateName = path.basename(options.update);
+for (const fileName of [name, updateName]) {
+  if (!NAME.test(fileName)) die(`file name must be letters, digits, dot, underscore or hyphen: ${fileName}`);
+}
 const key = `releases/${version}/${name}`;
-if (!KEY.test(key)) die(`key would be outside releases/: ${key}`);
+const updateKey = `releases/${version}/${updateName}`;
+for (const candidate of [key, updateKey]) {
+  if (!KEY.test(candidate)) die(`not allowed in a key: ${candidate}`);
+}
+const signature = readFileSync(options.sig, "utf8").trim();
+if (!SIGNATURE.test(signature)) die(`${options.sig} must hold one base64 line of at most 4096 characters`);
 
 const markdown = process.env.ALPHA_TESTERS_MD ?? DEFAULT_MARKDOWN;
 if (!existsSync(markdown)) die(`tester guide markdown not found at ${markdown}; set ALPHA_TESTERS_MD`);
 const guide = spawnSync(process.execPath, [BUILD_GUIDE, markdown, "--check"], { encoding: "utf8" });
-if (guide.status !== 0) {
-  die(`guide.ts is stale or the markdown does not convert; run build-guide.mjs\n${guide.stderr}`);
-}
+if (guide.status !== 0) die(`guide.ts is stale or the markdown does not convert; run build-guide.mjs\n${guide.stderr}`);
 
 const local = await digestOf(file);
-const entry = { key, name, size: local.size, sha256: local.sha256 };
-console.log(`local ${name}: ${local.size} bytes, sha256 ${local.sha256}`);
+const artifact = await digestOf(options.update);
+const sameFile = updateKey === key;
+if (sameFile && artifact.sha256 !== local.sha256) {
+  die(`the update artifact has the installer's name but different bytes; rename one of them`);
+}
+const release = {
+  version,
+  installer: { key, name, size: local.size, sha256: local.sha256 },
+  update: { key: updateKey, name: updateName, size: artifact.size, sha256: artifact.sha256, signature },
+};
+console.log(`installer ${name}: ${local.size} bytes, sha256 ${local.sha256}`);
+console.log(`update ${updateName}: ${artifact.size} bytes, sha256 ${artifact.sha256}`);
 
 work = mkdtempSync(path.join(os.tmpdir(), "kalsa-release-"));
-const verifyPath = path.join(work, "published-installer");
 const currentPath = path.join(work, "current.json");
 const nextPath = path.join(work, "next-current.json");
 
-function wrangler(wranglerArgs) {
-  if (dryRun) {
+function wrangler(wranglerArgs, { read = false } = {}) {
+  if (dryRun && !read) {
     console.log(["npx", "wrangler", ...wranglerArgs].map(quote).join(" "));
     return 0;
   }
   return spawnSync("npx", ["wrangler", ...wranglerArgs], { stdio: "inherit" }).status;
 }
 
-console.log(`1. publish releases/${version}/${name}`);
-if (wrangler(["r2", "object", "put", `${BUCKET}/${key}`, "--file", file, "--remote"]) !== 0) {
-  die("upload failed; current.json is unchanged");
+const uploads = sameFile ? [[key, file, local]] : [[key, file, local], [updateKey, options.update, artifact]];
+console.log(`1. publish ${uploads.map(([uploaded]) => uploaded).join(" and ")}`);
+for (const [uploaded, source] of uploads) {
+  if (wrangler(["r2", "object", "put", `${BUCKET}/${uploaded}`, "--file", source, "--remote"]) !== 0) {
+    die(`upload of ${uploaded} failed; current.json is unchanged`);
+  }
 }
 
-console.log("2. read the installer back and re-hash it");
-if (wrangler(["r2", "object", "get", `${BUCKET}/${key}`, "--remote", "--file", verifyPath]) !== 0) {
-  die("read-back failed; current.json is unchanged");
-}
-if (!dryRun) {
-  const published = await digestOf(verifyPath);
-  if (published.sha256 !== local.sha256 || published.size !== local.size) {
-    die(
-      `published bytes differ from the local file (${published.size} bytes, sha256 ${published.sha256}); current.json is unchanged`,
-    );
+console.log("2. read each object back and re-hash it");
+for (const [uploaded, , expected] of uploads) {
+  const readBack = path.join(work, `published-${path.basename(uploaded)}`);
+  if (wrangler(["r2", "object", "get", `${BUCKET}/${uploaded}`, "--remote", "--file", readBack]) !== 0) {
+    die(`read-back of ${uploaded} failed; current.json is unchanged`);
+  }
+  if (!dryRun) {
+    const published = await digestOf(readBack);
+    if (published.sha256 !== expected.sha256 || published.size !== expected.size) {
+      die(`published ${uploaded} differs from the local file; current.json is unchanged`);
+    }
   }
 }
 
 console.log(`3. read ${MANIFEST_KEY}`);
-let current = {};
-if (wrangler(["r2", "object", "get", `${BUCKET}/${MANIFEST_KEY}`, "--remote", "--file", currentPath]) !== 0) {
-  if (!newManifest) {
-    die(`could not read ${MANIFEST_KEY}; for the first release rerun with --new-manifest`);
-  }
-} else if (!dryRun) {
+let current = null;
+if (wrangler(["r2", "object", "get", `${BUCKET}/${MANIFEST_KEY}`, "--remote", "--file", currentPath], { read: true }) === 0) {
   try {
     current = JSON.parse(readFileSync(currentPath, "utf8"));
   } catch {
     die(`${MANIFEST_KEY} is not valid JSON; fix it in the bucket before releasing`);
   }
+} else if (!newManifest) {
+  die(`could not read ${MANIFEST_KEY}; for the first release rerun with --new-manifest`);
 }
 
-console.log(`4. set ${platform} in ${MANIFEST_KEY}, keep the other platform's entry`);
-if (dryRun) {
-  console.log(`   ${platform} = ${JSON.stringify(entry)}`);
+console.log(`4. merge ${platform} ${version} into ${MANIFEST_KEY}`);
+if (current === null && dryRun) {
+  console.log(`   ${MANIFEST_KEY} could not be read here, so the version check did not run`);
 } else {
-  const next = {
-    windows: platform === "windows" ? entry : current.windows,
-    mac: platform === "mac" ? entry : current.mac,
-  };
-  writeFileSync(nextPath, `${JSON.stringify(next, null, 2)}\n`);
+  let next;
+  try {
+    next = mergeRelease(current ?? {}, platform, release, { allowMixed: flags.has("--allow-mixed") });
+  } catch (err) {
+    die(err.message);
+  }
+  if (dryRun) console.log(`   would write ${MANIFEST_KEY}: ${JSON.stringify(next)}`);
+  else writeFileSync(nextPath, `${JSON.stringify(next, null, 2)}\n`);
 }
 
 console.log(`5. upload ${MANIFEST_KEY}`);
-if (
-  wrangler(["r2", "object", "put", `${BUCKET}/${MANIFEST_KEY}`, "--file", nextPath, "--remote", "--content-type", "application/json"]) !== 0
-) {
-  die(`manifest upload failed; the installer is published but ${MANIFEST_KEY} may be stale`);
+const manifestPut = ["r2", "object", "put", `${BUCKET}/${MANIFEST_KEY}`, "--file", nextPath, "--remote", "--content-type", "application/json"];
+if (wrangler(manifestPut) !== 0) {
+  die(`manifest upload failed; the files are published but ${MANIFEST_KEY} may be stale`);
 }
 
 rmSync(work, { recursive: true, force: true });
-console.log(dryRun ? "dry run: nothing was run" : `released ${platform} ${version}; check the private link (README)`);
+console.log(dryRun ? "dry run: no upload was made" : `released ${platform} ${version}; check the private link (README)`);

@@ -89,9 +89,34 @@ export function brokenBucket(): R2Bucket {
 /** A test key only: real keys are set as a Worker secret and never appear in the repo. */
 export const LINK_KEY = "fake_link_key_for_tests_only_0123456789";
 export const BASE = `/download/${LINK_KEY}`;
+export const UPDATE_KEY = "fake_update_key_for_tests_only_987654321";
+export const UPDATE_BASE = `/download/update/${UPDATE_KEY}`;
 
 export function envWith(objects: Record<string, string>, options?: FakeOptions): Env {
-  return { DOWNLOADS: fakeBucket(objects, options), LINK_KEY };
+  return { DOWNLOADS: fakeBucket(objects, options), LINK_KEY, UPDATE_KEY };
+}
+
+/** The version every updater fixture belongs to; its update keys sit under releases/<VERSION>/. */
+export const VERSION = "0.0.1";
+/** Stand-in for the content of a Tauri `.sig` file: one base64 line. */
+export const SIG = "dGVzdC1zaWduYXR1cmU=";
+export const MAC_UPDATE = {
+  key: "releases/0.0.1/Kalsa-alpha-0.0.1-mac.app.tar.gz",
+  name: "Kalsa-alpha-0.0.1-mac.app.tar.gz",
+  bytes: "mac updater archive\n".repeat(16),
+};
+
+export function updateEntry(file: { key: string; name: string; bytes: string }) {
+  return { ...entryFor(file), signature: SIG };
+}
+
+/** A manifest with a version and an update per platform; the Windows update is the installer itself. */
+export function manifestWithUpdates(over: { version?: unknown; windowsUpdate?: unknown; macUpdate?: unknown } = {}): string {
+  return JSON.stringify({
+    version: "version" in over ? over.version : VERSION,
+    windows: { ...entryFor(WIN), update: "windowsUpdate" in over ? over.windowsUpdate : updateEntry(WIN) },
+    mac: { ...entryFor(MAC), update: "macUpdate" in over ? over.macUpdate : updateEntry(MAC_UPDATE) },
+  });
 }
 
 export function send(

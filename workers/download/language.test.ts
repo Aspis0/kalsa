@@ -1,6 +1,7 @@
 import { BASE, envWith, send, standardObjects } from "./fakes";
 import { GUIDE_HTML_IT } from "./guide";
 import { pickLang } from "./language";
+import { parseManifest } from "./manifest";
 import { downloadPageHtml } from "./page";
 
 const KEY = "k".repeat(32);
@@ -22,7 +23,7 @@ describe("which language a request gets", () => {
 });
 
 describe("the Italian page", () => {
-  const html = downloadPageHtml({ windows: null, mac: null }, KEY, "it");
+  const html = downloadPageHtml(parseManifest(null), KEY, "it");
 
   test("is marked Italian and links back to English on the same page", () => {
     expect(html).toContain('<html lang="it">');
@@ -32,7 +33,7 @@ describe("the Italian page", () => {
   });
 
   test("the English page links to Italian", () => {
-    expect(downloadPageHtml({ windows: null, mac: null }, KEY, "en")).toContain('<a href="?lang=it"');
+    expect(downloadPageHtml(parseManifest(null), KEY, "en")).toContain('<a href="?lang=it"');
   });
 
   test("the Italian guide keeps the same anchors and drops section 7", () => {

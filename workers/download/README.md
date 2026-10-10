@@ -89,6 +89,37 @@ Use the old key in place of the new one to confirm the old link now gets the 404
 While `curl` runs, the expanded URL is visible in the process list for a moment.
 How long the old version stays live after a publish is not verified here.
 
+## Desktop updater (owner)
+
+The desktop app updates itself with Tauri's updater (`tauri-plugin-updater`, dynamic
+server). This Worker is that update server, behind its own secret `UPDATE_KEY`.
+
+- **A key in every app, not a secret.** Generate it as `LINK_KEY` is generated (see above)
+  and set it with `npx wrangler secret put UPDATE_KEY`. Every shipped app carries it, so
+  anyone who has an app can read it out. It keeps the update endpoint away from casual
+  discovery: crawlers, and people who find the URL without the app. It does not keep the
+  update channel private from people who have the app, and it does not stop them from
+  downloading or polling the artifacts. The app can also write the update URL, key included,
+  into its local log when a connection fails. Rotating it breaks updates for every installed
+  app until each one is reinstalled. Rotating `LINK_KEY` does not touch updates.
+- **Endpoint** the app is built with. Tauri fills in the placeholders:
+  `https://kalsa.io/download/update/<UPDATE_KEY>/{{target}}/{{arch}}/{{current_version}}`
+- **Check**, `GET` or `HEAD` `…/<target>/<arch>/<current>`. `darwin/aarch64` gets the mac
+  update and `windows/x86_64` the Windows one. Any other target or architecture gets 204, and
+  so does a release that is not newer than `<current>`, or a `<current>` that is not semver.
+  200 answers `{ "version", "url", "signature" }`, where `url` is the absolute artifact URL.
+- **Artifact**, `GET` or `HEAD` `…/artifact/<mac|windows>`. The bytes, with the same size and
+  sha256 checks as the installers (503 on a mismatch). Never redirected. `private, no-store`.
+- **In the manifest.** A top-level `version` (semver), and per platform
+  `update: { key, name, size, sha256, signature }`. `signature` is the content of the `.sig`
+  file Tauri writes: one base64 line. An update is offered only when its key sits under the
+  manifest's version. The Windows update is the NSIS installer itself, so its key is the
+  installer's key. A manifest without `version` or `update` still serves the page and the
+  installers.
+- The updater's public key goes in the app's `tauri.conf.json`. The private signing key stays
+  with the owner and never enters the repo. Not verified here: the app side, and the target
+  and arch names against a real build.
+
 ## Routes (declared in `wrangler.toml`, zone `kalsa.io`)
 
 `kalsa.io/download*` is this Worker's route. Other paths on `kalsa.io` belong to
@@ -102,13 +133,21 @@ redeployed.
 
 ```json
 {
+  "version": "0.0.1",
   "windows": {
     "key": "releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe",
     "name": "Kalsa-alpha-0.0.1-windows.exe",
     "size": 123456789,
-    "sha256": "<64 lowercase hex chars>"
+    "sha256": "<64 lowercase hex chars>",
+    "update": {
+      "key": "releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe",
+      "name": "Kalsa-alpha-0.0.1-windows.exe",
+      "size": 123456789,
+      "sha256": "<64 lowercase hex chars>",
+      "signature": "<the .sig content, one base64 line>"
+    }
   },
-  "mac": { "key": "…", "name": "…", "size": 98765432, "sha256": "…" }
+  "mac": { "key": "…", "name": "…", "size": 98765432, "sha256": "…", "update": { "…": "…" } }
 }
 ```
 
@@ -117,6 +156,9 @@ entry shows "coming soon" on the page and 404s its route; the other platform is
 unaffected. A key must start with `releases/<version>/` and use only
 `A-Za-z0-9._-` in its segments; a name uses `A-Za-z0-9._ -` and cannot start with
 a dot, so the Content-Disposition header cannot be broken.
+
+An invalid `update` hides only the update; the installer keeps working. An invalid
+`version` drops the updates, never the installers.
 
 ## Integrity
 
@@ -174,6 +216,7 @@ npx wrangler login
 cd workers/download
 npx wrangler r2 bucket create kalsa-installers
 npx wrangler secret put LINK_KEY    # publishes a version; see "Generate and set the key"
+npx wrangler secret put UPDATE_KEY  # the desktop updater; see "Desktop updater"
 npx wrangler deploy                  # only with the owner's explicit OK
 ```
 
@@ -201,29 +244,36 @@ platforms and the installer routes return 404.
 
 ## Per release (owner)
 
-Build the installer, then run the release script for each platform. The first
-release also needs `--new-manifest`, because there is no `current.json` to read yet.
+Build the installer and the updater artifact, and take the `.sig` that Tauri writes next to
+the artifact. Then run the release script for each platform. The first release also needs
+`--new-manifest`, because there is no `current.json` to read yet.
 
 ```bash
-node scripts/release.mjs windows ./Kalsa-alpha-0.0.1-windows.exe 0.0.1
-node scripts/release.mjs mac ./Kalsa-alpha-0.0.1-mac.dmg 0.0.1
+# mac: the installer, the updater artifact (.app.tar.gz) and its signature
+node scripts/release.mjs mac ./Kalsa-alpha-0.0.2-mac.dmg 0.0.2 \
+  --update ./Kalsa-alpha-0.0.2-mac.app.tar.gz --sig ./Kalsa-alpha-0.0.2-mac.app.tar.gz.sig
+
+# windows: the NSIS installer is also the updater artifact, so --update is the same file
+node scripts/release.mjs windows ./Kalsa-alpha-0.0.2-windows.exe 0.0.2 \
+  --update ./Kalsa-alpha-0.0.2-windows.exe --sig ./Kalsa-alpha-0.0.2-windows.exe.sig
 ```
 
-`--dry-run` runs the local checks (guide freshness, size, sha256, key rule) and
-prints the wrangler commands without running them. Without it the script:
+`--dry-run` runs the local checks (guide freshness, sizes, sha256, key rule, signature
+format) and prints the wrangler commands without running them. Without it the script:
 
-1. uploads the file to `releases/<version>/<name>`;
-2. downloads that object again and re-hashes it; a mismatch stops here, with
-   `current.json` unchanged;
-3. reads `current.json`; if it cannot be read, the script stops unless
-   `--new-manifest` is given;
-4. replaces only that platform's entry, keeping the other one;
+1. uploads the installer and the artifact to `releases/<version>/<name>`;
+2. downloads each again and re-hashes it; a mismatch stops here, with `current.json` unchanged;
+3. reads `current.json`; if it cannot be read, the script stops unless `--new-manifest` is given;
+4. merges this platform's installer and update into it, keeping the other platform;
 5. uploads the new `current.json`.
 
+Both platforms should be released at the same version. The script refuses when the other
+platform sits on a different version. `--allow-mixed` publishes one platform alone: the other
+keeps its installer and loses its update until it is released at the same version.
+
 Set `ALPHA_TESTERS_MD` if the markdown is not at the sibling path
-`../kalsa-brain/docs/ALPHA-TESTERS.md`. Afterwards, check with the keyed link, as in
-the rotation section. A release needs no `wrangler deploy`; only a page or route
-change does.
+`../kalsa-brain/docs/ALPHA-TESTERS.md`. Afterwards, check with the keyed link, as in the
+rotation section. A release needs no `wrangler deploy`; only a page or route change does.
 
 ## Tests
 
@@ -249,4 +299,6 @@ two digests and that a failing hash still gives the 404.
 - Whether `wrangler secret put` publishes the local code or only the secret.
 - How long the old version of the Worker stays live after a rotation.
 - Whether `wrangler r2 object put` stores an R2 sha256 checksum.
+- The updater end to end: Tauri signing and the `.sig` format, the app's public key and
+  endpoint, and the `darwin/aarch64` and `windows/x86_64` names against a real build.
 - Range requests are not supported; an interrupted download restarts.

@@ -1,22 +1,37 @@
 /**
- * current.json in the downloads bucket: the installer each platform serves.
- * Read on every request, so a release is an upload plus a rewritten manifest.
- * Each platform is validated on its own; a bad entry only hides that button.
+ * current.json in the downloads bucket: what each platform serves. Read on every
+ * request, so a release is an upload plus a rewritten manifest. Each platform is
+ * validated on its own; a bad entry only hides that platform's part.
  */
+import { isSemver } from "./semver";
 
 export const MANIFEST_KEY = "current.json";
 
-export type Installer = { key: string; name: string; size: number; sha256: string };
-export type Manifest = { windows: Installer | null; mac: Installer | null };
+export type Platform = "windows" | "mac";
+export type Artifact = { key: string; name: string; size: number; sha256: string };
+export type Installer = Artifact;
+export type Update = Artifact & { signature: string };
+export type Manifest = {
+  version: string | null;
+  windows: Installer | null;
+  mac: Installer | null;
+  updates: Record<Platform, Update | null>;
+};
 
 const KEY = /^releases\/[A-Za-z0-9][A-Za-z0-9._-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,127}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
+const SIGNATURE = /^[A-Za-z0-9+/=]{1,4096}$/;
 const MAX_SIZE = 64 * 1024 ** 3;
 
-const NONE: Manifest = { windows: null, mac: null };
+const NONE: Manifest = { version: null, windows: null, mac: null, updates: { windows: null, mac: null } };
 
-function installer(value: unknown): Installer | null {
+/** The release a key belongs to: `releases/<version>/<name>`. */
+export function versionOfKey(key: string): string | null {
+  return key.split("/")[1] ?? null;
+}
+
+function artifact(value: unknown): Artifact | null {
   if (typeof value !== "object" || value === null) return null;
   const { key, name, size, sha256 } = value as Record<string, unknown>;
   if (typeof key !== "string" || !KEY.test(key)) return null;
@@ -24,6 +39,21 @@ function installer(value: unknown): Installer | null {
   if (typeof size !== "number" || !Number.isSafeInteger(size) || size <= 0 || size > MAX_SIZE) return null;
   if (typeof sha256 !== "string" || !SHA256.test(sha256)) return null;
   return { key, name, size, sha256 };
+}
+
+function update(value: unknown): Update | null {
+  if (typeof value !== "object" || value === null) return null;
+  const base = artifact(value);
+  const signature = (value as Record<string, unknown>).signature;
+  if (base === null || typeof signature !== "string" || !SIGNATURE.test(signature)) return null;
+  return { ...base, signature };
+}
+
+/** An update is offered only for the version the manifest names, never for another release. */
+function updateOf(entry: unknown, version: string | null): Update | null {
+  if (version === null || typeof entry !== "object" || entry === null) return null;
+  const found = update((entry as Record<string, unknown>).update);
+  return found !== null && versionOfKey(found.key) === version ? found : null;
 }
 
 export function parseManifest(text: string | null): Manifest {
@@ -35,8 +65,14 @@ export function parseManifest(text: string | null): Manifest {
     return NONE;
   }
   if (typeof raw !== "object" || raw === null) return NONE;
-  const { windows, mac } = raw as Record<string, unknown>;
-  return { windows: installer(windows), mac: installer(mac) };
+  const { version: rawVersion, windows, mac } = raw as Record<string, unknown>;
+  const version = isSemver(rawVersion) ? rawVersion : null;
+  return {
+    version,
+    windows: artifact(windows),
+    mac: artifact(mac),
+    updates: { windows: updateOf(windows, version), mac: updateOf(mac, version) },
+  };
 }
 
 export async function readManifest(bucket: R2Bucket): Promise<Manifest> {

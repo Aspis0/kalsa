@@ -3,8 +3,8 @@
  * current installers from the manifest. No script, no cookies, no third-party requests.
  */
 import { COPY, type Lang } from "./language";
-import { installerPath } from "./link";
 import type { Installer, Manifest } from "./manifest";
+import { installerPath } from "./routes";
 
 export const STYLE = `:root { color-scheme: light dark; }
 * { box-sizing: border-box; }

@@ -1,4 +1,17 @@
-import { BASE, LINK_KEY, WIN, brokenBucket, entryFor, envWith, send, standardObjects } from "./fakes";
+import {
+  BASE,
+  LINK_KEY,
+  MAC_UPDATE,
+  UPDATE_BASE,
+  UPDATE_KEY,
+  WIN,
+  brokenBucket,
+  entryFor,
+  envWith,
+  manifestWithUpdates,
+  send,
+  standardObjects,
+} from "./fakes";
 
 const winSha = entryFor(WIN).sha256;
 const env = () => envWith(standardObjects());
@@ -46,6 +59,21 @@ const probes: [string, string, RequestInit?][] = [
   ["the download segment in another case", `/Download/${LINK_KEY}`],
   ["the key upper-cased", `/download/${LINK_KEY.toUpperCase()}`],
   ["the platform upper-cased", `${BASE}/WINDOWS`],
+  ["a wrong update key on the check", `/download/update/${wrongKey}/darwin/aarch64/0.0.0`],
+  ["the link key on the updater", `/download/update/${LINK_KEY}/artifact/mac`],
+  ["the update key on the link", `/download/${UPDATE_KEY}/windows`],
+  ["the update key on the link page", `/download/${UPDATE_KEY}`],
+  ["the update check with a trailing slash", `${UPDATE_BASE}/darwin/aarch64/0.0.0/`],
+  ["an artifact for an unknown platform", `${UPDATE_BASE}/artifact/linux`],
+  ["the artifact without a platform", `${UPDATE_BASE}/artifact`],
+  ["the updater root", UPDATE_BASE],
+  ["a wrong update key with HEAD", `/download/update/${wrongKey}/darwin/aarch64/0.0.0`, { method: "HEAD" }],
+  ["a wrong update key with POST", `/download/update/${wrongKey}/artifact/mac`, { method: "POST" }],
+  ["a query on a wrong update key", `/download/update/${wrongKey}/artifact/mac?v=x`],
+  ["a percent-encoded update key", `/download/update/%75${UPDATE_KEY.slice(1)}/artifact/mac`],
+  ["a double slash before the updater", `//download/update/${UPDATE_KEY}/artifact/mac`],
+  ["the updater in another case", `/download/Update/${UPDATE_KEY}/artifact/mac`],
+  ["the update key upper-cased", `/download/update/${UPDATE_KEY.toUpperCase()}/artifact/mac`],
 ];
 
 describe("everything that is not the link answers the same 404", () => {
@@ -111,5 +139,27 @@ describe("privacy headers on every response", () => {
 
   test("503 carries them", async () => {
     expectPrivacy(await send({ DOWNLOADS: brokenBucket(), LINK_KEY }, BASE));
+  });
+});
+
+describe("the two keys are independent", () => {
+  const withUpdates = () =>
+    standardObjects({ "current.json": manifestWithUpdates(), [MAC_UPDATE.key]: MAC_UPDATE.bytes });
+
+  test("a missing UPDATE_KEY turns the updater into the 404; the tester link keeps working", async () => {
+    const env = { ...envWith(withUpdates()), UPDATE_KEY: undefined };
+    expect(await snapshot(await send(env, `${UPDATE_BASE}/darwin/aarch64/0.0.0`))).toEqual(await reference());
+    expect((await send(env, BASE)).status).toBe(200);
+  });
+
+  test("a short UPDATE_KEY turns the updater into the 404", async () => {
+    const env = { ...envWith(withUpdates()), UPDATE_KEY: "u".repeat(31) };
+    expect(await snapshot(await send(env, `/download/update/${"u".repeat(31)}/artifact/mac`))).toEqual(await reference());
+  });
+
+  test("a LINK_KEY of update is refused, so /download/update is never a tester link", async () => {
+    const env = { ...envWith(withUpdates()), LINK_KEY: "update" };
+    expect(await snapshot(await send(env, "/download/update"))).toEqual(await reference());
+    expect((await send(env, `${UPDATE_BASE}/artifact/mac`)).status).toBe(200);
   });
 });

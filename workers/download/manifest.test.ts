@@ -9,9 +9,9 @@ describe("manifest parsing", () => {
   });
 
   test("a missing or non-JSON manifest yields no installers", () => {
-    expect(parseManifest(null)).toEqual({ windows: null, mac: null });
-    expect(parseManifest("{not json")).toEqual({ windows: null, mac: null });
-    expect(parseManifest("[]")).toEqual({ windows: null, mac: null });
+    expect(parseManifest(null)).toEqual({ version: null, windows: null, mac: null, updates: { windows: null, mac: null } });
+    expect(parseManifest("{not json")).toEqual({ version: null, windows: null, mac: null, updates: { windows: null, mac: null } });
+    expect(parseManifest("[]")).toEqual({ version: null, windows: null, mac: null, updates: { windows: null, mac: null } });
   });
 
   test("each platform is validated on its own", () => {
@@ -58,6 +58,6 @@ describe("manifest read", () => {
   });
 
   test("an absent manifest object yields no installers", async () => {
-    expect(await readManifest(fakeBucket({}))).toEqual({ windows: null, mac: null });
+    expect(await readManifest(fakeBucket({}))).toEqual({ version: null, windows: null, mac: null, updates: { windows: null, mac: null } });
   });
 });

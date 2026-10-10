@@ -33,8 +33,8 @@ export function redirect(location: string): Response {
   return new Response(null, { status: 302, headers: { ...TEXT_HEADERS, location } });
 }
 
-export function notModified(etag: string): Response {
-  return new Response(null, { status: 304, headers: { etag, "cache-control": "private, no-cache" } });
+export function notModified(etag: string, cacheControl: string): Response {
+  return new Response(null, { status: 304, headers: { etag, "cache-control": cacheControl } });
 }
 
 /** Bucket or manifest failure, or bytes that do not match the manifest. */

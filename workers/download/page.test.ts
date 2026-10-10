@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { BASE, MAC, WIN, entryFor, envWith, manifestJson, send, standardObjects } from "./fakes";
+import { parseManifest } from "./manifest";
 import { CSP_HEADER, STYLE, STYLE_HASH, downloadPageHtml } from "./page";
 
 async function page(objects = standardObjects()) {
@@ -115,7 +116,7 @@ describe("strict headers", () => {
   });
 
   test("the inline style in the page is exactly STYLE", () => {
-    expect(downloadPageHtml({ windows: null, mac: null }, "k".repeat(32), "en")).toContain(`<style>${STYLE}</style>`);
+    expect(downloadPageHtml(parseManifest(null), "k".repeat(32), "en")).toContain(`<style>${STYLE}</style>`);
   });
 });
 

@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -8,64 +8,193 @@ const HERE = __dirname;
 const RELEASE = path.join(HERE, "scripts", "release.mjs");
 const DEFAULT_MARKDOWN = path.resolve(HERE, "../../../kalsa-brain/docs/ALPHA-TESTERS.md");
 const work = mkdtempSync(path.join(tmpdir(), "kalsa-release-test-"));
-const installer = path.join(work, "Kalsa-alpha-0.0.1-windows.exe");
-const installerBytes = "windows installer bytes\n";
+const installer = path.join(work, "Kalsa-alpha-0.0.1-mac.dmg");
+const installerBytes = "mac installer bytes\n";
 writeFileSync(installer, installerBytes);
+const artifact = path.join(work, "Kalsa-alpha-0.0.1-mac.app.tar.gz");
+writeFileSync(artifact, "mac updater archive\n");
+const sig = path.join(work, "Kalsa-alpha-0.0.1-mac.app.tar.gz.sig");
+writeFileSync(sig, "dGVzdC1zaWduYXR1cmU=\n");
 
+// Stands in for `npx`: logs every call; answers the current.json read from FAKE_MANIFEST.
+const fakeBin = path.join(work, "bin");
+mkdirSync(fakeBin);
+const fakeNpx = path.join(fakeBin, "npx");
+writeFileSync(
+  fakeNpx,
+  `#!${process.execPath}
+const { appendFileSync, writeFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+appendFileSync(process.env.FAKE_LOG, args.join(" ") + "\\n");
+const isManifestRead = args.includes("get") && args.some((arg) => arg.endsWith("/current.json"));
+if (!isManifestRead) process.exit(0);
+if (process.env.FAKE_MANIFEST_MISSING) {
+  console.error("object not found");
+  process.exit(1);
+}
+writeFileSync(args[args.indexOf("--file") + 1], process.env.FAKE_MANIFEST);
+`,
+);
+chmodSync(fakeNpx, 0o755);
+
+let calls = 0;
 function release(args: string[], env: Record<string, string> = {}) {
+  const log = path.join(work, `calls-${calls++}.log`);
   const res = spawnSync(process.execPath, [RELEASE, ...args], {
     encoding: "utf8",
-    // An empty PATH makes any real `npx` call fail, so a dry run that reaches wrangler is caught.
-    env: { PATH: "/nonexistent", ALPHA_TESTERS_MD: DEFAULT_MARKDOWN, ...env },
+    env: { PATH: fakeBin, ALPHA_TESTERS_MD: DEFAULT_MARKDOWN, FAKE_LOG: log, FAKE_MANIFEST: "{}", ...env },
   });
-  return { status: res.status, out: res.stdout + res.stderr };
+  return { status: res.status, out: res.stdout + res.stderr, log: existsSync(log) ? readFileSync(log, "utf8") : "" };
+}
+
+/** A complete mac release command; `overrides` swaps single arguments. */
+function mac(overrides: { installer?: string; version?: string; update?: string; sig?: string; extra?: string[] } = {}) {
+  return [
+    "mac",
+    overrides.installer ?? installer,
+    overrides.version ?? "0.0.1",
+    "--update",
+    overrides.update ?? artifact,
+    "--sig",
+    overrides.sig ?? sig,
+    "--dry-run",
+    ...(overrides.extra ?? []),
+  ];
 }
 
 afterAll(() => rmSync(work, { recursive: true, force: true }));
 
 describe("release --dry-run", () => {
-  test("prints the publish, read-back, manifest read and manifest write, and runs none of them", () => {
-    const res = release(["windows", installer, "0.0.1", "--dry-run"]);
-    expect(res.out).toContain(`npx wrangler r2 object put kalsa-installers/releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe --file ${installer} --remote`);
-    expect(res.out).toContain("npx wrangler r2 object get kalsa-installers/releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe --remote --file");
-    expect(res.out).toContain("npx wrangler r2 object get kalsa-installers/current.json --remote --file");
+  test("prints both publishes, both read-backs and the manifest write, uploads nothing, and reads current.json", () => {
+    const res = release(mac());
+    expect(res.out).toContain(`npx wrangler r2 object put kalsa-installers/releases/0.0.1/Kalsa-alpha-0.0.1-mac.dmg --file ${installer} --remote`);
+    expect(res.out).toContain(`npx wrangler r2 object put kalsa-installers/releases/0.0.1/Kalsa-alpha-0.0.1-mac.app.tar.gz --file ${artifact} --remote`);
+    expect(res.out).toContain("npx wrangler r2 object get kalsa-installers/releases/0.0.1/Kalsa-alpha-0.0.1-mac.app.tar.gz --remote --file");
     expect(res.out).toContain("npx wrangler r2 object put kalsa-installers/current.json --file");
-    expect(res.out).toContain("--content-type application/json");
-    expect(res.out).toContain("dry run: nothing was run");
-    expect({ status: res.status }).toEqual({ status: 0 });
+    expect(res.out).toContain("dry run: no upload was made");
+    expect(res.status).toBe(0);
+    expect(res.log).toContain("object get kalsa-installers/current.json --remote --file");
+    expect(res.log).not.toMatch(/object put/);
+    expect(res.log).not.toMatch(/releases\/0\.0\.1\/Kalsa-alpha-0\.0\.1-mac/);
   });
 
-  test("the printed manifest entry carries the local size and sha256", () => {
-    const res = release(["windows", installer, "0.0.1", "--dry-run"]);
+  test("the would-write manifest carries the installer, the update and its signature", () => {
+    const res = release(mac());
     const sha = createHash("sha256").update(readFileSync(installer)).digest("hex");
     const size = Buffer.byteLength(installerBytes);
+    const artifactSha = createHash("sha256").update(readFileSync(artifact)).digest("hex");
+    const artifactSize = Buffer.byteLength("mac updater archive\n");
     expect(res.out).toContain(
-      `windows = {"key":"releases/0.0.1/Kalsa-alpha-0.0.1-windows.exe","name":"Kalsa-alpha-0.0.1-windows.exe","size":${size},"sha256":"${sha}"}`,
+      `"mac":{"key":"releases/0.0.1/Kalsa-alpha-0.0.1-mac.dmg","name":"Kalsa-alpha-0.0.1-mac.dmg","size":${size},"sha256":"${sha}","update":{"key":"releases/0.0.1/Kalsa-alpha-0.0.1-mac.app.tar.gz","name":"Kalsa-alpha-0.0.1-mac.app.tar.gz","size":${artifactSize},"sha256":"${artifactSha}","signature":"dGVzdC1zaWduYXR1cmU="}}`,
     );
+  });
+
+  test("a Windows update with the installer's own name is published once", () => {
+    const exe = path.join(work, "Kalsa-alpha-0.0.1-windows.exe");
+    writeFileSync(exe, "windows bytes");
+    const res = release(["windows", exe, "0.0.1", "--update", exe, "--sig", sig, "--dry-run"]);
+    expect(res.status).toBe(0);
+    expect(res.out.match(/object put kalsa-installers\/releases\/0.0.1\/Kalsa-alpha-0.0.1-windows.exe/g)).toHaveLength(1);
+  });
+
+  test("a Windows update with the installer's name but other bytes is refused", () => {
+    const exe = path.join(work, "Kalsa-alpha-0.0.1-windows.exe");
+    writeFileSync(exe, "windows bytes");
+    const other = path.join(work, "other", "Kalsa-alpha-0.0.1-windows.exe");
+    mkdirSync(path.dirname(other), { recursive: true });
+    writeFileSync(other, "different bytes");
+    const res = release(["windows", exe, "0.0.1", "--update", other, "--sig", sig, "--dry-run"]);
+    expect(res.status).toBe(1);
+    expect(res.out).toContain("different bytes");
+  });
+});
+
+describe("release --dry-run runs the version check on the current manifest", () => {
+  test("another platform on a different version is refused, as in a live run", () => {
+    const current = JSON.stringify({ windows: { key: "releases/0.0.0/Kalsa-alpha-0.0.0-windows.exe", name: "Kalsa-alpha-0.0.0-windows.exe", size: 5, sha256: "a".repeat(64) } });
+    const res = release(mac(), { FAKE_MANIFEST: current });
+    expect(res.status).toBe(1);
+    expect(res.out).toContain("--allow-mixed");
+    expect(res.log).not.toMatch(/object put/);
+  });
+
+  test("with --allow-mixed the other platform keeps its installer, loses its update, and the write is printed", () => {
+    const current = JSON.stringify({
+      windows: { key: "releases/0.0.0/Kalsa-alpha-0.0.0-windows.exe", name: "Kalsa-alpha-0.0.0-windows.exe", size: 5, sha256: "a".repeat(64) },
+    });
+    const res = release(mac({ extra: ["--allow-mixed"] }), { FAKE_MANIFEST: current });
+    expect(res.status).toBe(0);
+    expect(res.out).toContain('"windows":{"key":"releases/0.0.0/Kalsa-alpha-0.0.0-windows.exe"');
+    expect(res.out).not.toMatch(/"windows":\{[^}]*"update"/);
+  });
+
+  test("an unreadable current.json stops the dry run unless --new-manifest is given", () => {
+    const res = release(mac(), { FAKE_MANIFEST_MISSING: "1" });
+    expect(res.status).toBe(1);
+    expect(res.out).toContain("--new-manifest");
+  });
+
+  test("an unreadable current.json with --new-manifest exits 0 and says the version check did not run", () => {
+    const res = release(mac({ extra: ["--new-manifest"] }), { FAKE_MANIFEST_MISSING: "1" });
+    expect(res.status).toBe(0);
+    expect(res.out).toContain("could not be read here, so the version check did not run");
   });
 });
 
 describe("release rejects bad input before anything runs", () => {
   test("an unknown platform is a usage error", () => {
-    expect(release(["linux", installer, "0.0.1", "--dry-run"]).status).toBe(2);
+    expect(release(["linux", installer, "0.0.1", "--update", artifact, "--sig", sig, "--dry-run"]).status).toBe(2);
   });
 
-  test.each(["0.0.1/../x", "v0.0.1", "0.0", "1.0.0-beta"])("version %s is refused", (version) => {
-    const res = release(["windows", installer, version, "--dry-run"]);
+  test("a missing --update or --sig is a usage error", () => {
+    expect(release(["mac", installer, "0.0.1", "--sig", sig, "--dry-run"]).status).toBe(2);
+    expect(release(["mac", installer, "0.0.1", "--update", artifact, "--dry-run"]).status).toBe(2);
+  });
+
+  test("an unknown flag is a usage error", () => {
+    expect(release(mac({ extra: ["--bogus"] })).status).toBe(2);
+  });
+
+  test.each(["0.0.1/../x", "v0.0.1", "0.0", "01.2.3", "1.02.3"])("version %s is refused", (version) => {
+    const res = release(mac({ version }));
     expect(res.status).toBe(1);
-    expect(res.out).toContain("version must be X.Y.Z");
+    expect(res.out).toContain("version must be");
+  });
+
+  test("build metadata passes the SemVer rule but cannot be part of a release key", () => {
+    const res = release(mac({ version: "1.0.0+build" }));
+    expect(res.status).toBe(1);
+    expect(res.out).toContain("not allowed in a key");
+  });
+
+  test("a prerelease version is accepted, as the Worker accepts it", () => {
+    expect(release(mac({ version: "0.0.1-rc.1" })).status).toBe(0);
   });
 
   test("a file name with a space is refused", () => {
-    const spaced = path.join(work, "Kalsa alpha.exe");
+    const spaced = path.join(work, "Kalsa alpha.dmg");
     writeFileSync(spaced, "x");
-    const res = release(["windows", spaced, "0.0.1", "--dry-run"]);
+    const res = release(mac({ installer: spaced }));
     expect(res.status).toBe(1);
     expect(res.out).toContain("file name must be");
   });
 
-  test("a missing file is refused", () => {
-    expect(release(["windows", path.join(work, "absent.exe"), "0.0.1", "--dry-run"]).status).toBe(1);
+  test("a missing installer, artifact or signature file is refused", () => {
+    expect(release(mac({ installer: path.join(work, "absent.dmg") })).status).toBe(1);
+    expect(release(mac({ update: path.join(work, "absent.tar.gz") })).status).toBe(1);
+    expect(release(mac({ sig: path.join(work, "absent.sig") })).status).toBe(1);
+  });
+
+  test.each([
+    ["two lines", "dGVz\ndA=="],
+    ["a space", "dGVz dA=="],
+    ["a character outside base64", "dGVz!dA=="],
+  ])("a signature with %s is refused", (_label, content) => {
+    const bad = path.join(work, `bad-${content.length}.sig`);
+    writeFileSync(bad, content);
+    const res = release(mac({ sig: bad }));
+    expect(res.status).toBe(1);
+    expect(res.out).toContain("one base64 line");
   });
 });
 
@@ -73,27 +202,34 @@ describe("the guide gate", () => {
   test("a markdown that does not match guide.ts stops the release", () => {
     const stale = path.join(work, "stale.md");
     writeFileSync(stale, "## 1. A different guide\n\nNot the committed one.\n");
-    const res = release(["windows", installer, "0.0.1", "--dry-run"], { ALPHA_TESTERS_MD: stale });
+    const res = release(mac(), { ALPHA_TESTERS_MD: stale });
     expect(res.status).toBe(1);
     expect(res.out).toContain("guide.ts is stale");
   });
 
   test("a missing markdown stops the release with a message naming the variable", () => {
-    const res = release(["windows", installer, "0.0.1", "--dry-run"], {
-      ALPHA_TESTERS_MD: path.join(work, "no-such-guide.md"),
-    });
+    const res = release(mac(), { ALPHA_TESTERS_MD: path.join(work, "no-such-guide.md") });
     expect(res.status).toBe(1);
     expect(res.out).toContain("set ALPHA_TESTERS_MD");
   });
 });
 
-describe("the key rule", () => {
+describe("the shared rules", () => {
+  const literal = (file: string, pattern: RegExp) => {
+    const match = pattern.exec(readFileSync(file, "utf8"));
+    if (match === null) throw new Error(`no pattern in ${file}`);
+    return match[1];
+  };
+
   test("release.mjs and manifest.ts carry the same KEY pattern", () => {
-    const pattern = (file: string) => {
-      const match = /const KEY = (\/.*\/);/.exec(readFileSync(file, "utf8"));
-      if (match === null) throw new Error(`no KEY pattern in ${file}`);
-      return match[1];
-    };
-    expect(pattern(path.join(HERE, "scripts", "release.mjs"))).toBe(pattern(path.join(HERE, "manifest.ts")));
+    expect(literal(path.join(HERE, "scripts", "release.mjs"), /const KEY = (\/.*\/);/)).toBe(
+      literal(path.join(HERE, "manifest.ts"), /const KEY = (\/.*\/);/),
+    );
+  });
+
+  test("release.mjs and semver.ts carry the same SemVer pattern", () => {
+    expect(literal(path.join(HERE, "scripts", "release.mjs"), /const VERSION = (\/.*\/);/)).toBe(
+      literal(path.join(HERE, "semver.ts"), /const SEMVER =\s*(\/.*\/);/),
+    );
   });
 });

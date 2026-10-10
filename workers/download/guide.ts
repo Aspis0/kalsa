@@ -27,7 +27,7 @@ export const GUIDE_HTML = [
   "<ul><li><strong>Mac:</strong> <code>~/Library/Logs/ai.kalsa.brain/</code></li><li><strong>Windows:</strong> <code>%LOCALAPPDATA%\\ai.kalsa.brain\\logs\\</code></li></ul>",
   "<h2 id=\"uninstall\">8. Uninstall</h2>",
   "<p><strong>Mac:</strong> drag Kalsa from Applications to the Trash. To also delete its data (the AI is the big one), in Finder press <strong>⌘ ⇧ G</strong>, paste each path and delete the folder: <code>~/Library/Application Support/kalsa-brain</code>, <code>~/Library/Application Support/ai.kalsa.brain</code>, <code>~/Library/Logs/ai.kalsa.brain</code>.</p>",
-  "<p><strong>Windows:</strong> <strong>Settings → Apps → Installed apps → Kalsa → Uninstall</strong>. To also delete its data, press <strong>Windows + R</strong>, paste each path, press Enter and delete what's inside: <code>%LOCALAPPDATA%\\kalsa-brain</code>, <code>%APPDATA%\\ai.kalsa.brain</code>, <code>%LOCALAPPDATA%\\ai.kalsa.brain</code>.</p>",
+  "<p><strong>Windows:</strong> <strong>Settings → Apps → Installed apps → Kalsa → Uninstall</strong>. To also delete its data, including the downloaded AI, tick <strong>Delete the application data</strong> in the uninstaller.</p>",
 ].join("\n");
 
 export const GUIDE_HTML_IT = [
@@ -58,5 +58,5 @@ export const GUIDE_HTML_IT = [
   "<ul><li><strong>Mac:</strong> <code>~/Library/Logs/ai.kalsa.brain/</code></li><li><strong>Windows:</strong> <code>%LOCALAPPDATA%\\ai.kalsa.brain\\logs\\</code></li></ul>",
   "<h2 id=\"uninstall\">8. Disinstallare Kalsa</h2>",
   "<p><strong>Mac:</strong> trascina Kalsa da Applicazioni nel Cestino. Per cancellare anche i suoi dati (l'AI è la parte più pesante), nel Finder premi <strong>⌘ ⇧ G</strong>, incolla un percorso alla volta e cancella la cartella: <code>~/Library/Application Support/kalsa-brain</code>, <code>~/Library/Application Support/ai.kalsa.brain</code>, <code>~/Library/Logs/ai.kalsa.brain</code>.</p>",
-  "<p><strong>Windows:</strong> <strong>Impostazioni → App → App installate → Kalsa → Disinstalla</strong>. Per cancellare anche i suoi dati, premi <strong>Windows + R</strong>, incolla un percorso alla volta, premi Invio e cancella quello che c'è dentro: <code>%LOCALAPPDATA%\\kalsa-brain</code>, <code>%APPDATA%\\ai.kalsa.brain</code>, <code>%LOCALAPPDATA%\\ai.kalsa.brain</code>.</p>",
+  "<p><strong>Windows:</strong> <strong>Impostazioni → App → App installate → Kalsa → Disinstalla</strong>. Per cancellare anche i suoi dati, compresa l'AI scaricata, nel disinstallatore spunta la casella <strong>Cancella i dati dell'applicazione</strong>.</p>",
 ].join("\n");
