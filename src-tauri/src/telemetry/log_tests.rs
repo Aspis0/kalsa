@@ -13,7 +13,7 @@ fn service(name: &str, count: usize, on: bool) -> (Arc<super::Service>, std::pat
     for n in 0..count {
         let mut report = sample();
         report["osMajor"] = serde_json::json!(format!("{n}"));
-        store.enqueue(report, true);
+        store.enqueue(report, true, 0);
     }
     if !on {
         // The switch went off after the reports were queued. The real OFF

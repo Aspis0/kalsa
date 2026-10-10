@@ -245,14 +245,14 @@ impl Store {
         Ok(())
     }
 
-    pub(super) fn enqueue(&mut self, report: Value, log_pending: bool) {
+    pub(super) fn enqueue(&mut self, report: Value, log_pending: bool, ready_at: u64) {
         if !self.enabled {
             return;
         }
         self.queue.push(Item {
             report,
             attempts: 0,
-            ready_at: 0,
+            ready_at,
             enqueued_at: super::now(),
             offline_streak: 0,
             in_flight: false,

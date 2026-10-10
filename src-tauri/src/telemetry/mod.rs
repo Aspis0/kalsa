@@ -336,7 +336,8 @@ fn record_locked(
     if !inner.store.enabled {
         return;
     }
-    if code == "chat.generation" && detail == "unknown" {
+    let stream_error = code == "chat.generation" && detail == "unknown";
+    if stream_error {
         // The renderer's stream error and the supervisor's crash for one
         // engine death race each other; a crash already on record wins.
         if inner.crash_at.is_some_and(|at| at.elapsed() < CRASH_RACE) {
@@ -344,6 +345,7 @@ fn record_locked(
         }
         inner.stream_error_at = Some(Instant::now());
     }
+    let now = now();
     let mut diag = inner.base.clone();
     diag.as_object_mut()
         .unwrap()
@@ -360,7 +362,7 @@ fn record_locked(
     if let Some(signature) = signals::signature(raw).map(|s| crate::logging::redact_str(&s)) {
         diag["signature"] = json!(signature);
     }
-    let report = json!({"appVersion":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"osMajor":inner.base["osMajor"].as_str().unwrap_or("0"),"deviceBucket":spec::bucket("deviceBucket",inner.total_ram as f64),"dateBucket":resources::date(now()),"error":{"code":code,"detail":detail,"signal":signals::signal(raw)},"context":{"modelCategory":inner.category,"phase":phase},"diagnostics":diag});
+    let report = json!({"appVersion":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"osMajor":inner.base["osMajor"].as_str().unwrap_or("0"),"deviceBucket":spec::bucket("deviceBucket",inner.total_ram as f64),"dateBucket":resources::date(now),"error":{"code":code,"detail":detail,"signal":signals::signal(raw)},"context":{"modelCategory":inner.category,"phase":phase},"diagnostics":diag});
     let Some(report) = sanitize::report(&report) else {
         return;
     };
@@ -372,7 +374,16 @@ fn record_locked(
     if inner.recent.len() > 32 {
         inner.recent.pop_front();
     }
-    inner.store.enqueue(report, with_log);
+    // A renderer stream error waits out the crash window: the renderer's
+    // answer dies before the supervisor notices, so the crash is observed up
+    // to a second later — and only a report still queued can be superseded
+    // by it, instead of leaving one death as two reports.
+    let ready_at = if stream_error {
+        now + CRASH_RACE.as_secs()
+    } else {
+        0
+    };
+    inner.store.enqueue(report, with_log, ready_at);
     if inner.store.save().is_err() {
         inner.store.enabled = false;
         inner.store.queue.clear();
@@ -485,6 +496,103 @@ mod failure_tests {
             3,
             "the window was spent: the older failure stands on its own"
         );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// The renderer's stream error, held for the crash window: the drain has
+    /// nothing to send yet when the crash lands a second later, so the crash
+    /// takes it and one death leaves one report with the turn's stage.
+    #[test]
+    fn a_stream_error_waits_for_the_crash_and_one_death_leaves_one_report() {
+        let dir = std::env::temp_dir().join(format!("kalsa-hold-{}", std::process::id()));
+        let service = std::sync::Arc::new(super::Service {
+            inner: std::sync::Mutex::new(inner(dir.clone(), "decode")),
+            send_gate: std::sync::Mutex::new(()),
+        });
+        super::record_locked(
+            &mut service.inner.lock().unwrap(),
+            "chat.generation",
+            "engine",
+            "decode",
+            "turn",
+            "unknown",
+            "",
+            stream_error(),
+            false,
+        );
+        let now = super::now();
+        // A second later the renderer's report is still queued, not in
+        // flight: the crash that lands now finds it there.
+        assert!(
+            super::network::pick(&service, now + 1).is_none(),
+            "the stream error waits out the crash window"
+        );
+        super::record_crash(&mut service.inner.lock().unwrap(), &death("engine died mid answer"), "decode");
+        {
+            let inner = service.inner.lock().unwrap();
+            assert_eq!(inner.store.queue.len(), 1, "one death, one report");
+            let report = &inner.store.queue[0].report;
+            assert_eq!(report["error"]["code"], "chat.generation");
+            assert_eq!(report["error"]["detail"], "native_crash");
+            assert_eq!(report["diagnostics"]["stage"], "decode");
+        }
+        // And that report goes out, once, through the real send — past the
+        // window it waited and the log upload's own settle wait.
+        let (work, epoch) = super::network::pick(&service, now + 3600).expect("the crash report is ready");
+        let sent = std::cell::Cell::new(0);
+        let out = super::network::Outbound {
+            body: &|| "the redacted log\n".to_string(),
+            upload: &|_| Ok("K7XQ2M9P".to_string()),
+            report: &|report| {
+                sent.set(sent.get() + 1);
+                assert_eq!(report["diagnostics"]["stage"], "decode");
+                assert_eq!(report["error"]["code"], "chat.generation");
+                super::network::Outcome::Done
+            },
+        };
+        super::network::dispatch(&service, work, epoch, now + 3600, &out);
+        assert_eq!(sent.get(), 1);
+        assert!(service.inner.lock().unwrap().store.queue.is_empty());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A stream error nothing answers waits out the window and then goes,
+    /// as the renderer's own report of the turn that died.
+    #[test]
+    fn a_stream_error_with_no_crash_goes_when_the_window_closes() {
+        let dir = std::env::temp_dir().join(format!("kalsa-hold-nobody-{}", std::process::id()));
+        let service = std::sync::Arc::new(super::Service {
+            inner: std::sync::Mutex::new(inner(dir.clone(), "decode")),
+            send_gate: std::sync::Mutex::new(()),
+        });
+        super::record_locked(
+            &mut service.inner.lock().unwrap(),
+            "chat.generation",
+            "engine",
+            "decode",
+            "turn",
+            "unknown",
+            "",
+            stream_error(),
+            false,
+        );
+        let now = super::now();
+        assert!(super::network::pick(&service, now + 1).is_none(), "still waiting");
+        let (work, epoch) = super::network::pick(&service, now + 11).expect("the window closed");
+        let sent = std::cell::Cell::new(None);
+        let out = super::network::Outbound {
+            body: &|| "the redacted log\n".to_string(),
+            upload: &|_| Ok("K7XQ2M9P".to_string()),
+            report: &|report| {
+                sent.set(Some(report.clone()));
+                super::network::Outcome::Done
+            },
+        };
+        super::network::dispatch(&service, work, epoch, now + 11, &out);
+        let report = sent.into_inner().expect("the report went out");
+        assert_eq!(report["error"]["code"], "chat.generation");
+        assert_eq!(report["error"]["detail"], "unknown");
+        assert_eq!(report["diagnostics"]["stage"], "decode");
         std::fs::remove_dir_all(dir).unwrap();
     }
 
