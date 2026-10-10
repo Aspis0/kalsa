@@ -152,7 +152,7 @@ The log folder is:
 
 ## 7. Download
 
-Download Kalsa at **https://kalsa.io/download**.
+Download Kalsa from the private link we sent you. Do not share it.
 
 ## 8. Uninstall
 
