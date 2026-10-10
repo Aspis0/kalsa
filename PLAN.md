@@ -261,8 +261,12 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    decode to a sustainable rate. App `2a1d1055` pushed 2026-10-09: pin `a9bf7a26` / engine `0012f97f2`
    (provenance, skels, apk.yml harness block, jest src/engine 1218/1218) plus the campaign harness fixes
    (no force-stop on adb-drop or an unknown pid; toolcap turns without an answer fail the gate; four audit
-   rounds, leftovers H1-H5 in the backlog). Debuggable APK: CI run `38022468371`. Next: G2 on a cold S23,
-   then a shorter session with tools ON as shipped.
+   rounds, leftovers H1-H5 in the backlog). Debuggable APK: CI run `38022468371`. G2 attempt 1 on it (2026-10-10,
+   `s23-g2-inapp-2a1d1055`): 15 turns in-app, no crash, COOLMODE from turn 1, paced at ~6 tok/s,
+   Android status held at 2 for 65 min (never 3, vs SEVERE at turn 4 on 10-09), one harness thermal pause; the
+   harness died on one unreadable DB copy at turn 15 - fixed in app `0c8a711d` (5-round retry). Next: repeat
+   on a charged cold S23, then the shorter tools-ON session. Cell 77 done: pacing cuts the skin slope 3.2x;
+   paced NPU = paced GPU on the S23 (`s23-paced-legs-77`).
    Cell 77 (`s23-paced-legs-77`, does pacing cool, NPU vs GPU): the paced NPU arm decoded 2048 tokens at
    7.5 tok/s (duty 0.5 achieved), then a PMIC hard reset (PonReason.HARD_RESET) during the next rep's
    model load in the same process. Measured after: one one-copy NPU load leaves ~0.9 GB MemAvailable (the

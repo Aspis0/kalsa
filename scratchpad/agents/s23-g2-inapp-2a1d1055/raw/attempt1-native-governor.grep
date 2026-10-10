@@ -1,0 +1,9 @@
+10-10 09:45:57.175  2367  2398 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":4114.93,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"auto","npu_fit"
+10-10 09:45:57.179  2367  2478 I RNLlama : load_governor_models:477 KALSA_LEGS_TABLE {soc:"SM8550", hexagon:"Hexagon v73", gpu_name:"QUALCOMM Adreno(TM)", gpu_version:"OpenCL 3.0 Adreno(TM) 740", gpu_driver:"OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62", dotprod:1, one_copy:1, tau_s:10,
+10-10 09:46:01.021  2367  2478 I RNLlama : operator():480 KALSA_LEGS_TABLE_OUTCOME {mode:"onecopy", row_tuning:1}
+10-10 09:49:01.060  2367  2478 I RNLlama : refresh_platform_thermal:251 KALSA_GOVERNOR_PLATFORM {status:1, prev:0, source:"native", sent:1}
+10-10 09:50:20.598  2367  2482 I RNLlama : refresh_platform_thermal:233 KALSA_GOVERNOR_PLATFORM {status:2, prev:1, source:"native", sent:0}
+10-10 09:50:25.655  2367  2482 I RNLlama : refresh_platform_thermal:251 KALSA_GOVERNOR_PLATFORM {status:2, prev:1, source:"native", sent:1}
+10-10 10:57:35.133 25446 25477 I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"Fit","decode_repack":false,"required_mib_with_repack":4769.12,"required_mib_without_repack":3249.06,"available_mib":3877.21,"bench_norepack_forced":null,"npu_device":"HTP0","npu_fallback":null,"npu_lane":"auto","npu_fit"
+10-10 10:57:35.137 25446 25535 I RNLlama : load_governor_models:477 KALSA_LEGS_TABLE {soc:"SM8550", hexagon:"Hexagon v73", gpu_name:"QUALCOMM Adreno(TM)", gpu_version:"OpenCL 3.0 Adreno(TM) 740", gpu_driver:"OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62", dotprod:1, one_copy:1, tau_s:10,
+10-10 10:57:39.477 25446 25535 I RNLlama : operator():480 KALSA_LEGS_TABLE_OUTCOME {mode:"onecopy", row_tuning:1}

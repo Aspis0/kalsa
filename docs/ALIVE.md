@@ -32,6 +32,9 @@
   decode at duty 0.5 measured 7.5 tok/s on the S23 NPU; the binding reads Android's thermal status natively
   mid-turn. Not yet in an APK. Cell 77 (paced NPU vs paced GPU skin slope) is incomplete: a memory hard reset
   in the bench's second model load (one-copy NPU leaves ~0.9 GB MemAvailable); rerun 2026-10-10.
+- G2 attempt on APK `2a1d1055` (2026-10-10): the governor held the S23 at Android status 2 for 65 min (COOLMODE,
+  paced ~6 tok/s, skin 40-41.4 C, MemAvailable >= 1.24 GB, no crash) through 15 turns; stopped by a harness DB-read
+  abort, since fixed. Repeat pending on a charged phone.
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs
