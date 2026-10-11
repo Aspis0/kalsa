@@ -131,8 +131,10 @@ One weight copy read by NPU, GPU and CPU; the governor hops decode between legs.
   reached 43 C); CPU 14.7 tok/s at ~7.3. Load steps ~5/11/26 C (npu/gpu/cpu; npu/gpu lower
   bounds). Under HEAT_RANK SM8650 runs mostly on the NPU: v3 buys heat there, not speed; spending
   the GPU when there is margin is the learning governor's job (owner 2026-10-09).
-- In-app one-copy runs on the S23 ONLY. The binding's legs table (`cpp/rn-legs-table.cpp`) has
-  one row (SM8550); the SM8650 row's inputs are measured (cells 75/76). In-app RAM one copy
+- In-app one-copy runs on the S23 and the Xiaomi 14: the binding's legs table (`cpp/rn-legs-table.cpp`,
+  binding `0da3b1eb`) has the SM8550 and SM8650 rows (cells 75/76); the Xiaomi in-app run of 2026-10-11 logged
+  `KALSA_LEGS_TABLE_OUTCOME {mode:"onecopy", row_tuning:1}` and HEAT_RANK kept decode on the NPU. SM8750 / SM8850
+  have no row (two-model, CPU decode in-app): their per-leg heat is not measurable on powered QDC boards. In-app RAM one copy
   2.51 GB vs two-model 4.06 GB (`step6-inapp/summary-ram.grep`).
 - The governor is ON by default in the app since 2026-10-02 (absent `kalsa.governor.enabled` =
   ON; an explicit "0"/"false" from Settings stays OFF). mmproj models stay OUT of the governor
