@@ -95,3 +95,8 @@
   fallback never matches the S23's model code (SM-S911U); the real S23 reports ro.soc.model=SM8550, so it is reached.
   The governor plan log / G2 gate do not record the pacing params; the run proves them only through
   decode_pacing_duty_last vs decode_pacing_headroom_last in KALSA_GOVERNOR.
+- H8 (P2, audit of app d7ffa0e8, 2026-10-11) A turn that ends on an error bubble ("⚠️ ...") emits no KALSA_GOVERNOR, so
+  turn.sh still waits the 600 s tool-round bound and force-stops; the interrupted-bubble detector only knows "Risposta
+  interrotta" / "removed from memory". The tool-args cause is fixed (af7e6fc3/fa816975); other errors still hit it.
+- A1 (P2, audit of fa816975) A malformed third-or-later tool call in one round gets the generic cap-skip result, not the
+  retry message (still echoed "{}", so the turn no longer breaks). The tool loop itself has no jest harness.

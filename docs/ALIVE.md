@@ -42,7 +42,7 @@
   about 10 % slower in the hot steady state than the flat 0.5, never SEVERE, no crash; stopped by the harness's
   thermal hard abort, whose 42 C pause ignored the config's 43 (fixed in app `e0ae695d`).
 - **G2 on the S23, 2026-10-10 (APK `233486dd`, cell `s23-g2-full099-233486dd`): 20/20 turns in-app, unplugged from
-  cold, no crash, no recovery, no harness pause, Android status never 3.** NPU decode under graduated pacing (S23 full
+  cold, no crash, no recovery, no harness pause, Android status never 3; repeated 2026-10-11 with the same result.** NPU decode under graduated pacing (S23 full
   line 0.99): first completions 10-16 tok/s, hot steady state ~5.8 tok/s at skin ~41.5 C.
 - Xiaomi 14 in-app (night of 2026-10-11, APK `233486dd`, cell `xiaomi-g2-inapp-233486dd`): 14 turns, NPU prefill
   and decode, no crash, 15 -> 5-6 tok/s, skin max 44.9 C, battery max 42.0 C, Android status 0 throughout; stopped

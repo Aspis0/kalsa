@@ -53,3 +53,22 @@ Speed is `predictedPerSecond` per completion (`raw/telemetry-speed.csv`); "hot" 
 
 - One device, one run per arm, same day; the phone's start state differed slightly (96-100 %, skin 30.9-31.0 C).
 - Tools-ON shorter session and the other Snapdragons are separate cells.
+
+## Run 2 (repeat, 2026-10-11 06:54-08:31 EDT)
+
+Same APK, same harness and config, S23 at 100 % and skin 28.9 C at start, plus a 60 s watchdog (screen, level < 30 %,
+skin >= 44 C; it never had to act). Evidence in `raw/run2/`.
+
+| | run 1 | run 2 |
+|---|---|---|
+| Result | 20/20, recoveries 0 | **20/20, recoveries 0** (`toolcap=2`, no empty or error answers) |
+| Wall time | 106 min | 100 min |
+| Completions >= 10 tok/s | 4 | 5 |
+| Hot median (range) | 5.77 (4.8-7.7) tok/s | 5.82 (5.2-8.7) tok/s |
+| Skin max / battery max | 41.5 / 42.5 C | 41.4 / 42.4 C |
+| Android status 3 samples | 0 | 0 |
+| MemAvailable min | 1.35 GB | 1.08 GB |
+| Battery | 100 -> 64 % | 100 -> 65 % |
+
+The S23 result repeats. MemAvailable dipped to 1.08 GB in run 2 (the one-copy margin; the hard resets of 2026-10-09
+were below ~0.5 GB in the bench).

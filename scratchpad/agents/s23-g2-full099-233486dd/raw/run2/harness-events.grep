@@ -1,0 +1,48 @@
+T20C thermal pause battery > 43 C
+[ci] battery level=100 temp=27.7C charging=false
+[ci] thermal preflight status=0 battery_deci=277
+[ci] battery level=100 temp=29.2C charging=false
+[ci] === turn 1 begins ===
+[ci] tool round pending — waiting for the continuation
+[ci] battery level=99 temp=36.9C charging=false
+[ci] === turn 2 begins ===
+[ci] battery level=97 temp=38.4C charging=false
+[ci] === turn 3 begins ===
+[ci] battery level=96 temp=39.4C charging=false
+[ci] === turn 4 begins ===
+[ci] battery level=94 temp=39.9C charging=false
+[ci] === turn 5 begins ===
+[ci] battery level=93 temp=40.2C charging=false
+[ci] === turn 6 begins ===
+[ci] battery level=91 temp=40.2C charging=false
+[ci] === turn 7 begins ===
+[ci] battery level=90 temp=40.7C charging=false
+[ci] === turn 8 begins ===
+[ci] battery level=88 temp=41.3C charging=false
+[ci] === turn 9 begins ===
+[ci] battery level=86 temp=41.6C charging=false
+[ci] === turn 10 begins ===
+[ci] battery level=83 temp=41.7C charging=false
+[ci] === turn 11 begins ===
+[ci] battery level=82 temp=41.6C charging=false
+[ci] === turn 12 begins ===
+[ci] battery level=79 temp=42.1C charging=false
+[ci] === turn 13 begins ===
+[ci] battery level=77 temp=42.0C charging=false
+[ci] === turn 14 begins ===
+[ci] tool round pending — waiting for the continuation
+[ci] battery level=75 temp=42.1C charging=false
+[ci] === turn 15 begins ===
+[ci] battery level=73 temp=42.2C charging=false
+[ci] === turn 16 begins ===
+[ci] battery level=71 temp=41.9C charging=false
+[ci] === turn 17 begins ===
+[ci] battery level=70 temp=41.9C charging=false
+[ci] === turn 18 begins ===
+[ci] battery level=68 temp=42.2C charging=false
+[ci] === turn 19 begins ===
+[ci] battery level=66 temp=42.1C charging=false
+[ci] === turn 20 begins ===
+[ci] battery level=65 temp=42.1C charging=false
+[ci] battery level=65 temp=42.1C charging=false
+[ci] T20C RUN COMPLETE — turns=20/20 toolcap=2 toolcap_no_answer=0 recoveries=0 unparseable=0 jsonl=/Users/marco/Projects/kalsa-wt-gov/results/t20c-g2-campaign/T20C/c1-V1.jsonl
