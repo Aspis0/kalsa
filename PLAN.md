@@ -302,8 +302,9 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    for every phone, 38.1 / 41.7 C (the S23's 0.87 / 0.99), converted per model with AOSP's (T - (SEVERE - 30)) / 30:
    S23 `SM-S911` SEVERE 42.0 -> 0.87 / 0.99 (unchanged), Xiaomi 14 `23127PN0CG` 66.5 (HAL dump) -> 0.053 / 0.173;
    unmeasured models keep the engine defaults + battery ramp (other SM8550 phones no longer get the S23 line).
-   `KALSA_GOVERNOR_PLAN` logs `pacing_start` / `pacing_full`. APK CI run `38163419959`; S23 check pending, Xiaomi
-   run when lent.
+   `KALSA_GOVERNOR_PLAN` logs `pacing_start` / `pacing_full`. APK CI run `38163419959` (sha256 `6a556e81`). S23 check
+   2026-10-11: `"pacing_start":0.87,"pacing_full":0.99` on load (unchanged lines; the S23's BASE_OS is a build
+   fingerprint, so the first draft's osName gate would have dropped it - caught in audit). Xiaomi run when lent.
 6. Owner decisions: the Jelly (G3), the safety marking (below).
 7. M1 dossier (raw results, limits, reproduction instructions).
 8. Then: the learning governor, iOS/Metal on a real iPhone, MoE unpark.
