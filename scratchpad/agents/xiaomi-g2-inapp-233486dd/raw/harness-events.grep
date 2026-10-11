@@ -1,0 +1,39 @@
+T20C thermal pause battery > 43 C
+[ci] battery level=61 temp=35.0C charging=false
+[ci] thermal preflight status=0 battery_deci=350
+[ci] battery level=61 temp=33.7C charging=false
+[ci] === turn 1 begins ===
+[ci] tool round pending — waiting for the continuation
+[ci] battery level=59 temp=36.0C charging=false
+[ci] === turn 2 begins ===
+[ci] tool round pending — waiting for the continuation
+[ci] tool continuation lost: round 0 pending for 600000ms — ending the turn
+[ci] RECOVERY reason=toolround (force-stop com.kalsa.app)
+{"i": 2, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "toolround", "retried": false, "scores": null}
+{"i": 2, "arm": "T20C", "variant": "V1", "conv": "c1-V1", "event": "RECOVERY", "reason": "already-landed-skip-send", "retried": true, "scores": null}
+[ci] battery level=57 temp=32.9C charging=false
+[ci] === turn 3 begins ===
+[ci] battery level=55 temp=35.6C charging=false
+[ci] === turn 4 begins ===
+[ci] battery level=54 temp=37.1C charging=false
+[ci] === turn 5 begins ===
+[ci] battery level=52 temp=38.7C charging=false
+[ci] === turn 6 begins ===
+[ci] battery level=51 temp=39.1C charging=false
+[ci] === turn 7 begins ===
+[ci] battery level=49 temp=40.0C charging=false
+[ci] === turn 8 begins ===
+[ci] battery level=47 temp=40.4C charging=false
+[ci] === turn 9 begins ===
+[ci] battery level=44 temp=41.1C charging=false
+[ci] === turn 10 begins ===
+[ci] battery level=41 temp=41.3C charging=false
+[ci] === turn 11 begins ===
+[ci] battery level=39 temp=40.6C charging=false
+[ci] === turn 12 begins ===
+[ci] battery level=36 temp=41.5C charging=false
+[ci] === turn 13 begins ===
+[ci] battery level=33 temp=41.2C charging=false
+[ci] === turn 14 begins ===
+[ci] battery level=31 temp=42.0C charging=false
+[ci] === turn 15 begins ===

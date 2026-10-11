@@ -44,6 +44,10 @@
 - **G2 on the S23, 2026-10-10 (APK `233486dd`, cell `s23-g2-full099-233486dd`): 20/20 turns in-app, unplugged from
   cold, no crash, no recovery, no harness pause, Android status never 3.** NPU decode under graduated pacing (S23 full
   line 0.99): first completions 10-16 tok/s, hot steady state ~5.8 tok/s at skin ~41.5 C.
+- Xiaomi 14 in-app (night of 2026-10-11, APK `233486dd`, cell `xiaomi-g2-inapp-233486dd`): 14 turns, NPU prefill
+  and decode, no crash, 15 -> 5-6 tok/s, skin max 44.9 C, battery max 42.0 C, Android status 0 throughout; stopped
+  at 29 % battery (started at 62 %). Its thermal headroom scale differs from the S23's (0.28 at skin 44.9 C): the
+  pacing lines must be per phone.
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs

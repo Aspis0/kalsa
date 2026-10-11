@@ -288,8 +288,11 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    (the app ended a `write_note` turn without a continuation round; backlog H6). Owner 2026-10-10 ("se secondo te e' meglio si"): S23 full line 0.99 (skin ~41.7 C) - binding `0da3b1eb` (param types), app `233486dd` (SM8550 only), pushed; APK CI run `38097645331`. G2 on it 2026-10-10 (`s23-g2-full099-233486dd`): **20/20 turns, recoveries 0, no pause**; 4 completions >= 10 tok/s, hot median 5.8 tok/s (flat 0.5: 6.0; full 0.97: 5.3); skin max 41.5, battery max 42.5 C.
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
-5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76); the in-app round
-   when the owner lends it.
+5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76). In-app round night of 2026-10-11
+   (`xiaomi-g2-inapp-233486dd`, APK `233486dd`, owner lent it at 62 %): 14 turns in-app, NPU prefill + decode, no
+   crash, stopped at 29 % battery by the coordinator watchdog. Android's headroom here ~ 0.0327 x skin - 1.19 (0.28
+   at skin 44.9 C, status 0 throughout), so the S23 ramp never paced; the battery ramp did. Next: a per-SoC Xiaomi
+   row (proposal start 0.15 / full 0.25) after one more run; H6 hit again at turn 2.
 6. Owner decisions: the Jelly (G3), the safety marking (below).
 7. M1 dossier (raw results, limits, reproduction instructions).
 8. Then: the learning governor, iOS/Metal on a real iPhone, MoE unpark.
