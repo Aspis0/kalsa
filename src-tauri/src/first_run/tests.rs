@@ -93,3 +93,32 @@ fn a_token_no_row_answers_to_is_no_choice() {
         "a dev override owns its bytes"
     );
 }
+
+#[test]
+fn the_suggestions_carry_each_options_own_comparison_code() {
+    // The page names the cards from the second option's code, so each code
+    // must ride its own row to the wire, in order — and a refusal its own.
+    let dir = scratch("suggest-codes");
+    let mut rows = kalsa_catalog::rows();
+    let first = rows.next().expect("the catalog has rows");
+    let second = rows
+        .find(|row| startup::model_token(row) != startup::model_token(first))
+        .expect("a second row");
+    let answer = suggest(
+        vec![(first, Some("model.reason.pick".into())), (second, Some("model.reason.quicker".into()))],
+        None,
+        None,
+        &dir,
+    );
+    let json = serde_json::to_value(&answer).expect("serialise");
+    assert_eq!(json["options"][0]["id"], startup::model_token(first));
+    assert_eq!(json["options"][0]["reason_code"], "model.reason.pick");
+    assert_eq!(json["options"][1]["id"], startup::model_token(second));
+    assert_eq!(json["options"][1]["reason_code"], "model.reason.quicker");
+    assert!(json.get("refusal_code").is_none(), "no refusal, no code");
+
+    let refused = suggest(vec![], Some("Nothing fits.".into()), Some("catalog.nothing_fits".into()), &dir);
+    let json = serde_json::to_value(&refused).expect("serialise");
+    assert_eq!(json["options"], serde_json::json!([]));
+    assert_eq!(json["refusal_code"], "catalog.nothing_fits");
+}

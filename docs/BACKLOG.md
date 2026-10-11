@@ -412,3 +412,11 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - The token window the speeds are priced on is shown nowhere any more; the guard checks the "short conversation" sentence instead.
 - Home "Using <model>" uses the backend's full name ("Alibaba Qwen 3.6") while the cards say "Qwen 3.6 by Alibaba".
 - Pre-existing at c35ed539: verify `metersum`, brain-shots `refusal` fixture ("of 22.1 GB"), contrast-dom missing "Show thinking".
+
+## Hearth port, piece 4 (first run, growing tree), left for later
+- On Home the walk memory is cleared only by Start a chat or Try again; a later Home failure could still show the tree failure screen until then.
+- A one-second clock tick no screen reads (SetupProgress/walkState).
+- "Show details" shows nothing for a failure without a backend code (in practice a choice that failed to save).
+- Start screen omits "Takes about 10 minutes." (no measured basis for the claim).
+- Faint leftover leaves drawn along the trunk in the tuning stage (tree geometry polish).
+- verify `hiddenonload` is timing-dependent (fails alone at d9705a6a too).

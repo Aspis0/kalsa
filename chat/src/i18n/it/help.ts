@@ -2,6 +2,7 @@ import { CHROME } from "./chrome";
 import { COMPOSER } from "./composer";
 import { HOME } from "./home";
 import { SETUP } from "./setup";
+import { MACHINE } from "./machine";
 import { POWER } from "./power";
 import { SIDEBAR } from "./sidebar";
 import { SHELL } from "./shell";
@@ -15,9 +16,6 @@ import { INVITE } from "./invite";
 import { REPORT } from "./report";
 import { ROOM } from "./room";
 import type { English } from "../en/all";
-
-// Setup labels end with a full stop for their own sentence; in bold it looks like a typo.
-const bare = (label: string) => label.replace(/\.$/, "");
 
 export const HELP: English["help"] = {
   sections: [
@@ -44,7 +42,7 @@ export const HELP: English["help"] = {
       paragraphs: [],
       items: [
         `Premi **${SETUP.start}**. Kalsa controlla il computer e propone l'AI che ci gira meglio.`,
-        `Scegli **${bare(SETUP.smarter)}** o **${bare(SETUP.faster)}**, poi conferma il download. Prima vedi quanto pesa.`,
+        `Scegli **${MACHINE.smartest}** o **${MACHINE.quickest}**, premi **${SETUP.continue}** e poi conferma il download. Prima vedi quanto pesa.`,
         "Poi Kalsa prova il computer per trovare il modo più veloce di farla girare. Succede una volta sola.",
         "Se nessuna AI gira abbastanza bene su questo computer, Kalsa te lo dice e non parte.",
       ],

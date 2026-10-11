@@ -5,7 +5,7 @@
 // walk and the first run render, so the download reads the same everywhere.
 
 import { SetupProgress } from "../surfaces/SetupProgress";
-import type { ProgressStep } from "../surfaces/SetupProgress";
+import type { ProgressStep } from "../surfaces/walkState";
 import { useLanguage } from "../i18n/useLanguage";
 import { downloadBytes } from "../lib/downloadBytes";
 import "./VisionOffer.css";

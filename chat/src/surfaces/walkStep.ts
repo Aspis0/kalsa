@@ -1,5 +1,5 @@
 import type { BrainState } from "./useBrain";
-import type { ProgressStep } from "./SetupProgress";
+import type { ProgressStep } from "./walkState";
 
 /** The walk's step the first page shows: only while the brain is stopped or
     starting and no start failure is held. */

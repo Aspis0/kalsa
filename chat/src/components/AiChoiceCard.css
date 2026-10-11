@@ -92,3 +92,54 @@
   color: var(--tx3);
   font-size: 14px;
 }
+
+/* The first run's pick (mockups 04-first-run-pick, 13-first-run-pick-on-disk):
+   a larger card, the whole of it one radio. */
+.ai-card.is-pick {
+  flex: none;
+  width: 380px;
+  padding: 28px;
+  cursor: pointer;
+}
+
+.ai-card.is-pick.is-chosen {
+  padding: 27px;
+}
+
+button.ai-card:focus-visible {
+  border-radius: 26px;
+}
+
+.ai-card.is-pick .ai-card-icon {
+  width: 54px;
+  height: 54px;
+  margin-bottom: 18px;
+}
+
+.ai-card.is-pick .ai-card-need {
+  margin-top: 20px;
+  padding-top: 18px;
+}
+
+.ai-card-need.is-on-disk,
+.ai-card-need.is-on-disk .icon {
+  color: var(--ac-tx);
+}
+
+.ai-card-mark {
+  position: absolute;
+  top: 28px;
+  right: 24px;
+  width: 30px;
+  height: 30px;
+  border: 2px solid color-mix(in srgb, var(--tx3) 50%, transparent);
+  border-radius: 50%;
+}
+
+.ai-card.is-chosen .ai-card-mark {
+  display: grid;
+  place-items: center;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 0;
+}

@@ -4251,7 +4251,7 @@ const tests = {
     const first = await page.locator(".surface-walk").innerText();
     check(
       "tuneLine: the first test says the plan-scaled estimate, as about",
-      first.includes("Test 1 of 16") && first.includes("about 27 min"),
+      first.includes("Test 1 of 16") && first.includes("About 27 minutes left"),
       first,
     );
     // The elapsed clock ticks every second below this line; the line itself
@@ -4278,7 +4278,7 @@ const tests = {
     });
     const spent = await page
       .waitForFunction(
-        () => (document.querySelector(".surface-walk")?.innerText ?? "").includes("almost done"),
+        () => (document.querySelector(".surface-walk")?.innerText ?? "").includes("Almost done."),
         null,
         { timeout: 20000 },
       )

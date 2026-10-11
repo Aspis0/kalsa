@@ -13,6 +13,9 @@ import { SamplingPanel } from "../chat/src/components/SamplingPanel";
 import { DevicesSurface } from "../chat/src/surfaces/DevicesSurface";
 import { ModelsSurface } from "../chat/src/surfaces/ModelsSurface";
 import { BrainSurface } from "../chat/src/surfaces/BrainSurface";
+import { FailedWalkScreen, ReadyScreen } from "../chat/src/surfaces/WalkScreens";
+import { growthOf, walkPercent } from "../chat/src/surfaces/walkFigures";
+import { forgetWalk } from "../chat/src/surfaces/useWalkMemory";
 import { brainWords, credentialRefusalText } from "../chat/src/surfaces/useBrain";
 import { BEAT_MS, FOLD_MS } from "../chat/src/surfaces/motion";
 import { POLL_MS } from "../chat/src/surfaces/DevicesSurface";
@@ -57,6 +60,10 @@ export const PHONE_FREE_REASON =
 export const PHONE_REASON = "This computer runs a bigger model than your phone does. (stub)";
 export const AUTO_REASON = "This is the model this computer runs best. (stub)";
 export const RUNNING_MODEL = "IBM Granite 4 Tiny";
+/** Home's update check, at rest: the too-weak screen is the one reader. */
+const IDLE_UPDATES = { state: { current: null, phase: { kind: "idle" }, notice: null }, check: () => {}, install: () => {}, dismissNotice: () => {} };
+/** A walk's end, as useWalkMemory holds it. */
+const DOWNLOAD_STOP = { kind: "model_bytes", done: 1_600_000_000, total: 4_600_000_000 };
 
 /** Two catalog rows for Your AI's cards: a big one and a light one. The
     second option's reason code is the backend's comparison of the two. */
@@ -333,6 +340,14 @@ const scenarios = [
   ["Model", "cards: two rows of one model share a name", "models", { state: { kind: "running", model: BIG_ROW.name, reason: AUTO_REASON }, capability: aiCapability(BIG_ROW, { ...second(BIG_ROW, "model.reason.quicker"), id: "tok-big-q4" }, { ...BIG_ROW, id: "tok-big-q4" }) }],
   ["Model", "cards: off, the stored choice is not offered", "models", { state: { kind: "stopped" }, capability: aiCapability(BIG_ROW, second(LIGHT_ROW, "model.reason.quicker"), { ...LIGHT_ROW, id: "tok-other", name: "Google Gemma 4 12B" }) }],
   ["Model", "cards: running, readings not known", "models", { state: runningOn(BIG_ROW), capability: aiCapability(BIG_ROW, second(LIGHT_ROW, "model.reason.quicker"), BIG_ROW) }],
+  ["Walk", "ready after a finished tune", "walkready", { memory: { last: { kind: "tuning", done: 4, total: 4, candidate: 4 }, reach: 1, ownsEnd: true } }],
+  ["Walk", "ready after a tune the budget cut", "walkready", { memory: { last: { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: true }, reach: growthOf("tuning", 50, false), ownsEnd: true } }],
+  ["Walk", "failed partway through the download", "walkfailed", {
+    memory: { last: DOWNLOAD_STOP, reach: growthOf("model_bytes", 34, false) },
+    reason: "Kalsa needs more space. Free up 6 GB and try again.",
+    detail: { code: "startup.disk_full", text: "Not enough space for the model." },
+  }],
+  ["Walk", "failed before any download", "walkfailed", { memory: { last: { kind: "working" }, reach: 0 }, reason: "Kalsa couldn't start. Try again.", detail: null }],
   ["Model", "starting on the chosen model", "models", { state: { kind: "starting" } }],
   // The drain as the Models page reports it: the model being put away — never
   // the "could not tell" sentence, which the blind `default:` used to show
@@ -759,8 +774,8 @@ function extract(panel, heading, automatic = []) {
   const buttonEls = elements(panel, (el) => el.tagName === "BUTTON");
   const headlineEl = first(panel, (el) => el.className === "surface-headline" || el.className === "brain-headline");
   const sentenceEl = first(panel, (el) => el.className === "surface-sentence" || el.className === "brain-sentence");
-  const progressEl = first(panel, (el) => el.className === "sprout-caption");
-  const barEl = first(panel, (el) => (el.className ?? "").split(" ").includes("sprout-bar"));
+  const progressEl = first(panel, (el) => el.className === "walk-line");
+  const barEl = first(panel, (el) => (el.className ?? "").split(" ").includes("walk-bar"));
   const walkEl = first(panel, (el) => el.className === "surface-walk");
   const qrEl = first(panel, (el) => el.className === "surface-qr");
   const deviceEls = elements(panel, (el) => el.className === "surface-device-name");
@@ -833,6 +848,13 @@ function extract(panel, heading, automatic = []) {
       chosen: String(card.className).split(" ").includes("is-chosen"),
     })),
     aiDetails: elementText(first(panel, (el) => el.className === "ai-details")),
+    // The walk's bar and tree as the end screens leave them.
+    barFailed: (barEl?.className ?? "").split(" ").includes("is-failed"),
+    treeFailed: elements(panel, (el) => String(el.className ?? "").split(" ").includes("tree")).some((el) =>
+      String(el.className).split(" ").includes("is-failed"),
+    ),
+    blossoms: elements(panel, (el) => String(el.className ?? "").split(" ").includes("tree-bloom")).length,
+    walkDetails: elementText(first(panel, (el) => el.className === "walk-details")),
     automatic,
   };
 }
@@ -854,7 +876,18 @@ function componentFor(kind, data) {
       }),
     );
   }
-  if (kind === "home") return React.createElement(BrainSurface, { onNavigate: () => {}, onOpenChat: () => {} });
+  if (kind === "home") return React.createElement(BrainSurface, { onNavigate: () => {}, onOpenChat: () => {}, updates: IDLE_UPDATES });
+  // The walk's own end, as Home shows it once the walk is over.
+  if (kind === "walkready") {
+    return React.createElement(LanguageProvider, null, React.createElement(ReadyScreen, { memory: data.memory, onStartChat: () => {} }));
+  }
+  if (kind === "walkfailed") {
+    return React.createElement(
+      LanguageProvider,
+      null,
+      React.createElement(FailedWalkScreen, { memory: data.memory, reason: data.reason, detail: data.detail, busy: false, onRetry: () => {} }),
+    );
+  }
   if (kind === "models") {
     return React.createElement(
       LanguageProvider,
@@ -969,6 +1002,8 @@ async function enterStartingFromStopped() {
 
 async function renderScenario(descriptor) {
   const [title, note, kind, data] = descriptor;
+  // Each card is its own app session: no walk's end carries over from the last.
+  forgetWalk();
   if (data?.state?.kind === "starting") await enterStartingFromStopped();
   bridgeState = data;
   eventHandlers = new Set();
@@ -1059,6 +1094,7 @@ async function renderScenario(descriptor) {
   result.deskPreferred = dto?.desk_port_preferred !== false;
   result.pairingState = data.pairing?.state ?? null;
   result.hasAdvanced = Boolean(data.advanced);
+  result.step = data.step ?? null;
   root.unmount();
   await settle();
   return result;
@@ -1263,6 +1299,8 @@ export async function renderStartFailureProbe(data) {
 }
 
 export {
+  growthOf,
+  walkPercent,
   LANGUAGES,
   REASON_UNFUNDABLE,
   TABLES,

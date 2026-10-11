@@ -1554,6 +1554,7 @@ async fn brain_test(
         model,
         quicker,
         refusal,
+        refusal_code,
         ..
     } = capability::dto(&measurement, ram_bytes, phone, chosen, &runtime_root)
     else {
@@ -1563,10 +1564,13 @@ async fn brain_test(
         [model, quicker]
             .into_iter()
             .flatten()
-            .filter_map(|option| option.id.as_deref().and_then(startup::row_for_token))
+            .filter_map(|option| {
+                let row = option.id.as_deref().and_then(startup::row_for_token)?;
+                Some((row, option.reason_code))
+            })
             .collect(),
     );
-    tauri::async_runtime::spawn_blocking(move || first_run::suggest(entries, refusal, &runtime_root))
+    tauri::async_runtime::spawn_blocking(move || first_run::suggest(entries, refusal, refusal_code, &runtime_root))
         .await
         .map_err(|_| {
             CommandError::new(
@@ -2999,13 +3003,13 @@ fn brain_log_webview_error(name: String, frame: String) {
 /// name, quant, bytes — so the same row arriving twice cannot render as two
 /// cards. The check covers the whole list, not only neighbours: how the
 /// rows are ordered is not something the list owns.
-fn unique_rows(
-    entries: Vec<&'static kalsa_catalog::ModelEntry>,
-) -> Vec<&'static kalsa_catalog::ModelEntry> {
+fn unique_rows<T>(
+    entries: Vec<(&'static kalsa_catalog::ModelEntry, T)>,
+) -> Vec<(&'static kalsa_catalog::ModelEntry, T)> {
     let mut seen = std::collections::HashSet::new();
     entries
         .into_iter()
-        .filter(|entry| seen.insert(startup::model_token(entry)))
+        .filter(|(entry, _)| seen.insert(startup::model_token(entry)))
         .collect()
 }
 

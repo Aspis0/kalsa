@@ -12,8 +12,6 @@ export const MACHINE = {
   offSentence: "Kalsa is off. Go to Home to start it.",
   turnKalsaOn: "Turn Kalsa on",
   notMeasured: "Kalsa measures this computer the first time you turn it on.",
-  whatItWouldRun: "What it would run",
-  whatItWouldRunPick: "What it would run — pick one",
   thisComputerMachine: "this computer",
   // The speed words: both a plain phrase and the figure it rests on.
   notMeasuredYet: "Not measured yet",
@@ -24,13 +22,9 @@ export const MACHINE = {
   // The wire shape is `at_least`: a floor, never a point — "About" sold the
   // processor's floor as the rate the model would reach on the card.
   speedAbout: (value: string) => `At least ${value} tokens/s`,
-  detailRange: "Estimated from this computer's speed.",
-  detailMeasured: (machine: string) => `last measured on ${machine}`,
-  onDisk: (bytes: string) => `${bytes} on this computer`,
   confirmSwitch: (name: string, bytes: string) => `Kalsa will restart with ${name}. If it's not on this computer yet, Kalsa downloads it first (${bytes}), so it takes a while.`,
   startAgainOn: (name: string) => `Switch Kalsa to ${name}`,
   cancel: "Cancel",
-  showWorking: "Show the working",
   speedsHeld: "These speeds are for a short conversation. Long ones are slower.",
   "reasonPicked": "Kalsa picked this because it runs well on this computer.",
   "reasonChosen": "You picked this AI.",

@@ -1,5 +1,5 @@
-// The walk's face, shot: the sprout at the four moments the owner sees it —
-// nothing measured yet, a candidate running under a countable plan, the
+// The walk's face, shot: the growing tree at the four moments the owner sees
+// it — nothing measured yet, a candidate running under a countable plan, the
 // tune's own close, and a phase with no fraction at all — in both themes,
 // plus the reduced-motion reading of the same screen. There is no Tauri
 // here: a stub keeps the brain on `starting` and the `brain_progress`
@@ -8,12 +8,12 @@
 // report by hand.
 //
 // Beyond the pictures it asserts what a picture cannot: the indeterminate
-// bar WALKS (its stripe transform sampled twice, strictly different), the
-// plant's sway is running, the determinate bar never reads 100 before the
-// closing report and does grow inside a running candidate, the estimate's
-// words appear only once a candidate finished, both themes paint the bar in
-// the page's own accent, and under reduced motion no sprout animation
-// exists at all while the clock still ticks.
+// bar's segment TRAVELS (its transform sampled twice, strictly different),
+// the tree's lean is running, the determinate bar never reads 100 before the
+// closing report and does grow inside a running candidate, the tree grows
+// with the walk and blossoms only on a finished tune, the estimate's words
+// appear only once a candidate finished, both themes paint the bar in the
+// page's own accent, and under reduced motion nothing on the walk moves.
 //
 // The strings are copied on purpose, the way verify.mjs keeps its own: a
 // copied sentence goes red the day the product's copy changes.
@@ -27,9 +27,14 @@ const WINDOW = { width: 1000, height: 720 };
 const GB = 1024 ** 3;
 
 // The theme tokens the walk must paint with, copied from styles/tokens.css:
-// --ac (the rail's leaf mark) and --tx3.
+// --ac (the rail's leaf mark) and --tx2.
 const ACCENT = { light: "rgb(63, 107, 58)", dark: "rgb(169, 207, 142)" };
-const SILENCE = { light: "rgb(100, 106, 91)", dark: "rgb(162, 164, 148)" };
+const LINE_INK = { light: "rgb(83, 88, 74)", dark: "rgb(190, 191, 176)" };
+
+// The walk's one scale (chat/src/surfaces/walkFigures.ts), copied as its
+// strings are: the tune runs the bar and the tree from 60 to 92, and only a
+// finished tune reaches 100.
+const tuneBar = (tunePercent) => Math.floor(60 + 32 * (tunePercent / 100));
 
 // The brain state behind the walk: `starting` is walking from the hook's
 // point of view and needs nothing else, and it never fires the automatic
@@ -93,55 +98,42 @@ async function deliver(page, payload) {
 /** What the walk is showing, in numbers no screenshot can argue with. */
 async function read(page) {
   return page.evaluate(() => {
-    const bar = document.querySelector(".sprout-bar");
-    const fill = document.querySelector(".sprout-bar-fill");
-    const caption = document.querySelector(".sprout-caption");
-    const plant = document.querySelector(".sprout-plant");
-    const stem = document.querySelector(".sprout-stem");
-    const leaf = document.querySelector(".sprout-leaf");
+    const bar = document.querySelector(".walk-bar");
+    const fill = document.querySelector(".walk-bar-fill");
+    const line = document.querySelector(".walk-line");
+    const sway = document.querySelector(".tree-sway");
     const box = (element) => (element ? element.getBoundingClientRect() : null);
     const barBox = box(bar);
     const fillBox = box(fill);
+    const indeterminate = bar?.classList.contains("is-indeterminate") ?? false;
     return {
       head: document.querySelector(".surface-verdict")?.textContent ?? "",
-      caption: caption?.textContent ?? "",
+      line: line?.textContent ?? "",
+      small: document.querySelector(".walk-small")?.textContent ?? "",
       // The percent the bar really paints, measured off the DOM: the rule
       // lives in the width, not in a number the component reports about itself.
-      percent: bar && fillBox ? Math.round((fillBox.width / barBox.width) * 100) : null,
-      determinate: Boolean(fill),
-      indeterminate: bar?.classList.contains("is-indeterminate") ?? false,
-      done: document.querySelector(".sprout-svg")?.classList.contains("is-done") ?? false,
-      budOpen: document.querySelector(".sprout-bud")?.classList.contains("is-open") ?? false,
-      // The hinge itself: the matrix's b/a is the bud's own rotation in its
-      // frame — 0 is shut along the stem, 45 is open to the side.
-      budAngle: (() => {
-        const bud = document.querySelector(".sprout-bud");
-        if (!bud) return null;
-        const matrix = getComputedStyle(bud).transform;
-        const parts = matrix.startsWith("matrix(") ? matrix.slice(7, -1).split(",").map(Number) : [1, 0];
-        return Math.round((Math.atan2(parts[1], parts[0]) * 180) / Math.PI);
-      })(),
-      leavesOpen: document.querySelectorAll(".sprout-leaf.is-open").length,
+      percent: bar && fillBox && !indeterminate ? Math.round((fillBox.width / barBox.width) * 100) : null,
+      indeterminate,
+      // How tall the tree stands, in its own drawing's units: it grows with p.
+      treeHeight: sway ? Math.round(sway.getBBox().height) : null,
+      blossoms: document.querySelectorAll(".tree-bloom").length,
       // The bar's own contract with assistive tech: a progressbar that
       // names its range and value (and has no value when the phase carries
-      // none), its value spoken in the line's words, and a live region whose
-      // ticking clock is hidden from it.
+      // none), its value spoken in the line's words, and a polite live line.
       aria: {
         role: bar?.getAttribute("role") ?? null,
         min: bar?.getAttribute("aria-valuemin"),
         max: bar?.getAttribute("aria-valuemax"),
         now: bar?.getAttribute("aria-valuenow"),
         valuetext: bar?.getAttribute("aria-valuetext"),
-        live: caption?.getAttribute("aria-live"),
-        clockHidden: Boolean(caption?.querySelector('span[aria-hidden="true"]')),
+        live: line?.getAttribute("aria-live") ?? null,
       },
-      fillColor: fill ? getComputedStyle(fill).backgroundColor : null,
-      captionColor: caption ? getComputedStyle(caption).color : null,
-      sway: plant ? getComputedStyle(plant).animationName : null,
-      stripes: bar ? getComputedStyle(bar, "::after").transform : null,
-      stripeAnimation: bar ? getComputedStyle(bar, "::after").animationName : null,
-      stemTransition: stem ? getComputedStyle(stem).transitionDuration : null,
-      leafTransition: leaf ? getComputedStyle(leaf).transitionDuration : null,
+      fillColor: fill && !indeterminate ? getComputedStyle(fill).backgroundColor : null,
+      lineColor: line ? getComputedStyle(line).color : null,
+      swayName: sway ? getComputedStyle(sway).animationName : null,
+      segment: indeterminate && fill ? getComputedStyle(fill).transform : null,
+      segmentAnimation: fill ? getComputedStyle(fill).animationName : null,
+      fillTransition: fill ? getComputedStyle(fill).transitionDuration : null,
       running: document
         .getAnimations()
         .filter((animation) => animation.playState === "running")
@@ -154,55 +146,47 @@ async function read(page) {
 async function walk(page, theme) {
   const suffix = theme === "dark" ? "-dark" : "";
 
-  // A phase with no fraction: the plant is young and sways, the stripes
-  // walk, and the line is the time alone.
+  // A phase with no fraction: the tree at rest and leaning, the segment
+  // travelling, and no line — there is no number to say.
   await deliver(page, { kind: "measuring" });
   await page.waitForTimeout(900);
   const checking = await read(page);
   check(`${theme}: the check says its own line`, checking.head === "Checking your computer…", checking.head);
-  check(`${theme}: a phase with no fraction has no fill`, checking.determinate === false && checking.indeterminate);
-  check(`${theme}: the time alone is on the line`, /^\d+:\d\d$/.test(checking.caption), checking.caption);
-  check(`${theme}: the plant sways`, checking.sway === "sprout-sway", checking.sway);
+  check(`${theme}: a phase with no fraction has no fill`, checking.percent === null && checking.indeterminate);
+  check(`${theme}: and no line it has no number for`, checking.line === "", checking.line);
+  await page.waitForTimeout(1200);
+  const quiet = await read(page);
+  check(`${theme}: and no ticking number appears there later`, quiet.line === "", quiet.line);
+  check(`${theme}: the tree leans`, checking.swayName === "tree-sway", checking.swayName);
   check(
     `${theme}: the bar is a progressbar with no value it does not have`,
     checking.aria.role === "progressbar" &&
       checking.aria.min === "0" &&
       checking.aria.max === "100" &&
-      checking.aria.now === null,
+      checking.aria.now === null &&
+      checking.aria.valuetext === null,
     JSON.stringify(checking.aria),
   );
-  check(
-    `${theme}: the line is polite and its ticking clock is spoken nowhere`,
-    checking.aria.live === "polite" &&
-      checking.aria.clockHidden &&
-      checking.aria.valuetext === null &&
-      checking.caption !== "",
-    JSON.stringify(checking.aria),
-  );
-  const stripesA = checking.stripes;
+  const segmentA = checking.segment;
   await page.waitForTimeout(500);
-  const walking = await read(page);
+  const travelling = await read(page);
   check(
-    `${theme}: the indeterminate bar keeps walking`,
-    walking.stripes !== null && walking.stripes !== stripesA,
-    `${stripesA} → ${walking.stripes}`,
+    `${theme}: the indeterminate segment keeps travelling`,
+    travelling.segment !== null && travelling.segment !== segmentA,
+    `${segmentA} → ${travelling.segment}`,
   );
-  check(`${theme}: the clock ticks`, walking.caption !== checking.caption, `${checking.caption} → ${walking.caption}`);
   await shot(page, `shots/90-walk-checking${suffix}.png`);
 
-  // The tune at nothing: a seed on the soil, test 1 of 4, no estimate —
-  // there is nothing finished to average yet. The wait outlasts the resting
-  // sprout's retract (its own 700 ms beat), so the picture is the seed and
-  // not the last leaf on its way out.
+  // The tune at nothing: test 1 of 4, no estimate — there is nothing
+  // finished to average yet.
   await deliver(page, { kind: "tuning", done: 0, total: 4, candidate: 1 });
   await page.waitForTimeout(1300);
   const seed = await read(page);
-  check(`${theme}: the tune's own line is up`, seed.head === "Finding what runs fastest on your computer…", seed.head);
-  check(`${theme}: test 1 of 4`, seed.caption.startsWith("Test 1 of 4 ·"), seed.caption);
-  check(`${theme}: nothing to estimate yet`, !/min left/.test(seed.caption), seed.caption);
-  check(`${theme}: 0% is 0%`, seed.percent === 0, `${seed.percent}`);
+  check(`${theme}: the tune's own line is up`, seed.head === "Finding the fastest settings for this computer…", seed.head);
+  check(`${theme}: test 1 of 4`, seed.small === "Test 1 of 4", seed.small);
+  check(`${theme}: nothing to estimate yet`, !/minutes? left/i.test(seed.line), seed.line);
+  check(`${theme}: the tune starts where the download left the walk`, seed.percent === tuneBar(0), `${seed.percent}`);
   check(`${theme}: the bar is the page's own green`, seed.fillColor === ACCENT[theme], seed.fillColor);
-  check(`${theme}: the line is the page's muted ink`, seed.captionColor === SILENCE[theme], seed.captionColor);
   await shot(page, `shots/91-walk-tune-start${suffix}.png`);
 
   // Two candidates measured, two and a half seconds apiece — the pace the
@@ -219,16 +203,17 @@ async function walk(page, theme) {
   // estimate now that one candidate has finished, and never 100.
   await page.waitForTimeout(400);
   const mid = await read(page);
-  check(`${theme}: test 3 of 4`, mid.caption.startsWith("Test 3 of 4 ·"), mid.caption);
+  check(`${theme}: test 3 of 4`, mid.small === "Test 3 of 4", mid.small);
   // The harness runs on compressed time: two candidates of ~2.5 s leave
-  // seconds, not minutes, and "almost done" is the honest wait for that —
+  // seconds, not minutes, and "Almost done." is the honest wait for that —
   // the minutes path itself is pinned in verify.mjs's walkProgress.
+  check(`${theme}: one candidate finished, so the wait line appears`, /minutes? left|Almost done/.test(mid.line), mid.line);
+  check(`${theme}: the line is the page's quiet ink`, mid.lineColor === LINE_INK[theme], mid.lineColor);
   check(
-    `${theme}: one candidate finished, so the wait line appears`,
-    /min left|almost done/.test(mid.caption),
-    mid.caption,
+    `${theme}: two of four is half the tune`,
+    mid.percent !== null && mid.percent >= tuneBar(49) && mid.percent <= tuneBar(60),
+    `${mid.percent}`,
   );
-  check(`${theme}: two of four is half`, mid.percent !== null && mid.percent >= 49 && mid.percent <= 60, `${mid.percent}`);
   const before = mid.percent;
   await page.waitForTimeout(1400);
   const inside = await read(page);
@@ -238,103 +223,76 @@ async function walk(page, theme) {
     `${before} → ${inside.percent}`,
   );
   check(
-    `${theme}: the bar's value is the line's words, clock excluded`,
-    mid.aria.now !== null &&
-      mid.aria.valuetext !== null &&
-      !/\d+:\d\d/.test(mid.aria.valuetext) &&
-      mid.aria.valuetext.includes("Test 3 of 4"),
+    `${theme}: the bar's value is the line's words`,
+    mid.aria.now !== null && mid.aria.valuetext !== null && mid.aria.valuetext.includes("Test 3 of 4") && mid.aria.live === "polite",
     JSON.stringify(mid.aria),
   );
-  check(`${theme}: the plant is still alive while it waits`, inside.running.includes("sprout-sway"), inside.running.join(","));
+  check(`${theme}: the tree is still alive while it waits`, inside.running.includes("tree-sway"), inside.running.join(","));
+  check(`${theme}: the tune grew the tree past the seedling`, (inside.treeHeight ?? 0) > (seed.treeHeight ?? 0), `${seed.treeHeight} → ${inside.treeHeight}`);
+  check(`${theme}: no blossom before the tune is done`, inside.blossoms === 0, `${inside.blossoms}`);
   await shot(page, `shots/92-walk-tune-mid${suffix}.png`);
 
-  // The tune's own report: the stem, leaves and bud take their 700 ms
-  // beat, then the bow lands over them and the bar is full. Asserted at
-  // the bow, shot once everything has settled.
+  // The tune's own report: the bar is full and the tree, stepping up a few
+  // times a second, reaches its blossom.
   await deliver(page, { kind: "tuning", done: 4, total: 4, candidate: 4 });
-  await page.waitForTimeout(850);
-  const bowing = await read(page);
-  check(`${theme}: the plant takes its bow`, bowing.done && bowing.running.includes("sprout-bow"), bowing.running.join(","));
-  check(`${theme}: test 4 of 4`, bowing.caption.startsWith("Test 4 of 4 ·"), bowing.caption);
-  check(
-    `${theme}: nothing left to estimate`,
-    !/(min left|almost done)/.test(bowing.caption),
-    bowing.caption,
-  );
-  check(`${theme}: the closing report fills the bar`, bowing.percent === 100, `${bowing.percent}`);
-  check(
-    `${theme}: every leaf and the bud opened`,
-    bowing.leavesOpen === 3 && bowing.budOpen,
-    `${bowing.leavesOpen} leaves, bud ${bowing.budOpen ? "open" : "shut"}`,
-  );
-  await page.waitForTimeout(600);
-  const settled = await read(page);
-  check(`${theme}: the bud swung open on its hinge`, settled.budAngle === 45, `${settled.budAngle}°`);
+  await page.waitForTimeout(3000);
+  const finished = await read(page);
+  check(`${theme}: test 4 of 4`, finished.small === "Test 4 of 4", finished.small);
+  check(`${theme}: nothing left to estimate`, !/(minutes? left|Almost done)/.test(finished.line), finished.line);
+  check(`${theme}: the closing report fills the bar`, finished.percent === 100, `${finished.percent}`);
+  check(`${theme}: the finished tune blossoms`, finished.blossoms > 0, `${finished.blossoms} blossoms`);
   await shot(page, `shots/93-walk-tune-done${suffix}.png`);
 }
 
-/** Reduced motion: no sway, no walking stripes, no growth transition —
-    and the clock, which is information, keeps ticking. */
+/** Reduced motion: no lean, no travelling segment, no fill transition, and
+    the tree lands where the walk is at once instead of stepping there. */
 async function reduced(page) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await deliver(page, { kind: "tuning", done: 0, total: 4, candidate: 1 });
   await page.waitForTimeout(400);
   const still = await read(page);
-  check("reduced: the plant does not sway", still.sway === "none", still.sway);
-  // base.css's own reduced-motion rule (0.01 ms !important) and Sprout's
-  // no-preference gate agree: growth lands at once instead of travelling.
-  check(
-    "reduced: growth jumps instead of animating",
-    Number.parseFloat(still.stemTransition ?? "1") < 0.001,
-    still.stemTransition,
-  );
+  check("reduced: the tree does not lean", still.swayName === "none", still.swayName);
+  check("reduced: the fill does not glide", Number.parseFloat(still.fillTransition ?? "1") < 0.001, still.fillTransition);
+  await deliver(page, { kind: "tuning", done: 4, total: 4, candidate: 4 });
+  await page.waitForTimeout(150);
+  const landed = await read(page);
+  check("reduced: the tree lands at once", landed.blossoms > 0, `${landed.blossoms} blossoms after 150 ms`);
   await deliver(page, { kind: "deciding" });
   await page.waitForTimeout(400);
-  const stripes = await read(page);
-  check("reduced: the stripes stand still", stripes.stripeAnimation === "none", stripes.stripeAnimation);
-  check("reduced: no sprout animation runs", !stripes.running.some((name) => name.startsWith("sprout")), stripes.running.join(","));
-  check("reduced: the time still ticks", /^\d+:\d\d$/.test(stripes.caption), stripes.caption);
-  const before = stripes.caption;
-  await page.waitForTimeout(1300);
-  const later = await read(page);
-  check("reduced: and it keeps ticking", later.caption !== before, `${before} → ${later.caption}`);
+  const resting = await read(page);
+  check("reduced: the segment rests", resting.segmentAnimation === "none", resting.segmentAnimation);
+  check(
+    "reduced: nothing on the walk animates",
+    !resting.running.some((name) => name.startsWith("tree") || name.startsWith("walk")),
+    resting.running.join(","),
+  );
   await shot(page, "shots/94-walk-reduced.png");
 }
 
-/** A budget cut: the stop keeps the bar where the tune reached, the plant
-    does not play the finish it did not earn, the line says the next start
-    does the rest, and the clock stops with the tune. */
+/** A budget cut: the stop keeps the bar where the tune reached, the tree
+    does not blossom for a finish it did not earn, and the line says the next
+    start does the rest. */
 async function cut(page, theme) {
   const suffix = theme === "dark" ? "-dark" : "";
-  // The reduced pass left the page quiet; this is the ordinary walk again.
+  // The reduced pass left the page quiet; this is the ordinary walk again,
+  // from a fresh page so the tree has not already blossomed.
   await page.emulateMedia({ reducedMotion: null });
+  await page.reload();
+  await page.waitForSelector(".shell", { timeout: 30000 });
   await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: true });
-  await page.waitForTimeout(1400); // the plant settles at its real height
+  await page.waitForTimeout(1400);
   const stopped = await read(page);
-  check(`${theme}: the bar holds at the height the tune reached`, stopped.percent === 50, `${stopped.percent}`);
+  check(`${theme}: the bar holds at the height the tune reached`, stopped.percent === tuneBar(50), `${stopped.percent}`);
+  check(`${theme}: a cut does not blossom`, stopped.blossoms === 0, `${stopped.blossoms}`);
+  check(`${theme}: the line says the next start finishes it`, stopped.line === "Kalsa will finish testing next time it starts.", stopped.line);
   check(
-    `${theme}: a cut does not play the finish`,
-    stopped.done === false && stopped.budAngle !== 45,
-    `done=${stopped.done} bud=${stopped.budAngle}°`,
-  );
-  check(
-    `${theme}: the line says the next start finishes it`,
-    stopped.caption.includes("Kalsa will finish testing next time it starts"),
-    stopped.caption,
-  );
-  check(
-    `${theme}: the stop names its value without the ticking clock`,
+    `${theme}: the stop names its value in its words`,
     stopped.aria.live === "polite" &&
-      stopped.aria.now === "50" &&
+      stopped.aria.now === String(tuneBar(50)) &&
       stopped.aria.valuetext !== null &&
-      !/\d+:\d\d/.test(stopped.aria.valuetext) &&
-      stopped.aria.valuetext.includes("Kalsa will finish testing next time it starts"),
+      stopped.aria.valuetext.includes("Kalsa will finish testing next time it starts."),
     JSON.stringify(stopped.aria),
   );
-  const frozen = stopped.caption;
-  await page.waitForTimeout(1300);
-  const still = await read(page);
-  check(`${theme}: the cut stops the clock`, still.caption === frozen, `${frozen} → ${still.caption}`);
   await shot(page, `shots/95-walk-tune-cut${suffix}.png`);
 
   // The second stop: this start WAS the retry, so its verdict was saved as
@@ -343,22 +301,14 @@ async function cut(page, theme) {
   await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: false, kept_winner: true });
   await page.waitForTimeout(400);
   const kept = await read(page);
-  check(
-    `${theme}: the second stop with a winner says what was kept`,
-    kept.caption.includes("Kalsa kept the best settings it found") && kept.done === false,
-    kept.caption,
-  );
+  check(`${theme}: the second stop with a winner says what was kept`, kept.line === "Kalsa kept the best settings it found." && kept.blossoms === 0, kept.line);
 
   // …and a stop whose verdict ended with no winner: the rule stands, so
   // the line says what will be used rather than what was kept.
   await deliver(page, { kind: "tuning", done: 2, total: 4, candidate: 2, cut: true, retry_next: false, kept_winner: false });
   await page.waitForTimeout(400);
   const standard = await read(page);
-  check(
-    `${theme}: the stop with no winner says what will be used`,
-    standard.caption.includes("Kalsa will use its standard settings") && standard.done === false,
-    standard.caption,
-  );
+  check(`${theme}: the stop with no winner says what will be used`, standard.line === "Kalsa will use its standard settings." && standard.blossoms === 0, standard.line);
 }
 
 async function main() {

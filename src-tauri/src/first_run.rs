@@ -17,6 +17,9 @@ pub(crate) struct Suggestions {
     options: Vec<Suggestion>,
     /// Why this computer can run nothing, when that is the answer.
     refusal: Option<String>,
+    /// The refusal's stable code, so the page can say it in the owner's language.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    refusal_code: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -30,17 +33,21 @@ struct Suggestion {
     /// "file" or "files".
     drafter: bool,
     on_disk: bool,
+    /// The capability card's comparison code (`capability::reason_message`):
+    /// the page names the cards from it, as Your AI does.
+    reason_code: Option<String>,
 }
 
 /// A present model file is hashed whole, so this runs on a blocking thread.
 pub(crate) fn suggest(
-    entries: Vec<&'static ModelEntry>,
+    entries: Vec<(&'static ModelEntry, Option<String>)>,
     refusal: Option<String>,
+    refusal_code: Option<String>,
     root: &Path,
 ) -> Suggestions {
     let options = entries
         .into_iter()
-        .map(|entry| {
+        .map(|(entry, reason_code)| {
             // Off the menu there is no plan to price: the entry's own
             // weight is the honest fallback for a row nothing fetches.
             let (download_bytes, drafter) =
@@ -51,10 +58,11 @@ pub(crate) fn suggest(
                 download_bytes,
                 drafter,
                 on_disk: startup::model_on_disk(root, entry),
+                reason_code,
             }
         })
         .collect();
-    Suggestions { options, refusal }
+    Suggestions { options, refusal, refusal_code }
 }
 
 /// The stored choice, when a catalog row still answers to its token. A

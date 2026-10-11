@@ -12,15 +12,19 @@ fn the_pick_list_deduplicates_rows_by_token_across_the_whole_list() {
     let qwen = kalsa_catalog::rows()
         .find(|entry| entry.repo == "Qwen/Qwen3.6-35B-A3B")
         .expect("the Qwen row is in the catalog");
-    let rows = unique_rows(vec![lfm, qwen, lfm]);
-    let names: Vec<_> = rows.iter().map(|entry| entry.display_name).collect();
+    let rows = unique_rows(vec![(lfm, 1), (qwen, 2), (lfm, 3)]);
+    let names: Vec<_> = rows.iter().map(|(entry, _)| entry.display_name).collect();
     assert_eq!(names, ["Liquid LFM 2.5", "Alibaba Qwen 3.6"]);
+    // The first of a repeat is the one kept, with what travelled beside it:
+    // the pick's own comparison code, never the later duplicate's.
+    let kept: Vec<_> = rows.iter().map(|(_, tag)| *tag).collect();
+    assert_eq!(kept, [1, 2]);
     // And a distinct row with the same shape of identity survives: the token
     // covers repo, name, quant and bytes, so nothing else is dropped.
     let qwen38 = kalsa_catalog::rows()
         .find(|entry| entry.repo == "Qwen/Qwen3.8-27B")
         .expect("the dense row is in the catalog");
-    let rows = unique_rows(vec![qwen, qwen38]);
+    let rows = unique_rows(vec![(qwen, ()), (qwen38, ())]);
     assert_eq!(rows.len(), 2);
 }
 

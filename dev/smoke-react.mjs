@@ -586,19 +586,60 @@ try {
     if (button && button.text.trim() === "") problems.push(`labelless button: ${heading}`);
   }
 
-  // The percentage is the bar's value; the caption shows the bytes only. The
-  // walk's other phases (the clock, the tuning count) carry no download line.
-  for (const { heading, progress, barValue, working } of results) {
+  // The line shows the step's own bytes, rounded as the page rounds them, and
+  // the bar is that same reading on the walk's one scale (walkFigures.ts) —
+  // the tree's — never a figure of its own. The walk's other phases (the
+  // tuning count) carry no download line.
+  for (const { heading, progress, barValue, working, step } of results) {
     if (!working || !heading.includes("(real bytes)")) continue;
     const full = progress?.match(/(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) (MB|GB)$/);
     const noTotal = /^(Picking up where it stopped — )?(Downloading\. The total size isn't known yet\.|(\d+(?:\.\d+)?) (MB|GB) received so far\.)$/;
     if (full) {
-      if (Math.floor((parseFloat(full[1]) / parseFloat(full[2])) * 100) !== Number(barValue)) {
-        problems.push(`the bar's percentage must be the bytes' percentage: ${heading}`);
+      const giga = full[3] === "GB";
+      const shown = (bytes) => (giga ? Math.round(bytes / 1e8) / 10 : Math.round(bytes / 1e6));
+      if (parseFloat(full[1]) !== shown(step.done) || parseFloat(full[2]) !== shown(step.total)) {
+        problems.push(`the download line must show the step's own bytes: ${heading} (${progress})`);
+      }
+      const pct = step.done >= step.total ? 100 : Math.min(99, Math.floor((parseFloat(full[1]) / parseFloat(full[2])) * 100));
+      if (renderer.walkPercent(renderer.growthOf(step.kind, pct, false)) !== Number(barValue)) {
+        problems.push(`the bar must be the line's bytes on the walk's scale: ${heading} (bar ${barValue}, bytes ${pct}%)`);
       }
       if (Number(barValue) > 100) problems.push(`a percentage above 100 is not a percentage: ${heading}`);
     } else if (!progress || !noTotal.test(progress)) {
       problems.push(`a download line must be a real percentage or an honest "no size": ${heading}`);
+    }
+  }
+
+  // The walk's end: a finished tune blossoms with a full bar; a tune the
+  // budget cut holds where it reached — no blossom, no full bar, no "only
+  // once" — and says the next start finishes; a failure keeps the reached
+  // value in amber, the tree desaturated, and its detail behind its link.
+  const end = (note) => results.find((r) => r.heading === `Walk — ${note}`);
+  const finished = end("ready after a finished tune");
+  const cutShort = end("ready after a tune the budget cut");
+  const failedLate = end("failed partway through the download");
+  const failedEarly = end("failed before any download");
+  if (!finished || !cutShort || !failedLate || !failedEarly) {
+    problems.push("the harness is missing one of the walk's end screens");
+  } else {
+    if (finished.barValue !== "100" || finished.blossoms === 0) {
+      problems.push(`a finished tune must end full and in blossom: bar ${finished.barValue}, ${finished.blossoms} blossoms`);
+    }
+    if (Number(cutShort.barValue) >= 100 || cutShort.blossoms !== 0) {
+      problems.push(`a cut tune must hold where it reached: bar ${cutShort.barValue}, ${cutShort.blossoms} blossoms`);
+    }
+    if (!cutShort.all.includes("Kalsa will finish testing next time it starts.") || cutShort.all.includes("only once")) {
+      problems.push(`a cut tune must say the next start finishes it, and never "only once": ${cutShort.all}`);
+    }
+    const reached = renderer.walkPercent(renderer.growthOf("model_bytes", 34, false));
+    if (!failedLate.barFailed || !failedLate.treeFailed || Number(failedLate.barValue) !== reached) {
+      problems.push(`a failure must keep the reached value in amber: is-failed ${failedLate.barFailed}, tree ${failedLate.treeFailed}, bar ${failedLate.barValue} (want ${reached})`);
+    }
+    if (!failedLate.walkDetails.includes("startup.disk_full") || !failedLate.buttons.includes("Try again")) {
+      problems.push(`a failure must offer Try again and its detail: ${failedLate.walkDetails}`);
+    }
+    if (!failedEarly.barFailed || failedEarly.barValue === null || failedEarly.walkDetails !== "") {
+      problems.push(`an early failure still ends on the failure screen, with no detail it does not have: bar ${failedEarly.barValue}`);
     }
   }
 

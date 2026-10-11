@@ -8,7 +8,7 @@ import { lastKnown, standingOf } from "../lib/slotGate";
 import { isPageVisible, visibleInterval } from "../lib/pageVisible";
 import { logUiEvent } from "../lib/uiLog";
 import type { DoorStanding } from "../lib/slotGate";
-import type { ProgressStep } from "./SetupProgress";
+import type { ProgressStep } from "./walkState";
 import { heldStepAfter, progressTaken, walkArmedAfter, walkStepShown } from "./walkStep";
 import type { ChatSettings, LiveSettings } from "../lib/types";
 

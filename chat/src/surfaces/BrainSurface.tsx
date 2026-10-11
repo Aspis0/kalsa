@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import type { Capability } from "./MachineCard";
 import { FirstRun } from "./FirstRun";
-import { SetupProgress } from "./SetupProgress";
 import { PowerButton } from "./PowerButton";
+import { FailedWalkScreen, GrowingScreen, ReadyScreen } from "./WalkScreens";
+import { useWalkMemory } from "./useWalkMemory";
+import type { UpdatesApi } from "../lib/useUpdates";
 import { brainWords, useBrain } from "./useBrain";
 import type { BrainTone } from "./useBrain";
 import { useCapability } from "./useCapability";
@@ -25,6 +27,7 @@ let automaticStartPending = true;
 interface BrainSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
   onOpenChat: () => void;
+  updates: UpdatesApi;
 }
 
 // A first run is a machine with no stored choice. An install from before
@@ -37,12 +40,13 @@ function firstRun(capability: Capability | null): boolean {
 // It also owns the first walk: a machine that reads "stopped" is started here,
 // on the spot, so getting ready never waits behind a page. The walk's failures
 // are not retried by themselves — they are spoken, and they wait for Try again.
-export function BrainSurface({ onNavigate, onOpenChat }: BrainSurfaceProps) {
+export function BrainSurface({ onNavigate, onOpenChat, updates }: BrainSurfaceProps) {
   const { table } = useLanguage();
   const power = table.power;
   const home = table.home;
   const { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel } = useBrain();
   const { capability, reread } = useCapability(state, busy);
+  const { memory: walk, forget: forgetWalk, claim: claimWalk } = useWalkMemory(liveStep);
 
   useEffect(() => {
     if (!automaticStartPending || !state || capability === null) return;
@@ -68,28 +72,62 @@ export function BrainSurface({ onNavigate, onOpenChat }: BrainSurfaceProps) {
     );
   }
 
+  const words = brainWords(state, heldFailure, busy, table);
+  const failureDetail = state?.kind === "failed" && state.reason_code ? { code: state.reason_code, text: state.reason ?? "" } : null;
+
+  // A walk that grew the tree, or the first run's, ends on its own screen,
+  // ahead of the first run's: a running brain has its choice stored, and the
+  // first run hands over here. A failure whose choice was never stored stays
+  // the first run's own, whose Try again goes back to the pick.
+  if (walk?.ownsEnd && !liveStep && state) {
+    if (state.kind === "running") {
+      return (
+        <ReadyScreen
+          memory={walk}
+          onStartChat={() => {
+            forgetWalk();
+            onOpenChat();
+          }}
+        />
+      );
+    }
+    if ((state.kind === "failed" || heldFailure !== null) && !firstRun(capability)) {
+      return (
+        <FailedWalkScreen
+          memory={walk}
+          reason={words.sentence}
+          detail={failureDetail}
+          busy={busy}
+          onRetry={() => {
+            forgetWalk();
+            void act();
+          }}
+        />
+      );
+    }
+  }
+
   // The first run owns the page until a model is picked.
   if (firstRun(capability)) {
     return (
       <FirstRun
         capability={capability}
         liveStep={liveStep}
+        walk={walk}
+        failureDetail={failureDetail}
         starting={state?.kind === "starting"}
-        onChoose={(token) => chooseModel(token)}
+        updates={updates}
+        onChoose={(token) => {
+          claimWalk();
+          return chooseModel(token);
+        }}
         onChecked={reread}
       />
     );
   }
 
-  if (liveStep) {
-    return (
-      <div className="surface-page brain-page">
-        <SetupProgress step={liveStep} />
-      </div>
-    );
-  }
+  if (liveStep) return <GrowingScreen step={liveStep} reach={walk?.reach ?? 0} />;
 
-  const words = brainWords(state, heldFailure, busy, table);
   // A refused turn-off takes the words, on the page the button was pressed on:
   // the server is still running, and only closing the window stops it.
   const tone: BrainTone = stopFailure ? "problem" : words.tone;

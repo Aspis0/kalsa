@@ -144,19 +144,29 @@
   color: var(--accent);
 }
 
-/* The walk's line and bar are Sprout's own (components/Sprout.css), beside
-   the plant that shows them. `.surface-walk` carries no styles: it is the
-   hook that view renders under — and it centres its sentence over the
-   column the plant and its bar stand in, so the walk reads as one block
-   instead of a left-aligned line over a centred island. */
-.surface-walk .surface-verdict {
+/* The walk's view (SetupProgress): one centred column — the headline, the bar
+   (WalkBar.css), the line, the test count and the once-only note. The full
+   first-run screen sets its own sizes in FirstRun.css. */
+.surface-walk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
-/* The once-only note under the tune's line reads where the line reads:
-   centred over the same column, in the surfaces' quiet voice. */
-.surface-walk .surface-quiet {
-  text-align: center;
+.walk-line {
+  margin: 12px 0 0;
+  color: var(--tx2);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.walk-small,
+.walk-once {
+  margin: 4px 0 0;
+  color: var(--tx3);
+  font-size: 14px;
+  line-height: 21px;
 }
 
 .surface-qr {

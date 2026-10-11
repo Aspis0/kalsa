@@ -10,7 +10,7 @@ import { rustSentence } from "../lib/rustText";
 import { offeredBytes, parseVision } from "../lib/vision";
 import { useLanguage } from "../i18n/useLanguage";
 import { beginWalk, clearWalkStep, useBrainState, useBrainStep } from "./useBrain";
-import type { ProgressStep } from "./SetupProgress";
+import type { ProgressStep } from "./walkState";
 import type { VisionOfferPhase } from "../components/VisionOffer";
 
 export interface VisionOffer {

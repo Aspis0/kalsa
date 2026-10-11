@@ -199,7 +199,7 @@ export function App() {
           <ErrorBoundary>
             <UpdateNotice updates={updates} busy={chat.streamingAny} />
             {surface === "brain" ? (
-              <BrainSurface onNavigate={openSurface} onOpenChat={() => openSurface("chat")} />
+              <BrainSurface onNavigate={openSurface} onOpenChat={() => openSurface("chat")} updates={updates} />
             ) : surface === "chat" ? (
               <ChatSurface chat={chat} restartedAt={engine.restartedAt} />
             ) : surface === "room" ? (

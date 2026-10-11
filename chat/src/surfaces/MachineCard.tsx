@@ -1,8 +1,5 @@
 import type { English } from "../i18n/en/all";
 import { speedLine } from "../lib/speed";
-import { useLanguage } from "../i18n/useLanguage";
-import "./surfaces.css";
-import "./BrainSurface.css";
 
 /** One of the two the page offers. Both are the same shape by construction:
     the backend builds them from the same row type. */
@@ -117,24 +114,6 @@ export function shownSpeed(t: English["machine"], model: ModelOption): Speed {
     : model.speed;
 }
 
-function speedDetail(t: English["machine"], speed: Speed): string {
-  switch (speed.shape) {
-    case "range":
-    case "at_least":
-      return t.detailRange;
-    // "last": a measured figure is a reading from one moment on one
-    // machine — an engine or driver change since can have moved it.
-    case "measured":
-      return t.detailMeasured(speed.machine);
-  }
-}
-
-// The detail line under a choice's name: what it costs on this computer and
-// where the speed comes from.
-function modelDetail(t: English["machine"], model: ModelOption, speed: Speed, tag: string): string {
-  return `${t.onDisk(bytesText(model.download_bytes, tag))} · ${speedDetail(t, speed)}`;
-}
-
 /** A reason: the approved sentence when the code is one of ours, the
     catalog's own English otherwise. */
 export function reasonSentence(t: English["machine"], code: string | undefined, text: string): string {
@@ -149,70 +128,8 @@ export function reasonSentence(t: English["machine"], code: string | undefined, 
   return (code && byCode[code]) || text;
 }
 
-// One option, read-only, on three tight lines: what it is and how fast, what
-// it costs on disk and where the speed comes from, and why you would take it.
-function Option({ model }: { model: ModelOption }) {
-  const { table, tag } = useLanguage();
-  const t = table.machine;
-  const speed = shownSpeed(t, model);
-  return (
-    <div className="machine-option">
-      <p className="machine-option-head">
-        <strong className="machine-option-name">{model.name}</strong>
-        <span className="machine-option-speed">{speedText(t, speed, tag)}</span>
-      </p>
-      <p className="machine-option-detail">{modelDetail(t, model, speed, tag)}</p>
-      <p className="machine-option-reason">{reasonSentence(t, model.reason_code, model.reason)}</p>
-    </div>
-  );
-}
-
 /** Why there is no pick: the approved sentence for the two catalog refusals,
     the backend's own words otherwise. */
 export function refusalSentence(t: English["machine"], code: string | undefined, refusal: string | null): string | null {
   return code === "catalog.nothing_fits" || code === "catalog.nothing_fast_enough" ? t.noSuitableChoice : refusal;
-}
-
-/** The first run's "Show details": what the chooser found, with its working. */
-export function MachineCard({ capability }: { capability: Capability }) {
-  const { table } = useLanguage();
-  const t = table.machine;
-  if (capability.kind !== "measured") {
-    return <p className="surface-quiet">{t.notMeasured}</p>;
-  }
-
-  const { model, quicker, refusal } = capability;
-  // The second option only exists beside a first one; `quicker` is null on
-  // every path that has no pick, so this is belt and braces around a shape
-  // the backend already guarantees.
-  const second = model ? quicker : null;
-
-  return (
-    <section className="machine-card" aria-label={t.whatItWouldRun}>
-
-      <p className="surface-eyebrow">
-        {second ? t.whatItWouldRunPick : t.whatItWouldRun}
-      </p>
-      {model ? (
-        <>
-          <Option model={model} />
-          {second ? <Option model={second} /> : null}
-          <details className="machine-working">
-            <summary>{t.showWorking}</summary>
-            <p className="machine-working-body">{model.details}</p>
-            {second ? <p className="machine-working-body">{second.details}</p> : null}
-            {/* Once, under both, and in the drawer rather than on the card:
-                the cache is re-read on every token, so the speeds hold at the
-                length they were priced at and fall from there. On the card it
-                was dev material in the middle of a choice. */}
-            <p className="machine-working-body">
-              {t.speedsHeld}
-            </p>
-          </details>
-        </>
-      ) : (
-        <p className="surface-sentence">{refusalSentence(t, capability.refusal_code, refusal)}</p>
-      )}
-    </section>
-  );
 }

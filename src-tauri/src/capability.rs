@@ -216,7 +216,7 @@ pub(crate) struct ModelChoiceDto {
     reason: String,
     /// The stable code for that reason, beside the English.
     #[serde(skip_serializing_if = "Option::is_none")]
-    reason_code: Option<String>,
+    pub(crate) reason_code: Option<String>,
     /// `Selection::details` — the full working, for whoever asks.
     details: String,
 }

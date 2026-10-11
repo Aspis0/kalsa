@@ -9,10 +9,11 @@ import { modelByMaker, modelOnly } from "../lib/modelName";
 import type { ModelOption } from "./MachineCard";
 import "./AiPage.css";
 
-export interface RankedOption {
+export interface Ranked<T> {
   kind: AiKind;
-  option: ModelOption;
+  option: T;
 }
+export type RankedOption = Ranked<ModelOption>;
 
 /** The chooser's options as the cards claim them, Smartest first. The second
     option's reason code (capability.rs `reason_message`) is the backend's
@@ -20,7 +21,7 @@ export interface RankedOption {
     capable", "Quickest" only where it says smaller AND faster. Where its
     facts support neither — a bigger row that is also faster, a lone pick, a
     code this build does not know — the card claims nothing. */
-export function rankOptions(model: ModelOption, quicker: ModelOption | null): RankedOption[] {
+export function rankOptions<T extends { reason_code?: string | null }>(model: T, quicker: T | null): Ranked<T>[] {
   if (!quicker) return [{ kind: null, option: model }];
   switch (quicker.reason_code) {
     case "model.reason.quicker":

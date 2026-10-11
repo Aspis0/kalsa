@@ -1,0 +1,66 @@
+/* The growing tree (RULES.md "Tree progress"; mockups 06-growing-*): an ink
+   study in Hearth's palette. The dark values are this port's own: no dark
+   mockup of the tree exists. */
+
+.tree {
+  --tree-ink: #2f362a;
+  --tree-disc: #ece4d0;
+  --tree-ground: #e2d6bc;
+  display: block;
+  width: 440px;
+  max-width: 100%;
+  height: 440px;
+  margin-top: -30px;
+}
+
+[data-theme="dark"] .tree {
+  --tree-ink: #10130e;
+  --tree-disc: #2a2c24;
+  --tree-ground: #3a382d;
+}
+
+.tree-ink {
+  stroke: var(--tree-ink);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.tree-ink-line {
+  fill: none;
+  stroke: var(--tree-ink);
+  stroke-linecap: round;
+}
+
+.tree-disc {
+  fill: var(--tree-disc);
+}
+
+.tree-ground {
+  fill: var(--tree-ground);
+}
+
+.tree-bloom {
+  fill: #d8b35a;
+}
+
+.tree.is-failed {
+  opacity: 0.75;
+  filter: saturate(0.25);
+}
+
+.tree-sway {
+  transform-box: view-box;
+  transform-origin: 200px 330px;
+}
+
+/* A slow lean while the walk runs: the tree is alive even when no number moves. */
+@media (prefers-reduced-motion: no-preference) {
+  .tree:not(.is-failed) .tree-sway {
+    animation: tree-sway 6s ease-in-out infinite;
+  }
+}
+
+@keyframes tree-sway {
+  0%, 100% { transform: rotate(-0.6deg); }
+  50% { transform: rotate(0.6deg); }
+}

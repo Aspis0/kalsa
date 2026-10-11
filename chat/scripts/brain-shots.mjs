@@ -345,11 +345,11 @@ const STATES = [
       refusal: null,
     },
     marker: "Start",
-    presence: "Kalsa checks your computer and suggests a model.",
+    presence: "Your own private assistant. It lives on this computer, and your chats never leave it.",
     brainTest: {
       options: [
-        { id: MODEL.id, name: MODEL.name, weights_bytes: MODEL.download_bytes, on_disk: false },
-        { id: QUICK_MODEL.id, name: QUICK_MODEL.name, weights_bytes: QUICK_MODEL.download_bytes, on_disk: true },
+        { id: MODEL.id, name: MODEL.name, download_bytes: MODEL.download_bytes, drafter: false, on_disk: false, reason_code: MODEL.reason_code },
+        { id: QUICK_MODEL.id, name: QUICK_MODEL.name, download_bytes: QUICK_MODEL.download_bytes, drafter: false, on_disk: true, reason_code: QUICK_MODEL.reason_code },
       ],
       refusal: null,
     },
@@ -364,7 +364,7 @@ const STATES = [
     firstRun: true,
     state: { kind: "stopped" },
     capability: { kind: "migrating" },
-    marker: "Checking the model already on your computer…",
+    marker: "Checking the AI already on your computer…",
     presence: "Checking the AI already on your computer…",
   },
   {
@@ -376,7 +376,7 @@ const STATES = [
     state: { kind: "stopped" },
     capability: { kind: "unmeasured", chosen: false, chosen_model: null },
     marker: "Start",
-    presence: "Kalsa checks your computer and suggests a model.",
+    presence: "Your own private assistant. It lives on this computer, and your chats never leave it.",
   },
 ];
 
@@ -485,7 +485,8 @@ async function layout(page) {
       return { left: at(r.left), right: at(r.right), top: at(r.top), bottom: at(r.bottom) };
     };
     const within = (b) => b !== null && b.left >= 0 && b.top >= 0 && b.right <= window.innerWidth && b.bottom <= window.innerHeight;
-    const power = box(document.querySelector(".power"));
+    // Home's round button, not the first run's Start, which wears its look.
+    const power = box(document.querySelector(".power:not(.first-run-start)"));
     const details = box(document.querySelector(".brain-details"));
     const foot = box(document.querySelector(".brain-foot"));
     return {
@@ -644,7 +645,7 @@ async function main() {
     // read on Your AI below.
     if (fixture.firstRun) await mustText(page, fixture.marker, fixture.name);
     await mustText(page, fixture.presence, `${fixture.name} presence`);
-    if (fixture.firstRun && (await page.locator(".machine-card").count()) > 0) {
+    if (fixture.firstRun && (await page.locator(".ai-card, .ai-details").count()) > 0) {
       throw new Error(`${fixture.name}: the first run printed the card before Allow`);
     }
 
@@ -652,8 +653,11 @@ async function main() {
     const held = await layout(page);
     const problems = [];
     if (fixture.firstRun) {
-      // Only the button and its line: no power button, no Details.
-      if (held.power !== null || held.details !== null) problems.push("the first run shows more than Start");
+      // Only the button and its line: no power button, no Details. The
+      // migrating check is Home's own face (14-home-states-checking-ai): its
+      // ring is the point there, and Details is still not.
+      const start = fixture.capability.kind !== "migrating";
+      if (held.details !== null || (start && held.power !== null)) problems.push("the first run shows more than Start");
     } else if (!held.allInside) {
       problems.push(`Home's button, Details or footer is off screen: ${JSON.stringify(held)}`);
     }
@@ -713,17 +717,21 @@ async function main() {
       await page.click(".first-run-start");
       await mustText(page, "Checking your computer…", `${fixture.name} checking`);
       await shot(page, "shots/78-brain-checking.png");
-      for (const words of ["Pick a model", "Smarter answers.", "Faster answers.", "2.9 GB download", "Already on your computer", "Show details"]) {
+      for (const words of ["Which one would you like?", "Smartest", "Quickest", "Recommended", "Needs 3 GB of space", "Already on your computer", "Continue"]) {
         await mustText(page, words, `${fixture.name} pick: ${words}`);
       }
-      const pickText = await page.locator(".first-run-pick").innerText();
-      for (const hidden of ["tokens/s", "Q8_0", "Memory"]) {
-        if (pickText.includes(hidden)) failures.push(`${fixture.name}: the pick shows "${hidden}" outside Show details`);
+      const pickText = await page.locator(".first-run").innerText();
+      for (const hidden of ["tokens/s", "Q8_0", "Memory", "GiB"]) {
+        if (pickText.includes(hidden)) failures.push(`${fixture.name}: the pick shows "${hidden}"`);
+      }
+      const radios = await page.getByRole("radio").evaluateAll((cards) => cards.map((card) => card.getAttribute("aria-checked")));
+      if (JSON.stringify(radios) !== JSON.stringify(["true", "false"])) {
+        failures.push(`${fixture.name}: the pick's radios are ${JSON.stringify(radios)}, the recommended one not alone selected`);
       }
       await shot(page, "shots/79-brain-pick.png");
-      await page.getByRole("button", { name: "Use this" }).first().click();
+      await page.getByRole("button", { name: "Continue" }).click();
       await mustText(page, "Download 2.9 GB?", `${fixture.name} confirm`);
-      await mustText(page, `Kalsa needs this file to run ${MODEL.name}.`, `${fixture.name} confirm sentence`);
+      await mustText(page, "Kalsa needs this file to answer with LFM 2.5.", `${fixture.name} confirm sentence`);
       await shot(page, "shots/80-brain-confirm.png");
       await page.getByRole("button", { name: "Download" }).click();
       await mustText(page, "Getting ready…", `${fixture.name} working`);
@@ -738,11 +746,11 @@ async function main() {
         }, payload);
       await deliver({ kind: "model_bytes", done: 0, total: MODEL.download_bytes });
       await deliver({ kind: "model_bytes", done: 1_200_000_000, total: MODEL.download_bytes });
-      await mustText(page, "Downloading…", `${fixture.name} downloading`);
+      await mustText(page, "Downloading Kalsa's AI…", `${fixture.name} downloading`);
       await mustText(page, "1.2 of 2.9 GB", `${fixture.name} download bytes`);
       await shot(page, "shots/81-brain-download.png");
       await deliver({ kind: "tuning", done: 1, total: 4 });
-      await mustText(page, "Finding the best settings for your computer…", `${fixture.name} tuning`);
+      await mustText(page, "Finding the fastest settings for this computer…", `${fixture.name} tuning`);
       await shot(page, "shots/82-brain-tuning.png");
     }
     // Last, because it leaves Home: the machine card on Your AI.
