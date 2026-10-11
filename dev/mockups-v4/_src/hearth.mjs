@@ -208,7 +208,7 @@ export function hero(on) {
     : presence({ ring: '', hint: 'Press to turn on', head: 'Kalsa is off', sub: 'Press the button to wake it up.' });
 }
 
-export const foot = `<div class="foot">${icon('lock', 16)}Everything stays on this computer.</div>`;
+export const foot = `<div class="foot">${icon('lock', 16)}Your messages and answers stay on this computer.</div>`;
 
 export const home = () => `${rail('home')}<main><div class="center">${hero(true)}</div>${foot}</main>`;
 export const homeOff = () => `${rail('home')}<main><div class="center">${hero(false)}</div>${foot}</main>`;

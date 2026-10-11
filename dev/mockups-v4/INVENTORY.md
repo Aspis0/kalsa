@@ -186,3 +186,6 @@ Owner decision, 2026-10-11.
 10. **Report a problem** moved from the AI page to Help (and stays on the crash screen). The recovered notice's "Send the log" should then open Help.
 11. **Message pictures from the network** are blocked by design ("Image blocked…"); designed as a quiet grey line inside the answer.
 12. **Timestamps, "This week" groups and sample names** (Giulia, Marco, Nonna Lia, Living room, Phone 2/3) are sample content.
+
+## Decided after the port began
+- Home footer (owner 2026-10-11): "Your messages and answers stay on this computer." — not "Everything…", because alpha error reports and web search leave the computer.
