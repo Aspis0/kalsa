@@ -39,14 +39,15 @@ export function headroomAt(skinC: number, severeSkinC: number): number {
 
 /** The decode_pacing_headroom_start / _full engine params for this phone, or
  *  null when its model has no measured SEVERE; null leaves the engine's own
- *  defaults in charge. Matched on the model name alone: iOS and macOS model
- *  names never match these patterns, and expo-device's osName is a build
- *  fingerprint on some Android vendors, so it cannot gate the rows. */
+ *  defaults in charge. Matched on the model name (Build.MODEL) alone, because
+ *  expo-device's osName is a build fingerprint on some Android vendors and
+ *  cannot gate the rows; the governor load that consumes these is
+ *  Android-only. */
 export function pacingHeadroomLines(profile: DeviceProfile): {
   decode_pacing_headroom_start: number;
   decode_pacing_headroom_full: number;
 } | null {
-  const modelName = profile.modelName ?? "";
+  const modelName = (profile.modelName ?? "").trim().toUpperCase();
   const row = DECLARED_SEVERE.find((entry) => entry.model.test(modelName));
   if (!row) return null;
   return {
