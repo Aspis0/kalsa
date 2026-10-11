@@ -166,11 +166,11 @@ describe("governor inputs", () => {
     });
   });
 
-  test("maps the Snapdragon 8 Elite Gen 5 (SM8850/Canoe) to V81, GPU prefill unmeasured", () => {
+  test("maps the Snapdragon 8 Elite Gen 5 (SM8850/Canoe) to V81, GPU prefill enabled as fallback", () => {
     expect(buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "SM8850"), memory)).toMatchObject({
       generation: "V81",
-      enabled: false,
-      gpu_prefill_measured: false,
+      enabled: true,
+      gpu_prefill_measured: true,
     });
     // QDC device logs: board.platform=canoe, product.model=Canoe.
     expect(buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "canoe"), memory).generation).toBe("V81");
@@ -577,21 +577,36 @@ describe("governor inputs", () => {
       generation: "V81",
       npu_lane_enabled: true,
       npu_device: "HTP0",
-      // The flip GPU_PREFILL_CORRECT.V81 awaits its oracle PASS: the lane
-      // load carries prefill on HTP0, decode on CPU, GPU prefill unmeasured.
-      gpu_prefill_measured: false,
+      // The lane load carries prefill on HTP0, decode on CPU; GPU prefill is
+      // the fallback for when the lane is not live (owner 2026-10-11).
+      gpu_prefill_measured: true,
     });
   });
 
-  test("V81 with no runtime HTP arch stays off with its correctness reason", () => {
+  test("V81 with no runtime HTP arch keeps the lane off and the GPU fallback enabled", () => {
     const out = buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "SM8850"), memory, false, undefined, {
       android: true,
       hasMmproj: false,
       lanePref: "auto",
       htpArch: null,
     });
-    expect(out.enabled).toBe(false);
-    expect(out.reason).toBe("gpu-prefill-incorrect-V81");
+    expect(out).toMatchObject({ enabled: true, generation: "V81", npu_lane_enabled: false });
+    expect(out.reason).toBeUndefined();
+  });
+
+  test("V81 with the NPU lane off enables the GPU prefill fallback", () => {
+    const out = buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "SM8850"), memory, false, undefined, {
+      android: true,
+      hasMmproj: false,
+      lanePref: "off",
+      htpArch: 81,
+    });
+    expect(out).toMatchObject({
+      enabled: true,
+      generation: "V81",
+      npu_lane_enabled: false,
+      gpu_prefill_measured: true,
+    });
   });
 
   test("an Unknown generation with a registered v79 HTP device still takes the lane", () => {

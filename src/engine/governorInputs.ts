@@ -99,7 +99,7 @@ export const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
    */
   V75: true,
   V73: true, // owner decision 2026-09-21: enabled in production, never measured in-app; kalsa.bench.governor_force still exists for the other paths
-  V81: false, // Adreno 840 unmeasured by the logit oracle; flips only after a PASS
+  V81: true, // owner 2026-10-11: GPU fallback when the NPU lane is off; raw R2 still FAIL, as V75 (oracle-onoff-41dc728f addendum)
   Unknown: false,
 };
 
@@ -364,7 +364,7 @@ export function buildGovernorParams(
     : lanePref === "on" ? androidOk && visionOk && fitOk
     : false; // "off"
   // The governor also loads lane-only: a generation whose GPU prefill is not
-  // qualified (V81, Unknown) still runs prefill on HTP0 with decode on CPU,
+  // qualified (Unknown) still runs prefill on HTP0 with decode on CPU,
   // so enabled is GPU-qualified OR lane enabled — and when both are false
   // the Android-only n_gpu_layers guard lands the load on CPU.
   const enabled = force || GPU_PREFILL_CORRECT[generation] || laneEnabled;
@@ -386,10 +386,10 @@ export function buildGovernorParams(
     // Per-model decode-pacing lines from the declared SEVERE table; empty for
     // phones without a measured row, so their params stay byte-identical.
     ...(pacingHeadroomLines(deviceProfile) ?? {}),
-    // V73 carries the owner's 2026-09-21 enablement decision, not a measurement.
+    // V73, V75 and V81 carry owner enablement decisions; only V79 passed the logit oracle.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
     gpu_prefill_measured:
-      generation === "V73" || generation === "V75" || generation === "V79",
+      generation === "V73" || generation === "V75" || generation === "V79" || generation === "V81",
     bench_force_gpu_prefill: force,
     npu_lane_enabled: laneEnabled,
     npu_fit: npuLane.fit,
