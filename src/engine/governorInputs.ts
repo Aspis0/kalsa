@@ -386,7 +386,8 @@ export function buildGovernorParams(
     // Per-model decode-pacing lines from the declared SEVERE table; empty for
     // phones without a measured row, so their params stay byte-identical.
     ...(pacingHeadroomLines(deviceProfile) ?? {}),
-    // V73, V75 and V81 carry owner enablement decisions; only V79 passed the logit oracle.
+    // V73, V75 and V81 carry owner enablement decisions; V79 passed the token oracle (S5 run 6).
+    // No committed logit-oracle PASS exists for any generation.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
     gpu_prefill_measured:
       generation === "V73" || generation === "V75" || generation === "V79" || generation === "V81",

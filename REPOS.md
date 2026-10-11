@@ -129,7 +129,9 @@ assembled from three sources at build time.
 deleted in the cleanup that followed. The flatten script `scripts/sync-kalsallama.sh` is now
 retired: the fork re-vendors with `scripts/sync-vendor.sh` from the pins in `vendor/VERSIONS`. An
 engine update is: edit the pin in the fork, run `npm run sync:vendor`, push, then the new sha in
-the app's `package.json` and lockfile.
+the app's `package.json` and lockfile. `native/kalsallama.pin` was later restored as the provenance
+mirror: `scripts/assert-engine-provenance.sh` compares it with the fork's `vendor/VERSIONS`, so an
+engine bump updates it too.
 
 ## Two conventions that make this navigable
 
