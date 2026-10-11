@@ -24,6 +24,9 @@ const CHECK_TIMEOUT: Duration = Duration::from_secs(30);
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 const STARTUP_POLL: Duration = Duration::from_secs(2);
 const SETTLE_AFTER_READY: Duration = Duration::from_secs(30);
+/// The Worker enforces the same limit on the manifest; this one keeps an
+/// oversized body from reaching the page.
+const NOTES_MAX: usize = 600;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -210,8 +213,19 @@ impl ProgressTicks {
 fn available(update: &Update) -> Available {
     Available {
         version: update.version.clone(),
-        notes: update.body.clone(),
+        notes: plain_notes(update.body.as_deref()),
     }
+}
+
+/// Plain text only: control characters go, the line break stays, and nothing
+/// is left when only whitespace remains.
+fn plain_notes(body: Option<&str>) -> Option<String> {
+    let text: String = body?
+        .chars()
+        .filter(|c| *c == '\n' || !c.is_control())
+        .take(NOTES_MAX)
+        .collect();
+    (!text.trim().is_empty()).then_some(text)
 }
 
 async fn find(app: &AppHandle) -> Result<Option<Update>, Failure> {
@@ -365,6 +379,19 @@ mod tests {
         assert_eq!(release_offered("0.0.3", Some("0.0.4")), Err(Failure::Changed));
         assert_eq!(release_offered("0.0.3", Some("0.0.2")), Err(Failure::Changed));
         assert_eq!(release_offered("0.0.3", None), Err(Failure::UpToDate));
+    }
+
+    #[test]
+    fn the_notes_reach_the_page_as_plain_text_capped_at_the_limit() {
+        assert_eq!(
+            plain_notes(Some("Faster start.\nFixed the calculator.")),
+            Some("Faster start.\nFixed the calculator.".into())
+        );
+        assert_eq!(plain_notes(Some("bad\u{7}text\u{1b}[0m")), Some("badtext[0m".into()));
+        assert_eq!(plain_notes(Some("  \n  ")), None, "whitespace is no notes");
+        assert_eq!(plain_notes(None), None);
+        let long = "x".repeat(NOTES_MAX + 100);
+        assert_eq!(plain_notes(Some(&long)).map(|text| text.chars().count()), Some(NOTES_MAX));
     }
 
     #[test]

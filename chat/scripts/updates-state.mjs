@@ -166,6 +166,35 @@ try {
   }
 
   {
+    const notes = "Faster start.\nFixed the calculator.";
+    const announced = run(INITIAL_UPDATE, { type: "announced", update: { version: "0.0.3", notes } });
+    check("the startup notice keeps its notes", announced.notice?.notes === notes, JSON.stringify(announced.notice));
+    const same = run(announced, {
+      type: "checkFinished",
+      status: { current: "0.0.2", available: { version: "0.0.3", notes } },
+    });
+    check("a check that still finds the same release keeps the notice's notes", same.notice?.notes === notes);
+    const offered = run(INITIAL_UPDATE, {
+      type: "checkFinished",
+      status: { current: "0.0.2", available: { version: "0.0.3", notes } },
+    });
+    check(
+      "the Settings phase carries the notes",
+      offered.phase.kind === "available" && offered.phase.notes === notes,
+      JSON.stringify(offered.phase),
+    );
+    const newer = run(announced, {
+      type: "checkFinished",
+      status: { current: "0.0.2", available: { version: "0.0.4", notes: null } },
+    });
+    check(
+      "a newer release without notes replaces the old notes",
+      newer.notice?.version === "0.0.4" && newer.notice?.notes === null,
+      JSON.stringify(newer.notice),
+    );
+  }
+
+  {
     const versioned = reduceUpdate(INITIAL_UPDATE, { type: "version", version: "0.0.2" });
     check("the running version is kept for the Settings line", versioned.current === "0.0.2");
   }

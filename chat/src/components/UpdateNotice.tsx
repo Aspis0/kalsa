@@ -1,6 +1,7 @@
 import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
 import type { UpdatesApi } from "../lib/useUpdates";
+import { ReleaseNotes } from "./ReleaseNotes";
 
 interface UpdateNoticeProps {
   updates: UpdatesApi;
@@ -17,7 +18,10 @@ export function UpdateNotice({ updates, busy }: UpdateNoticeProps) {
   if (!notice) return null;
   const downloading = phase.kind === "downloading";
   return <div className="refusal-banner" role="status">
-    <span>{t.ready(notice.version)}</span>
+    <div>
+      <span>{t.ready(notice.version)}</span>
+      <ReleaseNotes notes={notice.notes} />
+    </div>
     {busy ? <span>{t.busy}</span> : null}
     {phase.kind === "failed" ? <span role="alert">{rustSentence(table.rust, phase.error, tag)}</span> : null}
     <button type="button" className="btn-primary" disabled={busy || downloading} onClick={() => updates.install(notice.version)}>

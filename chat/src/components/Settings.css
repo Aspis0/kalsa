@@ -20,6 +20,10 @@
   line-height: 1.55;
 }
 
+.release-notes {
+  white-space: pre-line;
+}
+
 .settings-toggle {
   margin: 0 0 1.4rem;
   padding-bottom: 1.1rem;

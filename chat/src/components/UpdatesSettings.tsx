@@ -1,6 +1,7 @@
 import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
 import type { UpdatesApi } from "../lib/useUpdates";
+import { ReleaseNotes } from "./ReleaseNotes";
 
 interface UpdatesSettingsProps {
   updates: UpdatesApi;
@@ -31,6 +32,7 @@ export function UpdatesSettings({ updates, busy }: UpdatesSettingsProps) {
     {phase.kind === "current" ? <p>{t.upToDate}</p> : null}
     {phase.kind === "available" ? <>
       <p>{t.available(phase.version)}</p>
+      <ReleaseNotes notes={phase.notes} />
       <div className="settings-actions">
         <button type="button" className="btn-primary" disabled={busy} onClick={() => updates.install(phase.version)}>
           {t.install}
