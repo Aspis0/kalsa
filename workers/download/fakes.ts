@@ -30,8 +30,9 @@ export function entryFor(file: { key: string; name: string; bytes: string }) {
   };
 }
 
-export function manifestJson(over: { windows?: unknown; mac?: unknown } = {}): string {
+export function manifestJson(over: { windows?: unknown; mac?: unknown; notes?: unknown } = {}): string {
   return JSON.stringify({
+    ...("notes" in over ? { notes: over.notes } : {}),
     windows: "windows" in over ? over.windows : entryFor(WIN),
     mac: "mac" in over ? over.mac : entryFor(MAC),
   });
@@ -111,9 +112,10 @@ export function updateEntry(file: { key: string; name: string; bytes: string }) 
 }
 
 /** A manifest with a version and an update per platform; the Windows update is the installer itself. */
-export function manifestWithUpdates(over: { version?: unknown; windowsUpdate?: unknown; macUpdate?: unknown } = {}): string {
+export function manifestWithUpdates(over: { version?: unknown; notes?: unknown; windowsUpdate?: unknown; macUpdate?: unknown } = {}): string {
   return JSON.stringify({
     version: "version" in over ? over.version : VERSION,
+    ...("notes" in over ? { notes: over.notes } : {}),
     windows: { ...entryFor(WIN), update: "windowsUpdate" in over ? over.windowsUpdate : updateEntry(WIN) },
     mac: { ...entryFor(MAC), update: "macUpdate" in over ? over.macUpdate : updateEntry(MAC_UPDATE) },
   });

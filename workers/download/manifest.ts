@@ -13,6 +13,7 @@ export type Installer = Artifact;
 export type Update = Artifact & { signature: string };
 export type Manifest = {
   version: string | null;
+  notes: string | null;
   windows: Installer | null;
   mac: Installer | null;
   updates: Record<Platform, Update | null>;
@@ -23,8 +24,11 @@ const NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,127}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const SIGNATURE = /^[A-Za-z0-9+/=]{1,4096}$/;
 const MAX_SIZE = 64 * 1024 ** 3;
+// Mirrors NOTES_MAX and NOTES_CONTROL in scripts/release.mjs; a test keeps them equal.
+const NOTES_MAX = 600;
+const NOTES_CONTROL = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F]/;
 
-const NONE: Manifest = { version: null, windows: null, mac: null, updates: { windows: null, mac: null } };
+const NONE: Manifest = { version: null, notes: null, windows: null, mac: null, updates: { windows: null, mac: null } };
 
 /** The release a key belongs to: `releases/<version>/<name>`. */
 export function versionOfKey(key: string): string | null {
@@ -56,6 +60,12 @@ function updateOf(entry: unknown, version: string | null): Update | null {
   return found !== null && versionOfKey(found.key) === version ? found : null;
 }
 
+/** Plain-text notes, or null. Bad notes drop only the notes: the platforms stay valid. */
+function notesOf(value: unknown): string | null {
+  if (typeof value !== "string" || value === "" || [...value].length > NOTES_MAX) return null;
+  return NOTES_CONTROL.test(value) ? null : value;
+}
+
 export function parseManifest(text: string | null): Manifest {
   if (text === null) return NONE;
   let raw: unknown;
@@ -65,10 +75,11 @@ export function parseManifest(text: string | null): Manifest {
     return NONE;
   }
   if (typeof raw !== "object" || raw === null) return NONE;
-  const { version: rawVersion, windows, mac } = raw as Record<string, unknown>;
+  const { version: rawVersion, notes: rawNotes, windows, mac } = raw as Record<string, unknown>;
   const version = isSemver(rawVersion) ? rawVersion : null;
   return {
     version,
+    notes: notesOf(rawNotes),
     windows: artifact(windows),
     mac: artifact(mac),
     updates: { windows: updateOf(windows, version), mac: updateOf(mac, version) },

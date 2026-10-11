@@ -271,6 +271,11 @@ Both platforms should be released at the same version. The script refuses when t
 platform sits on a different version. `--allow-mixed` publishes one platform alone: the other
 keeps its installer and loses its update until it is released at the same version.
 
+`--notes <file>` adds the release notes the update notice shows, in English: plain UTF-8 text,
+at most 600 characters, line breaks allowed and no other control characters. It is checked
+before any upload. Without it, a later platform of the same version keeps the notes already
+published, and a new version drops them.
+
 Set `ALPHA_TESTERS_MD` if the markdown is not at the sibling path
 `../kalsa-brain/docs/ALPHA-TESTERS.md`. Afterwards, check with the keyed link, as in the
 rotation section. A release needs no `wrangler deploy`; only a page or route change does.

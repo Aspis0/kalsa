@@ -1,7 +1,7 @@
 /**
  * The desktop updater's dynamic check (Tauri v2) and the artifact it downloads.
  * The check answers 204 when there is nothing newer, and 200 with the release
- * version, the artifact URL and its signature otherwise.
+ * version, the artifact URL, its signature and the notes when there are any.
  */
 import { notFound } from "./http";
 import { serveFile } from "./file";
@@ -28,6 +28,7 @@ export function updateCheck(manifest: Manifest, key: string, check: UpdateCheck,
     version: manifest.version,
     url: artifactUrl(key, platform),
     signature: update.signature,
+    ...(manifest.notes === null ? {} : { notes: manifest.notes }),
   });
   return new Response(method === "HEAD" ? null : body, {
     status: 200,

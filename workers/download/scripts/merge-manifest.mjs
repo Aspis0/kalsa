@@ -29,8 +29,11 @@ export function mergeRelease(current, platform, release, { allowMixed = false } 
   }
   const kept = otherInstaller === null ? null : mixed ? withoutUpdate(otherInstaller) : otherInstaller;
   const entry = { ...release.installer, update: release.update };
+  // Notes describe one version: another platform of the same version keeps them.
+  const notes = release.notes ?? (current.version === release.version ? current.notes : null);
   return {
     version: release.version,
+    ...(notes ? { notes } : {}),
     windows: platform === "windows" ? entry : kept,
     mac: platform === "mac" ? entry : kept,
   };

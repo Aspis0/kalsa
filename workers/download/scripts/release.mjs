@@ -4,12 +4,14 @@
  * from R2, and only then rewrites current.json.
  *
  *   node scripts/release.mjs <windows|mac> <installer file> <version> \
- *     --update <artifact file> --sig <file.sig> [--dry-run] [--new-manifest] [--allow-mixed]
+ *     --update <artifact file> --sig <file.sig> [--notes <file>] [--dry-run] [--new-manifest] [--allow-mixed]
  *
  * --dry-run runs the local checks and prints the wrangler commands without running them.
  * --new-manifest lets an unreadable current.json start empty; use it for the first release only.
  * --allow-mixed publishes this platform alone; the other platform keeps its installer
  * and loses its update until it is released at the same version.
+ * --notes is the plain-text release notes shown in the update notice. Without it, a later
+ * platform of the same version keeps the notes already published.
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -23,7 +25,7 @@ import { mergeRelease } from "./merge-manifest.mjs";
 const BUCKET = "kalsa-installers";
 const MANIFEST_KEY = "current.json";
 const PLATFORMS = new Set(["windows", "mac"]);
-const VALUE_OPTIONS = new Set(["--update", "--sig"]);
+const VALUE_OPTIONS = new Set(["--update", "--sig", "--notes"]);
 const FLAGS = new Set(["--dry-run", "--new-manifest", "--allow-mixed"]);
 // The Worker's SemVer rule, copied from semver.ts; a test keeps the two equal.
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
@@ -33,12 +35,15 @@ const TRUSTED_COMMENT = "trusted comment: ";
 const VERSION_FIELD = "version:";
 // Mirrors KEY in manifest.ts; a test keeps the two equal.
 const KEY = /^releases\/[A-Za-z0-9][A-Za-z0-9._-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+// Mirrors NOTES_MAX and NOTES_CONTROL in manifest.ts; a test keeps them equal.
+const NOTES_MAX = 600;
+const NOTES_CONTROL = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F]/;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BUILD_GUIDE = path.join(HERE, "build-guide.mjs");
 const DEFAULT_MARKDOWN = path.resolve(HERE, "../../../../kalsa-brain/docs/ALPHA-TESTERS.md");
 const USAGE =
-  "usage: release.mjs <windows|mac> <installer file> <version> --update <artifact> --sig <file.sig> [--dry-run] [--new-manifest] [--allow-mixed]";
+  "usage: release.mjs <windows|mac> <installer file> <version> --update <artifact> --sig <file.sig> [--notes <file>] [--dry-run] [--new-manifest] [--allow-mixed]";
 
 let work = null;
 
@@ -77,6 +82,17 @@ function signedVersion(signature) {
   const comment = text.split(/\r?\n/).find((line) => line.startsWith(TRUSTED_COMMENT));
   const field = comment?.slice(TRUSTED_COMMENT.length).split("\t").find((part) => part.startsWith(VERSION_FIELD));
   return field === undefined ? null : field.slice(VERSION_FIELD.length);
+}
+
+/** The notes file, trimmed. CRLF is a line break, not a control character, so it becomes LF first. */
+function readNotes(file) {
+  if (!statSync(file, { throwIfNoEntry: false })?.isFile()) die(`not a file: ${file}`);
+  const text = readFileSync(file, "utf8").replace(/\r\n/g, "\n").trim();
+  if (text === "") die(`${file} is empty`);
+  if (NOTES_CONTROL.test(text)) die(`${file} has a control character; notes are plain text with line breaks only`);
+  const length = [...text].length;
+  if (length > NOTES_MAX) die(`${file} is ${length} characters; the limit is ${NOTES_MAX}`);
+  return text;
 }
 
 function parseArgs(argv) {
@@ -118,6 +134,7 @@ if (!SIGNATURE.test(signature)) die(`${options.sig} must hold one base64 line of
 const signed = signedVersion(signature);
 if (signed === null) die(`${options.sig} has no version in its trusted comment; the updater cannot check it`);
 if (signed !== version) die(`${options.sig} is signed for version ${signed}, but this release is ${version}`);
+const notes = options.notes === undefined ? null : readNotes(options.notes);
 
 const markdown = process.env.ALPHA_TESTERS_MD ?? DEFAULT_MARKDOWN;
 if (!existsSync(markdown)) die(`tester guide markdown not found at ${markdown}; set ALPHA_TESTERS_MD`);
@@ -132,6 +149,7 @@ if (sameFile && artifact.sha256 !== local.sha256) {
 }
 const release = {
   version,
+  notes,
   installer: { key, name, size: local.size, sha256: local.sha256 },
   update: { key: updateKey, name: updateName, size: artifact.size, sha256: artifact.sha256, signature },
 };

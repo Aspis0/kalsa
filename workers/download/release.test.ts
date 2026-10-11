@@ -240,6 +240,48 @@ describe("the signature must name the release's version", () => {
   });
 });
 
+describe("release --notes", () => {
+  const notesFile = (name: string, text: string) => {
+    const file = path.join(work, name);
+    writeFileSync(file, text);
+    return file;
+  };
+
+  test("the notes are trimmed, CRLF becomes LF, and they are written with the release", () => {
+    const file = notesFile("notes-crlf.txt", "  Fixed the calculator.\r\nFaster start.\r\n");
+    const res = release(mac({ extra: ["--notes", file] }));
+    expect(res.status).toBe(0);
+    expect(res.out).toContain('"notes":"Fixed the calculator.\\nFaster start."');
+  });
+
+  test("600 characters are accepted, counted by code point", () => {
+    expect(release(mac({ extra: ["--notes", notesFile("notes-600.txt", "🙂".repeat(600))] })).status).toBe(0);
+  });
+
+  test.each([
+    ["an empty file", "  \n", "is empty"],
+    ["a control character", "bad\u0007text", "control character"],
+    ["a tab", "a\tb", "control character"],
+    ["601 characters", "x".repeat(601), "the limit is 600"],
+  ])("%s is refused before anything is uploaded, dry run or not", (label, text, message) => {
+    const file = notesFile(`notes-${label.replace(/ /g, "-")}.txt`, text);
+    const dry = release(mac({ extra: ["--notes", file] }));
+    expect(dry.status).toBe(1);
+    expect(dry.out).toContain(message);
+    expect(dry.log).toBe("");
+    const live = release(["mac", installer, "0.0.1", "--update", artifact, "--sig", sig, "--notes", file]);
+    expect(live.status).toBe(1);
+    expect(live.out).toContain(message);
+    expect(live.log).toBe("");
+  });
+
+  test("a notes file that does not exist is refused", () => {
+    const res = release(mac({ extra: ["--notes", path.join(work, "absent-notes.txt")] }));
+    expect(res.status).toBe(1);
+    expect(res.out).toContain("not a file");
+  });
+});
+
 describe("the guide gate", () => {
   test("a markdown that does not match guide.ts stops the release", () => {
     const stale = path.join(work, "stale.md");
@@ -278,6 +320,18 @@ describe("the shared rules", () => {
   test("release.mjs and semver.ts carry the same SemVer pattern", () => {
     expect(literal(path.join(HERE, "scripts", "release.mjs"), /const VERSION = (\/.*\/);/)).toBe(
       literal(path.join(HERE, "semver.ts"), /const SEMVER =\s*(\/.*\/);/),
+    );
+  });
+
+  test("release.mjs and manifest.ts carry the same notes control pattern", () => {
+    expect(literal(path.join(HERE, "scripts", "release.mjs"), /const NOTES_CONTROL = (\/.*\/);/)).toBe(
+      literal(path.join(HERE, "manifest.ts"), /const NOTES_CONTROL = (\/.*\/);/),
+    );
+  });
+
+  test("release.mjs and manifest.ts carry the same notes limit", () => {
+    expect(literal(path.join(HERE, "scripts", "release.mjs"), /const NOTES_MAX = (\d+);/)).toBe(
+      literal(path.join(HERE, "manifest.ts"), /const NOTES_MAX = (\d+);/),
     );
   });
 });

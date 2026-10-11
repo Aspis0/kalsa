@@ -61,3 +61,18 @@ test("a manifest from before updates existed merges without error", () => {
   assert.equal("update" in next.windows, false);
   assert.equal(next.mac.update.signature, "c2ln");
 });
+
+test("notes survive a later platform release of the same version", () => {
+  const current = { version: "0.0.1", notes: "Faster start.", windows: winInstaller, mac: { ...macInstaller, update: macUpdate } };
+  assert.equal(mergeRelease(current, "windows", winRelease).notes, "Faster start.");
+});
+
+test("a new version without notes drops the old notes", () => {
+  const current = { version: "0.0.0", notes: "Old notes.", windows: winInstaller };
+  assert.equal("notes" in mergeRelease(current, "mac", macRelease), false);
+});
+
+test("notes given with a release replace the kept ones", () => {
+  const current = { version: "0.0.1", notes: "Old notes.", windows: winInstaller };
+  assert.equal(mergeRelease(current, "mac", { ...macRelease, notes: "New notes." }).notes, "New notes.");
+});

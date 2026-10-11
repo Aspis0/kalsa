@@ -44,6 +44,20 @@ describe("update check answers 200 when something newer exists", () => {
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("");
   });
+
+  test("the notes are included when the manifest has them", async () => {
+    const env = envWith(artifactObjects(manifestWithUpdates({ notes: "Fixed the calculator." })));
+    const body = await (await send(env, `${UPDATE_BASE}/darwin/aarch64/0.0.0`)).json();
+    expect(Object.keys(body).sort()).toEqual(["notes", "signature", "url", "version"]);
+    expect(body.notes).toBe("Fixed the calculator.");
+  });
+
+  test("bad notes are left out, and the update is still offered", async () => {
+    const env = envWith(artifactObjects(manifestWithUpdates({ notes: "bad\u0007notes" })));
+    const res = await send(env, `${UPDATE_BASE}/darwin/aarch64/0.0.0`);
+    expect(res.status).toBe(200);
+    expect(Object.keys(await res.json()).sort()).toEqual(["signature", "url", "version"]);
+  });
 });
 
 describe("update check answers 204 when nothing newer is offered", () => {

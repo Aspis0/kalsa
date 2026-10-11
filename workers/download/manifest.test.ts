@@ -1,6 +1,8 @@
 import { MANIFEST_KEY, parseManifest, readManifest } from "./manifest";
 import { MAC, WIN, entryFor, fakeBucket, manifestJson, sha256Hex } from "./fakes";
 
+const EMPTY = { version: null, notes: null, windows: null, mac: null, updates: { windows: null, mac: null } };
+
 describe("manifest parsing", () => {
   test("accepts both installers as written", () => {
     const m = parseManifest(manifestJson());
@@ -9,9 +11,37 @@ describe("manifest parsing", () => {
   });
 
   test("a missing or non-JSON manifest yields no installers", () => {
-    expect(parseManifest(null)).toEqual({ version: null, windows: null, mac: null, updates: { windows: null, mac: null } });
-    expect(parseManifest("{not json")).toEqual({ version: null, windows: null, mac: null, updates: { windows: null, mac: null } });
-    expect(parseManifest("[]")).toEqual({ version: null, windows: null, mac: null, updates: { windows: null, mac: null } });
+    expect(parseManifest(null)).toEqual(EMPTY);
+    expect(parseManifest("{not json")).toEqual(EMPTY);
+    expect(parseManifest("[]")).toEqual(EMPTY);
+  });
+
+  test("notes are read when they are plain text", () => {
+    expect(parseManifest(manifestJson({ notes: "Fixed the calculator.\nFaster start." })).notes).toBe("Fixed the calculator.\nFaster start.");
+  });
+
+  test("a manifest without notes has none", () => {
+    expect(parseManifest(manifestJson()).notes).toBeNull();
+  });
+
+  test.each([
+    ["an empty string", ""],
+    ["a number", 42],
+    ["a tab", "a\tb"],
+    ["a carriage return", "a\rb"],
+    ["an escape character", "a\u001bb"],
+    ["a C1 control", "a\u0085b"],
+    ["more than 600 characters", "x".repeat(601)],
+  ])("notes with %s are dropped, and the installers stay valid", (_label, notes) => {
+    const m = parseManifest(manifestJson({ notes }));
+    expect(m.notes).toBeNull();
+    expect(m.windows).toEqual(entryFor(WIN));
+  });
+
+  test("600 characters are accepted, counted by code point", () => {
+    expect(parseManifest(manifestJson({ notes: "x".repeat(600) })).notes).toHaveLength(600);
+    expect(parseManifest(manifestJson({ notes: "🙂".repeat(600) })).notes).toBe("🙂".repeat(600));
+    expect(parseManifest(manifestJson({ notes: "🙂".repeat(601) })).notes).toBeNull();
   });
 
   test("each platform is validated on its own", () => {
@@ -58,6 +88,6 @@ describe("manifest read", () => {
   });
 
   test("an absent manifest object yields no installers", async () => {
-    expect(await readManifest(fakeBucket({}))).toEqual({ version: null, windows: null, mac: null, updates: { windows: null, mac: null } });
+    expect(await readManifest(fakeBucket({}))).toEqual(EMPTY);
   });
 });
