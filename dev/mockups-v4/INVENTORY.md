@@ -58,7 +58,7 @@ jargon or the new layout needs it: every change is listed in "Copy changes".
 
 ## Chat (`surfaces/ChatSurface.tsx`, `components/Thread.tsx`, `Composer.tsx`, `ThoughtCloud.tsx`, `ToolActivity.tsx`, `Markdown.tsx`, `thread.ts`, `composer.ts`, `tools.ts`)
 - Conversation. → `02-chat`, `02-chat-dark`.
-- Chat list (drawer: search ⌘K, groups, New chat, live dot). `components/Sidebar.tsx`. → `02-chat-list-open`.
+- Chat list (popover under Chats ▾: search ⌘K, New chat, when per row, live dot). `components/ChatList.tsx`. → `02-chat-list-open`.
 - Search ⌘K with results / no match / capped. → `11-chat-states-search`, `11-chat-states-search-none`.
 - Empty chat, Kalsa on ("Talk with Kalsa."). `components/EmptyState.tsx`, `firstPage.ts`. → `11-chat-states-empty`.
 - Empty chat, Kalsa off / starting / unreachable / setup missing. → `11-chat-states-empty-off` (the other arms are one-sentence swaps, listed there).
@@ -128,8 +128,8 @@ jargon or the new layout needs it: every change is listed in "Copy changes".
 - Validation and save errors ("Temperature must be between …", "Could not save…"). → `17-advanced-sampling-error`.
 
 ## Dialogs, toasts and notices
-- Rename a chat (inline in the list). `Sidebar.tsx`. → `18-dialogs-rename`.
-- Delete a chat ("Delete this conversation?"). `Sidebar.tsx`. → `18-dialogs-delete`.
+- Rename a chat (inline in the list). `ChatList.tsx`. → `18-dialogs-rename`.
+- Delete a chat ("Delete this conversation?"). `ChatList.tsx`, `ConfirmDialog.tsx`. → `18-dialogs-delete`.
 - Switch AI confirmation. `MachineCard.tsx`. → `18-dialogs-switch-ai`.
 - Crash screen ("Kalsa couldn't show this conversation.", Send the log, Reload, Erase). `components/ErrorBoundary.tsx`, `crash.ts`. → `18-dialogs-crash`.
 - Every banner and toast in one board: storage full, conversation couldn't open, too much at once, telemetry notice, recovered, update busy, invite copied, Saved. → `18-dialogs-notices`.

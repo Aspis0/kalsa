@@ -399,3 +399,9 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - Two identical "Try again" accessible names on problem states.
 - Italian tense mismatch between `puttingAway` and `nextTimeChoice`.
 - Full `npm run verify` already had ~45 failures at 5f268ae0 (40 after piece 1): quota, badurl, html, forbidden, deleterow, network, attach*, oversizesend, metersum, gate url/twoconv, toolfit, loop, burn, fetch, files* (`stubFileDoor` answers null to brain_state). Needs its own repair pass.
+
+## Hearth port, piece 2 (chat), left for later
+- smoke-react renders no chat page at all (chat states are covered only by verify/shots).
+- Video chip "Compressing… %" label is under 13px.
+- The streamed answer text is not announced live (only "Kalsa has answered"); deliberate, revisit with a screen-reader pass.
+- Report a problem moves to Help, and the rest of Help copy change 12 (piece 5).

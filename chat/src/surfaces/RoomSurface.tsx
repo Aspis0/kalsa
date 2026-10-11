@@ -630,6 +630,8 @@ export function RoomSurface() {
               onRemove={dropMedia}
             />
           }
+          attach={{ label: room.attachPhoto, icon: "image" }}
+          disclaimer={room.disclaimer}
           sendBlocked={pendingMedia.some((item) => item.state === "compressing")}
           allowsMediaOnly={pendingMedia.length > 0}
           ask={

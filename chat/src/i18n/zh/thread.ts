@@ -23,6 +23,7 @@ export const THREAD = {
     "stoppedEarly": "回答已中断。",
     "noAnswer": "Kalsa 想完了却没有给出回答。换个方式问问。",
     "backToLatest": "回到最新 ↓",
+    "copyAnswer": "复制回答",
     "threadAria": "对话",
     "thinking": "正在思考",
     "thinkingDots": "正在思考…",

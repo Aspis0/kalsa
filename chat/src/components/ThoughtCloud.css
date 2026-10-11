@@ -1,11 +1,14 @@
+/* The model's thinking as a thought bubble above the answer: Hearth colours
+   and type on the cloud's own shape and motion. */
+
 .thought {
   --bubble-period: 1.8s;
   position: relative;
-  max-width: var(--measure);
-  margin: 0 0 0.35rem;
-  padding: 0.55rem 1rem 0.65rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  max-width: 660px;
+  margin: 10px 0 22px;
+  padding: 12px 18px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
   /* A cloud, not a rounded rectangle: uneven radii plus the two puffs. */
   border-radius: 24px 28px 26px 18px / 20px 26px 18px 28px;
 }
@@ -15,7 +18,7 @@
 .thought::after {
   position: absolute;
   content: "";
-  background: var(--surface);
+  background: var(--card);
   border-radius: 999px;
   pointer-events: none;
 }
@@ -56,14 +59,19 @@
   border: 0;
 }
 
+.thought-head:focus-visible {
+  border-radius: 8px;
+}
+
 /* The thought ranks below the answer: quiet ink, smaller, never competing. */
 .thought-face {
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  color: var(--silence);
-  font-size: 0.84rem;
+  color: var(--tx3);
+  font-size: 15px;
   font-style: italic;
+  line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -71,38 +79,42 @@
 /* The accent lives only on the clickable part. */
 .thought-toggle {
   flex: none;
-  color: var(--accent);
-  font-size: 0.78rem;
-  font-weight: 500;
+  color: var(--ac-tx);
+  font-size: 15px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .thought-body {
   max-width: 100%;
   max-height: 320px;
-  margin-top: 0.55rem;
-  padding-top: 0.55rem;
+  margin-top: 10px;
+  padding-top: 10px;
   overflow-y: auto;
-  color: var(--silence);
-  border-top: 1px dashed var(--border-strong);
-  font-size: 0.86rem;
-  line-height: 1.65;
+  color: var(--tx2);
+  border-top: 1px dashed var(--line);
+  font-size: 15px;
+  line-height: 23px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-/* The trail: three bubbles dripping from the cloud toward the answer. */
+/* The trail: three bubbles dripping from the cloud toward the answer, in the
+   gap between them. */
 .thought-trail {
+  position: absolute;
+  top: 100%;
+  left: 44px;
   display: flex;
+  margin-top: 2px;
   flex-direction: column;
-  gap: 4px;
-  margin: 6px 0 -9px 44px;
+  gap: 3px;
 }
 
 .thought-trail span {
   display: block;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 999px;
 }
 

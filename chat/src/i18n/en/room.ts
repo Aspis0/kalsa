@@ -13,6 +13,10 @@ export interface RoomTable {
   queueNext: (name: string) => string;
   queueThen: (name: string, rest: string) => string;
   askKalsa: string;
+  /** The Room's attach button: photos and videos, never documents. */
+  attachPhoto: string;
+  /** The disclaimer, shortened to fit beside Ask Kalsa. */
+  disclaimer: string;
   writePlaceholder: string;
   writeAria: string;
   nameAria: string;
@@ -70,6 +74,8 @@ export const ROOM: RoomTable = {
   queueNext: (name) => `Kalsa will answer ${name} next.`,
   queueThen: (name, rest) => `Kalsa will answer ${name} next, then ${rest}.`,
   askKalsa: "Ask Kalsa",
+  attachPhoto: "Attach a photo",
+  disclaimer: "Kalsa can make mistakes.",
   writePlaceholder: "Write, or type @Kalsa…",
   writeAria: "Message",
   nameAria: "Your name",

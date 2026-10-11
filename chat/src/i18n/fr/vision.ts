@@ -1,16 +1,15 @@
-// English for now: the vision offer ships before its translation. The keys
-// are the same as `en/vision.ts`, and tsc enforces that.
+// Traduit du copy anglais approuvé.
 
-const offerName = "Let Kalsa see images";
+const offerName = "Laisse Kalsa voir les images";
 
 export const VISION = {
   offerName,
-  offer: (size: string) => `${offerName} (downloads ${size})`,
+  offer: (size: string) => `${offerName} · ${size}`,
   downloadQ: (size: string) =>
-    `Download ${size} so Kalsa can see images? Kalsa restarts when it's done.`,
-  download: "Download",
-  notNow: "Not now",
-  restarting: "Restarting Kalsa…",
-  tryAgain: "Try again",
-  doesNotFit: "This computer doesn't have room in memory for image support with this AI.",
+    `Télécharger ${size} pour que Kalsa puisse voir les images ? Kalsa redémarre une fois le téléchargement terminé.`,
+  download: "Télécharger",
+  notNow: "Pas maintenant",
+  restarting: "Redémarrage de Kalsa…",
+  tryAgain: "Réessaie",
+  doesNotFit: "Cet ordinateur n'a pas assez de mémoire pour que cette IA voie les images.",
 };

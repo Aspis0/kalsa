@@ -1,0 +1,42 @@
+.message-actions {
+  display: flex;
+  margin: 6px 0 0 8px;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx3);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.message-copy {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  place-items: center;
+  color: var(--tx3);
+  background: none;
+  border: 0;
+  border-radius: 8px;
+}
+
+.message-copy:hover {
+  color: var(--tx2);
+  background: var(--rail);
+}
+
+[data-theme="dark"] .message-copy:hover {
+  background: var(--track);
+}
+
+.message-copy:focus-visible {
+  border-radius: 8px;
+}
+
+.message-copy.is-done {
+  color: var(--ac-tx);
+}
+
+.message-actions time {
+  font-variant-numeric: tabular-nums;
+}

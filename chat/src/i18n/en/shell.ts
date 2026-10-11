@@ -8,7 +8,6 @@ export const SHELL = {
   toggleFilesAria: "Toggle the files panel",
   dismiss: "Dismiss",
   dropToAttach: "Drop files to attach them to this conversation",
-  crescentChat: "Kalsa",
   // The refusal banner when files cannot fit.
   tooMuchPlural: (names: string) => `${names} are too much for Kalsa at once. Remove a file or shorten your message.`,
   tooMuchSingular: (names: string) => `${names} is too much for Kalsa at once. Remove a file or shorten your message.`,

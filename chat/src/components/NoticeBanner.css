@@ -26,6 +26,11 @@
   border-radius: 50%;
 }
 
+.notice-banner.is-warn .notice-banner-icon {
+  color: var(--warn-ink);
+  background: var(--warn-fill);
+}
+
 .notice-banner-text {
   flex: 1;
   min-width: 0;

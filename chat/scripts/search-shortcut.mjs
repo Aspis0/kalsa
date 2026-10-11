@@ -1,4 +1,4 @@
-// The sidebar's search hint is written the way the platform's keyboard writes
+// The chat list's search hint is written the way the platform's keyboard writes
 // it: ⌘K on Apple systems, Ctrl+K everywhere else.
 //
 // Pure. Run: node scripts/search-shortcut.mjs   (from chat/)

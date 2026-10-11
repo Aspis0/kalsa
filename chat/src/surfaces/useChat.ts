@@ -143,7 +143,7 @@ export function useChat(shell: ChatShell) {
   // four races this closes.
   const slot = useSlot();
   const activeId = slot.active?.id ?? null;
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [attachStatus, setAttachStatus] = useState<string | null>(null);
@@ -1030,7 +1030,7 @@ export function useChat(shell: ChatShell) {
     gate.clear();
     attachTicket.current += 1;
     setAttachStatus(null);
-    setDrawerOpen(false);
+    setListOpen(false);
   }
 
   // A chip removed before its send: a compression still running is canceled
@@ -1079,7 +1079,7 @@ export function useChat(shell: ChatShell) {
     // first of two quick switches wins.
     if (gate.isSettled(id)) {
       openSurface("chat");
-      setDrawerOpen(false);
+      setListOpen(false);
       return;
     }
     void (async () => {
@@ -1094,7 +1094,7 @@ export function useChat(shell: ChatShell) {
       attachTicket.current += 1;
       setAttachStatus(null);
       openSurface("chat");
-      setDrawerOpen(false);
+      setListOpen(false);
     })();
   }
 
@@ -1104,8 +1104,8 @@ export function useChat(shell: ChatShell) {
     slot,
     pending: slot.pending,
     creating: slot.creating,
-    // The shell reads these without rendering the chat: the topbar's title,
-    // the stream class, the stage-level web-call dialog, the files toggle.
+    // The shell reads these without rendering the chat: the stream class and
+    // the stage-level web-call dialog.
     active,
     streamingAny,
     gateShown: turns.gateShown,
@@ -1131,8 +1131,8 @@ export function useChat(shell: ChatShell) {
     streaming,
     failures,
     tails,
-    drawerOpen,
-    setDrawerOpen,
+    listOpen,
+    setListOpen,
     dragging,
     setDragging,
     attachFiles,

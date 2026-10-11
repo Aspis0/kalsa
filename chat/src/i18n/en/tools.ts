@@ -1,16 +1,18 @@
-// What Kalsa did before she answered: the quiet line per check, the ask
+// What Kalsa did before it answered: the quiet line per check, the ask
 // before a web call leaves an app with documents attached, what the detector
 // saw, and the refusals a tool round can end in.
 
 export const TOOLS = {
   checking: "Kalsa is checking something…",
+  searching: "Searching the web…",
+  openingPage: "Opening a page…",
+  waitingForOk: "Waiting for your OK…",
   pageNotOpened: "Kalsa couldn't open that page. Try again.",
   searchDidNotRun: "Kalsa couldn't search the web. Try again.",
   couldNotFinish: "Kalsa couldn't finish checking. Ask again.",
   read: (what: string) => `Kalsa read ${what}`,
   aPage: "a page",
-  searchedFor: (query: string) => `Searched for “${query}”`,
-  searchedWeb: "Kalsa searched the web",
+  searchedWeb: "Searched the web",
   searchedForLabel: "Searched for:",
   askedForLabel: "Asked for:",
   // The gate's ask.

@@ -9,8 +9,8 @@ import { pathToFileURL } from "node:url";
 import { build } from "../chat/node_modules/esbuild/lib/main.js";
 import { checkSurfacesCss } from "./check-motion-css.mjs";
 
-// The composer's Stop is an icon button: its name is its English label.
-const STOP_LABEL = "Stop generating";
+// The composer's Stop, by its English label.
+const STOP_LABEL = "Stop";
 
 class FakeNode {
   constructor(tagName, ownerDocument, nodeType = 1, data = "") {
@@ -526,8 +526,9 @@ try {
     .join("\n");
   const normalBanned = ["url", "file", "error", "state", "gguf", "quant", "credential", "handshake", "secret"];
   for (const word of normalBanned) {
-    const hit = jargonText.match(new RegExp(`\\b${word}\\w*`, "i"));
-    if (hit) problems.push(`jargon: "${hit[0]}"`);
+    const pattern = new RegExp(`\\b${word}\\w*`, "i");
+    const hit = jargonText.match(pattern);
+    if (hit) problems.push(`jargon: "${hit[0]}" in "${jargonText.split("\n").find((line) => pattern.test(line))}"`);
   }
   if (!/tokens\/s/.test(expertText)) problems.push("the expert Status counter must identify tokens per second");
   if (!/KV q8_0/.test(expertText)) problems.push("the expert Advanced panel must show the cache format");
@@ -1272,7 +1273,7 @@ try {
       // do not apply to a page rendered in another language.
       if (heading.startsWith("Room — in ")) {
         const want = heading.includes("Chinese")
-          ? ["停止回答"]
+          ? ["停止"]
           : ["Kalsa risponderà prima a Marco, poi a Luca.", "Chiedi a Kalsa"];
         const missing = want.filter((wanted) => !all.includes(wanted) && !buttons.includes(wanted));
         if (missing.length > 0) {

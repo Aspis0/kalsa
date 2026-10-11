@@ -1,14 +1,17 @@
 // 从已批准的英文文案翻译。
 
 export const SIDEBAR = {
-    "aria": "对话列表",
+    "aria": "聊天",
     "searchAria": "搜索对话",
     "searchPlaceholder": "搜索",
     "focusSearch": "转到搜索",
-    "newChat": "+ 新对话",
+    "newChat": "新对话",
     "titleAria": "对话标题",
     "rename": "重命名",
+    "enterToSave": "按 Enter 保存",
+    "cancel": "取消",
     "sure": "删除这条对话？",
+    "deleteBody": (title: string) => `“${title}”`,
     "delete": "删除",
     "liveAria": "（正在生成）",
     "noMatch": (query: string) => `没有对话与“${query}”匹配。换个词试试。`,

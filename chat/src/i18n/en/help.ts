@@ -4,6 +4,7 @@ import { HOME } from "./home";
 import { SETUP } from "./setup";
 import { POWER } from "./power";
 import { SIDEBAR } from "./sidebar";
+import { SHELL } from "./shell";
 import { THREAD } from "./thread";
 import { FILES } from "./files";
 import { VISION } from "./vision";
@@ -61,7 +62,7 @@ export const HELP = {
       paragraphs: [],
       items: [
         "Write in the box and press Enter. Shift+Enter starts a new line.",
-        `**${SIDEBAR.newChat}** starts a fresh conversation. Your past chats are in the list on the left: you can search, rename or delete them.`,
+        `**${SIDEBAR.newChat}** starts a fresh conversation. **${SHELL.conversations}**, at the top of the chat, lists your past chats: you can search, rename or delete them.`,
         `**${COMPOSER.think}**: Kalsa reasons before answering. Answers are slower but more careful. Not every AI has it.`,
         `**${THREAD.tryAgain}** appears when an answer fails.`,
         "Kalsa can make mistakes. Check important information.",

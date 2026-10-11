@@ -97,7 +97,7 @@ h1{font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Va
 .dots{display:inline-flex;gap:5px;margin-left:8px;vertical-align:middle}
 .dots i{width:7px;height:7px;border-radius:50%;background:var(--tx3);opacity:.4}.dots i:first-child{opacity:.9}
 .dock{padding:8px 0 18px;flex:none}
-.mist{flex:1;min-width:0;text-align:center;font-size:14px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+.mist{flex:1;min-width:0;text-align:center;font-size:14px;line-height:18px;color:var(--tx3);padding:0 8px}
 .cbox{background:var(--card);border:1.5px solid var(--line);border-radius:28px;padding:16px 12px 12px 22px}
 .cbox .ph{color:var(--tx3);font-size:17px;height:40px}
 .cbox .r{display:flex;align-items:center;gap:10px}
@@ -309,13 +309,17 @@ h1{font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Va
 .empty-c .go{margin-top:28px}
 .waitrow{display:flex;align-items:center;gap:12px;color:var(--tx2);font-size:16px}
 .pulse{display:inline-flex;gap:5px}.pulse i{width:8px;height:8px;border-radius:50%;background:var(--ring);opacity:.35}.pulse i:first-child{opacity:1}.pulse i:nth-child(2){opacity:.65}
-.cloud{border:1px solid var(--line);background:var(--rail);border-radius:18px;padding:12px 16px;margin-bottom:12px;max-width:660px}
-.cloud .ch2{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--tx2)}
-.cloud .ch2 .i{color:var(--ac-tx)}
-.cloud .ch2 em{margin-left:auto;font-style:normal;color:var(--ac-tx)}
-.cloud .tick{margin-top:6px;font-size:15px;line-height:22px;color:var(--tx3);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cloud .body{margin-top:10px;font-size:15px;line-height:23px;color:var(--tx2);border-top:1px solid var(--line);padding-top:10px}
-.cloud.wrap{margin-left:0}
+.cloud{position:relative;max-width:660px;margin:22px 0 12px;padding:12px 18px 14px;background:var(--card);border:1px solid var(--line);border-radius:24px 28px 26px 18px / 20px 26px 18px 28px}
+.cloud::before,.cloud::after{content:"";position:absolute;background:var(--card);border-radius:999px}
+.cloud::before{top:-9px;left:30px;width:26px;height:26px}
+.cloud::after{top:-6px;right:52px;width:15px;height:15px}
+.cloud .ch2{display:flex;align-items:baseline;gap:16px}
+.cloud .face{flex:1;min-width:0;color:var(--tx3);font-size:15px;line-height:22px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cloud .ch2 em{font-style:normal;font-size:15px;font-weight:600;color:var(--ac-tx)}
+.cloud .body{margin-top:10px;font-size:15px;line-height:23px;color:var(--tx2);border-top:1px dashed var(--line);padding-top:10px}
+.cloud .trail{display:flex;flex-direction:column;gap:4px;margin:6px 0 -9px 44px}
+.cloud .trail i{display:block;background:var(--card);border:1px solid var(--line);border-radius:999px}
+.cloud .trail i:nth-child(1){width:9px;height:9px}.cloud .trail i:nth-child(2){width:7px;height:7px;margin-left:2px}.cloud .trail i:nth-child(3){width:5px;height:5px;margin-left:5px}
 .jump{position:absolute;left:50%;transform:translateX(-50%);bottom:190px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:8px 16px;font-size:15px;font-weight:600;color:var(--tx2);box-shadow:0 8px 20px -10px var(--sh)}
 .tool{border:1px solid var(--line);background:var(--card);border-radius:18px;margin-bottom:12px;max-width:660px;font-size:16px}
 .tool .ts{display:flex;align-items:center;gap:10px;padding:12px 16px;color:var(--tx2)}
@@ -571,7 +575,7 @@ table.mt{width:100%;border-collapse:collapse;font-size:15px}
     <span style="width:12px;height:12px;border-radius:50%;background:#FEBC2E;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.18)"></span>
     <span style="width:12px;height:12px;border-radius:50%;background:#28C840;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.18)"></span></div><div class="prog">Step 1 of 2</div>
     <h1 style="margin-top:0">Which one would you like?</h1><p class="sub">Both work well on this computer. You can change later.</p>
-    <div class="opts" style="margin-top:38px"><div class="opt chosen"><span class="rd"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div class="oi"><svg class="i" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 8.5 19l-1.44-4.94L2 12.5l5.06-1.44L8.5 6l1.44 5.06L15 12.5z"/><path d="M19 3v4M21 5h-4"/></svg></div>
+    <div class="opts" style="margin-top:38px"><div class="opt chosen"><span class="rd"><svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div class="oi"><svg class="i" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></div>
     <h3>Smartest<em>Recommended</em></h3><p>The most careful, complete answers.</p>
     <div class="need"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>Needs 21 GB of space</div><small>Qwen 3.6 by Alibaba</small>
     </div><div class="opt "><span class="rd"></span><div class="oi"><svg class="i" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>

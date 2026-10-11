@@ -2,13 +2,15 @@
 
 export const TOOLS = {
     "checking": "Kalsa está comprobando algo…",
+    "searching": "Buscando en la web…",
+    "openingPage": "Abriendo una página…",
+    "waitingForOk": "Esperando tu OK…",
     "pageNotOpened": "Kalsa no pudo abrir esa página. Prueba de nuevo.",
     "searchDidNotRun": "Kalsa no pudo buscar en la web. Prueba de nuevo.",
     "couldNotFinish": "Kalsa no terminó de comprobarlo. Pregunta de nuevo.",
     "read": (what: string) => `Kalsa leyó ${what}`,
     "aPage": "una página",
-    "searchedFor": (query: string) => `Buscó “${query}”`,
-    "searchedWeb": "Kalsa buscó en la web",
+    "searchedWeb": "Buscó en la web",
     "searchedForLabel": "Buscado:",
     "askedForLabel": "Pedido:",
     "searchWaitingTitle": "Kalsa quiere buscar en la web. ¿La dejas?",

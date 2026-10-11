@@ -1,16 +1,15 @@
-// English for now: the vision offer ships before its translation. The keys
-// are the same as `en/vision.ts`, and tsc enforces that.
+// 从已批准的英文文案翻译。
 
-const offerName = "Let Kalsa see images";
+const offerName = "让 Kalsa 看图片";
 
 export const VISION = {
   offerName,
-  offer: (size: string) => `${offerName} (downloads ${size})`,
+  offer: (size: string) => `${offerName} · ${size}`,
   downloadQ: (size: string) =>
-    `Download ${size} so Kalsa can see images? Kalsa restarts when it's done.`,
-  download: "Download",
-  notNow: "Not now",
-  restarting: "Restarting Kalsa…",
-  tryAgain: "Try again",
-  doesNotFit: "This computer doesn't have room in memory for image support with this AI.",
+    `下载 ${size}，让 Kalsa 能看图片？完成后 Kalsa 会重新启动。`,
+  download: "下载",
+  notNow: "暂不",
+  restarting: "正在重新启动 Kalsa…",
+  tryAgain: "再试一次",
+  doesNotFit: "这台电脑的内存不足以让这个 AI 支持图片。",
 };

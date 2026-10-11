@@ -3,7 +3,7 @@
 // chat/src/surfaces/ must live inside that file's
 // `@media (prefers-reduced-motion: no-preference)` block, and the block
 // must exist. Not covered: stylesheets elsewhere in the app (Thread.css,
-// Sidebar.css and the other component sheets), and transitions the pages
+// ChatList.css and the other component sheets), and transitions the pages
 // declare in JS — the row fold's inline transition, which motion.ts gates
 // with its own reduced-motion read. Run by dev/smoke-react.mjs; exits
 // through its problem list.

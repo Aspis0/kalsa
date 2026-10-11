@@ -1,19 +1,21 @@
+/* The files panel beside the chat (mockups 11-chat-states-files-attached and
+   -files-browser): two tabs, then this conversation's files or the computer's. */
+
 .panel {
   display: flex;
   flex: none;
-  width: 300px;
+  width: 400px;
   min-height: 0;
+  padding: 18px 20px;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 0.75rem;
+  gap: 10px;
   overflow-y: auto;
-  border-left: 1px solid var(--border);
+  background: var(--card);
+  border-left: 1px solid var(--line);
 }
 
-/* Wide, the panel is a column of the page: the open state decides
-   whether it is on screen at all. Without this a closed panel is laid
-   out regardless — only the narrow slide-over below ever hid it — and
-   the topbar button (and the ×) changed a class nobody could see. */
+/* Wide, the panel is a column of the page: the open state decides whether it
+   is on screen at all; the narrow slide-over below keeps it laid out. */
 .panel:not(.panel-open) {
   display: none;
 }
@@ -25,117 +27,124 @@
 .panel-head {
   display: flex;
   flex: none;
+  margin-bottom: 6px;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
 }
 
-.panel-head h2 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-/* The two halves of the panel: the computer, and this conversation. */
 .panel-tabs {
   display: flex;
-  gap: 0.2rem;
+  flex: 1;
+  padding: 4px;
+  gap: 4px;
+  background: var(--rail);
+  border-radius: 22px;
 }
 
 .panel-tab {
-  min-height: 28px;
-  padding: 0 0.65rem;
-  color: var(--silence);
+  flex: 1;
+  height: 38px;
+  padding: 0 10px;
+  color: var(--tx2);
   background: transparent;
   border: 0;
-  border-radius: 999px;
-  font-size: 0.8rem;
-}
-
-.panel-tab:hover {
-  color: var(--ink);
-  background: var(--surface-muted);
+  border-radius: 19px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .panel-tab.is-on {
-  color: var(--ink);
-  background: var(--surface-muted);
-  font-weight: 600;
+  color: var(--tx);
+  background: var(--card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.panel-tab:focus-visible,
+.panel-close:focus-visible {
+  border-radius: 19px;
 }
 
 .panel-close {
   display: grid;
-  width: 28px;
-  height: 28px;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   place-items: center;
-  color: var(--silence);
+  color: var(--tx3);
   background: transparent;
   border: 0;
-  border-radius: 999px;
-  font-size: 1rem;
+  border-radius: 50%;
 }
 
 .panel-close:hover {
-  color: var(--accent);
-  background: var(--surface-muted);
+  color: var(--tx);
+  background: var(--rail);
 }
 
-.panel-context {
-  flex: none;
-  margin: 0;
-  color: var(--silence);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  line-height: 1.5;
-}
-
+.panel-context,
 .budget-unknown,
-.budget-almost {
-  flex: none;
-  margin: 0;
-  color: var(--silence);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  line-height: 1.5;
-}
-
+.budget-almost,
 .budget-over {
   flex: none;
   margin: 0;
-  color: var(--danger);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  line-height: 1.5;
+  padding: 14px 18px;
+  color: var(--tx2);
+  background: var(--rail);
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.budget-over {
+  color: var(--err-ink);
 }
 
 .panel-empty {
-  margin: 0.5rem 0;
-  color: var(--silence);
-  font-size: 0.85rem;
-  line-height: 1.6;
+  margin: 4px 0;
+  color: var(--tx2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.panel-sub {
+  flex: none;
+  margin: 10px 0 0;
+  color: var(--tx3);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .panel-list {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
   margin: 0;
   padding: 0;
+  flex-direction: column;
   list-style: none;
 }
 
 .panel-row {
   display: flex;
+  padding: 10px 4px;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.65rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-icon {
+  display: grid;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
   border-radius: 10px;
 }
 
-.panel-row-history {
-  opacity: 0.85;
+.panel-icon-quiet {
+  color: var(--tx2);
+  background: var(--rail);
 }
 
 .panel-file {
@@ -143,80 +152,68 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 0.15rem;
 }
 
 .panel-name {
   overflow: hidden;
-  color: var(--ink);
-  font-size: 0.86rem;
-  font-weight: 500;
+  color: var(--tx);
+  font-size: 15px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .panel-meta {
-  color: var(--silence);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
+  color: var(--tx3);
+  font-size: 13px;
 }
 
 .panel-remove,
-.panel-reattach {
+.panel-reattach,
+.panel-pin {
+  display: inline-flex;
   flex: none;
-  min-height: 28px;
-  padding: 0 0.7rem;
-  color: var(--ink-soft);
+  height: 34px;
+  padding: 0 12px;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx2);
   background: transparent;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  font-size: 0.78rem;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  font-size: 14px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .panel-remove:hover,
-.panel-reattach:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-/* The row's pin, the chip's pin in the panel's own clothes: pressed reads as
-   set, unpinned dims to the state one press away. */
-.panel-pin {
-  flex: none;
-  display: grid;
-  width: 28px;
-  min-height: 28px;
-  place-items: center;
-  padding: 0;
-  font-size: 0.8rem;
-  line-height: 1;
-  color: var(--ink-soft);
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  opacity: 0.45;
-  cursor: pointer;
+.panel-reattach:hover,
+.panel-pin:hover {
+  border-color: var(--ac);
 }
 
 .panel-pin.is-pinned {
-  opacity: 1;
-  color: var(--accent);
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
 }
 
+.panel-remove:focus-visible,
+.panel-reattach:focus-visible,
 .panel-pin:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  border-radius: 17px;
 }
 
-.panel-sub {
-  flex: none;
-  margin: 0.5rem 0 0;
-  color: var(--silence);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+/* The panel's foot, under everything else (mockup 11-chat-states-files-attached). */
+.panel-keep-note {
+  display: flex;
+  margin: auto 0 0;
+  padding-top: 8px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx3);
+  font-size: 14px;
+  line-height: 21px;
 }
 
 @media (max-width: 1200px) {
@@ -234,8 +231,8 @@
     right: 0;
     bottom: 0;
     z-index: 61;
-    width: min(320px, 88vw);
-    background: var(--page);
+    width: min(400px, 88vw);
+    background: var(--card);
     box-shadow: -8px 0 32px rgba(var(--ink-rgb), 0.18);
     transform: translateX(105%);
     transition: transform 0.3s cubic-bezier(0.22, 0.9, 0.24, 1);

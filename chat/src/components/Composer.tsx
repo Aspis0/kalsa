@@ -3,6 +3,9 @@ import type { ClipboardEvent, KeyboardEvent, ReactNode } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { downloadBytes } from "../lib/downloadBytes";
 import type { Attachment } from "../lib/attachments";
+import { ComposerChips } from "./ComposerChips";
+import { Icon } from "./Icon";
+import type { IconName } from "./Icon";
 import "./Composer.css";
 
 /** One pending chip: the reference and the object URL it shows — null for a
@@ -78,6 +81,11 @@ interface ComposerProps {
       yours already pending); the words are the same draft, cleared when
       the send takes them. */
   ask?: { label: string; disabled: boolean; onAsk: (text: string) => boolean | Promise<boolean> };
+  /** The attach button's own words and icon where the surface has them (the
+      Room's photos); the chat's "Attach a file" otherwise. */
+  attach?: { label: string; icon: IconName };
+  /** The disclaimer, where the surface shortens it. */
+  disclaimer?: string;
 }
 
 const MAX_HEIGHT = 200;
@@ -105,6 +113,8 @@ export function Composer({
   thinking = null,
   onThinking,
   ask,
+  attach,
+  disclaimer,
 }: ComposerProps) {
   const { table, tag } = useLanguage();
   const composer = table.composer;
@@ -198,83 +208,17 @@ export function Composer({
       ? visionWords.offer(downloadBytes(visionOfferBytes, tag))
       : null;
 
-  // The meta line a document chip carries: the same "pdf · 1 page" the
-  // files panel shows, so one attachment reads the same in both places.
-  const fileWords = table.files;
-  const docMeta = (a: Attachment): string => {
-    const parts: string[] = [a.kind];
-    if (a.pages !== undefined)
-      parts.push(a.pages === 1 ? fileWords.onePage : fileWords.pages(a.pages));
-    return parts.join(" · ");
-  };
-
   return (
     <div className="composer">
       {mediaChips}
-      {(pendingImages.length > 0 && onRemoveImage) || (docs.length > 0 && onRemoveDoc) ? (
-        <div className="composer-images">
-          {docs.map((doc) => (
-            <div key={doc.id} className="composer-doc">
-              <span className="composer-doc-glyph" aria-hidden="true">
-                📄
-              </span>
-              <span className="composer-doc-name" title={doc.name}>
-                {doc.name}
-              </span>
-              <span className="composer-doc-meta">{docMeta(doc)}</span>
-              {onPinDoc ? (
-                <button
-                  type="button"
-                  className={`composer-doc-pin${(doc.pinned ?? true) ? " is-pinned" : ""}`}
-                  aria-pressed={doc.pinned ?? true}
-                  aria-label={fileWords.pinDoc}
-                  title={fileWords.pinDoc}
-                  onClick={() => onPinDoc(doc.id, !(doc.pinned ?? true))}
-                >
-                  <span aria-hidden="true">📌</span>
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="composer-image-remove"
-                aria-label={composer.removeDoc}
-                onClick={() => onRemoveDoc?.(doc.id)}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {pendingImages.map((image) => (
-            <figure key={image.id} className="composer-image">
-              {image.label !== undefined ? (
-                <figcaption className="composer-image-label">{image.label}</figcaption>
-              ) : null}
-              {image.url && image.kind !== "video" ? (
-                <img
-                  src={image.url}
-                  alt=""
-                  onError={(event) => {
-                    event.currentTarget.style.display = "none";
-                  }}
-                />
-              ) : (
-                <span className="composer-image-glyph" aria-hidden="true">
-                  ▶
-                </span>
-              )}
-              <button
-                type="button"
-                className="composer-image-remove"
-                aria-label={composer.removeImage}
-                onClick={() => onRemoveImage?.(image.id)}
-              >
-                ×
-              </button>
-            </figure>
-          ))}
-        </div>
-      ) : null}
       <div className="composer-box">
+        <ComposerChips
+          docs={docs}
+          onRemoveDoc={onRemoveDoc}
+          onPinDoc={onPinDoc}
+          images={pendingImages}
+          onRemoveImage={onRemoveImage}
+        />
         <textarea
           ref={areaRef}
           className="composer-input"
@@ -286,7 +230,7 @@ export function Composer({
           placeholder={composer.placeholder}
           aria-label={composer.messageAria}
         />
-        <div className="composer-actions">
+        <div className="composer-row">
           {onAttach ? (
             <>
               <input
@@ -308,8 +252,7 @@ export function Composer({
               />
               <button
                 type="button"
-                className="composer-action composer-attach"
-                aria-label={composer.attachAria}
+                className="composer-pill composer-attach"
                 title={
                   acceptsImages && acceptsVideos
                     ? composer.attachTitleMedia
@@ -319,45 +262,35 @@ export function Composer({
                 }
                 onClick={() => fileRef.current?.click()}
               >
-                <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                  <path
-                    d="M11.5 7.2 6.4 12.3a2.3 2.3 0 0 1-3.3-3.3l6-6a3.7 3.7 0 0 1 5.2 5.2l-6 6a5.1 5.1 0 0 1-7.2-7.2l5.5-5.5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <Icon name={attach?.icon ?? "clip"} size={19} />
+                {attach?.label ?? composer.attachAria}
               </button>
             </>
           ) : null}
           {visionLabel !== null ? (
-            <button
-              type="button"
-              className="composer-action composer-vision"
-              title={visionLabel}
-              onClick={onOfferVision}
-            >
+            <button type="button" className="composer-pill composer-vision" title={visionLabel} onClick={onOfferVision}>
               <span className="composer-vision-label">{visionLabel}</span>
             </button>
           ) : null}
           {thinking === null || thinking === undefined ? null : (
             <button
               type="button"
-              className={`composer-action composer-thinking${thinking ? " is-on" : ""}`}
+              className={`composer-pill composer-thinking${thinking ? " is-on" : ""}`}
               aria-pressed={thinking}
               aria-label={thinking ? composer.thinkingOff : composer.thinkingOn}
               title={thinking ? composer.thinkingOnTitle : composer.thinkingOffTitle}
               onClick={() => onThinking?.(!thinking)}
             >
+              <Icon name="thought" size={18} />
               {composer.think}
             </button>
           )}
+          {/* Where the chat waits on the door, the line says so in place of the disclaimer. */}
+          <span className="composer-note">{opening ? composer.hintOpening : (disclaimer ?? composer.disclaimer)}</span>
           {ask && !streaming ? (
             <button
               type="button"
-              className="composer-action composer-ask"
+              className="composer-pill composer-ask"
               disabled={!ready || ask.disabled || held}
               onClick={askKalsa}
             >
@@ -365,37 +298,18 @@ export function Composer({
             </button>
           ) : null}
           {streaming ? (
-            <button type="button" className="composer-action composer-stop" onClick={onStop} aria-label={composer.stopGenerating}>
-              <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-                <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="currentColor" />
-              </svg>
+            <button type="button" className="composer-pill composer-stop" onClick={onStop}>
+              <Icon name="square" size={15} stroke={2.6} />
+              {composer.stop}
             </button>
           ) : (
-            <button
-              type="button"
-              className="composer-action composer-send"
-              onClick={send}
-              disabled={!canSend}
-              aria-label={composer.send}
-            >
-              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-                <path
-                  d="M8 2.2v10.6M3.8 7 8 2.8 12.2 7"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+            <button type="button" className="composer-pill composer-send" onClick={send} disabled={!canSend}>
+              {composer.send}
+              <Icon name="up" size={18} stroke={2.4} />
             </button>
           )}
         </div>
       </div>
-      <p className="composer-disclaimer">{composer.disclaimer}</p>
-      <p className="composer-hint">
-        {opening ? composer.hintOpening : composer.hintSend}
-      </p>
     </div>
   );
 }

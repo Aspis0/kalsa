@@ -33,7 +33,6 @@ const EXAMPLES = {
   "room.listJoin": (fn) => fn(["Luca", "Sofia"]),
   "thread.thoughtFor": (fn, _area, num) => fn(num(3.4, 1)),
   "tools.read": (fn) => fn("example.com"),
-  "tools.searchedFor": (fn) => fn("cena"),
   "tools.didNotRun": (fn) => fn("web_search"),
   "tools.ran": (fn) => fn("web_search"),
   "tools.gateWhy": (fn, areaTable) => fn(areaTable.documentsAttached(2)),

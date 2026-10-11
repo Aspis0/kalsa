@@ -395,8 +395,8 @@ async function probeEngine(engineName, origin) {
       await page.waitForTimeout(1200);
       await openChat();
       const drawer = page.getByRole("button", { name: "Show chats", exact: true });
-      if (await drawer.isVisible()) await drawer.click();
-      await page.locator(".sidebar").getByRole("button", { name: titleRegex }).first().click();
+      if ((await page.locator(".chat-list").count()) === 0) await drawer.click();
+      await page.locator(".chat-list").getByRole("button", { name: titleRegex }).first().click();
       await page.waitForTimeout(600);
     }
 
@@ -793,8 +793,8 @@ async function probeEngine(engineName, origin) {
     await page.waitForTimeout(1200);
     await openChat();
     const drawer = page.getByRole("button", { name: "Show chats", exact: true });
-    if (await drawer.isVisible()) await drawer.click();
-    await page.locator(".sidebar").getByRole("button", { name: /tiny\.png/i }).first().click();
+    if ((await page.locator(".chat-list").count()) === 0) await drawer.click();
+    await page.locator(".chat-list").getByRole("button", { name: /tiny\.png/i }).first().click();
     await page.waitForTimeout(600);
     await attach([{ name: "tiny.png", mimeType: "image/png", buffer: alphaPng }]);
     await page.waitForSelector(".composer-image", { timeout: 6000 });
@@ -962,8 +962,8 @@ async function probeEngine(engineName, origin) {
     await page.waitForTimeout(1200);
     await openChat();
     const seedDrawer = page.getByRole("button", { name: "Show chats", exact: true });
-    if (await seedDrawer.isVisible()) await seedDrawer.click();
-    await page.locator(".sidebar").getByRole("button", { name: /seeded shots/i }).first().click();
+    if ((await page.locator(".chat-list").count()) === 0) await seedDrawer.click();
+    await page.locator(".chat-list").getByRole("button", { name: /seeded shots/i }).first().click();
     await page.waitForTimeout(600);
     await sendText("what did you see?");
     const packed = bodies.at(-1);
@@ -1249,8 +1249,8 @@ async function probeEngine(engineName, origin) {
     await page.waitForTimeout(1200);
     await openChat();
     const reopenDrawer = page.getByRole("button", { name: "Show chats", exact: true });
-    if (await reopenDrawer.isVisible()) await reopenDrawer.click();
-    await page.locator(".sidebar").getByRole("button", { name: /New conversation/i }).first().click();
+    if ((await page.locator(".chat-list").count()) === 0) await reopenDrawer.click();
+    await page.locator(".chat-list").getByRole("button", { name: /New conversation/i }).first().click();
     await page.waitForTimeout(900);
     await page.waitForSelector(".user-video-tile", { timeout: 9000 }).catch(() => {});
     check(
@@ -1289,9 +1289,11 @@ async function probeEngine(engineName, origin) {
     }
     async function deleteChat(title) {
       const drawer = page.getByRole("button", { name: "Show chats", exact: true });
-      if (await drawer.isVisible()) await drawer.click();
-      await page.locator(".sidebar-row").filter({ hasText: title }).getByRole("button", { name: "Delete", exact: true }).click();
-      await page.getByRole("button", { name: "Delete this conversation?", exact: true }).click();
+      if ((await page.locator(".chat-list").count()) === 0) await drawer.click();
+      const row = page.locator(".chat-list-row").filter({ hasText: title });
+      await row.hover();
+      await row.getByRole("button", { name: "Delete", exact: true }).click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
     }
     // Each slowed read holds for 700 ms. The delete is sent once the chosen
     // read has started, so it lands inside that read: the first read is the

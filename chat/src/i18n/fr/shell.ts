@@ -6,7 +6,6 @@ export const SHELL = {
     "toggleFilesAria": "Ouvrir ou fermer le panneau des fichiers",
     "dismiss": "Fermer",
     "dropToAttach": "Dépose ici les fichiers pour les joindre à cette conversation",
-    "crescentChat": "Kalsa",
     "tooMuchPlural": (names: string) => `${names} sont trop pour Kalsa d'un coup. Retire un fichier ou raccourcis ton message.`,
     "tooMuchSingular": (names: string) => `${names} est trop pour Kalsa d'un coup. Retire un fichier ou raccourcis ton message.`,
     "refusalBody": "Rien n'a été joint.",

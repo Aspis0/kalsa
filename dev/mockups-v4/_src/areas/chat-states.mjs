@@ -12,13 +12,17 @@ export const css = `
 .empty-c .go{margin-top:28px}
 .waitrow{display:flex;align-items:center;gap:12px;color:var(--tx2);font-size:16px}
 .pulse{display:inline-flex;gap:5px}.pulse i{width:8px;height:8px;border-radius:50%;background:var(--ring);opacity:.35}.pulse i:first-child{opacity:1}.pulse i:nth-child(2){opacity:.65}
-.cloud{border:1px solid var(--line);background:var(--rail);border-radius:18px;padding:12px 16px;margin-bottom:12px;max-width:660px}
-.cloud .ch2{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--tx2)}
-.cloud .ch2 .i{color:var(--ac-tx)}
-.cloud .ch2 em{margin-left:auto;font-style:normal;color:var(--ac-tx)}
-.cloud .tick{margin-top:6px;font-size:15px;line-height:22px;color:var(--tx3);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cloud .body{margin-top:10px;font-size:15px;line-height:23px;color:var(--tx2);border-top:1px solid var(--line);padding-top:10px}
-.cloud.wrap{margin-left:0}
+.cloud{position:relative;max-width:660px;margin:22px 0 34px;padding:12px 18px 14px;background:var(--card);border:1px solid var(--line);border-radius:24px 28px 26px 18px / 20px 26px 18px 28px}
+.cloud::before,.cloud::after{content:"";position:absolute;background:var(--card);border-radius:999px}
+.cloud::before{top:-9px;left:30px;width:26px;height:26px}
+.cloud::after{top:-6px;right:52px;width:15px;height:15px}
+.cloud .ch2{display:flex;align-items:baseline;gap:16px}
+.cloud .face{flex:1;min-width:0;color:var(--tx3);font-size:15px;line-height:22px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cloud .ch2 em{font-style:normal;font-size:15px;font-weight:600;color:var(--ac-tx)}
+.cloud .body{margin-top:10px;font-size:15px;line-height:23px;color:var(--tx2);border-top:1px dashed var(--line);padding-top:10px}
+.cloud .trail{position:absolute;left:44px;top:100%;display:flex;flex-direction:column;gap:3px;margin-top:2px}
+.cloud .trail i{display:block;background:var(--card);border:1px solid var(--line);border-radius:999px}
+.cloud .trail i:nth-child(1){width:9px;height:9px}.cloud .trail i:nth-child(2){width:7px;height:7px;margin-left:2px}.cloud .trail i:nth-child(3){width:5px;height:5px;margin-left:5px}
 .jump{position:absolute;left:50%;transform:translateX(-50%);bottom:190px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:8px 16px;font-size:15px;font-weight:600;color:var(--tx2);box-shadow:0 8px 20px -10px var(--sh)}
 .tool{border:1px solid var(--line);background:var(--card);border-radius:18px;margin-bottom:12px;max-width:660px;font-size:16px}
 .tool .ts{display:flex;align-items:center;gap:10px;padding:12px 16px;color:var(--tx2)}
@@ -98,6 +102,7 @@ const photo = (a, b, sun = '#F6D27A') => `<svg viewBox="0 0 180 132" width="100%
 
 const waiting = `<div class="waitrow"><span class="pulse"><i></i><i></i><i></i></span>Reading your message — Kalsa will answer soon.</div>`;
 const Q = 'Fra un mutuo a tasso fisso e uno a tasso variabile, quale conviene oggi?';
+const TRAIL = '<div class="trail"><i></i><i></i><i></i></div>';
 const TICK = 'L’utente chiede fisso o variabile… confronto rata stabile contro Euribor, poi il TAEG…';
 
 function empty({ off = false } = {}) {
@@ -119,13 +124,13 @@ export const screens = [
   ['11-chat-states-empty-off', () => empty({ off: true }), 'light'],
   ['11-chat-states-waiting', () => chatFrame({ thread: `${me(Q)}${kalsa(waiting, '', { acts: false })}`, dock: composer({ streaming: true }) }), 'light'],
   ['11-chat-states-thinking', () => chatFrame({
-    thread: `${me(Q)}<div class="cloud"><div class="ch2">${icon('sparkles', 17)}Thinking…<em>Show thinking ▼</em></div><div class="tick">${TICK}</div></div>`,
+    thread: `${me(Q)}<div class="cloud"><div class="ch2"><span class="face">${TICK}</span><em>Show thinking ▼</em></div>${TRAIL}</div>`,
     dock: composer({ streaming: true, think: true }),
     overlay: '<div class="jump">Back to latest ↓</div>',
   }), 'light'],
   ['11-chat-states-thought', () => chatFrame({
-    thread: `${me(Q)}<div class="cloud"><div class="ch2">${icon('sparkles', 17)}Thought for 12 s<em>Show thinking ▼</em></div></div>${kalsa(answerShort)}
-      ${me(C.q2)}<div class="cloud"><div class="ch2">${icon('sparkles', 17)}Thought for 8 s<em>Hide ▲</em></div><div class="body">The person is self-employed and income changes every year. The safest advice is a payment that never grows: a fixed rate. Suggest computing the payment on the lowest income of the last three years.</div></div>`,
+    thread: `${me(Q)}<div class="cloud"><div class="ch2"><span class="face">Thought for 12 s</span><em>Show thinking ▼</em></div>${TRAIL}</div>${kalsa(answerShort)}
+      ${me(C.q2)}<div class="cloud"><div class="ch2"><span class="face">Thought for 8 s</span><em>Hide ▲</em></div><div class="body">The person is self-employed and income changes every year. The safest advice is a payment that never grows: a fixed rate. Suggest computing the payment on the lowest income of the last three years.</div>${TRAIL}</div>`,
     dock: composer({ think: true }),
   }), 'light'],
   ['11-chat-states-search-running', () => chatFrame({ thread: `${me(Q)}${toolRow('run', 'Searching the web…')}`, dock: composer({ streaming: true }) }), 'light'],

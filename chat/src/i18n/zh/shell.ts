@@ -6,7 +6,6 @@ export const SHELL = {
     "toggleFilesAria": "打开或关闭文件面板",
     "dismiss": "关闭",
     "dropToAttach": "把文件拖到这里，附加到这条对话",
-    "crescentChat": "Kalsa",
     "tooMuchPlural": (names: string) => `${names}对 Kalsa 来说一次太多了。请移除一个文件或缩短消息。`,
     "tooMuchSingular": (names: string) => `${names}对 Kalsa 来说一次太多了。请移除一个文件或缩短消息。`,
     "refusalBody": "没有附加任何内容。",

@@ -47,7 +47,7 @@ table.mt{width:100%;border-collapse:collapse;font-size:15px}
 `;
 
 const head = (ic, title) => `<div class="mh"><span class="mi2">${icon(ic, 17)}</span>${title}</div>`;
-const builtRow = `<div class="tool"><div class="ts">${icon('sparkles', 18)}Kalsa built an interactive view<em>${icon('right', 16)}</em></div></div>`;
+const builtRow = `<div class="tool"><div class="ts">${icon('layoutGrid', 18)}Kalsa built an interactive view<em>${icon('right', 16)}</em></div></div>`;
 
 const calculator = `<div class="mapp">${head('gauge', 'Calculator')}<div class="mb">
   <div class="fields"><div class="fld"><label>Importo (€)</label><div class="in">200.000</div></div>

@@ -13,6 +13,8 @@ export const ROOM: RoomTable = {
   queueNext: (name: string) => `Kalsa répondra d'abord à ${name}.`,
   queueThen: (name: string, rest: string) => `Kalsa répondra d'abord à ${name}, puis ${rest}.`,
   askKalsa: "Demande à Kalsa",
+  attachPhoto: "Joindre une photo",
+  disclaimer: "Kalsa peut se tromper.",
   writePlaceholder: "Écris, ou tape @Kalsa…",
   writeAria: "Message",
   nameAria: "Ton nom",

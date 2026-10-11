@@ -4,6 +4,7 @@ import { HOME } from "./home";
 import { SETUP } from "./setup";
 import { POWER } from "./power";
 import { SIDEBAR } from "./sidebar";
+import { SHELL } from "./shell";
 import { THREAD } from "./thread";
 import { FILES } from "./files";
 import { VISION } from "./vision";
@@ -62,7 +63,7 @@ export const HELP: English["help"] = {
       paragraphs: [],
       items: [
         "Scrivi nel riquadro e premi Invio. Maiuscolo+Invio va a capo.",
-        `**${SIDEBAR.newChat}** apre una conversazione nuova. Le chat passate sono nell'elenco a sinistra: puoi cercarle, rinominarle o cancellarle.`,
+        `**${SIDEBAR.newChat}** apre una conversazione nuova. Con **${SHELL.conversations}**, in cima alla chat, trovi quelle passate: puoi cercarle, rinominarle o cancellarle.`,
         `**${COMPOSER.think}**: Kalsa ragiona prima di rispondere. Le risposte sono più lente ma più ponderate. Non tutte le AI ce l'hanno.`,
         `**${THREAD.tryAgain}** compare quando una risposta non va a buon fine.`,
         "Kalsa può sbagliare. Controlla le informazioni importanti.",

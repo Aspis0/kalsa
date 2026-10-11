@@ -1,6 +1,7 @@
 import "./EmptyState.css";
 import type { HostKeyState } from "../surfaces/useBrain";
 import { useLanguage } from "../i18n/useLanguage";
+import { Icon } from "./Icon";
 
 /** What the first page has to offer before a message can be written: which
     sentence-button pair it shows, each borrowed from the page that fixes it. */
@@ -107,13 +108,14 @@ export function EmptyState({
   return (
     <div className="empty">
       <div className="empty-mark" aria-hidden="true">
-        <span />
+        <Icon name="leaf" size={36} stroke={1.9} />
       </div>
       <h2 className="empty-title">{table.firstPage.title}</h2>
       {setup === "off" ? (
         <>
           <p className="empty-copy">{table.firstPage.offArm}</p>
           <button type="button" className="btn-primary btn-large" onClick={onOpenHome}>
+            <Icon name="power" size={22} stroke={2} />
             {table.firstPage.turnKalsaOn}
           </button>
         </>
@@ -128,6 +130,7 @@ export function EmptyState({
         <>
           <p className="empty-copy">{table.firstPage.startingArm}</p>
           <button type="button" className="btn-primary btn-large" onClick={onOpenHome}>
+            <Icon name="power" size={22} stroke={2} />
             {table.firstPage.turnKalsaOn}
           </button>
         </>

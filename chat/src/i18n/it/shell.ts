@@ -6,7 +6,6 @@ export const SHELL = {
     "toggleFilesAria": "Apri o chiudi il pannello dei file",
     "dismiss": "Chiudi",
     "dropToAttach": "Trascina qui i file per allegarli a questa conversazione",
-    "crescentChat": "Kalsa",
     "tooMuchPlural": (names: string) => `${names} sono troppo per Kalsa in una volta. Togli un file o accorcia il messaggio.`,
     "tooMuchSingular": (names: string) => `${names} è troppo per Kalsa in una volta. Togli un file o accorcia il messaggio.`,
     "refusalBody": "Non è stato allegato nulla.",

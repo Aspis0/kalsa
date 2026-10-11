@@ -13,6 +13,8 @@ export const ROOM: RoomTable = {
   queueNext: (name: string) => `Kalsa 将先回答${name}。`,
   queueThen: (name: string, rest: string) => `Kalsa 将先回答${name}，然后回答${rest}。`,
   askKalsa: "问 Kalsa",
+  attachPhoto: "附加照片",
+  disclaimer: "Kalsa 可能会出错。",
   writePlaceholder: "写点什么，或输入 @Kalsa…",
   writeAria: "消息",
   nameAria: "你的名字",

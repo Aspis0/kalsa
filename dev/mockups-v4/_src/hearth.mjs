@@ -97,7 +97,7 @@ h1{font-family:${FONT_DISPLAY};font-size:44px;line-height:50px;font-weight:600;l
 .dots{display:inline-flex;gap:5px;margin-left:8px;vertical-align:middle}
 .dots i{width:7px;height:7px;border-radius:50%;background:var(--tx3);opacity:.4}.dots i:first-child{opacity:.9}
 .dock{padding:8px 0 18px;flex:none}
-.mist{flex:1;min-width:0;text-align:center;font-size:14px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+.mist{flex:1;min-width:0;text-align:center;font-size:14px;line-height:18px;color:var(--tx3);padding:0 8px}
 .cbox{background:var(--card);border:1.5px solid var(--line);border-radius:28px;padding:16px 12px 12px 22px}
 .cbox .ph{color:var(--tx3);font-size:17px;height:40px}
 .cbox .r{display:flex;align-items:center;gap:10px}
@@ -231,7 +231,7 @@ export function chatListPop({ rows = CHATS.map((c, i) => ({ t: c, when: WHEN[i],
 
 /** The composer: a text line, Attach a file, Send (or Stop while Kalsa writes). */
 export function composer({ text = '', chips = '', above = '', streaming = false, think = null, extraLeft = '' } = {}) {
-  const thinkBtn = think === null ? '' : `<span class="think ${think ? 'on' : ''}">${icon('sparkles', 17)}Think</span>`;
+  const thinkBtn = think === null ? '' : `<span class="think ${think ? 'on' : ''}">${icon('thought', 18)}Think</span>`;
   const right = streaming
     ? `<span class="send stop">${icon('square', 15, 2.6)}Stop</span>`
     : `<span class="send">Send${icon('up', 18, 2.4)}</span>`;
@@ -296,7 +296,7 @@ export function card({ chosen, iconName, title, rec, text, space, model, mode, a
     ${action ?? ''}</div>`;
 }
 
-export const SMART = { iconName: 'sparkles', title: 'Smartest', text: 'The most careful, complete answers.', space: AI.space, model: `${AI.name} by ${AI.by}` };
+export const SMART = { iconName: 'bookOpen', title: 'Smartest', text: 'The most careful, complete answers.', space: AI.space, model: `${AI.name} by ${AI.by}` };
 export const QUICK = { iconName: 'zap', title: 'Quickest', text: 'Fast replies. Lighter on your computer.', space: ALT.space, model: `${ALT.name} by ${ALT.by}` };
 
 export function firstStart() {

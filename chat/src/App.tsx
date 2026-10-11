@@ -1,5 +1,5 @@
-// The shell: which surface is on screen, the rail between them, the chat's
-// own header, and the pieces that outlive any one surface — the slot banner,
+// The shell: which surface is on screen, the rail between them, and the
+// pieces that outlive any one surface — the slot banner,
 // the web-call ask, the recovery notice, the screen-reader status line. The surfaces render
 // themselves from their own files; the chat's state lives in the `useChat`
 // hook (surfaces/useChat.ts), called HERE so it survives the chat page's
@@ -37,7 +37,6 @@ const PATH_LIMIT = 8;
 
 export function App() {
   const { table } = useLanguage();
-  const chrome = table.chrome;
   const t = table.shell;
   // The brain is the home: the app opens on it.
   const [surface, setSurface] = useState<SurfaceKey>("brain");
@@ -110,7 +109,6 @@ export function App() {
     setTheme(next);
   }
 
-  const chatTitle = chat.active ? chat.active.title || t.untitled : t.crescentChat;
 
   // The gate's own sentence, when it owes one: only a hand-over the door
   // refused, which has no caller to return its answer to. Shown through the same
@@ -138,7 +136,7 @@ export function App() {
         // Escape over a held call refuses it: the safest reading of a slam
         // on Escape is "no", never "send it".
         if (chat.gateShown) chat.answerGate(chat.gateShown.id, false);
-        else if (chat.drawerOpen) chat.setDrawerOpen(false);
+        else if (chat.listOpen) chat.setListOpen(false);
         else if (surface === "chat" || surface === "room") openSurface("brain");
         else if (surface !== "brain") goBack();
       }
@@ -151,38 +149,6 @@ export function App() {
     <div className={`shell${chat.streamingAny ? " is-streaming" : ""}`}>
       <Rail current={surface} onOpen={openSurface} />
       <div className="shell-main">
-        {/* The chat's own header: the drawer toggle for narrow windows, the
-            conversation's title, and Files. */}
-        {surface === "chat" ? (
-          <header className="topbar">
-            <div className="topbar-title">
-              <button
-                type="button"
-                className="topbar-btn topbar-drawer-toggle"
-                onClick={() => chat.setDrawerOpen((o) => !o)}
-                aria-expanded={chat.drawerOpen}
-                aria-label={chrome.showConversations}
-              >
-                {t.conversations}
-              </button>
-              <h1>{chatTitle}</h1>
-            </div>
-            {chat.active ? (
-              <div className="topbar-actions">
-                <button
-                  type="button"
-                  className="topbar-btn"
-                  onClick={() => chat.setPanelOpen((o) => !o)}
-                  aria-expanded={chat.panelOpen}
-                  aria-label={t.toggleFilesAria}
-                >
-                  {t.files}
-                </button>
-              </div>
-            ) : null}
-          </header>
-        ) : null}
-
         <main className="stage">
           {chat.storageFull ? (
             <div className="storage-banner" role="alert">

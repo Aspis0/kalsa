@@ -1,14 +1,17 @@
 // Traduit du copy anglais approuvé.
 
 export const SIDEBAR = {
-    "aria": "Conversations",
+    "aria": "Discussions",
     "searchAria": "Chercher dans les conversations",
     "searchPlaceholder": "Chercher",
     "focusSearch": "Aller à la recherche",
-    "newChat": "+ Nouvelle conversation",
+    "newChat": "Nouvelle conversation",
     "titleAria": "Titre de la conversation",
     "rename": "Renommer",
+    "enterToSave": "Entrée pour enregistrer",
+    "cancel": "Annuler",
     "sure": "Supprimer cette discussion ?",
+    "deleteBody": (title: string) => `« ${title} »`,
     "delete": "Supprimer",
     "liveAria": " (en génération)",
     "noMatch": (query: string) => `Aucune conversation ne correspond à « ${query} ». Essaie un autre mot.`,

@@ -2,13 +2,15 @@
 
 export const TOOLS = {
     "checking": "Kalsa sta controllando una cosa…",
+    "searching": "Ricerca sul web…",
+    "openingPage": "Apertura della pagina…",
+    "waitingForOk": "In attesa del tuo OK…",
     "pageNotOpened": "Kalsa non ha potuto aprire quella pagina. Riprova.",
     "searchDidNotRun": "Kalsa non ha potuto cercare sul web. Riprova.",
     "couldNotFinish": "Kalsa non è riuscita a finire il controllo. Chiedi di nuovo.",
     "read": (what: string) => `Kalsa ha letto ${what}`,
     "aPage": "una pagina",
-    "searchedFor": (query: string) => `Ha cercato “${query}”`,
-    "searchedWeb": "Kalsa ha cercato sul web",
+    "searchedWeb": "Ha cercato sul web",
     "searchedForLabel": "Cercato:",
     "askedForLabel": "Chiesto:",
     "searchWaitingTitle": "Kalsa vuole cercare sul web. Glielo permetti?",

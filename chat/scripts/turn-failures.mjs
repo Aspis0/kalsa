@@ -154,8 +154,8 @@ try {
     if ((await chip.count()) > 0) await chip.first().click();
     await page.waitForTimeout(400);
     const drawer = page.getByRole("button", { name: "Show chats", exact: true });
-    if (await drawer.isVisible()) await drawer.click();
-    await page.locator(".sidebar").getByRole("button", { name: /first question/i }).first().click();
+    if ((await page.locator(".chat-list").count()) === 0) await drawer.click();
+    await page.locator(".chat-list").getByRole("button", { name: /first question/i }).first().click();
     await page.waitForTimeout(600);
   }
 

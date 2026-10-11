@@ -2,14 +2,17 @@
 // and what one row can do.
 
 export const SIDEBAR = {
-  aria: "Conversations",
+  aria: "Chats",
   searchAria: "Search conversations",
   searchPlaceholder: "Search",
   focusSearch: "Focus search",
-  newChat: "+ New chat",
+  newChat: "New chat",
   titleAria: "Conversation title",
   rename: "Rename",
+  enterToSave: "Enter to save",
+  cancel: "Cancel",
   sure: "Delete this conversation?",
+  deleteBody: (title: string) => `“${title}”`,
   delete: "Delete",
   liveAria: " (generating)",
   noMatch: (query: string) => `No conversations match “${query}”. Try another word.`,

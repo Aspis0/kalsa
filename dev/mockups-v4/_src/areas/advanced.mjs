@@ -106,7 +106,7 @@ export const screens = [
   ['17-advanced-entry', () => page(`${head('none').replace('<div class="xtabs">', '<div class="xtabs" style="display:none">')}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px">
       <div class="xcard"><div class="xtag" style="background:var(--ac-soft);color:var(--ac-tx)">${icon('cpu', 14)}SERVER</div><h3 style="font-size:22px;font-weight:650">Server settings</h3><p style="color:var(--tx2);margin:6px 0 14px">Context size, batch, cache, idle unload, internet road. Changes apply next time you turn on.</p><span class="btn sm">Open ${icon('right', 15)}</span></div>
-      <div class="xcard"><div class="xtag" style="background:var(--ac-soft);color:var(--ac-tx)">${icon('sparkles', 14)}MESSAGES</div><h3 style="font-size:22px;font-weight:650">Sampling</h3><p style="color:var(--tx2);margin:6px 0 14px">Temperature, Top K, Top P, repetition. Saved choices change the next message you send.</p><span class="btn sm">Open ${icon('right', 15)}</span></div>
+      <div class="xcard"><div class="xtag" style="background:var(--ac-soft);color:var(--ac-tx)">${icon('sliders', 14)}MESSAGES</div><h3 style="font-size:22px;font-weight:650">Sampling</h3><p style="color:var(--tx2);margin:6px 0 14px">Temperature, Top K, Top P, repetition. Saved choices change the next message you send.</p><span class="btn sm">Open ${icon('right', 15)}</span></div>
     </div>`), 'light'],
   ['17-advanced-server', () => page(server()), 'light'],
   ['17-advanced-knob-info', () => page(server({ info: true })), 'light'],

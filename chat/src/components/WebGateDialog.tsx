@@ -1,5 +1,6 @@
 import type { GateCheck } from "../lib/tools/registry";
 import { useLanguage } from "../i18n/useLanguage";
+import { Icon } from "./Icon";
 import "./WebGateDialog.css";
 
 /**
@@ -30,12 +31,15 @@ export function WebGateDialog({
   const docs = check.documents.length === 1 ? t.oneDocument : t.documentsAttached(check.documents.length);
   return (
     <section className="webgate" role="alertdialog" aria-modal="false" aria-labelledby="webgate-title">
+      <span className="webgate-icon" aria-hidden="true">
+        <Icon name="globe" size={26} />
+      </span>
       <h2 id="webgate-title">{search ? t.searchWaitingTitle : t.pageWaitingTitle}</h2>
       <p className="webgate-why">{t.gateWhy(docs)}</p>
-      <p className="webgate-label">
-        {search ? t.exactTextSearch : t.exactTextPage}
-      </p>
-      <pre className="webgate-outgoing">{check.outgoing}</pre>
+      <div className="webgate-outgoing">
+        <small>{search ? t.exactTextSearch : t.exactTextPage}</small>
+        <pre>{check.outgoing}</pre>
+      </div>
       {check.findings.length > 0 ? (
         <ul className="webgate-findings">
           {check.findings.map((finding, at) => (
@@ -54,11 +58,12 @@ export function WebGateDialog({
         </p>
       ) : null}
       <div className="webgate-actions">
-        <button type="button" className="webgate-allow" onClick={() => onAnswer(id, true)} autoFocus>
-          {t.sendIt}
-        </button>
         <button type="button" className="webgate-refuse" onClick={() => onAnswer(id, false)}>
           {t.refuse}
+        </button>
+        <button type="button" className="webgate-allow" onClick={() => onAnswer(id, true)} autoFocus>
+          <Icon name="send" size={18} />
+          {t.sendIt}
         </button>
       </div>
     </section>

@@ -153,11 +153,11 @@ async function shot(page, path) {
 
 /** Open a conversation from the sidebar by title substring. */
 async function openConvo(page, titlePart) {
-  // Narrow windows keep the list in a closed drawer: open it first.
+  // The list is a popover: open it unless it already is.
   const toggle = page.getByRole("button", { name: "Show chats", exact: true });
-  if (await toggle.isVisible()) await toggle.click();
+  if ((await page.locator(".chat-list").count()) === 0) await toggle.click();
   await page
-    .locator(".sidebar")
+    .locator(".chat-list")
     .getByRole("button", { name: new RegExp(titlePart.slice(0, 24), "i") })
     .first()
     .click();
@@ -242,7 +242,7 @@ async function main() {
     await page.getByRole("textbox", { name: "Message" }).fill("Tell me slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(2000);
-    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
     await page.waitForTimeout(800);
     await must(page, ".row-note", "stopped note");
     await shot(page, "shots/06-stopped.png");
@@ -344,7 +344,7 @@ async function main() {
     await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
-    await page.getByRole("button", { name: "Copy" }).click();
+    await page.getByRole("button", { name: "Copy", exact: true }).click();
     await must(page, ".codeblock-copy", "copy button");
     await shot(page, "shots/14-copied.png");
     await page.close();
@@ -426,7 +426,7 @@ async function main() {
     await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Seeded thread");
-    await page.getByRole("button", { name: "+ New chat" }).click();
+    await page.getByRole("button", { name: "New chat", exact: true }).first().click();
     await page.getByRole("textbox", { name: "Message" }).fill("Second topic, slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(1200);
@@ -459,7 +459,7 @@ async function main() {
     await openApp(page);
     await page.waitForTimeout(1200);
     await openConvo(page, "Todo");
-    await must(page, ".sidebar-row-active", "active row");
+    await must(page, ".chat-list-active", "active row");
     await shot(page, "shots/40-sidebar.png");
     await page.close();
   }
@@ -471,7 +471,7 @@ async function main() {
     await page.waitForTimeout(1200);
     await page.getByLabel("Search conversations").fill("taxes");
     await page.waitForTimeout(400);
-    await must(page, ".sidebar-row", "search hit");
+    await must(page, ".chat-list-row", "search hit");
     await shot(page, "shots/41-search.png");
     await page.close();
   }
@@ -481,9 +481,9 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: twentyConvos().slice(0, 3) });
     await openApp(page);
     await page.waitForTimeout(1200);
-    await page.locator(".sidebar-row").first().hover();
+    await page.locator(".chat-list-row").first().hover();
     await page.getByRole("button", { name: "Rename" }).first().click();
-    await must(page, ".sidebar-rename", "rename input");
+    await must(page, ".chat-list-rename", "rename input");
     await shot(page, "shots/42-rename.png");
     await page.close();
   }
@@ -505,7 +505,7 @@ async function main() {
     await openApp(page);
     await page.waitForTimeout(1200);
     await page.getByRole("button", { name: "Show chats", exact: true }).click();
-    await must(page, ".sidebar-open", "drawer");
+    await must(page, ".chat-list", "drawer");
     await shot(page, "shots/44-drawer.png");
     await page.close();
   }
@@ -578,7 +578,7 @@ async function main() {
     });
     await openApp(page);
     await page.waitForTimeout(1200);
-    await must(page, ".sidebar-group", "groups");
+    await must(page, ".chat-list-open em", "groups");
     await shot(page, "shots/47-groups.png");
     await page.close();
   }

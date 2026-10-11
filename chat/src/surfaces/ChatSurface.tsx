@@ -1,13 +1,16 @@
-// The chat's page: the sidebar, the thread, the composer, the files panel —
+// The chat's page: its header and list, the thread, the composer, the files panel —
 // everything the chat LOOKS like, rendered from the state `useChat` holds in
 // the shell (the hook outlives this page's unmounts; see the draft's note
 // there). No chat logic lives here: every handler is the hook's.
 
 import { Composer } from "../components/Composer";
+import { Icon } from "../components/Icon";
+import "../components/NoticeBanner.css";
 import { EmptyState } from "../components/EmptyState";
 import { IMAGE_TOKENS } from "../lib/attachments";
 import { Panel } from "../components/Panel";
-import { Sidebar } from "../components/Sidebar";
+import { ChatHeader } from "../components/ChatHeader";
+import { ChatList } from "../components/ChatList";
 import { Thread } from "../components/Thread";
 import { useBrain } from "./useBrain";
 import { VisionOffer } from "../components/VisionOffer";
@@ -26,8 +29,8 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
     streaming,
     failures,
     tails,
-    drawerOpen,
-    setDrawerOpen,
+    listOpen,
+    setListOpen,
     dragging,
     setDragging,
     attachFiles,
@@ -73,149 +76,161 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
   const empty = !active || active.messages.length === 0;
 
   return (
-    <div className="chat-layout">
-      <Sidebar
+    <div className="chat-page">
+      <ChatHeader
+        title={active ? active.title || t.untitled : t.newConversation}
+        listOpen={listOpen}
+        onToggleList={() => setListOpen((open) => !open)}
+        filesOpen={active ? panelOpen : null}
+        onToggleFiles={() => setPanelOpen((open) => !open)}
+        onNew={newConversation}
+      />
+      <ChatList
+        open={listOpen}
+        onOpen={() => setListOpen(true)}
+        onClose={() => setListOpen(false)}
         conversations={conversations}
         activeId={activeId}
         streamingIds={streamingIds}
-        drawerOpen={drawerOpen}
-        onCloseDrawer={() => setDrawerOpen(false)}
         onSelect={selectConversation}
         onNew={newConversation}
         onRename={renameConversation}
         onDelete={removeConversation}
       />
-      <div
-        className="main-col"
-        onDragOver={(event) => {
-          if (event.dataTransfer?.types.includes("Files")) {
+      <div className="chat-layout">
+        <div
+          className="main-col"
+          onDragOver={(event) => {
+            if (event.dataTransfer?.types.includes("Files")) {
+              event.preventDefault();
+              setDragging(true);
+            }
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
             event.preventDefault();
-            setDragging(true);
-          }
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragging(false);
-          if (event.dataTransfer?.files.length) void attachFiles(event.dataTransfer.files);
-        }}
-      >
-        {dragging ? (
-          <div className="drop-overlay" aria-hidden="true">
-            <span>{t.dropToAttach}</span>
-          </div>
-        ) : null}
-        {refusal ? (
-          <div className="refusal-banner" role="alert">
-            <span>
-              <strong>
-                {refusal.names.includes(",")
-                  ? t.tooMuchPlural(refusal.names)
-                  : t.tooMuchSingular(refusal.names)}
-              </strong>
-              {` ${t.refusalBody}`}
-            </span>
-            <button type="button" onClick={() => setRefusal(null)}>
-              {t.dismiss}
-            </button>
-          </div>
-        ) : null}
-        {empty ? (
-          <EmptyState
-            setup={setup}
-            credentialMessage={credentialMessage}
-            onOpenModels={() => openSurface("models")}
-            onOpenHome={() => openSurface("brain")}
-            onOpenDevices={() => openSurface("devices")}
-          />
-        ) : (
-          <Thread
-            messages={active.messages}
+            setDragging(false);
+            if (event.dataTransfer?.files.length) void attachFiles(event.dataTransfer.files);
+          }}
+        >
+          {dragging ? (
+            <div className="drop-overlay" aria-hidden="true">
+              <span>{t.dropToAttach}</span>
+            </div>
+          ) : null}
+          {refusal ? (
+            <div className="notice-banner is-warn" role="alert">
+              <span className="notice-banner-icon">
+                <Icon name="alert" size={20} />
+              </span>
+              <div className="notice-banner-text">
+                <b>{refusal.names.includes(",") ? t.tooMuchPlural(refusal.names) : t.tooMuchSingular(refusal.names)}</b>
+                <span>{t.refusalBody}</span>
+              </div>
+              <button type="button" className="notice-banner-btn" onClick={() => setRefusal(null)}>
+                {t.dismiss}
+              </button>
+            </div>
+          ) : null}
+          {empty ? (
+            <EmptyState
+              setup={setup}
+              credentialMessage={credentialMessage}
+              onOpenModels={() => openSurface("models")}
+              onOpenHome={() => openSurface("brain")}
+              onOpenDevices={() => openSurface("devices")}
+            />
+          ) : (
+            <Thread
+              messages={active.messages}
+              streaming={streaming}
+              failures={failures}
+              tails={tails}
+              onRetry={retry}
+              onTurnOn={() => void brain.act()}
+              restartedAt={restartedAt}
+              onMiniappState={chat.saveMiniappState}
+              awaitingOk={chat.gateShown !== null}
+            />
+          )}
+          {attachStatus ? (
+            <p className="attach-status" role="status">
+              {attachBusy ? <span className="tool-spin" aria-hidden="true" /> : null}
+              {attachStatus}
+            </p>
+          ) : null}
+          {visionFlow ? (
+            <VisionOffer
+              phase={visionFlow}
+              step={visionStep}
+              onDownload={() => void enableVision()}
+              onNotNow={dismissVision}
+              onRetry={() => void enableVision()}
+            />
+          ) : null}
+          <Composer
+            thinking={thinkingSupported ? thinking : null}
+            onThinking={saveThinking}
             streaming={streaming}
-            failures={failures}
-            tails={tails}
-            onRetry={retry}
-            onTurnOn={() => void brain.act()}
-            restartedAt={restartedAt}
-            onMiniappState={chat.saveMiniappState}
+            opening={pending || creating}
+            // An attach reading for THIS conversation holds Send: the reading
+            // line stays visible above, and the words stay in the box for the
+            // next Enter. Another conversation's attach never blocks here.
+            sendBlocked={attachBusy}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSend={send}
+            onStop={stop}
+            onAttach={(files) => void attachFiles(files)}
+            acceptsImages={vision}
+            acceptsVideos={vision}
+            visionOfferBytes={visionOfferBytes}
+            onOfferVision={askVision}
+            images={pendingImages.map((chip) => ({
+              id: chip.id,
+              url: chip.url,
+              kind: chip.kind,
+              ...(chip.kind === "video" && chip.compressing
+                ? { label: table.composer.compressing(Math.round(chip.progress * 100)) }
+                : {}),
+            }))}
+            onRemoveImage={removeImage}
+            docs={attachments.filter((a) => a.active)}
+            onRemoveDoc={removeAttachment}
+            onPinDoc={chat.setAttachmentPinned}
           />
-        )}
-        {attachStatus ? (
-          <p className="attach-status" role="status">
-            {attachStatus}
-          </p>
-        ) : null}
-        {visionFlow ? (
-          <VisionOffer
-            phase={visionFlow}
-            step={visionStep}
-            onDownload={() => void enableVision()}
-            onNotNow={dismissVision}
-            onRetry={() => void enableVision()}
-          />
-        ) : null}
-        <Composer
-          thinking={thinkingSupported ? thinking : null}
-          onThinking={saveThinking}
-          streaming={streaming}
-          opening={pending || creating}
-          // An attach reading for THIS conversation holds Send: the reading
-          // line stays visible above, and the words stay in the box for the
-          // next Enter. Another conversation's attach never blocks here.
-          sendBlocked={attachBusy}
-          draft={draft}
-          onDraftChange={setDraft}
-          onSend={send}
-          onStop={stop}
-          onAttach={(files) => void attachFiles(files)}
-          acceptsImages={vision}
-          acceptsVideos={vision}
-          visionOfferBytes={visionOfferBytes}
-          onOfferVision={askVision}
-          images={pendingImages.map((chip) => ({
-            id: chip.id,
-            url: chip.url,
-            kind: chip.kind,
-            ...(chip.kind === "video" && chip.compressing
-              ? { label: table.composer.compressing(Math.round(chip.progress * 100)) }
-              : {}),
-          }))}
-          onRemoveImage={removeImage}
-          docs={attachments.filter((a) => a.active)}
-          onRemoveDoc={removeAttachment}
-          onPinDoc={chat.setAttachmentPinned}
-        />
-      </div>
-      <Panel
-        open={panelOpen && active !== null}
-        attachments={attachments}
-        contextTokens={ctxInfo && ctxInfo.endpoint === effectiveSettings.endpoint ? ctxInfo.nctx : null}
-        historyTokens={convoTokens}
-        imageCount={
-          pendingImages.length +
-          pendingImages.reduce(
-            (sum, chip) => sum + (chip.kind === "video" ? chip.frames.length : 0),
-            0,
-          )
-        }
-        imageTokens={
-          (pendingImages.length +
+        </div>
+        <Panel
+          open={panelOpen && active !== null}
+          attachments={attachments}
+          contextTokens={ctxInfo && ctxInfo.endpoint === effectiveSettings.endpoint ? ctxInfo.nctx : null}
+          historyTokens={convoTokens}
+          imageCount={
+            pendingImages.length +
             pendingImages.reduce(
               (sum, chip) => sum + (chip.kind === "video" ? chip.frames.length : 0),
               0,
-            )) *
-          IMAGE_TOKENS
-        }
-        onRemove={removeAttachment}
-        onPin={chat.setAttachmentPinned}
-        onReattach={(id) => {
-          if (!activeId) return;
-          const found = attachments.find((a) => a.id === id);
-          if (found) chat.reattachAttachment(activeId, id);
-        }}
-        onAttachFile={(path, name) => void attachFromDisk(path, name)}
-        onClose={() => setPanelOpen(false)}
-      />
+            )
+          }
+          imageTokens={
+            (pendingImages.length +
+              pendingImages.reduce(
+                (sum, chip) => sum + (chip.kind === "video" ? chip.frames.length : 0),
+                0,
+              )) *
+            IMAGE_TOKENS
+          }
+          onRemove={removeAttachment}
+          onPin={chat.setAttachmentPinned}
+          onReattach={(id) => {
+            if (!activeId) return;
+            const found = attachments.find((a) => a.id === id);
+            if (found) chat.reattachAttachment(activeId, id);
+          }}
+          onAttachFile={(path, name) => void attachFromDisk(path, name)}
+          onClose={() => setPanelOpen(false)}
+        />
+      </div>
     </div>
   );
 }

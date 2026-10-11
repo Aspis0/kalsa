@@ -40,11 +40,11 @@ export function VisionOffer({
       <section className="vision-offer" role="alertdialog" aria-modal="false" aria-labelledby="vision-ask">
         <p id="vision-ask">{t.downloadQ(downloadBytes(phase.bytes, tag))}</p>
         <div className="vision-actions">
-          <button type="button" className="vision-download" onClick={onDownload} autoFocus>
-            {t.download}
-          </button>
           <button type="button" className="vision-not-now" onClick={onNotNow}>
             {t.notNow}
+          </button>
+          <button type="button" className="vision-download" onClick={onDownload} autoFocus>
+            {t.download}
           </button>
         </div>
       </section>

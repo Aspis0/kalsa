@@ -17,11 +17,11 @@
 .thread-column {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 18px;
   width: 100%;
-  max-width: calc(var(--measure) + 4rem);
+  max-width: calc(780px + 2rem);
   margin: 0 auto;
-  padding: 1.5rem 1rem 2rem;
+  padding: 26px 1rem 2rem;
 }
 
 .row {
@@ -29,63 +29,85 @@
   contain-intrinsic-size: auto 120px;
 }
 
+/* Yours: sage, on the right, one small corner on your side (RULES.md "Bubbles"). */
 .row-user {
   display: flex;
   justify-content: flex-end;
 }
 
 .user-bubble {
-  max-width: min(42rem, 85%);
-  padding: 0.6rem 0.9rem;
-  color: var(--ink);
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
-  border-radius: 14px 14px 4px 14px;
-  font-size: 0.95rem;
-  line-height: 1.55;
+  max-width: min(540px, 85%);
+  padding: 13px 19px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-radius: 24px 24px 6px 24px;
+  font-size: 17px;
+  line-height: 26px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
+/* Kalsa's: a card on the left; the thinking and mini apps sit above it. */
 .row-assistant {
-  max-width: var(--measure);
+  display: flex;
+  max-width: 660px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 }
 
-.assistant-body {
-  color: var(--ink);
-  font-size: 0.98rem;
-  line-height: 1.7;
+.row-assistant > .thought,
+.row-assistant > .miniapp-turn {
+  align-self: stretch;
+}
+
+.assistant-bubble {
+  max-width: 100%;
+  padding: 16px 22px;
+  color: var(--tx);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px 24px 24px 6px;
+  font-size: 17px;
+  line-height: 28px;
+  overflow-wrap: anywhere;
+}
+
+.assistant-bubble:empty {
+  display: none;
+}
+
+/* The row closes on its message action row; the gap above it is 6px, not 12. */
+.row-assistant > .message-actions {
+  margin-top: -6px;
 }
 
 .row-note {
-  margin: 0.5rem 0 0;
-  color: var(--silence);
-  font-size: 0.82rem;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  color: var(--tx3);
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 22px;
 }
 
 .interrupted-note {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 12px;
 }
 
 .interrupted-retry {
   padding: 0;
-  color: var(--accent);
+  color: var(--ac-tx);
   background: transparent;
   border: 0;
   font-size: inherit;
-  text-decoration: underline;
-}
-
-.no-answer {
-  margin-top: 0.75rem;
+  font-weight: 600;
 }
 
 .no-answer p {
-  margin: 0 0 0.6rem;
-  color: var(--silence);
-  font-size: 0.9rem;
+  margin: 0 0 12px;
 }
 
 /* --- markdown --- */
@@ -99,7 +121,7 @@
 }
 
 .markdown p {
-  margin: 0 0 0.9em;
+  margin: 0 0 10px;
 }
 
 .markdown h1,
@@ -125,6 +147,32 @@
 
 .markdown li {
   margin: 0.3em 0;
+}
+
+/* Bullets are the ring's green dots (mockup 02-chat). */
+.markdown ul {
+  padding-left: 0;
+  list-style: none;
+}
+
+.markdown ul > li {
+  position: relative;
+  padding-left: 22px;
+}
+
+.markdown ul > li::before {
+  position: absolute;
+  top: 11px;
+  left: 5px;
+  width: 7px;
+  height: 7px;
+  background: var(--ring);
+  border-radius: 50%;
+  content: "";
+}
+
+.markdown strong {
+  font-weight: 650;
 }
 
 .markdown li > ul,
@@ -189,151 +237,19 @@
 
 .blocked-image {
   display: block;
-  margin: 0 0 0.9em;
-  padding: 0.6rem 0.8rem;
-  color: var(--silence);
-  border: 1px dashed var(--border-strong);
-  border-radius: 9px;
-  font-size: 0.85rem;
-  line-height: 1.55;
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  color: var(--tx3);
+  background: var(--rail);
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 22px;
 }
 
-/* --- code blocks --- */
-
-.codeblock {
-  margin: 0 0 1em;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-}
-
-.codeblock-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.35rem 0.5rem 0.35rem 0.8rem;
-  background: var(--surface-muted);
-  border-bottom: 1px solid var(--border);
-}
-
-.codeblock-lang {
-  color: var(--silence);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.codeblock-copy {
-  min-height: 26px;
-  padding: 0 0.7rem;
-  color: var(--ink-soft);
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  border-radius: 7px;
-  font-size: 0.76rem;
-}
-
-.codeblock-copy:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.codeblock-pre {
-  max-width: 100%;
-  max-height: 480px;
-  margin: 0;
-  padding: 0.8rem 1rem;
-  overflow: auto;
-  font-family: var(--font-mono);
-  font-size: 0.83rem;
-  line-height: 1.6;
-}
-
-.codeblock-pre code {
-  white-space: pre;
-}
-
-/* --- tool activity: quiet, collapsed, and never an image from the network --- */
-
-.tool-activity {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin: 0 0 0.75rem;
-}
-
-.tool-run {
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  font-size: 0.85rem;
-}
-
-.tool-run[open] {
-  background: transparent;
-}
-
-.tool-run > summary {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.4rem 0.75rem;
-  cursor: pointer;
-  list-style: none;
-}
-
-.tool-run > summary::-webkit-details-marker {
-  display: none;
-}
-
-.tool-run > summary::before {
-  content: "\203A";
-  color: var(--silence);
-  font-size: 1.05em;
-  line-height: 1;
-  transition: transform 120ms ease;
-}
-
-.tool-run[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-.tool-run-failed > summary {
-  color: var(--danger);
-}
-
-.tool-detail {
-  padding: 0 0.75rem 0.6rem 1.6rem;
-}
-
-.tool-query {
-  margin: 0 0 0.35rem;
-  color: var(--ink-soft);
-  overflow-wrap: anywhere;
-}
-
-.tool-failure {
-  margin: 0 0 0.35rem;
-  color: var(--ink-soft);
-  line-height: 1.5;
-}
-
-.tool-sources {
-  margin: 0;
-  padding-left: 1.1rem;
-}
-
-.tool-sources li {
-  margin: 0.15rem 0;
-  overflow-wrap: anywhere;
-}
-
+/* An address the reader can open by hand (Openable), in answers and tool lines. */
 .tool-link {
   padding: 0;
-  color: var(--accent);
+  color: var(--ac-tx);
   background: none;
   border: 0;
   font: inherit;
@@ -343,21 +259,63 @@
 }
 
 .tool-link:hover {
-  color: var(--accent-hover);
+  color: var(--ac);
 }
 
-.tool-working {
-  display: inline-flex;
-  gap: 0.5rem;
+/* --- code blocks --- */
+
+.codeblock {
+  margin: 10px 0 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.codeblock-head {
+  display: flex;
+  padding: 8px 14px;
   align-items: center;
+  justify-content: space-between;
+  background: var(--rail);
 }
 
-.tool-working span {
-  width: 7px;
-  height: 7px;
-  background: var(--silence);
-  border-radius: 999px;
-  animation: think-pulse 1.2s ease-in-out infinite;
+/* 15px: muted ink on the rail is only allowed from 15px up (RULES.md). */
+.codeblock-lang {
+  color: var(--tx3);
+  font-size: 15px;
+}
+
+.codeblock-copy {
+  display: inline-flex;
+  padding: 0 4px;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx2);
+  background: transparent;
+  border: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.codeblock-copy:hover {
+  color: var(--ac-tx);
+}
+
+.codeblock-pre {
+  max-width: 100%;
+  max-height: 480px;
+  margin: 0;
+  padding: 12px 16px;
+  overflow: auto;
+  color: var(--tx);
+  background: var(--card);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.codeblock-pre code {
+  white-space: pre;
 }
 
 /* --- streaming indicator: three quiet dots, no idle spinner --- */
@@ -369,9 +327,9 @@
 }
 
 .thinking span {
-  width: 7px;
-  height: 7px;
-  background: var(--silence);
+  width: 8px;
+  height: 8px;
+  background: var(--ring);
   border-radius: 999px;
   opacity: 0.35;
   animation: think-pulse 1.2s ease-in-out infinite;
@@ -387,52 +345,59 @@
 
 /* The dots stay as a still mark; only the pulse stops. */
 @media (prefers-reduced-motion: reduce) {
-  .thinking span,
-  .tool-working span {
+  .thinking span {
     animation: none;
   }
 }
 
-/* The dots and the sentence beside them, once the wait is long enough to
-   need saying. The sentence uses the thread's quiet-note class. */
+/* The dots and the sentence beside them, once the wait is long enough to need saying. */
 .waiting-row {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 12px;
 }
 
 .waiting-row .row-note {
   margin: 0;
-  font-size: 0.85rem;
+  padding: 0;
+  color: var(--tx2);
+  border: 0;
+  font-size: 16px;
 }
 
-/* --- errors: desaturated dark red, text and border only, never a fill --- */
+/* --- errors: an amber circle, the words, one way out (mockup
+   11-chat-states-failed) --- */
 
 .error-block {
-  margin-top: 0.75rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--danger);
-  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.markdown + .error-block {
+  margin-top: 12px;
+}
+
+.error-icon {
+  display: grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: var(--warn-ink);
+  background: var(--warn-fill);
+  border-radius: 50%;
 }
 
 .error-title {
-  margin: 0 0 0.3rem;
-  color: var(--danger);
-  font-weight: 600;
-  font-size: 0.95rem;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
 }
 
 .error-body {
-  margin: 0 0 0.8rem;
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
-.error-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  margin: 0;
+  color: var(--tx2);
 }
 
 .error-url {
@@ -449,6 +414,29 @@
   font-family: var(--font-mono);
   font-size: 0.78rem;
   overflow-wrap: anywhere;
+}
+
+/* The answer's own buttons, sized to the bubble (RULES.md small buttons). */
+.assistant-bubble .btn-primary,
+.assistant-bubble .btn-quiet {
+  display: inline-flex;
+  height: 44px;
+  margin-top: 12px;
+  padding: 0 18px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 22px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.assistant-bubble .btn-quiet {
+  color: var(--tx);
+  border: 1.5px solid var(--line);
+}
+
+.no-answer .btn-quiet {
+  margin-top: 0;
 }
 
 .btn-primary {
@@ -483,22 +471,23 @@
 
 .jump-bottom {
   position: absolute;
-  bottom: 0.75rem;
+  bottom: 14px;
   left: 50%;
-  padding: 0.4rem 1rem;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(var(--ink-rgb), 0.12);
-  font-size: 0.82rem;
+  padding: 8px 16px;
+  color: var(--tx2);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 8px 20px -10px var(--sh);
+  font-size: 15px;
+  font-weight: 600;
   transform: translateX(-50%);
   white-space: nowrap;
 }
 
 .jump-bottom:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  color: var(--ac-tx);
+  border-color: var(--ac);
 }
 
 /* The pictures a user turn carries: thumbnails in the bubble, or the one

@@ -1,15 +1,14 @@
-// The chat composer and the brain's writing bar.
+// The chat composer.
 
 export const COMPOSER = {
   placeholder: "Write a message…",
   messageAria: "Message",
   send: "Send",
-  stopGenerating: "Stop generating",
+  stop: "Stop",
   attachAria: "Attach a file",
   think: "Think",
   thinkingOn: "Turn thinking on",
   thinkingOff: "Turn thinking off",
-  hintSend: "Enter sends · Shift+Enter adds a line",
   hintOpening: "Opening the chat…",
   disclaimer: "Kalsa can make mistakes. Check important information.",
   thinkingOnTitle: "Thinking: the model reasons before answering. Turn it off to be answered at once.",

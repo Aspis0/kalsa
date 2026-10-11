@@ -2,13 +2,15 @@
 
 export const TOOLS = {
     "checking": "Kalsa 正在核查一件事…",
+    "searching": "正在搜索网络…",
+    "openingPage": "正在打开网页…",
+    "waitingForOk": "等待你的确认…",
     "pageNotOpened": "Kalsa 无法打开那个页面。请再试。",
     "searchDidNotRun": "Kalsa 无法搜索网络。请再试。",
     "couldNotFinish": "Kalsa 没有核查完。请再问一次。",
     "read": (what: string) => `Kalsa 读了${what}`,
     "aPage": "一个页面",
-    "searchedFor": (query: string) => `搜索了“${query}”`,
-    "searchedWeb": "Kalsa 搜索了网络",
+    "searchedWeb": "搜索了网络",
     "searchedForLabel": "搜索了：",
     "askedForLabel": "请求了：",
     "searchWaitingTitle": "Kalsa 想搜索网络。允许它吗？",

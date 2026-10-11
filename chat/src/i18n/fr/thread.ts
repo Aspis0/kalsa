@@ -23,6 +23,7 @@ export const THREAD = {
     "stoppedEarly": "Réponse interrompue.",
     "noAnswer": "Kalsa a fini de réfléchir sans donner de réponse. Essaie de demander autrement.",
     "backToLatest": "Revenir au dernier ↓",
+    "copyAnswer": "Copier la réponse",
     "threadAria": "Conversation",
     "thinking": "Elle réfléchit",
     "thinkingDots": "Elle réfléchit…",

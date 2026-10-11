@@ -96,11 +96,17 @@ async function waitSummary(page, label) {
   }
 }
 
+/** The chat list is a popover: open it unless it already is. */
+async function showList(page) {
+  if ((await page.locator(".chat-list").count()) === 0) {
+    await page.getByRole("button", { name: "Show chats", exact: true }).click();
+  }
+}
+
 async function openSidebar(page, titlePart) {
-  const toggle = page.getByRole("button", { name: "Show chats", exact: true });
-  if (await toggle.isVisible()) await toggle.click();
+  await showList(page);
   await page
-    .locator(".sidebar")
+    .locator(".chat-list")
     .getByRole("button", { name: new RegExp(titlePart.slice(0, 24), "i") })
     .first()
     .click();
@@ -456,7 +462,8 @@ const tests = {
     const p2 = await ctx.newPage();
     await openChat(p2);
     await p2.waitForTimeout(1000);
-    check("multiwindow: p2 starts empty", (await p2.locator(".sidebar-row").count()) === 0);
+    await showList(p2);
+    check("multiwindow: p2 starts empty", (await p2.locator(".chat-list-row").count()) === 0);
     await p1.getByRole("textbox", { name: "Message" }).fill("From window one.");
     await p1.getByRole("textbox", { name: "Message" }).press("Enter");
     await p1.waitForFunction(
@@ -466,7 +473,7 @@ const tests = {
     );
     // p2's sidebar updates with no interaction and no reload.
     try {
-      await p2.waitForFunction(() => document.querySelectorAll(".sidebar-row").length === 1, null, {
+      await p2.waitForFunction(() => document.querySelectorAll(".chat-list-row").length === 1, null, {
         timeout: 10000,
       });
       check("multiwindow: p2 sees the new row", true);
@@ -689,8 +696,9 @@ const tests = {
       await page.getByRole("textbox", { name: "Message" }).press("Enter");
     };
     const open = async (title) => {
+      await showList(page);
       await page
-        .locator(".sidebar")
+        .locator(".chat-list")
         .getByRole("button", { name: new RegExp(title, "i") })
         .first()
         .click();
@@ -698,7 +706,7 @@ const tests = {
     };
     await say("First topic");
     await page.waitForTimeout(800);
-    await page.getByRole("button", { name: "+ New chat" }).click();
+    await page.getByRole("button", { name: "New chat", exact: true }).first().click();
     await say("Second topic");
     await page.waitForTimeout(1500);
     // Both threads hold partial text: two live streams, no interference.
@@ -708,7 +716,7 @@ const tests = {
     const lenB1 = ((await page.locator(".thread").textContent()) ?? "").length;
     check("twostream: both streams alive", lenA1 > 100 && lenB1 > 100, `${lenA1}/${lenB1} chars`);
     // Stop B from B: A must keep growing, B keeps its partial text.
-    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
     await page.waitForTimeout(500);
     await open("First topic");
     await page.waitForTimeout(1500);
@@ -753,13 +761,14 @@ const tests = {
     });
     await openChat(page);
     await page.waitForTimeout(1200);
-    await page.locator(".sidebar-row").first().hover();
+    await showList(page);
+    await page.locator(".chat-list-row").first().hover();
     await page.getByRole("button", { name: "Rename" }).click();
-    await page.locator(".sidebar-rename").fill("New title");
-    await page.locator(".sidebar-rename").press("Enter");
+    await page.locator(".chat-list-rename").fill("New title");
+    await page.locator(".chat-list-rename").press("Enter");
     await page.waitForTimeout(400);
-    const sidebar = (await page.locator(".sidebar").textContent()) ?? "";
-    check("rename: sidebar shows new title", sidebar.includes("New title"));
+    const sidebar = (await page.locator(".chat-list").textContent()) ?? "";
+    check("rename: the list shows the new title", sidebar.includes("New title"));
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     check("rename: index retitled", index[0]?.title === "New title");
     check("rename: search follows title", (index[0]?.search ?? "").startsWith("New title"));
@@ -768,7 +777,7 @@ const tests = {
     await browser.close();
   },
 
-  // Delete: two steps in the row, index and payload both gone.
+  // Delete: the row asks in a dialog, then index and payload are both gone.
   async deleterow() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -787,11 +796,15 @@ const tests = {
     await openChat(page);
     await page.waitForTimeout(1200);
     await openSidebar(page, "Doomed");
-    await page.locator(".sidebar-row").first().hover();
-    await page.getByRole("button", { name: "Delete" }).first().click();
-    await page.getByRole("button", { name: "Sure?" }).click();
+    await showList(page);
+    await page.locator(".chat-list-row").first().hover();
+    await page.locator(".chat-list").getByRole("button", { name: "Delete" }).first().click();
+    const dialog = page.getByRole("alertdialog", { name: "Delete this conversation?" });
+    check("delete: it asks first, naming the chat", ((await dialog.textContent()) ?? "").includes("Doomed"));
+    await dialog.getByRole("button", { name: "Delete" }).click();
     await page.waitForTimeout(400);
-    check("delete: row gone", (await page.locator(".sidebar-row").count()) === 0);
+    await showList(page);
+    check("delete: row gone", (await page.locator(".chat-list-row").count()) === 0);
     check("delete: thread back to empty", (await page.locator(".empty").count()) === 1);
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     check("delete: index empty", index.length === 0);
@@ -824,12 +837,13 @@ const tests = {
     });
     await openChat(page);
     await page.waitForTimeout(1500);
-    check("search1000: rows render without payloads", (await page.locator(".sidebar-row").count()) > 10);
+    await showList(page);
+    check("search1000: rows render without payloads", (await page.locator(".chat-list-row").count()) > 10);
     const t0 = Date.now();
     await page.getByLabel("Search conversations").fill("taxes reckoning");
     let narrowed = false;
     try {
-      await page.waitForFunction(() => document.querySelectorAll(".sidebar-row").length === 1, null, {
+      await page.waitForFunction(() => document.querySelectorAll(".chat-list-row").length === 1, null, {
         timeout: 10000,
       });
       narrowed = true;
@@ -1239,7 +1253,7 @@ const tests = {
     await page.getByRole("textbox", { name: "Message" }).fill("Think slowly.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
     await page.waitForTimeout(600);
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
     const msgs = JSON.parse((await stored(page, `crescent-chat.msgs.${index[0]?.id}.v2`)) ?? "[]");
@@ -1768,7 +1782,7 @@ const tests = {
     await page.waitForTimeout(300);
     const stopsBefore = (await page.evaluate(() => window.__FILE_CALLS__))
       .filter((call) => call.command === "brain_files_search" && call.args?.query === "").length;
-    await page.getByRole("tab", { name: "Attached" }).click();
+    await page.getByRole("tab", { name: "In this chat" }).click();
     await page.waitForTimeout(300);
     const listening = await page.evaluate(
       () => window.__FILE_LISTENERS__["brain_files_search"]?.size ?? 0,
@@ -1962,7 +1976,7 @@ const tests = {
       reads.length === 1 && reads[0].args?.path === "/Users/marco/Documents/notes.txt",
       JSON.stringify(reads.map((call) => call.args)),
     );
-    await page.getByRole("tab", { name: "Attached" }).click();
+    await page.getByRole("tab", { name: "In this chat" }).click();
     await page.waitForTimeout(400);
     check(
       "filesattach: the row's name became an attachment",
@@ -2221,7 +2235,7 @@ const tests = {
       { name: "cycle.txt", mimeType: "text/plain", buffer: Buffer.from("Round-trip text.") },
     ]);
     await page.waitForTimeout(800);
-    await page.locator(".sidebar-row").first().hover();
+    await page.locator(".chat-head-title").hover();
     await page.locator(".panel-list").getByRole("button", { name: "Remove", exact: true }).click();
     await page.waitForTimeout(400);
     check("historyreattach: in history", ((await page.locator(".panel-list").textContent()) ?? "").includes("Reattach"));
@@ -2671,9 +2685,9 @@ const tests = {
     await page.getByRole("textbox", { name: "Message" }).fill("Search for something.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     // Wait until the tool is actually in flight, then stop.
-    await page.locator(".tool-working").first().waitFor({ timeout: 10000 }).catch(() => check("stop: the tool started", false, "never showed as running"));
+    await page.locator(".tool-activity .tool-spin").first().waitFor({ timeout: 10000 }).catch(() => check("stop: the tool started", false, "never showed as running"));
     await page.waitForTimeout(400);
-    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
     await page.waitForTimeout(1200);
 
     const calls = await page.evaluate(() => window.__TOOL_CALLS__ ?? []);
@@ -3387,7 +3401,7 @@ const tests = {
     await page.getByRole("textbox", { name: "Message" }).fill("Search for something.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await gateAsk(page, "gate stop: the ask appeared");
-    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
     await page.waitForTimeout(1200);
     const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
     check("gate stop: the call never left", calls.length === 0, JSON.stringify(calls));
@@ -3481,7 +3495,7 @@ const tests = {
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await gateAsk(page, "gate twoconv: the first ask appeared");
     // While A waits, B starts its own turn and its own ask queues behind it.
-    await page.getByRole("button", { name: "+ New chat" }).click();
+    await page.getByRole("button", { name: "New chat", exact: true }).first().click();
     await attachGateDoc(page, "notes-b.txt", "Notes for conversation B.");
     await page.getByRole("textbox", { name: "Message" }).fill("Look something up about beta please");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -3547,7 +3561,7 @@ const tests = {
 
     // The decomposed spelling of the same word against the same plain query:
     // the third combination, all three one word now.
-    await page.getByRole("button", { name: "+ New chat" }).click();
+    await page.getByRole("button", { name: "New chat", exact: true }).first().click();
     const plain2 = "un caffe molto forte servito a";
     await scriptModel(page, [{ id: "f2", name: "web_search", arguments: JSON.stringify({ query: `who else serves ${plain2} these days` }) }], "Still nothing.");
     await attachGateDoc(page, "decomposed.txt", `Altro menu.\nUn caff\u0065\u0301 molto forte servito a mano in giardino.`);
@@ -3632,7 +3646,7 @@ const tests = {
     await page.getByRole("textbox", { name: "Message" }).fill("Look something up about alpha please");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await gateAsk(page, "gate abortpromote: the first ask appeared");
-    await page.getByRole("button", { name: "+ New chat" }).click();
+    await page.getByRole("button", { name: "New chat", exact: true }).first().click();
     await attachGateDoc(page, "notes-b.txt", "Notes for conversation B.");
     await page.getByRole("textbox", { name: "Message" }).fill("Look something up about beta please");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
@@ -3641,7 +3655,7 @@ const tests = {
     // Stop A from A's own thread: its ask settles as a refusal and B, which
     // was queued behind it, takes the screen.
     await openSidebar(page, "about alpha");
-    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
     await page
       .locator(".webgate-outgoing", { hasText: "beta" })
       .waitFor({ timeout: 10000 })
@@ -4494,11 +4508,11 @@ const tests = {
     await page.waitForTimeout(1200);
     await page.getByRole("textbox", { name: "Message" }).fill("Say something.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
-    await page.getByRole("button", { name: "Stop generating" }).waitFor({ timeout: 8000 });
+    await page.getByRole("button", { name: "Stop", exact: true }).waitFor({ timeout: 8000 });
     // The 400's headers are in and its short body is held open: this Stop
     // lands inside the read.
     await page.waitForTimeout(400);
-    await page.getByRole("button", { name: "Stop generating" }).click();
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
     await page.waitForTimeout(800);
     const thread = (await page.locator(".thread").textContent()) ?? "";
     check("stop400: stopped honestly", thread.includes("Reply stopped."), thread.slice(0, 160));
@@ -5308,7 +5322,7 @@ const tests = {
     // The answer is long, so Stop being on screen is what says the stream is
     // still running: the row left because the token came, not because the
     // turn ended.
-    const streaming = await page.getByRole("button", { name: "Stop generating" }).isVisible().catch(() => false);
+    const streaming = await page.getByRole("button", { name: "Stop", exact: true }).isVisible().catch(() => false);
     check(
       "waitfirst: the first token takes dots and line away mid-stream",
       (await page.locator(".waiting-row").count()) === 0 && streaming,

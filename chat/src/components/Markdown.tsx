@@ -4,6 +4,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import type { English } from "../i18n/en/all";
 import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
+import { Icon } from "./Icon";
 import { Streamdown, type Components } from "streamdown";
 
 function languageOf(className?: string): string {
@@ -72,6 +73,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
       <div className="codeblock-head">
         <span className="codeblock-lang">{language || t.code}</span>
         <button type="button" className="codeblock-copy" onClick={() => void copy()}>
+          <Icon name={copied ? "check" : "copy"} size={14} />
           {copied ? t.copied : failedCopy ? t.copyFailed : t.copy}
         </button>
       </div>

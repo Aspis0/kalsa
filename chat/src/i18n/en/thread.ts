@@ -26,6 +26,7 @@ export const THREAD = {
   stoppedEarly: "Reply stopped.",
   noAnswer: "Kalsa finished thinking without an answer. Try asking another way.",
   backToLatest: "Back to latest ↓",
+  copyAnswer: "Copy answer",
   threadAria: "Conversation",
   // The thinking cloud.
   thinking: "Thinking",

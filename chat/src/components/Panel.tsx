@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Attachment } from "../lib/attachments";
 import type { English } from "../i18n/en/all";
+import { Icon } from "./Icon";
 import { useLanguage } from "../i18n/useLanguage";
 import { BudgetMeter } from "./BudgetMeter";
 import { FilesBrowser } from "./FilesBrowser";
@@ -90,7 +91,7 @@ export function Panel({
             </button>
           </div>
           <button type="button" className="panel-close" onClick={onClose} aria-label={t.closeAria}>
-            ×
+            <Icon name="x" size={18} />
           </button>
         </div>
 
@@ -110,31 +111,37 @@ export function Panel({
             {active.length === 0 ? (
               <p className="panel-empty">{t.empty}</p>
             ) : (
-              <ul className="panel-list">
-                {[...pinned, ...riding].map((a) => (
-                  <li key={a.id} className="panel-row">
-                    <div className="panel-file">
-                      <span className="panel-name" title={a.name}>
-                        {a.name}
+              <>
+                <h3 className="panel-sub">{t.readNext}</h3>
+                <ul className="panel-list">
+                  {[...pinned, ...riding].map((a) => (
+                    <li key={a.id} className="panel-row">
+                      <span className="panel-icon" aria-hidden="true">
+                        <Icon name="file" size={18} />
                       </span>
-                      <span className="panel-meta">{metaLine(t, a)}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`panel-pin${(a.pinned ?? true) ? " is-pinned" : ""}`}
-                      aria-pressed={a.pinned ?? true}
-                      aria-label={t.pinDoc}
-                      title={t.pinDoc}
-                      onClick={() => onPin(a.id, !(a.pinned ?? true))}
-                    >
-                      <span aria-hidden="true">📌</span>
-                    </button>
-                    <button type="button" className="panel-remove" onClick={() => onRemove(a.id)}>
-                      {t.remove}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <div className="panel-file">
+                        <span className="panel-name" title={a.name}>
+                          {a.name}
+                        </span>
+                        <span className="panel-meta">{metaLine(t, a)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`panel-pin${(a.pinned ?? true) ? " is-pinned" : ""}`}
+                        aria-pressed={a.pinned ?? true}
+                        title={t.pinDoc}
+                        onClick={() => onPin(a.id, !(a.pinned ?? true))}
+                      >
+                        <Icon name="pin" size={13} />
+                        {t.pinName}
+                      </button>
+                      <button type="button" className="panel-remove" onClick={() => onRemove(a.id)}>
+                        {t.remove}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
 
             {history.length > 0 ? (
@@ -143,6 +150,9 @@ export function Panel({
                 <ul className="panel-list">
                   {history.map((a) => (
                     <li key={a.id} className="panel-row panel-row-history">
+                      <span className="panel-icon panel-icon-quiet" aria-hidden="true">
+                        <Icon name="file" size={18} />
+                      </span>
                       <div className="panel-file">
                         <span className="panel-name" title={a.name}>
                           {a.name}
@@ -160,6 +170,12 @@ export function Panel({
                   ))}
                 </ul>
               </>
+            ) : null}
+            {active.length > 0 ? (
+              <p className="panel-keep-note">
+                <Icon name="pin" size={15} />
+                {t.pinDoc}
+              </p>
             ) : null}
           </>
         )}

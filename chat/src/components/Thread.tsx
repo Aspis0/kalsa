@@ -9,8 +9,9 @@ import { Markdown } from "./Markdown";
 import { MessageImages } from "./MessageImages";
 import { MessageVideos } from "./MessageVideos";
 import { ThoughtCloud } from "./ThoughtCloud";
-import { ToolActivity } from "./ToolActivity";
-import { MiniappView } from "./miniapp/MiniappView";
+import { MiniappRows, ToolActivity } from "./ToolActivity";
+import { MessageActions } from "./MessageActions";
+import { Icon } from "./Icon";
 import "./Thread.css";
 
 export interface FailedState {
@@ -33,6 +34,8 @@ interface ThreadProps {
   restartedAt: number | null;
   /** A mini app widget's next state, into the run that drew it. */
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
+  /** A web call is held for the owner's OK, so the running check says so. */
+  awaitingOk: boolean;
 }
 
 function errorCopy(
@@ -134,21 +137,26 @@ export function stamp(when: number, tag: string): string {
 function AssistantRow({
   message,
   streaming,
+  live,
   failures,
   tail,
   onRetry,
   onTurnOn,
   restartedAt,
   onMiniappState,
+  awaitingOk,
 }: {
   message: ChatMessage;
   streaming: boolean;
+  /** This is the answer being written right now. */
+  live: boolean;
   failures: Record<string, FailedState>;
   tail?: string;
   onRetry: (messageId: string) => void;
   onTurnOn: () => void;
   restartedAt: number | null;
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
+  awaitingOk: boolean;
 }) {
   const { table, tag } = useLanguage();
   const t = table.thread;
@@ -176,37 +184,29 @@ function AssistantRow({
     streaming && message.content.length === 0 && !hasReasoning && failedHere === null && !toolWorking;
   const showNoAnswer =
     hasReasoning && message.content === "" && !streaming && failedHere === null && !message.stopped;
+  // The copy and time row only under an answer that is done and whole.
+  const finished = !live && message.content !== "" && failedHere === null && !interrupted;
   return (
     <div className="row row-assistant" title={stamp(message.createdAt, tag)}>
-      <div className="assistant-body">
-        {hasReasoning ? (
-          <ThoughtCloud
-            messageId={message.id}
-            reasoning={message.reasoning ?? ""}
-            reasoningMs={message.reasoningMs}
-            working={streaming && message.content === ""}
-            answered={message.content !== ""}
-            tail={tail}
-          />
-        ) : null}
-        <ToolActivity runs={toolRuns} />
-        {toolRuns.map((run) =>
-          run.miniapp ? (
-            <MiniappView
-              key={run.id}
-              miniapp={run.miniapp}
-              onState={(state) => onMiniappState(message.id, run.id, state)}
-            />
-          ) : null,
-        )}
+      {hasReasoning ? (
+        <ThoughtCloud
+          messageId={message.id}
+          reasoning={message.reasoning ?? ""}
+          reasoningMs={message.reasoningMs}
+          working={streaming && message.content === ""}
+          answered={message.content !== ""}
+          tail={tail}
+        />
+      ) : null}
+      <MiniappRows runs={toolRuns} onState={(runId, state) => onMiniappState(message.id, runId, state)} />
+      <div className="assistant-bubble">
+        <ToolActivity runs={toolRuns} awaitingOk={awaitingOk} />
         {showThinking ? (
           <WaitingRow text={t.readingMessage} spoken={t.waitingFirstWord} />
         ) : message.content ? (
           <Markdown text={message.content} streaming={streaming} />
         ) : null}
-        {message.stopped && failedHere === null ? (
-          <p className="row-note">{t.stoppedEarly}</p>
-        ) : null}
+        {message.stopped && failedHere === null ? <p className="row-note">{t.stoppedEarly}</p> : null}
         {showNoAnswer ? (
           <div className="no-answer">
             <p>{engineOff ? t.engineOffBody : t.noAnswer}</p>
@@ -226,11 +226,15 @@ function AssistantRow({
           </p>
         ) : failure !== null ? (
           <div className="error-block" role="alert">
-            <p className="error-title">{failure.title}</p>
-            <p className="error-body">{engineOff ? t.engineOffBody : failure.body}</p>
-            <div className="error-actions">
+            <span className="error-icon" aria-hidden="true">
+              <Icon name={engineOff ? "power" : "alert"} size={19} />
+            </span>
+            <div>
+              <p className="error-title">{failure.title}</p>
+              <p className="error-body">{engineOff ? t.engineOffBody : failure.body}</p>
               {engineStopping ? null : (
-                <button type="button" className="btn-primary" onClick={retry.run}>
+                <button type="button" className={engineOff ? "btn-primary" : "btn-quiet"} onClick={retry.run}>
+                  <Icon name={engineOff ? "power" : "refresh"} size={18} />
                   {retry.label}
                 </button>
               )}
@@ -238,6 +242,7 @@ function AssistantRow({
           </div>
         ) : null}
       </div>
+      {finished ? <MessageActions text={message.content} at={message.createdAt} /> : null}
     </div>
   );
 }
@@ -251,9 +256,11 @@ export function Thread({
   onTurnOn,
   restartedAt,
   onMiniappState,
+  awaitingOk,
 }: ThreadProps) {
   const { table, tag } = useLanguage();
   const { ref: scrollRef, following, toBottom } = useStickToBottom();
+  const lastId = messages.length > 0 ? messages[messages.length - 1].id : null;
 
   return (
     <div className="thread-wrap">
@@ -278,12 +285,14 @@ export function Thread({
                 key={message.id}
                 message={message}
                 streaming={streaming}
+                live={streaming && message.id === lastId}
                 failures={failures}
                 tail={tails[message.id]}
                 onRetry={onRetry}
                 onTurnOn={onTurnOn}
                 restartedAt={restartedAt}
                 onMiniappState={onMiniappState}
+                awaitingOk={awaitingOk}
               />
             ),
           )}

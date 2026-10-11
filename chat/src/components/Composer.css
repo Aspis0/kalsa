@@ -1,325 +1,311 @@
+/* The composer (RULES.md "Composer"): a 28-radius card, the text line, then
+   one row — Attach a file, Think, the disclaimer, Send. Nothing below it. */
+
 .composer {
   flex: none;
   width: 100%;
-  max-width: calc(var(--measure) + 4rem);
+  max-width: calc(780px + 2rem);
   margin: 0 auto;
-  padding: 0.5rem 1rem 0.75rem;
+  padding: 8px 1rem 18px;
 }
 
-/* The words get the whole width on their own row; the actions live in a
-   row below, where they take no space from the text. */
 .composer-box {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.6rem 0.6rem 0.5rem 1rem;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgba(var(--ink-rgb), 0.05);
+  padding: 16px 12px 12px 22px;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 28px;
 }
 
 .composer-box:focus-within {
-  border-color: var(--accent);
+  border-color: var(--ac);
 }
 
 .composer-input {
   width: 100%;
-  padding: 0.35rem 0;
-  color: var(--ink);
+  min-height: 40px;
+  padding: 0;
+  color: var(--tx);
   background: transparent;
   border: 0;
   outline: none;
   resize: none;
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-size: 17px;
+  line-height: 26px;
 }
 
 .composer-input::placeholder {
-  color: var(--silence);
+  color: var(--tx3);
 }
 
-/* The box carries the focus border; the field itself stays ring-less so the
-   composer never shows a double outline. Stronger than the global rule. */
+/* The box's own border carries the focus; the textarea's ring would double it. */
 .composer-box .composer-input:focus-visible {
   outline: none;
 }
 
-/* Attach on the left, everything else on the right: the auto margin on the
-   attach pushes the rest across, and without an attach the row itself
-   right-aligns. */
-.composer-actions {
+.composer-row {
   display: flex;
+  margin-top: 4px;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 10px;
 }
 
-.composer-actions .composer-attach {
-  margin-right: auto;
-}
-
-.composer-action {
-  display: grid;
+.composer-pill {
+  display: inline-flex;
   flex: none;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  color: var(--accent-ink);
-  background: var(--accent);
-  border: 0;
-  border-radius: 999px;
+  height: 46px;
+  padding: 0 16px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx2);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 23px;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.composer-action:hover:not(:disabled) {
-  background: var(--accent-hover);
+.composer-pill:focus-visible {
+  border-radius: 23px;
 }
 
-.composer-action:active:not(:disabled) {
-  background: var(--accent-pressed);
-}
-
-.composer-action:disabled {
-  color: var(--silence);
-  background: var(--surface-muted);
+/* Disabled reads as quiet, not faded: every label keeps AA on its fill. */
+.composer-pill:disabled {
+  color: var(--tx3);
   cursor: default;
 }
 
-/* The Think toggle: a word, not an icon, so it takes the width it needs and
-   carries the chip treatment the AI page's presets use — quiet at rest, the
-   accent fill when it is on. */
-.composer-thinking {
-  width: auto;
-  padding: 0 0.75rem;
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid transparent;
-  font-size: 0.76rem;
-}
-
-.composer-thinking:hover:not(:disabled) {
-  color: var(--accent);
-  background: var(--surface-muted);
-  border-color: var(--border-strong);
-}
-
-.composer-thinking.is-on,
-.composer-thinking.is-on:hover {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.composer-thinking.is-on:hover {
-  background: var(--accent-hover);
-}
-
-.composer-stop {
-  background: var(--surface-muted);
-  border: 1px solid var(--border-strong);
-  color: var(--ink-soft);
-}
-
-.composer-stop:hover {
-  background: var(--border);
-}
-
 .composer-attach {
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid transparent;
+  padding: 0 18px 0 14px;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
 }
 
 .composer-attach:hover {
-  color: var(--accent);
-  border-color: var(--border-strong);
+  border-color: var(--ac);
 }
 
-/* The Room's second send: words, not an icon, and quieter than the
-   primary send beside it. */
-.composer-ask {
-  width: auto;
-  padding: 0 0.8rem;
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid transparent;
-  font-size: 0.8rem;
+.composer-thinking.is-on {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
 }
 
-.composer-ask:hover:not(:disabled) {
-  color: var(--accent);
-  background: var(--surface-muted);
-  border-color: var(--border-strong);
+.composer-thinking:hover:not(:disabled) {
+  border-color: var(--ac);
 }
 
-/* The vision offer: one quiet sentence in the actions row, shaped like
-   Think — never a second primary action in the box. It takes the width its
-   words need and stays on one line; a short row shrinks it to an ellipsis,
-   and the whole sentence rides in the button's title. */
 .composer-vision {
-  flex: 0 1 auto;
-  width: auto;
-  min-width: 0;
-  padding: 0 0.75rem;
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid transparent;
-  font-size: 0.76rem;
-  line-height: 1.3;
-  text-align: left;
+  max-width: 280px;
+  color: var(--ac-tx);
+  border: 1.5px dashed var(--ring);
 }
 
 .composer-vision-label {
-  display: block;
   overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Never cut: where the row is short the sentence wraps to a second line. */
+.composer-note {
+  flex: 1;
+  min-width: 0;
+  padding: 0 8px;
+  color: var(--tx3);
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.composer-ask {
+  color: var(--tx);
+}
+
+.composer-ask:hover:not(:disabled) {
+  border-color: var(--ac);
+}
+
+.composer-send {
+  height: 48px;
+  padding: 0 22px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-color: var(--ac);
+  border-radius: 24px;
+  font-size: 17px;
+}
+
+.composer-send:disabled {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.composer-send:hover:not(:disabled) {
+  background: var(--ac-tx);
+  border-color: var(--ac-tx);
+}
+
+.composer-stop {
+  height: 48px;
+  padding: 0 22px;
+  color: var(--bg);
+  background: var(--tx);
+  border-color: var(--tx);
+  border-radius: 24px;
+  font-size: 17px;
+}
+
+/* --- what rides with the next message --- */
+
+.composer-chips {
+  display: flex;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.composer-doc {
+  display: flex;
+  max-width: 100%;
+  height: 52px;
+  padding: 0 8px 0 12px;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.composer-doc-icon {
+  display: grid;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-radius: 10px;
+}
+
+.composer-doc-text {
+  min-width: 0;
+  line-height: 19px;
+}
+
+.composer-doc-text b {
+  display: block;
+  max-width: 18rem;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.composer-vision:hover {
-  color: var(--accent);
-  background: var(--surface-muted);
-  border-color: var(--border-strong);
+.composer-doc-text small {
+  color: var(--tx3);
+  font-size: 13px;
 }
 
-.composer-hint,
-.composer-disclaimer {
-  margin: 0.35rem 0 0;
-  color: var(--silence);
-  font-size: 0.72rem;
-  text-align: center;
+.composer-doc-keep {
+  display: inline-flex;
+  flex: none;
+  height: 30px;
+  padding: 0 10px;
+  align-items: center;
+  gap: 5px;
+  color: var(--tx2);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-/* Pictures attached but not yet sent: chips above the box, removable like
-   the panel's documents. */
-.composer-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+.composer-doc-keep.is-on {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac-soft);
+}
+
+.composer-doc-keep:focus-visible,
+.composer-chip-remove:focus-visible {
+  border-radius: 15px;
+}
+
+.composer-chip-remove {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: var(--tx3);
+  background: none;
+  border: 0;
+  border-radius: 50%;
+}
+
+.composer-chip-remove:hover {
+  color: var(--tx);
+  background: var(--rail);
 }
 
 .composer-image {
   position: relative;
+  width: 52px;
+  height: 52px;
   margin: 0;
+  overflow: hidden;
+  border-radius: 14px;
 }
 
 .composer-image img {
   display: block;
-  width: 72px;
-  height: 72px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
 }
 
 .composer-image-remove {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: 3px;
+  right: 3px;
   display: grid;
   width: 20px;
   height: 20px;
-  place-items: center;
   padding: 0;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  font-size: 0.8rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-/* A document chip: the same height and quiet border as a picture chip, so
-   one strip reads as one set of attachments. The name ellipsizes; the kind
-   and page count stay whole — they are the short, useful half. */
-.composer-doc {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  max-width: 220px;
-  height: 40px;
-  padding: 0 1.6rem 0 0.55rem;
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  font-size: 0.78rem;
-}
-
-.composer-doc-glyph {
-  flex: none;
-  font-size: 0.95rem;
-}
-
-.composer-doc-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--ink);
-}
-
-.composer-doc-meta {
-  flex: none;
-  color: var(--silence);
-  font-size: 0.7rem;
-  white-space: nowrap;
-}
-
-/* The pin: pressed means the document rides every message, and the pin reads
-   as set; unpinned dims to a hint of the state one press away. */
-.composer-doc-pin {
-  flex: none;
-  display: grid;
-  width: 22px;
-  height: 22px;
   place-items: center;
-  padding: 0;
-  font-size: 0.75rem;
-  line-height: 1;
-  color: var(--ink-soft);
-  background: none;
-  border: none;
-  border-radius: 6px;
-  opacity: 0.45;
-  cursor: pointer;
-}
-
-.composer-doc-pin.is-pinned {
-  opacity: 1;
-  color: var(--accent);
-}
-
-.composer-doc-pin:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 0;
+  border-radius: 50%;
 }
 
 /* A video chip: the glyph stands where a picture would, and for a picture
    whose bytes are not there yet. */
 .composer-image-glyph {
   display: grid;
-  width: 72px;
-  height: 72px;
+  width: 100%;
+  height: 100%;
   place-items: center;
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  color: var(--tx2);
+  background: var(--rail);
 }
 
-/* The work line under a compressing video chip. */
+/* The work line on a compressing video chip. */
 .composer-image-label {
   position: absolute;
+  right: 0;
   bottom: 0;
   left: 0;
-  right: 0;
   padding: 0.1rem 0.2rem;
   color: #fff;
   background: rgba(0, 0, 0, 0.6);
-  border-radius: 0 0 9px 9px;
   font-size: 0.62rem;
   text-align: center;
 }

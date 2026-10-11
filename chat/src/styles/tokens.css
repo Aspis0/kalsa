@@ -28,6 +28,8 @@
   --warn-ring: #d9a443;
   --warn-face: #9a6a1c;
   --err-ink: #9b3b2e;
+  /* The Delete button, the same in both themes. */
+  --danger-fill: #9b3b2e;
 
   /* The names the screens not yet redrawn still read, pointed at Hearth. */
   --page: var(--bg);

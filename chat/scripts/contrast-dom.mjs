@@ -94,9 +94,9 @@ const SEEDED = [
 
 // [label, fgSelector, bgSelector-or-null(walk from fg), setup]
 const CHECKS = [
-  ["assistant prose", ".assistant-body", null, "thread"],
+  ["assistant prose", ".assistant-bubble", ".assistant-bubble", "thread"],
   ["user bubble", ".user-bubble", ".user-bubble", "thread"],
-  ["assistant link", ".markdown a", null, "thread"],
+  ["assistant link", ".markdown .tool-link", null, "thread"],
   ["inline code", ".inline-code", ".inline-code", "thread"],
   ["code language", ".codeblock-lang", ".codeblock-head", "thread"],
   ["code copy button", ".codeblock-copy", ".codeblock-head", "thread"],
@@ -104,13 +104,15 @@ const CHECKS = [
   ["table header", ".markdown th", ".markdown th", "thread"],
   ["error title", ".error-title", null, "failed"],
   ["error body", ".error-body", null, "failed"],
-  ["primary button", ".error-block .btn-primary", ".error-block .btn-primary", "failed"],
   ["quiet button", ".error-block .btn-quiet", null, "failed"],
+  ["primary button", ".error-block .btn-primary", ".error-block .btn-primary", "failedoff"],
   ["composer text", ".composer-input", ".composer-box", "thread"],
-  ["composer hint", ".composer-hint", null, "thread"],
-  ["composer disclaimer", ".composer-disclaimer", null, "thread"],
-  ["topbar title", ".topbar-title h1", null, "thread"],
-  ["topbar button", ".topbar-actions .topbar-btn", null, "thread"],
+  ["composer disclaimer", ".composer-note", null, "thread"],
+  ["composer attach", ".composer-attach", ".composer-attach", "thread"],
+  ["composer send, empty box", ".composer-send:disabled", ".composer-send:disabled", "thread"],
+  ["message time", ".message-actions time", null, "thread"],
+  ["chat header title", ".chat-head-title", null, "thread"],
+  ["chat header button", ".chat-head-btn", ".chat-head-btn", "thread"],
   ["empty title", ".empty-title", null, "empty"],
   ["empty copy", ".empty-copy", null, "empty"],
   ["settings label", ".settings-field span", null, "settings"],
@@ -125,11 +127,10 @@ const CHECKS = [
   ["home using line", ".brain-using", null, "home"],
   ["home details link", ".brain-details", null, "home"],
   ["home footer", ".brain-foot", null, "home"],
-  ["sidebar search", ".sidebar-search input", ".sidebar-search input", "thread"],
-  ["sidebar title", ".sidebar-title", null, "thread"],
-  ["sidebar preview", ".sidebar-preview", null, "thread"],
-  ["sidebar group", ".sidebar-group", null, "thread"],
-  ["sidebar new", ".sidebar-new", ".sidebar-new", "thread"],
+  ["chat list search", ".chat-list-search input", ".chat-list-search", "list"],
+  ["chat list title", ".chat-list-title", null, "list"],
+  ["chat list when", ".chat-list-open em", null, "list"],
+  ["chat list new", ".chat-list-new", ".chat-list-new", "list"],
   ["blocked image", ".blocked-image", null, "img"],
   ["thought face", ".thought-face", null, "think"],
   ["thought toggle", ".thought-toggle", null, "think"],
@@ -160,9 +161,13 @@ async function setupPage(browser, theme, mode) {
   );
   // The remote-server fields are not settings anymore: the endpoint and
   // token this page needs arrive as the brain's own answers.
+  // "failedoff" is the same failed turn with Kalsa off: its way out is the primary Turn Kalsa on.
   await page.addInitScript(installBrainStub, {
     appVersion: APP_VERSION,
-    state: { kind: "running", endpoint: "http://127.0.0.1:18081/ok", model: "x" },
+    state:
+      mode === "failedoff"
+        ? { kind: "stopped" }
+        : { kind: "running", endpoint: "http://127.0.0.1:18081/ok", model: "x" },
     credential: "t",
   });
   await page.goto(APP);
@@ -175,9 +180,14 @@ async function setupPage(browser, theme, mode) {
     await page.locator('.rail-item[data-surface="chat"]').click();
     await page.waitForTimeout(400);
   }
+  if (mode === "list") {
+    await page.getByRole("button", { name: "Show chats", exact: true }).click();
+    await page.waitForTimeout(300);
+  }
   if (
     mode === "thread" ||
     mode === "failed" ||
+    mode === "failedoff" ||
     mode === "img" ||
     mode === "think" ||
     mode === "thinkopen" ||
@@ -187,7 +197,7 @@ async function setupPage(browser, theme, mode) {
     const target =
       mode === "thread"
         ? "Seeded thread"
-        : mode === "failed"
+        : mode === "failed" || mode === "failedoff"
           ? "Interrupted thread"
           : mode === "img"
             ? "Tracker model"
@@ -196,8 +206,9 @@ async function setupPage(browser, theme, mode) {
               : mode === "panel"
                 ? "Seeded thread"
                 : "Thinking model";
+    await page.getByRole("button", { name: "Show chats", exact: true }).click();
     await page
-      .locator(".sidebar")
+      .locator(".chat-list")
       .getByRole("button", { name: new RegExp(target, "i") })
       .first()
       .click();

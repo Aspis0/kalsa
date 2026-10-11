@@ -3,6 +3,9 @@ import type { English } from "../i18n/en/all";
 import { readArguments } from "../lib/toolCalls";
 import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
+import { Icon } from "./Icon";
+import { MiniappView } from "./miniapp/MiniappView";
+import "./ToolActivity.css";
 import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
 
@@ -17,26 +20,50 @@ function webWords(t: English["tools"], code: string): string {
   return table[code] ?? code;
 }
 
+const MINIAPP = "create_miniapp";
+
 /**
- * What Kalsa did before she answered: one quiet, collapsed line per check. The page never loads anything from the network for this — no favicon,
- * no preview image — because that would be a request out of the webview, which
- * is exactly what the content security policy forbids and this design avoids.
+ * What Kalsa did on the web before it answered: one quiet line per check inside
+ * the answer, opening to what was asked and the sources. The page never loads
+ * anything from the network for this — no favicon, no preview image — because
+ * that would be a request out of the webview, which the content security
+ * policy forbids.
  */
-export function ToolActivity({ runs }: { runs: ToolRun[] }) {
-  if (runs.length === 0) return null;
+export function ToolActivity({ runs, awaitingOk }: { runs: ToolRun[]; awaitingOk: boolean }) {
+  const web = runs.filter((run) => run.name !== MINIAPP);
+  if (web.length === 0) return null;
   return (
     <div className="tool-activity">
-      {runs.map((run) => (
-        <ToolRow key={run.id} run={run} />
+      {web.map((run) => (
+        <ToolRow key={run.id} run={run} awaitingOk={awaitingOk} />
       ))}
     </div>
   );
 }
 
-function ToolRow({ run }: { run: ToolRun }) {
-  // The miniapp tool says its own words: it is local, and its row stands
-  // beside the view it built rather than narrating a web check.
-  if (run.name === "create_miniapp") return <MiniappRow run={run} />;
+/** The mini apps a turn built: the build's own line, then the view it drew. */
+export function MiniappRows({
+  runs,
+  onState,
+}: {
+  runs: ToolRun[];
+  onState: (runId: string, state: Record<string, unknown>) => void;
+}) {
+  return (
+    <>
+      {runs
+        .filter((run) => run.name === MINIAPP)
+        .map((run) => (
+          <div key={run.id} className="miniapp-turn">
+            <MiniappRow run={run} />
+            {run.miniapp ? <MiniappView miniapp={run.miniapp} onState={(state) => onState(run.id, state)} /> : null}
+          </div>
+        ))}
+    </>
+  );
+}
+
+function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
   const { table } = useLanguage();
   const t = table.tools;
   const args = readArguments(run.name, run.arguments).args;
@@ -52,9 +79,11 @@ function ToolRow({ run }: { run: ToolRun }) {
   // The one line the row says: the two plain web outcomes, the failure
   // sentences, and nothing for a finished check that needs no words — an
   // internal name is never shown.
+  const running =
+    awaitingOk ? t.waitingForOk : run.name === "web_search" ? t.searching : run.name === "web_fetch" ? t.openingPage : t.checking;
   const summary =
     run.state === "running"
-      ? t.checking
+      ? running
       : failed
         ? run.name === "web_fetch"
           ? t.pageNotOpened
@@ -64,9 +93,7 @@ function ToolRow({ run }: { run: ToolRun }) {
         : run.name === "web_fetch"
           ? t.read(url ? hostOf(url) : t.aPage)
           : run.name === "web_search"
-            ? query
-              ? t.searchedFor(query)
-              : t.searchedWeb
+            ? t.searchedWeb
             : null;
   if (summary === null) return null;
 
@@ -74,13 +101,14 @@ function ToolRow({ run }: { run: ToolRun }) {
     <details className={`tool-run${failed ? " tool-run-failed" : ""}`}>
       <summary>
         {run.state === "running" ? (
-          <span className="tool-working">
-            <span />
-            {t.checking}
-          </span>
+          <span className="tool-spin" aria-hidden="true" />
         ) : (
-          <span>{summary}</span>
+          <Icon name={failed ? "alert" : "globe"} size={16} />
         )}
+        <span>{summary}</span>
+        <span className="tool-chevron" aria-hidden="true">
+          <Icon name="right" size={15} />
+        </span>
       </summary>
       <div className="tool-detail">
         {query ? <p className="tool-query">{t.searchedForLabel} {query}</p> : null}
@@ -102,7 +130,10 @@ function ToolRow({ run }: { run: ToolRun }) {
           <ul className="tool-sources">
             {sources.map((source) => (
               <li key={source}>
-                <Openable url={source}>{hostOf(source)}</Openable>
+                <Openable url={source}>
+                  <Icon name="link" size={14} />
+                  {hostOf(source)}
+                </Openable>
               </li>
             ))}
           </ul>
@@ -126,16 +157,17 @@ function MiniappRow({ run }: { run: ToolRun }) {
     run.state === "running" ? table.miniapp.building : failed ? failure : table.miniapp.built;
 
   return (
-    <details className={`tool-run${failed ? " tool-run-failed" : ""}`}>
+    <details className={`tool-run miniapp-run${failed ? " tool-run-failed" : ""}`}>
       <summary>
         {run.state === "running" ? (
-          <span className="tool-working">
-            <span />
-            {summary}
-          </span>
+          <span className="tool-spin" aria-hidden="true" />
         ) : (
-          <span>{summary}</span>
+          <Icon name={failed ? "alert" : "layoutGrid"} size={18} />
         )}
+        <span>{summary}</span>
+        <span className="tool-chevron" aria-hidden="true">
+          <Icon name="right" size={15} />
+        </span>
       </summary>
       {failed ? (
         <div className="tool-detail">
