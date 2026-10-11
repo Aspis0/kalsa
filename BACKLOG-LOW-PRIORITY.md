@@ -90,7 +90,7 @@
   `executed:1` as "continuation pending", waits 600 s, then force-stops a healthy app (`RECOVERY reason=toolround`).
   Either the app must always run the continuation round after an executed tool, or the harness must accept a turn
   whose KALSA_GOVERNOR/answer landed after the last executed round. Cost: 10 idle minutes and a restart per hit.
-- H7 (P2, audit of app 233486dd, 2026-10-10) The S23 pacing line 0.99 is keyed on the SoC (SM8550/KALAMA), so every
+- H7 RESOLVED 2026-10-11 by app `bc99cfeb` (per-model declared-SEVERE table keyed on Build.MODEL; `KALSA_GOVERNOR_PLAN` logs pacing_start/pacing_full). Was: (P2, audit of app 233486dd, 2026-10-10) The S23 pacing line 0.99 is keyed on the SoC (SM8550/KALAMA), so every
   Snapdragon 8 Gen 2 phone gets it although the headroom lines are per-HAL (cell 78 calibrated one S23). The text
   fallback never matches the S23's model code (SM-S911U); the real S23 reports ro.soc.model=SM8550, so it is reached.
   The governor plan log / G2 gate do not record the pacing params; the run proves them only through
@@ -100,3 +100,7 @@
   interrotta" / "removed from memory". The tool-args cause is fixed (af7e6fc3/fa816975); other errors still hit it.
 - A1 (P2, audit of fa816975) A malformed third-or-later tool call in one round gets the generic cap-skip result, not the
   retry message (still echoed "{}", so the turn no longer breaks). The tool loop itself has no jest harness.
+- E7 (P2, audit of engine 016f58633, 2026-10-11) A hot-plugged profile still takes the plain GPU prefill branch
+  (V73/V75/V79 and now V81 with no live NPU lane); only GPU_COOLMODE checks `hot_plugged_`, while
+  `llama-governor-runtime.cpp:325` logs "hot-plugged profile is CPU-only with no cool mode". Either guard the GPU
+  branch or reword the log.
