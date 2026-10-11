@@ -41,6 +41,9 @@
   2 s. S23 G2 run 2026-10-10 (`s23-g2-graduated-867affaa`): faster first turns (5 completions >= 10 tok/s vs 2),
   about 10 % slower in the hot steady state than the flat 0.5, never SEVERE, no crash; stopped by the harness's
   thermal hard abort, whose 42 C pause ignored the config's 43 (fixed in app `e0ae695d`).
+- **G2 on the S23, 2026-10-10 (APK `233486dd`, cell `s23-g2-full099-233486dd`): 20/20 turns in-app, unplugged from
+  cold, no crash, no recovery, no harness pause, Android status never 3.** NPU decode under graduated pacing (S23 full
+  line 0.99): first completions 10-16 tok/s, hot steady state ~5.8 tok/s at skin ~41.5 C.
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs

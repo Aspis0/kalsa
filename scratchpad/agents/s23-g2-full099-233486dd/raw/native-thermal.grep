@@ -1,0 +1,8 @@
+         1791682373.714  3743  4062 I RNLlama : log_platform_thermal_availability:84 KALSA_GOVERNOR_HEADROOM {available:1}
+         1791682427.363  5768  5952 I RNLlama : log_platform_thermal_availability:84 KALSA_GOVERNOR_HEADROOM {available:1}
+         1791682588.015  8320  8395 I RNLlama : log_platform_thermal_availability:84 KALSA_GOVERNOR_HEADROOM {available:1}
+         1791682764.147  8320  8397 I RNLlama : refresh_platform_thermal:312 KALSA_GOVERNOR_PLATFORM {status:1, prev:0, source:"native", sent:1}
+         1791683004.260  8320  8395 I RNLlama : refresh_platform_thermal:276 KALSA_GOVERNOR_PLATFORM {status:2, prev:1, source:"native", sent:0}
+         1791683009.475  8320  8395 I RNLlama : refresh_platform_thermal:312 KALSA_GOVERNOR_PLATFORM {status:2, prev:1, source:"native", sent:1}
+         1791683522.182  8320  8397 I RNLlama : log_platform_thermal_availability:84 KALSA_GOVERNOR_HEADROOM {available:1}
+         1791688690.415 22194 22285 I RNLlama : log_platform_thermal_availability:84 KALSA_GOVERNOR_HEADROOM {available:1}
