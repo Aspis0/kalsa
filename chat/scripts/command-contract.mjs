@@ -41,7 +41,9 @@ const MAIN = `${REPO_DIR}/src-tauri/src/main.rs`;
 // entry matcher are all built from it. The class is the whole legal name, so
 // a quoted name matches only in full — the character that would continue a
 // longer name is itself in the class, and a prefix cannot stop early.
-const NAME = "brain_[a-z0-9_]+";
+// `window_hidden` is the one command outside the brain_ prefix; it is listed
+// by name so no other non-brain command passes unchecked.
+const NAME = "(?:brain_[a-z0-9_]+|window_hidden)";
 // invoke may carry a type argument before its parenthesis, array types
 // included (invoke<RoomEntry[]>(…)); `through` is the forwarding wrapper
 // named in the header. The type argument admits anything but parentheses,

@@ -265,6 +265,10 @@ async function stubDoor(page, { search = null, fetch = null, hang = false } = {}
               if (command === "brain_web_search") return search;
               return fetchResult;
             }
+            // The start-up reads answer as the brain stub does (brain-stub.mjs);
+            // a page whose capability read is null stays blank.
+            const startUp = window.__STUB_START_UP__;
+            if (startUp && Object.hasOwn(startUp, command)) return startUp[command];
             // The other surfaces read their own commands; none of them is part
             // of these tests, so they answer as an unknown state.
             return null;
@@ -1168,7 +1172,7 @@ const tests = {
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Think, don't speak.", "Thought for");
     check("thinkonly: cloud present", (await page.locator(".thought").count()) === 1);
-    check("thinkonly: no-answer said", ((await page.locator(".thread").textContent()) ?? "").includes("gave no answer"));
+    check("thinkonly: no-answer said", ((await page.locator(".thread").textContent()) ?? "").includes("finished thinking without an answer"));
     check("thinkonly: not an error", (await page.locator(".error-block").count()) === 0);
     await browser.close();
   },
@@ -2149,9 +2153,14 @@ const tests = {
     const banner = page.locator(".refusal-banner");
     check("refusefit: refusal shown", (await banner.count()) === 1);
     const text = ((await banner.count()) === 1 ? await banner.textContent() : null) ?? "";
-    // 1194 chars -> 299 tokens; 299 + 78 prompt + 0 docs + 512 reserve = 889 > 256.
-    check("refusefit: real numbers", text.includes("256") && text.includes("889"), text.slice(0, 120));
-    check("refusefit: never attached", (await page.locator(".panel-row").count()) === 0);
+    // The banner states the refusal in words; it shows no token figures.
+    check(
+      "refusefit: names the file, says nothing attached",
+      text.includes("big.txt is too much for Kalsa at once") && text.includes("Nothing was attached"),
+      text.slice(0, 120),
+    );
+    // A refused file is listed under history, never as an active attachment.
+    check("refusefit: never attached", (await page.locator(".panel-row:not(.panel-row-history)").count()) === 0);
     await shot(page, "shots/62-refusal.png");
     await browser.close();
   },
@@ -2172,7 +2181,7 @@ const tests = {
     check(
       "unknownctx: unknown said aloud",
       unknownCount === 1 &&
-        ((await page.locator(".budget-unknown").textContent()) ?? "").includes("unknown"),
+        ((await page.locator(".budget-unknown").textContent()) ?? "").includes("can't check whether these files fit"),
     );
     check("unknownctx: no scale", (await page.locator(".budget-bar").count()) === 0);
     check("unknownctx: no refusal", (await page.locator(".refusal-banner").count()) === 0);
@@ -2180,10 +2189,6 @@ const tests = {
   },
 
   // Tight context: old turns drop from the wire, the document stays.
-  // Exact arithmetic (estTokens = ceil(chars/4), plus the prompt's 78 and
-  // the 1 every message pays for its empty reasoning):
-  // attach: doc 100 + hist 325 + prompt 78 + 512 reserve = 1015 <= 1024.
-  // send:   doc 100 + hist 425 + prompt 78 + 512 reserve = 1115 > 1024 -> prune 4.
   async prunekeep() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -2235,7 +2240,7 @@ const tests = {
     ]);
     await page.waitForTimeout(800);
     await page.locator(".sidebar-row").first().hover();
-    await page.getByRole("button", { name: "Remove" }).click();
+    await page.locator(".panel-list").getByRole("button", { name: "Remove", exact: true }).click();
     await page.waitForTimeout(400);
     check("historyreattach: in history", ((await page.locator(".panel-list").textContent()) ?? "").includes("Reattach"));
     await page.getByRole("button", { name: "Reattach" }).click();
@@ -2250,8 +2255,6 @@ const tests = {
   },
 
   // Growth after attaching can still overflow: the send is refused aloud.
-  // Exact arithmetic: doc 420 + prompt 78 + newest 26 + 512 reserve = 1036
-  // > 1024, while attach time (420 + 78 + 512 = 1010) fit.
   async oversizesend() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -2630,9 +2633,20 @@ const tests = {
     check("bad: a broken call never reached the door", calls.length === 0, JSON.stringify(calls));
     const wired = (await allBodies(page)).at(-1)?.messages ?? [];
     const result = wired.filter((m) => m.role === "tool")[0];
-    check("bad: the model was told, as a tool result", (result?.content ?? "").includes("not valid JSON"), (result?.content ?? "").slice(0, 120));
+    const modelWords = "The arguments were not valid JSON. Call the tool again with a JSON object.";
+    check("bad: the model was told, as a tool result", result?.content === modelWords, result?.content ?? "no tool result");
+    const echoed = wired.filter((m) => m.role === "assistant" && m.tool_calls).flatMap((m) => m.tool_calls);
+    check(
+      "bad: the echoed arguments are an empty object",
+      echoed.length === 1 && echoed[0].function?.arguments === "{}",
+      JSON.stringify(echoed.map((c) => c.function?.arguments)),
+    );
     const text = (await page.locator(".thread").textContent()) ?? "";
-    check("bad: the thread shows the failure, not a silent call", text.includes("That search did not run"), text.slice(0, 200));
+    check(
+      "bad: the thread shows the failure, not a silent call",
+      text.includes("Kalsa couldn't finish checking. Ask again."),
+      text.slice(0, 200),
+    );
     check("bad: the turn still produced an answer", text.includes("still say"));
     await browser.close();
   },
@@ -4366,10 +4380,6 @@ const tests = {
   // history is realistic (user/assistant pairs), because the cut must take
   // WHOLE turns: an assistant kept without the user it answers is refused by
   // templates that require alternation, with a 400 this fit exists to prevent.
-  // Arithmetic (estTokens = ceil(chars/4), the prompt's 78, and the 1 every
-  // message pays for its empty reasoning): 10 pairs of 98 chars are 26 each;
-  // 20*26 + 25 + 78 = 623, and 623 + 512 > 1024, so the three oldest pairs
-  // (u0..a2) fall and the wire fits at 467, starting at u3.
   async textprune() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -4417,10 +4427,6 @@ const tests = {
   // cuts must land on a user: a wire starting with an orphan assistant is
   // refused by templates that require alternation — a non-overflow 400 that
   // would end the turn in the generic retry text this test refuses to see.
-  // Arithmetic: 10 pairs of 94 chars are 25 each; 20*25 + 35 + 78 = 613, so
-  // the three oldest pairs fall before the send (463), the mock reads
-  // 14*24 + 34 + 78 = 448 > 400 and refuses, and the recovery's halving
-  // walks forward from a6 to u7, leaving three pairs at 256.
   async overflowrecover() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });

@@ -134,9 +134,14 @@ try {
   await page.locator(".row-assistant").nth(0).getByRole("button", { name: "Try again" }).click();
   await page.waitForTimeout(1200);
   const asked = (wires.at(-1)?.messages ?? []).filter((m) => m.role === "user").map((m) => m.content);
+  // The wire turn is the question, then the "Sent on …" line (sentDate.ts).
+  const [question, sentOn, ...extra] = (asked[0] ?? "").split("\n\n");
   check(
     "a retry of the older row carries only the turns before it",
-    asked.length === 1 && asked[0] === "first question",
+    asked.length === 1 &&
+      question === "first question" &&
+      extra.length === 0 &&
+      /^Sent on [A-Z][a-z]+, \d{1,2} [A-Z][a-z]+ \d{4}\.$/.test(sentOn ?? ""),
     JSON.stringify(asked),
   );
 

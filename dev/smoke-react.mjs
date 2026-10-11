@@ -9,6 +9,9 @@ import { pathToFileURL } from "node:url";
 import { build } from "../chat/node_modules/esbuild/lib/main.js";
 import { checkSurfacesCss } from "./check-motion-css.mjs";
 
+// The composer's Stop is an icon button: its name is its English label.
+const STOP_LABEL = "Stop generating";
+
 class FakeNode {
   constructor(tagName, ownerDocument, nodeType = 1, data = "") {
     this.tagName = tagName?.toUpperCase() ?? "";
@@ -250,6 +253,10 @@ function installDom() {
     SVGElement: FakeNode,
     addEventListener() {},
     removeEventListener() {},
+    setTimeout: (...args) => setTimeout(...args),
+    clearTimeout: (...args) => clearTimeout(...args),
+    setInterval: (...args) => setInterval(...args),
+    clearInterval: (...args) => clearInterval(...args),
   };
   document.defaultView = window;
   globalThis.document = document;
@@ -273,6 +280,18 @@ function installDom() {
   // point it at the shim, or node's own unavailable store swallows the
   // language override.
   globalThis.localStorage = window.localStorage;
+  // The thread's stick-to-bottom hook watches sizes and mutations; the fake
+  // DOM has neither layout nor mutation records, so both observers do nothing.
+  const inertObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+  };
+  globalThis.ResizeObserver = inertObserver;
+  globalThis.MutationObserver = inertObserver;
   return cards;
 }
 
@@ -494,9 +513,20 @@ try {
 
   // "token" left this list with the owner's speed decision (the figure
   // rides beside the words), and "port" with her moved-setup sentence.
+  // The report's two privacy sentences say "your files" and "errors" on
+  // purpose (commit 2def99b2), so those whole lines are exempt, and only those.
+  const APPROVED_PLAIN_LINES = new Set([
+    "The log never contains your messages, Kalsa's answers, your files, or any code or key.",
+    "It holds what Kalsa did and what this computer has: versions, processor, graphics card, memory, errors.",
+  ]);
+  const jargonText = results
+    .filter((r) => !expertCards.includes(r))
+    .flatMap((r) => r.lines)
+    .filter((line) => !APPROVED_PLAIN_LINES.has(line))
+    .join("\n");
   const normalBanned = ["url", "file", "error", "state", "gguf", "quant", "credential", "handshake", "secret"];
   for (const word of normalBanned) {
-    const hit = normalText.match(new RegExp(`\\b${word}\\w*`, "i"));
+    const hit = jargonText.match(new RegExp(`\\b${word}\\w*`, "i"));
     if (hit) problems.push(`jargon: "${hit[0]}"`);
   }
   if (!/tokens\/s/.test(expertText)) problems.push("the expert Status counter must identify tokens per second");
@@ -556,19 +586,18 @@ try {
     if (button && button.text.trim() === "") problems.push(`labelless button: ${heading}`);
   }
 
-  const ONCE_PHRASES = ["This happens once.", "happens only once."];
-  for (const { heading, sentence, progress, working } of results) {
+  // The once-only note sits on the tuning step alone (SetupProgress.tsx), so a
+  // download carries no such promise. The percentage is the bar's value now;
+  // the caption shows the bytes only.
+  for (const { heading, progress, barValue, working } of results) {
     if (!working) continue;
-    if (!ONCE_PHRASES.some((phrase) => sentence.includes(phrase))) {
-      problems.push(`a download must make the once-only promise in an approved phrasing: ${heading}`);
-    }
-    const full = progress?.match(/(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) (MB|GB) · (\d+)%$/);
+    const full = progress?.match(/(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) (MB|GB)$/);
     const noTotal = /^(Picking up where it stopped — )?(Downloading\. The total size isn't known yet\.|(\d+(?:\.\d+)?) (MB|GB) received so far\.)$/;
     if (full) {
-      if (Math.floor((parseFloat(full[1]) / parseFloat(full[2])) * 100) !== Number(full[4])) {
-        problems.push(`the percentage must be the bytes' percentage: ${heading}`);
+      if (Math.floor((parseFloat(full[1]) / parseFloat(full[2])) * 100) !== Number(barValue)) {
+        problems.push(`the bar's percentage must be the bytes' percentage: ${heading}`);
       }
-      if (Number(full[4]) > 100) problems.push(`a percentage above 100 is not a percentage: ${heading}`);
+      if (Number(barValue) > 100) problems.push(`a percentage above 100 is not a percentage: ${heading}`);
     } else if (!progress || !noTotal.test(progress)) {
       problems.push(`a download line must be a real percentage or an honest "no size": ${heading}`);
     }
@@ -673,12 +702,11 @@ try {
     }
   }
 
-  // A running Model card must show what actually happened on this start: the
-  // name the shell chose, the reason the shell gave for THIS start, and the
-  // promise that picking is never asked. Two of these are the real cases — a
-  // paired phone (a comparison was made) and no phone (none was) — and the
-  // third is the same card shape with the dev path's absent reason.
-  const MODEL_NO_PICK = "You never have to pick one.";
+  // A running Model card shows the name the shell chose and the reason the
+  // shell gave for THIS start, and nothing else: the user picks on Home, so the
+  // page makes no "never asked to pick" promise (commit c32f3ac0). Two of these
+  // are the real cases — a paired phone (a comparison was made) and no phone
+  // (none was).
   const RUNNING_CARDS = [
     ["running: the choice is automatic", renderer.AUTO_REASON],
     ["running: a phone was paired and compared", renderer.PHONE_REASON],
@@ -697,15 +725,9 @@ try {
     if (!card.sentence.includes(reason)) {
       problems.push(`a running Model card must carry the shell's reason for this start, not a general rule: ${note}`);
     }
-    if (!card.sentence.includes(MODEL_NO_PICK)) {
-      problems.push(`a running Model card must still promise that picking is never asked: ${note}`);
-    }
-    // Exact equality, not a search for forbidden words: the sentence is the
-    // shell's reason and then the promise, and nothing else may ride along.
-    if (card.sentence !== `${reason} ${MODEL_NO_PICK}`) {
-      problems.push(
-        `a running Model card's sentence must be exactly the reason followed by the promise: ${note}`,
-      );
+    // Exact equality: the sentence is the shell's reason and nothing else.
+    if (card.sentence !== reason) {
+      problems.push(`a running Model card's sentence must be exactly the shell's reason: ${note}`);
     }
   }
   for (const { heading, buttons } of modelCards) {
@@ -1189,10 +1211,10 @@ try {
     const canAsk =
       phoneNames.length - deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
     if (canAsk > 0) {
-      if (!all.includes("Up to four phones can get answers at the same time. If more ask at once, the others wait a few seconds for their turn.")) {
+      if (!all.includes("If several phones ask at the same time, some may have to wait their turn.")) {
         problems.push(`a house with a paired phone says its capacity: ${heading}`);
       }
-    } else if (all.includes("Up to four phones can get answers at the same time.")) {
+    } else if (all.includes("If several phones ask at the same time, some may have to wait their turn.")) {
       problems.push(`no paired phone, no capacity line: ${heading}`);
     }
 
@@ -1241,9 +1263,9 @@ try {
       // do not apply to a page rendered in another language.
       if (heading.startsWith("Room — in ")) {
         const want = heading.includes("Chinese")
-          ? ["停止", "Kalsa 正在回答Marco。"]
+          ? ["停止回答"]
           : ["Kalsa risponderà prima a Marco, poi a Luca.", "Chiedi a Kalsa"];
-        const missing = want.filter((wanted) => !all.includes(wanted));
+        const missing = want.filter((wanted) => !all.includes(wanted) && !buttons.includes(wanted));
         if (missing.length > 0) {
           problems.push(`Room — ${heading}: missing ${JSON.stringify(missing)}`);
         }
@@ -1253,7 +1275,7 @@ try {
         if (!all.includes("No messages yet. Say something, or ask Kalsa.")) {
           problems.push(`Room — empty room must say so: ${heading}`);
         }
-        if (buttons.includes("Stop")) {
+        if (buttons.includes(STOP_LABEL)) {
           problems.push(`Room — empty room must not offer Stop: ${heading}`);
         }
         if (!buttons.includes("Ask Kalsa")) {
@@ -1272,11 +1294,8 @@ try {
         }
       }
       if (heading.includes("Kalsa answering")) {
-        if (!buttons.includes("Stop")) {
+        if (!buttons.includes(STOP_LABEL)) {
           problems.push(`Room — an answering turn must offer Stop: ${heading}`);
-        }
-        if (!all.includes("Kalsa is answering Marco.")) {
-          problems.push(`Room — the turn must name who it answers: ${heading}`);
         }
         if (!all.includes("It is 17:00, and the")) {
           problems.push(`Room — the live answer must stream into the page: ${heading}`);
@@ -1288,20 +1307,17 @@ try {
         }
         // The turn still runs while it waits (the stop can act on it), so
         // Stop stays: the rule is "shows exactly when it can act".
-        if (!buttons.includes("Stop")) {
+        if (!buttons.includes(STOP_LABEL)) {
           problems.push(`Room — a waiting turn can still be stopped: ${heading}`);
         }
       }
-      if (heading.includes("idle: no Stop") && buttons.includes("Stop")) {
+      if (heading.includes("idle: no Stop") && buttons.includes(STOP_LABEL)) {
         problems.push(`Room — idle must not offer Stop: ${heading}`);
       }
       if (heading.includes("thinking")) {
         // A turn runs while Kalsa thinks: the stop can act, so it shows.
-        if (!buttons.includes("Stop")) {
+        if (!buttons.includes(STOP_LABEL)) {
           problems.push(`Room — a thinking turn must offer Stop: ${heading}`);
-        }
-        if (!all.includes("Kalsa is answering Marco.")) {
-          problems.push(`Room — a thinking turn names who it is for: ${heading}`);
         }
       }
       if (heading.includes("closed room")) {
@@ -1408,7 +1424,7 @@ try {
     const FIRST_PAGE = {
       off: ["Kalsa is off.", "Turn Kalsa on"],
       service: ["Kalsa can't be reached from this page right now. Open Devices to fix it.", "Go to Devices"],
-      starting: ["Getting ready. On a less recent computer this can take a minute.", "Turn Kalsa on"],
+      starting: ["Getting ready. On a slower computer this can take a minute.", "Turn Kalsa on"],
       key: ["Kalsa is still setting up this computer. Open Devices to finish.", "Devices"],
       "key-read": ["This computer could not read its own connection key.", "Devices"],
       "key-junk": ["Kalsa is still setting up this computer. Open Devices to finish.", "Devices"],

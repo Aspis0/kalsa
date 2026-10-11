@@ -8,7 +8,8 @@
 
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { AdvancedSurface } from "../chat/src/surfaces/AdvancedSurface";
+import { AdvancedPanel } from "../chat/src/components/AdvancedPanel";
+import { SamplingPanel } from "../chat/src/components/SamplingPanel";
 import { DevicesSurface } from "../chat/src/surfaces/DevicesSurface";
 import { ModelsSurface } from "../chat/src/surfaces/ModelsSurface";
 import { ServerSurface } from "../chat/src/surfaces/ServerSurface";
@@ -113,6 +114,9 @@ const ADMITTED_TWO = [
   { id: 2, label: "Paired phone 2", phone: "phone with 3 GB of model weights", kind: "phone" },
 ];
 
+// The panel's save answers with the case's own DTO, as the bridge answers it.
+const advancedSave = async () => bridgeState.advanced ?? null;
+
 function advancedDto(extra = {}) {
   return {
     context_tokens: 4096,
@@ -184,13 +188,13 @@ function stateDto(kind, metrics = {}) {
 }
 
 const scenarios = [
-  ["Status", "a progress event arrives and is shown (real bytes)", "server", { state: stateDto("stopped"), step: { kind: "model_bytes", done: 2100000000, total: MODEL_BYTES } }],
-  ["Status", "a progress event: the engine's bytes (real bytes)", "server", { state: stateDto("stopped"), step: { kind: "runtime_bytes", done: 8000000, total: 18000000 } }],
-  ["Status", "a progress event: resumed past zero (real bytes)", "server", { state: stateDto("stopped"), step: { kind: "model_bytes", done: 401000000, total: MODEL_BYTES } }],
-  ["Status", "a progress event: no size announced (real bytes)", "server", { state: stateDto("stopped"), step: { kind: "model_bytes", done: 320000000, total: 0 } }],
-  ["Status", "first run: measuring the machine", "server", { state: stateDto("stopped"), step: { kind: "measuring" } }],
-  ["Status", "first run: deciding the engine", "server", { state: stateDto("stopped"), step: { kind: "deciding" } }],
-  ["Status", "first run: choosing a model", "server", { state: stateDto("stopped"), step: { kind: "choosing" } }],
+  ["Status", "a progress event arrives and is shown (real bytes)", "server", { state: stateDto("starting"), step: { kind: "model_bytes", done: 2100000000, total: MODEL_BYTES } }],
+  ["Status", "a progress event: the engine's bytes (real bytes)", "server", { state: stateDto("starting"), step: { kind: "runtime_bytes", done: 8000000, total: 18000000 } }],
+  ["Status", "a progress event: resumed past zero (real bytes)", "server", { state: stateDto("starting"), step: { kind: "model_bytes", done: 401000000, total: MODEL_BYTES } }],
+  ["Status", "a progress event: no size announced (real bytes)", "server", { state: stateDto("starting"), step: { kind: "model_bytes", done: 320000000, total: 0 } }],
+  ["Status", "first run: measuring the machine", "server", { state: stateDto("starting"), step: { kind: "measuring" } }],
+  ["Status", "first run: deciding the engine", "server", { state: stateDto("starting"), step: { kind: "deciding" } }],
+  ["Status", "first run: choosing a model", "server", { state: stateDto("starting"), step: { kind: "choosing" } }],
   ["Status", "first run: no model, engine off", "server", { state: stateDto("stopped") }],
   ["Status", "off, with a model set up", "server", { state: stateDto("stopped") }],
   ["Status", "starting", "server", { state: stateDto("starting") }],
@@ -717,7 +721,8 @@ function extract(panel, heading, automatic = []) {
   const buttonEls = elements(panel, (el) => el.tagName === "BUTTON");
   const headlineEl = first(panel, (el) => el.className === "surface-headline");
   const sentenceEl = first(panel, (el) => el.className === "surface-sentence");
-  const progressEl = first(panel, (el) => el.className === "surface-walk-progress");
+  const progressEl = first(panel, (el) => el.className === "sprout-caption");
+  const barEl = first(panel, (el) => (el.className ?? "").split(" ").includes("sprout-bar"));
   const walkEl = first(panel, (el) => el.className === "surface-walk");
   const qrEl = first(panel, (el) => el.className === "surface-qr");
   const deviceEls = elements(panel, (el) => el.className === "surface-device-name");
@@ -743,9 +748,11 @@ function extract(panel, heading, automatic = []) {
     sentence: elementText(sentenceEl) || elementText(panel),
     all: elementText(panel),
     button: buttonEls[0] ? { text: elementText(buttonEls[0]), disabled: buttonEls[0].disabled } : null,
-    buttons: buttonEls.map(elementText),
+    // An icon button (the composer's Stop) has no text: its name is its label.
+    buttons: buttonEls.map((el) => elementText(el) || el.getAttribute?.("aria-label") || ""),
     progress: progressEl ? elementText(progressEl) : null,
     working: Boolean(progressEl),
+    barValue: barEl?.getAttribute?.("aria-valuenow") ?? null,
     walk: Boolean(walkEl),
     qr: Boolean(qrEl),
     deviceNames: deviceEls.map(elementText),
@@ -816,10 +823,12 @@ function componentFor(kind, data) {
     return React.createElement(
       LanguageProvider,
       null,
-      React.createElement(AdvancedSurface, {
+      React.createElement(AdvancedPanel, {
+        save: advancedSave,
         model: data?.model ?? "",
         onModelChange: () => {},
       }),
+      React.createElement(SamplingPanel),
     );
   }
   if (kind === "room") {
@@ -1081,7 +1090,7 @@ export async function renderAdvancedProbe(data) {
     React.createElement(
       LanguageProvider,
       null,
-      React.createElement(AdvancedSurface, { model: "", onModelChange: () => {} }),
+      React.createElement(AdvancedPanel, { save: advancedSave, model: "", onModelChange: () => {} }),
     ),
   );
   await settle();
@@ -1113,7 +1122,7 @@ export async function renderAdvancedFieldProbe(data) {
     React.createElement(
       LanguageProvider,
       null,
-      React.createElement(AdvancedSurface, { model: "", onModelChange: () => {} }),
+      React.createElement(AdvancedPanel, { save: advancedSave, model: "", onModelChange: () => {} }),
     ),
   );
   await settle();
@@ -1150,7 +1159,7 @@ export async function renderAdvancedCacheProbe(data) {
     React.createElement(
       LanguageProvider,
       null,
-      React.createElement(AdvancedSurface, { model: "", onModelChange: () => {} }),
+      React.createElement(AdvancedPanel, { save: advancedSave, model: "", onModelChange: () => {} }),
     ),
   );
   await settle();
