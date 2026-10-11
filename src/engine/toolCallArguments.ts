@@ -3,6 +3,8 @@
  * object, and the form they take when echoed back into the transcript.
  */
 
+import type { ToolCall } from "llama.rn";
+
 /**
  * Model-directed tool-role content for a call whose arguments did not parse
  * (English, not i18n, same convention as the other tool-loop messages). The
@@ -35,4 +37,26 @@ export function parseToolArguments(raw: string | undefined): {
  */
 export function echoedToolArguments(raw: string | undefined): string {
   return raw && !parseToolArguments(raw).parseFailed ? raw : "{}";
+}
+
+/**
+ * One emitted call, decided on the model's raw arguments text. `echo` is what
+ * goes into history; `args` and `parseFailed` must come from the raw text,
+ * because the echo has already turned malformed text into "{}".
+ */
+export function prepareToolCall(
+  call: ToolCall,
+  fallbackId: string,
+): { echo: ToolCall; args: Record<string, unknown>; parseFailed: boolean } {
+  const raw = typeof call.function?.arguments === "string" ? call.function.arguments : undefined;
+  const { args, parseFailed } = parseToolArguments(raw);
+  return {
+    echo: {
+      type: "function",
+      id: typeof call.id === "string" && call.id ? call.id : fallbackId,
+      function: { ...call.function, arguments: echoedToolArguments(raw) },
+    },
+    args,
+    parseFailed,
+  };
 }

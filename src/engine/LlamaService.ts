@@ -8,6 +8,7 @@ import {
   type RNLlamaMessagePart,
   type RNLlamaOAICompatibleMessage,
   type TokenData,
+  type ToolCall,
 } from "llama.rn";
 import {
   beginNativeLogEpoch,
@@ -144,8 +145,8 @@ import {
 import { shouldFireToolRoundFallback } from "./toolRoundFallback";
 import { toolRoundCrossesCeiling } from "./toolRoundCeiling";
 import {
-  echoedToolArguments,
   parseToolArguments,
+  prepareToolCall,
   TOOL_ARGS_RETRY_MESSAGE,
 } from "./toolCallArguments";
 import {
@@ -5479,29 +5480,25 @@ export async function streamAssistantTurn(
         // ma solo le prime 2 vengono eseguite (S2): le altre vanno comunque nel
         // messaggio assistant + un risultato tool "skipped" così il transcript
         // resta coerente (nessuna tool_call orfana senza risposta).
-        // Echo arguments are normalized here, so the executed and skipped paths
-        // below both carry JSON the next round's prompt formatting can parse.
-        const normalizedCalls = toolCalls.map((call, index) => ({
-          type: "function" as const,
-          id: typeof call.id === "string" && call.id ? call.id : `call-${round}-${index}`,
-          function: { ...call.function, arguments: echoedToolArguments(call.function?.arguments) },
-        }));
-        const executableCalls = normalizedCalls.slice(0, 2);
-        const skippedCalls = normalizedCalls.slice(2);
+        // Each call is decided on its raw arguments and echoed normalized: the
+        // executed and skipped paths both carry JSON the next round's prompt
+        // formatting can parse, and a malformed call never reaches a tool.
+        const prepared = toolCalls.map((call, index) =>
+          prepareToolCall(call, `call-${round}-${index}`),
+        );
+        const executableCalls = prepared.slice(0, 2);
+        const skippedCalls = prepared.slice(2).map((entry) => entry.echo);
         toolTel.skippedCap = skippedCalls.length;
         const executed: Array<{
-          call: (typeof normalizedCalls)[number];
+          call: ToolCall;
           content: string;
         }> = [];
         // Per-turn source list: each tool outcome appends (dedup by url); onSources
         // always receives the full accumulated array so UI [N] cites stay stable
         // across search + fetch in the same turn (AiChatPage replaces, not merges).
-        for (const call of executableCalls) {
+        for (const { echo: call, args, parseFailed } of executableCalls) {
           const name = call.function?.name ?? "";
           if (name) toolTel.toolNames.push(name);
-          const { args, parseFailed } = parseToolArguments(
-            typeof call.function?.arguments === "string" ? call.function.arguments : undefined,
-          );
           // Arguments that do not parse never reach a tool; the model gets a retry
           // result instead. Not counted as executed, because nothing ran.
           if (parseFailed) {
