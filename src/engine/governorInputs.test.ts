@@ -809,6 +809,30 @@ describe("kalsa.bench.decode_hop", () => {
   });
 });
 
+describe("S23 decode-pacing full line", () => {
+  test("an SM8550 or KALAMA profile sends 0.99", () => {
+    for (const soc of ["SM8550", "KALAMA"]) {
+      expect(
+        buildGovernorParams(model, device("SM-S911U", 8 * 1024 ** 3, soc), memory),
+      ).toHaveProperty("decode_pacing_headroom_full", 0.99);
+    }
+    // The fallback text path counts too: the S23 check reads the profile the
+    // same way generationFor does, so a null socModel named in the model hits.
+    expect(buildGovernorParams(model, device("SM8550"), memory)).toHaveProperty(
+      "decode_pacing_headroom_full",
+      0.99,
+    );
+  });
+
+  test("every other SoC leaves the key out and keeps the engine default", () => {
+    for (const soc of ["SM8650", "SM7675", "SM8635", "SM8750"]) {
+      expect(
+        buildGovernorParams(model, device("Phone", 12 * 1024 ** 3, soc), memory),
+      ).not.toHaveProperty("decode_pacing_headroom_full");
+    }
+  });
+});
+
 describe("platform_thermal_status in the thermo feed", () => {
   const batteryPoll = {
     battTempTenthsC: 320,

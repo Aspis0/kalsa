@@ -135,22 +135,41 @@ type GovernorModel = Pick<ModelInfo, "sizeBytes"> &
     model_kind?: "Dense" | "Hybrid" | "MoE";
   };
 
+/** The two SoC strings the classification checks read: ro.soc.model, and the
+ *  model/manufacturer text those checks fall back to. One derivation, so the
+ *  generation and the S23 check cannot read a profile differently. */
+function socIdentifiers(profile: DeviceProfile) {
+  return {
+    soc: (profile.socModel ?? "").toUpperCase(),
+    text: [profile.modelName, profile.modelId, profile.manufacturer]
+      .filter((value): value is string => typeof value === "string")
+      .join(" ")
+      .toUpperCase(),
+  };
+}
+
 function generationFor(profile: DeviceProfile): Generation {
-  const soc = (profile.socModel ?? "").toUpperCase();
+  const { soc, text } = socIdentifiers(profile);
   if (/(SM8550|KALAMA|SM7675|SM8635)/.test(soc)) return "V73";
   if (/(SM8650|PINEAPPLE)/.test(soc)) return "V75";
   if (/(SM8750|SUN)/.test(soc)) return "V79";
   // QDC device logs: ro.soc.model=SM8850, board.platform=canoe, product.model=Canoe.
   if (/(SM8850|CANOE)/.test(soc)) return "V81";
-  const text = [profile.modelName, profile.modelId, profile.manufacturer]
-    .filter((value): value is string => typeof value === "string")
-    .join(" ")
-    .toUpperCase();
   if (/(^|[^A-Z0-9])(QRD8650|SM8650)([^A-Z0-9]|$)/.test(text)) return "V75";
   if (/(^|[^A-Z0-9])(QRD8750|SM8750)([^A-Z0-9]|$)/.test(text)) return "V79";
   if (/(^|[^A-Z0-9])(QRD8850|SM8850)([^A-Z0-9]|$)/.test(text)) return "V81";
   if (/(^|[^A-Z0-9])(HDK8550|SM8550|QRD7675|SM7675|QRD8635|SM8635)([^A-Z0-9]|$)/.test(text)) return "V73";
   return "Unknown";
+}
+
+/** S23 = Snapdragon 8 Gen 2 (SM8550 / KALAMA). Keyed on the SoC, never the
+ *  generation: V73 also covers SM7675/SM8635, which keep the engine defaults. */
+function isS23Device(profile: DeviceProfile): boolean {
+  const { soc, text } = socIdentifiers(profile);
+  return (
+    /(SM8550|KALAMA)/.test(soc) ||
+    /(^|[^A-Z0-9])(SM8550|KALAMA)([^A-Z0-9]|$)/.test(text)
+  );
 }
 
 function modelKind(model: GovernorModel) {
@@ -298,6 +317,13 @@ function gpuFit(
   return { fit: "NoFit" as const, decodeRepack: benchNoRepack === false };
 }
 
+/** S23 (Snapdragon 8 Gen 2, SM8550/KALAMA) decode-pacing full line — the
+ *  headroom (1.0 = Android SEVERE) where the duty ramp reaches its floor.
+ *  Owner 2026-10-10: 0.99 instead of the engine default 0.97, so the hot
+ *  steady state settles a little hotter and faster (skin ~41.0 -> ~41.7 C;
+ *  lab cells s23-headroom-cal-78, s23-g2-graduated-867affaa). */
+const S23_PACING_HEADROOM_FULL = 0.99;
+
 export function buildGovernorParams(
   modelEntry: GovernorModel,
   deviceProfile: DeviceProfile,
@@ -363,6 +389,10 @@ export function buildGovernorParams(
     // from kalsa.bench.decode_hop. Omitted when off so the default params
     // object stays byte-identical to production.
     ...(decodeHopTokens > 0 ? { decode_hop_tokens: decodeHopTokens } : {}),
+    // S23-only; why and the calibration cells are on the constant above.
+    ...(isS23Device(deviceProfile)
+      ? { decode_pacing_headroom_full: S23_PACING_HEADROOM_FULL }
+      : {}),
     // V73 carries the owner's 2026-09-21 enablement decision, not a measurement.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
     gpu_prefill_measured:
