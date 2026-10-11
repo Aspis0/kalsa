@@ -52,6 +52,7 @@ const device = (
     availableMemoryBytes: 8 * 1024 ** 3,
     socModel,
     socManufacturer: null,
+    osName: "Android",
   } as DeviceProfile);
 
 const model = {
@@ -809,26 +810,56 @@ describe("kalsa.bench.decode_hop", () => {
   });
 });
 
-describe("S23 decode-pacing full line", () => {
-  test("an SM8550 or KALAMA profile sends 0.99", () => {
+describe("decode-pacing lines from the declared SEVERE table", () => {
+  test("the S23 model sends 0.87 and 0.99 on either SM8550 or KALAMA", () => {
     for (const soc of ["SM8550", "KALAMA"]) {
       expect(
         buildGovernorParams(model, device("SM-S911U", 8 * 1024 ** 3, soc), memory),
-      ).toHaveProperty("decode_pacing_headroom_full", 0.99);
+      ).toMatchObject({
+        decode_pacing_headroom_start: 0.87,
+        decode_pacing_headroom_full: 0.99,
+      });
     }
-    // The fallback text path counts too: the S23 check reads the profile the
-    // same way generationFor does, so a null socModel named in the model hits.
-    expect(buildGovernorParams(model, device("SM8550"), memory)).toHaveProperty(
+  });
+
+  test("the Xiaomi 14 sends its own scale: 0.053 and 0.173", () => {
+    expect(
+      buildGovernorParams(model, device("23127PN0CG", 12 * 1024 ** 3, "SM8650"), memory),
+    ).toMatchObject({
+      decode_pacing_headroom_start: 0.053,
+      decode_pacing_headroom_full: 0.173,
+    });
+  });
+
+  test("an SM8550 that is not an S23 sends no pacing keys", () => {
+    expect(
+      buildGovernorParams(model, device("2211133G", 8 * 1024 ** 3, "SM8550"), memory),
+    ).not.toHaveProperty("decode_pacing_headroom_start");
+  });
+
+  test("the SoC name alone is not a model: no pacing keys", () => {
+    expect(buildGovernorParams(model, device("SM8550"), memory)).not.toHaveProperty(
       "decode_pacing_headroom_full",
-      0.99,
     );
   });
 
-  test("every other SoC leaves the key out and keeps the engine default", () => {
+  test("an unmeasured model leaves both keys out for every SoC", () => {
     for (const soc of ["SM8650", "SM7675", "SM8635", "SM8750"]) {
       expect(
         buildGovernorParams(model, device("Phone", 12 * 1024 ** 3, soc), memory),
-      ).not.toHaveProperty("decode_pacing_headroom_full");
+      ).not.toHaveProperty("decode_pacing_headroom_start");
+    }
+  });
+
+  test("a non-Android profile sends no pacing keys", () => {
+    for (const osName of ["iOS", null]) {
+      expect(
+        buildGovernorParams(
+          model,
+          { ...device("SM-S911U", 8 * 1024 ** 3, "SM8550"), osName },
+          memory,
+        ),
+      ).not.toHaveProperty("decode_pacing_headroom_start");
     }
   });
 });
