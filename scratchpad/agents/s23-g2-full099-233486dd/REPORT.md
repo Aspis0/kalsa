@@ -70,5 +70,5 @@ skin >= 44 C; it never had to act). Evidence in `raw/run2/`.
 | MemAvailable min | 1.35 GB | 1.08 GB |
 | Battery | 100 -> 64 % | 100 -> 65 % |
 
-The S23 result repeats. MemAvailable dipped to 1.08 GB in run 2 (the one-copy margin; the hard resets of 2026-10-09
-were below ~0.5 GB in the bench).
+The S23 result repeats. MemAvailable dipped to 1.08 GB in run 2: the one-copy margin (cell 77 measured ~0.9 GB left
+after one NPU load; the 2026-10-09 hard reset came from a second model load in one bench process).
