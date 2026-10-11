@@ -104,3 +104,10 @@
   (V73/V75/V79 and now V81 with no live NPU lane); only GPU_COOLMODE checks `hot_plugged_`, while
   `llama-governor-runtime.cpp:325` logs "hot-plugged profile is CPU-only with no cool mode". Either guard the GPU
   branch or reword the log.
+- A2 (P2, audit of app c5898702, 2026-10-11) `LlamaService.ts:2521` refuses every governor load with `gpu_fit === "NoFit"`,
+  although `buildGovernorParams` can enable the governor on the NPU lane's own fit (`governorInputs.ts:360-370`, whose
+  comment promises a lane-only load). A device whose GPU does not fit but whose NPU lane does falls to CPU.
+- A3 (P3, same audit) `KALSA_GOVERNOR_FALLBACK` reason `gpu-prefill-incorrect-V81` is now unreachable (V81 enabled), but
+  `schemaDrift.test.ts:48-51` requires one reason per generation; derive the allowed reasons from the false entries.
+- A4 (P2, same audit) The lane-off V81 path (two-model governor load, GPU prefill, CPU decode) has never run on a
+  device; on SM8850 the NPU lane is on by default, so it is reached only without an HTP arch or with the lane off.
