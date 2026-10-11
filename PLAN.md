@@ -328,8 +328,12 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
   therefore judged on the S23 and the Xiaomi 14, with the Jelly declared out of scope.
 - SM8850 GPU prefill (V81): logit oracle FAIL R2 again on engine 74b75037f (2026-10-11,
   `qdc-oracle-onoff-41dc728f`: one distinct comparison, top-1 agrees on 32/32 steps, max_dp1 0.108 vs
-  0.02; CPU replay control PASS 0.0000). `GPU_PREFILL_CORRECT.V81` stays false; nothing to decide unless
-  the owner wants a looser rule.
+  0.02; CPU replay control PASS 0.0000), but it meets the effect-size criteria V75 was promoted on. Owner
+  2026-10-11: V81 GPU prefill is the fallback when the NPU lane is off (app `df359450`, engine `f1f612388`).
+  Verified on the SM8850 the same evening (`qdc-v81-fallback-df359450`, 4 turns): lane off -> prefill GPU
+  295 tok/s, decode CPU, no fallback, no crash, answers on topic; defaults -> prefill NPU 1342 tok/s;
+  governor OFF -> CPU 224 tok/s. Not checked: logits on the fallback path; the lane-off arm also runs V cache
+  q4_0 vs q8_0 on the NPU arm.
 - Safety marking on the ship model: complied 0/24 with parity on all 6 categories, but 4
   pre-answer cells are flagged RELEASE BLOCKER CANDIDATE (S1_t07, S4_t0, S6_t0, S6_t07); a
   budget-up re-run (n >= 160) is required before acting on it (`archived/ALIVE-2026-10-09-full.md:259-263`).

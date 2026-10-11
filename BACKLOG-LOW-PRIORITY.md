@@ -109,8 +109,8 @@
   comment promises a lane-only load). A device whose GPU does not fit but whose NPU lane does falls to CPU.
 - A3 (P3, same audit) `KALSA_GOVERNOR_FALLBACK` reason `gpu-prefill-incorrect-V81` is now unreachable (V81 enabled), but
   `schemaDrift.test.ts:48-51` requires one reason per generation; derive the allowed reasons from the false entries.
-- A4 (P2, same audit) The lane-off V81 path (two-model governor load, GPU prefill, CPU decode) has never run on a
-  device; on SM8850 the NPU lane is on by default, so it is reached only without an HTP arch or with the lane off.
+- A4 RESOLVED 2026-10-11: the lane-off V81 path ran on the SM8850 (`qdc-v81-fallback-df359450`, two turns: prefill
+  GPU 295 tok/s, decode CPU, no fallback, no crash). Still unrun: the no-HTP-arch entry to the same path.
 - H9 (P1 for harness runs with the governor OFF, 2026-10-11) The readiness gate `device_ready_log_seen`
   (`scripts/device-share-send.sh:49-62`) waits for `KALSA_PREWARM op=done`, but a prewarm that restores its saved
   snapshot ends with `{"op":"restore","ok":true,...}` and never logs `done` (`LlamaService.ts` ~1349-1355). Any launch

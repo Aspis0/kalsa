@@ -101,7 +101,7 @@ heat is meaningless.
 | Galaxy S23 (SM8550, v73) real | yes, incl. hops (cell 73) | 17.1 / 14.5-15.7 / 12.8-13.5 | heat 2.8 / 3.2 / 4.7 C per 1k; endurance NPU 6051 tokens to skin 43; rule v3 = NPU alone (round 4). In-app: prefill 706.7/661.4 tok/s with KV on device, RAM 2.51 GB |
 | Xiaomi 14 (SM8650, v75) real | yes on the merged engine (cell 74); GPU-750 fixed, KL 1.0e-5 | 14-17.5 / 19.7-22.2 / 13.6-14.7 (cells 74-76) | heat ~1.1 / 3.2 / 7.3 C skin per 1k; load step ~5 / 11 / 26 C; NPU 8192 tokens without reaching skin 43, GPU to 43 in one 2048-token run (cells 75, 76) |
 | 8 Elite (SM8750, v79) QDC | yes (cells 66, 72) | 26.7 / 28.9 / 26.5 (cell 72, plugged, indicative) | long NPU: NSP 104 C vs 105 trip at 25 min; throttle via the `gpu` cooling device (cell 69) |
-| 8 Elite Gen 5 (SM8850, v81) QDC | yes (cells 68, 72) | 27.1 / 30.6 / 19.2 (cell 72, plugged, indicative) | in the app's generation map as V81 (`0cf38a79`); GPU-prefill on v81 unchecked |
+| 8 Elite Gen 5 (SM8850, v81) QDC | yes (cells 68, 72) | 27.1 / 30.6 / 19.2 (cell 72, plugged, indicative) | in the app's generation map as V81 (`0cf38a79`); GPU prefill is the lane-off fallback since app `df359450`, verified in-app on the SM8850 2026-10-11: GPU 295 / NPU 1342 / CPU 224 tok/s prefill, no crash (`qdc-v81-fallback-df359450`) |
 
 ## Standing cautions
 
