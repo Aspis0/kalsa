@@ -298,6 +298,12 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    CPU in both arms, similar (30.5/30.1, 26.2/27.5 tok/s); no captured crash, no fallback where routed. Two QRD8750 ON
    turns reached 48 C with no telemetry after the app went to TOP_SLEEPING (`background_stop`; QRD doze trap, stall
    not ruled out). Shipped config (tools on) on SM8850 hit 48.9 C after two offline `web_search` rounds.
+   Per-model declared SEVERE (owner 2026-10-11 "Dovremmo fare questo"): app `bc99cfeb` (pushed) keeps two skin lines
+   for every phone, 38.1 / 41.7 C (the S23's 0.87 / 0.99), converted per model with AOSP's (T - (SEVERE - 30)) / 30:
+   S23 `SM-S911` SEVERE 42.0 -> 0.87 / 0.99 (unchanged), Xiaomi 14 `23127PN0CG` 66.5 (HAL dump) -> 0.053 / 0.173;
+   unmeasured models keep the engine defaults + battery ramp (other SM8550 phones no longer get the S23 line).
+   `KALSA_GOVERNOR_PLAN` logs `pacing_start` / `pacing_full`. APK CI run `38163419959`; S23 check pending, Xiaomi
+   run when lent.
 6. Owner decisions: the Jelly (G3), the safety marking (below).
 7. M1 dossier (raw results, limits, reproduction instructions).
 8. Then: the learning governor, iOS/Metal on a real iPhone, MoE unpark.
