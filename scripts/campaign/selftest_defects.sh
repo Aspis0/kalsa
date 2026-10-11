@@ -2843,6 +2843,46 @@ tool_state_forms_case() {
 
 tool_state_forms_case
 
+# H6: only a KALSA_GOVERNOR line that FOLLOWS the pending KALSA_TOOLCALL in
+# slice order may close the round; a stale governor before it, or the sibling
+# governor events, must leave the round pending.
+tool_state_governor_position_case() {
+  local out="$WORK/tool-gov-position" rc
+  rm -rf "$out"; mkdir -p "$out"
+  printf '%s\n' \
+    '10-10 18:09:40.912 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"10","round":0,"toolChoice":"auto","structuredCalls":1,"executed":1,"toolNames":["write_note"]}' \
+    '10-10 18:09:40.914 18337 18368 I ReactNativeJS: KALSA_GOVERNOR {"turnId":"10","thermal_state":"FAST","failed":false}' > "$out/after.txt"
+  printf '%s\n' \
+    '10-10 18:05:11.001 18337 18368 I ReactNativeJS: KALSA_GOVERNOR {"turnId":"9","thermal_state":"FAST","failed":false}' \
+    '10-10 18:09:40.912 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"10","round":0,"toolChoice":"auto","structuredCalls":1,"executed":1,"toolNames":["write_note"]}' > "$out/before.txt"
+  printf '%s\n' \
+    '10-10 18:09:40.912 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"10","round":2,"executed":1}' \
+    '10-10 18:09:40.914 18337 18368 I ReactNativeJS: KALSA_GOVERNOR_THERMO {"turnId":"10","thermal_state":"FAST"}' \
+    '10-10 18:09:40.915 18337 18368 I ReactNativeJS: KALSA_GOVERNOR_FAILED {"reason":"prefill","thermal_state":"FAST"}' > "$out/sibling.txt"
+  printf '%s\n' \
+    "09-27 16:44:33.975 18337 18368 I ReactNativeJS: 'KALSA_TOOLCALL', '{\"turnId\":\"1\",\"round\":3,\"executed\":1}'" \
+    "09-27 16:44:33.978 18337 18368 I ReactNativeJS: 'KALSA_GOVERNOR', '{\"turnId\":\"1\",\"thermal_state\":\"FAST\"}'" > "$out/quoted.txt"
+  (
+    log() { :; }
+    source "$HERE/turn.sh"
+    after=$(campaign_turn_tool_state "$out/after.txt")
+    before=$(campaign_turn_tool_state "$out/before.txt")
+    sibling=$(campaign_turn_tool_state "$out/sibling.txt")
+    quoted=$(campaign_turn_tool_state "$out/quoted.txt")
+    printf '%s %s %s %s\n' "$after" "$before" "$sibling" "$quoted" > "$out/got.txt"
+    [ "$after" = "pending closed 0" ] && [ "$before" = "pending 0" ] \
+      && [ "$sibling" = "pending 2" ] && [ "$quoted" = "pending closed 3" ]
+  )
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok "a governor closes the pending round only when it follows it in slice order (stale and sibling forms stay pending)"
+  else
+    bad "governor position wrong (rc=$rc got=$(cat "$out/got.txt" 2>/dev/null || printf missing))"
+  fi
+}
+
+tool_state_governor_position_case
+
 # A continuation that never arrives ends the turn as toolround at the bound,
 # with its own log line — never the 45-min turn timeout.
 tool_round_lost_case() {
@@ -2887,6 +2927,103 @@ tool_round_lost_case() {
 }
 
 tool_round_lost_case
+
+# H6: the app may close a turn right after an executed tool, with no next round
+# (S23 2026-10-10 turn 10: TOOLCALL executed:1 at .912, KALSA_GOVERNOR at .914).
+# The governor after the pending toolcall ends the turn: complete, no RECOVERY.
+tool_round_governor_close_case() {
+  local out="$WORK/tool-gov-close" rc status
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_TIMEOUT_MS=60000
+    CAMPAIGN_TELEMETRY_GAP_MS=120000
+    CAMPAIGN_POLL_MS=500
+    # The bound sits below the completion the fix must produce: without it the
+    # pending round would end as toolround here, not ok.
+    CAMPAIGN_TOOL_ROUND_MAX_MS=1500
+    campaign_logcat_start "$out/logcat.txt"
+    sleep 1
+    make_messages "$FAKE_DEV/fake/live.json" 1 8
+    db_put_messages "$FAKE_DEV/fake/live.json"
+    printf '%s\n' '10-10 18:09:40.876 18337 18368 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"10","round":0,"tokensPredicted":10}' >> "$FAKE_DEV/fake/stream.txt"
+    printf '%s\n' '10-10 18:09:40.912 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"10","round":0,"toolChoice":"auto","structuredCalls":1,"executed":1,"toolNames":["write_note"]}' >> "$FAKE_DEV/fake/stream.txt"
+    # The app's end-of-turn line, AFTER the toolcall: the answer has landed.
+    printf '%s\n' '10-10 18:09:40.914 18337 18368 I ReactNativeJS: KALSA_GOVERNOR {"turnId":"10","thermal_state":"FAST","failed":false}' >> "$FAKE_DEV/fake/stream.txt"
+    campaign_wait_turn 0 "$out/.slice.txt" 0
+    wrc=$?
+    printf '%s' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    campaign_logcat_stop
+    exit "$wrc"
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ "$rc" -eq 0 ] && [ "$status" = "ok" ] \
+     && grep -q "tool round closed by the app (KALSA_GOVERNOR after round 0) — turn complete" "$out/log.txt" \
+     && ! grep -q "tool continuation lost" "$out/log.txt" \
+     && [ ! -f "$out/.recovery.json" ]; then
+    ok "a governor after the pending toolcall completes the turn (no wait, no RECOVERY)"
+  else
+    bad "governor close wrong (rc=$rc status=$status)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+tool_round_governor_close_case
+
+# The close is an ORDER fact: a governor left over from an earlier turn sits
+# BEFORE the pending toolcall and must not end this turn — it still ends as
+# toolround at the bound, exactly like a round with no governor at all.
+tool_round_stale_governor_case() {
+  local out="$WORK/tool-gov-stale" rc status
+  fake_reset marker-turn1
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    export OUT="$out" PKG=com.kalsa.app BENCH_TARGET=device
+    export ANDROID_SERIAL=fake:5555 CAMPAIGN_SERIAL=fake:5555
+    source "$REPO/scripts/ci-lib.sh"
+    source "$REPO/scripts/device-share-send.sh"
+    source "$HERE/logcat.sh"
+    source "$HERE/watchdog.sh"
+    source "$HERE/recovery.sh"
+    source "$HERE/turn.sh"
+    CAMPAIGN_TURN_TIMEOUT_MS=60000
+    CAMPAIGN_TELEMETRY_GAP_MS=120000
+    CAMPAIGN_POLL_MS=500
+    CAMPAIGN_TOOL_ROUND_MAX_MS=1500
+    campaign_logcat_start "$out/logcat.txt"
+    sleep 1
+    make_messages "$FAKE_DEV/fake/live.json" 1 8
+    db_put_messages "$FAKE_DEV/fake/live.json"
+    printf '%s\n' '10-10 18:05:11.001 18337 18368 I ReactNativeJS: KALSA_GOVERNOR {"turnId":"9","thermal_state":"FAST","failed":false}' >> "$FAKE_DEV/fake/stream.txt"
+    printf '%s\n' '10-10 18:09:40.876 18337 18368 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"10","round":0,"tokensPredicted":10}' >> "$FAKE_DEV/fake/stream.txt"
+    printf '%s\n' '10-10 18:09:40.912 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"10","round":0,"executed":1}' >> "$FAKE_DEV/fake/stream.txt"
+    campaign_wait_turn 0 "$out/.slice.txt" 0
+    wrc=$?
+    printf '%s' "$CAMPAIGN_TURN_STATUS" > "$out/status.txt"
+    campaign_logcat_stop
+    exit "$wrc"
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  status=$(cat "$out/status.txt" 2>/dev/null || printf missing)
+  if [ "$rc" -ne 0 ] && [ "$status" = "toolround" ] \
+     && grep -q "tool continuation lost: round 0 pending for 1500ms" "$out/log.txt"; then
+    ok "a governor before the pending toolcall does not close the turn: still toolround at the bound"
+  else
+    bad "stale governor wrong (rc=$rc status=$status)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+tool_round_stale_governor_case
 
 # The bound restarts per pending round: healthy multi-tool turns (round N
 # pending → round N+1 pending → final) are never killed by an earlier round.

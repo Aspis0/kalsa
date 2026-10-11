@@ -253,14 +253,20 @@ print(len(asst[-1]) if asst else 0)
 # over: KALSA_TELEMETRY is emitted PER ROUND (baseline raw: round 0 at
 # 16:42:10.870, round 1 at 16:44:33.975), and every round also emits one
 # KALSA_TOOLCALL (LlamaService emitToolCallTelemetry; toolCallTelemetry.ts
-# field `executed`). executed > 0 means a tool ran and a continuation round
-# will follow; executed 0 is the final round (the branch that also emits
+# field `executed`). executed > 0 normally means a tool ran and a continuation
+# round will follow; executed 0 is the final round (the branch that also emits
 # KALSA_GOVERNOR). "absent" = no line yet for this round.
 # KALSA_TOOLROUND_EXHAUSTED also ends the turn: the round that hits the round cap
 # emits no KALSA_TOOLCALL, so the last one still says executed > 0 (S23 G2,
 # 2026-10-09: round 2 pending, then round 3 + EXHAUSTED + KALSA_GOVERNOR, and the
 # harness waited 600 s for a round that never comes).
-# Prints pending | exhausted | final | absent; never throws.
+# The app may also close a turn right after an executed tool, with no next round
+# (H6: S23 2026-10-10 turn 10, Xiaomi 2026-10-11 turn 2). KALSA_GOVERNOR is
+# emitted once per turn, after the last round (LlamaService emitGovernorTelemetry
+# call sites), so a KALSA_GOVERNOR line AFTER the pending KALSA_TOOLCALL in slice
+# order means the app closed the turn: "pending closed N", and the caller must
+# complete instead of waiting for a continuation.
+# Prints pending [closed] | exhausted | final | absent; never throws.
 campaign_turn_tool_state() {
   python3 - "$1" <<'PY'
 import json
@@ -288,20 +294,27 @@ def payload(line, name):
     return None
 
 last = None
+last_call_at = -1
+last_governor_at = -1
 calls = []
 exhausted = None
 try:
     with open(sys.argv[1], encoding="utf-8", errors="replace") as fh:
-        for line in fh:
+        for index, line in enumerate(fh):
             obj = payload(line, "KALSA_TOOLCALL")
             if obj is not None:
                 calls.append(obj)
                 last = obj
+                last_call_at = index
                 if exhausted is not None and obj.get("turnId") == exhausted.get("turnId"):
                     exhausted = None
             obj = payload(line, "KALSA_TOOLROUND_EXHAUSTED")
             if obj is not None:
                 exhausted = obj
+            # Exact tag only: the sibling events (KALSA_GOVERNOR_PLAN,
+            # _THERMO, _FAILED, ...) must never close a tool round.
+            if payload(line, "KALSA_GOVERNOR") is not None:
+                last_governor_at = index
 except OSError:
     pass
 if exhausted is not None and (not calls or all(call.get("turnId") == exhausted.get("turnId") for call in calls)):
@@ -328,7 +341,11 @@ else:
         raise SystemExit(0)
     if executed > 0:
         round_no = last.get("round", -1)
-        print("pending %d" % (round_no if isinstance(round_no, int) else -1))
+        round_txt = round_no if isinstance(round_no, int) else -1
+        if last_governor_at > last_call_at:
+            print("pending closed %d" % round_txt)
+        else:
+            print("pending %d" % round_txt)
     else:
         print("final")
 PY
@@ -466,6 +483,15 @@ campaign_wait_turn() {
         # toolcall line at all, once the telemetry has aged past the ~15 ms
         # emission gap) ends the turn.
         case "$tool_state" in
+          pending\ closed\ *)
+            # The app emitted its end-of-turn KALSA_GOVERNOR after this pending
+            # toolcall: it closed the turn with no continuation, so there is
+            # nothing to wait for and no reason to force-stop a healthy app.
+            current_round="${tool_state##* }"
+            log "tool round closed by the app (KALSA_GOVERNOR after round $current_round) — turn complete"
+            CAMPAIGN_TURN_STATUS="ok"
+            return 0
+            ;;
           pending\ *)
             current_round="${tool_state##* }"
             if [ "$current_round" != "$pending_round" ]; then
