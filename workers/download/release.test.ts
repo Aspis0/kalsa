@@ -13,8 +13,19 @@ const installerBytes = "mac installer bytes\n";
 writeFileSync(installer, installerBytes);
 const artifact = path.join(work, "Kalsa-alpha-0.0.1-mac.app.tar.gz");
 writeFileSync(artifact, "mac updater archive\n");
+/** A signature file as the Tauri CLI writes it: base64 of a minisign file whose trusted comment names the version. */
+function signatureFile(version: string): string {
+  const minisign = [
+    "untrusted comment: signature from tauri secret key",
+    "RUQAAAAfake",
+    `trusted comment: timestamp:1700000000\tfile:Kalsa-alpha-0.0.1-mac.app.tar.gz\tversion:${version}`,
+    "ZmFrZQ==",
+    "",
+  ].join("\n");
+  return Buffer.from(minisign).toString("base64");
+}
 const sig = path.join(work, "Kalsa-alpha-0.0.1-mac.app.tar.gz.sig");
-writeFileSync(sig, "dGVzdC1zaWduYXR1cmU=\n");
+writeFileSync(sig, `${signatureFile("0.0.1")}\n`);
 
 // Stands in for `npx`: logs every call; answers the current.json read from FAKE_MANIFEST.
 const fakeBin = path.join(work, "bin");
@@ -85,7 +96,7 @@ describe("release --dry-run", () => {
     const artifactSha = createHash("sha256").update(readFileSync(artifact)).digest("hex");
     const artifactSize = Buffer.byteLength("mac updater archive\n");
     expect(res.out).toContain(
-      `"mac":{"key":"releases/0.0.1/Kalsa-alpha-0.0.1-mac.dmg","name":"Kalsa-alpha-0.0.1-mac.dmg","size":${size},"sha256":"${sha}","update":{"key":"releases/0.0.1/Kalsa-alpha-0.0.1-mac.app.tar.gz","name":"Kalsa-alpha-0.0.1-mac.app.tar.gz","size":${artifactSize},"sha256":"${artifactSha}","signature":"dGVzdC1zaWduYXR1cmU="}}`,
+      `"mac":{"key":"releases/0.0.1/Kalsa-alpha-0.0.1-mac.dmg","name":"Kalsa-alpha-0.0.1-mac.dmg","size":${size},"sha256":"${sha}","update":{"key":"releases/0.0.1/Kalsa-alpha-0.0.1-mac.app.tar.gz","name":"Kalsa-alpha-0.0.1-mac.app.tar.gz","size":${artifactSize},"sha256":"${artifactSha}","signature":"${signatureFile("0.0.1")}"}}`,
     );
   });
 
@@ -168,7 +179,9 @@ describe("release rejects bad input before anything runs", () => {
   });
 
   test("a prerelease version is accepted, as the Worker accepts it", () => {
-    expect(release(mac({ version: "0.0.1-rc.1" })).status).toBe(0);
+    const rc = path.join(work, "rc.sig");
+    writeFileSync(rc, `${signatureFile("0.0.1-rc.1")}\n`);
+    expect(release(mac({ version: "0.0.1-rc.1", sig: rc })).status).toBe(0);
   });
 
   test("a file name with a space is refused", () => {
@@ -176,7 +189,7 @@ describe("release rejects bad input before anything runs", () => {
     writeFileSync(spaced, "x");
     const res = release(mac({ installer: spaced }));
     expect(res.status).toBe(1);
-    expect(res.out).toContain("file name must be");
+    expect(res.out).toContain("not allowed in a key");
   });
 
   test("a missing installer, artifact or signature file is refused", () => {
@@ -195,6 +208,35 @@ describe("release rejects bad input before anything runs", () => {
     const res = release(mac({ sig: bad }));
     expect(res.status).toBe(1);
     expect(res.out).toContain("one base64 line");
+  });
+});
+
+describe("the signature must name the release's version", () => {
+  const signedFor = (version: string) => {
+    const file = path.join(work, `signed-${version}.sig`);
+    writeFileSync(file, `${signatureFile(version)}\n`);
+    return file;
+  };
+
+  test("a signature for another version is refused before anything is uploaded, dry run or not", () => {
+    const wrong = signedFor("0.0.0");
+    const dry = release(mac({ sig: wrong }));
+    expect(dry.status).toBe(1);
+    expect(dry.out).toContain("is signed for version 0.0.0, but this release is 0.0.1");
+    expect(dry.log).toBe("");
+    const live = release(["mac", installer, "0.0.1", "--update", artifact, "--sig", wrong]);
+    expect(live.status).toBe(1);
+    expect(live.out).toContain("is signed for version 0.0.0");
+    expect(live.log).toBe("");
+  });
+
+  test("a signature with no version in its trusted comment is refused", () => {
+    const bare = path.join(work, "bare.sig");
+    writeFileSync(bare, "dGVzdC1zaWduYXR1cmU=\n");
+    const res = release(mac({ sig: bare }));
+    expect(res.status).toBe(1);
+    expect(res.out).toContain("has no version in its trusted comment");
+    expect(res.log).toBe("");
   });
 });
 
@@ -224,6 +266,12 @@ describe("the shared rules", () => {
   test("release.mjs and manifest.ts carry the same KEY pattern", () => {
     expect(literal(path.join(HERE, "scripts", "release.mjs"), /const KEY = (\/.*\/);/)).toBe(
       literal(path.join(HERE, "manifest.ts"), /const KEY = (\/.*\/);/),
+    );
+  });
+
+  test("release.mjs and manifest.ts carry the same NAME pattern", () => {
+    expect(literal(path.join(HERE, "scripts", "release.mjs"), /const NAME = (\/.*\/);/)).toBe(
+      literal(path.join(HERE, "manifest.ts"), /const NAME = (\/.*\/);/),
     );
   });
 

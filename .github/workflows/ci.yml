@@ -39,5 +39,5 @@ jobs:
       - name: Typecheck (tsc --noEmit)
         run: npx tsc --noEmit
 
-      - name: Jest (in-band)
-        run: npx jest --runInBand
+      - name: Jest (in-band, root and worker projects)
+        run: npx jest --runInBand --projects . workers/download workers/report workers/pair

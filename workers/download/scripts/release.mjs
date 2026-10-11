@@ -27,8 +27,10 @@ const VALUE_OPTIONS = new Set(["--update", "--sig"]);
 const FLAGS = new Set(["--dry-run", "--new-manifest", "--allow-mixed"]);
 // The Worker's SemVer rule, copied from semver.ts; a test keeps the two equal.
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
-const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,127}$/;
 const SIGNATURE = /^[A-Za-z0-9+/=]{1,4096}$/;
+const TRUSTED_COMMENT = "trusted comment: ";
+const VERSION_FIELD = "version:";
 // Mirrors KEY in manifest.ts; a test keeps the two equal.
 const KEY = /^releases\/[A-Za-z0-9][A-Za-z0-9._-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
@@ -69,6 +71,14 @@ function digestOf(file) {
   });
 }
 
+/** The version the signature's trusted comment names, read as the updater reads it: the first tab-separated `version:` field. */
+function signedVersion(signature) {
+  const text = Buffer.from(signature, "base64").toString("utf8");
+  const comment = text.split(/\r?\n/).find((line) => line.startsWith(TRUSTED_COMMENT));
+  const field = comment?.slice(TRUSTED_COMMENT.length).split("\t").find((part) => part.startsWith(VERSION_FIELD));
+  return field === undefined ? null : field.slice(VERSION_FIELD.length);
+}
+
 function parseArgs(argv) {
   const flags = new Set();
   const options = {};
@@ -105,6 +115,9 @@ for (const candidate of [key, updateKey]) {
 }
 const signature = readFileSync(options.sig, "utf8").trim();
 if (!SIGNATURE.test(signature)) die(`${options.sig} must hold one base64 line of at most 4096 characters`);
+const signed = signedVersion(signature);
+if (signed === null) die(`${options.sig} has no version in its trusted comment; the updater cannot check it`);
+if (signed !== version) die(`${options.sig} is signed for version ${signed}, but this release is ${version}`);
 
 const markdown = process.env.ALPHA_TESTERS_MD ?? DEFAULT_MARKDOWN;
 if (!existsSync(markdown)) die(`tester guide markdown not found at ${markdown}; set ALPHA_TESTERS_MD`);

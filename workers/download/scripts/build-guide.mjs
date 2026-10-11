@@ -34,6 +34,53 @@ function sectionNumber(text) {
   return match ? Number(match[1]) : null;
 }
 
+// Bold is not counted: the Italian repeats one label where the English names two.
+const PARITY_KEYS = ["paragraphs", "items", "quotes", "codeSpans"];
+
+function sectionShapes(source) {
+  const shapes = new Map();
+  let shape = null;
+  for (const block of parseBlocks(source)) {
+    if (block.type === "h2") {
+      const number = sectionNumber(block.text);
+      if (number === null) throw new Error(`unnumbered section: ${block.text}`);
+      shape = { paragraphs: 0, items: 0, quotes: 0, codeSpans: 0 };
+      shapes.set(number, shape);
+      continue;
+    }
+    if (shape === null) continue;
+    if (block.type === "p") shape.paragraphs += 1;
+    else if (block.type === "quote") shape.quotes += 1;
+    else if (block.type === "ul" || block.type === "ol") shape.items += block.items.length;
+    else continue;
+    for (const text of block.items ?? [block.text]) {
+      shape.codeSpans += (text.match(/`[^`]*`/g) ?? []).length;
+    }
+  }
+  return shapes;
+}
+
+function describeShape(shape) {
+  return `${shape.paragraphs} paragraphs, ${shape.items} list items, ${shape.quotes} quotes, ${shape.codeSpans} code spans`;
+}
+
+function assertParity(english, italian) {
+  const en = sectionShapes(english);
+  const it = sectionShapes(italian);
+  for (const [number, want] of en) {
+    const got = it.get(number);
+    if (got === undefined) throw new Error(`section ${number} is missing from the Italian guide`);
+    if (PARITY_KEYS.some((key) => want[key] !== got[key])) {
+      throw new Error(
+        `section ${number} differs: English has ${describeShape(want)}; Italian has ${describeShape(got)}`,
+      );
+    }
+  }
+  for (const number of it.keys()) {
+    if (!en.has(number)) throw new Error(`section ${number} is missing from the English guide`);
+  }
+}
+
 function guideLines(source) {
   const lines = [];
   const seen = new Set();
@@ -86,7 +133,10 @@ if (!source.endsWith(".md")) {
   process.exit(2);
 }
 const italianSource = source.replace(/\.md$/, ".it.md");
-const expected = guideModule(readFileSync(source, "utf8"), readFileSync(italianSource, "utf8"));
+const english = readFileSync(source, "utf8");
+const italian = readFileSync(italianSource, "utf8");
+assertParity(english, italian);
+const expected = guideModule(english, italian);
 if (check) {
   let current = "";
   try {
