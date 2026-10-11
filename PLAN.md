@@ -293,6 +293,11 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    crash, stopped at 29 % battery by the coordinator watchdog. Android's headroom here ~ 0.0327 x skin - 1.19 (0.28
    at skin 44.9 C, status 0 throughout), so the S23 ramp never paced; the battery ramp did. Next: a per-SoC Xiaomi
    row (proposal start 0.15 / full 0.25) after one more run; H6 hit again at turn 2.
+   QDC 2026-10-11 (`qdc-oracle-onoff-41dc728f`, APK `41dc728f`, battery faked unplugged 30 C): governor ON = NPU
+   prefill, 6.2x CPU on SM8850 (1337 vs 216 tok/s, 2 turns each) and 5.5x on QRD8750 (1159 vs 212, ON n=1); decode on
+   CPU in both arms, similar (30.5/30.1, 26.2/27.5 tok/s); no captured crash, no fallback where routed. Two QRD8750 ON
+   turns reached 48 C with no telemetry after the app went to TOP_SLEEPING (`background_stop`; QRD doze trap, stall
+   not ruled out). Shipped config (tools on) on SM8850 hit 48.9 C after two offline `web_search` rounds.
 6. Owner decisions: the Jelly (G3), the safety marking (below).
 7. M1 dossier (raw results, limits, reproduction instructions).
 8. Then: the learning governor, iOS/Metal on a real iPhone, MoE unpark.
@@ -304,8 +309,10 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
 - G3 on the Jelly Star: LFM on the Jelly CPU is thermally non-viable
   (`analysis/CISWIRE-CHAR3GRAM-KV-AND-THERMAL-2026-09-19.md`); what the Jelly ships instead is
   an owner call.
-- SM8850 is in the app's generation map (V81, app `0cf38a79`); its GPU-prefill correctness on
-  v81 is still unchecked (`scratchpad/agents/qdc-governor-on-off-1d51f196/REPORT.md`).
+- SM8850 GPU prefill (V81): logit oracle FAIL R2 again on engine 74b75037f (2026-10-11,
+  `qdc-oracle-onoff-41dc728f`: one distinct comparison, top-1 agrees on 32/32 steps, max_dp1 0.108 vs
+  0.02; CPU replay control PASS 0.0000). `GPU_PREFILL_CORRECT.V81` stays false; nothing to decide unless
+  the owner wants a looser rule.
 - Safety marking on the ship model: complied 0/24 with parity on all 6 categories, but 4
   pre-answer cells are flagged RELEASE BLOCKER CANDIDATE (S1_t07, S4_t0, S6_t0, S6_t07); a
   budget-up re-run (n >= 160) is required before acting on it (`archived/ALIVE-2026-10-09-full.md:259-263`).

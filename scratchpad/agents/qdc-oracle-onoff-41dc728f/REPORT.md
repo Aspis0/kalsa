@@ -18,14 +18,15 @@ Skin: the live `mName=skin` entry is **#2** on both boards (entry #1 is frozen a
 | 3 | p1a3 | p1b3 | **FAIL R2** | 0.5236 | 0.1075 | none | same | 595 / 595 (n_common 0) |
 | control | p1a1 | p1c (CPU, governor off, forced to A1 ids) | PASS | 0.0000 | 0.0000 | none | none | 595 / 595 |
 
-- Pairs 2 and 3 are **replicas, not independent evidence**: `cmp` shows A1 and A2 probs byte-identical, and B1 and B2 byte-identical (greedy decode is deterministic on this build for this prompt). They do confirm the run is repeatable.
-- The control is the noise floor the 10-03 run lacked: the same forced path on CPU reproduces A1 exactly (max_dlogp 0.0000). So the oracle is not noisy on this path, and the R2 failures are attributable to the GPU prefill, as the oracle registers.
+- Pairs 2 and 3 are **replicas, not independent evidence**: `cmp` shows A1/A2/A3 probs and ids byte-identical, and B1/B2/B3 byte-identical (greedy decode is deterministic on this build for this prompt). So this is **one** distinct GPU-vs-CPU comparison, repeated three times; it shows the run is repeatable.
+- The control is a deterministic CPU replay (governor off, forced to A1's ids), not a statistical noise floor: it reproduces A1 exactly (max_dlogp 0.0000), so the CPU path is self-consistent. The R2 drift was observed on the forced GPU arm against it; the arms also differ in governor/thermo settings (`arm.sh:20-21`), so this does not uniquely isolate the GPU arithmetic (audit 2026-10-11).
 - R1 (confident top-1 flip) never fired; top-1 agrees on all 32 steps in every pair. The failures are R2 distribution drift at steps 5, 6, 9 and 16 (e.g. step 16: dp1 0.108 against a 0.02 limit).
 - R5 is still unmet by the registry (the sanity PASS must come from the 8 Elite, not run here). This is a FAIL on an oracle whose sanity control is not complete. Nothing enabled (R6).
 
 **Part 2 — governor ON vs OFF in-app, battery faked unplugged 30 C, short prompt, tools off (timed arms).**
-- SM8850: **ON = NPU prefill, roughly 6.2× faster prefill than CPU; decode unchanged (CPU decode in both arms); no crash, no fallback.**
-- QRD8750: **ON = NPU prefill (ON-2 valid turn), roughly 5.5× faster prefill than CPU; decode unchanged; no crash, no fallback.** Only one valid ON turn on this board: ON-1 was killed by the 48 C stop before any telemetry (see Odd #3).
+- SM8850: **ON = NPU prefill, roughly 6.2× faster prefill than CPU on the two timed ON turns; decode similar (ON 30.45 vs OFF 30.07 tok/s, 2 turns each; ON decode is CPU per `engine_decode`); no captured crash markers, no fallback on the turns with a `KALSA_GOVERNOR` record.**
+- QRD8750: **ON = NPU prefill on the one valid ON turn (ON-2), roughly 5.5× faster prefill than CPU.** Decode 26.2 (ON, n=1) vs 27.5 (OFF): a sample, not a decode claim. The other ON attempts failed with no telemetry (one retained failed attempt plus two discarded, see Odd #3); route and fallback are unknown for them.
+- OFF arms have no governor route record: "CPU" for OFF is inferred from `kalsa.governor.enabled=0`, not logged. "No crash" means no captured matches of the crash strings filtered by `turn.sh:86`.
 
 #### SM8850 (session 888089, cap 100, Started 11:42:19 AM portal = 15:42:19 UTC)
 
@@ -35,7 +36,7 @@ Skin: the live `mName=skin` entry is **#2** on both boards (entry #1 is frozen a
 | on-short-2 | ON | **1341.5** | 30.51 | NPU / HTP0 ×6 | auto / Fit / HTP0 | 39.2 → 44.7 | on topic, complete | raw/sm8850/on-short-2-kalsa.txt |
 | off-short-1 | OFF (CPU) | **216.8** | 30.33 | CPU | — | 38.4 → 44.1 | on topic, complete | raw/sm8850/off-short-1-kalsa.txt |
 | off-short-2 | OFF (CPU) | **215.2** | 29.81 | CPU | — | 39.8 → 45.3 | on topic, complete | raw/sm8850/off-short-2-kalsa.txt |
-| xon-short-1 (extra, shipped: tools on, default toolchoice, 2075 prompt tok) | ON | 1580.5 | 21.86 | NPU | auto / Fit | 39.7 → **48.9 KILL** at 47 s | — | raw/sm8850/xon-short-1-kalsa.txt |
+| xon-short-1 (extra, shipped: tools on, default toolchoice, 2075 prompt tok) | ON | 1580.5 | 21.86 | plan HTP0 (no `KALSA_GOVERNOR` route record) | auto / Fit | 39.7 → **48.9 KILL** at 47 s, after 2 failed `web_search` tool rounds (offline rack) | — | raw/sm8850/xon-short-1-kalsa.txt |
 
 - ON/OFF prefill ratio: 1337.1 / 216.0 = **6.19×** (mean of two turns each). Decode: ON 30.45 vs OFF 30.07 tok/s, i.e. no decode gain (both CPU decode).
 - `thermal_state` in telemetry: FAST on all ON turns.
@@ -68,7 +69,7 @@ Skin: the live `mName=skin` entry is **#2** on both boards (entry #1 is frozen a
 3. **QRD8750 ON-1 and the screen.** Three ON-1 attempts:
    - 12:29 (rc 8, APP NOT FOREGROUND): the screen dozed during the cold launch and the launcher took the top. Files in `raw/qrd8750/discarded-fg-fail/`.
    - 12:32: the screen dozed mid-turn and the turn stalled with no telemetry; I stopped it manually. Files in `raw/qrd8750/discarded-doze-stall/`.
-   - 12:38 (kept): with `turn.sh` wake + a `KEYCODE_WAKEUP` every 5 s, the screen stayed awake, the turn started at 39.9 C and reached the 48 C stop at 154 s with no telemetry and no `KALSA_GOVERNOR_PLAN` line. Route is unknown for this turn. Not root-caused. The same board produced a clean NPU route on ON-2, about 14 minutes later, from a cooled start of 39.96 C, so this was a single failed turn, not a route change.
+   - 12:38 (kept): with `turn.sh` wake + a `KEYCODE_WAKEUP` every 5 s, the turn started at 39.9 C and reached the 48 C stop at 154 s with no telemetry and no `KALSA_GOVERNOR_PLAN` line (a real absence: logcat is cleared before launch, `turn.sh:19`). The keep-awake loop did NOT keep the app in the foreground: the log has `KALSA_ROAD ... "stage":"background_stop"` 42 s after the prompt, and the force-stop exit record says `importance=325` (IMPORTANCE_TOP_SLEEPING, the device asleep). The XON turn on this board shows the same `background_stop` and `mWakefulness=Dozing` after the stop. Consistent with the QRD doze trap (harness), but a stalled inference is not ruled out and the source of the heat is unknown. Audit 2026-10-11 refuted the earlier "the screen stayed awake".
 4. **Keep-awake was added after the first board.** SM8850 turns ran without the WAKEUP loop (the screen stayed awake on that board). QRD8750 turns ran with it. The `turn.sh` change is in the cell (comment at the keep-alive).
 5. **Watchdog KILL at 48 C was not relaxed.** Cooldown target stayed 40 C with a 600 s cap. On QRD8750 the cooldowns took 81–304 s.
 6. **Extra shipped-config turn (XON)** ran with tools on and a 2075-token prompt. It was killed at 48.9 (SM8850) / 48.1 (QRD8750), so it gives route and first-round telemetry only on SM8850 (1580.5 tok/s prefill, 21.9 tok/s decode, 540 tokens). Correctness not claimed.
@@ -102,6 +103,6 @@ Driver deadlines: SM8850 17:16 UTC (cap ends 17:22); QRD8750 17:28 UTC (cap ends
 
 ## Evidence map
 
-`raw/sm8850/`, `raw/qrd8750/`: `campaign.log`, `<label>-{kalsa,hexlog,fastrpc,lmk,crash,exitinfo,watchdog,cool,state-pre,state-post,battery-pre,answer,arm,chats,kind,sendtime,amstart}.txt`, `<label>-probs.jsonl`, `<label>-ids.txt`, `oracle-*.txt`, `steps-*.txt`, `all-rows.tsv` (extract.sh), `skin-samples.txt`, `skin-index.txt`, `battery-faked.txt`, `discarded-*` (failed QRD8750 attempts kept as evidence). UI dumps and full logcats were deleted from `raw/` (they stay in `/tmp/qdconoff`, outside the lab). No binaries, no model, no APK.
+`raw/sm8850/`, `raw/qrd8750/`: `campaign.log`, `<label>-{kalsa,hexlog,fastrpc,lmk,crash,exitinfo,watchdog,cool,state-pre,state-post,battery-pre,answer,arm,chats,kind,sendtime,amstart}.txt`, `<label>-probs.jsonl`, `<label>-ids.txt`, `oracle-*.txt`, `steps-*.txt`, `all-rows.tsv` (extract.sh; the QRD8750 copy had a stray env.sh STOP line as line 1 because `extract.sh:4` swallows env.sh failures with `|| true`; the line was removed by the coordinator, the rows were computed from local files and match the raw telemetry), `skin-samples.txt`, `skin-index.txt`, `battery-faked.txt`, `discarded-*` (failed QRD8750 attempts kept as evidence). UI dumps and full logcats were deleted from `raw/` (they stay in `/tmp/qdconoff`, outside the lab). No binaries, no model, no APK.
 
 Scripts (this cell): `env.sh setup.sh skin-id.sh kset.sh kmulti.sh wipe-chats.sh turn.sh arm.sh campaign.sh oparse.sh oracle.sh extract.sh steps.py oracle_logit.py` (unmodified copy) and the prompt files (`prompt-*.txt`, `enc-*.txt`, `prompts.sha256`, checked).

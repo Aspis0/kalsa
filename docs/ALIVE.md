@@ -48,6 +48,9 @@
   and decode, no crash, 15 -> 5-6 tok/s, skin max 44.9 C, battery max 42.0 C, Android status 0 throughout; stopped
   at 29 % battery (started at 62 %). Its thermal headroom scale differs from the S23's (0.28 at skin 44.9 C): the
   pacing lines must be per phone.
+- QDC 2026-10-11 (APK `41dc728f`, cell `qdc-oracle-onoff-41dc728f`): on 8 Elite Gen 5 and 8 Elite the governor runs
+  prefill on the NPU, ~6x faster than CPU (1337 vs 216 and 1159 vs 212 tok/s); decode is CPU in both arms and about
+  equal; no crash. GPU prefill on Adreno 840 still fails the logit oracle (R2), so it stays off.
 - M1 was due 2026-10-09 (reserve 16 Oct) and is NOT met: G2 (in-app 20-30 turn session) has
   never been claimed and needs the APK that does not exist yet. Owner approved the next leg
   2026-10-09: rule v3 default in the app + per-SoC v3 values + the SM8650 row in the legs
