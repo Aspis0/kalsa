@@ -568,11 +568,11 @@ impl Brain {
     /// watchdog disarms, and the same gate hold covers the save and the stop,
     /// so no start can land between them. A restart decided meanwhile finds
     /// the generation moved and is vetoed.
-    fn turn_off_engine(&self) {
+    fn turn_off_engine(&self, save: impl FnOnce()) {
         let _gate = self.gate.lock().unwrap_or_else(|e| e.into_inner());
         self.stops.fetch_add(1, Ordering::SeqCst);
         self.crash_restart.disarm();
-        self.save_and_stop_engine();
+        self.save_then_stop(save);
     }
 
     /// The save a model switch needs before its stop: the engine about to stop
@@ -2208,9 +2208,8 @@ fn keep_engine_stderr(brain: &Brain, log_dir: PathBuf) {
 async fn brain_stop(brain: State<'_, Arc<Brain>>, desk: State<'_, Desk>) -> Result<(), String> {
     // Off the main thread, so the window keeps painting while a slow save runs.
     let turning_off = Arc::clone(&brain);
-    if let Err(error) =
-        tauri::async_runtime::spawn_blocking(move || turning_off.turn_off_engine()).await
-    {
+    let engine_off = move || turning_off.turn_off_engine(|| turning_off.save_open_chat());
+    if let Err(error) = tauri::async_runtime::spawn_blocking(engine_off).await {
         log::warn!("the engine's stop did not finish: {error}");
     }
     // `stop` sets `Stopping` before it queues, so every poll from here reads

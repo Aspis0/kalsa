@@ -371,3 +371,19 @@ Owner: when a model refuses because tools are in the request (LFM2.5-VL-3B refus
 - Mac: in-app "Delete the downloaded AIs (X GB)" on the AI page — a Mac uninstall (drag to Trash) leaves 3–22 GB in ~/Library/Application Support/kalsa-brain. Owner: a new feature, so later, once testers have reported.
 - After switching to another AI (e.g. the 8 GB machines moved from LFM Q8_0 to Q4_K_M), the old model file stays on disk (2.9 GB for LFM Q8). Ask or delete automatically — owner call, same timing.
 - `chat/scripts/command-contract.mjs` fails on base: `window_visibility::window_hidden` in generate_handler! is a name the guard cannot parse.
+
+## Stop/save gate, tool arguments (review of d05c0dfa, 75a91228, 2026-10-11)
+
+- `begin_walk` takes the gate with a blocking `std::sync::Mutex::lock` from async `walk`/`brain_test` (`src-tauri/src/main.rs` ~:491, :1617): a Turn on or crash restart during a Turn off save holds a Tokio worker up to SAVE_BUDGET (12 s). Fix needs an owned `Arc` threaded through `walk_and_settle`/`brain_test`/`restart_after_crash` into `spawn_blocking`.
+- Fake-engine test teardown (`src-tauri/src/tests.rs` ~:2345-2408) does not join its health thread or wait for the fixture child to be reaped; a failure before `RunningEngine::stop` leaves the health flag up.
+
+## OTA updater + 8 GiB line (second review, deepseek, of 678c746e..ab9681a9, 2026-10-11)
+
+Fixed in the follow-up: install guard, stale notice version, redaction of a key-terminated update URL, web client version, progress clamp, release script signature/version check. Deferred:
+
+- P0 "endpoint is the placeholder" refuted for shipped builds: the real endpoint comes from `--config ~/.kalsa/updater-endpoint.json` at build time (0.0.2 → 0.0.3 verified live). Nothing in the build fails if the overlay is forgotten; a release check that the binary does not contain `REPLACE_WITH_UPDATE_KEY` would close it.
+- The install's reply re-check is not atomic with the door stop (`stop_for_update`): a phone turn that starts during the chat save and engine drain is cut without a message. Same shape as quit and Turn off.
+- 8 GiB with a paired phone: the Q4 row (1.67 GB) falls under SAME_CLASS_BAND of a 4B-class phone, so `choose()` says NothingBetter while startup silently runs the Q4 via the fallback. Moot until phones ship; decide before the phone release.
+- Two seats on a small machine share 16 384 tokens (8 192 each) instead of one seat at 32 768. Deliberate; revisit with tester logs.
+- The 16 384 window sits on the telemetry `ctxTokens` bucket edge (reports as 16–64k).
+- Two sources of the app version (`brain_app_version` vs the updater's current version); the tune ETA may now climb (deliberate); the uninstall hook repeats a guard the bundler already applies; the two semver comparators (Rust plugin vs Worker BigInt) differ above u64; the removed 8 GiB test's three user-facing assertions were not re-added; release.mjs `--dry-run --new-manifest` prints a step 5 it never prepared; the walk-step and tune-progress harnesses are not run by anything.

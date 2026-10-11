@@ -2414,6 +2414,13 @@ impl RunningEngine {
 /// The line the probe engine writes to its stderr before it becomes the fixture.
 const STDERR_PROBE: &str = "kalsa-stderr-probe";
 
+/// `path` as one POSIX shell word: single quotes, with each embedded quote
+/// closed, escaped and reopened.
+#[cfg(unix)]
+fn shell_word(path: &Path) -> String {
+    format!("'{}'", path.to_string_lossy().replace('\'', r"'\''"))
+}
+
 /// The fixture behind a script that first writes `STDERR_PROBE` to stderr.
 /// `exec` keeps the pid, so the fixture's pid file and health gate still hold.
 #[cfg(unix)]
@@ -2425,8 +2432,8 @@ fn engine_that_says_a_line(name: &str) -> PathBuf {
     std::fs::write(
         &exe,
         format!(
-            "#!/bin/sh\necho {STDERR_PROBE} >&2\nexec '{}' \"$@\"\n",
-            fixture.display()
+            "#!/bin/sh\necho {STDERR_PROBE} >&2\nexec {} \"$@\"\n",
+            shell_word(&fixture)
         ),
     )
     .expect("the probe engine is written");
@@ -2441,6 +2448,18 @@ fn folder_holds_text(dir: &Path, text: &str) -> bool {
             std::fs::read_to_string(entry.path()).is_ok_and(|body| body.contains(text))
         })
     })
+}
+
+#[cfg(unix)]
+#[test]
+fn a_fixture_path_with_quotes_and_metacharacters_survives_the_probe_wrapper() {
+    let path = Path::new("/tmp/it's a $(path)/fake_server.sh");
+    let echoed = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("printf %s {}", shell_word(path)))
+        .output()
+        .expect("sh runs");
+    assert_eq!(String::from_utf8_lossy(&echoed.stdout), path.to_string_lossy());
 }
 
 /// The engine's stderr reaches the log folder that `keep_engine_stderr` names.
@@ -2889,7 +2908,11 @@ fn brain_stop_saves_the_open_chat_before_the_engine_stops(source: &str) -> Resul
     let at = source
         .find("async fn brain_stop(")
         .ok_or_else(|| "brain_stop is the command the model switch drives".to_string())?;
-    if !brace_block(source, at).contains("turn_off_engine()).await") {
+    let stop_body = brace_block(source, at);
+    if !stop_body.contains("turn_off_engine(|| turning_off.save_open_chat())") {
+        return Err("brain_stop no longer saves the open chat inside the Turn off".to_string());
+    }
+    if !stop_body.contains("spawn_blocking(engine_off).await") {
         return Err("brain_stop no longer awaits the Turn off's engine half".to_string());
     }
     let turn_off = brace_block(
@@ -2901,20 +2924,14 @@ fn brain_stop_saves_the_open_chat_before_the_engine_stops(source: &str) -> Resul
     let gate = turn_off
         .find("gate.lock()")
         .ok_or_else(|| "the Turn off no longer holds the gate".to_string())?;
+    if turn_off.contains("drop(") {
+        return Err("the Turn off drops its gate before the save".to_string());
+    }
     let handover = turn_off
-        .find("save_and_stop_engine()")
+        .find("self.save_then_stop(save)")
         .ok_or_else(|| "the Turn off no longer saves before it stops".to_string())?;
     if gate > handover {
         return Err("the Turn off saves before it takes the gate".to_string());
-    }
-    let body = brace_block(
-        source,
-        source
-            .find("fn save_and_stop_engine(")
-            .ok_or_else(|| "the save and the stop are no longer one helper".to_string())?,
-    );
-    if !body.contains("self.save_then_stop(|| self.save_open_chat())") {
-        return Err("the engine's stop no longer saves the open chat before stopping".to_string());
     }
     let helper = brace_block(
         source,
@@ -3012,8 +3029,12 @@ fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_unawaited_or_ung
     let stop = "self.supervisor.stop();";
     let mutations = [
         (
-            mutate_body(&source, "fn save_and_stop_engine(", |body| {
-                body.replacen("self.save_then_stop(|| self.save_open_chat());", "", 1)
+            mutate_body(&source, "async fn brain_stop(", |body| {
+                body.replacen(
+                    "turn_off_engine(|| turning_off.save_open_chat())",
+                    "turn_off_engine(|| ())",
+                    1,
+                )
             }),
             "deleted",
         ),
@@ -3031,7 +3052,11 @@ fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_unawaited_or_ung
         ),
         (
             mutate_body(&source, "async fn brain_stop(", |body| {
-                body.replacen("turn_off_engine()).await", "turn_off_engine())", 1)
+                body.replacen(
+                    "spawn_blocking(engine_off).await",
+                    "spawn_blocking(engine_off)",
+                    1,
+                )
             }),
             "unawaited",
         ),
@@ -3040,6 +3065,16 @@ fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_unawaited_or_ung
                 body.replacen(gate, "", 1)
             }),
             "outside the gate",
+        ),
+        (
+            mutate_body(&source, "fn turn_off_engine(", |body| {
+                body.replacen(
+                    "self.save_then_stop(save);",
+                    "drop(_gate); self.save_then_stop(save);",
+                    1,
+                )
+            }),
+            "after its gate is dropped",
         ),
     ];
     for (mutation, label) in &mutations {
@@ -3051,6 +3086,73 @@ fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_unawaited_or_ung
     assert_eq!(
         brain_stop_saves_the_open_chat_before_the_engine_stops(&source),
         Ok(())
+    );
+}
+
+/// A Turn off holds the gate through its save: a walk that claims while the
+/// save runs must wait for the stop, so no start can land between them.
+#[test]
+fn a_walk_claimed_during_a_turn_off_waits_for_its_save() {
+    let brain = Arc::new(Brain::new());
+    let (saving, in_save) = std::sync::mpsc::channel();
+    let (finish, release) = std::sync::mpsc::channel::<()>();
+    let turning_off = Arc::clone(&brain);
+    let off = std::thread::spawn(move || {
+        turning_off.turn_off_engine(move || {
+            let _ = saving.send(());
+            let _ = release.recv();
+        });
+    });
+    in_save
+        .recv_timeout(Duration::from_secs(5))
+        .expect("the Turn off's save began");
+    let claiming = Arc::clone(&brain);
+    let (claimed, walk) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = claimed.send(claiming.begin_walk(|| {}));
+    });
+    let early = walk.recv_timeout(Duration::from_millis(300));
+    let _ = finish.send(());
+    off.join().expect("the Turn off finished");
+    assert!(
+        early.is_err(),
+        "a walk took the gate while the Turn off's save was running"
+    );
+    let stops_seen = walk
+        .recv_timeout(Duration::from_secs(5))
+        .expect("the walk got the gate once the save ended");
+    assert_eq!(stops_seen, Some(1), "the walk must see the Turn off's generation");
+}
+
+/// The vision restart saves the open chat and then stops the engine through
+/// the shared helper: a bare stop would leave the chat's unsaved turns behind.
+fn vision_restart_pin(source: &str) -> Result<(), String> {
+    let body = brace_block(
+        source,
+        source
+            .find("pub(crate) async fn brain_vision_enable(")
+            .ok_or_else(|| "the vision enable is gone".to_string())?,
+    );
+    if !body.contains("stopper.save_and_stop_engine()") {
+        return Err("the vision restart no longer saves the open chat before its stop".to_string());
+    }
+    if body.contains("supervisor.stop()") {
+        return Err("the vision restart stops the engine without its save".to_string());
+    }
+    Ok(())
+}
+
+#[test]
+fn the_vision_restart_pin_bites_when_the_stop_is_bare() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/vision.rs"))
+        .expect("vision.rs is readable");
+    assert_eq!(vision_restart_pin(&source), Ok(()));
+    let bare = mutate_body(&source, "pub(crate) async fn brain_vision_enable(", |body| {
+        body.replacen("stopper.save_and_stop_engine()", "stopper.supervisor.stop()", 1)
+    });
+    assert!(
+        vision_restart_pin(&bare).is_err(),
+        "the pin passed with the vision restart's stop bare"
     );
 }
 
