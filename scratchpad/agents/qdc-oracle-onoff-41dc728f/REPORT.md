@@ -106,3 +106,28 @@ Driver deadlines: SM8850 17:16 UTC (cap ends 17:22); QRD8750 17:28 UTC (cap ends
 `raw/sm8850/`, `raw/qrd8750/`: `campaign.log`, `<label>-{kalsa,hexlog,fastrpc,lmk,crash,exitinfo,watchdog,cool,state-pre,state-post,battery-pre,answer,arm,chats,kind,sendtime,amstart}.txt`, `<label>-probs.jsonl`, `<label>-ids.txt`, `oracle-*.txt`, `steps-*.txt`, `all-rows.tsv` (extract.sh; the QRD8750 copy had a stray env.sh STOP line as line 1 because `extract.sh:4` swallows env.sh failures with `|| true`; the line was removed by the coordinator, the rows were computed from local files and match the raw telemetry), `skin-samples.txt`, `skin-index.txt`, `battery-faked.txt`, `discarded-*` (failed QRD8750 attempts kept as evidence). UI dumps and full logcats were deleted from `raw/` (they stay in `/tmp/qdconoff`, outside the lab). No binaries, no model, no APK.
 
 Scripts (this cell): `env.sh setup.sh skin-id.sh kset.sh kmulti.sh wipe-chats.sh turn.sh arm.sh campaign.sh oparse.sh oracle.sh extract.sh steps.py oracle_logit.py` (unmodified copy) and the prompt files (`prompt-*.txt`, `enc-*.txt`, `prompts.sha256`, checked).
+
+## Addendum (coordinator, 2026-10-11): V81 against the yardstick V75 was promoted on
+
+V75 GPU prefill was enabled by the owner on 2026-09-07 with the raw verdict still `FAIL rule=R2`, on the effect-size
+criteria registered in `../gemm-f32-ship/PREREG.md` (`../gemm-f32-ship/DECISION.md`). The same metrics for every SM8850
+pair measured so far (per-step tables from `steps.py`, recomputed with one script):
+
+| pair | engine | median \|dp1\| (<= 0.02) | median max\|dlogp\| (<= 0.5) | steps dp1 > 0.02 (<= 8/32) | confident top-1 flips (<= 2/32) | max dp1 | max dlogp |
+|---|---|---:|---:|---:|---:|---:|---:|
+| V75 Adreno 750 after the fix (the promoted one) | `67c73d26c` | 0.0014 | 0.3037 | 8 | 0 | 0.0883 | 0.8627 |
+| V81 Adreno 840, 10-03 pair 2 | `0917c693` | 0.0000 | 0.2225 | 2 | 0 | 0.0460 | 0.6160 |
+| V81 Adreno 840, 10-03 pair 3 | `0917c693` | 0.0000 | 0.2145 | 0 | 0 | 0.0190 | 0.4660 |
+| V81 Adreno 840, today (one distinct pair) | `74b75037f` | 0.0000 | 0.2705 | 4 | 0 | 0.1080 | 0.5240 |
+
+Sources: `../qdc-sm8850-every-snapdragon-ac04c939/raw/sm8850/p{2,3}-steps.txt`, `raw/sm8850/steps-p1a1-vs-p1b1.txt`,
+`../gemm-f32-ship/REPORT.md` lines 17-24. Different prompts per row (not a same-prompt comparison).
+
+Reading: on every registered criterion the Adreno 840 is at least as close to the CPU as the Adreno 750 path already in
+production; the binary R2 (|dp1| <= 0.02 at every step) has not been met by any Adreno GPU measured, including the
+promoted one. So "V81 GPU fails" means "fails the same gate V75 fails", not "is broken like V75 was before its fix".
+
+Speed on the same oracle pair: CPU 595 tok / 2.504 s = 238 tok/s, GPU 595 / 1.962 s = 303 tok/s (1.28x), against the
+NPU lane at 1337 tok/s on the ON turns. With the NPU lane on (the default on SM8850) the GPU would not be chosen for
+prefill; enabling `GPU_PREFILL_CORRECT.V81` changes behaviour only where the NPU lane is off or does not fit.
+Owner decides (R6).
