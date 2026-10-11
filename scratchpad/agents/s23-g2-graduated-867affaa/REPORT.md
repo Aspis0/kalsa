@@ -39,10 +39,12 @@ Speed is `predictedPerSecond` per completion (`raw/telemetry-speed.csv`).
 3. With the skin at ~40.8 C the forecast settled at 0.96 and the ramp held duty ~0.41: 5.3 tok/s. The hot steady
    state sits wherever the duty balances the heat the phone can shed; this ramp settles about 0.5 C lower than the
    flat 0.5 did, so it is about 10 % slower there.
-4. Turn 10: the harness waited 600 s for a "tool round" continuation and then force-stopped the app
-   (`RECOVERY reason=toolround`). Tools are OFF in this campaign and the answer had already landed
-   (`already-landed-skip-send`), so this looks like a harness misdetection: open. The phone cooled to status 0
-   during the wait.
+4. Turn 10: the model called `write_note` (`KALSA_TOOLCALL` turn 10 round 0, `executed:1`, 18:09:40), and the app
+   then closed the turn with its telemetry and no round-1 continuation. The harness reads `executed:1` as "a
+   continuation is coming", waited its 600 s bound, and force-stopped the app (`RECOVERY reason=toolround`); the
+   answer had already landed (`already-landed-skip-send`). Tools are ON in this campaign (`toolChoice auto`; turn 1
+   also used them); `toolhelp=0` only drops the tool-help prompt. App/harness contract mismatch, backlog H6. The
+   phone cooled to status 0 during the wait.
 5. Turns 13-16: the forecast reached 0.97 and the duty its 0.35 floor (4.4-4.8 tok/s).
 6. Turn 14: harness thermal pause at battery 42.2 C, resumed after 240 s without a restart.
 7. Turn 16: a second pause at battery 42.2 C. The pause does not stop the app (`record only — app NOT
@@ -69,4 +71,4 @@ With 43 C neither pause would have fired at 42.2-42.6 C. Fixed in app `e0ae695d`
 1. Fix `run-t20c.sh` to read `recovery.thermalMaxC`.
 2. Owner decision: keep the S23 lines (0.87 / 0.97) or move the full line toward SEVERE (e.g. 0.99 = skin ~41.7 C)
    to trade margin for steady-state speed.
-3. Look at the turn-10 tool-round wait (tools OFF).
+3. H6: decide whether a tool round may end the turn without a continuation (app) or the harness must accept it.

@@ -85,3 +85,8 @@
 - B10 (P3) `KALSA_GOVERNOR_HEADROOM {available:1}` means only that the symbol resolved; a device that answers NaN
   forever looks available. Host tests cover the pure helpers, not the dlsym or refresh-to-engine path; params tests miss
   numeric NaN/Infinity.
+- H6 (P2, S23 G2 run 2026-10-10, `s23-g2-graduated-867affaa`) Turn 10: the model called `write_note`
+  (`KALSA_TOOLCALL` round 0 `executed:1`) and the app closed the turn without a round-1 continuation. `turn.sh` reads
+  `executed:1` as "continuation pending", waits 600 s, then force-stops a healthy app (`RECOVERY reason=toolround`).
+  Either the app must always run the continuation round after an executed tool, or the harness must accept a turn
+  whose KALSA_GOVERNOR/answer landed after the last executed round. Cost: 10 idle minutes and a restart per hit.
