@@ -15,7 +15,7 @@ for f in $OUT/*-kalsa.txt; do
   j() { echo "$1" | jq -r "$2" 2>/dev/null || echo "?"; }
   pl=$(j "$plan" '.npu_lane // "NA"'); pf=$(j "$plan" '.npu_fit // "NA"'); pg=$(j "$plan" '.gpu_fit // "NA"'); pa=$(j "$plan" '.available_mib // "NA"'); ps=$(j "$plan" '.available_src // "NA"')
   st=$(j "$gov" '.thermal_state // "NA"'); ch=$(j "$gov" '.route_chunks | length'); ly=$(j "$gov" '[.route_chunks[].layers_device] | group_by(.) | map("\(.[0])x\(length)") | join(",")')
-  ep=$(j "$gov" '.engine_prefill // "NA"'); pkv=$(j "$gov" '.prefill_kv // "NA"'); ck=$(j "$gov" '.cache_type_k // "NA"'); cv=$(j "$gov" '.cache_type_v // "NA"'); fl=$(j "$gov" '.failed // "NA"')
+  ep=$(j "$gov" '.engine_prefill // "NA"'); pkv=$(j "$gov" '.prefill_kv // "NA"'); ck=$(j "$gov" '.cache_type_k // "NA"'); cv=$(j "$gov" '.cache_type_v // "NA"'); fl=$(j "$gov" '(.failed | tostring)')
   pn=$(j "$tel" '.prompt_n // -1'); pms=$(j "$tel" '.promptMs // -1'); dps=$(j "$tel" '.predictedPerSecond // -1'); tp=$(j "$tel" '.tokensPredicted // -1')
   tt=$(echo "$kv" | grep -oE "text_tokens=[0-9]+" | cut -d= -f2)
   nc=$(echo "$kv" | grep -oE "n_common=[0-9]+" | cut -d= -f2)

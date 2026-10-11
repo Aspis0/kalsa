@@ -42,6 +42,7 @@ done
 [ "$staged" = 1 ] || { note "STAGE NEVER LANDED"; exit 7; }
 grep -c "$frag" $P-ui.txt > $P-stage-count.txt
 fg || { note "NOT FOREGROUND AT SEND"; exit 8; }
+ad shell 'dumpsys power | grep -m1 mWakefulness=' | tr -d '\r' | grep -q "mWakefulness=Awake" || { note "NOT AWAKE AT SEND"; exit 6; }
 sxy=$(center Send $P-ui.txt); [ -n "$sxy" ] || { note "NO SEND NODE"; exit 7; }
 # --- watchdog: skin every 10 s, WARN 40, KILL at STOP_C ---
 : > $P-watchdog.txt
@@ -84,7 +85,7 @@ for try in 1 2 3; do ADT=120 ad logcat -d -b all > $FULL.tmp 2>/dev/null; rc=$?;
 grep -E "KALSA_" $FULL > $P-kalsa.txt
 grep -iE "ggml-hex|ggml_opencl|opencl|hexagon|HTP[0-9]|htp" $FULL | head -200 > $P-hexlog.txt
 grep -iE "lowmemorykiller|lmkd|Out of memory|oom_adj|Killing .*com.kalsa|am_kill|am_proc_died.*kalsa" $FULL | head -40 > $P-lmk.txt
-grep -E "CDSP0 CRASHED|dspqueue_read failed|dspqueue_write failed|INTERNAL-ERROR|ggml_abort|GGML_ASSERT|Aborted|Segmentation|FATAL EXCEPTION|SIGSEGV" $FULL | head -40 > $P-crash.txt
+grep -E "CDSP0 CRASHED|dspqueue_read failed|dspqueue_write failed|INTERNAL-ERROR|ggml_abort|GGML_ASSERT|Aborted|Segmentation|FATAL|SIGSEGV" $FULL | head -40 > $P-crash.txt
 grep -iE "fastrpc|remote_handle" $FULL | head -60 > $P-fastrpc.txt
 ad shell "dumpsys activity exit-info $APP" 2>/dev/null | tr -d '\r' | grep -E "reason=|timestamp=|description=|pid=" | head -20 > $P-exitinfo.txt
 ad shell 'dumpsys power | grep mWakefulness=; dumpsys thermalservice | grep -m1 "Thermal Status"; dumpsys thermalservice | grep -i -m1 "mName=skin"; dumpsys battery | grep -E "^  (AC|USB|Wireless) powered|^  level|^  temperature"' | tr -d '\r' > $P-state-post.txt
