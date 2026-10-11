@@ -1,0 +1,12 @@
+run2-t1: 166s E_IxV=294mWh mean=6.38W E_cc=95mWh cc_start=3750000 cc_steps=2 eval=8562 pred=2439 mWh/100out=12.1
+run2-t2: 106s E_IxV=161mWh mean=5.49W E_cc=158mWh cc_start=3716250 cc_steps=4 eval=3838 pred=1164 mWh/100out=13.8
+run2-t3: 157s E_IxV=211mWh mean=4.83W E_cc=174mWh cc_start=3667500 cc_steps=4 eval=5278 pred=1316 mWh/100out=16.0
+run2-t4: 177s E_IxV=200mWh mean=4.06W E_cc=189mWh cc_start=3618750 cc_steps=6 eval=3636 pred=1475 mWh/100out=13.6
+run2-t5: 196s E_IxV=209mWh mean=3.83W E_cc=191mWh cc_start=3555000 cc_steps=6 eval=5395 pred=1176 mWh/100out=17.8
+run2-t6: 248s E_IxV=236mWh mean=3.44W E_cc=222mWh cc_start=3502500 cc_steps=9 eval=3505 pred=1475 mWh/100out=16.0
+rep-t1: 140s E_IxV=254mWh mean=6.53W E_cc=64mWh cc_start=3750000 cc_steps=1 eval=8357 pred=1879 mWh/100out=13.5
+rep-t2: 137s E_IxV=212mWh mean=5.57W E_cc=143mWh cc_start=3708750 cc_steps=3 eval=2354 pred=1577 mWh/100out=13.4
+rep-t3: 268s E_IxV=286mWh mean=3.85W E_cc=287mWh cc_start=3663750 cc_steps=8 eval=4208 pred=1949 mWh/100out=14.7
+rep-t4: 308s E_IxV=315mWh mean=3.68W E_cc=302mWh cc_start=3585000 cc_steps=10 eval=4264 pred=1829 mWh/100out=17.2
+rep-t5: 290s E_IxV=294mWh mean=3.65W E_cc=286mWh cc_start=3506250 cc_steps=10 eval=4158 pred=1719 mWh/100out=17.1
+rep-t6: 333s E_IxV=321mWh mean=3.47W E_cc=314mWh cc_start=3431250 cc_steps=11 eval=4047 pred=1957 mWh/100out=16.4
