@@ -1961,6 +1961,7 @@ mod tests {
             port: 8131,
             endpoint: Some("http://127.0.0.1:8131/v1".to_string()),
             model: Some("a row".to_string()),
+            reason_code: None,
             reason: Some("a reason".to_string()),
             asleep: Some(false),
             vision: crate::vision::VisionState::None,

@@ -127,6 +127,9 @@ pub(crate) enum CapabilityDto {
     /// that one fact decides the first run's screen, so it travels.
     Unmeasured {
         chosen: bool,
+        /// The stored choice's display name, so Home can say what it runs
+        /// while it is off.
+        chosen_model: Option<String>,
     },
     Measured {
         machine: MachineDto,
@@ -134,6 +137,12 @@ pub(crate) enum CapabilityDto {
         /// home page answers it with the Start flow instead of an automatic
         /// start.
         chosen: bool,
+        /// The stored choice's display name, present exactly when `chosen`.
+        chosen_model: Option<String>,
+        /// The stored choice's token, the same value an option's `id`
+        /// carries: the page finds the chosen card by it, never by the
+        /// display name two rows of one model share.
+        chosen_id: Option<String>,
         /// The catalog's pick, when it has one.
         model: Option<ModelChoiceDto>,
         /// The second option: the most model this machine runs clearly faster
@@ -272,7 +281,7 @@ pub(crate) fn dto(
     measurement: &Measurement,
     ram_bytes: u64,
     phone: Option<PhoneModel>,
-    chosen: bool,
+    chosen: Option<&'static ModelEntry>,
     root: &Path,
 ) -> CapabilityDto {
     let input = input_for(measurement, ram_bytes, phone);
@@ -431,7 +440,9 @@ pub(crate) fn dto(
         });
     CapabilityDto::Measured {
         machine,
-        chosen,
+        chosen: chosen.is_some(),
+        chosen_model: chosen.map(|row| row.display_name.to_string()),
+        chosen_id: chosen.map(crate::startup::model_token),
         model,
         quicker,
         refusal,
@@ -565,6 +576,24 @@ mod tests {
     /// inside this binary, and a shared path would have each call wiping
     /// the others'. These tests read predictions — a tune record nobody
     /// wrote says nothing.
+    /// Any catalog row, standing in for the owner's stored choice.
+    fn stored_row() -> &'static ModelEntry {
+        rows().next().expect("the catalog has rows")
+    }
+
+    #[test]
+    fn a_stored_choice_travels_as_its_name_and_its_token() {
+        let row = stored_row();
+        let CapabilityDto::Measured { chosen, chosen_model, chosen_id, .. } =
+            dto(&measured(Backend::Cpu), 16 * GIB, None, Some(row), &records_root("stored"))
+        else {
+            panic!("a measured machine answers Measured");
+        };
+        assert!(chosen);
+        assert_eq!(chosen_model.as_deref(), Some(row.display_name));
+        assert_eq!(chosen_id, Some(crate::startup::model_token(row)));
+    }
+
     fn records_root(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "kalsa-brain-capability-{}-{name}",
@@ -590,6 +619,8 @@ mod tests {
                 bandwidth_basis: "chip",
             },
             chosen: true,
+            chosen_model: Some("Liquid LFM 2.5".to_string()),
+            chosen_id: Some("0000000000000001".to_string()),
             model: Some(ModelChoiceDto {
                 id: Some("0000000000000001".to_string()),
                 name: "Liquid LFM 2.5".to_string(),
@@ -638,6 +669,8 @@ mod tests {
         println!("{}", serde_json::to_string_pretty(&dto).expect("serialise"));
         assert_eq!(json["kind"], "measured");
         assert_eq!(json["chosen"], true);
+        assert_eq!(json["chosen_model"], "Liquid LFM 2.5");
+        assert_eq!(json["chosen_id"], json["model"]["id"]);
         assert_eq!(
             json["machine"]["ram_bytes"],
             serde_json::to_value(17 * GIB).unwrap()
@@ -659,7 +692,7 @@ mod tests {
         assert!(json.get("refusal_code").is_none());
         let mut top_keys: Vec<_> = json.as_object().unwrap().keys().collect();
         top_keys.sort();
-        assert_eq!(top_keys, ["chosen", "kind", "machine", "model", "quicker", "refusal"]);
+        assert_eq!(top_keys, ["chosen", "chosen_id", "chosen_model", "kind", "machine", "model", "quicker", "refusal"]);
         // The exact key sets, so a renamed or added field breaks loudly:
         // these are the names the frontend reads, and there is no sixth.
         // Both sides sorted: the contract is the set of names, whatever
@@ -700,11 +733,14 @@ mod tests {
         let mut quicker_keys: Vec<_> = json["quicker"].as_object().unwrap().keys().collect();
         quicker_keys.sort();
         assert_eq!(quicker_keys, model_keys);
-        let unmeasured = serde_json::to_value(CapabilityDto::Unmeasured { chosen: false })
-            .expect("serialise");
+        let unmeasured = serde_json::to_value(CapabilityDto::Unmeasured {
+            chosen: false,
+            chosen_model: None,
+        })
+        .expect("serialise");
         assert_eq!(
             unmeasured,
-            serde_json::json!({ "kind": "unmeasured", "chosen": false })
+            serde_json::json!({ "kind": "unmeasured", "chosen": false, "chosen_model": null })
         );
 
         // The fixture the Playwright harness validates against is pinned
@@ -755,7 +791,7 @@ mod tests {
         // prediction. Absent until a tune has run — the ordinary first
         // sight — and found by the row's pinned digest alone.
         let root = records_root("measured");
-        let first = dto(&measured(Backend::Cpu), 16 * GIB, None, false, &root);
+        let first = dto(&measured(Backend::Cpu), 16 * GIB, None, None, &root);
         let CapabilityDto::Measured {
             model: Some(before),
             ..
@@ -797,7 +833,7 @@ mod tests {
         };
         kalsa_tune::record::save(&root, digest, &record).expect("file the record");
 
-        let again = dto(&measured(Backend::Cpu), 16 * GIB, None, false, &root);
+        let again = dto(&measured(Backend::Cpu), 16 * GIB, None, None, &root);
         let CapabilityDto::Measured {
             model: Some(after), ..
         } = again
@@ -814,7 +850,7 @@ mod tests {
         // row's own funded context minus the 98_653_280 bytes the plan
         // charges, never the drafter-blind figure.
         let root = records_root("drafter-context");
-        let first = dto(&pair_machine(), 9 * GIB, None, false, &root);
+        let first = dto(&pair_machine(), 9 * GIB, None, None, &root);
         let CapabilityDto::Measured {
             model: Some(pick), ..
         } = first
@@ -843,7 +879,7 @@ mod tests {
         // the measurements: slower or equal drops the speed claim and says
         // only what stays true — the size.
         let root = records_root("quicker-reason");
-        let first = dto(&pair_machine(), 16 * GIB, None, false, &root);
+        let first = dto(&pair_machine(), 16 * GIB, None, None, &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -898,7 +934,7 @@ mod tests {
             kalsa_tune::record::save(&root, digest, &record).expect("file the record");
         }
 
-        let again = dto(&pair_machine(), 16 * GIB, None, false, &root);
+        let again = dto(&pair_machine(), 16 * GIB, None, None, &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -963,7 +999,7 @@ mod tests {
         // 40.0 against the alternative's 32.6 floor — so the pair is not
         // called faster even though the two floors alone would say it is.
         let root = records_root("one-side-measured");
-        let first = dto(&pair_machine(), 16 * GIB, None, false, &root);
+        let first = dto(&pair_machine(), 16 * GIB, None, None, &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -994,7 +1030,7 @@ mod tests {
             .sha256;
         file_measured_rate(&root, digest, 40.0);
 
-        let again = dto(&pair_machine(), 16 * GIB, None, false, &root);
+        let again = dto(&pair_machine(), 16 * GIB, None, None, &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -1022,7 +1058,7 @@ mod tests {
         // The commonest first run: a Mac with no phone paired. The page's
         // question — what can this computer run? — still has an answer; the
         // upgrade question is the one that waits for the phone.
-        let suggestion = dto(&measured(Backend::Cpu), 16 * GIB, None, true, &records_root("unpaired"));
+        let suggestion = dto(&measured(Backend::Cpu), 16 * GIB, None, Some(stored_row()), &records_root("unpaired"));
         let CapabilityDto::Measured {
             model,
             refusal,
@@ -1040,7 +1076,7 @@ mod tests {
         // And when nothing runs even without the comparison, the phone-free
         // question's own refusal answers — here, nothing fits — with its
         // words, not the pair-first sentence that no longer gates anything.
-        let nothing_fits = dto(&measured(Backend::Cpu), 0, None, true, &records_root("nothing-fits"));
+        let nothing_fits = dto(&measured(Backend::Cpu), 0, None, Some(stored_row()), &records_root("nothing-fits"));
         let CapabilityDto::Measured { model, refusal, .. } = nothing_fits else {
             panic!("a measured machine answers Measured, not Unmeasured");
         };
@@ -1091,7 +1127,7 @@ mod tests {
             measured_tokens_per_second: None,
             battery_powered: Some(true),
         };
-        let dto = dto(&measured(Backend::Cpu), 16 * GIB, Some(phone), true, &records_root("phone"));
+        let dto = dto(&measured(Backend::Cpu), 16 * GIB, Some(phone), Some(stored_row()), &records_root("phone"));
         let CapabilityDto::Measured {
             model: Some(choice),
             ..
@@ -1123,7 +1159,7 @@ mod tests {
         for ram in [8, 16, 32, 64] {
             for backend in [Backend::Cpu, Backend::Metal] {
                 let CapabilityDto::Measured { model, quicker, .. } =
-                    dto(&measured(backend), ram * GIB, None, true, &records_root("speed-context"))
+                    dto(&measured(backend), ram * GIB, None, Some(stored_row()), &records_root("speed-context"))
                 else {
                     panic!("{ram} GiB: a measured machine answers Measured");
                 };
@@ -1152,7 +1188,7 @@ mod tests {
         // 8 GiB that is the lighter LFM file, judged and quoted at the small
         // window the walk launches it with.
         let CapabilityDto::Measured { model, .. } =
-            dto(&measured(Backend::Cpu), 8 * GIB, None, true, &records_root("eight-gib"))
+            dto(&measured(Backend::Cpu), 8 * GIB, None, Some(stored_row()), &records_root("eight-gib"))
         else {
             panic!("a measured machine answers Measured");
         };
@@ -1187,7 +1223,7 @@ mod tests {
             decode_bytes_per_second: Some(45.1e9),
             ..measured(Backend::Cpu)
         };
-        let suggestion = dto(&surface, 15 * GIB, None, true, &records_root("surface-window"));
+        let suggestion = dto(&surface, 15 * GIB, None, Some(stored_row()), &records_root("surface-window"));
         let CapabilityDto::Measured { model, quicker, .. } = suggestion else {
             panic!("a measured machine answers Measured");
         };
@@ -1225,7 +1261,7 @@ mod tests {
             ceiling: kalsa_probe::Series::new(vec![800.0e9]),
             ..measured(Backend::Cpu)
         };
-        let suggestion = dto(&wide, 64 * GIB, None, true, &records_root("bigger-faster"));
+        let suggestion = dto(&wide, 64 * GIB, None, Some(stored_row()), &records_root("bigger-faster"));
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -1284,7 +1320,7 @@ mod tests {
             ceiling: kalsa_probe::Series::new(vec![800.0e9]),
             ..measured(Backend::Cpu)
         };
-        let first = dto(&wide, 64 * GIB, None, true, &root);
+        let first = dto(&wide, 64 * GIB, None, Some(stored_row()), &root);
         let CapabilityDto::Measured {
             model: Some(_),
             quicker: Some(second),
@@ -1305,7 +1341,7 @@ mod tests {
             .sha256;
         file_measured_rate(&root, digest, 10.0);
 
-        let again = dto(&wide, 64 * GIB, None, true, &root);
+        let again = dto(&wide, 64 * GIB, None, Some(stored_row()), &root);
         let CapabilityDto::Measured {
             model: Some(pick),
             quicker: Some(second),
@@ -1359,7 +1395,7 @@ mod tests {
                 vram_bytes: Some(6_439_305_216),
             })
         };
-        let suggestion = dto(&lenovo, 32 * GIB, None, false, &records_root("lenovo-card"));
+        let suggestion = dto(&lenovo, 32 * GIB, None, None, &records_root("lenovo-card"));
         let CapabilityDto::Measured {
             machine,
             model,
@@ -1400,7 +1436,7 @@ mod tests {
         // called a prediction in the same breath ("62.7 tok/s, measured on an M1
         // Max … The speed is a prediction, not a measurement on this machine").
         let CapabilityDto::Measured { model, quicker, .. } =
-            dto(&pair_machine(), 16 * GIB, None, true, &records_root("largest"))
+            dto(&pair_machine(), 16 * GIB, None, Some(stored_row()), &records_root("largest"))
         else {
             panic!("a measured machine answers Measured");
         };

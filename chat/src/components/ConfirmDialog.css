@@ -28,9 +28,17 @@
   height: 56px;
   margin-bottom: 18px;
   place-items: center;
+  border-radius: 50%;
+}
+
+.dialog-icon.is-danger {
   color: var(--warn-ink);
   background: var(--warn-fill);
-  border-radius: 50%;
+}
+
+.dialog-icon.is-accent {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
 }
 
 .dialog h3 {
@@ -78,4 +86,10 @@
   color: #fff;
   background: var(--danger-fill);
   border-color: var(--danger-fill);
+}
+
+.dialog-btn-accent {
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-color: var(--ac);
 }

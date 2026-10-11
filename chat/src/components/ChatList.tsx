@@ -211,6 +211,8 @@ export function ChatList({
       ) : null}
       {deleting ? (
         <ConfirmDialog
+          icon="trash"
+          tone="danger"
           title={t.sure}
           body={t.deleteBody(deleting.title || table.shell.untitled)}
           cancel={t.cancel}

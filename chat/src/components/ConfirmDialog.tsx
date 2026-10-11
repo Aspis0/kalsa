@@ -1,10 +1,14 @@
 import { useEffect, useRef } from "react";
 import { Icon } from "./Icon";
+import type { IconName } from "./Icon";
 import "./ConfirmDialog.css";
 
-/** A destructive action asked first (RULES.md "Dialog"): the amber circle,
-    the title, one line, Cancel and the action. */
+/** An action asked first (RULES.md "Dialog"): the round icon, the title, one
+    line, Cancel and the action. A destructive one wears the amber circle and
+    the red button; any other the sage ones. */
 export function ConfirmDialog({
+  icon,
+  tone,
   title,
   body,
   cancel,
@@ -12,6 +16,8 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
 }: {
+  icon: IconName;
+  tone: "danger" | "accent";
   title: string;
   body: string;
   cancel: string;
@@ -22,7 +28,7 @@ export function ConfirmDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
 
-  // Focus starts on Cancel: Enter on an open dialog must never delete.
+  // Focus starts on Cancel: Enter on an open dialog must never act.
   useEffect(() => {
     cancelRef.current?.focus();
   }, []);
@@ -43,8 +49,8 @@ export function ConfirmDialog({
       }}
     >
       <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-body">
-        <span className="dialog-icon">
-          <Icon name="trash" size={26} />
+        <span className={`dialog-icon is-${tone}`}>
+          <Icon name={icon} size={26} />
         </span>
         <h3 id="dialog-title">{title}</h3>
         <p id="dialog-body">{body}</p>
@@ -52,8 +58,8 @@ export function ConfirmDialog({
           <button ref={cancelRef} type="button" className="dialog-btn" onClick={onCancel}>
             {cancel}
           </button>
-          <button ref={confirmRef} type="button" className="dialog-btn dialog-btn-danger" onClick={onConfirm}>
-            <Icon name="trash" size={18} />
+          <button ref={confirmRef} type="button" className={`dialog-btn dialog-btn-${tone}`} onClick={onConfirm}>
+            <Icon name={icon} size={18} />
             {confirm}
           </button>
         </div>

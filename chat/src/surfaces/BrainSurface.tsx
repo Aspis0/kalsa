@@ -103,6 +103,8 @@ export function BrainSurface({ onNavigate, onOpenChat }: BrainSurfaceProps) {
   };
   const hint = stopFailure ? null : hints[tone];
   const running = state?.kind === "running" ? state : null;
+  // What runs now, or what will run at the next start while Kalsa is off.
+  const usingModel = running?.model || capability.chosen_model;
 
   let action: ReactNode = null;
   if (!stopFailure && (tone === "on" || tone === "rest")) {
@@ -136,7 +138,7 @@ export function BrainSurface({ onNavigate, onOpenChat }: BrainSurfaceProps) {
       {action}
       {tone !== "unknown" ? (
         <p className="brain-using">
-          {running?.model ? home.using(running.model) : null}
+          {usingModel ? home.using(usingModel) : null}
           <button type="button" className="brain-details" onClick={() => onNavigate("models")}>
             {home.details} <span aria-hidden="true">›</span>
           </button>

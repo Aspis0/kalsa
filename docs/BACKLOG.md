@@ -405,3 +405,10 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - Video chip "Compressing… %" label is under 13px.
 - The streamed answer text is not announced live (only "Kalsa has answered"); deliberate, revisit with a screen-reader pass.
 - Report a problem moves to Help, and the rest of Help copy change 12 (piece 5).
+
+## Hearth port, piece 3 (Your AI, For experts), left for later
+- For experts context help still says "2 GiB" (mockup "2.1 GB"); speeds read "About 31.0–46.0 tokens/s" (mockup "31–46 tokens per second").
+- Server settings vs mockup: "In force" not bold, the switch has no "Off" text, "Model name" has no (i), long "Unload after idle" text, the numeric context field is still there.
+- The token window the speeds are priced on is shown nowhere any more; the guard checks the "short conversation" sentence instead.
+- Home "Using <model>" uses the backend's full name ("Alibaba Qwen 3.6") while the cards say "Qwen 3.6 by Alibaba".
+- Pre-existing at c35ed539: verify `metersum`, brain-shots `refusal` fixture ("of 22.1 GB"), contrast-dom missing "Show thinking".

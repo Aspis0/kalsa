@@ -57,6 +57,28 @@ export const PHONE_FREE_REASON =
 export const PHONE_REASON = "This computer runs a bigger model than your phone does. (stub)";
 export const AUTO_REASON = "This is the model this computer runs best. (stub)";
 export const RUNNING_MODEL = "IBM Granite 4 Tiny";
+
+/** Two catalog rows for Your AI's cards: a big one and a light one. The
+    second option's reason code is the backend's comparison of the two. */
+const BIG_ROW = {
+  id: "tok-big", name: "Alibaba Qwen 3.6", quant: "Q4_K_M", download_bytes: 20_600_000_000,
+  context_tokens: 131072, speed_context_tokens: 8192, speed: { shape: "range", low: 31, high: 46 },
+  measured: null, reason: "Kalsa picked this because it runs well on this computer.", reason_code: "model.reason.pick", details: "the working",
+};
+const LIGHT_ROW = {
+  id: "tok-light", name: "Google Gemma 4 E4B", quant: "Q8_0", download_bytes: 4_600_000_000,
+  context_tokens: 131072, speed_context_tokens: 8192, speed: { shape: "range", low: 70, high: 92 },
+  measured: null, reason: "You picked this AI.", reason_code: "model.reason.chosen", details: "the working",
+};
+function aiCapability(model, quicker, chosenRow) {
+  return {
+    kind: "measured", chosen: true, chosen_model: chosenRow.name, chosen_id: chosenRow.id,
+    machine: { ram_bytes: 64 * 1024 ** 3, budget_bytes: 48 * 1024 ** 3, gpu_accounted_for: true, runs_on: "the graphics chip", bandwidth_bytes_per_second: 400e9, bandwidth_basis: "measured" },
+    model, quicker, refusal: null,
+  };
+}
+const second = (row, reason_code) => ({ ...row, reason_code, reason: `(${reason_code})` });
+const runningOn = (row) => ({ kind: "running", model: row.name, reason: AUTO_REASON });
 /// The house the invitation states pair in: phones already paired, both
 /// ports known — the page's own "paired" branch, where the owner adds one.
 function pairedHouse() {
@@ -297,11 +319,20 @@ const scenarios = [
   ["Model", "running: the choice is automatic", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: AUTO_REASON } }],
   ["Model", "running: a phone was paired and compared", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: PHONE_REASON } }],
   ["Model", "running: no phone was paired", "models", { state: { kind: "running", model: RUNNING_MODEL, reason: PHONE_FREE_REASON } }],
-  ["Model", "advanced settings are visible", "models", { state: { kind: "running" }, advanced: advancedDto() }],
-  ["Model", "advanced settings with the internet road unavailable", "models", { state: { kind: "running" }, advanced: advancedDto({ iroh_sentence: "The internet road could not open on this computer. The other roads to it still work." }) }],
-  ["Model", "advanced settings with the internet road turned off", "models", { state: { kind: "running" }, advanced: advancedDto({ internet_road: false, iroh_sentence: "The internet road is turned off. The phone reaches this computer the Tailscale way." }) }],
-  ["Model", "advanced settings with an f16 cache override", "models", { state: { kind: "running" }, advanced: advancedDto({ kv_cache_override: "f16", kv_cache_type: "f16" }) }],
-  ["Model", "advanced settings with a saved micro-batch", "models", { state: { kind: "running" }, advanced: advancedDto({ ubatch_override: 1024, ubatch_size: 1024 }) }],
+  ["Advanced", "server settings are visible", "advanced", { state: { kind: "running" }, advanced: advancedDto() }],
+  ["Advanced", "server settings with the internet road unavailable", "advanced", { state: { kind: "running" }, advanced: advancedDto({ iroh_sentence: "The internet road could not open on this computer. The other roads to it still work." }) }],
+  ["Advanced", "server settings with the internet road turned off", "advanced", { state: { kind: "running" }, advanced: advancedDto({ internet_road: false, iroh_sentence: "The internet road is turned off. The phone reaches this computer the Tailscale way." }) }],
+  ["Advanced", "server settings with an f16 cache override", "advanced", { state: { kind: "running" }, advanced: advancedDto({ kv_cache_override: "f16", kv_cache_type: "f16" }) }],
+  ["Advanced", "server settings with a saved micro-batch", "advanced", { state: { kind: "running" }, advanced: advancedDto({ ubatch_override: 1024, ubatch_size: 1024 }) }],
+  ["Model", "cards: second smaller and faster", "models", { state: runningOn(BIG_ROW), capability: aiCapability(BIG_ROW, second(LIGHT_ROW, "model.reason.quicker"), BIG_ROW) }],
+  ["Model", "cards: second bigger and slower", "models", { state: runningOn(LIGHT_ROW), capability: aiCapability(LIGHT_ROW, second(BIG_ROW, "model.reason.more_capable"), LIGHT_ROW) }],
+  ["Model", "cards: second smaller, not faster", "models", { state: runningOn(BIG_ROW), capability: aiCapability(BIG_ROW, second(LIGHT_ROW, "model.reason.quicker_smaller"), BIG_ROW) }],
+  ["Model", "cards: second bigger and faster", "models", { state: runningOn(LIGHT_ROW), capability: aiCapability(LIGHT_ROW, second(BIG_ROW, "model.reason.bigger"), LIGHT_ROW) }],
+  ["Model", "cards: a code this build does not know", "models", { state: runningOn(BIG_ROW), capability: aiCapability(BIG_ROW, second(LIGHT_ROW, "model.reason.catalog"), BIG_ROW) }],
+  ["Model", "cards: one option alone", "models", { state: runningOn(BIG_ROW), capability: aiCapability(BIG_ROW, null, BIG_ROW) }],
+  ["Model", "cards: two rows of one model share a name", "models", { state: { kind: "running", model: BIG_ROW.name, reason: AUTO_REASON }, capability: aiCapability(BIG_ROW, { ...second(BIG_ROW, "model.reason.quicker"), id: "tok-big-q4" }, { ...BIG_ROW, id: "tok-big-q4" }) }],
+  ["Model", "cards: off, the stored choice is not offered", "models", { state: { kind: "stopped" }, capability: aiCapability(BIG_ROW, second(LIGHT_ROW, "model.reason.quicker"), { ...LIGHT_ROW, id: "tok-other", name: "Google Gemma 4 12B" }) }],
+  ["Model", "cards: running, readings not known", "models", { state: runningOn(BIG_ROW), capability: aiCapability(BIG_ROW, second(LIGHT_ROW, "model.reason.quicker"), BIG_ROW) }],
   ["Model", "starting on the chosen model", "models", { state: { kind: "starting" } }],
   // The drain as the Models page reports it: the model being put away — never
   // the "could not tell" sentence, which the blind `default:` used to show
@@ -636,7 +667,7 @@ function installBridge() {
             if (command === "brain_advanced") return Promise.resolve(bridgeState.advanced ?? null);
             // Home reads the chooser before it draws anything; a card that names
             // no capability is a machine past its first run.
-            if (command === "brain_capability") return Promise.resolve(bridgeState.capability ?? { kind: "unmeasured", chosen: true });
+            if (command === "brain_capability") return Promise.resolve(bridgeState.capability ?? { kind: "unmeasured", chosen: true, chosen_model: "Liquid LFM 2.5" });
             // The host's credential the page keeps in memory. A stub value:
             // nothing in these states talks to a door.
             if (command === "brain_host_credential") return Promise.resolve("ab".repeat(32));
@@ -796,6 +827,12 @@ function extract(panel, heading, automatic = []) {
       (el) => el.tagName === "INPUT" || el.tagName === "TEXTAREA",
     ).map((el) => String(el.value ?? "")),
     fresh: quietEls.map(elementText).find((text) => text.includes("this one is fresh")) ?? null,
+    // Your AI's cards, as each one titles itself and whether it is the one in use.
+    aiCards: elements(panel, (el) => String(el.className ?? "").split(" ").includes("ai-card")).map((card) => ({
+      title: elementText(first(card, (el) => el.className === "ai-card-title")),
+      chosen: String(card.className).split(" ").includes("is-chosen"),
+    })),
+    aiDetails: elementText(first(panel, (el) => el.className === "ai-details")),
     automatic,
   };
 }
@@ -822,11 +859,7 @@ function componentFor(kind, data) {
     return React.createElement(
       LanguageProvider,
       null,
-      React.createElement(ModelsSurface, {
-        onNavigate: () => {},
-        model: data?.model ?? "",
-        onModelChange: () => {},
-      }),
+      React.createElement(ModelsSurface, { onNavigate: () => {} }),
     );
   }
   if (kind === "advanced") {

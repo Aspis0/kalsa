@@ -504,7 +504,6 @@ try {
   const expertCards = results.filter(
     ({ heading }) =>
       heading.includes("running, live metrics") ||
-      heading.startsWith("Model — advanced settings") ||
       heading.startsWith("Advanced —"),
   );
   const expertText = expertCards.flatMap((r) => r.lines).join("\n");
@@ -742,6 +741,54 @@ try {
   }
   for (const { heading, buttons } of modelCards) {
     if (buttons.some((text) => text.startsWith("Measure"))) problems.push(`the Model page must not ask the user to measure: ${heading}`);
+  }
+
+  // Your AI's cards claim only what the second option's reason code says
+  // (capability.rs `reason_message`): Smartest for the more capable, Quickest
+  // for the smaller and faster, the model's own name where neither holds. The
+  // in-use card is found by the stored token, never by a shared name.
+  const QWEN = "Qwen 3.6";
+  const GEMMA = "Gemma 4 E4B";
+  const CARDS = [
+    ["cards: second smaller and faster", [["Smartest", true], ["Quickest", false]]],
+    ["cards: second bigger and slower", [["Smartest", false], ["Quickest", true]]],
+    ["cards: second smaller, not faster", [["Smartest", true], [GEMMA, false]]],
+    ["cards: second bigger and faster", [[GEMMA, true], [QWEN, false]]],
+    ["cards: a code this build does not know", [[QWEN, true], [GEMMA, false]]],
+    ["cards: one option alone", [[QWEN, true]]],
+    ["cards: two rows of one model share a name", [["Smartest", false], ["Quickest", true]]],
+    ["cards: off, the stored choice is not offered", [["Smartest", false], ["Quickest", false]]],
+    ["cards: running, readings not known", [["Smartest", true], ["Quickest", false]]],
+  ];
+  for (const [note, expected] of CARDS) {
+    const card = modelCards.find((r) => r.heading === `Model — ${note}`);
+    if (!card) {
+      problems.push(`the Model page is missing the "${note}" state`);
+      continue;
+    }
+    const seen = card.aiCards.map(({ title, chosen }) => [title, chosen]);
+    const fits =
+      seen.length === expected.length &&
+      expected.every(([title, chosen], at) => {
+        const [shown, isChosen] = seen[at];
+        // The chip ("In use", "Chosen") rides after the title.
+        return (shown === title || /^(In use|Chosen)$/.test(shown.slice(title.length))) && shown.startsWith(title) && isChosen === chosen;
+      });
+    if (!fits) problems.push(`Your AI ${note}: cards ${JSON.stringify(seen)}, wanted ${JSON.stringify(expected)}`);
+    if (/GiB|Memory while on/.test(card.all)) problems.push(`Your AI ${note}: a second unit or the memory row is back`);
+  }
+  const notOffered = modelCards.find((r) => r.heading === "Model — cards: off, the stored choice is not offered");
+  if (notOffered && /Speed on this computer|Space on disk/.test(notOffered.aiDetails)) {
+    problems.push("Your AI: Details printed a card's figures for a model that is not the one in use");
+  }
+  const unknown = modelCards.find((r) => r.heading === "Model — cards: running, readings not known");
+  if (unknown) {
+    if (/Speed right now|Phones connected now/.test(unknown.aiDetails)) {
+      problems.push("Your AI: a reading the server did not give was shown as a value");
+    }
+    if (!unknown.aiDetails.includes("Space on disk21 GB")) {
+      problems.push(`Your AI: Details must give the in-use model's size in whole GB: ${unknown.aiDetails}`);
+    }
   }
 
   // The sampling panel must show the automatic value of the server that is

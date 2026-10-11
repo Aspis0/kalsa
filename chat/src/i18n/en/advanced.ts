@@ -9,7 +9,6 @@ export const ADVANCED = {
   // the first page, because the button opens this panel.
   noModelYet: "This computer has no model name yet.",
   addModelName: "Add the model name",
-  eyebrow: "ADVANCED",
   title: "Server settings",
   noteRunning: "The current server stays as it is. Changes apply next time you turn on.",
   noteStopped: "Changes apply next time you turn on.",
@@ -69,4 +68,12 @@ export const ADVANCED = {
   whatItsFor: "What it’s for",
   usualValues: "Usual values",
   noUsualValue: "There is no widely agreed value for this one.",
+  expertsTag: "FOR EXPERTS",
+  expertsTitle: "For experts",
+  expertsLead: "Kalsa picks good values for this computer by itself. Change these only if you know what they do.",
+  serverTag: "SERVER",
+  serverBlurb: "Context size, batch, cache, idle unload, internet road. Changes apply next time you turn on.",
+  samplingTag: "MESSAGES",
+  samplingBlurb: "Temperature, Top K, Top P, repetition. Saved choices change the next message you send.",
+  open: "Open",
 };

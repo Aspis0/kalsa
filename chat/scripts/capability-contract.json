@@ -20,6 +20,8 @@
   },
   "sample": {
     "chosen": true,
+    "chosen_id": "0000000000000001",
+    "chosen_model": "Liquid LFM 2.5",
     "kind": "measured",
     "machine": {
       "bandwidth_basis": "chip",

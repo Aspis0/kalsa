@@ -103,9 +103,11 @@ export const HELP = {
     },
     {
       title: "When something goes wrong",
+      // Help draws the Report a problem block under this section.
+      report: true,
       paragraphs: ["During the alpha, Kalsa sends error reports with technical details, and the app's log when something serious goes wrong. Never your chats or text. You can turn this off in Settings."],
       items: [
-        `On the **${CHROME.pages.models}** page, **${REPORT.title}** → **${REPORT.send}**. The log never contains your messages, Kalsa's answers, your files, or any code or key.`,
+        `Here, under **${REPORT.title}**, press **${REPORT.send}**. The log never contains your messages, Kalsa's answers, your files, or any code or key.`,
       ],
     },
     {

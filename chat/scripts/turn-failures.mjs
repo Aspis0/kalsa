@@ -65,7 +65,7 @@ try {
         invoke: async (command) => {
           if (command === "brain_state") return { kind: "running", endpoint: "http://127.0.0.1:18099/v1", model: "m" };
           if (command === "brain_host_credential") return "t";
-          if (command === "brain_capability") return { kind: "unmeasured", chosen: true };
+          if (command === "brain_capability") return { kind: "unmeasured", chosen: true, chosen_model: "Liquid LFM 2.5" };
           if (command === "brain_previous_session_crashed") return false;
           if (command === "brain_log_event") return null;
           throw new Error(`stub missing ${command}`);

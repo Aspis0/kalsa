@@ -1,0 +1,144 @@
+/* What the two For experts panels share (mockups 17-advanced-server,
+   17-advanced-sampling): the note, the two-column grid of knobs, a knob's
+   label, input and help, and the save row. */
+
+.experts-note {
+  display: flex;
+  margin: 0 0 14px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.experts-note .icon {
+  flex: none;
+}
+
+.experts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 36px;
+}
+
+.experts-grid > .is-wide,
+.experts-grid > p {
+  grid-column: 1 / -1;
+}
+
+.advanced-field-heading,
+.sampling-field-heading {
+  display: flex;
+  margin-bottom: 6px;
+  align-items: center;
+  gap: 8px;
+}
+
+.advanced-field-label,
+.sampling-field-heading label {
+  color: var(--tx);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.advanced-field > .advanced-field-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.advanced-field input:not([type="checkbox"]),
+.advanced-field select,
+.sampling-field input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  color: var(--tx);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.advanced-field input::placeholder,
+.sampling-field input::placeholder {
+  color: var(--tx3);
+}
+
+.advanced-field input:focus,
+.advanced-field select:focus,
+.sampling-field input:focus {
+  border-color: var(--ac);
+  outline: none;
+}
+
+.advanced-help,
+.sampling-automatic {
+  margin: 5px 0 0;
+  color: var(--tx3);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.advanced-note {
+  margin: 0;
+  color: var(--tx2);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.experts-actions {
+  display: flex;
+  margin-top: 16px;
+  align-items: center;
+  gap: 14px;
+}
+
+.experts-save {
+  height: 48px;
+  padding: 0 24px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 1.5px solid var(--ac);
+  border-radius: 24px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.experts-save:hover:not(:disabled) {
+  background: var(--ac-tx);
+}
+
+.experts-save:focus-visible {
+  border-radius: 24px;
+}
+
+.experts-saved {
+  display: inline-flex;
+  margin: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--ac-tx);
+  font-weight: 600;
+}
+
+.experts-error,
+.advanced-error {
+  margin: 0;
+  color: var(--err-ink);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+/* The mockup's chevron instead of the platform's arrow. */
+.advanced-field select {
+  padding-right: 40px;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2353584a' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 16px center;
+  font-weight: 600;
+  appearance: none;
+}
+
+[data-theme="dark"] .advanced-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23bebfb0' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}

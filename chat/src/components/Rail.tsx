@@ -10,10 +10,10 @@ interface RailItem {
   icon: IconName;
 }
 
-// The page each surface lights in the rail: Your AI is reached from Home, so
-// Home stays lit on it.
+// The page each surface lights in the rail: Your AI and For experts are
+// reached from Home, so Home stays lit on them.
 function railKey(surface: SurfaceKey): SurfaceKey {
-  return surface === "models" ? "brain" : surface;
+  return surface === "models" || surface === "experts" ? "brain" : surface;
 }
 
 /** The app's one navigation: the same six places on every page. */

@@ -341,7 +341,7 @@ async function probeEngine(engineName, origin) {
                 model: window.__model,
               };
             if (command === "brain_host_credential") return "t";
-            if (command === "brain_capability") return { kind: "unmeasured", chosen: true };
+            if (command === "brain_capability") return { kind: "unmeasured", chosen: true, chosen_model: "Liquid LFM 2.5" };
             if (command === "brain_previous_session_crashed") return false;
             if (command === "brain_log_event") {
               window.__logEvents.push(String(args?.code ?? args?.event ?? JSON.stringify(args) ?? ""));

@@ -1,146 +1,139 @@
 import { useLanguage } from "../i18n/useLanguage";
 import type { SurfaceKey } from "../app/surfaces";
-import { AdvancedPanel, type AdvancedDto, type AdvancedSaveInput } from "../components/AdvancedPanel";
-import { SamplingPanel } from "../components/SamplingPanel";
-import { ReportProblem } from "../components/ReportProblem";
-import { invoke } from "../lib/tauri";
+import { Icon } from "../components/Icon";
+import type { IconName } from "../components/Icon";
 // ONE declaration of `brain_state`'s answer, shared with the poll every other
 // surface reads. A local copy of `kind` here is how "stopping" was read as
 // "could not tell": the DTO moved and this page's second declaration did not.
 import { useBrain } from "./useBrain";
 import { useCapability } from "./useCapability";
-import { MachineCard } from "./MachineCard";
-import { speedLine } from "../lib/speed";
+import { reasonSentence, refusalSentence } from "./MachineCard";
+import { AiChoices, inUseOption, rankOptions } from "./AiChoices";
+import { AiDetails } from "./AiDetails";
+import { modelOnly } from "../lib/modelName";
+import "../components/NoticeBanner.css";
 import "./surfaces.css";
+import "./AiPage.css";
 
-/** Shown only when the launch record carried no reason: the development path,
- *  where the developer pinned a file and no catalog choice was made. It states
- *  nothing about a phone, because on this path a phone played no part. */
-interface ModelsSurfaceProps {
-  onNavigate: (surface: SurfaceKey) => void;
-  model: string;
-  onModelChange: (model: string) => void;
+/** What the page says about Kalsa's state when it is not simply on. */
+interface StateNotice {
+  icon: IconName;
+  sentence: string;
+  turnOn: boolean;
 }
 
-// The Models surface says what this computer is running and owns the advanced
-// launch controls. The chooser remains in Rust; this page reads its answer — the
-// model and the reason it gave for this start — and sends explicit edits back to
-// the start command.
-export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfaceProps) {
-  const { table, tag } = useLanguage();
+// Your AI (mockup 07-ai-page): which of the two choices Kalsa uses, the switch
+// between them, the figures behind Details, and the way into For experts. The
+// chooser remains in Rust; this page reads its answer.
+export function ModelsSurface({ onNavigate }: { onNavigate: (surface: SurfaceKey) => void }) {
+  const { table } = useLanguage();
   const t = table.machine;
   // The one shared poll answers this page too: a second interval here was a
   // second brain_state every 2 s beside the shell's own, and the two could
-  // disagree for a tick. A read that rejected keeps what the poll already
-  // knows — `lastKnown` folds that in there — and only a page whose poll
-  // never answered shows the "could not check" sentence.
+  // disagree for a tick.
   const { state, busy, heldFailure, chooseModel } = useBrain();
-  // The two choices, and the switch between them.
   const { capability } = useCapability(state, busy);
   const running = state?.kind === "running" ? state : null;
-  // A phone, not this computer: the host's own chat runs through the same door.
-  const phonesNow = (running?.metrics?.active_devices ?? []).filter((device) => device.kind !== "host").length;
 
-  let headline: string | null = null;
-  let sentence: string;
-  let button: string | null = null;
+  let notice: StateNotice | null = null;
   if (!state) {
-    sentence = t.couldNotCheck;
+    notice = { icon: "alert", sentence: t.couldNotCheck, turnOn: false };
   } else {
     switch (state.kind) {
       case "running":
-        // The name the catalog chose is already on the wire; showing it is the
-        // point. The sentence is the reason the shell gave for THIS start, not
-        // a general rule about how choosing works.
-        headline = state.model ? t.running(state.model) : t.chosenForComputer;
-        sentence = state.reason ?? t.fallbackReason;
         break;
       case "stopping":
-        // The drain, in this page's own subject: the model this computer had
-        // chosen is being put away. NOT the "could not tell" sentence — the
-        // poll has just said exactly what is happening, and a page that
-        // claims not to know the one thing the state reported is a false
-        // sentence standing on screen for the whole teardown.
-        headline = t.stopping;
-        sentence = table.power.puttingAway;
+        // The drain, in this page's own subject — NOT the "could not tell"
+        // sentence: the poll has just said exactly what is happening.
+        notice = { icon: "power", sentence: table.power.puttingAway, turnOn: false };
         break;
       case "starting":
-        headline = t.chosenAndStarting;
-        sentence = t.startingSentence;
+        notice = { icon: "power", sentence: t.startingSentence, turnOn: false };
         break;
       case "failed":
-        headline = t.notRunning;
-        sentence = t.offSentence;
-        button = t.turnKalsaOn;
-        break;
       case "stopped":
-        sentence = t.offSentence;
-        button = t.turnKalsaOn;
+        notice = { icon: "power", sentence: t.offSentence, turnOn: true };
         break;
       default: {
         // Exhaustive over the shared `kind`: a state the wire grows without
-        // this page is a COMPILE error here, never a sentence this page
-        // invents — the blind `default:` is what turned "stopping" into a
-        // false admission of not-knowing. `never` is assignable to `string`,
-        // so this line exists only to make a missing case fail `tsc`.
+        // this page is a COMPILE error here, never a sentence this page invents.
         const unreachable: never = state.kind;
-        sentence = unreachable;
+        notice = unreachable;
       }
     }
   }
 
+  const measured = capability?.kind === "measured" ? capability : null;
+  const options = measured?.model ? rankOptions(measured.model, measured.quicker) : [];
+  const inUse = inUseOption(options, running?.model || null, measured?.chosen_id ?? null);
+  // The name to say when no card is the one in use.
+  const inUseName = running?.model || (capability && capability.kind !== "migrating" ? capability.chosen_model : null);
+  const metrics = running?.metrics;
+  const tokensPerSecond = typeof metrics?.decode_tokens_per_second === "number" ? metrics.decode_tokens_per_second : null;
+  // A phone, not this computer: the host's own chat runs through the same
+  // door. No list is "no door to ask", which is not "nobody".
+  const phones = metrics?.active_devices ? metrics.active_devices.filter((device) => device.kind !== "host").length : null;
+
   return (
-    <div className="surface-page">
+    <div className="surface-page ai-page">
       <button type="button" className="surface-back" onClick={() => onNavigate("brain")}>
-        <span aria-hidden="true">‹</span> {table.chrome.home}
+        <Icon name="left" size={16} stroke={2.2} />
+        {table.chrome.home}
       </button>
       <h2>{t.howItThinks}</h2>
-      {headline ? <p className="surface-headline">{headline}</p> : null}
-      <p className="surface-sentence">{sentence}</p>
-      {button ? (
-        <div className="surface-actions">
-          <button type="button" className="btn-primary" onClick={() => onNavigate("brain")}>
-            {button}
-          </button>
+      {inUse ? (
+        <p className="ai-lead">{inUse.kind ? t.lead[inUse.kind] : t.running(modelOnly(inUse.option.name))}</p>
+      ) : inUseName ? (
+        <p className="ai-lead">{t.running(inUseName)}</p>
+      ) : null}
+      {notice ? (
+        <div className="notice-banner ai-notice">
+          <span className="notice-banner-icon">
+            <Icon name={notice.icon} size={20} />
+          </span>
+          <div className="notice-banner-text">
+            <span className="surface-sentence">{notice.sentence}</span>
+          </div>
+          {notice.turnOn ? (
+            <button type="button" className="ai-turn-on" onClick={() => onNavigate("brain")}>
+              <Icon name="power" size={18} />
+              {t.turnKalsaOn}
+            </button>
+          ) : null}
         </div>
       ) : null}
-      {running ? (
-        <div className="surface-metrics">
-          <div className="surface-metric">
-            <span className="surface-metric-label">{t.speedNow}</span>
-            {/* An absent rate reaches speedLine's own guard and is said as
-                no measurement, never as a figure. */}
-            <strong className="surface-metric-value">
-              {speedLine(t, tag, running.metrics?.decode_tokens_per_second ?? Number.NaN)}
-            </strong>
-          </div>
-          <div className="surface-metric">
-            <span className="surface-metric-label">{t.phonesNow}</span>
-            <strong className="surface-metric-value">{phonesNow}</strong>
-          </div>
-        </div>
-      ) : null}
-      {capability ? (
-        <MachineCard
-          capability={capability}
-          running={running?.model ?? null}
+      {options.length > 0 ? (
+        <AiChoices
+          options={options}
+          inUse={inUse}
+          running={running !== null}
           busy={busy}
           onChoose={(token) => void chooseModel(token)}
         />
+      ) : capability?.kind === "measured" ? (
+        <p className="surface-quiet">{refusalSentence(t, capability.refusal_code, capability.refusal)}</p>
+      ) : capability ? (
+        <p className="surface-quiet">{t.notMeasured}</p>
       ) : null}
       {/* A switch that failed says why here, where it was asked for. */}
       {heldFailure ? (
-        <p className="surface-sentence" role="alert">
+        <p className="surface-note" role="alert">
           {heldFailure}
         </p>
       ) : null}
-      <AdvancedPanel
-        save={(changes: AdvancedSaveInput) => invoke<AdvancedDto>("brain_set_advanced", changes)}
-        model={model}
-        onModelChange={onModelChange}
+      <AiDetails
+        option={inUse?.option ?? null}
+        tokensPerSecond={tokensPerSecond}
+        phones={phones}
+        reason={running ? (running.reason ? reasonSentence(t, running.reason_code, running.reason) : t.fallbackReason) : null}
       />
-      <SamplingPanel />
-      <ReportProblem />
+      <button type="button" className="ai-experts" onClick={() => onNavigate("experts")}>
+        <span>
+          <Icon name="settings" size={17} />
+          {t.forExperts}
+        </span>
+        <em>{t.forExpertsLink} ›</em>
+      </button>
     </div>
   );
 }

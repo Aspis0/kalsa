@@ -23,6 +23,7 @@ import { SettingsForm } from "./components/SettingsForm";
 import { BrainSurface } from "./surfaces/BrainSurface";
 import { useBrain } from "./surfaces/useBrain";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
+import { ExpertsSurface } from "./surfaces/ExpertsSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { WebGateDialog } from "./components/WebGateDialog";
 import { RecoveredNotice } from "./components/RecoveredNotice";
@@ -189,7 +190,7 @@ export function App() {
           ) : null}
           <div className="stage-notices">
             {engine.recovered ? (
-              <RecoveredNotice onSendLog={() => openSurface("models")} onDismiss={engine.dismiss} />
+              <RecoveredNotice onSendLog={() => openSurface("help")} onDismiss={engine.dismiss} />
             ) : null}
             <ErrorBoundary>
               <TelemetryNotice />
@@ -231,8 +232,12 @@ export function App() {
             ) : surface === "help" ? (
               <HelpSurface />
             ) : surface === "models" ? (
-              <ModelsSurface
-                onNavigate={openSurface}
+              <ModelsSurface onNavigate={openSurface} />
+            ) : surface === "experts" ? (
+              <ExpertsSurface
+                // Back is one step when Your AI is the step before, as it is
+                // from its own link; arriving from the chat it opens Your AI.
+                onBack={() => (path[path.length - 1] === "models" ? goBack() : openSurface("models"))}
                 model={settings.model}
                 onModelChange={(name) => {
                   // The panel's blur is the one writer of the record; this

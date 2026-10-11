@@ -91,7 +91,7 @@ interface EmptyStateProps {
       else arrives as null, and the key arm then speaks the not-made-yet
       sentence instead. */
   credentialMessage: string | null;
-  onOpenModels: () => void;
+  onOpenExperts: () => void;
   onOpenHome: () => void;
   onOpenDevices: () => void;
 }
@@ -100,7 +100,7 @@ interface EmptyStateProps {
 export function EmptyState({
   setup,
   credentialMessage,
-  onOpenModels,
+  onOpenExperts,
   onOpenHome,
   onOpenDevices,
 }: EmptyStateProps) {
@@ -146,7 +146,7 @@ export function EmptyState({
       ) : setup === "models" ? (
         <>
           <p className="empty-copy">{table.advanced.noModelYet}</p>
-          <button type="button" className="btn-primary btn-large" onClick={onOpenModels}>
+          <button type="button" className="btn-primary btn-large" onClick={onOpenExperts}>
             {table.advanced.addModelName}
           </button>
         </>

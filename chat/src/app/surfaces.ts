@@ -3,6 +3,7 @@ export type SurfaceKey =
   | "chat"
   | "room"
   | "models"
+  | "experts"
   | "devices"
   | "settings"
   | "help";

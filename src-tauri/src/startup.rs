@@ -1919,7 +1919,7 @@ mod tests {
             &machine.measurement,
             machine.ram_bytes,
             None,
-            false,
+            None,
             &scratch("lenovo-preview"),
         );
         let json = serde_json::to_value(&preview).expect("serialise");

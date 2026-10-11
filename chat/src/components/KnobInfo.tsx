@@ -9,6 +9,10 @@ interface KnobInfoContextValue {
   setOpenId: (id: string | null) => void;
 }
 
+// The popover's box in px, mirrored by KnobInfo.css: placement keeps it on screen.
+const POPOVER_WIDTH = 420;
+const POPOVER_MAX_HEIGHT = 440;
+
 const KnobInfoContext = createContext<KnobInfoContextValue | null>(null);
 
 export function KnobInfoScope({ children }: PropsWithChildren): JSX.Element {
@@ -50,9 +54,11 @@ export function KnobInfo({ knob, label, whatItIs, whatItsFor, usualValues }: {
 
   useEffect(() => {
     if (!isOpen) return undefined;
+    // In the capture phase and marked handled: the shell's own Escape, on the
+    // same document, would otherwise also leave the page.
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== "Escape") return;
-      event.stopPropagation();
+      event.preventDefault();
       setOpenId(null);
       triggerRef.current?.focus();
     };
@@ -60,10 +66,10 @@ export function KnobInfo({ knob, label, whatItIs, whatItsFor, usualValues }: {
       const root = rootRef.current;
       if (root && !inside(root, event.target)) setOpenId(null);
     };
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("mousedown", onPointerDown);
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("mousedown", onPointerDown);
     };
   }, [isOpen, setOpenId]);
@@ -76,9 +82,9 @@ export function KnobInfo({ knob, label, whatItIs, whatItsFor, usualValues }: {
       const rect = trigger.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      const popoverWidth = Math.min(320, Math.max(0, viewportWidth - 32));
+      const popoverWidth = Math.min(POPOVER_WIDTH, Math.max(0, viewportWidth - 32));
       const left = Math.min(Math.max(16, rect.left), Math.max(16, viewportWidth - popoverWidth - 16));
-      const top = Math.min(rect.bottom + 8, Math.max(16, viewportHeight - 336));
+      const top = Math.min(rect.bottom + 8, Math.max(16, viewportHeight - POPOVER_MAX_HEIGHT - 16));
       setPopoverPosition({ left, top });
     };
     place();
@@ -111,6 +117,7 @@ export function KnobInfo({ knob, label, whatItIs, whatItsFor, usualValues }: {
           aria-label={t.explanationAria(label)}
           style={{ left: popoverPosition.left, top: popoverPosition.top }}
         >
+          <span className="knob-info-title">{t.whatItDoes(label)}</span>
           <span className="knob-info-heading">{t.whatItIs}</span>
           <span>{whatItIs}</span>
           <span className="knob-info-heading">{t.whatItsFor}</span>

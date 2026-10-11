@@ -4,6 +4,7 @@
 // page makes on start-up answer with fixed values. A page whose capability
 // read is unanswered stays blank by design, so those reads must not throw.
 //
+// A scenario's own `answers` (command → value) outrank the start-up ones.
 // The answers live in `window.__STUB_BRAIN__` and are read when `invoke`
 // RUNS, not when this installer runs — so a tool stub installed before or
 // after this one keeps the brain, and one installed later replaces this
@@ -26,17 +27,20 @@ export function installBrainStub(brain) {
     window_hidden: false,
     brain_app_version: brain.appVersion,
     brain_telemetry_status: { enabled: false, noticeSeen: true },
-    brain_capability: { kind: "unmeasured", chosen: true },
+    brain_capability: { kind: "unmeasured", chosen: true, chosen_model: "Liquid LFM 2.5" },
   };
   // A tool stub installed earlier answers the start-up reads from here.
   window.__STUB_START_UP__ = startUpAnswers;
   if (window.__TAURI__) return; // a tool stub is already in place; it reads __STUB_BRAIN__ too
   window.__TAURI__ = {
     core: {
-      invoke: async (command) => {
+      invoke: async (command, args) => {
         const stub = window.__STUB_BRAIN__;
+        // Every call, in order, so a scenario can read which commands a click sent.
+        (window.__STUB_CALLS__ ??= []).push([command, args ?? null]);
         if (command === "brain_state") return stub?.state ?? null;
         if (command === "brain_host_credential") return stub?.credential ?? null;
+        if (stub?.answers && Object.hasOwn(stub.answers, command)) return stub.answers[command];
         if (Object.hasOwn(startUpAnswers, command)) return startUpAnswers[command];
         // An undeclared command is a gap in the SCENARIO, not a null to
         // swallow: the rejection names it, so a failing check says which

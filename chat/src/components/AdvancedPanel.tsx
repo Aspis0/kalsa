@@ -9,6 +9,8 @@ import { useLanguage } from "../i18n/useLanguage";
 import type { English } from "../i18n/en/all";
 import { AdvancedField } from "./AdvancedField";
 import { KnobInfoScope } from "./KnobInfo";
+import { Icon } from "./Icon";
+import "./ExpertsForm.css";
 import "./AdvancedPanel.css";
 type CacheType = "q8_0" | "f16";
 type CacheChoice = CacheType | "";
@@ -86,10 +88,6 @@ const ROAD_KNOB = launchKnob("internet_road");
     than arithmetic to do. */
 const IDLE_CHOICES: readonly number[] = [60, 300, 3600];
 
-/** The three choices, plus the value already on file when it is none of them:
-    an owner who typed 10 minutes in an earlier build still sees what the
-    server is really using, and saving without touching it keeps their value
-    rather than silently rounding it to a preset. */
 /** The idle clock's legible choices, plus the value already on file when it
     is none of them — an owner's earlier choice is kept, never rounded to a
     preset. The words are the table's; the numbers are the range Rust
@@ -173,11 +171,11 @@ function automaticLabel(t: English["advanced"], dto: AdvancedDto | null, cache: 
   const automatic = contextAutomatic(dto, cache);
   return automatic === null ? t.automaticBare : t.automaticWith(tokensText(automatic));
 }
-/** The one-click context sizes. 64k is the launcher's own chat default
-    (`DEFAULT_CONTEXT_TOKENS` in kalsa-launch); 32k and 128k are the step
-    either side of it. Only the sizes this machine funds are offered, so a
-    button can never set a value the guards would refuse. */
-const CONTEXT_PRESETS: readonly number[] = [32 * 1024, 64 * 1024, 128 * 1024];
+/** The one-click context sizes (mockup 17-advanced-server). 64k is the
+    launcher's own chat default (`DEFAULT_CONTEXT_TOKENS` in kalsa-launch).
+    Only the sizes below this machine's maximum are offered: a button can
+    never set a value the guards would refuse, and the maximum has its own. */
+const CONTEXT_PRESETS: readonly number[] = [16 * 1024, 32 * 1024, 64 * 1024, 128 * 1024];
 function contextHelp(t: English["advanced"], tag: string, dto: AdvancedDto | null, cache: CacheChoice, typed: string): string {
   const tokens = shownContext(dto, cache, typed);
   const cost = contextCost(dto, cache, typed);
@@ -325,41 +323,17 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
   // launcher's automatic figure, and the presets this machine funds.
   const maximum = contextMaximum(dto, cache);
   const automatic = contextAutomatic(dto, cache);
-  const contextPresets = CONTEXT_PRESETS.filter((preset) => maximum === null || preset <= maximum);
+  const contextPresets = CONTEXT_PRESETS.filter((preset) => maximum === null || preset < maximum);
 
   return (
     <div className="advanced-panel">
-      <p className="advanced-eyebrow">{t.eyebrow}</p>
-      <p className="advanced-title">{t.title}</p>
+      <p className="experts-note">
+        <Icon name="info" size={16} />
+        {dto ? (dto.running ? t.noteRunning : t.noteStopped) : t.noteNoApp}
+      </p>
       <KnobInfoScope>
-        <div className="advanced-body">
-          <label className="settings-field">
-            <span>{t.modelName}</span>
-            <input
-              type="text"
-              value={model}
-              onChange={(event) => {
-                setModel(event.target.value);
-                setModelError(null);
-              }}
-              onBlur={commitName}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") commitName();
-              }}
-              placeholder={t.modelNamePlaceholder}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            {modelError ? (
-              <p className="settings-error" role="alert">
-                {modelError}
-              </p>
-            ) : null}
-          </label>
-          <p className="advanced-note">
-            {dto ? (dto.running ? t.noteRunning : t.noteStopped) : t.noteNoApp}
-          </p>
-          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} said={said(CONTEXT_KNOB)} help={contextHelp(t, tag, dto, cache, context)}>
+        <div className="experts-grid">
+          <AdvancedField id="advanced-context" knob={CONTEXT_KNOB} said={said(CONTEXT_KNOB)} help={contextHelp(t, tag, dto, cache, context)} wide>
             <div className="advanced-presets" role="group" aria-label={t.presetsAria}>
               <button type="button" className={context === "" ? "advanced-preset advanced-preset-on" : "advanced-preset"} onClick={() => chooseContext("")}>
                 {automatic === null ? t.automatic : t.automaticWith(tokensText(automatic))}
@@ -398,10 +372,36 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
               ))}
             </select>
           </AdvancedField>
-          <AdvancedField id="advanced-road" knob={ROAD_KNOB} said={said(ROAD_KNOB)} check help={dto?.iroh_sentence ?? t.roadWaiting}>
+          <div className="advanced-field">
+            <label className="advanced-field-label" htmlFor="advanced-model">{t.modelName}</label>
+            <input
+              id="advanced-model"
+              type="text"
+              value={model}
+              onChange={(event) => {
+                setModel(event.target.value);
+                setModelError(null);
+              }}
+              onBlur={commitName}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") commitName();
+              }}
+              placeholder={t.modelNamePlaceholder}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            {modelError ? (
+              <p className="advanced-error" role="alert">
+                {modelError}
+              </p>
+            ) : null}
+          </div>
+          <AdvancedField id="advanced-road" knob={ROAD_KNOB} said={said(ROAD_KNOB)} help={dto?.iroh_sentence ?? t.roadWaiting}>
             <input
               id="advanced-road"
+              className="advanced-switch"
               type="checkbox"
+              role="switch"
               checked={road}
               onFocus={() => {
                 focused.current = true;
@@ -418,51 +418,62 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
           {dto?.internet_road ? (
             <p className="advanced-note">{t.roadPermissionNote}</p>
           ) : null}
-          <p className="advanced-values">
-            {dto
-              ? t.valuesInForce({
-                  lead: dto.running ? t.inForce : t.nextStart,
-                  context: dto.context_tokens != null ? num(dto.context_tokens) : automaticLabel(t, dto, cache),
-                  batch: num(dto.batch_size),
-                  ubatch: num(dto.ubatch_size),
-                  kv: dto.kv_cache_type,
-                  flash: dto.flash_attention,
-                  gpu: dto.gpu_layers ?? t.automaticWord,
-                  threads: dto.threads != null ? num(dto.threads) : t.automaticWord,
-                  idle: `${num(dto.idle_unload_seconds)} ${t.secondsWord}`,
-                  tune: dto.tune ? ` ${t.tuneWord}: ${dto.tune}.` : "",
-                })
-              : t.valuesWaiting}
-          </p>
-          <p className="advanced-help">
-            {dto && (dto.door_port || dto.desk_port)
-              ? [
-                  t.doorLocal(dto.door_port != null ? num(dto.door_port) : t.doorNotUp),
-                  t.runForTailscale([
-                    dto.door_port ? `tailscale serve --bg ${dto.door_port}` : null,
-                    dto.desk_port ? `tailscale serve --bg --https=8443 ${dto.desk_port}` : null,
-                  ]
-                    .filter((command) => command !== null)
-                    .join(" · ")),
-                  dto.door_port && dto.desk_port
-                    ? t.chatsAndPairs
-                    : dto.door_port
-                      ? t.chatsAt
-                      : t.pairsAt,
-                  dto.desk_port && dto.desk_port_preferred === false ? t.deskMoved(dto.desk_port) : null,
-                ]
-                  .filter((part) => part !== null)
-                  .join(" ")
-              : t.doorWaiting}
-          </p>
-          {dto ? (
-            <button type="button" className="btn-primary" disabled={saving} onClick={() => void saveEdits()}>
-              {t.saveButton}
-            </button>
-          ) : null}
-          {feedback ? <p className="advanced-feedback">{feedback}</p> : null}
         </div>
       </KnobInfoScope>
+      <div className="advanced-inforce">
+        <p className="advanced-values">
+          {dto
+            ? t.valuesInForce({
+                lead: dto.running ? t.inForce : t.nextStart,
+                context: dto.context_tokens != null ? num(dto.context_tokens) : automaticLabel(t, dto, cache),
+                batch: num(dto.batch_size),
+                ubatch: num(dto.ubatch_size),
+                kv: dto.kv_cache_type,
+                flash: dto.flash_attention,
+                gpu: dto.gpu_layers ?? t.automaticWord,
+                threads: dto.threads != null ? num(dto.threads) : t.automaticWord,
+                idle: `${num(dto.idle_unload_seconds)} ${t.secondsWord}`,
+                tune: dto.tune ? ` ${t.tuneWord}: ${dto.tune}.` : "",
+              })
+            : t.valuesWaiting}
+        </p>
+        <p className="advanced-help">
+          {dto && (dto.door_port || dto.desk_port)
+            ? [
+                t.doorLocal(dto.door_port != null ? num(dto.door_port) : t.doorNotUp),
+                t.runForTailscale([
+                  dto.door_port ? `tailscale serve --bg ${dto.door_port}` : null,
+                  dto.desk_port ? `tailscale serve --bg --https=8443 ${dto.desk_port}` : null,
+                ]
+                  .filter((command) => command !== null)
+                  .join(" · ")),
+                dto.door_port && dto.desk_port
+                  ? t.chatsAndPairs
+                  : dto.door_port
+                    ? t.chatsAt
+                    : t.pairsAt,
+                dto.desk_port && dto.desk_port_preferred === false ? t.deskMoved(dto.desk_port) : null,
+              ]
+                .filter((part) => part !== null)
+                .join(" ")
+            : t.doorWaiting}
+        </p>
+      </div>
+      {dto ? (
+        <div className="experts-actions">
+          <button type="button" className="experts-save" disabled={saving} onClick={() => void saveEdits()}>
+            {t.saveButton}
+          </button>
+          {feedback === t.saveOk ? (
+            <p className="experts-saved" role="status">
+              <Icon name="check" size={16} stroke={2.6} />
+              {feedback}
+            </p>
+          ) : feedback ? (
+            <p className="experts-error" role="alert">{feedback}</p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

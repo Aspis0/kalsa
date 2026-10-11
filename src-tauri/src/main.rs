@@ -1261,6 +1261,9 @@ enum StateDto {
         /// developer pinned a file and no catalog choice was made to
         /// explain.
         reason: Option<String>,
+        /// The reason's stable code, beside the English, so the page can say
+        /// it in the owner's language.
+        reason_code: Option<String>,
         /// Whether the server holds the model in memory right now, as its own
         /// stderr announces it ("... entering sleeping state", "... exiting
         /// sleeping state"). `None` is "not known", never "loaded": a server
@@ -1313,6 +1316,7 @@ fn brain_state(app: tauri::AppHandle, brain: State<Arc<Brain>>, desk: State<Desk
                     .door_port()
                     .map(|door_port| format!("http://127.0.0.1:{door_port}/v1")),
                 model: model.display_name,
+                reason_code: model.reason.as_deref().map(|reason| capability::reason_message(reason).code),
                 reason: model.reason,
                 asleep: brain.supervisor.model_asleep(),
                 vision: crate::vision::state(launch.as_ref()),
@@ -1445,6 +1449,7 @@ fn brain_capability(
     let Some(measurement) = measurement else {
         return capability::CapabilityDto::Unmeasured {
             chosen: stored.is_some(),
+            chosen_model: stored.map(|row| row.display_name.to_string()),
         };
     };
     // An unreadable phone store is not the same fact as an unpaired phone,
@@ -1453,12 +1458,12 @@ fn brain_capability(
     let phone = phone(&app).ok().flatten();
     // With a measurement the choice is held to the walk's own gate: the row
     // must run here now, or the first run is what the page owes.
-    let chosen = capability::chosen_stands(&measurement, startup::ram_bytes(), phone, stored);
+    let standing = stored.filter(|_| capability::chosen_stands(&measurement, startup::ram_bytes(), phone, stored));
     capability::dto(
         &measurement,
         startup::ram_bytes(),
         phone,
-        chosen,
+        standing,
         &kalsa_runtime::runtime_root(),
     )
 }
@@ -1544,7 +1549,7 @@ async fn brain_test(
                 "Kalsa couldn't check this computer. Wait a moment and try again.",
             )
         })?;
-    let chosen = first_run::stored_choice(&state_file).is_some();
+    let chosen = first_run::stored_choice(&state_file);
     let capability::CapabilityDto::Measured {
         model,
         quicker,

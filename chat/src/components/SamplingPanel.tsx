@@ -3,13 +3,15 @@ import type { SamplingDefaultsStatus } from "../lib/chat";
 import { SAMPLING_KNOBS } from "../lib/knobs/sampling";
 import { groupWord, samplingWords, type KnobWords } from "../lib/knobs/words";
 import type { SamplingKnob } from "../lib/knobs/types";
-import { loadSampling, saveSampling, samplingProblemWords } from "../lib/sampling";
+import { loadSampling, saveSampling, samplingFault, samplingProblemWords } from "../lib/sampling";
 import type { Sampling } from "../lib/sampling";
 import { loadSettings } from "../lib/settings";
 import { useBrainServer, withBrainDefaults } from "../surfaces/useBrain";
 import { useServerFacts } from "../surfaces/useServerFacts";
 import { useLanguage } from "../i18n/useLanguage";
 import { KnobInfo, KnobInfoScope } from "./KnobInfo";
+import { Icon } from "./Icon";
+import "./ExpertsForm.css";
 import "./SamplingPanel.css";
 
 function finiteValue(value: number | null | undefined): number | null {
@@ -65,7 +67,9 @@ export function SamplingPanel(): JSX.Element {
   const [sampling, setSampling] = useState<Sampling>(() => loadSampling());
   const { defaults, status: defaultsStatus } = useServerFacts(endpoint, token, settings.model);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  // The value that would not be accepted, said under its own field.
+  const [fault, setFault] = useState<{ wire: string; text: string } | null>(null);
   const groups = useMemo(
     () => Array.from(new Set(SAMPLING_KNOBS.map(({ group }) => group))),
     [],
@@ -81,22 +85,27 @@ export function SamplingPanel(): JSX.Element {
       [row.wire]: automaticSentinel || value === null || !Number.isFinite(value) ? null : value,
     }));
     setFeedback(null);
+    setFault(null);
   }
 
   function save(): void {
+    const bad = samplingFault(sampling);
     const problem = samplingProblemWords(words, sampling);
-    if (problem) {
-      setFeedback(problem);
+    if (bad && problem) {
+      setFault({ wire: bad.knob.wire, text: problem });
+      setOpenGroup(bad.knob.group);
       return;
     }
-    setFeedback(saveSampling(sampling) ? words.saveOk : words.saveFailed);
+    const ok = saveSampling(sampling);
+    setFeedback({ ok, text: ok ? words.saveOk : words.saveFailed });
   }
 
   return (
     <div className="sampling-panel">
-      <p className="sampling-eyebrow">{panel.eyebrow}</p>
-      <p className="sampling-title">{panel.title}</p>
-      <p className="sampling-note">{panel.note}</p>
+      <p className="experts-note">
+        <Icon name="info" size={16} />
+        {panel.note}
+      </p>
       {/* Thinking is not here: it is not a sampler value, it is "answer me now
           instead of reasoning first", worth tens of seconds a message — and it
           lives on the chat's own composer, where the answer is written. */}
@@ -115,15 +124,19 @@ export function SamplingPanel(): JSX.Element {
                   aria-controls={groupId}
                   onClick={() => setOpenGroup(open ? null : group)}
                 >
-                  <span>{groupNames[at]}</span>
-                  <span aria-hidden="true">{open ? "−" : "+"}</span>
+                  <span>
+                    {groupNames[at]}
+                    <em>{panel.count(String(rows.length))}</em>
+                  </span>
+                  <Icon name={open ? "down" : "right"} size={18} />
                 </button>
                 {open ? (
-                  <div className="sampling-group-body" id={groupId}>
+                  <div className="sampling-group-body experts-grid" id={groupId}>
                     {rows.map((row) => {
                       const value = finiteValue(sampling[row.wire]);
                       const helpId = `sampling-help-${row.wire}`;
                       const said = samplingWords(words, row);
+                      const bad = fault?.wire === row.wire;
                       return (
                         <div className="sampling-field" key={row.wire}>
                           <div className="sampling-field-heading">
@@ -137,11 +150,16 @@ export function SamplingPanel(): JSX.Element {
                             max={row.max}
                             step={row.step}
                             aria-describedby={helpId}
+                            aria-invalid={bad || undefined}
                             placeholder={words.automaticPlaceholder}
                             value={value === null ? "" : String(value)}
                             onChange={(event) => change(row, event.currentTarget.value)}
                           />
-                          <p className="sampling-automatic" id={helpId}>{automaticLine(words, row, defaults, defaultsStatus)}</p>
+                          {bad ? (
+                            <p className="experts-error" id={helpId} role="alert">{fault?.text}</p>
+                          ) : (
+                            <p className="sampling-automatic" id={helpId}>{automaticLine(words, row, defaults, defaultsStatus)}</p>
+                          )}
                         </div>
                       );
                     })}
@@ -152,11 +170,18 @@ export function SamplingPanel(): JSX.Element {
           })}
         </div>
       </KnobInfoScope>
-      <div className="sampling-actions">
-        <button type="button" className="btn-primary" onClick={save}>
+      <div className="experts-actions">
+        <button type="button" className="experts-save" onClick={save}>
           {panel.saveButton}
         </button>
-        {feedback ? <p className="sampling-feedback" role="status">{feedback}</p> : null}
+        {feedback?.ok ? (
+          <p className="experts-saved" role="status">
+            <Icon name="check" size={16} stroke={2.6} />
+            {feedback.text}
+          </p>
+        ) : feedback ? (
+          <p className="experts-error" role="alert">{feedback.text}</p>
+        ) : null}
       </div>
     </div>
   );

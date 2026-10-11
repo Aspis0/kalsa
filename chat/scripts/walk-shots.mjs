@@ -46,6 +46,8 @@ const STATE = { kind: "starting" };
 const CAPABILITY = {
   kind: "measured",
   chosen: true,
+  chosen_model: "Liquid LFM 2.5",
+  chosen_id: "0f3e5d7c9b1a2468",
   machine: {
     ram_bytes: 17 * GB,
     budget_bytes: 12.75 * GB,

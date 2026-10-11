@@ -309,7 +309,7 @@ h1{font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Va
 .empty-c .go{margin-top:28px}
 .waitrow{display:flex;align-items:center;gap:12px;color:var(--tx2);font-size:16px}
 .pulse{display:inline-flex;gap:5px}.pulse i{width:8px;height:8px;border-radius:50%;background:var(--ring);opacity:.35}.pulse i:first-child{opacity:1}.pulse i:nth-child(2){opacity:.65}
-.cloud{position:relative;max-width:660px;margin:22px 0 12px;padding:12px 18px 14px;background:var(--card);border:1px solid var(--line);border-radius:24px 28px 26px 18px / 20px 26px 18px 28px}
+.cloud{position:relative;max-width:660px;margin:22px 0 34px;padding:12px 18px 14px;background:var(--card);border:1px solid var(--line);border-radius:24px 28px 26px 18px / 20px 26px 18px 28px}
 .cloud::before,.cloud::after{content:"";position:absolute;background:var(--card);border-radius:999px}
 .cloud::before{top:-9px;left:30px;width:26px;height:26px}
 .cloud::after{top:-6px;right:52px;width:15px;height:15px}
@@ -317,7 +317,7 @@ h1{font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Va
 .cloud .face{flex:1;min-width:0;color:var(--tx3);font-size:15px;line-height:22px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cloud .ch2 em{font-style:normal;font-size:15px;font-weight:600;color:var(--ac-tx)}
 .cloud .body{margin-top:10px;font-size:15px;line-height:23px;color:var(--tx2);border-top:1px dashed var(--line);padding-top:10px}
-.cloud .trail{display:flex;flex-direction:column;gap:4px;margin:6px 0 -9px 44px}
+.cloud .trail{position:absolute;left:44px;top:100%;display:flex;flex-direction:column;gap:3px;margin-top:2px}
 .cloud .trail i{display:block;background:var(--card);border:1px solid var(--line);border-radius:999px}
 .cloud .trail i:nth-child(1){width:9px;height:9px}.cloud .trail i:nth-child(2){width:7px;height:7px;margin-left:2px}.cloud .trail i:nth-child(3){width:5px;height:5px;margin-left:5px}
 .jump{position:absolute;left:50%;transform:translateX(-50%);bottom:190px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:8px 16px;font-size:15px;font-weight:600;color:var(--tx2);box-shadow:0 8px 20px -10px var(--sh)}
@@ -586,6 +586,6 @@ table.mt{width:100%;border-collapse:collapse;font-size:15px}
     <div class="need"><svg class="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>Needs 5 GB of space</div><small>Gemma 4 E4B by Google</small>
     <span class="btn sm act"><svg class="i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>Switch to Quickest</span></div></div>
     <div class="det"><h4>Details <svg class="i" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></h4>
-      <div class="kvs"><div class="kv"><span>Speed right now</span><b>38 tokens per second</b></div><div class="kv"><span>Speed on this computer</span><b>31–46 tokens per second</b></div><div class="kv"><span>Memory while on</span><b>20.6 of 64 GB</b></div><div class="kv"><span>Space on disk</span><b>20.6 GB</b></div><div class="kv"><span>Phones connected now</span><b>1</b></div></div></div>
+      <div class="kvs"><div class="kv"><span>Speed right now</span><b>38 tokens per second</b></div><div class="kv"><span>Speed on this computer</span><b>31–46 tokens per second</b></div><div class="kv"><span>Space on disk</span><b>20.6 GB</b></div><div class="kv"><span>Phones connected now</span><b>1</b></div></div></div>
     <div class="xp"><span><svg class="i" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>For experts</span><em>Server settings and sampling ›</em></div>
   </div></main></body></html>

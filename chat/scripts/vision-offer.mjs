@@ -100,7 +100,7 @@ async function runEngine(engineName, origin) {
               metrics: {},
             });
           if (command === "brain_host_credential") return Promise.resolve("t");
-          if (command === "brain_capability") return Promise.resolve({ kind: "unmeasured", chosen: true });
+          if (command === "brain_capability") return Promise.resolve({ kind: "unmeasured", chosen: true, chosen_model: "Liquid LFM 2.5" });
           if (command === "brain_previous_session_crashed") return Promise.resolve(false);
           if (command === "brain_log_event") return Promise.resolve(null);
           if (command === "brain_vision_enable") {

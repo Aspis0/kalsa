@@ -123,7 +123,7 @@ const QUICK_MODEL = {
   name: "Google Gemma 4 E4B",
   quant: "Q4_K_M",
   download_bytes: 4_977_171_584,
-  reason_code: "model.reason.catalog",
+  reason_code: "model.reason.quicker",
   context_tokens: 65_315,
   speed_context_tokens: 8192,
   speed: { shape: "measured", value: 62.7, machine: "an M1 Max" },
@@ -178,6 +178,46 @@ const PHONE_UNKNOWN =
   "No decision yet: we do not know which model your phone runs, and a computer is only " +
   "worth it if it beats what you already have. Pair the phone first.";
 
+// Every code `reason_message` (capability.rs) can put on an option.
+const REASON_CODES = [
+  "model.reason.pick",
+  "model.reason.chosen",
+  "model.reason.quicker",
+  "model.reason.quicker_smaller",
+  "model.reason.bigger",
+  "model.reason.more_capable",
+  "model.reason.sized_for_memory",
+  "model.reason.catalog",
+];
+
+// The second option as the backend words it for each comparison it makes
+// (capability.rs, the four second-card sentences).
+const SECOND = {
+  quicker_smaller: "Smaller: it needs less memory. The one above is the more capable of the two.",
+  bigger: "Bigger, so it can be more capable. The one above is the smaller of the two.",
+  more_capable: "More capable, but slower on this computer. The one above starts answering sooner.",
+};
+const asSecond = (option, code) => ({ ...option, reason: SECOND[code], reason_code: `model.reason.${code}` });
+// capability.rs CHOSEN_REASON: the English an option carries when the owner picked it.
+const CHOSEN_GEMMA = {
+  ...QUICK_MODEL,
+  reason: "You chose this model, so it is the one this computer runs. Choose another, or let this computer choose again, from the same page.",
+  reason_code: "model.reason.chosen",
+};
+
+/** A running machine whose stored choice is `chosen`, with these two options. */
+function twoCards(name, file, chosen, model, quicker, cards, marker) {
+  return {
+    name,
+    file,
+    state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: chosen.name },
+    capability: { kind: "measured", chosen: true, chosen_model: chosen.name, chosen_id: chosen.id, machine: BIG_MAC, model, quicker, refusal: null },
+    cards,
+    marker,
+    presence: "Ready to chat.",
+  };
+}
+
 const STATES = [
   {
     name: "pick",
@@ -186,12 +226,15 @@ const STATES = [
     capability: {
       kind: "measured",
       chosen: true,
+      chosen_model: "Liquid LFM 2.5",
+      chosen_id: MODEL.id,
       machine: MAC,
       model: MODEL,
       quicker: QUICK_MODEL,
       refusal: null,
     },
-    marker: "62.7 tokens/s",
+    cards: [["Smartest", "LFM 2.5 by Liquid"], ["Quickest", "Gemma 4 E4B by Google"]],
+    marker: "Switch to Quickest",
     presence: "Ready to chat.",
     refuse: ["brain_stop"],
     stopRefused: true,
@@ -213,19 +256,22 @@ const STATES = [
     capability: {
       kind: "measured",
       chosen: true,
+      chosen_model: "Liquid LFM 2.5",
+      chosen_id: MODEL.id,
       machine: MAC,
       model: MODEL,
       quicker: QUICK_MODEL,
       refusal: null,
     },
-    marker: "Running now.",
+    cards: [["Smartest", "LFM 2.5 by Liquid"], ["Quickest", "Gemma 4 E4B by Google"]],
+    marker: "Kalsa is using this one",
     presence: "Kalsa is resting to free up memory. Your next message wakes it up in a few seconds.",
   },
   {
     name: "refusal",
     file: "shots/71-brain-refusal.png",
     state: { kind: "stopped" },
-    capability: { kind: "measured", machine: UNREADABLE_CARD, chosen: true, model: null, quicker: null, refusal: PHONE_UNKNOWN },
+    capability: { kind: "measured", machine: UNREADABLE_CARD, chosen: true, chosen_model: "Liquid LFM 2.5", chosen_id: MODEL.id, model: null, quicker: null, refusal: PHONE_UNKNOWN },
     marker: "Pair the phone first.",
     presence: "Press the button to wake it up.",
     walkStep: true,
@@ -241,18 +287,19 @@ const STATES = [
       model: "Liquid LFM 2.5",
       metrics: { decode_tokens_per_second: 21.4, active_devices: [{ id: 1 }] },
     },
-    capability: { kind: "measured", machine: CPU_ONLY, chosen: true, model: MODEL, quicker: null, refusal: null },
-    marker: "the path a model would use",
+    capability: { kind: "measured", machine: CPU_ONLY, chosen: true, chosen_model: "Liquid LFM 2.5", chosen_id: MODEL.id, model: MODEL, quicker: null, refusal: null },
+    cards: [["LFM 2.5", "LFM 2.5 by Liquid"]],
+    marker: "Phones connected now",
     presence: "Your phone is using this computer right now.",
   },
   {
     name: "no-context",
     file: "shots/74-brain-no-context.png",
     state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Liquid LFM 2.5" },
-    capability: { kind: "measured", machine: CPU_ONLY, chosen: true, model: NO_CONTEXT_MODEL, quicker: null, refusal: null },
+    capability: { kind: "measured", machine: CPU_ONLY, chosen: true, chosen_model: "Liquid LFM 2.5", chosen_id: MODEL.id, model: NO_CONTEXT_MODEL, quicker: null, refusal: null },
+    cards: [["LFM 2.5", "LFM 2.5 by Liquid"]],
     marker: "12.0–21.0 tokens/s",
     presence: "Ready to chat.",
-    noContext: true,
   },
   {
     name: "crowded",
@@ -261,14 +308,24 @@ const STATES = [
     capability: {
       kind: "measured",
       chosen: true,
+      chosen_model: "Alibaba Qwen 3.6",
+      chosen_id: BIG_MODEL.id,
       machine: BIG_MAC,
       model: BIG_MODEL,
       quicker: BIG_QUICK,
       refusal: null,
     },
-    marker: "547,503 tokens of context",
+    cards: [["Smartest", "Qwen 3.6 by Alibaba"], ["Quickest", "Gemma 4 E4B by Google"]],
+    marker: "Needs 23 GB of space",
     presence: "Ready to chat.",
   },
+  // One machine per comparison the backend makes, so each code's titles are seen.
+  twoCards("smaller-not-faster", "shots/84-brain-smaller-not-faster.png", BIG_MODEL, BIG_MODEL, asSecond(BIG_QUICK, "quicker_smaller"),
+    [["Smartest", "Qwen 3.6 by Alibaba"], ["Gemma 4 E4B", "Gemma 4 E4B by Google"]], "Switch Kalsa to Gemma 4 E4B"),
+  twoCards("bigger-and-faster", "shots/85-brain-bigger-and-faster.png", CHOSEN_GEMMA, CHOSEN_GEMMA, asSecond(BIG_MODEL, "bigger"),
+    [["Gemma 4 E4B", "Gemma 4 E4B by Google"], ["Qwen 3.6", "Qwen 3.6 by Alibaba"]], "Switch Kalsa to Qwen 3.6"),
+  twoCards("more-capable", "shots/86-brain-more-capable.png", CHOSEN_GEMMA, CHOSEN_GEMMA, asSecond(BIG_MODEL, "more_capable"),
+    [["Smartest", "Qwen 3.6 by Alibaba"], ["Quickest", "Gemma 4 E4B by Google"]], "Switch to Smartest"),
   {
     // The first run: a machine with no choice stored owns the page — one
     // round button and its one line, nothing else. Then the check, the
@@ -281,6 +338,8 @@ const STATES = [
       kind: "measured",
       machine: MAC,
       chosen: false,
+      chosen_model: null,
+      chosen_id: null,
       model: MODEL,
       quicker: QUICK_MODEL,
       refusal: null,
@@ -315,7 +374,7 @@ const STATES = [
     file: "shots/73-brain-unmeasured.png",
     firstRun: true,
     state: { kind: "stopped" },
-    capability: { kind: "unmeasured", chosen: false },
+    capability: { kind: "unmeasured", chosen: false, chosen_model: null },
     marker: "Start",
     presence: "Kalsa checks your computer and suggests a model.",
   },
@@ -352,11 +411,18 @@ function contractProblems(fixture) {
     keysAre("capability", Object.keys(capability), ["kind"]);
     return problems;
   }
+  // The backend derives these from one stored row: a name exactly when chosen.
+  if (capability.chosen !== (capability.chosen_model !== null)) {
+    problems.push(`${fixture.name}: chosen is ${capability.chosen} but chosen_model is ${JSON.stringify(capability.chosen_model)}`);
+  }
   if (capability.kind === "unmeasured") {
-    keysAre("capability", Object.keys(capability), ["kind", "chosen"]);
+    keysAre("capability", Object.keys(capability), ["kind", "chosen", "chosen_model"]);
     return problems;
   }
   keysAre("capability", Object.keys(capability), Object.keys(SAMPLE));
+  if (capability.chosen !== (capability.chosen_id !== null)) {
+    problems.push(`${fixture.name}: chosen is ${capability.chosen} but chosen_id is ${JSON.stringify(capability.chosen_id)}`);
+  }
 
   const machine = capability.machine;
   keysAre("capability.machine", Object.keys(machine), Object.keys(SAMPLE.machine));
@@ -384,6 +450,9 @@ function contractProblems(fixture) {
     }
     if (!isSentence(option.reason)) {
       problems.push(`${fixture.name}: ${where}.reason is not a whole sentence: ${JSON.stringify(option.reason)}`);
+    }
+    if (!REASON_CODES.includes(option.reason_code)) {
+      problems.push(`${fixture.name}: ${where}.reason_code "${option.reason_code}" is not one capability.rs emits`);
     }
   };
 
@@ -440,61 +509,73 @@ async function shot(page, path) {
   console.log("  saved", path);
 }
 
-/** The machine card on Your AI, held to the backend's options. */
+/** A speed's figure as Details prints it: one decimal on an estimate's ends,
+    the reading itself on a measurement. */
+function speedFigure(speed) {
+  if (speed.shape === "range") return `${speed.low.toFixed(1)}–${speed.high.toFixed(1)} tokens/s`;
+  return `${speed.value.toFixed(1).replace(/\.0$/, "")} tokens/s`;
+}
+const wholeGb = (bytes) => `${Math.max(1, Math.ceil(bytes / 1e9))} GB`;
+
+/** The cards on Your AI and their Details, held to the backend's options. */
 async function cardChecks(page, fixture) {
   const problems = [];
-  if (fixture.capability.kind === "measured") {
-    await page.locator(".machine-card").first().waitFor({ timeout: 8000 });
+  const options = fixture.capability.kind === "measured" ? [fixture.capability.model, fixture.capability.quicker].filter(Boolean) : [];
+  if (options.length > 0) {
+    await page.locator(".ai-cards").first().waitFor({ timeout: 8000 });
   }
-  const tiles = await page.evaluate(() => {
-    const card = document.querySelector(".machine-card");
-    if (!card) return null;
+  const seen = await page.evaluate(() => {
+    const row = document.querySelector(".ai-cards");
     return {
-      names: [...card.querySelectorAll(".machine-option-name")].map((n) => n.textContent.trim()),
-      speeds: [...card.querySelectorAll(".machine-option-speed")].map((n) => n.textContent.trim()),
-      text: card.innerText,
+      cards: [...(row?.querySelectorAll(".ai-card") ?? [])].map((card) => [
+        card.querySelector(".ai-card-title")?.firstChild?.textContent?.trim() ?? "",
+        card.querySelector(".ai-card-model")?.textContent?.trim() ?? null,
+      ]),
+      text: row?.innerText ?? "",
+      details: document.querySelector(".ai-details")?.innerText ?? "",
+      page: document.querySelector(".ai-page")?.innerText ?? "",
     };
   });
-  if (fixture.capability.kind !== "measured") {
-    if (tiles?.names.length) problems.push("unmeasured state printed numbers");
+  if (options.length === 0) {
+    if (seen.cards.length > 0) problems.push("cards drawn with no option to show");
     return problems;
   }
-  if (!fixture.capability.model) return problems;
-  // One block per option, in the order the backend sent them: the pick
-  // first, the faster alternative — when the machine has one — under it.
-  const expected = [fixture.capability.model, fixture.capability.quicker]
-    .filter(Boolean)
-    .map((option) => option.name);
-  if (tiles.names.join(" | ") !== expected.join(" | ")) {
-    problems.push(`options are [${tiles.names}] not [${expected}]`);
+  // Each card claims what the second option's reason code says, and only that.
+  if (JSON.stringify(seen.cards) !== JSON.stringify(fixture.cards)) {
+    problems.push(`cards are ${JSON.stringify(seen.cards)} not ${JSON.stringify(fixture.cards)}`);
   }
-  if (tiles.speeds.length !== expected.length) {
-    problems.push(`${tiles.speeds.length} speeds for ${expected.length} options`);
+  // Every option says which side of the choice it is on: the one in use says
+  // so, and each of the others offers to switch.
+  const up = (seen.text.match(/Kalsa is using this one/g) ?? []).length;
+  const offered = (seen.text.match(/Switch to (Smartest|Quickest)|Switch Kalsa to /g) ?? []).length;
+  if (up + offered !== options.length) {
+    problems.push(`${options.length} options but ${up} in use and ${offered} offered to switch`);
   }
-  // Every option says which side of the choice it is on: the one that is
-  // running says so, and each of the others offers to switch.
-  const up = (tiles.text.match(/Running now\./g) ?? []).length;
-  const offered = (tiles.text.match(/Use this model/g) ?? []).length;
-  if (up + offered !== expected.length) {
-    problems.push(`${expected.length} options but ${up} running and ${offered} offered to choose`);
+  if (/tokens\/s/.test(seen.text)) problems.push("a card carries a speed");
+  if (/GiB|MiB/.test(seen.page)) problems.push("Your AI says a second unit beside GB");
+  // Details holds the in-use model's own figures and no other model's.
+  const inUse = options.find((option) => option.id === fixture.capability.chosen_id);
+  if (!inUse) {
+    problems.push("the fixture's stored choice is none of its options");
+  } else {
+    if (!seen.details.includes(speedFigure(inUse.measured != null ? { shape: "measured", value: inUse.measured } : inUse.speed))) {
+      problems.push(`Details does not give the in-use speed ${speedFigure(inUse.speed)}: ${seen.details}`);
+    }
+    if (!seen.details.includes(wholeGb(inUse.download_bytes))) {
+      problems.push(`Details does not give the in-use size ${wholeGb(inUse.download_bytes)}: ${seen.details}`);
+    }
+    for (const other of options.filter((option) => option !== inUse)) {
+      if (speedFigure(other.speed) !== speedFigure(inUse.speed) && seen.details.includes(speedFigure(other.speed))) {
+        problems.push("Details prints another model's speed");
+      }
+    }
   }
-  // The length every speed is priced at, in the drawer rather than on the card.
-  const priced = `These speeds are for a conversation of about ${fixture.capability.model.speed_context_tokens.toLocaleString("en-US")} tokens`;
-  const working = await page.evaluate(() => {
-    const card = document.querySelector(".machine-card");
-    const drawer = card?.querySelector(".machine-working");
-    return drawer ? { drawer: drawer.textContent ?? "", card: card.innerText } : null;
-  });
-  if (working === null) {
-    problems.push("there is no drawer to hold the sentence the speeds are priced at");
-  } else if (!working.drawer.includes(priced)) {
-    problems.push(`the drawer does not say what the speeds are priced at ("${priced}")`);
-  } else if (working.card.includes("Predicted speeds are for a")) {
-    problems.push("the card still carries the priced-at footnote the drawer was given");
+  // The priced-at window now lives in the speeds line under the figures, and
+  // a context size only in For experts (from brain_advanced): Your AI prints none.
+  if (!seen.details.includes("These speeds are for a short conversation.")) {
+    problems.push("Details does not say what the speeds are priced at");
   }
-  const showsContext = /up to [\d,]+ tokens of context/.test(tiles.text);
-  if (fixture.noContext === true && showsContext) problems.push("a machine funding no context still printed one");
-  if (fixture.noContext !== true && !showsContext) problems.push("a funded context printed none");
+  if (/tokens of context/.test(seen.page)) problems.push("Your AI prints a context size");
   return problems;
 }
 

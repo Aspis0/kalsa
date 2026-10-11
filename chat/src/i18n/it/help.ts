@@ -104,9 +104,11 @@ export const HELP: English["help"] = {
     },
     {
       title: "Se qualcosa non va",
+      // Help draws the Report a problem block under this section.
+      report: true,
       paragraphs: ["Durante l'alpha, Kalsa invia segnalazioni degli errori con dettagli tecnici, e il log dell'app quando succede qualcosa di grave. Mai le tue chat o i tuoi testi. Puoi disattivarle nelle Impostazioni."],
       items: [
-        `Nella pagina **${CHROME.pages.models}**, **${REPORT.title}** → **${REPORT.send}**. Il registro non contiene mai i tuoi messaggi, le risposte di Kalsa, i tuoi file, né codici o chiavi.`,
+        `Qui, sotto **${REPORT.title}**, premi **${REPORT.send}**. Il registro non contiene mai i tuoi messaggi, le risposte di Kalsa, i tuoi file, né codici o chiavi.`,
       ],
     },
     {

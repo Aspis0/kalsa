@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { English } from "../i18n/en/all";
 import { speedLine } from "../lib/speed";
 import { useLanguage } from "../i18n/useLanguage";
@@ -47,12 +46,16 @@ export interface ModelOption {
 /** What `brain_capability` answers: this computer, and what the chooser picked. */
 export type Capability =
   | { kind: "migrating" }
-  | { kind: "unmeasured"; chosen: boolean }
+  | { kind: "unmeasured"; chosen: boolean; chosen_model: string | null }
   | {
       kind: "measured";
       /** Whether a model choice is stored. False is a first run: the home
           page shows Start, and nothing downloads before Allow. */
       chosen: boolean;
+      /** The stored choice's display name, present exactly when `chosen`. */
+      chosen_model: string | null;
+      /** The stored choice's token, as an option's `id` carries it. */
+      chosen_id: string | null;
       machine: {
         ram_bytes: number;
         budget_bytes: number; // what a model may occupy
@@ -94,7 +97,7 @@ export function bytesText(bytes: number, tag = "en"): string {
 
 // The speed as words a reader can hold: an estimate says it is one, a
 // measurement says where it was taken, and the figure rides beside the words.
-function speedText(t: English["machine"], speed: Speed, tag: string): string {
+export function speedText(t: English["machine"], speed: Speed, tag: string): string {
   const one = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   switch (speed.shape) {
     case "range":
@@ -104,6 +107,14 @@ function speedText(t: English["machine"], speed: Speed, tag: string): string {
     case "measured":
       return speedLine(t, tag, speed.value);
   }
+}
+
+/** The speed an option is shown with: the tune's own number replaces the
+    prediction when this machine has one. */
+export function shownSpeed(t: English["machine"], model: ModelOption): Speed {
+  return model.measured != null
+    ? { shape: "measured", value: model.measured, machine: t.thisComputerMachine }
+    : model.speed;
 }
 
 function speedDetail(t: English["machine"], speed: Speed): string {
@@ -124,9 +135,9 @@ function modelDetail(t: English["machine"], model: ModelOption, speed: Speed, ta
   return `${t.onDisk(bytesText(model.download_bytes, tag))} · ${speedDetail(t, speed)}`;
 }
 
-/** A choice's reason: the approved sentence when the code is one of ours,
-    the catalog's own English otherwise. */
-function reasonLine(t: English["machine"], model: ModelOption): string {
+/** A reason: the approved sentence when the code is one of ours, the
+    catalog's own English otherwise. */
+export function reasonSentence(t: English["machine"], code: string | undefined, text: string): string {
   const byCode: Record<string, string> = {
     "model.reason.pick": t.reasonPicked,
     "model.reason.chosen": t.reasonChosen,
@@ -135,90 +146,35 @@ function reasonLine(t: English["machine"], model: ModelOption): string {
     "model.reason.bigger": t.reasonBigger,
     "model.reason.more_capable": t.reasonMoreCapable,
   };
-  return (model.reason_code && byCode[model.reason_code]) || model.reason;
+  return (code && byCode[code]) || text;
 }
 
-// The choice card: the options the chooser found for this computer. Rendering
-// only: the read belongs to the caller.
-// One option, on three tight lines: what it is and how fast, what it costs on
-// disk and where the speed comes from, and why you would take this one. Three
-// lines because the page also has to hold the writing bar above the fold.
-function Option({
-  model,
-  running,
-  busy,
-  onChoose,
-}: {
-  model: ModelOption;
-  running?: string | null;
-  busy?: boolean;
-  onChoose?: (token: string) => void;
-}) {
+// One option, read-only, on three tight lines: what it is and how fast, what
+// it costs on disk and where the speed comes from, and why you would take it.
+function Option({ model }: { model: ModelOption }) {
   const { table, tag } = useLanguage();
   const t = table.machine;
-  const [confirming, setConfirming] = useState(false);
-  const isRunning = running != null && running === model.name;
-  // The tune's own number replaces the prediction when this machine has
-  // one; "measured on this computer" is then the truth of the figure.
-  const speed: Speed =
-    model.measured != null
-      ? { shape: "measured", value: model.measured, machine: t.thisComputerMachine }
-      : model.speed;
+  const speed = shownSpeed(t, model);
   return (
     <div className="machine-option">
       <p className="machine-option-head">
         <strong className="machine-option-name">{model.name}</strong>
         <span className="machine-option-speed">{speedText(t, speed, tag)}</span>
-        {isRunning ? <span className="machine-option-running">{t.runningNow}</span> : null}
       </p>
       <p className="machine-option-detail">{modelDetail(t, model, speed, tag)}</p>
-      <p className="machine-option-reason">{reasonLine(t, model)}</p>
-      {isRunning ? null : model.id === null || onChoose === undefined ? null : confirming ? (
-        <div className="machine-option-choose">
-          <p>{t.confirmSwitch(model.name, bytesText(model.download_bytes, tag))}</p>
-          <div className="machine-option-actions">
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={busy}
-              onClick={() => {
-                setConfirming(false);
-                onChoose(model.id as string);
-              }}
-            >
-              {t.startAgainOn(model.name)}
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setConfirming(false)}>
-              {t.cancel}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="btn-quiet machine-option-use"
-          disabled={busy}
-          onClick={() => setConfirming(true)}
-        >
-          {t.useThisModel}
-        </button>
-      )}
+      <p className="machine-option-reason">{reasonSentence(t, model.reason_code, model.reason)}</p>
     </div>
   );
 }
 
-export function MachineCard({
-  capability,
-  running,
-  busy,
-  onChoose,
-}: {
-  capability: Capability;
-  /** The display name of the model running right now, if the brain is up. */
-  running?: string | null;
-  busy?: boolean;
-  onChoose?: (token: string) => void;
-}) {
+/** Why there is no pick: the approved sentence for the two catalog refusals,
+    the backend's own words otherwise. */
+export function refusalSentence(t: English["machine"], code: string | undefined, refusal: string | null): string | null {
+  return code === "catalog.nothing_fits" || code === "catalog.nothing_fast_enough" ? t.noSuitableChoice : refusal;
+}
+
+/** The first run's "Show details": what the chooser found, with its working. */
+export function MachineCard({ capability }: { capability: Capability }) {
   const { table } = useLanguage();
   const t = table.machine;
   if (capability.kind !== "measured") {
@@ -239,8 +195,8 @@ export function MachineCard({
       </p>
       {model ? (
         <>
-          <Option model={model} running={running} busy={busy} onChoose={onChoose} />
-          {second ? <Option model={second} running={running} busy={busy} onChoose={onChoose} /> : null}
+          <Option model={model} />
+          {second ? <Option model={second} /> : null}
           <details className="machine-working">
             <summary>{t.showWorking}</summary>
             <p className="machine-working-body">{model.details}</p>
@@ -255,12 +211,7 @@ export function MachineCard({
           </details>
         </>
       ) : (
-        <p className="surface-sentence">
-          {capability.refusal_code === "catalog.nothing_fits" ||
-          capability.refusal_code === "catalog.nothing_fast_enough"
-            ? t.noSuitableChoice
-            : refusal}
-        </p>
+        <p className="surface-sentence">{refusalSentence(t, capability.refusal_code, refusal)}</p>
       )}
     </section>
   );

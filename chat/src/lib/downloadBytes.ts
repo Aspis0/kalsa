@@ -14,3 +14,9 @@ export function downloadBytes(bytes: number, tag: string): string {
     ? `${new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
     : `${new Intl.NumberFormat(tag).format(Math.round(bytes / 1e6))} MB`;
 }
+
+/** Whole gigabytes, rounded up: the one figure the Your AI page gives for a
+    model's size, so "Needs 5 GB of space" never undersells the room. */
+export function wholeGigabytes(bytes: number, tag: string): string {
+  return new Intl.NumberFormat(tag).format(Math.max(1, Math.ceil(bytes / 1e9)));
+}

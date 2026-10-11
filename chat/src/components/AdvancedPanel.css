@@ -1,175 +1,93 @@
-/* The advanced launch controls, inside the AI page's Models surface.
-   Chat tokens and button classes only. */
+/* Server settings (mockup 17-advanced-server): the context presets, the
+   internet road's switch, and the values in force. */
 
-.advanced-panel {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-}
-
-.advanced-eyebrow {
-  margin: 0 0 0.4rem;
-  color: var(--silence);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.advanced-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 600;
-}
-
-.advanced-toggle {
-  margin-top: 0.6rem;
-}
-
-.advanced-body {
-  margin-top: 0.75rem;
-  padding: 1rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.advanced-note {
-  margin: 0 0 0.9rem;
-  color: var(--silence);
-  font-size: 0.8rem;
-  line-height: 1.5;
-}
-
-.advanced-field {
-  display: block;
-  margin-bottom: 0.4rem;
-}
-
-.advanced-field-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.advanced-field-label {
-  display: block;
-  margin-bottom: 0.3rem;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
-  font-weight: 500;
-}
-
-.advanced-field input,
-.advanced-field select {
-  width: 100%;
-  padding: 0.55rem 0.75rem;
-  color: var(--ink);
-  background: var(--page);
-  border: 1px solid var(--border-strong);
-  border-radius: 9px;
-  font-family: var(--font-mono);
-  font-size: 0.86rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.advanced-field input:focus {
-  border-color: var(--accent);
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
-}
-
-.advanced-field select:focus {
-  border-color: var(--accent);
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
-}
-
-/* A field is as wide as what it holds: the machine's funded maximum is five
-   or six digits on every machine this ships on (the largest figure in the
-   catalogue is 409660), and 600 is three, so they do not get a paragraph's
-   width. The cap holds at seven digits anyway. The checkbox keeps its own
-   `width: auto`. */
-.advanced-field input:not([type="checkbox"]) {
-  max-width: min(100%, 9rem);
-}
-
-.advanced-field select {
-  max-width: min(100%, 15rem);
-}
-
-/* The context presets: one click per size, beside the number that stays
-   editable. Chips rather than a select, because the point is the comparison —
-   the sizes sit next to each other, and the chip that is on says which one is
-   chosen. */
+/* Chips rather than a select, because the point is the comparison: the sizes
+   sit next to each other, and the chip that is on says which one is chosen. */
 .advanced-presets {
   display: flex;
+  margin-bottom: 8px;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-bottom: 0.45rem;
+  gap: 6px;
 }
 
 .advanced-preset {
-  padding: 0.3rem 0.6rem;
-  color: var(--ink-soft);
-  background: var(--page);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
+  height: 36px;
+  padding: 0 14px;
+  color: var(--tx2);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  cursor: pointer;
 }
 
 .advanced-preset:hover {
-  color: var(--ink);
-  border-color: var(--accent);
+  border-color: var(--ac);
 }
 
 .advanced-preset-on {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--ac-tx);
+  background: var(--ac-soft);
+  border-color: var(--ac);
 }
 
-.advanced-field-check {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.advanced-preset:focus-visible {
+  border-radius: 18px;
 }
 
-.advanced-field-check input {
-  width: auto;
+/* The context's own number stays editable beside the presets, at a number's
+   width rather than the grid's. */
+#advanced-context {
+  max-width: 12rem;
 }
 
-.advanced-field-check .advanced-field-label {
-  margin-bottom: 0;
+.advanced-switch {
+  position: relative;
+  width: 50px;
+  height: 30px;
+  margin: 6px 0 0;
+  background: #cfc8b6;
+  border-radius: 15px;
+  cursor: pointer;
+  appearance: none;
 }
 
-.advanced-field-check .advanced-field-heading {
-  display: inline-flex;
+.advanced-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  content: "";
 }
 
-.advanced-help {
-  margin: 0 0 0.9rem;
-  color: var(--silence);
-  font-size: 0.78rem;
-  line-height: 1.5;
+.advanced-switch:checked {
+  background: var(--ac);
 }
 
-.advanced-values {
-  margin: 0.9rem 0;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--border);
-  color: var(--silence);
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  line-height: 1.6;
+.advanced-switch:checked::after {
+  left: 23px;
 }
 
-.advanced-feedback {
-  margin: 0.6rem 0 0;
-  color: var(--ink-soft);
-  font-size: 0.82rem;
+.advanced-switch:focus-visible {
+  border-radius: 15px;
+}
+
+.advanced-inforce {
+  margin-top: 16px;
+  padding: 12px 14px;
+  color: var(--tx2);
+  background: var(--rail);
+  border-radius: 14px;
+  font: 13px/20px ui-monospace, Menlo, monospace;
+}
+
+.advanced-inforce p {
+  margin: 0;
+  color: inherit;
+  font: inherit;
 }

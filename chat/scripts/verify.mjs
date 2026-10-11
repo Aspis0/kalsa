@@ -3101,13 +3101,17 @@ const tests = {
     await page.waitForTimeout(500);
     await page.locator(".brain-home").getByRole("button", { name: "Details" }).click();
     await page.waitForTimeout(800);
+    await page.locator(".ai-experts").click();
+    await page.waitForTimeout(400);
+    await page.locator(".experts-page").getByRole("button", { name: "Open Sampling" }).click();
+    await page.waitForTimeout(800);
     const pageThinking =
-      (await page.locator(".surface-page").getByRole("button", { name: /thinking/i }).count()) +
-      (await page.locator(".surface-page").getByRole("checkbox", { name: /thinking/i }).count());
+      (await page.locator(".experts-page").getByRole("button", { name: /thinking/i }).count()) +
+      (await page.locator(".experts-page").getByRole("checkbox", { name: /thinking/i }).count());
     check(
       "thinking: the page with the sampler knobs carries no thinking control",
       pageThinking === 0,
-      `${pageThinking} thinking controls on the Advanced page`,
+      `${pageThinking} thinking controls on the For experts page`,
     );
     // A positive control, so the line above cannot pass by the page being blank.
     check(
@@ -3125,6 +3129,10 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("x") });
+    // The server's own readings: Details says them only when it has them.
+    await page.addInitScript(() => {
+      window.__STUB_BRAIN__.state.metrics = { decode_tokens_per_second: 24, active_devices: [{ id: 1, kind: "phone" }] };
+    });
     await page.goto(APP);
     await page.waitForTimeout(1200);
     const home = page.locator(".brain-home");
@@ -3140,8 +3148,8 @@ const tests = {
     await page.waitForTimeout(400);
     await home.getByRole("button", { name: "Details" }).click();
     await page.waitForTimeout(600);
-    check("home: Details opens Your AI", (await page.locator(".sampling-panel").count()) === 1, "no Your AI page after Details");
-    const details = (await page.locator(".surface-metrics").textContent()) ?? "";
+    check("home: Details opens Your AI", (await page.locator(".ai-page").count()) === 1, "no Your AI page after Details");
+    const details = (await page.locator(".ai-details").textContent()) ?? "";
     check(
       "home: Your AI carries the live speed and phones",
       details.includes("Speed right now") && details.includes("Phones connected now"),
@@ -3178,6 +3186,50 @@ const tests = {
     check("home: the button turns off with brain_stop", calls.includes("brain_stop"), JSON.stringify(calls));
     // The stub refuses brain_stop, so the page must say the stop did not happen.
     check("home: a refused stop is said on Home", (await home.textContent()).includes("Kalsa didn't turn off"));
+    await browser.close();
+  },
+
+  // The switch on Your AI: the dialog opens from the card, Escape and Cancel
+  // close only the dialog and give focus back, and Switch sends the same
+  // commands the page always sent — choose, stop the running one, start.
+  async aiswitch() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await seed(page, { settings: okSettings("x") });
+    await page.addInitScript((capability) => {
+      window.__STUB_BRAIN__.state.model = "Alibaba Qwen 3.6";
+      window.__STUB_BRAIN__.answers = { brain_capability: capability, brain_choose_model: null, brain_stop: null, brain_start: null };
+    }, SWITCH_CAPABILITY);
+    await page.goto(APP);
+    await page.waitForTimeout(1000);
+    await page.locator(".brain-home").getByRole("button", { name: "Details" }).click();
+    await page.waitForTimeout(800);
+    const titles = await page.locator(".ai-card-title").allTextContents();
+    check("switch: the cards are Smartest (in use) and Quickest", titles.join(" | ") === "SmartestIn use | Quickest", JSON.stringify(titles));
+    const open = page.getByRole("button", { name: "Switch to Quickest" });
+    const dialog = page.getByRole("alertdialog");
+    await open.click();
+    check("switch: the button asks first", (await dialog.count()) === 1 && (await dialog.textContent()).includes("Switch to Quickest?"));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+    check("switch: Escape closes only the dialog", (await dialog.count()) === 0 && (await page.locator(".ai-page").count()) === 1);
+    check("switch: and gives focus back to the button", await open.evaluate((el) => el === document.activeElement));
+    await open.click();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    check("switch: Cancel closes it with nothing sent", (await dialog.count()) === 0);
+    await page.evaluate(() => {
+      window.__STUB_CALLS__ = [];
+    });
+    await open.click();
+    await dialog.getByRole("button", { name: "Switch Kalsa to Gemma 4 E4B" }).click();
+    await page.waitForTimeout(800);
+    const sent = (await page.evaluate(() => window.__STUB_CALLS__))
+      .filter(([command]) => ["brain_choose_model", "brain_stop", "brain_start"].includes(command));
+    check(
+      "switch: Switch chooses the other card's token, stops, and starts",
+      sent.map(([command]) => command).join(",") === "brain_choose_model,brain_stop,brain_start" && sent[0][1]?.token === "tok-light",
+      JSON.stringify(sent),
+    );
     await browser.close();
   },
 
@@ -3721,6 +3773,8 @@ const tests = {
               return {
                 kind: "measured",
                 chosen: true,
+                chosen_model: "Liquid LFM 2.5",
+                chosen_id: "0f3e5d7c9b1a2468",
                 machine: {
                   ram_bytes: 17 * 1024 ** 3,
                   budget_bytes: 12.75 * 1024 ** 3,
@@ -5183,6 +5237,8 @@ const tests = {
               return {
                 kind: "measured",
                 chosen: true,
+                chosen_model: "Liquid LFM 2.5",
+                chosen_id: "0f3e5d7c9b1a2468",
                 machine: {
                   ram_bytes: 17 * 1024 ** 3,
                   budget_bytes: 12.75 * 1024 ** 3,
@@ -5691,6 +5747,49 @@ const tests = {
   },
 };
 
+/** Your AI with two cards the backend could send: the pick, and a second
+    row its reason code calls smaller and faster. */
+const SWITCH_OPTION = {
+  quant: "Q4_K_M",
+  context_tokens: 65_536,
+  speed_context_tokens: 8192,
+  measured: null,
+  details: "the working",
+};
+const SWITCH_CAPABILITY = {
+  kind: "measured",
+  chosen: true,
+  chosen_model: "Alibaba Qwen 3.6",
+  chosen_id: "tok-big",
+  machine: {
+    ram_bytes: 64 * 1024 ** 3,
+    budget_bytes: 48 * 1024 ** 3,
+    gpu_accounted_for: true,
+    runs_on: "the graphics chip",
+    bandwidth_bytes_per_second: 400e9,
+    bandwidth_basis: "measured",
+  },
+  model: {
+    ...SWITCH_OPTION,
+    id: "tok-big",
+    name: "Alibaba Qwen 3.6",
+    download_bytes: 20_600_000_000,
+    speed: { shape: "range", low: 31, high: 46 },
+    reason: "Kalsa picked this because it runs well on this computer.",
+    reason_code: "model.reason.pick",
+  },
+  quicker: {
+    ...SWITCH_OPTION,
+    id: "tok-light",
+    name: "Google Gemma 4 E4B",
+    download_bytes: 4_600_000_000,
+    speed: { shape: "range", low: 70, high: 92 },
+    reason: "Smaller and much faster: it starts answering sooner. The one above is the more capable of the two.",
+    reason_code: "model.reason.quicker",
+  },
+  refusal: null,
+};
+
 /**
  * The home the appended cases need. The shared `seed` answers `brain_state`
  * and the credential, but BrainSurface also asks `brain_capability` and stays
@@ -5702,6 +5801,8 @@ const tests = {
 const HOME_CAPABILITY = {
   kind: "measured",
   chosen: true,
+  chosen_model: "Test",
+  chosen_id: "0f3e5d7c9b1a2468",
   machine: {
     ram_bytes: 17 * 1024 ** 3,
     budget_bytes: 12.75 * 1024 ** 3,

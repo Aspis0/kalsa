@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLanguage } from "../i18n/useLanguage";
+import { ReportProblem } from "../components/ReportProblem";
 import "./HelpSurface.css";
 
 function HelpText({ text }: { text: string }) {
@@ -40,6 +41,7 @@ export function HelpSurface() {
               ))}
             </ul>
           ) : null}
+          {section.report ? <ReportProblem /> : null}
         </section>
       ))}
       <p className="help-sources">{help.sources}</p>

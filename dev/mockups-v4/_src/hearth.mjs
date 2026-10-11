@@ -315,7 +315,6 @@ export function firstPick() {
 
 export const DETAILS = [
   ['Speed on this computer', '31–46 tokens per second'],
-  ['Memory while on', '20.6 of 64 GB'],
   ['Space on disk', '20.6 GB'],
 ];
 
