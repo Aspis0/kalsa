@@ -102,18 +102,31 @@ function freeId(taken: Set<string>, wanted: string): string {
   return `${wanted}-${nth}`;
 }
 
-/** The two sentences an unread argument list can end in. They are both shown
-    and sent back as the call's answer, so the model reads them in the owner's
-    language; the English defaults keep every caller without a table working. */
+/** The two sentences an unread argument list can end in. They are shown on the
+    call's card; the model reads the too-long one in the owner's language. The
+    English defaults keep every caller without a table working. */
 export interface ArgumentPhrases {
   tooLong: string;
   notValid: () => string;
 }
 
+/** The object an argument text holds, or null when it holds none: text that is
+    not JSON, and JSON that is not an object (an array, a bare string). */
+function parseArgumentObject(argumentsText: string): Record<string, unknown> | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(argumentsText.trim());
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+  return parsed as Record<string, unknown>;
+}
+
 /**
  * Parse a call's arguments, once, when the call is complete. Malformed JSON is
- * the tool's problem, not the stream's — the sentence returned is what the
- * model reads as the result, so the turn goes on.
+ * the tool's problem, not the stream's — the sentence returned is the card's,
+ * and the turn goes on.
  */
 export function readArguments(
   _name: string,
@@ -129,16 +142,16 @@ export function readArguments(
     notValid: () => "Kalsa couldn't finish checking. Ask again.",
   };
   if (cut) return { args: {}, problem: say.tooLong };
-  const raw = argumentsText.trim();
-  if (raw === "") return { args: {}, problem: null };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { args: {}, problem: say.notValid() };
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return { args: {}, problem: say.notValid() };
-  }
-  return { args: parsed as Record<string, unknown>, problem: null };
+  if (argumentsText.trim() === "") return { args: {}, problem: null };
+  const args = parseArgumentObject(argumentsText);
+  return args === null ? { args: {}, problem: say.notValid() } : { args, problem: null };
+}
+
+/**
+ * The arguments as the wire carries them. With an object-arguments chat
+ * template, llama-server parses each call's string again on every replay, and
+ * one that is not a JSON object fails the whole request with a 500.
+ */
+export function wireArguments(argumentsText: string, cut = false): string {
+  return !cut && parseArgumentObject(argumentsText) !== null ? argumentsText : "{}";
 }

@@ -5,6 +5,7 @@ import { TOOL_STOPPED } from "./types";
 import type { ChatMessage, ToolRun } from "./types";
 import { miniappStateLines } from "./miniapp/stateText";
 import { sentLine } from "./sentDate";
+import { wireArguments } from "./toolCalls";
 import type { WireContentPart, WireMessage } from "./chat";
 
 export type AttachmentKind = "txt" | "md" | "csv" | "pdf" | "docx" | "pptx";
@@ -626,7 +627,7 @@ function wireFor(
     tool_calls: runs.map((run) => ({
       id: run.id,
       type: "function" as const,
-      function: { name: run.name, arguments: run.arguments },
+      function: { name: run.name, arguments: wireArguments(run.arguments) },
     })),
   };
   const answered: WireMessage[] = runs.map((run) => ({

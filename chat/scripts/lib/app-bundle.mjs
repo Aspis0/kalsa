@@ -32,7 +32,7 @@ export async function loadApp() {
         export { createSlotGate, standingOf, lastKnown } from "../src/lib/slotGate.ts";
         export { parseContextSize, ensureContextSize, rememberContextSize, forgetContextSize, hasContextSize } from "../src/lib/contextSize.ts";
         export { SAMPLING_KNOBS } from "../src/lib/knobs/sampling.ts";
-        export { accumulate, readArguments, MAX_ARGUMENTS } from "../src/lib/toolCalls.ts";
+        export { accumulate, readArguments, wireArguments, MAX_ARGUMENTS } from "../src/lib/toolCalls.ts";
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";

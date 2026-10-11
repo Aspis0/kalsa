@@ -3,7 +3,7 @@ import type { ChatErrorKind } from "../lib/chat";
 import { useEffect, useState } from "react";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
-import { useBrainState } from "../surfaces/useBrain";
+import { useBrainStateKind } from "../surfaces/useBrain";
 import { useStickToBottom } from "../lib/stickToBottom";
 import { Markdown } from "./Markdown";
 import { MessageImages } from "./MessageImages";
@@ -153,12 +153,12 @@ function AssistantRow({
   const { table, tag } = useLanguage();
   const t = table.thread;
   const failedHere: FailedState | null = failures[message.id] ?? null;
-  const brain = useBrainState();
+  const brainKind = useBrainStateKind();
   // The states Home's start acts on. While stopping, that path would stop the
   // engine again, so no button is offered then.
-  const engineOff = brain?.kind === "stopped" || brain?.kind === "failed";
-  const engineLive = brain?.kind === "starting" || brain?.kind === "running";
-  const engineStopping = brain?.kind === "stopping";
+  const engineOff = brainKind === "stopped" || brainKind === "failed";
+  const engineLive = brainKind === "starting" || brainKind === "running";
+  const engineStopping = brainKind === "stopping";
   const interrupted =
     failedHere !== null && engineLive && interruptedByRestart(failedHere, message.createdAt, restartedAt);
   const failure = failedHere !== null ? errorCopy(t, failedHere.kind, engineLive) : null;

@@ -1,10 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = process.env.KALSA_TELEMETRY_SPEC ?? path.join(root, "../kalsa/workers/telemetry/contract-v2.ts");
+if (!existsSync(source)) throw new Error(`Telemetry contract not found: ${source}. Clone the phone repo beside this one as ../kalsa, or set KALSA_TELEMETRY_SPEC to contract-v2.ts.`);
 const text = readFileSync(source, "utf8");
 const spec = JSON.parse(text.slice(text.indexOf("= ") + 2, text.lastIndexOf(" as const;")));
 const quote = s => JSON.stringify(s);

@@ -2,7 +2,7 @@
 
 export const DEVICES = {
     "title": "Appareils",
-    "capacityLine": "Jusqu'à quatre téléphones peuvent recevoir des réponses en même temps. S'il y en a plus à la fois, les autres attendent quelques secondes leur tour.",
+    "capacityLine": "Si plusieurs téléphones demandent quelque chose en même temps, certains peuvent attendre quelques secondes leur tour.",
     "cameraInstruction": "Pointe l'appareil photo du téléphone vers le carré.",
     "awareness": "Quiconque voit ce carré peut connecter un téléphone — ne le montre qu'au tien.",
     "squareNotReady": "Le code est presque prêt. Il apparaîtra ici dans un moment.",

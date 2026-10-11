@@ -110,8 +110,9 @@ export interface StreamOptions {
       the same reason `runTool` is a parameter. */
   contextFit?: { budget: number; size: (messages: WireMessage[]) => number } | null;
   /** The sentences a tool round can end in, in the owner's language. They are
-      both shown and sent back as the call's answer, so the model reads them
-      too. Absent means English. */
+      shown on the call's card and sent back as its answer, except that an
+      unreadable argument list is answered to the model in English. Absent
+      means English. */
   toolPhrases?: ToolPhrases;
 }
 

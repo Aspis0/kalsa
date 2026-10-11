@@ -96,7 +96,7 @@ export const HELP = {
       items: [
         `Open **${CHROME.pages.devices}** and point the phone's camera at the square. Then press **${DEVICES.allow}** on the computer. Show the square only to your own phone.`,
         `To add someone who is not at home, use **${INVITE.inviteByLink}**. The link works once and expires.`,
-        "Up to four phones can get answers at the same time.",
+        "Several phones can use Kalsa. If they ask at the same moment, some may wait a few seconds.",
       ],
     },
     {

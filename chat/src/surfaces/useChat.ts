@@ -149,6 +149,10 @@ export function useChat(shell: ChatShell) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [attachStatus, setAttachStatus] = useState<string | null>(null);
+  // An attach's outcome is written only while its ticket is the newest: a
+  // switch, a new chat or a delete of the chat it was made in moves the ticket
+  // on, so the sentence never lands in the chat the owner is in now.
+  const attachTicket = useRef(0);
   // The attach gate and the render bump that follows it: the gate is the
   // synchronous truth, keyed by conversation, that every send asks at Enter;
   // the bump only re-renders so `attachBusy` can be asked fresh of it.
@@ -340,25 +344,24 @@ export function useChat(shell: ChatShell) {
     return out;
   }, [failedById, active, streaming]);
 
-  // `announce` is for the attach flow, which is the only caller a human is
-  // waiting inside of: it may own the status line. The panel's refresh passes
-  // call `ensureCtx(false)` — while the size is unknown they re-run at store-
-  // notification rate (the healing cost declared at `ensureContextSize`), and
-  // announcing each one would strobe this line and could clear an attach's
-  // own "Reading…" message mid-extraction.
-  async function ensureCtx(announceCtx = true): Promise<number | null> {
+  // `attachId` is given by the attach flow, the only caller a human is waiting
+  // inside of: it may own the status line, and only while its attach is still
+  // the newest. The panel's refresh calls bare — while the size is unknown it
+  // re-runs at store-notification rate (the healing cost declared at
+  // `ensureContextSize`), and announcing each one would strobe this line.
+  async function ensureCtx(attachId?: number): Promise<number | null> {
     const endpoint = effectiveSettings.endpoint;
     const known = nctxCache.current.get(endpoint);
     if (known !== undefined) {
       setCtxInfo({ endpoint, nctx: known });
       return known;
     }
-    if (announceCtx) setAttachStatus(t.checkingContext);
+    if (attachId !== undefined) setAttachStatus(t.checkingContext);
     const nctx = await ensureContextSize(nctxCache.current, endpoint, () =>
       fetchContextSize(serverBase(endpoint), 8000, effectiveSettings.token),
     );
     setCtxInfo({ endpoint, nctx });
-    if (announceCtx) setAttachStatus(null);
+    if (attachId === attachTicket.current) setAttachStatus(null);
     return nctx;
   }
 
@@ -373,7 +376,7 @@ export function useChat(shell: ChatShell) {
     // The cost (declared at `ensureContextSize`): one silent GET /props per
     // pass while the size stays unknown; once a number lands, this returns
     // above and the asking stops.
-    void ensureCtx(false);
+    void ensureCtx();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panelOpen, activeId, effectiveSettings.endpoint, conversations]);
 
@@ -405,7 +408,9 @@ export function useChat(shell: ChatShell) {
     });
   }
 
-  async function attachFiles(files: FileList | File[]): Promise<void> {
+  // A disk attach passes the ticket it took before reading the bytes, so a
+  // switch during that read still reaches this attach's outcome.
+  async function attachFiles(files: FileList | File[], diskTicket?: number): Promise<void> {
     const list = Array.from(files);
     if (list.length === 0) return;
     setRefusal(null);
@@ -416,6 +421,8 @@ export function useChat(shell: ChatShell) {
       visionOffer.ask();
       return;
     }
+    const ticket = diskTicket ?? ++attachTicket.current;
+    const isLatest = (): boolean => ticket === attachTicket.current;
     setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
     // The gate closes only when this settles, whatever the settle is: a send
     // that lands mid-attach must wait, because the documents it should carry
@@ -452,9 +459,11 @@ export function useChat(shell: ChatShell) {
           // A creation is already in flight and this one never reached the
           // door: refusing visibly beats a file that silently never lands.
           store.remove(fresh.id);
-          setAttachStatus(t.attachmentFailed);
+          if (isLatest()) {
+            setAttachStatus(t.attachmentFailed);
+            announce(t.attachmentFailed);
+          }
           logUiEvent("chat.attach_create_busy");
-          announce(t.attachmentFailed);
           return;
         }
         noteSlot(result.notice);
@@ -463,7 +472,7 @@ export function useChat(shell: ChatShell) {
           // says why, and the attachment says what that leaves — nothing
           // stored, nothing silent.
           store.remove(fresh.id);
-          setAttachStatus(t.attachmentFailed);
+          if (isLatest()) setAttachStatus(t.attachmentFailed);
           logUiEvent("chat.attach_no_chat");
           return;
         }
@@ -581,7 +590,7 @@ export function useChat(shell: ChatShell) {
           cancelGates.current.delete(id);
         }
       }
-      const nctx = await ensureCtx();
+      const nctx = await ensureCtx(ticket);
       const history = store.get(target)?.messages ?? [];
       // A video weighs as its frames — four stills of IMAGE_TOKENS each —
       // plus whatever pictures sit beside it.
@@ -615,16 +624,18 @@ export function useChat(shell: ChatShell) {
           ...imageFiles.map((f) => f.name),
           ...videoFiles.map((f) => f.name),
         ];
-        setRefusal({
-          names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
-          docTokens: trial.docTokens,
-          historyTokens: trial.historyTokens,
-          need: trial.need,
-          have: trial.have,
-        });
-        setAttachStatus(null);
+        if (isLatest()) {
+          setRefusal({
+            names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
+            docTokens: trial.docTokens,
+            historyTokens: trial.historyTokens,
+            need: trial.need,
+            have: trial.have,
+          });
+          setAttachStatus(null);
+          announce(t.tooMuchAtOnce);
+        }
         logUiEvent("chat.attach_refused");
-        announce(t.tooMuchAtOnce);
         for (const chip of prepared) URL.revokeObjectURL(chip.url);
         for (const id of videoChipIds) dropChip(id);
         return;
@@ -653,16 +664,18 @@ export function useChat(shell: ChatShell) {
         // This refusal is the pictures' body, but nothing lands partial: the
         // documents landed early and walk back with the batch.
         for (const attachment of extracted) store.removeAttachment(target, attachment.id);
-        setRefusal({
-          names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
-          docTokens: 0,
-          historyTokens: 0,
-          need: pendingWireBytes,
-          have: ATTACH_IMAGE_CEILING,
-        });
-        setAttachStatus(null);
+        if (isLatest()) {
+          setRefusal({
+            names: names.length === 1 ? (names[0] ?? "") : names.join(", "),
+            docTokens: 0,
+            historyTokens: 0,
+            need: pendingWireBytes,
+            have: ATTACH_IMAGE_CEILING,
+          });
+          setAttachStatus(null);
+          announce(t.tooMuchAtOnce);
+        }
         logUiEvent("chat.attach_wire_refused");
-        announce(t.tooMuchAtOnce);
         for (const chip of prepared) URL.revokeObjectURL(chip.url);
         for (const id of videoChipIds) dropChip(id);
         return;
@@ -696,22 +709,26 @@ export function useChat(shell: ChatShell) {
           [target]: [...(prev[target] ?? []), ...prepared],
         }));
       }
-      setAttachStatus(null);
-      if (extracted.length > 0) setPanelOpen(true);
-      const chipCount = prepared.length + preparedVideos.length + extracted.length;
-      announce(chipCount === 1 ? t.attachedOne(list[0].name) : t.attachedMany(chipCount));
+      if (isLatest()) {
+        setAttachStatus(null);
+        if (extracted.length > 0) setPanelOpen(true);
+        const chipCount = prepared.length + preparedVideos.length + extracted.length;
+        announce(chipCount === 1 ? t.attachedOne(list[0].name) : t.attachedMany(chipCount));
+      }
     } catch (error) {
       // A failed attach leaves nothing half-landed: whatever documents were
       // stored early walk back with the batch that failed.
       for (const attachment of extracted) store.removeAttachment(target, attachment.id);
       for (const chip of prepared) URL.revokeObjectURL(chip.url);
-      setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
+      if (isLatest()) {
+        setAttachStatus(error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error));
+        announce(t.attachmentFailed);
+      }
       logUiEvent(
         error instanceof AttachmentError
           ? `chat.attach_failed.${error.reason}`
           : "chat.attach_failed.unknown",
       );
-      announce(t.attachmentFailed);
     } finally {
       attachGate.release(holdKey);
       if (extraHold !== null) attachGate.release(extraHold);
@@ -724,6 +741,7 @@ export function useChat(shell: ChatShell) {
   // accounting, the store — is the composer's clip path, shared not copied.
   async function attachFromDisk(path: string, name: string): Promise<void> {
     setRefusal(null);
+    const ticket = ++attachTicket.current;
     setAttachStatus(t.readingOne(name));
     // The hold opens here, not inside attachFiles: reading the bytes is work
     // a send must wait for too. One attach is one hold on one key —
@@ -733,11 +751,13 @@ export function useChat(shell: ChatShell) {
     syncAttach();
     try {
       const bytes = await filesRead(path);
-      await attachFiles([new File([bytes], name)]);
+      await attachFiles([new File([bytes], name)], ticket);
     } catch (error) {
-      setAttachStatus(
-        error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error),
-      );
+      if (ticket === attachTicket.current) {
+        setAttachStatus(
+          error instanceof AttachmentError ? refusalSentence(error) : filesSentence(error),
+        );
+      }
       logUiEvent("chat.attach_failed.read");
     } finally {
       attachGate.release(holdKey);
@@ -895,6 +915,7 @@ export function useChat(shell: ChatShell) {
       // The task can land after the person chose another chat, and a chat that
       // is no longer current must not be sent into.
       if (!result.opened || !gate.isCurrent(result.opened)) return;
+      attachTicket.current += 1;
       setAttachStatus(null);
       // Only if the box still holds what was sent: the wait is a round trip,
       // and the next message may already be in it.
@@ -931,6 +952,7 @@ export function useChat(shell: ChatShell) {
         // the bar the flight aims at.
         flushSync(() => {
           noteSlot(result.notice);
+          attachTicket.current += 1;
           setAttachStatus(null);
         });
         flyBarInto(text, result.opened, calm);
@@ -1037,7 +1059,10 @@ export function useChat(shell: ChatShell) {
     // The gate's own active chat, not the rendered one: an open of this chat can
     // be in flight, and the render still names the previous chat while it is.
     gate.clearIf(id);
-    if (id === activeId) setAttachStatus(null);
+    if (id === activeId) {
+      attachTicket.current += 1;
+      setAttachStatus(null);
+    }
     // A chat the door kept leaves two things behind — its file, and the state
     // in the slot when that slot holds it — and this is the one call that takes
     // them. `no-tier` says nothing here: a door without the tier kept no file,
@@ -1050,6 +1075,7 @@ export function useChat(shell: ChatShell) {
 
   function newConversation(): void {
     gate.clear();
+    attachTicket.current += 1;
     setAttachStatus(null);
     setDrawerOpen(false);
   }
@@ -1112,6 +1138,7 @@ export function useChat(shell: ChatShell) {
       noteSlot(result.notice);
       if (!result.opened || !gate.isCurrent(result.opened)) return;
       // An attachment's sentence belongs to the chat it was said in.
+      attachTicket.current += 1;
       setAttachStatus(null);
       openSurface("chat");
       setDrawerOpen(false);

@@ -3,7 +3,7 @@
 
 export const DEVICES = {
   title: "Devices",
-  capacityLine: "Up to four phones can get answers at the same time. If more ask at once, the others wait a few seconds for their turn.",
+  capacityLine: "If several phones ask at once, some may wait a few seconds for their turn.",
   cameraInstruction: "Point your phone's camera at the square.",
   awareness: "Anyone who can see this square can connect a phone — show it only to yours.",
   squareNotReady: "The code is almost ready. It will appear here in a moment.",

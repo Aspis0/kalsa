@@ -407,6 +407,16 @@ export function useBrainState(): BrainState | null {
   return useSyncExternalStore(subscribeBrainRead, getBrainRead).state;
 }
 
+function getBrainStateKind(): BrainState["kind"] | null {
+  return getBrainRead().state?.kind ?? null;
+}
+
+/** The brain's state kind alone: a string compares by value, so a row that
+    needs only the kind does not re-render on every publish. */
+export function useBrainStateKind(): BrainState["kind"] | null {
+  return useSyncExternalStore(subscribeBrainRead, getBrainStateKind);
+}
+
 /** The walk's live step, whatever the brain's own state. `useBrain`'s
     `liveStep` is gated on the walk owning the page (a start or a stop), and
     the shell's own download — the vision projector — moves bytes while the
@@ -532,12 +542,10 @@ export function brainWords(
     };
   }
   // The mirror of the branch above, for the window BEFORE the stop lands.
-  // `brain_stop` returns at once and the state follows on the next poll, so
-  // while the command is still in the air the read says `running` — and the
-  // page would hold "On — this computer is ready for you" over a server on
-  // its way down, under a greyed-out Turn off. Ready is the one thing it is
-  // not. This branch covers the command's flight; the `stopping` branch
-  // covers the drain behind it, and the two say the same words on purpose.
+  // `brain_stop` saves first, up to 12 s, and the read says `running` until the
+  // drain starts — so the page would hold "ready" over a server on its way down.
+  // This branch covers the save; the `stopping` branch covers the drain behind
+  // it, and the two say the same words on purpose.
   if (busy && running) {
     return {
       headline: words.stopping,
