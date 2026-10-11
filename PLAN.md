@@ -285,7 +285,7 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    never 3; 5 completions at >= 10 tok/s (vs 2 with the flat 0.5), hot steady state 5.3-5.6 then 4.4-5.0 tok/s at the
    0.35 floor (vs 5.6-6.4); stopped by the harness thermal hard abort at battery 42.5 C. Found: `run-t20c.sh`
    hard-coded the 42 C pause and ignored `recovery.thermalMaxC` (fixed in app `e0ae695d`, pushed); a 600 s "tool round" wait at turn 10
-   (the app ended a `write_note` turn without a continuation round; backlog H6). Owner decision pending: move the full line toward SEVERE for steady-state speed.
+   (the app ended a `write_note` turn without a continuation round; backlog H6). Owner 2026-10-10 ("se secondo te e' meglio si"): S23 full line 0.99 (skin ~41.7 C) - binding `0da3b1eb` (param types), app `233486dd` (SM8550 only), pushed; APK CI run `38097645331`; next G2 on a charged cold S23.
 4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
 5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76); the in-app round

@@ -90,3 +90,8 @@
   `executed:1` as "continuation pending", waits 600 s, then force-stops a healthy app (`RECOVERY reason=toolround`).
   Either the app must always run the continuation round after an executed tool, or the harness must accept a turn
   whose KALSA_GOVERNOR/answer landed after the last executed round. Cost: 10 idle minutes and a restart per hit.
+- H7 (P2, audit of app 233486dd, 2026-10-10) The S23 pacing line 0.99 is keyed on the SoC (SM8550/KALAMA), so every
+  Snapdragon 8 Gen 2 phone gets it although the headroom lines are per-HAL (cell 78 calibrated one S23). The text
+  fallback never matches the S23's model code (SM-S911U); the real S23 reports ro.soc.model=SM8550, so it is reached.
+  The governor plan log / G2 gate do not record the pacing params; the run proves them only through
+  decode_pacing_duty_last vs decode_pacing_headroom_last in KALSA_GOVERNOR.
