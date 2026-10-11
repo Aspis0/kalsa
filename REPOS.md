@@ -107,8 +107,9 @@ Renamed on GitHub from `llama.rn`; the npm package name is still `llama.rn`.
 Local clone: `~/Projects/llama.rn-kalsa` (its checked-out branch is stale). **Since 2026-10-07 the fork has ONE
 branch, `main`, and it is the live line** (owner: "tutto nel main"): `main` (an old upstream sync until then) was
 fast-forwarded to the former live line `feat/governor-platform-status`, which was deleted at the identical commit
-`a67d5bb8` (one-copy three-leg load + capability table, engine `5cb7e14a0`). Since 2026-10-10 the app pins
-`main` at `52718a55` (engine `74b75037f`: graduated decode pacing, Android headroom feed, engine lock; skels rebuilt for 74b7503). Before that,
+`a67d5bb8` (one-copy three-leg load + capability table, engine `5cb7e14a0`). On 2026-10-10 the app moved its pin from
+`52718a55` to `0da3b1eb` (engine `74b75037f` unchanged: graduated decode pacing, Android headroom feed, engine lock; skels rebuilt for
+74b7503; `0da3b1eb` adds TS types for three governor pacing params). Before that,
 2026-10-09 to 2026-10-10, it pinned `a9bf7a26` (engine `0012f97f2`: upstream llama.cpp b11514 merged into the fork, the
 exact Hexagon cap restore, COOLMODE decode pacing; HTP skels rebuilt; rule v3 HEAT_RANK rows for the S23 and SM8650; the
 binding reads Android's thermal status natively mid-turn; `decode_coolmode_duty` defaults to 0.5; the governor stats
