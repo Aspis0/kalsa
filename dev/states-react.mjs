@@ -12,7 +12,7 @@ import { AdvancedPanel } from "../chat/src/components/AdvancedPanel";
 import { SamplingPanel } from "../chat/src/components/SamplingPanel";
 import { DevicesSurface } from "../chat/src/surfaces/DevicesSurface";
 import { ModelsSurface } from "../chat/src/surfaces/ModelsSurface";
-import { ServerSurface } from "../chat/src/surfaces/ServerSurface";
+import { BrainSurface } from "../chat/src/surfaces/BrainSurface";
 import { brainWords, credentialRefusalText } from "../chat/src/surfaces/useBrain";
 import { BEAT_MS, FOLD_MS } from "../chat/src/surfaces/motion";
 import { POLL_MS } from "../chat/src/surfaces/DevicesSurface";
@@ -191,34 +191,34 @@ function stateDto(kind, metrics = {}) {
 }
 
 const scenarios = [
-  ["Status", "a progress event arrives and is shown (real bytes)", "server", { state: stateDto("starting"), step: { kind: "model_bytes", done: 2100000000, total: MODEL_BYTES } }],
-  ["Status", "a progress event: the engine's bytes (real bytes)", "server", { state: stateDto("starting"), step: { kind: "runtime_bytes", done: 8000000, total: 18000000 } }],
-  ["Status", "a progress event: resumed past zero (real bytes)", "server", { state: stateDto("starting"), step: { kind: "model_bytes", done: 401000000, total: MODEL_BYTES } }],
-  ["Status", "a progress event: no size announced (real bytes)", "server", { state: stateDto("starting"), step: { kind: "model_bytes", done: 320000000, total: 0 } }],
-  ["Status", "the tune runs once and says so", "server", { state: stateDto("starting"), step: { kind: "tuning", done: 1, total: 4, candidate: 2 } }],
-  ["Status", "first run: measuring the machine", "server", { state: stateDto("starting"), step: { kind: "measuring" } }],
-  ["Status", "first run: deciding the engine", "server", { state: stateDto("starting"), step: { kind: "deciding" } }],
-  ["Status", "first run: choosing a model", "server", { state: stateDto("starting"), step: { kind: "choosing" } }],
-  ["Status", "first run: no model, engine off", "server", { state: stateDto("stopped") }],
-  ["Status", "off, with a model set up", "server", { state: stateDto("stopped") }],
-  ["Status", "starting", "server", { state: stateDto("starting") }],
+  ["Home", "a progress event arrives and is shown (real bytes)", "home", { state: stateDto("starting"), step: { kind: "model_bytes", done: 2100000000, total: MODEL_BYTES } }],
+  ["Home", "a progress event: the engine's bytes (real bytes)", "home", { state: stateDto("starting"), step: { kind: "runtime_bytes", done: 8000000, total: 18000000 } }],
+  ["Home", "a progress event: resumed past zero (real bytes)", "home", { state: stateDto("starting"), step: { kind: "model_bytes", done: 401000000, total: MODEL_BYTES } }],
+  ["Home", "a progress event: no size announced (real bytes)", "home", { state: stateDto("starting"), step: { kind: "model_bytes", done: 320000000, total: 0 } }],
+  ["Home", "the tune runs once and says so", "home", { state: stateDto("starting"), step: { kind: "tuning", done: 1, total: 4, candidate: 2 } }],
+  ["Home", "first run: measuring the machine", "home", { state: stateDto("starting"), step: { kind: "measuring" } }],
+  ["Home", "first run: deciding the engine", "home", { state: stateDto("starting"), step: { kind: "deciding" } }],
+  ["Home", "first run: choosing a model", "home", { state: stateDto("starting"), step: { kind: "choosing" } }],
+  ["Home", "first run: no model, engine off", "home", { state: stateDto("stopped") }],
+  ["Home", "off, with a model set up", "home", { state: stateDto("stopped") }],
+  ["Home", "starting", "home", { state: stateDto("starting") }],
   // A stop in flight, as `brain_state` now reports it: the drain is its own
   // state, so the page says "Stopping" from the state itself — the direct
   // `brainWords` checks in smoke-react.mjs add the `busy` reading of the same
   // state, which the branch order must not turn into "Starting".
-  ["Status", "stopping", "server", { state: stateDto("stopping") }],
-  ["Status", "running, phone unknown", "server", { state: stateDto("running") }],
-  ["Status", "running, asleep", "server", { state: { ...stateDto("running"), asleep: true } }],
-  ["Status", "running, asleep while a phone works", "server", { state: { ...stateDto("running", { active_devices: [{}] }), asleep: true } }],
-  ["Status", "running, residency unknown (stub)", "server", { state: { ...stateDto("running"), asleep: null } }],
-  ["Status", "running, live metrics (stub)", "server", { state: stateDto("running", { decode_tokens_per_second: 18.6, active_devices: [{}] }) }],
-  ["Status", "running, phone not connected", "server", { state: stateDto("running", { active_devices: [] }) }],
-  ["Status", "failed (real words)", "server", { state: { ...stateDto("failed"), reason: REASON_PORT } }],
-  ["Status", "failed: the connection dropped (real words)", "server", { state: { ...stateDto("failed"), reason: REASON_CONNECTION_LOST } }],
-  ["Status", "failed: the chosen model cannot be funded (real words)", "server", { state: { ...stateDto("failed"), reason: REASON_UNFUNDABLE } }],
-  ["Status", "failed, deliberately long reason (wrap test)", "server", { state: { ...stateDto("failed"), reason: REASON_LONG } }],
-  ["Status", "state unreadable", "server", { state: null }],
-  ["Status", "running, with a slowdown announced", "server", { state: stateDto("running", { throttled: true }) }],
+  ["Home", "stopping", "home", { state: stateDto("stopping") }],
+  ["Home", "running, phone unknown", "home", { state: stateDto("running") }],
+  ["Home", "running, asleep", "home", { state: { ...stateDto("running"), asleep: true } }],
+  ["Home", "running, asleep while a phone works", "home", { state: { ...stateDto("running", { active_devices: [{}] }), asleep: true } }],
+  ["Home", "running, residency unknown (stub)", "home", { state: { ...stateDto("running"), asleep: null } }],
+  ["Model", "running, live metrics (stub)", "models", { state: stateDto("running", { decode_tokens_per_second: 18.6, active_devices: [{}] }) }],
+  ["Home", "running, phone not connected", "home", { state: stateDto("running", { active_devices: [] }) }],
+  ["Home", "failed (real words)", "home", { state: { ...stateDto("failed"), reason: REASON_PORT } }],
+  ["Home", "failed: the connection dropped (real words)", "home", { state: { ...stateDto("failed"), reason: REASON_CONNECTION_LOST } }],
+  ["Home", "failed: the chosen model cannot be funded (real words)", "home", { state: { ...stateDto("failed"), reason: REASON_UNFUNDABLE } }],
+  ["Home", "failed, deliberately long reason (wrap test)", "home", { state: { ...stateDto("failed"), reason: REASON_LONG } }],
+  ["Home", "state unreadable", "home", { state: null }],
+  ["Home", "running, with a slowdown announced", "home", { state: stateDto("running", { throttled: true }) }],
 
   // --- The room (the host's view) ---
   ["Room", "empty room", "room", { room: { epoch: "e1", open: true, room_name: "Studio", you: 4294967295, members: [
@@ -404,12 +404,12 @@ const scenarios = [
   // belongs to is stale, so nothing is copied and nothing is announced —
   // the list is read from the source instead, and the invitation is there.
   // A forgotten row takes its beat: at 100 ms it is still there, folding.
-  ["Pairing", "a forgotten phone folds first", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Forget", waitMs: 100 }],
+  ["Pairing", "a forgotten phone folds first", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Remove", waitMs: 100 }],
   // …and by 600 ms the beat is over: the row has left the list.
-  ["Pairing", "a forgotten phone is gone after the fold", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Forget", waitMs: 600 }],
+  ["Pairing", "a forgotten phone is gone after the fold", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, click: "Remove", waitMs: 600 }],
   // A forget the store refuses: nothing folds, because nothing left.
   // Reduced motion: the row is simply gone — no fold phase at all.
-  ["Pairing", "a forget under reduced motion is simply gone", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Forget", waitMs: 100 }],
+  ["Pairing", "a forget under reduced motion is simply gone", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, reduceMotion: true, click: "Remove", waitMs: 100 }],
   // Allow on the seat's row asks for the WAITING record behind it, never the
   // seat the owner already admitted.
   ["Pairing", "an allowed pairing-again asks for the waiting id", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_SEAT, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow" }],
@@ -446,7 +446,7 @@ const scenarios = [
   // to sit on, so it draws its own — a waiting record like any other, with
   // its own id on its buttons.
   ["Pairing", "a seat forgotten while its request waits", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: [HOST_DEVICE, REPAIR_REQUEST], door_port: 8131, desk_port: 8134, delivery_pending: false }), invites: { discarded: false, invites: [] }, click: "Allow" }],
-  ["Pairing", "a forget that fails keeps its row", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, forgetFails: true, click: "Forget", waitMs: 400 }],
+  ["Pairing", "a forget that fails keeps its row", "devices", { pairing: pairingDto("paired", { phone: "Pixel 9a (stub)", devices: ONE_DEVICE, door_port: 8131, desk_port: 8134 }), invites: { discarded: false, invites: [] }, forgetFails: true, click: "Remove", waitMs: 400 }],
   // Two waiting records under one seat — the shape an old pairing.json can
   // still carry. The seat is drawn once, the request is said once, and the
   // buttons answer for the newest ceremony: the one the store would keep.
@@ -634,6 +634,9 @@ function installBridge() {
             }
             if (command === "brain_invite_link") return Promise.resolve(bridgeState.inviteLink ?? INVITE_LINK);
             if (command === "brain_advanced") return Promise.resolve(bridgeState.advanced ?? null);
+            // Home reads the chooser before it draws anything; a card that names
+            // no capability is a machine past its first run.
+            if (command === "brain_capability") return Promise.resolve(bridgeState.capability ?? { kind: "unmeasured", chosen: true });
             // The host's credential the page keeps in memory. A stub value:
             // nothing in these states talks to a door.
             if (command === "brain_host_credential") return Promise.resolve("ab".repeat(32));
@@ -723,8 +726,8 @@ function visibleLines(node, out = []) {
 
 function extract(panel, heading, automatic = []) {
   const buttonEls = elements(panel, (el) => el.tagName === "BUTTON");
-  const headlineEl = first(panel, (el) => el.className === "surface-headline");
-  const sentenceEl = first(panel, (el) => el.className === "surface-sentence");
+  const headlineEl = first(panel, (el) => el.className === "surface-headline" || el.className === "brain-headline");
+  const sentenceEl = first(panel, (el) => el.className === "surface-sentence" || el.className === "brain-sentence");
   const progressEl = first(panel, (el) => el.className === "sprout-caption");
   const barEl = first(panel, (el) => (el.className ?? "").split(" ").includes("sprout-bar"));
   const walkEl = first(panel, (el) => el.className === "surface-walk");
@@ -751,7 +754,10 @@ function extract(panel, heading, automatic = []) {
     lines: visibleLines(panel),
     sentence: elementText(sentenceEl) || elementText(panel),
     all: elementText(panel),
-    button: buttonEls[0] ? { text: elementText(buttonEls[0]), disabled: buttonEls[0].disabled } : null,
+    // Home's round button has no text: its name is its label, as for Stop below.
+    button: buttonEls[0]
+      ? { text: elementText(buttonEls[0]) || buttonEls[0].getAttribute?.("aria-label") || "", disabled: buttonEls[0].disabled }
+      : null,
     // An icon button (the composer's Stop) has no text: its name is its label.
     buttons: buttonEls.map((el) => elementText(el) || el.getAttribute?.("aria-label") || ""),
     progress: progressEl ? elementText(progressEl) : null,
@@ -806,12 +812,12 @@ function componentFor(kind, data) {
         setup: data?.setup,
         credentialMessage: data?.credentialMessage ?? null,
         onOpenAdvanced: () => {},
-        onOpenServer: () => {},
+        onOpenHome: () => {},
         onOpenDevices: () => {},
       }),
     );
   }
-  if (kind === "server") return React.createElement(ServerSurface);
+  if (kind === "home") return React.createElement(BrainSurface, { onNavigate: () => {}, onOpenChat: () => {} });
   if (kind === "models") {
     return React.createElement(
       LanguageProvider,
@@ -922,7 +928,7 @@ async function enterStartingFromStopped() {
   const panel = document.createElement("div");
   document.getElementById("cards").appendChild(panel);
   const root = createRoot(panel);
-  root.render(React.createElement(LanguageProvider, null, componentFor("server", bridgeState)));
+  root.render(React.createElement(LanguageProvider, null, componentFor("home", bridgeState)));
   await settle();
   root.unmount();
   await settle();
@@ -1070,7 +1076,7 @@ export async function renderStates() {
   return results;
 }
 
-export async function renderServerProbe(data, step = null) {
+export async function renderHomeProbe(data, step = null) {
   bridgeState = data;
   eventHandlers = new Set();
   installBridge();
@@ -1083,7 +1089,7 @@ export async function renderServerProbe(data, step = null) {
   } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
-  root.render(React.createElement(LanguageProvider, null, React.createElement(ServerSurface)));
+  root.render(React.createElement(LanguageProvider, null, React.createElement(BrainSurface, { onNavigate: () => {}, onOpenChat: () => {} })));
   await settle();
   if (step !== null) {
     for (const handler of eventHandlers) handler(step);
@@ -1213,7 +1219,7 @@ export async function renderStartFailureProbe(data) {
   } catch {}
   const panel = document.createElement("div");
   const root = createRoot(panel);
-  root.render(React.createElement(LanguageProvider, null, React.createElement(ServerSurface)));
+  root.render(React.createElement(LanguageProvider, null, React.createElement(BrainSurface, { onNavigate: () => {}, onOpenChat: () => {} })));
   await settle();
   first(panel, (el) => el.tagName === "BUTTON")?.click();
   await settle();

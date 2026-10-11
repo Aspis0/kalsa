@@ -28,6 +28,19 @@
   padding: 2rem 1rem;
 }
 
+/* The way back from a page reached through Home (mockup 07-ai-page). */
+.surface-back {
+  display: inline-flex;
+  margin: 0 0 14px;
+  padding: 0;
+  align-items: center;
+  gap: 4px;
+  color: var(--ac-tx);
+  background: none;
+  border: 0;
+  font-weight: 600;
+}
+
 .surface-eyebrow {
   margin: 0 0 0.4rem;
   color: var(--silence);

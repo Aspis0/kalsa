@@ -2,12 +2,12 @@
 
 export const FIRST_PAGE = {
     "title": "Parle avec Kalsa.",
-    "serverArm": "Kalsa est éteinte.",
-    "goToServer": "Allumer Kalsa",
-    "serviceArm": "Kalsa est injoignable depuis cette page pour le moment. Ouvre Appareils pour réparer.",
-    "goToDevices": "Aller aux Appareils",
+    "offArm": "Kalsa est éteinte.",
+    "turnKalsaOn": "Allumer Kalsa",
+    "serviceArm": "Kalsa est injoignable depuis cette page pour le moment. Ouvre la page Téléphones pour réparer.",
+    "goToDevices": "Aller à la page Téléphones",
     "startingArm": "Ça se prépare. Sur un ordinateur moins récent, cela peut prendre une minute.",
-    "keyArm": "Kalsa prépare encore cet ordinateur. Ouvre Appareils pour finir.",
-    "devices": "Appareils",
+    "keyArm": "Kalsa prépare encore cet ordinateur. Ouvre la page Téléphones pour finir.",
+    "devices": "Téléphones",
     "ready": "Écris ci-dessous ton premier message pour parler avec Kalsa.",
   };

@@ -16,7 +16,7 @@ export const TOOLS = {
   // The gate's ask.
   searchWaitingTitle: "Kalsa wants to search the web. Allow it?",
   pageWaitingTitle: "Kalsa wants to open a web page. Allow it?",
-  gateWhy: (docs: string) => `${docs}, so Kalsa shows you what she would send online before sending it.`,
+  gateWhy: (docs: string) => `${docs}, so Kalsa shows you what it would send online before sending it.`,
   oneDocument: "One document is attached",
   documentsAttached: (count: number) => `${count} documents are attached`,
   exactTextSearch: "Kalsa would search the web for:",

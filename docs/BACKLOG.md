@@ -387,3 +387,15 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - Two seats on a small machine share 16 384 tokens (8 192 each) instead of one seat at 32 768. Deliberate; revisit with tester logs.
 - The 16 384 window sits on the telemetry `ctxTokens` bucket edge (reports as 16–64k).
 - Two sources of the app version (`brain_app_version` vs the updater's current version); the tune ETA may now climb (deliberate); the uninstall hook repeats a guard the bundler already applies; the two semver comparators (Rust plugin vs Worker BigInt) differ above u64; the removed 8 GiB test's three user-facing assertions were not re-added; release.mjs `--dry-run --new-manifest` prints a step 5 it never prepared; the walk-step and tune-progress harnesses are not run by anything.
+
+## Hearth port, piece 1 (rail + Home), left for later pieces
+- Copy still to apply on later screens: update copy (INVENTORY change 7), new Phones lines (19), Report a problem moves to Help (13) and the recovered banner's "Send the log" opens Help, the rest of change 12 in Help, "Stop generating" → "Stop".
+- Home "Using <model>" is shown only while Kalsa runs: the stored model name never reaches the frontend when off (`capability.rs` reports the chooser's pick, `main.rs` only `chosen: stored.is_some()`). Needs a small backend field; do it with piece 3 (Your AI).
+- Text under 15px with `--tx3` on `--rail` in Thread (code label, 4.57:1) and Room; room name colours clear 4.5:1 by ~0.1.
+- `contrast-dom.mjs`: 4 selectors per theme no longer exist (`.markdown a`, `.error-block .btn-quiet`, `.settings-field input`, `.budget-unknown`), so it exits 1 although all 74 measured pairs pass AA.
+- `brain-shots.mjs`: walk-progress check ("of 22.1 GB" while stopped) and first-run texts ("Pick a model", "Use this model") no longer match the app.
+- `shots.mjs` "surfaces" screenshot can no longer fail (it only waits for the rail).
+- 900px breakpoints don't account for the 112px rail.
+- Two identical "Try again" accessible names on problem states.
+- Italian tense mismatch between `puttingAway` and `nextTimeChoice`.
+- Full `npm run verify` already had ~45 failures at 5f268ae0 (40 after piece 1): quota, badurl, html, forbidden, deleterow, network, attach*, oversizesend, metersum, gate url/twoconv, toolfit, loop, burn, fetch, files* (`stubFileDoor` answers null to brain_state). Needs its own repair pass.

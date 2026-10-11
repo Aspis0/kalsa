@@ -1,8 +1,7 @@
 // Traduit du copy anglais approuvé.
 
 export const SHELL = {
-    "conversations": "Conversations",
-    "backTo": (label: string) => `Retour à ${label}`,
+    "conversations": "Discussions",
     "files": "Fichiers",
     "toggleFilesAria": "Ouvrir ou fermer le panneau des fichiers",
     "dismiss": "Fermer",

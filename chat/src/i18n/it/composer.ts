@@ -21,13 +21,3 @@ export const COMPOSER = {
     "removeImage": "Rimuovi questa immagine",
     "removeDoc": "Rimuovi questo documento"
   };
-
-export const BRAIN_BAR = {
-    "placeholder": "Di' qualcosa…",
-    "writeAria": "Messaggio",
-    "send": "Invia",
-    "chat": "Chat",
-    "room": "Stanza",
-    "thisComputer": "Questo computer"
-  };
-

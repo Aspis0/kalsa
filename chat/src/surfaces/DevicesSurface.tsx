@@ -407,9 +407,9 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
   if (state !== null) {
     switch (state.state) {
       case "idle":
-        onAction = () => onNavigate("server");
+        onAction = () => onNavigate("brain");
         sentence = t.notRunningYet;
-        button = t.goToServer;
+        button = t.turnKalsaOn;
         break;
       case "waiting":
         // No square yet is its own honest moment, not a camera instruction.
@@ -457,10 +457,10 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
           break;
         }
         if (state.failure === "service-unavailable") {
-          onAction = () => onNavigate("server");
+          onAction = () => onNavigate("brain");
           headline = t.unavailableHeadline;
           sentence = t.unavailableSentence;
-          button = t.goToServer;
+          button = t.turnKalsaOn;
           break;
         }
         onAction = retry;

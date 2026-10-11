@@ -5,7 +5,7 @@ import { useLanguage } from "../i18n/useLanguage";
 /** What the first page has to offer before a message can be written: which
     sentence-button pair it shows, each borrowed from the page that fixes it. */
 export type SetupArm =
-  | "server"
+  | "off"
   | "service"
   | "starting"
   | "key"
@@ -15,9 +15,9 @@ export type SetupArm =
 /** The machine's own state as the first page's arm. Every arm reuses words
     the UI already shows, so one fact has one sentence wherever the owner
     meets it:
-    - no answer yet, stopped, failed or stopping → the Server page's
-      stopped sentence ("Kalsa is off.") and its "Turn Kalsa on";
-    - starting → the Server page's starting sentence: getting ready is not
+    - no answer yet, stopped, failed or stopping → "Kalsa is off." and
+      "Turn Kalsa on", which opens Home, where the power button is;
+    - starting → the starting sentence: getting ready is not
       off. THIS is the transient arm: the poll's first `brain_state` answer
       lands within its second (the null arm below is shorter still); every
       other arm names a state that can last;
@@ -78,8 +78,8 @@ export function setupArm(
     default:
       // No answer yet reads as off only for as long as the poll's first
       // answer takes — its own second — and off/stopped/failed/stopping
-      // are all the Server page's to fix.
-      return "server";
+      // are all fixed on Home.
+      return "off";
   }
 }
 
@@ -91,7 +91,7 @@ interface EmptyStateProps {
       sentence instead. */
   credentialMessage: string | null;
   onOpenModels: () => void;
-  onOpenServer: () => void;
+  onOpenHome: () => void;
   onOpenDevices: () => void;
 }
 
@@ -100,7 +100,7 @@ export function EmptyState({
   setup,
   credentialMessage,
   onOpenModels,
-  onOpenServer,
+  onOpenHome,
   onOpenDevices,
 }: EmptyStateProps) {
   const { table } = useLanguage();
@@ -110,11 +110,11 @@ export function EmptyState({
         <span />
       </div>
       <h2 className="empty-title">{table.firstPage.title}</h2>
-      {setup === "server" ? (
+      {setup === "off" ? (
         <>
-          <p className="empty-copy">{table.firstPage.serverArm}</p>
-          <button type="button" className="btn-primary btn-large" onClick={onOpenServer}>
-            {table.firstPage.goToServer}
+          <p className="empty-copy">{table.firstPage.offArm}</p>
+          <button type="button" className="btn-primary btn-large" onClick={onOpenHome}>
+            {table.firstPage.turnKalsaOn}
           </button>
         </>
       ) : setup === "service" ? (
@@ -127,8 +127,8 @@ export function EmptyState({
       ) : setup === "starting" ? (
         <>
           <p className="empty-copy">{table.firstPage.startingArm}</p>
-          <button type="button" className="btn-primary btn-large" onClick={onOpenServer}>
-            {table.firstPage.goToServer}
+          <button type="button" className="btn-primary btn-large" onClick={onOpenHome}>
+            {table.firstPage.turnKalsaOn}
           </button>
         </>
       ) : setup === "key" ? (

@@ -1,5 +1,6 @@
 import { CHROME } from "./chrome";
-import { BRAIN_BAR, COMPOSER } from "./composer";
+import { COMPOSER } from "./composer";
+import { HOME } from "./home";
 import { SETUP } from "./setup";
 import { POWER } from "./power";
 import { SIDEBAR } from "./sidebar";
@@ -53,7 +54,7 @@ export const HELP: English["help"] = {
       items: [
         "Il pulsante grande **accende** o **spegne** Kalsa.",
         `**${POWER.onAsleep}**: dopo qualche minuto senza messaggi (5 di default) Kalsa si riposa per liberare memoria. Il messaggio successivo la risveglia.`,
-        `Tre pagine sotto **${BRAIN_BAR.thisComputer}**: **${CHROME.pages.models}** (quale AI usa Kalsa, e quanto è veloce), **${CHROME.pages.server}** (velocità e telefoni collegati), **${CHROME.pages.devices}** (collegare un telefono).`,
+        `Nella **${CHROME.home}**, **${HOME.details}** apre la pagina **${CHROME.pages.models}**: quale AI usa Kalsa e quanto è veloce. Dalla pagina **${CHROME.pages.devices}** colleghi un telefono.`,
       ],
     },
     {

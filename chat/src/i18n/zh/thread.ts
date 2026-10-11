@@ -4,7 +4,7 @@ export const THREAD = {
     "couldntAnswerTitle": "Kalsa 无法回答。",
     "couldntAnswerBody": "从主页关闭 Kalsa 再打开。",
     "notRunningTitle": "Kalsa 没有在这台电脑上运行。",
-    "notRunningBody": "从主页打开她。",
+    "notRunningBody": "从主页打开它。",
     "stoppedTitle": "一分钟没有新内容后，Kalsa 停止了回答。",
     "stoppedBody": "请再试。",
     "tooMuchTitle": "这条消息和它的文件对 Kalsa 来说一次太多了。",

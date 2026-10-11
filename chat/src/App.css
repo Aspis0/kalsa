@@ -1,12 +1,18 @@
 .shell {
   position: relative;
   display: flex;
-  flex-direction: column;
   height: 100dvh;
-  background: var(--page);
-  /* The crescent glow bleeds 60px past the shell on both sides by design;
-     clip it so narrow windows never gain a horizontal scrollbar. */
+  background: var(--bg);
   overflow-x: clip;
+}
+
+/* Everything beside the rail. */
+.shell-main {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
 }
 
 .topbar {
@@ -26,15 +32,6 @@
   flex: 1;
   align-items: center;
   gap: 0.6rem;
-}
-
-.topbar-mark {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  background: var(--accent);
-  border-radius: 999px 999px 999px 3px;
-  transform: rotate(-12deg);
 }
 
 .topbar-title h1 {
@@ -80,39 +77,24 @@
   border-color: var(--border-strong);
 }
 
-/* The app's own door, in the app's own strip. Drawn as a control — a bordered
-   button with the word in it — because a word that looks like a label reads as
-   a footnote, and Settings is not less important than the chips in the page. */
-.topbar-settings {
-  gap: 0.3rem;
-  color: var(--ink);
-  background: var(--surface);
-  border-color: var(--border-strong);
-  font-weight: 500;
-}
-
-.topbar-settings:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.topbar-btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.topbar-btn-danger:hover {
-  color: var(--danger);
-  border-color: var(--danger);
+/* The notices over the top of the page float, so the page under them never
+   moves while one is on screen. */
+.stage-notices {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 6;
+  pointer-events: none;
 }
 
 .stage {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
   flex-direction: column;
   padding-top: 0.5rem;
-  transition: opacity 0.3s ease;
 }
 
 .chat-layout {
@@ -222,30 +204,6 @@
   color: var(--silence);
   font-size: 0.8rem;
   text-align: center;
-}
-
-/* The open crescent is an overlay, like devboule-v2's: the stage dims
-   beneath it so the arc reads as a menu, never as broken overlap.
-   Exception: while ANY answer streams, no dim anywhere — an arriving
-   response must stay fully legible behind the open nav. */
-.shell:has(.crescent-nav-open):not(.is-streaming) .stage,
-.shell:has(.crescent-nav-open):not(.is-streaming) .topbar {
-  opacity: 0.35;
-}
-
-/* The writing bar becoming the first message: one fixed element flies from the
-   bar's rectangle onto the bubble's (`app/handoff.ts`, one duration constant),
-   and nothing else on the screen moves. The view-transition rules that used to
-   live here went with the technique — one mechanism, not two. */
-.user-bubble[data-brain-handoff] {
-  max-width: none;
-  margin: 0;
-  z-index: 40;
-  pointer-events: none;
-  /* The box narrows while the words inside it keep their size and reflow; a
-     line that does not fit yet is clipped rather than spilled. No transform:
-     a scale would squeeze the glyphs. */
-  overflow: hidden;
 }
 
 @media (max-width: 760px) {

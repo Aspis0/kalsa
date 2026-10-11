@@ -125,7 +125,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
             setup={setup}
             credentialMessage={credentialMessage}
             onOpenModels={() => openSurface("models")}
-            onOpenServer={() => openSurface("server")}
+            onOpenHome={() => openSurface("brain")}
             onOpenDevices={() => openSurface("devices")}
           />
         ) : (

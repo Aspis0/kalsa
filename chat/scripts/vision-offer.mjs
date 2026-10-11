@@ -132,8 +132,8 @@ async function runEngine(engineName, origin) {
 
   try {
     await page.goto(`${origin}/`);
-    await page.waitForSelector(".brain-bar-chat, .composer textarea");
-    const chip = page.locator(".brain-bar-chat");
+    await page.waitForSelector('.rail-item[data-surface="chat"], .composer textarea');
+    const chip = page.locator('.rail-item[data-surface="chat"]');
     if ((await chip.count()) > 0) await chip.first().click();
     await page.waitForSelector(".composer textarea");
 

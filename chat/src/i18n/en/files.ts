@@ -16,7 +16,7 @@ export const FILES = {
   onePage: "1 page",
   pages: (count: number) => `${count} pages`,
   // The fit's sentences: unknown size, nearly full, too much.
-  budgetUnknown: "Kalsa can't check whether these files fit, so she may not use all of them.",
+  budgetUnknown: "Kalsa can't check whether these files fit, so it may not use all of them.",
   budgetAlmostFull: "This conversation is almost full: Kalsa may not read everything. Remove a file or start a new conversation.",
   budgetOver: "Too much for Kalsa at once. Remove a file or shorten your message.",
   // Why a file could not be attached, by the failure the extractor reports.
@@ -25,6 +25,6 @@ export const FILES = {
   tooBig: "This file is too large for Kalsa. Try a smaller one.",
   unreadable: "Kalsa couldn't read this file. It may be damaged or locked with a password.",
   emptyFile: "This file is empty.",
-  noText: "Kalsa found no words in this file. If it's a scan, she can't read it yet.",
+  noText: "Kalsa found no words in this file. If it's a scan, Kalsa can't read it yet.",
   couldNotOpen: "Kalsa couldn't open this file. Choose it again.",
 };

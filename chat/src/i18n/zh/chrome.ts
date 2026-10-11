@@ -5,17 +5,15 @@ export const CHROME = {
     "room": "房间",
     "chat": "聊天",
     "settings": "设置",
-    "settingsAria": "设置",
-    "chatMenu": "聊天菜单",
+    "navigation": "页面",
     // The settings surfaces' names, keyed as the shell looks them up.
     pages: {
-    "help": "Help",
-      "models": "AI",
-      "server": "电源",
-      "devices": "设备",
+    "help": "帮助",
+      "models": "你的 AI",
+      "devices": "手机",
       "settings": "设置",
     } as Record<string, string>,
-    "showConversations": "显示对话"
+    "showConversations": "显示聊天"
   };
 
 export const SETTINGS = {

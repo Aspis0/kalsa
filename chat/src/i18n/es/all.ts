@@ -4,7 +4,8 @@ import { HELP } from "../en/help";
 // Tradotto dal copy inglese approvato.
 
 import { CHROME, SETTINGS } from "./chrome";
-import { COMPOSER, BRAIN_BAR } from "./composer";
+import { COMPOSER } from "./composer";
+import { HOME } from "./home";
 import { ADVANCED } from "./advanced";
 import { ROOM } from "./room";
 import { THREAD } from "./thread";
@@ -18,7 +19,6 @@ import { CRASH } from "./crash";
 import { REPORT } from "./report";
 import { SETUP } from "./setup";
 import { MACHINE } from "./machine";
-import { SERVER } from "./server";
 import { POWER } from "./power";
 import { DEVICES } from "./devices";
 import { INVITE } from "./invite";
@@ -39,7 +39,7 @@ export const SPANISH: English = {
   chrome: CHROME,
   settings: SETTINGS,
   composer: COMPOSER,
-  brainBar: BRAIN_BAR,
+  home: HOME,
   advanced: ADVANCED,
   room: ROOM,
   thread: THREAD,
@@ -53,7 +53,6 @@ export const SPANISH: English = {
   report: REPORT,
   setup: SETUP,
   machine: MACHINE,
-  server: SERVER,
   power: POWER,
   devices: DEVICES,
   invite: INVITE,

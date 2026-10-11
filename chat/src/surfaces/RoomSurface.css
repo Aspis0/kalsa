@@ -226,7 +226,25 @@
 }
 
 .room-name-input {
+  flex: 1;
+  min-width: 0;
   max-width: 14rem;
+  min-height: 38px;
+  padding: 0 0.9rem;
+  color: var(--tx);
+  font-size: 0.92rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.room-name-input::placeholder {
+  color: var(--tx3);
+}
+
+.room-name-input:focus {
+  outline: none;
+  border-color: var(--ac);
 }
 
 .room-turn {

@@ -1,7 +1,7 @@
 // Traducido del copy inglés aprobado.
 
 export const DEVICES = {
-    "title": "Dispositivos",
+    "title": "Teléfonos",
     "capacityLine": "Si varios teléfonos preguntan a la vez, puede que algunos tengan que esperar su turno.",
     "cameraInstruction": "Apunta la cámara del teléfono al cuadro.",
     "awareness": "Cualquiera que vea este cuadro puede conectar un teléfono — muéstraselo solo al tuyo.",
@@ -11,7 +11,7 @@ export const DEVICES = {
     "claiming": "Un teléfono se está conectando. Elige Permitir o Rechazar abajo.",
     "cancel": "Cancelar",
     "notRunningYet": "Este equipo aún no está encendido, así que tu teléfono no tiene nada a lo que conectarse.",
-    "goToServer": "Encender Kalsa",
+    "turnKalsaOn": "Encender Kalsa",
     "checking": "Buscando tu teléfono…",
     "couldNotCheckSentence": "Kalsa no pudo revisar tus teléfonos. Prueba de nuevo.",
     "tryAgain": "Probar de nuevo",
@@ -23,7 +23,7 @@ export const DEVICES = {
     "couldNotReadSentence": "Quítalo y conéctalo de nuevo.",
     "forgetAndPairAgain": "Quitar y conectar de nuevo",
     "waitingForOkHeadline": "Esperando tu OK",
-    "pairedHeadline": "Conectado",
+    "pairedHeadline": "Tus teléfonos",
     "pairAnother": "Emparejar otro teléfono",
     "yourPhone": "tu teléfono",
     "waitingNamed": (name: string, owed: string) => `${name} espera tu OK${owed}.`,
@@ -43,7 +43,7 @@ export const DEVICES = {
     "pairingAgain": (label: string) => `${label} se está reconectando.`,
     "allow": "Permitir",
     "refuse": "Rechazar",
-    "forget": "Olvidar",
+    "forget": "Quitar",
     "runForTailscale": (commands: string) => `Ejecutar para Tailscale: ${commands}.`,
     "chatsAt": "El teléfono chatea en el nombre tailnet de este equipo.",
     "pairsAt": "El teléfono se empareja en el nombre tailnet de este equipo con :8443.",

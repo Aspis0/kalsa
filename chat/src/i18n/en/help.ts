@@ -1,5 +1,6 @@
 import { CHROME } from "./chrome";
-import { BRAIN_BAR, COMPOSER } from "./composer";
+import { COMPOSER } from "./composer";
+import { HOME } from "./home";
 import { SETUP } from "./setup";
 import { POWER } from "./power";
 import { SIDEBAR } from "./sidebar";
@@ -51,8 +52,8 @@ export const HELP = {
       paragraphs: [],
       items: [
         "The big button turns Kalsa **on** or **off**.",
-        `**${POWER.onAsleep}**: after a few minutes without messages (5 by default) Kalsa rests to free memory. Your next message wakes her up.`,
-        `Three pages under **${BRAIN_BAR.thisComputer}**: **${CHROME.pages.models}** (which AI Kalsa uses, and how fast), **${CHROME.pages.server}** (speed and connected phones), **${CHROME.pages.devices}** (connect a phone).`,
+        `**${POWER.onAsleep}**: after a few minutes without messages (5 by default) Kalsa rests to free memory. Your next message wakes it up.`,
+        `**${HOME.details}** on **${CHROME.home}** opens **${CHROME.pages.models}**: which AI Kalsa uses and how fast it runs. **${CHROME.pages.devices}** connects a phone.`,
       ],
     },
     {
@@ -82,7 +83,7 @@ export const HELP = {
       items: [
         `Kalsa can search the web when a question needs fresh information. You can turn this off in **${CHROME.settings}**.`,
         "A search sends only the search words, or the address of the page to open, never your whole conversation.",
-        `If you attached a document, Kalsa first shows you exactly what she would send and asks: **${TOOLS.sendIt}** or **${TOOLS.refuse}**.`,
+        `If you attached a document, Kalsa first shows you exactly what it would send and asks: **${TOOLS.sendIt}** or **${TOOLS.refuse}**.`,
       ],
     },
     {

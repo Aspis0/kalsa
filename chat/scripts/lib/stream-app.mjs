@@ -231,9 +231,7 @@ export async function launchChat(engineName, { origin, endpoint }) {
     };
   }, endpoint);
   await page.goto(`${origin}/`);
-  await page.waitForSelector(".brain-bar-chat, .composer textarea");
-  const chip = page.locator(".brain-bar-chat");
-  if ((await chip.count()) > 0) await chip.first().click();
+  await page.locator('.rail-item[data-surface="chat"]').click();
   await page.waitForSelector(".composer textarea");
   return {
     page,

@@ -4,7 +4,8 @@ import { HELP } from "./help";
 // The English source: every other language is typed against this shape.
 
 import { CHROME, SETTINGS } from "./chrome";
-import { COMPOSER, BRAIN_BAR } from "./composer";
+import { COMPOSER } from "./composer";
+import { HOME } from "./home";
 import { ADVANCED } from "./advanced";
 import { ROOM, type RoomTable } from "./room";
 import { THREAD } from "./thread";
@@ -18,7 +19,6 @@ import { CRASH } from "./crash";
 import { REPORT } from "./report";
 import { SETUP } from "./setup";
 import { MACHINE } from "./machine";
-import { SERVER } from "./server";
 import { POWER } from "./power";
 import { DEVICES } from "./devices";
 import { INVITE } from "./invite";
@@ -38,7 +38,7 @@ export interface English {
   chrome: typeof CHROME;
   settings: typeof SETTINGS;
   composer: typeof COMPOSER;
-  brainBar: typeof BRAIN_BAR;
+  home: typeof HOME;
   advanced: typeof ADVANCED;
   room: RoomTable;
   thread: typeof THREAD;
@@ -52,7 +52,6 @@ export interface English {
   report: typeof REPORT;
   setup: typeof SETUP;
   machine: typeof MACHINE;
-  server: typeof SERVER;
   power: typeof POWER;
   devices: typeof DEVICES;
   invite: typeof INVITE;
@@ -80,7 +79,7 @@ export const ENGLISH: English = {
   chrome: CHROME,
   settings: SETTINGS,
   composer: COMPOSER,
-  brainBar: BRAIN_BAR,
+  home: HOME,
   advanced: ADVANCED,
   room: ROOM,
   thread: THREAD,
@@ -94,7 +93,6 @@ export const ENGLISH: English = {
   report: REPORT,
   setup: SETUP,
   machine: MACHINE,
-  server: SERVER,
   power: POWER,
   devices: DEVICES,
   invite: INVITE,

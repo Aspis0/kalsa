@@ -623,11 +623,11 @@ try {
   // and holds no stderr pipe to. The released case must also give way to a
   // phone that is working right now: a served connection is the opposite of
   // idle, so that is the fresher fact.
-  const ASLEEP_VERDICT = "Resting";
+  const ASLEEP_VERDICT = "Kalsa is resting";
   const ASLEEP_SENTENCE =
-    "Kalsa is resting to free up memory. Your next message wakes her up in a few seconds.";
-  const asleepCard = results.find((r) => r.heading === "Status — running, asleep");
-  const busyAsleepCard = results.find((r) => r.heading === "Status — running, asleep while a phone works");
+    "Kalsa is resting to free up memory. Your next message wakes it up in a few seconds.";
+  const asleepCard = results.find((r) => r.heading === "Home — running, asleep");
+  const busyAsleepCard = results.find((r) => r.heading === "Home — running, asleep while a phone works");
   if (!asleepCard || !busyAsleepCard) {
     problems.push("the harness is missing a released-model state the page must speak about");
   } else {
@@ -648,7 +648,7 @@ try {
   // may be spoken as a fact, and neither may change the words that were there
   // before the app could tell.
   for (const note of ["running, phone unknown", "running, residency unknown (stub)"]) {
-    const card = results.find((r) => r.heading === `Status — ${note}`);
+    const card = results.find((r) => r.heading === `Home — ${note}`);
     if (!card) {
       problems.push(`the harness is missing the "${note}" card`);
       continue;
@@ -656,7 +656,7 @@ try {
     if (card.all.includes("asleep")) {
       problems.push(`an unknown model residency must not be spoken as a fact: ${note}`);
     }
-    if (!card.all.includes("Kalsa is ready.")) {
+    if (!card.all.includes("Ready to chat.")) {
       problems.push(`an unknown model residency must keep the running words: ${note}`);
     }
   }
@@ -667,11 +667,11 @@ try {
   // flag DOWN and UP: `busy && !running` is true for `stopping`, so the order
   // of the branches — the true state read BEFORE the heuristic — is what
   // keeps "Starting" out of an owner's mouth who just asked for quiet.
-  const STOPPING_CARD = results.find((r) => r.heading === "Status — stopping");
+  const STOPPING_CARD = results.find((r) => r.heading === "Home — stopping");
   if (!STOPPING_CARD) {
     problems.push("the harness is missing the draining state the page must speak about");
   } else {
-    if (!STOPPING_CARD.all.includes("Kalsa is turning off. Next time she starts with your choice.")) {
+    if (!STOPPING_CARD.all.includes("Kalsa is turning off…") || !STOPPING_CARD.all.includes("Next time it starts with your choice.")) {
       problems.push("a drain must say Kalsa is turning off and will return with the owner's choice");
     }
     if (STOPPING_CARD.all.includes("Starting")) {
@@ -1232,7 +1232,7 @@ try {
     // the rendering half of a promise the Rust side keeps too (the
     // command asks is_host, and Desk::forget_device refuses the id).
     if (deviceNames.includes("This computer")) {
-      const forgets = buttons.filter((text) => text === "Forget").length;
+      const forgets = buttons.filter((text) => text === "Remove").length;
       // A seat that is pairing again carries Allow/Deny for the request
       // instead of Forget: one phone, one row, and no Forget while the
       // request stands.
@@ -1243,7 +1243,7 @@ try {
       }
     }
     if (phones > 0) {
-      const expected = waitingRows === phones ? "Waiting for your OK" : "Connected";
+      const expected = waitingRows === phones ? "Waiting for your OK" : "Your phones";
       if (headline !== expected) {
         problems.push(`a house with ${waitingRows} of ${phones} phones waiting must be headlined "${expected}", not "${headline}": ${heading}`);
       }
@@ -1432,11 +1432,11 @@ try {
     }
     const FIRST_PAGE = {
       off: ["Kalsa is off.", "Turn Kalsa on"],
-      service: ["Kalsa can't be reached from this page right now. Open Devices to fix it.", "Go to Devices"],
+      service: ["Kalsa can't be reached from this page right now. Open Phones to fix it.", "Go to Phones"],
       starting: ["Getting ready. On a slower computer this can take a minute.", "Turn Kalsa on"],
-      key: ["Kalsa is still setting up this computer. Open Devices to finish.", "Devices"],
-      "key-read": ["This computer could not read its own connection key.", "Devices"],
-      "key-junk": ["Kalsa is still setting up this computer. Open Devices to finish.", "Devices"],
+      key: ["Kalsa is still setting up this computer. Open Phones to finish.", "Phones"],
+      "key-read": ["This computer could not read its own connection key.", "Phones"],
+      "key-junk": ["Kalsa is still setting up this computer. Open Phones to finish.", "Phones"],
       advanced: ["This computer has no model name yet.", "Add the model name"],
       ready: ["Write your first message below to talk with Kalsa.", null],
     };
@@ -1514,7 +1514,7 @@ try {
   ];
   for (const [name, data] of hostile) {
     try {
-      const { result } = await renderer.renderServerProbe(data, data.step);
+      const { result } = await renderer.renderHomeProbe(data, data.step);
       for (const word of ["NaN", "Infinity", "undefined", "null"]) {
         if (new RegExp(`\\b${word}\\b`).test(result.all)) problems.push(`hostile DTO "${name}" rendered the leak "${word}"`);
       }
@@ -1550,7 +1550,7 @@ try {
   }
 
   const failureText = await renderer.renderStartFailureProbe({ state: { kind: "stopped" }, startFailure: "The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option." });
-  if (!failureText.includes("Kalsa couldn't start.")) {
+  if (!failureText.includes("Kalsa couldn't start")) {
     problems.push("a held start failure must not be titled as if something had been running");
   }
   if (!failureText.includes("The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option.")) {
@@ -1565,7 +1565,7 @@ try {
   ];
   for (const [name, step] of hostileSteps) {
     try {
-      const { result } = await renderer.renderServerProbe({ state: { kind: "stopped" } }, step);
+      const { result } = await renderer.renderHomeProbe({ state: { kind: "stopped" } }, step);
       for (const word of ["NaN", "Infinity", "undefined", "null"]) {
         if (new RegExp(`\\b${word}\\b`).test(result.all)) problems.push(`hostile progress "${name}" rendered the leak "${word}"`);
       }

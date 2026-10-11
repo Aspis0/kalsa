@@ -14,7 +14,7 @@ export const FILES = {
     "previouslyAttached": "之前附加过",
     "onePage": "1 页",
     "pages": (count: number) => `${count} 页`,
-    "budgetUnknown": "Kalsa 无法检查这些文件是否放得下，因此她可能不会全部使用。",
+    "budgetUnknown": "Kalsa 无法检查这些文件是否放得下，因此它可能不会全部使用。",
     "budgetAlmostFull": "这段对话快满了：Kalsa 可能读不到全部内容。请移除一个文件或开始一段新对话。",
     "budgetOver": "这对 Kalsa 来说一次太多了。请移除一个文件或缩短消息。",
     "unsupportedKind": "Kalsa 读不了这种文件。请使用文本、PDF、Word 或 PowerPoint 文件。",
@@ -22,6 +22,6 @@ export const FILES = {
     "tooBig": "这个文件对 Kalsa 来说太大了。请试一个更小的。",
     "unreadable": "Kalsa 无法读取这个文件。它可能已损坏或被密码锁定。",
     "emptyFile": "这个文件是空的。",
-    "noText": "Kalsa 在这个文件里没有找到文字。如果是扫描件，她暂时读不了。",
+    "noText": "Kalsa 在这个文件里没有找到文字。如果是扫描件，它暂时读不了。",
     "couldNotOpen": "Kalsa 无法打开这个文件。请重新选择它。",
   };

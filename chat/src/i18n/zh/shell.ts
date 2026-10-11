@@ -1,8 +1,7 @@
 // 从已批准的英文文案翻译。
 
 export const SHELL = {
-    "conversations": "对话",
-    "backTo": (label: string) => `返回${label}`,
+    "conversations": "聊天",
     "files": "文件",
     "toggleFilesAria": "打开或关闭文件面板",
     "dismiss": "关闭",
@@ -14,13 +13,13 @@ export const SHELL = {
     "checkingContext": "正在检查文件是否放得下…",
     "readingOne": (name: string) => `正在读取 ${name}…`,
     "readingMany": (count: number) => `正在读取 ${count} 个文件…`,
-    "gateWaiting": "Kalsa 想搜索网络。允许她吗？",
+    "gateWaiting": "Kalsa 想搜索网络。允许它吗？",
     "tooMuchAtOnce": "这对 Kalsa 来说一次太多了。请移除一个文件或缩短消息。",
     "waitingFirstWord": "Kalsa 正在回答…",
     "thinking": "Kalsa 正在思考…",
     "thinkingComplete": "思考完成，没有回答到来。",
     "responseComplete": "Kalsa 已回答。",
-    "responseStopped": "你停止了 Kalsa。她写下的内容已保留。",
+    "responseStopped": "你停止了 Kalsa。它写下的内容已保留。",
     "stoppedBeforeFinishing": "Kalsa 中途停下了。请再问一次。",
     "attachedOne": (name: string) => `已附加 ${name}。`,
     "attachedMany": (count: number) => `已附加 ${count} 个文件。`,

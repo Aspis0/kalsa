@@ -6,9 +6,9 @@ import "./Sprout.css";
 // leaves unfolding as the tip reaches their heights — and never still: the
 // plant sways while a step waits, which is the signal that Kalsa is still
 // working. One inline SVG and its own CSS: no image, no dependency. The
-// seed is the topbar mark itself (App.css's .topbar-mark: a circle with one
-// sharp corner) and every leaf keeps that character — round belly, sharp
-// corner at the stem, drawn out to a point that faces outward.
+// seed is a circle with one sharp corner, and every leaf keeps that
+// character — round belly, sharp corner at the stem, drawn out to a point
+// that faces outward.
 
 /** The mark, 10×10: the seed, half buried in the mound. */
 const SEED = "M0 10 L0 5 A5 5 0 0 1 5 0 A5 5 0 0 1 10 5 A5 5 0 0 1 5 10 Z";

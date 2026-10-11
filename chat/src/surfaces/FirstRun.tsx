@@ -168,7 +168,7 @@ export function FirstRun({ capability, liveStep, starting, onChoose, onChecked }
     );
   } else {
     body = (
-      <div className="brain-presence">
+      <div>
         <button type="button" className="first-run-start" onClick={() => void check()}>
           {t.start}
         </button>

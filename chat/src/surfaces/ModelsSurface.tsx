@@ -7,7 +7,10 @@ import { invoke } from "../lib/tauri";
 // ONE declaration of `brain_state`'s answer, shared with the poll every other
 // surface reads. A local copy of `kind` here is how "stopping" was read as
 // "could not tell": the DTO moved and this page's second declaration did not.
-import { useBrainState } from "./useBrain";
+import { useBrain } from "./useBrain";
+import { useCapability } from "./useCapability";
+import { MachineCard } from "./MachineCard";
+import { speedLine } from "../lib/speed";
 import "./surfaces.css";
 
 /** Shown only when the launch record carried no reason: the development path,
@@ -24,14 +27,19 @@ interface ModelsSurfaceProps {
 // model and the reason it gave for this start — and sends explicit edits back to
 // the start command.
 export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfaceProps) {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const t = table.machine;
   // The one shared poll answers this page too: a second interval here was a
   // second brain_state every 2 s beside the shell's own, and the two could
   // disagree for a tick. A read that rejected keeps what the poll already
   // knows — `lastKnown` folds that in there — and only a page whose poll
   // never answered shows the "could not check" sentence.
-  const state = useBrainState();
+  const { state, busy, heldFailure, chooseModel } = useBrain();
+  // The two choices, and the switch between them.
+  const { capability } = useCapability(state, busy);
+  const running = state?.kind === "running" ? state : null;
+  // A phone, not this computer: the host's own chat runs through the same door.
+  const phonesNow = (running?.metrics?.active_devices ?? []).filter((device) => device.kind !== "host").length;
 
   let headline: string | null = null;
   let sentence: string;
@@ -62,11 +70,12 @@ export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfac
         break;
       case "failed":
         headline = t.notRunning;
-        sentence = t.notRunningSentence;
+        sentence = t.offSentence;
+        button = t.turnKalsaOn;
         break;
       case "stopped":
         sentence = t.offSentence;
-        button = t.goToServer;
+        button = t.turnKalsaOn;
         break;
       default: {
         // Exhaustive over the shared `kind`: a state the wire grows without
@@ -82,16 +91,48 @@ export function ModelsSurface({ onNavigate, model, onModelChange }: ModelsSurfac
 
   return (
     <div className="surface-page">
-      <p className="surface-eyebrow">{t.eyebrow}</p>
+      <button type="button" className="surface-back" onClick={() => onNavigate("brain")}>
+        <span aria-hidden="true">‹</span> {table.chrome.home}
+      </button>
       <h2>{t.howItThinks}</h2>
       {headline ? <p className="surface-headline">{headline}</p> : null}
       <p className="surface-sentence">{sentence}</p>
       {button ? (
         <div className="surface-actions">
-          <button type="button" className="btn-primary" onClick={() => onNavigate("server")}>
+          <button type="button" className="btn-primary" onClick={() => onNavigate("brain")}>
             {button}
           </button>
         </div>
+      ) : null}
+      {running ? (
+        <div className="surface-metrics">
+          <div className="surface-metric">
+            <span className="surface-metric-label">{t.speedNow}</span>
+            {/* An absent rate reaches speedLine's own guard and is said as
+                no measurement, never as a figure. */}
+            <strong className="surface-metric-value">
+              {speedLine(t, tag, running.metrics?.decode_tokens_per_second ?? Number.NaN)}
+            </strong>
+          </div>
+          <div className="surface-metric">
+            <span className="surface-metric-label">{t.phonesNow}</span>
+            <strong className="surface-metric-value">{phonesNow}</strong>
+          </div>
+        </div>
+      ) : null}
+      {capability ? (
+        <MachineCard
+          capability={capability}
+          running={running?.model ?? null}
+          busy={busy}
+          onChoose={(token) => void chooseModel(token)}
+        />
+      ) : null}
+      {/* A switch that failed says why here, where it was asked for. */}
+      {heldFailure ? (
+        <p className="surface-sentence" role="alert">
+          {heldFailure}
+        </p>
       ) : null}
       <AdvancedPanel
         save={(changes: AdvancedSaveInput) => invoke<AdvancedDto>("brain_set_advanced", changes)}

@@ -482,7 +482,7 @@ export function RoomSurface() {
           >
             <input
               type="text"
-              className="brain-bar-input room-name-input"
+              className="room-name-input"
               value={nameDraft}
               autoFocus
               aria-label={room.nameAria}

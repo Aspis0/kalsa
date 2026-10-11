@@ -26,10 +26,10 @@ const APP = "http://localhost:5173";
 const WINDOW = { width: 1000, height: 720 };
 const GB = 1024 ** 3;
 
-// The theme tokens the walk must paint with, read from styles/tokens.css —
-// the same --accent the topbar's leaf mark is filled with.
-const ACCENT = { light: "rgb(31, 95, 78)", dark: "rgb(117, 179, 160)" };
-const SILENCE = { light: "rgb(88, 97, 91)", dark: "rgb(151, 165, 156)" };
+// The theme tokens the walk must paint with, copied from styles/tokens.css:
+// --ac (the rail's leaf mark) and --tx3.
+const ACCENT = { light: "rgb(63, 107, 58)", dark: "rgb(169, 207, 142)" };
+const SILENCE = { light: "rgb(100, 106, 91)", dark: "rgb(162, 164, 148)" };
 
 // The brain state behind the walk: `starting` is walking from the hook's
 // point of view and needs nothing else, and it never fires the automatic

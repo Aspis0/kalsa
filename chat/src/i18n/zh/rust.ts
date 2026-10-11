@@ -29,9 +29,9 @@ export const RUST: {
           }).format(params.gb)} GB 后再试。`
         : "Kalsa 需要更多空间。请腾出一些空间后再试。",
     restart: () => "Kalsa 未能启动。请重启这台电脑后再试。",
-    stopped: () => "Kalsa 自己停了下来。请重新打开她。",
+    stopped: () => "Kalsa 自己停了下来。请重新打开它。",
     took_too_long: () => "Kalsa 准备的时间太长。请再试。",
-    stop_unconfirmed: () => "Kalsa 可能仍在运行。请重启这台电脑来关闭她。",
+    stop_unconfirmed: () => "Kalsa 可能仍在运行。请重启这台电脑来关闭它。",
     already_starting: () => "Kalsa 已经在启动了。请稍等片刻。",
   },
   choice: {

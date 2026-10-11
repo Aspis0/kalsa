@@ -385,7 +385,7 @@ async function probeEngine(engineName, origin) {
     });
 
     async function openChat() {
-      const chip = page.locator(".brain-bar-chat");
+      const chip = page.locator('.rail-item[data-surface="chat"]');
       if ((await chip.count()) > 0) await chip.first().click();
       await page.waitForTimeout(400);
     }
@@ -394,7 +394,7 @@ async function probeEngine(engineName, origin) {
       await page.reload();
       await page.waitForTimeout(1200);
       await openChat();
-      const drawer = page.getByRole("button", { name: "Show conversations", exact: true });
+      const drawer = page.getByRole("button", { name: "Show chats", exact: true });
       if (await drawer.isVisible()) await drawer.click();
       await page.locator(".sidebar").getByRole("button", { name: titleRegex }).first().click();
       await page.waitForTimeout(600);
@@ -792,7 +792,7 @@ async function probeEngine(engineName, origin) {
     await page.reload();
     await page.waitForTimeout(1200);
     await openChat();
-    const drawer = page.getByRole("button", { name: "Show conversations", exact: true });
+    const drawer = page.getByRole("button", { name: "Show chats", exact: true });
     if (await drawer.isVisible()) await drawer.click();
     await page.locator(".sidebar").getByRole("button", { name: /tiny\.png/i }).first().click();
     await page.waitForTimeout(600);
@@ -961,7 +961,7 @@ async function probeEngine(engineName, origin) {
     await page.reload();
     await page.waitForTimeout(1200);
     await openChat();
-    const seedDrawer = page.getByRole("button", { name: "Show conversations", exact: true });
+    const seedDrawer = page.getByRole("button", { name: "Show chats", exact: true });
     if (await seedDrawer.isVisible()) await seedDrawer.click();
     await page.locator(".sidebar").getByRole("button", { name: /seeded shots/i }).first().click();
     await page.waitForTimeout(600);
@@ -1248,7 +1248,7 @@ async function probeEngine(engineName, origin) {
     await page.reload();
     await page.waitForTimeout(1200);
     await openChat();
-    const reopenDrawer = page.getByRole("button", { name: "Show conversations", exact: true });
+    const reopenDrawer = page.getByRole("button", { name: "Show chats", exact: true });
     if (await reopenDrawer.isVisible()) await reopenDrawer.click();
     await page.locator(".sidebar").getByRole("button", { name: /New conversation/i }).first().click();
     await page.waitForTimeout(900);
@@ -1288,7 +1288,7 @@ async function probeEngine(engineName, origin) {
       }, title);
     }
     async function deleteChat(title) {
-      const drawer = page.getByRole("button", { name: "Show conversations", exact: true });
+      const drawer = page.getByRole("button", { name: "Show chats", exact: true });
       if (await drawer.isVisible()) await drawer.click();
       await page.locator(".sidebar-row").filter({ hasText: title }).getByRole("button", { name: "Delete", exact: true }).click();
       await page.getByRole("button", { name: "Delete this conversation?", exact: true }).click();

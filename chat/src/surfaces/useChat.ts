@@ -6,7 +6,6 @@
 // because the state lives in any particular file.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { flushSync } from "react-dom";
 import { createStore, firstCharacters, titleFor, uid } from "../lib/store";
 import { activateChat, eraseChat, fetchContextSize, serverBase } from "../lib/chat";
 import { ensureContextSize, hasContextSize } from "../lib/contextSize";
@@ -33,7 +32,6 @@ import { deleteConversationImages, deleteImage, putImage } from "../lib/imageSto
 import { ATTACH_IMAGE_CEILING, wireImageBytes } from "../lib/wireBudget";
 import { filesRead } from "../lib/files";
 import type { SurfaceKey } from "../app/surfaces";
-import { arrivingIn, handoff, leavingGhost } from "../app/handoff";
 import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
 import { contentDecline } from "../lib/contentFilterCopy";
@@ -943,69 +941,6 @@ export function useChat(shell: ChatShell) {
     return false;
   }
 
-  // Enter in the brain's bar: the chat opens with the text as the first
-  // message, and the bar itself becomes that message (§3) — the move is a FLIP
-  // in `app/handoff.ts`, measured before and after the state change. Being
-  // unconfigured is a reason the ANSWER will fail, not a reason the bar should
-  // not become the message, so there is no fallback here on that account; under
-  // reduced motion the same state change happens plainly and nothing moves.
-  function writeFromBrain(text: string): void {
-    // The outgoing chat is frozen while a switch is in flight, and the brain's
-    // bar is one more way into it — and the gate is reread, as in `send`, not
-    // the render's snapshot. The words stay in the bar — this returns
-    // before the surface changes — so the freeze costs nothing here.
-    if (gate.getSnapshot().pending) return;
-    const calm =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // The chat this becomes does not exist yet, so the door is asked before the
-    // bar is measured or moved: the flight aims at where the bar really stands,
-    // and the first message must not reach the engine ahead of the slot.
-    const fresh = active === null ? uid() : null;
-    if (fresh !== null) {
-      void (async () => {
-        const result = await gate.create(fresh);
-        if (result === null || !result.opened || !gate.isCurrent(result.opened)) return;
-        // Committed before the measurement below: the slot sentence sits above
-        // the bar the flight aims at.
-        flushSync(() => {
-          noteSlot(result.notice);
-          attachTicket.current += 1;
-          setAttachStatus(null);
-        });
-        flyBarInto(text, result.opened, calm);
-      })();
-      return;
-    }
-    flyBarInto(text, null, calm);
-  }
-
-  /** The rest of `writeFromBrain`, once the door has taken the chat: measure the
-      bar, start the room's change, commit the bubble, aim the flight at it. */
-  function flyBarInto(text: string, opened: ActiveChat | null, calm: boolean): void {
-    const bar = calm ? null : document.querySelector(".brain-bar");
-    const before = bar ? bar.getBoundingClientRect() : null;
-    // The whole screen changes, and the bar's flight is part of that change:
-    // the room here leaves on a copy of itself while the next one arrives.
-    if (!calm) leavingGhost(document.querySelector(".stage"));
-
-    let openedId: string | null = null;
-    // The commit has to be in the DOM before the bubble can be measured, which
-    // is what flushSync is for: not the animation, the measurement.
-    flushSync(() => {
-      openedId = sendMessage(text, opened);
-    });
-    if (openedId === null) return;
-    // The bubble is in the DOM by now — flushSync committed it — and it is
-    // found by its message id, so no state has to be held for the move.
-    // The flight is measured and started first: the room's own entrance shifts
-    // it down a few pixels, and the mover has to aim at where the bubble will
-    // really be, not at where it is passing through. Both start in the same
-    // task, so they are one movement on screen.
-    handoff(before, document.querySelector(`[data-message-id="${openedId}"]`));
-    if (!calm) arrivingIn(document.querySelector(".stage > *"));
-  }
-
   function stop(): void {
     // Only the visible conversation's stream: a sibling keeps generating.
     turns.stopFor(activeId ?? "");
@@ -1182,7 +1117,6 @@ export function useChat(shell: ChatShell) {
     dismissStorageFull: () => store.clearWriteError(),
     // The brain's bar becomes the chat's first message (the shell renders
     // BrainSurface, but the words are the chat's).
-    writeFromBrain,
     // The slot banner's dismissal and the context cache a settings save
     // clears — both the shell's to call, the chat's to answer.
     dismissSlotNotice: () => gate.dismissNotice(),

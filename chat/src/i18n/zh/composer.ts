@@ -21,13 +21,3 @@ export const COMPOSER = {
     "removeImage": "移除这张图片",
     "removeDoc": "移除这个文档"
   };
-
-export const BRAIN_BAR = {
-    "placeholder": "说点什么…",
-    "writeAria": "消息",
-    "send": "发送",
-    "chat": "聊天",
-    "room": "房间",
-    "thisComputer": "这台电脑"
-  };
-

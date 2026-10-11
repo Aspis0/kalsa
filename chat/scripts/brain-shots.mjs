@@ -1,12 +1,11 @@
-// Screenshot driver for the brain page's machine card, at the size the app
-// actually opens in. There is no Tauri here, so a stub answers `brain_state`
-// and `brain_capability` from a fixed table per state.
+// Screenshot driver for Home and the machine card on Your AI, at the size the
+// app actually opens in. There is no Tauri here, so a stub answers
+// `brain_state` and `brain_capability` from a fixed table per state.
 //
-// Every state must show its own words AND hold the home page's shape without
-// scrolling: the writing bar is the way into the chat (THE-BRAIN-IS-THE-HOME
-// §3) and all five settings must be on screen — a compact row that quietly
-// drops one, or pushes the fifth off the edge, is the state failing. A failing
-// state saves its evidence as `<name>-FAILED.png` and the run exits non-zero.
+// Every state must show its own words on Home AND hold Home's shape without
+// scrolling: the round button, Details and the footer all on screen. The card
+// is then read on Your AI, reached through Details. A failing state saves its
+// evidence as `<name>-FAILED.png` and the run exits non-zero.
 //
 // Usage: npm run dev (port 5173), then node scripts/brain-shots.mjs [name ...]
 //
@@ -28,17 +27,8 @@ const SMALL = { width: 720, height: 480 };
 const TALL = { width: 1000, height: 1240 };
 const GB = 1024 ** 3;
 
-// The home page's row lists this machine — what runs on it, who can reach it,
-// how it is launched — and nothing else. The app's own settings are not on it:
-// a row called "Settings" holding an entry called "Settings" said neither, and
-// appearance, the connection and the web-search switch mean something with the
-// brain switched off. Pinned here because every word must survive any change of
-// density: same words, same order.
-// The words a refused turn-off says, pinned so they cannot drift apart from
-// the Server page's copy of the same fact.
-const STOP_REFUSED = "The assistant did not turn off. Closing this window will stop it.";
-
-const MACHINE = ["Models", "Server", "Devices", "Advanced"];
+// The words a refused turn-off says on Home.
+const STOP_REFUSED = "Kalsa didn't turn off";
 
 // A rate is stubbed in the same binary gigabytes the card divides by, so the
 // fixture's bytes and the number on screen agree.
@@ -98,7 +88,8 @@ const MODEL = {
   id: "0f3e5d7c9b1a2468",
   name: "Liquid LFM 2.5",
   quant: "Q8_0",
-  weights_bytes: 2_874_779_648,
+  download_bytes: 2_874_779_648,
+  reason_code: "model.reason.catalog",
   context_tokens: 65_536,
   speed_context_tokens: 8192,
   speed: { shape: "range", low: 12, high: 21 },
@@ -117,7 +108,8 @@ const MODEL = {
 // `funded_context` answers None and the DTO carries `context_tokens: null`.
 const NO_CONTEXT_MODEL = {
   ...MODEL,
-  weights_bytes: 4_831_720_000,
+  download_bytes: 4_831_720_000,
+  reason_code: "model.reason.catalog",
   context_tokens: null,
 };
 
@@ -130,7 +122,8 @@ const QUICK_MODEL = {
   id: "6f1c0a4b2d9e7315",
   name: "Google Gemma 4 E4B",
   quant: "Q4_K_M",
-  weights_bytes: 4_977_171_584,
+  download_bytes: 4_977_171_584,
+  reason_code: "model.reason.catalog",
   context_tokens: 65_315,
   speed_context_tokens: 8192,
   speed: { shape: "measured", value: 62.7, machine: "an M1 Max" },
@@ -161,7 +154,8 @@ const BIG_MODEL = {
   id: "1a2b3c4d5e6f7081",
   name: "Alibaba Qwen 3.6",
   quant: "Q4_K_M",
-  weights_bytes: 22_134_528_992,
+  download_bytes: 22_134_528_992,
+  reason_code: "model.reason.catalog",
   context_tokens: 547_503,
   speed_context_tokens: 8192,
   speed: { shape: "range", low: 31.0, high: 46.4 },
@@ -198,7 +192,7 @@ const STATES = [
       refusal: null,
     },
     marker: "62.7 tokens/s",
-    presence: "This computer is ready for you.",
+    presence: "Ready to chat.",
     refuse: ["brain_stop"],
     stopRefused: true,
   },
@@ -224,8 +218,8 @@ const STATES = [
       quicker: QUICK_MODEL,
       refusal: null,
     },
-    marker: "On, asleep",
-    presence: "The model is not in memory right now. Your next message brings it back, which takes a few seconds.",
+    marker: "Running now.",
+    presence: "Kalsa is resting to free up memory. Your next message wakes it up in a few seconds.",
   },
   {
     name: "refusal",
@@ -233,7 +227,7 @@ const STATES = [
     state: { kind: "stopped" },
     capability: { kind: "measured", machine: UNREADABLE_CARD, chosen: true, model: null, quicker: null, refusal: PHONE_UNKNOWN },
     marker: "Pair the phone first.",
-    presence: "This computer is not running anything right now.",
+    presence: "Press the button to wake it up.",
     walkStep: true,
   },
   {
@@ -257,7 +251,7 @@ const STATES = [
     state: { kind: "running", endpoint: "http://127.0.0.1:8080/v1", model: "Liquid LFM 2.5" },
     capability: { kind: "measured", machine: CPU_ONLY, chosen: true, model: NO_CONTEXT_MODEL, quicker: null, refusal: null },
     marker: "12.0–21.0 tokens/s",
-    presence: "This computer is ready for you.",
+    presence: "Ready to chat.",
     noContext: true,
   },
   {
@@ -273,7 +267,7 @@ const STATES = [
       refusal: null,
     },
     marker: "547,503 tokens of context",
-    presence: "This computer is ready for you.",
+    presence: "Ready to chat.",
   },
   {
     // The first run: a machine with no choice stored owns the page — one
@@ -295,8 +289,8 @@ const STATES = [
     presence: "Kalsa checks your computer and suggests a model.",
     brainTest: {
       options: [
-        { id: MODEL.id, name: MODEL.name, weights_bytes: MODEL.weights_bytes, on_disk: false },
-        { id: QUICK_MODEL.id, name: QUICK_MODEL.name, weights_bytes: QUICK_MODEL.weights_bytes, on_disk: true },
+        { id: MODEL.id, name: MODEL.name, weights_bytes: MODEL.download_bytes, on_disk: false },
+        { id: QUICK_MODEL.id, name: QUICK_MODEL.name, weights_bytes: QUICK_MODEL.download_bytes, on_disk: true },
       ],
       refusal: null,
     },
@@ -312,7 +306,7 @@ const STATES = [
     state: { kind: "stopped" },
     capability: { kind: "migrating" },
     marker: "Checking the model already on your computer…",
-    presence: "Checking the model already on your computer…",
+    presence: "Checking the AI already on your computer…",
   },
   {
     // Unmeasured IS the real fresh install — the probe has never run — and
@@ -412,40 +406,28 @@ async function mustText(page, needle, label) {
   console.log("  saw:", label);
 }
 
-/** What the page must hold at rest, measured. */
+/** What Home must hold at rest, measured. */
 async function layout(page) {
-  return page.evaluate((expected) => {
+  return page.evaluate(() => {
     const at = (n) => Math.round(n);
     const box = (el) => {
       if (!el) return null;
       const r = el.getBoundingClientRect();
       return { left: at(r.left), right: at(r.right), top: at(r.top), bottom: at(r.bottom) };
     };
-    const items = [...document.querySelectorAll(".brain-settings-item")];
-    const labelled = items.map((button) => button.textContent.trim());
-    const boxes = items.map(box);
-    const within = (b) => b.left >= 0 && b.top >= 0 && b.right <= window.innerWidth && b.bottom <= window.innerHeight;
-    const nav = document.querySelector(".brain-settings");
-    // How many lines the labels took, and how wide the widest of them is:
-    // the row wraps rather than overflow, and this is how that is seen.
-    const rows = new Set(boxes.map((b) => b.top)).size;
-    const rowWidth = boxes.length > 0 ? Math.max(...boxes.map((b) => b.right)) - Math.min(...boxes.map((b) => b.left)) : 0;
+    const within = (b) => b !== null && b.left >= 0 && b.top >= 0 && b.right <= window.innerWidth && b.bottom <= window.innerHeight;
+    const power = box(document.querySelector(".power"));
+    const details = box(document.querySelector(".brain-details"));
+    const foot = box(document.querySelector(".brain-foot"));
     return {
-      width: window.innerWidth,
-      height: window.innerHeight,
       scrollTop: document.scrollingElement.scrollTop,
       scrollHeight: document.documentElement.scrollHeight,
-      scrollWidth: document.documentElement.scrollWidth,
-      bar: box(document.querySelector(".brain-bar-input")),
-      nav: box(nav),
-      labelled,
-      boxes,
-      rows,
-      rowWidth,
-      sameWords: labelled.length === expected.length && labelled.every((word, i) => word === expected[i]),
-      allInside: boxes.length > 0 && boxes.every(within),
+      power,
+      details,
+      foot,
+      allInside: [power, details, foot].every(within),
     };
-  }, MACHINE);
+  });
 }
 
 // The destination anchored to this script, not to the process's working
@@ -458,42 +440,62 @@ async function shot(page, path) {
   console.log("  saved", path);
 }
 
-/**
- * The morph's seam (THE-BRAIN-IS-THE-HOME §3): the writing bar becomes the
- * first message, so the width the bar starts at should already be close to the
- * column that message lands in. Measured, not assumed — the bar sits inside the
- * page's padding and the chat's column has its own, and the chat's column is
- * further capped by the sidebar the surfaces do not have.
- */
-async function morph(page) {
-  const width = (selector) =>
-    page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      const cs = getComputedStyle(el);
-      return { outer: Math.round(r.width), inner: Math.round(r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) };
-    }, selector);
-
-  const bar = await width(".brain-bar");
-  await page.locator(".brain-bar-chat").click();
-  await page.waitForTimeout(600);
-  // Open the seeded conversation: with nothing open there is no message column
-  // at all, only the empty state.
-  const row = page.locator(".sidebar").getByRole("button", { name: /Seeded thread/ }).first();
-  if (await row.count()) {
-    await row.click();
-    await page.waitForTimeout(400);
+/** The machine card on Your AI, held to the backend's options. */
+async function cardChecks(page, fixture) {
+  const problems = [];
+  if (fixture.capability.kind === "measured") {
+    await page.locator(".machine-card").first().waitFor({ timeout: 8000 });
   }
-  const column = await width(".thread-column");
-  const composer = await width(".composer");
-  const target = column ?? composer;
-  const which = column ? ".thread-column" : ".composer";
-  const delta = Math.abs(bar.outer - target.outer);
-  console.log(
-    `  morph: .brain-bar ${bar.outer}px vs ${which} ${target.outer}px ` +
-      `(${target.inner} inner) -> ${delta}px ${bar.outer > target.outer ? "wider" : "narrower"}`,
-  );
+  const tiles = await page.evaluate(() => {
+    const card = document.querySelector(".machine-card");
+    if (!card) return null;
+    return {
+      names: [...card.querySelectorAll(".machine-option-name")].map((n) => n.textContent.trim()),
+      speeds: [...card.querySelectorAll(".machine-option-speed")].map((n) => n.textContent.trim()),
+      text: card.innerText,
+    };
+  });
+  if (fixture.capability.kind !== "measured") {
+    if (tiles?.names.length) problems.push("unmeasured state printed numbers");
+    return problems;
+  }
+  if (!fixture.capability.model) return problems;
+  // One block per option, in the order the backend sent them: the pick
+  // first, the faster alternative — when the machine has one — under it.
+  const expected = [fixture.capability.model, fixture.capability.quicker]
+    .filter(Boolean)
+    .map((option) => option.name);
+  if (tiles.names.join(" | ") !== expected.join(" | ")) {
+    problems.push(`options are [${tiles.names}] not [${expected}]`);
+  }
+  if (tiles.speeds.length !== expected.length) {
+    problems.push(`${tiles.speeds.length} speeds for ${expected.length} options`);
+  }
+  // Every option says which side of the choice it is on: the one that is
+  // running says so, and each of the others offers to switch.
+  const up = (tiles.text.match(/Running now\./g) ?? []).length;
+  const offered = (tiles.text.match(/Use this model/g) ?? []).length;
+  if (up + offered !== expected.length) {
+    problems.push(`${expected.length} options but ${up} running and ${offered} offered to choose`);
+  }
+  // The length every speed is priced at, in the drawer rather than on the card.
+  const priced = `These speeds are for a conversation of about ${fixture.capability.model.speed_context_tokens.toLocaleString("en-US")} tokens`;
+  const working = await page.evaluate(() => {
+    const card = document.querySelector(".machine-card");
+    const drawer = card?.querySelector(".machine-working");
+    return drawer ? { drawer: drawer.textContent ?? "", card: card.innerText } : null;
+  });
+  if (working === null) {
+    problems.push("there is no drawer to hold the sentence the speeds are priced at");
+  } else if (!working.drawer.includes(priced)) {
+    problems.push(`the drawer does not say what the speeds are priced at ("${priced}")`);
+  } else if (working.card.includes("Predicted speeds are for a")) {
+    problems.push("the card still carries the priced-at footnote the drawer was given");
+  }
+  const showsContext = /up to [\d,]+ tokens of context/.test(tiles.text);
+  if (fixture.noContext === true && showsContext) problems.push("a machine funding no context still printed one");
+  if (fixture.noContext !== true && !showsContext) problems.push("a funded context printed none");
+  return problems;
 }
 
 async function main() {
@@ -557,104 +559,27 @@ async function main() {
       },
     );
     await page.goto(APP);
-    await mustText(page, fixture.marker, fixture.name);
-    // The presence sentence is this page's own copy: pinned here so it cannot
-    // drift back to saying the phone is the reason the computer is on.
+    // The first run's own words are on Home; every other marker is the card's,
+    // read on Your AI below.
+    if (fixture.firstRun) await mustText(page, fixture.marker, fixture.name);
     await mustText(page, fixture.presence, `${fixture.name} presence`);
-    const tiles = await page.evaluate(() => {
-      const card = document.querySelector(".machine-card");
-      if (!card) return null;
-      return {
-        names: [...card.querySelectorAll(".machine-option-name")].map((n) => n.textContent.trim()),
-        speeds: [...card.querySelectorAll(".machine-option-speed")].map((n) => n.textContent.trim()),
-        text: card.innerText,
-      };
-    });
-    // The first run owns the page: no card before Allow.
-    if (fixture.firstRun) {
-      if (tiles) throw new Error(`${fixture.name}: the first run printed the card before Allow`);
-    } else if (fixture.capability.kind === "measured") {
-      await page.locator(".machine-card").first().waitFor({ timeout: 8000 });
-    } else if (tiles) {
-      throw new Error(`${fixture.name}: unmeasured state printed numbers`);
+    if (fixture.firstRun && (await page.locator(".machine-card").count()) > 0) {
+      throw new Error(`${fixture.name}: the first run printed the card before Allow`);
     }
 
     await page.waitForTimeout(500);
     const held = await layout(page);
     const problems = [];
-    if (fixture.capability.model && !fixture.firstRun) {
-      // One block per option, in the order the backend sent them: the pick
-      // first, the faster alternative — when the machine has one — under it.
-      // A machine with a single speed class must show exactly one block.
-      const expected = [fixture.capability.model, fixture.capability.quicker]
-        .filter(Boolean)
-        .map((option) => option.name);
-      if (tiles.names.join(" | ") !== expected.join(" | ")) {
-        problems.push(`options are [${tiles.names}] not [${expected}]`);
-      }
-      if (tiles.speeds.length !== expected.length) {
-        problems.push(`${tiles.speeds.length} speeds for ${expected.length} options`);
-      }
-      // Every option says which side of the choice it is on: the one that is
-      // running says so, and each of the others offers to switch — never a
-      // control on a model that is already up, because that click would do
-      // nothing.
-      const up = (tiles.text.match(/Running now\./g) ?? []).length;
-      const offered = (tiles.text.match(/Use this model/g) ?? []).length;
-      if (up + offered !== expected.length) {
-        problems.push(`${expected.length} options but ${up} running and ${offered} offered to choose`);
-      }
-      // The length every speed is priced at, in the drawer now rather than on
-      // the card. Without it the figures read as general claims, and the cache
-      // makes them false the moment a conversation starts; the reason it was
-      // written still holds, so the check moved with it. `textContent` reads
-      // the drawer closed, so no screenshot or geometry check moves with it.
-      const priced = `These speeds are for a conversation of about ${fixture.capability.model.speed_context_tokens.toLocaleString("en-US")} tokens`;
-      const working = await page.evaluate(() => {
-        const card = document.querySelector(".machine-card");
-        const drawer = card?.querySelector(".machine-working");
-        return drawer ? { drawer: drawer.textContent ?? "", card: card.innerText } : null;
-      });
-      if (working === null) {
-        problems.push("there is no drawer to hold the sentence the speeds are priced at");
-      } else if (!working.drawer.includes(priced)) {
-        problems.push(`the drawer does not say what the speeds are priced at ("${priced}")`);
-      } else if (working.card.includes("Predicted speeds are for a")) {
-        problems.push("the card still carries the priced-at footnote the drawer was given");
-      }
-      const showsContext = /up to [\d,]+ tokens of context/.test(tiles.text);
-      if (fixture.noContext === true && showsContext) {
-        problems.push("a machine funding no context still printed one");
-      }
-      if (fixture.noContext !== true && !showsContext) {
-        problems.push("a funded context printed none");
-      }
-    }
     if (fixture.firstRun) {
-      // Only the button and its line: no writing bar, no settings row.
-      if (held.bar !== null || held.nav !== null) problems.push("the first run shows more than Start");
-    } else if (held.bar.bottom > WINDOW.height || held.scrollTop !== 0) {
-      problems.push(`writing bar bottom ${held.bar.bottom} > ${WINDOW.height}`);
+      // Only the button and its line: no power button, no Details.
+      if (held.power !== null || held.details !== null) problems.push("the first run shows more than Start");
+    } else if (!held.allInside) {
+      problems.push(`Home's button, Details or footer is off screen: ${JSON.stringify(held)}`);
     }
-    // And the page itself, not just the bar: `.surface-page`'s bottom padding
-    // can hold an overflow underneath a bar that is still above the fold, so
-    // the bar's own geometry cannot see a page that scrolls.
-    if (held.scrollHeight > WINDOW.height) {
+    if (held.scrollHeight > WINDOW.height || held.scrollTop !== 0) {
       problems.push(`the page scrolls: ${held.scrollHeight} tall in ${WINDOW.height}`);
     }
-    if (fixture.firstRun) {
-      // The row's absence was checked above.
-    } else if (!held.sameWords) {
-      problems.push(`the home row is [${held.labelled}] not [${MACHINE}]`);
-    } else if (!held.allInside) {
-      problems.push(`settings outside the viewport: ${JSON.stringify(held.boxes)}`);
-    }
-    if (!fixture.firstRun) console.log(
-      `  ${fixture.name}: bar ${held.bar.bottom}/${WINDOW.height}, ` +
-        `machine items ${held.labelled.length}/4 in ${held.rows} row(s) ${held.rowWidth}px wide inside a ` +
-        `${held.nav.bottom - held.nav.top}px nav (${held.nav.top}-${held.nav.bottom}), ` +
-        `scrollTop ${held.scrollTop}`,
-    );
+    if (!fixture.firstRun) console.log(`  ${fixture.name}: power ${JSON.stringify(held.power)}, details bottom ${held.details?.bottom}/${WINDOW.height}`);
 
     const file = problems.length === 0 ? fixture.file : fixture.file.replace(/\.png$/, "-FAILED.png");
     await shot(page, file);
@@ -673,10 +598,8 @@ async function main() {
     await page.waitForTimeout(300);
     const small = await layout(page);
     if (!fixture.firstRun) console.log(
-      `  ${fixture.name} at ${SMALL.width}x${SMALL.height}: bar bottom ${small.bar.bottom}, ` +
-        `machine items ${small.labelled.length}/4 in ${small.rows} row(s) ${small.rowWidth}px wide ` +
-        `${small.allInside ? "inside" : "OFF SCREEN"} (nav ${small.nav.top}-${small.nav.bottom}), ` +
-        `page ${small.scrollHeight}x${small.scrollWidth} tall/wide, scrollTop ${small.scrollTop}`,
+      `  ${fixture.name} at ${SMALL.width}x${SMALL.height}: ${small.allInside ? "inside" : "OFF SCREEN"}, ` +
+        `page ${small.scrollHeight} tall, scrollTop ${small.scrollTop}`,
     );
     await shot(page, fixture.file.replace(/\.png$/, "-small.png"));
     // A walk step delivered through the real envelope shape. The phase's own
@@ -696,13 +619,10 @@ async function main() {
       }
     }
 
-    // A turn-off the backend refuses. The hook has produced `stopFailure`
-    // since it was written and only the Server page read it, so the owner
-    // pressed Turn off HERE, nothing happened, and here said nothing about
-    // it. Driven last on the brain page, after the shots.
+    // A turn-off the backend refuses must be said on Home, where it was pressed.
     if (fixture.stopRefused === true) {
       await page.setViewportSize(WINDOW);
-      await page.click(".brain-presence .btn-primary");
+      await page.click(".power");
       await mustText(page, STOP_REFUSED, `${fixture.name} refused turn-off`);
     }
     // The first run past Start: the check, the pick (details closed), the
@@ -735,8 +655,8 @@ async function main() {
             handler({ event: "brain_progress", id: 8, payload: step });
           }
         }, payload);
-      await deliver({ kind: "model_bytes", done: 0, total: MODEL.weights_bytes });
-      await deliver({ kind: "model_bytes", done: 1_200_000_000, total: MODEL.weights_bytes });
+      await deliver({ kind: "model_bytes", done: 0, total: MODEL.download_bytes });
+      await deliver({ kind: "model_bytes", done: 1_200_000_000, total: MODEL.download_bytes });
       await mustText(page, "Downloading…", `${fixture.name} downloading`);
       await mustText(page, "1.2 of 2.9 GB", `${fixture.name} download bytes`);
       await shot(page, "shots/81-brain-download.png");
@@ -744,11 +664,15 @@ async function main() {
       await mustText(page, "Finding the best settings for your computer…", `${fixture.name} tuning`);
       await shot(page, "shots/82-brain-tuning.png");
     }
-    // Last, because it leaves the brain page: the morph's two widths, back at
-    // the window size the app opens in.
-    await page.setViewportSize(WINDOW);
-    await page.waitForTimeout(300);
-    if (fixture.name === "pick") await morph(page);
+    // Last, because it leaves Home: the machine card on Your AI.
+    if (!fixture.firstRun) {
+      await page.setViewportSize(WINDOW);
+      await page.click(".brain-details");
+      await mustText(page, fixture.marker, fixture.name);
+      const cardProblems = await cardChecks(page, fixture);
+      await shot(page, fixture.file.replace(/\.png$/, "-ai.png"));
+      if (cardProblems.length > 0) failures.push(`${fixture.name} (Your AI): ${cardProblems.join("; ")}`);
+    }
     await page.close();
   }
 

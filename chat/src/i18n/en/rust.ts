@@ -10,11 +10,11 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
     no_suitable_choice: () =>
       "Kalsa doesn't have an AI that runs well on this computer yet. Check for an app update.",
     connection_lost: () =>
-      "Kalsa couldn't download what she needs. Check your connection and try again.",
+      "Kalsa couldn't download what it needs. Check your connection and try again.",
     network_blocks_download: () =>
-      "Kalsa couldn't download what she needs on this network. Try another network.",
+      "Kalsa couldn't download what it needs on this network. Try another network.",
     download_failed: () => "Kalsa couldn't finish downloading. Try again later.",
-    needs_check: () => "Kalsa needs to check this computer before she can start. Try again.",
+    needs_check: () => "Kalsa needs to check this computer before it can start. Try again.",
     choice_too_large: () => "This AI is too big for this computer. Pick a smaller one on the AI page.",
     choice_unavailable: () => "Kalsa couldn't start with this AI. Pick another one on the AI page.",
     conversation_too_long: () =>
@@ -30,9 +30,9 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
           }).format(params.gb)} GB and try again.`
         : "Kalsa needs more space. Free up some room and try again.",
     restart: () => "Kalsa couldn't start. Restart this computer and try again.",
-    stopped: () => "Kalsa stopped by herself. Turn her on again.",
+    stopped: () => "Kalsa stopped by itself. Turn it on again.",
     took_too_long: () => "Kalsa took too long to get ready. Try again.",
-    stop_unconfirmed: () => "Kalsa may still be running. Restart this computer to turn her off.",
+    stop_unconfirmed: () => "Kalsa may still be running. Restart this computer to turn it off.",
     already_starting: () => "Kalsa is already starting. Wait a moment.",
   },
   choice: {
@@ -62,7 +62,7 @@ export const RUST: { startup: Record<string, RustSentence>; choice: Record<strin
     download_failed: () => "Kalsa couldn't download the update. Try again.",
     signature_failed: () => "The update could not be verified, so Kalsa did not install it.",
     install_failed: () => "Kalsa couldn't install the update. Try again.",
-    busy: () => "Kalsa is starting. Try again when she is ready.",
+    busy: () => "Kalsa is starting. Try again when it is ready.",
     up_to_date: () => "Kalsa is already up to date.",
     replying: () => "Kalsa is writing a reply. Install the update when it finishes.",
     changed: () => "The update changed since it was checked. Check again.",

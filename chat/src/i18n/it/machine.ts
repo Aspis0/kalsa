@@ -1,8 +1,9 @@
 // Tradotto dal copy inglese approvato.
 
 export const MACHINE = {
-    "eyebrow": "L'AI",
-    "howItThinks": "Cosa usa Kalsa per rispondere",
+    "howItThinks": "La tua AI",
+    "speedNow": "Velocità in questo momento",
+    "phonesNow": "Telefoni collegati ora",
     "couldNotCheck": "Questa pagina non è riuscita a controllare cosa sta eseguendo questo computer. Riprovare di solito funziona.",
     "running": (model: string) => `Kalsa sta usando ${model}`,
     "chosenForComputer": "Scelto per questo computer",
@@ -11,9 +12,8 @@ export const MACHINE = {
     "chosenAndStarting": "Scelto e in avvio",
     "startingSentence": "Un modello è stato scelto per questo computer. Si sta avviando ora.",
     "notRunning": "Non in esecuzione",
-    "notRunningSentence": "Kalsa è spenta. La pagina Accensione dice perché.",
     "offSentence": "Kalsa è spenta. Vai a Home per avviarla.",
-    "goToServer": "Accendi Kalsa",
+    "turnKalsaOn": "Accendi Kalsa",
     "notMeasured": "Kalsa misura questo computer la prima volta che l'accendi.",
     "whatItWouldRun": "Cosa eseguirebbe",
     "whatItWouldRunPick": "Cosa eseguirebbe — scegline uno",

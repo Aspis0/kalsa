@@ -40,6 +40,12 @@ button {
   background: var(--selection);
 }
 
+/* The Icon component's svg: never squeezed by the row it sits in. */
+.icon {
+  display: block;
+  flex: none;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

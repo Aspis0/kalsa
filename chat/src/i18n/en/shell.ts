@@ -3,8 +3,7 @@
 // sentences the storage and slot libraries report by code.
 
 export const SHELL = {
-  conversations: "Conversations",
-  backTo: (label: string) => `Back to ${label}`,
+  conversations: "Chats",
   files: "Files",
   toggleFilesAria: "Toggle the files panel",
   dismiss: "Dismiss",
@@ -25,7 +24,7 @@ export const SHELL = {
   thinking: "Kalsa is thinking…",
   thinkingComplete: "Thinking complete, no answer arrived.",
   responseComplete: "Kalsa has answered.",
-  responseStopped: "You stopped Kalsa. What she wrote is kept.",
+  responseStopped: "You stopped Kalsa. What it wrote is kept.",
   stoppedBeforeFinishing: "Kalsa stopped before finishing. Ask again.",
   attachedOne: (name: string) => `${name} attached.`,
   attachedMany: (count: number) => `${count} files attached.`,

@@ -2,7 +2,7 @@
 // sentence a pairing state can leave on screen.
 
 export const DEVICES = {
-  title: "Devices",
+  title: "Phones",
   capacityLine: "If several phones ask at the same time, some may have to wait their turn.",
   cameraInstruction: "Point your phone's camera at the square.",
   awareness: "Anyone who can see this square can connect a phone — show it only to yours.",
@@ -12,7 +12,7 @@ export const DEVICES = {
   claiming: "A phone is connecting. Choose Allow or Refuse below.",
   cancel: "Cancel",
   notRunningYet: "This computer is not running yet, so there is nothing for your phone to connect to.",
-  goToServer: "Turn Kalsa on",
+  turnKalsaOn: "Turn Kalsa on",
   checking: "Checking for your phone…",
   couldNotCheckSentence: "Kalsa couldn't check your phones. Try again.",
   tryAgain: "Try again",
@@ -24,7 +24,7 @@ export const DEVICES = {
   couldNotReadSentence: "Remove it and connect it again.",
   forgetAndPairAgain: "Remove and connect again",
   waitingForOkHeadline: "Waiting for your OK",
-  pairedHeadline: "Connected",
+  pairedHeadline: "Your phones",
   pairAnother: "Pair another phone",
   // The paired sentence, by the shape of the house.
   yourPhone: "your phone",
@@ -46,7 +46,7 @@ export const DEVICES = {
   pairingAgain: (label: string) => `${label} is reconnecting.`,
   allow: "Allow",
   refuse: "Refuse",
-  forget: "Forget",
+  forget: "Remove",
   // The Tailscale note: each road named only when its command is.
   runForTailscale: (commands: string) => `Run for Tailscale: ${commands}.`,
   chatsAt: "The phone chats at this computer's tailnet name.",

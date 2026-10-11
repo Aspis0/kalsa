@@ -1,8 +1,7 @@
 // Traducido del copy inglés aprobado.
 
 export const SHELL = {
-    "conversations": "Conversaciones",
-    "backTo": (label: string) => `Volver a ${label}`,
+    "conversations": "Chats",
     "files": "Archivos",
     "toggleFilesAria": "Abrir o cerrar el panel de archivos",
     "dismiss": "Descartar",

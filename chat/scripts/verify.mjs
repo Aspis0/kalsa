@@ -4,14 +4,7 @@
 // then `node scripts/verify.mjs [test ...]`.
 import { chromium } from "@playwright/test";
 import { appendTail } from "../src/lib/tail.ts";
-import { crescentEntriesFor } from "../src/app/crescentLayout.ts";
 import { assignNameColors, KALSA_NAME_COLOR } from "../src/lib/roomColors.ts";
-import {
-  ARRIVING_ATTRIBUTE as arrivingAttribute,
-  HANDOFF_ATTRIBUTE as handoffAttribute,
-  HANDOFF_MS as handoffMs,
-  LEAVING_ATTRIBUTE as leavingAttribute,
-} from "../src/app/handoff.ts";
 import { zipSync, strToU8 } from "fflate";
 import { tuneAttempt, tuneDone, tuneFace, tunePercent, tuneShare, tuneWait } from "../src/surfaces/tuneProgress.ts";
 import { fileURLToPath } from "node:url";
@@ -104,7 +97,7 @@ async function waitSummary(page, label) {
 }
 
 async function openSidebar(page, titlePart) {
-  const toggle = page.getByRole("button", { name: "Show conversations", exact: true });
+  const toggle = page.getByRole("button", { name: "Show chats", exact: true });
   if (await toggle.isVisible()) await toggle.click();
   await page
     .locator(".sidebar")
@@ -115,16 +108,13 @@ async function openSidebar(page, titlePart) {
 }
 
 /** Open the app AT THE CHAT. The brain is the home page now, so most states
-    in this file live one click past it — the writing bar's Chat button. This
+    in this file live one click past it — the rail's Chat button. This
     harness used to `goto` and fill the composer at once, which stopped working
-    the day the home surface changed, and those tests have been timing out
-    since. The click is conditional so it cannot break if the landing view
-    moves again. (The same helper, with the same comment, is `openApp` in
+    the day the home surface changed. (The same helper is `openApp` in
     `shots.mjs` — one convention across both harnesses, not two.) */
 async function openChat(page) {
   await page.goto(APP);
-  const chat = page.locator(".brain-bar-chat");
-  if ((await chat.count()) > 0) await chat.first().click();
+  await page.locator('.rail-item[data-surface="chat"]').click();
 }
 
 function xmlEsc(s) {
@@ -939,56 +929,37 @@ const tests = {
     await browser.close();
   },
 
-  // The crescent carries six surfaces and nothing else.
-  // The navigation rule, and the menu it governs. A menu that offers the page
-  // you are on, or something that page already offers, is a menu whose clicks
-  // appear to do nothing — which is exactly what the chat's crescent did with
-  // "New chat" and "History", both of which the chat's own drawer has.
-  //
-  // The rule is checked apart from any list: a list-shaped test would pass
-  // again the moment somebody added the duplicate back under another name.
-  async crescent() {
-    const entries = [
-      { key: "brain", label: "Home" },
-      { key: "chat", label: "Chat" },
-      { key: "settings", label: "Settings" },
-      { key: "history", label: "History" },
-    ];
-    const shown = crescentEntriesFor(entries, "chat", ["history"]);
-    check("crescent: the page you are on is not offered", !shown.some((e) => e.key === "chat"), JSON.stringify(shown.map((e) => e.key)));
-    check("crescent: what the page already offers is not offered again", !shown.some((e) => e.key === "history"), JSON.stringify(shown.map((e) => e.key)));
-    check("crescent: and everything else is kept", shown.map((e) => e.key).join(",") === "brain,settings", JSON.stringify(shown.map((e) => e.key)));
-    check(
-      "crescent: a surface that offers nothing is filtered only by being itself",
-      crescentEntriesFor(entries, "brain").length === 3,
-      JSON.stringify(crescentEntriesFor(entries, "brain").map((e) => e.key)),
-    );
-
-    // And the live menu, held to the same rule: no entry repeats a control the
-    // page already has, and none offers the page under it.
+  // The rail is the app's one navigation: the same six places, in the same
+  // order, on every page, with the page you are on marked for a screen reader
+  // and each place one click away. No page carries a second Settings door.
+  async rail() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await seed(page, { settings: okSettings("x") });
-    await openChat(page);
+    await page.goto(APP);
     await page.waitForTimeout(800);
-    await page.getByRole("button", { name: "Show menu" }).click();
-    await page.waitForTimeout(400);
-    const labels = await page.locator(".nav-point-label").allTextContents();
-    const currentLabel = "Chat";
-    check("crescent: the live menu offers something", labels.length > 0, JSON.stringify(labels));
-    check("crescent: and never the page it sits on", !labels.includes(currentLabel), JSON.stringify(labels));
-    for (const label of labels) {
-      const elsewhere = await page
-        .locator(".topbar, .composer, .sidebar, .drawer, .thread")
-        .getByRole("button", { name: label, exact: true })
-        .count();
-      check(`crescent: "${label}" is not a control the page already has`, elsewhere === 0, `${elsewhere} elsewhere`);
+    const rail = page.getByRole("navigation", { name: "Pages" });
+    const labels = (await rail.getByRole("button").allTextContents()).map((label) => label.trim());
+    check("rail: six places, in order", labels.join(",") === "Home,Chat,Room,Settings,Help,Phones", JSON.stringify(labels));
+    check("rail: nothing is marked Soon", !(await rail.textContent()).includes("Soon"));
+    const landmark = {
+      Home: ".brain-home",
+      Chat: ".chat-layout",
+      Room: ".room-page",
+      Settings: ".settings-page",
+      Help: ".help-page",
+      Phones: ".surface-page:has(> h2:text-is('Phones'))",
+    };
+    for (const label of ["Chat", "Room", "Settings", "Help", "Phones", "Home"]) {
+      await rail.getByRole("button", { name: label, exact: true }).click();
+      await page.waitForTimeout(400);
+      const current = await rail.locator('[aria-current="page"]').allTextContents();
+      check(`rail: ${label} is the one marked current once opened`, current.length === 1 && current[0].trim() === label, JSON.stringify(current));
+      check(`rail: ${label} opens its page`, (await page.locator(landmark[label]).count()) === 1);
+      check(`rail: still on screen on ${label}`, (await rail.count()) === 1);
+      const doors = await page.getByRole("button", { name: "Settings", exact: true }).count();
+      check(`rail: one Settings door on ${label}`, doors === 1, `${doors} buttons named Settings`);
     }
-    check("crescent: the chat's own new-chat control is not repeated", labels.every((label) => !label.includes("New chat")), JSON.stringify(labels));
-    // One door per surface: the header carries the app's settings everywhere
-    // except here, where this menu carries them, and except the page itself.
-    const doors = await page.locator(".topbar").getByRole("button", { name: "Settings", exact: true }).count();
-    check("crescent: the chat offers Settings once, not twice", doors === 0 && labels.some((label) => label === "Settings"), JSON.stringify({ doors, labels }));
     await browser.close();
   },
 
@@ -1002,15 +973,13 @@ const tests = {
     await openChat(page);
     await page.waitForTimeout(800);
     check(
-      "appearance: no theme button in the header",
-      (await page.locator(".topbar").getByRole("button", { name: /dark theme|light theme/i }).count()) === 0,
-      "the header still carries a theme toggle",
+      "appearance: no theme button outside Settings",
+      (await page.getByRole("button", { name: /dark theme|light theme/i }).count()) === 0,
+      "a page still carries a theme toggle",
     );
 
-    // The settings surface, reached the way a reader reaches it: the crescent.
-    await page.getByRole("button", { name: "Show menu" }).click();
-    await page.waitForTimeout(300);
-    await page.getByRole("button", { name: "Open Settings" }).click();
+    // The settings surface, reached the way a reader reaches it: the rail.
+    await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: "Settings", exact: true }).click();
     await page.waitForTimeout(400);
     const toggle = page.getByRole("checkbox", { name: "Dark theme" });
     check("appearance: the app's settings carry it", (await toggle.count()) === 1, "no Dark theme control in Settings");
@@ -1069,8 +1038,7 @@ const tests = {
     );
     // …and a save must not rewrite the unknown key away either: the form
     // holds only the fields it knows.
-    // The home page carries the Settings point directly (there is no open
-    // conversation and so no crescent menu to open first).
+    // The rail carries Settings on every page.
     await page.getByRole("button", { name: "Settings", exact: true }).first().click();
     await page.waitForTimeout(400);
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -1099,9 +1067,8 @@ const tests = {
     await browser.close();
   },
 
-  // The first page with nothing to send to, in the words of the page that
-  // fixes it: the machine is off → the Server page; on but with no model
-  // name → Settings.
+  // The first page with nothing to send to, and the way to fix it: the
+  // machine is off → Home; on but with no model name → the model name field.
   async emptysetup() {
     let browser = await chromium.launch({ args: ["--no-sandbox"] });
     let page = await browser.newPage();
@@ -1117,15 +1084,12 @@ const tests = {
     await openChat(page);
     await page.waitForTimeout(500);
     const offCopy = (await page.locator(".empty-copy").textContent().catch(() => null)) ?? "";
-    check(
-      "empty: an off machine says so in the Server page's words",
-      offCopy.includes("This computer is not running anything right now."),
-      offCopy || "no empty state",
-    );
-    check(
-      "empty: and offers Go to Server",
-      (await page.locator(".empty").getByRole("button", { name: "Go to Server" }).count()) === 1,
-    );
+    check("empty: an off machine says so", offCopy.includes("Kalsa is off."), offCopy || "no empty state");
+    const turnOn = page.locator(".empty").getByRole("button", { name: "Turn Kalsa on" });
+    check("empty: and offers Turn Kalsa on", (await turnOn.count()) === 1);
+    await turnOn.click();
+    await page.waitForTimeout(400);
+    check("empty: which opens Home, where the power button is", (await page.locator(".brain-home").count()) === 1);
     await browser.close();
 
     browser = await chromium.launch({ args: ["--no-sandbox"] });
@@ -1152,12 +1116,11 @@ const tests = {
       unnamedCopy.includes("This computer has no model name yet."),
       unnamedCopy || "no empty state",
     );
-    // Scoped to the empty state: the crescent's own entry carries the
-    // accessible name "Open Settings" (CrescentNav's `Open ${label}`), and
-    // an unscoped role query counts both.
+    // Scoped to the empty state: the rail's own Settings item would make an
+    // unscoped role query ambiguous.
     check(
-      "empty: and offers Open settings",
-      (await page.locator(".empty").getByRole("button", { name: "Open settings" }).count()) === 1,
+      "empty: and offers Add the model name",
+      (await page.locator(".empty").getByRole("button", { name: "Add the model name" }).count()) === 1,
     );
     await browser.close();
   },
@@ -2517,8 +2480,7 @@ const tests = {
 
     await page.reload();
     await page.waitForTimeout(1200);
-    const chat = page.locator(".brain-bar-chat");
-    if ((await chat.count()) > 0) await chat.first().click();
+    await page.locator('.rail-item[data-surface="chat"]').click();
     await page.waitForTimeout(800);
     await openSidebar(page, "weather");
     await page.waitForTimeout(400);
@@ -3121,11 +3083,9 @@ const tests = {
 
     // And it is no longer among the sampler knobs: the page that carries
     // twenty-six of those carries no thinking control.
-    await page.getByRole("button", { name: "Show menu" }).click();
-    await page.waitForTimeout(300);
-    await page.getByRole("button", { name: "Open Home" }).click();
+    await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: "Home", exact: true }).click();
     await page.waitForTimeout(500);
-    await page.locator(".brain-settings").getByRole("button", { name: "Advanced" }).click();
+    await page.locator(".brain-home").getByRole("button", { name: "Details" }).click();
     await page.waitForTimeout(800);
     const pageThinking =
       (await page.locator(".surface-page").getByRole("button", { name: /thinking/i }).count()) +
@@ -3144,192 +3104,66 @@ const tests = {
     await browser.close();
   },
 
-  // The app's own settings are the app's, and the app's strip is the header: on
-  // the Brain home, with no chat open, one step must reach them. They used to be
-  // a chip called Settings inside a row called Settings; taking that away
-  // without a door left the home with no way at all, and the theme — which
-  // moved into Settings — three steps from a page that used to carry it.
-  async settingsdoor() {
+  // Home is the round button and one way onward: Settings is one step away
+  // on the rail, Details opens Your AI, Start a chat opens the chat, and the
+  // button turns Kalsa off through the same command as before.
+  async homedoors() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     await seed(page, { settings: okSettings("x") });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    check("door: the brain home is where the app opens", (await page.locator(".brain-bar").count()) === 1, "the home is not on screen");
-    const door = page.locator(".topbar").getByRole("button", { name: "Settings", exact: true });
-    check("door: the home reaches Settings in one step", (await door.count()) === 1, "no Settings door in the header on the home");
-    await door.first().click();
+    const home = page.locator(".brain-home");
+    check("home: the app opens on Home", (await home.count()) === 1, "Home is not on screen");
+    check("home: no writing bar and no machine row", (await page.locator(".brain-bar, .brain-settings").count()) === 0);
+    const power = home.getByRole("button", { name: "Turn off", exact: true });
+    check("home: the round button says what it does", (await power.count()) === 1, "no Turn off button while running");
+    const rail = page.getByRole("navigation", { name: "Pages" });
+    await rail.getByRole("button", { name: "Settings", exact: true }).click();
     await page.waitForTimeout(400);
-    check("door: and it opens them", (await page.locator(".settings-page").count()) === 1, "the click did not open Settings");
-    // The rule the crescent follows, kept here: no way to the page you are on.
-    check(
-      "door: not offered on Settings itself",
-      (await page.locator(".topbar").getByRole("button", { name: "Settings", exact: true }).count()) === 0,
-      "a door to the page already open",
-    );
-    // And it is not a sixth chip in the machine's row.
-    await page.locator(".topbar").getByRole("button", { name: /^Back to / }).first().click();
+    check("home: Settings is one step away", (await page.locator(".settings-page").count()) === 1, "the rail did not open Settings");
+    await rail.getByRole("button", { name: "Home", exact: true }).click();
     await page.waitForTimeout(400);
-    const chips = await page.locator(".brain-settings-item").allTextContents();
-    check("door: the machine row stays four", chips.length === 4 && !chips.includes("Settings"), JSON.stringify(chips));
-
-    // The reader should be able to tell, without being told: what is in the page
-    // is about this computer, what is in the chrome is about the app. A chip in
-    // the page reads as important; a word in the corner that looks like a label
-    // reads as minor — and Settings is not less important than Advanced.
-    const doorSkin = await door.first().evaluate((el) => {
-      const skin = getComputedStyle(el);
-      return { border: skin.borderTopWidth, background: skin.backgroundColor, colour: skin.color };
-    });
+    await home.getByRole("button", { name: "Details" }).click();
+    await page.waitForTimeout(600);
+    check("home: Details opens Your AI", (await page.locator(".sampling-panel").count()) === 1, "no Your AI page after Details");
+    const details = (await page.locator(".surface-metrics").textContent()) ?? "";
     check(
-      "door: it is drawn as a button, not a word",
-      doorSkin.border !== "0px" && doorSkin.background !== "rgba(0, 0, 0, 0)",
-      JSON.stringify(doorSkin),
+      "home: Your AI carries the live speed and phones",
+      details.includes("Speed right now") && details.includes("Phones connected now"),
+      details || "no live rows",
     );
-    const label = await page.locator(".brain-machine-label").first().evaluate((el) => {
-      const skin = getComputedStyle(el);
-      return { text: el.textContent ?? "", weight: Number(skin.fontWeight), size: parseFloat(skin.fontSize), colour: skin.color };
-    });
-    check("row: the machine's label says what the row is", label.text.includes("This computer"), JSON.stringify(label));
-    check(
-      "row: and reads as a heading, not as a quiet footnote",
-      label.weight >= 600 && label.size >= 15 && label.colour !== "rgb(128, 128, 128)",
-      JSON.stringify(label),
-    );
-    await browser.close();
-  },
-
-  // The writing bar becoming the first message, by hand. It used to be
-  // `document.startViewTransition` with a shared `view-transition-name`, and on
-  // this machine the effect simply never happened — the pseudo-elements are not
-  // inspectable from a test, so a day of "it looks wired" proved nothing. A FLIP
-  // is in the DOM: the moving element, its layout, its keyframes and its
-  // duration can all be read.
-  async handoff() {
-    const browser = await chromium.launch({ args: ["--no-sandbox"] });
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await page.emulateMedia({ reducedMotion: "no-preference" });
-    await seed(page, { settings: okSettings("x") });
-    await page.goto(APP);
-    await page.waitForTimeout(1200);
-
-    const bar = await page.locator(".brain-bar").boundingBox();
-    check("handoff: the bar is on the home", bar !== null, "no bar to measure");
-    await page.getByRole("textbox", { name: "Write to the brain" }).fill("First message from the bar.");
-    await page.getByRole("textbox", { name: "Write to the brain" }).press("Enter");
-    // The move exists, and it is measured while it is happening.
-    await page
-      .locator(`[${handoffAttribute}]`)
-      .first()
-      .waitFor({ timeout: 1500 })
-      .catch(() => check("handoff: the moving element exists", false, "nothing carried the move"));
-    const move = await page.evaluate((attribute) => {
-      const mover = document.querySelector(`[${attribute}]`);
-      if (!mover) return null;
-      const animation = mover.getAnimations()[0];
-      const keyframes = animation?.effect && "getKeyframes" in animation.effect ? animation.effect.getKeyframes() : [];
-      return {
-        // The inline box, not the animated one: the animation overrides it at
-        // runtime, so this is where the move starts.
-        starts: {
-          left: parseFloat(mover.style.left),
-          top: parseFloat(mover.style.top),
-          width: parseFloat(mover.style.width),
-          height: parseFloat(mover.style.height),
-        },
-        text: mover.textContent ?? "",
-        duration: animation ? animation.effect?.getTiming().duration : null,
-        last: keyframes.length > 0 ? keyframes[keyframes.length - 1] : null,
-        scales: keyframes.some((frame) => "transform" in frame || "scale" in frame),
+    check("home: and the rail keeps Home lit there", (await rail.locator('[aria-current="page"]').textContent())?.trim() === "Home");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    check("home: Escape on Your AI goes back to Home", (await home.count()) === 1);
+    await rail.getByRole("button", { name: "Phones", exact: true }).click();
+    await page.waitForTimeout(400);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    check("home: Escape on Phones goes back to Home", (await home.count()) === 1);
+    await rail.getByRole("button", { name: "Home", exact: true }).click();
+    await page.waitForTimeout(400);
+    await home.getByRole("button", { name: "Start a chat" }).click();
+    await page.waitForTimeout(600);
+    check("home: Start a chat opens the chat", (await page.locator(".chat-layout").count()) === 1, "the chat did not open");
+    await rail.getByRole("button", { name: "Home", exact: true }).click();
+    await page.waitForTimeout(400);
+    await page.evaluate(() => {
+      const core = window.__TAURI__.core;
+      const base = core.invoke;
+      window.__calls = [];
+      core.invoke = (command, args) => {
+        window.__calls.push(command);
+        return base(command, args);
       };
-    }, handoffAttribute);
-    check("handoff: the moving element exists", move !== null, "no element carried the move");
-    // The whole screen changes, and the bar is part of it: the room that is
-    // leaving and the room arriving are animated over the same beat, so nothing
-    // finishes before the bar lands or visibly after it.
-    const rooms = await page.evaluate(
-      ({ leaving, arriving }) => {
-        const read = (attribute) => {
-          const element = document.querySelector(`[${attribute}]`);
-          if (!element) return null;
-          const animation = element.getAnimations()[0];
-          return animation ? animation.effect?.getTiming().duration ?? null : null;
-        };
-        return { leaving: read(leaving), arriving: read(arriving) };
-      },
-      { leaving: leavingAttribute, arriving: arrivingAttribute },
-    );
-    check("handoff: the room that leaves is animated", rooms.leaving === handoffMs, JSON.stringify(rooms));
-    check("handoff: the room that arrives is animated", rooms.arriving === handoffMs, JSON.stringify(rooms));
-    check(
-      "handoff: one movement, one duration",
-      rooms.leaving === handoffMs && rooms.arriving === handoffMs && move?.duration === handoffMs,
-      JSON.stringify({ ...rooms, mover: move?.duration }),
-    );
-    if (move && bar) {
-      check(
-        "handoff: it starts where the bar was",
-        Math.abs(move.starts.left - bar.x) <= 2 &&
-          Math.abs(move.starts.top - bar.y) <= 2 &&
-          Math.abs(move.starts.width - bar.width) <= 2 &&
-          Math.abs(move.starts.height - bar.height) <= 2,
-        `${JSON.stringify(move.starts)} vs bar ${JSON.stringify(bar)}`,
-      );
-      check("handoff: it carries the message", move.text.includes("First message from the bar."), move.text);
-      check("handoff: with the declared duration", move.duration === handoffMs, `${move.duration} vs ${handoffMs}`);
-      // No scale, ever: the box travels and resizes, and the glyphs inside it
-      // keep their size. A scale here is the defect this replaced — measured at
-      // 0.29 by 1.94, one third as wide and twice as tall.
-      check(
-        "handoff: nothing scales the text",
-        move.scales === false,
-        JSON.stringify(move.last),
-      );
-      // The landing is exact: the last keyframe is the bubble's rectangle, in
-      // position and in size.
-      await page.waitForTimeout(handoffMs + 200);
-      const bubble = await page.locator(".user-bubble").first().boundingBox();
-      const lands = (key) => (move.last && typeof move.last[key] === "string" ? parseFloat(move.last[key]) : NaN);
-      check(
-        "handoff: the last keyframe is the bubble's rectangle",
-        bubble !== null &&
-          Math.abs(lands("left") - bubble.x) <= 1 &&
-          Math.abs(lands("top") - bubble.y) <= 1 &&
-          Math.abs(lands("width") - bubble.width) <= 1 &&
-          Math.abs(lands("height") - bubble.height) <= 1,
-        `${JSON.stringify({ left: lands("left"), top: lands("top"), width: lands("width"), height: lands("height") })} vs ${JSON.stringify(bubble)}`,
-      );
-      check(
-        "handoff: the moving element is taken away when it lands",
-        (await page.locator(`[${handoffAttribute}]`).count()) === 0,
-        "the mover stayed on the page",
-      );
-      check(
-        "handoff: so is the room that left",
-        (await page.locator(`[${leavingAttribute}]`).count()) === 0,
-        "the ghost of the last screen stayed on the page",
-      );
-    }
-    check("handoff: the message is in the thread", ((await page.locator(".thread").textContent()) ?? "").includes("First message from the bar."), "the message did not arrive");
-
-    // Reduced motion falls back to the plain state change: no move at all, and
-    // the message still lands.
-    const calm = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-    await calm.emulateMedia({ reducedMotion: "reduce" });
-    await seed(calm, { settings: okSettings("x") });
-    await calm.goto(APP);
-    await calm.waitForTimeout(1200);
-    await calm.getByRole("textbox", { name: "Write to the brain" }).fill("No animation for me.");
-    await calm.getByRole("textbox", { name: "Write to the brain" }).press("Enter");
-    await calm.waitForTimeout(handoffMs + 200);
-    check(
-      "handoff: reduced motion moves nothing",
-      (await calm.locator(`[${handoffAttribute}]`).count()) === 0 &&
-        (await calm.locator(`[${leavingAttribute}]`).count()) === 0 &&
-        (await calm.locator(`[${arrivingAttribute}]`).count()) === 0,
-      "a move ran under reduced motion",
-    );
-    check("handoff: and the message still arrives", ((await calm.locator(".thread").textContent()) ?? "").includes("No animation for me."), "reduced motion lost the message");
+    });
+    await home.getByRole("button", { name: "Turn off", exact: true }).click();
+    await page.waitForTimeout(800);
+    const calls = await page.evaluate(() => window.__calls);
+    check("home: the button turns off with brain_stop", calls.includes("brain_stop"), JSON.stringify(calls));
+    // The stub refuses brain_stop, so the page must say the stop did not happen.
+    check("home: a refused stop is said on Home", (await home.textContent()).includes("Kalsa didn't turn off"));
     await browser.close();
   },
 
@@ -3929,8 +3763,7 @@ const tests = {
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    // The brain bar's second wide button is the Room's.
-    await page.locator(".brain-bar-chat").last().click();
+    await page.locator('.rail-item[data-surface="room"]').click();
     await page.waitForTimeout(500);
     await page.locator(".composer-input").fill("A message from the desk");
     await page.locator(".composer-send").click();
@@ -4830,8 +4663,7 @@ const tests = {
 
     await page.reload();
     await page.waitForTimeout(1200);
-    const chat = page.locator(".brain-bar-chat");
-    if ((await chat.count()) > 0) await chat.first().click();
+    await page.locator('.rail-item[data-surface="chat"]').click();
     await page.waitForTimeout(800);
     await openSidebar(page, "Work out the interest");
     check("miniapp: reload draws all three views again", (await page.locator(".miniapp").count()) === 3);
@@ -4907,8 +4739,7 @@ const tests = {
 
     await page.reload();
     await page.waitForTimeout(1200);
-    const chat = page.locator(".brain-bar-chat");
-    if ((await chat.count()) > 0) await chat.first().click();
+    await page.locator('.rail-item[data-surface="chat"]').click();
     await page.waitForTimeout(800);
     await openSidebar(page, "shopping list");
     const reloaded = page.locator(".miniapp").first();
@@ -5053,8 +4884,7 @@ const tests = {
       .catch(() => check("ministream: the finished answer reached the disk", false, "never written"));
     await page.reload();
     await page.waitForTimeout(1200);
-    const chat = page.locator(".brain-bar-chat");
-    if ((await chat.count()) > 0) await chat.first().click();
+    await page.locator('.rail-item[data-surface="chat"]').click();
     await page.waitForTimeout(800);
     await openSidebar(page, "shopping list");
     const reloaded = page.locator(".miniapp").first();
@@ -5381,7 +5211,7 @@ const tests = {
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.locator(".brain-bar-chat").last().click();
+    await page.locator('.rail-item[data-surface="room"]').click();
     await page.waitForTimeout(500);
 
     await page.evaluate(() => {
@@ -5631,7 +5461,7 @@ const tests = {
     });
     await page.goto(APP);
     await page.waitForTimeout(1200);
-    await page.locator(".brain-settings-item", { hasText: "Devices" }).first().click();
+    await page.locator('.rail-item[data-surface="devices"]').click();
     await page.waitForTimeout(3000);
     const start = await page.evaluate(() => window.__PAIRING_CALLS__);
     check("hiddendevices: the page is polling", start >= 2, `calls=${start}`);

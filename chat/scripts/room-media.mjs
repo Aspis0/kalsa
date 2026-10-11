@@ -819,24 +819,12 @@ async function probeApp(engineName, origin, mp4B64) {
     );
     await page.goto(`${origin}/`);
     await page.waitForTimeout(1200);
-    // The way in: the brain bar's room button when the home page shows it,
-    // otherwise the crescent's nav point.
-    const roomBar = page.locator(".brain-bar-action").nth(2);
-    if ((await roomBar.count()) > 0) await roomBar.first().click();
-    else {
-      await page.locator(".nav-point").first().click();
-      await page.locator(".nav-point").getByText(/room/i).first().click();
-    }
+    await page.locator('.rail-item[data-surface="room"]').click();
     await page.waitForSelector(".room-page", { timeout: 6000 });
     await page.waitForTimeout(600);
 
     async function openRoom() {
-      const roomBar = page.locator(".brain-bar-action").nth(2);
-      if ((await roomBar.count()) > 0) await roomBar.first().click();
-      else {
-        await page.locator(".nav-point").first().click();
-        await page.locator(".nav-point").getByText(/room/i).first().click();
-      }
+      await page.locator('.rail-item[data-surface="room"]').click();
       await page.waitForSelector(".room-page", { timeout: 9000 });
       await page.waitForTimeout(600);
     }
@@ -1525,12 +1513,7 @@ async function probeApp(engineName, origin, mp4B64) {
       );
       await midnight.goto(`${origin}/`);
       await midnight.waitForTimeout(1200);
-      const midnightBar = midnight.locator(".brain-bar-action").nth(2);
-      if ((await midnightBar.count()) > 0) await midnightBar.first().click();
-      else {
-        await midnight.locator(".nav-point").first().click();
-        await midnight.locator(".nav-point").getByText(/room/i).first().click();
-      }
+      await midnight.locator('.rail-item[data-surface="room"]').click();
       await midnight.waitForSelector(".room-page", { timeout: 9000 });
       await midnight.locator(".composer textarea").fill("midnight");
       await midnight.locator(".composer-send").click();

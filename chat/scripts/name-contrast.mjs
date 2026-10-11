@@ -2,7 +2,7 @@
 // clears WCAG AA (4.5:1) against the page each theme actually paints behind
 // the names. This reads BOTH sides from the real files, so a value that
 // drifts in tokens.css fails here and not on someone's screen: the colors
-// from `styles/tokens.css`, the backgrounds from the same file's `--page`,
+// from `styles/tokens.css`, the backgrounds from the same file's `--bg`,
 // which is what base.css paints the app with. The light and dark values of a
 // slot are the same hue with the lightness tuned, and no slot's hue may come
 // close to Kalsa's green — the assistant is the only green in the room.
@@ -66,12 +66,12 @@ function valueOf(source, name, theme) {
   return match?.[1] ?? null;
 }
 
-const lightPage = valueOf(lightBlock, "page", "light");
-const darkPage = valueOf(darkBlock, "page", "dark");
+const lightPage = valueOf(lightBlock, "bg", "light");
+const darkPage = valueOf(darkBlock, "bg", "dark");
 // The ink is the text a tinted bubble carries: it must clear AA on the wash
 // as surely as a name clears it on the page.
-const lightInk = valueOf(lightBlock, "ink", "light");
-const darkInk = valueOf(darkBlock, "ink", "dark");
+const lightInk = valueOf(lightBlock, "tx", "light");
+const darkInk = valueOf(darkBlock, "tx", "dark");
 const slots = ["kalsa", 1, 2, 3, 4, 5];
 const lightColors = new Map();
 const darkColors = new Map();
@@ -90,11 +90,11 @@ for (const slot of slots) {
   const dark = darkColors.get(slot);
   if (light && lightPage) {
     const value = ratio(light, lightPage);
-    if (value < AA) problems.push(`light --room-name-${slot} on --page is ${value.toFixed(2)}:1, below ${AA}`);
+    if (value < AA) problems.push(`light --room-name-${slot} on --bg is ${value.toFixed(2)}:1, below ${AA}`);
   }
   if (dark && darkPage) {
     const value = ratio(dark, darkPage);
-    if (value < AA) problems.push(`dark --room-name-${slot} on --page is ${value.toFixed(2)}:1, below ${AA}`);
+    if (value < AA) problems.push(`dark --room-name-${slot} on --bg is ${value.toFixed(2)}:1, below ${AA}`);
   }
   // The bubble's wash: the message's own text — the theme's ink — sits on
   // it, so the tint is checked where its reader sits, not against the page.
@@ -168,7 +168,7 @@ if (problems.length > 0) {
       return `${slot} ${value.toFixed(2)}:1`;
     })
     .join(", ");
-  console.log(`ok: every room name color clears ${AA}:1 on both themes' --page (worst: ${shown}), ` +
+  console.log(`ok: every room name color clears ${AA}:1 on both themes' --bg (worst: ${shown}), ` +
     `the ink clears it on every bubble wash (worst: ${washes}), each slot keeps one hue across ` +
     `the themes, and no slot sits within 40° of Kalsa's green`);
 }

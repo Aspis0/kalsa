@@ -125,14 +125,14 @@ async function seed(page, { settings = null, convos = [], theme = "light", v2 = 
 }
 
 /** Open the app AT THE CHAT. The brain is the home page now, so every state
-    in this file lives one click past it — the writing bar's Chat button. This
+    in this file lives one click past it — the rail's Chat button. This
     harness used to `goto` and wait for the chat's empty state, which stopped
     appearing the day the home surface changed, and it has been timing out
     since. The click is conditional so it cannot break if the landing view
     moves again. */
 async function openApp(page) {
   await page.goto(APP);
-  const chat = page.locator(".brain-bar-chat");
+  const chat = page.locator('.rail-item[data-surface="chat"]');
   if ((await chat.count()) > 0) await chat.first().click();
 }
 
@@ -154,7 +154,7 @@ async function shot(page, path) {
 /** Open a conversation from the sidebar by title substring. */
 async function openConvo(page, titlePart) {
   // Narrow windows keep the list in a closed drawer: open it first.
-  const toggle = page.getByRole("button", { name: "Show conversations", exact: true });
+  const toggle = page.getByRole("button", { name: "Show chats", exact: true });
   if (await toggle.isVisible()) await toggle.click();
   await page
     .locator(".sidebar")
@@ -195,8 +195,6 @@ async function main() {
     await page.getByRole("textbox", { name: "Message" }).fill("Show me the snippets.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await page.waitForTimeout(1100);
-    await page.getByRole("button", { name: /Show menu/ }).click();
-    await must(page, ".crescent-nav-open", "streaming nav");
     await shot(page, "shots/02-streaming.png");
     await page.close();
   }
@@ -495,8 +493,7 @@ async function main() {
     await seed(page, {});
     await openApp(page);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show menu/ }).click();
-    await page.locator(".crescent-shell").getByRole("button", { name: "Open Settings" }).click();
+    await page.locator('.rail-item[data-surface="settings"]').click();
     await must(page, ".settings-page", "settings surface");
     await shot(page, "shots/43-settings-surface.png");
     await page.close();
@@ -507,7 +504,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: twentyConvos().slice(0, 8) });
     await openApp(page);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Show conversations", exact: true }).click();
+    await page.getByRole("button", { name: "Show chats", exact: true }).click();
     await must(page, ".sidebar-open", "drawer");
     await shot(page, "shots/44-drawer.png");
     await page.close();
@@ -631,8 +628,7 @@ async function main() {
     await seed(page, { settings: okSettings("x"), convos: SEEDED_THREAD });
     await openApp(page);
     await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: /Show menu/ }).click();
-    await must(page, ".crescent-nav-open", "surfaces nav");
+    await must(page, ".rail", "surfaces nav");
     await shot(page, "shots/46-surfaces.png");
     await page.close();
   }

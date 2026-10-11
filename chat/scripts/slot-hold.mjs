@@ -85,7 +85,7 @@ try {
     );
   }
 
-  // C3 — what `send`, `retry` and `writeFromBrain` rely on when they reread
+  // C3 — what `send` and `retry` rely on when they reread
   // the gate instead of the render's snapshot: a snapshot object is frozen at
   // the render that took it, the gate's current one is not. (The React half —
   // that the handlers actually reread — is three `App.tsx` lines this harness

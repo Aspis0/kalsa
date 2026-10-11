@@ -79,7 +79,7 @@ try {
   await page.route("**/v1/chat/completions", () => {});
   await page.goto(`${origin}/`);
   await page.waitForTimeout(1200);
-  const chip = page.locator(".brain-bar-chat");
+  const chip = page.locator('.rail-item[data-surface="chat"]');
   if ((await chip.count()) > 0) await chip.first().click();
   await page.waitForTimeout(400);
   const textarea = page.locator(".composer textarea");
@@ -150,10 +150,10 @@ try {
   /** Back to the chat and its conversation after a reload. */
   async function reopen() {
     await page.waitForTimeout(1200);
-    const chip = page.locator(".brain-bar-chat");
+    const chip = page.locator('.rail-item[data-surface="chat"]');
     if ((await chip.count()) > 0) await chip.first().click();
     await page.waitForTimeout(400);
-    const drawer = page.getByRole("button", { name: "Show conversations", exact: true });
+    const drawer = page.getByRole("button", { name: "Show chats", exact: true });
     if (await drawer.isVisible()) await drawer.click();
     await page.locator(".sidebar").getByRole("button", { name: /first question/i }).first().click();
     await page.waitForTimeout(600);

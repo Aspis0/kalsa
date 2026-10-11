@@ -123,7 +123,7 @@ try {
     );
     await page.goto(`${origin}/`);
     await page.waitForTimeout(1000);
-    const chip = page.locator(".brain-bar-chat");
+    const chip = page.locator('.rail-item[data-surface="chat"]');
     if ((await chip.count()) > 0) await chip.first().click();
     try {
       await page.locator(".composer-thinking").waitFor({ timeout: 8000 });

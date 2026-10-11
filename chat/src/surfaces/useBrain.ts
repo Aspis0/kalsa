@@ -488,13 +488,17 @@ export function beginWalk(): void {
   walkArmed = walkArmedAfter(walkArmed, { kind: "begin" });
 }
 
-/** The state as words: headline, sentence, and the one honest button. */
+/** How Home's round button looks for a state: its ring, and what pressing it does. */
+export type BrainTone = "on" | "rest" | "off" | "busy" | "problem" | "unknown";
+
+/** The state as words: headline, sentence, the one honest button, and its tone. */
 export interface BrainWords {
   headline: string;
   sentence: string;
   button: string;
   enabled: boolean;
   running: boolean;
+  tone: BrainTone;
 }
 
 // The brain's state in words, shared by the brain page (presence only) and
@@ -511,7 +515,7 @@ export function brainWords(
   const words = table.power;
   const running = state?.kind === "running";
   if (!state) {
-    return { headline: words.notKnown, sentence: words.couldNotTell, button: words.tryAgain, enabled: true, running };
+    return { headline: words.notKnown, sentence: words.couldNotTell, button: words.tryAgain, enabled: true, running, tone: "unknown" };
   }
   // A turn-on under way owns the page, whatever it was saying before. Without
   // this, Try again on a machine that refuses the same way twice leaves the
@@ -526,10 +530,11 @@ export function brainWords(
   if (state.kind === "stopping") {
     return {
       headline: words.stopping,
-      sentence: words.puttingAway,
+      sentence: words.nextTimeChoice,
       button: words.stopping,
       enabled: false,
       running,
+      tone: "busy",
     };
   }
   if (state.kind === "starting" || (busy && !running)) {
@@ -539,6 +544,7 @@ export function brainWords(
       button: words.starting,
       enabled: false,
       running,
+      tone: "busy",
     };
   }
   // The mirror of the branch above, for the window BEFORE the stop lands.
@@ -549,10 +555,11 @@ export function brainWords(
   if (busy && running) {
     return {
       headline: words.stopping,
-      sentence: words.puttingAway,
+      sentence: words.nextTimeChoice,
       button: words.stopping,
       enabled: false,
       running,
+      tone: "busy",
     };
   }
   switch (state.kind) {
@@ -566,6 +573,7 @@ export function brainWords(
         button: heldFailure ? words.tryAgain : words.turnOn,
         enabled: true,
         running,
+        tone: heldFailure ? "problem" : "off",
       };
     case "running": {
       // A connected PHONE is real information, so it keeps its own sentence.
@@ -597,6 +605,7 @@ export function brainWords(
         button: words.turnOff,
         enabled: true,
         running: true,
+        tone: asleep && deviceCount === 0 ? "rest" : "on",
       };
     }
     case "failed": {
@@ -606,10 +615,10 @@ export function brainWords(
         table.rust,
         { code: state.reason_code, params: state.reason_params, text: state.reason },
       );
-      return { headline: words.stopped, sentence, button: words.tryAgain, enabled: true, running };
+      return { headline: words.stopped, sentence, button: words.tryAgain, enabled: true, running, tone: "problem" };
     }
     default:
-      return { headline: words.notKnown, sentence: words.couldNotTell, button: words.tryAgain, enabled: true, running };
+      return { headline: words.notKnown, sentence: words.couldNotTell, button: words.tryAgain, enabled: true, running, tone: "unknown" };
   }
 }
 

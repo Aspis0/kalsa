@@ -5,17 +5,15 @@ export const CHROME = {
     "room": "Sala",
     "chat": "Chat",
     "settings": "Ajustes",
-    "settingsAria": "Ajustes",
-    "chatMenu": "Menú del chat",
+    "navigation": "Páginas",
     // The settings surfaces' names, keyed as the shell looks them up.
     pages: {
-    "help": "Help",
-      "models": "IA",
-      "server": "Energía",
-      "devices": "Dispositivos",
+    "help": "Ayuda",
+      "models": "Tu IA",
+      "devices": "Teléfonos",
       "settings": "Ajustes",
     } as Record<string, string>,
-    "showConversations": "Mostrar conversaciones"
+    "showConversations": "Mostrar chats"
   };
 
 export const SETTINGS = {

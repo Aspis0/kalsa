@@ -115,8 +115,16 @@ const CHECKS = [
   ["empty copy", ".empty-copy", null, "empty"],
   ["settings label", ".settings-field span", null, "settings"],
   ["settings input", ".settings-field input", ".settings-field input", "settings"],
-  ["active nav point", ".nav-point-active .nav-point-circle", ".nav-point-active .nav-point-circle", "nav"],
-  ["nav label", ".nav-point-label", null, "nav"],
+  ["rail label", ".rail-item:not([aria-current])", null, "home"],
+  ["rail active label", ".rail-item[aria-current]", null, "home"],
+  ["rail active icon", ".rail-item[aria-current] .rail-icon", ".rail-item[aria-current] .rail-icon", "home"],
+  ["home hint", ".brain-hint", null, "home"],
+  ["home headline", ".brain-headline", null, "home"],
+  ["home sentence", ".brain-sentence", null, "home"],
+  ["home primary button", ".brain-go", ".brain-go", "home"],
+  ["home using line", ".brain-using", null, "home"],
+  ["home details link", ".brain-details", null, "home"],
+  ["home footer", ".brain-foot", null, "home"],
   ["sidebar search", ".sidebar-search input", ".sidebar-search input", "thread"],
   ["sidebar title", ".sidebar-title", null, "thread"],
   ["sidebar preview", ".sidebar-preview", null, "thread"],
@@ -159,6 +167,14 @@ async function setupPage(browser, theme, mode) {
   });
   await page.goto(APP);
   await page.waitForTimeout(1200);
+  // The app opens on Home; every other mode starts from a page on the rail.
+  if (mode === "settings") {
+    await page.locator('.rail-item[data-surface="settings"]').click();
+    await page.waitForTimeout(400);
+  } else if (mode !== "home") {
+    await page.locator('.rail-item[data-surface="chat"]').click();
+    await page.waitForTimeout(400);
+  }
   if (
     mode === "thread" ||
     mode === "failed" ||
@@ -191,22 +207,9 @@ async function setupPage(browser, theme, mode) {
       await page.waitForTimeout(400);
     }
     if (mode === "panel" || mode === "panelunknown") {
-      await page.getByRole("button", { name: "Toggle attachments panel" }).click();
+      await page.getByRole("button", { name: "Toggle the files panel" }).click();
       await page.waitForTimeout(800);
     }
-  } else if (mode === "nav") {
-    await page
-      .locator(".sidebar")
-      .getByRole("button", { name: /Seeded thread/i })
-      .first()
-      .click();
-    await page.waitForTimeout(300);
-    await page.getByRole("button", { name: /Show sections/ }).click();
-    await page.waitForTimeout(500);
-  } else if (mode === "settings") {
-    await page.getByRole("button", { name: /Show sections/ }).click();
-    await page.getByRole("button", { name: "Open Settings" }).click();
-    await page.waitForTimeout(400);
   }
   return page;
 }

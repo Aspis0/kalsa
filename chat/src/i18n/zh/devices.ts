@@ -1,7 +1,7 @@
 // 从已批准的英文文案翻译。
 
 export const DEVICES = {
-    "title": "设备",
+    "title": "手机",
     "capacityLine": "如果多部手机同时提问，部分手机可能需要排队等候。",
     "cameraInstruction": "用手机相机对准这个方块。",
     "awareness": "能看到这个方块的任何人都可以连接一部手机 —— 只给你的手机看。",
@@ -11,7 +11,7 @@ export const DEVICES = {
     "claiming": "一部手机正在连接。请在下方选择允许或拒绝。",
     "cancel": "取消",
     "notRunningYet": "这台电脑还没有开启，你的手机没有可连接的对象。",
-    "goToServer": "打开 Kalsa",
+    "turnKalsaOn": "打开 Kalsa",
     "checking": "正在寻找你的手机…",
     "couldNotCheckSentence": "Kalsa 无法检查你的手机。请再试。",
     "tryAgain": "再试一次",
@@ -23,7 +23,7 @@ export const DEVICES = {
     "couldNotReadSentence": "移除它，再重新连接。",
     "forgetAndPairAgain": "移除并重新连接",
     "waitingForOkHeadline": "等待你的同意",
-    "pairedHeadline": "已连接",
+    "pairedHeadline": "你的手机",
     "pairAnother": "配对另一部手机",
     "yourPhone": "你的手机",
     "waitingNamed": (name: string, owed: string) => `${name}在等待你的同意${owed}。`,
@@ -43,7 +43,7 @@ export const DEVICES = {
     "pairingAgain": (label: string) => `${label}正在重新连接。`,
     "allow": "允许",
     "refuse": "拒绝",
-    "forget": "忘记",
+    "forget": "移除",
     "runForTailscale": (commands: string) => `为 Tailscale 运行：${commands}。`,
     "chatsAt": "手机在这台电脑的 tailnet 名称处聊天。",
     "pairsAt": "手机在这台电脑的 tailnet 名称处加 :8443 配对。",

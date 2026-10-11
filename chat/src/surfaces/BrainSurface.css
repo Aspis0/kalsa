@@ -1,6 +1,6 @@
-/* The brain page: the home's own layout around the shared surface
-   vocabulary — presence on top, the settings in one place, the bar at the
-   bottom. */
+/* The brain page while a walk owns it: the walk's own column. The Home
+   layout itself is below, after the machine card and first-run rules that
+   share this sheet. */
 
 .brain-page {
   display: flex;
@@ -8,14 +8,10 @@
   flex-direction: column;
 }
 
-.brain-presence {
-  flex: none;
-}
-
 /* The machine card: what this computer is and what it would run. It shares
-   the page with the presence block, the settings and the bar, so it uses the
-   shared metric vocabulary with a tighter rhythm of its own — the space
-   between blocks shrinks, the type does not. */
+   its page with other panels, so it uses the shared metric vocabulary with a
+   tighter rhythm of its own — the space between blocks shrinks, the type
+   does not. */
 .machine-card {
   margin-top: 1rem;
 }
@@ -101,113 +97,6 @@
   white-space: pre-wrap;
 }
 
-/* The settings, side by side: five labels, one row when it fits and wrapped
-   when it does not. All five are always there and always say their whole
-   word — this is a change of density, never of contents. They are the page's
-   secondary weight: quiet pills, quieter than the card above and the bar
-   below, which are what the eye should land on. */
-.brain-settings {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.65rem;
-}
-
-/* The row's own heading takes the first line whole; the chips fill the rows
-   under it. It is a heading, not the quiet eyebrow the other pages use: it has
-   to outweigh the four chips enough that the reader sees a machine's row. */
-.brain-machine {
-  flex: 0 0 100%;
-}
-
-.brain-machine-label {
-  margin: 0;
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.brain-settings-item {
-  padding: 0.35rem 0.75rem;
-  color: var(--ink-soft);
-  font-size: 0.84rem;
-  font-weight: 500;
-  white-space: nowrap;
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-}
-
-.brain-settings-item:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* The writing bar sits at the bottom of the page whatever the presence
-   above is doing — it is the one thing always there. */
-.brain-bar {
-  display: flex;
-  flex: none;
-  gap: 0.4rem;
-  align-items: center;
-  margin-top: auto;
-  padding-top: 1.5rem;
-}
-
-.brain-bar-input {
-  flex: 1;
-  min-width: 0;
-  min-height: 38px;
-  padding: 0 0.9rem;
-  color: var(--ink);
-  font-size: 0.92rem;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-}
-
-.brain-bar-input::placeholder {
-  color: var(--silence);
-}
-
-.brain-bar-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.brain-bar-action {
-  display: grid;
-  flex: none;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  color: var(--ink-soft);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-}
-
-.brain-bar-action:disabled {
-  color: var(--silence);
-  opacity: 0.6;
-}
-
-.brain-bar-action:not(:disabled):hover,
-.brain-bar-chat:hover {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.brain-bar-chat {
-  width: auto;
-  padding: 0 0.9rem;
-  font-size: 0.84rem;
-}
-
 /* --- choosing a model: only the one that is not already running --- */
 
 .machine-option-running {
@@ -241,8 +130,7 @@
 }
 
 /* The first run: one round button, then one pick. The page holds nothing
-   else until a model is chosen — the settings and the bar are for a
-   computer that can already run something. */
+   else until a model is chosen. */
 .brain-first-run {
   align-items: center;
   justify-content: center;
@@ -305,4 +193,126 @@
 .first-run-details {
   margin-top: 0.5rem;
   text-align: left;
+}
+
+/* --- Home: the round button and what it says (mockups 01-home, 14-home-states) --- */
+
+.brain-home {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+  line-height: 25px;
+}
+
+.brain-center {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px 30px;
+  text-align: center;
+}
+
+.brain-hint {
+  margin: 22px 0 0;
+  color: var(--tx3);
+  font-size: 15px;
+}
+
+.brain-headline {
+  margin: 18px 0 0;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 50px;
+  letter-spacing: -0.025em;
+}
+
+.brain-sentence {
+  max-width: 620px;
+  margin: 6px 0 0;
+  color: var(--tx2);
+  font-size: 21px;
+  line-height: 30px;
+}
+
+.brain-note {
+  display: flex;
+  max-width: 560px;
+  margin: 22px 0 0;
+  padding: 14px 18px;
+  align-items: center;
+  gap: 12px;
+  color: var(--warn-ink);
+  background: var(--warn-fill);
+  border-radius: 18px;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: left;
+}
+
+.brain-go {
+  display: inline-flex;
+  height: 60px;
+  margin-top: 32px;
+  padding: 0 34px;
+  align-items: center;
+  gap: 12px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 0;
+  border-radius: 30px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.brain-go:hover {
+  background: var(--ac-tx);
+}
+
+.brain-go:focus-visible {
+  border-radius: 30px;
+}
+
+.brain-go:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.brain-using {
+  display: flex;
+  margin: 20px 0 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--tx3);
+  font-size: 16px;
+}
+
+.brain-details {
+  padding: 0;
+  color: var(--ac-tx);
+  background: none;
+  border: 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.brain-details:hover {
+  text-decoration: underline;
+}
+
+.brain-foot {
+  display: flex;
+  flex: none;
+  margin: 0;
+  padding: 0 24px 26px;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: var(--tx3);
+  font-size: 15px;
 }

@@ -22,12 +22,3 @@ export const COMPOSER = {
   removeImage: "Remove this picture",
   removeDoc: "Remove this document",
 };
-
-export const BRAIN_BAR = {
-  placeholder: "Say something…",
-  writeAria: "Message",
-  send: "Send",
-  chat: "Chat",
-  room: "Room",
-  thisComputer: "This computer",
-};

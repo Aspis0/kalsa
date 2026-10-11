@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { telemetryStatus } from "../lib/telemetry";
-import "./RecoveredNotice.css";
+import { Icon } from "./Icon";
+import "./NoticeBanner.css";
 
 /** How long the line stays before it leaves by itself. */
 const SHOW_MS = 6000;
@@ -9,8 +10,8 @@ const SHOW_MS = 6000;
 // drawn as if error reports were off, until the real answer replaces that.
 const DECIDE_BOUND_MS = 300;
 
-/** One discreet line after Kalsa restarted its engine by itself. With error
-    reports off nothing has gone out, so the line offers the manual send. */
+/** One banner after Kalsa restarted its engine by itself. With error
+    reports off nothing has gone out, so the banner offers the manual send. */
 export function RecoveredNotice({ onSendLog, onDismiss }: { onSendLog: () => void; onDismiss: () => void }) {
   const { table } = useLanguage();
   const words = table.report;
@@ -40,12 +41,15 @@ export function RecoveredNotice({ onSendLog, onDismiss }: { onSendLog: () => voi
 
   if (autoReport === null) return null;
   return (
-    <div className="recovered-note" role="status">
-      <span>{words.recovered}</span>
+    <div className="notice-banner" role="status">
+      <span className="notice-banner-icon">
+        <Icon name="refresh" size={20} />
+      </span>
+      <div className="notice-banner-text">{words.recovered}</div>
       {autoReport ? null : (
         <button
           type="button"
-          className="recovered-link"
+          className="notice-banner-btn"
           onClick={() => {
             onSendLog();
             onDismiss();
@@ -54,7 +58,7 @@ export function RecoveredNotice({ onSendLog, onDismiss }: { onSendLog: () => voi
           {words.send}
         </button>
       )}
-      <button type="button" className="recovered-dismiss" onClick={onDismiss}>
+      <button type="button" className="notice-banner-btn" onClick={onDismiss}>
         {table.shell.dismiss}
       </button>
     </div>
