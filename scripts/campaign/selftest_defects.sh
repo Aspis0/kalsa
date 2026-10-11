@@ -2844,7 +2844,8 @@ tool_state_forms_case() {
 tool_state_forms_case
 
 # H6: only a KALSA_GOVERNOR line that FOLLOWS the pending KALSA_TOOLCALL in
-# slice order may close the round; a stale governor before it, or the sibling
+# slice order, and carries that call's turnId, may close the round; a stale
+# governor before it, another turn's governor after it, or the sibling
 # governor events, must leave the round pending.
 tool_state_governor_position_case() {
   local out="$WORK/tool-gov-position" rc
@@ -2862,6 +2863,14 @@ tool_state_governor_position_case() {
   printf '%s\n' \
     "09-27 16:44:33.975 18337 18368 I ReactNativeJS: 'KALSA_TOOLCALL', '{\"turnId\":\"1\",\"round\":3,\"executed\":1}'" \
     "09-27 16:44:33.978 18337 18368 I ReactNativeJS: 'KALSA_GOVERNOR', '{\"turnId\":\"1\",\"thermal_state\":\"FAST\"}'" > "$out/quoted.txt"
+  # A governor with another turn's id, or with no id, follows the pending call
+  # in slice order but must not close it.
+  printf '%s\n' \
+    '10-10 18:09:40.912 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"10","round":0,"executed":1}' \
+    '10-10 18:09:40.914 18337 18368 I ReactNativeJS: KALSA_GOVERNOR {"turnId":"9","thermal_state":"FAST","failed":false}' > "$out/other-turn.txt"
+  printf '%s\n' \
+    '10-10 18:09:40.912 18337 18368 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"10","round":0,"executed":1}' \
+    '10-10 18:09:40.914 18337 18368 I ReactNativeJS: KALSA_GOVERNOR {"thermal_state":"FAST","failed":false}' > "$out/no-turn.txt"
   (
     log() { :; }
     source "$HERE/turn.sh"
@@ -2869,13 +2878,16 @@ tool_state_governor_position_case() {
     before=$(campaign_turn_tool_state "$out/before.txt")
     sibling=$(campaign_turn_tool_state "$out/sibling.txt")
     quoted=$(campaign_turn_tool_state "$out/quoted.txt")
-    printf '%s %s %s %s\n' "$after" "$before" "$sibling" "$quoted" > "$out/got.txt"
+    other_turn=$(campaign_turn_tool_state "$out/other-turn.txt")
+    no_turn=$(campaign_turn_tool_state "$out/no-turn.txt")
+    printf '%s %s %s %s %s %s\n' "$after" "$before" "$sibling" "$quoted" "$other_turn" "$no_turn" > "$out/got.txt"
     [ "$after" = "pending closed 0" ] && [ "$before" = "pending 0" ] \
-      && [ "$sibling" = "pending 2" ] && [ "$quoted" = "pending closed 3" ]
+      && [ "$sibling" = "pending 2" ] && [ "$quoted" = "pending closed 3" ] \
+      && [ "$other_turn" = "pending 0" ] && [ "$no_turn" = "pending 0" ]
   )
   rc=$?
   if [ "$rc" -eq 0 ]; then
-    ok "a governor closes the pending round only when it follows it in slice order (stale and sibling forms stay pending)"
+    ok "a governor closes the pending round only when it follows it in slice order with this turn's id (stale, sibling, other-turn and id-less forms stay pending)"
   else
     bad "governor position wrong (rc=$rc got=$(cat "$out/got.txt" 2>/dev/null || printf missing))"
   fi

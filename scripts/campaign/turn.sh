@@ -261,11 +261,12 @@ print(len(asst[-1]) if asst else 0)
 # 2026-10-09: round 2 pending, then round 3 + EXHAUSTED + KALSA_GOVERNOR, and the
 # harness waited 600 s for a round that never comes).
 # The app may also close a turn right after an executed tool, with no next round
-# (H6: S23 2026-10-10 turn 10, Xiaomi 2026-10-11 turn 2). KALSA_GOVERNOR is
-# emitted once per turn, after the last round (LlamaService emitGovernorTelemetry
-# call sites), so a KALSA_GOVERNOR line AFTER the pending KALSA_TOOLCALL in slice
+# (H6: S23 2026-10-10 turn 10). KALSA_GOVERNOR is emitted once per turn, after
+# the last round (LlamaService emitGovernorTelemetry call sites), so a
+# KALSA_GOVERNOR line of the SAME turn AFTER the pending KALSA_TOOLCALL in slice
 # order means the app closed the turn: "pending closed N", and the caller must
 # complete instead of waiting for a continuation.
+# Known gap: an error bubble that emits no KALSA_GOVERNOR still waits the bound.
 # Prints pending [closed] | exhausted | final | absent; never throws.
 campaign_turn_tool_state() {
   python3 - "$1" <<'PY'
@@ -313,8 +314,20 @@ try:
                 exhausted = obj
             # Exact tag only: the sibling events (KALSA_GOVERNOR_PLAN,
             # _THERMO, _FAILED, ...) must never close a tool round.
-            if payload(line, "KALSA_GOVERNOR") is not None:
-                last_governor_at = index
+            # And only this turn's governor counts: the payload regexes can
+            # also match a quoted pair inside a diagnostic line, so a stale or
+            # quoted governor must not close the round unless its turnId is the
+            # pending call's (fail closed: a missing or non-string id waits).
+            governor = payload(line, "KALSA_GOVERNOR")
+            if governor is not None and last is not None:
+                call_turn = last.get("turnId")
+                governor_turn = governor.get("turnId")
+                if (
+                    isinstance(call_turn, str)
+                    and isinstance(governor_turn, str)
+                    and governor_turn == call_turn
+                ):
+                    last_governor_at = index
 except OSError:
     pass
 if exhausted is not None and (not calls or all(call.get("turnId") == exhausted.get("turnId") for call in calls)):
