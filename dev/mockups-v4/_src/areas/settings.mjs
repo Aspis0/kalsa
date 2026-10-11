@@ -32,7 +32,7 @@ const sw = (on = true) => `<span class="sw ${on ? '' : 'off'}"></span>`;
 const NOTE_WEB = 'When your question needs something current, the assistant can search the web and open a page. That search — the words it chose, and the address it opens — leaves this computer for a search service on the internet, and what comes back is kept in the conversation. With this off, web searches and page requests are not sent and the assistant answers from what it already knows. This switch is applied as soon as you change it.';
 const NOTE_REPORTS = 'On during the alpha. Reports carry technical details and, when something serious goes wrong, the app’s log. Never your chats or text. You can turn them off here. A report already on its way may still arrive.';
 
-const notesNote = 'Kalsa checks for updates a little after she starts. Nothing is installed without you.';
+const notesNote = 'Kalsa checks for updates a little after it starts. Nothing is installed without you.';
 
 /** The Settings page. `version` replaces the version row's right side and adds a block under it. */
 function settingsPage({ notes = false, reportErr = false, version = {} } = {}) {

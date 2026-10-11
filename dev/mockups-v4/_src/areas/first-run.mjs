@@ -50,7 +50,7 @@ export const screens = [
   ['13-first-run-tune-cut', () => growScreen({ p: 1, head: 'Kalsa is ready', line: 'Kalsa will finish testing next time it starts.', note: '',
     action: `<span class="go" style="margin-top:26px">${icon('chat', 22, 2)}Start a chat</span>` }), 'light'],
   ['13-first-run-failed-connection', () => growScreen({ p: 0.35, cls: 'failed', head: 'Kalsa couldn’t get ready.',
-    line: 'Kalsa couldn’t download what she needs. Check your connection and try again.', note: '',
+    line: 'Kalsa couldn’t download what it needs. Check your connection and try again.', note: '',
     action: `<div class="fr-acts" style="margin-top:26px">${tryAgain}</div><span class="details-link">Show details ${icon('down', 15, 2.2)}</span>` }), 'light'],
   ['13-first-run-failed-disk', () => growScreen({ p: 0.35, cls: 'failed', head: 'Kalsa couldn’t get ready.',
     line: 'Kalsa needs more space. Free up 6 GB and try again.', note: '',

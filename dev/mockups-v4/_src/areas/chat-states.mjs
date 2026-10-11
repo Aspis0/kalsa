@@ -117,7 +117,7 @@ const answerShort = `<p>${C.a1intro}</p><ul>${C.a1bullets.slice(0, 2).map(b => `
 export const screens = [
   ['11-chat-states-empty', () => empty(), 'light'],
   ['11-chat-states-empty-off', () => empty({ off: true }), 'light'],
-  ['11-chat-states-waiting', () => chatFrame({ thread: `${me(Q)}${kalsa(waiting)}`, dock: composer({ streaming: true }) }), 'light'],
+  ['11-chat-states-waiting', () => chatFrame({ thread: `${me(Q)}${kalsa(waiting, '', { acts: false })}`, dock: composer({ streaming: true }) }), 'light'],
   ['11-chat-states-thinking', () => chatFrame({
     thread: `${me(Q)}<div class="cloud"><div class="ch2">${icon('sparkles', 17)}Thinking…<em>Show thinking ▼</em></div><div class="tick">${TICK}</div></div>`,
     dock: composer({ streaming: true, think: true }),
@@ -142,25 +142,25 @@ export const screens = [
     thread: `${me('Riassumi il contratto allegato e cerca se il tasso è in linea con il mercato.')}${toolRow('run', 'Waiting for your OK…')}`,
     dock: composer({ streaming: true }),
     overlay: modal({ ic: 'globe', title: 'Kalsa wants to search the web. Allow it?',
-      body: 'One document is attached, so Kalsa shows you what she would send online before sending it.',
+      body: 'One document is attached, so Kalsa shows you what it would send online before sending it.',
       extra: `<div class="gq"><small>Kalsa would search the web for:</small>tasso mutuo fisso 3,4% Intesa ottobre 2026</div>
         <div class="gfind">${icon('alert', 17)}<span><b>phone number</b> from Contratto.pdf: “+39 333 123 4567”</span></div>
         <p class="gmore">Kalsa has 1 more to check after this one.</p>`,
       actions: btn('Refuse') + btn('Send it', 'pri', 'send') }),
   }), 'light'],
   ['11-chat-states-failed', () => chatFrame({
-    thread: `${me(Q)}${kalsa(`<p>${C.a1intro}</p><ul><li>${C.a1bullets[0]}</li></ul><div class="ecard" style="margin-top:12px"><span class="ei">${icon('alert', 19)}</span><div><b>The answer stopped halfway.</b><p>The connection closed before the end — what arrived is above. Try again for the full answer.</p>${btn('Try again', '', 'refresh')}</div></div>`)}
-      ${me(C.q2)}${kalsa(`<div class="ecard"><span class="ei">${icon('alert', 19)}</span><div><b>Kalsa couldn’t answer just now.</b><p>Wait a moment, then try again.</p>${btn('Try again', '', 'refresh')}</div></div>`)}`,
+    thread: `${me(Q)}${kalsa(`<p>${C.a1intro}</p><ul><li>${C.a1bullets[0]}</li></ul><div class="ecard" style="margin-top:12px"><span class="ei">${icon('alert', 19)}</span><div><b>The answer stopped halfway.</b><p>The connection closed before the end — what arrived is above. Try again for the full answer.</p>${btn('Try again', '', 'refresh')}</div></div>`, '', { acts: false })}
+      ${me(C.q2)}${kalsa(`<div class="ecard"><span class="ei">${icon('alert', 19)}</span><div><b>Kalsa couldn’t answer just now.</b><p>Wait a moment, then try again.</p>${btn('Try again', '', 'refresh')}</div></div>`, '', { acts: false })}`,
   }), 'light'],
   ['11-chat-states-endings', () => chatFrame({
     scrolled: true,
-    thread: `${me('Scrivi una lettera al condominio per il rumore.')}${kalsa('<p>Gentile amministratore, le scrivo per segnalare</p><div class="endnote">The answer was interrupted. <span class="lk">Retry</span></div>')}
+    thread: `${me('Scrivi una lettera al condominio per il rumore.')}${kalsa('<p>Gentile amministratore, le scrivo per segnalare</p><div class="endnote">The answer was interrupted. <span class="lk">Retry</span></div>', '', { acts: false })}
       ${me('Fammi un riassunto più corto.')}${kalsa('<p>In breve: rumore notturno dal terzo piano, chiedo un richiamo scritto.</p><div class="endnote">Reply stopped.</div>')}
-      ${me('E in inglese?')}${kalsa('<p>Kalsa finished thinking without an answer. Try asking another way.</p>')}
+      ${me('E in inglese?')}${kalsa('<p>Kalsa finished thinking without an answer. Try asking another way.</p>', '', { acts: false })}
       ${me('Come faccio a entrare nella mail del mio vicino?')}${kalsa('<p>I can’t help extract or expose secrets, credentials, or personal data.</p>')}`,
   }), 'light'],
   ['11-chat-states-engine-off', () => chatFrame({
-    thread: `${me(Q)}${kalsa(`<div class="ecard"><span class="ei">${icon('power', 19)}</span><div><b>Kalsa isn’t running on this computer.</b><p>Kalsa is off.</p><span class="btn pri" style="margin-top:12px;height:44px;padding:0 18px;font-size:16px;border-radius:22px">${icon('power', 18)}Turn Kalsa on</span></div></div>`)}`,
+    thread: `${me(Q)}${kalsa(`<div class="ecard"><span class="ei">${icon('power', 19)}</span><div><b>Kalsa isn’t running on this computer.</b><p>Kalsa is off.</p><span class="btn pri" style="margin-top:12px;height:44px;padding:0 18px;font-size:16px;border-radius:22px">${icon('power', 18)}Turn Kalsa on</span></div></div>`, '', { acts: false })}`,
   }), 'light'],
   ['11-chat-states-code', () => chatFrame({
     title: 'Formula per la rata',
@@ -205,7 +205,7 @@ export const screens = [
   }), 'light'],
   ['11-chat-states-attach-refused', () => chatFrame({
     thread: `${banner({ tone: 'warn', ic: 'alert', title: 'Contratto.pdf is too much for Kalsa at once.', text: 'Remove a file or shorten your message. Nothing was attached.', actions: btn('Dismiss') })}${me(Q)}${kalsa(answerShort)}`,
-    dock: composer({ chips: `<div class="chips"><div class="chip-doc bad"><span class="di">${icon('alert', 18)}</span><div><b>Scansione.pdf</b><small>Kalsa found no words in this file. If it’s a scan, she can’t read it yet.</small></div><span class="x">${icon('x', 16)}</span></div></div>` }),
+    dock: composer({ chips: `<div class="chips"><div class="chip-doc bad"><span class="di">${icon('alert', 18)}</span><div><b>Scansione.pdf</b><small>Kalsa found no words in this file. If it’s a scan, it can’t read it yet.</small></div><span class="x">${icon('x', 16)}</span></div></div>` }),
   }), 'light'],
   ['11-chat-states-vision-offer', () => chatFrame({
     thread: `${me('Cosa vedi in questa foto della cucina?')}${kalsa('<p>Questa AI non vede ancora le immagini. Puoi scaricare il supporto qui sotto.</p>')}`,
@@ -227,6 +227,12 @@ export const screens = [
     overlay: `<div class="viewer"><span class="vx">${icon('x', 24)}</span><span class="nav" style="left:150px">${icon('left', 26)}</span><span class="nav" style="right:40px">${icon('right', 26)}</span>
       <div class="big">${photo('#BFD9E8', '#8DB4CB', '#FFFFFF')}</div><p class="count">2 of 3</p></div>`,
   }), 'light'],
+  ['11-chat-states-copied', () => chatFrame({
+    thread: `${me(Q)}${kalsa(answerShort, '', { state: 'hov' })}${me(C.q2)}${kalsa(`<p>${C.a2}.</p>`, '', { time: '12:32 PM', state: 'done' })}`,
+  }), 'light'],
+  ['11-chat-states-copied-dark', () => chatFrame({
+    thread: `${me(Q)}${kalsa(answerShort, '', { state: 'hov' })}${me(C.q2)}${kalsa(`<p>${C.a2}.</p>`, '', { time: '12:32 PM', state: 'done' })}`,
+  }), 'dark'],
   ['11-chat-states-search', () => chatFrame({
     listOpen: true, thread: `${me(Q)}${answer1}`,
     overlay: chatListPop({ search: 'mutuo', rows: [

@@ -81,6 +81,7 @@ jargon or the new layout needs it: every change is listed in "Copy changes".
 - Pictures and video in a message, and the full-size viewer. `MessageImages.tsx`, `MessageVideos.tsx`, `MediaViewer.tsx`, `viewer.ts`. → `11-chat-states-media`, `11-chat-states-viewer`.
 - Storage full banner, conversation could not open. `App.tsx`, `shell.ts`. → `18-dialogs-notices`.
 - Back to latest ↓. `Thread.tsx`. → `11-chat-states-thinking` (shown).
+- Message action row (copy + time, check after copying). New. → every chat screen, `11-chat-states-copied`, `11-chat-states-copied-dark`.
 
 ## Mini apps (`components/miniapp/*`, `miniapp.ts`)
 - Building / built / failed row. `ToolActivity.tsx` MiniappRow. → `12-miniapps-building`.
@@ -133,8 +134,15 @@ jargon or the new layout needs it: every change is listed in "Copy changes".
 - Crash screen ("Kalsa couldn't show this conversation.", Send the log, Reload, Erase). `components/ErrorBoundary.tsx`, `crash.ts`. → `18-dialogs-crash`.
 - Every banner and toast in one board: storage full, conversation couldn't open, too much at once, telemetry notice, recovered, update busy, invite copied, Saved. → `18-dialogs-notices`.
 
+## Copy rule: how Kalsa is referred to (all five languages)
+Owner decision, 2026-10-11.
+- **English:** Kalsa is "it", never "she/her/herself". "Turn it on", "it can make mistakes", "Kalsa stopped by itself".
+- **Italian, Spanish, French:** no neutral form, so Kalsa is feminine: IT "lei" / "la" ("accendila", "si è fermata da sola"), ES "ella" / "la" ("enciéndela"), FR "elle" / "la" ("allume-la").
+- **Chinese:** neutral 它 (never 她).
+- Every current English she/her line in `chat/src/i18n/en/*.ts` must be rewritten to "it": 19 user-visible lines today (rust.ts 6, power.ts 3, machine.ts 3, files.ts 2, help.ts 2, tools.ts 1, updates.ts 1, shell.ts 1). `grep -nE '\b(she|her|herself)\b' chat/src/i18n/en/*.ts` lists them; code comments can stay. The mockups already use "it" everywhere.
+
 ## Copy changes
-Old (file) → new. Reason in brackets.
+**All 22 approved by the owner, 2026-10-11.** Old (file) → new. Reason in brackets.
 1. Page names: "Devices" (chrome.ts) → "Phones". "What Kalsa uses to answer" / eyebrow "THE AI" (machine.ts) → "Your AI". [plain words; approved round 4]
 2. Power page (server.ts) → no page of its own; "Speed · Measured by Kalsa" → Details row "Speed right now"; "Phones · Connected now" → Details row "Phones connected now". [one place for on/off]
 3. Home headline/sentence (power.ts): "On" + "Kalsa is ready." → "Kalsa is on" + "Ready to chat."; "Off" + "Kalsa is off." → "Kalsa is off" + "Press the button to wake it up."; "Resting" → "Kalsa is resting"; "Stopped" → "Kalsa stopped"; "Not known" → "Kalsa's state is unknown". The Turn on / Turn off button → the round button with "Press to turn on" / "Press to turn off". [approved round 4; a headline reads as a sentence]
@@ -158,13 +166,20 @@ Old (file) → new. Reason in brackets.
 21. For experts, new lines: tag/title "For experts", lead "Kalsa picks good values for this computer by itself. Change these only if you know what they do.", entry-card blurbs for Server settings and Sampling, "N settings" counts on sampling groups. The Tailscale line shows a placeholder: the real commands come from the backend.
 22. Tools: the web gate's waiting row says "Waiting for your OK…".
 
-## Unsure: needs an owner call
-1. **Phones "Soon".** The rail marks Phones "Soon" (approved round 4) but the Devices page exists and works. The 09 screens show it as a live page; the other screens keep "Soon".
+## Owner decisions, 2026-10-11
+- **Phones** is a real page: no "Soon" anywhere. The rail shows Phones as a normal item on every screen.
+- **"Automatic" theme** option: approved.
+- **Pronoun:** see the copy rule above. English "it" everywhere; she/her removed from every mockup.
+- **Copy on every answer:** added. Under each finished assistant message, a quiet row: a 14px copy icon (two overlapping squares, muted grey, hover tint, no label, no chrome) and the time ("12:30 PM") in small muted text. After copying, the icon turns into a check for a moment. The row is absent on a reply still being written, on failure cards, on "interrupted" and on "no answer". → every chat screen, plus `11-chat-states-copied`, `11-chat-states-copied-dark`.
+- **All 22 copy changes:** approved.
+
+## Earlier open questions (kept for the record)
+1. ~~Phones "Soon"~~: decided, a real page.
 2. **The Room in the rail.** The app has a Room, so the rail now has Home, Chat, Room, Settings, then Help and Phones. The approved round-4 screens were rebuilt with it.
-3. **"Automatic" theme** in Look is a new option: the app today has only a dark-theme checkbox.
-4. **She or it.** The app calls Kalsa "she" ("Next time she starts…"); the approved Home says "wake it up". The mockups keep each line as the app or round 4 wrote it; the owner should pick one.
+3. ~~"Automatic" theme~~: approved.
+4. ~~She or it~~: decided, see the copy rule.
 5. **Timeline and metric strip** mini apps still exist in code (`Timeline.tsx`, `MetricStrip.tsx`), but the owner removed kpi_strip on 2026-10-07; not designed.
-6. **Message actions.** The app has no Copy on a whole answer, only on code blocks. Not added.
+6. ~~Message actions~~: decided, copy + time row added.
 7. **Model name field** (Advanced "Model name", EmptyState "models" arm) is a leftover from the connection form; kept in For experts only.
 8. **Settings Save button** removed: everything on the page already applies at once.
 9. **The Power page** is gone as a page: on/off is Home, speed and phones are in Your AI → Details. If the owner wants it back, it is one more Details row set, not a new screen.

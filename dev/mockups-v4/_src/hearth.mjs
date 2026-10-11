@@ -24,8 +24,6 @@ body{background:var(--bg);color:var(--tx);font-size:16px;line-height:25px;displa
 .ri.on .ico{background:var(--ac-soft);color:var(--ac-tx)}
 .rail-low{margin-top:auto;display:flex;flex-direction:column;align-items:center}
 .rail-low .ri:last-child{margin-bottom:0}
-.ri.soon{opacity:.6}
-.ri.soon small{font-size:12px;font-weight:600;color:var(--tx3);margin-top:-4px}
 main{height:900px;position:relative;min-width:0;display:flex;flex-direction:column}
 .center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-bottom:30px}
 /* the power button, about 65% of the first round */
@@ -82,6 +80,13 @@ h1{font-family:${FONT_DISPLAY};font-size:44px;line-height:50px;font-weight:600;l
 .me{display:flex;justify-content:flex-end;margin-bottom:18px}
 .me div{max-width:540px;background:var(--ac);color:var(--ac-ink);border-radius:24px 24px 6px 24px;padding:13px 19px;font-size:17px;line-height:26px}
 .it{display:flex;margin-bottom:18px}
+.itc{display:flex;flex-direction:column;align-items:flex-start;max-width:660px}
+.acts{display:flex;align-items:center;gap:6px;margin:6px 0 0 8px;color:var(--tx3);font-size:13px;line-height:18px}
+.acts .cp{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--tx3)}
+.acts .cp.hov{background:var(--rail);color:var(--tx2)}
+.dark .acts .cp.hov{background:#2C2F27}
+.acts .cp.done{color:var(--ac-tx)}
+.acts time{font-variant-numeric:tabular-nums}
 .it .bub{max-width:660px;background:var(--card);border:1px solid var(--line);border-radius:24px 24px 24px 6px;padding:16px 22px;font-size:17px;line-height:28px}
 .web{display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--tx3);margin-bottom:8px}
 .bub p{margin-bottom:10px}.bub p:last-child{margin-bottom:0}
@@ -177,12 +182,10 @@ h1{font-family:${FONT_DISPLAY};font-size:44px;line-height:50px;font-weight:600;l
 .bar.ind i{width:30%;margin-left:35%;opacity:.55}
 `;
 
-/** The icon rail. Phones carries "Soon" until the owner releases pairing. */
-export function rail(active, { phonesSoon = true } = {}) {
+/** The icon rail: four destinations on top, Help and Phones at the bottom. */
+export function rail(active) {
   const it = (k, l, ic, extra = '') => `<div class="ri ${k === active ? 'on' : ''}${extra}"><span class="ico">${icon(ic, 24)}</span>${l}</div>`;
-  const phones = phonesSoon
-    ? `<div class="ri soon"><span class="ico">${icon('phone', 24)}</span>Phones<small>Soon</small></div>`
-    : it('phones', 'Phones', 'phone');
+  const phones = it('phones', 'Phones', 'phone');
   return `<nav class="rail">${lights(20, 20)}<div class="mark">${icon('leaf', 22, 2.1)}</div>
     ${it('home', 'Home', 'power')}${it('chat', 'Chat', 'chat')}${it('room', 'Room', 'users')}${it('settings', 'Settings', 'settings')}
     <div class="rail-low">${it('help', 'Help', 'help')}${phones}</div></nav>`;
@@ -246,13 +249,19 @@ export function chatFrame({ thread, dock = composer(), overlay = '', title = C.t
 }
 
 export const me = text => `<div class="me"><div>${text}</div></div>`;
-export const kalsa = (inner, cls = '') => `<div class="it"><div class="bub ${cls}">${inner}</div></div>`;
+/** The quiet row under every finished answer: a copy icon (hover tint, a check once copied) and the time. */
+export const msgActs = (time = '12:30 PM', state = '') =>
+  `<div class="acts"><span class="cp ${state}" title="Copy">${icon(state === 'done' ? 'check' : 'copy', 14, state === 'done' ? 2.4 : 1.8)}</span><time>${time}</time></div>`;
+
+/** One assistant message. `acts: false` for a reply still being written or a failure card. */
+export const kalsa = (inner, cls = '', { acts = true, time = '12:30 PM', state = '' } = {}) =>
+  `<div class="it"><div class="itc"><div class="bub ${cls}">${inner}</div>${acts ? msgActs(time, state) : ''}</div></div>`;
 export const answer1 = kalsa(`<div class="web">${icon('globe', 16)}Searched the web ${icon('right', 15)}</div>
       <p>${C.a1intro}</p><ul>${C.a1bullets.map(b => `<li>${b}</li>`).join('')}</ul><p>${C.a1outro}</p>`);
 
 function chatScreen(listOpen) {
   return chatFrame({
-    thread: `${me(C.q1)}${answer1}${me(C.q2)}${kalsa(`<p>${C.a2}<span class="dots"><i></i><i></i><i></i></span></p>`)}`,
+    thread: `${me(C.q1)}${answer1}${me(C.q2)}${kalsa(`<p>${C.a2}<span class="dots"><i></i><i></i><i></i></span></p>`, '', { acts: false })}`,
     dock: composer({ streaming: false }),
     overlay: listOpen ? chatListPop() : '',
     listOpen,

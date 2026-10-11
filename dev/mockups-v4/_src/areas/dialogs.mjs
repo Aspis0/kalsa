@@ -41,7 +41,7 @@ export const screens = [
     overlay: modal({ ic: 'trash', tone: 'warn', title: 'Delete this conversation?', body: '“Mutuo: fisso o variabile”', actions: btn('Cancel') + btn('Delete', 'danger', 'trash') }),
   }), 'light'],
   ['18-dialogs-switch-ai', () => aiPage({ overlay: modal({ ic: 'swap', title: 'Switch to Quickest?',
-    body: `Kalsa will restart with ${ALT.name}. If it’s not on this computer yet, she downloads it first (4.6 GB), so it takes a while.`,
+    body: `Kalsa will restart with ${ALT.name}. If it’s not on this computer yet, it downloads it first (4.6 GB), so it takes a while.`,
     actions: btn('Cancel') + btn(`Switch Kalsa to ${ALT.name}`, 'pri', 'swap') }) }), 'light'],
   ['18-dialogs-crash', () => `${rail('chat')}<main><div class="crash"><div class="ci">${icon('alert', 38, 1.8)}</div>
     <h2>Kalsa couldn’t show this conversation.</h2><p class="s">Reload the app. If it still doesn’t open, erase saved conversations. Your settings stay safe.</p>

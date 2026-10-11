@@ -64,7 +64,7 @@ function qr(size = 300) {
     <rect x="${mid - 28}" y="${mid - 28}" width="56" height="56" rx="16" fill="#3F6B3A"/><g transform="translate(${mid - 13} ${mid - 13}) scale(1.08)" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></g></svg>`;
 }
 
-const page = inner => `${rail('phones', { phonesSoon: false })}<main><div class="ph-page">${inner}</div></main>`;
+const page = inner => `${rail('phones')}<main><div class="ph-page">${inner}</div></main>`;
 const inviteBox = `<div class="invite-box"><b>Someone not at home?</b><p>To add someone who is not at home, use Invite by link. The link works once and expires.</p><span class="btn">${icon('link', 17)}Invite by link</span></div>`;
 const steps = `<ol class="steps2"><li><span class="n">1</span><div>Open Kalsa on your phone.</div></li>
   <li><span class="n">2</span><div>Point your phone’s camera at the square.<p class="ph-sub">Anyone who can see this square can connect a phone — show it only to yours.</p></div></li>
