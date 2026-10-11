@@ -210,6 +210,8 @@ impl ProgressTicks {
     }
 }
 
+/// The page gets only this sanitised body. The plugin's own check command would
+/// hand over the raw `Update.body`, so the page must never be granted it.
 fn available(update: &Update) -> Available {
     Available {
         version: update.version.clone(),
@@ -217,15 +219,30 @@ fn available(update: &Update) -> Available {
     }
 }
 
-/// Plain text only: control characters go, the line break stays, and nothing
-/// is left when only whitespace remains.
+/// Plain text only: the forbidden characters go, the line break stays, and
+/// nothing is left when only whitespace remains.
 fn plain_notes(body: Option<&str>) -> Option<String> {
     let text: String = body?
         .chars()
-        .filter(|c| *c == '\n' || !c.is_control())
+        .filter(|c| *c == '\n' || !is_forbidden(*c))
         .take(NOTES_MAX)
         .collect();
     (!text.trim().is_empty()).then_some(text)
+}
+
+/// Controls, zero-width and bidi format characters, and the Unicode line and
+/// paragraph separators. The same set as NOTES_FORBIDDEN in manifest.ts.
+fn is_forbidden(c: char) -> bool {
+    c.is_control()
+        || matches!(
+            c,
+            '\u{200B}'..='\u{200F}'
+                | '\u{202A}'..='\u{202E}'
+                | '\u{2028}'
+                | '\u{2029}'
+                | '\u{2066}'..='\u{2069}'
+                | '\u{FEFF}'
+        )
 }
 
 async fn find(app: &AppHandle) -> Result<Option<Update>, Failure> {
@@ -340,6 +357,13 @@ fn ready(app: &AppHandle) -> bool {
 mod tests {
     use super::*;
 
+    /// One sample from each forbidden range, the edges included; the Worker's
+    /// tests drop the same characters.
+    const FORBIDDEN_SAMPLES: [char; 14] = [
+        '\u{7}', '\u{85}', '\u{200B}', '\u{200C}', '\u{200D}', '\u{200E}', '\u{200F}', '\u{202A}', '\u{202E}', '\u{2028}',
+        '\u{2029}', '\u{2066}', '\u{2069}', '\u{FEFF}',
+    ];
+
     #[test]
     fn the_startup_check_waits_for_a_running_engine_with_no_walk() {
         assert!(may_check(true, false));
@@ -392,6 +416,18 @@ mod tests {
         assert_eq!(plain_notes(None), None);
         let long = "x".repeat(NOTES_MAX + 100);
         assert_eq!(plain_notes(Some(&long)).map(|text| text.chars().count()), Some(NOTES_MAX));
+    }
+
+    #[test]
+    fn each_forbidden_character_is_dropped_and_the_line_break_kept() {
+        for c in FORBIDDEN_SAMPLES {
+            assert_eq!(plain_notes(Some(&format!("a{c}b\nc"))), Some("ab\nc".into()), "U+{:04X}", c as u32);
+        }
+    }
+
+    #[test]
+    fn a_note_made_only_of_forbidden_characters_is_no_notes() {
+        assert_eq!(plain_notes(Some("\u{200B}\u{202E}\u{2028}")), None);
     }
 
     #[test]

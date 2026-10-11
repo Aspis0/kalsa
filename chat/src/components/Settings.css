@@ -22,6 +22,7 @@
 
 .release-notes {
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .settings-toggle {

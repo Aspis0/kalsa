@@ -18,7 +18,7 @@ export function UpdateNotice({ updates, busy }: UpdateNoticeProps) {
   if (!notice) return null;
   const downloading = phase.kind === "downloading";
   return <div className="refusal-banner" role="status">
-    <div>
+    <div className="update-notice-text">
       <span>{t.ready(notice.version)}</span>
       <ReleaseNotes notes={notice.notes} />
     </div>

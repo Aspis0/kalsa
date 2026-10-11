@@ -169,11 +169,21 @@ try {
     const notes = "Faster start.\nFixed the calculator.";
     const announced = run(INITIAL_UPDATE, { type: "announced", update: { version: "0.0.3", notes } });
     check("the startup notice keeps its notes", announced.notice?.notes === notes, JSON.stringify(announced.notice));
+    const corrected = "Faster start.\nFixed the calculator and the timer.";
     const same = run(announced, {
       type: "checkFinished",
-      status: { current: "0.0.2", available: { version: "0.0.3", notes } },
+      status: { current: "0.0.2", available: { version: "0.0.3", notes: corrected } },
     });
-    check("a check that still finds the same release keeps the notice's notes", same.notice?.notes === notes);
+    check(
+      "a check that finds the same release with corrected notes updates the notice",
+      same.notice?.version === "0.0.3" && same.notice?.notes === corrected,
+      JSON.stringify(same.notice),
+    );
+    const dismissedSame = run(announced, { type: "noticeDismissed" }, {
+      type: "checkFinished",
+      status: { current: "0.0.2", available: { version: "0.0.3", notes: corrected } },
+    });
+    check("a dismissed notice stays dismissed when the same release is checked again", dismissedSame.notice === null);
     const offered = run(INITIAL_UPDATE, {
       type: "checkFinished",
       status: { current: "0.0.2", available: { version: "0.0.3", notes } },

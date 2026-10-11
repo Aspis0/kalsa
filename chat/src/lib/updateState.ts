@@ -49,11 +49,8 @@ export function reduceUpdate(state: UpdateState, action: UpdateAction): UpdateSt
         // Nothing newer now: the notice's release is gone, so its button goes too.
         return { ...state, phase: { kind: "current" }, notice: null };
       }
-      // A dismissed notice stays dismissed; one still on screen follows the newer release.
-      const notice =
-        state.notice && state.notice.version !== found.version
-          ? { version: found.version, notes: found.notes }
-          : state.notice;
+      // A dismissed notice stays dismissed; one still on screen takes this check's version and notes.
+      const notice = state.notice ? { version: found.version, notes: found.notes } : null;
       return { ...state, phase: { kind: "available", version: found.version, notes: found.notes }, notice };
     }
     case "failed":

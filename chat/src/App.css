@@ -193,6 +193,12 @@
   margin-bottom: 0.15rem;
 }
 
+/* The text may shrink and wrap, so a long unbroken note cannot push the buttons out of the banner. */
+.update-notice-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .refusal-banner span {
   color: var(--ink-soft);
   line-height: 1.5;
