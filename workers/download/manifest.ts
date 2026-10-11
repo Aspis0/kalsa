@@ -24,9 +24,12 @@ const NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,127}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const SIGNATURE = /^[A-Za-z0-9+/=]{1,4096}$/;
 const MAX_SIZE = 64 * 1024 ** 3;
-// Mirrors NOTES_MAX and NOTES_CONTROL in scripts/release.mjs; a test keeps them equal.
+// Mirrors NOTES_MAX and NOTES_FORBIDDEN in scripts/release.mjs; a test keeps them equal.
 const NOTES_MAX = 600;
-const NOTES_CONTROL = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F]/;
+const NOTES_FORBIDDEN = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2028\u2029\u2066-\u2069\uFEFF]/;
+// The updater parses the whole response as JSON, and serde rejects a lone surrogate:
+// one such note would fail the check for every client.
+const LONE_SURROGATE = /(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])/;
 
 const NONE: Manifest = { version: null, notes: null, windows: null, mac: null, updates: { windows: null, mac: null } };
 
@@ -62,19 +65,26 @@ function updateOf(entry: unknown, version: string | null): Update | null {
 
 /** Plain-text notes, or null. Bad notes drop only the notes: the platforms stay valid. */
 function notesOf(value: unknown): string | null {
-  if (typeof value !== "string" || value === "" || [...value].length > NOTES_MAX) return null;
-  return NOTES_CONTROL.test(value) ? null : value;
+  if (typeof value !== "string" || value.trim() === "" || [...value].length > NOTES_MAX) return null;
+  return NOTES_FORBIDDEN.test(value) || LONE_SURROGATE.test(value) ? null : value;
+}
+
+/** Logs the reason only, never the manifest's text. */
+function unusable(reason: string): Manifest {
+  console.error(`${reason}; no installers and no updates are offered`);
+  return NONE;
 }
 
 export function parseManifest(text: string | null): Manifest {
+  // Absent is the state before the first release, not a fault.
   if (text === null) return NONE;
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
-    return NONE;
+    return unusable("current.json is not JSON");
   }
-  if (typeof raw !== "object" || raw === null) return NONE;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return unusable("current.json is not a JSON object");
   const { version: rawVersion, notes: rawNotes, windows, mac } = raw as Record<string, unknown>;
   const version = isSemver(rawVersion) ? rawVersion : null;
   return {

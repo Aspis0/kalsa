@@ -60,6 +60,7 @@ test("a manifest from before updates existed merges without error", () => {
   assert.equal(next.windows.key, winInstaller.key);
   assert.equal("update" in next.windows, false);
   assert.equal(next.mac.update.signature, "c2ln");
+  assert.equal("notes" in next, false);
 });
 
 test("notes survive a later platform release of the same version", () => {

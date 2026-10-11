@@ -31,6 +31,14 @@ describe("manifest parsing", () => {
     ["a carriage return", "a\rb"],
     ["an escape character", "a\u001bb"],
     ["a C1 control", "a\u0085b"],
+    ["only whitespace", "  \n\t "],
+    ["a right-to-left override", "a\u202Eb"],
+    ["a zero-width space", "a\u200Bb"],
+    ["a byte order mark", "a\uFEFFb"],
+    ["a line separator", "a\u2028b"],
+    ["an isolate", "a\u2066b"],
+    ["a lone high surrogate", "a\ud800b"],
+    ["a lone low surrogate", "a\udc00b"],
     ["more than 600 characters", "x".repeat(601)],
   ])("notes with %s are dropped, and the installers stay valid", (_label, notes) => {
     const m = parseManifest(manifestJson({ notes }));
@@ -89,5 +97,36 @@ describe("manifest read", () => {
 
   test("an absent manifest object yields no installers", async () => {
     expect(await readManifest(fakeBucket({}))).toEqual(EMPTY);
+  });
+});
+
+// The same characters the Rust sanitiser's test drops: one per forbidden range, the edges included.
+const FORBIDDEN_SAMPLES = ["\u0007", "\u0085", "\u200B", "\u200C", "\u200D", "\u200E", "\u200F", "\u202A", "\u202E", "\u2028", "\u2029", "\u2066", "\u2069", "\uFEFF"];
+
+describe("forbidden characters in notes", () => {
+  test.each(FORBIDDEN_SAMPLES.map(c => [c.codePointAt(0)!.toString(16), c]))("a note with U+%s is dropped", (_hex, c) => {
+    expect(parseManifest(manifestJson({ notes: `a${c}b\nc` })).notes).toBeNull();
+  });
+});
+
+describe("a malformed manifest is logged, not served", () => {
+  let error: jest.SpyInstance;
+  beforeEach(() => {
+    error = jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => error.mockRestore());
+
+  test.each([
+    ["not JSON", "{not json"],
+    ["a JSON array", "[]"],
+  ])("%s logs a reason and never the contents", (_label, text) => {
+    expect(parseManifest(text)).toEqual(EMPTY);
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(String(error.mock.calls[0][0])).not.toContain(text);
+  });
+
+  test("an absent manifest is quiet: it is the state before the first release", () => {
+    expect(parseManifest(null)).toEqual(EMPTY);
+    expect(error).not.toHaveBeenCalled();
   });
 });

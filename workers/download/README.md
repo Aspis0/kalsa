@@ -259,7 +259,9 @@ node scripts/release.mjs windows ./Kalsa-alpha-0.0.2-windows.exe 0.0.2 \
 ```
 
 `--dry-run` runs the local checks (guide freshness, sizes, sha256, key rule, signature
-format) and prints the wrangler commands without running them. Without it the script:
+format, notes) and prints the wrangler commands for the uploads and read-backs without running
+them. It does read `current.json` from R2 through wrangler, so it needs the same Cloudflare
+access as a release; it uploads nothing. Without it the script:
 
 1. uploads the installer and the artifact to `releases/<version>/<name>`;
 2. downloads each again and re-hashes it; a mismatch stops here, with `current.json` unchanged;
@@ -272,8 +274,8 @@ platform sits on a different version. `--allow-mixed` publishes one platform alo
 keeps its installer and loses its update until it is released at the same version.
 
 `--notes <file>` adds the release notes the update notice shows, in English: plain UTF-8 text,
-at most 600 characters, line breaks allowed and no other control characters. It is checked
-before any upload. Without it, a later platform of the same version keeps the notes already
+at most 600 characters, line breaks allowed. Control, zero-width, bidi and line-separator
+characters are refused, and so is a note that is only whitespace. It is checked before any upload. Without it, a later platform of the same version keeps the notes already
 published, and a new version drops them.
 
 Set `ALPHA_TESTERS_MD` if the markdown is not at the sibling path

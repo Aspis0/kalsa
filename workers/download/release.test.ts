@@ -260,8 +260,12 @@ describe("release --notes", () => {
 
   test.each([
     ["an empty file", "  \n", "is empty"],
-    ["a control character", "bad\u0007text", "control character"],
-    ["a tab", "a\tb", "control character"],
+    ["a control character", "bad\u0007text", "line-separator character"],
+    ["a tab", "a\tb", "line-separator character"],
+    ["a right-to-left override", "fixed\u202Egnirts", "line-separator character"],
+    ["a zero-width space", "a\u200Bb", "line-separator character"],
+    ["a byte order mark inside the text", "a\uFEFFb", "line-separator character"],
+    ["a line separator", "a\u2028b", "line-separator character"],
     ["601 characters", "x".repeat(601), "the limit is 600"],
   ])("%s is refused before anything is uploaded, dry run or not", (label, text, message) => {
     const file = notesFile(`notes-${label.replace(/ /g, "-")}.txt`, text);
@@ -323,9 +327,9 @@ describe("the shared rules", () => {
     );
   });
 
-  test("release.mjs and manifest.ts carry the same notes control pattern", () => {
-    expect(literal(path.join(HERE, "scripts", "release.mjs"), /const NOTES_CONTROL = (\/.*\/);/)).toBe(
-      literal(path.join(HERE, "manifest.ts"), /const NOTES_CONTROL = (\/.*\/);/),
+  test("release.mjs and manifest.ts carry the same forbidden-character pattern", () => {
+    expect(literal(path.join(HERE, "scripts", "release.mjs"), /const NOTES_FORBIDDEN = (\/.*\/);/)).toBe(
+      literal(path.join(HERE, "manifest.ts"), /const NOTES_FORBIDDEN = (\/.*\/);/),
     );
   });
 

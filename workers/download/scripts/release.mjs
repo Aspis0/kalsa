@@ -35,9 +35,9 @@ const TRUSTED_COMMENT = "trusted comment: ";
 const VERSION_FIELD = "version:";
 // Mirrors KEY in manifest.ts; a test keeps the two equal.
 const KEY = /^releases\/[A-Za-z0-9][A-Za-z0-9._-]{0,31}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-// Mirrors NOTES_MAX and NOTES_CONTROL in manifest.ts; a test keeps them equal.
+// Mirrors NOTES_MAX and NOTES_FORBIDDEN in manifest.ts; a test keeps them equal.
 const NOTES_MAX = 600;
-const NOTES_CONTROL = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F]/;
+const NOTES_FORBIDDEN = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2028\u2029\u2066-\u2069\uFEFF]/;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BUILD_GUIDE = path.join(HERE, "build-guide.mjs");
@@ -89,7 +89,9 @@ function readNotes(file) {
   if (!statSync(file, { throwIfNoEntry: false })?.isFile()) die(`not a file: ${file}`);
   const text = readFileSync(file, "utf8").replace(/\r\n/g, "\n").trim();
   if (text === "") die(`${file} is empty`);
-  if (NOTES_CONTROL.test(text)) die(`${file} has a control character; notes are plain text with line breaks only`);
+  if (NOTES_FORBIDDEN.test(text)) {
+    die(`${file} has a control, zero-width, bidi or line-separator character; notes are plain text with line breaks only`);
+  }
   const length = [...text].length;
   if (length > NOTES_MAX) die(`${file} is ${length} characters; the limit is ${NOTES_MAX}`);
   return text;
