@@ -1093,6 +1093,9 @@ export function classifyChatFailure(
         : typeof err === "string"
           ? err
           : String(err ?? "");
+    // First: the parser error can quote part of the model's arguments, and a
+    // "ctx" or "native" inside them must not win over the real cause.
+    if (/failed to parse tool call arguments/i.test(msg)) return "tool_args";
     const m = msg.toLowerCase();
     if (m.includes("oom") || m.includes("out of memory")) return "oom";
     if (

@@ -109,6 +109,7 @@ export type ChatDetail =
   | "native_crash"
   | "ctx_overflow"
   | "stop_aborted"
+  | "tool_args"
   | "unknown";
 
 /** embed.native detail. */
@@ -166,6 +167,7 @@ export const CHAT_DETAILS: readonly ChatDetail[] = [
   "native_crash",
   "ctx_overflow",
   "stop_aborted",
+  "tool_args",
   "unknown",
 ] as const;
 

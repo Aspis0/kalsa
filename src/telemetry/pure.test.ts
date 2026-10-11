@@ -1,10 +1,32 @@
 import {
   acceptSignal,
+  classifyChatFailure,
   classifyHttpStatus,
   classifyNetworkFailure,
   extractSignal,
   sanitizeReport,
 } from "./pure";
+
+describe("chat failure detail for unparseable tool arguments", () => {
+  test("the chat.cpp parse error maps to tool_args", () => {
+    const err = new Error(
+      "Failed to parse tool call arguments as JSON: [json.exception.parse_error.101] parse error at line 1, column 9",
+    );
+    expect(classifyChatFailure(err)).toBe("tool_args");
+  });
+
+  test("a parser message that quotes model text containing ctx still maps to tool_args", () => {
+    const err = new Error(
+      "Failed to parse tool call arguments as JSON: [json.exception.parse_error.101] last read: 'ctx native'",
+    );
+    expect(classifyChatFailure(err)).toBe("tool_args");
+  });
+
+  test("other chat failures are unchanged", () => {
+    expect(classifyChatFailure(new Error("n_ctx exceeded"))).toBe("ctx_overflow");
+    expect(classifyChatFailure(new Error("something else"))).toBe("unknown");
+  });
+});
 
 describe("telemetry pure helpers", () => {
   test("keeps an allowlisted detail and signal", () => {

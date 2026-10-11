@@ -260,6 +260,7 @@ async function main() {
       ["engine.init", "native_crash"],
       ["chat.generation", "ctx_overflow"],
       ["chat.generation", "stop_aborted"],
+      ["chat.generation", "tool_args"],
       ["embed.native", "gate_aborted"],
       ["embed.native", "model_corrupt"],
     ];

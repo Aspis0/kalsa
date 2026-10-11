@@ -63,6 +63,7 @@ export const CHAT_DETAILS = new Set([
   "native_crash",
   "ctx_overflow",
   "stop_aborted",
+  "tool_args",
   "unknown",
 ]);
 export const EMBED_DETAILS = new Set([

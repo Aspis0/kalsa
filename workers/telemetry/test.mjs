@@ -30,6 +30,8 @@ try {
     assert.equal(validateReport({ ...base(platform), diagnostics: { osFamily: platform } }), null, `v2 platform ${platform}`);
   }
   assert.ok(validateReport(base("PRIVATE-HOST-CANARY")));
+  assert.equal(validateReport({ ...base(), error: { code: "chat.generation", detail: "tool_args" } }), null, "chat tool_args accepted");
+  assert.ok(validateReport({ ...base(), error: { code: "engine.init", detail: "tool_args" } }), "tool_args is chat-only");
   for (const [field, values] of Object.entries(V2.enums)) {
     for (const value of values) assert.equal(validateReport({ ...base(field === "osFamily" ? value : "macos"), diagnostics: { [field]: value } }), null, `${field}=${value}`);
     assert.ok(validateReport({ ...base(), diagnostics: { [field]: "OUTSIDE-ALLOWLIST-CANARY" } }), `${field} rejects unknown`);
