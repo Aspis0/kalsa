@@ -2,7 +2,7 @@
 
 export const DEVICES = {
     "title": "设备",
-    "capacityLine": "如果多部手机同时提问，部分手机可能需要等待几秒钟轮到自己。",
+    "capacityLine": "如果多部手机同时提问，部分手机可能需要排队等候。",
     "cameraInstruction": "用手机相机对准这个方块。",
     "awareness": "能看到这个方块的任何人都可以连接一部手机 —— 只给你的手机看。",
     "squareNotReady": "码快准备好了。稍后就会出现在这里。",

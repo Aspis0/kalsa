@@ -6,7 +6,7 @@ import { isToolRefusal } from "./refusal";
 import { createAnswerHold } from "./answerHold";
 import type { AnswerHold } from "./answerHold";
 import { logUiEvent } from "./uiLog";
-import { readArguments, wireArguments } from "./toolCalls";
+import { isMalformedArguments, NOT_VALID_FOR_MODEL, readArguments, wireArguments } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
 import type { ToolRun } from "./types";
 import type { Miniapp } from "./miniapp/types";
@@ -46,10 +46,6 @@ const ENGLISH_PHRASES: ToolPhrases = {
   argumentsNotValid: "Kalsa couldn't finish checking. Ask again.",
   notOffered: "That tool is not available now. Answer without it.",
 };
-
-/** What the model reads when its arguments were not JSON. The owner's sentence
-    is for the card; the wire is English, and this tells the model to call again. */
-const NOT_VALID_FOR_MODEL = "The arguments were not valid JSON. Call the tool again with a JSON object.";
 
 export async function streamChatCompletion(options: StreamOptions): Promise<void> {
   const { signal } = options;
@@ -207,9 +203,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         tooLong: say.argumentsTooLong,
         notValid: () => say.argumentsNotValid,
       });
-      // readArguments answers a cut call with its own sentence; any other
-      // problem is an argument list that did not parse.
-      const malformed = problem !== null && !call.cut;
+      const malformed = isMalformedArguments(call.arguments, call.cut);
       const started: ToolRun = {
         id: call.id,
         name: call.name,

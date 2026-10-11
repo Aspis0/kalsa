@@ -97,7 +97,7 @@ export const HELP: English["help"] = {
       items: [
         `Apri **${CHROME.pages.devices}** e inquadra il quadrato con la fotocamera del telefono. Poi premi **${DEVICES.allow}** sul computer. Mostra il quadrato solo al tuo telefono.`,
         `Per aggiungere qualcuno che non è in casa, usa **${INVITE.inviteByLink}**. Il link funziona una volta e scade.`,
-        "Kalsa si può usare da più telefoni. Se chiedono qualcosa nello stesso momento, alcuni possono aspettare qualche secondo.",
+        "Kalsa si può usare da più telefoni. Se fanno una richiesta nello stesso momento, alcuni potrebbero dover aspettare il proprio turno.",
       ],
     },
     {

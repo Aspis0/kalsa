@@ -413,7 +413,10 @@ export function useChat(shell: ChatShell) {
   async function attachFiles(files: FileList | File[], diskTicket?: number): Promise<void> {
     const list = Array.from(files);
     if (list.length === 0) return;
-    setRefusal(null);
+    // A disk attach reads its bytes first: if the owner has moved on meanwhile,
+    // the banner and the status line are not its to clear or to write.
+    const stillNewest = diskTicket === undefined || diskTicket === attachTicket.current;
+    if (stillNewest) setRefusal(null);
     // A picture or a video while this model is blind and a projector is
     // only an offer: the ask comes instead of the extractor's not-readable
     // sentence, which would state a limit the owner can lift in one press.
@@ -423,7 +426,7 @@ export function useChat(shell: ChatShell) {
     }
     const ticket = diskTicket ?? ++attachTicket.current;
     const isLatest = (): boolean => ticket === attachTicket.current;
-    setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
+    if (isLatest()) setAttachStatus(list.length === 1 ? t.readingOne(list[0].name) : t.readingMany(list.length));
     // The gate closes only when this settles, whatever the settle is: a send
     // that lands mid-attach must wait, because the documents it should carry
     // are still nowhere to read. The hold is this conversation's alone — a
@@ -441,6 +444,12 @@ export function useChat(shell: ChatShell) {
     try {
       let convId = activeId;
       if (!convId) {
+        // A chat made now would take the screen from the chat the owner opened
+        // while the bytes were read, so a stale attach makes nothing.
+        if (!isLatest()) {
+          logUiEvent("chat.attach_abandoned");
+          return;
+        }
         const fresh: Conversation = {
           id: uid(),
           title: firstCharacters(list[0].name, 46),
@@ -685,14 +694,23 @@ export function useChat(shell: ChatShell) {
       // own bytes are the one thing a full shelf may refuse: the frames are
       // the message to the model, so they must land — the video is kept for
       // replay when it can be, and the chip says so when it cannot.
-      for (const chip of prepared) await putImage(target, chip.id, chip.mime, chip.blob);
+      // A chat deleted during the attach keeps none of its bytes. The index is
+      // asked again after the write: a delete that ran in between has already
+      // taken the chat out of the index, and its image sweep may have missed
+      // this record, so the record is taken back here.
+      const putBytes = async (id: string, mime: string, blob: Blob): Promise<void> => {
+        if (!store.has(target)) return;
+        await putImage(target, id, mime, blob);
+        if (!store.has(target)) await deleteImage(id);
+      };
+      for (const chip of prepared) await putBytes(chip.id, chip.mime, chip.blob);
       for (const video of preparedVideos) {
         for (const frame of video.frames) {
-          await putImage(target, frame.id, frame.mime, frame.blob);
+          await putBytes(frame.id, frame.mime, frame.blob);
         }
         if (video.blob !== null) {
           try {
-            await putImage(target, video.id, "video/mp4", video.blob);
+            await putBytes(video.id, "video/mp4", video.blob);
           } catch {
             video.notKept = true;
           }

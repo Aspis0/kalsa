@@ -83,6 +83,10 @@ const BROKEN = '{"query": "unterminated';
 const LONG = `{"query":"${"a".repeat(MAX_ARGUMENTS + 500)}"}`;
 const SPACED = '{ "query" :  "x" }';
 const NESTED = '{"query":"x","n":[1,2]}';
+// A complete object followed by whitespace past the cap: the cut prefix still parses.
+const PARSEABLE_CUT = `{"query":"x"}${" ".repeat(MAX_ARGUMENTS + 10)}`;
+// What the card showed in Italian for an unreadable list, as a stored run keeps it.
+const CARD_NOT_VALID = "Kalsa non è riuscita a finire il controllo. Chiedi di nuovo.";
 
 /** Runs one live round and returns what the second request carried. */
 async function liveRound(argumentsText) {
@@ -116,8 +120,8 @@ async function liveRound(argumentsText) {
   };
 }
 
-/** Replays a stored run and returns the arguments the wire carries for it. */
-function replay(storedArguments) {
+/** Replays one stored run; returns the arguments the wire carries and the tool message after them. */
+function replay(run) {
   const history = [
     { id: "u1", role: "user", content: "find it", createdAt: 1 },
     {
@@ -125,14 +129,15 @@ function replay(storedArguments) {
       role: "assistant",
       content: "",
       createdAt: 2,
-      toolRuns: [{ id: "call-a", name: "web_search", arguments: storedArguments, result: "found", state: "ok" }],
+      toolRuns: [{ id: "call-a", name: "web_search", result: "found", state: "ok", ...run }],
     },
     { id: "u2", role: "user", content: "again", createdAt: 3 },
   ];
   const pinned = buildPinnedContext(history, [], null);
-  if (pinned.status !== "ok") return `status ${pinned.status}`;
+  if (pinned.status !== "ok") return { wire: `status ${pinned.status}` };
   const assistant = pinned.wire.find((m) => m.role === "assistant" && m.tool_calls);
-  return assistant?.tool_calls[0].function.arguments;
+  const tool = pinned.wire.find((m) => m.role === "tool");
+  return { wire: assistant?.tool_calls[0].function.arguments, answer: tool?.content };
 }
 
 // --- the helper itself ----------------------------------------------------------
@@ -150,6 +155,7 @@ const liveCases = [
   { label: "array", args: "[1,2]", wire: "{}", ran: false, answer: NOT_VALID_FOR_MODEL },
   { label: "bare string", args: '"x"', wire: "{}", ran: false, answer: NOT_VALID_FOR_MODEL },
   { label: "longer than the app holds", args: LONG, wire: "{}", ran: false, answer: TOO_LONG },
+  { label: "object then whitespace past the cap", args: PARSEABLE_CUT, wire: "{}", ran: false, answer: TOO_LONG },
   { label: "empty arguments", args: "", wire: "{}", ran: true, answer: "found" },
   { label: "valid object, odd spacing", args: SPACED, wire: SPACED, ran: true, answer: "found" },
   { label: "valid nested object", args: NESTED, wire: NESTED, ran: true, answer: "found" },
@@ -163,17 +169,51 @@ for (const c of liveCases) {
 }
 
 // --- the replay of a stored run ----------------------------------------------------
+// A stored run keeps at most MAX_ARGUMENTS characters, so a long one is stored cut.
 const replayCases = [
-  { label: "broken object", stored: BROKEN, wire: "{}" },
-  { label: "array", stored: "[1,2]", wire: "{}" },
-  { label: "empty arguments", stored: "", wire: "{}" },
-  // A stored run keeps at most MAX_ARGUMENTS characters, so a long one is stored cut.
-  { label: "stored cut", stored: LONG.slice(0, MAX_ARGUMENTS), wire: "{}" },
-  { label: "valid object, odd spacing", stored: SPACED, wire: SPACED },
-  { label: "valid nested object", stored: NESTED, wire: NESTED },
+  {
+    label: "broken object, failed",
+    run: { arguments: BROKEN, state: "failed", result: CARD_NOT_VALID },
+    wire: "{}",
+    answer: NOT_VALID_FOR_MODEL,
+  },
+  {
+    label: "array, failed",
+    run: { arguments: "[1,2]", state: "failed", result: CARD_NOT_VALID },
+    wire: "{}",
+    answer: NOT_VALID_FOR_MODEL,
+  },
+  {
+    label: "stored cut, failed",
+    run: { arguments: LONG.slice(0, MAX_ARGUMENTS), state: "failed", result: TOO_LONG },
+    wire: "{}",
+    answer: TOO_LONG,
+  },
+  {
+    label: "object then whitespace past the cap, failed",
+    run: { arguments: PARSEABLE_CUT.slice(0, MAX_ARGUMENTS), state: "failed", result: TOO_LONG },
+    wire: "{}",
+    answer: TOO_LONG,
+  },
+  {
+    label: "empty arguments, the tool itself failed",
+    run: { arguments: "", state: "failed", result: "Search failed: offline" },
+    wire: "{}",
+    answer: "Search failed: offline",
+  },
+  {
+    label: "valid object, the tool itself failed",
+    run: { arguments: SPACED, state: "failed", result: "Search failed: offline" },
+    wire: SPACED,
+    answer: "Search failed: offline",
+  },
+  { label: "valid object, odd spacing", run: { arguments: SPACED, state: "ok", result: "found" }, wire: SPACED, answer: "found" },
+  { label: "valid nested object", run: { arguments: NESTED, state: "ok", result: "found" }, wire: NESTED, answer: "found" },
 ];
 for (const c of replayCases) {
-  equal(`replay (${c.label}): the wire carries ${JSON.stringify(c.wire)}`, replay(c.stored), c.wire);
+  const got = replay(c.run);
+  equal(`replay (${c.label}): the wire carries ${JSON.stringify(c.wire)}`, got.wire, c.wire);
+  equal(`replay (${c.label}): the model reads the answer`, got.answer, c.answer);
 }
 
 await rm(dir, { recursive: true, force: true });

@@ -2,7 +2,7 @@
 
 export const DEVICES = {
     "title": "Dispositivos",
-    "capacityLine": "Si varios teléfonos piden algo a la vez, algunos pueden esperar unos segundos su turno.",
+    "capacityLine": "Si varios teléfonos preguntan a la vez, puede que algunos tengan que esperar su turno.",
     "cameraInstruction": "Apunta la cámara del teléfono al cuadro.",
     "awareness": "Cualquiera que vea este cuadro puede conectar un teléfono — muéstraselo solo al tuyo.",
     "squareNotReady": "El código ya casi está. Aparecerá aquí en un momento.",

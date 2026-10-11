@@ -5,7 +5,7 @@ import { TOOL_STOPPED } from "./types";
 import type { ChatMessage, ToolRun } from "./types";
 import { miniappStateLines } from "./miniapp/stateText";
 import { sentLine } from "./sentDate";
-import { wireArguments } from "./toolCalls";
+import { isMalformedArguments, NOT_VALID_FOR_MODEL, storedAsCut, wireArguments } from "./toolCalls";
 import type { WireContentPart, WireMessage } from "./chat";
 
 export type AttachmentKind = "txt" | "md" | "csv" | "pdf" | "docx" | "pptx";
@@ -536,7 +536,10 @@ function wireResult(result: string): string {
     short result text goes alone, as it always has. */
 function wireResultFor(run: ToolRun): string {
   const lines = run.miniapp ? miniappStateLines(run.miniapp) : [];
-  const text = wireResult(run.result);
+  // The card keeps the owner's sentence for an unreadable argument list; the
+  // model was answered in English when the call ran, and the replay says it so too.
+  const unreadable = run.state === "failed" && isMalformedArguments(run.arguments, storedAsCut(run.arguments));
+  const text = unreadable ? NOT_VALID_FOR_MODEL : wireResult(run.result);
   return lines.length > 0 ? `${text}\n${lines.join("\n")}` : text;
 }
 
@@ -627,7 +630,7 @@ function wireFor(
     tool_calls: runs.map((run) => ({
       id: run.id,
       type: "function" as const,
-      function: { name: run.name, arguments: wireArguments(run.arguments) },
+      function: { name: run.name, arguments: wireArguments(run.arguments, storedAsCut(run.arguments)) },
     })),
   };
   const answered: WireMessage[] = runs.map((run) => ({

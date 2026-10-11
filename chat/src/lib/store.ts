@@ -29,6 +29,8 @@ export interface ConversationStore {
   list(): ConversationMeta[];
   /** Full conversation; messages validated on read. */
   get(id: string): Conversation | undefined;
+  /** Whether the chat is in the index: a cheap answer, no payload read. */
+  has(id: string): boolean;
   put(conversation: Conversation): void;
   remove(id: string): void;
   /** Retitle without touching the message payload (index-only). */
@@ -549,6 +551,9 @@ export function createStore(): ConversationStore {
         messages: [...readPayload(id)],
       };
     },
+    has(id) {
+      return readIndex().some((m) => m.id === id);
+    },
     put(conversation) {
       const messages = conversation.messages
         .map(cleanMessage)
@@ -627,7 +632,8 @@ export function createStore(): ConversationStore {
     },
     putAttachment(convId, attachment) {
       const clean = cleanAttachment(attachment);
-      if (!clean) return;
+      // A chat deleted while its documents were still being read gets none back.
+      if (!clean || !this.has(convId)) return;
       const next = [clean, ...this.getAttachments(convId).filter((a) => a.id !== clean.id)].sort(
         (a, b) => b.attachedAt - a.attachedAt,
       );
@@ -649,6 +655,7 @@ export function createStore(): ConversationStore {
       notify();
     },
     removeAttachment(convId, attachmentId) {
+      if (!this.has(convId)) return;
       const next = this.getAttachments(convId).map((a) =>
         a.id === attachmentId ? { ...a, active: false } : a,
       );

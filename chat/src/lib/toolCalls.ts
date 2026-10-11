@@ -155,3 +155,19 @@ export function readArguments(
 export function wireArguments(argumentsText: string, cut = false): string {
   return !cut && parseArgumentObject(argumentsText) !== null ? argumentsText : "{}";
 }
+
+/** What the model reads for a call whose arguments did not parse. Shown on the
+    card in the owner's language; the wire is English. */
+export const NOT_VALID_FOR_MODEL = "The arguments were not valid JSON. Call the tool again with a JSON object.";
+
+/** Whether a call's arguments were unreadable. Empty text is not: it is a call
+    with no arguments. A cut call is not either; its own sentence says so. */
+export function isMalformedArguments(argumentsText: string, cut: boolean): boolean {
+  return !cut && argumentsText.trim() !== "" && parseArgumentObject(argumentsText) === null;
+}
+
+/** A stored run keeps no cut flag, but the accumulator never keeps more than
+    MAX_ARGUMENTS characters, so a stored text at the cap was cut as it streamed. */
+export function storedAsCut(argumentsText: string): boolean {
+  return argumentsText.length >= MAX_ARGUMENTS;
+}
