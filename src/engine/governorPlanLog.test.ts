@@ -60,6 +60,8 @@ describe("governor plan log", () => {
       npu_lane: "auto",
       npu_fit: "Fit",
       available_src: null,
+      pacing_start: 0.87,
+      pacing_full: 0.99,
     });
     // Instruments parse this line: the pre-npu_lane keys keep their order
     // and the later keys are appended.
@@ -75,6 +77,8 @@ describe("governor plan log", () => {
       "npu_lane",
       "npu_fit",
       "available_src",
+      "pacing_start",
+      "pacing_full",
     ]);
     expect(
       buildGovernorPlanLog(

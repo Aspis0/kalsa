@@ -66,6 +66,9 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     npu_lane: enumOf("off", "on", "auto"), // BenchNpuLanePref, governorInputs.ts:18
     npu_fit: enumOrNull("Fit", "NoFit"), // governorInputs.ts:264 — null when the lane was not priced
     available_src: enumOrNull("fresh", "cached", "none"), // governorInputs.ts:265
+    // decode_pacing_headroom_start/_full as computed; null without a declared row.
+    pacing_start: NUMN, // governorInputs.ts buildGovernorPlanLog
+    pacing_full: NUMN, // governorInputs.ts buildGovernorPlanLog
   },
   // LlamaService.ts:2456; reason is governorBase.reason (governorInputs.ts,
   // `gpu-prefill-incorrect-<Generation>`, Generation in governorInputs.ts).

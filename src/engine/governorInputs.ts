@@ -234,6 +234,11 @@ export function buildGovernorPlanLog(
     npu_device?: string | null;
     npu_fallback?: string | null;
     npu_fit?: "Fit" | "NoFit";
+    /** The pacing lines buildGovernorParams computed for this load, read from
+     *  the same object, never from a second table lookup. Absent when the
+     *  phone has no row. */
+    decode_pacing_headroom_start?: number;
+    decode_pacing_headroom_full?: number;
   },
   benchNoRepack: boolean | undefined,
   npuLanePref?: BenchNpuLanePref,
@@ -281,6 +286,12 @@ export function buildGovernorPlanLog(
     // gpu_fit above).
     npu_fit: governor.npu_fit ?? null,
     available_src: lane?.availableSrc ?? null,
+    // The lines computed for this load, so a device run can tell the declared
+    // table from the battery ramp; null when the phone has no declared row.
+    // The engine receives them only when the governor load is built, which
+    // NoFit or a thermal gate can still refuse.
+    pacing_start: governor.decode_pacing_headroom_start ?? null,
+    pacing_full: governor.decode_pacing_headroom_full ?? null,
   };
 }
 

@@ -1,42 +1,51 @@
 import type { DeviceProfile } from "./deviceProfile";
 
 /** Decode-pacing lines in skin degrees C: the S23's calibrated 0.87 / 0.99
- *  headroom lines (owner 2026-10-10 / 2026-10-11), expressed as
- *  12 + 30 x 0.87 and 12 + 30 x 0.99. The governor reasons in skin degrees
- *  for every phone; each model's headroom scale is derived below. */
+ *  headroom lines (owner 2026-10-10 / 2026-10-11), i.e. 12 + 30 x 0.87 and
+ *  12 + 30 x 0.99. The app picks the lines in skin degrees; the engine
+ *  compares headroom, so each model's scale is derived below from its own
+ *  SEVERE. */
 const PACING_START_SKIN_C = 38.1;
 const PACING_FULL_SKIN_C = 41.7;
 
-/** Android headroom reads 1.0 when the skin is at the HAL SEVERE threshold
- *  and 0.0 thirty degrees below it. Apps cannot read the HAL thresholds, so
- *  each row is measured by hand. Unmeasured models get no row. */
-const DECLARED_SEVERE: ReadonlyArray<{
-  model: RegExp;
-  severeSkinC: number;
-  source: string;
-}> = [
-  { model: /^SM-S911/, severeSkinC: 42.0, source: "s23-headroom-cal-78" },
-  {
-    model: /^23127PN0CG$/,
-    severeSkinC: 66.5,
-    source: "xiaomi-g2-inapp-233486dd HAL dump",
-  },
+/** Android headroom reads 1.0 at the HAL SEVERE threshold and 0.0 thirty
+ *  degrees below it: AOSP ThermalManagerService normalizes
+ *  (T - (SEVERE - 30)) / 30, with DEGREES_BETWEEN_ZERO_AND_ONE = 30. Apps
+ *  cannot read the HAL thresholds, so each row is measured by hand. Unmeasured
+ *  models get no row. */
+const DEGREES_BETWEEN_ZERO_AND_ONE = 30;
+
+const DECLARED_SEVERE: ReadonlyArray<{ model: RegExp; severeSkinC: number }> = [
+  // Galaxy S23 (SM-S911): Android status 3 (SEVERE) measured at headroom 1.003,
+  // skin 42.1 C (lab cell s23-headroom-cal-78). The 0.87 / 0.99 lines come from
+  // the S23's calibrated fits (cells s23-g2-graduated-867affaa,
+  // s23-g2-full099-233486dd).
+  { model: /^SM-S911/, severeSkinC: 42.0 },
+  // Xiaomi 14 (23127PN0CG): HAL Threshold mType=3 (SEVERE), read with
+  // `dumpsys thermalservice` on 2026-10-11. The array index is the status, and
+  // index 3 holds 66.5 C. The in-app fit (cell xiaomi-g2-inapp-233486dd) puts
+  // headroom 1.0 at ~66.9 C, consistent with it.
+  { model: /^23127PN0CG$/, severeSkinC: 66.5 },
 ];
 
 /** Headroom for a skin temperature on a phone whose SEVERE is severeSkinC,
- *  rounded to 3 decimals. */
-function headroomAt(skinC: number, severeSkinC: number): number {
-  return Math.round(((skinC - (severeSkinC - 30)) / 30) * 1000) / 1000;
+ *  rounded to 3 decimals and floored at 0: AOSP reads 0 below SEVERE - 30, so
+ *  no line goes negative. Exported for the unit test only. */
+export function headroomAt(skinC: number, severeSkinC: number): number {
+  const headroom =
+    (skinC - (severeSkinC - DEGREES_BETWEEN_ZERO_AND_ONE)) / DEGREES_BETWEEN_ZERO_AND_ONE;
+  return Math.max(0, Math.round(headroom * 1000) / 1000);
 }
 
 /** The decode_pacing_headroom_start / _full engine params for this phone, or
- *  null when the phone is not Android or its model has no measured SEVERE.
- *  Null leaves the engine defaults (0.87 / 0.97) in charge. */
+ *  null when its model has no measured SEVERE; null leaves the engine's own
+ *  defaults in charge. Matched on the model name alone: iOS and macOS model
+ *  names never match these patterns, and expo-device's osName is a build
+ *  fingerprint on some Android vendors, so it cannot gate the rows. */
 export function pacingHeadroomLines(profile: DeviceProfile): {
   decode_pacing_headroom_start: number;
   decode_pacing_headroom_full: number;
 } | null {
-  if ((profile.osName ?? "").trim().toLowerCase() !== "android") return null;
   const modelName = profile.modelName ?? "";
   const row = DECLARED_SEVERE.find((entry) => entry.model.test(modelName));
   if (!row) return null;

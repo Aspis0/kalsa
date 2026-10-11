@@ -66,6 +66,14 @@ describe("KALSA_GOVERNOR_PLAN (governorInputs.ts:228-243)", () => {
       available_mib: 2,
     });
   });
+
+  it("keeps the applied pacing lines, null when the phone has no row", () => {
+    const line = (start: string) =>
+      record("KALSA_GOVERNOR_PLAN", `{"gpu_fit":"Fit","pacing_start":${start},"pacing_full":0.99}`);
+    expect(line("0.87")).toEqual({ gpu_fit: "Fit", pacing_start: 0.87, pacing_full: 0.99 });
+    expect(line("null")).toEqual({ gpu_fit: "Fit", pacing_start: null, pacing_full: 0.99 });
+    expect(line('"0.87 on /Users/marco"')).toEqual({ gpu_fit: "Fit", pacing_full: 0.99 });
+  });
 });
 
 describe("KALSA_GOVERNOR_FALLBACK (LlamaService.ts:2456)", () => {

@@ -32,6 +32,7 @@ import { modelAtKvProfile } from "./kvQuantCost";
 import { effectiveCacheTypes } from "./engineParams";
 import {
   buildGovernorParams,
+  buildGovernorPlanLog,
   npuLaneCacheTypes,
   readBenchDecodeHop,
   readBenchGovernorForce,
@@ -851,16 +852,47 @@ describe("decode-pacing lines from the declared SEVERE table", () => {
     }
   });
 
-  test("a non-Android profile sends no pacing keys", () => {
-    for (const osName of ["iOS", null]) {
-      expect(
-        buildGovernorParams(
-          model,
-          { ...device("SM-S911U", 8 * 1024 ** 3, "SM8550"), osName },
-          memory,
-        ),
-      ).not.toHaveProperty("decode_pacing_headroom_start");
-    }
+  test("the match is on the model, not osName: a vendor fingerprint still gets the keys", () => {
+    const fingerprint = "Xiaomi/shennong/shennong:15/AQ3A.240829.003/1:user/release-keys";
+    expect(
+      buildGovernorParams(
+        model,
+        { ...device("23127PN0CG", 12 * 1024 ** 3, "SM8650"), osName: fingerprint },
+        memory,
+      ),
+    ).toMatchObject({ decode_pacing_headroom_start: 0.053, decode_pacing_headroom_full: 0.173 });
+  });
+
+  test("an iOS-like profile sends no pacing keys", () => {
+    expect(
+      buildGovernorParams(
+        model,
+        { ...device("iPhone 15 Pro", 8 * 1024 ** 3), osName: "iOS" },
+        memory,
+      ),
+    ).not.toHaveProperty("decode_pacing_headroom_start");
+  });
+
+  test("the plan log carries the lines buildGovernorParams sent, null without a row", () => {
+    const planFor = (profile: DeviceProfile) =>
+      buildGovernorPlanLog(
+        model,
+        memory,
+        buildGovernorParams(model, profile, memory),
+        undefined,
+      );
+    expect(planFor(device("SM-S911U", 8 * 1024 ** 3, "SM8550"))).toMatchObject({
+      pacing_start: 0.87,
+      pacing_full: 0.99,
+    });
+    expect(planFor(device("23127PN0CG", 12 * 1024 ** 3, "SM8650"))).toMatchObject({
+      pacing_start: 0.053,
+      pacing_full: 0.173,
+    });
+    expect(planFor(device("Phone", 12 * 1024 ** 3, "SM8650"))).toMatchObject({
+      pacing_start: null,
+      pacing_full: null,
+    });
   });
 });
 
