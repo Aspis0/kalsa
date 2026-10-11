@@ -34,9 +34,13 @@ Speed is `predictedPerSecond` per completion (`raw/telemetry-speed.csv`); "hot" 
 
 ## Reading
 
-- The session goal is met on the S23: 20 turns in-app, unplugged, from cold, with no crash and no stop. What changed
-  versus the earlier attempts is mostly the harness (DB-read retry `0c8a711d`, pause line read from the config
-  `e0ae695d`) and the battery staying at or under 42.5 C.
+- The session goal is met on the S23: 20 turns in-app, unplugged, from cold, with no crash and no stop. Credit, in
+  order: the 2026-10-09 governor fix (native Android status mid-turn + COOLMODE pacing, APK `2a1d1055`) is what
+  removed SEVERE (turn 4 on `1f0e967b`; status 2 at most in all three runs of 2026-10-10). The three runs of
+  2026-10-10 were stopped by the harness, not the governor (one unreadable DB copy, fixed `0c8a711d`; the 42 C pause
+  that ignored the config's 43, fixed `e0ae695d`). The flat 0.5 run peaked at battery 42.3 C, so with the fixed
+  harness it would likely have completed too (not measured). Graduated pacing is not what made 20/20: it adds faster
+  first turns.
 - The ramp buys the first turns: 4-6 completions at 10-16 tok/s instead of 2.
 - In the hot steady state the 0.99 line runs at duty ~0.42-0.48 and a median of 5.8 tok/s: back near the flat 0.5
   (6.0) and above the 0.97 line (5.3). Under continuous load the S23 sheds about the same heat whatever the ramp, so
