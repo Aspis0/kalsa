@@ -2,6 +2,7 @@
 //! server, downloads and checks the signature, stops the engine the way a quit
 //! does, and installs. The page only asks and shows what comes back.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -147,6 +148,26 @@ pub(crate) fn release_offered(offered: &str, found: Option<&str>) -> Result<(), 
     }
 }
 
+static INSTALL_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+
+/// Holds the install slot until it is dropped, so two installs never download,
+/// stop and install over each other. A drop on any exit path frees it.
+pub(crate) struct InstallGuard<'a>(&'a AtomicBool);
+
+impl<'a> InstallGuard<'a> {
+    pub(crate) fn take(flag: &'a AtomicBool) -> Result<Self, Failure> {
+        flag.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map(|_| Self(flag))
+            .map_err(|_| Failure::Busy)
+    }
+}
+
+impl Drop for InstallGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
 /// The startup check waits for an engine that is up and for no start to be
 /// walking. The first-run walk downloads for minutes, and an update prompt is
 /// no business of that window.
@@ -177,7 +198,7 @@ impl ProgressTicks {
         if finished || self.done - self.reported >= self.step {
             self.reported = self.done;
             Some(Progress {
-                done: self.done,
+                done: total.map_or(self.done, |total| self.done.min(total)),
                 total,
             })
         } else {
@@ -230,6 +251,7 @@ pub(crate) async fn brain_update_install(
     brain: tauri::State<'_, Arc<Brain>>,
     version: String,
 ) -> Result<(), UpdateError> {
+    let _slot = InstallGuard::take(&INSTALL_IN_FLIGHT)?;
     if let Some(failure) = busy_failure(brain.walk_in_flight(), brain.reply_in_flight()) {
         return Err(failure.into());
     }
@@ -382,5 +404,21 @@ mod tests {
         assert!(ticks.add(60, Some(250)).is_none());
         let last = ticks.add(70, Some(250)).expect("the end is always reported");
         assert_eq!((last.done, last.total), (250, Some(250)));
+    }
+
+    #[test]
+    fn progress_never_reports_past_the_total() {
+        let mut ticks = ProgressTicks::new(100);
+        let over = ticks.add(300, Some(250)).expect("the end is always reported");
+        assert_eq!((over.done, over.total), (250, Some(250)));
+    }
+
+    #[test]
+    fn a_second_install_is_refused_until_the_first_leaves() {
+        let flag = AtomicBool::new(false);
+        let first = InstallGuard::take(&flag).expect("the first install takes the slot");
+        assert_eq!(InstallGuard::take(&flag).err(), Some(Failure::Busy));
+        drop(first);
+        assert!(InstallGuard::take(&flag).is_ok(), "the release frees the slot");
     }
 }

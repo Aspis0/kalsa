@@ -36,7 +36,7 @@ pub(crate) fn search(query: &str, stop: &AtomicBool) -> Result<String, WebError>
         "params": {
             "protocolVersion": PROTOCOL_VERSION,
             "capabilities": {},
-            "clientInfo": { "name": "kalsa-brain", "version": "0.0.1" },
+            "clientInfo": { "name": "kalsa-brain", "version": env!("CARGO_PKG_VERSION") },
         },
     });
     // The initialize answer is where the session comes from, and this request

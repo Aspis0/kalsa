@@ -452,6 +452,24 @@ fn the_update_route_key_never_reaches_a_log_line() {
 }
 
 #[test]
+fn an_update_key_that_ends_the_address_is_redacted_too() {
+    const KEY: &str = "Zk9wQ2xT8rLmP4vN7bH1cYdEfGhJ0kMqRsTuVwX3aBc";
+    assert_eq!(KEY.len(), 43, "the key the Worker issues is 43 characters");
+    let redactions = Redactions::new(None, None, None, false);
+    let bare = format!("(https://kalsa.io/download/update/{KEY})");
+    let redacted = redact(&bare, &redactions);
+    assert_eq!(redacted, "(https://kalsa.io/download/update/<redacted>)");
+    let with_query = format!("at https://kalsa.io/download/update/{KEY}?x=1 next");
+    let redacted = redact(&with_query, &redactions);
+    assert!(!redacted.contains(KEY), "{redacted}");
+    assert!(redacted.contains("https://kalsa.io/download/update/<redacted>?…"), "{redacted}");
+    let trailing = format!("at https://kalsa.io/download/update/{KEY}/ next");
+    let redacted = redact(&trailing, &redactions);
+    assert!(!redacted.contains(KEY), "{redacted}");
+    assert!(redacted.contains("https://kalsa.io/download/update/<redacted>/ next"), "{redacted}");
+}
+
+#[test]
 fn the_tester_link_key_is_redacted_but_the_named_routes_are_not() {
     let redactions = Redactions::new(None, None, None, false);
     let link = redact("opened https://kalsa.io/download/Zk9wQ2xT8rLm/ now", &redactions);

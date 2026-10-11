@@ -10,7 +10,7 @@ use crate::body::read_capped;
 use crate::failure;
 use crate::text::html_to_text;
 use crate::url;
-use crate::{WebError, REQUEST_BUDGET};
+use crate::{WebError, REQUEST_BUDGET, USER_AGENT};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const READ_TIMEOUT: Duration = Duration::from_secs(20);
@@ -25,8 +25,6 @@ const BODY_CAP: usize = 2_000_000;
 const TEXT_CAP: usize = 6_000;
 /// A redirect chain longer than this is a loop or a maze; stop.
 const MAX_REDIRECTS: usize = 5;
-
-const USER_AGENT: &str = "kalsa-brain/0.0.1";
 
 /// Fetch `url` and return its readable text, cut to what the model can use.
 /// `stop` is checked before every request and while each body is read.

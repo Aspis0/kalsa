@@ -71,6 +71,24 @@ try {
       status: { current: "0.0.2", available: { version: "0.0.3", notes: null } },
     });
     check("a check that still finds the release keeps the notice", still.notice?.version === "0.0.3");
+    const superseded = run(INITIAL_UPDATE, notice, {
+      type: "checkFinished",
+      status: { current: "0.0.2", available: { version: "0.0.4", notes: "newer" } },
+    });
+    check(
+      "a newer release moves the notice to its version",
+      superseded.notice?.version === "0.0.4" && superseded.notice?.notes === "newer",
+      JSON.stringify(superseded.notice),
+    );
+    const dismissedThenNewer = run(INITIAL_UPDATE, notice, { type: "noticeDismissed" }, {
+      type: "checkFinished",
+      status: { current: "0.0.2", available: { version: "0.0.4", notes: null } },
+    });
+    check(
+      "a newer release does not bring back a dismissed notice",
+      dismissedThenNewer.notice === null,
+      JSON.stringify(dismissedThenNewer.notice),
+    );
   }
 
   {

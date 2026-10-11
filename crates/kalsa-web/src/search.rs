@@ -17,11 +17,10 @@ use crate::body::read_capped;
 use crate::exa;
 use crate::failure;
 use crate::url;
-use crate::{WebError, REQUEST_BUDGET};
+use crate::{WebError, REQUEST_BUDGET, USER_AGENT};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const READ_TIMEOUT: Duration = Duration::from_secs(20);
-const USER_AGENT: &str = "kalsa-brain/0.0.1";
 
 /// Search the web and return the results as numbered text with their URLs.
 pub fn search(query: &str, stop: &AtomicBool) -> Result<String, WebError> {

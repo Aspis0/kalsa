@@ -18,7 +18,7 @@ export function UpdatesSettings({ updates, busy }: UpdatesSettingsProps) {
   // A refused install keeps its release on the page, so it can be pressed again.
   const retry = phase.kind === "failed" ? phase.version : null;
   const percent =
-    phase.kind === "downloading" && phase.total ? Math.floor((phase.done * 100) / phase.total) : null;
+    phase.kind === "downloading" && phase.total ? Math.min(100, Math.floor((phase.done * 100) / phase.total)) : null;
 
   return <div className="settings-toggle">
     <p>{t.title}</p>

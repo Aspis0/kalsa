@@ -47,6 +47,9 @@ pub fn openable(url: &str) -> Result<(), WebError> {
 /// timeouts set.
 pub(crate) const REQUEST_BUDGET: std::time::Duration = std::time::Duration::from_secs(30);
 
+/// The app's name and version as the sites we fetch from see them.
+pub(crate) const USER_AGENT: &str = concat!("kalsa-brain/", env!("CARGO_PKG_VERSION"));
+
 /// Why a web request did not produce text. [`Display`](std::fmt::Display) is
 /// the sentence the user and the model read; it is the only place these are
 /// phrased.
