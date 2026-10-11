@@ -1,0 +1,35 @@
+[
+ {
+  "content": "Il primo treno impiega **3h15** e il secondo **3h10**.\n\n- Velocità Milano–Roma: \\(570/3{,}25 = \\frac{2280}{13}\\) km/h  \n- Velocità Roma–Milano: \\(570/3{,}166\\ldots = 180\\) km/h\n\nAlle **15:10**, il primo treno ha già fatto mezz’ora:  \n\\(\\frac{2280}{13}\\cdot \\frac12 = \\frac{1140}{13}\\) km.\n\nVelocità relativa: \\(\\frac{2280}{13}+180=\\frac{4620}{13}\\) km/h.  \nTempo di incrocio dopo le 15:10:\n\n\\[\n\\frac{570-\\frac{1140}{13}}{\\frac{4620}{13}}=\\frac{19}{14}\\text{ h}\\approx 81\\text{ min }26\\text{ s}\n\\]\n\nQuindi si incrociano alle **16:31:26 circa**.",
+  "reasoning_chars": 4466,
+  "finish": "stop",
+  "tok_s": 15.5,
+  "prompt_tok_s": 83.5,
+  "tokens": 2714,
+  "wall_s": 176.1,
+  "lang": "it",
+  "q": "Un treno parte da Milano alle 14:40 e arriva a Roma alle 17:55. Un secondo treno parte da Roma alle 15:10 e arriva a Milano alle 18:20. Le due città distano 570 km e i treni viaggiano a velocità costante. A che ora si incrociano? Mostra il ragionamento in breve."
+ },
+ {
+  "content": "",
+  "reasoning_chars": 14925,
+  "finish": "length",
+  "tok_s": 16.1,
+  "prompt_tok_s": 55.0,
+  "tokens": 4096,
+  "wall_s": 254.6,
+  "lang": "it",
+  "q": "Spiega la differenza tra 'gli ho detto' e 'le ho detto' e correggi questa frase: 'Se avrei saputo che venivi, ti avrei aspettato.'"
+ },
+ {
+  "content": "",
+  "reasoning_chars": 12727,
+  "finish": "length",
+  "tok_s": 16.0,
+  "prompt_tok_s": 47.8,
+  "tokens": 4096,
+  "wall_s": 257.6,
+  "lang": "it",
+  "q": "Riassumi in tre frasi il significato del canto V dell'Inferno di Dante, citando un verso esatto."
+ }
+]

@@ -1,0 +1,145 @@
+[
+ {
+  "content": "Per trovare l'ora dell'incontro, dobbiamo calcolare la velocità di ogni treno e il momento in cui le distanze percorse sommano 570 km.\n\n**1. Calcolo delle velocità**\n*   **Treno Milano→Roma:**\n    *   Durata viaggio: dalle 14:40 alle 17:55.\n    *   Tempo = $17:55 - 14:40 = 3$ ore e $15$ minuti = $3,25$ ore.\n    *   Velocità $v_1 = \\frac{570}{3,25} \\approx 175,38$ km/h.\n*   **Treno Roma→Milano:**\n    *   Durata viaggio: dalle 15:10 alle 18:20.\n    *   Tempo = $18:20 - 15:10 = 3$ ore e $10$ minuti = $3,166...$ ore ($\\frac{19}{6}$ ore).\n    *   Velocità $v_2 = \\frac{570}{19/6} = \\frac{570 \\times 6}{19} = 30 \\times 6 = 180$ km/h.\n\n**2. Calcolo del tempo dall'inizio del primo treno**\nSia $t$ il tempo (in ore) trascorso dalla partenza del primo treno (14:40) fino all'incontro.\nLa posizione del Treno 1 (dalla Milano): $d_1(t) = v_1 \\cdot t$\nLa posizione del Treno 2 (dalla Roma, quindi distanza da Milano è $570 - d_2$):\nIl Treno 2 parte 30 minuti ($0,5$ ore) dopo il Treno 1. Quindi, quando il Treno 1 ha viaggiato per $t$ ore, il Treno 2 ha viaggiato per $(t - 0,5)$ ore.\nLa distanza percorsa dal Treno 2 è: $d_2(t) = v_2 \\cdot (t - 0,5)$\n\nPer l'incontro: $d_1(t) + d_2(t) = 570$\n$$v_1 \\cdot t + v_2 \\cdot (t - 0,5) = 570$$\n\nSostituiamo i valori:\n$$\\left(\\frac{570}{3,25}\\right)t + 180(t - 0.5) = 570$$\n\nDividiamo l'equazione per 570 per semplificare (oppure usiamo le frazioni):\n$v_1 = \\frac{2280}{13}$ km/h\n$v_2 = 180$ km/h\n\n$$\\frac{2280}{13} t + 180t - 90 = 570$$\n$$\\frac{2280}{13} t + 180t = 660$$\n\nMoltiplichiamo per 13 per eliminare il denominatore:\n$$2280t + 2340t = 8580$$\n$$4620t = 8580$$\n$$t = \\frac{8580}{4620} = \\frac{858}{462} = \\frac{143}{77} \\approx 1,857 \\text{ ore}$$\n\nSemplicifichiamo $\\frac{858}{462}$:\nDividendo per 6: $143 / 77$.\nDividendo per 11: $13 / 7$ ore.\n\nQuindi $t = \\frac{13}{7}$ ore.\n$\\frac{13}{7}$ ore = $1$ ora e $\\frac{6}{7}$ di ora.\n$\\frac{6}{7}$ di 60 minuti = $\\frac{360}{7} \\approx 51,4$ minuti.\n\nQuindi l'incontro avviene dopo circa **1 ora e 51 minuti** dalla partenza del primo treno.\n\n**3. Calcolo dell'ora**\nPartenza primo treno: 14:40\nAggiungi 1 ora e 51 minuti:\n$14:40 + 1:00 = 15:40$\n$15:40 + 51 \\text{ min} = 16:31$\n\nRicompando:\n$\\frac{360}{7}$ min = $51.428...$ min.\n$51.428$ min è circa 51 min e 25 sec.\n\nL'incontro avviene alle **16:31** (circa).\n\n**Risposta finale:**\nI treni si incrociano alle **16:31** (più precisamente alle 16:31:26).",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 13.6,
+  "prompt_tok_s": 85.3,
+  "tokens": 1136,
+  "wall_s": 85.0,
+  "lang": "it",
+  "q": "Un treno parte da Milano alle 14:40 e arriva a Roma alle 17:55. Un secondo treno parte da Roma alle 15:10 e arriva a Milano alle 18:20. Le due città distano 570 km e i treni viaggiano a velocità costante. A che ora si incrociano? Mostra il ragionamento in breve."
+ },
+ {
+  "content": "Ecco la spiegazione della differenza tra le due forme e la correzione della tua frase.\n\n### 1. Differenza tra 'gli ho detto' e 'le ho detto'\n\nIn italiano, l'uso di **\"gli\"** e **\"le\"** come pronomi indiretti (oggetti indiretti) dipende dal **genere** e dal **numero** della persona a cui si sta riferendo, non dal modo in cui si pronuncia la parola (che può sembrare identico al trapieto).\n\n*   **Gli ho detto**: Si usa per un **maschile** (singolare o plurale).\n    *   Esempio: Ho parlato al mio amico. → *Gli ho detto...* (a lui).\n    *   Esempio: Ho parlato ai miei amici. → *Gli ho detto...* (a loro, i maschi).\n*   **Le ho detto**: Si usa per una **femminile** (singolare o plurale).\n    *   Esempio: Ho parlato alla mia amica. → *Le ho detto...* (a lei).\n    *   Esempio: Ho parlato alle mie amiche. → *Le ho detto...* (a loro, le femmine).\n\n> **Nota importante:** Al parlato, si può distinguere la pronuncia (un suono più chiuso per \"gli\" e più aperto per \"le\"), ma nella scrittura è fondamentale ricordare il **genere della persona a cui ci si rivolge**.\n>\n> *   Se il destinatario è un uomo: **gli** ho detto.\n> *   Se il destinatario è una donna: **le** ho detto.\n\n---\n\n### 2. Correzione della frase\n\n**Frase originale:**\n> \"Se avrei saputo che venivi, ti avrei aspettato.\"\n\n**Correzione corretta:**\n> **\"Se avessi saputo che venivi, ti avrei aspettato.\"**\n\n#### Perché è sbagliato?\nLa frase originale contiene un errore classico: l'**uso indebito del condizionale presente nell'ipotesi**.\n\nIn italiano, per esprimere un **contrario di fatto** (qualcosa che *non* è accaduto in passato) al passato remoto, si usano due tempi:\n1.  **Congiuntivo passato** (o congiuntivo trapassato, a seconda del contesto) nella prima parte della frase (la condizione/la supposizione).\n2.  **Condizionale passato** nella seconda parte della frase (la conseguenza).\n\nLa struttura corretta è:\n> **Se + Congiuntivo passato** ... , **avrei + participio passato** ...\n\n*   ❌ *Se* **avrei saputo** (errore: condizionale presente)\n*   ✅ *Se* **avessi saputo** (corretto: congiuntivo passato)\n\n**Analisi grammaticale della frase corretta:**\n*   *Se avessi saputo*: \"Se\" + verbo *sapere* al **congiuntivo passato** (avere + participio passato). Indica una condizione ipotetica non verificata nel passato.\n*   *che venivi*: Indicativo imperfetto (stato continuo nel passato).\n*   *ti avrei aspettato*: Verbo *aspettare* al **condizionale passato** (avere + participio passato). Indica l'azione che non si sarebbe verificata a causa della condizione.\n\n**Altre possibilità stilistiche (meno comuni ma grammaticalmente corrette):**\n*   *Se sapessi che veni, ti aspetterei.* (Presente ipotetico: situazione attuale/futuro imminente, non passato.)\n*   *Se fossi saputo...* (Forma arcaica o regionale, oggi preferita la forma standard \"avessi saputo\".)",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 13.9,
+  "prompt_tok_s": 51.3,
+  "tokens": 808,
+  "wall_s": 59.2,
+  "lang": "it",
+  "q": "Spiega la differenza tra 'gli ho detto' e 'le ho detto' e correggi questa frase: 'Se avrei saputo che venivi, ti avrei aspettato.'"
+ },
+ {
+  "content": "Il Canto V dell'Inferno di Dante illustra le pene dei traditori della fede, i quali, pur essendo in pena per aver venduto la propria città, mantengono ancora un brivale di fedeltà verso i loro concittadini. La scena si sviluppa tra Ulisse e Ene, i quali, pur condannati per aver tradito i popoli greci e troiani, sono ancora affettuosi nella loro conversazione. Come scrive il poeta: \"E' il tuo Ene, e il mio Ulisse, che fu in guerra / e in pace fu più che gli altri onorato\"",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 14.1,
+  "prompt_tok_s": 43.7,
+  "tokens": 133,
+  "wall_s": 10.4,
+  "lang": "it",
+  "q": "Riassumi in tre frasi il significato del canto V dell'Inferno di Dante, citando un verso esatto."
+ },
+ {
+  "content": "Oggetto: Segnalazione infiltrazione d’acqua\n\nSpett.le Associazione Condominiale\n\nCon la presente, si comunica la presenza di un’infiltrazione d’acqua nel mio appartamento, provenente dal piano superiore.\nVi chiedo cortesemente di intervenire urgentemente per identificare la causa e procedere alle riparazioni necessarie, al fine di evitare danni a ulteriori parti dell’immobile.\nResto a disposizione per qualsiasi chiarimento.\nCordiali saluti\n[Your Name]",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 12.9,
+  "prompt_tok_s": 43.4,
+  "tokens": 103,
+  "wall_s": 9.0,
+  "lang": "it",
+  "q": "Scrivi una mail formale (max 80 parole) al condominio per segnalare un'infiltrazione d'acqua dal piano di sopra."
+ },
+ {
+  "content": "Voici la différence entre **je mangerais** et **je mangerai** :\n\n### 1. **Je mangerai** (Futur simple)\nCe temps s'utilise pour parler d’un **acte certain**, prévu ou futur, qui aura lieu dans un temps futur précis. C’est la forme neutre et directe pour l’avenir.\n\n*   **Exemple :** *Demain, **je mangerai** une pizza au restaurant.*\n    *(Indication : l’action aura lieu demain, de manière définitive.)*\n\n### 2. **Je mangerais** (Conditionnel présent)\nCe temps s’utilise pour exprimer une **hypothèse**, une **possibilité**, un **souhait** ou une **demande polie**. Il indique que l’action n’est pas encore certaine et dépend d’une condition.\n\n*   **Exemple :** *Si j’aurais de l’argent, **je mangerais** au restaurant.*\n    *   Ou, pour une demande polie : *Est-ce que **tu manges** ? — Non. — **Je mangerais** avec toi, si tu veux.*\n    *   Ou pour un souhait : *Je rêve d’un voyage. **Je mangerais** des fruits de mer sur la plage.*\n\n---\n\n### En résumé :\n\n| Temps | Nom | Usage principal | Exemple |\n|-------|-----|-----------------|---------|\n| **je mangerai** | Futur simple | Certitude, futur précis | *Je mangerai dans une heure.* |\n| **je mangerais** | Conditionnel présent | Hypothèse, souhait, politesse | *Je mangerais si tu m’invitais.* |",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 12.7,
+  "prompt_tok_s": 39.1,
+  "tokens": 364,
+  "wall_s": 29.7,
+  "lang": "fr",
+  "q": "Explique la différence entre « je mangerais » et « je mangerai », puis écris une phrase correcte avec chacun."
+ },
+ {
+  "content": "Pour déterminer le nombre de tenues différentes, nous pouvons utiliser le principe du comptage par combinaison, en tenant compte de la restriction imposée.\n\n**1. Calcul du nombre total de combinaisons possibles (sans restriction)**\nUne tenue est composée de 3 éléments : une chemise, un pantalon et une paire de chaussures.\n*   Nombre de chemises ($C$) : 3\n*   Nombre de pantalons ($P$) : 4\n*   Nombre de paires de chaussures ($K$) : 2\n\nLe nombre total de combinaisons possibles est le produit de ces quantités :\n$$3 \\times 4 \\times 2 = 24 \\text{ tenues}$$\n\n**2. Identification des combinaisons interdites**\nLa restriction est : **« pas de chemise rouge avec le pantalon vert »**.\n\n*   Il n'y a qu'**1** chemise rouge.\n*   Il n'y a qu'**1** pantalon vert.\n*   Pour la paire de chaussures, il n'y a **aucune restriction**, donc on peut choisir n'importe laquelle des **2** paires disponibles.\n\nLe nombre de combinaisons interdites est donc :\n$$1 \\text{ (chemise rouge)} \\times 1 \\text{ (pantalon vert)} \\times 2 \\text{ (chaussures)} = 2 \\text{ tenues interdites}$$\n\nCes deux tenues sont :\n1.  Chemise rouge + Pantalon vert + Chaussure 1\n2.  Chemise rouge + Pantalon vert + Chaussure 2\n\n**3. Calcul du nombre de tenues valides**\nPour obtenir le nombre de tenues autorisées, on soustrait les combinaisons interdites du nombre total :\n$$24 - 2 = 22$$\n\n**Justification alternative (par cas) :**\nOn peut aussi calculer directement en séparant les cas où l'on porte la chemise rouge ou non.\n\n*   **Cas 1 : On porte la chemise rouge.**\n    *   Chemise : 1 choix (la rouge).\n    *   Pantalon : On ne peut *pas* porter le vert. Il y a 4 pantalons au total, donc $4 - 1 = 3$ choix valides.\n    *   Chaussures : 2 choix.\n    *   Combinaisons : $1 \\times 3 \\times 2 = 6$ tenues.\n\n*   **Cas 2 : On ne porte pas la chemise rouge.**\n    *   Chemise : Il reste $3 - 1 = 2$ choix.\n    *   Pantalon : Aucune restriction sur le pantalon (on peut porter le vert, car la restriction ne concerne que le couple rouge/vert). Donc 4 choix.\n    *   Chaussures : 2 choix.\n    *   Combinaisons : $2 \\times 4 \\times 2 = 16$ tenues.\n\n*   **Total :** $6 + 16 = 22$ tenues.\n\nLes deux méthodes donnent le même résultat.\n\n**Conclusion :**\nVous pouvez composer **22** tenues différentes.",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 13.1,
+  "prompt_tok_s": 61.5,
+  "tokens": 689,
+  "wall_s": 53.6,
+  "lang": "fr",
+  "q": "Si j'ai 3 chemises, 4 pantalons et 2 paires de chaussures, mais que je refuse de porter la chemise rouge avec le pantalon vert, combien de tenues différentes puis-je composer ? Justifie."
+ },
+ {
+  "content": "Le CDD est un contrat déterminé qui s’arrête automatiquement à une date précise ou à l’accomplissement d’une tâche précise, tandis que le CDI est un contrat indéterminé qui perdure tant qu’il n’est pas résilié.\n\nLe CDD impose une durée maximum de deux ans (ou trois en cas de reconductible ou après formation) et une cause légale de rupture, contrairement au CDI qui ne requiert pas de cause pour sa conclusion.\n\nEn cas de rupture, le CDD peut donner lieu à une indemnité de licenciement en cas de rupture abusive, mais le CDI est généralement couvert par une procédure de licenciement individuel plus encadrée et des indemnités plus élevées.\n\nLe principal risque juridique pour l’employeur réside dans le recours à la qualification du CDD en CDI en cas de succession de CDD ou d’absence de motif réel de limitation de la durée.",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 14.1,
+  "prompt_tok_s": 54.0,
+  "tokens": 194,
+  "wall_s": 14.5,
+  "lang": "fr",
+  "q": "Quelle est la différence juridique entre un CDD et un CDI en France ? Réponds en quatre phrases maximum."
+ },
+ {
+  "content": "**成语：画蛇添足**\n\n**意思：**\n原指在画蛇的画面上给蛇添上了脚，反而破坏了蛇的形象，比喻**多余的东西破坏了整体的完美**，或做作反而显得多此一举、得不偿失。有时也引申为多管闲事或多余地介入别人的事情，造成不利后果。\n\n**出处：**\n《战国策·齐策三》：“吾谓楚之非胜，而画蛇足也。”（意为：我说楚国并没有取胜，而是像画蛇添了脚一样，反而失去了胜利。）\n\n**造句：**\n他本来已经准备得很充分了，却还在临场表演时加上了复杂的特效，结果反而让整体演出显得杂乱无章，真是**画蛇添足**了。",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 14.0,
+  "prompt_tok_s": 45.0,
+  "tokens": 164,
+  "wall_s": 12.3,
+  "lang": "zh",
+  "q": "请用简体中文解释成语“画蛇添足”的意思，并造一个句子。"
+ },
+ {
+  "content": "这是一个典型的“工程问题”（注水排水问题）。我们可以把水池的容量看作单位“1”，然后根据每个管子的效率来计算。\n\n### 1. 设定单位与计算效率\n\n假设水池的总容量为 **1**。\n\n*   **甲管（进水管）：**\n    单独注满需要 6 小时。\n    甲管每小时注水量（效率） = $\\frac{1}{6}$\n\n*   **乙管（进水管）：**\n    单独注满需要 4 小时。\n    乙管每小时注水量（效率） = $\\frac{1}{4}$\n\n*   **丙管（出水管）：**\n    单独放空需要 12 小时。\n    丙管每小时排水量（效率） = $\\frac{1}{12}$ （因为它是排出的，所以在计算净注水率时作为减数）\n\n### 2. 计算三管同时打开时的净效率\n\n当三管同时打开时，水池每小时的净注水量等于两个进水管的流量之和减去出水管的流量：\n\n$$ \\text{每小时净注水量} = \\text{甲的效率} + \\text{乙的效率} - \\text{丙的效率} $$\n\n$$ \\text{每小时净注水量} = \\frac{1}{6} + \\frac{1}{4} - \\frac{1}{12} $$\n\n为了进行加减运算，我们需要通分。6、4、12的最小公倍数是 **12**：\n\n*   $\\frac{1}{6} = \\frac{2}{12}$\n*   $\\frac{1}{4} = \\frac{3}{12}$\n*   $\\frac{1}{12} = \\frac{1}{12}$\n\n代入计算：\n\n$$ \\text{每小时净注水量} = \\frac{2}{12} + \\frac{3}{12} - \\frac{1}{12} $$\n\n$$ \\text{每小时净注水量} = \\frac{2 + 3 - 1}{12} = \\frac{4}{12} $$\n\n简化分数：\n\n$$ \\frac{4}{12} = \\frac{1}{3} $$\n\n这意味着，三管同时打开时，每小时能净注满水池的 $\\frac{1}{3}$。\n\n### 3. 计算所需时间\n\n所需时间 = 总容量 ÷ 每小时净注水量\n\n$$ \\text{所需时间} = 1 \\div \\frac{1}{3} $$\n\n$$ \\text{所需时间} = 3 \\text{ (小时)} $$\n\n### 结论\n\n三管同时打开，需要 **3小时** 注满水池。",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 13.7,
+  "prompt_tok_s": 67.7,
+  "tokens": 593,
+  "wall_s": 44.2,
+  "lang": "zh",
+  "q": "一个水池有两个进水管和一个出水管。甲管单独注满需要6小时，乙管单独注满需要4小时，丙管单独放空需要12小时。三管同时打开，几小时注满？请写出计算过程。"
+ },
+ {
+  "content": "儒家主张“仁政”与“礼治”，强调通过道德教化、礼法制度以及君子的修身齐家来整顿社会秩序，实现政治清明。\n\n道家则提倡“无为而治”与“道法自然”，主张统治者应顺应万物本性与自然规律，减少人为干预和折腾，以清静无为达到社会的和谐稳定。\n\n简而言之，儒家追求积极有为的伦理秩序，而道家主张消极顺应自然法则，二者在治国路径上形成了“入世”与“出世”、“治民”与“治心”的鲜明对比。",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 13.9,
+  "prompt_tok_s": 39.7,
+  "tokens": 121,
+  "wall_s": 9.4,
+  "lang": "zh",
+  "q": "用三句话比较儒家和道家对“治国”的看法。"
+ },
+ {
+  "content": "La diferencia fundamental entre **'ser'** y **'estar'** con adjetivos como *aburrido* y *listo* radica en si el adjetivo describe una **calidad intrínseca o permanente** (usamos *ser*) o una **circunstancia temporal, accidental o cambiante** (usamos *estar*).\n\nAquí tienes la explicación detallada con ejemplos:\n\n### 1. \"Ser\" (Característica estable o permanente)\nUsamos **\"ser\"** cuando el adjetivo se refiere a una cualidad esencial, inmutable o típica de la persona o cosa. Es parte de su definición.\n\n*   **Aburrido (ser):** Se usa cuando alguien tiene por **naturaleza** ser aburrido; es una cualidad habitual.\n    *   *Ejemplo:* **\"Mi hermano es aburrido.\"**\n    *   *Significado:* No importa la situación; por su carácter siempre resulta aburrido.\n*   **Listo (ser):** Se usa cuando \"listo\" significa **\"inteligente\"** o \"capaz\" por naturaleza, o cuando se habla de un estado definitivo (como un producto terminado).\n    *   *Ejemplo:* **\"María es lista.\"**\n    *   *Significado:* Es una cualidad intrínseca de su mente.\n    *   *Otro ejemplo:* **\"La sopa está lista\"** (vs. **\"La sopa es lista\"** no suena bien, porque \"estar listo\" como producto terminado usa *estar*, pero si dices **\"Es un libro listo\"** no es estándar; mejor: **\"La tarea está lista\"** = terminada).\n\n> ⚠️ **Ojo con \"listo\":**\n> - **Ser listo** = Inteligente.\n> - **Estar listo** = Preparado / Terminado.\n\n---\n\n### 2. \"Estar\" (Circunstancia temporal o accidental)\nUsamos **\"estar\"** cuando el adjetivo describe un estado pasajero, circunstancial o que puede cambiar fácilmente.\n\n*   **Aburrido (estar):** Se usa cuando alguien **se siente** aburrido en un momento concreto, por la situación actual.\n    *   *Ejemplo:* **\"Hoy estoy aburrido.\"**\n    *   *Significado:* Hoy me siento aburrido, pero mañana podría sentirme animado. Es un estado emocional temporal.\n*   **Listo (estar):** Se usa cuando \"listo\" significa **\"preparado\"**, **\"terminado\"** o **\"en orden\"**.\n    *   *Ejemplo:* **\"El uniforme está listo.\"**\n    *   *Significado:* Ya está preparado para usarse.\n    *   *Otro ejemplo:* **\"Estamos listos para salir.\"**\n    *   *Significado:* Ya hemos preparado todo; estamos en estado de salir ahora.\n\n---\n\n### Resumen comparativo\n\n| Adj. | Verbo | Significado | Ejemplo |\n|------|-------|-------------|---------|\n| **Aburrido** | **Ser** | Cualidad permanente (es un carácter) | *\"Él **es** aburrido.\"* (Siempre le resulta todo aburrido.) |\n| **Aburrido** | **Estar** | Estado temporal (se siente así ahora) | *\"Estoy **aburrido** en esta reunión.\"* (Ahora mismo no me apasiona.) |\n| **Listo** | **Ser** | Inteligente (cualidad mental) | *\"Mi hija **es** lista.\"* (Tiene buen intelecto.) |\n| **Listo** | **Estar** | Preparado / Terminado | *\"La cena **está** lista.\"* (Ya está cocinada y servida.) |\n\n### Truco mnemónico:\n- **Ser** = **S**e es (permanente, esencial).\n- **Estar** = **E**s temporal (cambia, pasa, es circunstancial).",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 13.6,
+  "prompt_tok_s": 46.1,
+  "tokens": 859,
+  "wall_s": 64.3,
+  "lang": "es",
+  "q": "Explica la diferencia entre 'ser' y 'estar' con 'aburrido' y 'listo', con un ejemplo de cada uno."
+ },
+ {
+  "content": "Aquí tienes el desglose paso a paso de los cálculos:\n\n**Datos iniciales:**\n*   Ahorro inicial: $1.200 €\n*   Porcentaje de gasto: 15%\n*   Inversión: 1/3 de lo que queda\n*   Interés anual (interés simple): 4%\n*   Duración de la inversión: 18 meses\n\n---\n\n### Paso 1: Calcular el gasto y el dinero que queda\n\nPrimero calculamos cuánto dinero gastas (el 15% de 1.200 €) y cuánto te queda después de ese gasto.\n\n1.  **Cantidad gastada:**\n    $$1.200 \\times 0,15 = 180 \\text{ €}$$\n\n2.  **Dinero que queda:**\n    $$1.200 - 180 = 1.020 \\text{ €}$$\n\n    *(Alternativa: $1.200 \\times (1 - 0,15) = 1.200 \\times 0,85 = 1.020 \\text{ €}$)*\n\n---\n\n### Paso 2: Determinar el capital a invertir\n\nInviertes **un tercio** de lo que queda (1.020 €).\n\n1.  **Capital a invertir ($P$):**\n    $$\\frac{1.020}{3} = 340 \\text{ €}$$\n\n2.  **Dinero no invertido:**\n    $$1.020 - 340 = 680 \\text{ €}$$\n\n    *Nota: Este dinero de 680 € no genera interés, por lo que se mantiene constante.*\n\n---\n\n### Paso 3: Calcular el interés simple ganado\n\nLa fórmula del interés simple es:\n$$I = P \\times r \\times t$$\n\nDonde:\n*   $P$ (Principal) = $340 €$\n*   $r$ (Tasa anual) = $0,04$ (4%)\n*   $t$ (Tiempo en años) = $18 \\text{ meses} = \\frac{18}{12} = 1,5 \\text{ años}$\n\n1.  **Interés generado:**\n    $$I = 340 \\times 0,04 \\times 1,5$$\n    $$I = 13,6 \\times 1,5$$\n    $$I = 20,40 \\text{ €}$$\n\n2.  **Valor final de la inversión:**\n    $$340 + 20,40 = 360,40 \\text{ €}$$\n\n---\n\n### Paso 4: Calcular el total final\n\nSumamos el dinero no invertido más el capital invertido con el interés acumulado.\n\n*   Dinero no invertido: $680,00 \\text{ €}$\n*   Dinero invertido (con interés): $360,40 \\text{ €}$\n\n$$Total = 680,00 + 360,40 = 1.040,40 \\text{ €}$$\n\n---\n\n### Respuesta Final\n\nAl final de los 18 meses, tienes en total **1.040,40 €**.",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 13.7,
+  "prompt_tok_s": 56.9,
+  "tokens": 754,
+  "wall_s": 56.4,
+  "lang": "es",
+  "q": "Tengo 1.200 € ahorrados. Gasto el 15 %, luego invierto un tercio de lo que queda al 4 % anual de interés simple durante 18 meses. ¿Cuánto dinero tengo en total al final? Muestra los cálculos."
+ },
+ {
+  "content": "El azul cristalino de sus aguas serenas\nrefleja el sol que al atardecer se retira,\ny en sus costas tranquilas, la vida que nace\nes la que al cielo, con paz, se inspira.",
+  "reasoning_chars": 0,
+  "finish": "stop",
+  "tok_s": 14.7,
+  "prompt_tok_s": 50.9,
+  "tokens": 51,
+  "wall_s": 4.2,
+  "lang": "es",
+  "q": "Escribe un poema de cuatro versos con rima consonante sobre el mar Mediterráneo."
+ }
+]

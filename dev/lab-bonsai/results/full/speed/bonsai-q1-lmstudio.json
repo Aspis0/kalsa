@@ -1,0 +1,35 @@
+{
+ "label": "bonsai-q1-lmstudio",
+ "runs": [
+  {
+   "ttft_s": 27.065,
+   "total_s": 35.368,
+   "decode_tok_s_client": 15.3,
+   "decode_tok_s_server": 15.3,
+   "prompt_tokens": 3117,
+   "prompt_tok_s_server": 118.81,
+   "completion_tokens": 128
+  },
+  {
+   "ttft_s": 26.422,
+   "total_s": 31.219,
+   "decode_tok_s_client": 15.43,
+   "decode_tok_s_server": 15.43,
+   "prompt_tokens": 3117,
+   "prompt_tok_s_server": 118.53,
+   "completion_tokens": 75
+  },
+  {
+   "ttft_s": 26.299,
+   "total_s": 29.701,
+   "decode_tok_s_client": 15.29,
+   "decode_tok_s_server": 15.29,
+   "prompt_tokens": 3117,
+   "prompt_tok_s_server": 118.97,
+   "completion_tokens": 53
+  }
+ ],
+ "median_ttft_s": 26.422,
+ "median_decode_tok_s_client": 15.3,
+ "median_decode_tok_s_server": 15.3
+}
