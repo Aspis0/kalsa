@@ -89,7 +89,7 @@ publication promises (`archived/PLAN-2026-09-full.md:408-431`).
 | 14-15 Sep | **G1** | model chosen, baseline with per-phone targets written before tuning | closed 10 Sep: LFM2.5-2.6B QAD Q4_0, sha `a247afd6` |
 | 21-23 Sep | **G2** | complete chat, 20-30 turn sessions, recovery without corruption | S23: MET 2026-10-10 - 20/20 turns in-app, unplugged, no crash, no recovery, status never 3 (APK `233486dd`, cell `s23-g2-full099-233486dd`); recovery without duplicate seen on `867affaa`. Other phones open. Earlier: first in-app run 2026-10-09 (APK `1f0e967b`) stopped at turn 4 on Android SEVERE (`s23-g2-inapp-1f0e967b`) |
 | 28-29 Sep | **G3** | every phone has at least one correct path; every ENABLED path passes its tests | partial: S23 yes in-app; Xiaomi correct in lab, in-app still two-copy until the SM8650 row ships; Jelly Star out of scope (owner 2026-10-11: unsupported until a Mali GPU kernel) |
-| 30 Sep-2 Oct | **G4** | sustained quality; consumption measured or limits declared | open: in-APK consumption first measured 2026-10-11 on the S23 (turn 1: governor ON 254-294 mWh vs OFF 376 mWh, ~2x per output token, OFF SEVERE in that turn, `s23-meter-gov-onoff-bc99cfeb`); Meter sampler overhead <= 0.2-0.4 % of a turn, under the 1 % bar (`s23-meter-overhead-bc99cfeb`); the 2026-09-28 governor blind spot has no later verification |
+| 30 Sep-2 Oct | **G4** | sustained quality; consumption measured or limits declared | open: in-APK consumption first measured 2026-10-11 on the S23 (turn 1: governor ON 254-294 mWh vs OFF 376 mWh, 1.8-2.0x per output token, OFF SEVERE in that turn, `s23-meter-gov-onoff-bc99cfeb`); Meter sampler overhead: conditional bound <= 0.24-0.44 % of a turn, under the 1 % bar (`s23-meter-overhead-bc99cfeb`); the 2026-09-28 governor blind spot has no later verification |
 | 9 Oct (reserve 16 Oct) | **M1** | first model complete and banked on the three phones, or a precise list of missing gates | NOT met as of 2026-10-09: no APK exists with the 2026-10-09 pin; G2 open |
 | 30 Oct | **M2** | second dense model on validated devices | future |
 | 20 Nov (reserve 27 Nov) | **M3** | first large MoE within the declared perimeter | future; the MoE lane itself is PARKED (see workstreams) |
@@ -288,13 +288,14 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
    0.35 floor (vs 5.6-6.4); stopped by the harness thermal hard abort at battery 42.5 C. Found: `run-t20c.sh`
    hard-coded the 42 C pause and ignored `recovery.thermalMaxC` (fixed in app `e0ae695d`, pushed); a 600 s "tool round" wait at turn 10
    (the app ended a `write_note` turn without a continuation round; backlog H6). Owner 2026-10-10 ("se secondo te e' meglio si"): S23 full line 0.99 (skin ~41.7 C) - binding `0da3b1eb` (param types), app `233486dd` (SM8550 only), pushed; APK CI run `38097645331`. G2 on it 2026-10-10 (`s23-g2-full099-233486dd`): **20/20 turns, recoveries 0, no pause**, repeated 2026-10-11 (run 2: 20/20, hot median 5.82 tok/s, MemAvailable min 1.08 GB); 4 completions >= 10 tok/s, hot median 5.8 tok/s (flat 0.5: 6.0; full 0.97: 5.3); skin max 41.5, battery max 42.5 C.
-4. On the same APK: the `_cok` app-shaped verification and in-APK consumption (Meter: the code is in app main since
+4. The `_cok` app-shaped verification and in-APK consumption (Meter, measured on APK `bc99cfeb`, not the G2 APK `233486dd`: the code is in app main since
    `6a58ef5`, `kalsa.bench.energy_trace` -> `files/energy/*.csv`; `GovernorBatteryPackage` is in the dex of APK `bc99cfeb`;
    first in-app reading 2026-10-11, `s23-meter-gov-onoff-bc99cfeb`: turn 1 of the G2 script costs 254-294 mWh with the
    governor ON (NPU, 12.1-13.5 mWh per 100 output tokens) and 376 mWh OFF (CPU only, 24.4; SEVERE within that turn);
    one OFF turn only. On the S23 energy comes from current x voltage: the charge counter pins at full charge, and the
    first version of the cell under-read ON by 3-4x that way. Sampler overhead measured at its source, `s23-meter-overhead-bc99cfeb`:
-   ~2.1-2.5 ms CPU per second (own thread + health HAL), bounded at <= 0.2-0.4 % of a turn's power, under the 1 % bar). The Meter
+   ~1.1-1.36 ms CPU/s in its own thread + ~1 ms/s in the health HAL; with the system_server share and a 4 W/core price
+   assumed, <= 0.24-0.44 % of a turn's power, under the 1 % bar). The Meter
    needs `run-as`: this APK is built debuggable for it (tracked bench build still owed for ship).
 5. Xiaomi: lab numbers done without an APK (owner 2026-10-09, cells 74-76). In-app round night of 2026-10-11
    (`xiaomi-g2-inapp-233486dd`, APK `233486dd`, owner lent it at 62 %): 14 turns in-app, NPU prefill + decode, no
