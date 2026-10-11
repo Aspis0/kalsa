@@ -44,6 +44,11 @@ the forecast was 0.28 and the status 0. So the S23-calibrated ramp (0.87 -> 0.97
 (39.5 -> 43 C) did all the pacing, and the Xiaomi's own hidden frequency caps did the rest (speed 15 -> 5-6 tok/s
 with status 0). The forecast may read a different, cooler sensor than the hottest one logged here.
 
+The declared threshold, read on this phone with `dumpsys thermalservice` during the session (2026-10-11):
+`Threshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], ...}`: SEVERE (index 3)
+at 66.5 C, SHUTDOWN at 95.0. AOSP's headroom normalizes as (T - (SEVERE - 30)) / 30, i.e. 1.0 at 66.5 C; the fit
+above puts 1.0 at ~66.9 C, consistent.
+
 Consequence: the headroom lines must be per phone (per HAL), like the S23's 0.99. A Xiaomi row would be
 roughly start 0.15 (skin ~41 C) / full 0.25 (skin ~44 C) on this fit; one run, so a proposal, not a calibration.
 
