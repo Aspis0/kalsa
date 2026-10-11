@@ -1,0 +1,13 @@
+board	label	kind	prompt	text_tokens	n_common	plan_npu_lane	plan_npu_fit	plan_gpu_fit	plan_avail_mib	plan_avail_src	gov_lines	thermal_state	chunks	layers_counts	engine_prefill	prefill_kv	cache_k	cache_v	failed	prefill_tok_s	prompt_n	decode_tok_s	tokens_predicted	skin_start	skin_peak	batt_peak	kill_after_s	fallbacks	crash_lines	lmk_lines	correct
+sm8850	off-short-1	OFF	short	595	0						0									216.8	595	30.333304797025267	422	38.40392	44.1	30.0	NA	0	0	40	sent=5
+sm8850	off-short-2	OFF	short	595	0						0									215.2	595	29.81471005512401	422	39.81904	45.3	30.0	NA	0	0	40	sent=5
+sm8850	on-short-1	ON	short	595	0	auto	Fit	Fit	18793.19	fresh	1	FAST	6	HTP0x6	NPU	device	q8_0	q8_0	NA	1332.7	595	30.39054548331757	507	36.5176	43.1	30.0	NA	0	0	40	sent=5
+sm8850	on-short-2	ON	short	595	0	auto	Fit	Fit	18875.03	fresh	1	FAST	6	HTP0x6	NPU	device	q8_0	q8_0	NA	1341.5	595	30.511102490704946	507	39.23384	44.7	30.0	NA	0	0	40	sent=5
+sm8850	p1a1	P1A	short	595	0						0									237.6	595	30.26060765164562	422	28.39092	37.2	30.0	NA	0	0	28	sent=5
+sm8850	p1a2	P1A	short	595	0						0									228.4	595	30.11131124271451	422	32.81032	40.1	30.0	NA	0	0	32	sent=5
+sm8850	p1a3	P1A	short	595	0						0									224.7	595	30.02864747200416	422	34.76352	41.8	30.0	NA	0	0	35	sent=5
+sm8850	p1b1	P1B	short	595	0	off	Fit	Fit	18863.25	fresh	1	FAST	6	GPUOpenCLx6	GPU	device	q8_0	q4_0	NA	303.3	595	29.42443898984952	31	32.39232	35.1	30.0	NA	0	0	32	sent=3
+sm8850	p1b2	P1B	short	595	0	off	Fit	Fit	18780.8	fresh	1	FAST	6	GPUOpenCLx6	GPU	device	q8_0	q4_0	NA	303.5	595	28.519908736292045	31	35.23092	36.9	30.0	NA	0	0	35	sent=3
+sm8850	p1b3	P1B	short	595	0	off	Fit	Fit	18876.88	fresh	1	FAST	6	GPUOpenCLx6	GPU	device	q8_0	q4_0	NA	303.2	595	29.17229723371339	31	36.87936	38.3	30.0	NA	0	0	38	sent=3
+sm8850	p1c	P1C	short	595	0						0									219.0	595	30.48804475251576	31	36.19536	38.2	30.0	NA	0	0	38	sent=3
+sm8850	xon-short-1	XON	short	2075	0	auto	Fit	Fit	18787.19	fresh	0									1580.5	2075	21.856062126908927	540	39.68224	48.9	30.0	47	0	0	40	NA

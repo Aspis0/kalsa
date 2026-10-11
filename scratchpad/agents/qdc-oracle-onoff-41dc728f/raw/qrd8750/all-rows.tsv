@@ -1,0 +1,7 @@
+6037 listener is 'none', not the QDC ssh tunnel: STOP
+board	label	kind	prompt	text_tokens	n_common	plan_npu_lane	plan_npu_fit	plan_gpu_fit	plan_avail_mib	plan_avail_src	gov_lines	thermal_state	chunks	layers_counts	engine_prefill	prefill_kv	cache_k	cache_v	failed	prefill_tok_s	prompt_n	decode_tok_s	tokens_predicted	skin_start	skin_peak	batt_peak	kill_after_s	fallbacks	crash_lines	lmk_lines	correct
+qrd8750	off-short-1	OFF	short	595	0						0									213.7	595	27.4626871887996	422	39.976	43.9	30.0	NA	0	0	19	sent=5
+qrd8750	off-short-2	OFF	short	595	0						0									210.8	595	27.496118128014757	422	39.944	43.9	30.0	NA	0	0	15	sent=5
+qrd8750	on-short-1	ON	short	595	0						0									NA				39.882	48.0	30.0	154	0	0	19	NA
+qrd8750	on-short-2	ON	short	595	0	auto	Fit	Fit	11927.97	fresh	1	FAST	6	HTP0x6	NPU	device	q8_0	q8_0	NA	1159.3	595	26.16611421380337	509	39.964	44.0	30.0	NA	0	0	22	sent=5
+qrd8750	xon-short-1	XON	short	2075	0	auto	Fit	Fit	11903.8	fresh	0									NA				39.919	48.1	30.0	131	0	0	20	NA
