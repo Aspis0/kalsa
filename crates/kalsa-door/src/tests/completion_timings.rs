@@ -167,11 +167,12 @@ fn a_completion_without_counters_logs_the_shape_it_always_did() {
     let _serial = serial();
     let (port, stop, thread) = plain_upstream(r#"{"content":"no counters","id_slot":0}"#);
     let token = credential();
-    let (door, address) = door(port, &[&token]);
+    // Device 2, not 0: the other completions in the shared capture are device 0.
+    let (door, address) = door(port, &[&credential(), &credential(), &token]);
     let since = line_count();
     let _ = exchanged(address, &chat_post(ORIGIN, Some(&format!("Bearer {token}")), None));
 
-    let line = the_line("door request: POST /v1/chat/completions device 0 status 200", since);
+    let line = the_line("door request: POST /v1/chat/completions device 2 status 200", since);
     assert!(!line.contains("timings"), "{line}");
     assert!(!line.contains("prompt "), "{line}");
     door.shutdown();

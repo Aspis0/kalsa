@@ -54,7 +54,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
-use std::sync::Mutex;
+use std::sync::{Mutex, TryLockError};
 use std::time::{Duration, Instant, SystemTime};
 
 use crash_restart::CrashRestart;
@@ -551,9 +551,8 @@ impl Brain {
     }
 
     /// The clean quit's save: the open chat's last turns reach its file while
-    /// the engine still runs. The exit calls it, and so does `brain_stop` —
-    /// a model switch is a stop followed by a start, and the stop is the
-    /// moment the engine's unsaved turns would die.
+    /// the engine still runs. The exit calls it, and so does a Turn off, since
+    /// the stop is the moment the engine's unsaved turns would die.
     fn save_open_chat(&self) {
         let door = self
             .door
@@ -563,6 +562,33 @@ impl Brain {
         if let Some(door) = door {
             door.save_on_quit(exit::SAVE_BUDGET);
         }
+    }
+
+    /// A Turn off's engine half as one step: the stop generation moves and the
+    /// watchdog disarms, and the same gate hold covers the save and the stop,
+    /// so no start can land between them. A restart decided meanwhile finds
+    /// the generation moved and is vetoed.
+    fn turn_off_engine(&self) {
+        let _gate = self.gate.lock().unwrap_or_else(|e| e.into_inner());
+        self.stops.fetch_add(1, Ordering::SeqCst);
+        self.crash_restart.disarm();
+        self.save_and_stop_engine();
+    }
+
+    /// The save a model switch needs before its stop: the engine about to stop
+    /// holds the turns since the last timer save, and they must be written
+    /// under the OLD model's identity while the old door is still up. The
+    /// save waits at most SAVE_BUDGET, so the stop waits out a save but never
+    /// hangs on one. Bumps no stop generation: callers decide that.
+    fn save_and_stop_engine(&self) {
+        self.save_then_stop(|| self.save_open_chat());
+    }
+
+    /// Runs `save`, then queues the engine's stop, which happens even when the
+    /// save panics: the engine must not outlive the Turn off.
+    fn save_then_stop(&self, save: impl FnOnce()) {
+        run_save_guarded(save);
+        self.supervisor.stop();
     }
 
     fn stop_door(&self) {
@@ -2172,32 +2198,23 @@ fn take_own_seat(file: &Path) -> Result<(), kalsa_pairing::StoreError> {
     kalsa_pairing::store::enrol_host(file).map(|_| ())
 }
 
+/// Keeps the engine's stderr, redacted, in `log_dir`. Called before any start,
+/// so the first child already writes it.
+fn keep_engine_stderr(brain: &Brain, log_dir: PathBuf) {
+    brain.supervisor.keep_stderr_in(log_dir, logging::redact_str);
+}
+
 #[tauri::command]
 async fn brain_stop(brain: State<'_, Arc<Brain>>, desk: State<'_, Desk>) -> Result<(), String> {
-    // The Turn off is declared before the save: a restart decided while the
-    // save runs finds the generation moved and is vetoed, and a Running the
-    // tick sees meanwhile does not re-arm it.
+    // Off the main thread, so the window keeps painting while a slow save runs.
+    let turning_off = Arc::clone(&brain);
+    if let Err(error) =
+        tauri::async_runtime::spawn_blocking(move || turning_off.turn_off_engine()).await
     {
-        let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
-        brain.stops.fetch_add(1, Ordering::SeqCst);
-        brain.crash_restart.disarm();
+        log::warn!("the engine's stop did not finish: {error}");
     }
-    // The model switch is this stop followed by a start (`chooseModel` in the
-    // chat), and a Turn off is the same shape: the engine about to stop holds
-    // the turns since the last timer save, and the save must write them under
-    // the OLD model's identity while the old door is still up. The quit
-    // save's own rule applies — only a resident, dirty slot, bounded by
-    // SAVE_BUDGET, skipped while a restore holds the slot — so the stop can
-    // wait out a save, never hang on one. Off the main thread, so the window
-    // keeps painting while a slow save runs.
-    let saver = Arc::clone(&brain);
-    let _ = tauri::async_runtime::spawn_blocking(move || saver.save_open_chat()).await;
-    // `stop` is non-blocking and sets `Stopping` before it queues, so every
-    // poll from here reads the drain — never `Running` behind a lowered door.
-    {
-        let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
-        brain.supervisor.stop();
-    }
+    // `stop` sets `Stopping` before it queues, so every poll from here reads
+    // the drain, never `Running` behind a lowered door.
     brain.stop_door();
     brain.clear_launch();
     desk.desk.stop_serving();
@@ -2550,9 +2567,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // same roof the log-folder button and the report already name —
             // set here, before any start can run, so the first child already
             // writes it.
-            app.state::<Arc<Brain>>()
-                .supervisor
-                .keep_stderr_in(log_dir, logging::redact_str);
+            keep_engine_stderr(&app.state::<Arc<Brain>>(), log_dir);
             log::info!("app start");
             // Under the lock, and only here: the unclean-exit marker is
             // this session's own, so a launch refused as a second one (it
@@ -2563,16 +2578,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // report, and the tester never has to send anything.
             if instance::session_marker::begin(parent) {
                 log::warn!("the previous session did not exit cleanly");
-                telemetry::record(
-                    "unknown",
-                    "ui",
-                    "other",
-                    "load",
-                    "unknown",
-                    "",
-                    serde_json::json!({}),
-                    true,
-                );
+                telemetry::record(telemetry::Report {
+                    code: "unknown",
+                    component: "ui",
+                    stage: "other",
+                    phase: "load",
+                    detail: "unknown",
+                    raw: "",
+                    extra: serde_json::json!({}),
+                    with_log: true,
+                });
             }
             // A machine that has not changed does not measure again: seed
             // the kept measurement from the record, before any turn-on can
@@ -2824,12 +2839,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// The Turn off a quit and an update's stop both declare first: the stop
-/// generation moves under the gate and the watchdog that restarts a crashed
-/// engine is disarmed, so nothing starts after this point.
+/// generation moves and the crash watchdog is disarmed.
+/// Never waits on the gate, which a Turn off's save may hold for SAVE_BUDGET
+/// while this runs on the event loop; both writes are self-synchronised.
 fn declare_turn_off(brain: &Brain) {
-    let _gate = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+    let _gate = match brain.gate.try_lock() {
+        Ok(gate) => Some(gate),
+        Err(TryLockError::Poisoned(poisoned)) => Some(poisoned.into_inner()),
+        Err(TryLockError::WouldBlock) => None,
+    };
     brain.stops.fetch_add(1, Ordering::SeqCst);
     brain.crash_restart.disarm();
+}
+
+/// Runs a save that a stop depends on. A panic in it is logged and returned
+/// as a normal end, so the stop that follows still runs.
+fn run_save_guarded(save: impl FnOnce()) {
+    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(save)).is_err() {
+        log::warn!("the open chat's save panicked; the engine still stops");
+    }
 }
 
 /// The services a quit stops, in the quit path's order: the open chat saved,
@@ -2839,7 +2867,7 @@ fn declare_turn_off(brain: &Brain) {
 fn shut_down_services(app: &tauri::AppHandle, stage: &dyn Fn(&'static str)) {
     if let Some(brain) = app.try_state::<Arc<Brain>>() {
         stage("the open chat");
-        brain.save_open_chat();
+        run_save_guarded(|| brain.save_open_chat());
         brain.supervisor.shutdown();
         stage("the room's event pump");
         room_events::stop_event_pump(&brain);

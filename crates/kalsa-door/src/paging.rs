@@ -590,6 +590,7 @@ impl Chats {
         let deadline = Instant::now() + budget;
         for (index, slot) in self.slots.iter().enumerate() {
             let Some(mut state) = lock_until(slot, deadline) else {
+                log::warn!("the quit save skipped slot {index}: it was busy past the budget");
                 continue;
             };
             let (device, chat) = match &state.resident {

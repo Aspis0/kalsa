@@ -237,7 +237,19 @@ fn record_crash(inner: &mut Inner, reason: &Failure, stage: &str) {
     } else {
         "load"
     };
-    record_locked(inner, code, "engine", stage, phase, detail, raw, extra, true);
+    record_locked(
+        inner,
+        Report {
+            code,
+            component: "engine",
+            stage,
+            phase,
+            detail,
+            raw,
+            extra,
+            with_log: true,
+        },
+    );
 }
 
 /// Claims the failure and resolves the stage its report carries. None when the
@@ -293,46 +305,43 @@ fn crash_detail(raw: &str) -> &'static str {
     }
 }
 
-/// Records one report. `with_log` marks a serious failure whose report owes
-/// the redacted log an automatic upload.
-///
-/// The parameter list is the wire report's own shape; the lock it takes is
-/// what carried it past clippy's argument limit.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn record(
-    code: &str,
-    component: &str,
-    stage: &str,
-    phase: &str,
-    detail: &str,
-    raw: &str,
-    extra: Value,
-    with_log: bool,
-) {
+/// The shared fields of one wire report. Named at each call site, because
+/// eight strings and flags in a row are easy to pass in the wrong order.
+pub(crate) struct Report<'a> {
+    pub(crate) code: &'a str,
+    pub(crate) component: &'a str,
+    pub(crate) stage: &'a str,
+    pub(crate) phase: &'a str,
+    pub(crate) detail: &'a str,
+    pub(crate) raw: &'a str,
+    pub(crate) extra: Value,
+    /// A serious failure whose report owes the redacted log an automatic upload.
+    pub(crate) with_log: bool,
+}
+
+/// Records one report.
+pub(crate) fn record(report: Report) {
     let Some(service) = SERVICE.get() else {
         return;
     };
     let Ok(mut inner) = service.inner.lock() else {
         return;
     };
-    record_locked(&mut inner, code, component, stage, phase, detail, raw, extra, with_log);
+    record_locked(&mut inner, report);
 }
 
-/// The body of record once the service lock is held. The parameter list is
-/// the wire report's own shape; peeling the lock off record() is what carried
-/// it past clippy's argument limit.
-#[allow(clippy::too_many_arguments)]
-fn record_locked(
-    inner: &mut Inner,
-    code: &str,
-    component: &str,
-    stage: &str,
-    phase: &str,
-    detail: &str,
-    raw: &str,
-    extra: Value,
-    with_log: bool,
-) {
+/// The body of record once the service lock is held.
+fn record_locked(inner: &mut Inner, report: Report) {
+    let Report {
+        code,
+        component,
+        stage,
+        phase,
+        detail,
+        raw,
+        extra,
+        with_log,
+    } = report;
     if !inner.store.enabled {
         return;
     }
@@ -433,14 +442,16 @@ mod failure_tests {
         });
         super::record_locked(
             &mut service.inner.lock().unwrap(),
-            "chat.generation",
-            "engine",
-            "decode",
-            "turn",
-            "unknown",
-            "",
-            stream_error(),
-            false,
+            super::Report {
+                code: "chat.generation",
+                component: "engine",
+                stage: "decode",
+                phase: "turn",
+                detail: "unknown",
+                raw: "",
+                extra: stream_error(),
+                with_log: false,
+            },
         );
         // The real pick marks the report in flight and persists it.
         let _ = super::network::pick(&service, super::now() + 3600)
@@ -471,14 +482,16 @@ mod failure_tests {
         for stage in ["prefill", "decode"] {
             super::record_locked(
                 &mut inner,
-                "chat.generation",
-                "engine",
-                stage,
-                "turn",
-                "unknown",
-                "",
-                stream_error(),
-                false,
+                super::Report {
+                    code: "chat.generation",
+                    component: "engine",
+                    stage,
+                    phase: "turn",
+                    detail: "unknown",
+                    raw: "",
+                    extra: stream_error(),
+                    with_log: false,
+                },
             );
         }
         assert_eq!(inner.store.queue.len(), 2);
@@ -511,14 +524,16 @@ mod failure_tests {
         });
         super::record_locked(
             &mut service.inner.lock().unwrap(),
-            "chat.generation",
-            "engine",
-            "decode",
-            "turn",
-            "unknown",
-            "",
-            stream_error(),
-            false,
+            super::Report {
+                code: "chat.generation",
+                component: "engine",
+                stage: "decode",
+                phase: "turn",
+                detail: "unknown",
+                raw: "",
+                extra: stream_error(),
+                with_log: false,
+            },
         );
         let now = super::now();
         // A second later the renderer's report is still queued, not in
@@ -567,14 +582,16 @@ mod failure_tests {
         });
         super::record_locked(
             &mut service.inner.lock().unwrap(),
-            "chat.generation",
-            "engine",
-            "decode",
-            "turn",
-            "unknown",
-            "",
-            stream_error(),
-            false,
+            super::Report {
+                code: "chat.generation",
+                component: "engine",
+                stage: "decode",
+                phase: "turn",
+                detail: "unknown",
+                raw: "",
+                extra: stream_error(),
+                with_log: false,
+            },
         );
         let now = super::now();
         assert!(super::network::pick(&service, now + 1).is_none(), "still waiting");
@@ -607,14 +624,16 @@ mod failure_tests {
         // The renderer's failure for the same death arrives after it.
         super::record_locked(
             &mut inner,
-            "chat.generation",
-            "engine",
-            "decode",
-            "turn",
-            "unknown",
-            "",
-            stream_error(),
-            false,
+            super::Report {
+                code: "chat.generation",
+                component: "engine",
+                stage: "decode",
+                phase: "turn",
+                detail: "unknown",
+                raw: "",
+                extra: stream_error(),
+                with_log: false,
+            },
         );
         assert_eq!(
             inner.store.queue.len(),
@@ -781,14 +800,16 @@ mod failure_tests {
         let mut inner = inner(dir.clone(), "decode");
         super::record_locked(
             &mut inner,
-            "chat.generation",
-            "engine",
-            "decode",
-            "turn",
-            "unknown",
-            "",
-            stream_error(),
-            false,
+            super::Report {
+                code: "chat.generation",
+                component: "engine",
+                stage: "decode",
+                phase: "turn",
+                detail: "unknown",
+                raw: "",
+                extra: stream_error(),
+                with_log: false,
+            },
         );
         assert_eq!(inner.store.queue.len(), 1);
         super::record_crash(
@@ -824,14 +845,16 @@ mod failure_tests {
         assert_eq!(inner.store.queue.len(), 1);
         super::record_locked(
             &mut inner,
-            "chat.generation",
-            "engine",
-            "decode",
-            "turn",
-            "unknown",
-            "",
-            stream_error(),
-            false,
+            super::Report {
+                code: "chat.generation",
+                component: "engine",
+                stage: "decode",
+                phase: "turn",
+                detail: "unknown",
+                raw: "",
+                extra: stream_error(),
+                with_log: false,
+            },
         );
         assert_eq!(inner.store.queue.len(), 1);
         assert_eq!(inner.store.queue[0].report["error"]["detail"], "native_crash");
@@ -844,14 +867,16 @@ mod failure_tests {
         let mut inner = inner(dir.clone(), "decode");
         super::record_locked(
             &mut inner,
-            "chat.generation",
-            "engine",
-            "decode",
-            "turn",
-            "unknown",
-            "",
-            stream_error(),
-            false,
+            super::Report {
+                code: "chat.generation",
+                component: "engine",
+                stage: "decode",
+                phase: "turn",
+                detail: "unknown",
+                raw: "",
+                extra: stream_error(),
+                with_log: false,
+            },
         );
         inner.stream_error_at = Some(Instant::now() - Duration::from_secs(11));
         super::record_crash(

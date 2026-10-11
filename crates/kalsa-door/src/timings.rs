@@ -1,20 +1,6 @@
-//! The engine's per-completion timing numbers, read off the bytes the door
-//! relays anyway.
-//!
-//! llama-server signs each completion with counters: a `timings` object
-//! (`prompt_n`, `prompt_ms`, `predicted_n`, `predicted_ms`) and the prompt
-//! cache's size as `cache_n` inside it or as `tokens_cached` beside it (the
-//! shipped build's binary carries `tokens_cached`; both spellings are read).
-//! They are what splits a slow completion into re-reading the prompt versus
-//! generating — the door's own line has status and bytes only.
-//!
-//! Nothing is buffered and nothing waits: a byte search for the key names
-//! first, and only a hit pays a parse of the one event or window that hit.
-//! The parse is JSON-typed, so a model that echoes the key names inside its
-//! own text is not misread — except on a non-stream body, where the search
-//! runs over a small window of the body's tail and takes the LAST key hit,
-//! because the engine's object is the response's last field. Only numbers
-//! survive into the log line, through fixed format strings.
+//! Read off the bytes the door relays: a byte hit is parsed as JSON, so echoed
+//! key names in the text are not misread. A non-stream body takes the LAST hit,
+//! since the engine's `timings` is that response's last field.
 
 use serde_json::Value;
 

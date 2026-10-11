@@ -1,8 +1,6 @@
-//! The engine's stderr, kept: a size-capped rotating file beside the app's
-//! other logs.
-//!
-//! Request/generated-text families are withheld by the drain; the app's
-//! redactor removes identifying paths and names before file writes.
+//! The engine's stderr, kept in a size-capped rotating file. A line reaches
+//! it only after the drain has replaced any request text and the app's
+//! redactor has run.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;

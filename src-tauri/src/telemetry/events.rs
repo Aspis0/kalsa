@@ -15,16 +15,16 @@ pub(crate) fn startup_failure(failure: &StartupFailure) {
         StartupFailure::ServerFetchFailed
         | StartupFailure::EngineUnreachable
         | StartupFailure::NoBackendWorked => {
-            super::record(
-                "engine.init",
-                "engine",
-                "load",
-                "load",
-                "unknown",
-                "",
-                json!({}),
-                true,
-            );
+            super::record(super::Report {
+                code: "engine.init",
+                component: "engine",
+                stage: "load",
+                phase: "load",
+                detail: "unknown",
+                raw: "",
+                extra: json!({}),
+                with_log: true,
+            });
             return;
         }
         StartupFailure::MeasurementUnreliable(_) => {
@@ -33,29 +33,29 @@ pub(crate) fn startup_failure(failure: &StartupFailure) {
         }
         _ => return,
     };
-    super::record(
-        "engine.init",
-        "download",
-        "download",
-        "download",
+    super::record(super::Report {
+        code: "engine.init",
+        component: "download",
+        stage: "download",
+        phase: "download",
         detail,
-        "",
-        json!({}),
-        false,
-    );
+        raw: "",
+        extra: json!({}),
+        with_log: false,
+    });
 }
 
 pub(crate) fn tune_failure() {
-    super::record(
-        "unknown",
-        "tune",
-        "tune_measure",
-        "load",
-        "unknown",
-        "",
-        json!({}),
-        true,
-    );
+    super::record(super::Report {
+        code: "unknown",
+        component: "tune",
+        stage: "tune_measure",
+        phase: "load",
+        detail: "unknown",
+        raw: "",
+        extra: json!({}),
+        with_log: true,
+    });
 }
 
 pub(crate) fn web_failure(error: &kalsa_web::WebError, searching: bool) {
@@ -70,16 +70,16 @@ pub(crate) fn web_failure(error: &kalsa_web::WebError, searching: bool) {
         kalsa_web::WebError::Status(500..=599) => "http_5xx",
         _ => "unknown",
     };
-    super::record(
-        if searching { "web.search" } else { "web.fetch" },
-        "web",
-        "tool_call",
-        "turn",
+    super::record(super::Report {
+        code: if searching { "web.search" } else { "web.fetch" },
+        component: "web",
+        stage: "tool_call",
+        phase: "turn",
         detail,
-        "",
-        json!({}),
-        false,
-    );
+        raw: "",
+        extra: json!({}),
+        with_log: false,
+    });
 }
 
 pub(crate) fn ui_event(code: &str) {
@@ -110,16 +110,16 @@ pub(crate) fn ui_event(code: &str) {
             // reported; a stream failure is a failure to produce an answer,
             // and decode is the stage that says so.
             let stage = if stage == "other" { "decode" } else { stage };
-            super::record(
-                "chat.generation",
-                "engine",
+            super::record(super::Report {
+                code: "chat.generation",
+                component: "engine",
                 stage,
-                "turn",
+                phase: "turn",
                 detail,
-                "",
-                json!({}),
-                false,
-            );
+                raw: "",
+                extra: json!({}),
+                with_log: false,
+            });
         }
         _ => {}
     }

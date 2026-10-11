@@ -2318,6 +2318,12 @@ impl RunningEngine {
         let exe = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../crates/kalsa-supervisor/tests/fixtures/fake_server.sh");
         assert!(exe.is_file(), "the supervisor's fake server fixture is missing");
+        Self::start_with(brain, name, exe)
+    }
+
+    /// `start` with the engine's executable given: the same fake behind
+    /// another program, for a test that needs the engine to say something.
+    fn start_with(brain: &Brain, name: &str, exe: PathBuf) -> Self {
         let port = std::net::TcpListener::bind("127.0.0.1:0")
             .unwrap()
             .local_addr()
@@ -2403,6 +2409,75 @@ impl RunningEngine {
         let _ = std::fs::remove_file(&self.pid_file);
         let _ = std::fs::remove_file(&self.state_file);
     }
+}
+
+/// The line the probe engine writes to its stderr before it becomes the fixture.
+const STDERR_PROBE: &str = "kalsa-stderr-probe";
+
+/// The fixture behind a script that first writes `STDERR_PROBE` to stderr.
+/// `exec` keeps the pid, so the fixture's pid file and health gate still hold.
+#[cfg(unix)]
+fn engine_that_says_a_line(name: &str) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../crates/kalsa-supervisor/tests/fixtures/fake_server.sh");
+    let exe = std::env::temp_dir().join(format!("kalsa-{name}-{}.sh", std::process::id()));
+    std::fs::write(
+        &exe,
+        format!(
+            "#!/bin/sh\necho {STDERR_PROBE} >&2\nexec '{}' \"$@\"\n",
+            fixture.display()
+        ),
+    )
+    .expect("the probe engine is written");
+    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755))
+        .expect("the probe engine is executable");
+    exe
+}
+
+fn folder_holds_text(dir: &Path, text: &str) -> bool {
+    std::fs::read_dir(dir).is_ok_and(|entries| {
+        entries.flatten().any(|entry| {
+            std::fs::read_to_string(entry.path()).is_ok_and(|body| body.contains(text))
+        })
+    })
+}
+
+/// The engine's stderr reaches the log folder that `keep_engine_stderr` names.
+/// That the setup hook makes the call is pinned by
+/// `the_setup_hook_keeps_the_engine_stderr_once`.
+#[cfg(unix)]
+#[test]
+fn the_engine_stderr_is_kept_in_the_log_folder() {
+    let brain = Brain::new();
+    let dir = std::env::temp_dir().join(format!("kalsa-engine-stderr-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    keep_engine_stderr(&brain, dir.clone());
+    let exe = engine_that_says_a_line("engine-stderr");
+    let engine = RunningEngine::start_with(&brain, "engine-stderr", exe.clone());
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !folder_holds_text(&dir, STDERR_PROBE) {
+        assert!(
+            Instant::now() < deadline,
+            "the engine's stderr never reached {}",
+            dir.display()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    engine.stop(&brain);
+    let _ = std::fs::remove_file(&exe);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_setup_hook_keeps_the_engine_stderr_once() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    assert_eq!(
+        source.matches("keep_engine_stderr(&app.state::<Arc<Brain>>(), log_dir);").count(),
+        1,
+        "the setup hook must keep the engine's stderr, once, before any start"
+    );
 }
 
 /// The bug this pair exists for, from the app's side: the door used to be
@@ -2808,27 +2883,101 @@ fn the_pin_bites_when_the_square_is_taken_away() {
 }
 
 // A model switch stops the old engine before starting the new one; its
-// unsaved turns must finish saving under the old model's identity.
+// unsaved turns must finish saving under the old model's identity, and the
+// save and the stop must share one gate hold so no start lands between them.
 fn brain_stop_saves_the_open_chat_before_the_engine_stops(source: &str) -> Result<(), String> {
     let at = source
         .find("async fn brain_stop(")
         .ok_or_else(|| "brain_stop is the command the model switch drives".to_string())?;
-    let body = brace_block(source, at);
-    let save = body
-        .find("save_open_chat()")
-        .ok_or_else(|| "brain_stop no longer saves the open chat".to_string())?;
-    let save_end = body[save..]
-        .find(';')
-        .map(|end| save + end)
-        .ok_or_else(|| "the save statement is unfinished".to_string())?;
-    if !body[save..save_end].trim_end().ends_with(".await") {
-        return Err("brain_stop no longer awaits the open chat save".to_string());
+    if !brace_block(source, at).contains("turn_off_engine()).await") {
+        return Err("brain_stop no longer awaits the Turn off's engine half".to_string());
     }
-    let stop = body
+    let turn_off = brace_block(
+        source,
+        source
+            .find("fn turn_off_engine(")
+            .ok_or_else(|| "the Turn off no longer runs as one step".to_string())?,
+    );
+    let gate = turn_off
+        .find("gate.lock()")
+        .ok_or_else(|| "the Turn off no longer holds the gate".to_string())?;
+    let handover = turn_off
+        .find("save_and_stop_engine()")
+        .ok_or_else(|| "the Turn off no longer saves before it stops".to_string())?;
+    if gate > handover {
+        return Err("the Turn off saves before it takes the gate".to_string());
+    }
+    let body = brace_block(
+        source,
+        source
+            .find("fn save_and_stop_engine(")
+            .ok_or_else(|| "the save and the stop are no longer one helper".to_string())?,
+    );
+    if !body.contains("self.save_then_stop(|| self.save_open_chat())") {
+        return Err("the engine's stop no longer saves the open chat before stopping".to_string());
+    }
+    let helper = brace_block(
+        source,
+        source
+            .find("fn save_then_stop(")
+            .ok_or_else(|| "the stop no longer runs after its save".to_string())?,
+    );
+    let guard = helper
+        .find("run_save_guarded(save)")
+        .ok_or_else(|| "the stop no longer runs after its guarded save".to_string())?;
+    let stop = helper
         .find("supervisor.stop()")
-        .ok_or_else(|| "brain_stop no longer stops the engine".to_string())?;
-    if save > stop {
-        return Err("brain_stop saves the open chat after queuing the engine's stop".to_string());
+        .ok_or_else(|| "the engine's stop no longer stops the engine".to_string())?;
+    if guard > stop {
+        return Err("the engine's stop is queued before the save".to_string());
+    }
+    let guarded = brace_block(
+        source,
+        source
+            .find("fn run_save_guarded(")
+            .ok_or_else(|| "the save is no longer guarded".to_string())?,
+    );
+    if !guarded.contains("catch_unwind(") {
+        return Err("the save is no longer caught: a panic would skip the stop".to_string());
+    }
+    Ok(())
+}
+
+/// The quit's save runs guarded and before the engine's shutdown: a panic in
+/// it must not skip the shutdown the quit exists for.
+fn quit_save_pin(source: &str) -> Result<(), String> {
+    let body = brace_block(
+        source,
+        source
+            .find("fn shut_down_services(")
+            .ok_or_else(|| "the quit no longer shuts its services down".to_string())?,
+    );
+    let save = body
+        .find("run_save_guarded(|| brain.save_open_chat())")
+        .ok_or_else(|| "the quit's save is no longer guarded".to_string())?;
+    let shutdown = body
+        .find("brain.supervisor.shutdown()")
+        .ok_or_else(|| "the quit no longer shuts the engine down".to_string())?;
+    if save > shutdown {
+        return Err("the quit shuts the engine down before its save".to_string());
+    }
+    Ok(())
+}
+
+/// The quit's declaration runs on the event loop, which must never wait on the
+/// gate a Turn off's save holds: the gate is only tried.
+fn quit_declaration_pin(source: &str) -> Result<(), String> {
+    let body = brace_block(
+        source,
+        source
+            .find("fn declare_turn_off(")
+            .ok_or_else(|| "the quit no longer declares its Turn off".to_string())?,
+    );
+    if !body.contains("gate.try_lock()") {
+        return Err("the quit declaration no longer tries the gate".to_string());
+    }
+    if body.contains("gate.lock()") {
+        return Err("the quit declaration waits on the gate".to_string());
     }
     Ok(())
 }
@@ -2845,33 +2994,55 @@ fn the_stop_behind_a_model_switch_saves_the_open_chat_first() {
     }
 }
 
+/// Replaces `from` with `to` once inside the body of the function whose
+/// signature starts with `signature`, and returns the whole source changed.
+fn mutate_body(source: &str, signature: &str, edit: impl Fn(&str) -> String) -> String {
+    let body = brace_block(source, source.find(signature).expect("the function"));
+    let changed = edit(body);
+    assert_ne!(changed, body, "the mutation must apply to {signature}");
+    source.replacen(body, &changed, 1)
+}
+
 #[test]
-fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_or_unawaited() {
+fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_unawaited_or_ungated() {
     let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
         .expect("main.rs is readable");
-    let at = source.find("async fn brain_stop(").expect("brain_stop");
-    let save = "tauri::async_runtime::spawn_blocking(move || saver.save_open_chat()).await;";
-    assert!(source[at..].contains(save), "the save mutation must apply");
-    let removed = format!("{}{}", &source[..at], source[at..].replacen(save, "();", 1));
-    let reordered = format!(
-        "{}{}",
-        &removed[..at],
-        removed[at..].replacen(
-            "supervisor.stop();",
-            &format!("supervisor.stop(); {save}"),
-            1
-        )
-    );
-    let unawaited = format!(
-        "{}{}",
-        &source[..at],
-        source[at..].replacen(save, &save.replace(".await", ""), 1)
-    );
-    for (mutation, label) in [
-        (&removed, "deleted"),
-        (&reordered, "after stop"),
-        (&unawaited, "unawaited"),
-    ] {
+    let gate = "let _gate = self.gate.lock().unwrap_or_else(|e| e.into_inner());";
+    let guarded = "std::panic::catch_unwind(std::panic::AssertUnwindSafe(save)).is_err()";
+    let stop = "self.supervisor.stop();";
+    let mutations = [
+        (
+            mutate_body(&source, "fn save_and_stop_engine(", |body| {
+                body.replacen("self.save_then_stop(|| self.save_open_chat());", "", 1)
+            }),
+            "deleted",
+        ),
+        (
+            mutate_body(&source, "fn save_then_stop(", |body| {
+                body.replacen(stop, "", 1).replacen('{', &format!("{{ {stop}"), 1)
+            }),
+            "after stop",
+        ),
+        (
+            mutate_body(&source, "fn run_save_guarded(", |body| {
+                body.replacen(guarded, "{ save(); false }", 1)
+            }),
+            "without its catch",
+        ),
+        (
+            mutate_body(&source, "async fn brain_stop(", |body| {
+                body.replacen("turn_off_engine()).await", "turn_off_engine())", 1)
+            }),
+            "unawaited",
+        ),
+        (
+            mutate_body(&source, "fn turn_off_engine(", |body| {
+                body.replacen(gate, "", 1)
+            }),
+            "outside the gate",
+        ),
+    ];
+    for (mutation, label) in &mutations {
         assert!(
             brain_stop_saves_the_open_chat_before_the_engine_stops(mutation).is_err(),
             "the pin passed with the save {label}"
@@ -2880,6 +3051,76 @@ fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_or_unawaited() {
     assert_eq!(
         brain_stop_saves_the_open_chat_before_the_engine_stops(&source),
         Ok(())
+    );
+}
+
+#[test]
+fn the_quit_pin_bites_when_the_declaration_waits_on_the_gate() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    let blocking = mutate_body(&source, "fn declare_turn_off(", |body| {
+        body.replacen("brain.gate.try_lock()", "brain.gate.lock().ok()", 1)
+    });
+    assert!(
+        quit_declaration_pin(&blocking).is_err(),
+        "the pin passed with the quit waiting on the gate"
+    );
+    assert_eq!(quit_declaration_pin(&source), Ok(()));
+}
+
+/// A save that panics must not leave the engine running: the stop is queued
+/// regardless, and the panic is caught where the save's warning is logged.
+#[test]
+fn the_engine_stop_goes_on_when_the_save_panics() {
+    let brain = Brain::new();
+    let engine = RunningEngine::start(&brain, "save-panics");
+    brain.save_then_stop(|| panic!("the save broke"));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while matches!(brain.supervisor.state(), ServerState::Running { .. }) {
+        assert!(
+            Instant::now() < deadline,
+            "the engine kept running after its save panicked"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    engine.stop(&brain);
+}
+
+/// The quit's declaration runs on the event loop: with the gate held by a
+/// Turn off's save it must return anyway, and still move the generation.
+#[test]
+fn a_quit_declared_while_the_gate_is_held_does_not_wait_for_it() {
+    let brain = Arc::new(Brain::new());
+    let held = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
+    let (declared, returned) = std::sync::mpsc::channel();
+    let quitting = Arc::clone(&brain);
+    std::thread::spawn(move || {
+        declare_turn_off(&quitting);
+        let _ = declared.send(());
+    });
+    let outcome = returned.recv_timeout(Duration::from_secs(5));
+    drop(held);
+    outcome.expect("the quit waited on the gate");
+    assert_eq!(brain.stops.load(Ordering::SeqCst), 1);
+    declare_turn_off(&brain);
+    assert_eq!(brain.stops.load(Ordering::SeqCst), 2, "the free gate path still declares");
+}
+
+#[test]
+fn the_quit_save_pin_bites_when_the_save_is_bare() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs"))
+        .expect("main.rs is readable");
+    assert_eq!(quit_save_pin(&source), Ok(()));
+    let bare = mutate_body(&source, "fn shut_down_services(", |body| {
+        body.replacen(
+            "run_save_guarded(|| brain.save_open_chat());",
+            "brain.save_open_chat();",
+            1,
+        )
+    });
+    assert!(
+        quit_save_pin(&bare).is_err(),
+        "the pin passed with the quit's save unguarded"
     );
 }
 

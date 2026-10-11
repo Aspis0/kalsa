@@ -273,15 +273,21 @@ pub(crate) async fn brain_vision_enable(
                     // worker's Start arm) — which is right for a Turn on and
                     // fatal here: the projector would sit on disk, no argv
                     // would change, and nothing would ever say so. The
-                    // supervisor's own `stop`, NOT `brain_stop`: no stops
-                    // generation is bumped (a Turn off during the download
-                    // stays the only veto), and the door and the square are
-                    // left to the `brain_state` poll, which reconciles them
-                    // on the non-running states this passes through. Command
-                    // order does the rest: the Stop is queued before the
-                    // walk's Start, so the worker drains first and then takes
-                    // the start instead of refusing it.
-                    brain.supervisor.stop();
+                    // The save and the stop of a Turn off, NOT `brain_stop`: no
+                    // stops generation is bumped (a Turn off during the
+                    // download stays the only veto), and the door and the
+                    // square are left to the `brain_state` poll, which
+                    // reconciles them on the non-running states this passes
+                    // through. Command order does the rest: the Stop is queued
+                    // before the walk's Start, so the worker drains first and
+                    // then takes the start instead of refusing it.
+                    let stopper = Arc::clone(&brain);
+                    if let Err(error) =
+                        tauri::async_runtime::spawn_blocking(move || stopper.save_and_stop_engine())
+                            .await
+                    {
+                        log::warn!("vision: the engine's stop did not finish: {error}");
+                    }
                     // The restart runs on this command's own claim and the
                     // generation it took: every stop check inside the
                     // settlement still answers to the pre-download number.
