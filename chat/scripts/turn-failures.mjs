@@ -141,7 +141,9 @@ try {
     asked.length === 1 &&
       question === "first question" &&
       extra.length === 0 &&
-      /^Sent on [A-Z][a-z]+, \d{1,2} [A-Z][a-z]+ \d{4}\.$/.test(sentOn ?? ""),
+      /^Sent on (Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday), \d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December) \d{4}\.$/.test(
+        sentOn ?? "",
+      ),
     JSON.stringify(asked),
   );
 

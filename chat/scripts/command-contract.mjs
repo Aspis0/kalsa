@@ -108,7 +108,7 @@ for (const rawEntry of handlerList[1].split(",")) {
   if (match === null) {
     console.log("COMMAND CONTRACT FAILURE: generate_handler! holds an entry this guard cannot name:");
     console.log(`  - ${entry}`);
-    console.log("It only understands commands named brain_* behind an optional module path (web::brain_web_search).");
+    console.log("It understands commands named brain_* or window_hidden, behind an optional module path (web::brain_web_search).");
     console.log("A command it cannot name is a command it cannot check: bring the name into the convention, or teach this guard the new shape.");
     process.exit(1);
   }

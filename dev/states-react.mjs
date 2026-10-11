@@ -114,8 +114,11 @@ const ADMITTED_TWO = [
   { id: 2, label: "Paired phone 2", phone: "phone with 3 GB of model weights", kind: "phone" },
 ];
 
-// The panel's save answers with the case's own DTO, as the bridge answers it.
-const advancedSave = async () => bridgeState.advanced ?? null;
+// No card presses Save. A card that does needs the post-save DTO from the bridge,
+// so a press here fails loudly instead of answering with the pre-save read.
+const advancedSave = async () => {
+  throw new Error("no states-react card presses Save: give that card its own post-save answer");
+};
 
 function advancedDto(extra = {}) {
   return {
@@ -192,6 +195,7 @@ const scenarios = [
   ["Status", "a progress event: the engine's bytes (real bytes)", "server", { state: stateDto("starting"), step: { kind: "runtime_bytes", done: 8000000, total: 18000000 } }],
   ["Status", "a progress event: resumed past zero (real bytes)", "server", { state: stateDto("starting"), step: { kind: "model_bytes", done: 401000000, total: MODEL_BYTES } }],
   ["Status", "a progress event: no size announced (real bytes)", "server", { state: stateDto("starting"), step: { kind: "model_bytes", done: 320000000, total: 0 } }],
+  ["Status", "the tune runs once and says so", "server", { state: stateDto("starting"), step: { kind: "tuning", done: 1, total: 4, candidate: 2 } }],
   ["Status", "first run: measuring the machine", "server", { state: stateDto("starting"), step: { kind: "measuring" } }],
   ["Status", "first run: deciding the engine", "server", { state: stateDto("starting"), step: { kind: "deciding" } }],
   ["Status", "first run: choosing a model", "server", { state: stateDto("starting"), step: { kind: "choosing" } }],
@@ -907,8 +911,26 @@ function componentFor(kind, data) {
   return React.createElement(DevicesSurface, { onNavigate: () => {} });
 }
 
+// The walk arms when the page sees the brain ENTER "starting" (walkStep.ts),
+// and useBrain keeps the last state it saw across mounts. A walk card would
+// otherwise read "starting" over a previous card's "starting" and never arm,
+// so it is preceded by a mount at "stopped".
+async function enterStartingFromStopped() {
+  bridgeState = { state: stateDto("stopped") };
+  eventHandlers = new Set();
+  installBridge();
+  const panel = document.createElement("div");
+  document.getElementById("cards").appendChild(panel);
+  const root = createRoot(panel);
+  root.render(React.createElement(LanguageProvider, null, componentFor("server", bridgeState)));
+  await settle();
+  root.unmount();
+  await settle();
+}
+
 async function renderScenario(descriptor) {
   const [title, note, kind, data] = descriptor;
+  if (data?.state?.kind === "starting") await enterStartingFromStopped();
   bridgeState = data;
   eventHandlers = new Set();
   installBridge();

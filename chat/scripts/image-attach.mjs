@@ -289,11 +289,19 @@ async function buildProbe() {
   });
 }
 
+/** A user turn without the "Sent on …" line the wire appends after the words
+    (sentDate.ts); a media marker line may follow it. */
+function withoutSentLine(content) {
+  return typeof content === "string" ? content.replace(/\n\nSent on [^\n]*\./, "") : content;
+}
+
 async function probeEngine(engineName, origin) {
   console.log(`\n--- ${engineName} ---`);
   const browser = await ENGINES[engineName].launch({ args: ["--no-sandbox"] });
   // The stub server's word about itself; phases flip these between reloads.
-  const state = { vision: true, nctx: 1200 };
+  // 1600 fits one picture: the empty conversation's prompt is 241 tokens, and
+  // a picture adds 560 and the 512 reserve (wireTokens, buildPinnedContext).
+  const state = { vision: true, nctx: 1600 };
   try {
     const context = await browser.newContext({ viewport: { width: 1200, height: 800 } });
     const page = await context.newPage();
@@ -309,6 +317,19 @@ async function probeEngine(engineName, origin) {
     await page.addInitScript(() => {
       window.__logEvents = [];
       window.__model = "m";
+      // The attach reads each re-encoded picture's bytes twice: once to prepare
+      // it and once for the IndexedDB put. The picked File is never slowed. A
+      // delay on the Blob reads holds each one in flight, and the count says
+      // which read a delete landed in.
+      window.__slowBlobMs = 0;
+      window.__slowedReads = 0;
+      const realArrayBuffer = Blob.prototype.arrayBuffer;
+      Blob.prototype.arrayBuffer = function () {
+        const delay = window.__slowBlobMs;
+        if (!delay || this instanceof File) return realArrayBuffer.call(this);
+        window.__slowedReads += 1;
+        return new Promise((resolve) => setTimeout(resolve, delay)).then(() => realArrayBuffer.call(this));
+      };
       window.__hangProps = false;
       window.__TAURI__ = {
         core: {
@@ -586,7 +607,7 @@ async function probeEngine(engineName, origin) {
     );
     check(
       "the text part comes first, word for word",
-      parts?.[0]?.type === "text" && parts?.[0]?.text === "Look at my picture.",
+      parts?.[0]?.type === "text" && withoutSentLine(parts?.[0]?.text) === "Look at my picture.",
       JSON.stringify(parts?.[0] ?? null),
     );
     const url = parts?.[1]?.image_url?.url;
@@ -706,7 +727,7 @@ async function probeEngine(engineName, origin) {
     const blind = bodies.at(-1);
     const asked = (blind?.messages ?? [])
       .filter((m) => m.role === "user")
-      .map((m) => (Array.isArray(m.content) ? "parts" : m.content));
+      .map((m) => (Array.isArray(m.content) ? "parts" : withoutSentLine(m.content)));
     check(
       "the pictured turn arrives as text with the placeholder",
       asked[0] === "Look at my picture.\n[an image the current AI cannot see]",
@@ -744,10 +765,11 @@ async function probeEngine(engineName, origin) {
       JSON.stringify(blindStatus ?? ""),
     );
 
-    // 9. The budget: an empty conversation fits 700, so a refusal there is
-    //    the picture's own 560 tokens being counted.
+    // 9. The budget: an empty conversation fits 1000 (241 + 512), and one
+    //    picture adds 560 to reach 1313, so a refusal there is the picture's
+    //    own cost being counted.
     state.vision = true;
-    state.nctx = 700;
+    state.nctx = 1000;
     await wipeStorage();
     await page.reload();
     await page.waitForTimeout(1200);
@@ -766,7 +788,7 @@ async function probeEngine(engineName, origin) {
 
     // 10. Room to fit: the same picture attaches, sends as PNG (it has
     //     transparency), at its own size.
-    state.nctx = 1200;
+    state.nctx = 1600;
     await page.reload();
     await page.waitForTimeout(1200);
     await openChat();
@@ -1036,7 +1058,7 @@ async function probeEngine(engineName, origin) {
     const markerMatch = typeof videoText === "string" ? videoText.match(/\[video, (\d+) frames, 0:0\d\]/) : null;
     check(
       "the turn carries the video marker line",
-      markerMatch !== null && videoText === "watch this\n" + markerMatch[0],
+      markerMatch !== null && withoutSentLine(videoText) === "watch this\n" + markerMatch[0],
       JSON.stringify(videoText),
     );
     const frameParts = Array.isArray(videoParts)
@@ -1056,9 +1078,10 @@ async function probeEngine(engineName, origin) {
     );
 
     // 16. The budget: frames cost IMAGE_TOKENS each — a window that fits
-    //     the words alone refuses the video.
+    //     the words alone (1000 holds the empty conversation's 753) refuses
+    //     the four frames (2993).
     await wipeStorage();
-    state.nctx = 700;
+    state.nctx = 1000;
     await page.reload();
     await page.waitForTimeout(1200);
     await openChat();
@@ -1104,7 +1127,7 @@ async function probeEngine(engineName, origin) {
     const blindVideo = bodies.at(-1);
     const blindAsked = (blindVideo?.messages ?? [])
       .filter((m) => m.role === "user")
-      .map((m) => (Array.isArray(m.content) ? "parts" : m.content));
+      .map((m) => (Array.isArray(m.content) ? "parts" : withoutSentLine(m.content)));
     check(
       "a blind model meets the video as the placeholder",
       blindAsked[0] === "keep this one one\n[an image the current AI cannot see]" ||
@@ -1235,6 +1258,79 @@ async function probeEngine(engineName, origin) {
       (await page.locator(".user-video-tile").count()) === 1,
       String(await page.locator(".user-video-tile").count()),
     );
+
+    // 22. Delete a chat while its picture is still being written: no bytes
+    //     of that chat may survive. The delete lands before, during or after
+    //     the write (putBytes re-checks the chat after its put); the control
+    //     trial waits for the chip and proves the store really holds it.
+    async function imagesFor(convId) {
+      return page.evaluate(
+        (id) =>
+          new Promise((resolve) => {
+            const open = indexedDB.open("kalsa-chat.images");
+            open.onsuccess = () => {
+              const db = open.result;
+              const request = db.transaction("images", "readonly").objectStore("images").getAll();
+              request.onsuccess = () => {
+                db.close();
+                resolve(request.result.filter((record) => record.convId === id).length);
+              };
+            };
+            open.onerror = () => resolve(-1);
+          }),
+        convId,
+      );
+    }
+    async function chatIdTitled(title) {
+      return page.evaluate((wanted) => {
+        const list = JSON.parse(localStorage.getItem("crescent-chat.index.v2") ?? "[]");
+        return list.find((conv) => conv.title === wanted)?.id ?? null;
+      }, title);
+    }
+    async function deleteChat(title) {
+      const drawer = page.getByRole("button", { name: "Show conversations", exact: true });
+      if (await drawer.isVisible()) await drawer.click();
+      await page.locator(".sidebar-row").filter({ hasText: title }).getByRole("button", { name: "Delete", exact: true }).click();
+      await page.getByRole("button", { name: "Delete this conversation?", exact: true }).click();
+    }
+    // Each slowed read holds for 700 ms. The delete is sent once the chosen
+    // read has started, so it lands inside that read: the first read is the
+    // prepare step (the attach stops there), the second is the IndexedDB put.
+    const deleteTrials = [
+      { label: "control: no delete", at: null },
+      { label: "delete while the picture is being prepared", at: { reads: 1 } },
+      { label: "delete while the picture is being written", at: { reads: 2 } },
+      { label: "delete after the picture is stored", at: { chip: true } },
+    ];
+    for (const [index, trial] of deleteTrials.entries()) {
+      const title = `doomed chat ${index}`;
+      await page.reload();
+      await page.waitForTimeout(1200);
+      await openChat();
+      await sendText(title);
+      const convId = await chatIdTitled(title);
+      await page.evaluate(() => {
+        window.__slowBlobMs = 700;
+        window.__slowedReads = 0;
+      });
+      await attach([{ name: `doomed-${index}.jpg`, mimeType: "image/jpeg", buffer: gpsJpeg }]);
+      if (trial.at === null) {
+        await page.waitForSelector(".composer-image", { timeout: 8000 }).catch(() => {});
+      } else if (trial.at.chip) {
+        await page.waitForSelector(".composer-image", { timeout: 8000 }).catch(() => {});
+        await deleteChat(title);
+      } else {
+        await page.waitForFunction((n) => window.__slowedReads >= n, trial.at.reads, { timeout: 8000 }).catch(() => {});
+        await deleteChat(title);
+      }
+      await page.waitForTimeout(1500);
+      const left = convId === null ? -1 : await imagesFor(convId);
+      if (trial.at === null) {
+        check(`${trial.label}: the picture is stored under its chat`, left === 1, String(left));
+      } else {
+        check(`${trial.label}: no picture bytes remain for the deleted chat`, convId !== null && left === 0, String(left));
+      }
+    }
 
     check(
       "no content-security refusal touched the page",

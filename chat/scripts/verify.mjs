@@ -15,7 +15,7 @@ import {
 import { zipSync, strToU8 } from "fflate";
 import { tuneAttempt, tuneDone, tuneFace, tunePercent, tuneShare, tuneWait } from "../src/surfaces/tuneProgress.ts";
 import { fileURLToPath } from "node:url";
-import { installBrainStub } from "./lib/brain-stub.mjs";
+import { APP_VERSION, installBrainStub } from "./lib/brain-stub.mjs";
 
 const APP = "http://localhost:5173";
 // Copied on purpose, the way dev/smoke-react.mjs keeps its strings: node
@@ -50,6 +50,7 @@ async function seed(page, { settings = null, convos = [], theme = "light" }) {
   );
   if (endpoint) {
     await page.addInitScript(installBrainStub, {
+      appVersion: APP_VERSION,
       state: { kind: "running", endpoint, model: stored.model ?? "" },
       credential: token ?? "",
     });
@@ -215,6 +216,22 @@ async function lastBody(page) {
   return JSON.parse(res.body ?? "null");
 }
 
+/** Whether a wire keeps whole, consecutive Qnn/Rnn pairs and ends at Q09/R09.
+    Which pair is the oldest kept depends on the window the fixed system
+    message leaves, so only the pairing and the newest pair are pinned. */
+function keptPairsEndAtNewest(messages) {
+  const tags = (messages ?? [])
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => String(m.content).slice(0, 3))
+    .filter((tag) => /^[QR]\d\d$/.test(tag));
+  if (tags.length === 0 || tags.length % 2 !== 0) return false;
+  for (let i = 0; i < tags.length; i += 2) {
+    if (tags[i][0] !== "Q" || tags[i + 1][0] !== "R" || tags[i].slice(1) !== tags[i + 1].slice(1)) return false;
+    if (i > 0 && Number(tags[i].slice(1)) !== Number(tags[i - 2].slice(1)) + 1) return false;
+  }
+  return tags.at(-2) === "Q09" && tags.at(-1) === "R09";
+}
+
 /** Every request body the mock has seen, oldest first — a tool round trip is a
     sequence, and the last body can only show its end. */
 async function allBodies(page) {
@@ -296,6 +313,7 @@ async function seedOnce(page, settings) {
   }, settings ? stored : null);
   if (endpoint) {
     await page.addInitScript(installBrainStub, {
+      appVersion: APP_VERSION,
       state: { kind: "running", endpoint, model: stored.model ?? "" },
       credential: token ?? "",
     });
@@ -1121,6 +1139,7 @@ const tests = {
       { model: "", webTools: true },
     );
     await page.addInitScript(installBrainStub, {
+      appVersion: APP_VERSION,
       state: { kind: "running", endpoint: "http://127.0.0.1:8130/v1", model: "" },
       credential: "stub-credential",
     });
@@ -4415,7 +4434,7 @@ const tests = {
     check("textprune: the answer arrived", ((await page.locator(".thread").textContent()) ?? "").includes("line is open"));
     check("textprune: the wire starts at a user turn", roles[0] === "system" && roles[1] === "user", JSON.stringify(roles.slice(0, 4)));
     check("textprune: the oldest turns fell whole", !wire.includes("Q00") && !wire.includes("R00") && !wire.includes("R02"), wire.slice(0, 120));
-    check("textprune: the kept turns stay paired", wire.includes("Q03") && wire.includes("R03") && wire.includes("Q09") && wire.includes("R09"));
+    check("textprune: the kept turns stay paired", keptPairsEndAtNewest(body?.messages));
     await browser.close();
   },
 
@@ -4461,9 +4480,13 @@ const tests = {
     const second = JSON.stringify(bodies[1]?.messages ?? []);
     const firstRoles = (bodies[0]?.messages ?? []).map((m) => m.role);
     const retryRoles = (bodies[1]?.messages ?? []).map((m) => m.role);
-    check("overflowrecover: the refused first carried the kept turns", first.includes("Q03") && first.includes("R03"));
+    check("overflowrecover: the refused first carried the kept turns", keptPairsEndAtNewest(bodies[0]?.messages));
     check("overflowrecover: the refused first starts at a user turn", firstRoles[1] === "user", JSON.stringify(firstRoles.slice(0, 4)));
-    check("overflowrecover: the retry shed the older turns", !second.includes("Q03") && !second.includes("R03"));
+    check(
+      "overflowrecover: the retry shed the older turns",
+      (bodies[1]?.messages ?? []).length < (bodies[0]?.messages ?? []).length,
+      `${(bodies[1]?.messages ?? []).length} of ${(bodies[0]?.messages ?? []).length} messages`,
+    );
     check("overflowrecover: the retry starts at a user turn", retryRoles[1] === "user", JSON.stringify(retryRoles.slice(0, 4)));
     check("overflowrecover: the retry keeps the newest pair and the turn", second.includes("Q09") && second.includes("R09") && second.includes("detail you can hold"));
     const thread = (await page.locator(".thread").textContent()) ?? "";

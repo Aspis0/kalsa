@@ -5,7 +5,7 @@
 // States assert their markers (must()) — a missing state FAILS, never a PNG.
 import { chromium } from "@playwright/test";
 import { fileURLToPath } from "node:url";
-import { installBrainStub } from "./lib/brain-stub.mjs";
+import { APP_VERSION, installBrainStub } from "./lib/brain-stub.mjs";
 
 const APP = "http://localhost:5173";
 const CONV_KEY = "crescent-chat.conversations.v1";
@@ -117,6 +117,7 @@ async function seed(page, { settings = null, convos = [], theme = "light", v2 = 
   );
   if (endpoint) {
     await page.addInitScript(installBrainStub, {
+      appVersion: APP_VERSION,
       state: { kind: "running", endpoint, model: stored.model ?? "" },
       credential: token ?? "",
     });

@@ -586,11 +586,10 @@ try {
     if (button && button.text.trim() === "") problems.push(`labelless button: ${heading}`);
   }
 
-  // The once-only note sits on the tuning step alone (SetupProgress.tsx), so a
-  // download carries no such promise. The percentage is the bar's value now;
-  // the caption shows the bytes only.
+  // The percentage is the bar's value; the caption shows the bytes only. The
+  // walk's other phases (the clock, the tuning count) carry no download line.
   for (const { heading, progress, barValue, working } of results) {
-    if (!working) continue;
+    if (!working || !heading.includes("(real bytes)")) continue;
     const full = progress?.match(/(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) (MB|GB)$/);
     const noTotal = /^(Picking up where it stopped — )?(Downloading\. The total size isn't known yet\.|(\d+(?:\.\d+)?) (MB|GB) received so far\.)$/;
     if (full) {
@@ -603,7 +602,17 @@ try {
     }
   }
 
-  const RESUME_SENTENCE = "The connection dropped partway through. Trying again keeps what was already downloaded.";
+  // The once-only note is the tuning step's own (SetupProgress.tsx), so the
+  // tuning card must carry it; no other walk card does.
+  const tuningCards = results.filter((r) => r.heading.includes("the tune runs once"));
+  if (tuningCards.length !== 1) problems.push("the harness must render exactly one tuning card");
+  for (const card of tuningCards) {
+    if (!card.all.includes("This happens only once.")) {
+      problems.push(`the tuning card must say the tune happens only once: ${card.heading}`);
+    }
+  }
+
+  const RESUME_SENTENCE ="The connection dropped partway through. Trying again keeps what was already downloaded.";
   if (!results.some((r) => r.sentence === RESUME_SENTENCE)) {
     problems.push("the connection-lost failure must keep the resume promise in its own words");
   }

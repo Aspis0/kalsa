@@ -1,8 +1,10 @@
 // One command for a verify run: start the dev server and the mock endpoint
 // when they are not already answering, run verify.mjs with the arguments
-// passed through, and stop only the children this runner started.
+// passed through, and stop only the children this runner started. An
+// interrupt stops the verify run too, so no browser outlives the runner.
 // Run: `npm run verify -- [test ...]`
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { openSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,13 +21,26 @@ const SERVERS = [
 ];
 
 const started = [];
-
-function cleanup() {
-  for (const child of started) child.kill();
-}
+let verify = null;
 
 function exited(child) {
   return child.exitCode !== null || child.signalCode !== null || child.pid === undefined;
+}
+
+function cleanup() {
+  for (const child of started) child.kill();
+  if (verify !== null && !exited(verify)) verify.kill();
+}
+
+// The verify run gets the signal first and a few seconds to finish its own
+// cleanup, then the servers go with it.
+async function stopAndExit(signal) {
+  if (verify !== null && !exited(verify)) {
+    verify.kill(signal);
+    await Promise.race([once(verify, "exit"), new Promise((resolve) => setTimeout(resolve, 5000))]);
+  }
+  cleanup();
+  process.exit(130);
 }
 
 async function startServer({ url, args }) {
@@ -43,10 +58,7 @@ async function startServer({ url, args }) {
 }
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.on(signal, () => {
-    cleanup();
-    process.exit(130);
-  });
+  process.on(signal, () => stopAndExit(signal));
 }
 
 let exitCode = 1;
@@ -60,7 +72,7 @@ try {
     }
   }
   if (ready) {
-    const verify = spawn(process.execPath, ["scripts/verify.mjs", ...process.argv.slice(2)], {
+    verify = spawn(process.execPath, ["scripts/verify.mjs", ...process.argv.slice(2)], {
       cwd: CHAT_DIR,
       stdio: "inherit",
     });

@@ -10,12 +10,21 @@
 // installer's `__TAURI__` without losing the answers. Harness-only: chat/src
 // never assigns `window.__TAURI__`, and the built bundle carries none of
 // this (proven by grep in the removal round's report).
+import { readFileSync } from "node:fs";
+
+// The app's version, as the binary is built from the workspace manifest.
+// Callers pass it in `appVersion`: the function below is serialised into the
+// page, where this module's own bindings do not exist.
+export const APP_VERSION = /\[workspace\.package\][^[]*?version = "([^"]+)"/.exec(
+  readFileSync(new URL("../../../Cargo.toml", import.meta.url), "utf8"),
+)[1];
+
 // Serialised into the page with the function, so it must live inside it.
 export function installBrainStub(brain) {
   window.__STUB_BRAIN__ = brain;
   const startUpAnswers = {
     window_hidden: false,
-    brain_app_version: "0.0.3",
+    brain_app_version: brain.appVersion,
     brain_telemetry_status: { enabled: false, noticeSeen: true },
     brain_capability: { kind: "unmeasured", chosen: true },
   };

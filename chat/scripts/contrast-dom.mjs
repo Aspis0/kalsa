@@ -6,7 +6,7 @@
 // Run: dev server on 5173, then `node scripts/contrast-dom.mjs`.
 // Exit 1 on any pair below 4.5 (normal text, AA).
 import { chromium } from "@playwright/test";
-import { installBrainStub } from "./lib/brain-stub.mjs";
+import { APP_VERSION, installBrainStub } from "./lib/brain-stub.mjs";
 
 const APP = "http://localhost:5173";
 
@@ -153,6 +153,7 @@ async function setupPage(browser, theme, mode) {
   // The remote-server fields are not settings anymore: the endpoint and
   // token this page needs arrive as the brain's own answers.
   await page.addInitScript(installBrainStub, {
+    appVersion: APP_VERSION,
     state: { kind: "running", endpoint: "http://127.0.0.1:18081/ok", model: "x" },
     credential: "t",
   });
