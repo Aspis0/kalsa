@@ -47,6 +47,31 @@ function projectValue(rule: FieldRule, value: unknown): unknown {
       }
       return Object.keys(out).length > 0 ? out : undefined;
     }
+    case "numArray": {
+      if (!Array.isArray(value) || value.length !== rule.len) return undefined;
+      const out: Array<number | null> = [];
+      for (const item of value) {
+        if (item === null) {
+          out.push(null);
+          continue;
+        }
+        if (typeof item !== "number" || !Number.isFinite(item)) return undefined;
+        out.push(item);
+      }
+      return out;
+    }
+    case "idObj": {
+      if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+      const out: Record<string, string> = {};
+      for (const [key, item] of Object.entries(value)) {
+        // Same closed-key rule as numObj.
+        if (!rule.keys.includes(key)) return undefined;
+        if (typeof item !== "string" || item.length > rule.maxLen) return undefined;
+        if (!/^[a-zA-Z0-9._-]+$/.test(item)) return undefined;
+        out[key] = item;
+      }
+      return Object.keys(out).length > 0 ? out : undefined;
+    }
   }
 }
 

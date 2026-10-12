@@ -26,6 +26,8 @@ export const EXTRA_TELEMETRY = [
   { prefix: "KALSA_GOVERNOR_FAILED" },
   { prefix: "KALSA_GOVERNOR_RUNTIME_FALLBACK" },
   { prefix: "KALSA_GOVERNOR_THERMO" },
+  { prefix: "KALSA_GOVERNOR_COMPLETION" },
+  { prefix: "KALSA_GOVERNOR_BATTERY_SYSFS" },
   { prefix: "KALSA_THERMAL_COOLING", timingInvalidOnCharge: ["waitedMs", "generationMs"] },
   { prefix: "KALSA_GPU_FALLBACK" },
   { prefix: "KALSA_TOOLCALL" },

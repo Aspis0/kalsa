@@ -58,6 +58,13 @@ import {
 } from "./staticPrefixSnapshot";
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
+import { completionLogRow } from "./governorObservation";
+import { appendObservation } from "./governorObservationLog";
+import {
+  markObservationGap,
+  readGovernorObservationRow,
+  resetObservationBaseline,
+} from "./governorObservationRead";
 import { readHtpRuntimeArch } from "./htpRuntimeArch";
 import {
   buildGovernorPlanLog,
@@ -1672,6 +1679,9 @@ export function notifyStaticPrefixInputs(
               // Native KV may still hold chat. Do not mark cleared or prewarm.
               return;
             }
+            // The engine's decode counters restarted; the observation
+            // baseline restarts with them.
+            resetObservationBaseline();
             markChatKvCleared();
             void queueStaticPrefixPrewarm(locale, tools, toolChoiceMode);
           });
@@ -2064,6 +2074,8 @@ async function discardChatKvForWindowSlideLocked(
         ENGINE_AUX_CALL_TIMEOUT_MS,
         "clearCache(window-slide)",
       );
+      // Decode counters restarted (see the prefix-wipe clear above).
+      resetObservationBaseline();
       ramOk = true;
     }
   } catch {
@@ -3152,6 +3164,9 @@ async function disposeEngineLocked(opts?: {
     activeGovernorActive = false;
     activeGovernorForced = false;
     activeGovernorFallbackReason = "";
+    // The observation baseline dies with the governor identity: a new load
+    // starts its rows fresh (first_row again).
+    resetObservationBaseline();
     clearNativeLogTail();
     activeEngineKnob = undefined;
     activeMtpNMax = undefined;
@@ -3448,6 +3463,8 @@ async function tryClearNativeChatKv(
       ENGINE_AUX_CALL_TIMEOUT_MS,
       "clearCache",
     );
+    // Decode counters restarted (see the prefix-wipe clear above).
+    resetObservationBaseline();
     return true;
   } catch (error) {
     console.warn(
@@ -5013,6 +5030,9 @@ export async function streamAssistantTurn(
       // Structured error results and thrown failures do not overwrite a prior success.
       const toolAttribution = new ToolAttributionTracker();
       let governorThermoSource: GovernorThermoSnapshot["thermo_source"] = "battery";
+      // Stage 0: the whole snapshot this round pushed, kept for the
+      // completion's observation row (batt/level/plugged/status cells).
+      let governorThermo: GovernorThermoSnapshot | null = null;
       const thermoLogState = { invalidLogged: false };
 
       // HIGH-3 (Jelly): 2B models often ignore system "prefer document_chat" and
@@ -5239,9 +5259,8 @@ export async function streamAssistantTurn(
           round,
           benchMode: toolChoiceMode,
         });
-        governorThermoSource = (
-          await refreshGovernorBeforeCompletion(engine, thermoLogState)
-        ).thermo_source;
+        governorThermo = await refreshGovernorBeforeCompletion(engine, thermoLogState);
+        governorThermoSource = governorThermo.thermo_source;
         // Prompt-side fact for THIS round's exact prompt. The flags mirror the
         // completion call below (tool_choice included — it changes rendering);
         // the rendered prompt is the ground truth on whether the template
@@ -5375,13 +5394,47 @@ export async function streamAssistantTurn(
         // A stop, a finish, or an invalidation (model switch / dispose —
         // neither aborts this controller) ends the turn the way it always
         // has; only a turn still alive can reach the pause failure.
-        if (bailIfStopped()) return;
+        // A stop or a governor pause ends the round with no observation row:
+        // the next row's deltas would span both completions, so it must carry
+        // gap:1 (DESIGN.md 3.2).
+        if (bailIfStopped()) {
+          markObservationGap();
+          return;
+        }
         if (
           endOnGovernorPause(result, turnId, round, callbacks, finishOnce, strings)
         ) {
+          markObservationGap();
           return;
         }
         recordBenchCompletion(result);
+        // Stage 0 observation (DESIGN.md 3.2): read only on this live path,
+        // bounded at 2 s; the file append is never awaited. The row's window
+        // ring goes only to the file; the log line is the row minus win.
+        const observationRow = governorThermo
+          ? await readGovernorObservationRow({
+              engine,
+              signal,
+              governorActive: activeGovernorAttempted,
+              thermo: governorThermo,
+              model: activeModelId ?? "",
+              turnId,
+              round,
+              attempt: turnAttempt,
+              completion: {
+                prompt_n: result.timings?.prompt_n,
+                predicted_n: result.timings?.predicted_n,
+                predicted_ms: result.timings?.predicted_ms,
+                predicted_per_second: result.timings?.predicted_per_second,
+              },
+            })
+          : null;
+        if (observationRow) {
+          console.log(
+            `KALSA_GOVERNOR_COMPLETION ${JSON.stringify(completionLogRow(observationRow))}`,
+          );
+          void appendObservation(observationRow);
+        }
         // tokens_cached is n_past in llama.rn — used-token disk gate.
         noteChatNPast(result?.tokens_cached);
 

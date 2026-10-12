@@ -1,4 +1,9 @@
 /** Schema tests for the governor / thermal / stall tags. Payloads mirror the real emitters. */
+import {
+  buildObservationRow,
+  completionLogRow,
+  type GovernorObservationStats,
+} from "../../engine/governorObservation";
 import { formatRecord } from "../schema";
 
 function record(tag: string, json: string): Record<string, unknown> | null {
@@ -246,5 +251,100 @@ describe("KALSA_IOS_MEM (iosMemoryGuard.ts)", () => {
     expect(record("KALSA_IOS_MEM", '{"op":"skip","reason":"because"}')).toEqual({
       op: "skip",
     });
+  });
+});
+
+describe("KALSA_GOVERNOR_COMPLETION (governorObservation.ts, Stage 0)", () => {
+  // A real row from the actual builder — the same object the service logs
+  // (completionLogRow: the row minus the file-only win ring). The stats
+  // fixture mirrors the engine test's Partial-spread helper.
+  const stats = (over: Partial<GovernorObservationStats>): GovernorObservationStats =>
+    ({
+      decode_hops: 3,
+      decode_tokens_cpu: 7,
+      decode_tokens_npu: 89,
+      decode_tokens_gpu: 0,
+      decode_us_cpu: 400_000,
+      decode_us_npu: 5_000_000,
+      decode_us_gpu: 0,
+      decode_paced_ms: 250,
+      decode_paced_tokens: 12,
+      decode_pacing_duty_last: 0.9375,
+      decode_pacing_headroom_last: 0.42,
+      decode_hop_rule: "heat_rank",
+      decode_first_step_ms: 1000,
+      decode_last_step_ms: 7000,
+      decode_first_sample: [32, null, 0.1, 120, 0, 900, null, 55, 88, 70, 0.4, 0, 1],
+      decode_batt_sysfs: [1, 301, 1, 2],
+      decode_zone_trips: [108, 115, 95, 95, null, null],
+      decode_window_samples: [],
+      decode_window_samples_overflow: false,
+      thermal_state: "FAST",
+      state_source: "battery",
+      platform_thermal_status: -1,
+      ...over,
+    }) as GovernorObservationStats;
+  const realRow = () =>
+    completionLogRow(
+      buildObservationRow(
+        null,
+        stats({}),
+        { prompt_n: 512, predicted_n: 96, predicted_ms: 6000, predicted_per_second: 16 },
+        { batt_temp_tenths_c: 301, batt_level_pct: 88, plugged: false },
+        { turnId: "42", round: 1, attempt: 1, gap: false, model: "lfm2.5-1.2b", soc: "SM8550" },
+      ),
+    );
+
+  it("projects a real completion row through the closed schema", () => {
+    const projected = record(
+      "KALSA_GOVERNOR_COMPLETION",
+      JSON.stringify(realRow()),
+    ) as Record<string, unknown>;
+    expect(projected).toMatchObject({
+      t: "42",
+      round: 1,
+      attempt: 1,
+      gap: 0,
+      first_row: 1,
+      state: "FAST",
+      src: "battery",
+      batt: 301,
+      level: 88,
+      plugged: 0,
+      prompt_n: 512,
+      pred_n: 96,
+      pps: 16,
+      wall: [1000, 7000],
+      bsys: [1, 301, 1, 2],
+      trips: [108, 115, 95, 95, null, null],
+      rule: "heat_rank",
+      win_ovf: 0,
+    });
+    // The exact-length arrays survive whole.
+    expect(projected.first).toHaveLength(13);
+    expect(projected.tok).toEqual([7, 0, 89]);
+  });
+
+  it("drops a truncated array field, not the line", () => {
+    const row = { ...realRow(), tok: [1, 2] } as Record<string, unknown>;
+    const projected = record(
+      "KALSA_GOVERNOR_COMPLETION",
+      JSON.stringify(row),
+    ) as Record<string, unknown>;
+    expect(projected.tok).toBeUndefined();
+    expect(projected.us).toEqual([400_000, 0, 5_000_000]);
+  });
+
+  it("drops a label outside the engine's closed sets", () => {
+    const row = { ...realRow(), state: "HOT" } as Record<string, unknown>;
+    expect((record("KALSA_GOVERNOR_COMPLETION", JSON.stringify(row)) as Record<string, unknown>).state).toBeUndefined();
+  });
+});
+
+describe("KALSA_GOVERNOR_BATTERY_SYSFS (binding rn-governor.cpp)", () => {
+  it("keeps the probe's four numbers", () => {
+    expect(
+      record("KALSA_GOVERNOR_BATTERY_SYSFS", '{"temp_ok":1,"temp_tenths_c":301,"status_ok":1,"status":2}'),
+    ).toEqual({ temp_ok: 1, temp_tenths_c: 301, status_ok: 1, status: 2 });
   });
 });

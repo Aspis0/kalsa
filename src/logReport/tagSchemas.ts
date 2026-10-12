@@ -22,7 +22,14 @@ export type FieldRule =
   | { k: "modelId" }
   /** A finite number, or a depth-1 object of them under exactly these keys —
    *  any other key drops the whole field. */
-  | { k: "numObj"; keys: readonly string[] };
+  | { k: "numObj"; keys: readonly string[] }
+  /** A fixed-length array of finite numbers or nulls (Stage 0 observation
+   *  cells, governorObservation.ts): every row defines the exact cell count,
+   *  and a wrong length or a non-number cell drops the whole field. */
+  | { k: "numArray"; len: number }
+  /** A depth-1 object of bounded identifier strings under exactly these keys
+   *  (Stage 0 fingerprint: model id, SoC id, binding pin). */
+  | { k: "idObj"; keys: readonly string[]; maxLen: number };
 
 type TagSchema = Record<string, FieldRule>;
 
@@ -109,6 +116,49 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     round: NUM,
     site: enumOf("extractMemory", "translate", "completeOnce"),
     reason: PAUSE_REASONS,
+  },
+  // governorObservation.ts via LlamaService (Stage 0 row minus the win ring,
+  // which only the on-phone observations.jsonl carries). Labels are the
+  // engine's closed sets: thermal_state llama.rn RNLlamaJSI.cpp:57-65,
+  // state_source llama.rn types.ts, decode_hop_rule llama-governor-policy-hop.cpp:219-269.
+  KALSA_GOVERNOR_COMPLETION: {
+    t: { k: "counter" },
+    round: NUM,
+    attempt: NUM,
+    gap: NUM,
+    first_row: NUM,
+    fp: { k: "idObj", keys: ["model", "soc", "pin"], maxLen: 64 },
+    state: enumOf("Unknown", "FAST", "WARM", "COOLMODE", "CRITICAL", "LOWBAT", "Invalid"),
+    src: enumOf("battery", "platform"),
+    status: NUM,
+    batt: NUM,
+    level: NUM,
+    plugged: NUM,
+    prompt_n: NUMN,
+    pred_n: NUMN,
+    pred_ms: NUMN,
+    pps: NUMN,
+    wall: { k: "numArray", len: 2 },
+    first: { k: "numArray", len: 13 },
+    bsys: { k: "numArray", len: 4 },
+    hl: NUMN,
+    duty: NUM,
+    paced: { k: "numArray", len: 2 },
+    tok: { k: "numArray", len: 3 },
+    us: { k: "numArray", len: 3 },
+    hops: NUM,
+    rule: enumOrNull("alternation", "headroom", "heat_rank", "gpu_burst"),
+    trips: { k: "numArray", len: 6 },
+    win_ovf: NUM,
+    dropped: NUMN,
+  },
+  // The binding's one-time battery sysfs probe (rn-governor.cpp, 0/1 flags
+  // and -1-coded values as logged).
+  KALSA_GOVERNOR_BATTERY_SYSFS: {
+    temp_ok: NUM,
+    temp_tenths_c: NUM,
+    status_ok: NUM,
+    status: NUM,
   },
   // governorPauseLog.ts:44-58; CoolingEndReason at thermalResume.ts:84-92
   // (absent on enter); battTempTenthsC nullable at thermalResume.ts:102.
