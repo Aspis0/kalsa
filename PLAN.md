@@ -339,8 +339,9 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
   content).
   Status 2026-10-12: design v0.5 accepted with coordinator notes (DESIGN sec. 3.5; AUDIT-1..3). Stage 0 binding
   (observation only) pushed: binding main `861a3cc3`; Stage 0 app part pushed: app main `aa789620` (pin 861a3cc3,
-  JSONL rows in files/governor/observations.jsonl, KALSA_GOVERNOR_COMPLETION tag). Next: a dev APK on the S23
-  (DESIGN 3.4 checks vs a df359450 control arm), then the Xiaomi. Starting values approved by the owner 2026-10-12 ("se hanno senso si"):
+  JSONL rows in files/governor/observations.jsonl, KALSA_GOVERNOR_COMPLETION tag). S23 device check done
+  (`s23-stage0-obs-aa789620`: criteria 1-6 pass, leg mix not judgeable, sysfs denied). Next: the Xiaomi (dev APK
+  `aa789620`, >= 20 completions of normal use, adb pull), then Stage 0b. Starting values approved by the owner 2026-10-12 ("se hanno senso si"):
   breaker latch 6 h, blind cap 2048 tokens, lookahead 10 s - all re-checked against Stage 0 data before Stage 2;
   the blind cap must count across the tool rounds of one turn, not reset per completion (AUDIT-3). Open owner
   question: repeat cell 75 (3 runs per leg) before Stage 3.
