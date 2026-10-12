@@ -13,7 +13,9 @@
 // closing report and does grow inside a running candidate, the tree grows
 // with the walk and blossoms only on a finished tune, the estimate's words
 // appear only once a candidate finished, both themes paint the bar in the
-// page's own accent, and under reduced motion nothing on the walk moves.
+// page's own accent, a measuring step is the tree's own line on a first run
+// and Home's ring on a normal start, and under reduced motion nothing on the
+// walk moves.
 //
 // The strings are copied on purpose, the way verify.mjs keeps its own: a
 // copied sentence goes red the day the product's copy changes.
@@ -63,6 +65,13 @@ const CAPABILITY = {
   },
   model: null,
   quicker: null,
+  refusal: null,
+};
+
+// What the first run's check answers: one model already on disk, so the pick
+// goes straight to the walk.
+const FIRST_RUN_PICK = {
+  options: [{ id: "0f3e5d7c9b1a2468", name: "Liquid LFM 2.5", download_bytes: 2 * GB, drafter: false, on_disk: true, reason_code: null }],
   refusal: null,
 };
 
@@ -146,12 +155,17 @@ async function read(page) {
 async function walk(page, theme) {
   const suffix = theme === "dark" ? "-dark" : "";
 
-  // A phase with no fraction: the tree at rest and leaning, the segment
-  // travelling, and no line — there is no number to say.
-  await deliver(page, { kind: "measuring" });
+  // A phase with no fraction inside a walk that downloads: the engine came
+  // down (runtime_bytes), then choosing — the tree at rest and leaning, the
+  // segment travelling, and no line, there is no number to say. A start
+  // that only measures or decides is Home's ring, never the tree
+  // (home-start.mjs).
+  await deliver(page, { kind: "runtime_bytes", done: 0, total: 120_000_000 });
+  await page.waitForTimeout(300);
+  await deliver(page, { kind: "choosing" });
   await page.waitForTimeout(900);
   const checking = await read(page);
-  check(`${theme}: the check says its own line`, checking.head === "Checking your computer…", checking.head);
+  check(`${theme}: the phase says its own line`, checking.head === "Getting ready…", checking.head);
   check(`${theme}: a phase with no fraction has no fill`, checking.percent === null && checking.indeterminate);
   check(`${theme}: and no line it has no number for`, checking.line === "", checking.line);
   await page.waitForTimeout(1200);
@@ -311,33 +325,75 @@ async function cut(page, theme) {
   check(`${theme}: the stop with no winner says what will be used`, standard.line === "Kalsa will use its standard settings." && standard.blossoms === 0, standard.line);
 }
 
+/** A page on the walk's stub brain, showing the given capability. */
+async function openWalkPage(browser, theme, capability, state = STATE) {
+  const page = await browser.newPage({ viewport: WINDOW, locale: "en-US" });
+  await page.addInitScript(
+    ({ theme, answers }) => {
+      localStorage.setItem("crescent-chat.theme.v1", theme);
+      if (document.documentElement) document.documentElement.dataset.theme = theme;
+      window.__TAURI__ = {
+        // A start stays open, as a real walk does: the walk stays armed for its steps.
+        core: {
+          invoke: (command) => (command === "brain_start" ? new Promise(() => {}) : Promise.resolve(answers[command] ?? null)),
+        },
+        // The real bus hands the listener an ENVELOPE — { event, id,
+        // payload } — and keeps it: this stub stores handlers so the
+        // script can deliver one the same shape Tauri does.
+        event: {
+          listen: (name, handler) => {
+            window.__kbListeners = window.__kbListeners || {};
+            (window.__kbListeners[name] = window.__kbListeners[name] || []).push(handler);
+            return Promise.resolve(() => {});
+          },
+        },
+      };
+    },
+    { theme, answers: { brain_state: state, brain_capability: capability, brain_test: FIRST_RUN_PICK } },
+  );
+  await page.goto(APP);
+  await page.waitForSelector(".shell", { timeout: 30000 });
+  await page.waitForTimeout(600);
+  return page;
+}
+
+/** The measuring step has no fraction and no number. On a first run it is the
+    tree's own line; on a normal start it is Home's ring, never the tree. */
+async function measuring(browser, theme) {
+  // A first run is stopped until a model is picked. The pick arms the walk, and
+  // only an armed walk's steps reach the page.
+  const firstRun = await openWalkPage(
+    browser,
+    theme,
+    { ...CAPABILITY, chosen: false, chosen_model: null, chosen_id: null },
+    { kind: "stopped" },
+  );
+  await firstRun.locator("button.first-run-start").click();
+  await firstRun.locator(".first-run-continue").click();
+  await deliver(firstRun, { kind: "measuring" });
+  await firstRun.waitForTimeout(900);
+  const checking = await read(firstRun);
+  check(`${theme}: a first run's measuring step says its own line`, checking.head === "Checking your computer…", checking.head);
+  check(`${theme}: and draws the tree`, checking.treeHeight !== null);
+  check(`${theme}: with no fraction there is no fill and no line`, checking.percent === null && checking.indeterminate && checking.line === "");
+  await firstRun.close();
+
+  const normal = await openWalkPage(browser, theme, CAPABILITY);
+  await deliver(normal, { kind: "measuring" });
+  await normal.waitForTimeout(900);
+  const home = await normal.evaluate(() => ({
+    ring: document.querySelectorAll(".power-busy").length,
+    tree: document.querySelectorAll(".tree-sway").length,
+  }));
+  check(`${theme}: a normal start's measuring step shows the ring, not the tree`, home.ring === 1 && home.tree === 0, JSON.stringify(home));
+  await normal.close();
+}
+
 async function main() {
   const browser = await chromium.launch({ args: ["--no-sandbox"] });
   for (const theme of ["light", "dark"]) {
-    const page = await browser.newPage({ viewport: WINDOW, locale: "en-US" });
-    await page.addInitScript(
-      ({ theme, answers }) => {
-        localStorage.setItem("crescent-chat.theme.v1", theme);
-        if (document.documentElement) document.documentElement.dataset.theme = theme;
-        window.__TAURI__ = {
-          core: { invoke: (command) => Promise.resolve(answers[command] ?? null) },
-          // The real bus hands the listener an ENVELOPE — { event, id,
-          // payload } — and keeps it: this stub stores handlers so the
-          // script can deliver one the same shape Tauri does.
-          event: {
-            listen: (name, handler) => {
-              window.__kbListeners = window.__kbListeners || {};
-              (window.__kbListeners[name] = window.__kbListeners[name] || []).push(handler);
-              return Promise.resolve(() => {});
-            },
-          },
-        };
-      },
-      { theme, answers: { brain_state: STATE, brain_capability: CAPABILITY } },
-    );
-    await page.goto(APP);
-    await page.waitForSelector(".shell", { timeout: 30000 });
-    await page.waitForTimeout(600);
+    await measuring(browser, theme);
+    const page = await openWalkPage(browser, theme, CAPABILITY);
     await walk(page, theme);
     if (theme === "light") await reduced(page);
     await cut(page, theme);

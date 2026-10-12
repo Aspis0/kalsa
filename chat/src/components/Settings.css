@@ -371,3 +371,35 @@
   background: var(--ring);
   border-radius: 50%;
 }
+
+/* A failed install's own words, behind Show details (15-update-states-failed). */
+.update-details {
+  margin-top: 6px;
+  color: var(--tx2);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.update-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ac-tx);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.update-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.update-details p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.update-details code {
+  font: 13px/20px ui-monospace, Menlo, monospace;
+}

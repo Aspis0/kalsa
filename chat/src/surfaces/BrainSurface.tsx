@@ -5,7 +5,7 @@ import type { Capability } from "./MachineCard";
 import { FirstRun } from "./FirstRun";
 import { PowerButton } from "./PowerButton";
 import { FailedWalkScreen, GrowingScreen, ReadyScreen } from "./WalkScreens";
-import { useWalkMemory } from "./useWalkMemory";
+import { drawsTree, useWalkMemory } from "./useWalkMemory";
 import type { UpdatesApi } from "../lib/useUpdates";
 import { brainWords, useBrain } from "./useBrain";
 import type { BrainTone } from "./useBrain";
@@ -45,7 +45,7 @@ export function BrainSurface({ onNavigate, onOpenChat, updates }: BrainSurfacePr
   const { table } = useLanguage();
   const power = table.power;
   const home = table.home;
-  const { state, liveStep, heldFailure, stopFailure, busy, act, chooseModel } = useBrain();
+  const { state, liveStep, walking, heldFailure, stopFailure, busy, act, chooseModel } = useBrain();
   const { capability, reread } = useCapability(state, busy);
   const { memory: walk, forget: forgetWalk, claim: claimWalk } = useWalkMemory(liveStep);
 
@@ -73,7 +73,9 @@ export function BrainSurface({ onNavigate, onOpenChat, updates }: BrainSurfacePr
     );
   }
 
-  const words = brainWords(state, heldFailure, busy, table);
+  // The OFF face never shows over a start in flight: busy here is this page's
+  // own press, walking is what survives a remount.
+  const words = brainWords(state, heldFailure, busy || walking, table);
   const failureDetail = state?.kind === "failed" && state.reason_code ? { code: state.reason_code, text: state.reason ?? "" } : null;
 
   // A walk that grew the tree, or the first run's, ends on its own screen,
@@ -99,10 +101,7 @@ export function BrainSurface({ onNavigate, onOpenChat, updates }: BrainSurfacePr
           reason={words.sentence}
           detail={failureDetail}
           busy={busy}
-          onRetry={() => {
-            forgetWalk();
-            void act();
-          }}
+          onRetry={() => void act()}
         />
       );
     }
@@ -119,19 +118,27 @@ export function BrainSurface({ onNavigate, onOpenChat, updates }: BrainSurfacePr
         starting={state?.kind === "starting"}
         updates={updates}
         onChoose={(token) => {
+          // chooseModel forgets the previous walk as it begins, so the claim
+          // for this one is taken after that.
+          const started = chooseModel(token);
           claimWalk();
-          return chooseModel(token);
+          return started;
         }}
         onChecked={reread}
       />
     );
   }
 
-  if (liveStep) return <GrowingScreen step={liveStep} reach={walk?.reach ?? 0} />;
+  // A walk that downloaded or tuned keeps the tree to its end; a start
+  // that only decides and loads stays on Home.
+  if (liveStep && (walk?.ownsEnd || drawsTree(liveStep))) {
+    return <GrowingScreen step={liveStep} reach={walk?.reach ?? 0} />;
+  }
 
   // A refused turn-off takes the words, on the page the button was pressed on:
   // the server is still running, and only closing the window stops it.
   const tone: BrainTone = stopFailure ? "problem" : words.tone;
+  const press = (): void => void act();
   const hints: Record<BrainTone, string | null> = {
     on: power.pressToTurnOff,
     rest: power.pressToTurnOff,
@@ -155,7 +162,7 @@ export function BrainSurface({ onNavigate, onOpenChat, updates }: BrainSurfacePr
     );
   } else if (!stopFailure && (tone === "problem" || tone === "unknown")) {
     action = (
-      <button type="button" className="brain-go" disabled={busy} onClick={() => void act()}>
+      <button type="button" className="brain-go" disabled={busy} onClick={press}>
         <Icon name="refresh" size={21} stroke={2.2} />
         {words.button}
       </button>
@@ -164,7 +171,7 @@ export function BrainSurface({ onNavigate, onOpenChat, updates }: BrainSurfacePr
 
   return (
     <HomeLayout>
-      <PowerButton tone={tone} label={words.button} disabled={!words.enabled || busy} onPress={() => void act()} />
+      <PowerButton tone={tone} label={words.button} disabled={!words.enabled || busy} onPress={press} />
       {hint ? <p className="brain-hint">{hint}</p> : null}
       <h1 className="brain-headline">{stopFailure ? power.stopFailed : words.headline}</h1>
       <p className="brain-sentence">{stopFailure ? power.stopFailure : words.sentence}</p>

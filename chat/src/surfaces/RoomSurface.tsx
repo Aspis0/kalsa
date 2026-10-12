@@ -18,6 +18,7 @@ import { Thinking } from "../components/Thread";
 import { RoomRow } from "./RoomRow";
 import { clockTime, dayLabel, fullStamp, msUntilNextLocalMidnight, sameLocalDay } from "./roomTime";
 import { useRoomFeed } from "./useRoomFeed";
+import { useBrain } from "./useBrain";
 import { useRoomMedia } from "./useRoomMedia";
 import { useLanguage } from "../i18n/useLanguage";
 import "../components/Thread.css";
@@ -38,6 +39,8 @@ export function queueLine(queue: string[], table: { queueNext: (a: string) => st
 
 export function RoomSurface() {
   const feed = useRoomFeed();
+  // The closed Room's one action is Home's own start (useBrain's act).
+  const brain = useBrain();
   const { table, tag } = useLanguage();
   const room = table.room;
   const mediaWords = room.media;
@@ -121,6 +124,9 @@ export function RoomSurface() {
 
   // The room closed (or there is no app to ask): one quiet fact, nothing
   // to fix, nothing else on the page.
+  const brainKind = brain.state?.kind;
+  const starting = brain.busy || brain.walking || brainKind === "starting";
+  const canTurnOn = available() && !starting && (brainKind === "stopped" || brainKind === "failed");
   if (!available() || (info !== null && !info.open)) {
     return (
       <div className="surface-page room-page">
@@ -130,6 +136,13 @@ export function RoomSurface() {
           </span>
           <h3 className="room-empty-title">{room.closedTitle}</h3>
           <p className="room-empty-line">{room.closedRoom}</p>
+          {canTurnOn || starting ? (
+            // Only offered while Kalsa is off: act() on a running brain stops it.
+            <button type="button" className="room-empty-go" disabled={starting} onClick={() => void brain.act()}>
+              <Icon name="power" size={22} stroke={2} />
+              {starting ? table.power.starting : room.turnOn}
+            </button>
+          ) : null}
         </div>
       </div>
     );

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
-import { rustSentence } from "../lib/rustText";
 import type { UpdatesApi } from "../lib/useUpdates";
 import { Icon } from "./Icon";
 import { ReleaseNotes } from "./ReleaseNotes";
+import { UpdateFailure } from "./UpdateFailure";
 import "./NoticeBanner.css";
 import "./Settings.css";
 import "./UpdateNotice.css";
@@ -20,7 +20,7 @@ interface UpdateNoticeProps {
 /** What the startup check found. Nothing installs from it without the
     owner's button press; Later (or Escape, in the shell) puts it away. */
 export function UpdateNotice({ updates, busy, sheet }: UpdateNoticeProps) {
-  const { table, tag } = useLanguage();
+  const { table } = useLanguage();
   const t = table.updates;
   // The sheet draws the notes open (05-update-notice); the banner keeps them
   // behind What's new, so it stays one line over the page.
@@ -28,7 +28,6 @@ export function UpdateNotice({ updates, busy, sheet }: UpdateNoticeProps) {
   const { notice, phase } = updates.state;
   if (!notice) return null;
   const downloading = phase.kind === "downloading";
-  const error = phase.kind === "failed" ? rustSentence(table.rust, phase.error, tag) : null;
   const actions = (
     <>
       <button type="button" className={sheet ? "settings-btn" : "notice-banner-btn"} onClick={updates.dismissNotice}>
@@ -43,7 +42,9 @@ export function UpdateNotice({ updates, busy, sheet }: UpdateNoticeProps) {
   const words = (
     <>
       <b className="update-sheet-title">{t.ready}</b>
-      {error ? <span role="alert" className="update-sheet-error">{error}</span> : null}
+      {phase.kind === "failed" ? (
+        <UpdateFailure error={phase.error} className="update-sheet-error" />
+      ) : null}
       <button type="button" className="settings-more" aria-expanded={notesOpen} onClick={() => setNotesOpen((open) => !open)}>
         {t.whatsNew}
         <Icon name={notesOpen ? "down" : "right"} size={15} stroke={2.2} />

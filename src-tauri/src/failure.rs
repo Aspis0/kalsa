@@ -198,11 +198,11 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
             "Kalsa can't run on this computer yet. Check for an app update.".into()
         }
         StartupFailure::ServerFetchFailed => {
-            "Kalsa couldn't download what she needs. Check your connection and try again."
+            "Kalsa couldn't download what it needs. Check your connection and try again."
                 .into()
         }
         StartupFailure::MachineNotMeasured => {
-            "Kalsa needs to check this computer before she can start. Try again.".into()
+            "Kalsa needs to check this computer before it can start. Try again.".into()
         }
         StartupFailure::NothingFits => {
             "Kalsa doesn't have an AI that runs well on this computer yet. \
@@ -224,7 +224,7 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
                 .into()
         }
         StartupFailure::EngineUnreachable => {
-            "Kalsa couldn't download what she needs on this network. Try another network."
+            "Kalsa couldn't download what it needs on this network. Try another network."
                 .into()
         }
         StartupFailure::ChosenModelUnfundable => {
@@ -270,7 +270,7 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
             "Kalsa couldn't finish downloading. Try again later.".into()
         }
         StartupFailure::ConnectionLost => {
-            "Kalsa couldn't download what she needs. Check your connection and try again."
+            "Kalsa couldn't download what it needs. Check your connection and try again."
                 .into()
         }
         StartupFailure::DownloadRefused => {
@@ -292,7 +292,7 @@ fn supervisor_words(failure: &Failure) -> String {
             "Kalsa couldn't start. Restart this computer and try again.".into()
         }
         Failure::ServerNotStarted { .. } => "Kalsa couldn't start. Try again.".into(),
-        Failure::ServerExited { .. } => "Kalsa stopped by herself. Turn her on again.".into(),
+        Failure::ServerExited { .. } => "Kalsa stopped by itself. Turn it on again.".into(),
         Failure::NotReady { .. } => "Kalsa took too long to get ready. Try again.".into(),
         Failure::UnsafeBinding { .. } => {
             "Kalsa can't run on this computer yet. Check for an app update.".into()
@@ -301,7 +301,7 @@ fn supervisor_words(failure: &Failure) -> String {
         // own vocabulary (pids, ports, walk details) and the file's rule is
         // that a `detail` payload never crosses into a sentence.
         Failure::StopUnconfirmed { .. } => {
-            "Kalsa may still be running. Restart this computer to turn her off.".into()
+            "Kalsa may still be running. Restart this computer to turn it off.".into()
         }
     }
 }
@@ -454,7 +454,7 @@ mod tests {
         }));
         assert_eq!(
             spoken,
-            "Kalsa couldn't download what she needs on this network. Try another network."
+            "Kalsa couldn't download what it needs on this network. Try another network."
         );
         assert_eq!(
             StartupFailure::from(DecideError::EngineUnreachable {
@@ -533,7 +533,7 @@ mod tests {
         assert!(matches!(network, StartupFailure::ConnectionLost));
         assert_eq!(
             words(&network),
-            "Kalsa couldn't download what she needs. Check your connection and try again."
+            "Kalsa couldn't download what it needs. Check your connection and try again."
         );
 
         let short = StartupFailure::from(DownloadError::NotEnoughSpace {

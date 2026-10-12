@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
-import { rustSentence } from "../lib/rustText";
 import type { UpdatesApi } from "../lib/useUpdates";
 import { Icon } from "./Icon";
 import { ReleaseNotes } from "./ReleaseNotes";
+import { UpdateFailure } from "./UpdateFailure";
 
 interface UpdatesSettingsProps {
   updates: UpdatesApi;
@@ -12,7 +12,7 @@ interface UpdatesSettingsProps {
 }
 
 export function UpdatesSettings({ updates, busy }: UpdatesSettingsProps) {
-  const { table, tag } = useLanguage();
+  const { table } = useLanguage();
   const t = table.updates;
   const [notesOpen, setNotesOpen] = useState(false);
   const { state } = updates;
@@ -57,7 +57,7 @@ export function UpdatesSettings({ updates, busy }: UpdatesSettingsProps) {
       <progress className="settings-progress" value={phase.total ? phase.done : undefined} max={phase.total ?? undefined} />
     </div> : null}
     {phase.kind === "failed" ? <div className="settings-update is-failed">
-      <b role="alert" className="settings-update-title">{rustSentence(table.rust, phase.error, tag)}</b>
+      <UpdateFailure error={phase.error} className="settings-update-title" />
       {retry ? <div className="settings-update-actions">
         <button type="button" className="settings-btn is-primary" disabled={busy} onClick={() => updates.install(retry)}>
           <Icon name="refresh" size={17} />

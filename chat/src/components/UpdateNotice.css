@@ -1,12 +1,16 @@
-/* The update sheet (mockup 05, 15-update-states-notice-failed): it rises from
-   the bottom edge over Home and waits for the owner's press. */
+/* The update sheet (mockup 05, 15-update-states-notice-failed): it rises at
+   Home's bottom edge and waits for the owner's press. */
 
+/* The last item of the stage's column, not a fixed overlay: Home lays out
+   above it, so however tall it grows it never covers the page's content. */
 .update-sheet {
-  position: fixed;
-  right: 40px;
-  bottom: 0;
-  left: 152px;
-  z-index: 20;
+  position: relative;
+  order: 1;
+  flex: none;
+  /* A short window keeps part of Home above it; the sheet scrolls instead. */
+  max-height: 60%;
+  overflow-y: auto;
+  margin: 0 40px;
   display: flex;
   /* Top-aligned: the notes open downward under the title (15-update-states-notice-failed). */
   align-items: flex-start;
@@ -81,9 +85,11 @@
 }
 
 /* The same notice as a banner over any page but Home: in the page's flow, so
-   it never covers a composer. */
+   it never covers a composer, and capped like the notice slot above it. */
 .update-banner {
   flex: none;
+  max-height: 12dvh;
+  overflow-y: auto;
 }
 
 .update-banner .update-sheet-title {

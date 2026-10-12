@@ -337,3 +337,27 @@
   border-radius: 3px;
   padding: 0 0.15rem;
 }
+
+/* The closed Room's Turn Kalsa on (16-room-closed): Home's primary pill. */
+.room-empty-go {
+  display: inline-flex;
+  height: 60px;
+  margin-top: 26px;
+  padding: 0 34px;
+  align-items: center;
+  gap: 12px;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border: 0;
+  border-radius: 30px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.room-empty-go:hover {
+  background: var(--ac-tx);
+}
+
+.room-empty-go:disabled {
+  opacity: 0.55;
+}

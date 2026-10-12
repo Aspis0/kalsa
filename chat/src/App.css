@@ -15,16 +15,17 @@
   flex-direction: column;
 }
 
-/* The notices over the top of the page float, so the page under them never
-   moves while one is on screen. */
+/* The notices sit in the page's flow, above it: the page lays out below them
+   and none ever covers content (Home's power button included). Each slot is
+   capped at a short share of the window, so the page keeps room for the
+   composer below; a notice taller than its slot scrolls inside it. */
 .stage-notices {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  /* Above the chat list popover (z-index 21). */
+  position: relative;
+  flex: none;
+  max-height: 12dvh;
+  overflow-y: auto;
+  /* Above the chat list popover (z-index 21), which opens downward. */
   z-index: 25;
-  pointer-events: none;
 }
 
 .stage {

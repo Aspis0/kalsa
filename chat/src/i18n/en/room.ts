@@ -7,6 +7,7 @@ export interface RoomTable {
   listJoin: (items: string[]) => string;
   closedTitle: string;
   closedRoom: string;
+  turnOn: string;
   emptyTitle: string;
   emptyRoom: string;
   /** Inside Kalsa's bubble while the turn runs and no answer word has
@@ -72,6 +73,7 @@ export const ROOM: RoomTable = {
   },
   closedTitle: "The Room is closed",
   closedRoom: "Turn on Kalsa to use the room.",
+  turnOn: "Turn Kalsa on",
   emptyTitle: "The Room",
   emptyRoom: "No messages yet. Say something, or ask Kalsa.",
   readingRoom: "Reading the room — Kalsa will answer soon.",

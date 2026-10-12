@@ -9,6 +9,7 @@ export const ROOM: RoomTable = {
   },
   closedTitle: "La sala está cerrada",
   closedRoom: "Enciende Kalsa para usar la sala.",
+  turnOn: "Encender Kalsa",
   emptyTitle: "La sala",
   emptyRoom: "Aún no hay mensajes. Di algo, o pregunta a Kalsa.",
   readingRoom: "Kalsa está leyendo la conversación y responderá pronto.",

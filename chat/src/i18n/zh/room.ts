@@ -9,6 +9,7 @@ export const ROOM: RoomTable = {
   },
   closedTitle: "房间已关闭",
   closedRoom: "打开 Kalsa 才能使用房间。",
+  turnOn: "打开 Kalsa",
   emptyTitle: "房间",
   emptyRoom: "还没有消息。说点什么，或者问问 Kalsa。",
   readingRoom: "Kalsa 正在阅读对话，很快就会回复。",

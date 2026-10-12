@@ -13,8 +13,15 @@ export interface WalkMemory {
   ownsEnd: boolean;
 }
 
-/** The phases that grow the tree: a walk that saw one ends on its own screen. */
-const GROWING = new Set(["model_bytes", "tuning"]);
+/** The phases that grow the tree: bytes moving or a tune running. A walk
+    that saw one keeps the tree and ends on its own screen; a start that only
+    measures, decides and chooses stays on Home's turning ring
+    (14-home-states-starting). */
+const GROWING = new Set(["runtime_bytes", "model_bytes", "tuning"]);
+
+export function drawsTree(step: ProgressStep): boolean {
+  return GROWING.has(step.kind ?? "");
+}
 const WORKING: ProgressStep = { kind: "working" };
 
 /** A step's own reading on the walk's scale. The tune's share inside a running
@@ -33,19 +40,29 @@ function stepGrowth(step: ProgressStep): number {
 }
 
 // Module scope, not component state: the walk's end must outlive the page
-// that showed it (Home unmounts whenever another page opens).
-let held: WalkMemory | null = null;
+// that showed it (Home unmounts whenever another page opens). A memory is
+// tagged with the generation it was taken in, so a forget made by any page
+// makes it a previous walk's on every page that holds it.
+interface HeldWalk {
+  memory: WalkMemory;
+  generation: number;
+}
 
-/** The walk's end is over: Start a chat or Try again was pressed. */
+let held: HeldWalk | null = null;
+let generation = 0;
+
+/** The walk the page held is over: a start, a stop, or Start a chat. */
 export function forgetWalk(): void {
   held = null;
+  generation += 1;
 }
 
 /** The walk's last step, kept past its end: the step itself is dropped when
     the brain reaches running or fails, and the first run hands the page to
     Home at that moment, so what the walk ends on is held here. */
 export function useWalkMemory(step: ProgressStep | null): { memory: WalkMemory | null; forget: () => void; claim: () => void } {
-  const [memory, setMemory] = useState<WalkMemory | null>(held);
+  const [kept, setKept] = useState<HeldWalk | null>(held);
+  const memory = kept?.generation === generation ? kept.memory : null;
   let current = memory;
   if (step !== null && step !== memory?.last) {
     // Render-time adjustment, as SetupProgress does: no ref written in render.
@@ -54,17 +71,17 @@ export function useWalkMemory(step: ProgressStep | null): { memory: WalkMemory |
       reach: Math.max(memory?.reach ?? 0, stepGrowth(step)),
       ownsEnd: (memory?.ownsEnd ?? false) || GROWING.has(step.kind ?? ""),
     };
-    setMemory(current);
+    setKept({ memory: current, generation });
   }
   useEffect(() => {
-    held = memory;
-  }, [memory]);
+    held = kept;
+  }, [kept]);
   return {
     memory: current,
     forget: () => {
       forgetWalk();
-      setMemory(null);
+      setKept(null);
     },
-    claim: () => setMemory({ last: current?.last ?? WORKING, reach: current?.reach ?? 0, ownsEnd: true }),
+    claim: () => setKept({ memory: { last: WORKING, reach: 0, ownsEnd: true }, generation }),
   };
 }

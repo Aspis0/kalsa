@@ -414,7 +414,6 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - Pre-existing at c35ed539: verify `metersum`, brain-shots `refusal` fixture ("of 22.1 GB"), contrast-dom missing "Show thinking".
 
 ## Hearth port, piece 4 (first run, growing tree), left for later
-- On Home the walk memory is cleared only by Start a chat or Try again; a later Home failure could still show the tree failure screen until then.
 - A one-second clock tick no screen reads (SetupProgress/walkState).
 - "Show details" shows nothing for a failure without a backend code (in practice a choice that failed to save).
 - Start screen omits "Takes about 10 minutes." (no measured basis for the claim).
@@ -422,8 +421,9 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - verify `hiddenonload` is timing-dependent (fails alone at d9705a6a too).
 
 ## Hearth port, piece 5 (remaining screens), left for later
-- Owner decisions pending: closed Room "Turn Kalsa on" button, 09-phones-invite screen, plain update-failed sentence.
+- Owner decision pending: the 09-phones-invite screen.
 - The update notice off Home is an in-flow banner of our own design (no mockup draws it).
+- At 720×480 the empty Chat leaves almost no spare height: the empty state's 72 px of padding (`EmptyState.css`) is fixed, so the notice slots are capped at 12% of the window to keep the composer in view.
 - verify failures shared with 7b5631b4: quota, networkurl, refusefit, filestree, filessearch and the "line is open" waits (scenario setup, not the app); image-attach crashes waiting for the slot notice. Needs its own harness pass.
 - Mini apps render as a card before the answer bubble (mockup nests them after the text); calculator shows formula chips and raw numbers; the table has no default sort or best-row highlight.
 - Files panel is a tree opening on "In this chat" (mockup: breadcrumb list); 09-phones-allow is split across two screens in the app.

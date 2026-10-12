@@ -94,7 +94,7 @@ impl Failure {
             Failure::Download => "Kalsa couldn't download the update. Try again.",
             Failure::Signature => "The update could not be verified, so Kalsa did not install it.",
             Failure::Install => "Kalsa couldn't install the update. Try again.",
-            Failure::Busy => "Kalsa is starting. Try again when she is ready.",
+            Failure::Busy => "Kalsa is starting. Try again when it is ready.",
             Failure::Replying => "Kalsa is writing a reply. Install the update when it finishes.",
             Failure::Changed => "The update changed since it was checked. Check again.",
             Failure::UpToDate => "Kalsa is already up to date.",

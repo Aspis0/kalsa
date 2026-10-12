@@ -10,6 +10,7 @@ import { logUiEvent } from "../lib/uiLog";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./walkState";
 import { heldStepAfter, progressTaken, walkArmedAfter, walkStepShown } from "./walkStep";
+import { forgetWalk } from "./useWalkMemory";
 import type { ChatSettings, LiveSettings } from "../lib/types";
 
 // Two seconds, not one: the state this carries changes on a person's scale —
@@ -488,6 +489,37 @@ export function beginWalk(): void {
   walkArmed = walkArmedAfter(walkArmed, { kind: "begin" });
 }
 
+// Module scope, like the walk: a page that mounts while a start is in flight
+// (the Room, Your AI's switch) must not read the brain as off.
+let startInFlight = false;
+
+function setStartInFlight(value: boolean): void {
+  startInFlight = value;
+  publish();
+}
+
+function getStartInFlight(): boolean {
+  return startInFlight;
+}
+
+// Module scope, like the start flag: a failed switch navigates to Home, and
+// its sentence must still say why there. The next start clears it.
+let heldFailureText: string | null = null;
+
+function holdFailure(value: string | null): void {
+  heldFailureText = value;
+  publish();
+}
+
+function getHeldFailure(): string | null {
+  return heldFailureText;
+}
+
+/** The backend refused a start because one is already under way. */
+function alreadyStarting(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === "startup.already_starting";
+}
+
 /** How Home's round button looks for a state: its ring, and what pressing it does. */
 export type BrainTone = "on" | "rest" | "off" | "busy" | "problem" | "unknown";
 
@@ -623,19 +655,15 @@ export function brainWords(
 }
 
 /**
- * The brain's state as a surface sees it: the shared poll's read, plus the
- * surface-local facts — a held start failure, a held stop failure, and
- * `act`, the one start/stop path. Surfaces never mount together, so the
- * held facts are always exactly one surface's.
+ * The brain's state as a surface sees it: the shared poll's read, the held
+ * start failure (shared across pages), the held stop failure (this surface's
+ * own), and `act`, the one start/stop path.
  */
 export function useBrain() {
   const { table, tag } = useLanguage();
   const read = useSyncExternalStore(subscribeBrainRead, getBrainRead);
   const state = read.state;
-  // A start that failed keeps its own sentence on the page against the poll,
-  // until a start actually succeeds.
-  const [heldFailure, setHeldFailure] = useState<string | null>(null);
-  const heldFailureRef = useRef<string | null>(null);
+  const heldFailure = useSyncExternalStore(subscribeBrainRead, getHeldFailure);
   // A stop that failed says so until the brain is honestly down or the
   // owner acts again. Held in a ref like a start failure: the sentence is
   // the one warning that the server is still running after a stop, and a
@@ -643,11 +671,6 @@ export function useBrain() {
   const [stopFailure, setStopFailure] = useState(false);
   const stopFailureRef = useRef(false);
   const [busy, setBusy] = useState(false);
-
-  function holdFailure(value: string | null): void {
-    heldFailureRef.current = value;
-    setHeldFailure(value);
-  }
 
   function holdStopFailure(value: boolean): void {
     stopFailureRef.current = value;
@@ -668,12 +691,19 @@ export function useBrain() {
   // previous measurement's card in its place, which is the one thing the
   // surface's own comment says must not happen.
   const liveStep = walkStepShown(state?.kind ?? null, heldFailure, read.step);
+  // A start under way, from any page, or a walk on this page: either one means
+  // the ring, not the off face, whatever the brain's state read says yet.
+  const inFlight = useSyncExternalStore(subscribeBrainRead, getStartInFlight);
+  const walking = inFlight || liveStep !== null;
 
   async function act(): Promise<void> {
     if (!state) {
       void poll();
       return;
     }
+    // The one place a press ends the walk the page held: a previous walk's
+    // tree or ending must not shape this one, whether it turns on or off.
+    forgetWalk();
     setBusy(true);
     // The owner acted again: whatever a previous stop said is superseded.
     holdStopFailure(false);
@@ -685,6 +715,7 @@ export function useBrain() {
         holdFailure(null);
         clearWalkStep();
         beginWalk();
+        setStartInFlight(true);
         await invoke("brain_start");
         // A walk that ended without starting anything — a Turn off that
         // landed mid-walk — leaves the state stopped: its last step would
@@ -700,14 +731,21 @@ export function useBrain() {
         await invoke("brain_stop");
       }
     } catch (error) {
-      if (state.kind === "stopped" || state.kind === "failed") {
+      // Another start holds the engine and its walk is what the page shows.
+      if (alreadyStarting(error)) {
+        // No failure to hold.
+      } else if (state.kind === "stopped" || state.kind === "failed") {
         holdFailure(rustSentence(table.rust, error, tag));
+        // The failed walk's live step and armed progress end here. The walk
+        // memory stays: a walk that drew the tree keeps its failure screen.
+        clearWalkStep();
       } else {
         // Held against the polls: the brain is (still) not down, and the
         // sentence stays until that honestly changes.
         holdStopFailure(true);
       }
     }
+    setStartInFlight(false);
     setBusy(false);
     void poll();
   }
@@ -722,6 +760,8 @@ export function useBrain() {
    * the first run owns the screen while this runs and shows the refusal itself.
    */
   async function chooseModel(token: string): Promise<string | null> {
+    forgetWalk();
+    setStartInFlight(true);
     setBusy(true);
     holdStopFailure(false);
     let failure: string | null = null;
@@ -735,9 +775,13 @@ export function useBrain() {
       beginWalk();
       await invoke("brain_start");
     } catch (error) {
-      failure = rustSentence(table.rust, error, tag);
-      holdFailure(failure);
+      if (!alreadyStarting(error)) {
+        failure = rustSentence(table.rust, error, tag);
+        holdFailure(failure);
+        clearWalkStep();
+      }
     }
+    setStartInFlight(false);
     setBusy(false);
     void poll();
     return failure;
@@ -746,6 +790,7 @@ export function useBrain() {
   return {
     state,
     liveStep,
+    walking,
     heldFailure,
     stopFailure,
     busy,

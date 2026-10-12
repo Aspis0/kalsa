@@ -105,7 +105,7 @@ jargon or the new layout needs it: every change is listed in "Copy changes".
 - The square (QR, "Point your phone's camera at the square.", awareness, capacity line, Invite by link). → `09-phones-square`.
 - A phone is connecting: the Allow prompt. → `09-phones-allow`.
 - Connected list (This computer, phones, Forget, Pair another phone). → `09-phones-paired`.
-- Invite by link (link copied, Expires …, Copy link, Cancel invite). → `09-phones-invite`.
+- Invite by link (link copied, Expires …, Copy link, Cancel invite). → `09-phones-invite` — not built, see the decision below.
 - Errors (couldn't save / couldn't read / can't connect right now / couldn't check). → `09-phones-error`.
 - Tailscale lines. → `17-advanced-server` (For experts only).
 
@@ -114,7 +114,7 @@ jargon or the new layout needs it: every change is listed in "Copy changes".
 - The web-search and error-report full notes. → `08-settings-notes-open`.
 - Error-report preference failed to save. → `08-settings-save-failed`.
 - Updates: checking, up to date, downloading %, failed, busy writing. → `15-update-states-checking`, `-up-to-date`, `-downloading`, `-failed`, `-busy`.
-- Update notice over Home, and its failed and busy faces. `components/UpdateNotice.tsx`. → `05-update-notice`, `15-update-states-notice-failed`.
+- Update notice: a sheet at Home's bottom edge, and a banner over the other pages; both are in the page's flow, not over the page. Their failed and busy faces too. `components/UpdateNotice.tsx`. → `05-update-notice`, `15-update-states-notice-failed`.
 
 ## Help (`surfaces/HelpSurface.tsx`, `help.ts`)
 - Sections (What Kalsa is, the Room, Getting started, Home, Chatting, Files and pictures, Web search, Interactive answers, Connecting a phone, When something goes wrong, Why Kalsa), sources. → `10-help`, `10-help-open`.
@@ -189,3 +189,7 @@ Owner decision, 2026-10-11.
 
 ## Decided after the port began
 - Home footer (owner 2026-10-11): "Your messages and answers stay on this computer." — not "Everything…", because alpha error reports and web search leave the computer.
+- Invite by link (owner 2026-10-11): unchanged. `09-phones-invite` stays unbuilt, and the invite link is never shown on screen except in the existing field the page offers when the clipboard refuses it.
+- Update failed (owner 2026-10-11): the failed install says "Kalsa couldn't download the update. Try again."; the backend's own code and words sit behind "Show details", in Settings and on the notice (`15-update-states-failed`, `-notice-failed`). A failed check keeps its own sentence.
+- Closed Room (owner 2026-10-11): "Turn Kalsa on" as drawn in `16-room-closed`, running Home's own start.
+- Notices in the page's flow (decided 2026-10-12, not an owner call): the top notices and the update banner sit above the page, not over it, and each is capped at 12% of the window and scrolls inside that. At the 720×480 minimum the Chat and Room composers stay in the window with both showing. The Home sheet is in the same flow.

@@ -108,7 +108,11 @@ export function ModelsSurface({ onNavigate }: { onNavigate: (surface: SurfaceKey
           inUse={inUse}
           running={running !== null}
           busy={busy}
-          onChoose={(token) => void chooseModel(token)}
+          onChoose={(token) => {
+            // The walk shows on Home: brain_start answers only when the walk ends.
+            onNavigate("brain");
+            void chooseModel(token);
+          }}
         />
       ) : capability?.kind === "measured" ? (
         <p className="surface-quiet">{refusalSentence(t, capability.refusal_code, capability.refusal)}</p>
