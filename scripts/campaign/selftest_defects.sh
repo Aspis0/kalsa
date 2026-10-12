@@ -2443,6 +2443,64 @@ readiness_stale_case() {
 
 readiness_stale_case
 
+# H9: a prewarm that restores its snapshot ends at restore ok:true without
+# done; that launch is ready. A failed restore alone is not.
+readiness_restore_case() {
+  local name="$1" payload="$2" want="$3" out="$WORK/ready-$1" rc
+  fake_reset marker-turn1
+  printf '%s\n' "$payload" > "$FAKE_DEV/fake/prewarm-json"
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    eval "$READINESS_SOURCES"
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    readiness_env "$out" 5
+    campaign_launch || exit 2
+    campaign_wait_ready || exit 3
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  # refused must be the gate's own timeout (rc 3 + its message), never a launch
+  # that failed before the gate ran.
+  if { [ "$want" = ready ] && [ "$rc" -eq 0 ] && grep -q 'ready after' "$out/log.txt"; } \
+    || { [ "$want" = refused ] && [ "$rc" -eq 3 ] && grep -q 'never became ready' "$out/log.txt"; }; then
+    ok "readiness on a $name prewarm: $want"
+  else
+    bad "readiness on a $name prewarm: want $want, rc=$rc"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+readiness_restore_case restore-ok '{"op":"restore","ok":true,"tokens":1760,"hash":"2138549136"}' ready
+readiness_restore_case restore-failed '{"op":"restore","ok":false,"reason":"load_error","hash":"2138549136"}' refused
+
+# A logcat reconnect can append an older process's restore line AFTER the
+# launch offset; only the launched PID's lines may satisfy the gate.
+readiness_other_pid_case() {
+  local out="$WORK/ready-other-pid" rc
+  fake_reset marker-turn1
+  : > "$FAKE_DEV/fake/no-prewarm"
+  rm -rf "$out"; mkdir -p "$out"
+  (
+    eval "$READINESS_SOURCES"
+    die() { printf 'DIE: %s\n' "$*" >&2; exit 7; }
+    readiness_env "$out" 5
+    campaign_launch || exit 2
+    printf '%s\n' "09-16 11:59:59.000  9999  9998 I ReactNativeJS: 'KALSA_PREWARM', '{\"op\":\"restore\",\"ok\":true,\"tokens\":1760,\"hash\":\"old\"}'" \
+      >> "$FAKE_DEV/fake/stream.txt"
+    campaign_wait_ready || exit 3
+    exit 0
+  ) > "$out/log.txt" 2>&1
+  rc=$?
+  if [ "$rc" -eq 3 ] && grep -q 'never became ready' "$out/log.txt"; then
+    ok "readiness refuses a restore line from another PID after the offset"
+  else
+    bad "another PID's restore line satisfied the gate (rc=$rc)"
+    tail -6 "$out/log.txt" | sed 's/^/   | /'
+  fi
+}
+
+readiness_other_pid_case
+
 # The log line alone is not enough: the composer must be enabled in the XML.
 readiness_composer_disabled_case() {
   local out="$WORK/ready-disabled" rc

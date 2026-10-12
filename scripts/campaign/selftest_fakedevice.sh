@@ -23,6 +23,8 @@
 #   telemetry.line  the KALSA_TELEMETRY line appended on turn 1 (marker-turn1)
 #   no-prewarm      flag file: launches append no KALSA_PREWARM op=done (a
 #                   refused/dead load) so the readiness gate must fail on it
+#   prewarm-json    file: launches append this KALSA_PREWARM payload instead of
+#                   op=done (a snapshot restore ends without done); no-prewarm wins
 #   settings-timeout  system screen_off_timeout value (stateful get/put/delete)
 set -uo pipefail
 
@@ -462,7 +464,12 @@ PY
         # quotes a multi-arg console.log (verbatim raw/s23-governor-long-
         # 577867c0/matcher-repro.txt) — since only debuggable APKs run here.
         # no-prewarm models a dead/refused load: no line ever arrives.
-        if [ ! -f "$F/no-prewarm" ]; then
+        # prewarm-json replaces the done payload (e.g. a snapshot restore).
+        if [ -f "$F/no-prewarm" ]; then
+          :
+        elif [ -f "$F/prewarm-json" ]; then
+          _append "09-16 12:00:00.200  $(cat "$F/pid")  4243 I ReactNativeJS: 'KALSA_PREWARM', '$(cat "$F/prewarm-json")'"
+        else
           _append "09-16 12:00:00.200  $(cat "$F/pid")  4243 I ReactNativeJS: 'KALSA_PREWARM', '{\"op\":\"done\",\"promptMs\":14265.905,\"promptN\":1660,\"hash\":\"3677660334\"}'"
         fi
         ;;

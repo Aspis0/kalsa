@@ -58,8 +58,24 @@ device_ready_log_seen() {
   #   09-27 15:05:47.444 29885 29913 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":14265.905,"promptN":1660,"hash":"3677660334"}'
   # while a single-string template logs unquoted. Herestring, never a pipe
   # into grep -q: an early-closing grep hands the writer a SIGPIPE.
+  # A prewarm that restores its saved snapshot ends at {"op":"restore","ok":true}
+  # and never logs done (LlamaService prewarm returns right after it), so every
+  # launch after the first saved snapshot would time out here (H9, S23 Meter
+  # OFF arm 2026-10-11). A failed restore (ok:false) is not readiness: the
+  # prewarm goes on to a prefill that ends in done, or in a skip/pause this
+  # gate still does not accept (H9 narrowed, not closed).
+  # A logcat reconnect appends ring-buffer bytes older than the launch after
+  # the offset, and every launch after the first now leaves a restore line in
+  # that buffer: when the campaign knows the launched PID, only its lines count
+  # (threadtime: field 3 is the PID).
+  case "${CAMPAIGN_LAUNCHED_PID:-}" in
+    ''|*[!0-9]*) ;;
+    *) slice=$(LC_ALL=C awk -v pid="$CAMPAIGN_LAUNCHED_PID" '$3 == pid' <<<"$slice") ;;
+  esac
   grep -qF 'KALSA_PREWARM {"op":"done"' <<<"$slice" \
-    || grep -qF "'KALSA_PREWARM', '{\"op\":\"done\"" <<<"$slice"
+    || grep -qF "'KALSA_PREWARM', '{\"op\":\"done\"" <<<"$slice" \
+    || grep -qF 'KALSA_PREWARM {"op":"restore","ok":true' <<<"$slice" \
+    || grep -qF "'KALSA_PREWARM', '{\"op\":\"restore\",\"ok\":true" <<<"$slice"
 }
 
 # A dead load leaves the composer disabled; the XML must show an enabled one.

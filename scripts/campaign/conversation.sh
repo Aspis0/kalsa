@@ -170,7 +170,7 @@ campaign_wait_ready() {
   local t=0 offset="${_CAMPAIGN_LAUNCH_LOG_OFFSET:-0}"
   while [ "$t" -lt "$CAMPAIGN_READY_TIMEOUT" ]; do
     if device_ready_log_seen "$offset" && device_composer_enabled; then
-      log "ready after ${t}s (KALSA_PREWARM op=done since launch + composer enabled)"
+      log "ready after ${t}s (KALSA_PREWARM op=done or restore ok:true since launch + composer enabled)"
       sleep 8
       return 0
     fi
@@ -182,9 +182,9 @@ campaign_wait_ready() {
   # inside the cap. Die with evidence, not with the generic timeout.
   if campaign_load_dead_marker_present || [ "${CAMPAIGN_LOAD_DEAD_MARKER_CLEARED:-0}" = 1 ]; then
     campaign_model_load_died_snapshot
-    die "model load died: no KALSA_PREWARM op=done after launch within ${CAMPAIGN_READY_TIMEOUT}s"
+    die "model load died: no KALSA_PREWARM op=done or restore ok:true after launch within ${CAMPAIGN_READY_TIMEOUT}s"
   fi
-  log "never became ready after ${CAMPAIGN_READY_TIMEOUT}s (no KALSA_PREWARM op=done since launch, or the composer is not enabled)"
+  log "never became ready after ${CAMPAIGN_READY_TIMEOUT}s (no KALSA_PREWARM op=done or restore ok:true since launch, or the composer is not enabled)"
   return 1
 }
 
