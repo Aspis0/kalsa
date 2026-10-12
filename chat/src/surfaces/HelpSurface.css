@@ -9,6 +9,15 @@
   color: var(--tx);
 }
 
+.help-brand {
+  margin: 0 0 16px;
+  color: var(--ac-tx);
+}
+
+.help-brand svg {
+  display: block;
+}
+
 .help-title {
   margin: 0 0 18px;
   font-family: var(--font-display);

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { rustSentence } from "../lib/rustText";
 import { useLanguage } from "../i18n/useLanguage";
 import { Icon } from "../components/Icon";
+import { KalsaWordmark } from "../components/KalsaWordmark";
 import type { UpdatesApi } from "../lib/useUpdates";
 import { modelOnly } from "../lib/modelName";
 import { refusalSentence } from "./MachineCard";
@@ -187,6 +188,9 @@ export function FirstRun({ capability, liveStep, walk, failureDetail, starting, 
 
   return (
     <FullWindow keepsRail={error !== null}>
+      <div className="first-run-brand">
+        <KalsaWordmark height={64} />
+      </div>
       <h1>{t.welcome}</h1>
       <p className="first-run-sub">{t.welcomeLine}</p>
       <button type="button" className="power power-on first-run-start" onClick={() => void check()}>

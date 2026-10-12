@@ -21,6 +21,16 @@ html[data-bare] .shell > .rail {
   text-align: center;
 }
 
+/* The owner's own lettering, above the welcome: the one hero brand moment. */
+.first-run-brand {
+  margin: 0 0 30px;
+  color: var(--ac-tx);
+}
+
+.first-run-brand svg {
+  display: block;
+}
+
 .first-run h1 {
   margin: 0;
   font-family: var(--font-display);
