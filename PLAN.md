@@ -339,8 +339,10 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
   content).
   Status 2026-10-12: design v0.5 accepted with coordinator notes (DESIGN sec. 3.5; AUDIT-1..3). Stage 0 binding
   (observation only) pushed: binding main `861a3cc3`. Next: Stage 0 app part (pin bump, JSONL log), then a dev
-  APK on the S23, then the Xiaomi. Open owner questions: repeat cell 75 (3 runs per leg) before Stage 3; starting
-  values breaker latch 6 h, blind cap 2048 tokens, lookahead 10 s.
+  APK on the S23, then the Xiaomi. Starting values approved by the owner 2026-10-12 ("se hanno senso si"):
+  breaker latch 6 h, blind cap 2048 tokens, lookahead 10 s - all re-checked against Stage 0 data before Stage 2;
+  the blind cap must count across the tool rounds of one turn, not reset per completion (AUDIT-3). Open owner
+  question: repeat cell 75 (3 runs per leg) before Stage 3.
 - DECIDED 2026-10-11 (owner: "non viene supportato dall'app finché non scriviamo il kernel per mali GPU"):
   the Jelly Star (Helio G99, Mali-G57) is NOT supported by the app until a Mali GPU kernel exists; LFM on
   its CPU is thermally non-viable (`analysis/CISWIRE-CHAR3GRAM-KV-AND-THERMAL-2026-09-19.md`). M1 is
