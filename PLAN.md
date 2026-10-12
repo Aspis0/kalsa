@@ -329,7 +329,12 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
   component zones decide; real life (pauses, cooling, reloads, other apps, background load) must not
   break it: live margin every window, an "everything else" heat term + outlier rejection + forgetting,
   a surprise breaker (actual rise faster than predicted -> GPU off for the session), Stage 0 data from
-  real use. Known flaw of the first draft: the forecast-only margin can never fire on the Xiaomi.
+  real use. Known flaw of the first draft: the forecast-only margin can never fire on the Xiaomi. v0.2 (2026-10-12, same
+  folder) answers AUDIT-1; owner on its questions: (1) Xiaomi pacing lines raised so pacing starts at
+  skin >= 39 C ("alziamo ad almeno 39"; the proposal 0.15 / 0.25 = skin 41.0 / 44.0 C satisfies it);
+  (2) "blind forecast abstains, zones decide; when it speaks both must pass" approved ("mi piace, poi
+  testiamo"); (3) Stage 0 private numeric log file on the owner's Xiaomi approved (no model text, no user
+  content).
 - DECIDED 2026-10-11 (owner: "non viene supportato dall'app finché non scriviamo il kernel per mali GPU"):
   the Jelly Star (Helio G99, Mali-G57) is NOT supported by the app until a Mali GPU kernel exists; LFM on
   its CPU is thermally non-viable (`analysis/CISWIRE-CHAR3GRAM-KV-AND-THERMAL-2026-09-19.md`). M1 is
