@@ -45,3 +45,30 @@ change"** - its Stage 0 also moves the Xiaomi pacing lines, and Stage 0 cannot v
   tests/CMakeLists.txt:455-457). File sizes reasonable; keep the ring in its own file (rn-governor.cpp is 335 lines).
 - Stage 0 JSONL: numeric, no model text or user content, still usage/device-health metadata in private storage;
   rotation unverified.
+
+# Re-audit of v0.4, scoped to Stage 0 / 0b (same auditor), 2026-10-12
+
+Verdict: **No - resolve the freshness fields, trip-data route, acceptance checks, probe contract and hook timing
+before a coder starts Stage 0.**
+
+1. HIGH: the hook awaits after the result (DESIGN:132); stop is checked afterwards (LlamaService.ts:5378); the stats
+   call can wait up to 15 s (LlamaService.ts:1770); file I/O unbounded -> delays cancellation and the next tool round.
+2. HIGH: Stage 0 windows carry only `headroom_age_ms` (DESIGN:58); no ages/stamps for status and app samples
+   (DESIGN:124), which Stage 2's freshness gates (DESIGN:208-209) need.
+3. HIGH: trip ranges have no route to JSI: `governorSamples()` returns only the ring (DESIGN:90); the thermal-leg
+   pointer is private (rn-governor.h:87).
+4. HIGH/PLAUSIBLE: one combined per-window sysfs snapshot not specified; `sample()` already reads each zone
+   (rn-governor.cpp:191, rn-thermal-legs.cpp:102); a separate temps call would read them twice.
+5. HIGH: `decode_us_*` exposed as ms (DESIGN:93) but `tok/us` compared to tok/s (DESIGN:158): x1000; "identical leg
+   mix" checks only GPU = 0 (DESIGN:161), not CPU/NPU vs a named baseline.
+6. HIGH: Stage 0b check `duty < 1` (DESIGN:173) is not forecast-specific (duty = min of headroom, battery, status,
+   pacing-duty.cpp:75); `duty_last` is the previous step's realized duty (llama-ext.h:619).
+7. MEDIUM: the battery sysfs probe (OPEN 4, DESIGN:268) has no function/fields/failure values/test, and
+   `KALSA_GOVERNOR_PLATFORM` is status-only by contract (rn-governor.cpp:80).
+8. MEDIUM: NaN window cells typed `number[][]` (DESIGN:98) -> JSON null; define nullable + replay handling; the hook
+   names `governorThermoSnapshot` (DESIGN:134) but LlamaService.ts:5242 discards the snapshot; run_tests.sh needs an
+   invocation, not only an executable check.
+9. Sound: stage split; binding-only change needs no VERSIONS/skel change (VERSIONS:8 pins f1f612388). "No engine
+   call" (DESIGN:325) is literally false (read-only getGovernorStats).
+10. Sound: 0b arithmetic (0.0833 / 0.2033); JSONL excludes text/user content but includes turn/device/build ids and
+    usage/thermal metadata; the new completion tag must be registered in the closed log-report schema.
