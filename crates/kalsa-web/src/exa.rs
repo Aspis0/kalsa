@@ -79,7 +79,7 @@ pub(crate) fn search(query: &str, stop: &AtomicBool) -> Result<String, WebError>
         .pointer("/result/content/0/text")
         .and_then(|value| value.as_str())
         .unwrap_or("");
-    Ok(results(text, query))
+    Ok(results(text))
 }
 
 /// A refusal inside an envelope, in the provider's own words. Two shapes matter:
@@ -121,11 +121,13 @@ fn shorten(message: &str) -> String {
 const TEXT_CAP: usize = 2_500;
 
 /// Format the tool's text as numbered results with their URLs. Empty when the
-/// text held no usable result.
-pub(crate) fn results(text: &str, query: &str) -> String {
+/// text held no usable result. The query is never echoed into the answer: the
+/// model's own words, sent back as a tool result, would read as provenance
+/// for an address nobody typed.
+pub(crate) fn results(text: &str) -> String {
     let found = parse(text);
     if found.is_empty() {
-        return format!("No results were found for “{query}”.");
+        return "No results were found.".to_string();
     }
 
     let mut out = String::new();
@@ -234,7 +236,7 @@ mod tests {
             "result": { "isError": false, "content": [{ "type": "text", "text": "Title: One\nURL: https://example.com/" }] },
         });
         assert_eq!(refusal(&answer), None);
-        assert!(results("Title: One\nURL: https://example.com/", "q").starts_with("1. One"));
+        assert!(results("Title: One\nURL: https://example.com/").starts_with("1. One"));
     }
 
     const EXA_TEXT: &str = "Title: Rust 1.85 released\nURL: https://blog.rust-lang.org/1.85\n\
@@ -244,7 +246,7 @@ mod tests {
 
     #[test]
     fn reads_results_out_of_exa_flat_text() {
-        let out = results(EXA_TEXT, "rust");
+        let out = results(EXA_TEXT);
         assert!(out.starts_with("1. Rust 1.85 released\n   URL: https://blog.rust-lang.org/1.85\n"));
         assert!(out.contains("Async closures are stable. The edition is 2024."));
         assert!(out.contains("2. Second result"));
@@ -253,20 +255,22 @@ mod tests {
 
     #[test]
     fn a_result_without_a_url_is_dropped() {
-        let out = results("Title: No address\nHighlights:\nNothing.", "q");
-        assert_eq!(out, "No results were found for “q”.");
+        let out = results("Title: No address\nHighlights:\nNothing.");
+        // No query rides in the empty answer: the caller's words would come
+        // back as a tool result, and the page reads results as provenance.
+        assert_eq!(out, "No results were found.");
     }
 
     #[test]
     fn prose_before_the_first_title_is_ignored() {
-        let out = results("Searching…\nTitle: One\nURL: https://example.com/1", "q");
+        let out = results("Searching…\nTitle: One\nURL: https://example.com/1");
         assert!(out.starts_with("1. One"));
     }
 
     #[test]
     fn the_output_is_cut_with_a_marker() {
         let long = format!("Title: One\nURL: https://example.com/1\nHighlights:\n{}", "x".repeat(9000));
-        let out = results(&long, "q");
+        let out = results(&long);
         assert!(out.ends_with("[Only the first 2500 characters are shown.]"));
         assert!(out.chars().count() < 2600, "{} chars", out.chars().count());
     }

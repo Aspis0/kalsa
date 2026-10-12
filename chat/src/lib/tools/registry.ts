@@ -7,7 +7,7 @@ import { findSensitive } from "../webgate/sensitive";
 import { TOOL_DEFINITIONS, CREATE_MINIAPP_TOOL } from "./definitions";
 import type { ToolDefinition } from "./definitions";
 import { runCreateMiniapp } from "./createMiniapp";
-import { fetchProvenanceRefusal } from "./fetchProvenance";
+import { fetchProvenanceRefusal, searchQueryRefusal } from "./fetchProvenance";
 
 /** What one held call looks like to the page: which tool, the exact string
     that would leave, what the detectors saw in it, and the documents whose
@@ -87,6 +87,11 @@ export async function executeToolCall(
     if (name === "web_search") {
       const query = typeof record.query === "string" ? record.query.trim() : "";
       if (!query) return { text: "No search was made: the query was empty.", ok: false };
+      // Egress before the gate: the words leave as they are, so an address
+      // among them is a fetch that never asked — allowed only where a fetch
+      // of it would run.
+      const refusal = searchQueryRefusal(query, conversation);
+      if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
       if (!(await admitted(gate, "web_search", query, signal))) return heldBack(query, signal, stoppedText);
       return { text: await through("brain_web_search", { query }, signal), ok: true };
     }

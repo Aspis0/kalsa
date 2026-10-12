@@ -30,6 +30,7 @@ export const TOOLS = {
     "webPageTooLong": "Cette page est trop longue pour que Kalsa la lise.",
     "linkNotInChat": "Kalsa n'a pas ouvert ce lien : il n'apparaît pas dans cette conversation.",
     "linkHasCredential": "Kalsa n'a pas ouvert ce lien : il semble contenir un mot de passe ou une clé.",
+    "searchLinkNotInChat": "Kalsa n'a pas cherché : ce lien n'apparaît pas dans cette conversation.",
     "findings": {
       "copiedText": "texte copié",
       "npmToken": "un code de connexion",

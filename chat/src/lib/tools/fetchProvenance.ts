@@ -3,18 +3,19 @@ import { PINNED_DOCS_MARK } from "../attachments";
 import { findSensitive } from "../webgate/sensitive";
 
 /**
- * Where a web_fetch address may come from. A page the model is reading can
- * carry hidden instructions, and an address the model coined itself is how
- * they walk private data out through a query string — so, like Anthropic's
- * web fetch tool, a page opens only at an address that has already appeared
- * in the conversation, in text the model cannot author: a user message (a
- * per-turn document's text rides its user message), the pinned documents'
- * block of the system message, or the result of a web_search or web_fetch
- * call. Everything the assistant writes — its answers, its own tool-call
- * arguments, every other tool's results — counts for nothing: a mini app's
- * title is its argument back, and a web result is scrubbed of the call's own
- * argument values first, so an engine echoing the query ("No results were
- * found for “…”") arms nothing either.
+ * Where a web_fetch address may come from, and what a web_search query may
+ * carry out. A page the model is reading can hold hidden instructions, and
+ * an address the model coined itself is how they walk private data out
+ * through a query string — so, like Anthropic's web fetch tool, a page opens
+ * only at an address that has already appeared in the conversation, in text
+ * the model cannot author: a user message (a per-turn document's text rides
+ * its user message), the pinned documents' block of the system message, or
+ * the result of a web_search or web_fetch call. Everything the assistant
+ * writes — its answers, its own tool-call arguments, every other tool's
+ * results — counts for nothing, and a search's result arms only the
+ * addresses on its own `URL:` lines (exa.rs), never the prose a query
+ * steered. A query that itself carries an address with a path or a query is
+ * a fetch that never asked, and follows the same rule.
  */
 
 export interface FetchRefusal {
@@ -34,6 +35,11 @@ const CREDENTIAL: FetchRefusal = {
   text: "Not run: this address looks like it carries a password or key that the user did not type.",
 };
 
+const QUERY_UNSEEN: FetchRefusal = {
+  code: "web.query_link_unseen",
+  text: "Not run: the search carries an address that has not appeared in the conversation, so it was not made. Search in your own words, or ask the user for the link.",
+};
+
 /** The answers a web call gets when nothing ran. They quote the outgoing
     string — heldBack cuts it at eighty characters, so no scrub could remove
     the quote — so they are never provenance. */
@@ -51,9 +57,49 @@ const CREDENTIAL_PARAMS = new Set([
   "api_key", "apikey", "key", "auth", "session", "sid",
 ]);
 
+/** How exa.rs writes one result's own address line: three spaces, `URL: `,
+    the address. A search's prose is text the query steered, so only these
+    lines' addresses are provenance. */
+const URL_LINE = "   URL: ";
+
 /** The refusal for this address, or null when the rule lets it through to
     the gate. */
 export function fetchProvenanceRefusal(url: string, conversation: WireMessage[]): FetchRefusal | null {
+  const { seen, userTexts } = seenCorpus(conversation);
+  // Opening the address would send the credential to its host, so only the
+  // user's own words excuse one; a page or a result quoting it does not.
+  const credentials = credentialTexts(url);
+  if (!credentials.every((credential) => userTexts.some((text) => text.includes(credential)))) return CREDENTIAL;
+  const key = canonical(url);
+  if (key === null || !seen.has(key)) return UNSEEN;
+  return null;
+}
+
+/** The egress rule for a search query: the words go to the engine as they
+    are, so an address with a path or a query among them is a fetch that
+    never asked — allowed only where a fetch of it would run. A bare name
+    carries nothing to send and passes; plain words the model could re-spell
+    cannot be policed. */
+export function searchQueryRefusal(query: string, conversation: WireMessage[]): FetchRefusal | null {
+  const { seen } = seenCorpus(conversation);
+  for (const match of query.matchAll(URL_LIKE)) {
+    const key = canonical(match[0].replace(/[.,;:!?…*_]+$/, ""));
+    if (key === null) continue;
+    let parsed: URL;
+    try {
+      parsed = new URL(key);
+    } catch {
+      continue;
+    }
+    if (parsed.pathname === "/" && parsed.search === "") continue;
+    if (!seen.has(key)) return QUERY_UNSEEN;
+  }
+  return null;
+}
+
+/** The addresses this conversation has already carried, and the user's own
+    words — the corpus both rules read. */
+function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts: string[] } {
   const seen = new Set<string>();
   const userTexts: string[] = [];
   for (const message of conversation) {
@@ -92,17 +138,19 @@ export function fetchProvenanceRefusal(url: string, conversation: WireMessage[])
     if (text.startsWith(`${call.name} could not run:`)) continue;
     let scrubbed = text;
     for (const value of call.own) {
-      if (value !== "") scrubbed = scrubbed.split(value).join(" ");
+      for (const form of echoForms(value)) scrubbed = scrubbed.split(form).join(" ");
     }
-    remember(scrubbed, seen);
+    if (call.name === "web_search") {
+      for (const line of scrubbed.split("\n")) {
+        if (line.startsWith(URL_LINE)) remember(line.slice(URL_LINE.length), seen);
+      }
+    } else {
+      // A page fetched from an address the conversation carried: its text is
+      // outside content, not the model's.
+      remember(scrubbed, seen);
+    }
   }
-  // Opening the address would send the credential to its host, so only the
-  // user's own words excuse one; a page or a result quoting it does not.
-  const credentials = credentialTexts(url);
-  if (!credentials.every((credential) => userTexts.some((text) => text.includes(credential)))) return CREDENTIAL;
-  const key = canonical(url);
-  if (key === null || !seen.has(key)) return UNSEEN;
-  return null;
+  return { seen, userTexts };
 }
 
 /** The credentials this address carries, as the text that would excuse each:
@@ -137,6 +185,16 @@ function ownValues(argsText: string): string[] | null {
   return Object.values(parsed).filter((value): value is string => typeof value === "string");
 }
 
+/** The forms one argument value can come back in: as sent, trimmed (the
+    registry trims before anything leaves), and without a fragment (the door
+    strips it). An echo of any of them is the model's own text, not
+    provenance. */
+function echoForms(value: string): string[] {
+  const trimmed = value.trim();
+  const forms = new Set([value, trimmed, trimmed.split("#")[0]]);
+  return [...forms].filter((form) => form !== "");
+}
+
 /** Full addresses and bare `host.tld/…` shapes. The stop class ends a match
     at the quotes and brackets a PDF, a word processor, a chat app or CJK
     prose wraps an address in; sentence punctuation and markdown emphasis
@@ -152,9 +210,11 @@ function remember(text: string, seen: Set<string>): void {
   }
 }
 
-/** One comparable shape: scheme and host fold to lower case, the fragment
-    falls away, one trailing `/` on the path is optional — while path and
-    query stay byte-exact, because that is where a payload rides. A bare host
+/** One comparable shape, mirroring the parsers the request itself goes
+    through: scheme and host fold to lower case (the WHATWG parser both sides
+    use does that), the fragment falls away (no HTTP request carries it),
+    and the path and query stay byte-exact — slash included, because the door
+    asks `/private` and `/private/` as two different routes. A bare host
     reads as https. */
 function canonical(raw: string): string | null {
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
@@ -165,9 +225,7 @@ function canonical(raw: string): string | null {
     return null;
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-  let path = parsed.pathname;
-  if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
-  return `${parsed.protocol}//${parsed.host}${path}${parsed.search}`;
+  return `${parsed.protocol}//${parsed.host}${parsed.pathname}${parsed.search}`;
 }
 
 function userWords(content: WireMessage["content"]): string {

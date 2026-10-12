@@ -19,6 +19,7 @@ function webWords(t: English["tools"], code: string): string {
     "web.open_failed": t.pageNotOpened,
     "web.link_unseen": t.linkNotInChat,
     "web.link_credential": t.linkHasCredential,
+    "web.query_link_unseen": t.searchLinkNotInChat,
   };
   return table[code] ?? code;
 }

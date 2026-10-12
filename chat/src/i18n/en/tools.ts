@@ -33,6 +33,7 @@ export const TOOLS = {
   webPageTooLong: "That page is too long for Kalsa to read.",
   linkNotInChat: "Kalsa didn't open that link: it hasn't appeared in this chat.",
   linkHasCredential: "Kalsa didn't open that link: it looks like it carries a password or key.",
+  searchLinkNotInChat: "Kalsa didn't search: that link hasn't appeared in this chat.",
   // What the detector saw, by the kind it reports.
   findings: {
     copiedText: "copied text",
