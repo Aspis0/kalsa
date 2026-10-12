@@ -5,7 +5,9 @@ export interface RoomTable {
   /** How the language joins the names after "then": English "Luca and
       Sofia", whole-message rule — never fragments. */
   listJoin: (items: string[]) => string;
+  closedTitle: string;
   closedRoom: string;
+  emptyTitle: string;
   emptyRoom: string;
   /** Inside Kalsa's bubble while the turn runs and no answer word has
       arrived yet — not while she waits for a seat (the note says that). */
@@ -68,7 +70,9 @@ export const ROOM: RoomTable = {
     if (items.length < 3) return items.join(" and ");
     return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
   },
+  closedTitle: "The Room is closed",
   closedRoom: "Turn on Kalsa to use the room.",
+  emptyTitle: "The Room",
   emptyRoom: "No messages yet. Say something, or ask Kalsa.",
   readingRoom: "Reading the room — Kalsa will answer soon.",
   queueNext: (name) => `Kalsa will answer ${name} next.`,
@@ -84,7 +88,7 @@ export const ROOM: RoomTable = {
   left: " · left",
   askedKalsa: "asked Kalsa ·",
   readLast: (count) =>
-    count === 1 ? " · read the last message" : ` · read the last ${count} messages`,
+    count === 1 ? "read the last message" : `read the last ${count} messages`,
   noteFallback: "Something did not work. Try again.",
   defaultHostName: "This computer",
   notes: {

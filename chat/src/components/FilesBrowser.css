@@ -3,57 +3,72 @@
   flex: 1;
   min-height: 0;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
+/* The search is a pill field with its words inside; Search sits beside it
+   for the keyboard and the screen reader, as a plain pill. */
 .files-search {
   display: flex;
   flex: none;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .files-input {
   min-width: 0;
   flex: 1;
-  padding: 0.45rem 0.6rem;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  font-size: 0.85rem;
+  height: 2.75rem;
+  padding: 0 1rem;
+  color: var(--tx);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  font-size: 1rem;
+}
+
+.files-input::placeholder {
+  color: var(--tx3);
+}
+
+.files-input:focus {
+  outline: none;
+  border-color: var(--ac);
+  box-shadow: 0 0 0 4px var(--ac-soft);
 }
 
 .files-go {
   flex: none;
-  min-height: 30px;
-  padding: 0 0.7rem;
-  color: var(--ink-soft);
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  color: var(--tx2);
   background: transparent;
-  border: 1px solid var(--border-strong);
+  border: 1.5px solid var(--line);
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 1rem;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .files-go:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--ac-tx);
+  border-color: var(--ac);
 }
 
 .files-scope-line,
 .files-notes,
-.files-note,
-.files-empty {
+.files-note {
   flex: none;
   margin: 0;
-  color: var(--silence);
-  font-size: 0.72rem;
+  color: var(--tx3);
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 
 .files-empty {
+  flex: none;
   margin: 0.5rem 0;
-  font-size: 0.85rem;
+  color: var(--tx2);
+  font-size: 1rem;
   line-height: 1.6;
 }
 
@@ -62,7 +77,7 @@
 .files-results {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.125rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -71,11 +86,11 @@
 .files-results {
   flex: none;
   max-height: 40%;
-  padding: 0.4rem;
+  padding: 0.5rem;
   overflow-y: auto;
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
 }
 
 .files-row {
@@ -86,14 +101,15 @@
 .files-line {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   min-width: 0;
-  padding: 0.2rem 0.2rem 0.2rem 0.35rem;
-  border-radius: 7px;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.5rem;
+  border-radius: 14px;
 }
 
 .files-line:hover {
-  background: var(--surface-muted);
+  background: var(--rail);
 }
 
 .files-open {
@@ -101,49 +117,69 @@
   min-width: 0;
   flex: 1;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
   padding: 0;
-  color: var(--ink);
+  color: var(--tx);
   background: transparent;
   border: 0;
-  font-size: 0.84rem;
+  font-size: 1rem;
   text-align: left;
 }
 
 .files-caret {
   flex: none;
-  width: 0.8rem;
-  color: var(--silence);
-  font-size: 0.7rem;
+  width: 0.875rem;
+  color: var(--tx3);
+  font-size: 0.8125rem;
+}
+
+/* The row's tile (11-chat-states-files-browser): grey for a folder, the
+   accent wash for a file Kalsa can read. */
+.files-icon {
+  display: grid;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: var(--tx2);
+  background: var(--rail);
+  border-radius: 10px;
+}
+
+.files-icon.is-file {
+  color: var(--ac-tx);
+  background: var(--ac-soft);
 }
 
 .files-name {
+  font-weight: 600;
   overflow: hidden;
   min-width: 0;
   flex: 1;
-  color: var(--ink);
-  font-size: 0.84rem;
+  color: var(--tx);
+  font-size: 1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .files-size {
   flex: none;
-  color: var(--silence);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
+  color: var(--tx3);
+  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 .files-here,
 .files-attach {
   flex: none;
-  min-height: 24px;
-  padding: 0 0.55rem;
-  color: var(--ink-soft);
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  color: var(--tx2);
   background: transparent;
-  border: 1px solid var(--border-strong);
+  border: 1.5px solid var(--line);
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -163,6 +199,19 @@
 
 .files-here:hover,
 .files-attach:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--ac-tx);
+  border-color: var(--ac);
+}
+
+/* Attach is the row's one action, drawn as the primary pill. */
+.files-attach {
+  min-height: 2.5rem;
+  color: var(--ac-ink);
+  background: var(--ac);
+  border-color: var(--ac);
+}
+
+.files-attach:hover {
+  color: var(--ac-ink);
+  filter: brightness(1.08);
 }

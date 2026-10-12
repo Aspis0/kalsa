@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { telemetryStatus, setTelemetry } from "../lib/telemetry";
+import { Icon } from "./Icon";
 
+/** The error-report row and its note, rendered inside the page's card. */
 export function TelemetrySettings() {
   const { table } = useLanguage();
   const t = table.telemetry;
+  const titleId = useId();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -27,12 +31,26 @@ export function TelemetrySettings() {
     } finally { setBusy(false); }
   }
 
-  return <div className="settings-toggle">
-    <label>
-      <input type="checkbox" checked={enabled === true} disabled={enabled === null || busy} onChange={e => void change(e.target.checked)} />
-      <span>{t.title}</span>
-    </label>
-    <p className="settings-note">{t.note}</p>
-    {failed ? <p role="alert" className="settings-note">{t.failed}</p> : null}
-  </div>;
+  return <>
+    <div className="settings-row">
+      <div className="settings-row-text">
+        <span id={titleId} className="settings-row-title">{t.title}</span>
+        <span className="settings-row-hint">{t.hint}</span>
+        {failed ? <span role="alert" className="settings-err">{t.failed}</span> : null}
+        <button type="button" className="settings-more" aria-expanded={noteOpen} onClick={() => setNoteOpen(open => !open)}>
+          {t.more}
+          <Icon name={noteOpen ? "down" : "right"} size={14} stroke={2.2} />
+        </button>
+      </div>
+      <input
+        type="checkbox"
+        className="settings-switch"
+        aria-labelledby={titleId}
+        checked={enabled === true}
+        disabled={enabled === null || busy}
+        onChange={e => void change(e.target.checked)}
+      />
+    </div>
+    {noteOpen ? <div className="settings-rownote"><p>{t.note}</p></div> : null}
+  </>;
 }

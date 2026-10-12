@@ -104,17 +104,20 @@ export const HELP: English["help"] = {
       title: "Se qualcosa non va",
       // Help draws the Report a problem block under this section.
       report: true,
-      paragraphs: ["Durante l'alpha, Kalsa invia segnalazioni degli errori con dettagli tecnici, e il log dell'app quando succede qualcosa di grave. Mai le tue chat o i tuoi testi. Puoi disattivarle nelle Impostazioni."],
-      items: [
-        `Qui, sotto **${REPORT.title}**, premi **${REPORT.send}**. Il registro non contiene mai i tuoi messaggi, le risposte di Kalsa, i tuoi file, né codici o chiavi.`,
+      paragraphs: [
+        "Durante l'alpha, Kalsa invia segnalazioni di errore con dettagli tecnici, e il log dell'app quando succede qualcosa di grave. Mai le tue chat o i tuoi testi. Puoi disattivarle nelle Impostazioni.",
+        `Qui, sotto **${REPORT.title}**, premi **${REPORT.send}**.`,
       ],
+      items: [],
     },
     {
       title: "Perché Kalsa",
+      // Its figures are the ones the sources line cites; Help prints it here only.
+      cited: true,
       paragraphs: [],
       items: [
         "Quasi tutto quello che si chiede ai chatbot è aiuto quotidiano: consigli pratici, cercare informazioni, scrivere. Quasi l'80% delle conversazioni su ChatGPT è di questo tipo (studio NBER, settembre 2025).",
-        "Per questo tipo di aiuto non serve un'AI gigante in un data center. Una buona AI sul computer che hai già può farlo, e le tue conversazioni restano in casa: possono uscire le parole delle ricerche sul web e le segnalazioni tecniche degli errori.",
+        "Per questo tipo di aiuto non serve un'AI gigante in un data center. Una buona AI sul computer che hai già può farlo, e le tue conversazioni restano in casa: possono uscire le parole delle ricerche sul web e le segnalazioni di errore, con i soli dettagli tecnici.",
         "Nel 2024 i data center hanno usato circa 415 TWh di elettricità, circa l'1,5% di quella mondiale, e l'Agenzia Internazionale dell'Energia prevede che più che raddoppi entro il 2030.",
         "La maggior parte dell'impatto di un computer nella sua vita viene dalla sua fabbricazione (report di prodotto Dell), e nel 2022 il mondo ha prodotto 62 milioni di tonnellate di rifiuti elettronici (Global E-waste Monitor 2024). Kalsa prova a usare bene il computer che hai già, anche se non è nuovo.",
       ],

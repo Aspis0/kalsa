@@ -28,6 +28,10 @@
   --warn-ring: #d9a443;
   --warn-face: #9a6a1c;
   --err-ink: #9b3b2e;
+  /* An error card's wash, edge and icon disc (09-phones-error). */
+  --err-wash: #fbf1ee;
+  --err-line: #ebcfc8;
+  --err-soft: #f6ddd7;
   /* The Delete button, the same in both themes. */
   --danger-fill: #9b3b2e;
 
@@ -101,6 +105,9 @@
   --warn-fill: #3a3022;
   --warn-ink: #e8c489;
   --err-ink: #f0a08f;
+  --err-wash: #2b2220;
+  --err-line: #4a322c;
+  --err-soft: #3d2a25;
 
   --ink-rgb: 238, 236, 227;
   --surface-muted-rgb: 19, 20, 16;

@@ -20,6 +20,7 @@ import { useLanguage } from "./i18n/useLanguage";
 import { HelpSurface } from "./surfaces/HelpSurface";
 import { TelemetryNotice } from "./components/TelemetryNotice";
 import { SettingsForm } from "./components/SettingsForm";
+import { modelOnly } from "./lib/modelName";
 import { BrainSurface } from "./surfaces/BrainSurface";
 import { useBrain } from "./surfaces/useBrain";
 import { ModelsSurface } from "./surfaces/ModelsSurface";
@@ -30,6 +31,8 @@ import { RecoveredNotice } from "./components/RecoveredNotice";
 import { useEngineRecovery } from "./surfaces/useEngineRecovery";
 import { useUpdates } from "./lib/useUpdates";
 import { UpdateNotice } from "./components/UpdateNotice";
+import { Icon } from "./components/Icon";
+import "./components/NoticeBanner.css";
 import "./App.css";
 
 // How far the settings path may grow before the oldest step falls off. The
@@ -61,11 +64,13 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  // No explicit choice yet: follow the operating system while it changes.
+  // Automatic — no choice stored — follows the operating system while it
+  // changes, including after Settings drops a choice made earlier.
   useEffect(() => {
-    if (themeChoiceMade()) return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => setTheme(mq.matches ? "dark" : "light");
+    const apply = () => {
+      if (!themeChoiceMade()) setTheme(mq.matches ? "dark" : "light");
+    };
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
@@ -110,7 +115,6 @@ export function App() {
     setTheme(next);
   }
 
-
   // The gate's own sentence, when it owes one: only a hand-over the door
   // refused, which has no caller to return its answer to. Shown through the same
   // banner as the opens this shell asked for. An app-owned code speaks the
@@ -138,13 +142,14 @@ export function App() {
         // on Escape is "no", never "send it".
         if (chat.gateShown) chat.answerGate(chat.gateShown.id, false);
         else if (chat.listOpen) chat.setListOpen(false);
+        else if (updates.state.notice) updates.dismissNotice();
         else if (surface === "chat" || surface === "room") openSurface("brain");
         else if (surface !== "brain") goBack();
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [chat, surface, path]);
+  }, [chat, surface, path, updates]);
 
   return (
     <div className={`shell${chat.streamingAny ? " is-streaming" : ""}`}>
@@ -152,9 +157,12 @@ export function App() {
       <div className="shell-main">
         <main className="stage">
           {chat.storageFull ? (
-            <div className="storage-banner" role="alert">
-              <span>{t.storageFull}</span>
-              <button type="button" onClick={chat.dismissStorageFull}>
+            <div className="notice-banner is-warn" data-notice="storage" role="alert">
+              <span className="notice-banner-icon">
+                <Icon name="hdd" size={20} />
+              </span>
+              <span className="notice-banner-text">{t.storageFull}</span>
+              <button type="button" className="notice-banner-btn" onClick={chat.dismissStorageFull}>
                 {t.dismiss}
               </button>
             </div>
@@ -167,12 +175,17 @@ export function App() {
               state is unknown, and a friendlier sentence would lose that. */}
           {notice ? (
             <div
-              className={notice.failed ? "storage-banner" : "refusal-banner"}
+              className={notice.failed ? "notice-banner is-warn" : "notice-banner"}
+              data-notice={notice.failed ? "slot-failed" : "slot"}
               role={notice.failed ? "alert" : "status"}
             >
-              <span>{notice.text}</span>
+              <span className="notice-banner-icon">
+                <Icon name={notice.failed ? "alert" : "clock"} size={20} />
+              </span>
+              <span className="notice-banner-text">{notice.text}</span>
               <button
                 type="button"
+                className="notice-banner-btn"
                 onClick={() => {
                   setSlotNotice(null);
                   chat.dismissSlotNotice();
@@ -197,7 +210,7 @@ export function App() {
             </ErrorBoundary>
           </div>
           <ErrorBoundary>
-            <UpdateNotice updates={updates} busy={chat.streamingAny} />
+            <UpdateNotice key={surface === "brain" ? "sheet" : "banner"} updates={updates} busy={chat.streamingAny} sheet={surface === "brain"} />
             {surface === "brain" ? (
               <BrainSurface onNavigate={openSurface} onOpenChat={() => openSurface("chat")} updates={updates} />
             ) : surface === "chat" ? (
@@ -211,6 +224,8 @@ export function App() {
                 onTheme={chooseTheme}
                 updates={updates}
                 busy={chat.streamingAny}
+                aiName={state?.kind === "running" && state.model ? modelOnly(state.model) : null}
+                onOpenAi={() => openSurface("models")}
                 onWebTools={(webTools) => {
                   // Writes only itself, from the settings that are already
                   // stored: the text sitting unsaved in the connection fields is
@@ -218,15 +233,6 @@ export function App() {
                   const next = { ...settings, webTools };
                   setSettings(next);
                   saveSettings(next);
-                }}
-                onSave={(next) => {
-                  // The form holds only the fields it knows; the record may
-                  // carry fields this version does not — a save must not
-                  // rewrite them away.
-                  const merged = { ...settings, ...next };
-                  setSettings(merged);
-                  saveSettings(merged);
-                  chat.clearContextCache();
                 }}
               />
             ) : surface === "help" ? (
@@ -242,8 +248,10 @@ export function App() {
                 onModelChange={(name) => {
                   // The panel's blur is the one writer of the record; this
                   // only keeps the app's own memory current so the chat uses
-                  // the new name without a reload.
+                  // the new name without a reload. The context sizes the chat
+                  // has read belong to the model it was talking to.
                   setSettings({ ...settings, model: name });
+                  chat.clearContextCache();
                 }}
               />
             ) : surface === "devices" ? (

@@ -49,11 +49,11 @@ export const RUST: {
   },
   pairing: {
     "pairing.save_failed": () => "Kalsa non è riuscita a salvare questa modifica. Riprova.",
-    "pairing.phone_with_ai": (params, tag) =>
+    "pairing.phone_with_ai": (params) =>
       typeof params.gb === "number" && Number.isFinite(params.gb) && params.gb > 0
-        ? `Telefono con una sua AI (${new Intl.NumberFormat(tag).format(params.gb)} GB)`
-        : "Telefono senza una sua AI",
-    "pairing.phone_without_ai": () => "Telefono senza una sua AI",
+        ? "Telefono con un'AI propria"
+        : "Telefono senza un'AI propria",
+    "pairing.phone_without_ai": () => "Telefono senza un'AI propria",
     "pairing.host_forget": () => "La connessione di questo computer non si può dimenticare.",
   },
   update: {

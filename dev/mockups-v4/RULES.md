@@ -21,7 +21,10 @@
 | `--ring` | `#74B266` | `#8FD07A` | power ring, bullets, tree leaves |
 | `--track` | `#E2DCCC` | `#2C2F27` | progress-bar track |
 | warning fill / ink | `#F3E3C8` / `#7A5418` | `#3A3022` / `#E8C489` | warnings |
-| error ink / fill | `#9B3B2E` / `#FBF1EE` | `#F0A08F` | errors |
+| `--err-ink` | `#9B3B2E` | `#F0A08F` | error text and icons |
+| `--err-wash` | `#FBF1EE` | `#2B2220` | error card background, failed update block |
+| `--err-line` | `#EBCFC8` | `#4A322C` | error card border |
+| `--err-soft` | `#F6DDD7` | `#3D2A25` | error card icon disc |
 | danger button | `#9B3B2E` | same | Delete only |
 
 Contrast: all text pairs pass WCAG AA. Don't put `--tx3` on `--rail` for text smaller than 15px.

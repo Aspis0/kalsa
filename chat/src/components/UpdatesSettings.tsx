@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
 import type { UpdatesApi } from "../lib/useUpdates";
+import { Icon } from "./Icon";
 import { ReleaseNotes } from "./ReleaseNotes";
 
 interface UpdatesSettingsProps {
@@ -12,6 +14,7 @@ interface UpdatesSettingsProps {
 export function UpdatesSettings({ updates, busy }: UpdatesSettingsProps) {
   const { table, tag } = useLanguage();
   const t = table.updates;
+  const [notesOpen, setNotesOpen] = useState(false);
   const { state } = updates;
   const phase = state.phase;
   const checking = phase.kind === "checking";
@@ -21,37 +24,46 @@ export function UpdatesSettings({ updates, busy }: UpdatesSettingsProps) {
   const percent =
     phase.kind === "downloading" && phase.total ? Math.min(100, Math.floor((phase.done * 100) / phase.total)) : null;
 
-  return <div className="settings-toggle">
-    <p>{t.title}</p>
-    <p className="settings-note">{`${t.currentVersion} ${state.current ?? ""}`.trim()}</p>
-    <div className="settings-actions">
-      <button type="button" className="btn-quiet" disabled={checking || downloading} onClick={updates.check}>
+  return <>
+    <div className="settings-row">
+      <div className="settings-row-text">
+        <span className="settings-row-title">{`${t.currentVersion} ${state.current ?? ""}`.trim()}</span>
+        {phase.kind === "current"
+          ? <span className="settings-ok"><Icon name="check" size={15} stroke={2.6} />{t.upToDate}</span>
+          : <span className="settings-row-hint">{t.note}</span>}
+      </div>
+      <button type="button" className="settings-btn" disabled={checking || downloading} onClick={updates.check}>
+        {checking ? <span className="settings-spin" aria-hidden="true" /> : <Icon name="refresh" size={17} />}
         {checking ? t.checking : t.check}
       </button>
     </div>
-    {phase.kind === "current" ? <p>{t.upToDate}</p> : null}
-    {phase.kind === "available" ? <>
-      <p>{t.available(phase.version)}</p>
-      <ReleaseNotes notes={phase.notes} />
-      <div className="settings-actions">
-        <button type="button" className="btn-primary" disabled={busy} onClick={() => updates.install(phase.version)}>
+    {phase.kind === "available" ? <div className="settings-update">
+      <b className="settings-update-title">{t.available(phase.version)}</b>
+      <button type="button" className="settings-more" aria-expanded={notesOpen} onClick={() => setNotesOpen(open => !open)}>
+        {t.whatsNew}
+        <Icon name={notesOpen ? "down" : "right"} size={15} stroke={2.2} />
+      </button>
+      {notesOpen ? <ReleaseNotes notes={phase.notes} /> : null}
+      <div className="settings-update-actions">
+        <button type="button" className="settings-btn is-primary" disabled={busy} onClick={() => updates.install(phase.version)}>
+          <Icon name="refresh" size={17} />
           {t.install}
         </button>
+        {busy ? <span className="settings-update-busy">{t.busy}</span> : null}
       </div>
-      {busy ? <p className="settings-note">{t.busy}</p> : null}
-    </> : null}
-    {phase.kind === "downloading" ? <>
-      <p>{t.downloading(percent)}</p>
-      <progress value={phase.total ? phase.done : undefined} max={phase.total ?? undefined} />
-    </> : null}
-    {phase.kind === "failed" ? <>
-      <p role="alert" className="settings-note">{rustSentence(table.rust, phase.error, tag)}</p>
-      {retry ? <div className="settings-actions">
-        <button type="button" className="btn-primary" disabled={busy} onClick={() => updates.install(retry)}>
+    </div> : null}
+    {phase.kind === "downloading" ? <div className="settings-update">
+      <b className="settings-update-title">{t.downloading(percent)}</b>
+      <progress className="settings-progress" value={phase.total ? phase.done : undefined} max={phase.total ?? undefined} />
+    </div> : null}
+    {phase.kind === "failed" ? <div className="settings-update is-failed">
+      <b role="alert" className="settings-update-title">{rustSentence(table.rust, phase.error, tag)}</b>
+      {retry ? <div className="settings-update-actions">
+        <button type="button" className="settings-btn is-primary" disabled={busy} onClick={() => updates.install(retry)}>
+          <Icon name="refresh" size={17} />
           {t.install}
         </button>
       </div> : null}
-    </> : null}
-    <p className="settings-note">{t.note}</p>
-  </div>;
+    </div> : null}
+  </>;
 }

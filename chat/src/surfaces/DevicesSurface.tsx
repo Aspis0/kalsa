@@ -1,23 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { SurfaceKey } from "../app/surfaces";
 import { lastKnown } from "../lib/slotGate";
-import type { InviteList } from "./InvitePanel";
 import { InvitePanel } from "./InvitePanel";
+import { PhoneRow } from "./PhoneRow";
+import { PhonesSquare } from "./PhonesSquare";
+import { usePairingRead } from "./usePairingRead";
 import { useRowFold } from "./useRowFold";
 import { useDeviceBeats } from "./useDeviceBeats";
 import { BEAT_MS, FOLD_MS, reducedMotion } from "./motion";
-import { available, invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
-import { visibleInterval } from "../lib/pageVisible";
-import { codeSentence } from "../lib/rustText";
+import { available, invoke } from "../lib/tauri";
 import { forgetLocalCredential, useBrain } from "./useBrain";
 import { useLanguage } from "../i18n/useLanguage";
-import type { English } from "../i18n/en/all";
+import { Icon } from "../components/Icon";
+import { hidesOnSeat } from "./pairingWords";
+import { phonesPanel } from "./phonesPanel";
+import type { PanelAction } from "./phonesPanel";
+import type { PairedDevice } from "./pairingWords";
 import "./surfaces.css";
-
-// The poll this page runs while it is open. Read by the review bench,
-// which waits its cadence out rather than guessing wall-clock numbers.
-export const POLL_MS = 2000;
+import "./DevicesSurface.css";
 
 // The approved ways to say the square is the way in, that it was replaced,
 // and who may use it live in the devices table; dev/smoke-react.mjs keeps
@@ -31,183 +31,8 @@ const beatVars = {
   "--beat-unfold-ms": `${FOLD_MS}ms`,
 } as CSSProperties;
 
-interface PairedDevice {
-  id: number;
-  label?: string;
-  phone?: string;
-  /** The capability label as a code beside the English; the screen renders
-      the code, the English stays for phone clients. */
-  phone_code?: string;
-  phone_params?: Record<string, unknown>;
-  // The store's kind. "host" is this computer's own record; a phone is a
-  // pairing result. Absent reads as a phone, the reading this page always had.
-  kind?: "phone" | "host";
-  // The owner has not allowed this phone yet: its credential answers the
-  // door's 401 until Allow. Absent reads as allowed, the state every
-  // stored device had before approval existed.
-  waiting?: boolean;
-  // Present only on a waiting record whose phone already holds an allowed
-  // seat: that seat's id. The request is drawn on the seat's row, and this
-  // record never gets one of its own.
-  pairing_again?: number | null;
-}
-
-/** What `brain_pairing` answers: one read, polled; two decisions and a retry. */
-interface PairingState {
-  state: "idle" | "waiting" | "claiming" | "paired" | "failed";
-  qr_svg?: string | null;
-  refreshed?: "expired" | "wrong-code" | null;
-  phone?: string | null;
-  phone_code?: string | null;
-  phone_params?: Record<string, unknown> | null;
-  devices?: PairedDevice[];
-  delivery_pending?: boolean;
-  door_port?: number | null;
-  // The desk's own loopback port and whether it is the preferred one. A
-  // constant would be wrong whenever the fallback fired, and a fallback
-  // means the owner's standing serve rule points at the wrong port.
-  // Absent reads as the preferred port, the state every DTO before this
-  // field implied.
-  desk_port?: number | null;
-  desk_port_preferred?: boolean;
-  failure?: "could-not-save" | "could-not-read" | "service-unavailable" | null;
-}
-
-// The paired sentence must be true for whatever the house holds: one phone
-// is named — naming it IS naming the house — while several are counted,
-// because naming one of many reads as if the others were not real. This
-// computer's own row is not a phone and is never part of the count: "now
-// works with This computer" is not a sentence about a pairing. Nor is a
-// record that is pairing again: it is drawn on its seat's row, and the
-// house has one phone there, not two. A phone
-// still waiting for Allow is not one this computer works with yet, so the
-// success sentence is computed from approved phones only. Where phones are
-// waiting, the sentence says the wait instead — a single waiting phone is
-// named, several are counted — and a mixed house says both facts: the house
-// counted as "paired phones", the waiting ones as waiting for the OK. The
-// pending delivery is not attributable from the page — the flag says some
-// phone is owed its connection, never which one, and with several devices
-// the one it names may not be the one owed — so no clause of this sentence
-// names a phone for it: naming the house is true either way, naming the
-// wrong phone would not be.
-// A waiting record whose seat is still in the house sits on that seat's row:
-// no row and no count of its own, so one phone is never two. Its seat gone —
-// forgotten while the request waited — it is one waiting phone like any
-// other: its own row, its own count, its own buttons.
-function hidesOnSeat(device: PairedDevice, devices: PairedDevice[]): boolean {
-  return device.pairing_again != null && devices.some((row) => row.id === device.pairing_again);
-}
-
-function pairedSentence(t: English["devices"], dto: PairingState): string {
-  const house = Array.isArray(dto.devices) ? dto.devices : [];
-  const phones = house.filter((device) => device.kind !== "host" && !hidesOnSeat(device, house));
-  const waiting = phones.filter((device) => device.waiting === true);
-  const approved = phones.filter((device) => device.waiting !== true);
-  const pending = dto.delivery_pending === true;
-  const undelivered = pending ? t.undeliveredClause : "";
-  if (approved.length === 0 && waiting.length > 0) {
-    if (waiting.length === 1) {
-      const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? t.yourPhone;
-      const owed = pending ? t.owedPending : "";
-      return t.waitingNamed(name, owed);
-    }
-    return t.waitingCount(waiting.length, undelivered);
-  }
-  if (waiting.length > 0) {
-    return waiting.length === 1
-      ? t.mixedOne(phones.length, undelivered)
-      : t.mixedMany(phones.length, waiting.length, undelivered);
-  }
-  if (approved.length === 0) {
-    return pending
-      ? t.savedPending(dto.phone ?? t.yourPhone)
-      : t.worksWith(dto.phone ?? t.yourPhone);
-  }
-  if (approved.length === 1) {
-    const name = approved[0].phone ?? approved[0].label ?? dto.phone ?? t.yourPhone;
-    return pending ? t.savedPending(name) : t.worksWith(name);
-  }
-  return pending ? t.worksWithCountPending(approved.length) : t.worksWithCount(approved.length);
-}
-
-// Whether every phone in the house still waits for the owner's OK. The
-// headline speaks for the house: while nothing is approved, "Paired" would
-// claim a working phone; a mixed house keeps it for the approved ones.
-function everyPhoneWaiting(devices: PairedDevice[] | undefined): boolean {
-  // A record sitting on its seat's row is not a phone of its own: the
-  // headline speaks for the phones the house draws.
-  const house = Array.isArray(devices) ? devices : [];
-  const phones = house.filter((device) => device.kind !== "host" && !hidesOnSeat(device, house));
-  return phones.length > 0 && phones.every((device) => device.waiting === true);
-}
-
-// Both roads a phone needs, side by side: the door at the tailnet name and
-// the desk behind :8443. Each command runs under --bg, because two serve
-// rules cannot both hold the foreground, and whichever port is known is
-// said — a missing piece is left out, never glossed. A desk on a fallback
-// port is said too: a serve rule persists across reboots, so the standing
-// rule keeps pointing at the preferred port, which now leads somewhere
-// else or nowhere.
-function tailscaleNote(
-  t: English["devices"],
-  doorPort: number | null | undefined,
-  deskPort: number | null | undefined,
-  deskOnPreferred: boolean,
-): string | null {
-  const isPort = (port: number | null | undefined): port is number =>
-    typeof port === "number" && Number.isInteger(port) && port > 0;
-  if (!isPort(doorPort) && !isPort(deskPort)) return null;
-  const commands = [
-    isPort(doorPort) ? `tailscale serve --bg ${doorPort}` : null,
-    isPort(deskPort) ? `tailscale serve --bg --https=8443 ${deskPort}` : null,
-  ]
-    .filter((command) => command !== null)
-    .join(" · ");
-  // True for a first-time owner too: the DTO cannot know whether a serve
-  // rule exists, so the sentence only states where the desk is and what
-  // the desk command must say.
-  const moved =
-    isPort(deskPort) && !deskOnPreferred ? t.deskMoved : "";
-  // Each road is named only when its command is: a sentence about a road
-  // with no command would be a promise the note does not keep.
-  const where =
-    isPort(doorPort) && isPort(deskPort)
-      ? t.chatsAndPairs
-      : isPort(doorPort)
-        ? t.chatsAt
-        : t.pairsAt;
-  return `${t.runForTailscale(commands)} ${where}${moved}`;
-}
-
 interface DevicesSurfaceProps {
   onNavigate: (surface: SurfaceKey) => void;
-}
-
-// A button the row holds after one press. It is aria-disabled, not
-// disabled: disabling it would drag the owner's focus to <body> the moment
-// it is pressed, so it stays what it was — focusable, named, and inert
-// until the store's answer releases it.
-function HeldButton({
-  held,
-  onPress,
-  children,
-}: {
-  held: boolean;
-  onPress: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      className="btn-quiet"
-      aria-disabled={held}
-      onClick={() => {
-        if (!held) onPress();
-      }}
-    >
-      {children}
-    </button>
-  );
 }
 
 // The Devices surface: the phone scans, nobody types. The square on screen is
@@ -215,29 +40,12 @@ function HeldButton({
 // generated on this machine, so the page may inject it as markup; it is a
 // credential on screen and is never logged anywhere.
 export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
-  const { table, tag } = useLanguage();
+  const { table } = useLanguage();
   const t = table.devices;
-  // The last pairing answer this page knows. A read that rejects, or one
-  // that answers nothing, leaves it standing: "I could not ask" is not
-  // "there is no phone connected".
-  const [state, setState] = useState<PairingState | null>(null);
-  // The first read has settled — answered, rejected, or past the bound.
-  // Until then the page is checking, which is not a failure.
-  const [settled, setSettled] = useState(false);
-  // The invitations as the last read heard them: the page's poll reads them
-  // beside the pairing, and the panel below reports its own reads back
-  // through `onList` so the two never disagree.
-  const [invites, setInvites] = useState<InviteList | null>(null);
-  // One read at a time: a poll tick during a slow read is skipped, so two
-  // answers cannot race. The generation numbers each read, so a reply from a
-  // read the bound already released is dropped instead of landing over a
-  // newer answer, and `live` keeps a late reply off an unmounted page.
-  const inFlight = useRef(false);
-  const generation = useRef(0);
-  const live = useRef(false);
   // The fold is the hook's business: this page only asks for it and reads
   // whether one is running.
   const fold = useRowFold();
+  const { state, setState, settled, invites, setInvites, refresh, mounted } = usePairingRead(() => fold.folding());
   // The beat a row plays after the owner's Allow lands on it.
   const beats = useDeviceBeats(state?.devices);
   // The brain's own 1 s read, for the one fact this page wants from it:
@@ -252,74 +60,6 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       .map((device) => device.id)
       .filter((id): id is number => typeof id === "number"),
   );
-
-  const refresh = useCallback(async (): Promise<void> => {
-    // No read STARTS while a row folds — all this line claims. A read
-    // already in flight when the fold began still finishes, and its answer
-    // is dropped where it lands, for the same reason: a list that no longer
-    // holds the folding row would cut the beat short.
-    if (!live.current || inFlight.current || fold.folding()) return;
-    inFlight.current = true;
-    const mine = ++generation.current;
-    const stillMine = (): boolean => live.current && mine === generation.current;
-    // No Tauri here: nothing can be asked. Settling keeps the page from
-    // saying "checking" forever, and the failure below offers no Try again,
-    // which could not work either.
-    if (!available()) {
-      inFlight.current = false;
-      setSettled(true);
-      return;
-    }
-    // A read that has not answered by the bound stops holding the lock, the
-    // page stops waiting on it, and whatever it says later is no longer this
-    // page's next answer.
-    const bound = setTimeout(() => {
-      if (!stillMine()) return;
-      generation.current += 1;
-      inFlight.current = false;
-      setSettled(true);
-    }, PAIRING_ASK_BOUND_MS);
-    try {
-      // The square first — the page's own checking state hangs on this
-      // answer — then the invitations on the same tick, under the same
-      // guards, so the two lists cannot race each other either. Each keeps
-      // its own answer: one failing must not cost the other its read.
-      try {
-        const next = await invoke<PairingState | null>("brain_pairing");
-        if (stillMine()) {
-          // A fold under way holds its row: an answer that has already let
-          // it go would drop the row mid-beat, so it is dropped instead and
-          // the next poll takes it.
-          if (!fold.folding()) setState((previous) => lastKnown(previous, next));
-          setSettled(true);
-        }
-      } catch {
-        // The command rejected: what this page already knows stands.
-        if (stillMine()) setSettled(true);
-      }
-      if (!stillMine()) return;
-      try {
-        const listed = await invoke<InviteList | null>("brain_invite_list");
-        if (stillMine()) setInvites((previous) => lastKnown(previous, listed));
-      } catch {
-        // The list rejected: what this page already knows stands.
-      }
-    } finally {
-      clearTimeout(bound);
-      if (mine === generation.current) inFlight.current = false;
-    }
-  }, []);
-
-  useEffect(() => {
-    live.current = true;
-    void refresh();
-    // `brain_pairing` expires and refreshes the pairing square, so the hidden clock slows, never stops.
-    const stopClock = visibleInterval(() => void refresh(), POLL_MS);
-    return () => {
-      live.current = false;
-      stopClock();
-    };
-  }, [refresh]);
 
   function retry(): void {
     void invoke("brain_pairing_retry").catch(() => {});
@@ -359,7 +99,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
     beats.revokeTouching(id);
     void invoke("brain_pairing_forget_device", { id })
       .then(() => {
-        if (live.current) fold.begin(id, () => removeRow(id));
+        if (mounted()) fold.begin(id, () => removeRow(id));
       })
       .catch(() => {});
   }
@@ -390,106 +130,30 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       .catch(() => {});
   }
 
-  // Everything on the panel is decided here, so a state cannot leave a stale
-  // square or a half-cleared button behind.
-  let headline: string | null = null;
-  let sentence: string;
-  let qrSvg: string | null = null;
-  let fresh: string | null = null;
-  let note: string | null = null;
-  let tailscale: string | null = null;
-  let button: string | null = null;
-  let alt: string | null = null;
-  let onAction: () => void = () => {};
-  let onAlt: () => void = () => {};
-  let devices: PairedDevice[] = [];
-
-  if (state !== null) {
-    switch (state.state) {
-      case "idle":
-        onAction = () => onNavigate("brain");
-        sentence = t.notRunningYet;
-        button = t.turnKalsaOn;
-        break;
-      case "waiting":
-        // No square yet is its own honest moment, not a camera instruction.
-        if (!state.qr_svg) {
-          sentence = t.squareNotReady;
-          break;
-        }
-        sentence = t.cameraInstruction;
-        qrSvg = state.qr_svg;
-        fresh = state.refreshed ?? null;
-        note = t.awareness;
-        tailscale = tailscaleNote(
-          t,
-          state.door_port,
-          state.desk_port,
-          state.desk_port_preferred !== false,
-        );
-        break;
-      case "claiming":
-        onAction = retry;
-        sentence = t.claiming;
-        button = t.cancel;
-        break;
-      case "paired":
-        onAction = retry;
-        headline = everyPhoneWaiting(state.devices) ? t.waitingForOkHeadline : t.pairedHeadline;
-        sentence = pairedSentence(t, state);
-        button = t.pairAnother;
-        tailscale = tailscaleNote(
-          t,
-          state.door_port,
-          state.desk_port,
-          state.desk_port_preferred !== false,
-        );
-        devices = Array.isArray(state.devices) ? state.devices : [];
-        break;
-      case "failed":
-        if (state.failure === "could-not-read") {
-          onAction = forgetAndRefresh;
-          onAlt = () => void refresh();
-          headline = t.couldNotReadHeadline;
-          sentence = t.couldNotReadSentence;
-          button = t.forgetAndPairAgain;
-          alt = t.tryAgain;
-          break;
-        }
-        if (state.failure === "service-unavailable") {
-          onAction = () => onNavigate("brain");
-          headline = t.unavailableHeadline;
-          sentence = t.unavailableSentence;
-          button = t.turnKalsaOn;
-          break;
-        }
-        onAction = retry;
-        headline = t.couldNotFinishHeadline;
-        // True for both roads: a square can be drawn again, an invitation
-        // can be sent again, and neither promises that the last attempt
-        // will come back on its own.
-        sentence = t.couldNotSaveSentence;
-        button = t.tryAgain;
-        break;
-      default:
-        onAction = () => void refresh();
-        sentence = t.couldNotCheckSentence;
-        button = t.tryAgain;
-    }
-  } else if (!settled) {
-    // Still the first read: say so plainly and offer no retry — there is
-    // nothing to retry yet, and "could not check" would be false.
-    sentence = t.checking;
-  } else {
-    // Settled with nothing to show: the read rejected, hung past the bound,
-    // or cannot run at all. "Try again" is offered only where a retry can
-    // actually ask — outside the webview there is nothing to ask.
-    sentence = t.couldNotCheckSentence;
-    if (available()) {
-      onAction = () => void refresh();
-      button = t.tryAgain;
-    }
-  }
+  const {
+    title,
+    lead,
+    headline,
+    sentence,
+    qrSvg,
+    fresh,
+    note,
+    noteClass,
+    tailscale,
+    button,
+    buttonIcon,
+    quietButton,
+    action,
+    alt,
+    altAction,
+    devices,
+  } = phonesPanel(t, state, settled, available());
+  const run = (what: PanelAction | null): void => {
+    if (what === "turnOn") onNavigate("brain");
+    else if (what === "retry") retry();
+    else if (what === "refresh") void refresh();
+    else if (what === "forgetAndRefresh") forgetAndRefresh();
+  };
 
   // The invite section is where this page can pair: a square on screen, a
   // house already paired, and the one pairing that failed to save — whose
@@ -516,155 +180,124 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
     if (device.pairing_again != null) requests.set(device.pairing_again, device);
   }
 
-  return (
-    <div className="surface-page" style={beatVars}>
-      <h2>{t.title}</h2>
-      {headline ? <p className="surface-headline">{headline}</p> : null}
-      <div className="surface-sentence-line">
-        <p className="surface-sentence">{sentence}</p>
-        {state?.state === "claiming" && !motionless ? (
-          <span className="surface-connecting" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
+  const squareOpen = state?.state === "waiting";
+  const card = state?.state === "idle" || state?.state === "failed";
+  const headlineEl = headline ? <p className="surface-headline">{headline}</p> : null;
+  // The claiming banner shares its line with the wordless dots; the other
+  // states draw the sentence alone.
+  const sentenceLine = (
+    <div className={state?.state === "claiming" ? "surface-sentence-line phones-banner" : "surface-sentence-line"}>
+      {state?.state === "claiming" ? <Icon name="phone" size={20} /> : null}
+      <p className="surface-sentence">{sentence}</p>
+      {state?.state === "claiming" && !motionless ? (
+        <span className="surface-connecting" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+      ) : null}
+    </div>
+  );
+  const actions =
+    button || alt ? (
+      <div className="surface-actions">
+        {button ? (
+          <button
+            type="button"
+            className={quietButton ? "btn-quiet" : "btn-primary"}
+            onClick={() => run(action)}
+          >
+            {buttonIcon ? <Icon name={buttonIcon} size={18} stroke={2.2} /> : null}
+            {button}
+          </button>
+        ) : null}
+        {alt ? (
+          <button type="button" className="btn-quiet" onClick={() => run(altAction)}>
+            {alt}
+          </button>
         ) : null}
       </div>
-      {qrSvg ? <div className="surface-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} /> : null}
-      {fresh && (fresh === "expired" || fresh === "wrong-code") ? (
-        <p className="surface-quiet">{fresh === "expired" ? t.freshExpired : t.freshWrongCode}</p>
-      ) : null}
-      {note ? <p className="surface-quiet">{note}</p> : null}
-      {tailscale ? <p className="surface-quiet">{tailscale}</p> : null}
-      {button || alt ? (
-        <div className="surface-actions">
-          {button ? (
-            <button type="button" className="btn-primary" onClick={onAction}>
-              {button}
-            </button>
-          ) : null}
-          {alt ? (
-            <button type="button" className="btn-quiet" onClick={onAlt}>
-              {alt}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      {canInvite ? (
-        <InvitePanel
-          invites={invites}
-          onList={(listed) => setInvites((previous) => lastKnown(previous, listed))}
+    ) : null;
+  const invitePanel = canInvite ? (
+    <InvitePanel
+      invites={invites}
+      onList={(listed) => setInvites((previous) => lastKnown(previous, listed))}
+    />
+  ) : null;
+
+  return (
+    <div className="surface-page phones-page" style={beatVars}>
+      <h2 className={state?.state === "paired" ? "phones-headline" : undefined}>{title}</h2>
+      {lead ? <p className="phones-lead">{lead}</p> : null}
+      {squareOpen ? (
+        <PhonesSquare
+          qrSvg={qrSvg}
+          sentence={sentence}
+          note={note}
+          fresh={fresh}
+          tailscale={tailscale}
+          invitePanel={invitePanel}
         />
-      ) : null}
+      ) : card ? (
+        <div className={state?.state === "failed" ? "phones-card is-failed" : "phones-card"}>
+          <span className="phones-card-icon" aria-hidden="true">
+            <Icon
+              name={state?.state === "idle" ? "power" : state?.failure === "service-unavailable" ? "wifiOff" : "alert"}
+              size={22}
+            />
+          </span>
+          <div className="phones-card-body">
+            {headlineEl}
+            {sentenceLine}
+            {actions}
+          </div>
+        </div>
+      ) : state?.state === "paired" ? null : (
+        <>
+          {headlineEl}
+          {sentenceLine}
+        </>
+      )}
       {devices.length > 0 ? (
         <div className="surface-devices">
           {devices.map((device) => {
-            // This computer's own record: named as it names itself, and with
-            // no Forget. The button would take the app's own key to its own
-            // door out of the store while the running door still holds it, so
-            // the local chat would answer 401 until the next launch minted a
-            // fresh one. The command refuses it too; the row simply does not
-            // offer it.
-            const host = device.kind === "host";
             // A request rides its seat's row — when the seat is still here,
             // so one phone never becomes two. A seat that left while the
             // request waited leaves it nowhere to sit, and a ceremony that
             // is waiting must never be hidden.
             if (hidesOnSeat(device, devices)) return null;
-            const name = device.label ?? (host ? t.thisComputerLabel : t.deviceLabel(device.id));
             const request = requests.get(device.id);
-            // The beat after Allow: the sentence and its checkmark hold the
-            // row for a moment, then it settles into the ordinary detail.
             const connected = beats.connected.has(device.id);
-            // A row waiting for the owner's decision carries the wash —
-            // a standing tint that survives reduced motion, since "needs
-            // you" is information — and, when motion is allowed, a waiting
-            // row that just arrived unfolds in: the reverse of the fold,
-            // on the fold's own number, and pure motion, so reduced motion
-            // draws no entrance and no beat.
-            const needsOwner = !connected && (device.waiting === true || request !== undefined);
-            const entering = !motionless && beats.enteringIds.has(device.id);
-            const classes =
-              "surface-device" +
-              (needsOwner ? " is-waiting" : "") +
-              (entering ? " is-entering" : "");
             return (
-              <div
+              <PhoneRow
                 key={device.id}
-                className={classes}
-                ref={fold.refFor(device.id)}
+                device={device}
+                request={request}
+                connected={connected}
+                entering={!motionless && beats.enteringIds.has(device.id)}
+                active={activeIds.has(device.id)}
+                decided={beats.decided}
+                rowRef={fold.refFor(device.id)}
                 style={fold.styleFor(device.id)}
-              >
-                {activeIds.has(device.id) ? (
-                  <span className="surface-device-live" aria-hidden="true" />
-                ) : null}
-                <span className="surface-device-name">{name}</span>
-                {/* The detail is the row's voice: the beat a screen reader
-                    hears land is the same sentence the owner reads. */}
-                <span className="surface-device-detail" aria-live="polite">
-                  {connected ? (
-                    <>
-                      <svg className="surface-check" viewBox="0 0 12 10" aria-hidden="true">
-                        <path
-                          className="surface-check-path"
-                          d="M1 5.5 4.5 9 11 1.5"
-                        />
-                      </svg>
-                      {t.connectedSentence(name)}
-                    </>
-                  ) : device.waiting ? (
-                    t.waitingOkRow
-                  ) : request ? (
-                    t.pairingAgain(name)
-                  ) : device.phone_code ? (
-                    codeSentence(table.rust, device.phone_code, device.phone_params ?? {}, tag)
-                  ) : (
-                    (device.phone ?? "")
-                  )}
-                </span>
-                {host ? null : device.waiting ? (
-                  <>
-                    <HeldButton
-                      held={beats.decided.has(device.id)}
-                      onPress={() => allowDevice(device.id, device.id)}
-                    >
-                      {t.allow}
-                    </HeldButton>
-                    <HeldButton
-                      held={beats.decided.has(device.id)}
-                      onPress={() => forgetDevice(device.id)}
-                    >
-                      {t.refuse}
-                    </HeldButton>
-                  </>
-                ) : request ? (
-                  // The buttons belong to the REQUEST, not the seat: Deny
-                  // takes the request back and leaves this phone, its label
-                  // and its credential exactly where they are. One press is
-                  // enough — the row holds its decision until the store's
-                  // next answer.
-                  <>
-                    <HeldButton
-                      held={beats.decided.has(request.id)}
-                      onPress={() => allowDevice(request.id, device.id)}
-                    >
-                      {t.allow}
-                    </HeldButton>
-                    <HeldButton
-                      held={beats.decided.has(request.id)}
-                      onPress={() => denyRequest(request.id)}
-                    >
-                      {t.refuse}
-                    </HeldButton>
-                  </>
-                ) : (
-                  <button type="button" className="btn-quiet" onClick={() => forgetDevice(device.id)}>
-                    {t.forget}
-                  </button>
-                )}
-              </div>
+                onAllow={allowDevice}
+                onForget={forgetDevice}
+                onDeny={denyRequest}
+              />
             );
           })}
+        </div>
+      ) : null}
+      {!squareOpen && !card ? (
+        <>
+          {note ? <p className={noteClass}>{note}</p> : null}
+          {tailscale ? <p className="surface-quiet">{tailscale}</p> : null}
+        </>
+      ) : null}
+      {!squareOpen ? (
+        // The page's own button and Invite by link share one row (09-phones-paired).
+        <div className="phones-more">
+          {card ? null : actions}
+          {invitePanel}
         </div>
       ) : null}
       {hasPairedPhone ? <p className="surface-quiet">{t.capacityLine}</p> : null}

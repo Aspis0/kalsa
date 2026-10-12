@@ -7,10 +7,12 @@ export const UPDATES: typeof ENGLISH = {
   checking: "正在检查更新…",
   upToDate: "Kalsa 已是最新版本。",
   available: (version: string) => `Kalsa ${version} 可用。`,
-  install: "安装并重启",
+  install: "重启以更新",
   downloading: (percent: number | null) =>
     percent === null ? "正在下载更新…" : `正在下载更新… ${percent}%`,
   busy: "Kalsa 正在回复。回复完成后再安装。",
   note: "Kalsa 会在启动后不久检查更新。未经你同意，不会安装任何内容。",
-  ready: (version: string) => `Kalsa ${version} 已就绪。`,
+  ready: "Kalsa 的新版本已就绪",
+  whatsNew: "更新内容",
+  later: "稍后",
 };

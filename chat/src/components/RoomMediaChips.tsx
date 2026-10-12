@@ -4,6 +4,7 @@
 // what the state says and answers the two presses.
 
 import type { English } from "../i18n/en/all";
+import { Icon } from "./Icon";
 
 export interface RoomPendingChip {
   id: string;
@@ -50,14 +51,23 @@ export function RoomMediaChips({
                 ▶
               </span>
             )}
-            {label !== null ? <figcaption className="room-media-chip-label">{label}</figcaption> : null}
+            {label !== null ? (
+              <figcaption className="room-media-chip-label">
+                {label}
+                {item.state === "ready" ? null : (
+                  <span className="room-media-chip-bar" aria-hidden="true">
+                    <i style={{ width: `${pct}%` }} />
+                  </span>
+                )}
+              </figcaption>
+            ) : null}
             <button
               type="button"
               className="room-media-chip-remove"
               aria-label={item.state === "compressing" ? words.cancel : words.remove}
               onClick={() => (item.state === "compressing" ? onCancel(item.id) : onRemove(item.id))}
             >
-              ×
+              <Icon name="x" size={12} stroke={2.4} />
             </button>
           </figure>
         );

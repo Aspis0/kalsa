@@ -7,7 +7,9 @@ export const ROOM: RoomTable = {
     if (items.length < 3) return items.join("和");
     return `${items.slice(0, -1).join("、")}和${items[items.length - 1]}`;
   },
+  closedTitle: "房间已关闭",
   closedRoom: "打开 Kalsa 才能使用房间。",
+  emptyTitle: "房间",
   emptyRoom: "还没有消息。说点什么，或者问问 Kalsa。",
   readingRoom: "Kalsa 正在阅读对话，很快就会回复。",
   queueNext: (name: string) => `Kalsa 将先回答${name}。`,
@@ -22,7 +24,7 @@ export const ROOM: RoomTable = {
   youAre: (name: string) => `你是${name}`,
   left: " · 已离开",
   askedKalsa: "问了 Kalsa ·",
-  readLast: (count: number) => ` · 读了最近${count}条`,
+  readLast: (count: number) => `读了最近${count}条`,
   defaultHostName: "这台电脑",
   noteFallback: "有什么地方没成功。请重试。",
   notes: {

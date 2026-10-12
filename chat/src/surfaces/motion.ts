@@ -4,7 +4,7 @@
 // entrance that is its reverse; BEAT_MS drives the connected hold's timer
 // and, as --beat-ms, the loops (the waiting breath, the live pulse). The
 // CSS-only beats — the check's draw, the connecting dots' stagger — keep
-// their own variables beside the keyframes in surfaces.css.
+// their own variables beside the keyframes in DevicesSurface.css.
 
 // How long a forgotten row takes to fold out of the list before it leaves
 // it, and how long a row that arrives takes to unfold in. One number: it

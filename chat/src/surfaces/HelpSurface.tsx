@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { ReportProblem } from "../components/ReportProblem";
 import "./HelpSurface.css";
@@ -14,23 +14,35 @@ function HelpText({ text }: { text: string }) {
 export function HelpSurface() {
   const { table, language } = useLanguage();
   const help = table.help;
-  // Focus starts on the first heading, so a screen reader begins the page there.
-  const firstHeading = useRef<HTMLHeadingElement>(null);
+  const [current, setCurrent] = useState(0);
+  const section = help.sections[current];
+  // Focus starts on the heading of the first section, so a screen reader begins the page there.
+  const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    firstHeading.current?.focus();
+    heading.current?.focus();
   }, []);
 
   return (
     <article className="help-page" lang={language === "it" ? "it" : "en"}>
-      {help.sections.map((section, index) => (
-        <section key={index} aria-labelledby={`help-section-${index}`}>
-          <h2
-            id={`help-section-${index}`}
-            ref={index === 0 ? firstHeading : undefined}
-            tabIndex={index === 0 ? -1 : undefined}
-          >
-            {section.title}
-          </h2>
+      <div className="help-layout">
+        <div className="help-side">
+          <h2 className="help-title">{table.chrome.pages.help}</h2>
+          <nav className="help-index" aria-label={table.chrome.pages.help}>
+            {help.sections.map((item, index) => (
+              <button
+                key={index}
+                type="button"
+                className="help-index-item"
+                aria-current={index === current ? "true" : undefined}
+                onClick={() => setCurrent(index)}
+              >
+                {item.title}
+              </button>
+            ))}
+          </nav>
+        </div>
+        <section className="help-body" aria-labelledby="help-section-title">
+          <h3 id="help-section-title" ref={heading} tabIndex={-1}>{section.title}</h3>
           {section.paragraphs.map((text, paragraph) => (
             <p key={paragraph}><HelpText text={text} /></p>
           ))}
@@ -42,9 +54,9 @@ export function HelpSurface() {
             </ul>
           ) : null}
           {section.report ? <ReportProblem /> : null}
+          {section.cited ? <p className="help-sources">{help.sources}</p> : null}
         </section>
-      ))}
-      <p className="help-sources">{help.sources}</p>
+      </div>
     </article>
   );
 }

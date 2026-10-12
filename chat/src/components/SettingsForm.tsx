@@ -1,16 +1,20 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { forgetThemeChoice, systemTheme, themeChoiceMade } from "../lib/settings";
 import type { Theme } from "../lib/settings";
 import type { ChatSettings } from "../lib/types";
 import { LANGUAGE_OPTIONS } from "../i18n";
 import { useLanguage } from "../i18n/useLanguage";
 import "./Settings.css";
+import { Icon } from "./Icon";
 import { TelemetrySettings } from "./TelemetrySettings";
 import { UpdatesSettings } from "./UpdatesSettings";
 import type { UpdatesApi } from "../lib/useUpdates";
 
+type Look = Theme | "auto";
+const LOOKS: Look[] = ["light", "dark", "auto"];
+
 interface SettingsFormProps {
   initial: ChatSettings;
-  onSave: (settings: ChatSettings) => void;
   /** Applied the moment it is touched — no Save button in between. */
   onWebTools: (enabled: boolean) => void;
   theme: Theme;
@@ -18,84 +22,114 @@ interface SettingsFormProps {
   updates: UpdatesApi;
   /** A reply is being written: the update install waits for it. */
   busy: boolean;
+  /** The AI the running engine launched; null while none runs. */
+  aiName: string | null;
+  onOpenAi: () => void;
 }
 
-export function SettingsForm({ initial, onSave, onWebTools, theme, onTheme, updates, busy }: SettingsFormProps) {
-  const [saved, setSaved] = useState(false);
+export function SettingsForm({ initial, onWebTools, theme, onTheme, updates, busy, aiName, onOpenAi }: SettingsFormProps) {
   const { table, override, choose } = useLanguage();
   const t = table.settings;
+  const webTitleId = useId();
+  const [look, setLook] = useState<Look>(() => (themeChoiceMade() ? theme : "auto"));
+  const [webNoteOpen, setWebNoteOpen] = useState(false);
+  const labels: Record<Look, string> = { light: t.lookLight, dark: t.lookDark, auto: t.lookAuto };
 
-  function save(): void {
-    // The model name is typed on the AI page now; Save carries the
-    // stored one unchanged, and the web-switch rides along as the value App
-    // already holds — omitting it would store a record without it, and a
-    // record without it reads back as `true`.
-    onSave({
-      model: initial.model,
-      webTools: initial.webTools,
-    });
-    setSaved(true);
+  function chooseLook(next: Look): void {
+    setLook(next);
+    if (next !== "auto") {
+      onTheme(next);
+      return;
+    }
+    // onTheme stores the theme it is given, so the stored choice is forgotten
+    // after it, or the record would pin the look it is meant to drop.
+    onTheme(systemTheme());
+    forgetThemeChoice();
   }
 
   return (
     <div className="settings-page">
       <h2>{t.title}</h2>
-      {/* Appearance first, and applied on the spot like the switch below: it
-          is a preference of the app, not a field of the connection form, and it
-          used to be a button in every header. */}
-      <div className="settings-toggle">
-        <label>
-          <input
-            type="checkbox"
-            checked={theme === "dark"}
-            onChange={(event) => onTheme(event.target.checked ? "dark" : "light")}
-          />
-          <span>{t.darkTheme}</span>
+
+      {/* Look and language apply the moment they change: they are preferences
+          of the app, and waiting for a save would leave the page half in one
+          language and half in another. */}
+      <div className="settings-group">
+        <div className="settings-row">
+          <span className="settings-row-title">{t.look}</span>
+          <div className="settings-seg" role="group" aria-label={t.look}>
+            {LOOKS.map((key) => (
+              <button key={key} type="button" aria-pressed={look === key} onClick={() => chooseLook(key)}>
+                {labels[key]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="settings-row">
+          <span className="settings-row-title">{t.language}</span>
+          <span className="settings-select">
+            <select value={override} onChange={(event) => choose(event.target.value as typeof override)}>
+              <option value="system">{t.languageSystem}</option>
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.ownName}
+                </option>
+              ))}
+            </select>
+            <Icon name="down" size={16} />
+          </span>
         </label>
       </div>
 
-      {/* The language row: applied the moment it changes, like the theme —
-          it is a preference of the app, and waiting for Save would leave
-          the page half in one language and half in another. Each option is
-          shown in its own language so it survives not knowing the current
-          one. */}
-      <label className="settings-field">
-        <span>{t.language}</span>
-        <select value={override} onChange={(event) => choose(event.target.value as typeof override)}>
-          <option value="system">{t.languageSystem}</option>
-          {LANGUAGE_OPTIONS.map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.ownName}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="settings-toggle">
-        <label>
+      <div className="settings-group">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span id={webTitleId} className="settings-row-title">{t.webSearch}</span>
+            <span className="settings-row-hint">{t.webSearchHint}</span>
+            <button
+              type="button"
+              className="settings-more"
+              aria-expanded={webNoteOpen}
+              onClick={() => setWebNoteOpen((open) => !open)}
+            >
+              {t.webSearchMore}
+              <Icon name={webNoteOpen ? "down" : "right"} size={14} stroke={2.2} />
+            </button>
+          </div>
           <input
             type="checkbox"
+            className="settings-switch"
+            aria-labelledby={webTitleId}
             checked={initial.webTools}
             onChange={(event) => onWebTools(event.target.checked)}
           />
-          <span>{t.webSearch}</span>
-        </label>
-        <p className="settings-note">{t.webSearchNote}</p>
+        </div>
+        {webNoteOpen ? (
+          <div className="settings-rownote">
+            <p>{t.webSearchNote}</p>
+          </div>
+        ) : null}
+        <TelemetrySettings />
       </div>
 
-      <TelemetrySettings />
-
-      <UpdatesSettings updates={updates} busy={busy} />
-
-      <p className="settings-lede">{t.lede}</p>
-
-      {saved ? <p className="settings-saved">{t.saved}</p> : null}
-
-      <div className="settings-actions">
-        <button type="button" className="btn-primary" onClick={save}>
-          {t.save}
-        </button>
+      <div className="settings-group">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">{t.ai}</span>
+            {aiName ? <span className="settings-row-hint">{t.usingAi(aiName)}</span> : null}
+          </div>
+          <button type="button" className="settings-more settings-ai" onClick={onOpenAi}>
+            {t.aiDetails}
+            <Icon name="right" size={16} stroke={2.2} />
+          </button>
+        </div>
+        <UpdatesSettings updates={updates} busy={busy} />
       </div>
+
+      <p className="settings-lede">
+        <Icon name="lock" size={15} />
+        {t.lede}
+      </p>
     </div>
   );
 }

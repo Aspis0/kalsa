@@ -1224,118 +1224,94 @@ async function probeApp(engineName, origin, mp4B64) {
       JSON.stringify({ changed: stamps.changed }),
     );
 
-    // The clock costs no line in any bubble shape. Each bubble is measured
-    // as it stands, then with the clock hidden AND its corner reserve
-    // gone (the CSS variable carries the markdown reserve; the twin span
-    // carries the words' one).
+    // The clock has its own line (16-room): under the words, the answer and
+    // the media alike, right-aligned to the bubble's own edge, never over
+    // what it dates.
     const shapes = await page.evaluate(() => {
       const bubbles = [...document.querySelectorAll(".room-row .room-bubble")];
       const pick = (sel, last) => {
         const found = bubbles.filter((bubble) => bubble.querySelector(sel));
         return (last ? found[found.length - 1] : found[0]) ?? null;
       };
-      const measure = (bubble) => {
+      const measure = (bubble, sel) => {
         if (bubble === null) return null;
-        const clock = bubble.querySelector(".room-time");
-        const reserve = bubble.querySelector(".room-time-reserve");
-        const height = () => Math.round(bubble.getBoundingClientRect().height * 10) / 10;
-        const withClock = height();
-        const held = bubble.style.getPropertyValue("--room-clock");
-        clock.style.visibility = "hidden";
-        if (reserve) reserve.style.visibility = "hidden";
-        bubble.style.setProperty("--room-clock", '\"\"');
-        const intrinsic = height();
-        bubble.style.setProperty("--room-clock", held);
-        if (reserve) reserve.style.visibility = "";
-        clock.style.visibility = "";
-        return { withClock, intrinsic };
+        const clock = bubble.querySelector(".room-time").getBoundingClientRect();
+        const content = bubble.querySelector(sel).getBoundingClientRect();
+        const box = bubble.getBoundingClientRect();
+        const padding = parseFloat(getComputedStyle(bubble).paddingRight) + parseFloat(getComputedStyle(bubble).borderRightWidth);
+        return {
+          below: clock.top >= content.bottom - 0.5,
+          right: Math.abs(box.right - padding - clock.right) <= 1,
+        };
       };
       return {
-        words: measure(pick(".room-text", true)),
-        answer: measure(pick(".markdown", false)),
-        media: measure(pick(".room-media", false)),
+        words: measure(pick(".room-text", true), ".room-text"),
+        answer: measure(pick(".markdown", false), ".markdown"),
+        media: measure(pick(".room-media", false), ".room-media"),
       };
     });
     check(
-      "the clock adds no line to a bubble of words, an answer or media",
-      ["words", "answer", "media"].every(
-        (shape) => shapes[shape] !== null && shapes[shape].withClock === shapes[shape].intrinsic,
-      ),
+      "the clock has its own line under words, an answer and media, right-aligned",
+      ["words", "answer", "media"].every((shape) => shapes[shape] !== null && shapes[shape].below && shapes[shape].right),
       JSON.stringify(shapes),
     );
 
-    // The reserve must keep the clock off a last line that would run under
-    // it: the paragraph is grown until the unreserved layout really
-    // collides, then the reserved one must not — either the last line ends
-    // left of the clock, or the reserved line dropped below it.
+    // However long the answer grows, its clock stays below its last line.
+    // The probe first proves it can see a collision: with the clock pinned
+    // in the bubble's corner (the old over-content layout) some length
+    // must collide, or the real run's "no collision" would prove nothing.
     const cover = await page.evaluate(() => {
       const bubble = [...document.querySelectorAll(".room-row .room-bubble")]
         .reverse()
         .find((held) => held.querySelector(".markdown p"));
       if (bubble === undefined) return { found: false };
       const paragraph = bubble.querySelector(".markdown p");
-      const held = bubble.style.getPropertyValue("--room-clock");
+      const clockEl = bubble.querySelector(".room-time");
       const original = paragraph.textContent;
-      const probe = () => {
-        const range = document.createRange();
-        range.selectNodeContents(paragraph);
-        const boxes = [...range.getClientRects()];
-        const last = boxes[boxes.length - 1];
-        const clock = bubble.querySelector(".room-time").getBoundingClientRect();
-        const round = (value) => Math.round(value * 10) / 10;
-        return {
-          right: round(last.right),
-          bottom: round(last.bottom),
-          clockLeft: round(clock.left),
-          clockTop: round(clock.top),
-          covered:
-            last.right > clock.left + 0.5 &&
-            last.bottom > clock.top + 0.5 &&
-            last.top < clock.bottom - 0.5,
-        };
+      const collides = () => {
+        for (let n = 40; n <= 4000; n += 120) {
+          paragraph.textContent = "x".repeat(n);
+          const range = document.createRange();
+          range.selectNodeContents(paragraph);
+          const boxes = [...range.getClientRects()];
+          const last = boxes[boxes.length - 1];
+          const clock = clockEl.getBoundingClientRect();
+          if (last.bottom > clock.top + 0.5 && last.right > clock.left + 0.5) return true;
+        }
+        return false;
       };
-      let found = false;
-      let bare = null;
-      let reserved = null;
-      for (let n = 40; n <= 4000 && !found; n += 20) {
-        paragraph.textContent = "x".repeat(n);
-        bubble.style.setProperty("--room-clock", '\"\"');
-        bare = probe();
-        bubble.style.setProperty("--room-clock", held);
-        reserved = probe();
-        found = bare.covered;
-      }
+      bubble.style.position = "relative";
+      clockEl.style.cssText = "position:absolute;right:16px;bottom:9px;margin:0";
+      const reachable = collides();
+      bubble.style.position = "";
+      clockEl.style.cssText = "";
+      const covered = collides();
       paragraph.textContent = original;
-      bubble.style.setProperty("--room-clock", held);
-      return { found, bare, reserved, kept: !reserved.covered };
+      return { found: true, reachable, covered };
     });
     check(
       "the clock never covers a markdown answer's last line",
-      cover.found === true && cover.kept === true,
+      cover.found === true && cover.reachable === true && cover.covered === false,
       JSON.stringify(cover),
     );
 
-    // Over a picture the clock stands on its own scrim; under the words it
-    // stands on the bubble's wash — both must clear AA in either theme.
-    const contrast = await page.evaluate(() => {
-      const muted = [...document.querySelectorAll(".room-time")].find(
-        (clock) => !clock.classList.contains("room-time-over-media"),
-      );
-      const onMedia = document.querySelector(".room-time-over-media");
+    // The clock stands on its own bubble's wash, and every member's wash is
+    // a different tint: each clock, in either theme, must clear AA.
+    const pairs = await page.evaluate(() => {
+      const clocks = [...document.querySelectorAll(".room-row .room-time")];
       const root = document.documentElement;
       const heldTheme = root.dataset.theme;
-      const pair = (fg, bg) => ({ color: fg.color, background: bg.backgroundColor });
       const read = (theme) => {
         root.dataset.theme = theme;
-        return {
-          muted: pair(getComputedStyle(muted), getComputedStyle(muted.closest(".room-bubble"))),
-          scrim: pair(getComputedStyle(onMedia), getComputedStyle(onMedia)),
-        };
+        return clocks.map((clock) => ({
+          theme,
+          color: getComputedStyle(clock).color,
+          background: getComputedStyle(clock.closest(".room-bubble")).backgroundColor,
+        }));
       };
-      const light = read("light");
-      const dark = read("dark");
+      const all = [...read("light"), ...read("dark")];
       root.dataset.theme = heldTheme ?? "";
-      return { light, dark, bubbles: muted.closest(".room-bubble") !== null };
+      return all;
     });
     const rgba = (value) => (value.match(/[\d.]+/g) ?? []).map(Number);
     const channel = (value) => {
@@ -1347,39 +1323,13 @@ async function probeApp(engineName, origin, mp4B64) {
       const [hi, lo] = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
       return (hi + 0.05) / (lo + 0.05);
     };
-    const scrimRatio = (pair, pixel) => {
-      const [r, g, b, a = 1] = rgba(pair.scrim.background);
-      const under = [r, g, b].map((value, at) => value * a + pixel[at] * (1 - a));
-      return ratio(rgba(pair.scrim.color), under);
-    };
-    const worstScrim = Math.min(
-      Math.min(scrimRatio(contrast.light, [255, 255, 255]), scrimRatio(contrast.light, [0, 0, 0])),
-      Math.min(scrimRatio(contrast.dark, [255, 255, 255]), scrimRatio(contrast.dark, [0, 0, 0])),
-    );
+    const ratios = pairs.map((pair) => ({ ...pair, ratio: ratio(rgba(pair.color), rgba(pair.background)) }));
+    const worst = ratios.reduce((low, pair) => (low === null || pair.ratio < low.ratio ? pair : low), null);
+    const washes = new Set(pairs.map((pair) => pair.background)).size;
     check(
-      "the clock clears AA on the wash and on the picture's scrim, both themes",
-      contrast.bubbles &&
-        ratio(rgba(contrast.light.muted.color), rgba(contrast.light.muted.background)) >= 4.5 &&
-        ratio(rgba(contrast.dark.muted.color), rgba(contrast.dark.muted.background)) >= 4.5 &&
-        worstScrim >= 4.5,
-      JSON.stringify({ contrast, worstScrim: Math.round(worstScrim * 100) / 100 }),
-    );
-    const mediaCorner = await page.evaluate(() => {
-      const bubble = [...document.querySelectorAll(".room-row .room-bubble")].find(
-        (held) => held.querySelector(".room-media") && !held.querySelector(".room-text, .markdown"),
-      );
-      if (bubble === undefined) return null;
-      const clock = bubble.querySelector(".room-time").getBoundingClientRect();
-      const media = bubble.querySelector(".room-media").getBoundingClientRect();
-      return {
-        scrim: bubble.querySelector(".room-time").classList.contains("room-time-over-media"),
-        inside: clock.right <= media.right + 0.5 && clock.bottom <= media.bottom + 0.5 && clock.top >= media.top - 0.5,
-      };
-    });
-    check(
-      "a media bubble's clock stands on the media's bottom-right",
-      mediaCorner !== null && mediaCorner.scrim && mediaCorner.inside,
-      JSON.stringify(mediaCorner),
+      "every clock clears AA on its own bubble's wash, both themes",
+      worst !== null && worst.ratio >= 4.5 && washes >= 4,
+      JSON.stringify({ worst, clocks: pairs.length / 2, washes }),
     );
 
     // The room loads GLUED TO THE BOTTOM (stick-to-bottom): the near rows
@@ -1404,10 +1354,21 @@ async function probeApp(engineName, origin, mp4B64) {
     });
     await page.waitForTimeout(1000);
     const topReads = await page.evaluate(() => window.__shelf.reads);
+    // Every seeded row on screen at the top, oldest first, must have read:
+    // the count follows the rows' height (the mockup's 120px tiles), not a
+    // fixed number that only held while the 1×1 seeds drew 1px tall.
+    const onScreen = await page.evaluate(() => {
+      const view = document.querySelector(".thread").getBoundingClientRect();
+      return [...document.querySelectorAll(".room-row")].filter((row) => {
+        const box = row.getBoundingClientRect();
+        return row.querySelector(".room-media") && box.bottom > view.top && box.top < view.bottom;
+      }).length;
+    });
+    const topSeeds = seedIds.slice(0, onScreen);
     check(
       "the top of the history read once it came near",
-      Object.keys(topReads).length > initialDistinct + 4 && (topReads[seedIds[0]] ?? 0) >= 1,
-      JSON.stringify({ distinct: Object.keys(topReads).length, initialDistinct, first: topReads[seedIds[0]] }),
+      onScreen >= 2 && topSeeds.every((id) => (topReads[id] ?? 0) >= 1) && Object.keys(topReads).length > initialDistinct,
+      JSON.stringify({ onScreen, unread: topSeeds.filter((id) => !topReads[id]), distinct: Object.keys(topReads).length, initialDistinct }),
     );
     // Sweep the middle in steps so every row comes near and reads: past
     // the LRU's cap the oldest are revoked — and read again on the way back.
@@ -1416,11 +1377,15 @@ async function probeApp(engineName, origin, mp4B64) {
       const step = el.clientHeight * 0.7;
       return { total, step, viewport: el.clientHeight };
     });
-    for (let top = 0; top < steps.total; top += steps.step) {
-      await page.locator(".thread").evaluate((el, at) => {
+    // The bound is read again each step: rows are content-visibility: auto,
+    // so the first scrollHeight counts placeholders, not the drawn rows.
+    for (let top = 0; ; top += steps.step) {
+      const end = await page.locator(".thread").evaluate((el, at) => {
         el.scrollTop = at;
+        return el.scrollHeight - el.clientHeight;
       }, top);
       await page.waitForTimeout(160);
+      if (top >= end) break;
     }
     await page.locator(".thread").evaluate((el) => {
       el.scrollTop = el.scrollHeight;
@@ -1441,8 +1406,9 @@ async function probeApp(engineName, origin, mp4B64) {
 
     // 7. The host's broom: confirm, clear, and the rows fall back to words.
     await page.locator(".room-clear-chip").click();
-    await page.waitForSelector(".room-clear", { timeout: 4000 });
-    const confirmWords = await page.locator(".room-clear-ask").textContent();
+    // The ask is the shared confirm dialog (16-room-clear).
+    await page.waitForSelector('.dialog[role="alertdialog"]', { timeout: 4000 });
+    const confirmWords = await page.locator("#dialog-body").textContent();
     check(
       "the clear action asks first, and says what stays",
       typeof confirmWords === "string" &&
@@ -1450,7 +1416,7 @@ async function probeApp(engineName, origin, mp4B64) {
         confirmWords.includes("Messages stay"),
       JSON.stringify(confirmWords),
     );
-    await page.locator(".room-clear-delete").click();
+    await page.locator(".dialog-btn-danger").click();
     await page.waitForFunction(() => window.__shelf.clears >= 1, null, { timeout: 6000 }).catch(() => {});
     await page.waitForTimeout(900);
     const clears = await page.evaluate(() => window.__shelf.clears);

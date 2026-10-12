@@ -7,7 +7,9 @@ export const ROOM: RoomTable = {
     if (items.length < 3) return items.join(" e ");
     return `${items.slice(0, -1).join(", ")} e ${items[items.length - 1]}`;
   },
+  closedTitle: "La stanza è chiusa",
   closedRoom: "Accendi Kalsa per usare la stanza.",
+  emptyTitle: "La stanza",
   emptyRoom: "Ancora nessun messaggio. Di' qualcosa, o chiedi a Kalsa.",
   readingRoom: "Kalsa sta leggendo la conversazione e risponderà presto.",
   queueNext: (name: string) => `Kalsa risponderà prima a ${name}.`,
@@ -15,7 +17,7 @@ export const ROOM: RoomTable = {
   askKalsa: "Chiedi a Kalsa",
   attachPhoto: "Allega una foto",
   disclaimer: "Kalsa può sbagliare.",
-  writePlaceholder: "Scrivi un messaggio, o digita @Kalsa…",
+  writePlaceholder: "Scrivi un messaggio o digita @Kalsa…",
   writeAria: "Messaggio",
   nameAria: "Il tuo nome",
   namePlaceholder: "Il tuo nome",
@@ -23,7 +25,7 @@ export const ROOM: RoomTable = {
   left: " · non è più qui",
   askedKalsa: "ha chiesto a Kalsa ·",
   readLast: (count: number) =>
-    count === 1 ? " · ha letto l'ultimo messaggio" : ` · ha letto gli ultimi ${count} messaggi`,
+    count === 1 ? "ha letto l'ultimo messaggio" : `ha letto gli ultimi ${count} messaggi`,
   defaultHostName: "Questo computer",
   noteFallback: "Qualcosa non ha funzionato. Riprova.",
   notes: {

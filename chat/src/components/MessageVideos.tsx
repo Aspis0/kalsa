@@ -4,6 +4,7 @@ import type { MessageVideo } from "../lib/types";
 import { useLanguage } from "../i18n/useLanguage";
 import { MediaViewer } from "./MediaViewer";
 import type { ViewerItem } from "./MediaViewer";
+import { Icon } from "./Icon";
 import "./Thread.css";
 
 /**
@@ -107,8 +108,11 @@ export function MessageVideos({ videos }: { videos?: MessageVideo[] }) {
           >
             {posters[video.id] ? <img src={posters[video.id]} alt="" /> : null}
             <span className="user-video-play" aria-hidden="true">
-              ▶
+              <span>
+                <Icon name="play" size={22} />
+              </span>
             </span>
+            <span className="user-video-label" aria-hidden="true">{words.videoLabel}</span>
           </button>
         );
       })}

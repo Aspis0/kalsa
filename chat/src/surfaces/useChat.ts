@@ -161,10 +161,9 @@ export function useChat(shell: ChatShell) {
   const [ctxInfo, setCtxInfo] = useState<{ endpoint: string; nctx: number | null } | null>(null);
   // Numbers only, and that IS the healing rule: an unknown answer is never
   // stored (the choice and its cost are declared at `ensureContextSize` in
-  // lib/contextSize.ts), so a `null` cannot be memoized here until the user
-  // happens to save settings — which was the defect. Clearing on save below
-  // stays correct (the endpoint or token may have changed); it is simply no
-  // longer the only road out.
+  // lib/contextSize.ts), so a `null` cannot be memoized here until the
+  // cache is cleared — which was the defect. The shell clears it when the
+  // model changes (`clearContextCache`, App.tsx); it is not the only road out.
   const nctxCache = useRef(new Map<string, number>());
   // The message the brain's writing bar became, for the one open move.
   // The composer's unsent text. Going home unmounts the chat, and the

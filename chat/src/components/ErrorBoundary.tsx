@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import type { English } from "../i18n/en/all";
 import { useLanguage } from "../i18n/useLanguage";
 import { available, invoke } from "../lib/tauri";
-import { SendLogBlock } from "./ReportProblem";
+import { Icon } from "./Icon";
+import { ReportCard } from "./ReportProblem";
 import "./ErrorBoundary.css";
-import "./ReportProblem.css";
 
 interface ErrorBoundaryProps {
   crash: English["crash"];
@@ -65,16 +65,26 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
     if (!this.state.crashed) return this.props.children;
     return (
       <div className="error-boundary" role="alert">
-        <h2>{this.props.crash.title}</h2>
-        <p>{this.props.crash.body}</p>
-        {available() ? <SendLogBlock words={this.props.report} /> : null}
-        <div className="error-boundary-actions">
-          <button type="button" className="btn-primary" onClick={() => window.location.reload()}>
-            {this.props.crash.reload}
-          </button>
-          <button type="button" className="btn-quiet" onClick={() => this.eraseAndReload()}>
-            {this.props.crash.erase}
-          </button>
+        <div className="error-boundary-column">
+          <span className="error-boundary-icon">
+            <Icon name="alert" size={38} stroke={1.8} />
+          </span>
+          <h2>{this.props.crash.title}</h2>
+          <p className="error-boundary-body">{this.props.crash.body}</p>
+          {available() ? <ReportCard words={this.props.report} variant="crash" /> : null}
+          <div className="error-boundary-actions">
+            <button
+              type="button"
+              className="error-boundary-btn error-boundary-btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              <Icon name="refresh" size={18} />
+              {this.props.crash.reload}
+            </button>
+            <button type="button" className="error-boundary-btn" onClick={() => this.eraseAndReload()}>
+              {this.props.crash.erase}
+            </button>
+          </div>
         </div>
       </div>
     );

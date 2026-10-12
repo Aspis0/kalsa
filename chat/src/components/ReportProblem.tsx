@@ -3,6 +3,7 @@ import { available, invoke } from "../lib/tauri";
 import { sendLog, type SendRefusal } from "../lib/report";
 import { useLanguage } from "../i18n/useLanguage";
 import type { English } from "../i18n/en/all";
+import { Icon } from "./Icon";
 import "./ReportProblem.css";
 
 /** What one Send press is doing right now. */
@@ -30,58 +31,17 @@ function useSendLog(): { state: SendState; send: () => Promise<void> } {
   return { state, send };
 }
 
-/** What a Send press leaves on screen: a thank-you, or why the log did not go. */
-function SendFeedback({ state, words }: { state: SendState; words: English["report"] }) {
-  return (
-    <>
-      {state.kind === "sent" ? (
-        <p className="report-sent" role="status">{words.sent}</p>
-      ) : null}
-      {state.kind === "refused" ? (
-        <p className="report-error" role="alert">
-          {state.code === "rate_limited"
-            ? words.errRateLimited
-            : state.code === "try_tomorrow"
-              ? words.errTryTomorrow
-              : state.code === "offline"
-                ? words.errUnreachable
-                : words.errSend}
-        </p>
-      ) : null}
-    </>
-  );
-}
+/** Help draws the report with the primary Send and the log folder; the crash
+    screen draws Send outlined, because Reload is its one primary action. */
+export type ReportVariant = "help" | "crash";
 
-/** The privacy sentence and the Send button, as the advanced panel and the
-    webview's own error screen show them. */
-export function SendLogBlock({ words }: { words: English["report"] }) {
+/** The report card the Help page and the crash screen share: the heading, the
+    privacy sentence with its lock, what the log holds, then the actions. A
+    refused send leaves its reason in place of the folder button. */
+export function ReportCard({ words, variant }: { words: English["report"]; variant: ReportVariant }) {
   const { state, send } = useSendLog();
-  return (
-    <div className="report-send">
-      <p className="report-privacy">{words.privacy}</p>
-      <div className="surface-actions">
-        <button
-          type="button"
-          className="btn-primary"
-          disabled={state.kind === "sending" || state.kind === "sent"}
-          onClick={() => void send()}
-        >
-          {state.kind === "sending" ? words.sending : words.send}
-        </button>
-      </div>
-      <SendFeedback state={state} words={words} />
-    </div>
-  );
-}
-
-/** The advanced panel's report section: the big privacy sentence, the
-    one line of what the log does hold, Send (primary) and Open the log
-    folder (secondary). */
-export function ReportProblem() {
-  const { table } = useLanguage();
-  const words = table.report;
   const [openFailed, setOpenFailed] = useState(false);
-  if (!available()) return null;
+  const help = variant === "help";
   async function open(): Promise<void> {
     try {
       await invoke("brain_open_log_folder");
@@ -91,16 +51,56 @@ export function ReportProblem() {
     }
   }
   return (
-    <section className="report-problem">
-      <p className="report-eyebrow">{words.title.toUpperCase()}</p>
-      <SendLogBlock words={words} />
+    <section className="report-card">
+      <h3 className="report-title">{words.title}</h3>
+      <p className="report-privacy">
+        <Icon name="lock" size={20} />
+        {words.privacy}
+      </p>
       <p className="report-facts">{words.facts}</p>
-      <div className="surface-actions">
-        <button type="button" className="btn-quiet" onClick={() => void open()}>
-          {words.open}
-        </button>
+      <div className="report-actions">
+        {state.kind === "sent" ? (
+          <p className="report-sent" role="status">
+            <Icon name="check" size={19} stroke={2.6} />
+            {words.sent}
+          </p>
+        ) : (
+          <button
+            type="button"
+            className={help ? "report-btn report-btn-primary" : "report-btn"}
+            disabled={state.kind === "sending"}
+            onClick={() => void send()}
+          >
+            <Icon name="send" size={18} />
+            {state.kind === "sending" ? words.sending : words.send}
+          </button>
+        )}
+        {state.kind === "refused" ? (
+          <p className="report-error" role="alert">
+            {state.code === "rate_limited"
+              ? words.errRateLimited
+              : state.code === "try_tomorrow"
+                ? words.errTryTomorrow
+                : state.code === "offline"
+                  ? words.errUnreachable
+                  : words.errSend}
+          </p>
+        ) : null}
+        {help && state.kind !== "refused" ? (
+          <button type="button" className="report-btn" onClick={() => void open()}>
+            <Icon name="folder" size={18} />
+            {words.open}
+          </button>
+        ) : null}
+        {help && openFailed ? <p className="report-error">{words.openFailed}</p> : null}
       </div>
-      {openFailed ? <p className="surface-note">{words.openFailed}</p> : null}
     </section>
   );
+}
+
+/** Help's report section, drawn only where the app can reach its log. */
+export function ReportProblem() {
+  const { table } = useLanguage();
+  if (!available()) return null;
+  return <ReportCard words={table.report} variant="help" />;
 }

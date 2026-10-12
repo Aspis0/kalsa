@@ -82,7 +82,7 @@ export const screens = [
     <div class="ph-grid"><div class="qr">${qr()}</div><div>${steps}${inviteBox}</div></div>`), 'light'],
   ['09-phones-allow', () => page(`<h2>Connect a phone</h2>
     <div class="claim">${icon('phone', 20)}A phone is connecting. Choose Allow or Refuse below.</div>
-    <div class="allowcard"><span class="ai2">${icon('phone', 34, 1.8)}</span><div class="at"><b>Phone 2</b><span>Phone with its own AI (4 GB)</span><span>Waiting for your OK.</span></div>
+    <div class="allowcard"><span class="ai2">${icon('phone', 34, 1.8)}</span><div class="at"><b>Phone 2</b><span>Phone with its own AI</span><span>Waiting for your OK.</span></div>
       <span class="btn">Refuse</span><span class="btn pri">${icon('check', 20, 2.4)}Allow</span></div>
     <p class="ph-sub" style="margin-top:14px">Only press Allow if this is a phone you know.</p>
     <span class="btn" style="margin-top:20px">Cancel</span>`), 'light'],

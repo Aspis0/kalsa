@@ -420,3 +420,11 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - Start screen omits "Takes about 10 minutes." (no measured basis for the claim).
 - Faint leftover leaves drawn along the trunk in the tuning stage (tree geometry polish).
 - verify `hiddenonload` is timing-dependent (fails alone at d9705a6a too).
+
+## Hearth port, piece 5 (remaining screens), left for later
+- Owner decisions pending: closed Room "Turn Kalsa on" button, 09-phones-invite screen, plain update-failed sentence.
+- The update notice off Home is an in-flow banner of our own design (no mockup draws it).
+- verify failures shared with 7b5631b4: quota, networkurl, refusefit, filestree, filessearch and the "line is open" waits (scenario setup, not the app); image-attach crashes waiting for the slot notice. Needs its own harness pass.
+- Mini apps render as a card before the answer bubble (mockup nests them after the text); calculator shows formula chips and raw numbers; the table has no default sort or best-row highlight.
+- Files panel is a tree opening on "In this chat" (mockup: breadcrumb list); 09-phones-allow is split across two screens in the app.
+- No mp4 fixture: the chat video tile and its label were never shot; dark theme only shot for Settings and Room.

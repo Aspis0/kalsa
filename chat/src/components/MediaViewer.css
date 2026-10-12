@@ -1,12 +1,14 @@
-/* The full-view lightbox: a dark field over the page, the item centered,
-   the strip beneath. */
+/* The full-view lightbox (mockup 11-chat-states-viewer): a dark field over the
+   page, the item centred with rounded corners, round buttons, the count
+   beneath. */
 
 .media-viewer {
   position: fixed;
-  inset: 0;
+  /* Over the page, not the rail (112px, Rail.css), as the mockup draws it. */
+  inset: 0 0 0 112px;
   z-index: 80;
   display: flex;
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(18, 19, 15, 0.92);
 }
 
 .media-viewer-stage {
@@ -23,111 +25,79 @@
   min-height: 0;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 4rem 1rem;
-}
-
-.media-viewer-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  padding: 88px 112px 12px;
 }
 
 .media-viewer-video {
-  max-width: 100%;
+  max-width: min(100%, 900px);
   max-height: 100%;
+  border-radius: 12px;
+}
+
+/* The mockup's 900 × 620 box (11-chat-states-viewer): a small picture grows
+   into it, a large one shrinks, neither is cropped. */
+.media-viewer-image {
+  width: min(100%, 900px);
+  height: min(100%, 620px);
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.media-viewer-nav,
+.media-viewer-close {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 .media-viewer-nav {
-  position: absolute;
   top: 50%;
-  display: grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.08);
-  border: 0;
-  border-radius: 999px;
-  font-size: 1.6rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.media-viewer-nav:hover {
-  background: rgba(255, 255, 255, 0.16);
+  width: 56px;
+  height: 56px;
+  margin-top: -28px;
 }
 
 .media-viewer-prev {
-  left: 1rem;
+  left: 40px;
 }
 
 .media-viewer-next {
-  right: 1rem;
+  right: 40px;
 }
 
 .media-viewer-close {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.08);
-  border: 0;
-  border-radius: 999px;
-  font-size: 1.3rem;
-  cursor: pointer;
+  top: 24px;
+  right: 28px;
+  width: 52px;
+  height: 52px;
 }
 
+.media-viewer-nav:hover,
 .media-viewer-close:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.media-viewer-strip {
-  display: flex;
+.media-viewer-nav:focus-visible,
+.media-viewer-close:focus-visible {
+  border-radius: 50%;
+  outline-color: #fff;
+}
+
+.media-viewer-count {
   flex: none;
-  gap: 0.4rem;
-  justify-content: center;
-  padding: 0.75rem 1rem 1.25rem;
-  overflow-x: auto;
-}
-
-.media-viewer-thumb {
-  flex: none;
-  width: 56px;
-  height: 42px;
-  padding: 0;
-  overflow: hidden;
-  border: 2px solid transparent;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  cursor: pointer;
-}
-
-.media-viewer-thumb img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.media-viewer-thumb.is-current {
-  border-color: rgba(255, 255, 255, 0.85);
-}
-
-.media-viewer-thumb-glyph {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  place-items: center;
+  margin: 18px 0 32px;
   color: rgba(255, 255, 255, 0.75);
-  font-size: 0.9rem;
+  font-size: 15px;
+  text-align: center;
 }
 
 .media-viewer-missing {
   margin: 0;
   color: rgba(255, 255, 255, 0.75);
-  font-size: 0.95rem;
+  font-size: 15px;
 }

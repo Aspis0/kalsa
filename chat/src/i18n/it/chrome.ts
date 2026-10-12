@@ -18,13 +18,19 @@ export const CHROME = {
 
 export const SETTINGS = {
     "title": "Impostazioni",
-    "darkTheme": "Tema scuro",
-    "webSearch": "Lascia che l'assistente cerchi sul web",
+    "look": "Aspetto",
+    "lookLight": "Chiaro",
+    "lookDark": "Scuro",
+    "lookAuto": "Automatico",
+    "webSearch": "Lascia che Kalsa cerchi sul web",
+    "webSearchHint": "Su internet vanno solo le parole cercate. Le tue chat restano qui.",
+    "webSearchMore": "Cosa esce da questo computer?",
     "webSearchNote": "Quando la tua domanda ha bisogno di qualcosa di attuale, l'assistente può cercare sul web e aprire una pagina. Quella ricerca — le parole che ha scelto e l'indirizzo che apre — esce da questo computer verso un servizio di ricerca su internet, e ciò che torna resta nella conversazione. Con questa opzione spenta non vengono inviate ricerche o richieste di pagine web e l'assistente risponde con ciò che già sa. La modifica viene applicata appena la tocchi.",
     "lede": "I tuoi messaggi e le risposte restano su questo computer.",
-    "saved": "Salvato.",
-    "save": "Salva",
     "language": "Lingua",
-    "languageSystem": "Come il sistema"
+    "languageSystem": "Come il sistema",
+    "ai": "AI",
+    "usingAi": (name: string) => `In uso: ${name}`,
+    "aiDetails": "Cambia o vedi i dettagli"
   };
 

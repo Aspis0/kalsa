@@ -10,9 +10,9 @@ export const REPORT = {
   openFailed: "Kalsa n'a pas pu ouvrir le dossier des journaux.",
   sending: "Envoi…",
   sent: "Envoyé. Merci.",
-  errRateLimited: "Attendez une minute et réessayez.",
-  errTryTomorrow: "Nous avons reçu trop de rapports aujourd'hui. Réessayez demain.",
-  errUnreachable: "Impossible d'envoyer. Vérifiez la connexion internet et réessayez.",
-  errSend: "Impossible d'envoyer. Vérifiez la connexion internet et réessayez.",
+  errRateLimited: "Attends une minute et réessaie.",
+  errTryTomorrow: "Nous avons reçu trop de rapports aujourd'hui. Réessaie demain.",
+  errUnreachable: "Impossible d'envoyer. Vérifie la connexion internet et réessaie.",
+  errSend: "Impossible d'envoyer. Vérifie la connexion internet et réessaie.",
   recovered: "Kalsa s'est remise d'une erreur.",
 };

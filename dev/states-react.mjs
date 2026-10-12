@@ -18,7 +18,7 @@ import { growthOf, walkPercent } from "../chat/src/surfaces/walkFigures";
 import { forgetWalk } from "../chat/src/surfaces/useWalkMemory";
 import { brainWords, credentialRefusalText } from "../chat/src/surfaces/useBrain";
 import { BEAT_MS, FOLD_MS } from "../chat/src/surfaces/motion";
-import { POLL_MS } from "../chat/src/surfaces/DevicesSurface";
+import { POLL_MS } from "../chat/src/surfaces/usePairingRead";
 import { EmptyState, setupArm } from "../chat/src/components/EmptyState";
 import { RoomSurface, queueLine } from "../chat/src/surfaces/RoomSurface";
 import { callsAi } from "../chat/src/lib/roomMention";
@@ -772,8 +772,12 @@ function visibleLines(node, out = []) {
 
 function extract(panel, heading, automatic = []) {
   const buttonEls = elements(panel, (el) => el.tagName === "BUTTON");
-  const headlineEl = first(panel, (el) => el.className === "surface-headline" || el.className === "brain-headline");
-  const sentenceEl = first(panel, (el) => el.className === "surface-sentence" || el.className === "brain-sentence");
+  // The Phones page titles a paired house with the house itself and leads
+  // with its sentence (09-phones-paired): read there when nothing else says it.
+  const headlineEl = first(panel, (el) => el.className === "surface-headline" || el.className === "brain-headline" || el.className === "phones-headline");
+  const sentenceEl =
+    first(panel, (el) => el.className === "surface-sentence" || el.className === "brain-sentence") ??
+    (headlineEl?.className === "phones-headline" ? first(panel, (el) => el.className === "phones-lead") : null);
   const progressEl = first(panel, (el) => el.className === "walk-line");
   const barEl = first(panel, (el) => (el.className ?? "").split(" ").includes("walk-bar"));
   const walkEl = first(panel, (el) => el.className === "surface-walk");

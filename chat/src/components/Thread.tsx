@@ -274,11 +274,10 @@ export function Thread({
           {messages.map((message) =>
             message.role === "user" ? (
               <div className="row row-user" key={message.id} title={stamp(message.createdAt, tag)}>
-              <div className="user-bubble" data-message-id={message.id}>
+                {/* The pictures stand above the words, outside the bubble (11-chat-states-media). */}
                 <MessageImages images={message.images} />
                 <MessageVideos videos={message.videos} />
-                {message.content}
-              </div>
+                {message.content ? <div className="user-bubble">{message.content}</div> : null}
               </div>
             ) : (
               <AssistantRow

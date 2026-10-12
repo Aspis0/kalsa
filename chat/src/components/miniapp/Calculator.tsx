@@ -156,7 +156,7 @@ export function Calculator({
           </span>
         </p>
       ) : null}
-      <p className="miniapp-formula">
+      <p className="miniapp-formula miniapp-result-row">
         <span className="miniapp-note-label">{asText(block.label, t.result)}</span>
         <span className="miniapp-result">{displayValue}</span>
       </p>

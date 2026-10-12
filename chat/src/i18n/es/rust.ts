@@ -49,9 +49,9 @@ export const RUST: {
   },
   pairing: {
     "pairing.save_failed": () => "Kalsa no pudo guardar este cambio. Prueba de nuevo.",
-    "pairing.phone_with_ai": (params, tag) =>
+    "pairing.phone_with_ai": (params) =>
       typeof params.gb === "number" && Number.isFinite(params.gb) && params.gb > 0
-        ? `Teléfono con IA propia (${new Intl.NumberFormat(tag).format(params.gb)} GB)`
+        ? "Teléfono con IA propia"
         : "Teléfono sin IA propia",
     "pairing.phone_without_ai": () => "Teléfono sin IA propia",
     "pairing.host_forget": () => "La conexión de este equipo no se puede olvidar.",

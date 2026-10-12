@@ -32,7 +32,9 @@
 /* Yours: sage, on the right, one small corner on your side (RULES.md "Bubbles"). */
 .row-user {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
 }
 
 .user-bubble {
@@ -490,67 +492,57 @@
   border-color: var(--ac);
 }
 
-/* The pictures a user turn carries: thumbnails in the bubble, or the one
-   honest box where a picture's bytes are gone. */
-.user-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.45rem;
-}
-
-.user-image {
-  display: block;
-  max-width: 240px;
-  max-height: 240px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.user-image-missing {
-  padding: 0.5rem 0.75rem;
-  color: var(--silence);
-  font-size: 0.8rem;
-  border: 1px dashed var(--border-strong);
-  border-radius: 10px;
-}
-
-/* The thumbnail button around a message's picture: the click that opens
-   the full-view viewer. */
-.user-image-thumb {
-  flex: none;
-  max-width: 240px;
-  max-height: 240px;
-  padding: 0;
-  overflow: hidden;
-  border: 0;
-  border-radius: 10px;
-  cursor: zoom-in;
-}
-
-/* A video in the chat's bubble: the poster tile that opens the viewer. */
+/* The pictures and videos a user turn carries (mockup 11-chat-states-media):
+   180×132 tiles above the words, or the one honest box where a picture's
+   bytes are gone. */
+.user-images,
 .user-videos {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.45rem;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
+/* The tile buttons that open the full-view viewer. */
+.user-image-thumb,
 .user-video-tile {
   position: relative;
   flex: none;
+  width: 180px;
+  height: 132px;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: var(--rail);
+  border: 0;
+  border-radius: 18px;
   cursor: zoom-in;
 }
 
+.user-image-thumb:focus-visible,
+.user-video-tile:focus-visible {
+  border-radius: 18px;
+}
+
+.user-image,
 .user-video-tile img {
   display: block;
-  max-width: 240px;
-  max-height: 180px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+
+.user-image-missing,
+.user-video-note {
+  display: grid;
+  width: 180px;
+  height: 132px;
+  padding: 12px;
+  place-items: center;
+  color: var(--tx3);
+  border: 1.5px dashed var(--line);
+  border-radius: 18px;
+  font-size: 14px;
+  text-align: center;
 }
 
 .user-video-play {
@@ -558,22 +550,32 @@
   inset: 0;
   display: grid;
   place-items: center;
+}
+
+.user-video-play > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
   color: #fff;
-  background: rgba(0, 0, 0, 0.35);
-  font-size: 1.1rem;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 50%;
+}
+
+.user-video-label {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .user-video {
   display: block;
   max-width: 320px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.user-video-note {
-  padding: 0.2rem 0.5rem;
-  color: var(--silence);
-  border: 1px dashed var(--border-strong);
-  border-radius: 8px;
-  font-size: 0.78rem;
+  border-radius: 18px;
 }

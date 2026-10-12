@@ -5,7 +5,7 @@ export const VIEWER = {
   close: "Cerrar",
   previous: "Anterior",
   next: "Siguiente",
-  goTo: (index: number) => `Mostrar el elemento ${index}`,
+  position: (at: number, total: number) => `${at} de ${total}`,
   enlarge: "Ver a tamaño completo",
   loading: "Cargando…",
   imageUnavailable: "No se pudo cargar esa imagen.",

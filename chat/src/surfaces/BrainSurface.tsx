@@ -11,6 +11,7 @@ import { brainWords, useBrain } from "./useBrain";
 import type { BrainTone } from "./useBrain";
 import { useCapability } from "./useCapability";
 import { Icon } from "../components/Icon";
+import { modelOnly } from "../lib/modelName";
 import { useLanguage } from "../i18n/useLanguage";
 import "./surfaces.css";
 import "./BrainSurface.css";
@@ -176,7 +177,7 @@ export function BrainSurface({ onNavigate, onOpenChat, updates }: BrainSurfacePr
       {action}
       {tone !== "unknown" ? (
         <p className="brain-using">
-          {usingModel ? home.using(usingModel) : null}
+          {usingModel ? home.using(modelOnly(usingModel)) : null}
           <button type="button" className="brain-details" onClick={() => onNavigate("models")}>
             {home.details} <span aria-hidden="true">›</span>
           </button>

@@ -2,6 +2,7 @@ import { quizAnswer, recordQuizAnswer } from "../../lib/miniapp/state";
 import type { Miniapp } from "../../lib/miniapp/types";
 import { useLanguage } from "../../i18n/useLanguage";
 import { asArray, asText } from "./values";
+import { Icon } from "../Icon";
 
 /**
  * A `quiz` block: pick an option, check, see right/wrong and the explanation.
@@ -95,28 +96,28 @@ export function Quiz({
               disabled={checked}
               onClick={() => record(at, false)}
             >
-              {String.fromCharCode(65 + at)}. {label}
-              {showCorrect ? t.correctSuffix : showWrong ? t.wrongSuffix : ""}
+              {showCorrect ? <Icon name="check" size={13} stroke={3} /> : null}
+              <span className="miniapp-quiz-label">{label}</span>
+              {showCorrect || showWrong ? (
+                <em className="miniapp-quiz-mark">{showCorrect ? t.correct : t.wrong}</em>
+              ) : null}
             </button>
           );
         })}
       </div>
-      <div className="miniapp-quiz-actions">
-        {!checked ? (
+      {!checked ? (
+        <div className="miniapp-quiz-actions">
           <button
             type="button"
             className="miniapp-button"
             disabled={selected === null}
             onClick={() => record(selected, true)}
           >
+            <Icon name="check" size={17} stroke={2.4} />
             {t.check}
           </button>
-        ) : (
-          <button type="button" className="miniapp-button" onClick={() => record(null, false)}>
-            {t.retry}
-          </button>
-        )}
-      </div>
+        </div>
+      ) : null}
       {checked ? (
         <div className="miniapp-quiz-feedback" aria-live="polite">
           {!gradable ? (
@@ -132,6 +133,15 @@ export function Quiz({
               {explanation ? <p className="miniapp-note">{t.explanation(explanation)}</p> : null}
             </>
           )}
+        </div>
+      ) : null}
+      {/* Retry follows the verdict it clears (12-miniapps-quiz-checked). */}
+      {checked ? (
+        <div className="miniapp-quiz-actions">
+          <button type="button" className="miniapp-button is-quiet" onClick={() => record(null, false)}>
+            <Icon name="refresh" size={17} />
+            {t.retry}
+          </button>
         </div>
       ) : null}
     </div>

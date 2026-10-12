@@ -104,13 +104,16 @@ export const HELP = {
       title: "When something goes wrong",
       // Help draws the Report a problem block under this section.
       report: true,
-      paragraphs: ["During the alpha, Kalsa sends error reports with technical details, and the app's log when something serious goes wrong. Never your chats or text. You can turn this off in Settings."],
-      items: [
-        `Here, under **${REPORT.title}**, press **${REPORT.send}**. The log never contains your messages, Kalsa's answers, your files, or any code or key.`,
+      paragraphs: [
+        "During the alpha, Kalsa sends error reports with technical details, and the app's log when something serious goes wrong. Never your chats or text. You can turn this off in Settings.",
+        `Here, under **${REPORT.title}**, press **${REPORT.send}**.`,
       ],
+      items: [],
     },
     {
       title: "Why Kalsa",
+      // Its figures are the ones the sources line cites; Help prints it here only.
+      cited: true,
       paragraphs: [],
       items: [
         "Most of what people ask chatbots is everyday help: practical advice, looking things up, and writing. Nearly 80% of ChatGPT conversations are of this kind (NBER study, September 2025).",

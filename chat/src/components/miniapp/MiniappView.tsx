@@ -7,7 +7,18 @@ import { MetricStrip } from "./MetricStrip";
 import { Quiz } from "./Quiz";
 import { Timeline } from "./Timeline";
 import { displayTitle } from "./title";
+import { Icon } from "../Icon";
+import type { IconName } from "../Icon";
+import { checklistItems, isItemTicked } from "../../lib/miniapp/state";
 import "./Miniapp.css";
+
+/** The header's mark, by the widget the card opens with. */
+const MARKS: Record<string, IconName> = {
+  calculator: "gauge",
+  quiz: "help",
+  checklist: "check",
+  data_table: "sort",
+};
 
 /**
  * The miniapp a `create_miniapp` call built, inline in the thread. One block
@@ -28,12 +39,26 @@ export function MiniappView({
   // nothing English is persisted as a default the person would read.
   const named = table.miniapp.named as Record<string, string>;
   const title = displayTitle(miniapp.title, miniapp.kind, named);
+  const mark = MARKS[String(miniapp.blocks[0].type)];
+  // A lone checklist says how far it got in its header (12-miniapps-checklist).
+  const list = miniapp.blocks.length === 1 && miniapp.blocks[0].type === "checklist" ? checklistItems(miniapp.blocks[0]) : null;
+  const done = list ? list.filter((item) => isItemTicked(miniapp.state, item.id)).length : 0;
   return (
     <section className="miniapp" aria-label={table.miniapp.viewAria(title)}>
-      <p className="miniapp-title">{title}</p>
-      {miniapp.blocks.map((block, index) => (
-        <Block key={index} miniapp={miniapp} block={block} index={index} onState={onState} />
-      ))}
+      <p className="miniapp-title">
+        {mark ? (
+          <span className="miniapp-mark">
+            <Icon name={mark} size={17} />
+          </span>
+        ) : null}
+        {title}
+        {list && list.length > 0 ? <span className="miniapp-count">{table.miniapp.ticked(done, list.length)}</span> : null}
+      </p>
+      <div className="miniapp-body">
+        {miniapp.blocks.map((block, index) => (
+          <Block key={index} miniapp={miniapp} block={block} index={index} onState={onState} />
+        ))}
+      </div>
     </section>
   );
 }
@@ -51,7 +76,7 @@ function Block({
 }) {
   switch (block.type) {
     case "data_table":
-      return <DataTable block={block} />;
+      return <DataTable block={block} envelopeTitle={miniapp.title} />;
     case "calculator":
       return <Calculator block={block} state={miniapp.state} onState={onState} />;
     case "quiz":

@@ -110,7 +110,10 @@ function compareForSort(a: string, b: string, dir: "asc" | "desc"): number {
   return dir === "asc" ? compared : -compared;
 }
 
-export function DataTable({ block }: { block: Record<string, unknown> }) {
+/** A figure with at most one unit beside it ("3,10%", "962 €", "€ 962"). */
+const FIGURE = /^[€$£]?\s*[+-]?\d[\d.,]*\s*[%€$£]?$/;
+
+export function DataTable({ block, envelopeTitle }: { block: Record<string, unknown>; envelopeTitle: string }) {
   const { table } = useLanguage();
   const t = table.miniapp;
   const { columns, rows: sourceRows, hasMoreRows, hasMoreColumns } = normalizeTable(block);
@@ -123,9 +126,19 @@ export function DataTable({ block }: { block: Record<string, unknown> }) {
       current?.at === at ? { at, dir: current.dir === "asc" ? "desc" : "asc" } : { at, dir: "asc" },
     );
 
+  // Figures line up on the right (12-miniapps-table): a column whose every
+  // filled cell is one.
+  const figures = columns.map((_, at) => {
+    const filled = sourceRows.map((row) => (row[at] ?? "").trim()).filter(Boolean);
+    return filled.length > 0 && filled.every((cell) => FIGURE.test(cell));
+  });
+  const title = asText(block.title);
+
   return (
     <div className="miniapp-block">
-      <p className="miniapp-block-title">{asText(block.title, t.table)}</p>
+      {/* The envelope title is the table's title; a repeat, or the generic
+          word, says nothing the header has not. */}
+      {title && title !== envelopeTitle ? <p className="miniapp-block-title">{title}</p> : null}
       {columns.length > 0 ? (
         <div className="miniapp-table-wrap">
           <table className="miniapp-table">
@@ -134,7 +147,7 @@ export function DataTable({ block }: { block: Record<string, unknown> }) {
                 {columns.map((column, at) => {
                   const sorted = sort?.at === at ? (sort.dir === "asc" ? "ascending" : "descending") : undefined;
                   return (
-                    <th key={column.key} scope="col" aria-sort={sorted}>
+                    <th key={column.key} scope="col" aria-sort={sorted} className={figures[at] ? "is-figure" : undefined}>
                       <button type="button" className="miniapp-sort" onClick={() => toggleSort(at)}>
                         {column.label}
                         {sorted === "ascending" ? " ▲" : sorted === "descending" ? " ▼" : ""}
@@ -148,7 +161,9 @@ export function DataTable({ block }: { block: Record<string, unknown> }) {
               {rows.map((row, rowIndex) => (
                 <tr key={rowIndex}>
                   {row.map((cell, cellIndex) => (
-                    <td key={cellIndex}>{cell}</td>
+                    <td key={cellIndex} className={figures[cellIndex] ? "is-figure" : undefined}>
+                      {cell}
+                    </td>
                   ))}
                 </tr>
               ))}

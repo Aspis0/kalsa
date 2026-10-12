@@ -648,12 +648,12 @@ async function probeEngine(engineName, origin) {
     );
 
     // 5. The bubble shows the picture; its bytes are in IndexedDB.
-    const bubblePixels = await page.locator(".user-bubble img").evaluate(
+    const bubblePixels = await page.locator(".row-user img").evaluate(
       (img) => img.naturalWidth,
     );
     check(
       "the user bubble shows the thumbnail, painted",
-      (await page.locator(".user-bubble img").count()) === 1 && bubblePixels > 0,
+      (await page.locator(".row-user img").count()) === 1 && bubblePixels > 0,
       `naturalWidth=${bubblePixels}`,
     );
     const stored = await page.evaluate(
@@ -678,7 +678,7 @@ async function probeEngine(engineName, origin) {
     await reopenConversation(/Look at my picture/i);
     check(
       "a reload restores the thumbnail from IndexedDB",
-      (await page.locator(".user-bubble img").count()) === 1,
+      (await page.locator(".row-user img").count()) === 1,
     );
 
     // 7. A blob that is gone renders the placeholder, not a crash.
@@ -776,10 +776,10 @@ async function probeEngine(engineName, origin) {
     await openChat();
     const alphaPng = makePng(8, 8, (x, y) => [255, 0, 0, x === y ? 128 : 255]);
     await attach([{ name: "tiny.png", mimeType: "image/png", buffer: alphaPng }]);
-    await page.waitForSelector(".refusal-banner", { timeout: 6000 });
+    await page.waitForSelector('[data-notice="slot"]', { timeout: 6000 });
     check(
       "a picture is refused at a window only its own cost overflows",
-      (await page.locator(".refusal-banner").count()) === 1,
+      (await page.locator('[data-notice="slot"]').count()) === 1,
     );
     check(
       "no chip survives a refused attach",
@@ -1088,10 +1088,10 @@ async function probeEngine(engineName, origin) {
     await attach([
       { name: "clip2.mp4", mimeType: "video/mp4", buffer: Buffer.from(fixtureB64, "base64") },
     ]);
-    await page.waitForSelector(".refusal-banner", { timeout: 12000 }).catch(() => {});
+    await page.waitForSelector('[data-notice="slot"]', { timeout: 12000 }).catch(() => {});
     check(
       "a video is refused at a window only its frames' cost overflows",
-      (await page.locator(".refusal-banner").count()) === 1,
+      (await page.locator('[data-notice="slot"]').count()) === 1,
     );
     state.nctx = 65536;
     await page.reload();

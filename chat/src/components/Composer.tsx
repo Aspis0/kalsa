@@ -80,7 +80,9 @@ interface ComposerProps {
       chat leaves it out. `disabled` is the caller's own rule (a call of
       yours already pending); the words are the same draft, cleared when
       the send takes them. */
-  ask?: { label: string; disabled: boolean; onAsk: (text: string) => boolean | Promise<boolean> };
+  /** The writing box's own prompt, where the page asks for something else (the Room). */
+  placeholder?: string;
+  ask?: { label: string; icon?: IconName; disabled: boolean; onAsk: (text: string) => boolean | Promise<boolean> };
   /** The attach button's own words and icon where the surface has them (the
       Room's photos); the chat's "Attach a file" otherwise. */
   attach?: { label: string; icon: IconName };
@@ -113,6 +115,7 @@ export function Composer({
   thinking = null,
   onThinking,
   ask,
+  placeholder,
   attach,
   disclaimer,
 }: ComposerProps) {
@@ -210,8 +213,9 @@ export function Composer({
 
   return (
     <div className="composer">
-      {mediaChips}
       <div className="composer-box">
+        {/* The Room's pending photos sit inside the box, above the words (16-room-media). */}
+        {mediaChips}
         <ComposerChips
           docs={docs}
           onRemoveDoc={onRemoveDoc}
@@ -227,7 +231,7 @@ export function Composer({
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={composer.placeholder}
+          placeholder={placeholder ?? composer.placeholder}
           aria-label={composer.messageAria}
         />
         <div className="composer-row">
@@ -294,6 +298,7 @@ export function Composer({
               disabled={!ready || ask.disabled || held}
               onClick={askKalsa}
             >
+              {ask.icon ? <Icon name={ask.icon} size={18} /> : null}
               {ask.label}
             </button>
           ) : null}

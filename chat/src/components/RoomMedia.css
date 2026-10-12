@@ -1,46 +1,48 @@
 /* The room's media: what a message carries, and what waits in the
    composer to become it. */
 
+/* Three tiles to a row, 150 × 120, as the Room's mockup draws them. */
 .room-media {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(3, 150px);
+  gap: 6px;
+  margin: 0.25rem 0 0.375rem;
 }
 
 .room-media-thumb {
-  flex: none;
-  max-width: 240px;
-  max-height: 180px;
+  display: block;
+  width: 100%;
+  height: 120px;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: none;
+  border-radius: 12px;
   cursor: zoom-in;
 }
 
 .room-media-thumb img {
   display: block;
-  max-width: 240px;
-  max-height: 180px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
 .room-media-video {
   display: block;
-  max-width: 320px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
 }
 
 .room-media-missing {
   display: grid;
-  width: 120px;
-  height: 84px;
+  width: 100%;
+  height: 120px;
   place-items: center;
   color: var(--silence);
   border: 1px dashed var(--border-strong);
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 1.2rem;
 }
 
@@ -63,8 +65,7 @@
   width: 72px;
   height: 72px;
   object-fit: cover;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: 16px;
 }
 
 .room-media-chip-glyph {
@@ -73,34 +74,60 @@
   height: 72px;
   place-items: center;
   color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  background: var(--rail);
+  border-radius: 16px;
 }
 
+/* The progress label sits over the picture it describes; white on the
+   dark wash clears AA whatever the picture shows behind it. */
 .room-media-chip-label {
-  max-width: 72px;
-  margin-top: 0.2rem;
-  color: var(--silence);
-  font-size: 0.68rem;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 0.25rem;
+  color: #fff;
+  background: rgba(20, 22, 16, 0.55);
+  border-radius: 16px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.15;
   text-align: center;
+}
+
+.room-media-chip-bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.room-media-chip-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: #fff;
 }
 
 .room-media-chip-remove {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: 4px;
+  right: 4px;
   display: grid;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   place-items: center;
   padding: 0;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
   border-radius: 999px;
-  font-size: 0.8rem;
-  line-height: 1;
   cursor: pointer;
 }
 
@@ -108,12 +135,11 @@
    before anything is read. */
 .room-media-thumb-placeholder {
   display: grid;
-  width: 120px;
-  height: 84px;
+  width: 100%;
+  height: 120px;
   place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-muted);
+  border-radius: 12px;
+  background: var(--rail);
 }
 
 .room-media-loading {
@@ -161,7 +187,7 @@
   color: #fff;
   background: rgba(0, 0, 0, 0.65);
   border-radius: 6px;
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
 }
 
 .room-media-play {
@@ -189,76 +215,24 @@
   color: var(--silence);
   border: 1px dashed var(--border-strong);
   border-radius: 8px;
-  font-size: 0.78rem;
-}
-
-/* The host's broom: one quiet affordance in the header, one confirm. */
-.room-clear-chip {
-  flex: none;
-  align-self: baseline;
-  padding: 0.15rem 0.6rem;
-  color: var(--silence);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.72rem;
-  cursor: pointer;
-}
-
-.room-clear-chip:hover {
-  color: var(--ink-soft);
-  border-color: var(--border-strong);
-}
-
-.room-clear {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  font-size: 0.85rem;
-}
-
-.room-clear-actions {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.room-clear-actions button {
-  padding: 0.2rem 0.7rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface-muted);
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.room-clear-delete {
-  color: #fff;
-  background: var(--accent);
-  border-color: var(--accent);
+  font-size: 0.8125rem;
 }
 
 /* One media item's stable wrapper: the layout unit of the row, observed
    whatever the item currently renders. */
 .room-media-item {
   display: flex;
-  flex: none;
-  max-width: 240px;
+  min-width: 0;
 }
 
 .room-media-item-tile {
   position: relative;
   display: grid;
-  width: 224px;
-  height: 126px;
+  width: 100%;
+  height: 120px;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-muted);
+  border-radius: 12px;
+  background: var(--rail);
 }
 
 .room-media-item-tile .room-media-poster-tile {

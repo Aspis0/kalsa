@@ -1,4 +1,4 @@
-import { TELEMETRY } from "../en/telemetry";
+import { TELEMETRY } from "./telemetry";
 import { UPDATES } from "./updates";
 import { HELP } from "../en/help";
 // Tradotto dal copy inglese approvato.

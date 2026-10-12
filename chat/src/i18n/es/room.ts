@@ -7,7 +7,9 @@ export const ROOM: RoomTable = {
     if (items.length < 3) return items.join(" y ");
     return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
   },
+  closedTitle: "La sala está cerrada",
   closedRoom: "Enciende Kalsa para usar la sala.",
+  emptyTitle: "La sala",
   emptyRoom: "Aún no hay mensajes. Di algo, o pregunta a Kalsa.",
   readingRoom: "Kalsa está leyendo la conversación y responderá pronto.",
   queueNext: (name: string) => `Kalsa responderá primero a ${name}.`,
@@ -23,7 +25,7 @@ export const ROOM: RoomTable = {
   left: " · ya no está",
   askedKalsa: "preguntó a Kalsa ·",
   readLast: (count: number) =>
-    count === 1 ? " · leyó el último mensaje" : ` · leyó los últimos ${count} mensajes`,
+    count === 1 ? "leyó el último mensaje" : `leyó los últimos ${count} mensajes`,
   defaultHostName: "Este equipo",
   noteFallback: "Algo no funcionó. Inténtalo de nuevo.",
   notes: {

@@ -1,32 +1,75 @@
+import { useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
 import type { UpdatesApi } from "../lib/useUpdates";
+import { Icon } from "./Icon";
 import { ReleaseNotes } from "./ReleaseNotes";
+import "./NoticeBanner.css";
+import "./Settings.css";
+import "./UpdateNotice.css";
 
 interface UpdateNoticeProps {
   updates: UpdatesApi;
   /** A reply is being written: the install waits for it. */
   busy: boolean;
+  /** Home draws the sheet over its empty bottom (mockup 05); every other page
+      has a composer or content there, so it gets the banner at the top. */
+  sheet: boolean;
 }
 
-/** The small notice the startup check raises. Nothing installs from it
-    without the owner's button press. */
-export function UpdateNotice({ updates, busy }: UpdateNoticeProps) {
+/** What the startup check found. Nothing installs from it without the
+    owner's button press; Later (or Escape, in the shell) puts it away. */
+export function UpdateNotice({ updates, busy, sheet }: UpdateNoticeProps) {
   const { table, tag } = useLanguage();
   const t = table.updates;
+  // The sheet draws the notes open (05-update-notice); the banner keeps them
+  // behind What's new, so it stays one line over the page.
+  const [notesOpen, setNotesOpen] = useState(sheet);
   const { notice, phase } = updates.state;
   if (!notice) return null;
   const downloading = phase.kind === "downloading";
-  return <div className="refusal-banner" role="status">
-    <div className="update-notice-text">
-      <span>{t.ready(notice.version)}</span>
-      <ReleaseNotes notes={notice.notes} />
+  const error = phase.kind === "failed" ? rustSentence(table.rust, phase.error, tag) : null;
+  const actions = (
+    <>
+      <button type="button" className={sheet ? "settings-btn" : "notice-banner-btn"} onClick={updates.dismissNotice}>
+        {t.later}
+      </button>
+      <button type="button" className="settings-btn is-primary" disabled={busy || downloading} onClick={() => updates.install(notice.version)}>
+        <Icon name="refresh" size={19} />
+        {t.install}
+      </button>
+    </>
+  );
+  const words = (
+    <>
+      <b className="update-sheet-title">{t.ready}</b>
+      {error ? <span role="alert" className="update-sheet-error">{error}</span> : null}
+      <button type="button" className="settings-more" aria-expanded={notesOpen} onClick={() => setNotesOpen((open) => !open)}>
+        {t.whatsNew}
+        <Icon name={notesOpen ? "down" : "right"} size={15} stroke={2.2} />
+      </button>
+      {notesOpen ? <ReleaseNotes notes={notice.notes} /> : null}
+      {busy ? <span className="settings-update-busy">{t.busy}</span> : null}
+    </>
+  );
+  if (!sheet) {
+    return (
+      <div className="notice-banner update-banner" role="status">
+        <span className="notice-banner-icon">
+          <Icon name="download" size={20} />
+        </span>
+        <div className="notice-banner-text">{words}</div>
+        {actions}
+      </div>
+    );
+  }
+  return (
+    <div className="update-sheet" role="status">
+      <span className="update-sheet-icon">
+        <Icon name="download" size={26} />
+      </span>
+      <div className="update-sheet-text">{words}</div>
+      <div className="update-sheet-actions">{actions}</div>
     </div>
-    {busy ? <span>{t.busy}</span> : null}
-    {phase.kind === "failed" ? <span role="alert">{rustSentence(table.rust, phase.error, tag)}</span> : null}
-    <button type="button" className="btn-primary" disabled={busy || downloading} onClick={() => updates.install(notice.version)}>
-      {t.install}
-    </button>
-    <button type="button" onClick={updates.dismissNotice}>{table.shell.dismiss}</button>
-  </div>;
+  );
 }

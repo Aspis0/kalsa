@@ -3,11 +3,17 @@ import type { ChatSettings } from "./types";
 const SETTINGS_KEY = "crescent-chat.settings.v1";
 const THEME_KEY = "crescent-chat.theme.v1";
 
+// This session's own choice outranks storage, so Automatic keeps following
+// the system even when the stored choice cannot be read or removed.
+let sessionChoice: "auto" | "light" | "dark" | null = null;
+
 export function themeChoiceMade(): boolean {
+  if (sessionChoice !== null) return sessionChoice !== "auto";
   try {
     return localStorage.getItem(THEME_KEY) !== null;
   } catch {
-    return true;
+    // Unreadable is unstored, as loadTheme reads it: follow the system.
+    return false;
   }
 }
 
@@ -78,6 +84,10 @@ export function saveSettings(settings: ChatSettings): boolean {
   }
 }
 
+export function systemTheme(): Theme {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export function loadTheme(): Theme {
   try {
     const saved = localStorage.getItem(THEME_KEY);
@@ -85,10 +95,22 @@ export function loadTheme(): Theme {
   } catch {
     // fall through to media query
   }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return systemTheme();
+}
+
+/** Back to following the system: the stored choice goes, so the next launch follows it too. */
+export function forgetThemeChoice(): void {
+  sessionChoice = "auto";
+  try {
+    localStorage.removeItem(THEME_KEY);
+  } catch {
+    // non-fatal: this session follows the system regardless; the stored
+    // choice may come back at the next launch
+  }
 }
 
 export function saveTheme(theme: Theme): void {
+  sessionChoice = theme;
   document.documentElement.dataset.theme = theme;
   try {
     localStorage.setItem(THEME_KEY, theme);

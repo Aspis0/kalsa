@@ -519,7 +519,7 @@ const tests = {
     check("quota: disk provably near-full", topups >= 0 && topups < 8192, `${topups} pads fit`);
     await sendAndWait(page, "Nowhere to write.", "line is open");
     // The stream itself works (memory); the banner must admit disk refused.
-    const banner = page.locator(".storage-banner");
+    const banner = page.locator('[data-notice="storage"], [data-notice="slot-failed"]');
     check("quota: banner shown", (await banner.count()) === 1);
     check("quota: banner names storage", ((await banner.count()) === 1 && await banner.textContent())?.includes("storage is full") ?? false);
     await shot(page, "shots/31-quota.png");
@@ -663,14 +663,14 @@ const tests = {
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     try {
       await page.waitForFunction(
-        (text) => (document.querySelector(".storage-banner")?.textContent ?? "").includes(text),
+        (text) => (document.querySelector('[data-notice="storage"], [data-notice="slot-failed"]')?.textContent ?? "").includes(text),
         DOOR_SILENT_TEXT,
         { timeout: 8000 },
       );
     } catch {
       // The check below turns the absence into a failure with the text it saw.
     }
-    const notice = (await page.locator(".storage-banner").textContent().catch(() => null)) ?? "";
+    const notice = (await page.locator('[data-notice="storage"], [data-notice="slot-failed"]').textContent().catch(() => null)) ?? "";
     check(
       "network: an unreachable door refuses the open with its own sentence",
       notice.includes(DOOR_SILENT_TEXT),
@@ -995,12 +995,46 @@ const tests = {
     // The settings surface, reached the way a reader reaches it: the rail.
     await page.getByRole("navigation", { name: "Pages" }).getByRole("button", { name: "Settings", exact: true }).click();
     await page.waitForTimeout(400);
-    const toggle = page.getByRole("checkbox", { name: "Dark theme" });
-    check("appearance: the app's settings carry it", (await toggle.count()) === 1, "no Dark theme control in Settings");
-    await toggle.check();
+    // Look is a segmented choice (Light · Dark · Automatic), each applied at once.
+    const toggle = page.locator(".settings-page").getByRole("button", { name: "Dark", exact: true });
+    check("appearance: the app's settings carry it", (await toggle.count()) === 1, "no Dark choice in Settings");
+    await toggle.click();
     await page.waitForTimeout(300);
+    check("appearance: the choice shows as chosen", (await toggle.getAttribute("aria-pressed")) === "true");
     check("appearance: and it applies at once", (await page.evaluate(() => document.documentElement.dataset.theme)) === "dark");
     check("appearance: and it is remembered", (await page.evaluate(() => localStorage.getItem("crescent-chat.theme.v1"))) === "dark");
+    // Automatic follows the system: now, and again whenever it changes.
+    const auto = page.locator(".settings-page").getByRole("button", { name: "Automatic", exact: true });
+    const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
+    await page.emulateMedia({ colorScheme: "light" });
+    await auto.click();
+    await page.waitForTimeout(300);
+    check("appearance: Automatic shows as chosen", (await auto.getAttribute("aria-pressed")) === "true");
+    check("appearance: Automatic takes the system's look at once", (await theme()) === "light", await theme());
+    check(
+      "appearance: Automatic forgets the stored choice, so the next launch follows too",
+      (await page.evaluate(() => localStorage.getItem("crescent-chat.theme.v1"))) === null,
+    );
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.waitForTimeout(300);
+    check("appearance: Automatic follows the system when it changes", (await theme()) === "dark", await theme());
+    // Storage that refuses: Automatic still follows the system this session.
+    await toggle.click();
+    await page.evaluate(() => {
+      Storage.prototype.removeItem = () => {
+        throw new Error("storage refused");
+      };
+      Storage.prototype.getItem = () => {
+        throw new Error("storage refused");
+      };
+    });
+    await page.emulateMedia({ colorScheme: "light" });
+    await auto.click();
+    await page.waitForTimeout(300);
+    check("appearance: with storage refused, Automatic takes the system's look", (await theme()) === "light", await theme());
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.waitForTimeout(300);
+    check("appearance: with storage refused, Automatic still follows the system", (await theme()) === "dark", await theme());
     // The remote-server fields are gone from this surface: what storage
     // holds (a model name, the switches) is all there is to save.
     check("settings: no server-address field", (await page.locator('.settings-page input[type="url"]').count()) === 0);
@@ -1050,17 +1084,17 @@ const tests = {
       parsed?.model === "keep-me" && parsed?.webTools === false,
       raw ?? "null",
     );
-    // …and a save must not rewrite the unknown key away either: the form
-    // holds only the fields it knows.
+    // …and a settings write must not rewrite the unknown key away either:
+    // every row writes on the spot, holding only the fields it knows.
     // The rail carries Settings on every page.
     await page.getByRole("button", { name: "Settings", exact: true }).first().click();
     await page.waitForTimeout(400);
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Let Kalsa search the web" }).click();
     await page.waitForTimeout(300);
     const afterSave = await stored(page);
     const saved = JSON.parse(afterSave ?? "null");
     check(
-      "legacy object: saving the form keeps the unknown key",
+      "legacy object: a settings write keeps the unknown key",
       saved?.future_key === "keep me" && !("token" in saved),
       afterSave ?? "null",
     );
@@ -2146,7 +2180,7 @@ const tests = {
       { name: "big.txt", mimeType: "text/plain", buffer: Buffer.from(`B testo. ${"y".repeat(1185)}`) },
     ]);
     await page.waitForTimeout(1500);
-    const banner = page.locator(".refusal-banner");
+    const banner = page.locator('[data-notice="slot"]');
     check("refusefit: refusal shown", (await banner.count()) === 1);
     const text = ((await banner.count()) === 1 ? await banner.textContent() : null) ?? "";
     // The banner states the refusal in words; it shows no token figures.
@@ -2180,7 +2214,7 @@ const tests = {
         ((await page.locator(".budget-unknown").textContent()) ?? "").includes("can't check whether these files fit"),
     );
     check("unknownctx: no scale", (await page.locator(".budget-bar").count()) === 0);
-    check("unknownctx: no refusal", (await page.locator(".refusal-banner").count()) === 0);
+    check("unknownctx: no refusal", (await page.locator('[data-notice="slot"]').count()) === 0);
     await browser.close();
   },
 
@@ -3815,8 +3849,10 @@ const tests = {
           },
         },
         event: {
-          listen: async (_event, handler) => {
-            window.__ROOM_HANDLERS__.push(handler);
+          // Only the room's own listeners: handing a room payload to every
+          // listener once raised the update sheet over the composer.
+          listen: async (event, handler) => {
+            if (event === "room-event") window.__ROOM_HANDLERS__.push(handler);
             return () => {};
           },
         },
@@ -3854,13 +3890,20 @@ const tests = {
     );
     const seen = await page.evaluate(() => document.body.innerText);
     check("room: the page is the room", seen.includes("Studio"), seen.slice(0, 120));
-    const people = await page.evaluate(() =>
+    // The host is named by its own chip ("You are …"), not among the others.
+    const youAre = await page.evaluate(() => document.querySelector(".room-name-chip")?.textContent ?? "");
+    check(
+      "room: the host's default name is localized",
+      youAre.trim() === "You are This computer",
+      JSON.stringify(youAre),
+    );
+    const others = await page.evaluate(() =>
       [...document.querySelectorAll(".room-person-name")].map((el) => el.textContent),
     );
     check(
-      "room: the host's default name is localized",
-      people.includes("This computer"),
-      JSON.stringify(people),
+      "room: the host is not listed among the others, nor is Kalsa",
+      !others.includes("This computer") && !others.includes("Kalsa"),
+      JSON.stringify(others),
     );
     check(
       "room: the posted message lands",
@@ -5267,8 +5310,10 @@ const tests = {
           },
         },
         event: {
-          listen: async (_event, handler) => {
-            window.__ROOM_HANDLERS__.push(handler);
+          // Only the room's own listeners: handing a room payload to every
+          // listener once raised the update sheet over the composer.
+          listen: async (event, handler) => {
+            if (event === "room-event") window.__ROOM_HANDLERS__.push(handler);
             return () => {};
           },
         },

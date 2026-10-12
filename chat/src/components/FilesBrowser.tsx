@@ -4,6 +4,7 @@ import { rustSentence } from "../lib/rustText";
 import { available, listen } from "../lib/tauri";
 import { filesList, filesRoots, filesSearch } from "../lib/files";
 import type { DiskEntry, SearchEvent, SearchHit } from "../lib/files";
+import { Icon } from "./Icon";
 import "./FilesBrowser.css";
 
 interface FilesBrowserProps {
@@ -108,7 +109,8 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
       .then((found) => {
         setStarters([
           ...(found.home ? [{ label: t.home, path: found.home }] : []),
-          ...found.roots.map((path) => ({ label: path, path })),
+          // A root that is home ($HOME=/) is drawn once, as Home.
+          ...found.roots.filter((path) => path !== found.home).map((path) => ({ label: path, path })),
         ]);
         setScope(found.home ?? found.roots[0] ?? null);
         liveScope.current = found.home ?? found.roots[0] ?? null;
@@ -209,6 +211,9 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
                 <span className="files-caret" aria-hidden="true">
                   {open ? "▾" : "▸"}
                 </span>
+                <span className="files-icon" aria-hidden="true">
+                  <Icon name="folder" size={18} />
+                </span>
                 <span className="files-name">{entry.name}</span>
               </button>
               <button type="button" className="files-here" onClick={() => searchIn(entry.path)}>
@@ -217,6 +222,9 @@ export function FilesBrowser({ onAttach }: FilesBrowserProps) {
             </>
           ) : (
             <>
+              <span className="files-icon is-file" aria-hidden="true">
+                <Icon name="file" size={18} />
+              </span>
               <span className="files-name" title={entry.path}>
                 {entry.name}
               </span>

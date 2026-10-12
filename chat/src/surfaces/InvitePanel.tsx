@@ -3,6 +3,7 @@ import { copyText } from "../lib/clipboard";
 import { invoke, PAIRING_ASK_BOUND_MS } from "../lib/tauri";
 import { useLanguage } from "../i18n/useLanguage";
 import { rustSentence } from "../lib/rustText";
+import { Icon } from "../components/Icon";
 import "./surfaces.css";
 
 /** One row of `brain_invite_list`: the id the buttons name, and the moment
@@ -194,6 +195,7 @@ export function InvitePanel({ invites, onList }: InvitePanelProps) {
           disabled={creating}
           onClick={() => void createInvite()}
         >
+          <Icon name="link" size={17} />
           {t.inviteByLink}
         </button>
       </div>

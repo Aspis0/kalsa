@@ -18,13 +18,19 @@ export const CHROME = {
 
 export const SETTINGS = {
   title: "Settings",
-  darkTheme: "Dark theme",
-  webSearch: "Let the assistant search the web",
+  look: "Look",
+  lookLight: "Light",
+  lookDark: "Dark",
+  lookAuto: "Automatic",
+  webSearch: "Let Kalsa search the web",
+  webSearchHint: "Only the search words go online. Your chats stay here.",
+  webSearchMore: "What leaves this computer?",
   webSearchNote:
     "When your question needs something current, the assistant can search the web and open a page. That search — the words it chose, and the address it opens — leaves this computer for a search service on the internet, and what comes back is kept in the conversation. With this off, web searches and page requests are not sent and the assistant answers from what it already knows. This switch is applied as soon as you change it.",
   lede: "Your messages and answers stay on this computer.",
-  saved: "Saved.",
-  save: "Save",
   language: "Language",
   languageSystem: "System default",
+  ai: "AI",
+  usingAi: (name: string) => `Using ${name}`,
+  aiDetails: "Change or see details",
 };

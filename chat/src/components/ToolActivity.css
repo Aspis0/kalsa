@@ -41,7 +41,8 @@
   transform: rotate(90deg);
 }
 
-.tool-run-failed > summary .icon:first-child {
+/* Above the mini-app run's green, which comes later in this file. */
+.tool-run.tool-run-failed > summary .icon:first-child {
   color: var(--err-ink);
 }
 

@@ -7,7 +7,9 @@ export const ROOM: RoomTable = {
     if (items.length < 3) return items.join(" et ");
     return `${items.slice(0, -1).join(", ")} et ${items[items.length - 1]}`;
   },
+  closedTitle: "Le salon est fermé",
   closedRoom: "Allume Kalsa pour utiliser le salon.",
+  emptyTitle: "Le salon",
   emptyRoom: "Pas encore de messages. Dis quelque chose, ou demande à Kalsa.",
   readingRoom: "Kalsa lit la conversation et répondra bientôt.",
   queueNext: (name: string) => `Kalsa répondra d'abord à ${name}.`,
@@ -23,7 +25,7 @@ export const ROOM: RoomTable = {
   left: " · n'est plus là",
   askedKalsa: "a demandé à Kalsa ·",
   readLast: (count: number) =>
-    count === 1 ? " · a lu le dernier message" : ` · a lu les ${count} derniers messages`,
+    count === 1 ? "a lu le dernier message" : `a lu les ${count} derniers messages`,
   defaultHostName: "Cet ordinateur",
   noteFallback: "Quelque chose n'a pas marché. Réessaie.",
   notes: {
