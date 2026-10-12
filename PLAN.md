@@ -320,8 +320,16 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
 
 ## Open decisions (owner)
 
-- The learning governor (2026-10-09 owner idea, plan after M1): learns per-device heat/speed
-  per leg online (persisted, with exploration), seeded by the per-SoC lab row.
+- The learning governor (2026-10-09 owner idea): design v0 in `scratchpad/agents/learning-governor/DESIGN.md`
+  (Fable architect, 2026-10-12; hostile audit pending). Owner 2026-10-12 ("va bene a tutto"): speed while
+  cold, heat (HEAT_RANK) once warm; heat learned per phone in the app, speed live in the engine; no
+  exploration in v0; Xiaomi first, S23 as the null control, row-less phones out of v0. Owner corrections
+  for the revision: the margin uses BOTH sources but not a plain minimum ("il minimo è troppo
+  conservatore") - the Android forecast reads 0 below SEVERE - 30 (Xiaomi: 36.5 C), so there the
+  component zones decide; real life (pauses, cooling, reloads, other apps, background load) must not
+  break it: live margin every window, an "everything else" heat term + outlier rejection + forgetting,
+  a surprise breaker (actual rise faster than predicted -> GPU off for the session), Stage 0 data from
+  real use. Known flaw of the first draft: the forecast-only margin can never fire on the Xiaomi.
 - DECIDED 2026-10-11 (owner: "non viene supportato dall'app finché non scriviamo il kernel per mali GPU"):
   the Jelly Star (Helio G99, Mali-G57) is NOT supported by the app until a Mali GPU kernel exists; LFM on
   its CPU is thermally non-viable (`analysis/CISWIRE-CHAR3GRAM-KV-AND-THERMAL-2026-09-19.md`). M1 is
