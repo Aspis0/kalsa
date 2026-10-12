@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { ReportProblem } from "../components/ReportProblem";
-import { KalsaWordmark } from "../components/KalsaWordmark";
 import "./HelpSurface.css";
 
 function HelpText({ text }: { text: string }) {
@@ -27,9 +26,6 @@ export function HelpSurface() {
     <article className="help-page" lang={language === "it" ? "it" : "en"}>
       <div className="help-layout">
         <div className="help-side">
-          <div className="help-brand">
-            <KalsaWordmark height={24} />
-          </div>
           <h2 className="help-title">{table.chrome.pages.help}</h2>
           <nav className="help-index" aria-label={table.chrome.pages.help}>
             {help.sections.map((item, index) => (

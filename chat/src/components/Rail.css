@@ -1,6 +1,6 @@
-/* The icon rail (RULES.md "Rail"): the leaf mark, four places on top, Help and
-   Phones at the bottom. The top padding leaves room for the window's own
-   controls, as the mockups draw them. */
+/* The icon rail (RULES.md "Rail"): the wordmark and the leaf mark, four
+   places on top, Help and Phones at the bottom. The top padding leaves room
+   for the window's own controls, as the mockups draw them. */
 
 .rail {
   display: flex;
@@ -16,12 +16,24 @@
   line-height: 25px;
 }
 
+.rail-word {
+  display: block;
+  flex: none;
+  margin-bottom: 12px;
+  color: var(--tx2);
+}
+
+.rail-word svg {
+  display: block;
+  margin: 0 auto;
+}
+
 .rail-mark {
   display: grid;
   flex: none;
   width: 44px;
   height: 44px;
-  margin-bottom: 26px;
+  margin-bottom: 16px;
   place-items: center;
   /* The owner's mark: the leaf's own green (#57AC00) on the app icon's lime
      (#D6E048). Brand colours, not theme tokens — the logo is the same leaf

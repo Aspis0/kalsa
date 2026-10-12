@@ -3,6 +3,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import { Icon } from "./Icon";
 import type { IconName } from "./Icon";
 import { KalsaMark } from "./KalsaMark";
+import { KalsaWordmark } from "./KalsaWordmark";
 import "./Rail.css";
 
 interface RailItem {
@@ -51,6 +52,9 @@ export function Rail({ current, onOpen }: { current: SurfaceKey; onOpen: (surfac
 
   return (
     <nav className="rail" aria-label={chrome.navigation}>
+      <span className="rail-word" aria-hidden="true">
+        <KalsaWordmark height={16} />
+      </span>
       <span className="rail-mark" aria-hidden="true">
         <KalsaMark size={33} />
       </span>

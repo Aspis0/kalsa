@@ -40,7 +40,7 @@ export const SETUP = {
   // …and when there was nothing to keep: the rule stands.
   standardSettings: "Kalsa will use its standard settings.",
   almostDone: "Almost done.",
-  welcome: "Welcome to Kalsa",
+  welcome: "Welcome",
   welcomeLine: "A private assistant that runs on this computer. Your messages and answers stay on it.",
   stepOf: (step: number, total: number) => `Step ${step} of ${total}`,
   pickLine: "Both work well on this computer. You can change this later.",

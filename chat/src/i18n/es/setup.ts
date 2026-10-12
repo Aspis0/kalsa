@@ -29,7 +29,7 @@ export const SETUP = {
     "keptBest": "Kalsa ha conservado los mejores ajustes que encontró.",
     "standardSettings": "Kalsa usará sus ajustes estándar.",
     "almostDone": "Casi listo.",
-    "welcome": "Te damos la bienvenida a Kalsa",
+    "welcome": "Bienvenido",
     "welcomeLine": "Una asistente privada que funciona en este equipo. Tus mensajes y respuestas se quedan en él.",
     "stepOf": (step: number, total: number) => `Paso ${step} de ${total}`,
     "pickLine": "Las dos funcionan bien en este equipo. Puedes cambiar más adelante.",

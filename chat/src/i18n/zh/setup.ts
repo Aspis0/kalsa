@@ -29,7 +29,7 @@ export const SETUP = {
     "keptBest": "Kalsa 保留了找到的最佳设置。",
     "standardSettings": "Kalsa 将使用其标准设置。",
     "almostDone": "快完成了。",
-    "welcome": "欢迎使用 Kalsa",
+    "welcome": "欢迎",
     "welcomeLine": "一个在这台电脑上运行的私人助手。你的消息和回答都留在这台电脑上。",
     "stepOf": (step: number, total: number) => `第 ${step} 步，共 ${total} 步`,
     "pickLine": "两个在这台电脑上都运行良好。之后可以随时更改。",
