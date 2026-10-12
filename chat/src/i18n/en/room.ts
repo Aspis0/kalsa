@@ -11,7 +11,7 @@ export interface RoomTable {
   emptyTitle: string;
   emptyRoom: string;
   /** Inside Kalsa's bubble while the turn runs and no answer word has
-      arrived yet — not while she waits for a seat (the note says that). */
+      arrived yet, not while Kalsa waits for a seat (the note says that). */
   readingRoom: string;
   queueNext: (name: string) => string;
   queueThen: (name: string, rest: string) => string;
@@ -72,11 +72,11 @@ export const ROOM: RoomTable = {
     return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
   },
   closedTitle: "The Room is closed",
-  closedRoom: "Turn on Kalsa to use the room.",
+  closedRoom: "Turn Kalsa on to use the Room.",
   turnOn: "Turn Kalsa on",
   emptyTitle: "The Room",
-  emptyRoom: "No messages yet. Say something, or ask Kalsa.",
-  readingRoom: "Reading the room — Kalsa will answer soon.",
+  emptyRoom: "No messages yet. Write a message or ask Kalsa.",
+  readingRoom: "Reading the room…",
   queueNext: (name) => `Kalsa will answer ${name} next.`,
   queueThen: (name, rest) => `Kalsa will answer ${name} next, then ${rest}.`,
   askKalsa: "Ask Kalsa",
@@ -94,19 +94,19 @@ export const ROOM: RoomTable = {
   noteFallback: "Something did not work. Try again.",
   defaultHostName: "This computer",
   notes: {
-    busy_waiting: "Kalsa is busy with another conversation. You keep your turn.",
+    busy_waiting: "Kalsa is busy with another conversation. It will answer in turn.",
     unavailable: "Kalsa can't answer in this room right now.",
     empty_answer: "Kalsa had no answer to that.",
     could_not_start: "Kalsa couldn't start. Try again.",
-    engine_problem: "Kalsa ran into a problem on this computer and couldn't answer. Ask again.",
-    seat_timeout: "Kalsa waited for a turn at the engine and gave up. Ask again.",
-    too_large: "That message is too long for the room. Shorten it or split it in two.",
+    engine_problem: "Kalsa had a problem on this computer and couldn't answer. Ask again.",
+    seat_timeout: "Kalsa waited too long for its turn and couldn't answer. Ask again.",
+    too_large: "That message is too long for the Room. Shorten it or split it.",
     read_only: "The room can't take messages right now. Try again in a moment.",
     client_msg_id_reused: "That message is already in the room.",
     internal: "Something went wrong on this computer. Try again.",
     already_pending: "You already have a question waiting for Kalsa.",
     name_taken: "Someone in this room already uses that name. Pick another.",
-    name_reserved: "Kalsa is the assistant's name. Pick another.",
+    name_reserved: "Kalsa is reserved for the assistant. Pick another name.",
     name_framing: "Names can't use [ or ].",
     name_mixed_scripts: "Use letters from one alphabet in your name.",
     name_too_long: "That name is too long. Try a shorter one.",
@@ -122,16 +122,16 @@ export const ROOM: RoomTable = {
     enlarge: "View full size",
     playVideo: "Play video",
     notMedia: "Only pictures and videos can be attached here.",
-    tooManyMedia: "Up to 8 photos and videos can ride one message.",
-    tooLargeImage: "That picture is too large for the room (4 MB at most).",
+    tooManyMedia: "A message can have up to 8 photos and videos.",
+    tooLargeImage: "That picture is too large for the Room (4 MB at most).",
     imageUnreadable: "That picture can't be read here. Try another one.",
-    tooLargeVideo: "That video is too large for the room (over 100 MB).",
+    tooLargeVideo: "That video is too large for the Room (100 MB at most).",
     undecodableVideo: "That video can't be read here. Convert it to MP4 and try again.",
     full: "The Room is full (2 GB). Use Clear Room photos and videos to make room.",
-    uploadBroken: "The file didn't survive the upload whole. Try again.",
+    uploadBroken: "The file was damaged during upload. Try again.",
     uploadFailed: "The upload didn't go through. Try again.",
     clearAction: "Clear Room photos and videos",
-    clearConfirm: "Delete all photos and videos in this Room for everyone? Messages stay.",
+    clearConfirm: "Delete all photos and videos in this Room for everyone? Messages are kept.",
     clearDelete: "Delete",
     clearKeep: "Keep",
     clearFailed: "Couldn't clear the Room's media. Try again.",

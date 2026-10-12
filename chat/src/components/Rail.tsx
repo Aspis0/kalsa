@@ -2,6 +2,7 @@ import type { SurfaceKey } from "../app/surfaces";
 import { useLanguage } from "../i18n/useLanguage";
 import { Icon } from "./Icon";
 import type { IconName } from "./Icon";
+import { KalsaMark } from "./KalsaMark";
 import "./Rail.css";
 
 interface RailItem {
@@ -51,7 +52,7 @@ export function Rail({ current, onOpen }: { current: SurfaceKey; onOpen: (surfac
   return (
     <nav className="rail" aria-label={chrome.navigation}>
       <span className="rail-mark" aria-hidden="true">
-        <Icon name="leaf" size={22} stroke={2.1} />
+        <KalsaMark size={22} />
       </span>
       {top.map(item)}
       <div className="rail-low">{bottom.map(item)}</div>

@@ -9,5 +9,5 @@ export const FIRST_PAGE = {
     "startingArm": "Kalsa si sta preparando. Su un computer meno recente può volerci un minuto.",
     "keyArm": "Kalsa sta ancora preparando questo computer. Apri la pagina Telefoni per finire.",
     "devices": "Telefoni",
-    "ready": "Scrivi qui sotto il tuo primo messaggio per parlare con Kalsa.",
+    "ready": "Scrivi qui sotto il tuo primo messaggio.",
   };

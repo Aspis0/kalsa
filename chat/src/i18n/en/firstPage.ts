@@ -10,5 +10,5 @@ export const FIRST_PAGE = {
   startingArm: "Getting ready. On a slower computer this can take a minute.",
   keyArm: "Kalsa is still setting up this computer. Open Phones to finish.",
   devices: "Phones",
-  ready: "Write your first message below to talk with Kalsa.",
+  ready: "Write your first message below.",
 };

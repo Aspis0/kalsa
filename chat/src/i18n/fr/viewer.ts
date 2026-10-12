@@ -8,6 +8,6 @@ export const VIEWER = {
   position: (at: number, total: number) => `${at} sur ${total}`,
   enlarge: "Voir en plein écran",
   loading: "Chargement…",
-  imageUnavailable: "Cette image n'a pas pu être chargée.",
-  videoUnsupported: "Ton navigateur ne prend pas en charge l'élément vidéo.",
+  imageUnavailable: "Impossible de charger cette image.",
+  videoUnsupported: "Impossible de lire cette vidéo ici.",
 };

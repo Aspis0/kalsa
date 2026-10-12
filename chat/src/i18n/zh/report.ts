@@ -7,7 +7,7 @@ export const REPORT = {
     "它记录的是 Kalsa 做了什么、这台电脑有什么：版本、处理器、显卡、内存、错误。",
   send: "发送日志",
   open: "打开日志文件夹",
-  openFailed: "Kalsa 无法打开日志文件夹。",
+  openFailed: "无法打开日志文件夹。",
   sending: "正在发送…",
   sent: "已发送。谢谢。",
   errRateLimited: "请等一分钟再试。",

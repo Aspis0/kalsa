@@ -7,7 +7,7 @@ export const REPORT = {
     "Il contient ce que Kalsa a fait et ce que cet ordinateur a : versions, processeur, carte graphique, mémoire, erreurs.",
   send: "Envoyer le journal",
   open: "Ouvrir le dossier des journaux",
-  openFailed: "Kalsa n'a pas pu ouvrir le dossier des journaux.",
+  openFailed: "Impossible d'ouvrir le dossier des journaux.",
   sending: "Envoi…",
   sent: "Envoyé. Merci.",
   errRateLimited: "Attends une minute et réessaie.",

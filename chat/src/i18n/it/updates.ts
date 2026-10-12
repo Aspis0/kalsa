@@ -10,8 +10,8 @@ export const UPDATES: typeof ENGLISH = {
   install: "Riavvia per aggiornare",
   downloading: (percent: number | null) =>
     percent === null ? "Scarico l'aggiornamento…" : `Scarico l'aggiornamento… ${percent}%`,
-  busy: "Kalsa sta scrivendo una risposta. Installa quando ha finito.",
-  note: "Kalsa cerca aggiornamenti poco dopo l'avvio. Non installa nulla senza di te.",
+  busy: "Kalsa sta scrivendo una risposta. Potrai installare quando avrà finito.",
+  note: "Kalsa cerca aggiornamenti poco dopo l'avvio.",
   ready: "È pronta una nuova versione di Kalsa",
   whatsNew: "Novità",
   later: "Più tardi",

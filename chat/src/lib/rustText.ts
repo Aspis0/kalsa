@@ -12,21 +12,31 @@ export interface RustMessage {
   text?: string;
 }
 
-/** One sentence per code, keyed as the code spells it:
-    `rust.startup.disk_full`. */
+/** One sentence per code. A group names its codes either by the path under
+    it (`startup.disk_full`, `road.open`) or by the whole dotted code
+    (`invite.no_road` sits in `invite` under that full key). The tables are
+    plain object literals and the code comes off the wire, so only own keys
+    count ("constructor" is not a group, "__proto__" is not a row) and a row
+    is accepted only once it has said a string. */
 export function codeSentence(
   rust: English["rust"],
   code: string,
   params: Record<string, unknown>,
   tag: string,
 ): string | null {
-  let node: unknown = rust;
-  for (const part of code.split(".")) {
-    if (node === null || typeof node !== "object") return null;
-    node = (node as Record<string, unknown>)[part];
+  const [group, ...rest] = code.split(".");
+  const groups = rust as Record<string, unknown>;
+  if (!Object.hasOwn(groups, group)) return null;
+  const rows = groups[group];
+  if (rows === null || typeof rows !== "object") return null;
+  const table = rows as Record<string, unknown>;
+  const nested = rest.join(".");
+  const row = Object.hasOwn(table, nested) ? table[nested] : Object.hasOwn(table, code) ? table[code] : undefined;
+  if (typeof row === "function") {
+    const said = row(params, tag);
+    return typeof said === "string" ? said : null;
   }
-  if (typeof node === "function") return node(params, tag);
-  return typeof node === "string" ? node : null;
+  return typeof row === "string" ? row : null;
 }
 
 /** A rejection or message field as a sentence. A plain string is an

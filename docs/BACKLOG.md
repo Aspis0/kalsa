@@ -428,3 +428,13 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - Mini apps render as a card before the answer bubble (mockup nests them after the text); calculator shows formula chips and raw numbers; the table has no default sort or best-row highlight.
 - Files panel is a tree opening on "In this chat" (mockup: breadcrumb list); 09-phones-allow is split across two screens in the app.
 - No mp4 fixture: the chat video tile and its label were never shot; dark theme only shot for Settings and Room.
+
+## 0.0.4 copy and logo batch (luna + deepseek review, 2026-10-12)
+- `MachineCard.tsx` `reasonSentence` still indexes `byCode[code]` without an own-property check (same class as the `rustText.ts` fix); `reason_code` comes from our backend, so unreachable today.
+- The removed "You picked this AI" reason is filtered in the webview only (`MachineCard.tsx`); `capability.rs` still emits `model.reason.chosen` and no test pins that nothing renders.
+- `en/rust.ts` header says the table holds "the same sentence on the wire"; `capability.rs` English and the tables now differ in wording.
+- Rail brand mark uses fixed logo colours (`Rail.css`), not theme tokens; leaf on lime is ~2:1 (a logo, not text). RULES/mockup still draw the old mark.
+- `AiPage.css` `@container (min-width: 1080px)` two-column branch is unreachable while the Your AI column caps at 840px; drop it or widen the card.
+- Screenshot stubs (brain-shots, the phase-B probe) carry no `iroh_code` and an automatic context inconsistent with `parallel`; their For experts shots show the English road sentence and "Automatic: 64k" with 3 chats.
+- `verify.mjs:5335`, `:5409` assertion names overstate what the retargeted checks prove; `ui-log.mjs:17` sentence is decoration.
+- Help: the update screen no longer says installing waits for the user (owner called the old line patronising; revisit only if testers ask).

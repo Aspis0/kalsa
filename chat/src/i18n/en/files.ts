@@ -7,7 +7,7 @@ export const FILES = {
   filesTab: "Files",
   attachedTab: "In this chat",
   closeAria: "Close panel",
-  empty: "Add a document so Kalsa can use it in this conversation. Drop it here, press Attach a file, or pick one from Files.",
+  empty: "Add a document to this conversation. Drop it here, press Attach a file, or pick one from Files.",
   remove: "Remove",
   reattach: "Reattach",
   pinName: "Keep",
@@ -21,11 +21,11 @@ export const FILES = {
   budgetAlmostFull: "This conversation is almost full: Kalsa may not read everything. Remove a file or start a new conversation.",
   budgetOver: "Too much for Kalsa at once. Remove a file or shorten your message.",
   // Why a file could not be attached, by the failure the extractor reports.
-  unsupportedKind: "Kalsa can't read this kind of file. Use a text document, PDF, Word or PowerPoint file.",
+  unsupportedKind: "Kalsa can't read this kind of file. Use a text, PDF, Word or PowerPoint file.",
   unsupportedLegacy: (app: string) => `This file is in an old format. Open it in ${app}, save a new copy, and attach that.`,
   tooBig: "This file is too large for Kalsa. Try a smaller one.",
-  unreadable: "Kalsa couldn't read this file. It may be damaged or locked with a password.",
+  unreadable: "Kalsa couldn't read this file. It may be damaged or password-protected.",
   emptyFile: "This file is empty.",
-  noText: "Kalsa found no words in this file. If it's a scan, Kalsa can't read it yet.",
+  noText: "Kalsa found no text in this file. Scanned files can't be read yet.",
   couldNotOpen: "Kalsa couldn't open this file. Choose it again.",
 };

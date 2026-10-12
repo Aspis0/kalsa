@@ -23,8 +23,11 @@
   height: 44px;
   margin-bottom: 26px;
   place-items: center;
-  color: var(--ac-ink);
-  background: var(--ac);
+  /* The owner's mark: the leaf's own green (#57AC00) on the app icon's lime
+     (#D6E048). Brand colours, not theme tokens — the logo is the same leaf
+     in dark, which sits on the lime square either way. */
+  color: #57ac00;
+  background: #d6e048;
   border-radius: 14px;
 }
 

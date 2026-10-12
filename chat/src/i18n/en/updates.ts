@@ -9,7 +9,7 @@ export const UPDATES = {
   downloading: (percent: number | null) =>
     percent === null ? "Downloading the update…" : `Downloading the update… ${percent}%`,
   busy: "Kalsa is writing a reply. Install when it finishes.",
-  note: "Kalsa checks for updates a little after it starts. Nothing is installed without you.",
+  note: "Kalsa checks for updates shortly after it starts.",
   ready: "A new version of Kalsa is ready",
   whatsNew: "What’s new",
   later: "Later",

@@ -2,7 +2,7 @@
 
 export const SAMPLING = {
   title: "Échantillonnage",
-  note: "Les choix enregistrés changent le prochain message que tu envoies. Rien ne redémarre, et l'assistante reste allumée.",
+  note: "Les choix enregistrés valent dès ton prochain message. Rien ne redémarre.",
   saveButton: "Enregistrer l'échantillonnage",
   count: (count: string) => `${count} réglages`,
 };

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { available, invoke } from "../lib/tauri";
 import { LAUNCH_KNOBS } from "../lib/knobs/launch";
 import type { LaunchKnob } from "../lib/knobs/types";
-import { bytesText } from "../surfaces/MachineCard";
+import { bytesText, tokensText } from "../surfaces/MachineCard";
 import { loadSettings, saveSettings } from "../lib/settings";
 import { launchWords } from "../lib/knobs/words";
 import { useLanguage } from "../i18n/useLanguage";
 import type { English } from "../i18n/en/all";
+import { rustSentence } from "../lib/rustText";
 import { AdvancedField } from "./AdvancedField";
 import { KnobInfoScope } from "./KnobInfo";
 import { Icon } from "./Icon";
@@ -17,6 +18,9 @@ type CacheChoice = CacheType | "";
 /** What `brain_advanced` answers: Rust's launch description, read-only here. */
 export interface AdvancedDto {
   context_tokens: number | null;
+  /** The engine's slot count: the total context is split across this many
+      chats, so the one-chat figure is `context_tokens / parallel`. */
+  parallel: number;
   context_max: number | null;
   context_max_f16: number | null;
   context_automatic: number | null;
@@ -52,6 +56,8 @@ export interface AdvancedDto {
   desk_port: number | null;
   desk_port_preferred: boolean;
   iroh_sentence: string;
+  /** The road state's stable code; absent from an older door. */
+  iroh_code?: string;
   internet_road: boolean;
   running: boolean;
 }
@@ -158,12 +164,6 @@ function contextCost(dto: AdvancedDto | null, cache: CacheChoice, typed: string)
   const tokens = shownContext(dto, cache, typed);
   if (price === null || tokens === null || tokens <= 0) return null;
   return tokens * price.perToken + price.fixed;
-}
-/** A context length as a chat figure: 65536 is "64k", 65315 is "63.8k". */
-function tokensText(tokens: number): string {
-  if (tokens < 1024) return String(tokens);
-  const thousands = tokens / 1024;
-  return `${Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
 }
 /** How "Automatic" is written where a figure is expected: the launcher's own
     pick when it is known, the bare word otherwise. */
@@ -351,6 +351,20 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
             </div>
             <input id="advanced-context" type="number" min={512} max={maximum ?? undefined} step={512} placeholder={automatic === null ? t.automatic : t.automaticWith(tokensText(automatic))} value={context} {...trackText(setContext)} />
           </AdvancedField>
+          {/* The reader's two figures for the setting above: what one chat
+              gets, and how many run at once. The total stays inside the
+              field, where the split note below explains it. */}
+          {dto && dto.context_tokens != null ? (
+            <p className="advanced-note">
+              {table.machine.longestChat}: {table.machine.longestChatValue(tokensText(Math.floor(dto.context_tokens / dto.parallel)))}
+            </p>
+          ) : null}
+          {dto && dto.context_tokens != null ? (
+            <p className="advanced-note">
+              {table.machine.chatsAtOnce}: {num(dto.parallel)}
+            </p>
+          ) : null}
+          {dto && dto.parallel > 1 ? <p className="advanced-note">{t.contextSplitNote}</p> : null}
           <AdvancedField id="advanced-batch" knob={BATCH_KNOB} said={said(BATCH_KNOB)} help={dto?.batch_automatic != null ? t.automaticNumber(num(dto.batch_automatic)) : t.automaticReadLater(t.batchSizeName)}><input id="advanced-batch" type="number" min={64} max={8192} step={1} placeholder={t.automatic} value={batch} {...trackText(setBatch)} /></AdvancedField>
           <AdvancedField id="advanced-ubatch" knob={UBATCH_KNOB} said={said(UBATCH_KNOB)} help={dto?.ubatch_automatic != null ? t.automaticNumber(num(dto.ubatch_automatic)) : t.automaticReadLater(t.ubatchSizeName)}><input id="advanced-ubatch" type="number" min={64} max={1024} step={1} placeholder={t.automatic} value={ubatch} {...trackText(setUbatch)} /></AdvancedField>
           {dto?.ubatch_raised ? (
@@ -396,7 +410,7 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
               </p>
             ) : null}
           </div>
-          <AdvancedField id="advanced-road" knob={ROAD_KNOB} said={said(ROAD_KNOB)} help={dto?.iroh_sentence ?? t.roadWaiting}>
+          <AdvancedField id="advanced-road" knob={ROAD_KNOB} said={said(ROAD_KNOB)} help={dto ? rustSentence(table.rust, { code: dto.iroh_code, text: dto.iroh_sentence }, tag) : t.roadWaiting}>
             <input
               id="advanced-road"
               className="advanced-switch"
@@ -422,10 +436,12 @@ export function AdvancedPanel({ save, model: modelProp, onModelChange }: Advance
       </KnobInfoScope>
       <div className="advanced-inforce">
         <p className="advanced-values">
-          {dto
-            ? t.valuesInForce({
+              {dto
+                ? t.valuesInForce({
                 lead: dto.running ? t.inForce : t.nextStart,
-                context: dto.context_tokens != null ? num(dto.context_tokens) : automaticLabel(t, dto, cache),
+                // The one-chat figure, not the total: the total is the
+                // field's own setting, said beside the field where it is set.
+                context: dto.context_tokens != null ? tokensText(Math.floor(dto.context_tokens / dto.parallel)) : automaticLabel(t, dto, cache),
                 batch: num(dto.batch_size),
                 ubatch: num(dto.ubatch_size),
                 kv: dto.kv_cache_type,

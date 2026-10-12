@@ -150,7 +150,7 @@ async function runEngine(engineName, origin) {
     const label = await text(".composer-vision");
     check(
       "the offer appears with the download's own figure",
-      offered && label === "Let Kalsa see images (downloads 655 MB)",
+      offered && label === "Let Kalsa see pictures · 655 MB",
       JSON.stringify({ offered, label }),
     );
 
@@ -160,7 +160,7 @@ async function runEngine(engineName, origin) {
     const question = await text("#vision-ask");
     check(
       "the press asks once, with the figure and the restart",
-      asked && question === `Download 655 MB so Kalsa can see images? Kalsa restarts when it's done.`,
+      asked && question === `Download 655 MB so Kalsa can see pictures? Kalsa restarts when the download is done.`,
       JSON.stringify({ asked, question }),
     );
     const answers = {
@@ -249,7 +249,7 @@ async function runEngine(engineName, origin) {
     const again = await probe(page, () => document.querySelector(".composer-vision") !== null, null, 8000);
     check(
       "a smaller projector is offered with its own figure",
-      again && (await text(".composer-vision")) === "Let Kalsa see images (downloads 300 MB)",
+      again && (await text(".composer-vision")) === "Let Kalsa see pictures · 300 MB",
       JSON.stringify({ again, label: await text(".composer-vision") }),
     );
     await page.locator(".composer-vision").click();
@@ -263,7 +263,7 @@ async function runEngine(engineName, origin) {
     const sentence = await text(".vision-failed p");
     check(
       "memory that cannot hold it is a sentence, not a code",
-      refused && sentence === "This computer doesn't have room in memory for image support with this AI.",
+      refused && sentence === "This computer doesn't have enough memory for this AI to see pictures.",
       JSON.stringify({ refused, sentence }),
     );
     check(

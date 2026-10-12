@@ -10,7 +10,10 @@ import { useCapability } from "./useCapability";
 import { reasonSentence, refusalSentence } from "./MachineCard";
 import { AiChoices, inUseOption, rankOptions } from "./AiChoices";
 import { AiDetails } from "./AiDetails";
+import type { AdvancedDto } from "../components/AdvancedPanel";
+import { available, invoke } from "../lib/tauri";
 import { modelOnly } from "../lib/modelName";
+import { useEffect, useState } from "react";
 import "../components/NoticeBanner.css";
 import "./surfaces.css";
 import "./AiPage.css";
@@ -34,6 +37,28 @@ export function ModelsSurface({ onNavigate }: { onNavigate: (surface: SurfaceKey
   const { state, busy, heldFailure, chooseModel } = useBrain();
   const { capability } = useCapability(state, busy);
   const running = state?.kind === "running" ? state : null;
+
+  // The launch's own context split, read from the same answer For experts
+  // shows, so the two pages can never quote a different chat length. Reread
+  // when the machine turns on or off: the running engine's seats and window
+  // are not the next start's.
+  const [contextSplit, setContextSplit] = useState<{ perSlot: number; slots: number } | null>(null);
+  useEffect(() => {
+    if (!available()) return;
+    let live = true;
+    invoke<AdvancedDto>("brain_advanced")
+      .then((dto) => {
+        if (live && dto.context_tokens != null && dto.parallel >= 1) {
+          setContextSplit({ perSlot: Math.floor(dto.context_tokens / dto.parallel), slots: dto.parallel });
+        }
+      })
+      .catch(() => {
+        // No answer yet: Details simply keeps the rows it already has.
+      });
+    return () => {
+      live = false;
+    };
+  }, [state?.kind]);
 
   let notice: StateNotice | null = null;
   if (!state) {
@@ -129,6 +154,7 @@ export function ModelsSurface({ onNavigate }: { onNavigate: (surface: SurfaceKey
         option={inUse?.option ?? null}
         tokensPerSecond={tokensPerSecond}
         phones={phones}
+        contextSplit={contextSplit}
         reason={running ? (running.reason ? reasonSentence(t, running.reason_code, running.reason) : t.fallbackReason) : null}
       />
       <button type="button" className="ai-experts" onClick={() => onNavigate("experts")}>

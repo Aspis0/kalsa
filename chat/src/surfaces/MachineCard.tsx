@@ -92,6 +92,13 @@ export function bytesText(bytes: number, tag = "en"): string {
   return `${Number.isInteger(value) ? new Intl.NumberFormat(tag).format(value) : shown} GiB`;
 }
 
+/** A context length as a chat figure: 65536 is "64k", 65315 is "63.8k". */
+export function tokensText(tokens: number): string {
+  if (tokens < 1024) return String(tokens);
+  const thousands = tokens / 1024;
+  return `${Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
+}
+
 // The speed as words a reader can hold: an estimate says it is one, a
 // measurement says where it was taken, and the figure rides beside the words.
 export function speedText(t: English["machine"], speed: Speed, tag: string): string {
@@ -115,11 +122,11 @@ export function shownSpeed(t: English["machine"], model: ModelOption): Speed {
 }
 
 /** A reason: the approved sentence when the code is one of ours, the
-    catalog's own English otherwise. */
+    catalog's own English otherwise, and nothing for a pick the user made. */
 export function reasonSentence(t: English["machine"], code: string | undefined, text: string): string {
+  if (code === "model.reason.chosen") return "";
   const byCode: Record<string, string> = {
     "model.reason.pick": t.reasonPicked,
-    "model.reason.chosen": t.reasonChosen,
     "model.reason.quicker": t.reasonQuicker,
     "model.reason.quicker_smaller": t.reasonQuickerSmaller,
     "model.reason.bigger": t.reasonBigger,

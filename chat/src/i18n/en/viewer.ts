@@ -10,5 +10,5 @@ export const VIEWER = {
   enlarge: "View full size",
   loading: "Loading…",
   imageUnavailable: "Couldn't load this picture.",
-  videoUnsupported: "Your browser does not support the video element.",
+  videoUnsupported: "This video cannot be played here.",
 };

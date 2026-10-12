@@ -329,6 +329,10 @@ let timeout = null;
 try {
   installDom();
   const { dir, renderer } = await loadRenderer();
+  // The approved copy, straight from the table the bundle already carries:
+  // an assertion that quotes it can only disagree with the page by the
+  // check's own logic, never by a stale transcript of yesterday's words.
+  const english = renderer.english;
   // The runaway guard, derived from what the cards declare they will
   // wait: the sum of every card's wait plus room for the renders and
   // settles between them. Not a target — a guard.
@@ -561,7 +565,7 @@ try {
     "It is starting now",
     // The first page, ready: no action offered HERE — the composer beside
     // it is where the message goes.
-    "Write your first message below to talk with Kalsa.",
+    english().firstPage.ready,
   ];
   for (const { heading, sentence, button, working, walk, qr } of results) {
     // The matcher's probe renders lists, not actions: a card that exists
@@ -665,8 +669,7 @@ try {
   // phone that is working right now: a served connection is the opposite of
   // idle, so that is the fresher fact.
   const ASLEEP_VERDICT = "Kalsa is resting";
-  const ASLEEP_SENTENCE =
-    "Kalsa is resting to free up memory. Your next message wakes it up in a few seconds.";
+  const ASLEEP_SENTENCE = english().power.asleepSentence;
   const asleepCard = results.find((r) => r.heading === "Home — running, asleep");
   const busyAsleepCard = results.find((r) => r.heading === "Home — running, asleep while a phone works");
   if (!asleepCard || !busyAsleepCard) {
@@ -678,7 +681,7 @@ try {
     if (!asleepCard.all.includes(ASLEEP_SENTENCE)) {
       problems.push("a released model must say that the next message brings it back");
     }
-    if (!busyAsleepCard.all.includes("Your phone is using this computer right now.")) {
+    if (!busyAsleepCard.all.includes(english().power.phoneInUse)) {
       problems.push("a phone working right now must keep its own sentence even after a release was announced");
     }
     if (busyAsleepCard.all.includes(ASLEEP_VERDICT)) {
@@ -712,7 +715,7 @@ try {
   if (!STOPPING_CARD) {
     problems.push("the harness is missing the draining state the page must speak about");
   } else {
-    if (!STOPPING_CARD.all.includes("Kalsa is turning off…") || !STOPPING_CARD.all.includes("Next time it starts with your choice.")) {
+    if (!STOPPING_CARD.all.includes(english().power.stopping) || !STOPPING_CARD.all.includes(english().power.nextTimeChoice)) {
       problems.push("a drain must say Kalsa is turning off and will return with the owner's choice");
     }
     if (STOPPING_CARD.all.includes("Starting")) {
@@ -846,7 +849,7 @@ try {
     if (runningSampling.automatic.includes(NOT_CONFIGURED)) {
       problems.push("a running server must show its automatic values, not \"after a server is configured\"");
     }
-    if (!runningSampling.automatic.some((line) => line.includes("Automatic is 1 — the server's own value."))) {
+    if (!runningSampling.automatic.some((line) => line.includes(english().knobs.autoIs("1")))) {
       problems.push("the running server's own temperature must be shown as the automatic value");
     }
   }
@@ -862,11 +865,31 @@ try {
   if (!retriedSampling) {
     problems.push("the harness is missing the still-loading sampling state");
   } else {
-    if (!retriedSampling.automatic.some((line) => line.includes("Automatic is 1 — the server's own value."))) {
+    if (!retriedSampling.automatic.some((line) => line.includes(english().knobs.autoIs("1")))) {
       problems.push("a server that answers on a later read must still fill the automatic values in");
     }
     if (retriedSampling.automatic.some((line) => line.includes("did not answer"))) {
       problems.push("silence must not be reported as a failure while the panel is still asking");
+    }
+  }
+  // The context split the launch reports: beside the expert's editable
+  // total, the reader's two rows; and the road's sentence in the table's
+  // words when the dto carries a code — the fixture's `iroh_code` is what
+  // picks them, so fallback text there means the field was dropped.
+  {
+    const server = results.filter((r) => r.heading.startsWith("Advanced — server settings"));
+    if (server.length === 0) {
+      problems.push("the harness is missing the server-settings states");
+    } else {
+      if (!server.some((r) => r.all.includes(english().machine.longestChat))) {
+        problems.push("the server panel must say the longest chat its context funds");
+      }
+      if (!server.some((r) => r.all.includes(english().machine.chatsAtOnce))) {
+        problems.push("the server panel must say how many chats run at once");
+      }
+      if (!server[0].all.includes(english().rust.road.open({}, "en"))) {
+        problems.push("the road's code must render the table's sentence, not the fixture's text");
+      }
     }
   }
   if (!results.some((r) => r.heading.includes("a progress event arrives") && r.working)) {
@@ -885,8 +908,8 @@ try {
   }
 
   const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
-  const AWARENESS = "Anyone who can see this square can connect a phone — show it only to yours.";
-  const REPAIR_PRIMARY = "Pair another phone";
+  const AWARENESS = english().devices.awareness;
+  const REPAIR_PRIMARY = english().devices.pairAnother;
   const CANCEL_PRIMARY = "Cancel";
   const FRESH_PHRASINGS = [
     "The previous square expired — this one is fresh.",
@@ -1235,7 +1258,7 @@ try {
       problems.push(`only a row the door names may carry the live dot: ${heading}`);
     }
     if (heading.includes("an invitation is taking longer than usual")) {
-      if (!all.includes("Making the invite is taking a while. When it appears below, copy the link.")) {
+      if (!all.includes(english().invite.slowCreate)) {
         problems.push(`a slow create says so: ${heading}`);
       }
       if (all.includes("This invitation could not be made")) {
@@ -1281,7 +1304,7 @@ try {
       }
     }
     if (heading.includes("earlier invitations could not be read")) {
-      if (!all.includes("Older invites were cancelled to keep them safe. Send a new one if you need it.")) {
+      if (!all.includes(english().invite.discarded)) {
         problems.push(`a discarded file is said once, plainly: ${heading}`);
       }
     }
@@ -1309,10 +1332,10 @@ try {
     const canAsk =
       phoneNames.length - deviceDetails.filter((detail) => detail === "Waiting for your OK.").length;
     if (canAsk > 0) {
-      if (!all.includes("If several phones ask at the same time, some may have to wait their turn.")) {
+      if (!all.includes(english().devices.capacityLine)) {
         problems.push(`a house with a paired phone says its capacity: ${heading}`);
       }
-    } else if (all.includes("If several phones ask at the same time, some may have to wait their turn.")) {
+    } else if (all.includes(english().devices.capacityLine)) {
       problems.push(`no paired phone, no capacity line: ${heading}`);
     }
 
@@ -1370,7 +1393,7 @@ try {
         continue;
       }
       if (heading.includes("empty room")) {
-        if (!all.includes("No messages yet. Say something, or ask Kalsa.")) {
+        if (!all.includes(english().room.emptyRoom)) {
           problems.push(`Room — empty room must say so: ${heading}`);
         }
         if (buttons.includes(STOP_LABEL)) {
@@ -1400,7 +1423,7 @@ try {
         }
       }
       if (heading.includes("waiting with the busy note")) {
-        if (!all.includes("Kalsa is busy with another conversation. You keep your turn.")) {
+        if (!all.includes(english().room.notes.busy_waiting)) {
           problems.push(`Room — the busy note must be shown by its code: ${heading}`);
         }
         // The turn still runs while it waits (the stop can act on it), so
@@ -1526,8 +1549,8 @@ try {
       key: ["Kalsa is still setting up this computer. Open Phones to finish.", "Phones"],
       "key-read": ["This computer could not read its own connection key.", "Phones"],
       "key-junk": ["Kalsa is still setting up this computer. Open Phones to finish.", "Phones"],
-      advanced: ["This computer has no model name yet.", "Add the model name"],
-      ready: ["Write your first message below to talk with Kalsa.", null],
+      advanced: [english().advanced.noModelYet, english().advanced.addModelName],
+      ready: [english().firstPage.ready, null],
     };
     const armName = Object.keys(FIRST_PAGE).find((arm) =>
       heading.startsWith(`firstpage/${arm} `),
@@ -1541,7 +1564,7 @@ try {
         problems.push(`firstpage/${armName}: the arm must say "${wanted}": ${heading}`);
       }
       if (button === null) {
-        const offered = ["Turn Kalsa on", "Open settings", "Devices", "Add the model name"].filter((b) => buttons.includes(b));
+        const offered = ["Turn Kalsa on", "Open settings", "Devices", english().advanced.addModelName].filter((b) => buttons.includes(b));
         if (offered.length > 0) {
           problems.push(`firstpage/${armName}: the ready page offers nothing to fix: ${JSON.stringify(offered)}`);
         }
@@ -1582,7 +1605,7 @@ try {
     // back draws no note at all, and must not be asked for a sentence the
     // page never renders.
     const movedExpected = heading.startsWith("Pairing") && noteExpected && deskPort !== null && !deskPreferred;
-    const movedLine = all.includes("Phone setup moved to a new port. Start the pairing again.");
+    const movedLine = all.includes(english().devices.deskMoved);
     if (movedExpected && !movedLine) {
       problems.push(`a desk on a fallback number must say the setup moved and the pairing restarts: ${heading}`);
     }

@@ -7,7 +7,7 @@ export const REPORT = {
     "Contiene cosa ha fatto Kalsa e cosa ha questo computer: versioni, processore, scheda grafica, memoria, errori.",
   send: "Invia il log",
   open: "Apri la cartella dei log",
-  openFailed: "Kalsa non riesce ad aprire la cartella dei log.",
+  openFailed: "Impossibile aprire la cartella dei log.",
   sending: "Invio…",
   sent: "Inviato. Grazie.",
   errRateLimited: "Aspetta un minuto e riprova.",

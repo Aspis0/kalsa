@@ -14,7 +14,7 @@ import { rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { loadApp } from "./lib/app-bundle.mjs";
 
-const SENTENCE = "Kalsa non ha potuto aprire questa conversazione. Riprova.";
+const SENTENCE = "Kalsa non è riuscita ad aprire questa conversazione. Riprova.";
 const UUID = "0f1e2d3c-5a6b-4c7d-8e9f-001122334455";
 const TOKEN = "not-a-real-credential";
 

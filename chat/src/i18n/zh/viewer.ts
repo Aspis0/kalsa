@@ -9,5 +9,5 @@ export const VIEWER = {
   enlarge: "查看原尺寸",
   loading: "加载中…",
   imageUnavailable: "无法加载这张图片。",
-  videoUnsupported: "你的浏览器不支持视频元素。",
+  videoUnsupported: "这里无法播放此视频。",
 };

@@ -68,6 +68,10 @@ export interface English {
     invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
     pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
     update: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+    road: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+    files: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+    vision: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+    web: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   };
   contentFilter: typeof CONTENT_FILTER;
 }

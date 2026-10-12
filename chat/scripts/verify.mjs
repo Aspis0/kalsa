@@ -1161,14 +1161,14 @@ const tests = {
     const unnamedCopy = (await page.locator(".empty-copy").textContent().catch(() => null)) ?? "";
     check(
       "empty: a running machine with no model name says so",
-      unnamedCopy.includes("This computer has no model name yet."),
+      unnamedCopy.includes("Kalsa doesn’t know which AI to use yet."),
       unnamedCopy || "no empty state",
     );
     // Scoped to the empty state: the rail's own Settings item would make an
     // unscoped role query ambiguous.
     check(
-      "empty: and offers Add the model name",
-      (await page.locator(".empty").getByRole("button", { name: "Add the model name" }).count()) === 1,
+      "empty: and offers Enter the AI’s name",
+      (await page.locator(".empty").getByRole("button", { name: "Enter the AI’s name" }).count()) === 1,
     );
     await browser.close();
   },
@@ -1202,7 +1202,7 @@ const tests = {
     await page.waitForTimeout(1200);
     await sendAndWait(page, "Think, don't speak.", "Thought for");
     check("thinkonly: cloud present", (await page.locator(".thought").count()) === 1);
-    check("thinkonly: no-answer said", ((await page.locator(".thread").textContent()) ?? "").includes("finished thinking without an answer"));
+    check("thinkonly: no-answer said", ((await page.locator(".thread").textContent()) ?? "").includes("did not produce an answer"));
     check("thinkonly: not an error", (await page.locator(".error-block").count()) === 0);
     await browser.close();
   },
@@ -1663,7 +1663,7 @@ const tests = {
     await page.waitForTimeout(400);
     check(
       "filestree: a capped folder says so",
-      ((await page.locator(".files-tree").textContent()) ?? "").includes("First 500 of this folder shown"),
+      ((await page.locator(".files-tree").textContent()) ?? "").includes("Showing the first 500 items"),
       "the truncated flag never reached the screen",
     );
     check(
@@ -1775,10 +1775,10 @@ const tests = {
     );
     const notes = (await page.locator(".files-notes").textContent()) ?? "";
     check("filessearch: skipped is a fact on the screen", notes.includes("Skipped 12"), notes.trim());
-    check("filessearch: limited is a fact on the screen", notes.includes("First 500 shown"), notes.trim());
+    check("filessearch: limited is a fact on the screen", notes.includes("Showing the first 500"), notes.trim());
     check(
       "filessearch: an index answer says it searched less",
-      notes.includes("fast index"),
+      notes.includes("file index"),
       notes.trim(),
     );
 
@@ -5334,7 +5334,7 @@ const tests = {
     });
     await page.waitForTimeout(300);
     const thinkingText = await page.locator(".room-bubble").innerText();
-    check("roomwaiting: a thinking turn says Kalsa is reading", thinkingText.includes("Reading the room — Kalsa will answer soon."), thinkingText);
+    check("roomwaiting: a thinking turn says Kalsa is reading", thinkingText.includes("Reading the room…"), thinkingText);
     check("roomwaiting: the dots are beside the line", (await page.locator(".room-bubble .thinking").count()) === 1);
     check("roomwaiting: the line is a live status", (await page.locator('.room-bubble [role="status"]').count()) === 1);
 
@@ -5406,7 +5406,7 @@ const tests = {
       .catch(() => check("waitfirst: the sentence appears after a few quiet seconds", false, "never appeared"));
     check(
       "waitfirst: the sentence says Kalsa is reading",
-      ((await page.locator(".waiting-row .row-note").innerText()) ?? "").includes("Reading your message — Kalsa will answer soon."),
+      ((await page.locator(".waiting-row .row-note").innerText()) ?? "").includes("Reading your message…"),
       await page.locator(".waiting-row .row-note").innerText(),
     );
     check("waitfirst: the sentence is a live status", (await page.locator('.waiting-row [role="status"]').count()) === 1);

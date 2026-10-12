@@ -11,7 +11,7 @@ export const UPDATES: typeof ENGLISH = {
   downloading: (percent: number | null) =>
     percent === null ? "正在下载更新…" : `正在下载更新… ${percent}%`,
   busy: "Kalsa 正在回复。回复完成后再安装。",
-  note: "Kalsa 会在启动后不久检查更新。未经你同意，不会安装任何内容。",
+  note: "Kalsa 会在启动后不久检查更新。",
   ready: "Kalsa 的新版本已就绪",
   whatsNew: "更新内容",
   later: "稍后",

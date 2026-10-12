@@ -1,6 +1,6 @@
 import { TELEMETRY } from "./telemetry";
 import { UPDATES } from "./updates";
-import { HELP } from "../en/help";
+import { HELP } from "./help";
 // Tradotto dal copy inglese approvato.
 
 import { CHROME, SETTINGS } from "./chrome";

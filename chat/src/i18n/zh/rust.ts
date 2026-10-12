@@ -7,6 +7,10 @@ export const RUST: {
   invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   update: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  road: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  files: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  vision: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  web: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa 还不能在这台电脑上运行。请检查应用更新。",
@@ -15,9 +19,9 @@ export const RUST: {
     network_blocks_download: () => "Kalsa 无法在这个网络下载所需内容。请换一个网络。",
     download_failed: () => "Kalsa 没能完成下载。请稍后再试。",
     needs_check: () => "Kalsa 需要先检查这台电脑才能启动。请再试。",
-    choice_too_large: () => "这个 AI 对这台电脑来说太大。请在 AI 页面挑一个小一点的。",
-    choice_unavailable: () => "Kalsa 无法用这个 AI 启动。请在 AI 页面另挑一个。",
-    conversation_too_long: () => "这条对话的长度对 这个 AI 来说太长。请在「AI」页面里选一个小一点的。",
+    choice_too_large: () => "这个 AI 对这台电脑来说太大了。请在“你的 AI”中选一个小一点的。",
+    choice_unavailable: () => "Kalsa 无法用这个 AI 启动。请在“你的 AI”中另选一个。",
+    conversation_too_long: () => "这个 AI 无法处理这么长的对话。请开始一个新聊天，或在 你的 AI → 专家设置 → 服务器设置 中调低“上下文大小”。",
     check_failed: () => "Kalsa 未能检查这台电脑。请稍等片刻再试。",
     could_not_start: () => "Kalsa 未能启动。请再试。",
     awaiting_choice: () => "Kalsa 还没有准备好。前往主页并按「启动」。",
@@ -29,7 +33,7 @@ export const RUST: {
           }).format(params.gb)} GB 后再试。`
         : "Kalsa 需要更多空间。请腾出一些空间后再试。",
     restart: () => "Kalsa 未能启动。请重启这台电脑后再试。",
-    stopped: () => "Kalsa 自己停了下来。请重新打开它。",
+    stopped: () => "Kalsa 意外停止了。请重新开启它。",
     took_too_long: () => "Kalsa 准备的时间太长。请再试。",
     stop_unconfirmed: () => "Kalsa 可能仍在运行。请重启这台电脑来关闭它。",
     already_starting: () => "Kalsa 已经在启动了。请稍等片刻。",
@@ -41,8 +45,8 @@ export const RUST: {
     unexpected: () => "Kalsa 未能完成。请再试。",
   },
   invite: {
-    "invite.no_road": () => "邀请需要互联网连接。请在「AI」页面里打开。",
-    "invite.full": () => "同时的邀请数已经到顶。请取消一个再发新的。",
+    "invite.no_road": () => "邀请需要通过互联网连接。请在 你的 AI → 专家设置 → 服务器设置 中开启“通过互联网连接”。",
+    "invite.full": () => "已达到邀请数量上限。请取消一个，再创建新的。",
     "invite.could_not_make": () => "Kalsa 未能生成邀请。请再试。",
     "invite.could_not_save": () => "Kalsa 未能保存邀请。请再试。",
     "invite.expired": () => "这个邀请已过期。请发一个新的。",
@@ -54,7 +58,7 @@ export const RUST: {
         ? "带有自己 AI 的手机"
         : "没有自己 AI 的手机",
     "pairing.phone_without_ai": () => "没有自己 AI 的手机",
-    "pairing.host_forget": () => "无法忘记这台电脑自己的连接。",
+    "pairing.host_forget": () => "无法移除这台电脑自己的连接。",
   },
   update: {
     check_failed: () => "Kalsa 无法检查更新。请稍后再试。",
@@ -65,5 +69,34 @@ export const RUST: {
     up_to_date: () => "Kalsa 已是最新版本。",
     replying: () => "Kalsa 正在回复。回复完成后安装更新。",
     changed: () => "更新自检查后已经变化。请重新检查。",
+  },
+  road: {
+    off: () => "通过互联网连接已关闭。手机通过 Tailscale 连接。",
+    waiting: () => "通过互联网连接正在等待 Kalsa 开启。",
+    opening: () => "通过互联网连接正在打开。",
+    open: () => "通过互联网连接已开启。",
+    unavailable: () => "通过互联网连接无法在这台电脑上打开。",
+  },
+  files: {
+    list_failed: () => "Kalsa 无法打开这个文件夹。请换一个。",
+    not_found: () => "Kalsa 找不到这个文件。请换一个。",
+    permission_denied: () => "Kalsa 没有权限打开这个文件。请换一个。",
+    unsupported: () => "Kalsa 无法打开这个文件。请换一个。",
+    is_folder: () => "这是一个文件夹。请选择其中的文件。",
+    too_large: (params) =>
+      typeof params.limit === "string"
+        ? `这个文件太大了（上限 ${params.limit}）。请换一个小一点的。`
+        : "这个文件太大了。请换一个小一点的。",
+  },
+  vision: {
+    does_not_fit: () => "这台电脑的内存不足以让这个 AI 支持图片。",
+    busy: () => "Kalsa 已经在准备图片支持。请稍等。",
+    none: () => "这个 AI 暂不支持图片。",
+  },
+  web: {
+    page_too_long: () => "那个页面对 Kalsa 来说太长，读不了。",
+    search_failed: () => "Kalsa 无法搜索网络。请再试。",
+    page_failed: () => "Kalsa 无法打开那个页面。请再试。",
+    open_failed: () => "这台电脑无法打开该链接。",
   },
 };

@@ -7,7 +7,7 @@ export const REPORT = {
     "Contiene lo que hizo Kalsa y lo que tiene este equipo: versiones, procesador, tarjeta gráfica, memoria, errores.",
   send: "Enviar el registro",
   open: "Abrir la carpeta de registros",
-  openFailed: "Kalsa no pudo abrir la carpeta de registros.",
+  openFailed: "No se pudo abrir la carpeta de registros.",
   sending: "Enviando…",
   sent: "Enviado. Gracias.",
   errRateLimited: "Espera un minuto e inténtalo de nuevo.",

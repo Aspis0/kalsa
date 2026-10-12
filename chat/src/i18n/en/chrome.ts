@@ -23,10 +23,10 @@ export const SETTINGS = {
   lookDark: "Dark",
   lookAuto: "Automatic",
   webSearch: "Let Kalsa search the web",
-  webSearchHint: "Only the search words go online. Your chats stay here.",
+  webSearchHint: "Only the search words go online. Your chats stay on this computer.",
   webSearchMore: "What leaves this computer?",
   webSearchNote:
-    "When your question needs something current, the assistant can search the web and open a page. That search — the words it chose, and the address it opens — leaves this computer for a search service on the internet, and what comes back is kept in the conversation. With this off, web searches and page requests are not sent and the assistant answers from what it already knows. This switch is applied as soon as you change it.",
+    "When a question needs current information, Kalsa can search the web and open pages. Each search sends the words Kalsa chose, and the address of any page it opens, to a search service on the internet. The results stay in the conversation. With this off, nothing is searched or requested, and Kalsa answers from what it already knows.",
   lede: "Your messages and answers stay on this computer.",
   language: "Language",
   languageSystem: "System default",

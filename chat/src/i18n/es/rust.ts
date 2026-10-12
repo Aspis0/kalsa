@@ -7,6 +7,10 @@ export const RUST: {
   invite: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   pairing: Record<string, (params: Record<string, unknown>, tag: string) => string>;
   update: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  road: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  files: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  vision: Record<string, (params: Record<string, unknown>, tag: string) => string>;
+  web: Record<string, (params: Record<string, unknown>, tag: string) => string>;
 } = {
   startup: {
     cannot_run_yet: () => "Kalsa aún no puede funcionar en este equipo. Busca una actualización de la app.",
@@ -15,9 +19,9 @@ export const RUST: {
     network_blocks_download: () => "Kalsa no pudo descargar lo que necesita en esta red. Prueba con otra red.",
     download_failed: () => "Kalsa no terminó de descargar. Prueba de nuevo más tarde.",
     needs_check: () => "Kalsa necesita revisar este equipo antes de poder arrancar. Prueba de nuevo.",
-    choice_too_large: () => "Esta IA es demasiado grande para este equipo. Elige una más pequeña en la página IA.",
-    choice_unavailable: () => "Kalsa no pudo arrancar con esta IA. Elige otra en la página IA.",
-    conversation_too_long: () => "Esta longitud de conversación es demasiado para esta IA. Elige una más pequeña en la página IA.",
+    choice_too_large: () => "Esta IA es demasiado grande para este equipo. Elige una más pequeña en Tu IA.",
+    choice_unavailable: () => "Kalsa no pudo arrancar con esta IA. Elige otra en Tu IA.",
+    conversation_too_long: () => "Esta IA no admite conversaciones tan largas. Empieza un chat nuevo, o reduce «Tamaño del contexto» en Tu IA → Para expertos → Ajustes del servidor.",
     check_failed: () => "Kalsa no pudo revisar este equipo. Espera un momento y prueba de nuevo.",
     could_not_start: () => "Kalsa no pudo arrancar. Prueba de nuevo.",
     awaiting_choice: () => "Kalsa aún no está lista. Ve a Inicio y pulsa Iniciar.",
@@ -29,7 +33,7 @@ export const RUST: {
           }).format(params.gb)} GB y prueba de nuevo.`
         : "Kalsa necesita más espacio. Libera algo de sitio y prueba de nuevo.",
     restart: () => "Kalsa no pudo arrancar. Reinicia este equipo y prueba de nuevo.",
-    stopped: () => "Kalsa se detuvo por sí sola. Vuelve a encenderla.",
+    stopped: () => "Kalsa se detuvo de forma inesperada. Vuelve a encenderla.",
     took_too_long: () => "Kalsa tardó demasiado en prepararse. Prueba de nuevo.",
     stop_unconfirmed: () => "Kalsa puede seguir encendida. Reinicia este equipo para apagarla.",
     already_starting: () => "Kalsa ya se está encendiendo. Espera un momento.",
@@ -41,9 +45,9 @@ export const RUST: {
     unexpected: () => "Kalsa no pudo hacerlo. Prueba de nuevo.",
   },
   invite: {
-    "invite.no_road": () => "Las invitaciones necesitan la conexión a internet. Actívala en la página IA.",
-    "invite.full": () => "Ya tienes el máximo de invitaciones a la vez. Cancela una para hacer una nueva.",
-    "invite.could_not_make": () => "Kalsa no pudo hacer la invitación. Prueba de nuevo.",
+    "invite.no_road": () => "Las invitaciones necesitan una conexión por internet. Activa «Conexión por internet» en Tu IA → Para expertos → Ajustes del servidor.",
+    "invite.full": () => "Has alcanzado el máximo de invitaciones. Cancela una para crear otra.",
+    "invite.could_not_make": () => "Kalsa no pudo crear la invitación. Prueba de nuevo.",
     "invite.could_not_save": () => "Kalsa no pudo guardar la invitación. Prueba de nuevo.",
     "invite.expired": () => "Esta invitación ha caducado. Haz una nueva.",
   },
@@ -54,7 +58,7 @@ export const RUST: {
         ? "Teléfono con IA propia"
         : "Teléfono sin IA propia",
     "pairing.phone_without_ai": () => "Teléfono sin IA propia",
-    "pairing.host_forget": () => "La conexión de este equipo no se puede olvidar.",
+    "pairing.host_forget": () => "La conexión de este equipo no se puede quitar.",
   },
   update: {
     check_failed: () => "Kalsa no pudo buscar actualizaciones. Inténtalo más tarde.",
@@ -65,5 +69,34 @@ export const RUST: {
     up_to_date: () => "Kalsa ya está al día.",
     replying: () => "Kalsa está escribiendo una respuesta. Instala la actualización cuando termine.",
     changed: () => "La actualización cambió desde la comprobación. Busca de nuevo.",
+  },
+  road: {
+    off: () => "La conexión por internet está desactivada. El teléfono se conecta mediante Tailscale.",
+    waiting: () => "La conexión por internet espera a que Kalsa esté encendida.",
+    opening: () => "La conexión por internet se está abriendo.",
+    open: () => "La conexión por internet está activada.",
+    unavailable: () => "La conexión por internet no se pudo abrir en este equipo.",
+  },
+  files: {
+    list_failed: () => "Kalsa no puede abrir esta carpeta. Elige otra.",
+    not_found: () => "Kalsa no encuentra este archivo. Elige otro.",
+    permission_denied: () => "Kalsa no tiene permiso para abrir este archivo. Elige otro.",
+    unsupported: () => "Kalsa no puede abrir este archivo. Elige otro.",
+    is_folder: () => "Es una carpeta. Elige un archivo dentro de ella.",
+    too_large: (params) =>
+      typeof params.limit === "string"
+        ? `Este archivo es demasiado grande (límite ${params.limit}). Prueba con uno más pequeño.`
+        : "Este archivo es demasiado grande. Prueba con uno más pequeño.",
+  },
+  vision: {
+    does_not_fit: () => "Este equipo no tiene memoria suficiente para que esta IA vea imágenes.",
+    busy: () => "Kalsa ya está preparando la compatibilidad con imágenes. Espera un momento.",
+    none: () => "La compatibilidad con imágenes no está disponible para esta IA.",
+  },
+  web: {
+    page_too_long: () => "Esa página es demasiado larga para que Kalsa la lea.",
+    search_failed: () => "Kalsa no pudo buscar en la web. Prueba de nuevo.",
+    page_failed: () => "Kalsa no pudo abrir esa página. Prueba de nuevo.",
+    open_failed: () => "Este equipo no pudo abrir el enlace.",
   },
 };

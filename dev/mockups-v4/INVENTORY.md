@@ -37,7 +37,7 @@ jargon or the new layout needs it: every change is listed in "Copy changes".
 - Kalsa off ("Kalsa is off. Go to Home to start it."). → `14-home-states-ai-off`.
 - Switch confirmation ("Kalsa will restart with …"). → `18-dialogs-switch-ai`.
 - Not measured yet / no suitable choice. → shown as `14-home-states-ai-off` note line and `13-first-run-too-weak`.
-- "Show the working" (speeds disclosure, "These speeds are for a short conversation…"). → inside `07-ai-page` Details (`14-home-states-ai-details-live`).
+- "Show the working" (speeds disclosure, "Answers get slower as a conversation grows longer." since 2026-10-12). → inside `07-ai-page` Details (`14-home-states-ai-details-live`).
 - Advanced panel, Sampling panel, Report a problem: see below.
 
 ## First run (`surfaces/FirstRun.tsx`, `surfaces/SetupProgress.tsx`, `components/Sprout.tsx`, `setup.ts`, `rust.ts` startup)
@@ -165,6 +165,23 @@ Owner decision, 2026-10-11.
 20. Dialogs, new lines: delete dialog shows the chat title and a Cancel button; switch dialog title "Switch to Quickest?" (body and button are the app's); rename row shows "Enter to save".
 21. For experts, new lines: tag/title "For experts", lead "Kalsa picks good values for this computer by itself. Change these only if you know what they do.", entry-card blurbs for Server settings and Sampling, "N settings" counts on sampling groups. The Tailscale line shows a placeholder: the real commands come from the backend.
 22. Tools: the web gate's waiting row says "Waiting for your OK…".
+
+## Copy simplification (owner, 2026-10-12)
+Four specific changes, in all five languages:
+1. Your AI → Details: "Queste velocità valgono per una conversazione breve…" / "These speeds are for a short conversation. Long ones are slower." → "Le risposte rallentano man mano che la conversazione si allunga." / "Answers get slower as a conversation grows longer." [the old line did not make sense alone]
+2. Your AI reason line for an AI the user picked: "L'hai scelta tu." / "You picked this AI." removed. The line renders nothing for that code (`MachineCard.tsx` `reasonSentence`). [owner: "che vuol dire?? togliamola"]
+3. Updates note: "Non installa nulla senza di te." / "Nothing is installed without you." removed. [patronising]
+4. Help intro: "Kalsa è un assistente AI che funziona sul tuo computer. Le tue domande ricevono risposta qui, su questo computer, non sui server di un'azienda. Kalsa vive anche sul tuo telefono. I due lavorano insieme:" → "Kalsa è un assistente AI che funziona sul tuo computer. Funziona anche sul telefono, e i due lavorano insieme:" (EN: "Kalsa is an AI assistant that runs on your computer. It also works on your phone, and the two work together:"). No "without the internet" claim: web search exists.
+
+General pass (principles, not every string; EN and IT done, ES/FR/ZH to follow):
+- Remove sentences that state the obvious or reassure for no reason; cut filler and repeated "here, on this computer".
+- Em-dash asides become full stops or colons. Short declarative sentences, formal and sober, no exclamation marks.
+- Italian keeps "tu".
+- Kept as they were: the Home footer "Your messages and answers stay on this computer."; the "Kalsa can make mistakes" disclaimers; telemetry and privacy text; error messages that say what to do; energy claims.
+- Knob explanations in For experts keep their technical content (names, values, measurements) and lose the filler; "Automatic — 4 096" style labels became "Automatic: 4 096" in EN and IT.
+- ES, FR and ZH have their own Help files (`es/help.ts`, `fr/help.ts`, `zh/help.ts`), translated from the approved EN/IT Help and wired in each `all.ts`; a change to `en/help.ts` does not reach them, so edit all five.
+- The Hearth mockups (`hearth/`, `_src/`) still show the old wording; they were not regenerated.
+- Full EN and IT pass done (2026-10-12), every file in `i18n/en` and `i18n/it`. Principles: short declarative sentences; no reassurance, no personification ("lives", "wakes it up", "a guest"), no instructions to look at what is already on screen; "Kalsa" for the assistant instead of "the assistant"; Italian rewritten as Italian prose (no calques such as "girare", "becca"; "Stanza" capitalised; the AI is feminine throughout; "ragionamento" for Think); decisions, consent text, error next steps and measured figures unchanged. ES, FR and ZH followed in phase 2 (2026-10-12).
 
 ## Owner decisions, 2026-10-11
 - **Phones** is a real page: no "Soon" anywhere. The rail shows Phones as a normal item on every screen.

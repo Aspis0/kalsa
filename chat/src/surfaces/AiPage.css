@@ -109,6 +109,9 @@
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 22px;
+  /* The rows answer the card's own width, not the window's: the 840px
+     column behind the rail caps this card however wide the window gets. */
+  container-type: inline-size;
 }
 
 .ai-details-toggle {
@@ -126,7 +129,6 @@
 .ai-details-rows {
   display: grid;
   margin: 0;
-  grid-template-columns: 1fr 1fr;
   column-gap: 40px;
 }
 
@@ -145,11 +147,34 @@
 }
 
 .ai-details-rows dd {
-  margin: 0;
+  /* The value wraps inside its own right-aligned box when the row gets too
+     narrow, instead of leaving the card: the widest real pair (FR, ~530px)
+     is one line wherever the 840px column puts this card. */
+  margin: 0 0 0 auto;
   color: var(--tx);
   font-weight: 600;
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+/* Measured: the four-row card needs ~1072px of card width for the mockup's
+   two columns (the FR/IT speed pairs beside their labels), which the 840px
+   column never reaches — one full-width row per pair until then. */
+@container (min-width: 1080px) {
+  .ai-details-rows {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Below every real pair, the label may wrap too — nothing leaves the card. */
+@container (max-width: 479px) {
+  .ai-details-rows div {
+    flex-wrap: wrap;
+  }
+
+  .ai-details-rows dt {
+    white-space: normal;
+  }
 }
 
 .ai-details .surface-sentence,

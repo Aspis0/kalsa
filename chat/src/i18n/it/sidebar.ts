@@ -15,7 +15,7 @@ export const SIDEBAR = {
     "delete": "Elimina",
     "liveAria": " (in generazione)",
     "noMatch": (query: string) => `Nessuna conversazione contiene “${query}”. Prova un'altra parola.`,
-    "capped": (shown: number, total: number) => `Vengono mostrate ${shown} su ${total}. Aggiungi una parola per restringere.`,
+    "capped": (shown: number, total: number) => `Mostrate ${shown} su ${total}. Aggiungi una parola per restringere la ricerca.`,
     "groups": {
       "today": "Oggi",
       "yesterday": "Ieri",

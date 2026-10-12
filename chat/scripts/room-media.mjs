@@ -1413,7 +1413,7 @@ async function probeApp(engineName, origin, mp4B64) {
       "the clear action asks first, and says what stays",
       typeof confirmWords === "string" &&
         confirmWords.includes("for everyone") &&
-        confirmWords.includes("Messages stay"),
+        confirmWords.includes("Messages are kept"),
       JSON.stringify(confirmWords),
     );
     await page.locator(".dialog-btn-danger").click();

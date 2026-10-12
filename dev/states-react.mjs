@@ -32,8 +32,10 @@ import { buildPinnedContext } from "../chat/src/lib/attachments";
 import { loadSampling, samplingFault, samplingWire, saveSampling } from "../chat/src/lib/sampling";
 
 // The English table read directly: the parity walker and the probe cards
-// compare against it without mounting the provider.
+// compare against it without mounting the provider. Re-exported for the
+// smoke, so its assertions quote the table instead of a transcript of it.
 const english = () => TABLES.en;
+export { english };
 import { SAMPLING_KNOBS } from "../chat/src/lib/knobs/sampling";
 
 // The page's own clocks, read from the source: the pairing poll the
@@ -107,7 +109,7 @@ const REPAIR_REQUEST_2 = { id: 6, label: "Paired phone 6", phone: "phone with 3 
 /// The command's own words for "the road is not open", verbatim from
 /// src-tauri/src/invites.rs NO_ROAD — the page shows them as they are.
 const NO_ROAD =
-  "An invitation is a link to this computer, and it can only lead over this computer's internet road, which is not open.";
+  "An invitation is a link to this computer, and it can only lead over this computer's connection over the internet, which is not open.";
 const INVITE_SOON = Math.floor(Date.now() / 1000) + 60 * 60;
 const INVITE_LATER = Math.floor(Date.now() / 1000) + 60 * 60 * 5;
 
@@ -152,6 +154,7 @@ const advancedSave = async () => {
 function advancedDto(extra = {}) {
   return {
     context_tokens: 4096,
+    parallel: 1,
     context_max: 8192,
     context_max_f16: 4096,
     // The launcher's automatic pick under each cache, and its own two KV
@@ -183,6 +186,7 @@ function advancedDto(extra = {}) {
     desk_port: 8134,
     desk_port_preferred: true,
     internet_road: true,
+    iroh_code: "road.open",
     iroh_sentence:
       "The internet road is open. The phone can find this computer by " +
       "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08.",
@@ -918,7 +922,7 @@ function componentFor(kind, data) {
       ];
       const NAMES = [
         ["name_taken", "Someone in this room already uses that name. Pick another."],
-        ["name_reserved", "Kalsa is the assistant's name. Pick another."],
+        ["name_reserved", "Kalsa is reserved for the assistant. Pick another name."],
         ["name_framing", "Names can't use [ or ]."],
         ["name_mixed_scripts", "Use letters from one alphabet in your name."],
         ["name_too_long", "That name is too long. Try a shorter one."],

@@ -8,7 +8,7 @@ export const CONTENT_FILTER = {
   privacy: "I can't help extract or expose secrets, credentials, or personal data.",
   promptInjection: "I can't help bypass app, model, or safety instructions.",
   illegalActivity: "I can't help with instructions for illegal or harmful activity.",
-  generic: "I can't help with that. Please keep the chat focused on safe, everyday topics.",
+  generic: "I can't help with that.",
 };
 
 export type ContentFilterCopy = typeof CONTENT_FILTER;

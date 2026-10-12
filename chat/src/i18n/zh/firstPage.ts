@@ -9,5 +9,5 @@ export const FIRST_PAGE = {
     "startingArm": "正在准备。在不是最新的电脑上可能需要一分钟。",
     "keyArm": "Kalsa 还在准备这台电脑。打开“手机”来完成。",
     "devices": "手机",
-    "ready": "在下方写下你的第一条消息，和 Kalsa 交谈。",
+    "ready": "在下方写下你的第一条消息。",
   };

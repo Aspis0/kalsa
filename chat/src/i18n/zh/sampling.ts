@@ -2,7 +2,7 @@
 
 export const SAMPLING = {
   title: "采样",
-  note: "保存的选择会改变你发送的下一条消息。什么都不重启，助手保持运行。",
+  note: "保存的选择从你的下一条消息起生效。不会重启任何东西。",
   saveButton: "保存采样",
   count: (count: string) => `${count} 项设置`,
 };

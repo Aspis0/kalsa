@@ -2,7 +2,7 @@
 
 export const SAMPLING = {
   title: "Muestreo",
-  note: "Las elecciones guardadas cambian el próximo mensaje que envíes. No se reinicia nada, y la asistente sigue encendida.",
+  note: "Las elecciones guardadas valen desde tu próximo mensaje. No se reinicia nada.",
   saveButton: "Guardar el muestreo",
   count: (count: string) => `${count} ajustes`,
 };

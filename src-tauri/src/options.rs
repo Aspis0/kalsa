@@ -198,6 +198,11 @@ impl LaunchOverrides {
 #[derive(Clone, Serialize)]
 pub(crate) struct AdvancedDto {
     pub(crate) context_tokens: Option<u64>,
+    /// The engine's slot count — the `--parallel` the running launch divides
+    /// `context_tokens` across. The page owes the reader "Longest chat" and
+    /// "Chats at once" instead of the total, which stays inside the editable
+    /// field; without this field neither figure reaches the webview.
+    pub(crate) parallel: u32,
     pub(crate) context_max: Option<u64>,
     /// The funded maximum under the f16 cache, shown beside the cache knob so
     /// the panel recomputes the context from Rust's arithmetic instead of
@@ -303,6 +308,10 @@ pub(crate) fn dto(
     // type the running args carry — the guard and the panel must read the
     // same number — with the f16 copy beside them for the cache knob.
     let running_cache = active.map(|info| info.args.kv_cache).unwrap_or_default();
+    // The seats the context is split across: the running engine's own when
+    // there is one; for the next start the automatic one, because the device
+    // count that raises it is not known until the start happens.
+    let parallel = active.map_or(kalsa_launch::DEFAULT_PARALLEL, |info| info.args.parallel);
     let price = active.and_then(|info| info.context_prices.for_cache(running_cache));
     let price_f16 = active.and_then(|info| info.context_prices.f16);
     // The floor's own explanation, in English like the road's sentence: the
@@ -314,6 +323,7 @@ pub(crate) fn dto(
         .then(|| format!("Raised to {} because pictures are on.", settings.ubatch_size));
     AdvancedDto {
         context_tokens,
+        parallel,
         context_max: active.and_then(|info| info.maximum_context.for_cache(running_cache)),
         context_max_f16: active.and_then(|info| info.maximum_context.f16),
         context_automatic: active
@@ -375,7 +385,7 @@ impl AdvancedDto {
 
 #[cfg(test)]
 mod tests {
-    use super::{dto, load, path_for, save, write_atomic, KvCache, LaunchOverrides};
+    use super::{dto, load, path_for, save, with_iroh_code, write_atomic, KvCache, LaunchOverrides};
     use crate::startup::{ContextMaxima, ContextPrices, LaunchInfo};
     use kalsa_launch::{ContextPrice, ServerArgs};
     use std::fs;
@@ -630,11 +640,13 @@ mod tests {
     fn the_json_the_advanced_page_reads_is_a_contract_pinned_here() {
         // A realistic answer: a server running, with the owner's overrides
         // saved for context, micro-batch and the f16 cache, so the sample
-        // exercises the interesting fields rather than a row of nulls.
+        // exercises the interesting fields rather than a row of nulls. The
+        // context rides three slots (the shape the page splits into "Longest
+        // chat" and "Chats at once"), so the sample pins a divided one.
         let args = ServerArgs {
             model_path: PathBuf::from("/models/chosen.gguf"),
             port: 8130,
-            context_tokens: 4096,
+            context_tokens: 196_608,
             cache_ram_mib: 1024,
             threads: Some(8),
             offload: kalsa_launch::Offload::All,
@@ -643,7 +655,7 @@ mod tests {
             batch_size: 2048,
             ubatch_size: 1024,
             kv_cache: KvCache::F16,
-            parallel: kalsa_launch::DEFAULT_PARALLEL,
+            parallel: 3,
             slot_save_path: PathBuf::from("/slots"),
             sampling: kalsa_catalog::Sampling::default(),
             draft: None,
@@ -693,7 +705,7 @@ mod tests {
             mmproj: None,
             sizing: None,
         };
-        let sentence = "The internet road is open.".to_string();
+        let sentence = "Internet connection is on.".to_string();
         let sample = dto(overrides.clone(), Some(&info), Some(8130), sentence.clone())
             .with_desk_port(Some((8134, true)));
         // The vision case: the same launch with a proven projector and the
@@ -710,8 +722,17 @@ mod tests {
             ubatch_size: Some(512),
             ..overrides.clone()
         };
-        let vision = dto(vision_overrides, Some(&vision_info), Some(8130), sentence)
-            .with_desk_port(Some((8134, true)));
+        let vision = with_iroh_code(
+            dto(vision_overrides, Some(&vision_info), Some(8130), sentence)
+                .with_desk_port(Some((8134, true))),
+            "road.open".to_string(),
+        );
+        assert_eq!(sample.parallel, 3, "the running seat count travels");
+        assert_eq!(
+            sample.context_tokens.unwrap() % u64::from(sample.parallel),
+            0,
+            "the plan funds the total in whole per-slot multiples"
+        );
         assert_eq!(
             vision.ubatch_automatic, kalsa_launch::VISION_UBATCH,
             "the automatic is the floored one for a vision launch"

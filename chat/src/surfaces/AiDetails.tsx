@@ -3,7 +3,7 @@ import { Icon } from "../components/Icon";
 import { useLanguage } from "../i18n/useLanguage";
 import { wholeGigabytes } from "../lib/downloadBytes";
 import { speedLine } from "../lib/speed";
-import { shownSpeed, speedText } from "./MachineCard";
+import { shownSpeed, speedText, tokensText } from "./MachineCard";
 import type { ModelOption } from "./MachineCard";
 import "./AiPage.css";
 
@@ -14,12 +14,16 @@ export function AiDetails({
   option,
   tokensPerSecond,
   phones,
+  contextSplit,
   reason,
 }: {
   /** The option Kalsa runs or starts with; null when it is none of the cards. */
   option: ModelOption | null;
   tokensPerSecond: number | null;
   phones: number | null;
+  /** The launch's context as the reader meets it: the window one chat gets
+      and how many chats the engine serves at once. */
+  contextSplit: { perSlot: number; slots: number } | null;
   /** Why Kalsa chose what it runs, for this start. */
   reason: string | null;
 }) {
@@ -32,6 +36,10 @@ export function AiDetails({
   if (option) {
     rows.push([t.speedHere, speedText(t, shownSpeed(t, option), tag)]);
     rows.push([t.spaceOnDisk, t.gigabytes(wholeGigabytes(option.download_bytes, tag))]);
+  }
+  if (contextSplit) {
+    rows.push([t.longestChat, t.longestChatValue(tokensText(contextSplit.perSlot))]);
+    rows.push([t.chatsAtOnce, new Intl.NumberFormat(tag).format(contextSplit.slots)]);
   }
   if (phones !== null) rows.push([t.phonesNow, new Intl.NumberFormat(tag).format(phones)]);
   if (rows.length === 0 && !reason) return null;

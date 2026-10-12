@@ -25,7 +25,7 @@ export const SETTINGS = {
     "webSearch": "Deja que Kalsa busque en la web",
     "webSearchHint": "Solo las palabras de la búsqueda salen a internet. Tus chats se quedan aquí.",
     "webSearchMore": "¿Qué sale de este equipo?",
-    "webSearchNote": "Cuando tu pregunta necesita algo actual, el asistente puede buscar en la web y abrir una página. Esa búsqueda — las palabras que eligió y la dirección que abre — sale de este equipo hacia un servicio de búsqueda en internet, y lo que vuelve queda en la conversación. Con esto apagado no se envía nada y el asistente responde con lo que ya sabe. El cambio se aplica en cuanto lo tocas.",
+    "webSearchNote": "Cuando una pregunta necesita información actual, Kalsa puede buscar en la web y abrir páginas. Cada búsqueda envía las palabras que Kalsa eligió, y la dirección de cada página que abre, a un servicio de búsqueda en internet. Los resultados se quedan en la conversación. Con esto desactivado no se busca ni se pide nada, y Kalsa responde con lo que ya sabe.",
     "lede": "A tus mensajes responde este equipo, y todo se queda aquí.",
     "language": "Idioma",
     "languageSystem": "Según el sistema",

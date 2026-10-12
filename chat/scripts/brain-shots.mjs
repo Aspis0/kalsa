@@ -265,7 +265,7 @@ const STATES = [
     },
     cards: [["Smartest", "LFM 2.5 by Liquid"], ["Quickest", "Gemma 4 E4B by Google"]],
     marker: "Kalsa is using this one",
-    presence: "Kalsa is resting to free up memory. Your next message wakes it up in a few seconds.",
+    presence: "Kalsa is resting to free up memory. Your next message wakes it in a few seconds.",
   },
   {
     name: "refusal",
@@ -273,7 +273,7 @@ const STATES = [
     state: { kind: "stopped" },
     capability: { kind: "measured", machine: UNREADABLE_CARD, chosen: true, chosen_model: "Liquid LFM 2.5", chosen_id: MODEL.id, model: null, quicker: null, refusal: PHONE_UNKNOWN },
     marker: "Pair the phone first.",
-    presence: "Press the button to wake it up.",
+    presence: "Press the button to turn it on.",
     walkStep: true,
   },
   {
@@ -290,7 +290,7 @@ const STATES = [
     capability: { kind: "measured", machine: CPU_ONLY, chosen: true, chosen_model: "Liquid LFM 2.5", chosen_id: MODEL.id, model: MODEL, quicker: null, refusal: null },
     cards: [["LFM 2.5", "LFM 2.5 by Liquid"]],
     marker: "Phones connected now",
-    presence: "Your phone is using this computer right now.",
+    presence: "Your phone is using this computer.",
   },
   {
     name: "no-context",
@@ -345,7 +345,7 @@ const STATES = [
       refusal: null,
     },
     marker: "Start",
-    presence: "Your own private assistant. It lives on this computer, and your chats never leave it.",
+    presence: "A private assistant that runs on this computer. Your messages and answers stay on it.",
     brainTest: {
       options: [
         { id: MODEL.id, name: MODEL.name, download_bytes: MODEL.download_bytes, drafter: false, on_disk: false, reason_code: MODEL.reason_code },
@@ -376,7 +376,7 @@ const STATES = [
     state: { kind: "stopped" },
     capability: { kind: "unmeasured", chosen: false, chosen_model: null },
     marker: "Start",
-    presence: "Your own private assistant. It lives on this computer, and your chats never leave it.",
+    presence: "A private assistant that runs on this computer. Your messages and answers stay on it.",
   },
 ];
 
@@ -571,10 +571,10 @@ async function cardChecks(page, fixture) {
       }
     }
   }
-  // The priced-at window now lives in the speeds line under the figures, and
-  // a context size only in For experts (from brain_advanced): Your AI prints none.
-  if (!seen.details.includes("These speeds are for a short conversation.")) {
-    problems.push("Details does not say what the speeds are priced at");
+  // The growth note sits under the speeds on Details, and a context size only
+  // in For experts (from brain_advanced): Your AI prints none.
+  if (!seen.details.includes("Answers get slower as a conversation grows longer.")) {
+    problems.push("Details does not say that answers slow down in a long conversation");
   }
   if (/tokens of context/.test(seen.page)) problems.push("Your AI prints a context size");
   return problems;
@@ -717,7 +717,7 @@ async function main() {
       await page.click(".first-run-start");
       await mustText(page, "Checking your computer…", `${fixture.name} checking`);
       await shot(page, "shots/78-brain-checking.png");
-      for (const words of ["Which one would you like?", "Smartest", "Quickest", "Recommended", "Needs 3 GB of space", "Already on your computer", "Continue"]) {
+      for (const words of ["Choose one.", "Smartest", "Quickest", "Recommended", "Needs 3 GB of space", "Already on your computer", "Continue"]) {
         await mustText(page, words, `${fixture.name} pick: ${words}`);
       }
       const pickText = await page.locator(".first-run").innerText();

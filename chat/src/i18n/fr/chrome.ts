@@ -25,7 +25,7 @@ export const SETTINGS = {
     "webSearch": "Laisser Kalsa chercher sur le web",
     "webSearchHint": "Seuls les mots de la recherche partent sur internet. Tes conversations restent ici.",
     "webSearchMore": "Qu'est-ce qui quitte cet ordinateur ?",
-    "webSearchNote": "Quand ta question a besoin d'une information récente, l'assistant peut chercher sur le web et ouvrir une page. Cette recherche — les mots qu'il a choisis et l'adresse qu'il ouvre — quitte cet ordinateur pour un service de recherche sur internet, et ce qui revient reste dans la conversation. Avec ceci éteint, rien n'est envoyé et l'assistant répond avec ce qu'il sait déjà. Le changement s'applique dès que tu le touches.",
+    "webSearchNote": "Quand une question demande une information récente, Kalsa peut chercher sur le web et ouvrir des pages. Chaque recherche envoie les mots choisis par Kalsa, et l'adresse de chaque page qu'elle ouvre, à un service de recherche sur internet. Les résultats restent dans la conversation. Si c'est désactivé, rien n'est recherché ni demandé, et Kalsa répond avec ce qu'elle sait déjà.",
     "lede": "À tes messages répond cet ordinateur, et tout reste ici.",
     "language": "Langue",
     "languageSystem": "Comme le système",

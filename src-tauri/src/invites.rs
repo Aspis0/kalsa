@@ -40,7 +40,7 @@ const INVITES_FILE: &str = "invites.json";
 /// or a road that could not open — land here, and the sentence claims
 /// neither: the page already shows the road's own words beside the switch.
 const NO_ROAD: &str = "An invitation is a link to this computer, and it can only lead over \
-                       this computer's internet road, which is not open.";
+                       this computer's connection over the internet, which is not open.";
 
 /// One invitation as the page lists it: the id its buttons name and the
 /// moment it dies. Never the code — a countdown needs neither.

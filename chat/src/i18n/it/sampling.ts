@@ -2,7 +2,7 @@
 
 export const SAMPLING = {
   title: "Campionamento",
-  note: "Le scelte salvate cambiano il prossimo messaggio che mandi. Non si riavvia nulla, e l'assistente resta accesa.",
+  note: "Le scelte salvate valgono dal prossimo messaggio. Non si riavvia nulla.",
   saveButton: "Salva il campionamento",
   count: (count: string) => `${count} impostazioni`,
 };
