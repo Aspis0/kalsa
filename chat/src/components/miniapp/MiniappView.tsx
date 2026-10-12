@@ -39,7 +39,9 @@ export function MiniappView({
   // nothing English is persisted as a default the person would read.
   const named = table.miniapp.named as Record<string, string>;
   const title = displayTitle(miniapp.title, miniapp.kind, named);
-  const mark = MARKS[String(miniapp.blocks[0].type)];
+  // The type comes from the model: "constructor" must not reach Object.prototype.
+  const firstType = String(miniapp.blocks[0].type);
+  const mark = Object.hasOwn(MARKS, firstType) ? MARKS[firstType] : undefined;
   // A lone checklist says how far it got in its header (12-miniapps-checklist).
   const list = miniapp.blocks.length === 1 && miniapp.blocks[0].type === "checklist" ? checklistItems(miniapp.blocks[0]) : null;
   const done = list ? list.filter((item) => isItemTicked(miniapp.state, item.id)).length : 0;

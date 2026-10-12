@@ -15,6 +15,8 @@ const FORMER_DEFAULT_TITLES: Record<string, string> = {
 /** The title the view shows: a saved title that is not the kind's former
  *  English default, else the interface's name for the kind, else the kind. */
 export function displayTitle(title: string, kind: string, named: Record<string, string>): string {
-  const saved = title && title !== FORMER_DEFAULT_TITLES[kind] ? title : "";
-  return saved || named[kind] || kind;
+  // `kind` comes from the model, so only own keys count ("constructor" is not a name).
+  const former = Object.hasOwn(FORMER_DEFAULT_TITLES, kind) ? FORMER_DEFAULT_TITLES[kind] : undefined;
+  const saved = title && title !== former ? title : "";
+  return saved || (Object.hasOwn(named, kind) ? named[kind] : "") || kind;
 }
