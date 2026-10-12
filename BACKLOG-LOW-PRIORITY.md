@@ -115,5 +115,7 @@
   (`scripts/device-share-send.sh:49-62`) waits for `KALSA_PREWARM op=done`, but a prewarm that restores its saved
   snapshot ends with `{"op":"restore","ok":true,...}` and never logs `done` (`LlamaService.ts` ~1349-1355). Any launch
   after the first one that saved a snapshot then dies at the 240 s ready timeout ("model load died"). Seen on the S23
-  Meter OFF arm (app bc99cfeb); the governor-ON G2 runs never hit it. Fix: accept restore ok:true in the predicate
-  (done locally in the uncommitted `kalsa-wt-gov/scripts/campaign-meteroff/` copy), or log `done` after a restore.
+  Meter OFF arm (app bc99cfeb); the governor-ON G2 runs never hit it. RESOLVED 2026-10-12, app `8a8d74cf` (pushed):
+  the gate accepts restore ok:true and keeps only the launched PID's lines; self-tests 121/121, two hostile audits
+  (deepseek). Still open (low): a failed restore followed by a skip/pause still reads as "never became ready"; the
+  PID filter falls back to unfiltered when CAMPAIGN_LAUNCHED_PID is unset.
