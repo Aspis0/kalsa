@@ -330,8 +330,10 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
   break it: live margin every window, an "everything else" heat term + outlier rejection + forgetting,
   a surprise breaker (actual rise faster than predicted -> GPU off for the session), Stage 0 data from
   real use. Known flaw of the first draft: the forecast-only margin can never fire on the Xiaomi. v0.2 (2026-10-12, same
-  folder) answers AUDIT-1; owner on its questions: (1) Xiaomi pacing lines raised so pacing starts at
-  skin >= 39 C ("alziamo ad almeno 39"; the proposal 0.15 / 0.25 = skin 41.0 / 44.0 C satisfies it);
+  folder) answers AUDIT-1; owner on its questions: (1) Xiaomi pacing lines raised: start at skin 39.0 C,
+  full at 42.6 C (the S23's 3.6 C ramp), i.e. headroom 0.083 / 0.203 with SEVERE 66.5 ("si 39"; 41 / 44
+  is the fallback if Stage 0 shows the GPU learns too little). App change in `declaredSevere.ts` (today
+  every phone gets 38.1 / 41.7);
   (2) "blind forecast abstains, zones decide; when it speaks both must pass" approved ("mi piace, poi
   testiamo"); (3) Stage 0 private numeric log file on the owner's Xiaomi approved (no model text, no user
   content).
