@@ -90,6 +90,8 @@ export function useVisionOffer(): VisionOffer {
     } catch (error) {
       setFlow({ kind: "failed", message: sentence(error) });
     } finally {
+      // The download's arm ends with the command, whatever it answered.
+      clearWalkStep();
       busy.current = false;
     }
   }

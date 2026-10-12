@@ -10,6 +10,7 @@ import { logUiEvent } from "../lib/uiLog";
 import type { DoorStanding } from "../lib/slotGate";
 import type { ProgressStep } from "./walkState";
 import { heldStepAfter, progressTaken, walkArmedAfter, walkStepShown } from "./walkStep";
+import type { WalkArm } from "./walkStep";
 import { forgetWalk } from "./useWalkMemory";
 import type { ChatSettings, LiveSettings } from "../lib/types";
 
@@ -115,7 +116,7 @@ let currentState: BrainState | null = null;
 let currentStep: ProgressStep | null = null;
 // Progress is taken only while a walk is armed (see progressTaken): a late
 // event must not write a step back after its walk has ended.
-let walkArmed = false;
+let walkArmed: WalkArm = "off";
 let readSnapshot: BrainRead = { state: null, step: null };
 let serverSnapshot: BrainServer | null = null;
 // This computer's own credential, fetched from Rust while the door is up.
@@ -381,7 +382,7 @@ export function subscribeBrainRead(listener: () => void): () => void {
       // The walk's step is live only while someone reads it: the next
       // reader starts from nothing, never from a stale phase.
       currentStep = null;
-      walkArmed = false;
+      walkArmed = "off";
       readSnapshot = { state: null, step: null };
     }
   };
@@ -775,10 +776,12 @@ export function useBrain() {
       beginWalk();
       await invoke("brain_start");
     } catch (error) {
+      // A refused start (another walk holds the claim) leaves this walk's arm
+      // with nothing to end it, so Home would keep the last step.
+      clearWalkStep();
       if (!alreadyStarting(error)) {
         failure = rustSentence(table.rust, error, tag);
         holdFailure(failure);
-        clearWalkStep();
       }
     }
     setStartInFlight(false);

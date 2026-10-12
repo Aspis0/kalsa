@@ -76,7 +76,7 @@ try {
   // The listener takes a progress event only while the walk is armed. Each
   // replay is the signals `useBrain` sends, in the order they arrive.
   {
-    const replay = (signals) => signals.reduce((armed, signal) => app.walkArmedAfter(armed, signal), false);
+    const replay = (signals) => signals.reduce((arm, signal) => app.walkArmedAfter(arm, signal), "off") !== "off";
     const state = (previous, next) => ({ kind: "state", previous, next });
     const begin = { kind: "begin" };
     const end = { kind: "end" };
@@ -113,13 +113,59 @@ try {
       "a late event after running and a stop is ignored, even with a stale start",
       replay([begin, state("starting", "running"), state("running", "stopping"), state("stopping", "stopped")]) === false,
     );
+    // A model switch stops the engine, and a poll can still read running for
+    // that stop after the walk has begun. The walk must stay armed through it.
+    check(
+      "a stale running -> stopped reading after the owner began a walk keeps it armed",
+      replay([state("running", "running"), begin, state("running", "stopped")]) === true &&
+        replay([state("running", "running"), begin, state("running", "stopping"), state("stopping", "stopped")]) === true,
+    );
+    check(
+      "...and the walk's own start after that stays armed",
+      replay([state("running", "running"), begin, state("running", "stopped"), state("stopped", "starting")]) === true,
+    );
+    check(
+      "an owned walk that reaches running is disarmed",
+      replay([begin, state("running", "running"), state("stopped", "starting"), state("starting", "running")]) === false,
+    );
+    check(
+      "an owned walk that fails is disarmed",
+      replay([begin, state("stopped", "failed")]) === false,
+    );
+    check(
+      "an owned walk that leaves starting without starting is disarmed",
+      replay([begin, state("stopped", "starting"), state("starting", "stopped")]) === false,
+    );
+    check(
+      "an owner stop disarms an owned walk",
+      replay([begin, state("stopped", "starting"), end]) === false,
+    );
+    // A switch refused by a vision walk that holds the claim: the switch's own
+    // arm is ended, and the stopped reading that follows must not re-arm it.
+    check(
+      "a refused switch ends its arm, and a later stopped reading does not re-arm it",
+      replay([begin, state("running", "stopping"), state("stopping", "stopped"), begin, end, state("stopped", "stopped")]) === false,
+    );
+    // The vision download's own end, success or failure, is an explicit end.
+    check(
+      "a vision download that fails ends its arm even while the engine runs",
+      replay([state("running", "running"), begin, end, state("running", "running")]) === false,
+    );
+    check(
+      "a vision download that succeeds ends its arm; the engine's own stop does not re-arm it",
+      replay([state("running", "running"), begin, end, state("running", "stopping"), state("stopping", "stopped")]) === false,
+    );
+    check(
+      "a crash from running still ends a walk the brain began on its own",
+      replay([state("stopped", "starting"), state("starting", "running"), state("running", "stopped")]) === false,
+    );
     check(
       "an event before the state is first read is taken",
-      app.progressTaken(false, false) === true,
+      app.progressTaken("off", false) === true,
     );
     check(
       "an event once the state is known and unarmed is ignored",
-      app.progressTaken(false, true) === false && app.progressTaken(true, true) === true,
+      app.progressTaken("off", true) === false && app.progressTaken("owned", true) === true,
     );
     check(
       "a new start from stopped takes its own steps",

@@ -33,26 +33,39 @@ export type WalkSignal =
     the brain's state is first read. Nothing is known to have ended a walk until
     the page has seen the state, so a walk already running at launch keeps its
     first events. */
-export function progressTaken(armed: boolean, stateKnown: boolean): boolean {
-  return armed || !stateKnown;
+export function progressTaken(arm: WalkArm, stateKnown: boolean): boolean {
+  return arm !== "off" || !stateKnown;
 }
 
-/** Whether a walk is armed. A walk is armed by the owner
-    starting it (Turn on, a model chosen, the vision download, which runs while
-    the engine is up) or by the brain entering starting, and disarmed by Turn
-    off or by the brain leaving starting or running. A late event then cannot
-    write a step back after its walk has ended. */
-export function walkArmedAfter(armed: boolean, signal: WalkSignal): boolean {
+/** `owned`: the owner began the walk (Turn on, a model chosen, the vision
+    download). `watching`: the brain entered starting without an owner, as a
+    crash restart does. Only `owned` ignores the state's leftover reading
+    from before it began, which can still say running for a poll after a
+    model switch has stopped the engine. */
+export type WalkArm = "off" | "owned" | "watching";
+
+/** The owned walk's own ends: the brain reached running or failed, or it
+    left starting without starting. A stop that reads running -> stopped is
+    not one of them. */
+function ownedWalkEnded(previous: BrainState["kind"] | null, next: BrainState["kind"] | null): boolean {
+  const reached = (next === "running" || next === "failed") && previous !== next;
+  return reached || (previous === "starting" && next !== "starting");
+}
+
+/** Whether a walk is armed, and how. Turn off and the walk's end disarm it,
+    so a late event cannot write a step back after its walk has ended. */
+export function walkArmedAfter(arm: WalkArm, signal: WalkSignal): WalkArm {
   switch (signal.kind) {
     case "begin":
-      return true;
+      return "owned";
     case "end":
-      return false;
+      return "off";
     case "state": {
-      if (signal.next === "starting" && signal.previous !== "starting") return true;
-      const leftWalk =
-        (signal.previous === "starting" || signal.previous === "running") && signal.previous !== signal.next;
-      return leftWalk ? false : armed;
+      const { previous, next } = signal;
+      if (next === "starting" && previous !== "starting") return arm === "off" ? "watching" : arm;
+      if (arm === "owned") return ownedWalkEnded(previous, next) ? "off" : "owned";
+      const leftWalk = (previous === "starting" || previous === "running") && previous !== next;
+      return leftWalk ? "off" : arm;
     }
   }
 }
