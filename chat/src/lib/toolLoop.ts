@@ -4,12 +4,13 @@ import { runRound } from "./streamRound";
 import type { Round } from "./streamRound";
 import { isToolRefusal } from "./refusal";
 import { createAnswerHold } from "./answerHold";
-import type { AnswerHold } from "./answerHold";
-import { logUiEvent } from "./uiLog";
-import { isMalformedArguments, NOT_VALID_FOR_MODEL, readArguments, wireArguments } from "./toolCalls";
+import { accumulate } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
-import type { ToolRun } from "./types";
-import type { Miniapp } from "./miniapp/types";
+import { canonicalToolName } from "./repairToolCall";
+import { recoverToolCall } from "./recoverToolCall";
+import { runToolCall } from "./runToolCall";
+import { logUiEvent } from "./uiLog";
+import { WEB_TOOLS } from "./tools/definitions";
 import type { ToolDefinition } from "./tools/definitions";
 
 /**
@@ -27,15 +28,7 @@ import type { ToolDefinition } from "./tools/definitions";
     needs a page read afterwards, and one more round is always kept in reserve
     for the answer itself. */
 const MAX_TOOL_ROUNDS = 4;
-/**
- * Answer, calling tools for as long as the model asks for them.
- *
- * The round that must answer is the last one: a model that keeps calling tools
- * is asked for words (`tool_choice: "none"`) rather than cut off with an
- * error. The conversation the rounds share is built here and never touches the
- * transcript — the transcript keeps the assistant's answer with the tool runs
- * beside it (see `ToolRun`), and the wire is rebuilt from that next turn.
- */
+
 /** The phrases every caller without a table hears. */
 const ENGLISH_PHRASES: ToolPhrases = {
   noRoundLeft: "Kalsa couldn't finish checking. Ask again.",
@@ -55,6 +48,11 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   const url = completionsUrl(options.endpoint);
   const conversation = [...options.messages];
   const toolRounds = tools.length > 0 && runTool ? MAX_TOOL_ROUNDS : 0;
+  // The names this request offered, for the case-insensitive match a mangled
+  // name needs (repairToolCall.ts) and the recovery's name gate.
+  const offeredNames = tools.map((tool) => tool.function.name);
+  const definitions = new Map(tools.map((tool) => [tool.function.name, tool] as const));
+
   // The token room the wire may spend, when the caller knows the window: the
   // engine's size less the answer's own reserve, which is what the first wire
   // was built to fit. Round 0 is already fit by the caller; the rounds after
@@ -72,7 +70,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     offer: ToolDefinition[],
     toolChoice: "auto" | "none",
     hideInventedCalls: boolean,
-    hold: AnswerHold | null,
+    hold: ReturnType<typeof createAnswerHold> | null,
   ): Promise<Round> {
     const sinks = hold === null ? options : { ...options, onToken: hold.push };
     for (;;) {
@@ -106,8 +104,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     const hideInventedCalls = tools.length > 0 && round >= toolRounds;
     if (round > 0) fitHistory();
     // The first round of a turn that offered tools may be a refusal the retry
-    // replaces, so its answer text is held through the opening sentence.
-    const hold = round === 0 && tools.length > 0 ? createAnswerHold(options.onToken) : null;
+    // replaces; a later round that can still call may be one written-out call
+    // the recovery replaces. Either way the text is held until the round says
+    // which it was, so what gets replaced is never shown.
+    const hold = tools.length > 0 && (round === 0 || !last) ? createAnswerHold(options.onToken) : null;
     let answered: Round;
     try {
       answered = await askRound(tools, last ? "none" : "auto", hideInventedCalls, hold);
@@ -119,15 +119,15 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // id round one used. The transcript replaces a run by id and the wire pairs
     // a result to its call by id, so an id has to be unique for the whole turn:
     // the round is the only thing here that makes it so.
-    const calls = answered.toolCalls.map((call) => ({ ...call, id: `${round}-${call.id}` }));
+    let calls = answered.toolCalls.map((call) => ({ ...call, id: `${round}-${call.id}` }));
     // A refusal while tools were offered is the tool definitions talking, not
     // the question: the same question is asked once more without them. Only
     // before this turn's first tool has run, so no tool exchange of this turn
     // is on the wire without the contract that declares it.
     const refused =
       round === 0 && tools.length > 0 && !signal.aborted && isToolRefusal(answered.text, answered.toolCalls);
-    hold?.settle(refused);
     if (refused) {
+      hold?.settle(true);
       options.onWithdraw?.(answered.reasoning);
       logUiEvent("chat.retry_without_tools");
       fitHistory();
@@ -142,19 +142,47 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // had this fallback since the beginning (LlamaService.ts:5208); only a turn
     // that offered tools can take it, so a plain chat is untouched.
     const askForWords = !answered.gotContent && !last;
+    // Recovery: some models write the call out as the whole answer instead of
+    // sending it as one (the dialects recoverToolCall.ts reads). Narrow on
+    // purpose — answer text is the channel outside content can speak into:
+    // the whole answer must be the call, the round must have finished cleanly
+    // (`stop`), and no web result may sit anywhere in the conversation the
+    // model is reading — this turn's or a previous one's, derived from the
+    // messages themselves so nothing short of rebuilding the conversation
+    // reopens it. The answer text is then dropped, not shown: the tool's run
+    // is the turn's visible act.
+    let fromText = false;
     if (calls.length === 0) {
-      if (askForWords) {
-        forceWords = true;
-        continue;
+      const recovered =
+        last || tools.length === 0 || webResultIn(conversation) || answered.finishReason !== "stop"
+          ? null
+          : recoverToolCall(answered.text, offeredNames);
+      if (recovered === null) {
+        hold?.settle(false);
+        if (askForWords) {
+          forceWords = true;
+          continue;
+        }
+        return;
       }
-      return;
+      hold?.drop();
+      fromText = true;
+      logUiEvent("chat.tool_call_recovered");
+      // The recovered arguments pass through the same cap as streamed ones:
+      // a call too long to hold is cut and answered by the guide, not sent.
+      const [held] = accumulate([], [
+        { index: 0, function: { name: recovered.name, arguments: JSON.stringify(recovered.arguments) } },
+      ]);
+      calls = [{ ...held!, id: `${round}-recovered` }];
     }
+    hold?.settle(false);
 
     // Either the server sent calls and ended the round for some other reason —
     // `length`, `stop` — or the turn is out of rounds. Running a call under
     // `length` would hand a tool half a sentence, so they are recorded as
-    // refused: the thread says what happened.
-    if (!forTools(answered.finishReason) || last) {
+    // refused: the thread says what happened. A recovered call is exempt: it
+    // was recovered only from a round that finished `stop`.
+    if (!fromText && (!forTools(answered.finishReason) || last)) {
       refuse(
         options,
         calls,
@@ -176,60 +204,26 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     refuse(options, calls.filter((call) => call.name === ""), say.nameNeverArrived);
     if (named.length === 0) return;
 
-    // Only a tool this request offered may run. A model can ask for one from
-    // its training priors — `web_search` with the switch off — and running it
-    // would send the very query the switch withholds. Such a call is answered
-    // with the reason instead of dropped, so the round after it is a whole
-    // exchange (and a real engine accepts it).
-    const offered = new Set(tools.map((tool) => tool.function.name));
-
     // Serial on purpose, like the phone (LlamaService.ts:5030): two searches at
     // once would cost more for no answer a model can use, and the results have
-    // to be paired with their calls in order anyway.
+    // to be paired with their calls in order anyway. Only a tool this request
+    // offered may run — a model can ask for one from its training priors
+    // (`web_search` with the switch off), and running it would send the very
+    // query the switch withholds; a name differing in case alone is the same
+    // tool (repairToolCall.ts).
     const results: string[] = [];
+    const wireTexts: string[] = [];
+    const canonicalNames: string[] = [];
     for (const call of named) {
-      if (!offered.has(call.name)) {
-        options.onToolRun?.({
-          id: call.id,
-          name: call.name,
-          arguments: call.arguments,
-          result: say.notOffered,
-          state: "refused",
-        });
-        results.push(say.notOffered);
-        continue;
-      }
-      const { args, problem } = readArguments(call.name, call.arguments, call.cut, {
-        tooLong: say.argumentsTooLong,
-        notValid: () => say.argumentsNotValid,
-      });
-      const malformed = isMalformedArguments(call.arguments, call.cut);
-      const started: ToolRun = {
-        id: call.id,
-        name: call.name,
-        arguments: call.arguments,
-        result: "",
-        state: "running",
-      };
-      options.onToolRun?.(started);
-
-      let state: ToolRun["state"] = problem === null ? "ok" : "failed";
-      let result = problem ?? "";
-      let resultCode: string | undefined;
-      let miniapp: Miniapp | undefined;
-      if (problem === null) {
-        const answered = await untilStopped(() => runTool!(call.name, args, signal), signal);
-        if (answered === null) {
-          options.onToolRun?.({ ...started, result: say.stopped, state: "failed" });
-          throw new ChatRequestError("aborted", "Stopped", undefined, url);
-        }
-        result = answered.text;
-        resultCode = answered.resultCode;
-        miniapp = answered.miniapp;
-        state = answered.ok ? "ok" : "failed";
-      }
-      options.onToolRun?.({ ...started, result: kept(result), resultCode, state, ...(miniapp ? { miniapp } : {}) });
-      results.push(malformed ? NOT_VALID_FOR_MODEL : result);
+      const canonical = canonicalToolName(call.name, offeredNames);
+      canonicalNames.push(canonical ?? call.name);
+      const answer = await runToolCall(
+        call,
+        canonical === null ? null : definitions.get(canonical)!,
+        { say, runTool: runTool!, onToolRun: options.onToolRun, signal, url },
+      );
+      results.push(answer.result);
+      wireTexts.push(answer.wire);
     }
 
     // What the model asked for, then what it got. Both go back on the wire as
@@ -239,10 +233,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     conversation.push({
       role: "assistant",
       content: "",
-      tool_calls: named.map((call) => ({
+      tool_calls: named.map((call, index) => ({
         id: call.id,
         type: "function" as const,
-        function: { name: call.name, arguments: wireArguments(call.arguments, call.cut) },
+        function: { name: canonicalNames[index], arguments: wireTexts[index] },
       })),
     });
     named.forEach((call, index) => {
@@ -250,6 +244,30 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     });
   }
 }
+
+/**
+ * Whether any web tool's result is already in the conversation the model is
+ * reading — this turn's or a previous one's. Once outside content has
+ * entered the wire, answer text is a channel it can speak into, and recovery
+ * stays off; reading it off the messages themselves (rather than remembering
+ * a flag) means a page fetched in any earlier turn arms it too.
+ */
+function webResultIn(conversation: WireMessage[]): boolean {
+  const webIds = new Set<string>();
+  for (const message of conversation) {
+    if (message.role !== "assistant" || !Array.isArray(message.tool_calls)) continue;
+    for (const call of message.tool_calls) {
+      if (WEB_NAMES.has(call.function.name)) webIds.add(call.id);
+    }
+  }
+  if (webIds.size === 0) return false;
+  return conversation.some(
+    (message) => message.role === "tool" && typeof message.tool_call_id === "string" && webIds.has(message.tool_call_id),
+  );
+}
+
+/** The tools whose results carry outside content into the conversation. */
+const WEB_NAMES = new Set(WEB_TOOLS.map((tool) => tool.function.name));
 
 /**
  * The working conversation shrinks when the engine refuses the prompt as too
@@ -310,46 +328,4 @@ function forTools(finishReason: string | null): boolean {
   return (
     finishReason === null || finishReason === "tool_calls" || finishReason === "function_call"
   );
-}
-
-/** What the transcript keeps of a tool's answer. */
-const KEPT_RESULT_CHARS = 1_200;
-
-/**
- * The turn that ran the tool reads all of it. The record that outlives the turn
- * keeps the beginning: a page's text should not sit in browser storage for the
- * life of the conversation, and it should not be sent again on every later
- * turn either.
- */
-function kept(result: string): string {
-  if (result.length <= KEPT_RESULT_CHARS) return result;
-  return `${result.slice(0, KEPT_RESULT_CHARS)}\n\n[The rest of this result was not kept after the turn.]`;
-}
-
-/**
- * Wait for the tool unless the user stops first. The work is started by a
- * thunk, not handed over as a promise: an already-stopped turn must not run
- * the tool at all.
- *
- * A Tauri command cannot be withdrawn from the page, so what this guarantees is
- * that Stop stops the turn rather than leaving it waiting. Setting the call's
- * stop flag (which the caller's own abort hook does) is what ends the request
- * in Rust, at its next step.
- */
-function untilStopped<T>(start: () => Promise<T>, signal: AbortSignal): Promise<T | null> {
-  if (signal.aborted) return Promise.resolve(null);
-  return new Promise<T | null>((resolve, reject) => {
-    const stop = () => resolve(null);
-    signal.addEventListener("abort", stop, { once: true });
-    start().then(
-      (value) => {
-        signal.removeEventListener("abort", stop);
-        resolve(value);
-      },
-      (error: unknown) => {
-        signal.removeEventListener("abort", stop);
-        reject(error);
-      },
-    );
-  });
 }

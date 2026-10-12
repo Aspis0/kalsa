@@ -1,12 +1,14 @@
-// Shared plumbing for the two sampling scripts: compile the app's own
-// TypeScript, and refuse to skip when no server answers.
+// Shared plumbing for the offline scripts that exercise the app's own
+// TypeScript: compile the real modules with esbuild, and refuse to skip when
+// a server is needed but none answers.
 //
-// Both the round trip (do the knobs arrive?) and the behaviour test (do they
-// change what the model writes?) must exercise the real `samplingWire`,
-// `completionBody` and `completionsUrl`. A JavaScript re-implementation of
-// those functions would test the re-implementation. This module is the one
-// place that compiles the app's modules with esbuild, and the one place that
-// turns a dead endpoint into a loud failure with the command that fixes it.
+// The sampling round trip (do the knobs arrive?) and behaviour test (do they
+// change what the model writes?) must run the real `samplingWire`,
+// `completionBody` and `completionsUrl`, and the tool-call scripts the real
+// loop and repairs — a JavaScript re-implementation would test the
+// re-implementation. This module is the one place that compiles the app's
+// modules, and the one place that turns a dead endpoint into a loud failure
+// with the command that fixes it.
 
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -33,6 +35,10 @@ export async function loadApp() {
         export { parseContextSize, ensureContextSize, rememberContextSize, forgetContextSize, hasContextSize } from "../src/lib/contextSize.ts";
         export { SAMPLING_KNOBS } from "../src/lib/knobs/sampling.ts";
         export { accumulate, readArguments, wireArguments, MAX_ARGUMENTS } from "../src/lib/toolCalls.ts";
+        export { canonicalToolName, repairToolCall } from "../src/lib/repairToolCall.ts";
+        export { recoverToolCall } from "../src/lib/recoverToolCall.ts";
+        export { guideCut, guideNotValidJson, guideProblem } from "../src/lib/guideRetry.ts";
+        export { TOOL_DEFINITIONS, WEB_TOOLS } from "../src/lib/tools/definitions.ts";
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";

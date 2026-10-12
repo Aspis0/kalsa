@@ -438,3 +438,7 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - Screenshot stubs (brain-shots, the phase-B probe) carry no `iroh_code` and an automatic context inconsistent with `parallel`; their For experts shots show the English road sentence and "Automatic: 64k" with 3 chats.
 - `verify.mjs:5335`, `:5409` assertion names overstate what the retargeted checks prove; `ui-log.mjs:17` sentence is decoration.
 - Help: the update screen no longer says installing waits for the user (owner called the old line patronising; revisit only if testers ask).
+
+## Tool-call repair (CisWire port, reviews of 2026-10-12)
+- SECURITY, owner decision for the beta: a fetched page (or pasted text) can steer the model into a STRUCTURED `web_fetch` to an outside URL carrying conversation data, with no confirmation — the web gate asks only when a document is pinned (`registry.ts:125`). Pre-existing, independent of the repair (text recovery is now off whenever any web result is in the conversation). Candidate fix: ask before fetching a URL whose query/path carries text from the conversation, or before any fetch after web content entered the chat.
+- `<function=` inside a parameter value makes recovery refuse the whole call (deepseek N8).

@@ -77,8 +77,26 @@ const TOOLS = [
   },
 ];
 
-const NOT_VALID_FOR_MODEL = "The arguments were not valid JSON. Call the tool again with a JSON object.";
+// What the model reads for a call that cannot run: the live loop answers with
+// the guide (guideRetry.ts), pinned here as literals — a guide with the wrong
+// wording, or none, fails this script. The replay of an unreadable stored run
+// sends the same English guide (attachments.ts reads the tool's own
+// definition); the cut case keeps the sentence the run itself stored.
+const GUIDE_NOT_VALID =
+  "The arguments to web_search were not valid JSON, so the call did not run. Re-send the same web_search call as one JSON object, e.g. {}.";
+const GUIDE_CUT =
+  "The arguments to web_search were longer than this app reads and were cut, so the call did not run. Re-send the same web_search call with shorter arguments.";
+// What the loop stores for a call whose field problems survived the repairs:
+// the same English guide the model read, so a later replay still carries the fix.
+const GUIDE_MISSING =
+  'The web_search call cannot run: missing required "query": Search query — describe the page you want, not just keywords. Re-send the same call with "query" set, e.g. query: "...".';
+// The replay's guide for an unreadable run is built from the real
+// web_search definition (with its description and required field).
+const GUIDE_NOT_VALID_REAL =
+  'The arguments to web_search were not valid JSON, so the call did not run. Re-send the same web_search call as one JSON object with "query" (Search query — describe the page you want, not just keywords), e.g. {"query": "..."}.';
 const TOO_LONG = "That was too long for Kalsa to check. Try a shorter search or address.";
+// What the loop stores for a repaired call: the arguments that actually ran.
+const EFFECTIVE = '{"query":"42"}';
 const BROKEN = '{"query": "unterminated';
 const LONG = `{"query":"${"a".repeat(MAX_ARGUMENTS + 500)}"}`;
 const SPACED = '{ "query" :  "x" }';
@@ -151,11 +169,11 @@ equal("helper: a cut call becomes {} even when its text parses", wireArguments('
 
 // --- the live loop ----------------------------------------------------------------
 const liveCases = [
-  { label: "broken object", args: BROKEN, wire: "{}", ran: false, answer: NOT_VALID_FOR_MODEL },
-  { label: "array", args: "[1,2]", wire: "{}", ran: false, answer: NOT_VALID_FOR_MODEL },
-  { label: "bare string", args: '"x"', wire: "{}", ran: false, answer: NOT_VALID_FOR_MODEL },
-  { label: "longer than the app holds", args: LONG, wire: "{}", ran: false, answer: TOO_LONG },
-  { label: "object then whitespace past the cap", args: PARSEABLE_CUT, wire: "{}", ran: false, answer: TOO_LONG },
+  { label: "broken object", args: BROKEN, wire: "{}", ran: false, answer: GUIDE_NOT_VALID },
+  { label: "array", args: "[1,2]", wire: "{}", ran: false, answer: GUIDE_NOT_VALID },
+  { label: "bare string", args: '"x"', wire: "{}", ran: false, answer: GUIDE_NOT_VALID },
+  { label: "longer than the app holds", args: LONG, wire: "{}", ran: false, answer: GUIDE_CUT },
+  { label: "object then whitespace past the cap", args: PARSEABLE_CUT, wire: "{}", ran: false, answer: GUIDE_CUT },
   { label: "empty arguments", args: "", wire: "{}", ran: true, answer: "found" },
   { label: "valid object, odd spacing", args: SPACED, wire: SPACED, ran: true, answer: "found" },
   { label: "valid nested object", args: NESTED, wire: NESTED, ran: true, answer: "found" },
@@ -175,13 +193,13 @@ const replayCases = [
     label: "broken object, failed",
     run: { arguments: BROKEN, state: "failed", result: CARD_NOT_VALID },
     wire: "{}",
-    answer: NOT_VALID_FOR_MODEL,
+    answer: GUIDE_NOT_VALID_REAL,
   },
   {
     label: "array, failed",
     run: { arguments: "[1,2]", state: "failed", result: CARD_NOT_VALID },
     wire: "{}",
-    answer: NOT_VALID_FOR_MODEL,
+    answer: GUIDE_NOT_VALID_REAL,
   },
   {
     label: "stored cut, failed",
@@ -209,6 +227,18 @@ const replayCases = [
   },
   { label: "valid object, odd spacing", run: { arguments: SPACED, state: "ok", result: "found" }, wire: SPACED, answer: "found" },
   { label: "valid nested object", run: { arguments: NESTED, state: "ok", result: "found" }, wire: NESTED, answer: "found" },
+  {
+    label: "repaired success keeps the arguments that ran",
+    run: { arguments: EFFECTIVE, state: "ok", result: "found" },
+    wire: EFFECTIVE,
+    answer: "found",
+  },
+  {
+    label: "field problems replay the guide the model read",
+    run: { arguments: "{}", state: "failed", result: GUIDE_MISSING },
+    wire: "{}",
+    answer: GUIDE_MISSING,
+  },
 ];
 for (const c of replayCases) {
   const got = replay(c.run);

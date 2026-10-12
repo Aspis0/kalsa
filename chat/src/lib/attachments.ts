@@ -6,6 +6,8 @@ import type { ChatMessage, ToolRun } from "./types";
 import { miniappStateLines } from "./miniapp/stateText";
 import { sentLine } from "./sentDate";
 import { isMalformedArguments, NOT_VALID_FOR_MODEL, storedAsCut, wireArguments } from "./toolCalls";
+import { guideNotValidJson } from "./guideRetry";
+import { TOOL_DEFINITIONS } from "./tools/definitions";
 import type { WireContentPart, WireMessage } from "./chat";
 
 export type AttachmentKind = "txt" | "md" | "csv" | "pdf" | "docx" | "pptx";
@@ -537,10 +539,19 @@ function wireResult(result: string): string {
 function wireResultFor(run: ToolRun): string {
   const lines = run.miniapp ? miniappStateLines(run.miniapp) : [];
   // The card keeps the owner's sentence for an unreadable argument list; the
-  // model was answered in English when the call ran, and the replay says it so too.
+  // model was answered with the English guide when the call ran, and the
+  // replay sends that same guide — for a tool this build no longer knows,
+  // the generic English sentence stands in.
   const unreadable = run.state === "failed" && isMalformedArguments(run.arguments, storedAsCut(run.arguments));
-  const text = unreadable ? NOT_VALID_FOR_MODEL : wireResult(run.result);
+  const text = unreadable ? notValidGuide(run.name) : wireResult(run.result);
   return lines.length > 0 ? `${text}\n${lines.join("\n")}` : text;
+}
+
+/** The guide for a stored call whose arguments never parsed: the tool's own
+    when its definition is still known, else the one sentence every tool shares. */
+function notValidGuide(name: string): string {
+  const tool = TOOL_DEFINITIONS.find((t) => t.function.name === name);
+  return tool ? guideNotValidJson(tool) : NOT_VALID_FOR_MODEL;
 }
 
 /**
