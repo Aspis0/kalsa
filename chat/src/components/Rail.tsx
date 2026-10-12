@@ -52,7 +52,7 @@ export function Rail({ current, onOpen }: { current: SurfaceKey; onOpen: (surfac
   return (
     <nav className="rail" aria-label={chrome.navigation}>
       <span className="rail-mark" aria-hidden="true">
-        <KalsaMark size={22} />
+        <KalsaMark size={33} />
       </span>
       {top.map(item)}
       <div className="rail-low">{bottom.map(item)}</div>
