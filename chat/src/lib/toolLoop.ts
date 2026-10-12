@@ -220,7 +220,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       const answer = await runToolCall(
         call,
         canonical === null ? null : definitions.get(canonical)!,
-        { say, runTool: runTool!, onToolRun: options.onToolRun, signal, url },
+        { say, runTool: runTool!, onToolRun: options.onToolRun, signal, url, conversation },
       );
       results.push(answer.result);
       wireTexts.push(answer.wire);

@@ -28,6 +28,8 @@ export const TOOLS = {
     "refuse": "Rifiuta",
     "webSearchFailed": "Kalsa non è riuscita a cercare sul web in questo momento. Riprova.",
     "webPageTooLong": "La pagina è troppo lunga per essere letta da Kalsa.",
+    "linkNotInChat": "Kalsa non ha aperto quel link perché non compare in questa chat.",
+    "linkHasCredential": "Kalsa non ha aperto quel link: sembra contenere una password o una chiave.",
     "findings": {
       "copiedText": "testo copiato",
       "npmToken": "un codice di accesso",

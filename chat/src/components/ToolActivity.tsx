@@ -9,13 +9,16 @@ import "./ToolActivity.css";
 import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
 
-/** The web refusals' sentences, by the code Rust put on them. */
+/** The web refusals' sentences, by the code Rust put on them — plus the two
+    the page's own provenance rule puts on a web_fetch (fetchProvenance.ts). */
 function webWords(t: English["tools"], code: string): string {
   const table: Record<string, string> = {
     "web.search_failed": t.webSearchFailed,
     "web.page_too_long": t.webPageTooLong,
     "web.page_failed": t.pageNotOpened,
     "web.open_failed": t.pageNotOpened,
+    "web.link_unseen": t.linkNotInChat,
+    "web.link_credential": t.linkHasCredential,
   };
   return table[code] ?? code;
 }
@@ -68,7 +71,9 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
   const t = table.tools;
   const args = readArguments(run.name, run.arguments).args;
   const query = typeof args.query === "string" ? args.query : "";
-  const asked = typeof args.url === "string" ? args.url.trim() : "";
+  // The fragment is dropped at the door and never offered back on the card:
+  // the model may have coined it after an address the conversation had seen.
+  const asked = typeof args.url === "string" ? args.url.trim().split("#")[0] : "";
   // Only a public web address becomes a link. The model writes the address it
   // asked for and a page writes the addresses in its own text, so neither is
   // trusted: `javascript:`, `data:`, `file:` and this machine's own server all

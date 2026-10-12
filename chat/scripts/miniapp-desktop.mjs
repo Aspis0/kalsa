@@ -118,7 +118,15 @@ try {
     check("create_miniapp runs with a gate armed", built.ok === true && built.miniapp?.kind === "compare_data");
     equal("create_miniapp never asks the gate", asked, 0);
 
-    const held = await executeToolCall("web_fetch", { url: "https://example.com/x" }, undefined, gate);
+    // The address rides the conversation, so the provenance rule passes and
+    // what this case checks — the gate's hold — is what answers.
+    const held = await executeToolCall(
+      "web_fetch",
+      { url: "https://example.com/x" },
+      undefined,
+      gate,
+      [{ role: "user", content: "open https://example.com/x" }],
+    );
     check("web_fetch is still held by the gate", held.ok === false && held.text.startsWith("Not run:"));
     equal("web_fetch did ask the gate", asked, 1);
   }

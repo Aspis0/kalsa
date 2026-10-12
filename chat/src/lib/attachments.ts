@@ -490,10 +490,15 @@ function docSection(d: Attachment): string {
   return `--- ${d.name} (${d.kind}${d.pages !== undefined ? `, ${d.pages} pages` : ""}, ≈${d.tokens} tokens) ---\n${d.text}`;
 }
 
+/** The line the pinned documents' block begins with inside the system
+    message, exported so a reader can take the documents' text alone, never
+    the fixed prompt above it. */
+export const PINNED_DOCS_MARK = "Attached documents (pinned — they stay even as older turns are dropped):";
+
 /** The pinned-documents text, for the tail of the one system message: the
     block, then one section per document. */
 function docBlockText(docs: Attachment[]): string {
-  return `Attached documents (pinned — they stay even as older turns are dropped):\n\n${docs.map(docSection).join("\n\n")}`;
+  return `${PINNED_DOCS_MARK}\n\n${docs.map(docSection).join("\n\n")}`;
 }
 
 /** The documents a user turn bound to itself, as the block that rides before

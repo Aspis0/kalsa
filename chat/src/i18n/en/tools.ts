@@ -31,6 +31,8 @@ export const TOOLS = {
   refuse: "Refuse",
   webSearchFailed: "Kalsa couldn't search the web just now. Try again.",
   webPageTooLong: "That page is too long for Kalsa to read.",
+  linkNotInChat: "Kalsa didn't open that link: it hasn't appeared in this chat.",
+  linkHasCredential: "Kalsa didn't open that link: it looks like it carries a password or key.",
   // What the detector saw, by the kind it reports.
   findings: {
     copiedText: "copied text",

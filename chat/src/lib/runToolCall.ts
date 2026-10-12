@@ -1,5 +1,5 @@
 import { ChatRequestError } from "./chat";
-import type { ToolOutcome, ToolPhrases } from "./chat";
+import type { ToolOutcome, ToolPhrases, WireMessage } from "./chat";
 import { readArguments, wireArguments } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
 import { repairToolCall } from "./repairToolCall";
@@ -28,11 +28,19 @@ export interface CallAnswer {
 /** The turn's state one call needs. */
 export interface CallContext {
   say: ToolPhrases;
-  runTool: (name: string, args: Record<string, unknown>, signal: AbortSignal) => Promise<ToolOutcome>;
+  runTool: (
+    name: string,
+    args: Record<string, unknown>,
+    signal: AbortSignal,
+    conversation: WireMessage[],
+  ) => Promise<ToolOutcome>;
   onToolRun?: (run: ToolRun) => void;
   signal: AbortSignal;
   /** Where the request went, so a Stop mid-call fails as that request's. */
   url: string;
+  /** The conversation the model is reading, growing round by round; the
+      web_fetch provenance rule reads it at call time. */
+  conversation: WireMessage[];
 }
 
 /**
@@ -87,7 +95,7 @@ export async function runToolCall(
   let resultCode: string | undefined;
   let miniapp: Miniapp | undefined;
   if (guide === null) {
-    const answered = await untilStopped(() => ctx.runTool(name, repaired!.args, ctx.signal), ctx.signal);
+    const answered = await untilStopped(() => ctx.runTool(name, repaired!.args, ctx.signal, ctx.conversation), ctx.signal);
     if (answered === null) {
       ctx.onToolRun?.({ ...started, result: ctx.say.stopped, state: "failed" });
       throw new ChatRequestError("aborted", "Stopped", undefined, ctx.url);

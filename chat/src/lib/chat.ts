@@ -86,11 +86,14 @@ export interface StreamOptions {
   tools?: ToolDefinition[];
   /** Runs one call and answers with the text the model reads, and whether it
       worked. Injected so this module owns no door to the desktop; the signal
-      is passed on so the call can be stopped where it is running. */
+      is passed on so the call can be stopped where it is running, and the
+      conversation so the web_fetch provenance rule reads what the model
+      reads. */
   runTool?: (
     name: string,
     args: Record<string, unknown>,
     signal: AbortSignal,
+    conversation: WireMessage[],
   ) => Promise<ToolOutcome>;
   /** Called when a call starts and again when it answers, so the thread can
       say what is happening while it happens. */

@@ -442,3 +442,10 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 ## Tool-call repair (CisWire port, reviews of 2026-10-12)
 - SECURITY, owner decision for the beta: a fetched page (or pasted text) can steer the model into a STRUCTURED `web_fetch` to an outside URL carrying conversation data, with no confirmation — the web gate asks only when a document is pinned (`registry.ts:125`). Pre-existing, independent of the repair (text recovery is now off whenever any web result is in the conversation). Candidate fix: ask before fetching a URL whose query/path carries text from the conversation, or before any fetch after web content entered the chat.
 - `<function=` inside a parameter value makes recovery refuse the whole call (deepseek N8).
+
+## web_fetch provenance rule (reviews of 2026-10-12, deferred)
+
+- Redirects: Rust `kalsa_web::fetch` follows `Location` without re-checking provenance, so a user-typed URL carrying a credential can be redirected to another host with it (crates/kalsa-web/src/fetch.rs). Consider refusing cross-origin redirects when the query names a credential.
+- The rule lives in the webview (`chat/src/lib/tools/fetchProvenance.ts`); `brain_web_fetch` and `brain_open_url` (src-tauri/src/web.rs) have no notion of it. Any other IPC caller bypasses it.
+- `web_search` still sends the model's query to Exa unchecked: injected text can push private chat text to the search provider (not to the attacker). The pinned-document gate covers it only when a document is pinned.
+- The localized refusal line on a tool row is lost on reload; the stored record shows the model-facing English.

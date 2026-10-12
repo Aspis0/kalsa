@@ -28,6 +28,8 @@ export const TOOLS = {
     "refuse": "拒绝",
     "webSearchFailed": "Kalsa 现在无法搜索网络。请再试。",
     "webPageTooLong": "那个页面对 Kalsa 来说太长，读不了。",
+    "linkNotInChat": "Kalsa 没有打开那个链接：它没有出现在这个对话中。",
+    "linkHasCredential": "Kalsa 没有打开那个链接：它好像带有密码或密钥。",
     "findings": {
       "copiedText": "复制的文字",
       "npmToken": "一个登录代码",

@@ -429,11 +429,17 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           // for the same reason: B's model was never sent A's document, so
           // A's attachment must not put a question into B's turn — noise is
           // what teaches the owner to click through.
-          runTool: (name, args, runSignal) =>
-            executeToolCall(name, args, runSignal, {
-              documents: () => docs,
-              confirm: (check) => askOwner(check, runSignal),
-            }),
+          runTool: (name, args, runSignal, conversation) =>
+            executeToolCall(
+              name,
+              args,
+              runSignal,
+              {
+                documents: () => docs,
+                confirm: (check) => askOwner(check, runSignal),
+              },
+              conversation,
+            ),
           onToolRun: ingestToolRun,
           onWithdraw: withdraw,
           toolPhrases: words.current.tools,

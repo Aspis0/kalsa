@@ -120,7 +120,10 @@ async function turn(question, { maxTokens = null, stopAfterMs = null, abortAfter
       tools,
       // No gate: this harness has no owner to ask, and the parameter is
       // required so that saying so is a decision, not a forgotten argument.
-      runTool: (name, args, signal) => app.executeToolCall(name, args, signal, null),
+      // The conversation arrives from the loop, so the web_fetch provenance
+      // rule reads the same turn the model reads.
+      runTool: (name, args, signal, conversation) =>
+        app.executeToolCall(name, args, signal, null, conversation),
       onToolRun: (entry) => {
         const at = runs.findIndex((existing) => existing.id === entry.id);
         if (at >= 0) runs[at] = entry;

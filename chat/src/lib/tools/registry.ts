@@ -1,4 +1,4 @@
-import type { ToolOutcome } from "../chat";
+import type { ToolOutcome, WireMessage } from "../chat";
 import { available, invoke } from "../tauri";
 import { findCopied } from "../webgate/copied";
 import type { PinnedDoc } from "../webgate/copied";
@@ -7,6 +7,7 @@ import { findSensitive } from "../webgate/sensitive";
 import { TOOL_DEFINITIONS, CREATE_MINIAPP_TOOL } from "./definitions";
 import type { ToolDefinition } from "./definitions";
 import { runCreateMiniapp } from "./createMiniapp";
+import { fetchProvenanceRefusal } from "./fetchProvenance";
 
 /** What one held call looks like to the page: which tool, the exact string
     that would leave, what the detectors saw in it, and the documents whose
@@ -66,6 +67,9 @@ export async function executeToolCall(
   args: unknown,
   signal: AbortSignal | undefined,
   gate: WebGate | null,
+  /** The conversation the model is reading right now, read at call time by
+      the web_fetch provenance rule (fetchProvenance.ts). */
+  conversation: WireMessage[],
   /** The sentence a stopped call answers with, in the owner's language;
       absent is English. */
   stoppedText = "Stopped before this finished.",
@@ -87,8 +91,16 @@ export async function executeToolCall(
       return { text: await through("brain_web_search", { query }, signal), ok: true };
     }
     if (name === "web_fetch") {
-      const url = typeof record.url === "string" ? record.url.trim() : "";
+      let url = typeof record.url === "string" ? record.url.trim() : "";
       if (!url) return { text: "No page was opened: the address was empty.", ok: false };
+      // The fragment falls away before anything else sees the address: HTTP
+      // never sends it and matching already ignores it, so the model can
+      // append nothing of its own to an address the conversation has seen.
+      url = url.split("#")[0];
+      // Provenance before the gate: an address the conversation never carried
+      // is not opened at all, so there is nothing to ask about.
+      const refusal = fetchProvenanceRefusal(url, conversation);
+      if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
       // The address is checked whole: a URL carries a payload as well as any
       // query does (`...?q=<IBAN>` leaves exactly as much).
       if (!(await admitted(gate, "web_fetch", url, signal))) return heldBack(url, signal, stoppedText);

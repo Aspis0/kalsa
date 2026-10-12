@@ -2597,7 +2597,7 @@ const tests = {
     await openChat(page);
     await page.waitForTimeout(1200);
     await resetMock(page);
-    await sendAndWait(page, "Open that page for me.", "page says");
+    await sendAndWait(page, "Open https://example.com/page for me.", "page says");
 
     const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
     check("fetch: the page was opened through its own command", calls.length === 1 && calls[0].command === "brain_web_fetch", JSON.stringify(calls));
@@ -2606,7 +2606,7 @@ const tests = {
     const asked = wired.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).pop();
     check("fetch: the call went back named as web_fetch", asked?.tool_calls?.[0]?.function?.name === "web_fetch");
     const text = (await page.locator(".thread").textContent()) ?? "";
-    check("fetch: the thread says it read the page", text.includes("Read example.com"), text.slice(0, 200));
+    check("fetch: the thread says it read the page", text.includes("Kalsa read example.com"), text.slice(0, 200));
     await browser.close();
   },
 
@@ -2620,7 +2620,7 @@ const tests = {
     await openChat(page);
     await page.waitForTimeout(1200);
     await resetMock(page);
-    await sendAndWait(page, "Search twice and read a page.", "Both searches");
+    await sendAndWait(page, "Search twice and read https://example.com/one.", "Both searches");
 
     const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
     check(
@@ -3422,11 +3422,14 @@ const tests = {
     await openChat(page);
     await page.waitForTimeout(1200);
     await attachGateDoc(page, "notes.txt", "Just some notes so the gate is armed.");
-    await page.getByRole("textbox", { name: "Message" }).fill("Open that page.");
+    // The user types the address themselves, so provenance passes it through
+    // and the credential layer is satisfied: what this case asserts is the
+    // gate's own ask about the whole URL.
+    await page.getByRole("textbox", { name: "Message" }).fill("Open https://example.com/exfil?key=AKIAIOSFODNN7EXAMPLE.");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     await gateAsk(page, "gate url: the ask appeared");
     const ask = (await page.locator(".webgate").textContent()) ?? "";
-    check("gate url: the ask names a page request", ask.includes("page request"), "ask on screen");
+    check("gate url: the ask names a page request", ask.includes("wants to open a web page"), "ask on screen");
     check("gate url: the whole address is shown", ((await page.locator(".webgate-outgoing").textContent()) ?? "").includes("https://example.com/exfil?key=AKIAIOSFODNN7EXAMPLE"));
     // Findings only: the echoed address carries the key, so the finding must
     // be read from the list, not from the ask's whole text.
