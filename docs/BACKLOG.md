@@ -449,3 +449,8 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 - The rule lives in the webview (`chat/src/lib/tools/fetchProvenance.ts`); `brain_web_fetch` and `brain_open_url` (src-tauri/src/web.rs) have no notion of it. Any other IPC caller bypasses it.
 - `web_search` still sends the model's query to Exa unchecked: injected text can push private chat text to the search provider (not to the attacker). The pinned-document gate covers it only when a document is pinned.
 - The localized refusal line on a tool row is lost on reload; the stored record shows the model-facing English.
+
+## macOS 26 app icon (2026-10-12)
+
+- `src-tauri/icons/Assets.car` is precompiled from `src-tauri/icons/Icon.icon` and listed in bundle.icon, because `actool` run by the Tauri bundler from this checkout fails with "Bad file descriptor". Regenerate it whenever the icon changes: copy Icon.icon to /tmp, then `xcrun actool Icon.icon --compile out --app-icon Icon --output-partial-info-plist p.plist --platform macosx --minimum-deployment-target 26.0`. Root cause unknown.
+- Check that the Windows NSIS build ignores the `.car` entry before the next release.
