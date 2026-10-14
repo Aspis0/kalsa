@@ -1,5 +1,6 @@
 import type { ChatErrorKind } from "./chat";
 import type { Miniapp } from "./miniapp/types";
+import type { Mail } from "./mail/types";
 
 export type Role = "user" | "assistant";
 
@@ -29,6 +30,14 @@ export interface ToolRun {
   /** A miniapp this call built here. It is rendered in the thread and kept
       with the conversation; the wire only ever carries `result`. */
   miniapp?: Miniapp;
+  /** Mail this call drew or wrote: cards from the sidecar's own records, or a
+      draft. Never persisted — `store.ts` keeps a count of the cards and
+      nothing else, because the bodies are a stranger's words and the store
+      writes to localStorage. */
+  mail?: Mail;
+  /** How many mail cards that turn drew, and the only part of them that is
+      kept: a reloaded chat has the count and not the cards. */
+  mailShown?: number;
   /**
    * `refused` is a call this app would not run: one the stream never named,
    * one whose tool the request did not offer (a model can ask for

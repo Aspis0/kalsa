@@ -1,5 +1,7 @@
 import { TOOL_STOPPED } from "./types";
 import { normalizeMiniapp } from "./miniapp/normalize";
+import { mailCount, normalizeMail } from "./mail/normalize";
+import { isMailRun } from "./mail/runs";
 import type { ChatErrorKind } from "./chat";
 import type {
   ChatMessage,
@@ -249,6 +251,9 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
     if (typeof r.arguments !== "string" || typeof r.result !== "string") continue;
     if (r.state !== "running" && r.state !== "ok" && r.state !== "failed" && r.state !== "refused") continue;
     const miniapp = r.miniapp === undefined ? null : normalizeMiniapp(r.miniapp);
+    // The envelope stays in the record the app reads; `forDisk` is what keeps
+    // it off localStorage. What reaches disk is the count it stood for.
+    const mail = r.mail === undefined ? null : normalizeMail(r.mail);
     runs.push({
       id: r.id,
       name: r.name,
@@ -259,9 +264,44 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
       result: r.state === "running" && r.result === "" ? TOOL_STOPPED : r.result,
       state: r.state === "running" ? "failed" : r.state,
       ...(miniapp ? { miniapp } : {}),
+      ...(mail ? { mail } : {}),
+      ...(typeof r.mailShown === "number" && r.mailShown >= 0 ? { mailShown: Math.round(r.mailShown) } : {}),
     });
   }
   return runs.length > 0 ? { toolRuns: runs } : {};
+}
+
+/**
+ * The copy that reaches localStorage. A sender, a subject, a gist and a body
+ * are a stranger's words and this store is the browser's disk, so the mail
+ * envelope goes and the count it stood for takes its place: a reloaded chat
+ * says how many cards the turn drew and offers none of them. A draft goes the
+ * same way — it was never sent, and rewriting it costs the owner less than
+ * storing it would.
+ */
+function forDisk(messages: ChatMessage[]): unknown[] {
+  return messages.map((message) => {
+    if (message.toolRuns === undefined) return message;
+    return {
+      ...message,
+      toolRuns: message.toolRuns.map((run) => {
+        const shown = run.mail === undefined ? undefined : mailCount(run.mail);
+        if (!isMailRun(run.name)) {
+          return shown === undefined ? run : { ...run, mailShown: shown };
+        }
+        // A mail run keeps its name and its count, never its arguments or its
+        // result: a body was read into one, a reply written into the other.
+        // The count is what the thread words for the owner after a reload.
+        const { arguments: _args, result: _result, mail: _mail, ...rest } = run;
+        return {
+          ...rest,
+          arguments: "",
+          result: "",
+          ...(shown === undefined ? {} : { mailShown: shown }),
+        };
+      }),
+    };
+  });
 }
 
 function cleanMeta(value: unknown): ConversationMeta | null {
@@ -499,7 +539,7 @@ export function createStore(): ConversationStore {
           updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : 0,
           messages,
         });
-        localStorage.setItem(msgKey(meta.id), JSON.stringify(messages));
+        localStorage.setItem(msgKey(meta.id), JSON.stringify(forDisk(messages)));
         payloadCache.set(meta.id, messages);
         metas.push(meta);
       }
@@ -560,7 +600,7 @@ export function createStore(): ConversationStore {
         .filter((m): m is ChatMessage => m !== null);
       const meta = metaFor({ ...conversation, messages });
       const ok = writeThrough(() => {
-        localStorage.setItem(msgKey(meta.id), JSON.stringify(messages));
+        localStorage.setItem(msgKey(meta.id), JSON.stringify(forDisk(messages)));
         const rest = readIndex().filter((m) => m.id !== meta.id);
         const next = [meta, ...rest].sort((a, b) => b.updatedAt - a.updatedAt);
         try {

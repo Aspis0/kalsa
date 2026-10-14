@@ -12,6 +12,7 @@ import { THREAD } from "./thread";
 import { VIEWER } from "./viewer";
 import { TOOLS } from "./tools";
 import { MINIAPP } from "./miniapp";
+import { MAIL } from "./mail";
 import { SIDEBAR } from "./sidebar";
 import { FILES } from "./files";
 import { FIRST_PAGE } from "./firstPage";
@@ -45,6 +46,7 @@ export interface English {
   viewer: typeof VIEWER;
   tools: typeof TOOLS;
   miniapp: typeof MINIAPP;
+  mail: typeof MAIL;
   sidebar: typeof SIDEBAR;
   files: typeof FILES;
   firstPage: typeof FIRST_PAGE;
@@ -90,6 +92,7 @@ export const ENGLISH: English = {
   viewer: VIEWER,
   tools: TOOLS,
   miniapp: MINIAPP,
+  mail: MAIL,
   sidebar: SIDEBAR,
   files: FILES,
   firstPage: FIRST_PAGE,

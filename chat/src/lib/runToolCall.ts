@@ -7,6 +7,7 @@ import { guideCut, guideNotValidJson, guideProblem } from "./guideRetry";
 import type { ToolDefinition } from "./tools/definitions";
 import type { ToolRun } from "./types";
 import type { Miniapp } from "./miniapp/types";
+import type { Mail } from "./mail/types";
 
 /**
  * One tool call the model made, run and answered. The arguments are repaired
@@ -94,6 +95,7 @@ export async function runToolCall(
   let result = guide ?? "";
   let resultCode: string | undefined;
   let miniapp: Miniapp | undefined;
+  let mail: Mail | undefined;
   if (guide === null) {
     const answered = await untilStopped(() => ctx.runTool(name, repaired!.args, ctx.signal, ctx.conversation), ctx.signal);
     if (answered === null) {
@@ -103,9 +105,17 @@ export async function runToolCall(
     result = answered.text;
     resultCode = answered.resultCode;
     miniapp = answered.miniapp;
+    mail = answered.mail;
     state = answered.ok ? "ok" : "failed";
   }
-  ctx.onToolRun?.({ ...started, result: kept(result), resultCode, state, ...(miniapp ? { miniapp } : {}) });
+  ctx.onToolRun?.({
+    ...started,
+    result: kept(result),
+    resultCode,
+    state,
+    ...(miniapp ? { miniapp } : {}),
+    ...(mail ? { mail } : {}),
+  });
   return {
     result,
     wire: repaired !== null && repaired.repairs.length > 0 ? effective : wireArguments(call.arguments, call.cut),

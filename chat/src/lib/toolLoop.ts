@@ -10,7 +10,7 @@ import { canonicalToolName } from "./repairToolCall";
 import { recoverToolCall } from "./recoverToolCall";
 import { runToolCall } from "./runToolCall";
 import { logUiEvent } from "./uiLog";
-import { WEB_TOOLS } from "./tools/definitions";
+import { MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
 import type { ToolDefinition } from "./tools/definitions";
 
 /**
@@ -266,8 +266,11 @@ function webResultIn(conversation: WireMessage[]): boolean {
   );
 }
 
-/** The tools whose results carry outside content into the conversation. */
-const WEB_NAMES = new Set(WEB_TOOLS.map((tool) => tool.function.name));
+/** The tools whose results carry outside content into the conversation. Mail
+    is outside content: every line of a mail is a stranger's words, fenced by
+    the sidecar, and once it is in the wire the answer text is a channel it
+    can speak into — the same reason a page is. */
+const WEB_NAMES = new Set([...WEB_TOOLS, ...MAIL_TOOLS].map((tool) => tool.function.name));
 
 /**
  * The working conversation shrinks when the engine refuses the prompt as too

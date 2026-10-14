@@ -7,6 +7,7 @@ import type { Sampling } from "./sampling";
 import type { ToolDefinition } from "./tools/definitions";
 import type { ToolRun } from "./types";
 import type { Miniapp } from "./miniapp/types";
+import type { Mail } from "./mail/types";
 
 /**
  * Minimal OpenAI-compatible client: what a request is, and what the server
@@ -140,6 +141,8 @@ export interface ToolOutcome {
   ok: boolean;
   resultCode?: string;
   miniapp?: Miniapp;
+  /** Cards or a draft this call drew. The wire only ever carries `text`. */
+  mail?: Mail;
 }
 
 /** No new words for this long means the server is gone, not slow. */

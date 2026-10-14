@@ -4,7 +4,9 @@
 .panel {
   display: flex;
   flex: none;
-  width: 400px;
+  /* Three tabs with whole words and a mail body to read: the old 400px cut
+     "In questa chat" into "In questa ...". */
+  width: 452px;
   min-height: 0;
   padding: 18px 20px;
   flex-direction: column;
@@ -44,7 +46,10 @@
 .panel-tab {
   flex: 1;
   height: 38px;
-  padding: 0 10px;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--tx2);
   background: transparent;
   border: 0;

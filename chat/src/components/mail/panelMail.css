@@ -1,0 +1,163 @@
+/* The Mail tab: the same card's parts as the chat uses, laid out down the
+   panel instead of across it. */
+
+.mail-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 18px 24px;
+}
+
+.mail-view-head {
+  display: flex;
+  padding: 8px 0 4px;
+  align-items: center;
+  gap: 10px;
+}
+
+.mail-view-who {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.mail-view-name {
+  overflow: hidden;
+  color: var(--tx);
+  font-size: 15px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail-view-addr {
+  overflow: hidden;
+  color: var(--tx3);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail-view-full {
+  margin: 0 0 10px;
+  color: var(--tx3);
+  font-size: 12px;
+}
+
+.mail-view-subject {
+  margin: 0 0 4px;
+  color: var(--tx);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 25px;
+}
+
+.mail-view-to {
+  margin: 0;
+  color: var(--tx3);
+  font-size: 13px;
+}
+
+.mail-rule {
+  height: 0;
+  margin: 12px 0 14px;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.mail-body {
+  margin-bottom: 16px;
+  color: var(--tx);
+  font-size: 14.5px;
+  line-height: 23px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mail-gist-box {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: var(--ac-soft);
+  border-radius: var(--radius);
+}
+
+.mail-gist-title {
+  display: flex;
+  margin: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--ac-tx);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.mail-gist-text {
+  margin: 5px 0 0;
+  color: var(--tx);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.mail-attach {
+  margin-bottom: 14px;
+}
+
+.mail-attach-none {
+  margin: 5px 0 0;
+  color: var(--tx3);
+  font-size: 13.5px;
+}
+
+.mail-attach-list {
+  margin: 5px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mail-attach-list li {
+  display: flex;
+  padding: 6px 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--tx);
+  font-size: 13.5px;
+}
+
+.mail-attach-size {
+  flex: none;
+  color: var(--tx3);
+}
+
+.mail-thread {
+  margin: 8px 0 0;
+  color: var(--tx3);
+  font-size: 13px;
+}
+
+.mail-reply {
+  margin-bottom: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.mail-reply-head {
+  display: flex;
+  margin-bottom: 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mail-reply-head .mail-gist-title {
+  color: var(--tx);
+  font-size: 14px;
+}
+
+.mail-btn:disabled {
+  color: var(--tx3);
+  cursor: default;
+}

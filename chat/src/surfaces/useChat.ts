@@ -38,6 +38,7 @@ import { contentDecline } from "../lib/contentFilterCopy";
 import { logUiEvent } from "../lib/uiLog";
 import { newUserTurn } from "../lib/userTurn";
 import { useBrain, useBrainServer, useDoorStanding, withBrainDefaults } from "./useBrain";
+import { useMail } from "./useMail";
 import { useServerFacts } from "./useServerFacts";
 import { useVisionOffer } from "./useVisionOffer";
 import { setupArm } from "../components/EmptyState";
@@ -170,6 +171,8 @@ export function useChat(shell: ChatShell) {
   // draft must survive that round trip, so it lives in the hook the shell
   // holds — the hook does not unmount when the chat does.
   const [draft, setDraft] = useState("");
+  // The mail open beside the chat, and the two ways anything comes of it.
+  const mail = useMail(setDraft);
   // Pictures attached but not yet sent, per conversation. The bytes are in
   // IndexedDB the moment the chip exists; this map holds only the reference
   // and the chip's object URL, and follows the draft's own durability.
@@ -1173,6 +1176,19 @@ export function useChat(shell: ChatShell) {
     stop,
     retry,
     saveMiniappState,
+    // Mail: the panel's mail, and what Apri and the draft buttons do.
+    mailOpen: mail.open,
+    setMailOpen: mail.setOpen,
+    openMail: mail.show,
+    replyTo: mail.reply,
+    editDraft: mail.edit,
+    mailDrafts: mail.drafts,
+    saveMailDraft: mail.save,
+    typeMailDraft: mail.type,
+    mailSend: mail.send,
+    setMailSend: mail.setSend,
+    mailSent: mail.sent,
+    mailDone: mail.done,
     selectConversation,
     newConversation,
     removeConversation,

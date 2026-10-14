@@ -10,6 +10,10 @@ import { MessageImages } from "./MessageImages";
 import { MessageVideos } from "./MessageVideos";
 import { ThoughtCloud } from "./ThoughtCloud";
 import { MiniappRows, ToolActivity } from "./ToolActivity";
+import { MailRows } from "./mail/MailRows";
+import type { MailCardItem } from "../lib/mail/types";
+import type { PendingSend } from "../lib/mail/pending";
+import type { DraftRecord, Drafts, SentTo } from "../lib/mail/drafts";
 import { MessageActions } from "./MessageActions";
 import { Icon } from "./Icon";
 import "./Thread.css";
@@ -36,6 +40,15 @@ interface ThreadProps {
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
   /** A web call is held for the owner's OK, so the running check says so. */
   awaitingOk: boolean;
+  /** The mail the Mail tab is showing, and what a card's buttons do. */
+  mailOpen: string | null;
+  onOpenMail: (item: MailCardItem) => void;
+  onReplyMail: (item: MailCardItem) => void;
+  onSendMail: (send: PendingSend) => void;
+  mailSent: SentTo;
+  mailDrafts: Drafts;
+  onSaveMail: (replyToId: string, record: DraftRecord) => void;
+  onComposeMail: (replyToId: string, body: string) => void;
 }
 
 function errorCopy(
@@ -145,6 +158,14 @@ function AssistantRow({
   restartedAt,
   onMiniappState,
   awaitingOk,
+  mailOpen,
+  onOpenMail,
+  onReplyMail,
+  onSendMail,
+  mailSent,
+  mailDrafts,
+  onSaveMail,
+  onComposeMail,
 }: {
   message: ChatMessage;
   streaming: boolean;
@@ -157,6 +178,14 @@ function AssistantRow({
   restartedAt: number | null;
   onMiniappState: (messageId: string, runId: string, state: Record<string, unknown>) => void;
   awaitingOk: boolean;
+  mailOpen: string | null;
+  onOpenMail: (item: MailCardItem) => void;
+  onReplyMail: (item: MailCardItem) => void;
+  onSendMail: (send: PendingSend) => void;
+  mailSent: SentTo;
+  mailDrafts: Drafts;
+  onSaveMail: (replyToId: string, record: DraftRecord) => void;
+  onComposeMail: (replyToId: string, body: string) => void;
 }) {
   const { table, tag } = useLanguage();
   const t = table.thread;
@@ -206,6 +235,19 @@ function AssistantRow({
         ) : message.content ? (
           <Markdown text={message.content} streaming={streaming} />
         ) : null}
+        {/* The cards follow the sentence that introduces them: what Kalsa
+            found, then the mail itself. */}
+        <MailRows
+        runs={toolRuns}
+        selected={mailOpen}
+        onOpen={onOpenMail}
+        onDraft={onReplyMail}
+        onSend={onSendMail}
+        sent={mailSent}
+        drafts={mailDrafts}
+        onSave={onSaveMail}
+        onComposeMail={onComposeMail}
+      />
         {message.stopped && failedHere === null ? <p className="row-note">{t.stoppedEarly}</p> : null}
         {showNoAnswer ? (
           <div className="no-answer">
@@ -257,6 +299,14 @@ export function Thread({
   restartedAt,
   onMiniappState,
   awaitingOk,
+  mailOpen,
+  onOpenMail,
+  onReplyMail,
+  onSendMail,
+  mailSent,
+  mailDrafts,
+  onSaveMail,
+  onComposeMail,
 }: ThreadProps) {
   const { table, tag } = useLanguage();
   const { ref: scrollRef, following, toBottom } = useStickToBottom();
@@ -292,6 +342,14 @@ export function Thread({
                 restartedAt={restartedAt}
                 onMiniappState={onMiniappState}
                 awaitingOk={awaitingOk}
+                mailOpen={mailOpen}
+                onOpenMail={onOpenMail}
+                onReplyMail={onReplyMail}
+                onSendMail={onSendMail}
+                mailSent={mailSent}
+                mailDrafts={mailDrafts}
+                onSaveMail={onSaveMail}
+                onComposeMail={onComposeMail}
               />
             ),
           )}

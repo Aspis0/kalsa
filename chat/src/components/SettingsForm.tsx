@@ -7,6 +7,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import "./Settings.css";
 import { Icon } from "./Icon";
 import { TelemetrySettings } from "./TelemetrySettings";
+import { Icon as MailIcon } from "./Icon";
 import { UpdatesSettings } from "./UpdatesSettings";
 import type { UpdatesApi } from "../lib/useUpdates";
 
@@ -25,9 +26,10 @@ interface SettingsFormProps {
   /** The AI the running engine launched; null while none runs. */
   aiName: string | null;
   onOpenAi: () => void;
+  onOpenMail: () => void;
 }
 
-export function SettingsForm({ initial, onWebTools, theme, onTheme, updates, busy, aiName, onOpenAi }: SettingsFormProps) {
+export function SettingsForm({ initial, onWebTools, theme, onTheme, updates, busy, aiName, onOpenAi, onOpenMail }: SettingsFormProps) {
   const { table, override, choose } = useLanguage();
   const t = table.settings;
   const webTitleId = useId();
@@ -110,6 +112,19 @@ export function SettingsForm({ initial, onWebTools, theme, onTheme, updates, bus
           </div>
         ) : null}
         <TelemetrySettings />
+      </div>
+
+      <div className="settings-group">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">{t.mail}</span>
+            <span className="settings-row-hint">{t.mailHint}</span>
+          </div>
+          <button type="button" className="settings-more settings-ai" onClick={onOpenMail}>
+            {t.mailOpen}
+            <MailIcon name="right" size={16} stroke={2.2} />
+          </button>
+        </div>
       </div>
 
       <div className="settings-group">

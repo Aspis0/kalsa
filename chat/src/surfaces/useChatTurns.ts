@@ -22,6 +22,7 @@ import { selectWireImages, wireBodyBytes, WIRE_BODY_BUDGET } from "../lib/wireBu
 import type { WireImage } from "../lib/wireBudget";
 import { executeToolCall, offeredTools } from "../lib/tools/registry";
 import type { GateCheck } from "../lib/tools/registry";
+import { isMailRun } from "../lib/mail/runs";
 import type { FailedState } from "../components/Thread";
 import { useLanguage } from "../i18n/useLanguage";
 import { logUiEvent } from "../lib/uiLog";
@@ -49,7 +50,7 @@ interface TurnEngine {
 }
 
 export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
-  const { table } = useLanguage();
+  const { table, language } = useLanguage();
   // The stable callbacks below read the table through this ref, so a
   // language chosen mid-session reaches the next turn's words.
   const words = useRef(table);
@@ -84,6 +85,9 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
   // place — for this feature, "the owner approved something they were not
   // shown" is the worst failure available, and identity removes the question.
   const [gateShown, setGateShown] = useState<GateAsk | null>(null);
+  // Conversations that have held mail text. Once a mail has been read here,
+  // every web call in this conversation asks first, however the mail was phrased.
+  const mailSeen = useRef(new Set<string>());
   const [gateWaiting, setGateWaiting] = useState(0);
   const gateAsks = useRef<GateAsk[]>([]);
 
@@ -270,7 +274,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           currentSettings.model,
           dry.wire,
           samplingWire(loadSampling()),
-          offeredTools(currentSettings.webTools),
+          offeredTools(currentSettings.webTools, language, currentSettings.model),
           "auto",
           loadThinking(currentSettings.model),
         ),
@@ -394,6 +398,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           b = { convId: conversationId, content: "", reasoning: "", tail: "", toolRuns: [], timer: undefined };
           bufs.current.set(assistantId, b);
         }
+        if (isMailRun(run.name)) mailSeen.current.add(conversationId);
         b.toolRuns = b.toolRuns.some((existing) => existing.id === run.id)
           ? b.toolRuns.map((existing) => (existing.id === run.id ? run : existing))
           : [...b.toolRuns, run];
@@ -416,7 +421,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
               : { budget: Math.max(0, known - CONTEXT_RESERVE_TOKENS), size: wireSize },
           sampling: samplingWire(loadSampling()),
           signal: controller.signal,
-          tools: offeredTools(currentSettings.webTools),
+          tools: offeredTools(currentSettings.webTools, language, currentSettings.model),
           // Read at send time, so the control takes effect on the very next
           // message with no reload.
           thinking: loadThinking(currentSettings.model),
@@ -436,9 +441,11 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
               runSignal,
               {
                 documents: () => docs,
+                mailInConversation: () => mailSeen.current.has(conversationId),
                 confirm: (check) => askOwner(check, runSignal),
               },
               conversation,
+              currentSettings.model,
             ),
           onToolRun: ingestToolRun,
           onWithdraw: withdraw,

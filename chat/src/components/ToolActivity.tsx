@@ -5,6 +5,7 @@ import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
 import { Icon } from "./Icon";
 import { MiniappView } from "./miniapp/MiniappView";
+import { isMailTool } from "./mail/MailRows";
 import "./ToolActivity.css";
 import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
@@ -34,7 +35,9 @@ const MINIAPP = "create_miniapp";
  * policy forbids.
  */
 export function ToolActivity({ runs, awaitingOk }: { runs: ToolRun[]; awaitingOk: boolean }) {
-  const web = runs.filter((run) => run.name !== MINIAPP);
+  // A mail card is the tool's whole visible output, so the quiet web row
+  // would say twice what the card already says.
+  const web = runs.filter((run) => run.name !== MINIAPP && !isMailTool(run.name));
   if (web.length === 0) return null;
   return (
     <div className="tool-activity">

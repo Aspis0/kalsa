@@ -4,10 +4,14 @@ import { findCopied } from "../webgate/copied";
 import type { PinnedDoc } from "../webgate/copied";
 import type { GateFinding } from "../webgate/finding";
 import { findSensitive } from "../webgate/sensitive";
-import { TOOL_DEFINITIONS, CREATE_MINIAPP_TOOL } from "./definitions";
+import { TOOL_DEFINITIONS, CREATE_MINIAPP_TOOL, MAIL_TOOLS, mailShowTool } from "./definitions";
 import type { ToolDefinition } from "./definitions";
 import { runCreateMiniapp } from "./createMiniapp";
 import { fetchProvenanceRefusal, searchQueryRefusal } from "./fetchProvenance";
+import { runMailDraft, runMailList, runMailRead } from "./mailCall";
+import { runMailShow } from "./mailShow";
+import { mailAllowed } from "../mail/allowlist";
+import type { Language } from "../../i18n";
 
 /** What one held call looks like to the page: which tool, the exact string
     that would leave, what the detectors saw in it, and the documents whose
@@ -31,20 +35,27 @@ export interface GateCheck {
 export interface WebGate {
   /** The documents pinned in this conversation right now, read at call time. */
   documents: () => PinnedDoc[];
+  /** Whether this conversation has held mail text at any point. */
+  mailInConversation: () => boolean;
   /** Held for the owner's answer: true lets the call leave, false refuses it. */
   confirm: (check: GateCheck) => Promise<boolean>;
 }
 
 /**
  * The tools this build may offer on a request. Outside the desktop app there
- * is no command behind the web tools — the browser harnesses and a plain
- * `vite dev` page get an empty list, so no request ever offers a tool that
- * cannot run. Inside it, the owner's switch is the only thing the web tools
- * sit behind; `create_miniapp` runs locally, so it is offered either way.
+ * is no command behind the web tools or the mailbox — the browser harnesses
+ * and a plain `vite dev` page get an empty list, so no request ever offers a
+ * tool that cannot run. Inside it, the owner's switch is the only thing the
+ * web tools sit behind; `create_miniapp` and the mail tools run on this
+ * computer, so they are offered either way — but only to a model the mailbox
+ * is open to, the same list the executor enforces. The language is the app's,
+ * and the mail tools read it: it is what `mail_show` tells the model to write
+ * its one lines in.
  */
-export function offeredTools(enabled: boolean): ToolDefinition[] {
+export function offeredTools(enabled: boolean, language: Language, model: string): ToolDefinition[] {
   if (!available()) return [];
-  return enabled ? TOOL_DEFINITIONS : [CREATE_MINIAPP_TOOL];
+  const mail = mailAllowed(model) ? [...MAIL_TOOLS, mailShowTool(language)] : [];
+  return enabled ? [...TOOL_DEFINITIONS, ...mail] : [CREATE_MINIAPP_TOOL, ...mail];
 }
 
 /**
@@ -70,6 +81,9 @@ export async function executeToolCall(
   /** The conversation the model is reading right now, read at call time by
       the web_fetch provenance rule (fetchProvenance.ts). */
   conversation: WireMessage[],
+  /** The model running this turn: the mailbox is closed to any but the
+      approved ones, so the tool list and the executor agree on who may read. */
+  model: string,
   /** The sentence a stopped call answers with, in the owner's language;
       absent is English. */
   stoppedText = "Stopped before this finished.",
@@ -83,6 +97,27 @@ export async function executeToolCall(
     // switch governs traffic leaving the machine, not this one.
     if (name === "create_miniapp") {
       return runCreateMiniapp(record);
+    }
+    // The mailbox runs on this computer, so the web switch says nothing about
+    // it: what leaves it is the person's mail and no request made by this tool
+    // goes anywhere.
+    if (MAIL_TOOLS.some((tool) => tool.function.name === name) || name === "mail_show") {
+      if (!mailAllowed(model)) return { text: MAIL_CLOSED, ok: false };
+    }
+    if (name === "mail_show") {
+      return runMailShow(record);
+    }
+    if (name === "mail_list") {
+      const listed = await runMailList(record);
+      return { text: listed.text, ok: listed.ok };
+    }
+    if (name === "mail_read") {
+      const read = await runMailRead(record);
+      return { text: read.text, ok: read.ok };
+    }
+    if (name === "mail_draft") {
+      const drafted = await runMailDraft(record);
+      return { text: drafted.text, ok: drafted.ok, ...(drafted.draft ? { mail: drafted.draft } : {}) };
     }
     if (name === "web_search") {
       const query = typeof record.query === "string" ? record.query.trim() : "";
@@ -127,10 +162,12 @@ export async function executeToolCall(
 
 /**
  * The gate itself, and the only door it guards. It asks when a document is
- * pinned — that presence is what arms it, so a plain conversation with
- * nothing attached runs exactly as it always did — and the detectors only
- * decide how loudly the question warns, never whether it is asked.
+ * pinned or when the conversation has held mail, and the detectors only decide
+ * how loudly the question warns, never whether it is asked.
  */
+
+const MAIL_CLOSED =
+  "The mailbox is closed to this AI: it must be one of the approved models. Tell the person to switch AI in Settings → Your AI, then ask again.";
 async function admitted(
   gate: WebGate | null,
   tool: GateCheck["tool"],
@@ -139,7 +176,9 @@ async function admitted(
 ): Promise<boolean> {
   if (gate === null) return true;
   const docs = gate.documents();
-  if (docs.length === 0) return true;
+  // Mail arms the door on its own: the words in a mail are a stranger's, and a
+  // paraphrase of one is as much a disclosure as the quote.
+  if (docs.length === 0 && !gate.mailInConversation()) return true;
   const findings = [...findSensitive(outgoing), ...findCopied(outgoing, docs)];
   let allowed: boolean;
   try {

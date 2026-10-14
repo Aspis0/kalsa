@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Attachment } from "../lib/attachments";
 import type { English } from "../i18n/en/all";
 import { Icon } from "./Icon";
 import { useLanguage } from "../i18n/useLanguage";
 import { BudgetMeter } from "./BudgetMeter";
 import { FilesBrowser } from "./FilesBrowser";
+import { MailView } from "./mail/MailView";
+import type { OpenMail } from "./mail/MailView";
+import type { DraftRecord, Drafts, SentTo } from "../lib/mail/drafts";
+import type { PendingSend } from "../lib/mail/pending";
 import "./Panel.css";
+import "./mail/panelMail.css";
 
 interface PanelProps {
   open: boolean;
@@ -23,6 +28,15 @@ interface PanelProps {
   /** Attach a file from the computer: the Rust side reads the bytes, the
    *  page runs the same extractor the composer's clip uses. */
   onAttachFile: (path: string, name: string) => void;
+  /** The mail the cards opened beside the chat, the reply being written to it,
+      and the way a draft leaves. */
+  mail: OpenMail | null;
+  mailDrafts: Drafts;
+  mailSent: SentTo;
+  onMailDraft: (body: string) => void;
+  onMailReply: (replyToId: string, body: string) => void;
+  onMailSave: (replyToId: string, record: DraftRecord) => void;
+  onMailSend: (send: PendingSend) => void;
   onClose: () => void;
 }
 
@@ -48,13 +62,27 @@ export function Panel({
   onReattach,
   onPin,
   onAttachFile,
+  mail,
+  mailDrafts,
+  mailSent,
+  onMailDraft,
+  onMailReply,
+  onMailSave,
+  onMailSend,
   onClose,
 }: PanelProps) {
   // Attached is the default so an arriving attachment is the first thing
-  // the panel shows — the behaviour the panel had before it grew a tab.
+  // the panel shows — the behaviour the panel had before it grew a tab. A card
+  // that opened a mail arrives with one, and puts that in front instead.
   const { table } = useLanguage();
   const t = table.files;
-  const [tab, setTab] = useState<"files" | "attached">("attached");
+  const m = table.mail;
+  const [tab, setTab] = useState<"files" | "attached" | "mail">(mail !== null ? "mail" : "attached");
+  // The panel is already mounted when a card opens a mail, so the tab follows
+  // the arrival: Apri is one press, not two.
+  useEffect(() => {
+    if (mail !== null) setTab("mail");
+  }, [mail]);
   // Pinned first: the documents that ride every message stand above the ones
   // riding only the next send.
   const active = attachments.filter((a) => a.active);
@@ -89,13 +117,33 @@ export function Panel({
             >
               {t.attachedTab}
             </button>
+            <button
+              type="button"
+              role="tab"
+              id="files-tab-mail"
+              aria-selected={tab === "mail"}
+              className={`panel-tab${tab === "mail" ? " is-on" : ""}`}
+              onClick={() => setTab("mail")}
+            >
+              {m.tab}
+            </button>
           </div>
           <button type="button" className="panel-close" onClick={onClose} aria-label={t.closeAria}>
             <Icon name="x" size={18} />
           </button>
         </div>
 
-        {tab === "files" ? (
+        {tab === "mail" ? (
+          <MailView
+            open={mail}
+            drafts={mailDrafts}
+            sent={mailSent}
+            onDraft={onMailDraft}
+            onReply={onMailReply}
+            onSave={onMailSave}
+            onSend={onMailSend}
+          />
+        ) : tab === "files" ? (
           <FilesBrowser onAttach={onAttachFile} />
         ) : (
           <>

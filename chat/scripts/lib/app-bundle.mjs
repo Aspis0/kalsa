@@ -61,6 +61,22 @@ export async function loadApp() {
         export { buildPinnedContext, estTokens, turnDocBlock } from "../src/lib/attachments.ts";
         export { sentDatePhrase } from "../src/lib/sentDate.ts";
         export { newUserTurn } from "../src/lib/userTurn.ts";
+        export { mailRecord, mailRecords } from "../src/lib/mail/records.ts";
+        export { normalizeMail, mailCount } from "../src/lib/mail/normalize.ts";
+        export { fencedBody } from "../src/lib/mail/fence.ts";
+        export { guessServer, needsAppPassword } from "../src/lib/mail/providers.ts";
+        export { runMailShow } from "../src/lib/tools/mailShow.ts";
+        export { sendReply } from "../src/lib/mail/send.ts";
+        export { accountEmail, rememberAccount } from "../src/lib/mail/account.ts";
+        export { runMailList } from "../src/lib/tools/mailCall.ts";
+        export { draftFor, withDraft, sentToFor, withSent } from "../src/lib/mail/drafts.ts";
+        export { pendingFor, withBody } from "../src/lib/mail/drafts.ts";
+        export { mailAllowed } from "../src/lib/mail/allowlist.ts";
+        export { isMailRun } from "../src/lib/mail/runs.ts";
+        export { pendingSend, replySubject } from "../src/lib/mail/pending.ts";
+        export { MAIL_TOOLS, mailShowTool } from "../src/lib/tools/definitions.ts";
+        export { MAIL as ITALIAN_MAIL } from "../src/i18n/it/mail.ts";
+        export { MAIL as ENGLISH_MAIL } from "../src/i18n/en/mail.ts";
       `,
       resolveDir: SCRIPTS_DIR,
       loader: "ts",

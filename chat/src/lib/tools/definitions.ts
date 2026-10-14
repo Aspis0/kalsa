@@ -1,10 +1,11 @@
 /**
- * The three tools the assistant can call, in the shape every OpenAI-compatible
+ * The tools the assistant can call, in the shape every OpenAI-compatible
  * server expects for function calling. The descriptions are what the model
  * reads when deciding to call one, so they say when the tool is worth calling
  * and what comes back.
  */
 import { MINIAPP_TEMPLATE_IDS } from "../miniapp/templates";
+import type { Language } from "../../i18n";
 
 export interface ToolDefinition {
   type: "function";
@@ -109,3 +110,104 @@ export const WEB_TOOLS: ToolDefinition[] = [
 
 /** Every tool this build can offer, local first. */
 export const TOOL_DEFINITIONS: ToolDefinition[] = [CREATE_MINIAPP_TOOL, ...WEB_TOOLS];
+
+/**
+ * The mailbox, as the model sees it: three tools that read it and one that
+ * writes nothing. What comes back from the first three is a stranger's text,
+ * so it counts as outside content like a web result does.
+ */
+export const MAIL_TOOLS: ToolDefinition[] = [
+  {
+    type: "function",
+    function: {
+      name: "mail_list",
+      description:
+        "List mail from the person's mailbox: an id, who sent it, the subject, the time, a short snippet, and whether it looks bulk (a newsletter) or suspicious. Call this first when the person asks what arrived, what is important today, or anything about their mail. It only reads. After it, call mail_show with the ids worth putting in front of the person.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: { type: "number", description: "How many days back to look. Default 1." },
+          from: { type: "string", description: "Only mail from this address or name." },
+          query: { type: "string", description: "Words to look for in the mail." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mail_read",
+      description:
+        "Read one mail in full, by an id a previous mail_list returned: the whole text, the other messages in its thread, and the names and sizes of its attachments. Attachments are listed, never opened. Use it to read closely before you answer, not to show the mail — the person opens a mail from its card.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "The mail's id, as mail_list gave it." },
+        },
+        required: ["id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mail_draft",
+      description:
+        "Write a reply to one of the person's mails and show it as a draft the person can edit. Nothing is ever sent: the draft stays on this computer and the person sends it themselves. Name the mail to answer by its id and give the words of the reply.",
+      parameters: {
+        type: "object",
+        properties: {
+          reply_to_id: { type: "string", description: "The id of the mail being answered." },
+          body: { type: "string", description: "The words of the reply, as the person would write them." },
+        },
+        required: ["reply_to_id", "body"],
+      },
+    },
+  },
+];
+
+/** A gist is read in the interface's language, which is the mailbox's. */
+const GIST_LANGUAGE: Record<Language, string> = {
+  en: "English",
+  it: "Italian",
+  es: "Spanish",
+  fr: "French",
+  zh: "Chinese (Simplified)",
+};
+
+/**
+ * The one tool of ours that draws: the model says which ids matter and gives
+ * each a line, and the code looks the rest of the card up in the last list. A
+ * model that invents an id gets nothing, and one that calls a mail important
+ * still cannot hide that the code flagged it as suspicious.
+ */
+export function mailShowTool(language: Language): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "mail_show",
+      description:
+        "Put mail in front of the person as cards, after a mail_list. Give the ids worth showing — the ones that need the person's attention — and for each one a single line, in " +
+        GIST_LANGUAGE[language] +
+        ", saying what the mail wants from them. Write that line in the language above and in no other, and keep it to one short sentence: it is shown under the subject. An id that is not from the last mail_list is dropped, so only propose ids that list gave you. Do not pass a bulk newsletter, and do not mention this tool to the person.",
+      parameters: {
+        type: "object",
+        properties: {
+          items: {
+            type: "array",
+            description: "The mails to show, in the order the person should read them.",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string", description: "The mail's id, exactly as mail_list gave it." },
+                gist: { type: "string", description: "One short line about what this mail wants." },
+              },
+              required: ["id", "gist"],
+            },
+          },
+        },
+        required: ["items"],
+      },
+    },
+  };
+}

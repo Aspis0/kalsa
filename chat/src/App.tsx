@@ -20,6 +20,7 @@ import { useLanguage } from "./i18n/useLanguage";
 import { HelpSurface } from "./surfaces/HelpSurface";
 import { TelemetryNotice } from "./components/TelemetryNotice";
 import { SettingsForm } from "./components/SettingsForm";
+import { MailSettingsPage } from "./components/mail/MailSettingsPage";
 import { modelOnly } from "./lib/modelName";
 import { BrainSurface } from "./surfaces/BrainSurface";
 import { useBrain } from "./surfaces/useBrain";
@@ -226,6 +227,7 @@ export function App() {
                 busy={chat.streamingAny}
                 aiName={state?.kind === "running" && state.model ? modelOnly(state.model) : null}
                 onOpenAi={() => openSurface("models")}
+                onOpenMail={() => openSurface("mail")}
                 onWebTools={(webTools) => {
                   // Writes only itself, from the settings that are already
                   // stored: the text sitting unsaved in the connection fields is
@@ -235,6 +237,8 @@ export function App() {
                   saveSettings(next);
                 }}
               />
+            ) : surface === "mail" ? (
+              <MailSettingsPage onBack={goBack} />
             ) : surface === "help" ? (
               <HelpSurface />
             ) : surface === "models" ? (

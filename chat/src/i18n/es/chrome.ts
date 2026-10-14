@@ -5,6 +5,7 @@ export const CHROME = {
     "room": "Sala",
     "chat": "Chat",
     "settings": "Ajustes",
+      "mail": "Correo",
     "navigation": "Páginas",
     // The settings surfaces' names, keyed as the shell looks them up.
     pages: {
@@ -31,6 +32,9 @@ export const SETTINGS = {
     "languageSystem": "Según el sistema",
     "ai": "IA",
     "usingAi": (name: string) => `Usando ${name}`,
+    "mail": "",
+    "mailHint": "Lee tu buzón en el chat y responde.",
+    "mailOpen": "Configurar el correo",
     "aiDetails": "Cambiar o ver detalles"
   };
 

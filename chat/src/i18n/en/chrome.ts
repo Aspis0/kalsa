@@ -12,6 +12,7 @@ export const CHROME = {
     "models": "Your AI",
     "devices": "Phones",
     "settings": "Settings",
+    "mail": "Mail",
   } as Record<string, string>,
   showConversations: "Show chats",
 };
@@ -33,4 +34,7 @@ export const SETTINGS = {
   ai: "AI",
   usingAi: (name: string) => `Using ${name}`,
   aiDetails: "Change or see details",
+  mail: "Mail",
+  mailHint: "Read your mailbox in the chat, and reply.",
+  mailOpen: "Set up mail",
 };

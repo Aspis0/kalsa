@@ -9,6 +9,7 @@ import "../components/NoticeBanner.css";
 import { EmptyState } from "../components/EmptyState";
 import { IMAGE_TOKENS } from "../lib/attachments";
 import { Panel } from "../components/Panel";
+import { SendConfirm } from "../components/mail/SendConfirm";
 import { ChatHeader } from "../components/ChatHeader";
 import { ChatList } from "../components/ChatList";
 import { Thread } from "../components/Thread";
@@ -71,6 +72,18 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
     convoTokens,
     panelOpen,
     setPanelOpen,
+    mailOpen,
+    setMailOpen,
+    openMail,
+    replyTo,
+    editDraft,
+    mailDrafts,
+    saveMailDraft,
+    typeMailDraft,
+    mailSend,
+    setMailSend,
+    mailSent,
+    mailDone,
     openSurface,
   } = chat;
   const empty = !active || active.messages.length === 0;
@@ -151,6 +164,17 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
               restartedAt={restartedAt}
               onMiniappState={chat.saveMiniappState}
               awaitingOk={chat.gateShown !== null}
+              mailOpen={mailOpen?.item.id ?? null}
+              onOpenMail={(item) => {
+                void openMail(item);
+                setPanelOpen(true);
+              }}
+              onReplyMail={replyTo}
+              onSendMail={setMailSend}
+              mailSent={mailSent}
+              mailDrafts={mailDrafts}
+              onSaveMail={saveMailDraft}
+              onComposeMail={editDraft}
             />
           )}
           {attachStatus ? (
@@ -228,8 +252,19 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
             if (found) chat.reattachAttachment(activeId, id);
           }}
           onAttachFile={(path, name) => void attachFromDisk(path, name)}
-          onClose={() => setPanelOpen(false)}
+          mail={mailOpen}
+          mailDrafts={mailDrafts}
+          mailSent={mailSent}
+          onMailDraft={editDraft}
+          onMailReply={typeMailDraft}
+          onMailSave={saveMailDraft}
+          onMailSend={setMailSend}
+          onClose={() => {
+            setPanelOpen(false);
+            setMailOpen(null);
+          }}
         />
+        <SendConfirm pending={mailSend} onClose={() => setMailSend(null)} onSent={mailDone} />
       </div>
     </div>
   );
