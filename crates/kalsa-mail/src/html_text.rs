@@ -12,7 +12,7 @@
 //! without the person confirming it.
 
 use crate::html_depth::{nests_deeper_than, MAX_DEPTH};
-use crate::html_element::{counts_as_hidden, image_text, is_dropped, is_hidden, BLOCK};
+use crate::html_element::{alt_is_hidden, counts_as_hidden, is_dropped, is_hidden, BLOCK};
 use crate::html_hide::Rules;
 use crate::invisible;
 use ego_tree::NodeRef;
@@ -120,9 +120,7 @@ fn walk(root: NodeRef<'_, Node>, rules: &Rules, out: &mut String, hidden: &mut b
                     continue;
                 }
                 if name == "img" {
-                    if let Some(alt) = image_text(element) {
-                        out.push_str(&alt);
-                    }
+                    *hidden |= alt_is_hidden(element);
                     continue;
                 }
                 if is_hidden(element, rules) {
@@ -211,6 +209,9 @@ mod tests {
         scan(html).text
     }
 
+    /// Spelled out so a source list in a test is not read as a file path.
+    const PROTOCOL_RELATIVE: &str = "//track.example.net/p.gif";
+
     #[test]
     fn a_style_or_a_script_with_attributes_is_dropped() {
         let css = "<style type=\"text/css\">.segreto { color: red }</style><p>Ciao</p>";
@@ -242,25 +243,23 @@ mod tests {
         }
     }
 
+    /// An image contributes nothing, whatever it points at and whatever it
+    /// claims to be.
     #[test]
-    fn a_remote_image_goes_with_its_alt_text() {
-        let text = text_of("<p><img src=\"https://track.example.net/p.gif\" alt=\"Ciao\"></p>");
-        assert!(!text.contains("track.example.net"));
-        assert!(!text.contains("Ciao"));
-    }
-
-    #[test]
-    fn a_cid_image_is_dropped_too() {
-        // The lab treats an inline part as remote as well: it is still a part this
-        // server never opens.
-        let text = text_of("<p><img src=\"cid:logo@1\" alt=\"Logo\"><br>Ciao</p>");
-        assert!(!text.contains("Logo"));
-        assert!(text.contains("Ciao"));
-    }
-
-    #[test]
-    fn a_local_image_keeps_its_caption() {
-        assert!(text_of(r#"<img alt="Logo" src="logo.png">"#).contains("Logo"));
+    fn no_image_contributes_text_of_its_own() {
+        for source in [
+            "https://track.example.net/p.gif",
+            "HTTPS://track.example.net/p.gif",
+            PROTOCOL_RELATIVE,
+            "cid:logo@1",
+            "data:image/png;base64,AAAA",
+            "logo.png",
+            "\u{1}https://track.example.net/p.gif",
+            "\u{202e}//track.example.net/p.gif",
+        ] {
+            let html = format!(r#"<p>Ciao<img src="{source}" alt="logo"></p>"#);
+            assert_eq!(text_of(&html), "Ciao", "{source}");
+        }
     }
 
     /// Deeper than a renderer will follow, and past the bound this server
