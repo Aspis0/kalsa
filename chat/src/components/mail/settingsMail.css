@@ -129,5 +129,5 @@
 }
 
 .mail-perm.is-ask::before {
-  background: var(--warn);
+  background: var(--warn-face);
 }
