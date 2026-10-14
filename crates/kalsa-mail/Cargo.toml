@@ -36,6 +36,9 @@ scraper = "=0.27.0"
 ego-tree = "=0.11.0"
 # Registrable domains from a pinned Public Suffix List snapshot.
 psl = "2.1"
+# Sends the reply the person confirmed. TLS is rustls with the Mozilla roots, so no native-tls
+# enters the graph; the SMTP roots therefore differ from IMAP's operating-system store.
+lettre = { version = "=0.11.23", default-features = false, features = ["smtp-transport", "builder", "tokio1-rustls-tls"] }
 url = "2"
 regex = "1"
 zeroize = { version = "1.9", features = ["derive"] }
@@ -45,7 +48,7 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 rand = { version = "0.9", default-features = false, features = ["std", "std_rng", "thread_rng"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-std", "time"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-std", "io-util", "time"] }
 
 [dev-dependencies]
 proptest = "=1.12.0"

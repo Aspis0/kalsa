@@ -15,18 +15,27 @@ struct Line<'a> {
     user: &'a str,
     password: &'a str,
     tls: bool,
+    from: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     authserv_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    smtp_host: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    smtp_port: Option<u16>,
 }
 
 pub(crate) fn line(account: &MailAccount, password: &str) -> Result<Zeroizing<String>, MailError> {
+    let known = providers::guess(&account.email);
     let line = Line {
         host: &account.host,
         port: account.port,
         user: &account.user,
         password,
         tls: account.tls(),
-        authserv_id: providers::guess(&account.email).and_then(|guess| guess.authserv_id),
+        from: &account.email,
+        authserv_id: known.and_then(|guess| guess.authserv_id),
+        smtp_host: known.and_then(|guess| guess.smtp).map(|(host, _)| host),
+        smtp_port: known.and_then(|guess| guess.smtp).map(|(_, port)| port),
     };
     serde_json::to_string(&line).map(Zeroizing::new).map_err(|_| MailError::Failed)
 }
@@ -57,28 +66,29 @@ mod tests {
         let line = line(&account, FAKE_PASSWORD).expect("built");
         assert!(!line.contains('\n') && !line.contains('\r'));
         assert_eq!(line.matches(FAKE_PASSWORD).count(), 1);
-        assert_eq!(keys(&line), ["host", "password", "port", "tls", "user"]);
+        assert_eq!(keys(&line), ["from", "host", "password", "port", "tls", "user"]);
         let parsed: serde_json::Value = serde_json::from_str(&line).expect("json");
         assert_eq!(parsed["host"], "127.0.0.1");
         assert_eq!(parsed["port"], 1260);
         assert_eq!(parsed["tls"], false);
+        assert_eq!(parsed["from"], "lab@example.test");
         assert_eq!(parsed["password"], FAKE_PASSWORD);
     }
 
     #[test]
-    fn gmail_names_its_authserv_id_and_other_providers_do_not() {
+    fn gmail_names_its_authserv_id_and_its_submission_server() {
         let gmail = MailAccount::new("anna@gmail.com", "imap.gmail.com", 993, None).expect("valid");
         let line = line(&gmail, FAKE_PASSWORD).expect("built");
-        assert!(keys(&line).contains(&"authserv_id".to_owned()));
         let parsed: serde_json::Value = serde_json::from_str(&line).expect("json");
         assert_eq!(parsed["authserv_id"], "mx.google.com");
-
-        let other = MailAccount::new("anna@example.it", "imap.example.it", 993, None).expect("valid");
-        assert!(!keys(&line_of(&other)).contains(&"authserv_id".to_owned()));
+        assert_eq!(parsed["smtp_host"], "smtp.gmail.com");
+        assert_eq!(parsed["smtp_port"], 465);
     }
 
-    fn line_of(account: &MailAccount) -> String {
-        line(account, FAKE_PASSWORD).expect("built").to_string()
+    #[test]
+    fn an_unknown_provider_names_neither_an_authserv_id_nor_a_submission_server() {
+        let other = MailAccount::new("anna@example.it", "imap.example.it", 993, None).expect("valid");
+        assert_eq!(keys(&line(&other, FAKE_PASSWORD).expect("built")), ["from", "host", "password", "port", "tls", "user"]);
     }
 
     #[test]

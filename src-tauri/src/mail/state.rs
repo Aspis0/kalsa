@@ -40,20 +40,53 @@ impl Slot<'_> {
         arguments: Map<String, Value>,
         open: impl FnOnce() -> Result<Host<StdioLauncher>, MailError>,
     ) -> Result<ToolResponse, MailError> {
-        if self.0.is_none() {
-            *self.0 = Some(open()?);
-        }
-        let host = self.0.as_mut().ok_or(MailError::Failed)?;
+        self.ensure_open(open)?;
+        let host = self.host()?;
         match host.call(PANEL_CONVERSATION, name, arguments).await {
             Ok(CallOutcome::Ran(result)) => Ok(result.into()),
             Ok(CallOutcome::NeedsConfirmation(_)) => Err(MailError::Confirmation),
-            Err(error) => {
-                if matches!(error, HostError::ServerGone(_) | HostError::Launch(_)) {
-                    *self.0 = None;
-                }
-                Err(error.into())
-            }
+            Err(error) => Err(self.fail(error)),
         }
+    }
+
+    /// A send is never run by a plain call: the host has to ask first, and the
+    /// person's click is the answer. The confirmation carries the exact arguments
+    /// they saw, and a send that ran without the ask is refused.
+    pub(crate) async fn confirmed_send(
+        &mut self,
+        arguments: Map<String, Value>,
+        open: impl FnOnce() -> Result<Host<StdioLauncher>, MailError>,
+    ) -> Result<ToolResponse, MailError> {
+        self.ensure_open(open)?;
+        let host = self.host()?;
+        let pending = match host.call(PANEL_CONVERSATION, "mail.send", arguments.clone()).await {
+            Ok(CallOutcome::NeedsConfirmation(pending)) => pending,
+            Ok(CallOutcome::Ran(_)) => return Err(MailError::Denied),
+            Err(error) => return Err(self.fail(error)),
+        };
+        match host.confirm(pending, arguments).await {
+            Ok(result) => Ok(result.into()),
+            Err(error) => Err(self.fail(error)),
+        }
+    }
+
+    fn ensure_open(&mut self, open: impl FnOnce() -> Result<Host<StdioLauncher>, MailError>) -> Result<(), MailError> {
+        if self.0.is_none() {
+            *self.0 = Some(open()?);
+        }
+        Ok(())
+    }
+
+    fn host(&mut self) -> Result<&mut Host<StdioLauncher>, MailError> {
+        self.0.as_mut().ok_or(MailError::Failed)
+    }
+
+    /// A sidecar that died or never started is dropped, so the next call starts a fresh one.
+    fn fail(&mut self, error: HostError) -> MailError {
+        if matches!(error, HostError::ServerGone(_) | HostError::Launch(_)) {
+            *self.0 = None;
+        }
+        error.into()
     }
 }
 

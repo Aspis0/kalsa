@@ -186,3 +186,23 @@ async fn a_result_from_one_server_makes_the_other_servers_tools_ask() {
     assert_eq!(calls(&calendar), vec!["lookup", "lookup"]);
     assert_eq!(calls(&mail), vec!["list"]);
 }
+
+#[tokio::test]
+async fn mail_send_never_runs_without_confirm() {
+    let binary = TempBinary::new("send-ask", b"mail server v1");
+    let send = tool("send", "Sends a reply");
+    let tools = state(vec![send.clone()], &[]);
+    let mut pins = Pins::default();
+    seed(&mut pins, "mail", &binary.path(), &[send]);
+    let mut host = mail_host(&binary, &tools, pins);
+    let request = args(json!({"reply_to_id": 1, "subject": "Re", "body": "Va bene."}));
+
+    let pending = match host.call("conv", "mail.send", request.clone()).await {
+        Ok(CallOutcome::NeedsConfirmation(pending)) => pending,
+        _ => panic!("send must wait for the person"),
+    };
+    assert!(calls(&tools).is_empty(), "nothing ran before the confirm");
+
+    host.confirm(pending, request).await.expect("the confirmed send runs");
+    assert_eq!(calls(&tools), vec!["send"]);
+}

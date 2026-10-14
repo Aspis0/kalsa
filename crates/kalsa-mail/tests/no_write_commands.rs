@@ -1,11 +1,12 @@
-//! The crate is read-only. This is the check that no write command exists in it,
-//! not a promise: the words are searched for in every source file of the crate.
+//! What this crate may write, checked in its sources rather than promised. Mail is read
+//! over IMAP without a write command, and it is sent only by the `send` tool, which the
+//! host runs after the person confirms it.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-/// IMAP commands that change a mailbox. If one of these appears as a command, the
-/// sidecar can write, and step one says it cannot.
-const WRITE_COMMANDS: [&str; 9] = [
+/// IMAP commands that change a mailbox. If one of these appears, the sidecar can write
+/// to the mailbox, which the read path never does.
+const WRITE_COMMANDS: [&str; 10] = [
     "STORE",
     "APPEND",
     "EXPUNGE",
@@ -15,7 +16,15 @@ const WRITE_COMMANDS: [&str; 9] = [
     "CREATE",
     "SETFLAGS",
     "SUBSCRIBE",
+    "SELECT",
 ];
+
+/// The list above has to be spelled out somewhere, so this file is the one place the
+/// words may appear. Everything else in the crate is checked.
+const THIS_FILE: &str = "no_write_commands.rs";
+
+/// The only modules that name lettre: one composes the message, one delivers it.
+const SENDING_MODULES: [&str; 2] = ["compose.rs", "smtp.rs"];
 
 fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -34,19 +43,27 @@ fn sources(directory: &str) -> Vec<PathBuf> {
     found
 }
 
-/// The list above has to be spelled out somewhere, so this file is the one place the
-/// words may appear. Everything else in the crate is checked.
-const THIS_FILE: &str = "no_write_commands.rs";
+fn source_texts() -> Vec<(PathBuf, String)> {
+    let mut files = sources("src");
+    files.extend(sources("tests"));
+    files
+        .into_iter()
+        .map(|path| {
+            let text = std::fs::read_to_string(&path).unwrap_or_default();
+            (path, text)
+        })
+        .collect()
+}
+
+fn is_named(path: &std::path::Path, name: &str) -> bool {
+    path.file_name().is_some_and(|file| file == name)
+}
 
 #[test]
 fn no_source_file_mentions_a_write_command() {
-    let mut files = sources("src");
-    files.extend(sources("tests"));
-    files.retain(|path| !path.ends_with(THIS_FILE));
+    let files = source_texts();
     assert!(files.len() > 2, "the crate has sources to check");
-
-    for path in files {
-        let text = std::fs::read_to_string(&path).unwrap_or_default();
+    for (path, text) in files.iter().filter(|(path, _)| !is_named(path, THIS_FILE)) {
         for (number, line) in text.lines().enumerate() {
             for command in WRITE_COMMANDS {
                 assert!(
@@ -96,18 +113,49 @@ fn the_read_path_uses_peek_and_examine_only() {
     }
 }
 
-/// The manifest is part of the promise: no mail crate that can send is even present.
 #[test]
-fn no_sending_crate_is_a_dependency() {
-    let manifest = std::fs::read_to_string(crate_dir().join("Cargo.toml")).expect("Cargo.toml");
-    for sending in ["lettre", "sendmail", "mail-send", " lettre"] {
+fn lettre_is_used_only_to_compose_and_deliver() {
+    for (path, text) in source_texts() {
+        if is_named(&path, THIS_FILE) || SENDING_MODULES.iter().any(|name| is_named(&path, name)) {
+            continue;
+        }
         assert!(
-            !manifest.contains(sending),
-            "{sending} would give this crate a way to send"
+            !text.contains("lettre"),
+            "{} names lettre; only {SENDING_MODULES:?} may",
+            path.display()
         );
     }
+}
+
+#[test]
+fn delivery_and_composition_are_reached_only_through_the_send_tool() {
+    for (path, text) in source_texts() {
+        if is_named(&path, THIS_FILE) {
+            continue;
+        }
+        if !is_named(&path, "smtp.rs") && !is_named(&path, "send.rs") {
+            assert!(
+                !text.contains("deliver("),
+                "{} delivers mail; only the send tool may",
+                path.display()
+            );
+        }
+        if !is_named(&path, "send.rs") {
+            assert!(
+                !text.contains("compose::reply("),
+                "{} composes a reply; only the send tool may",
+                path.display()
+            );
+        }
+    }
+
+    let mcp = std::fs::read_to_string(crate_dir().join("src/mcp.rs")).expect("mcp.rs");
     assert!(
-        Path::new(&crate_dir().join("src/draft.rs")).exists(),
-        "the draft is built here and written nowhere"
+        mcp.contains("ToolRoute::new(tools::send()"),
+        "send is served as a tool route"
+    );
+    assert!(
+        mcp.contains("guarded(send(account, senders, listed, args))"),
+        "the send route is the only caller of send"
     );
 }

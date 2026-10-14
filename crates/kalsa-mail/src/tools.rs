@@ -1,4 +1,4 @@
-//! The three tool definitions a host pins a hash of. They live apart from the code
+//! The four tool definitions a host pins a hash of. They live apart from the code
 //! that runs them: a host that found one of these changed has to see it by reading
 //! this file alone, and these schemas are what it hashes.
 
@@ -104,11 +104,45 @@ sent and nothing is saved.",
     .with_annotations(read_only())
 }
 
-/// The three definitions exactly as they are served, in the order a host lists
+/// The writing tool. It is the only one that is not read-only, and the host asks the
+/// person before it runs.
+pub(crate) fn send() -> Tool {
+    Tool::new(
+        "send",
+        "Send a reply to one mail. It runs only after the person confirms the exact text. \
+The recipient is the address that mail came from, never an argument.",
+        schema(json!({
+            "type": "object",
+            "properties": {
+                "reply_to_id": {
+                    "type": "integer",
+                    "description": "The UID of the message being answered."
+                },
+                "subject": {
+                    "type": "string",
+                    "description": "The subject of the reply."
+                },
+                "body": {
+                    "type": "string",
+                    "description": "What the person wrote."
+                },
+                "folder": {
+                    "type": "string",
+                    "description": "Folder the message is in. Defaults to INBOX."
+                }
+            },
+            "required": ["reply_to_id", "subject", "body"],
+            "additionalProperties": false
+        })),
+    )
+    .with_annotations(ToolAnnotations::from_raw(None, Some(false), Some(true), Some(false), Some(true)))
+}
+
+/// The four definitions exactly as they are served, in the order a host lists
 /// them. The host pins a hash of these: a caller that builds its own copy is a
 /// caller that can drift.
 pub fn tool_definitions() -> Vec<Tool> {
-    vec![list(), read(), draft()]
+    vec![list(), read(), draft(), send()]
 }
 
 #[cfg(test)]
@@ -116,14 +150,19 @@ mod tests {
     use super::*;
 
     /// The host stores a hash of each tool's name, description and schema, so these
-    /// three definitions are the contract. A change here is a change on purpose.
+    /// four definitions are the contract. A change here is a change on purpose.
     #[test]
-    fn there_are_three_tools_and_nothing_that_writes() {
-        let all = [list(), read(), draft()];
+    fn there_are_four_tools_and_only_send_writes() {
+        let all = tool_definitions();
         let names: Vec<&str> = all.iter().map(|tool| tool.name.as_ref()).collect();
-        assert_eq!(names, vec!["list", "read", "draft"]);
+        assert_eq!(names, vec!["list", "read", "draft", "send"]);
         for tool in all {
             let annotations = tool.annotations.as_ref().expect("annotated");
+            if tool.name == "send" {
+                assert_eq!(annotations.read_only_hint, Some(false), "send is the one write");
+                assert_eq!(annotations.destructive_hint, Some(true));
+                continue;
+            }
             assert_eq!(
                 annotations.read_only_hint,
                 Some(true),
@@ -138,9 +177,9 @@ mod tests {
     #[test]
     fn what_is_served_is_what_tool_definitions_returns() {
         let served = tool_definitions();
-        assert_eq!(served, vec![list(), read(), draft()]);
+        assert_eq!(served, vec![list(), read(), draft(), send()]);
         let names: Vec<&str> = served.iter().map(|tool| tool.name.as_ref()).collect();
-        assert_eq!(names, vec!["list", "read", "draft"]);
+        assert_eq!(names, vec!["list", "read", "draft", "send"]);
     }
 
     #[test]

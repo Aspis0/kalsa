@@ -6,8 +6,9 @@ pub(crate) enum Setup {
 }
 
 /// A provider guessed from the address's domain. `source` is the provider's help
-/// page the entry was taken from. `authserv_id` is the `Authentication-Results`
-/// id the provider stamps, set only where it is known.
+/// page the entry was taken from. `authserv_id` is the `Authentication-Results` id
+/// the provider stamps, set only where it is known. `smtp` is the submission server
+/// (port 465 implicit TLS, or 587 STARTTLS) for sending, when the page states it.
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct Guess {
     pub(crate) name: &'static str,
@@ -15,6 +16,7 @@ pub(crate) struct Guess {
     pub(crate) setup: Setup,
     pub(crate) authserv_id: Option<&'static str>,
     pub(crate) local_part_username: bool,
+    pub(crate) smtp: Option<(&'static str, u16)>,
     pub(crate) source: &'static str,
 }
 
@@ -25,6 +27,7 @@ pub(crate) const GUESSES: &[Guess] = &[
         setup: Setup::Guessed { host: "imap.mail.me.com", port: 993 },
         authserv_id: None,
         local_part_username: true,
+        smtp: Some(("smtp.mail.me.com", 587)),
         source: "https://support.apple.com/en-me/102525",
     },
     // Microsoft asks for OAuth2 on this server, which the host does not do yet.
@@ -34,6 +37,7 @@ pub(crate) const GUESSES: &[Guess] = &[
         setup: Setup::Unsupported,
         authserv_id: None,
         local_part_username: false,
+        smtp: None,
         source: "https://support.microsoft.com/office/pop-imap-and-smtp-settings-8361e398-8af4-4e97-b147-6c6c4ac95353",
     },
     Guess {
@@ -42,6 +46,7 @@ pub(crate) const GUESSES: &[Guess] = &[
         setup: Setup::Guessed { host: "imapmail.libero.it", port: 993 },
         authserv_id: None,
         local_part_username: false,
+        smtp: Some(("smtp.libero.it", 465)),
         source: "https://aiuto.libero.it/articolo/mail/configurare-libero-mail-con-client-di-posta-imap-e-smtp/",
     },
     Guess {
@@ -50,6 +55,7 @@ pub(crate) const GUESSES: &[Guess] = &[
         setup: Setup::Guessed { host: "in.virgilio.it", port: 993 },
         authserv_id: None,
         local_part_username: false,
+        smtp: Some(("out.virgilio.it", 465)),
         source: "https://aiuto.virgilio.it/articolo/mail/configurare-virgilio-mail-con-client-di-posta-imap-e-smtp/",
     },
     Guess {
@@ -58,6 +64,7 @@ pub(crate) const GUESSES: &[Guess] = &[
         setup: Setup::Guessed { host: "imap.aruba.it", port: 993 },
         authserv_id: None,
         local_part_username: false,
+        smtp: Some(("smtp.aruba.it", 465)),
         source: "https://guide.aruba.it/hosting-e-domini/email/configurazione-posta/parametri-configurazione-posta",
     },
     // App passwords need 2-Step Verification: support.google.com/accounts/answer/185833.
@@ -67,6 +74,7 @@ pub(crate) const GUESSES: &[Guess] = &[
         setup: Setup::Guessed { host: "imap.gmail.com", port: 993 },
         authserv_id: Some("mx.google.com"),
         local_part_username: false,
+        smtp: Some(("smtp.gmail.com", 465)),
         source: "https://support.google.com/mail/answer/7126229",
     },
 ];
@@ -90,6 +98,18 @@ mod tests {
                 assert_eq!(port, 993, "{}", entry.name);
             }
         }
+    }
+
+    #[test]
+    fn every_submission_server_is_implicit_tls_or_starttls() {
+        for entry in GUESSES {
+            if let Some((_, port)) = entry.smtp {
+                assert!(port == 465 || port == 587, "{} uses port {port}", entry.name);
+            }
+        }
+        assert_eq!(guess("anna@icloud.com").and_then(|g| g.smtp), Some(("smtp.mail.me.com", 587)));
+        assert_eq!(guess("anna@gmail.com").and_then(|g| g.smtp), Some(("smtp.gmail.com", 465)));
+        assert_eq!(guess("anna@hotmail.com").and_then(|g| g.smtp), None, "outlook does not send in step one");
     }
 
     #[test]

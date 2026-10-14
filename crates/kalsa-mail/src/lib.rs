@@ -23,4 +23,7 @@ pub mod label;
 pub mod mail;
 pub mod mailbox;
 pub mod mcp;
+mod send;
 pub mod senders;
+mod smtp;
+mod compose;

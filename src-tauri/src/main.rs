@@ -2509,6 +2509,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             mail::commands::brain_mail_list,
             mail::commands::brain_mail_read,
             mail::commands::brain_mail_draft,
+            mail::commands::brain_mail_send,
             brain_open_log_folder,
             brain_send_log,
             brain_log_webview_error,

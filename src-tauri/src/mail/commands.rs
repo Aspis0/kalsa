@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use tauri::{AppHandle, State};
 
 use super::accounts::{self, AccountForm};
@@ -120,6 +120,67 @@ fn state_file(app: &AppHandle) -> Result<PathBuf, MailError> {
     crate::state_file(app).map_err(|_| MailError::Storage)
 }
 
+/// The reply the person confirmed. Camel case on the wire, as the panel writes it.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SendArgs {
+    reply_to_id: u32,
+    subject: String,
+    body: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SendResponse {
+    sent_to: String,
+}
+
+/// Called only by the panel's send button, after the person confirms. It is not a
+/// tool the model can call.
+#[tauri::command]
+pub(crate) async fn brain_mail_send(
+    app: AppHandle,
+    state: State<'_, MailState>,
+    args: SendArgs,
+) -> Result<SendResponse, CommandFailure> {
+    let arguments = json!({"reply_to_id": args.reply_to_id, "subject": args.subject, "body": args.body})
+        .as_object()
+        .cloned()
+        .unwrap_or_default();
+    let path = state_file(&app)?;
+    let open = || {
+        let program = program::current()?;
+        host::open_saved(&path, &Keychain, &program)
+    };
+    let mut slot = state.lock().await;
+    let response = slot.confirmed_send(arguments, open).await?;
+    Ok(sent_of(response)?)
+}
+
+fn sent_of(response: ToolResponse) -> Result<SendResponse, MailError> {
+    if response.is_error {
+        return Err(send_failure(response.for_ui.as_ref()));
+    }
+    let to = response
+        .for_ui
+        .as_ref()
+        .and_then(|data| data.get("sent_to"))
+        .and_then(Value::as_str)
+        .ok_or(MailError::SendFailed)?;
+    Ok(SendResponse { sent_to: to.to_owned() })
+}
+
+fn send_failure(data: Option<&Value>) -> MailError {
+    match data.and_then(|data| data.get("code")).and_then(Value::as_str) {
+        Some("not_configured") => MailError::SendNotConfigured,
+        Some("no_recipient") => MailError::SendNoRecipient,
+        Some("unreachable") => MailError::SendUnreachable,
+        Some("refused") => MailError::SendRefused,
+        Some("not_listed" | "not_found") => MailError::SendNotListed,
+        _ => MailError::SendFailed,
+    }
+}
+
 /// The wiring itself: a command missing from `generate_handler!` is dead to the
 /// panel and nothing else would notice. The registration is macro input, so the
 /// source is what tells the truth, the same as the files check.
@@ -142,6 +203,7 @@ mod tests {
             "mail::commands::brain_mail_list",
             "mail::commands::brain_mail_read",
             "mail::commands::brain_mail_draft",
+            "mail::commands::brain_mail_send",
         ] {
             assert!(registered.contains(command), "{command} is not in generate_handler!");
         }
@@ -152,5 +214,27 @@ mod tests {
         assert!(serde_json::from_str::<ListArgs>(r#"{"days":1,"send":true}"#).is_err());
         let accepted = arguments(&ListArgs { days: Some(1), folder: None, from: None, query: None }).expect("object");
         assert_eq!(accepted.len(), 1);
+    }
+
+    #[test]
+    fn the_send_arguments_are_camel_case_and_refuse_any_other_key() {
+        let sent: SendArgs = serde_json::from_str(r#"{"replyToId":7,"subject":"Re","body":"Va bene."}"#).expect("camelCase");
+        assert_eq!(sent.reply_to_id, 7);
+        assert!(serde_json::from_str::<SendArgs>(r#"{"replyToId":7,"subject":"Re","body":"b","to":"x@evil.example"}"#).is_err());
+        assert!(serde_json::from_str::<SendArgs>(r#"{"reply_to_id":7,"subject":"Re","body":"b"}"#).is_err());
+    }
+
+    #[test]
+    fn a_sent_reply_answers_with_its_recipient_and_a_refusal_with_its_fixed_code() {
+        let done = ToolResponse {
+            for_model: Vec::new(),
+            for_ui: Some(json!({"sent_to": "segreteria@studio.example.it"})),
+            is_error: false,
+        };
+        assert_eq!(sent_of(done).map(|sent| sent.sent_to).ok().as_deref(), Some("segreteria@studio.example.it"));
+        let refused = ToolResponse { for_model: Vec::new(), for_ui: Some(json!({"code": "refused"})), is_error: true };
+        assert_eq!(sent_of(refused).err(), Some(MailError::SendRefused));
+        let unknown = ToolResponse { for_model: Vec::new(), for_ui: Some(json!({"code": "something new"})), is_error: true };
+        assert_eq!(sent_of(unknown).err(), Some(MailError::SendFailed));
     }
 }
