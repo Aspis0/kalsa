@@ -30,7 +30,7 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   // The mailbox is closed to any model but the approved ones, so the page says
   // where to change it rather than leaving a form that cannot be used.
   const running = state?.kind === "running" && typeof state.model === "string" ? state.model : "";
-  const tooSmall = running !== "" && !mailAllowed(running);
+  const modelBlocked = running !== "" && !mailAllowed(running);
 
   function onEmail(next: string): void {
     setEmail(next);
@@ -82,10 +82,10 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
       </button>
 
       <div className="settings-group">
-        {tooSmall ? (
+        {modelBlocked ? (
           <p className="mail-settings-block" role="status">
             <Icon name="alert" size={15} />
-            {t.smallModel}
+            {t.modelNotAllowed}
           </p>
         ) : (
           <>

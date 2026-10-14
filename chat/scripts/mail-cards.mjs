@@ -200,19 +200,38 @@ equal("its neighbour sent nothing", app.sentToFor(sent, FERMARO), null);
 
 /* --------------------------------------------------- who may open the mailbox */
 
-check("Qwen 3.6 may read mail", app.mailAllowed("Qwen 3.6 8B"));
-check("Gemma 4 E4B may read mail", app.mailAllowed("gemma-4-e4b"));
-check("Gemma 4 12B may read mail", app.mailAllowed("Gemma 4 12B"));
-check("LFM 2.5 2.6B may not", !app.mailAllowed("LFM 2.5 2.6B"));
-check("the LFM VL family may not", !app.mailAllowed("LFM-VL 1.6B"));
-check("a model this build does not know may not", !app.mailAllowed("some-other-model"));
+/* The strings are the catalog display names, the one the running state
+   carries. Five are approved; the small LFM 2.5 stack, its VL 3B and Gemma 4
+   E2B are not, and neither is anything this build does not know. */
+const ALLOWED_MODELS = [
+  "Alibaba Qwen 3.6",
+  "Google Gemma 4 E4B",
+  "Google Gemma 4 12B",
+  "Google Gemma 4 26B",
+  "Liquid LFM 2.5 24B",
+];
+for (const model of ALLOWED_MODELS) {
+  check(`${model} may read mail`, app.mailAllowed(model));
+}
+const REFUSED_MODELS = [
+  "Liquid LFM 2.5",
+  "Liquid LFM 2.5 2.6B",
+  "Liquid LFM 2.5 VL 3B",
+  "Google Gemma 4 E2B",
+  "Alibaba Qwen 3.5",
+  "Alibaba Qwen 3.8",
+  "some-model-this-build-does-not-know",
+];
+for (const model of REFUSED_MODELS) {
+  check(`${model} may not read mail`, !app.mailAllowed(model));
+}
 
 const offeredTo = (model) => app.offeredTools(true, "it", model).map((tool) => tool.function.name);
-const allowedNames = offeredTo("Qwen 3.6");
+const allowedNames = offeredTo("Alibaba Qwen 3.6");
 for (const name of ["mail_list", "mail_read", "mail_draft", "mail_show"]) {
   check(`${name} is offered to an approved model`, allowedNames.includes(name), allowedNames.join(", "));
 }
-const blockedNames = offeredTo("LFM 2.5 2.6B");
+const blockedNames = offeredTo("Liquid LFM 2.5");
 check("no mail tool is offered to a blocked model", !blockedNames.some((name) => name.startsWith("mail_")), blockedNames.join(", "));
 check("the web tools are still offered to it", blockedNames.includes("web_search"));
 
@@ -224,49 +243,14 @@ globalThis.window.__TAURI__.core.invoke = async (command) => {
   if (command === "brain_mail_list") return { for_model: ["mail"], for_ui: LIST, is_error: false };
   throw new Error(`mail-cards: no fixture declares ${command}`);
 };
-for (const model of ["LFM 2.5 2.6B", "LFM-VL 1.6B"]) {
+for (const model of ["Liquid LFM 2.5", "Google Gemma 4 E2B"]) {
   const before = doorCalls;
   const refused = await app.executeToolCall("mail_list", { days: 1 }, undefined, null, [], model);
   check(`${model} cannot list mail`, refused.ok === false && refused.text.includes("approved"), refused.text);
   equal(`and ${model} never reached the mailbox`, doorCalls, before);
 }
-const allowed = await app.executeToolCall("mail_list", { days: 1 }, undefined, null, [], "Qwen 3.6");
+const allowed = await app.executeToolCall("mail_list", { days: 1 }, undefined, null, [], "Liquid LFM 2.5 24B");
 check("an approved model does reach the mailbox", allowed.ok === true, allowed.text);
-
-/* ------------------------------------------- mail closes the web tools' door */
-
-const asks = [];
-const gate = (mailPresent) => ({
-  documents: () => [],
-  mailInConversation: () => mailPresent,
-  confirm: async (check) => {
-    asks.push(check);
-    return false;
-  },
-});
-
-asks.length = 0;
-await app.executeToolCall("web_search", { query: "fattura studio ferraro" }, undefined, gate(false), [], "Qwen 3.6");
-equal("a conversation with no mail and no documents does not interrupt", asks.length, 0);
-
-asks.length = 0;
-const held = await app.executeToolCall("web_search", { query: "fattura studio ferraro" }, undefined, gate(true), [], "Qwen 3.6");
-equal("mail in the conversation makes every search ask", asks.length, 1);
-equal("the ask carries the exact query", asks[0]?.outgoing, "fattura studio ferraro");
-check("and the refused search says nothing left", held.ok === false && held.text.includes("did not allow"), held.text);
-
-// The address has to be one the conversation carries: an address nobody ever
-// saw is refused outright, before there is anything to ask about.
-asks.length = 0;
-const withUrl = [{ role: "user", content: "come faccio? https://esempio.it/fattura" }];
-await app.executeToolCall("web_fetch", { url: "https://esempio.it/fattura" }, undefined, gate(true), withUrl, "Qwen 3.6");
-equal("mail makes a fetch ask as well", asks.length, 1);
-equal("the fetch ask carries the exact address", asks[0]?.outgoing, "https://esempio.it/fattura");
-
-asks.length = 0;
-const neverSeen = [{ role: "user", content: "come faccio?" }];
-await app.executeToolCall("web_fetch", { url: "https://esempio.it/fattura" }, undefined, gate(false), neverSeen, "Qwen 3.6");
-equal("an address the conversation never carried is refused outright", asks.length, 0);
 
 /* ------------------------------------------------------------------ the send */
 

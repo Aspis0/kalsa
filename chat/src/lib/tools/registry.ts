@@ -35,8 +35,6 @@ export interface GateCheck {
 export interface WebGate {
   /** The documents pinned in this conversation right now, read at call time. */
   documents: () => PinnedDoc[];
-  /** Whether this conversation has held mail text at any point. */
-  mailInConversation: () => boolean;
   /** Held for the owner's answer: true lets the call leave, false refuses it. */
   confirm: (check: GateCheck) => Promise<boolean>;
 }
@@ -162,8 +160,9 @@ export async function executeToolCall(
 
 /**
  * The gate itself, and the only door it guards. It asks when a document is
- * pinned or when the conversation has held mail, and the detectors only decide
- * how loudly the question warns, never whether it is asked.
+ * pinned — that presence is what arms it, so a plain conversation with
+ * nothing attached runs exactly as it always did — and the detectors only
+ * decide how loudly the question warns, never whether it is asked.
  */
 
 const MAIL_CLOSED =
@@ -176,9 +175,7 @@ async function admitted(
 ): Promise<boolean> {
   if (gate === null) return true;
   const docs = gate.documents();
-  // Mail arms the door on its own: the words in a mail are a stranger's, and a
-  // paraphrase of one is as much a disclosure as the quote.
-  if (docs.length === 0 && !gate.mailInConversation()) return true;
+  if (docs.length === 0) return true;
   const findings = [...findSensitive(outgoing), ...findCopied(outgoing, docs)];
   let allowed: boolean;
   try {

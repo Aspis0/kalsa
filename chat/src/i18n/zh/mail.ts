@@ -56,7 +56,7 @@ export const MAIL = {
     "appPassword": "这个服务商要的是应用专用密码，不是你平时的那个。",
     "outlook": "Outlook 还不支持。",
     "unknownServer": "我们不认识这个服务商，服务器请你��己填。",
-    "smallModel": "邮件需要一个更大的 AI。到设置 → 你的 AI 里更换。",
+    "modelNotAllowed": "这个 AI 不能读取邮件。到设置 → 你的 AI 里更换。",
     "back": "返回设置",
     canDo: "Kalsa 能对你的邮件做什么",
     permRead: "读取邮件来帮你",

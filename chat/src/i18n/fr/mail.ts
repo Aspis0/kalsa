@@ -57,7 +57,7 @@ export const MAIL = {
     "appPassword": "Ce fournisseur demande un mot de passe d'application, pas votre mot de passe habituel.",
     "outlook": "Outlook n'est pas encore pris en charge.",
     "unknownServer": "Ce fournisseur nous est inconnu : renseignez le serveur vous-même.",
-    "smallModel": "Le mail demande une IA plus grande. Changez-la dans Réglages → Votre IA.",
+    "modelNotAllowed": "Cette IA ne peut pas lire le mail. Changez-la dans Réglages → Votre IA.",
     "back": "Retour aux Réglages",
     canDo: "Ce que Kalsa peut faire avec ton courrier",
     permRead: "Il lit ton courrier pour t'aider",

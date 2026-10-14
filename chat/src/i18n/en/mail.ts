@@ -64,7 +64,7 @@ export const MAIL = {
   unknownServer: "We don't know this provider, so fill the server in yourself.",
   // With the small model running the mailbox stays closed: the owner decides
   // which AI to use, and the card says where to change it.
-  smallModel: "Mail needs a bigger AI. Change it in Settings → Your AI.",
+  modelNotAllowed: "This AI cannot read mail. Change it in Settings → Your AI.",
   back: "Back to Settings",
   canDo: "What Kalsa can do with your mail",
   permRead: "It reads your mail to help you",
