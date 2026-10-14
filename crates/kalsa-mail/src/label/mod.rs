@@ -7,8 +7,11 @@
 
 pub mod auth;
 pub mod bulk;
+pub mod dates;
 pub mod hidden;
+pub mod language;
 pub mod phishing;
+pub mod signals;
 
 use crate::mail::ParsedMail;
 use serde::Serialize;
@@ -99,9 +102,7 @@ pub fn label(
     history: &[Sender],
     trusted_authserv_id: Option<&str>,
 ) -> Labels {
-    let saw_sender_before = history
-        .iter()
-        .any(|other| other.address == mail.from_address && other.uid < uid);
+    let saw_sender_before = seen_before(history, &mail.from_address, uid);
 
     let mut reasons = Vec::new();
     reasons.extend(auth::reasons(&mail.headers, trusted_authserv_id));
@@ -136,6 +137,14 @@ pub fn label(
         bulk,
         reasons: all,
     }
+}
+
+/// Whether the same address sent an earlier mail, by UID. Shared by the labeller and the
+/// known-sender signal, so the two cannot disagree about who was seen first.
+pub fn seen_before(history: &[Sender], address: &str, uid: u32) -> bool {
+    history
+        .iter()
+        .any(|other| other.address == address && other.uid < uid)
 }
 
 /// The header values of one name, in wire order. The rules read position, not

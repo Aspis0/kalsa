@@ -4,6 +4,8 @@
 use crate::fence::Fence;
 use crate::html_text;
 use crate::invisible;
+use crate::label::language::Language;
+use crate::label::signals::{self, Signal};
 use crate::label::Labels;
 use crate::mail::ParsedMail;
 use rmcp::model::{CallToolResult, ContentBlock};
@@ -47,6 +49,8 @@ pub struct ListItem {
     pub date: Option<String>,
     pub snippet: String,
     pub labels: LabelsOut,
+    #[serde(serialize_with = "signals::serialize_codes")]
+    pub signals: Vec<Signal>,
 }
 
 #[derive(Serialize)]
@@ -68,10 +72,12 @@ pub struct ReadOut {
     pub thread_ids: Vec<String>,
     pub attachments: Vec<AttachmentOut>,
     pub labels: LabelsOut,
+    #[serde(serialize_with = "signals::serialize_codes")]
+    pub signals: Vec<Signal>,
 }
 
 impl ListItem {
-    pub fn of(uid: u32, mail: &ParsedMail, labels: &Labels) -> ListItem {
+    pub fn of(uid: u32, mail: &ParsedMail, labels: &Labels, signals: Vec<Signal>) -> ListItem {
         ListItem {
             id: uid.to_string(),
             from: Address::of(mail),
@@ -79,12 +85,13 @@ impl ListItem {
             date: rfc3339(mail.date_ms),
             snippet: html_text::snippet(&mail.text, SNIPPET_LIMIT),
             labels: LabelsOut::from(labels),
+            signals,
         }
     }
 }
 
 impl ReadOut {
-    pub fn of(uid: u32, mail: &ParsedMail, labels: &Labels) -> ReadOut {
+    pub fn of(uid: u32, mail: &ParsedMail, labels: &Labels, signals: Vec<Signal>) -> ReadOut {
         ReadOut {
             id: uid.to_string(),
             from: Address::of(mail),
@@ -105,6 +112,7 @@ impl ReadOut {
                 })
                 .collect(),
             labels: LabelsOut::from(labels),
+            signals,
         }
     }
 }
@@ -129,7 +137,7 @@ fn rfc3339(date_ms: i64) -> Option<String> {
 
 impl ListItem {
     /// The lines of one item a model may read.
-    pub fn fenced(&self, fence: &Fence) -> Vec<String> {
+    pub fn fenced(&self, fence: &Fence, language: Language) -> Vec<String> {
         vec![
             fence.field(
                 "from",
@@ -138,13 +146,14 @@ impl ListItem {
             fence.field("subject", &self.subject),
             fence.field("snippet", &self.snippet),
             fence.field("labels", self.labels.label),
+            fence.field("signals", &signals::tag_line(&self.signals, language)),
         ]
     }
 }
 
 impl ReadOut {
     /// The full text lives here and only here: this is what a model reads.
-    pub fn fenced(&self, fence: &Fence, body: &str) -> Vec<String> {
+    pub fn fenced(&self, fence: &Fence, body: &str, language: Language) -> Vec<String> {
         vec![
             fence.field(
                 "from",
@@ -152,6 +161,7 @@ impl ReadOut {
             ),
             fence.field("subject", &self.subject),
             fence.field("body", body),
+            fence.field("signals", &signals::tag_line(&self.signals, language)),
         ]
     }
 }
@@ -215,8 +225,8 @@ mod tests {
     #[test]
     fn a_result_carries_a_structured_record_and_fenced_text() {
         let fence = Fence::new();
-        let item = ListItem::of(7, &mail(), &labels());
-        let result = result(&fence, &item, item.fenced(&fence));
+        let item = ListItem::of(7, &mail(), &labels(), Vec::new());
+        let result = result(&fence, &item, item.fenced(&fence, Language::Italian));
         let structured = result.structured_content.expect("structured content");
         assert_eq!(structured["id"], "7");
         assert_eq!(structured["labels"]["label"], "suspicious");
@@ -237,8 +247,8 @@ mod tests {
     fn the_structured_record_holds_no_mail_body() {
         let fence = Fence::new();
         let parsed = mail_with_body(&format!("{}. Fine.", "riempimento ".repeat(40)));
-        let out = ReadOut::of(9, &parsed, &labels());
-        let result = result(&fence, &out, out.fenced(&fence, &parsed.text));
+        let out = ReadOut::of(9, &parsed, &labels(), Vec::new());
+        let result = result(&fence, &out, out.fenced(&fence, &parsed.text, Language::Italian));
         let structured = result.structured_content.expect("structured content");
         let dumped = structured.to_string();
         assert!(
@@ -275,7 +285,7 @@ mod tests {
         }];
         parsed.thread_ids = vec!["<a@b.example.it>\r\nX-Injected".to_string()];
 
-        let out = ReadOut::of(9, &parsed, &labels());
+        let out = ReadOut::of(9, &parsed, &labels(), Vec::new());
         let dumped = serde_json::to_string(&out).expect("a record");
         for forbidden in ['\u{0}', '\u{7f}', '\u{2028}', '\r', '\n'] {
             assert!(
@@ -305,12 +315,12 @@ mod tests {
                 size: text.len(),
             }];
 
-            let out = ReadOut::of(9, &parsed, &labels());
+            let out = ReadOut::of(9, &parsed, &labels(), Vec::new());
             let record = serde_json::to_string(&out).expect("a record");
             prop_assert!(!record.chars().any(|c| c.is_control() && c != '\n'), "{}", record);
 
             let fence = Fence::new();
-            let result = result(&fence, &out, out.fenced(&fence, &parsed.text));
+            let result = result(&fence, &out, out.fenced(&fence, &parsed.text, Language::Italian));
             let text = result.content.first()
                 .and_then(|block| block.as_text().map(|t| t.text.clone()))
                 .unwrap_or_default();
@@ -321,6 +331,7 @@ mod tests {
                         || line == "from:"
                         || line == "subject:"
                         || line == "body:"
+                        || line == "signals:"
                         || line.starts_with("<<<")
                         || line.starts_with("The lines below"),
                     "unmarked line {:?}",

@@ -6,7 +6,8 @@ use crate::account::Account;
 use crate::draft;
 use crate::fence::Fence;
 use crate::imap::{self, MailError};
-use crate::label::{self, Sender};
+use crate::label::signals::{self, Around, Signal};
+use crate::label::{self, language, Sender};
 use crate::listed::Listed;
 use crate::mail::{self, ParsedMail};
 use crate::mailbox::Mailbox;
@@ -139,17 +140,28 @@ async fn list(
     };
     mailbox.logout().await;
 
-    let items: Vec<ListItem> = sources
+    let parsed: Vec<(u32, ParsedMail)> = sources
         .iter()
-        .map(|source| {
-            let parsed = mail::parse(&source.bytes);
-            let labels = label::label(source.uid, &parsed, &senders, account.trusted_authserv_id());
-            ListItem::of(source.uid, &parsed, &labels)
+        .map(|source| (source.uid, mail::parse(&source.bytes)))
+        .collect();
+    let reference_ms = parsed.iter().map(|(_, mail)| mail.date_ms).max().unwrap_or(0);
+    let language = language::of(parsed.iter().map(|(_, mail)| mail));
+    let around = Around {
+        history: &senders,
+        account: account_address(&account),
+        reference_ms,
+    };
+    let items: Vec<ListItem> = parsed
+        .iter()
+        .map(|(uid, mail)| {
+            let labels = label::label(*uid, mail, &senders, account.trusted_authserv_id());
+            let found = signals::signals(*uid, mail, &around);
+            ListItem::of(*uid, mail, &labels, found)
         })
         .collect();
 
     let fence = Fence::new();
-    let lines: Vec<String> = items.iter().flat_map(|item| item.fenced(&fence)).collect();
+    let lines: Vec<String> = items.iter().flat_map(|item| item.fenced(&fence, language)).collect();
     view::result(
         &fence,
         &ListOut {
@@ -178,7 +190,7 @@ async fn one(
     listed: &Arc<Mutex<Listed>>,
     folder: &str,
     uid: u32,
-) -> Result<(u32, ParsedMail, label::Labels), MailError> {
+) -> Result<(u32, ParsedMail, label::Labels, Vec<Signal>), MailError> {
     let mut mailbox = open(account, folder).await?;
     if !cache.lock().await.agrees_with(folder, mailbox.uid_validity) {
         mailbox.logout().await;
@@ -197,8 +209,22 @@ async fn one(
         return Err(MailError::Protocol);
     };
     let parsed = mail::parse(&source.bytes);
-    let labels = label::label(uid, &parsed, &senders?, account.trusted_authserv_id());
-    Ok((uid, parsed, labels))
+    let senders = senders?;
+    let labels = label::label(uid, &parsed, &senders, account.trusted_authserv_id());
+    let around = Around {
+        history: &senders,
+        account: account_address(account),
+        reference_ms: parsed.date_ms,
+    };
+    let found = signals::signals(uid, &parsed, &around);
+    Ok((uid, parsed, labels, found))
+}
+
+/// The reader's own address, when the account carries one. Without it the direct
+/// signal is off rather than guessed.
+fn account_address(account: &Account) -> Option<&str> {
+    let user = account.user();
+    user.contains('@').then_some(user)
 }
 
 async fn read(
@@ -208,16 +234,17 @@ async fn read(
     args: ReadArgs,
 ) -> CallToolResult {
     let folder = args.folder.unwrap_or_else(default_folder);
-    let (uid, parsed, labels) = match one(&account, &cache, &listed, &folder, args.id).await {
+    let (uid, parsed, labels, found) = match one(&account, &cache, &listed, &folder, args.id).await {
         Ok(answer) => answer,
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
         }
         Err(error) => return view::error(error.message()),
     };
-    let out = ReadOut::of(uid, &parsed, &labels);
+    let language = language::of([&parsed]);
+    let out = ReadOut::of(uid, &parsed, &labels, found);
     let fence = Fence::new();
-    let lines = out.fenced(&fence, &parsed.text);
+    let lines = out.fenced(&fence, &parsed.text, language);
     view::result(&fence, &out, lines)
 }
 
@@ -228,7 +255,7 @@ async fn draft_reply(
     args: DraftArgs,
 ) -> CallToolResult {
     let folder = args.folder.unwrap_or_else(default_folder);
-    let (_, parsed, _) = match one(&account, &cache, &listed, &folder, args.reply_to_id).await {
+    let (_, parsed, _, _) = match one(&account, &cache, &listed, &folder, args.reply_to_id).await {
         Ok(answer) => answer,
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
