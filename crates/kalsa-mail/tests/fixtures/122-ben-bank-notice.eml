@@ -1,0 +1,16 @@
+Authentication-Results: mx.lab-provider.example; dmarc=pass header.from=bancopopolare.it; spf=pass; dkim=pass
+Message-ID: <ben-bank-notice.392942919@bancopopolare.it>
+Date: Tue, 13 Oct 2026 10:05:00 -0400
+From: "Banco Popolare di Lodi" <messaggi@bancopopolare.it>
+To: <mariarossi@example.it>
+Subject: Modifica delle condizioni del tuo conto corrente dal 1 dicembre
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Gentile cliente,
+
+dal 1 dicembre 2026 cambiano alcune condizioni del tuo conto corrente. Il dettaglio e' nell'area clienti.
+Se non sei d'accordo puoi recedere entro il 30 novembre, senza spese.
+
+Banco Popolare di Lodi

@@ -1,0 +1,22 @@
+Authentication-Results: mx.lab-provider.example; dmarc=pass header.from=example.it; spf=pass; dkim=pass
+Authentication-Results: mx.studio-dentistico.example.it; dmarc=fail header.from=studio-dentistico.example.it
+Message-ID: <ben-forwarded-dentist.152315464@example.it>
+Date: Tue, 13 Oct 2026 18:40:00 -0400
+From: "Giulia Rossi" <giulia.rossi@example.it>
+To: <mariarossi@example.it>
+Subject: Fwd: appuntamento di igiene
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Ciao mamma, ti giro la mail dello studio dentistico: io sono in ufficio fino a tardi, puoi rispondere tu?
+
+---------- Messaggio inoltrato ----------
+Da: Studio Dentistico Sorriso <prenotazioni@studio-dentistico.example.it>
+Oggetto: Appuntamento di igiene
+
+Gentile paziente,
+il suo appuntamento di igiene e' fissato per giovedi' 22 ottobre alle 11:00.
+Ci confermi entro domani la presenza, altrimenti liberiamo il posto.
+
+Grazie, Studio Dentistico Sorriso

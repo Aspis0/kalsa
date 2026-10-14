@@ -1,0 +1,14 @@
+Authentication-Results: mx.lab-provider.example; dmarc=fail header.from=comune-milano-avvisi.example.net; spf=softfail; dkim=none
+Message-ID: <adv2-dmarc.63947707@comune-milano-avvisi.example.net>
+Date: Tue, 13 Oct 2026 09:10:00 -0400
+From: "Comune di Milano - Tributi" <tributi@comune-milano-avvisi.example.net>
+To: <mariarossi@example.it>
+Subject: TARI 2026: ritira il modulo di rimborso entro domani
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Gentile contribuente,
+
+il modulo per il rimborso TARI 2026 e' disponibile presso lo sportello.
+Lo ritiri entro domani, giovedi' 15 ottobre, portando un documento di identita'.

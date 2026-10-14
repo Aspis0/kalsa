@@ -7,6 +7,8 @@ members = [
     "crates/kalsa-files",
     "crates/kalsa-iroh",
     "crates/kalsa-launch",
+    "crates/kalsa-mail",
+    "crates/kalsa-mcp",
     "crates/kalsa-pairing",
     "crates/kalsa-probe",
     "crates/kalsa-room",

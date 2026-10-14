@@ -119,7 +119,18 @@ A mail is "suspicious" if any of these holds:
   - a link targets a raw IP address, a URL shortener, or a punycode lookalike domain.
 - **Urgency:** a credential or payment request word (password, verifica, conto, bonifico, IBAN) appears together with an urgency word (entro, scade, immediately, 24 ore) from a sender never seen in the mailbox before.
 
+- **Hidden text:** the HTML hides text (display:none, visibility:hidden, font-size 0, white on white, zero-width characters). The reason shown is "testo nascosto".
+
 Every rule gets its own test, with a real-looking sample mail. The lab's phishing mail must be flagged.
+
+Owner decision, 2026-10-14: a first-contact mail asking for a payment stays **Sospetta**. This includes a genuine new supplier's invoice; the IBAN-change scam has exactly that shape. Every mail card and the Mail tab carry a standing line in plain words: Kalsa can be wrong, and the person should always read the mail carefully before acting on it.
+
+Lab 0b labeller, on 48 mails with realistic headers and with domains compared by registrable domain (tldts):
+
+| Label | Precision | Recall | Note |
+|---|---|---|---|
+| Suspicious | 0.917 | 0.846 | The 2 misses are plain-text injections. No label can catch them; the fencing covers them. |
+| Bulk | 1.000 | 0.926 | — |
 
 ## Rules added after the review and the competitor study (2026-10-14)
 
@@ -140,14 +151,17 @@ Sources: the luna review in /tmp/kalsa-mail-plan-review.md (no P0, 13 P1) and th
 - There is no "allow everything" switch.
 - Write tools we do not support are not registered at all, rather than registered and refused.
 
-**Third-party servers wait for a sandbox.** A consented process still has the user's files and network. They stay out until a per-server sandbox exists (macOS sandbox-exec or App Sandbox; on Windows an AppContainer or a restricted token).
+**Third-party servers wait for a sandbox.** The host refuses to launch them at all for now. A consented process still has the user's files and network.
+
+**Nothing runs unpinned.** The app ships a build-time pin set for its own servers: the tool definitions plus the sidecar binary hash. A first-party record without a matching pin is Deny. The model sees only a tool result's text content, as the server fenced it; `structuredContent` goes to the cards only. Every MCP and IMAP call has a deadline. They stay out until a per-server sandbox exists (macOS sandbox-exec or App Sandbox; on Windows an AppContainer or a restricted token).
 
 **Pins**
 - The pin covers the full tool metadata plus the server binary's hash and path.
 - The first install shows the tool list and schemas for review (a "verify tools" step), so a definition poisoned from day one is seen at least once.
 
 **The password has its own channel**
-- It is sent on a separate pipe (an inherited file descriptor on macOS, a named pipe on Windows) and read once before rmcp starts. It is never on the MCP stdio stream, in argv, or in the environment.
+- It goes only to **our own** servers. It travels as the first line on stdin, which the sidecar reads unbuffered and drops before rmcp starts. A third-party server is never sent a secret: the host refuses a bootstrap on a third-party record. Decided 2026-10-14 instead of a separate pipe, because named pipes on Windows add a cross-platform path for no gain while only our own binary reads the line.
+- It is never in argv, in the environment, or in any MCP message.
 - The sidecar's account struct does not derive `Debug`, and the password is zeroized after login.
 
 **Logs and reports**

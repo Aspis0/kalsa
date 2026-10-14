@@ -1,0 +1,15 @@
+Message-ID: <adv2-raw-ip.1922273126@parcel-desk.example.net>
+Date: Tue, 13 Oct 2026 17:45:00 -0400
+From: "Parcel Desk" <delivery-update@parcel-desk.example.net>
+To: <mariarossi@example.it>
+Subject: Your parcel is on hold - pay the fee today
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hello,
+
+your parcel is on hold at the depot. To release it, pay the 1.99 EUR customs fee on this page:
+http://203.0.113.58/release/8842
+
+Parcel Desk
