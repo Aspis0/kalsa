@@ -20,3 +20,7 @@ __pycache__/
 
 # Vite output of the stream-app preview build; regenerated on every build.
 chat/.stream-app-dist/
+
+# The mail sidecar copied in by scripts/build-mail-sidecar.sh for a packaged build.
+# It is built from this workspace each time, so the copy is never a source file.
+src-tauri/binaries/
