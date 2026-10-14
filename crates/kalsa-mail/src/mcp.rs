@@ -7,6 +7,7 @@ use crate::draft;
 use crate::fence::Fence;
 use crate::imap::{self, MailError};
 use crate::label::{self, Sender};
+use crate::listed::Listed;
 use crate::mail::{self, ParsedMail};
 use crate::mailbox::Mailbox;
 use crate::senders::Senders;
@@ -60,29 +61,27 @@ impl MailServer {
         // a reference to the service, and the password must not be tied to it.
         let account = Arc::new(account);
         let senders = Arc::new(Mutex::new(Senders::default()));
+        let listed = Arc::new(Mutex::new(Listed::default()));
         let tool_router = ToolRouter::new()
             .with_route(ToolRoute::new(tools::list(), {
-                let account = account.clone();
-                let senders = senders.clone();
+                let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
                 move |Parameters(args): Parameters<ListArgs>| {
-                    let (account, senders) = (account.clone(), senders.clone());
-                    async move { guarded(list(account, senders, args)).await }
+                    let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
+                    async move { guarded(list(account, senders, listed, args)).await }
                 }
             }))
             .with_route(ToolRoute::new(tools::read(), {
-                let account = account.clone();
-                let senders = senders.clone();
+                let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
                 move |Parameters(args): Parameters<ReadArgs>| {
-                    let (account, senders) = (account.clone(), senders.clone());
-                    async move { guarded(read(account, senders, args)).await }
+                    let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
+                    async move { guarded(read(account, senders, listed, args)).await }
                 }
             }))
             .with_route(ToolRoute::new(tools::draft(), {
-                let account = account.clone();
-                let senders = senders.clone();
+                let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
                 move |Parameters(args): Parameters<DraftArgs>| {
-                    let (account, senders) = (account.clone(), senders.clone());
-                    async move { guarded(draft_reply(account, senders, args)).await }
+                    let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
+                    async move { guarded(draft_reply(account, senders, listed, args)).await }
                 }
             }));
         MailServer { tool_router }
@@ -107,7 +106,12 @@ async fn senders_of(
     cache.lock().await.of(mailbox).await.map(<[Sender]>::to_vec)
 }
 
-async fn list(account: Arc<Account>, cache: Arc<Mutex<Senders>>, args: ListArgs) -> CallToolResult {
+async fn list(
+    account: Arc<Account>,
+    cache: Arc<Mutex<Senders>>,
+    listed: Arc<Mutex<Listed>>,
+    args: ListArgs,
+) -> CallToolResult {
     let days = args.days.unwrap_or(1).clamp(1, MAX_DAYS);
     let folder = args.folder.unwrap_or_else(default_folder);
     let mut mailbox = match open(&account, &folder).await {
@@ -121,6 +125,10 @@ async fn list(account: Arc<Account>, cache: Arc<Mutex<Senders>>, args: ListArgs)
         Ok(uids) => uids,
         Err(error) => return view::error(error.message()),
     };
+    listed
+        .lock()
+        .await
+        .remember(&folder, mailbox.uid_validity, &uids);
     let sources = match mailbox.sources(&uids).await {
         Ok(sources) => sources,
         Err(error) => return view::error(error.message()),
@@ -155,9 +163,19 @@ async fn list(account: Arc<Account>, cache: Arc<Mutex<Senders>>, args: ListArgs)
 
 /// One message, plus the labels. The ids came from a `list`, so the folder has to
 /// still be the same folder: after a rebuild the same id names a different mail.
+/// A UID that no `list` of this session returned is refused before its body is fetched.
+fn check_listed(listed: &Listed, folder: &str, uid_validity: Option<u32>, uid: u32) -> Result<(), MailError> {
+    if listed.contains(folder, uid_validity, uid) {
+        Ok(())
+    } else {
+        Err(MailError::NotListed)
+    }
+}
+
 async fn one(
     account: &Account,
     cache: &Arc<Mutex<Senders>>,
+    listed: &Arc<Mutex<Listed>>,
     folder: &str,
     uid: u32,
 ) -> Result<(u32, ParsedMail, label::Labels), MailError> {
@@ -165,6 +183,11 @@ async fn one(
     if !cache.lock().await.agrees_with(folder, mailbox.uid_validity) {
         mailbox.logout().await;
         return Err(MailError::Stale);
+    }
+    let allowed = check_listed(&*listed.lock().await, folder, mailbox.uid_validity, uid);
+    if let Err(error) = allowed {
+        mailbox.logout().await;
+        return Err(error);
     }
     let sources = mailbox.sources(&[uid]).await?;
     let senders = senders_of(cache, &mut mailbox).await;
@@ -178,9 +201,14 @@ async fn one(
     Ok((uid, parsed, labels))
 }
 
-async fn read(account: Arc<Account>, cache: Arc<Mutex<Senders>>, args: ReadArgs) -> CallToolResult {
+async fn read(
+    account: Arc<Account>,
+    cache: Arc<Mutex<Senders>>,
+    listed: Arc<Mutex<Listed>>,
+    args: ReadArgs,
+) -> CallToolResult {
     let folder = args.folder.unwrap_or_else(default_folder);
-    let (uid, parsed, labels) = match one(&account, &cache, &folder, args.id).await {
+    let (uid, parsed, labels) = match one(&account, &cache, &listed, &folder, args.id).await {
         Ok(answer) => answer,
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
@@ -196,10 +224,11 @@ async fn read(account: Arc<Account>, cache: Arc<Mutex<Senders>>, args: ReadArgs)
 async fn draft_reply(
     account: Arc<Account>,
     cache: Arc<Mutex<Senders>>,
+    listed: Arc<Mutex<Listed>>,
     args: DraftArgs,
 ) -> CallToolResult {
     let folder = args.folder.unwrap_or_else(default_folder);
-    let (_, parsed, _) = match one(&account, &cache, &folder, args.reply_to_id).await {
+    let (_, parsed, _) = match one(&account, &cache, &listed, &folder, args.reply_to_id).await {
         Ok(answer) => answer,
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
@@ -316,5 +345,16 @@ mod tests {
 
         let next = guarded(async { answered("serves normally") }).await;
         assert_ne!(next.is_error, Some(true));
+    }
+
+    #[test]
+    fn a_uid_no_list_returned_is_refused_with_a_fixed_message() {
+        let mut listed = Listed::default();
+        listed.remember("INBOX", Some(7), &[10]);
+        assert!(check_listed(&listed, "INBOX", Some(7), 10).is_ok());
+        let refused = check_listed(&listed, "INBOX", Some(7), 99);
+        assert!(matches!(refused, Err(MailError::NotListed)));
+        let message = MailError::NotListed.message();
+        assert!(!message.contains("99"), "the message must not echo the id");
     }
 }

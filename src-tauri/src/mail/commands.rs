@@ -1,0 +1,156 @@
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+use tauri::{AppHandle, State};
+
+use super::accounts::{self, AccountForm};
+use super::account::MailAccount;
+use super::error::{CommandFailure, MailError};
+use super::keychain::Keychain;
+use super::program;
+use super::host;
+use super::state::{MailState, ToolResponse};
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ListArgs {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    days: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    folder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    query: Option<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ReadArgs {
+    id: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    folder: Option<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct DraftArgs {
+    reply_to_id: u32,
+    body: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    folder: Option<String>,
+}
+
+#[tauri::command]
+pub(crate) async fn brain_mail_account_save(
+    app: AppHandle,
+    state: State<'_, MailState>,
+    input: AccountForm,
+) -> Result<MailAccount, CommandFailure> {
+    let path = state_file(&app)?;
+    Ok(accounts::save(&state, &Keychain, &path, input).await?)
+}
+
+#[tauri::command]
+pub(crate) async fn brain_mail_account_delete(app: AppHandle, state: State<'_, MailState>) -> Result<(), CommandFailure> {
+    let path = state_file(&app)?;
+    Ok(accounts::delete(&state, &Keychain, &path).await?)
+}
+
+/// Tests the saved account only. It takes no server and no password, so a caller
+/// cannot point the saved password at a host of its choosing.
+#[tauri::command]
+pub(crate) async fn brain_mail_account_test(app: AppHandle, state: State<'_, MailState>) -> Result<Vec<String>, CommandFailure> {
+    let path = state_file(&app)?;
+    Ok(accounts::test_saved(&state, &Keychain, &path).await?)
+}
+
+#[tauri::command]
+pub(crate) async fn brain_mail_list(
+    app: AppHandle,
+    state: State<'_, MailState>,
+    args: ListArgs,
+) -> Result<ToolResponse, CommandFailure> {
+    call(&app, &state, "mail.list", &args).await
+}
+
+#[tauri::command]
+pub(crate) async fn brain_mail_read(
+    app: AppHandle,
+    state: State<'_, MailState>,
+    args: ReadArgs,
+) -> Result<ToolResponse, CommandFailure> {
+    call(&app, &state, "mail.read", &args).await
+}
+
+#[tauri::command]
+pub(crate) async fn brain_mail_draft(
+    app: AppHandle,
+    state: State<'_, MailState>,
+    args: DraftArgs,
+) -> Result<ToolResponse, CommandFailure> {
+    call(&app, &state, "mail.draft", &args).await
+}
+
+async fn call<T: Serialize>(
+    app: &AppHandle,
+    state: &MailState,
+    name: &str,
+    args: &T,
+) -> Result<ToolResponse, CommandFailure> {
+    let arguments = arguments(args)?;
+    let path = state_file(app)?;
+    let open = || {
+        let program = program::current()?;
+        host::open_saved(&path, &Keychain, &program)
+    };
+    let mut slot = state.lock().await;
+    Ok(slot.call(name, arguments, open).await?)
+}
+
+fn arguments<T: Serialize>(args: &T) -> Result<Map<String, Value>, MailError> {
+    match serde_json::to_value(args) {
+        Ok(Value::Object(map)) => Ok(map),
+        _ => Err(MailError::Failed),
+    }
+}
+
+fn state_file(app: &AppHandle) -> Result<PathBuf, MailError> {
+    crate::state_file(app).map_err(|_| MailError::Storage)
+}
+
+/// The wiring itself: a command missing from `generate_handler!` is dead to the
+/// panel and nothing else would notice. The registration is macro input, so the
+/// source is what tells the truth, the same as the files check.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_mail_commands_are_registered_and_their_state_is_managed() {
+        let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/main.rs")).expect("main.rs is readable");
+        assert!(source.contains(".manage(mail::state::MailState::default())"), "the mail state is not managed");
+        let handler = source.find("generate_handler!").expect("the handler list");
+        let open = handler + source[handler..].find('[').expect("the list opens");
+        let close = open + source[open..].find(']').expect("the list closes");
+        let registered = &source[open..close];
+        for command in [
+            "mail::commands::brain_mail_account_save",
+            "mail::commands::brain_mail_account_delete",
+            "mail::commands::brain_mail_account_test",
+            "mail::commands::brain_mail_list",
+            "mail::commands::brain_mail_read",
+            "mail::commands::brain_mail_draft",
+        ] {
+            assert!(registered.contains(command), "{command} is not in generate_handler!");
+        }
+    }
+
+    #[test]
+    fn the_argument_structs_refuse_keys_they_do_not_name() {
+        assert!(serde_json::from_str::<ListArgs>(r#"{"days":1,"send":true}"#).is_err());
+        let accepted = arguments(&ListArgs { days: Some(1), folder: None, from: None, query: None }).expect("object");
+        assert_eq!(accepted.len(), 1);
+    }
+}

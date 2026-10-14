@@ -101,3 +101,34 @@ fn seeding_refuses_a_program_that_cannot_be_read() {
     let result = Pins::default().seed_binary(&server_id("mail"), &missing);
     assert!(matches!(result, Err(Error::BinaryUnreadable(_))));
 }
+
+fn hex_sha256(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+#[tokio::test]
+async fn a_digest_seeded_directly_is_the_one_the_host_checks() {
+    let bytes = b"mail server v1";
+    let binary = TempBinary::new("pins-seeded-digest", bytes);
+    let list = tool("list", "Lists mail");
+    let tools = state(vec![list.clone()], &[]);
+
+    let mut wrong = Pins::default();
+    wrong.seed_binary_with_digest(&server_id("mail"), &binary.path(), &"0".repeat(64));
+    wrong.seed_tool(&server_id("mail"), &list).expect("tool is valid");
+    let mut host = mail_host(&binary, &tools, wrong);
+    assert_eq!(host.list(&server_id("mail")).await.expect("list").binary, PinState::Changed);
+    assert!(matches!(
+        host.call("conv", "mail.list", args(json!({}))).await,
+        Err(Error::Denied(_, DenyReason::BinaryChanged))
+    ));
+    assert!(calls(&tools).is_empty());
+
+    let mut right = Pins::default();
+    right.seed_binary_with_digest(&server_id("mail"), &binary.path(), &hex_sha256(bytes).to_uppercase());
+    right.seed_tool(&server_id("mail"), &list).expect("tool is valid");
+    let mut host = mail_host(&binary, &tools, right);
+    assert_eq!(host.list(&server_id("mail")).await.expect("list").binary, PinState::Pinned);
+    assert!(matches!(host.call("conv", "mail.list", args(json!({}))).await, Ok(CallOutcome::Ran(_))));
+}

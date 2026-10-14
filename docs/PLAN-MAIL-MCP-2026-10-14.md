@@ -266,3 +266,21 @@ Settings → Mail → Aggiungi account. The fields are email address, password (
 
 - The fake server is enough for phases 0 to 2 (owner: "per ora server finto"). A real test mailbox (a fresh free Libero, GMX or iCloud address, never the owner's own) is needed only before beta testers use it. It checks real provider quirks: app passwords, folder names, IMAP ID.
 - In phase 2, should "Bozza di risposta" also offer "copy to clipboard" and "open in my mail app" (a `mailto:` with the draft)? That is a way to send without Kalsa sending.
+
+## Release wiring
+
+The mail sidecar is our own binary and ships inside the app. The app embeds its digest at build time through `option_env!("KALSA_MAIL_SHA256")` (`src-tauri/src/mail/program.rs`). Release order:
+
+1. `cargo build --release -p kalsa-mail`
+2. Digest the exact file that will be copied: `shasum -a 256 target/release/kalsa-mail` (Windows: `certutil -hashfile target\release\kalsa-mail.exe SHA256`, the second line).
+3. Copy `target/release/kalsa-mail` (`kalsa-mail.exe` on Windows) next to the app executable. The packaging step that does this (`externalBin` or resources) is not wired yet and comes with the first real build with the owner.
+4. `KALSA_MAIL_SHA256=<digest from step 2> cargo build --release -p kalsa-brain`
+
+Without `KALSA_MAIL_SHA256` at build time the bundled sidecar is not approved and the mail server does not start. A developer can point the app at their own build with `KALSA_MAIL_SERVER_BIN` and `KALSA_MAIL_SERVER_SHA256`, which the developer owns.
+
+## Gates before mail ships to anyone (luna review, 2026-10-14)
+
+- **Rust-side provenance for `brain_web_fetch` and `brain_open_url`.** Today the rule lives only in the webview, so script injected into the webview could send mail text to an outside URL through direct IPC. It is in BACKLOG; for mail it is a ship gate, not a nice-to-have.
+- **Packaging:** the sidecar is bundled at the path the resolver expects, and the packaged artifact's digest is the pin.
+- **The live Gmail run** passes: the owner's dev account, read-only, an app password, numbers and reason codes only.
+- **Saving an account never runs from the chat webview.** `brain_mail_account_save` still takes a typed host and password, and src-tauri has no native dialog plugin. Before it ships, either a native confirmation (dialog plugin) shows the address and the IMAP host, or Settings → Mail lives in its own window whose capability is the only one granted the account commands.

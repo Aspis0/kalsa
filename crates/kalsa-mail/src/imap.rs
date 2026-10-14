@@ -27,6 +27,7 @@ pub enum MailError {
     Command,
     Protocol,
     Stale,
+    NotListed,
     Timeout,
 }
 
@@ -40,6 +41,7 @@ impl MailError {
             MailError::Command => "the mail server did not answer as expected",
             MailError::Protocol => "the mail server sent something unreadable",
             MailError::Stale => "that folder changed, the list has to be taken again",
+            MailError::NotListed => "that message was not in a list of this session; list the folder first",
             MailError::Timeout => "the mail server did not answer in time",
         }
     }

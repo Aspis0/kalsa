@@ -22,6 +22,7 @@ mod instance;
 mod invites;
 mod legacy_choice;
 mod logging;
+mod mail;
 mod measurement;
 mod metrics;
 mod oom;
@@ -2459,6 +2460,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .manage(Arc::new(Brain::new()))
         .manage(web::WebCalls::default())
         .manage(files::Searches::default())
+        .manage(mail::state::MailState::default())
         .invoke_handler(tauri::generate_handler![
             telemetry::commands::brain_telemetry_status,
             telemetry::commands::brain_telemetry_set,
@@ -2501,6 +2503,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             files::brain_files_list,
             files::brain_files_read,
             files::brain_files_search,
+            mail::commands::brain_mail_account_save,
+            mail::commands::brain_mail_account_delete,
+            mail::commands::brain_mail_account_test,
+            mail::commands::brain_mail_list,
+            mail::commands::brain_mail_read,
+            mail::commands::brain_mail_draft,
             brain_open_log_folder,
             brain_send_log,
             brain_log_webview_error,

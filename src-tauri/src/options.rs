@@ -97,7 +97,7 @@ fn path_for(state_file: &Path) -> PathBuf {
 /// rename never crosses a filesystem.
 static TEMPORARY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
-fn write_atomic(
+pub(crate) fn write_atomic(
     path: &Path,
     bytes: &[u8],
     before_rename: impl FnOnce(&Path) -> io::Result<()>,

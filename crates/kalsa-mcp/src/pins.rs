@@ -33,6 +33,12 @@ impl Pins {
         Ok(())
     }
 
+    /// Approves a program by a digest the caller has already checked against the
+    /// file, so the file is not read a second time here.
+    pub fn seed_binary_with_digest(&mut self, server: &ServerId, path: &Path, sha256: &str) {
+        self.pin_binary(server, path, sha256.to_ascii_lowercase());
+    }
+
     /// Approves one tool definition as the server declares it now.
     pub fn seed_tool(&mut self, server: &ServerId, tool: &Tool) -> Result<(), Error> {
         let name = NamespacedName::new(server, &tool.name)?;

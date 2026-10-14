@@ -2815,6 +2815,7 @@ dependencies = [
  "kalsa-files",
  "kalsa-iroh",
  "kalsa-launch",
+ "kalsa-mail",
  "kalsa-mcp",
  "kalsa-pairing",
  "kalsa-probe",

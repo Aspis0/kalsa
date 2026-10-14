@@ -12,6 +12,7 @@ mod html_text;
 
 mod invisible;
 mod link;
+mod listed;
 pub mod tools;
 mod view;
 

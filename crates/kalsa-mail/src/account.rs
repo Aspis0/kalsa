@@ -101,14 +101,17 @@ pub fn read(line: &[u8]) -> Result<Account, &'static str> {
         port: raw.port,
         user: raw.user.to_string(),
         password: raw.password.0,
-        // A mailbox on this machine is the fixture server; it speaks no TLS. Anywhere
-        // else the answer is not the caller's to give.
-        tls: raw.tls || !is_loopback(raw.host),
+        tls: tls_required(raw.host, raw.tls, cfg!(debug_assertions)),
         trusted_authserv_id: raw
             .authserv_id
             .map(|id| id.trim().to_lowercase())
             .filter(|id| !id.is_empty()),
     })
+}
+
+/// Plaintext reaches only the fixture server on this machine, and only in a debug build.
+fn tls_required(host: &str, asked: bool, debug_build: bool) -> bool {
+    asked || !(debug_build && is_loopback(host))
 }
 
 fn is_loopback(host: &str) -> bool {
@@ -151,6 +154,14 @@ mod tests {
                 "{host} is the fixture server"
             );
         }
+    }
+
+    #[test]
+    fn a_release_build_never_speaks_plaintext_even_to_loopback() {
+        assert!(tls_required("127.0.0.1", false, false));
+        assert!(tls_required("localhost", false, false));
+        assert!(!tls_required("127.0.0.1", false, true));
+        assert!(tls_required("imap.example.it", false, true));
     }
 
     #[test]
