@@ -1148,10 +1148,9 @@ fn a_gemma_row_wins_the_bar_against_a_bigger_lfm_row() {
     // against itself. 64 GiB of RAM behind a 15 GiB card at 400 GB/s: the
     // card fits the dense Gemma 12B — served as its Q8 file, the pick —
     // Gemma E4B and both LFM files, but neither Qwen nor Gemma 26B. The
-    // bar is 1.5 x the pick's floor; E4B (4.6 GiB) and F16 (5.0 GiB) both
-    // clear it, the LFM file is the bigger of the two, and the card still
-    // goes to Gemma. The machine is roomy, so this also pins that the F16
-    // exception does not override a card the bar handed to another family.
+    // bar is 1.5 x the pick's floor; E4B (4.6 GiB) and LFM 24B (13.5 GiB)
+    // both clear it, the LFM file is the bigger of the two, and the card
+    // still goes to Gemma.
     let machine = ChoiceInput {
         backend: Backend::DiscreteGpu {
             vram_bytes: Some(15 * GIB),
@@ -1168,7 +1167,7 @@ fn a_gemma_row_wins_the_bar_against_a_bigger_lfm_row() {
             .expect("the row is on the menu")
     };
     let gemma = row_of("google/gemma-4-E4B-it", "Q4_K_M");
-    let lfm = row_of("LiquidAI/LFM2.5-VL-3B", "F16");
+    let lfm = row_of("LiquidAI/LFM2.5-24B-A2B", "Q4_K_M");
     let big_gemma = row_of("google/gemma-4-26B-A4B-it", "Q4_0");
     let budget = kalsa_catalog::memory_budget(machine.backend, machine.ram_bytes).usable_bytes;
     assert!(
@@ -1203,9 +1202,7 @@ fn the_bigger_row_wins_the_bar_when_lfm_is_not_the_rival() {
     // still size. 64 GiB at 800 GB/s: the pick is the dense Qwen 3.8 and
     // the bar is 1.5 x its floor; Gemma 26B (13.4 GiB), the Qwen 3.6 MoE
     // (20.6 GiB) and the LFM files all clear it, and the biggest non-LFM
-    // row — the Qwen — takes the card. The machine is roomy, so this also
-    // pins that the F16 exception does not override a card the bar handed
-    // to another family.
+    // row — the Qwen — takes the card.
     let machine = ChoiceInput {
         bandwidth_bytes_per_second: 800.0e9,
         ..input(64, false)
@@ -1234,11 +1231,11 @@ fn the_bigger_row_wins_the_bar_when_lfm_is_not_the_rival() {
         qwen.entry().weights_bytes > gemma.entry().weights_bytes,
         "the premise: the Qwen is the bigger of the two"
     );
-    // Both LFM files clear it too — the comment's claim, asserted: the
+    // The LFM files clear it too — the comment's claim, asserted: the
     // demotion is what keeps them off the card, not their missing the bar.
-    for quant in ["Q8_0", "F16"] {
+    for (repo, quant) in [("LiquidAI/LFM2.5-VL-3B", "Q8_0"), ("LiquidAI/LFM2.5-24B-A2B", "Q4_K_M")] {
         let lfm = kalsa_catalog::usable()
-            .find(|row| row.entry().repo == "LiquidAI/LFM2.5-VL-3B" && row.entry().quant == quant)
+            .find(|row| row.entry().repo == repo && row.entry().quant == quant)
             .expect("the LFM file is on the menu");
         assert!(
             decode_prediction(lfm, &machine).floor() >= wanted,
@@ -1259,9 +1256,8 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     // The demotion changes nothing where no other family clears the bar.
     // At 64/197 the bar is 1.5 x the Qwen 3.6 pick and every non-LFM floor
     // sits under it, so the bar finds an LFM row. The biggest one is LFM 24B,
-    // a different model, so the roomy exception does not swap the VL-3B F16
-    // file in. At 16/200 the same premise below the roomy line, with LFM 24B
-    // too big to fit, leaves the Q8 card where it is.
+    // and it is the second card. At 16/200 the same premise, with LFM 24B
+    // too big to fit, leaves the VL-3B Q8 card where it is.
     let roomy = metal(64, 197.0e9);
     let first = largest_that_runs_well(&roomy).expect("a 64 GiB machine runs something");
     assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
@@ -1294,7 +1290,7 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     only_lfm_clears(&small, wanted);
     let quick = quicker_alternative(&small, &first.decode).expect("a second card");
     assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
-    assert_eq!(quick.entry.quant, "Q8_0", "below the roomy line the Q8 file is the card");
+    assert_eq!(quick.entry.quant, "Q8_0", "without LFM 24B to fit, the Q8 file is the card");
 }
 
 #[test]
@@ -1767,17 +1763,12 @@ fn sixteen_gigabytes_at_forty_five_is_the_same_two_cards() {
     stand_down_cards(&machine);
 }
 
-// ── the full-precision file ────────────────────────────────────────────────
-// LiquidAI's F16 file: the roomy-machine second card, and never the pick on
-// a small one.
+// ── the second card on a big machine ───────────────────────────────────────
 
 #[test]
-fn the_roomy_card_replaces_its_own_family_and_leaves_other_models_alone() {
-    // At 32/400 the bar's answer is LFM 24B, a different model from the VL-3B
-    // whose full-precision file the exception would swap in. A different
-    // model the bar found stays, so the second card is LFM 24B's Q4_K_M file.
-    // Order the exception before the bar at 64/800 and that case flips below:
-    // that mutation turns this red.
+fn the_bar_keeps_its_answer_on_a_big_machine() {
+    // At 32/400 the bar's answer is LFM 24B, and the second card is its
+    // Q4_K_M file. At 64/800 the bar's answer is the Qwen 3.6, and it stays.
     let roomy = ChoiceInput {
         bandwidth_bytes_per_second: 400.0e9,
         ..input(32, false)
@@ -1789,9 +1780,7 @@ fn the_roomy_card_replaces_its_own_family_and_leaves_other_models_alone() {
     assert_eq!(quick.entry.quant, "Q4_K_M");
     assert!(quick.decode.floor() > first.decode.floor(), "faster than the pick");
 
-    // Different model → the bar's answer stays. At 64/800 the bar clears
-    // for the 35B MoE, and the F16 file — faster than the pick as well —
-    // does not displace another model.
+    // At 64/800 the bar clears for the 35B MoE, and it keeps the second card.
     let fast = ChoiceInput {
         bandwidth_bytes_per_second: 800.0e9,
         ..input(64, false)
@@ -1801,9 +1790,7 @@ fn the_roomy_card_replaces_its_own_family_and_leaves_other_models_alone() {
     let quick = quicker_alternative(&fast, &first.decode).expect("a second card");
     assert_eq!(quick.entry.repo, "Qwen/Qwen3.6-35B-A3B");
 
-    // Same on the 24 GB card: the bar finds Gemma 26B, and the roomy
-    // full-precision file (faster than the pick) still does not swap in —
-    // it outranks its own family, not other models.
+    // On the 24 GB card the bar finds Gemma 26B, and it keeps the second card.
     let card = ChoiceInput {
         backend: Backend::DiscreteGpu {
             vram_bytes: Some(24 * GIB),
@@ -1816,8 +1803,7 @@ fn the_roomy_card_replaces_its_own_family_and_leaves_other_models_alone() {
     let quick = quicker_alternative(&card, &first.decode).expect("a second card");
     assert_eq!(quick.entry.repo, "google/gemma-4-26B-A4B-it");
 
-    // And below the roomy line the exception has no say: 16/200 keeps the
-    // Q8 card beside the 12B.
+    // At 16/200 the second card is the VL-3B's Q8 file.
     let small = metal(16, 200.0e9);
     let first = largest_that_runs_well(&small).expect("a 16 GiB machine runs something");
     let quick = quicker_alternative(&small, &first.decode).expect("a second card");
@@ -1825,42 +1811,9 @@ fn the_roomy_card_replaces_its_own_family_and_leaves_other_models_alone() {
 }
 
 #[test]
-fn the_full_precision_file_is_not_the_first_card_below_the_roomy_line() {
-    // The F16 file is bigger than the Gemma 4 E4B and clears its speed
-    // line at 100 GB/s, so without the roomy-machine rule the pick at
-    // 16 GiB would BE the LFM full-precision file. The premise is asserted
-    // so the rule cannot be praised for a coincidence.
-    let sixteen = metal(16, 100.0e9);
-    let budget = kalsa_catalog::memory_budget(sixteen.backend, sixteen.ram_bytes);
-    let f16 = kalsa_catalog::usable()
-        .find(|row| row.entry().quant == "F16")
-        .expect("the full-precision file is on the menu");
-    assert!(
-        footprint_bytes(f16.entry(), CHOOSER_CONTEXT_TOKENS).total_bytes()
-            <= budget.usable_bytes,
-        "the premise: F16 fits a 16 GiB machine"
-    );
-    assert!(
-        decode_prediction(f16, &sixteen).floor() >= MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND,
-        "the premise: F16 clears its speed line at 100 GB/s, {:?}",
-        decode_prediction(f16, &sixteen).floor()
-    );
-    let pick = largest_that_runs_well(&sixteen).expect("a 16 GiB machine runs something");
-    assert_eq!(
-        pick.entry.repo,
-        "google/gemma-4-E4B-it",
-        "the row the owner expects on a small machine — the rule, not luck"
-    );
-    // And at 8 GiB, where F16 does not even fit, the pick is the lighter file.
-    let pick = largest_that_runs_well(&metal(8, 100.0e9)).expect("an 8 GiB machine runs something");
-    assert_eq!(pick.entry.quant, "Q4_K_M");
-}
-
-#[test]
-fn the_full_precision_file_leads_no_card_and_no_pair_shares_a_model() {
-    // 64 GiB with a 10 GiB card at 100 GB/s: the F16 file fits the card and
-    // outsizes the Gemma 4 E4B, so without the rule it would lead — the pick
-    // must be another model, and the two cards must not read the same name.
+fn no_pair_shares_a_model() {
+    // 64 GiB with a 10 GiB card at 100 GB/s: the pick must be another model,
+    // and the two cards must not read the same name.
     let small_card = ChoiceInput {
         backend: Backend::DiscreteGpu {
             vram_bytes: Some(10 * GIB),
@@ -1874,9 +1827,7 @@ fn the_full_precision_file_leads_no_card_and_no_pair_shares_a_model() {
     assert_ne!(second.entry.repo, first.entry.repo);
     assert_ne!(second.entry.display_name, first.entry.display_name);
 
-    // An 11 GiB card at 400 GB/s: the 12B leads (its measurement is in
-    // band) and the F16 file may even BE the second card — never the first —
-    // and the names still differ.
+    // An 11 GiB card at 400 GB/s: the 12B leads and the names still differ.
     let card = ChoiceInput {
         backend: Backend::DiscreteGpu {
             vram_bytes: Some(11 * GIB),

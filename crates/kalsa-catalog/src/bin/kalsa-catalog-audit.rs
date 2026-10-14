@@ -160,7 +160,7 @@ fn print_tier(tier: u64, base: ChoiceInput, context: Option<u64>) {
         });
     println!("other rows:");
     // The whole row is the identity, not the repo alone: two files of one
-    // model (Q8_0 and F16) are separate menu entries, and hiding both
+    // model (Q8_0 and Q4_K_M) are separate menu entries, and hiding both
     // because one of them won would hide the other's verdict too.
     for row in rows
         .iter()
@@ -179,8 +179,8 @@ fn print_tier(tier: u64, base: ChoiceInput, context: Option<u64>) {
 }
 
 /// The chooser's gates, in the order it applies them: manifest standing,
-/// fit at the pricing window, the reading floor, the roomy-machine rule, a
-/// file to fetch — then the row's dense speed floor, asked only when some
+/// fit at the pricing window, the reading floor, a file to fetch — then the
+/// row's dense speed floor, asked only when some
 /// other row on the menu clears its own (choice.rs). `offered` means on
 /// this machine's menu; the pick is one of them, chosen by preference,
 /// which is a separate question with its own sentence below.
@@ -240,8 +240,6 @@ fn on_the_menu(
         && offered_on(row.entry, ram_bytes)
         && fits_footprint(row.entry, &row.footprint, &budget)
         && !row.too_slow
-        && !(kalsa_catalog::full_precision_file(row.entry)
-            && ram_bytes < kalsa_catalog::ROOMY_RAM_BYTES)
         && has_a_file(row.entry)
 }
 
@@ -286,11 +284,6 @@ fn rejection(
         }
         if row.footprint.total_bytes() > budget.usable_bytes {
             reasons.push(format!("too big for {}", gibs(budget.usable_bytes)));
-        }
-        if kalsa_catalog::full_precision_file(row.entry)
-            && ram_bytes < kalsa_catalog::ROOMY_RAM_BYTES
-        {
-            reasons.push("roomy machines only: the full-precision file (32 GiB of RAM)".to_string());
         }
         if row.too_slow {
             reasons.push("too slow: below the reading floor".to_string());

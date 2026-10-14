@@ -974,8 +974,8 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
     // ── LiquidAI LFM2.5-VL-3B, verified against the Hugging Face API on 2026-10-04 ──
     // Pinned at commit `6f730e9a2c454e8af9adc29db58e638e01e5957f` ("Update
     // GGUFs", the repo's last). This row's weights are the Q8_0 file; the
-    // repo's Q4_K_M and F16 files are their own rows below, at the same
-    // commit. `curl -sIL` on the resolve URL returned exactly the
+    // repo's Q4_K_M file is its own row below, at the same commit.
+    // `curl -sIL` on the resolve URL returned exactly the
     // `x-linked-size` 2_874_779_680 and the `x-linked-etag` below, and
     // `shasum -a 256` of the downloaded file equals that etag. Not offered on
     // a machine of 8 GiB or less
@@ -1125,76 +1125,6 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
             file: "mmproj-LFM2.5-VL-3B-Q8_0.gguf",
             bytes: 583_109_984,
             sha256: "ecbbe7097f696dba67172738d79c9f01132cdb6c0b457606315e268df3d67e64",
-        }),
-        drafter: None,
-        q8: None,
-    },
-    // ── LiquidAI LFM2.5-VL-3B, the full-precision file, same repo and commit ──
-    // F16, and why not BF16: M1/M2 have no hardware BF16 and llama.cpp
-    // emulates it, so F16 is the full-precision file that is actually fast.
-    // The repo ships both, at one size. `curl -sIL` on the resolve URL
-    // returned exactly the `x-linked-size` 5_403_158_560 and the
-    // `x-linked-etag` below, and `shasum -a 256` of the downloaded file
-    // equals that etag, at the same commit as the Q8 file.
-    //
-    // Same header — same repo, same commit — so the derivations are the
-    // same ones: `lfm2`, 30 blocks with 8 attention layers at 8 KV heads of
-    // 64 (key/value_length absent, defaulted to 2048/32) — 8_704 bytes a
-    // token at the q8_0 cache the launcher pins; 22 shortconv-recurrent
-    // blocks at 360_448 B per slot; `context_length` 32_768; tensor-element
-    // sum 2_697_198_592. Licence `lfm1.0`, this repo's own LICENSE, same
-    // text as the Q8 row. Sampling per the header and the card's README:
-    // temperature 0.2, top_k 50, repetition penalty 1.0, no top_p.
-    //
-    // No measured decode: nobody has run this file through llama-bench, and
-    // the row refuses to inherit another file's rate — the bandwidth floor
-    // does the gating until a real measurement exists.
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "LiquidAI/LFM2.5-VL-3B",
-            display_name: "Liquid LFM 2.5",
-            last_modified: "2026-08-31T22:26:13.000Z",
-            licence: Licence::Conditional {
-                id: "lfm1.0",
-                condition: "commercial use only for entities under $10M annual revenue",
-            },
-            parameters: Parameters::dense(2_697_198_592),
-            quant: "F16",
-            weights_bytes: 5_403_158_560,
-            kv_bytes_per_token: Some(8_704),
-            slot_cache: SlotCache::Recurrent {
-                bytes_per_slot: 360_448,
-            },
-            dense_equivalent: None,
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(32_768),
-            stale: None,
-            sampling: Sampling {
-                temperature: Some(0.2),
-                top_p: None,
-                top_k: Some(50),
-                repeat_penalty: Some(1.0),
-            },
-        },
-        source: GgufSource {
-            repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
-            commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",
-            file: "LFM2.5-VL-3B-F16.gguf",
-            bytes: 5_403_158_560,
-            sha256: "918937840fcb0ca6b984e107059557754a4a6076b127cc269970d30917e4cf8b",
-        },
-        // The row's own projector, same repo and same commit as the weights:
-        // the F16 build — `general.file_type 1`, 165 f16 tensors beside the
-        // f32 norms, read from the file's own GGUF header; the repo's q8_0
-        // projector rides on the Q8 row. ON DEMAND: see
-        // [`DownloadableEntry::mmproj`].
-        mmproj: Some(GgufSource {
-            repo: "LiquidAI/LFM2.5-VL-3B-GGUF",
-            commit: "6f730e9a2c454e8af9adc29db58e638e01e5957f",
-            file: "mmproj-LFM2.5-VL-3B-F16.gguf",
-            bytes: 853_993_952,
-            sha256: "74c4b2c095913be3cccce10aefe3b5d6f73aa7b4a15d49a8b68d97c229f8b922",
         }),
         drafter: None,
         q8: None,

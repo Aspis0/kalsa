@@ -47,8 +47,6 @@ fn the_lfm_files_split_at_the_line() {
     assert!(offered_on(lfm("Q8_0"), 16 * GIB));
     assert!(offered_on(lfm("Q4_K_M"), 8 * GIB));
     assert!(!offered_on(lfm("Q4_K_M"), 16 * GIB), "Q4_K_M is the small machine's file only");
-    assert!(offered_on(lfm("F16"), 8 * GIB), "F16 keeps its own roomy-machine rule");
-    assert!(offered_on(lfm("F16"), 16 * GIB));
 }
 
 #[test]
@@ -92,7 +90,7 @@ fn the_listing_serves_the_same_lfm_file_the_pick_does() {
         .filter(|entry| entry.entry().repo == LFM_REPO)
         .map(|entry| entry.entry().quant)
         .collect();
-    assert_eq!(at_line, ["Q4_K_M", "F16"]);
+    assert_eq!(at_line, ["Q4_K_M"]);
 
     let above: Vec<_> = served(&machine(Backend::Metal, 16 * GIB))
         .into_iter()

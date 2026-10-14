@@ -59,12 +59,12 @@ pub mod parameters;
 pub use candidate::{candidate_footprint, decode_prediction, Prediction};
 pub use choice::DownloadPlan;
 pub use choice::{
-    capability_basis, choose, dense_speed_floor, full_precision_file, largest_that_runs_well,
+    capability_basis, choose, dense_speed_floor, largest_that_runs_well,
     quicker_alternative, runnable_row, CapabilityBasis, ChoiceInput, Decision, DownloadFile,
     Justification, PhoneModel, Refusal, RefusalReason, RunnableRow, Selection,
     CHOOSER_CONTEXT_TOKENS, IMPROVEMENT_RATIO, LARGE_DENSE_PARAMETERS, LARGE_MOE_TOTAL_PARAMETERS,
     MINIMUM_DENSE_TOKENS_PER_SECOND, MINIMUM_SMALL_DENSE_TOKENS_PER_SECOND, QUICK_SPEED_ADVANTAGE,
-    ROOMY_RAM_BYTES, SAME_CLASS_BAND,
+    SAME_CLASS_BAND,
 };
 pub use footprint::{
     fits, fits_footprint, footprint_bytes, host_bytes_on_gpu, memory_budget, uncharged_host_bytes,

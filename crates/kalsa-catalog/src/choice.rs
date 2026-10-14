@@ -472,13 +472,8 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     let dense_lines_stand_down = answer.dense_lines_stand_down;
     // The walk prunes as it goes, so it borrows its own copy of the
     // survivors; `remaining` stays whole for the nothing-admitted analysis
-    // below, where every fitting row still counts. The full-precision file
-    // leaves here: it leads no card on either route — the roomy rule offers
-    // it as the Faster option only.
-    let mut walk: Vec<&Candidate> = remaining
-        .iter()
-        .filter(|candidate| !full_precision_file(candidate.entry))
-        .collect();
+    // below, where every fitting row still counts.
+    let mut walk: Vec<&Candidate> = remaining.iter().collect();
     while !walk.is_empty() {
         // The brain's own first card, shared with the phone-free route: the
         // big dense row that cleared its line — asked only while some row
@@ -739,16 +734,7 @@ pub struct RunnableRow {
 /// the caller that cannot start still owes the owner a reason.
 pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusal> {
     let answer = runnable_on(input)?;
-    // The first-card pool, minus the full-precision file: that row leads
-    // no card — the roomy rule offers it only as the Faster option — and
-    // it must not out-rank the smaller rows by bytes on its way to being
-    // one. It never travels alone: anything that admits F16 admits the E4B
-    // beside it, which clears every line F16 clears.
-    let pool: Vec<&Candidate> = answer
-        .remaining
-        .iter()
-        .filter(|candidate| !full_precision_file(candidate.entry))
-        .collect();
+    let pool: Vec<&Candidate> = answer.remaining.iter().collect();
     // The first card is [`leading_candidate`]'s answer, whatever this tier
     // is: the second card measures against that row (`quicker_alternative`).
     let chosen = leading_candidate(input, &answer, &pool).ok_or_else(|| Refusal {
@@ -765,10 +751,9 @@ pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusa
 /// the menu: it does not fit the budget, is provably too slow, or has no file
 /// left to fetch.
 ///
-/// This is what the manual path asks before it honours a stored choice. A
-/// preference is a preference: one this machine cannot satisfy falls back to
-/// the automatic answer, because a brain that will not start is worse than one
-/// running a model nobody chose.
+/// This is what the manual path asks before it honours a stored choice. `None`
+/// is the caller's cue: this function never substitutes another row, because the
+/// startup walk decides what a refused choice means.
 pub fn runnable_row(input: &ChoiceInput, entry: &'static ModelEntry) -> Option<RunnableRow> {
     let answer = runnable_on(input).ok()?;
     let candidate = answer.remaining.iter().find(|candidate| {
@@ -787,34 +772,14 @@ pub fn runnable_row(input: &ChoiceInput, entry: &'static ModelEntry) -> Option<R
 /// to choose between a model and itself.
 pub const QUICK_SPEED_ADVANTAGE: f64 = 1.5;
 
-/// The owner's one exception to [`QUICK_SPEED_ADVANTAGE`], and the line it
-/// hangs on: machines with this much RAM (32 GiB) are roomy. There the
-/// full-precision LFM file takes the second card from its own family's
-/// ordinary answer (or takes it outright when the bar found none),
-/// whenever it is faster than the pick — the higher-quality file is worth
-/// showing on a big machine even without the usual margin — and the file
-/// is offered only at or above this line: below it the LFM row on offer is
-/// the Q8 file above 8 GiB and the lighter file at or below it.
-pub const ROOMY_RAM_BYTES: u64 = 32 * GIB;
-
-/// The row this exception is about: LiquidAI's full-precision (F16) file of
-/// LFM2.5-VL-3B. Named by repo and quant rather than by size so the rule
-/// cannot drift onto whichever row happens to be biggest — exact repo, not
-/// the [`LFM_FAMILY`] prefix: one file of one model, not the family.
-pub fn full_precision_file(entry: &ModelEntry) -> bool {
-    entry.repo == "LiquidAI/LFM2.5-VL-3B" && entry.quant == "F16"
-}
-
 /// Every LiquidAI row in the manifest hangs off this prefix — a future
 /// `LiquidAI/LFM2.5-8B-A1B` row must be demoted with the rest instead of
 /// escaping the rule by spelling its own repo.
 const LFM_FAMILY: &str = "LiquidAI/LFM";
 
-/// A row of LiquidAI's LFM family — keyed on the repo prefix, while
-/// [`full_precision_file`] stays exact (repo + quant) for its one file. On
-/// the second card LFM ranks last among the rows that clear the bar: the
-/// owner puts any other family ahead of it, so LFM wins only when nothing
-/// else does.
+/// A row of LiquidAI's LFM family, keyed on the repo prefix. On the second card
+/// LFM ranks last among the rows that clear the bar: the owner puts any other
+/// family ahead of it, so LFM wins only when nothing else does.
 fn lfm_row(entry: &ModelEntry) -> bool {
     entry.repo.starts_with(LFM_FAMILY)
 }
@@ -824,10 +789,7 @@ fn lfm_row(entry: &ModelEntry) -> bool {
 /// offered, with LFM ranked last among the rows that clear the bar — the
 /// owner ranks every other family ahead of it, so LFM is the last resort
 /// rather than a size winner. `None` when nothing does — one honest option
-/// beats two that feel the same — except as the last word on a roomy
-/// machine: when the bar finds nothing, or finds only the family's own
-/// Q8 file, the full-precision LFM file takes the card if it is faster
-/// than the pick at all (see [`ROOMY_RAM_BYTES`]).
+/// beats two that feel the same.
 ///
 /// It is held to the bar of the row it sits beside, which is
 /// [`justification`]: a phone-free first option is `leading_candidate`'s
@@ -850,13 +812,8 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
     // answers it, so the second option can never be that row — the pair a
     // page shows must read as two entries, not one twice. The comparison is
     // the row's identity (repo, quant, weights — what `model_token` keys
-    // on), not its display name: two files of one model share a name, and
-    // "Liquid LFM 2.5" is both the Q8 and the F16 row.
-    let first_card_pool: Vec<&Candidate> = answer
-        .remaining
-        .iter()
-        .filter(|candidate| !full_precision_file(candidate.entry))
-        .collect();
+    // on), not its display name: two files of one model share a name.
+    let first_card_pool: Vec<&Candidate> = answer.remaining.iter().collect();
     let lead = leading_candidate(input, &answer, &first_card_pool).map(identity);
     // The row the walk itself put on the first card, when the paired road
     // produced one: the walk can fall through its dense leader when that
@@ -913,27 +870,6 @@ fn second_after<'a>(
         // most model of them all — never merely the smallest: a toy is not
         // an option.
         .max_by_key(|candidate| (!lfm_row(candidate.entry), candidate.entry.weights_bytes));
-    // The owner's exception, on a roomy machine and gated on being faster
-    // than the pick: the full-precision file takes the card from its own
-    // family's ordinary answer — the bar found the Q8 file, the F16 file
-    // of the same model replaces it — and it takes the card outright when
-    // the bar found nothing. A DIFFERENT model the bar found stays, as the
-    // owner's table pins: Qwen 3.6 at 64/800, Gemma 26B on the 24 GB card.
-    if input.ram_bytes >= ROOMY_RAM_BYTES {
-        if let Some(full) = answer
-            .remaining
-            .iter()
-            .filter(|candidate| full_precision_file(candidate.entry))
-            .filter(|candidate| justified(candidate))
-            .max_by_key(|candidate| candidate.entry.weights_bytes)
-        {
-            let faster_than_the_pick = full.decode.floor() > than.floor();
-            let bar_found_the_family = quick.is_none_or(|other| other.entry.repo == full.entry.repo);
-            if faster_than_the_pick && bar_found_the_family {
-                return Some(full);
-            }
-        }
-    }
     quick
 }
 
@@ -1065,14 +1001,6 @@ fn runnable_on(input: &ChoiceInput) -> Result<Runnable, Refusal> {
         }
         if provably_too_slow(&candidate.decode) {
             too_slow.push(candidate);
-            continue;
-        }
-        // The roomy-machine rule: the full-precision file is not on this
-        // machine's menu at all below [`ROOMY_RAM_BYTES`] — it fits and
-        // clears its speed line, but as a pick it would shove the smaller
-        // rows aside on a machine that should be seeing them, and the LFM
-        // row's lighter or Q8 file is what that machine is offered instead.
-        if full_precision_file(candidate.entry) && input.ram_bytes < ROOMY_RAM_BYTES {
             continue;
         }
         eligible.push(candidate);

@@ -4,7 +4,7 @@
 //! course: at or above [`Q8_MIN_BANDWIDTH_BYTES_PER_SECOND`] a row that
 //! carries a Q8_0 variant is served as that variant — but only when the
 //! variant's own candidate clears every gate the row's own file faces below
-//! (fit, the reading floor, the roomy-machine rule, the row's dense line).
+//! (fit, the reading floor, the row's dense line).
 //! Anything less and the row keeps its own file, unchanged: the swap is all
 //! or nothing, so a machine never loses a row it would have run by trying
 //! to upgrade it. The dense line is asked here unconditionally while
@@ -12,10 +12,7 @@
 //! a variant held back here can still run as its row's own file.
 
 use crate::candidate::{candidate, Candidate};
-use crate::choice::{
-    dense_speed_floor, full_precision_file, offered_on, provably_too_slow, ChoiceInput,
-    ROOMY_RAM_BYTES,
-};
+use crate::choice::{dense_speed_floor, offered_on, provably_too_slow, ChoiceInput};
 use crate::footprint::{fits_footprint, memory_budget, MemoryBudget};
 use crate::manifest::{self, ModelEntry, UsableEntry};
 
@@ -29,11 +26,10 @@ pub(crate) const Q8_MIN_BANDWIDTH_BYTES_PER_SECOND: f64 = 200.0e9;
 /// Whether a candidate clears, on its own numbers, the gates the chooser
 /// applies below — the same predicates `runnable_on` applies to every
 /// candidate, asked here so the swap either happens whole or not at all.
-fn clears_the_gates(candidate: &Candidate, input: &ChoiceInput, budget: &MemoryBudget) -> bool {
+fn clears_the_gates(candidate: &Candidate, budget: &MemoryBudget) -> bool {
     fits_footprint(candidate.entry, &candidate.footprint, budget)
         && !provably_too_slow(&candidate.decode)
         && dense_speed_floor(candidate.entry).is_none_or(|line| candidate.decode.floor() >= line)
-        && !(full_precision_file(candidate.entry) && input.ram_bytes < ROOMY_RAM_BYTES)
 }
 
 /// The entry a row serves: its own, or the variant when the band gate is
@@ -48,7 +44,7 @@ fn served_entry<'a>(
     match variant {
         Some(variant)
             if input.bandwidth_bytes_per_second >= Q8_MIN_BANDWIDTH_BYTES_PER_SECOND
-                && clears_the_gates(&candidate(variant, input), input, &budget) =>
+                && clears_the_gates(&candidate(variant, input), &budget) =>
         {
             variant
         }
