@@ -2,7 +2,7 @@
 //! anything in it was hidden, so the text a model reads and the label the person
 //! sees cannot tell different stories about the same message.
 
-use kalsa_mail::label::{self, Reason, Sender};
+use kalsa_mail::label::{self, Label, Reason, Sender};
 use kalsa_mail::mail;
 use proptest::prelude::*;
 
@@ -296,3 +296,67 @@ fn a_caption_stays_ordinary_mail() {
 
 /// Spelled out so a source list in a test is not read as a file path.
 const PROTOCOL_RELATIVE: &str = "//track.example.net/p.gif";
+
+/// An HTML part past the byte cap is not parsed, whatever it says. The model
+/// gets the plain text the mail also carries, and the card says the mail was
+/// too big to read — as a note, not as a badge.
+#[test]
+fn an_html_part_too_big_to_parse_is_not_a_badge() {
+    let bomb = "<div>".repeat(8_000);
+    let raw = format!(
+        "From: <a@b.example.it>\r\nSubject: S\r\nDate: Tue, 13 Oct 2026 10:00:00 +0000\r\n\
+         MIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"b\"\r\n\r\n\
+         --b\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nCiao gentile,\r\n\
+         --b\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{bomb}SEGRETO\r\n--b--\r\n"
+    );
+    let parsed = mail::parse(raw.as_bytes());
+    let labels = label::label(1, &parsed, &[], None);
+
+    assert!(
+        labels.reasons.contains(&Reason::NotParsed),
+        "{:?}",
+        labels.reasons
+    );
+    assert!(
+        !labels.reasons.contains(&Reason::HiddenText),
+        "{:?}",
+        labels.reasons
+    );
+    assert!(!labels.suspicious, "a big newsletter is not an attack");
+    assert!(!parsed.hidden);
+    assert_eq!(labels.label, Label::Normal);
+}
+
+/// The plain part is the only copy that crosses, and it crosses as any other
+/// mail text does: normalised, and nothing of the sender's reaching the model
+/// that a person would not have read.
+#[test]
+fn the_fallback_plain_part_is_read_the_way_any_mail_text_is() {
+    let bomb = "<div>".repeat(8_000);
+    let raw = format!(
+        "From: <a@b.example.it>\r\nSubject: S\r\nDate: Tue, 13 Oct 2026 10:00:00 +0000\r\n\
+         MIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"b\"\r\n\r\n\
+         --b\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n\
+         Ciao\u{200b} generoso\r\n--b\r\nContent-Type: text/html; charset=utf-8\r\n\r\n\
+         {bomb}SEGRETO\r\n--b--\r\n"
+    );
+    let parsed = mail::parse(raw.as_bytes());
+    assert!(!parsed.text.contains('\u{200b}'), "{:?}", parsed.text);
+    assert!(!parsed.text.chars().any(|c| c.is_control() && c != '\n'));
+    assert!(parsed.text.contains("Ciao generoso"), "{:?}", parsed.text);
+    assert!(!parsed.text.contains("SEGRETO"));
+}
+
+/// With no plain part to fall back on, an oversized HTML part leaves the model
+/// nothing at all — there is nowhere for a hidden sentence to be.
+#[test]
+fn an_html_part_too_big_to_parse_leaves_only_the_headers() {
+    let bomb = "<div>".repeat(8_000);
+    let parsed = mail::parse(&html_mail(&format!("{bomb}SEGRETO")));
+    let labels = label::label(1, &parsed, &[], None);
+
+    assert!(labels.reasons.contains(&Reason::NotParsed));
+    assert!(!labels.suspicious);
+    assert!(!parsed.hidden);
+    assert_eq!(parsed.text, "", "{}", parsed.text);
+}

@@ -3,6 +3,7 @@
 //! schema a host pins a hash of is visible in this file.
 
 use crate::account::Account;
+use crate::budget::Budget;
 use crate::draft;
 use crate::fence::Fence;
 use crate::imap::{self, MailError};
@@ -131,10 +132,13 @@ async fn list(account: Arc<Account>, cache: Arc<Mutex<Senders>>, args: ListArgs)
     };
     mailbox.logout().await;
 
+    // One budget for the whole pass: fifty mails that each ask for a hard parse
+    // must not cost fifty parses.
+    let mut budget = Budget::new();
     let items: Vec<ListItem> = sources
         .iter()
         .map(|source| {
-            let parsed = mail::parse(&source.bytes);
+            let parsed = mail::parse_bounded(&source.bytes, &mut budget);
             let labels = label::label(source.uid, &parsed, &senders, account.trusted_authserv_id());
             ListItem::of(source.uid, &parsed, &labels)
         })

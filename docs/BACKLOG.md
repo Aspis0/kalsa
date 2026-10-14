@@ -454,3 +454,12 @@ Fixed in the follow-up: install guard, stale notice version, redaction of a key-
 
 - `src-tauri/icons/Assets.car` is precompiled from `src-tauri/icons/Icon.icon` and listed in bundle.icon, because `actool` run by the Tauri bundler from this checkout fails with "Bad file descriptor". Regenerate it whenever the icon changes: copy Icon.icon to /tmp, then `xcrun actool Icon.icon --compile out --app-icon Icon --output-partial-info-plist p.plist --platform macosx --minimum-deployment-target 26.0`. Root cause unknown.
 - Check that the Windows NSIS build ignores the `.car` entry before the next release.
+
+## Mail sidecar hidden-text label (security reviews of 2026-10-14)
+
+The hidden-text label is best effort. The boundary is the fence, the host's taint and the confirm before anything leaves the machine. Tricks that only go unflagged, while the text still reaches the model fenced, collect here and are fixed in batches against the real-Gmail run.
+- CSS custom properties: `color:var(--x);background:var(--x);--x:red` is not flagged (`html_hide.rs` `declarations_hide`).
+- `MAX_CSS_BYTES` (64 KiB) and the 4096-name bound stop collecting rules silently.
+- The 40-character alt threshold is a guess. Check it against real mail in other languages.
+- Mails over the 16 KiB HTML parse cap are labelled `not_parsed` and read from their text/plain part. Measure how many real mails this hits on the Gmail run.
+- Deliberate (2026-10-14): `not_parsed` does not set `hidden`, because most real newsletters exceed the cap and the badge would lose its meaning. The security review flagged it as a verdict downgrade: the plain part the model reads may differ from the HTML the person sees. It stays fenced and tainted. If the Gmail run shows abuse, give the model only headers plus the 200-character snippet for `not_parsed` mails.

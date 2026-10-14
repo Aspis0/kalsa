@@ -35,6 +35,10 @@ pub struct ParsedMail {
     /// stories: an element styled out of sight, a tag block, a bidi control, or
     /// two halves that say different things.
     pub hidden: bool,
+    /// The HTML part was too big or too slow to be worth a parse, so the text
+    /// above is the plain part or nothing. Said on the card, not a badge: a
+    /// mail nobody could read safely is not a mail that tried anything.
+    pub unparsed: bool,
     pub links: Vec<Link>,
     /// Names and sizes only. An attachment is never opened in this phase.
     pub attachments: Vec<Attachment>,
@@ -43,11 +47,18 @@ pub struct ParsedMail {
 }
 
 pub fn parse(raw: &[u8]) -> ParsedMail {
+    parse_bounded(raw, &mut crate::budget::Budget::new())
+}
+
+/// One mail, against what the whole call has left of its allowance: a `list` of
+/// fifty mails shares one budget so that fifty hard mails cannot cost fifty
+/// parses.
+pub(crate) fn parse_bounded(raw: &[u8], budget: &mut crate::budget::Budget) -> ParsedMail {
     let start = body_start(raw);
     let headers = parse_headers(&String::from_utf8_lossy(&raw[..start]));
     let bounded = bounded(raw, start);
     let message = MessageParser::default().parse(bounded);
-    fill(message, headers)
+    fill(message, headers, budget)
 }
 
 /// Headers only, for the "have I seen this sender before" check over a whole mailbox.
@@ -72,7 +83,11 @@ pub fn sender_of(header_bytes: &[u8]) -> (String, i64) {
     (address, date)
 }
 
-fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedMail {
+fn fill(
+    message: Option<Message<'_>>,
+    headers: Vec<(String, String)>,
+    budget: &mut crate::budget::Budget,
+) -> ParsedMail {
     let html = message.as_ref().and_then(html_of);
     let plain = message.as_ref().and_then(text_of);
     let from = message.as_ref().and_then(|m| m.from()).and_then(first_addr);
@@ -81,10 +96,15 @@ fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedM
     // The HTML half is what a person reads in a mail client, so it is what the
     // model gets and what the hidden verdict is about. The plain half is read by
     // the same pass, so the two can never answer differently.
-    let scan = match (&html, &plain) {
-        (Some(html), _) => html_text::scan(html),
-        (None, Some(plain)) => html_text::scan_plain(plain),
-        (None, None) => html_text::empty(),
+    let parsed_html = html.as_deref().map(|html| html_text::scan(html, budget));
+    let unparsed = matches!(parsed_html, Some(None));
+    let scan = match parsed_html {
+        Some(Some(scan)) => scan,
+        // Either there is no HTML part, or it was too big or too slow to be
+        // worth a parse: the plain text is what the mail can still say.
+        _ => plain
+            .as_deref()
+            .map_or_else(html_text::empty, html_text::scan_plain),
     };
     let halves_disagree = match &plain {
         Some(plain) if html.is_some() => !html_text::same_wording(plain, &scan.text),
@@ -134,6 +154,7 @@ fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedM
         links: link::links_in(&body_source),
         body: body_source,
         hidden: scan.hidden || halves_disagree,
+        unparsed,
         attachments: message.as_ref().map(attachments).unwrap_or_default(),
         thread_ids: message.as_ref().map(thread_ids).unwrap_or_default(),
         headers,

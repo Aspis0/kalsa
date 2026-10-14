@@ -65,6 +65,7 @@ mod tests {
             text: String::new(),
             body: String::new(),
             hidden: false,
+            unparsed: false,
             links: Vec::new(),
             attachments: Vec::new(),
             thread_ids: Vec::new(),

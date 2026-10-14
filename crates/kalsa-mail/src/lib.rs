@@ -2,11 +2,11 @@
 //! binary serves any MCP client over stdio.
 
 pub mod bootstrap;
+mod budget;
 mod css_value;
 mod domain;
 mod encoded_word;
 mod fence;
-mod html_depth;
 mod html_element;
 mod html_hide;
 mod html_text;

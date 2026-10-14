@@ -11,7 +11,7 @@
 //! a model, the host's taint on mail, and no tool that leaves the machine
 //! without the person confirming it.
 
-use crate::html_depth::{nests_deeper_than, MAX_DEPTH};
+use crate::budget::{self, Budget};
 use crate::html_element::{alt_is_hidden, counts_as_hidden, is_dropped, is_hidden, BLOCK};
 use crate::html_hide::Rules;
 use crate::invisible;
@@ -20,6 +20,10 @@ use regex::Regex;
 use scraper::node::Node;
 use scraper::Html;
 use std::sync::OnceLock;
+
+/// Deeper than any mail nests, and past the point where the walk below would run
+/// out of stack. The parse is bounded by bytes and time in `budget`, not by this.
+const MAX_DEPTH: usize = 256;
 
 /// What a reader sees, and whether anything was kept from them.
 pub struct Scan {
@@ -48,20 +52,24 @@ fn blank_lines() -> &'static Regex {
     CELL.get_or_init(|| Regex::new(r"\n{2,}").expect("valid pattern"))
 }
 
-pub fn scan(html: &str) -> Scan {
-    if nests_deeper_than(html, MAX_DEPTH) {
-        // Nothing is shown rather than something shown by guesswork, and the
-        // mail is flagged: a person sees a card and decides.
-        return Scan::of(String::new(), true);
+/// `None` when this mail's HTML was not worth parsing: the caller falls back to
+/// whatever plain text the mail also carries, and the mail is flagged. Nothing
+/// is shown rather than something shown by guesswork — a person sees a card and
+/// decides.
+pub fn scan(html: &str, budget: &mut Budget) -> Option<Scan> {
+    if !budget::permits(html.len(), budget) {
+        return None;
     }
+    let started = budget::now();
     let document = Html::parse_document(html);
+    budget.charge(started.elapsed());
     let rules = Rules::from_node(document.tree.root());
     let mut out = String::new();
     let mut hidden = false;
     walk(document.tree.root(), &rules, &mut out, &mut hidden);
 
     let hidden = hidden || invisible::any_invisible(&out);
-    Scan::of(settle(&invisible::normalise(&out)), hidden)
+    Some(Scan::of(settle(&invisible::normalise(&out)), hidden))
 }
 
 /// A mail with no HTML part, read by the same pass so that the invisible
@@ -206,11 +214,18 @@ mod tests {
     use proptest::prelude::*;
 
     fn text_of(html: &str) -> String {
-        scan(html).text
+        scanned(html).text
+    }
+
+    fn scanned(html: &str) -> Scan {
+        scan(html, &mut Budget::new()).expect("parsed")
     }
 
     /// Spelled out so a source list in a test is not read as a file path.
     const PROTOCOL_RELATIVE: &str = "//track.example.net/p.gif";
+
+    /// Builds a mail of about `bytes` that a parser finds expensive.
+    type Generator = (&'static str, fn(usize) -> String);
 
     #[test]
     fn a_style_or_a_script_with_attributes_is_dropped() {
@@ -239,7 +254,7 @@ mod tests {
                 "U+{:04X} survived",
                 invisible.chars().next().unwrap_or(' ') as u32
             );
-            assert!(scan(&format!("Ciao{invisible}x")).hidden);
+            assert!(scanned(&format!("Ciao{invisible}x")).hidden);
         }
     }
 
@@ -269,21 +284,42 @@ mod tests {
     fn a_mail_nested_far_past_any_renderer_costs_no_more_than_a_short_one() {
         let bomb = "<div>".repeat(40_000);
         let started = std::time::Instant::now();
-        let scan = scan(&format!("{bomb}SEGRETO"));
+        let refused = scan(&format!("{bomb}SEGRETO"), &mut Budget::new());
         assert!(
-            started.elapsed() < std::time::Duration::from_millis(500),
+            started.elapsed() < std::time::Duration::from_millis(50),
             "a bomb took {:?}",
             started.elapsed()
         );
-        assert!(scan.hidden);
-        assert!(scan.text.is_empty());
+        assert!(refused.is_none(), "a bomb is not parsed at all");
+    }
+
+    /// The bound the parse respects, against the generators that made it
+    /// necessary rather than against a comment.
+    #[test]
+    fn a_mail_at_the_byte_cap_is_still_parsed_and_one_byte_past_it_is_not() {
+        let at = format!("<p>{}</p>", "a".repeat(budget::MAX_HTML_BYTES - 7));
+        assert_eq!(at.len(), budget::MAX_HTML_BYTES);
+        let parsed = scan(&at, &mut Budget::new()).expect("at the cap is parsed");
+        assert!(!parsed.hidden);
+
+        let over = format!("{at}x");
+        assert!(scan(&over, &mut Budget::new()).is_none());
+    }
+
+    /// Once a call has spent its allowance, a mail is refused whatever its size:
+    /// the cost is in the parser, and a small mail still costs one.
+    #[test]
+    fn a_call_out_of_allowance_refuses_a_mail_of_one_byte() {
+        let mut budget = Budget::new();
+        budget.charge(budget::CALL_LIMIT);
+        assert!(scan("<p>Ciao</p>", &mut budget).is_none());
     }
 
     /// A real mail nests shallowly. The bound must not fire on one.
     #[test]
     fn a_mail_nested_as_deep_as_a_renderer_follows_still_reads() {
         let deep = "<div>".repeat(200);
-        let scan = scan(&format!("{deep}Ciao</div>"));
+        let scan = scanned(&format!("{deep}Ciao</div>"));
         assert!(scan.text.contains("Ciao"), "{}", scan.text);
         assert!(!scan.hidden);
     }
@@ -308,7 +344,7 @@ mod tests {
         #[test]
         fn no_html_ever_panics_the_scan(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
             let html = String::from_utf8_lossy(&bytes);
-            let scan = scan(&html);
+            let scan = scanned(&html);
             let _ = settle(&scan.text);
         }
 
@@ -322,7 +358,7 @@ mod tests {
         #[test]
         fn text_never_carries_a_control_character(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
             let html = String::from_utf8_lossy(&bytes);
-            let scan = scan(&html);
+            let scan = scanned(&html);
             prop_assert!(
                 !scan.text.chars().any(|c| c.is_control() && c != '\n'),
                 "{:?}",
@@ -337,5 +373,49 @@ mod tests {
         let long = snippet(&"a".repeat(300), 200);
         assert_eq!(long.chars().count(), 200);
         assert!(long.ends_with('\u{2026}'));
+    }
+
+    /// What a sender can spend by writing one mail. html5ever rebuilds depth the
+    /// byte scan cannot see — formatting elements reopened per paragraph, an
+    /// anchor never closed, text pushed out of a table — so the cap is set from
+    /// these numbers, not from an estimate.
+    ///
+    /// Run with `cargo test -p kalsa-mail -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "a measurement, not a check: it takes seconds"]
+    fn what_a_mail_can_spend() {
+        use std::time::Instant;
+
+        let generators: [Generator; 6] = [
+            ("nested div", |n| "<div>".repeat(n / 5)),
+            ("deep inline", |n| "<b>".repeat(n / 3)),
+            ("formatting rebuilt", |n| {
+                "<b><i><u>".repeat(n / 9) + &"<p>x</p>".repeat(n / 7)
+            }),
+            ("anchor never closed", |n| "<a>".repeat(n / 3)),
+            ("text pushed out of a table", |n| {
+                "<table><td>".repeat(n / 11) + &"<p>x</p>".repeat(n / 7)
+            }),
+            ("list never closed", |n| "<li>".repeat(n / 4)),
+        ];
+
+        for cap in [16 * 1024, 32 * 1024, 64 * 1024] {
+            let mut worst = (0u128, "");
+            for (name, build) in generators {
+                let html = build(cap);
+                let started = Instant::now();
+                let document = Html::parse_document(&html);
+                let nodes = document.tree.root().descendants().count();
+                let elapsed = started.elapsed().as_micros();
+                if elapsed > worst.0 {
+                    worst = (elapsed, name);
+                }
+                println!(
+                    "{cap:>6}B {name:<26} {:>8} ms  {nodes:>6} nodes",
+                    elapsed / 1000
+                );
+            }
+            println!("{cap:>6}B WORST {:>25} {:>8} ms", worst.1, worst.0 / 1000);
+        }
     }
 }

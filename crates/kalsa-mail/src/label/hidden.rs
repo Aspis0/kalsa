@@ -33,6 +33,7 @@ mod tests {
             text: String::new(),
             body: String::new(),
             hidden,
+            unparsed: false,
             links: Vec::new(),
             attachments: Vec::new(),
             thread_ids: Vec::new(),

@@ -47,6 +47,11 @@ pub enum Reason {
     HiddenText,
     BulkHeader,
     BulkNoreply,
+    /// The HTML part was too big or too slow to be worth a parse. Not a signal
+    /// about the sender: most newsletters are over the line and none of them is
+    /// an attack, so a badge here would teach people to click through the ones
+    /// that are.
+    NotParsed,
 }
 
 impl Reason {
@@ -63,6 +68,7 @@ impl Reason {
             Reason::HiddenText => "hidden_text",
             Reason::BulkHeader => "bulk_header",
             Reason::BulkNoreply => "bulk_noreply",
+            Reason::NotParsed => "not_parsed",
         }
     }
 }
@@ -104,12 +110,17 @@ pub fn label(
     reasons.extend(phishing::link_reasons(&mail.links));
     reasons.extend(phishing::payment_urgency_reasons(mail, saw_sender_before));
     reasons.extend(hidden::reasons(mail));
+    let unread = mail.unparsed.then_some(Reason::NotParsed);
 
     let bulk_reasons = bulk::reasons(mail);
     let suspicious = !reasons.is_empty();
     let bulk = !bulk_reasons.is_empty();
 
-    let mut all: Vec<Reason> = reasons.into_iter().chain(bulk_reasons).collect();
+    let mut all: Vec<Reason> = reasons
+        .into_iter()
+        .chain(unread)
+        .chain(bulk_reasons)
+        .collect();
     all.sort_unstable();
     all.dedup();
 

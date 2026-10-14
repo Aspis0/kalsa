@@ -201,6 +201,7 @@ mod tests {
             text: body.to_string(),
             body: String::new(),
             hidden: false,
+            unparsed: false,
             links: Vec::new(),
             attachments: Vec::new(),
             thread_ids: Vec::new(),
