@@ -2,22 +2,41 @@
 //! reads: the tags block, the bidi controls, the soft hyphen, the zero-width
 //! joiners, and every control character in between.
 
-/// What a person cannot see and a model can.
+/// Every `Default_Ignorable_Code_Point`, from
+/// https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt
+/// (DerivedCoreProperties-18.0.0.txt, 2026-08-07). The whole property, not a
+/// sample of it: a renderer drops these silently, so a model that kept them
+/// would be reading text the person never saw.
+const DEFAULT_IGNORABLE: [(u32, u32); 17] = [
+    (0x00AD, 0x00AD),
+    (0x034F, 0x034F),
+    (0x061C, 0x061C),
+    (0x115F, 0x1160),
+    (0x17B4, 0x17B5),
+    (0x180B, 0x180F),
+    (0x200B, 0x200F),
+    (0x202A, 0x202E),
+    (0x2060, 0x206F),
+    (0x3164, 0x3164),
+    (0xFE00, 0xFE0F),
+    (0xFEFF, 0xFEFF),
+    (0xFFA0, 0xFFA0),
+    (0xFFF0, 0xFFF8),
+    (0x1BCA0, 0x1BCA3),
+    (0x1D173, 0x1D17A),
+    (0xE0000, 0xE0FFF),
+];
+
 fn is_invisible(c: char) -> bool {
-    matches!(
-        c,
-        '\u{00ad}'
-            | '\u{200b}'..='\u{200f}'
-            | '\u{202a}'..='\u{202e}'
-            | '\u{2060}'..='\u{2064}'
-            | '\u{2066}'..='\u{2069}'
-            | '\u{feff}'
-            | '\u{e0000}'..='\u{e007f}'
-    )
+    let code = c as u32;
+    DEFAULT_IGNORABLE
+        .iter()
+        .any(|(low, high)| code >= *low && code <= *high)
 }
 
-/// A control character ends a string for one reader and not for another, and a
-/// tab is the one this server has a use for.
+/// A control character ends a string for one reader and not for another. A tab
+/// is handled on its own: it is spacing, and deleting it would join two words
+/// into one.
 fn is_control(c: char) -> bool {
     c.is_control() && c != '\n' && c != '\t'
 }
@@ -43,6 +62,8 @@ pub(crate) fn normalise(text: &str) -> String {
     for c in text.chars() {
         if is_separator(c) {
             out.push('\n');
+        } else if c == '\t' {
+            out.push(' ');
         } else if !is_invisible(c) && !is_control(c) {
             out.push(c);
         }
@@ -81,7 +102,29 @@ mod tests {
         ] {
             assert!(is_invisible(c), "U+{:04X}", c as u32);
         }
-        for c in ['a', ' ', '\n', '\t', 'à', '\u{200a}'] {
+        for c in [
+            '\u{fe00}',
+            '\u{034f}',
+            '\u{061c}',
+            '\u{115f}',
+            '\u{1160}',
+            '\u{17b4}',
+            '\u{180b}',
+            '\u{180e}',
+            '\u{180f}',
+            '\u{2065}',
+            '\u{206f}',
+            '\u{3164}',
+            '\u{ffa0}',
+            '\u{fff8}',
+            '\u{1bca0}',
+            '\u{1d173}',
+            '\u{e0100}',
+            '\u{e0fff}',
+        ] {
+            assert!(is_invisible(c), "U+{:04X}", c as u32);
+        }
+        for c in ['a', ' ', '\n', '\t', 'à', '\u{200a}', '\u{00a0}'] {
             assert!(!is_invisible(c), "U+{:04X}", c as u32);
         }
     }
@@ -92,7 +135,7 @@ mod tests {
             normalise("uno\rdue\u{2028}tre\u{85}quattro\u{b}cinque"),
             "uno\ndue\ntre\nquattro\ncinque"
         );
-        assert_eq!(normalise("ciao\0 \u{7f}\u{1b} vao"), "ciao  vao");
+        assert_eq!(normalise("ciao\0 \u{7f}\u{1b}\tvao"), "ciao  vao");
     }
 
     #[test]

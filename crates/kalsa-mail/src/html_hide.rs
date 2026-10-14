@@ -1,101 +1,32 @@
 //! What makes an element's text invisible to the person reading the mail: the
-//! declarations in a `style` attribute, the attributes that hide by themselves,
-//! and the class and id rules a `<style>` block sets up for them.
+//! declarations in its own `style` attribute, the attributes that hide by
+//! themselves, and the class and id names a `<style>` element in the same mail
+//! hides.
 //!
-//! Every way a mail can hide a sentence is answered here, so no element that a
-//! person cannot see is one this server failed to notice.
+//! CSS is not evaluated here. No cascade, no specificity, no inheritance, no
+//! `!important`: a declaration is read as it was written. That is the floor
+//! this server stands on, not a bug to be climbed — the boundary that holds is
+//! the fence around every line handed to a model, and a style sheet no engine
+//! here understands cannot reach past it.
 
-use crate::markup::Tag;
+use crate::css_value::{
+    clips_to_nothing, colour, declaration_value, decode_escapes, hidden_value, is_off_screen,
+    is_zero, scaled_to_nothing, strip_comments,
+};
+use ego_tree::NodeRef;
+use scraper::node::{Element, Node};
 use std::collections::HashSet;
 
-/// `display:none` and `visibility:hidden`, with any spacing a CSS writer likes.
-fn hidden_value(value: &str) -> bool {
-    let value = value.trim();
-    value.eq_ignore_ascii_case("none") || value.eq_ignore_ascii_case("hidden")
-}
+/// A stylesheet long enough to hide things with, in one element. The body is
+/// already capped at the fetch limit, so this only bounds one hostile rule.
+const MAX_CSS_BYTES: usize = 64 * 1024;
 
-/// `font-size: 0` hides text; `0.9em` and `02px` do not.
-fn is_zero_size(value: &str) -> bool {
-    let value = value.trim();
-    let digits: String = value
-        .chars()
-        .take_while(|c| c.is_ascii_digit() || *c == '.')
-        .collect();
-    let zero = matches!(digits.as_str(), "0" | "0.0" | "00" | ".0");
-    zero && !value[digits.len()..].starts_with(|c: char| c.is_ascii_digit() || c == '.')
-}
+/// Class and id names kept out of one mail's stylesheets. Past this the sender
+/// is trying to make the matching cost, not to hide a sentence.
+const MAX_CSS_NAMES: usize = 4096;
 
-/// Far enough off the page that nobody scrolls to it.
-fn is_off_screen(value: &str) -> bool {
-    let number: String = value
-        .trim()
-        .chars()
-        .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == '-')
-        .collect();
-    number
-        .parse::<f64>()
-        .is_ok_and(|offset| offset.abs() >= 500.0)
-}
-
-/// The colours a mail writes by name rather than by hex. `color` and
-/// `background` have to compare equal for the rule to see a letter written on
-/// its own paper.
-const NAMED: [(&str, &str); 17] = [
-    ("white", "#ffffff"),
-    ("black", "#000000"),
-    ("red", "#ff0000"),
-    ("green", "#008000"),
-    ("lime", "#00ff00"),
-    ("blue", "#0000ff"),
-    ("yellow", "#ffff00"),
-    ("aqua", "#00ffff"),
-    ("cyan", "#00ffff"),
-    ("fuchsia", "#ff00ff"),
-    ("magenta", "#ff00ff"),
-    ("silver", "#c0c0c0"),
-    ("gray", "#808080"),
-    ("grey", "#808080"),
-    ("maroon", "#800000"),
-    ("navy", "#000080"),
-    ("purple", "#800080"),
-];
-
-/// `#abc`, `#aabbcc`, `rgb(1,2,3)` and `red` have to compare equal to their
-/// twins, or a colour rule can be walked past.
-fn colour(value: &str) -> Option<String> {
-    let value: String = value
-        .trim()
-        .to_ascii_lowercase()
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect();
-    if let Some(hex) = value.strip_prefix('#') {
-        return match hex.len() {
-            3 => Some(expand(hex)),
-            6 => Some(format!("#{hex}")),
-            _ => None,
-        };
-    }
-    if let Some((_, hex)) = NAMED.iter().find(|(name, _)| *name == value) {
-        return Some((*hex).to_string());
-    }
-    let rgb = value
-        .strip_prefix("rgb(")
-        .or_else(|| value.strip_prefix("rgba("))?;
-    let parts: Vec<&str> = rgb.trim_end_matches(')').split(',').collect();
-    let channels: Option<Vec<u8>> = parts.iter().map(|part| part.parse::<u8>().ok()).collect();
-    let channels = channels?;
-    (channels.len() == 3)
-        .then(|| format!("#{:02x}{:02x}{:02x}", channels[0], channels[1], channels[2]))
-}
-
-fn expand(hex: &str) -> String {
-    let doubled: String = hex.chars().flat_map(|c| [c, c]).collect();
-    format!("#{doubled}")
-}
-
-/// The declarations of one `style` attribute, read one by one: a rule reads the
-/// pair a renderer reads, and a text search for one word misses the other half.
+/// The declarations of one `style` value, read one pair at a time: a renderer
+/// reads the pair, and a text search for one word misses the other half.
 pub(crate) fn declarations_hide(declarations: &str) -> bool {
     let mut foreground = None;
     let mut background = None;
@@ -103,78 +34,127 @@ pub(crate) fn declarations_hide(declarations: &str) -> bool {
     let mut clipped = false;
     let mut absolute = false;
     let mut off_screen = false;
+    let mut pushed_away = false;
+    let mut no_room = false;
 
-    for declaration in declarations.split(';') {
+    for declaration in strip_comments(declarations).split(';') {
         let Some((property, value)) = declaration.split_once(':') else {
             continue;
         };
-        match property.trim().to_ascii_lowercase().as_str() {
+        let value = &declaration_value(value);
+        let property = decode_escapes(property).trim().to_ascii_lowercase();
+        match property.as_str() {
             "display" | "visibility" if hidden_value(value) => return true,
-            "font-size" if is_zero_size(value) => return true,
-            "opacity" if value.trim().parse::<f64>().is_ok_and(|o| o == 0.0) => return true,
+            "font-size" if is_zero(value) => return true,
+            "opacity" if is_zero(value) => return true,
             "color" => foreground = colour(value),
             "background" | "background-color" => background = colour(value),
-            "height" => no_height = is_zero_size(value),
+            "height" => no_height = is_zero(value),
+            "max-height" | "max-width" if is_zero(value) => return true,
             "overflow" => clipped = hidden_value(value),
             "position" => absolute = value.trim().eq_ignore_ascii_case("absolute"),
             "left" | "top" | "right" | "margin-left" => off_screen = is_off_screen(value),
+            "text-indent" => pushed_away = is_off_screen(value),
+            "clip" | "clip-path" => no_room = clips_to_nothing(value),
+            "transform" => no_room = scaled_to_nothing(value),
             _ => {}
         }
     }
 
-    (no_height && clipped)
+    no_room
+        || pushed_away
+        || (no_height && clipped)
         || (absolute && off_screen)
+        || foreground.as_deref() == Some("transparent")
         || (foreground.is_some() && foreground == background)
 }
 
-pub(crate) fn hides(tag: &Tag, rules: &Rules) -> bool {
-    tag.has("hidden")
-        || tag
-            .get("aria-hidden")
+pub(crate) fn hides(element: &Element, rules: &Rules) -> bool {
+    element.attr("hidden").is_some()
+        || element
+            .attr("aria-hidden")
             .is_some_and(|value| value.trim().eq_ignore_ascii_case("true"))
-        || declarations_hide(tag.get("style").unwrap_or_default())
-        || rules.hides(tag)
+        || element.attr("style").is_some_and(declarations_hide)
+        || rules.hides(element)
 }
 
-/// The class and id names a `<style>` block in this mail hides. Read once, up
-/// front: a rule in a stylesheet hides its element the same as a style
-/// attribute does, and only the sender's own CSS says which elements those are.
+/// The class and id names the stylesheets of one mail hide. Read before the
+/// text walk, because an element can be hidden by a rule that appears later in
+/// the source than the element itself.
 #[derive(Default)]
 pub(crate) struct Rules {
     classes: HashSet<String>,
     ids: HashSet<String>,
+    /// A rule this server could not attribute to a name, carrying a property
+    /// that hides. The mail is not taken on trust: the rule is assumed to hide.
+    everything: bool,
 }
 
 impl Rules {
-    pub(crate) fn from_source(src: &str) -> Rules {
+    pub(crate) fn from_node(root: NodeRef<'_, Node>) -> Rules {
         let mut rules = Rules::default();
-        let mut rest = src;
-        while let Some(open) = rest.find("<style") {
-            let after = &rest[open..];
-            let Some(close) = after.to_ascii_lowercase().find("</style") else {
-                break;
-            };
-            let from = after.find('>').map_or(0, |at| at + 1);
-            for (selector, declarations) in blocks(&after[from..close]) {
-                if !declarations_hide(declarations) {
-                    continue;
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            match node.value() {
+                Node::Element(element) if element.name() == "style" => {
+                    collect(&style_text(&node), &mut rules);
                 }
-                for simple in selector.split(',') {
-                    match name_of(simple.trim()) {
-                        Some(Name::Class(name)) => rules.classes.insert(name),
-                        Some(Name::Id(name)) => rules.ids.insert(name),
-                        None => false,
-                    };
-                }
+                Node::Element(_) => stack.extend(node.children()),
+                Node::Fragment | Node::Document => stack.extend(node.children()),
+                _ => {}
             }
-            rest = &after[close..];
         }
         rules
     }
 
-    fn hides(&self, tag: &Tag) -> bool {
-        tag.classes().any(|class| self.classes.contains(class))
-            || tag.get("id").is_some_and(|id| self.ids.contains(id))
+    fn hides(&self, element: &Element) -> bool {
+        self.everything
+            || element.classes().any(|class| self.classes.contains(class))
+            || element.id().is_some_and(|id| self.ids.contains(id))
+    }
+
+    fn is_full(&self) -> bool {
+        self.everything || self.classes.len() + self.ids.len() >= MAX_CSS_NAMES
+    }
+}
+
+fn style_text(node: &NodeRef<'_, Node>) -> String {
+    let text = node
+        .children()
+        .filter_map(|child| child.value().as_text().map(|t| t.text.to_string()))
+        .collect::<Vec<_>>()
+        .join("");
+    text.chars().take(MAX_CSS_BYTES).collect()
+}
+
+fn collect(css: &str, rules: &mut Rules) {
+    for rule in css.split('}') {
+        if rules.is_full() {
+            return;
+        }
+        let Some((selector, declarations)) = rule.split_once('{') else {
+            continue;
+        };
+        if !declarations_hide(declarations) {
+            continue;
+        }
+        for simple in selector.split(',') {
+            match name_of(simple) {
+                Some(Name::Class(name)) => {
+                    rules.classes.insert(name);
+                }
+                Some(Name::Id(name)) => {
+                    rules.ids.insert(name);
+                }
+                // A type, a `*`, an attribute, a pseudo-class, a combinator:
+                // this rule could hide anything, and a rule that could hide
+                // anything is treated as if it does.
+                None => {
+                    rules.everything = true;
+                    return;
+                }
+            }
+        }
     }
 }
 
@@ -185,12 +165,13 @@ enum Name {
 
 /// The name a simple selector hangs on: `.classe`, `#id`, or `p.classe`.
 fn name_of(selector: &str) -> Option<Name> {
-    let (marker, name) = match selector.rfind(['.', '#']) {
-        Some(at) => (selector.as_bytes()[at], &selector[at + 1..]),
-        None => return None,
+    let selector = selector.trim();
+    let (marker, name) = match selector.as_bytes().first()? {
+        b'.' => (b'.', selector.get(1..)?),
+        b'#' => (b'#', selector.get(1..)?),
+        _ => return None,
     };
-    let name = name.trim();
-    if name.is_empty() || name.contains([' ', ':', '>', '+', ',']) {
+    if name.is_empty() || name.contains([' ', ':', '>', '+', ',', '.', '#', '[', '*']) {
         return None;
     }
     Some(match marker {
@@ -199,78 +180,136 @@ fn name_of(selector: &str) -> Option<Name> {
     })
 }
 
-/// `selector { declarations }`, one rule at a time.
-fn blocks(css: &str) -> impl Iterator<Item = (&str, &str)> {
-    css.split('}').filter_map(|rule| {
-        let (selector, declarations) = rule.split_once('{')?;
-        Some((selector.trim(), declarations.trim()))
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::markup;
+    use scraper::Html;
 
     fn hides_html(html: &str) -> bool {
-        let rules = Rules::from_source(html);
+        let document = Html::parse_document(html);
+        let rules = Rules::from_node(document.tree.root());
         let mut found = false;
-        let mut rest = html;
-        while let Some(tag) = markup::first(rest) {
-            if !tag.closing && hides(&tag, &rules) {
-                found = true;
+        let mut stack = vec![document.tree.root()];
+        while let Some(node) = stack.pop() {
+            match node.value() {
+                Node::Element(element) => {
+                    found |= hides(element, &rules);
+                    stack.extend(node.children());
+                }
+                Node::Document | Node::Fragment => stack.extend(node.children()),
+                _ => {}
             }
-            rest = &rest[tag.end..];
         }
         found
     }
 
+    /// Everything a `style` attribute can say to take a sentence off the page.
     #[test]
-    fn every_way_of_hiding_an_element_is_answered() {
-        for html in [
-            r#"<div style="display:none">"#,
-            r#"<div style="DISPLAY : NONE ;">"#,
-            r#"<div style="visibility:hidden">"#,
-            r#"<div style="font-size:0">"#,
-            r#"<div style="font-size:0px">"#,
-            r#"<div style="opacity:0">"#,
-            r#"<div style="height:0;overflow:hidden">"#,
-            r#"<div style="position:absolute;left:-9999px">"#,
-            r#"<div style="color:#fff;background:#ffffff">"#,
-            r#"<div style="color:red;background:red">"#,
-            r#"<div style="color:white;background:#fff">"#,
-            r#"<div style="color:rgb(255,0,0);background:#ff0000">"#,
-            r#"<div style=display:none>"#,
-            r#"<div style="&#100;isplay:none">"#,
+    fn every_way_of_hiding_a_style_attribute_is_answered() {
+        for style in [
+            "display:none",
+            "DISPLAY : NONE ;",
+            "visibility:hidden",
+            "font-size:0",
+            "font-size:0px",
+            "opacity:0",
+            "height:0;overflow:hidden",
+            "position:absolute;left:-9999px",
+            "color:#fff;background:#ffffff",
+            "color:red;background:red",
+            "color:white;background:#fff",
+            "color:rgb(255,0,0);background:#ff0000",
+            "color:transparent",
+            "max-height:0",
+            "max-width:0px",
+            "text-indent:-9999px",
+            "clip:rect(0,0,0,0)",
+            "clip-path:inset(100%)",
+            "transform:scale(0)",
+        ] {
+            assert!(declarations_hide(style), "{style}");
+        }
+        assert!(hides_html(r#"<div style="&#100;isplay:none">"#));
+    }
+
+    /// The attributes that hide with no CSS at all.
+    #[test]
+    fn the_attributes_that_hide_by_themselves_are_answered() {
+        for element in [
             r#"<div hidden>"#,
+            r#"<div aria-hidden="true">"#,
             r#"<div aria-hidden="TRUE">"#,
+            r#"<div style="display:none">"#,
         ] {
-            assert!(hides_html(html), "{html}");
+            assert!(hides_html(element), "{element}");
+        }
+    }
+
+    /// A sender writes the escape because a reader that does not decode it will
+    /// not see `display:none`. This one does.
+    #[test]
+    fn a_value_written_as_an_escape_or_a_comment_is_still_read() {
+        for style in [
+            r"\64 isplay:none",
+            "display:none /* and again */",
+            "/* lead */ display : none",
+            "display:none !important",
+            "DISPLAY:none",
+            r"\64\69\73\70\6c\61\79:none",
+            "font-size:0rem",
+            "opacity:0.0",
+        ] {
+            assert!(declarations_hide(&format!("color:red;{style}")), "{style}");
         }
     }
 
     #[test]
-    fn a_visible_element_is_left_visible() {
-        let sheet = "<style>.visibile{color:red}</style>";
-        for html in [
-            r#"<div style="display:block">"#,
-            r#"<div style="font-size:0.9em">"#,
-            r#"<div style="color:red;background:#fff">"#,
-            r#"<div style="position:absolute;left:0">"#,
-            r#"<div style="height:0">"#,
-            r#"<div aria-hidden="false">"#,
-            r#"<p>"#,
+    fn a_value_that_is_not_hidden_is_left_alone() {
+        for style in [
+            "display:block",
+            "display:0",
+            "display:",
+            "opacity:1",
+            "max-height:100px",
+            "text-indent:2em",
+            "clip:auto",
+            "clip-path:none",
+            "transform:scale(1)",
+            "transform:rotate(45deg)",
+            "color:#fff;background:#000",
+            "font-size:0.9em",
         ] {
-            assert!(!hides_html(html), "{html}");
+            assert!(!declarations_hide(style), "{style}");
         }
-        assert!(!hides_html(&format!(r#"<div class="visibile">{sheet}"#)));
     }
 
     #[test]
-    fn a_class_rule_hides_the_elements_it_names() {
-        let css = "<style>.segreto{display:none} #anche { visibility:hidden } .visibile{color:red}</style>";
-        assert!(hides_html(&format!(r#"<span class="segreto">{css}"#)));
-        assert!(hides_html(&format!(r#"<span id="anche">{css}"#)));
-        assert!(!hides_html(&format!(r#"<span class="visibile">{css}"#)));
+    fn a_selector_is_a_name_or_it_is_not_attributable() {
+        assert!(name_of(".classe").is_some());
+        assert!(name_of("#id").is_some());
+        assert!(name_of("div > p").is_none());
+        assert!(name_of("a:hover").is_none());
+        assert!(name_of("").is_none());
+        assert!(name_of(".").is_none());
+        assert!(name_of("*").is_none());
+        assert!(name_of("[hidden]").is_none());
+        assert!(name_of("p.classe").is_none());
+        assert!(name_of(".a.b").is_none());
+        assert!(name_of(".a b").is_none());
+        assert!(name_of("#").is_none());
+    }
+
+    /// The mail body is capped below the stylesheet bound, so this one cannot be
+    /// reached through a parsed mail: it is a bound on the reader, and it is
+    /// read here.
+    #[test]
+    fn a_stylesheet_longer_than_the_bound_still_parses_and_stops() {
+        let css = format!(".a{{display:none}}{}", "/*x*/".repeat(MAX_CSS_BYTES));
+        assert!(hides_html(&format!(
+            "<style>{css}</style><span class=a>Ciao</span>"
+        )));
+        assert!(!hides_html(&format!(
+            "<style>{css}</style><span class=b>Ciao</span>"
+        )));
     }
 }

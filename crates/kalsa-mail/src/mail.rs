@@ -1,9 +1,9 @@
 //! RFC822 source -> what the server reads: ordered headers, the sender, the
 //! thread, and a body bounded to 64 KB.
 
+use crate::encoded_word;
 use crate::html_text;
 use crate::link::{self, Link};
-use base64::Engine;
 use mail_parser::{DateTime, HeaderValue, Message, MessageParser, PartType};
 
 /// The lab measured its rules on the first 64 KB of a body, and the plan caps the
@@ -284,7 +284,7 @@ fn attachments(message: &Message<'_>) -> Vec<Attachment> {
                             _ => None,
                         })
                 })
-                .map(|name| decode_word(name).unwrap_or_else(|| name.to_string()))
+                .map(|name| encoded_word::decode(name).unwrap_or_else(|| name.to_string()))
                 .unwrap_or_default();
             Attachment {
                 name,
@@ -293,6 +293,10 @@ fn attachments(message: &Message<'_>) -> Vec<Attachment> {
         })
         .collect()
 }
+
+/// A thread is a handful of ids for a card to draw. More than this is either a
+/// machine writing headers or a mail trying to make the dedup cost.
+const MAX_THREAD_IDS: usize = 32;
 
 fn thread_ids(message: &Message<'_>) -> Vec<String> {
     let mut ids: Vec<String> = Vec::new();
@@ -308,6 +312,9 @@ fn thread_ids(message: &Message<'_>) -> Vec<String> {
                 .to_string();
             if !id.is_empty() && !ids.contains(&id) {
                 ids.push(id);
+                if ids.len() == MAX_THREAD_IDS {
+                    return ids;
+                }
             }
         }
     }
@@ -320,51 +327,4 @@ fn thread_ids(message: &Message<'_>) -> Vec<String> {
         }
     }
     ids
-}
-
-/// `=?utf-8?B?…?=` and `=?utf-8?Q?…?=`, as a filename or a display name may carry either.
-fn decode_word(word: &str) -> Option<String> {
-    let after_name = word.strip_prefix("=?")?.split_once('?')?.1;
-    let (encoding, rest) = after_name.split_once('?')?;
-    let payload = rest.strip_suffix("?=")?;
-    let bytes = if encoding.eq_ignore_ascii_case("b") {
-        base64::engine::general_purpose::STANDARD
-            .decode(payload)
-            .ok()?
-    } else {
-        decode_q(payload)
-    };
-    String::from_utf8(bytes).ok()
-}
-
-fn decode_q(data: &str) -> Vec<u8> {
-    let bytes = data.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'_' => {
-                out.push(b' ');
-                i += 1;
-            }
-            b'=' if i + 2 < bytes.len() => {
-                let hex = String::from_utf8_lossy(&bytes[i + 1..i + 3]).to_string();
-                match u8::from_str_radix(&hex, 16) {
-                    Ok(byte) => {
-                        out.push(byte);
-                        i += 3;
-                    }
-                    Err(_) => {
-                        out.push(bytes[i]);
-                        i += 1;
-                    }
-                }
-            }
-            byte => {
-                out.push(byte);
-                i += 1;
-            }
-        }
-    }
-    out
 }

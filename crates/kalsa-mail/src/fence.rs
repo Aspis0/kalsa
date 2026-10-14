@@ -66,6 +66,7 @@ impl Default for Fence {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn every_line_a_reader_could_see_carries_the_marker() {
@@ -127,5 +128,27 @@ mod tests {
             .filter(|line| line.starts_with(&format!("{} ", fence.nonce())))
             .collect();
         assert_eq!(marked.len(), 2, "{field:?}");
+    }
+
+    // The one property the fence exists for, over random bytes rather than
+    // samples: whatever a mail carries, every line a reader could see is
+    // marked and nothing unmarked rides beside it.
+    proptest::proptest! {
+        #[test]
+        fn every_line_of_any_value_carries_the_marker(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
+            let fence = Fence::new();
+            let value = String::from_utf8_lossy(&bytes);
+            let field = fence.field("body", &value);
+            let marker = format!("{} ", fence.nonce());
+
+            for line in field.lines() {
+                prop_assert!(
+                    line.starts_with(&marker) || line == "body:",
+                    "unmarked line {:?}",
+                    line
+                );
+            }
+            prop_assert!(!field.chars().any(|c| c.is_control() && c != '\n'));
+        }
     }
 }

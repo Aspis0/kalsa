@@ -178,6 +178,7 @@ pub fn error(message: &str) -> CallToolResult {
 mod tests {
     use super::*;
     use crate::label::{Label, Labels, Reason};
+    use proptest::prelude::*;
 
     fn labels() -> Labels {
         Labels {
@@ -283,5 +284,48 @@ mod tests {
             );
         }
         assert_eq!(out.subject, "Fattura SEGRETO");
+    }
+
+    // Whatever a mail writes into its headers, the record the host draws from
+    // carries no control character and the text a model reads is marked on
+    // every line.
+    proptest::proptest! {
+        #[test]
+        fn no_header_writes_anything_unfenced_or_controlled(
+            raw in prop::collection::vec(any::<u8>(), 0..2048)
+        ) {
+            let text = String::from_utf8_lossy(&raw).into_owned();
+            let mut parsed = mail_with_body(&text);
+            parsed.subject = text.clone();
+            parsed.from_display = text.clone();
+            parsed.thread_ids = vec![text.clone()];
+            parsed.attachments = vec![crate::mail::Attachment {
+                name: text.clone(),
+                size: text.len(),
+            }];
+
+            let out = ReadOut::of(9, &parsed, &labels());
+            let record = serde_json::to_string(&out).expect("a record");
+            prop_assert!(!record.chars().any(|c| c.is_control() && c != '\n'), "{}", record);
+
+            let fence = Fence::new();
+            let result = result(&fence, &out, out.fenced(&fence, &parsed.text));
+            let text = result.content.first()
+                .and_then(|block| block.as_text().map(|t| t.text.clone()))
+                .unwrap_or_default();
+            let marker = format!("{} ", fence.nonce());
+            for line in text.lines() {
+                prop_assert!(
+                    line.starts_with(&marker)
+                        || line == "from:"
+                        || line == "subject:"
+                        || line == "body:"
+                        || line.starts_with("<<<")
+                        || line.starts_with("The lines below"),
+                    "unmarked line {:?}",
+                    line
+                );
+            }
+        }
     }
 }

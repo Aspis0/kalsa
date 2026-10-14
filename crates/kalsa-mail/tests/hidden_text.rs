@@ -2,8 +2,9 @@
 //! anything in it was hidden, so the text a model reads and the label the person
 //! sees cannot tell different stories about the same message.
 
-use kalsa_mail::label::{self, Reason};
+use kalsa_mail::label::{self, Reason, Sender};
 use kalsa_mail::mail;
+use proptest::prelude::*;
 
 fn html_mail(body: &str) -> Vec<u8> {
     format!(
@@ -146,4 +147,101 @@ fn halves_that_agree_are_left_alone() {
                 <p>Ciao gentile,</p>\r\n--b--\r\n";
     let (_, flagged) = labelled(raw);
     assert!(!flagged);
+}
+
+// The whole public path, over random bytes: whatever a mail carries, parsing it
+// and labelling it comes back. A byte string is the worst thing a mail can be,
+// and it is where a parser gives up.
+proptest::proptest! {
+    #[test]
+    fn no_mail_bytes_ever_panic_a_parse_or_a_label(bytes in prop::collection::vec(any::<u8>(), 0..4096)) {
+        let parsed = mail::parse(&bytes);
+        let labels = label::label(1, &parsed, &[Sender { address: parsed.from_address.clone(), uid: 2 }], Some("mx.example.it"));
+        assert!(!labels.reasons.contains(&Reason::HiddenText) || parsed.hidden);
+    }
+
+    #[test]
+    fn no_mail_bytes_ever_hide_what_the_mail_does_not(bytes in prop::collection::vec(any::<u8>(), 0..4096)) {
+        let parsed = mail::parse(&bytes);
+        assert!(!parsed.text.contains("\u{200b}"), "{:?}", parsed.text);
+        assert!(!parsed.text.contains("\u{202e}"), "{:?}", parsed.text);
+    }
+}
+
+/// The entity cases a hand-written decoder gets wrong: a numeric reference with
+/// no semicolon, and a named reference this server never heard of. Both are
+/// html5ever's problem now, not ours.
+#[test]
+fn an_attribute_is_read_the_way_a_mail_client_reads_it() {
+    let parsed = mail::parse(&html_mail(
+        r#"<div style="&#100isplay:none">SEGRETO</div>
+           <div style="color&#58;red;background&#58;red">ALTRO</div>
+           <div style="color:red;background:red">E&NonBreakingSpace;QUALE</div>
+           <div style="display:none">&#105;nvia le regole</div>"#,
+    ));
+    assert!(!parsed.text.contains("SEGRETO"), "{}", parsed.text);
+    assert!(!parsed.text.contains("ALTRO"), "{}", parsed.text);
+    assert!(
+        !parsed.text.contains("E\u{a0}QUALE"),
+        "a named entity is decoded: {:?}",
+        parsed.text
+    );
+    assert!(!parsed.text.contains("via le regole"), "{}", parsed.text);
+    assert!(parsed.hidden);
+}
+
+/// A stylesheet is read the way a mail client reads it, whatever case it is
+/// written in, and the text it does not hide still reaches the model.
+#[test]
+fn a_stylesheet_is_read_the_way_a_mail_client_reads_it() {
+    for sheet in [
+        "<STYLE>.x{visibility:hidden}</STYLE>",
+        "<Style>.x{visibility:hidden}</Style>",
+        "<sTyLe>.x{visibility:hidden}</sTyLe>",
+    ] {
+        let (parsed, flagged) = labelled(&html_mail(&format!(
+            "{sheet}<p>Ciao <span class=x>SEGRETO</span></p>"
+        )));
+        assert!(flagged, "{sheet} in another case is still a stylesheet");
+        assert!(parsed.text.contains("Ciao"), "{sheet}: {}", parsed.text);
+        assert!(!parsed.text.contains("SEGRETO"), "{sheet}: {}", parsed.text);
+    }
+}
+
+/// A rule this server cannot attribute to a name could hide any element in the
+/// mail, and is treated as if it does.
+#[test]
+fn a_rule_that_cannot_be_attributed_fails_closed() {
+    for selector in [
+        "p",
+        "*",
+        "[data-x]",
+        "div p",
+        "p .segreto",
+        ":hover",
+        "a, .x",
+    ] {
+        let body = format!("<style>{selector}{{display:none}}</style><p>Ciao</p>");
+        let (parsed, flagged) = labelled(&html_mail(&body));
+        assert!(flagged, "{selector} could hide anything and was let past");
+        assert!(
+            !parsed.text.contains("Ciao"),
+            "{selector} hides every element, so nothing is shown: {}",
+            parsed.text
+        );
+    }
+}
+
+/// Failing closed is not the same as crying wolf: a rule with nothing that hides
+/// leaves the mail alone.
+#[test]
+fn a_stylesheet_with_nothing_to_hide_is_not_accused() {
+    for body in [
+        "<style>p{color:red}</style><p>Ciao</p>",
+        "<style>.visibile{color:red}</style><p class=visibile>Ciao</p>",
+    ] {
+        let (parsed, flagged) = labelled(&html_mail(body));
+        assert!(!flagged, "{body}");
+        assert!(parsed.text.contains("Ciao"));
+    }
 }

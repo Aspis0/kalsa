@@ -1,17 +1,24 @@
 //! Turns a mail into the plain text a person would read, and says whether
 //! anything in it was hidden from that person.
 //!
-//! One pass, deliberately: the label the person reads and the text the model
-//! reads are two answers to one question, and two passes are two chances for a
-//! sender to be flagged by one and reach the model through the other.
+//! One parse, one walk, one answer: the label the person reads and the text the
+//! model reads are two views of the same document, and two parsers are two
+//! chances for a sender to be flagged by one and reach the model through the
+//! other.
 //!
-//! Remote resources are dropped, never fetched: a tracking pixel in a newsletter
-//! would otherwise tell the sender the mail was read, here and in every log.
+//! Hidden-text detection is best effort. CSS is not evaluated, and no amount of
+//! it would be: the security boundary is the fence around every line handed to
+//! a model, the host's taint on mail, and no tool that leaves the machine
+//! without the person confirming it.
 
-use crate::html_hide::{self, Rules};
+use crate::html_depth::{nests_deeper_than, MAX_DEPTH};
+use crate::html_element::{counts_as_hidden, image_text, is_dropped, is_hidden, BLOCK};
+use crate::html_hide::Rules;
 use crate::invisible;
-use crate::markup::{self, Tag};
+use ego_tree::NodeRef;
 use regex::Regex;
+use scraper::node::Node;
+use scraper::Html;
 use std::sync::OnceLock;
 
 /// What a reader sees, and whether anything was kept from them.
@@ -26,67 +33,35 @@ impl Scan {
     }
 }
 
-fn compile(cell: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
-    cell.get_or_init(|| Regex::new(pattern).expect("valid pattern"))
-}
-
-fn comment() -> &'static Regex {
-    static CELL: OnceLock<Regex> = OnceLock::new();
-    compile(&CELL, r"(?s)<!--.*?-->")
-}
-
-/// What is never shown and never read: not content at all.
-const DROPPED: [&str; 6] = ["script", "style", "head", "svg", "template", "noscript"];
-
-/// The dropped elements whose text a person never sees but a naive converter
-/// would have kept.
-const HIDDEN_WHEN_DROPPED: [&str; 2] = ["template", "noscript"];
-
-/// Elements with no closing tag. An `img` is one the walk has to stop at.
-const VOID: [&str; 8] = ["area", "base", "br", "col", "hr", "img", "input", "link"];
-
-/// Elements that end a line a person reads.
-const BLOCK: [&str; 13] = [
-    "p",
-    "div",
-    "tr",
-    "table",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "li",
-    "br",
-    "blockquote",
-];
-
 fn spaces() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
-    compile(&CELL, "[ \t\u{a0}]+")
+    CELL.get_or_init(|| Regex::new("[ \t\u{a0}]+").expect("valid pattern"))
 }
 
 fn newline_run() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
-    compile(&CELL, r"\s*\n\s*")
+    CELL.get_or_init(|| Regex::new(r"\s*\n\s*").expect("valid pattern"))
 }
 
 fn blank_lines() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
-    compile(&CELL, r"\n{2,}")
+    CELL.get_or_init(|| Regex::new(r"\n{2,}").expect("valid pattern"))
 }
 
 pub fn scan(html: &str) -> Scan {
-    let source = comment().replace_all(html, " ").into_owned();
-    let rules = Rules::from_source(&source);
+    if nests_deeper_than(html, MAX_DEPTH) {
+        // Nothing is shown rather than something shown by guesswork, and the
+        // mail is flagged: a person sees a card and decides.
+        return Scan::of(String::new(), true);
+    }
+    let document = Html::parse_document(html);
+    let rules = Rules::from_node(document.tree.root());
     let mut out = String::new();
     let mut hidden = false;
-    walk(&source, &rules, &mut out, &mut hidden);
+    walk(document.tree.root(), &rules, &mut out, &mut hidden);
 
-    let text = markup::unescape(&out);
-    let hidden = hidden || invisible::any_invisible(&text);
-    Scan::of(settle(&text), hidden)
+    let hidden = hidden || invisible::any_invisible(&out);
+    Scan::of(settle(&invisible::normalise(&out)), hidden)
 }
 
 /// A mail with no HTML part, read by the same pass so that the invisible
@@ -117,9 +92,8 @@ fn words(text: &str) -> Vec<String> {
 }
 
 fn settle(text: &str) -> String {
-    let text = invisible::normalise(text);
-    let text = spaces().replace_all(&text, " ").into_owned();
-    let text = newline_run().replace_all(&text, "\n").into_owned();
+    let text = spaces().replace_all(text, " ");
+    let text = newline_run().replace_all(&text, "\n");
     blank_lines()
         .replace_all(&text, "\n")
         .into_owned()
@@ -127,112 +101,94 @@ fn settle(text: &str) -> String {
         .to_string()
 }
 
-/// The text of every element between `start` and the tag that closes it, and
-/// what follows that tag. Nesting counts, so an outer element cannot be closed
-/// by an inner one.
-fn subtree<'a>(src: &'a str, name: &str) -> Option<(&'a str, &'a str)> {
-    let mut depth = 1usize;
-    let mut at = 0usize;
-    while let Some(tag) = markup::first(&src[at..]) {
-        let start = at + tag.start;
-        if tag.name == name && !VOID.contains(&name) {
-            if tag.closing {
-                depth -= 1;
-                if depth == 0 {
-                    return Some((&src[..start], &src[at + tag.end..]));
+/// The document in reading order, without recursion: an explicit stack and a
+/// depth cap, so a mail nested ten thousand deep is a longer walk and not a
+/// crashed process.
+fn walk(root: NodeRef<'_, Node>, rules: &Rules, out: &mut String, hidden: &mut bool) {
+    let mut stack = vec![(root, 0usize)];
+    while let Some((node, depth)) = stack.pop() {
+        match node.value() {
+            Node::Text(text) => out.push_str(&text.text),
+            Node::Comment(_) | Node::Doctype(_) | Node::ProcessingInstruction(_) => {}
+            Node::Document | Node::Fragment => {
+                stack.extend(node.children().map(|child| (child, depth + 1)).rev());
+            }
+            Node::Element(element) => {
+                let name = element.name();
+                if name == "br" {
+                    out.push('\n');
+                    continue;
                 }
-            } else if !tag.self_closing {
-                depth += 1;
-            }
-        }
-        at += tag.end;
-    }
-    None
-}
-
-fn walk(src: &str, rules: &Rules, out: &mut String, hidden: &mut bool) {
-    let mut rest = src;
-    loop {
-        let Some(tag) = markup::first(rest) else {
-            out.push_str(rest);
-            return;
-        };
-        out.push_str(&rest[..tag.start]);
-        let after = &rest[tag.end..];
-
-        if tag.closing {
-            out.push_str(if BLOCK.contains(&tag.name.as_str()) {
-                "\n"
-            } else {
-                " "
-            });
-            rest = after;
-            continue;
-        }
-        if tag.name == "img" {
-            if let Some(alt) = image_text(&tag) {
-                out.push_str(&alt);
-            }
-            rest = after;
-            continue;
-        }
-        if tag.self_closing || VOID.contains(&tag.name.as_str()) {
-            out.push_str(if tag.name == "br" { "\n" } else { " " });
-            rest = after;
-            continue;
-        }
-
-        // An element that is never closed runs to the end of what is left: a
-        // browser would swallow the rest, so a hidden one has to swallow it too.
-        let (inner, tail) = match subtree(after, &tag.name) {
-            Some(found) => found,
-            None => {
-                if keeps_its_subtree(&tag, rules) {
-                    *hidden |= carries_text(after, rules, hidden);
-                } else {
-                    walk(after, rules, out, hidden);
+                if name == "img" {
+                    if let Some(alt) = image_text(element) {
+                        out.push_str(&alt);
+                    }
+                    continue;
                 }
-                return;
+                if is_hidden(element, rules) {
+                    *hidden |= says_something(node, rules);
+                    continue;
+                }
+                if is_dropped(name) {
+                    *hidden |= counts_as_hidden(name) || says_something(node, rules);
+                    continue;
+                }
+                if BLOCK.contains(&name) {
+                    out.push('\n');
+                }
+                if depth >= MAX_DEPTH {
+                    *hidden |= says_something(node, rules);
+                    continue;
+                }
+                stack.extend(node.children().map(|child| (child, depth + 1)).rev());
             }
-        };
-        if keeps_its_subtree(&tag, rules) {
-            *hidden |= carries_text(inner, rules, hidden);
-        } else if !DROPPED.contains(&tag.name.as_str()) {
-            walk(inner, rules, out, hidden);
         }
-        rest = tail;
     }
 }
 
-/// Whether this element's subtree is text a person never reads, either because
-/// the element hides it or because no client would render it.
-fn keeps_its_subtree(tag: &Tag, rules: &Rules) -> bool {
-    html_hide::hides(tag, rules)
-        || (DROPPED.contains(&tag.name.as_str())
-            && HIDDEN_WHEN_DROPPED.contains(&tag.name.as_str()))
-}
-
-/// Whether the dropped text is text at all: a stylesheet nobody can read is not
-/// a secret, and an empty `template` is a page template.
-fn carries_text(inner: &str, rules: &Rules, hidden: &mut bool) -> bool {
-    let mut probe = String::new();
-    walk(inner, rules, &mut probe, hidden);
-    !probe.trim().is_empty()
-}
-
-/// A remote image is a part this server never opens, and its alt text is where
-/// the marketing goes; a local one keeps its caption.
-fn image_text(tag: &Tag) -> Option<String> {
-    let url = tag.get("src").unwrap_or_default();
-    let remote = url.trim_start().starts_with("//")
-        || url.trim_start().starts_with("http://")
-        || url.trim_start().starts_with("https://")
-        || url.trim_start().to_ascii_lowercase().starts_with("cid:");
-    if remote {
-        None
-    } else {
-        tag.get("alt").map(|alt| format!(" {alt} "))
+/// Whether anything in this subtree is text rather than markup. Stopping at the
+/// first is enough: the caller only needs to know that something was there to
+/// hide, and a nested hidden element is itself something to hide.
+///
+/// Bounded by a node budget, because a document with many hidden elements would
+/// otherwise be re-read once per element — quadratic, and the sender's to
+/// choose. Past the budget the answer is yes, which is the safe direction.
+fn says_something(node: NodeRef<'_, Node>, rules: &Rules) -> bool {
+    let mut stack = vec![node];
+    let mut budget = MAX_DEPTH * 4;
+    while let Some(node) = stack.pop() {
+        if budget == 0 {
+            return true;
+        }
+        budget -= 1;
+        match node.value() {
+            Node::Text(text) => {
+                if !text.text.trim().is_empty() {
+                    return true;
+                }
+            }
+            Node::Element(element) => {
+                let name = element.name();
+                if counts_as_hidden(name) || crate::html_hide::hides(element, rules) {
+                    return true;
+                }
+                if is_dropped(name) {
+                    // What a dropped element carries is not text a person would
+                    // read — a stylesheet is a stylesheet — but something hidden
+                    // can sit inside it, as a template sits inside a head.
+                    stack.extend(
+                        node.children()
+                            .filter(|child| matches!(child.value(), Node::Element(_))),
+                    );
+                    continue;
+                }
+                stack.extend(node.children());
+            }
+            Node::Document | Node::Fragment => stack.extend(node.children()),
+            _ => {}
+        }
     }
+    false
 }
 
 /// The text of a mail with every whitespace run collapsed, cut to `limit`
@@ -249,33 +205,10 @@ pub fn snippet(text: &str, limit: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     fn text_of(html: &str) -> String {
         scan(html).text
-    }
-
-    /// The characters that make `to_lowercase` change a string's length. An
-    /// offset found in such a copy and applied to the original sliced out of
-    /// range and took the whole tool call with it.
-    const SHRINKING: [&str; 6] = [
-        "\u{212a}", "\u{130}", "\u{1e9e}", "\u{fb00}", "\u{df}", "\u{fb03}",
-    ];
-
-    #[test]
-    fn nothing_panics_on_characters_that_change_length_when_folded() {
-        for awkward in SHRINKING {
-            for element in [
-                "<script>a</script>",
-                "<STYLE>b</STYLE>",
-                "</script>trailing",
-                "<i style=\"display:none\">c</i>",
-                "<img alt=x>",
-                "<br>",
-                "<ul><li>x</ul>",
-            ] {
-                let _ = text_of(&format!("{awkward}{awkward}{element}"));
-            }
-        }
     }
 
     #[test]
@@ -284,9 +217,9 @@ mod tests {
         assert!(!text_of(css).contains("segreto"), "{}", text_of(css));
         let js = "<script src=\"https://tracker.example.net/pixel.js\"></script><p>Ciao</p>";
         assert!(!text_of(js).contains("pixel.js"));
-        let upper = "<STYLE TYPE=\"text/css\">.segreto{color:red}</STYLE><p>Ciao</p>";
-        assert!(!text_of(upper).contains("segreto"));
-        assert!(text_of(upper).contains("Ciao"));
+        assert!(
+            text_of("<STYLE TYPE=\"text/css\">.x{color:red}</STYLE><p>Ciao</p>").contains("Ciao")
+        );
     }
 
     #[test]
@@ -330,6 +263,32 @@ mod tests {
         assert!(text_of(r#"<img alt="Logo" src="logo.png">"#).contains("Logo"));
     }
 
+    /// Deeper than a renderer will follow, and past the bound this server
+    /// parses at all. The walk has to come back with an answer rather than with
+    /// a stack overflow, and a bomb has to cost no more than a short mail.
+    #[test]
+    fn a_mail_nested_far_past_any_renderer_costs_no_more_than_a_short_one() {
+        let bomb = "<div>".repeat(40_000);
+        let started = std::time::Instant::now();
+        let scan = scan(&format!("{bomb}SEGRETO"));
+        assert!(
+            started.elapsed() < std::time::Duration::from_millis(500),
+            "a bomb took {:?}",
+            started.elapsed()
+        );
+        assert!(scan.hidden);
+        assert!(scan.text.is_empty());
+    }
+
+    /// A real mail nests shallowly. The bound must not fire on one.
+    #[test]
+    fn a_mail_nested_as_deep_as_a_renderer_follows_still_reads() {
+        let deep = "<div>".repeat(200);
+        let scan = scan(&format!("{deep}Ciao</div>"));
+        assert!(scan.text.contains("Ciao"), "{}", scan.text);
+        assert!(!scan.hidden);
+    }
+
     #[test]
     fn two_renderings_that_agree_are_the_same_mail() {
         let plain = scan_plain("Ciao gentile,\ncome stai?\n");
@@ -341,6 +300,36 @@ mod tests {
             &plain.text,
             &text_of("<p>Ciao, conferma subito.</p>")
         ));
+    }
+
+    // Whatever a sender writes, the walk comes back. The inputs are random bytes
+    // rather than random markup: a byte string is the worst thing a mail can
+    // carry, and it is where a parser panics.
+    proptest::proptest! {
+        #[test]
+        fn no_html_ever_panics_the_scan(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
+            let html = String::from_utf8_lossy(&bytes);
+            let scan = scan(&html);
+            let _ = settle(&scan.text);
+        }
+
+        #[test]
+        fn no_plain_body_ever_panics_the_scan(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
+            let plain = String::from_utf8_lossy(&bytes);
+            let scan = scan_plain(&plain);
+            let _ = settle(&scan.text);
+        }
+
+        #[test]
+        fn text_never_carries_a_control_character(bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
+            let html = String::from_utf8_lossy(&bytes);
+            let scan = scan(&html);
+            prop_assert!(
+                !scan.text.chars().any(|c| c.is_control() && c != '\n'),
+                "{:?}",
+                scan.text
+            );
+        }
     }
 
     #[test]

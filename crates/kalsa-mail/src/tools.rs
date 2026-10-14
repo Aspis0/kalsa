@@ -18,7 +18,7 @@ fn schema(value: Value) -> JsonObject {
     value.as_object().cloned().unwrap_or_default()
 }
 
-pub fn list() -> Tool {
+pub(crate) fn list() -> Tool {
     Tool::new(
         "list",
         "List the newest mails of a folder with a short snippet and a label (bulk, \
@@ -51,7 +51,7 @@ suspicious or normal). Read-only.",
     .with_annotations(read_only())
 }
 
-pub fn read() -> Tool {
+pub(crate) fn read() -> Tool {
     Tool::new(
         "read",
         "Read one mail as text: the body with remote content dropped, the thread ids \
@@ -75,7 +75,7 @@ and the attachment names and sizes. Attachments are never opened.",
     .with_annotations(read_only())
 }
 
-pub fn draft() -> Tool {
+pub(crate) fn draft() -> Tool {
     Tool::new(
         "draft",
         "Build a reply to one mail and return it as an object for the person to \
@@ -104,6 +104,13 @@ sent and nothing is saved.",
     .with_annotations(read_only())
 }
 
+/// The three definitions exactly as they are served, in the order a host lists
+/// them. The host pins a hash of these: a caller that builds its own copy is a
+/// caller that can drift.
+pub fn tool_definitions() -> Vec<Tool> {
+    vec![list(), read(), draft()]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,6 +133,14 @@ mod tests {
             assert_eq!(annotations.destructive_hint, Some(false));
             assert!(tool.description.as_deref().is_some_and(|d| !d.is_empty()));
         }
+    }
+
+    #[test]
+    fn what_is_served_is_what_tool_definitions_returns() {
+        let served = tool_definitions();
+        assert_eq!(served, vec![list(), read(), draft()]);
+        let names: Vec<&str> = served.iter().map(|tool| tool.name.as_ref()).collect();
+        assert_eq!(names, vec!["list", "read", "draft"]);
     }
 
     #[test]
