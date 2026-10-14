@@ -1258,10 +1258,10 @@ fn the_bigger_row_wins_the_bar_when_lfm_is_not_the_rival() {
 fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     // The demotion changes nothing where no other family clears the bar.
     // At 64/197 the bar is 1.5 x the Qwen 3.6 pick and every non-LFM floor
-    // sits under it, so the answer is today's: the bar finds the LFM Q8
-    // file and the roomy exception swaps in that family's F16 file. At
-    // 16/200 the same premise below the roomy line leaves the Q8 card
-    // where it is.
+    // sits under it, so the bar finds an LFM row. The biggest one is LFM 24B,
+    // a different model, so the roomy exception does not swap the VL-3B F16
+    // file in. At 16/200 the same premise below the roomy line, with LFM 24B
+    // too big to fit, leaves the Q8 card where it is.
     let roomy = metal(64, 197.0e9);
     let first = largest_that_runs_well(&roomy).expect("a 64 GiB machine runs something");
     assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
@@ -1269,7 +1269,7 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     let only_lfm_clears = |machine: &ChoiceInput, wanted: f64| {
         let budget = kalsa_catalog::memory_budget(machine.backend, machine.ram_bytes).usable_bytes;
         for row in kalsa_catalog::usable() {
-            if row.entry().repo == "LiquidAI/LFM2.5-VL-3B" {
+            if row.entry().repo.starts_with("LiquidAI/LFM") {
                 continue;
             }
             let floor = decode_prediction(row, machine).floor();
@@ -1285,8 +1285,8 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
     only_lfm_clears(&roomy, wanted);
     let quick = quicker_alternative(&roomy, &first.decode).expect("a second card");
-    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
-    assert_eq!(quick.entry.quant, "F16", "the roomy exception still hands it the full-precision file");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-24B-A2B");
+    assert_eq!(quick.entry.quant, "Q4_K_M", "the bar's LFM answer is 24B, not the VL-3B the exception covers");
 
     let small = metal(16, 200.0e9);
     let first = largest_that_runs_well(&small).expect("a 16 GiB machine runs something");
@@ -1773,29 +1773,20 @@ fn sixteen_gigabytes_at_forty_five_is_the_same_two_cards() {
 
 #[test]
 fn the_roomy_card_replaces_its_own_family_and_leaves_other_models_alone() {
-    // The owner's table, as rules. Same family → swapped: at 32/400 the
-    // bar finds the Q8 file (72.4 against 1.5 x 39.9) and the full-
-    // precision file — faster than the pick (measured 56.19) — replaces
-    // it, so the card reads F16. Remove the family check and this stays
-    // Q8_0; order the exception before the bar at 64/800 and that case
-    // flips below: either mutation turns this red.
+    // At 32/400 the bar's answer is LFM 24B, a different model from the VL-3B
+    // whose full-precision file the exception would swap in. A different
+    // model the bar found stays, so the second card is LFM 24B's Q4_K_M file.
+    // Order the exception before the bar at 64/800 and that case flips below:
+    // that mutation turns this red.
     let roomy = ChoiceInput {
         bandwidth_bytes_per_second: 400.0e9,
         ..input(32, false)
     };
     let first = largest_that_runs_well(&roomy).expect("a 32 GiB machine runs something");
     assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
-    let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
-    let q8 = kalsa_catalog::usable()
-        .find(|row| row.entry().quant == "Q8_0")
-        .expect("the Q8 file is on the menu");
-    assert!(
-        decode_prediction(q8, &roomy).floor() >= wanted,
-        "the premise: the bar found the same-family card, {:?}",
-        decode_prediction(q8, &roomy).floor()
-    );
     let quick = quicker_alternative(&roomy, &first.decode).expect("a second card");
-    assert_eq!(quick.entry.quant, "F16");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-24B-A2B");
+    assert_eq!(quick.entry.quant, "Q4_K_M");
     assert!(quick.decode.floor() > first.decode.floor(), "faster than the pick");
 
     // Different model → the bar's answer stays. At 64/800 the bar clears

@@ -462,15 +462,14 @@ pub fn choose(input: &ChoiceInput) -> Decision {
         });
     };
 
-    let Runnable {
-        budget,
-        too_slow,
-        remaining,
-        dense_lines_stand_down,
-    } = match runnable_on(input) {
+    let answer = match runnable_on(input) {
         Ok(answer) => answer,
         Err(refusal) => return Decision::Refuse(refusal),
     };
+    let budget = answer.budget;
+    let too_slow = &answer.too_slow;
+    let remaining = &answer.remaining;
+    let dense_lines_stand_down = answer.dense_lines_stand_down;
     // The walk prunes as it goes, so it borrows its own copy of the
     // survivors; `remaining` stays whole for the nothing-admitted analysis
     // below, where every fitting row still counts. The full-precision file
@@ -501,10 +500,10 @@ pub fn choose(input: &ChoiceInput) -> Decision {
             .max_by_key(|candidate| candidate.entry.weights_bytes)
         {
             match justification(dense, &phone) {
-                Some(earned) => {
+                Some(earned) if may_hold_first_card(input, &answer, dense) => {
                     return Decision::Pick(selection(dense, input, &phone, budget, earned))
                 }
-                None => {
+                _ => {
                     walk.retain(|candidate| !std::ptr::eq(*candidate, dense));
                     continue;
                 }
@@ -536,13 +535,19 @@ pub fn choose(input: &ChoiceInput) -> Decision {
                 .iter()
                 .filter(|candidate| candidate.entry.weights_bytes as f64 >= band_floor)
                 .max_by(|a, b| {
-                    a.decode_ceiling()
-                        .partial_cmp(&b.decode_ceiling())
-                        .unwrap_or(std::cmp::Ordering::Equal)
+                    (!lfm_row(a.entry))
+                        .cmp(&!lfm_row(b.entry))
+                        .then_with(|| {
+                            a.decode_ceiling()
+                                .partial_cmp(&b.decode_ceiling())
+                                .unwrap_or(std::cmp::Ordering::Equal)
+                        })
                 })
                 .expect("the leader is in its own class")
         };
-        let Some(earned) = justification(chosen, &phone) else {
+        let earned = justification(chosen, &phone)
+            .filter(|_| may_hold_first_card(input, &answer, chosen));
+        let Some(earned) = earned else {
             walk.retain(|candidate| !std::ptr::eq(*candidate, chosen));
             continue;
         };
@@ -640,6 +645,21 @@ fn stand_down_ranking(a: &Candidate<'_>, b: &Candidate<'_>) -> std::cmp::Orderin
 /// biggest. The full-precision file is already out of `pool`: it leads no
 /// card on either answer.
 fn leading_candidate<'a>(
+    input: &ChoiceInput,
+    answer: &Runnable,
+    pool: &[&'a Candidate<'static>],
+) -> Option<&'a Candidate<'static>> {
+    let mut pool = pool.to_vec();
+    loop {
+        let chosen = ranked_first_card(answer, &pool)?;
+        if may_hold_first_card(input, answer, chosen) {
+            return Some(chosen);
+        }
+        pool.retain(|candidate| !std::ptr::eq(*candidate, chosen));
+    }
+}
+
+fn ranked_first_card<'a>(
     answer: &Runnable,
     pool: &[&'a Candidate<'static>],
 ) -> Option<&'a Candidate<'static>> {
@@ -652,7 +672,30 @@ fn leading_candidate<'a>(
             dense_speed_floor(candidate.entry) == Some(MINIMUM_DENSE_TOKENS_PER_SECOND)
         })
         .max_by_key(|candidate| candidate.entry.weights_bytes)
-        .or_else(|| pool.iter().copied().max_by_key(|candidate| candidate.entry.weights_bytes))
+        .or_else(|| same_class_leader(pool))
+}
+
+/// The byte leader's class, ranked by family before size. Bytes alone would
+/// hand the card to LFM2.5-24B-A2B, whose file is 87 MB bigger than Gemma 4
+/// 26B's, and the owner ranks every other family ahead of LFM.
+fn same_class_leader<'a>(pool: &[&'a Candidate<'static>]) -> Option<&'a Candidate<'static>> {
+    let leader = pool
+        .iter()
+        .copied()
+        .max_by_key(|candidate| candidate.entry.weights_bytes)?;
+    let class_floor = leader.entry.weights_bytes as f64 * SAME_CLASS_BAND;
+    pool.iter()
+        .copied()
+        .filter(|candidate| candidate.entry.weights_bytes as f64 >= class_floor)
+        .max_by_key(|candidate| (!lfm_row(candidate.entry), candidate.entry.weights_bytes))
+}
+
+/// A row with no vision projector holds a card only while the other card is a
+/// row that reads images, so the person always has one AI that does.
+fn may_hold_first_card(input: &ChoiceInput, answer: &Runnable, candidate: &Candidate) -> bool {
+    candidate.mmproj.is_some()
+        || second_after(input, answer, Some(identity(candidate)), &candidate.decode)
+            .is_some_and(|second| second.mmproj.is_some())
 }
 
 /// What the phone-free question answers with: the row this machine runs
@@ -708,8 +751,13 @@ pub fn largest_that_runs_well(input: &ChoiceInput) -> Result<RunnableRow, Refusa
         .collect();
     // The first card is [`leading_candidate`]'s answer, whatever this tier
     // is: the second card measures against that row (`quicker_alternative`).
-    let chosen = leading_candidate(&answer, &pool)
-        .expect("runnable_on answers remaining only when it is not empty");
+    let chosen = leading_candidate(input, &answer, &pool).ok_or_else(|| Refusal {
+        reason: RefusalReason::NothingBetter,
+        explanation: "The only rows that run here read text alone, and a row without vision \
+                      takes a card only beside one that reads images. Nothing here can take \
+                      the first card."
+            .to_string(),
+    })?;
     Ok(row(chosen, answer.budget))
 }
 
@@ -798,10 +846,6 @@ fn lfm_row(entry: &ModelEntry) -> bool {
 /// small row outrank a floor under a big one.
 pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<RunnableRow> {
     let answer = runnable_on(input).ok()?;
-    let justified = |candidate: &Candidate| match input.phone {
-        Some(phone) => justification(candidate, &phone).is_some(),
-        None => true,
-    };
     // The row on the first card, answered the way `largest_that_runs_well`
     // answers it, so the second option can never be that row — the pair a
     // page shows must read as two entries, not one twice. The comparison is
@@ -813,8 +857,7 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
         .iter()
         .filter(|candidate| !full_precision_file(candidate.entry))
         .collect();
-    let lead = leading_candidate(&answer, &first_card_pool)
-        .map(|candidate| (candidate.entry.repo, candidate.entry.quant, candidate.entry.weights_bytes));
+    let lead = leading_candidate(input, &answer, &first_card_pool).map(identity);
     // The row the walk itself put on the first card, when the paired road
     // produced one: the walk can fall through its dense leader when that
     // row earns nothing, and the exclusion must follow the row the owner is
@@ -829,13 +872,25 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
         )),
         Decision::Refuse(_) => None,
     };
-    let not_the_first = |candidate: &Candidate| {
-        walked
-            .or(lead)
-            .is_none_or(|id| {
-                id != (candidate.entry.repo, candidate.entry.quant, candidate.entry.weights_bytes)
-            })
+    second_after(input, &answer, walked.or(lead), than)
+        .map(|candidate| row(candidate, answer.budget))
+}
+
+/// The second card once the first is known, by the rules [`quicker_alternative`]
+/// documents. `excluded` is the first card's identity. It is its own function
+/// because the vision rule asks the same question before a text-only row may
+/// take the first card.
+fn second_after<'a>(
+    input: &ChoiceInput,
+    answer: &'a Runnable,
+    excluded: Option<Identity>,
+    than: &Prediction,
+) -> Option<&'a Candidate<'static>> {
+    let justified = |candidate: &Candidate| match input.phone {
+        Some(phone) => justification(candidate, &phone).is_some(),
+        None => true,
     };
+    let not_the_first = |candidate: &Candidate| excluded.is_none_or(|id| id != identity(candidate));
     if answer.dense_lines_stand_down {
         // The lines stand down, so there is no line to clear beside the
         // pick: speed answers both cards — the next fastest row that runs
@@ -846,8 +901,7 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
             .iter()
             .filter(|candidate| not_the_first(candidate))
             .filter(|candidate| justified(candidate))
-            .max_by(|a, b| a.decode.floor().total_cmp(&b.decode.floor()))
-            .map(|candidate| row(candidate, answer.budget));
+            .max_by(|a, b| a.decode.floor().total_cmp(&b.decode.floor()));
     }
     let wanted = than.floor() * QUICK_SPEED_ADVANTAGE;
     let quick = answer
@@ -876,11 +930,23 @@ pub fn quicker_alternative(input: &ChoiceInput, than: &Prediction) -> Option<Run
             let faster_than_the_pick = full.decode.floor() > than.floor();
             let bar_found_the_family = quick.is_none_or(|other| other.entry.repo == full.entry.repo);
             if faster_than_the_pick && bar_found_the_family {
-                return Some(row(full, answer.budget));
+                return Some(full);
             }
         }
     }
-    quick.map(|candidate| row(candidate, answer.budget))
+    quick
+}
+
+/// What tells two rows apart: repo, quant and weights. Two files of one model
+/// share a display name, so identity is never the name.
+type Identity = (&'static str, &'static str, u64);
+
+fn identity(candidate: &Candidate) -> Identity {
+    (
+        candidate.entry.repo,
+        candidate.entry.quant,
+        candidate.entry.weights_bytes,
+    )
 }
 
 /// A candidate as a page needs it. The usable-entry gate already guarantees
@@ -1330,5 +1396,62 @@ mod tests {
             Some(phone)
         )
         .is_none());
+    }
+
+    #[test]
+    fn a_text_only_row_holds_no_card_without_a_vision_row_beside_it() {
+        // 24 GiB at 400 GB/s: LFM2.5-24B-A2B runs, but nothing else clears
+        // 1.5 times its floor, so no row can take the second card beside it.
+        // Gemma 4 26B has a projector and may lead on its own.
+        let input = ChoiceInput {
+            backend: Backend::Cpu,
+            ram_bytes: 24 * crate::footprint::GIB,
+            bandwidth_bytes_per_second: 400.0e9,
+            bandwidth_is_lower_bound: false,
+            compute_flops_per_second: 100.0e9,
+            context_tokens: chooser_context_tokens(24 * crate::footprint::GIB),
+            phone: None,
+        };
+        let answer = runnable_on(&input).expect("the machine runs something");
+        let text_only = answer
+            .remaining
+            .iter()
+            .find(|candidate| candidate.entry.repo == "LiquidAI/LFM2.5-24B-A2B")
+            .expect("LFM 24B fits and clears the reading floor here");
+        let gemma = answer
+            .remaining
+            .iter()
+            .find(|candidate| candidate.entry.repo == "google/gemma-4-26B-A4B-it")
+            .expect("Gemma 4 26B fits here");
+        assert!(!may_hold_first_card(&input, &answer, text_only));
+        assert!(may_hold_first_card(&input, &answer, gemma));
+    }
+
+    #[test]
+    fn the_byte_leader_class_ranks_family_before_bytes() {
+        // LFM 24B's file is 87 MB bigger than Gemma 26B's, and both sit in one
+        // class. Bytes alone would crown LFM; the family rule crowns Gemma.
+        let input = ChoiceInput {
+            backend: Backend::Cpu,
+            ram_bytes: 24 * crate::footprint::GIB,
+            bandwidth_bytes_per_second: 400.0e9,
+            bandwidth_is_lower_bound: false,
+            compute_flops_per_second: 100.0e9,
+            context_tokens: chooser_context_tokens(24 * crate::footprint::GIB),
+            phone: None,
+        };
+        let answer = runnable_on(&input).expect("the machine runs something");
+        let find = |repo: &str| {
+            answer
+                .remaining
+                .iter()
+                .find(|candidate| candidate.entry.repo == repo)
+                .expect("the row fits and clears the reading floor here")
+        };
+        let lfm = find("LiquidAI/LFM2.5-24B-A2B");
+        let gemma = find("google/gemma-4-26B-A4B-it");
+        assert!(lfm.entry.weights_bytes > gemma.entry.weights_bytes);
+        let leader = same_class_leader(&[lfm, gemma]).expect("a pool with rows has a leader");
+        assert!(std::ptr::eq(leader, gemma));
     }
 }
