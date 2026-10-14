@@ -28,10 +28,13 @@ pub struct ParsedMail {
     pub subject: String,
     /// Plain text for a person or a model: HTML already converted.
     pub text: String,
-    /// The decoded body as it arrived, which is what the link and hidden-text
-    /// rules scan. A plain-text mail is scanned too: zero-width characters hide
-    /// in it just the same.
+    /// The decoded body as it arrived, which is what the link rules scan.
     pub body: String,
+    /// Something in this mail was kept from the person reading it. One verdict
+    /// for the text above and this flag, so the two cannot tell different
+    /// stories: an element styled out of sight, a tag block, a bidi control, or
+    /// two halves that say different things.
+    pub hidden: bool,
     pub links: Vec<Link>,
     /// Names and sizes only. An attachment is never opened in this phase.
     pub attachments: Vec<Attachment>,
@@ -74,10 +77,18 @@ fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedM
     let plain = message.as_ref().and_then(text_of);
     let from = message.as_ref().and_then(|m| m.from()).and_then(first_addr);
     let body_source = html.clone().or_else(|| plain.clone()).unwrap_or_default();
-    let text = match (&html, &plain) {
-        (Some(html), _) => html_text::to_text(html).text,
-        (None, Some(plain)) => plain.trim().to_string(),
-        (None, None) => String::new(),
+
+    // The HTML half is what a person reads in a mail client, so it is what the
+    // model gets and what the hidden verdict is about. The plain half is read by
+    // the same pass, so the two can never answer differently.
+    let scan = match (&html, &plain) {
+        (Some(html), _) => html_text::scan(html),
+        (None, Some(plain)) => html_text::scan_plain(plain),
+        (None, None) => html_text::empty(),
+    };
+    let halves_disagree = match &plain {
+        Some(plain) if html.is_some() => !html_text::same_wording(plain, &scan.text),
+        _ => false,
     };
 
     ParsedMail {
@@ -119,9 +130,10 @@ fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedM
             .and_then(|m| m.subject().map(str::to_string))
             .or_else(|| header(&headers, "subject").map(str::to_string))
             .unwrap_or_default(),
-        text,
+        text: scan.text,
         links: link::links_in(&body_source),
         body: body_source,
+        hidden: scan.hidden || halves_disagree,
         attachments: message.as_ref().map(attachments).unwrap_or_default(),
         thread_ids: message.as_ref().map(thread_ids).unwrap_or_default(),
         headers,

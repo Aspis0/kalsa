@@ -7,15 +7,6 @@
 
 use rand::Rng;
 
-/// What a reader splits on, and what would therefore slip past a marker on `\n`
-/// alone: a lone carriage return, the vertical separators, and the Unicode breaks.
-fn is_line_break(c: char) -> bool {
-    matches!(
-        c,
-        '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{85}' | '\u{2028}' | '\u{2029}'
-    )
-}
-
 pub struct Fence {
     nonce: String,
 }
@@ -35,11 +26,14 @@ impl Fence {
         &self.nonce
     }
 
-    /// One labelled value. Every line the reader could see gets the marker, and the
-    /// breaks themselves are replaced, so a marker can never sit above unmarked text.
+    /// One labelled value. Every line the reader could see gets the marker, and
+    /// the separators are normalised and the control characters dropped before
+    /// that, so a marker can never sit above unmarked text and nothing rides in
+    /// beside it.
     pub fn field(&self, label: &str, value: &str) -> String {
+        let value = crate::invisible::normalise(value);
         let mut out = format!("{label}:");
-        for line in value.split(is_line_break) {
+        for line in value.split('\n') {
             out.push('\n');
             out.push_str(&self.nonce);
             out.push(' ');
@@ -103,5 +97,35 @@ mod tests {
         let first = Fence::new();
         let second = Fence::new();
         assert_ne!(first.nonce(), second.nonce());
+    }
+
+    /// A line the marker does not reach is the line that speaks for the host, so
+    /// nothing but the marker itself may leave this function unmarked.
+    #[test]
+    fn every_line_a_reader_could_split_on_is_marked() {
+        let fence = Fence::new();
+        let field = fence.field("body", "uno\rdue\u{2028}tre\u{85}quattro\u{b}cinque");
+        let marked: Vec<&str> = field
+            .lines()
+            .filter(|line| line.starts_with(&format!("{} ", fence.nonce())))
+            .collect();
+        assert_eq!(marked.len(), 5, "{field:?}");
+    }
+
+    /// A separator the fence does not know about, and a control character riding
+    /// inside a line, both reach a model with the marker nowhere near them.
+    #[test]
+    fn no_control_character_reaches_the_text_a_model_reads() {
+        let fence = Fence::new();
+        let field = fence.field("body", "ciao\0 \u{7f}\u{1b} \u{2028} vao");
+        assert!(
+            !field.chars().any(|c| c.is_control() && c != '\n'),
+            "{field:?}"
+        );
+        let marked: Vec<&str> = field
+            .lines()
+            .filter(|line| line.starts_with(&format!("{} ", fence.nonce())))
+            .collect();
+        assert_eq!(marked.len(), 2, "{field:?}");
     }
 }

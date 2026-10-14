@@ -3,6 +3,7 @@
 
 use crate::fence::Fence;
 use crate::html_text;
+use crate::invisible;
 use crate::label::Labels;
 use crate::mail::ParsedMail;
 use rmcp::model::{CallToolResult, ContentBlock};
@@ -73,11 +74,8 @@ impl ListItem {
     pub fn of(uid: u32, mail: &ParsedMail, labels: &Labels) -> ListItem {
         ListItem {
             id: uid.to_string(),
-            from: Address {
-                name: mail.from_display.clone(),
-                address: mail.from_address.clone(),
-            },
-            subject: mail.subject.clone(),
+            from: Address::of(mail),
+            subject: invisible::one_line(&mail.subject),
             date: rfc3339(mail.date_ms),
             snippet: html_text::snippet(&mail.text, SNIPPET_LIMIT),
             labels: LabelsOut::from(labels),
@@ -89,23 +87,35 @@ impl ReadOut {
     pub fn of(uid: u32, mail: &ParsedMail, labels: &Labels) -> ReadOut {
         ReadOut {
             id: uid.to_string(),
-            from: Address {
-                name: mail.from_display.clone(),
-                address: mail.from_address.clone(),
-            },
-            subject: mail.subject.clone(),
+            from: Address::of(mail),
+            subject: invisible::one_line(&mail.subject),
             date: rfc3339(mail.date_ms),
             snippet: html_text::snippet(&mail.text, SNIPPET_LIMIT),
-            thread_ids: mail.thread_ids.clone(),
+            thread_ids: mail
+                .thread_ids
+                .iter()
+                .map(|id| invisible::one_line(id))
+                .collect(),
             attachments: mail
                 .attachments
                 .iter()
                 .map(|a| AttachmentOut {
-                    name: a.name.clone(),
+                    name: invisible::one_line(&a.name),
                     size: a.size,
                 })
                 .collect(),
             labels: LabelsOut::from(labels),
+        }
+    }
+}
+
+/// A sender's own name and address reach a card and a model both, and a header
+/// is one line however it was folded on the wire.
+impl Address {
+    fn of(mail: &ParsedMail) -> Address {
+        Address {
+            name: invisible::one_line(&mail.from_display),
+            address: invisible::one_line(&mail.from_address),
         }
     }
 }
@@ -189,6 +199,7 @@ mod tests {
             subject: "Oggetto".to_string(),
             text: body.to_string(),
             body: String::new(),
+            hidden: false,
             links: Vec::new(),
             attachments: Vec::new(),
             thread_ids: Vec::new(),
@@ -247,5 +258,30 @@ mod tests {
             Some("2026-09-21T14:13:20Z")
         );
         assert_eq!(rfc3339(0), None);
+    }
+
+    /// A host may forward the record whole, so a string a stranger wrote carries
+    /// no separator and no control character on its way out of here.
+    #[test]
+    fn the_record_carries_no_control_character_from_the_mail() {
+        let mut parsed = mail_with_body("testo");
+        parsed.subject = "Fattura\u{0}\r\n SEGRETO".to_string();
+        parsed.from_display = "Studio\u{7f}FONTANA".to_string();
+        parsed.attachments = vec![crate::mail::Attachment {
+            name: "fattura\u{2028}.pdf".to_string(),
+            size: 12,
+        }];
+        parsed.thread_ids = vec!["<a@b.example.it>\r\nX-Injected".to_string()];
+
+        let out = ReadOut::of(9, &parsed, &labels());
+        let dumped = serde_json::to_string(&out).expect("a record");
+        for forbidden in ['\u{0}', '\u{7f}', '\u{2028}', '\r', '\n'] {
+            assert!(
+                !dumped.contains(forbidden),
+                "U+{:04X} in {dumped}",
+                forbidden as u32
+            );
+        }
+        assert_eq!(out.subject, "Fattura SEGRETO");
     }
 }

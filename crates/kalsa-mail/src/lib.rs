@@ -4,8 +4,11 @@
 pub mod bootstrap;
 mod domain;
 mod fence;
+mod html_hide;
 mod html_text;
+mod invisible;
 mod link;
+mod markup;
 mod tools;
 mod view;
 

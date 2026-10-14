@@ -103,7 +103,7 @@ pub fn label(
     reasons.extend(phishing::display_spoof_reasons(mail));
     reasons.extend(phishing::link_reasons(&mail.links));
     reasons.extend(phishing::payment_urgency_reasons(mail, saw_sender_before));
-    reasons.extend(hidden::reasons(&mail.body));
+    reasons.extend(hidden::reasons(mail));
 
     let bulk_reasons = bulk::reasons(mail);
     let suspicious = !reasons.is_empty();

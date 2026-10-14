@@ -64,6 +64,7 @@ mod tests {
             subject: subject.to_string(),
             text: String::new(),
             body: String::new(),
+            hidden: false,
             links: Vec::new(),
             attachments: Vec::new(),
             thread_ids: Vec::new(),
