@@ -64,11 +64,12 @@ export async function loadApp() {
         export { mailRecord, mailRecords } from "../src/lib/mail/records.ts";
         export { normalizeMail, mailCount } from "../src/lib/mail/normalize.ts";
         export { fencedBody } from "../src/lib/mail/fence.ts";
-        export { guessServer, needsAppPassword } from "../src/lib/mail/providers.ts";
+        export { guessServer } from "../src/lib/mail/providers.ts";
+        export { appPasswordProvider, APP_PASSWORD_PAGE } from "../src/lib/mail/appPassword.ts";
         export { runMailShow } from "../src/lib/tools/mailShow.ts";
         export { sendReply } from "../src/lib/mail/send.ts";
         export { accountEmail, rememberAccount } from "../src/lib/mail/account.ts";
-        export { runMailList } from "../src/lib/tools/mailCall.ts";
+        export { runMailList, runMailRead, runMailDraft } from "../src/lib/tools/mailCall.ts";
         export { draftFor, withDraft, sentToFor, withSent } from "../src/lib/mail/drafts.ts";
         export { pendingFor, withBody } from "../src/lib/mail/drafts.ts";
         export { mailAllowed } from "../src/lib/mail/allowlist.ts";

@@ -163,7 +163,10 @@ function installMailStub(config) {
           if (answered === undefined) return Promise.reject({ code: "mail.send_no_recipient" });
           return { sentTo: answered.for_ui.from.address };
         }
-        if (command === "brain_mail_account_test") return mail.testSubjects;
+        if (command === "brain_mail_account_test") {
+          if (config.failTest) throw new Error("mail-shots: the connection was refused");
+          return mail.testSubjects;
+        }
         if (command === "brain_mail_account_save") return mail.saved;
         if (command === "brain_mail_account_delete") return null;
         throw new Error(`mail-shots: no fixture declares ${command}`);
@@ -175,7 +178,7 @@ function installMailStub(config) {
 
 /* ----------------------------------------------------------------- the page */
 
-async function seed(page, theme) {
+async function seed(page, theme, failTest = false) {
   await page.addInitScript((cfg) => {
     localStorage.clear();
     localStorage.setItem("crescent-chat.theme.v1", cfg.theme);
@@ -194,6 +197,7 @@ async function seed(page, theme) {
     endpoint: ENDPOINT,
     model: "Alibaba Qwen 3.6",
     appVersion: APP_VERSION,
+    failTest: failTest === true,
   });
 }
 
@@ -234,6 +238,53 @@ async function mustSee(page, needle, label) {
 
 /* -------------------------------------------------------------------- runs */
 
+/** The two Settings states that changed: a Gmail address with the box under
+    the field, and the same page after a refused connection. */
+async function shootSettings(browser) {
+  // The box makes this page taller than the chat window, and a screenshot
+  // shows only the window.
+  const viewport = { width: WINDOW.width, height: 1560 };
+  for (const theme of ["light", "dark"]) {
+    const dark = theme === "dark";
+    const shotOf = (name) => `${name}${dark ? "-dark" : ""}`;
+
+    const page = await browser.newPage({ viewport });
+    await seed(page, theme);
+    await page.goto(APP);
+    await page.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(page);
+    await page.getByLabel("Indirizzo email").fill("luca@gmail.com");
+    await mustSee(page, "Come si ottiene la password per le app", `${theme}: the app password box is there`);
+    check(`${theme}: Google says 2-Step Verification is needed first`, (await page.locator(".mail-apppass-steps").innerText()).includes("Verifica in due passaggi"));
+    check(`${theme}: the steps are numbered`, (await page.locator(".mail-apppass-steps li").count()) === 4);
+    check(`${theme}: the box says the code is only for mail`, (await page.locator(".mail-apppass-note").innerText()).includes("solo per la mail"));
+    const link = await page.locator(".mail-apppass .tool-link").innerText();
+    check(`${theme}: one button opens the provider's page`, (await page.locator(".mail-apppass .tool-link").count()) === 1, link);
+    await shot(page, shotOf("14-settings-mail-gmail"));
+    await page.close();
+
+    const failed = await browser.newPage({ viewport });
+    await seed(failed, theme, true);
+    await failed.goto(APP);
+    await failed.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(failed);
+    await failed.getByLabel("Indirizzo email").fill("luca@gmail.com");
+    await failed.getByLabel("Password").fill("abcd efgh ijkl mnop");
+    await failed.getByRole("button", { name: "Prova" }).click();
+    await mustSee(failed, "Serve la password per le app", `${theme}: the refusal names the likely cause`);
+    check(`${theme}: the same box follows the refusal`, (await failed.locator(".mail-apppass.is-failed").count()) === 1);
+    await shot(failed, shotOf("16-settings-mail-gmail-failed"));
+    await failed.close();
+  }
+}
+
+/** Settings, then the row that opens Mail's own page. */
+async function openMailSettings(page) {
+  await page.locator('.rail-item[data-surface="settings"]').click();
+  await page.getByRole("button", { name: "Configura la mail" }).click();
+  await page.waitForSelector(".mail-field", { timeout: 15000 });
+}
+
 async function run() {
   mkdirSync(OUT, { recursive: true });
   const vite = spawn(
@@ -260,6 +311,10 @@ async function run() {
 
   const browser = await chromium.launch();
   try {
+    if (process.argv[2] === "settings") {
+      await shootSettings(browser);
+      return;
+    }
     for (const theme of ["light", "dark"]) {
       const page = await browser.newPage({ viewport: WINDOW });
       await seed(page, theme);
@@ -385,9 +440,9 @@ async function run() {
     await browser.close();
     mock.close();
     vite.kill();
+    console.log(failures === 0 ? "\nall checks passed" : `\n${failures} check(s) failed`);
+    process.exit(failures === 0 ? 0 : 1);
   }
-  console.log(failures === 0 ? "\nall checks passed" : `\n${failures} check(s) failed`);
-  process.exit(failures === 0 ? 0 : 1);
 }
 
 await run();

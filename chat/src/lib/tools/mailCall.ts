@@ -3,6 +3,11 @@
  * model answered with `for_model` and nothing else, and the record the cards
  * are drawn from read from `for_ui`. What the model reads is the fenced text
  * the sidecar built — never our own wording of the same mail.
+ *
+ * The model's arguments are never forwarded. Each tool builds its backend
+ * arguments from the keys it names, coerced to the types Rust reads; a key
+ * that is not named is dropped, and a value of the wrong kind is refused with
+ * a sentence the model can act on.
  */
 
 import { invoke } from "../tauri";
@@ -10,13 +15,22 @@ import * as attachments from "../mail/attachments";
 import { fencedBody } from "../mail/fence";
 import { mailRecord, mailRecords } from "../mail/records";
 import * as lastList from "../mail/lastList";
+import { unsignedInteger } from "../mail/wholeNumber";
 import type { MailDraft, MailRecord, MailResponse } from "../mail/types";
 
 /** The words the model reads when a mail command did not run. English, like
     every other refusal on the wire; the screen words its own from `is_error`. */
-const NO_MAILBOX = "Mail is not set up. The person has to add an account in Settings → Mail.";
 const INBOX = "INBOX";
 const NOT_MAIL = "No mail was shown: it is not set up, or the server could not be reached.";
+const DAYS_NOT_WHOLE = "days must be a whole number of days.";
+const ID_NOT_WHOLE = "The mail id must be the whole number mail_list gave for that mail.";
+
+/** The backend arguments a tool call was built into, or the refusal to show the model. */
+type Built = { ok: true; args: Record<string, unknown> } | { ok: false; text: string };
+
+function refused(text: string): Built {
+  return { ok: false, text };
+}
 
 function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -27,11 +41,39 @@ function answerText(response: MailResponse): string {
   return response.for_model.join("\n");
 }
 
-async function call(command: string, args: Record<string, unknown>): Promise<MailResponse | null> {
+async function call(command: string, args: Record<string, unknown>): Promise<MailResponse> {
   const raw = await invoke<unknown>(command, { args });
   const r = object(raw);
   const forModel = Array.isArray(r.for_model) ? r.for_model.filter((x): x is string => typeof x === "string") : [];
   return { for_model: forModel, for_ui: r.for_ui, is_error: r.is_error === true };
+}
+
+function listArgs(model: Record<string, unknown>): Built {
+  const args: Record<string, unknown> = { folder: INBOX };
+  if (model.days !== undefined) {
+    const days = unsignedInteger(model.days);
+    if (days === null) return refused(DAYS_NOT_WHOLE);
+    args.days = days;
+  }
+  for (const key of ["from", "query"]) {
+    const value = model[key];
+    if (value === undefined) continue;
+    if (typeof value !== "string") return refused(`${key} must be text.`);
+    args[key] = value;
+  }
+  return { ok: true, args };
+}
+
+function readArgs(model: Record<string, unknown>): Built {
+  const id = unsignedInteger(model.id);
+  return id === null ? refused(ID_NOT_WHOLE) : { ok: true, args: { id, folder: INBOX } };
+}
+
+function draftArgs(model: Record<string, unknown>): Built {
+  const replyToId = unsignedInteger(model.reply_to_id);
+  if (replyToId === null) return refused(ID_NOT_WHOLE);
+  if (typeof model.body !== "string") return refused("body must be text.");
+  return { ok: true, args: { reply_to_id: replyToId, body: model.body, folder: INBOX } };
 }
 
 /**
@@ -42,9 +84,10 @@ async function call(command: string, args: Record<string, unknown>): Promise<Mai
  * is that bare UID, so a second folder would let one folder's id name another's
  * mail. One folder is the only way those ids mean what they say.
  */
-export async function runMailList(args: Record<string, unknown>): Promise<{ text: string; ok: boolean; records: MailRecord[] }> {
-  const response = await call("brain_mail_list", { ...args, folder: INBOX });
-  if (response === null) return { text: NOT_MAIL, ok: false, records: [] };
+export async function runMailList(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; records: MailRecord[] }> {
+  const built = listArgs(model);
+  if (!built.ok) return { text: built.text, ok: false, records: [] };
+  const response = await call("brain_mail_list", built.args);
   const records = mailRecords(response.for_ui);
   lastList.remember(records);
   const body = answerText(response) || NOT_MAIL;
@@ -52,14 +95,15 @@ export async function runMailList(args: Record<string, unknown>): Promise<{ text
 }
 
 /** One mail in full: the record for the card, the body for the Mail tab. */
-export async function runMailRead(args: Record<string, unknown>): Promise<{
+export async function runMailRead(model: Record<string, unknown>): Promise<{
   text: string;
   ok: boolean;
   record: MailRecord | null;
   body: string;
 }> {
-  const response = await call("brain_mail_read", { ...args, folder: INBOX });
-  if (response === null) return { text: NOT_MAIL, ok: false, record: null, body: "" };
+  const built = readArgs(model);
+  if (!built.ok) return { text: built.text, ok: false, record: null, body: "" };
+  const response = await call("brain_mail_read", built.args);
   const record = mailRecord(response.for_ui);
   if (record !== null) attachments.remember(record.id, record.attachments.map((a) => a.name));
   return {
@@ -71,9 +115,10 @@ export async function runMailRead(args: Record<string, unknown>): Promise<{
 }
 
 /** A reply as an object. The recipient came from the mail, never from the model. */
-export async function runMailDraft(args: Record<string, unknown>): Promise<{ text: string; ok: boolean; draft: MailDraft | null }> {
-  const response = await call("brain_mail_draft", args);
-  if (response === null) return { text: NO_MAILBOX, ok: false, draft: null };
+export async function runMailDraft(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; draft: MailDraft | null }> {
+  const built = draftArgs(model);
+  if (!built.ok) return { text: built.text, ok: false, draft: null };
+  const response = await call("brain_mail_draft", built.args);
   const r = object(response.for_ui);
   const to = typeof r.to === "string" ? r.to : "";
   if (to === "") return { text: NOT_MAIL, ok: false, draft: null };
@@ -83,7 +128,7 @@ export async function runMailDraft(args: Record<string, unknown>): Promise<{ tex
     ok: !response.is_error,
     draft: {
       kind: "draft",
-      replyToId: String(args.reply_to_id ?? ""),
+      replyToId: String(built.args.reply_to_id),
       to,
       // The name is the panel's to find, from the record of the mail answered.
       toName: "",

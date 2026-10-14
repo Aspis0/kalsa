@@ -11,6 +11,7 @@
 
 import { invoke } from "../tauri";
 import type { English } from "../../i18n/en/all";
+import { unsignedInteger } from "./wholeNumber";
 
 export interface SentMail {
   sentTo: string;
@@ -33,9 +34,11 @@ export async function sendReply(
   body: string,
   t: English["mail"],
 ): Promise<SendFailure> {
+  const id = unsignedInteger(replyToId);
+  if (id === null) return { ok: false, code: "mail.send_failed", words: wordsFor(t, "mail.send_failed") };
   try {
     const answer = await invoke<{ sentTo?: unknown }>("brain_mail_send", {
-      args: { replyToId: Number(replyToId), subject, body },
+      args: { replyToId: id, subject, body },
     });
     const sentTo = typeof answer?.sentTo === "string" ? answer.sentTo : "";
     if (sentTo === "") return { ok: false, code: "mail.send_failed", words: wordsFor(t, "mail.send_failed") };

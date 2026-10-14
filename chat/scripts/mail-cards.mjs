@@ -6,7 +6,9 @@
 // Pure: a stub door, a memory localStorage, no server.
 // Run: node scripts/mail-cards.mjs   (from chat/)
 
+import { readFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
+import { contractError } from "./lib/mail-mock.mjs";
 
 class MemoryStorage {
   #map = new Map();
@@ -65,6 +67,9 @@ globalThis.window = {
   __TAURI__: {
     core: {
       invoke: async (command, args) => {
+        // Tauri rejects an argument it cannot read with a plain string.
+        const refused = contractError(command, args);
+        if (refused !== null) throw refused;
         if (command === "brain_mail_list") {
           return { for_model: ["<<<email-text x>>>"], for_ui: LIST, is_error: false };
         }
@@ -160,8 +165,21 @@ check("a label this build has no words for is not invented", unknown !== null);
 equal("the server is guessed for a known domain", app.guessServer("luca@libero.it"), { host: "imapmail.libero.it", supported: true });
 check("Outlook is refused, not left to fail at the login", app.guessServer("luca@outlook.com").supported === false);
 equal("an unknown domain guesses nothing", app.guessServer("luca@esempio.invalid"), null);
-check("Gmail is told to use an app password", app.needsAppPassword("luca@gmail.com"));
-check("another provider is not", !app.needsAppPassword("luca@libero.it"));
+/* Who wants a code of its own. The two that do are in the providers' own
+   documentation; for the Italian ones the account password is the right one,
+   so nothing extra is said about them. */
+equal("Gmail wants its own code", app.appPasswordProvider("luca@gmail.com"), "google");
+equal("an iCloud address wants its own code", app.appPasswordProvider("luca@icloud.com"), "apple");
+equal("a me.com address is Apple's too", app.appPasswordProvider("luca@me.com"), "apple");
+for (const plain of ["luca@libero.it", "luca@virgilio.it", "luca@aruba.it", "luca@tiscali.it", "luca@example.invalid"]) {
+  equal(`${plain} takes the account password`, app.appPasswordProvider(plain), null);
+}
+equal("no address asks for nothing", app.appPasswordProvider(""), null);
+
+/* The pages the person is sent to are constants, so nothing the model or the
+   person types can point one somewhere else. */
+equal("Google's page is the one Google publishes", app.APP_PASSWORD_PAGE.google, "https://myaccount.google.com/apppasswords");
+equal("Apple's page is the one Apple publishes", app.APP_PASSWORD_PAGE.apple, "https://account.apple.com");
 
 /* ------------------------------------------- one reply belongs to one mail */
 
@@ -365,6 +383,48 @@ equal("a draft keeps its recipient", draft.to, "john.smith@acme.com");
 equal("a draft with no recipient is not drawn", app.normalizeMail({ kind: "draft", to: "", body: "x" }), null);
 equal("an envelope of another kind is refused", app.normalizeMail({ kind: "calendar" }), null);
 check("a card without an id is not built", app.normalizeMail({ kind: "cards", items: [{ gist: "senza id" }] }).items.length === 0);
+
+/* ------------------------------------- the backend's argument contract, end to end */
+
+const accepts = (command, payload) => contractError(command, payload) === null;
+check("the save the page sends with a typed server passes", accepts("brain_mail_account_save", { input: { email: "luca@libero.it", password: "x", host: "imapmail.libero.it" } }));
+check("the save with no typed server passes", accepts("brain_mail_account_save", { input: { email: "luca@libero.it", password: "x" } }));
+check("a save that names server is refused, as serde refuses it", (contractError("brain_mail_account_save", { input: { email: "a@b.it", password: "x", server: "imap.b.it" } }) ?? "").includes("`server`"));
+check("a save with a null password is refused", !accepts("brain_mail_account_save", { input: { email: "a@b.it", password: null } }));
+check("list: the shape the tool builds passes", accepts("brain_mail_list", { args: { folder: "INBOX", days: 1, from: "x", query: "y" } }));
+check("read: a whole id passes", accepts("brain_mail_read", { args: { id: 412, folder: "INBOX" } }));
+check("read: a string id is refused", !accepts("brain_mail_read", { args: { id: "412", folder: "INBOX" } }));
+check("draft: a whole reply_to_id passes", accepts("brain_mail_draft", { args: { reply_to_id: 412, body: "Va bene.", folder: "INBOX" } }));
+check("draft: a string reply_to_id is refused", !accepts("brain_mail_draft", { args: { reply_to_id: "412", body: "Va bene." } }));
+check("send: the camelCase shape the panel sends passes", accepts("brain_mail_send", { args: { replyToId: 412, subject: "Re", body: "Va bene." } }));
+check("send: snake_case reply_to_id is refused", !accepts("brain_mail_send", { args: { reply_to_id: 412, subject: "Re", body: "Va bene." } }));
+check("a list key the struct does not name is refused", !accepts("brain_mail_list", { args: { days: 1, send: true } }));
+check("a negative or fractional day count is refused", !accepts("brain_mail_list", { args: { days: -1 } }) && !accepts("brain_mail_list", { args: { days: 1.5 } }));
+check("a mail command the contract does not name is refused", !accepts("brain_mail_delete", { args: {} }));
+check("account_test takes no arguments", accepts("brain_mail_account_test", undefined));
+check("a non-mail command is not judged here", accepts("brain_other_command", { anything: true }));
+equal("a string day count is coerced and the call runs", (await app.runMailList({ days: "2" })).ok, true);
+equal("a fractional day count is refused before any call", (await app.runMailList({ days: 1.5 })).ok, false);
+equal("a read id that is not a whole number is refused before any call", (await app.runMailRead({ id: "4x" })).ok, false);
+equal("a draft with no body is refused before any call", (await app.runMailDraft({ reply_to_id: 412 })).ok, false);
+
+/* -------------------------------------- the provider table must match the backend */
+
+// The Rust table is the authority: every domain it guesses, and every domain it
+// refuses, must answer the same here, and a domain it does not know is not guessed.
+const RUST_PROVIDERS = readFileSync(new URL("../../src-tauri/src/mail/providers.rs", import.meta.url), "utf8");
+const rustGuesses = [...RUST_PROVIDERS.matchAll(/^    Guess \{([\s\S]*?)^    \},/gm)].map((match) => match[1]);
+check("the backend table has its six providers", rustGuesses.length === 6, `found ${rustGuesses.length}`);
+for (const block of rustGuesses) {
+  const domains = [...block.match(/domains: &\[([^\]]*)\]/)[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  const guessed = block.match(/Setup::Guessed \{ host: "([^"]+)"/);
+  for (const domain of domains) {
+    const want = guessed ? { host: guessed[1], supported: true } : { host: null, supported: false };
+    equal(`the Settings guess for ${domain} is the backend's`, app.guessServer(`someone@${domain}`), want);
+  }
+}
+equal("a domain the backend does not know is not guessed", app.guessServer("someone@yahoo.com"), null);
+equal("the prototype is not a provider", app.guessServer("someone@constructor"), null);
 
 await rm(dir, { recursive: true, force: true });
 console.log(failures === 0 ? "\nall checks passed" : `\n${failures} check(s) failed`);

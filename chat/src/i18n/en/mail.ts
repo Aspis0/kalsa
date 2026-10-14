@@ -59,7 +59,25 @@ export const MAIL = {
   testFailed: "Couldn't connect with those details. Check the address, the password and the server.",
   saved: "Account saved.",
   removed: "Account removed.",
-  appPassword: "This provider asks for an app password, not your normal one.",
+  appPassword: {
+    needed: "This service wants an app password, not your account password.",
+    title: "How to get an app password",
+    stepsGoogle: [
+      "Sign in to Google on a computer or your phone.",
+      "Open the app passwords page.",
+      "If the page says it is unavailable, turn on 2-Step Verification first, then come back.",
+      "Create an app password named “Kalsa” and copy it: sixteen letters, and the spaces do not matter.",
+    ],
+    stepsApple: [
+      "Go to account.apple.com and sign in with your Apple Account.",
+      "Open “Sign-In and Security”.",
+      "Under “App-Specific Passwords”, choose “Generate a password”.",
+      "Name it “Kalsa” and copy it now: Apple shows it only once.",
+    ],
+    note: "This code is for mail only: it does not open your Google or Apple account, and you can revoke it from the same page whenever you like. Kalsa keeps it in the system password manager.",
+    openPage: "Open the page in your browser",
+    failed: "This service wants an app password, not your normal one.",
+  },
   outlook: "Outlook isn't supported yet.",
   unknownServer: "We don't know this provider, so fill the server in yourself.",
   // With the small model running the mailbox stays closed: the owner decides

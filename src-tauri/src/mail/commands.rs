@@ -224,6 +224,25 @@ mod tests {
         assert!(serde_json::from_str::<SendArgs>(r#"{"reply_to_id":7,"subject":"Re","body":"b"}"#).is_err());
     }
 
+    /// The bodies the panel and the tool layer send, as they go on the wire. Each one
+    /// lands in the struct its command takes, so a renamed key, a dropped field or a
+    /// string id fails here rather than at the first live save.
+    #[test]
+    fn the_bodies_the_ui_sends_deserialize_into_the_real_structs() {
+        assert!(serde_json::from_str::<AccountForm>(r#"{"email":"luca@libero.it","password":"pw","host":"imapmail.libero.it"}"#).is_ok());
+        assert!(serde_json::from_str::<AccountForm>(r#"{"email":"luca@libero.it","password":"pw"}"#).is_ok());
+        assert!(serde_json::from_str::<AccountForm>(r#"{"email":"luca@libero.it","password":"pw","server":"imap.libero.it"}"#).is_err());
+        let list: ListArgs = serde_json::from_str(r#"{"folder":"INBOX","days":1}"#).expect("list");
+        assert_eq!(list.days, Some(1));
+        let read: ReadArgs = serde_json::from_str(r#"{"id":412,"folder":"INBOX"}"#).expect("read");
+        assert_eq!(read.id, 412);
+        assert!(serde_json::from_str::<ReadArgs>(r#"{"id":"412","folder":"INBOX"}"#).is_err());
+        let draft: DraftArgs = serde_json::from_str(r#"{"reply_to_id":412,"body":"Va bene.","folder":"INBOX"}"#).expect("draft");
+        assert_eq!(draft.reply_to_id, 412);
+        let sent: SendArgs = serde_json::from_str(r#"{"replyToId":412,"subject":"Re: Fattura","body":"Va bene."}"#).expect("send");
+        assert_eq!(sent.reply_to_id, 412);
+    }
+
     #[test]
     fn a_sent_reply_answers_with_its_recipient_and_a_refusal_with_its_fixed_code() {
         let done = ToolResponse {

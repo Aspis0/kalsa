@@ -1,39 +1,31 @@
 /**
- * The IMAP server for a common address, guessed from its domain. It is a
- * default in the Settings field and nothing more: the field is editable, and
- * `brain_mail_account_test` tests the account that was saved, never a host
- * the caller passes in.
+ * The IMAP server for a common address, guessed from its domain, for the Server
+ * field to show. The backend's table in `src-tauri/src/mail/providers.rs` is the
+ * authority: this one mirrors it, and `mail-cards.mjs` fails when the two
+ * disagree. A guessed value is never sent to the backend; only one the person
+ * typed is.
  */
 
-const BY_DOMAIN: Record<string, string> = {
-  "icloud.com": "imap.mail.me.com",
-  "me.com": "imap.mail.me.com",
-  "mac.com": "imap.mail.me.com",
-  // Microsoft: named here so its own sentence is shown, not the "unknown
-  // provider" one a missing entry would give.
-  "outlook.com": "outlook.office365.com",
-  "outlook.it": "outlook.office365.com",
-  "hotmail.com": "outlook.office365.com",
-  "hotmail.it": "outlook.office365.com",
-  "live.com": "outlook.office365.com",
-  "gmail.com": "imap.gmail.com",
-  "googlemail.com": "imap.gmail.com",
-  "libero.it": "imapmail.libero.it",
-  "virgilio.it": "imap.virgilio.it",
-  "aruba.it": "imap.aruba.it",
-  "tiscali.it": "imap.tiscali.it",
-  "alice.it": "imap.alice.it",
-  "fastmail.com": "imap.fastmail.com",
-  "yahoo.com": "imap.mail.yahoo.com",
-  "yahoo.it": "imap.mail.yahoo.com",
-};
+const BY_DOMAIN = new Map<string, string>([
+  ["icloud.com", "imap.mail.me.com"],
+  ["me.com", "imap.mail.me.com"],
+  ["mac.com", "imap.mail.me.com"],
+  ["gmail.com", "imap.gmail.com"],
+  ["googlemail.com", "imap.gmail.com"],
+  ["libero.it", "imapmail.libero.it"],
+  ["iol.it", "imapmail.libero.it"],
+  ["blu.it", "imapmail.libero.it"],
+  ["inwind.it", "imapmail.libero.it"],
+  ["virgilio.it", "in.virgilio.it"],
+  ["aruba.it", "imap.aruba.it"],
+]);
 
-// Microsoft's IMAP needs its own sign-in, and this phase wires none: the
-// address is refused with the reason rather than left to fail at the login.
-const UNSUPPORTED = new Set(["outlook.office365.com"]);
+// Microsoft asks for OAuth2 on its IMAP server, which this build does not do: the
+// address is refused with the reason, and no server is guessed for it.
+const UNSUPPORTED = new Set(["outlook.com", "hotmail.com", "hotmail.it", "live.com", "outlook.it"]);
 
 export interface ServerGuess {
-  host: string;
+  host: string | null;
   supported: boolean;
 }
 
@@ -42,13 +34,8 @@ export interface ServerGuess {
 export function guessServer(email: string): ServerGuess | null {
   const domain = email.trim().toLowerCase().split("@")[1];
   if (!domain) return null;
-  const host = BY_DOMAIN[domain];
+  if (UNSUPPORTED.has(domain)) return { host: null, supported: false };
+  const host = BY_DOMAIN.get(domain);
   if (host === undefined) return null;
-  return { host, supported: !UNSUPPORTED.has(host) };
-}
-
-/** A provider that needs a password of its own, stated where it is typed. */
-export function needsAppPassword(email: string): boolean {
-  const domain = email.trim().toLowerCase().split("@")[1] ?? "";
-  return domain === "gmail.com" || domain === "googlemail.com";
+  return { host, supported: true };
 }

@@ -242,3 +242,93 @@ export const SHOW = [
 ];
 
 export const SENTENCE = "Ho trovato 3 mail che richiedono attenzione.";
+
+/* ------------------------------------------------- the backend's argument contract
+
+   One entry per `brain_mail_*` command, mirroring the Rust struct it deserialises
+   into: the outer key is the command's parameter name, and the struct's keys, types
+   and `deny_unknown_fields` are copied from src-tauri/src/mail/commands.rs and
+   accounts.rs. A stub that accepts what serde refuses is how a wrong key shipped
+   green, so every stub passes its arguments through `contractError` first. */
+
+const UINT32_MAX = 4294967295;
+
+const TEXT = { kind: "text", required: true };
+const TEXT_OPTIONAL = { kind: "text", required: false };
+const UINT32 = { kind: "u32", required: true };
+const UINT32_OPTIONAL = { kind: "u32", required: false };
+const PORT_OPTIONAL = { kind: "u16", required: false };
+
+const CONTRACT = {
+  // accounts.rs `AccountForm`, the parameter `input`.
+  brain_mail_account_save: {
+    param: "input",
+    fields: { email: TEXT, host: TEXT_OPTIONAL, port: PORT_OPTIONAL, user: TEXT_OPTIONAL, password: TEXT },
+  },
+  // Take no arguments at all.
+  brain_mail_account_delete: { param: null, fields: {} },
+  brain_mail_account_test: { param: null, fields: {} },
+  // commands.rs `ListArgs`, snake_case.
+  brain_mail_list: {
+    param: "args",
+    fields: { days: UINT32_OPTIONAL, folder: TEXT_OPTIONAL, from: TEXT_OPTIONAL, query: TEXT_OPTIONAL },
+  },
+  // commands.rs `ReadArgs`, snake_case.
+  brain_mail_read: { param: "args", fields: { id: UINT32, folder: TEXT_OPTIONAL } },
+  // commands.rs `DraftArgs`, snake_case.
+  brain_mail_draft: { param: "args", fields: { reply_to_id: UINT32, body: TEXT, folder: TEXT_OPTIONAL } },
+  // commands.rs `SendArgs`, camelCase.
+  brain_mail_send: { param: "args", fields: { replyToId: UINT32, subject: TEXT, body: TEXT } },
+};
+
+function typeName(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "sequence";
+  return typeof value === "number" ? (Number.isInteger(value) ? "integer" : "floating point") : typeof value;
+}
+
+function fieldError(field, name, value) {
+  if (value === undefined || (value === null && !field.required)) return null;
+  if (value === null) return `invalid type: null, expected ${field.kind} for \`${name}\``;
+  if (field.kind === "text") {
+    return typeof value === "string" ? null : `invalid type: ${typeName(value)}, expected a string for \`${name}\``;
+  }
+  const max = field.kind === "u16" ? 65535 : UINT32_MAX;
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+    return `invalid type: ${typeName(value)}, expected an unsigned integer for \`${name}\``;
+  }
+  return value >= 0 && value <= max ? null : `invalid value: ${value}, expected a ${field.kind} for \`${name}\``;
+}
+
+/** The refusal serde and Tauri would give for these arguments, or null when they
+    are the shape the command takes. Tauri rejects with the message as a string. */
+export function contractError(command, payload) {
+  if (!Object.hasOwn(CONTRACT, command)) {
+    return command.startsWith("brain_mail_") ? `no command \`${command}\`` : null;
+  }
+  const spec = CONTRACT[command];
+  const args = payload ?? {};
+  const keys = Object.keys(args);
+  if (spec.param === null) {
+    return keys.length === 0 ? null : `${command} takes no arguments, got \`${keys[0]}\``;
+  }
+  const extra = keys.find((key) => key !== spec.param);
+  if (extra !== undefined) return `invalid args \`${extra}\` for command \`${command}\`: expected \`${spec.param}\``;
+  const body = args[spec.param];
+  if (body === undefined) return `missing required key \`${spec.param}\` for command \`${command}\``;
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return `invalid type: ${typeName(body)}, expected a map for \`${spec.param}\``;
+  }
+  for (const key of Object.keys(body)) {
+    if (!Object.hasOwn(spec.fields, key)) {
+      const expected = Object.keys(spec.fields).map((name) => `\`${name}\``).join(", ");
+      return `unknown field \`${key}\`, expected one of ${expected}`;
+    }
+  }
+  for (const [name, field] of Object.entries(spec.fields)) {
+    if (field.required && body[name] === undefined) return `missing field \`${name}\``;
+    const refused = fieldError(field, name, body[name]);
+    if (refused !== null) return refused;
+  }
+  return null;
+}

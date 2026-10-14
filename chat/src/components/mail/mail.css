@@ -220,6 +220,63 @@
   outline: none;
 }
 
+/* How to get a code the provider wants instead of the password: a quiet box
+   under the field it belongs to, numbered because it is a sequence. */
+.mail-apppass {
+  margin: 4px 24px 18px;
+  padding: 14px 16px 15px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.mail-apppass-why {
+  display: flex;
+  margin: 0 24px 10px;
+  align-items: center;
+  gap: 7px;
+  color: var(--warn-ink);
+  font-size: 13.5px;
+  line-height: 20px;
+}
+
+.mail-apppass-title {
+  display: flex;
+  margin: 0 0 8px;
+  align-items: center;
+  gap: 7px;
+  color: var(--tx);
+  font-size: 14.5px;
+  font-weight: 650;
+}
+
+.mail-apppass.is-failed {
+  border-color: var(--warn);
+}
+
+.mail-apppass.is-failed .mail-apppass-title {
+  color: var(--warn-ink);
+}
+
+.mail-apppass-steps {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  color: var(--tx2);
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.mail-apppass-steps li {
+  margin-bottom: 3px;
+}
+
+.mail-apppass-note {
+  margin: 0 0 10px;
+  color: var(--tx3);
+  font-size: 13px;
+  line-height: 19px;
+}
+
 /* The stub a reloaded chat has of a turn: the count, never the cards. */
 .mail-stub {
   margin: 0 0 12px;
