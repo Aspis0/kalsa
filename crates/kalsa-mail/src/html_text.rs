@@ -11,7 +11,6 @@
 //! a model, the host's taint on mail, and no tool that leaves the machine
 //! without the person confirming it.
 
-use crate::budget::{self, Budget};
 use crate::html_element::{alt_is_hidden, counts_as_hidden, is_dropped, is_hidden, BLOCK};
 use crate::html_hide::Rules;
 use crate::invisible;
@@ -21,8 +20,20 @@ use scraper::node::Node;
 use scraper::Html;
 use std::sync::OnceLock;
 
+/// The HTML this server will parse. Measured on this Mac against six generators
+/// (`what_a_mail_can_spend`): 16 KB of the worst of them costs 28 ms, 32 KB
+/// costs 168 ms and 64 KB costs 631 ms. 16 KB keeps one mail well inside the
+/// 100 ms a single mail is worth, and fifty of them inside the call deadline.
+///
+/// There is no budget shared between mails on purpose. A sender who mails
+/// enough hard mails to spend one switches the checks off for every mail after,
+/// including somebody else's — a shared allowance lets one sender blind the
+/// next. The per-mail cap bounds a whole `list` on its own: fifty mails at the
+/// worst measured 28 ms is 1.4 s, inside the host's 60 s call deadline.
+pub(crate) const MAX_HTML_BYTES: usize = 16 * 1024;
+
 /// Deeper than any mail nests, and past the point where the walk below would run
-/// out of stack. The parse is bounded by bytes and time in `budget`, not by this.
+/// out of stack. The parse is bounded by the bytes above, not by this.
 const MAX_DEPTH: usize = 256;
 
 /// What a reader sees, and whether anything was kept from them.
@@ -56,13 +67,11 @@ fn blank_lines() -> &'static Regex {
 /// whatever plain text the mail also carries, and the mail is flagged. Nothing
 /// is shown rather than something shown by guesswork — a person sees a card and
 /// decides.
-pub fn scan(html: &str, budget: &mut Budget) -> Option<Scan> {
-    if !budget::permits(html.len(), budget) {
+pub fn scan(html: &str) -> Option<Scan> {
+    if html.len() > MAX_HTML_BYTES {
         return None;
     }
-    let started = budget::now();
     let document = Html::parse_document(html);
-    budget.charge(started.elapsed());
     let rules = Rules::from_node(document.tree.root());
     let mut out = String::new();
     let mut hidden = false;
@@ -218,7 +227,7 @@ mod tests {
     }
 
     fn scanned(html: &str) -> Scan {
-        scan(html, &mut Budget::new()).expect("parsed")
+        scan(html).expect("parsed")
     }
 
     /// Spelled out so a source list in a test is not read as a file path.
@@ -284,7 +293,7 @@ mod tests {
     fn a_mail_nested_far_past_any_renderer_costs_no_more_than_a_short_one() {
         let bomb = "<div>".repeat(40_000);
         let started = std::time::Instant::now();
-        let refused = scan(&format!("{bomb}SEGRETO"), &mut Budget::new());
+        let refused = scan(&format!("{bomb}SEGRETO"));
         assert!(
             started.elapsed() < std::time::Duration::from_millis(50),
             "a bomb took {:?}",
@@ -297,22 +306,13 @@ mod tests {
     /// necessary rather than against a comment.
     #[test]
     fn a_mail_at_the_byte_cap_is_still_parsed_and_one_byte_past_it_is_not() {
-        let at = format!("<p>{}</p>", "a".repeat(budget::MAX_HTML_BYTES - 7));
-        assert_eq!(at.len(), budget::MAX_HTML_BYTES);
-        let parsed = scan(&at, &mut Budget::new()).expect("at the cap is parsed");
+        let at = format!("<p>{}</p>", "a".repeat(MAX_HTML_BYTES - 7));
+        assert_eq!(at.len(), MAX_HTML_BYTES);
+        let parsed = scan(&at).expect("at the cap is parsed");
         assert!(!parsed.hidden);
 
         let over = format!("{at}x");
-        assert!(scan(&over, &mut Budget::new()).is_none());
-    }
-
-    /// Once a call has spent its allowance, a mail is refused whatever its size:
-    /// the cost is in the parser, and a small mail still costs one.
-    #[test]
-    fn a_call_out_of_allowance_refuses_a_mail_of_one_byte() {
-        let mut budget = Budget::new();
-        budget.charge(budget::CALL_LIMIT);
-        assert!(scan("<p>Ciao</p>", &mut budget).is_none());
+        assert!(scan(&over).is_none());
     }
 
     /// A real mail nests shallowly. The bound must not fire on one.

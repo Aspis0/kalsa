@@ -47,18 +47,11 @@ pub struct ParsedMail {
 }
 
 pub fn parse(raw: &[u8]) -> ParsedMail {
-    parse_bounded(raw, &mut crate::budget::Budget::new())
-}
-
-/// One mail, against what the whole call has left of its allowance: a `list` of
-/// fifty mails shares one budget so that fifty hard mails cannot cost fifty
-/// parses.
-pub(crate) fn parse_bounded(raw: &[u8], budget: &mut crate::budget::Budget) -> ParsedMail {
     let start = body_start(raw);
     let headers = parse_headers(&String::from_utf8_lossy(&raw[..start]));
     let bounded = bounded(raw, start);
     let message = MessageParser::default().parse(bounded);
-    fill(message, headers, budget)
+    fill(message, headers)
 }
 
 /// Headers only, for the "have I seen this sender before" check over a whole mailbox.
@@ -83,11 +76,7 @@ pub fn sender_of(header_bytes: &[u8]) -> (String, i64) {
     (address, date)
 }
 
-fn fill(
-    message: Option<Message<'_>>,
-    headers: Vec<(String, String)>,
-    budget: &mut crate::budget::Budget,
-) -> ParsedMail {
+fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedMail {
     let html = message.as_ref().and_then(html_of);
     let plain = message.as_ref().and_then(text_of);
     let from = message.as_ref().and_then(|m| m.from()).and_then(first_addr);
@@ -96,7 +85,7 @@ fn fill(
     // The HTML half is what a person reads in a mail client, so it is what the
     // model gets and what the hidden verdict is about. The plain half is read by
     // the same pass, so the two can never answer differently.
-    let parsed_html = html.as_deref().map(|html| html_text::scan(html, budget));
+    let parsed_html = html.as_deref().map(html_text::scan);
     let unparsed = matches!(parsed_html, Some(None));
     let scan = match parsed_html {
         Some(Some(scan)) => scan,

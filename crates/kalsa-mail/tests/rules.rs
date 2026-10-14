@@ -297,3 +297,80 @@ fn a_suspicious_mail_wins_over_bulk() {
     assert!(labels.reasons.contains(&Reason::PaymentUrgencyNewSender));
     assert!(labels.reasons.contains(&Reason::BulkNoreply));
 }
+
+/// A mail over the parse cap still carries its links to the rules: the link
+/// scan reads the raw source and never needed the parser.
+#[test]
+fn the_link_rules_fire_on_a_mail_too_big_to_parse() {
+    let filler = "a".repeat(20_000);
+    let raw = format!(
+        "From: Banco <servizio@banco.example.it>\r\nSubject: Verifica\r\n\
+         Date: Tue, 13 Oct 2026 10:00:00 +0000\r\n\
+         Content-Type: text/html; charset=utf-8\r\n\r\n\
+         <p>{filler}</p>\
+         <a href=\"https://192.0.2.7/verifica\">Clicca qui per confermare</a>"
+    );
+    let parsed = mail::parse(raw.as_bytes());
+    let labels = label::label(1, &parsed, &[], Some(TRUSTED));
+
+    assert!(parsed.unparsed, "this mail is over the cap on purpose");
+    assert!(
+        labels.reasons.contains(&Reason::IpLink),
+        "{:?}",
+        labels.reasons
+    );
+    assert!(labels.suspicious, "{:?}", labels.reasons);
+}
+
+/// One sender must not be able to switch the checks off for the next mail. With
+/// no allowance shared between mails, a hundred hard mails in front of a
+/// phishing one change nothing.
+#[test]
+fn a_hundred_hard_mails_in_front_do_not_blind_the_next_one() {
+    // Just under the cap and expensive to rebuild: a parse a sender can ask for
+    // sixty times over.
+    let heavy = format!(
+        "From: <mittente@fornitore.example.net>\r\nSubject: Offerta\r\n\
+         Date: Tue, 13 Oct 2026 10:00:00 +0000\r\n\
+         Content-Type: text/html; charset=utf-8\r\n\r\n<div>{}</div>",
+        "<div>".repeat(800)
+    );
+    assert!(heavy.len() < 16 * 1024, "the filler is meant to be parsed");
+    // Just under the cap and the most expensive shape a sender can send: nested
+    // elements, which are what the measurements above say cost the most.
+    for _ in 0..45 {
+        mail::parse(heavy.as_bytes());
+    }
+
+    let phishing = mail::parse(
+        b"From: Banco Sicuro <servizio@banco.example.it>\r\nSubject: Verifica conto\r\n\
+          Date: Tue, 13 Oct 2026 10:00:00 +0000\r\n\
+          Content-Type: text/html; charset=utf-8\r\n\r\n\
+          <a href=\"https://192.0.2.7/conferma\">Clicca qui per confermare</a>",
+    );
+    let labels = label::label(1, &phishing, &[], Some(TRUSTED));
+
+    assert!(!phishing.unparsed);
+    assert!(labels.suspicious, "{:?}", labels.reasons);
+    assert!(
+        labels.reasons.contains(&Reason::IpLink),
+        "{:?}",
+        labels.reasons
+    );
+
+    // The link rules read the raw source, so they survive anything that stops
+    // the parse. What the parse alone decides is the hidden-text verdict.
+    let hidden = mail::parse(
+        b"From: Banco Sicuro <servizio@banco.example.it>\r\nSubject: Verifica conto\r\n\
+          Date: Tue, 13 Oct 2026 10:00:00 +0000\r\n\
+          Content-Type: text/html; charset=utf-8\r\n\r\n\
+          <p>Ciao</p><div style=\"display:none\">conferma subito la password</div>",
+    );
+    let hidden_labels = label::label(1, &hidden, &[], Some(TRUSTED));
+    assert!(
+        hidden_labels.reasons.contains(&Reason::HiddenText),
+        "{:?}",
+        hidden_labels.reasons
+    );
+    assert!(hidden_labels.suspicious);
+}
