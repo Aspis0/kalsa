@@ -536,3 +536,11 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - "Never sign as Kalsa" is prompt-only (`definitions.ts` mail_draft description); no code checks the body, and the mail-cards check only reads the description back.
 - A redraft adds a second card for the same mail instead of replacing the first; both show the one stored record, so neither offers the old words.
 - The fresh-chat branch of `send` drops the mail riders (note, subject, pin); unreachable from a card today because cards need an active chat.
+
+## Phone: NPU lane alone when the GPU does not fit (phone d598a4b9, kalsa.rn d4754cb5, deepseek review, 2026-10-15, phone repo)
+- Lane-only one-copy load is {HTP0} with no OpenCL leg: the tied token_embd output projection (Q6_K) runs on the CPU, slower; whether the CPU reads the HTP host buffer in place or the scheduler copies it is unmeasured.
+- The lane-only memory cell ran at the bench's ctx 2048 (governor-bench has no `-c`); the app's ctx 16384 KV on HTP is priced, not measured.
+- «Poca memoria libera» after a runtime HTP failure between the load and the first turn's stats stays hidden until those stats arrive.
+- The GPU threshold moved by 300 − (compute + KV) (−53 MiB at ctx 16384, −250 at ubatch 512): accepted, J(1) measured 2870 MiB vs 3000 predicted without the duplicate; a second device (S23) J(1) cell at the app's ctx would confirm.
+- `PairingScreen` "an edit stops the abandoned poll's probes at once" failed once under the full jest run (probes 2, expected > 2), passed 3/3 alone: a timing flake.
+- A {HTP0, GPUOpenCL} bench load without GGML_OPENCL_TILE32_UNMEASURED on the Adreno 750 asserts (`GGML_ASSERT(tensor->view_src->data != NULL)`, ggml-backend.cpp:2275) instead of refusing.
