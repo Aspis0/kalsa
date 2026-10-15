@@ -89,17 +89,34 @@ function cardItem(raw: unknown): MailCardItem | null {
   };
 }
 
+/** The first card for an id, in the order they arrived. The list keys its
+ *  rows by id and every action on a card names one, so a repeat would draw the
+ *  same mail twice under a single key and open the same record twice. */
+function firstOfEachId(items: MailCardItem[]): MailCardItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 export function normalizeMailCards(raw: unknown): MailCards | null {
   const cards = asObject(raw);
   const items = cards === null ? null : cards.items;
   if (!Array.isArray(items)) return null;
   const parsed = items.map(cardItem).filter((item): item is MailCardItem => item !== null);
-  if (parsed.length === 0) return null;
   const bulk = cards?.bulk;
+  const newsletters =
+    typeof bulk === "number" && Number.isFinite(bulk) && bulk > 0 ? Math.floor(bulk) : 0;
+  // A list of newsletters is a list: the count line the card list draws is the
+  // whole of what the answer has to say, so it survives a set with no cards in
+  // it. Only an answer with nothing to say at all draws nothing.
+  if (parsed.length === 0 && newsletters === 0) return null;
   return {
     kind: "cards",
-    items: parsed,
-    bulk: typeof bulk === "number" && Number.isFinite(bulk) && bulk > 0 ? Math.floor(bulk) : 0,
+    items: firstOfEachId(parsed),
+    bulk: newsletters,
   };
 }
 

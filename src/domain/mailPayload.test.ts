@@ -52,6 +52,30 @@ describe("the mail a remote answer brings", () => {
     expect(normalizeMailCards({ kind: "cards", items: [ITEM], bulk: 4 })?.bulk).toBe(4);
   });
 
+  test("a list of newsletters is a list, even with no card to draw", () => {
+    // The answer said only "there are more newsletters": the count line is the
+    // whole of it, and the list draws that line.
+    const cards = normalizeMailCards({ kind: "cards", items: [], bulk: 7 });
+    expect(cards).toEqual({ kind: "cards", items: [], bulk: 7 });
+    // Cards the phone cannot draw but a count to say: same.
+    const unreadable = normalizeMailCards({ kind: "cards", items: [{ ...ITEM, id: "" }], bulk: 2 });
+    expect(unreadable).toEqual({ kind: "cards", items: [], bulk: 2 });
+    // Nothing to draw and nothing to say: still nothing.
+    expect(normalizeMailCards({ kind: "cards", items: [] })).toBeNull();
+    expect(normalizeMailCards({ kind: "cards", items: [], bulk: 0 })).toBeNull();
+  });
+
+  test("one id is one card: the first of a repeat is the card", () => {
+    // The list keys its rows by id and every action names one, so a repeated
+    // id would draw the same mail twice and open one record twice.
+    const cards = normalizeMailCards({
+      kind: "cards",
+      items: [ITEM, { ...ITEM, subject: "La stessa, di nuovo" }, { ...ITEM, id: "106" }],
+    });
+    expect(cards?.items.map((item) => item.id)).toEqual(["105", "106"]);
+    expect(cards?.items[0].subject).toBe("Bonifico in arrivo");
+  });
+
   test("a draft without a recipient or an id is not a draft", () => {
     expect(normalizeMailDraft({ draft_id: "abc", to: "m@x.it" })).toMatchObject({
       draftId: "abc",

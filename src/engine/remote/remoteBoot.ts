@@ -1,6 +1,8 @@
 /**
  * Single source of truth for boot: model id and backend cannot disagree.
- * Remote only if hydration succeeded AND a usable URL is present.
+ * Remote only if hydration succeeded AND the engine has a door to dial —
+ * a pairing that owns its own address, or one typed by hand. The caller
+ * decides "has a door" (`hostDoorIsReachable`), by the rule the engine dials by.
  */
 import type { EngineBackendMode } from "./remoteSettings";
 
