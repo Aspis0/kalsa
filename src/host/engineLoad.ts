@@ -41,9 +41,14 @@ import type { ModelPipelineState } from "./hostPipelineState";
 import type { Locale, TranslateFn } from "../i18n";
 import { MODEL_SWITCH_DISPOSE_TIMEOUT_MS } from "./engineGateHelpers";
 import { markStage } from "../telemetry/diagnosticsCollector";
+import { lastExitInfo } from "../../modules/kalsa-lifecycle/src";
 
 /** Injected store for load markers + last-good bookkeeping (boot-loop defence). */
 export const loadMarkerStore: LoadMarkerStore = AsyncStorage;
+
+/** The one marker reader the host uses: refused only on a death of the load. */
+export const readDeathMarker = (modelId: string): Promise<boolean> =>
+  readLoadMarker(loadMarkerStore, modelId, lastExitInfo).catch(() => false);
 
 /**
  * Every field the load path (ensure, gate report, fallback, switch) reads as
@@ -97,7 +102,7 @@ export async function evaluateLoadGate(model: ModelInfo): Promise<LoadGateVerdic
         benchNoRepack,
         benchUseMmap: engineOverride?.useMmap,
       }),
-      markerPresent: await readLoadMarker(loadMarkerStore, model.id).catch(() => false),
+      markerPresent: await readDeathMarker(model.id),
       residentModelId: isEngineReady() ? (getActiveModelId() ?? null) : null,
       lostModelId: getEngineLostModelId(),
       benchNoRepack,
@@ -193,7 +198,7 @@ export async function runLoadFallback(
             refusedId: model.id,
             lastGoodId,
             defaultId: getDefaultModel().id,
-            isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
+            isMarked: (id) => readDeathMarker(id),
           });
           const fallbackIndex = fallbackId
             ? MODEL_REGISTRY.findIndex((m) => m.id === fallbackId)

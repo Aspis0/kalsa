@@ -1,24 +1,27 @@
 /**
  * Boot-loop defence bookkeeping, two pieces of small persisted state:
  * - a per-model death marker, written before a load starts and cleared when
- *   the load settles. What a surviving marker actually proves: the previous
- *   process's load DID NOT SETTLE. Usually the process died mid-load and never
- *   reached its own error handler; a wedged native op is the second road to
- *   the same state (runNativeOpBounded puts no deadline on an op it has
- *   already submitted, so a wedged initEngine never settles and the finally
- *   never runs while the process sits there alive and stuck). Best-effort,
- *   fail-open: a swallowed storage failure in the clear can also leave a
- *   marker behind with the process alive; the user can still recover by
- *   re-selection.
+ *   the load settles. A surviving marker only says the load did not settle:
+ *   an app update or a swipe-kill also leaves it behind. It blocks the model
+ *   only when Android reports that the process which wrote it died unclean
+ *   after the stamp (see readLoadMarker). Best-effort, fail-open: a swallowed
+ *   storage failure in the clear can leave a marker behind with the process
+ *   alive; the user can still recover by re-selection.
  * - the id of the last model that loaded successfully, the fallback target.
- * Storage is injected so the module is testable without AsyncStorage.
+ * Storage and the exit record are injected so the module is testable without
+ * AsyncStorage or the native module.
  */
+import type { ExitInfo } from "../../modules/kalsa-lifecycle/src";
+import { isUncleanExit } from "../logReport/exitReasons";
 
 export interface LoadMarkerStore {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
 }
+
+/** The newest Android process-exit record, or null when none can be read. */
+export type ExitReader = () => ExitInfo | null;
 
 const markerKey = (modelId: string): string => `kalsa.load.dead.${modelId}`;
 const LAST_GOOD_KEY = "kalsa.model.lastGoodId";
@@ -27,7 +30,7 @@ export async function writeLoadMarker(
   store: LoadMarkerStore,
   modelId: string,
 ): Promise<void> {
-  await store.setItem(markerKey(modelId), "1");
+  await store.setItem(markerKey(modelId), JSON.stringify({ at: Date.now() }));
 }
 
 export async function clearLoadMarker(
@@ -37,11 +40,56 @@ export async function clearLoadMarker(
   await store.removeItem(markerKey(modelId));
 }
 
+/**
+ * The one reader of the marker: true only when the process that wrote it died
+ * during the load. A marker the OS does not blame on the load is cleared here,
+ * so the model loads. An exit record older than the stamp is not this load's
+ * death. A legacy "1" carries no stamp and is judged by its exit record alone.
+ * A confirmed death is stored in the marker, so a later clean exit (the user
+ * swiping the crashed app away) cannot clear it; only the explicit clears and
+ * a successful load remove it.
+ */
 export async function readLoadMarker(
   store: LoadMarkerStore,
   modelId: string,
+  readExit: ExitReader,
 ): Promise<boolean> {
-  return (await store.getItem(markerKey(modelId))) !== null;
+  const raw = await store.getItem(markerKey(modelId));
+  if (raw === null) return false;
+  const marker = parseMarker(raw);
+  if (marker.confirmed) return true;
+  if (isDeathDuringLoad(marker.at, readExit())) {
+    const confirmed = JSON.stringify({ at: marker.at, confirmed: true });
+    await store.setItem(markerKey(modelId), confirmed).catch(() => undefined);
+    return true;
+  }
+  await clearLoadMarker(store, modelId).catch(() => undefined);
+  return false;
+}
+
+/** What a marker carries; a legacy "1" carries neither field. */
+function parseMarker(raw: string): { at: number | null; confirmed: boolean } {
+  try {
+    const value = JSON.parse(raw) as { at?: unknown; confirmed?: unknown } | null;
+    return {
+      at: typeof value?.at === "number" ? value.at : null,
+      confirmed: value?.confirmed === true,
+    };
+  } catch {
+    return { at: null, confirmed: false };
+  }
+}
+
+/**
+ * An exit record that cannot be read is treated as a death, as before this
+ * check existed: a real crash loop must stay blocked. A low-memory kill counts
+ * even when the process was in the background, because a marker only exists
+ * while a load is in flight.
+ */
+function isDeathDuringLoad(stamp: number | null, record: ExitInfo | null): boolean {
+  if (record === null) return true;
+  if (stamp !== null && record.timestampMs < stamp) return false;
+  return record.reason === "low_memory" || isUncleanExit(record);
 }
 
 export async function writeLastGoodModelId(

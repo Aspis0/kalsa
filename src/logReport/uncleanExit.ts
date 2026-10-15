@@ -14,38 +14,10 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import {
-  lastExitInfo,
-  type ExitInfo,
-  type ExitReason,
-} from "../../modules/kalsa-lifecycle/src";
+import { lastExitInfo } from "../../modules/kalsa-lifecycle/src";
+import { isUncleanExit } from "./exitReasons";
 
 export const CONSUMED_EXIT_AT_KEY = "kalsa.logReport.consumedExitAt.v1";
-
-// The OS importance of a process that was foreground (100), a foreground
-// service (125) or visible (200) when it died.
-const VISIBLE_IMPORTANCE_MAX = 200;
-
-const CRASH_REASONS: readonly ExitReason[] = ["crash", "crash_native", "anr"];
-const FOREGROUND_KILL_REASONS: readonly ExitReason[] = [
-  "low_memory",
-  "signaled",
-  "excessive_resource_usage",
-];
-
-/**
- * A crash always is unclean; a memory or signal kill of a process that was at
- * least visible is unclean too — the OS reaping a background process is
- * normal Android behaviour and must not nag. user_requested/user_stopped
- * (force-stop, swipe in settings), exit_self and every other reason are clean.
- */
-export function isUncleanExit(record: ExitInfo): boolean {
-  if (CRASH_REASONS.includes(record.reason)) return true;
-  return (
-    FOREGROUND_KILL_REASONS.includes(record.reason) &&
-    record.importance <= VISIBLE_IMPORTANCE_MAX
-  );
-}
 
 /**
  * Decide and consume in one step: true shows the prompt. The record's

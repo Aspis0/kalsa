@@ -10,11 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MODEL_REGISTRY, getDefaultModel, type ModelInfo } from "../engine/ModelRegistry";
 import { isModelBundleDownloaded } from "../engine/ModelDownloader";
 import { detectOrphansAtBoot } from "../engine/ModelDownloader.orphanMigration";
-import {
-  pickStartModel,
-  readLastGoodModelId,
-  readLoadMarker,
-} from "../engine/loadMarker";
+import { pickStartModel, readLastGoodModelId } from "../engine/loadMarker";
 import { disposeEngine, getActiveModelId, isEngineReady, isRemoteEngineBackend, recoverLocalBackend, setEngineBackendMode } from "../engine/engineBackend";
 import { isDeleteActive } from "../documents/docOpGate";
 import {
@@ -37,7 +33,7 @@ import type {
   VoicePipelineState,
 } from "./hostPipelineState";
 import type { TranslateFn } from "../i18n";
-import { loadMarkerStore } from "./engineLoad";
+import { loadMarkerStore, readDeathMarker } from "./engineLoad";
 import { cancelPendingEagerKick, logEagerInit, startEagerKick } from "./eagerKickDelay";
 import {
   MODEL_STORAGE_KEY,
@@ -170,7 +166,7 @@ export function usePipelineScans(params: {
             savedId: restoreId,
             lastGoodId,
             defaultId: getDefaultModel().id,
-            isMarked: (id) => readLoadMarker(loadMarkerStore, id).catch(() => false),
+            isMarked: (id) => readDeathMarker(id),
           });
         });
         if (!bootStillCurrent() || startId === null) return;

@@ -8,6 +8,7 @@ import {
   readLoadMarker,
   writeLastGoodModelId,
   writeLoadMarker,
+  type ExitReader,
   type LoadMarkerStore,
 } from "./loadMarker";
 
@@ -25,18 +26,25 @@ const makeStore = (): LoadMarkerStore => {
   };
 };
 
+/** The process died unclean just now, after any stamp: a death of the load. */
+const crashNow: ExitReader = () => ({
+  reason: "crash",
+  importance: 100,
+  timestampMs: Date.now() + 60_000,
+});
+
 const isMarkedIn = (store: LoadMarkerStore) => (id: string) =>
-  readLoadMarker(store, id);
+  readLoadMarker(store, id, crashNow);
 
 describe("guardedLoad (the marker survives ONLY a death)", () => {
   test("marker is present inside the load and cleared after success", async () => {
     const store = makeStore();
     let markerDuringLoad = false;
     await guardedLoad(store, "qwen", async () => {
-      markerDuringLoad = await readLoadMarker(store, "qwen");
+      markerDuringLoad = await readLoadMarker(store, "qwen", crashNow);
     });
     expect(markerDuringLoad).toBe(true);
-    expect(await readLoadMarker(store, "qwen")).toBe(false);
+    expect(await readLoadMarker(store, "qwen", crashNow)).toBe(false);
   });
 
   test("a SURVIVED failure clears the marker too", async () => {
@@ -47,7 +55,7 @@ describe("guardedLoad (the marker survives ONLY a death)", () => {
       }),
     ).rejects.toThrow("initEngine rejected");
     // Code ran after the failed load → the process is alive → no marker.
-    expect(await readLoadMarker(store, "qwen")).toBe(false);
+    expect(await readLoadMarker(store, "qwen", crashNow)).toBe(false);
   });
 
   test("a marker whose process never settled reaches the next launch", async () => {
@@ -114,7 +122,7 @@ describe("start / fallback pickers (never pick a model we know died)", () => {
   test("marker for model A does not block model B", async () => {
     const store = makeStore();
     await writeLoadMarker(store, "A");
-    expect(await readLoadMarker(store, "B")).toBe(false);
+    expect(await readLoadMarker(store, "B", crashNow)).toBe(false);
     expect(
       await pickStartModel({
         savedId: "B",

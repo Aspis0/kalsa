@@ -70,6 +70,9 @@ jest.mock("../engine/loadMarker", () => ({
   readLastGoodModelId: jest.fn(async () => null),
   readLoadMarker: jest.fn(async () => false),
 }));
+jest.mock("../../modules/kalsa-lifecycle/src", () => ({
+  lastExitInfo: jest.fn(() => null),
+}));
 jest.mock("../engine/remote/remoteComputerModel", () => ({
   REMOTE_COMPUTER_MODEL: {
     id: "kalsa-remote-mac",

@@ -31,6 +31,9 @@ jest.mock("../engine/loadMarker", () => ({
   readLastGoodModelId: jest.fn(async () => null),
   readLoadMarker: jest.fn(async () => false),
 }));
+jest.mock("../../modules/kalsa-lifecycle/src", () => ({
+  lastExitInfo: jest.fn(() => null),
+}));
 jest.mock("../engine/engineBackend", () => ({
   disposeEngine: jest.fn(async () => true),
   getActiveModelId: jest.fn(() => null),

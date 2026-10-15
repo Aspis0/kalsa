@@ -21,11 +21,8 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ExitInfo, ExitReason } from "../../../modules/kalsa-lifecycle/src";
-import {
-  CONSUMED_EXIT_AT_KEY,
-  consumeUncleanExitAsk,
-  isUncleanExit,
-} from "../uncleanExit";
+import { isUncleanExit } from "../exitReasons";
+import { CONSUMED_EXIT_AT_KEY, consumeUncleanExitAsk } from "../uncleanExit";
 
 const CRASH_REASONS = ["crash", "crash_native", "anr"] as const;
 const FOREGROUND_KILL_REASONS = ["low_memory", "signaled", "excessive_resource_usage"] as const;
