@@ -128,6 +128,9 @@ impl Mailbox {
                 });
             }
         }
+        // A server may answer a UID set with messages that were not in it. Only the
+        // asked-for ones are kept, so no caller can read a mail it did not name.
+        out.retain(|source| uids.contains(&source.uid));
         // A server answers a UID set in its own order, ascending by convention. The
         // tools want the newest mail first, so the order is set here.
         out.sort_by_key(|source| std::cmp::Reverse(source.uid));

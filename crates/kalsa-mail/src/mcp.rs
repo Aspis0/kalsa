@@ -11,7 +11,7 @@ use crate::label::signals::{self, Around, Signal};
 use crate::label::{self, language, Sender};
 use crate::listed::Listed;
 use crate::mail::{self, ParsedMail};
-use crate::mailbox::Mailbox;
+use crate::mailbox::{Mailbox, Source};
 use crate::send::{send, SendArgs};
 use crate::senders::Senders;
 use crate::tools::{self, MAX_DAYS};
@@ -194,6 +194,15 @@ fn check_listed(listed: &Listed, folder: &str, uid_validity: Option<u32>, uid: u
     }
 }
 
+/// A reply and a read are built only from the mail the id names: a source that carries
+/// another UID is never used, even when it is the only one the server answered with.
+fn source_of(sources: Vec<Source>, uid: u32) -> Result<Source, MailError> {
+    sources
+        .into_iter()
+        .find(|source| source.uid == uid)
+        .ok_or(MailError::Protocol)
+}
+
 pub(crate) async fn one(
     account: &Account,
     cache: &Arc<Mutex<Senders>>,
@@ -215,9 +224,7 @@ pub(crate) async fn one(
     let senders = senders_of(cache, &mut mailbox).await;
     mailbox.logout().await;
 
-    let Some(source) = sources.into_iter().next() else {
-        return Err(MailError::Protocol);
-    };
+    let source = source_of(sources, uid)?;
     let parsed = mail::parse(&source.bytes);
     let senders = senders?;
     let labels = label::label(uid, &parsed, &senders, account.trusted_authserv_id());
@@ -380,6 +387,17 @@ mod tests {
 
         let next = guarded(async { answered("serves normally") }).await;
         assert_ne!(next.is_error, Some(true));
+    }
+
+    #[test]
+    fn a_read_is_built_only_from_the_mail_the_id_names() {
+        let other = Source { uid: 115, bytes: b"Banca".to_vec() };
+        assert_eq!(source_of(vec![other], 105).map(|source| source.uid), Err(MailError::Protocol));
+        let both = vec![
+            Source { uid: 115, bytes: b"Banca".to_vec() },
+            Source { uid: 105, bytes: b"Giulia".to_vec() },
+        ];
+        assert_eq!(source_of(both, 105).expect("the named mail").bytes, b"Giulia".to_vec());
     }
 
     #[test]

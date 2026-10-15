@@ -3,13 +3,14 @@
 
 mod fake_imap;
 
+use fake_imap::fetch::Answers;
 use fake_imap::Login;
 use kalsa_mail::imap::{self, MailError};
 use kalsa_mail::mailbox::Mailbox;
 
 /// Logs in to a fresh fake and examines `folder`.
 async fn examine(folder: &str) -> Result<Mailbox, MailError> {
-    let account = fake_imap::serve(Login::Accept).await;
+    let account = fake_imap::serve(Login::Accept, Answers::Exact).await;
     let session = imap::connect(&account).await.expect("the fake accepts LOGIN");
     Mailbox::examine(session, folder).await
 }
