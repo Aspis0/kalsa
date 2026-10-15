@@ -43,6 +43,7 @@ impl Launch for StdioLauncher {
     async fn launch(&self, record: &mut ServerRecord, binary_sha256: &str) -> Result<Connection, Error> {
         let id = record.id().clone();
         if matches!(record.bootstrap_mut(), Bootstrap::Spent) {
+            log::warn!("mcp server {id}: its bootstrap was used by an earlier start");
             return Err(Error::ServerGone(id));
         }
         verify_binary(record.command(), binary_sha256, &id)?;
@@ -54,7 +55,10 @@ impl Launch for StdioLauncher {
             .stderr(Stdio::null())
             .kill_on_drop(true)
             .spawn()
-            .map_err(|_| Error::Launch(id.clone()))?;
+            .map_err(|error| {
+                log::warn!("mcp server {id}: spawn failed: {:?}", error.kind());
+                Error::Launch(id.clone())
+            })?;
         verify_binary(record.command(), binary_sha256, &id)?;
 
         let (Some(mut stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
@@ -68,7 +72,10 @@ impl Launch for StdioLauncher {
             _ => None,
         };
         if let Some(secret) = secret {
-            secret.write_line(&mut stdin).await.map_err(|_| Error::Launch(id.clone()))?;
+            secret.write_line(&mut stdin).await.map_err(|_| {
+                log::warn!("mcp server {id}: bootstrap line was not written");
+                Error::Launch(id.clone())
+            })?;
         }
 
         let lifecycle = ClientLifecycleMode::Discover {

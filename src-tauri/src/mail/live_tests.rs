@@ -10,7 +10,7 @@ use serde_json::{json, Map, Value};
 
 use super::account::{self, MailAccount};
 use super::host;
-use super::keychain::{Keychain, PasswordStore};
+use super::keychain::{Keychain, Memory, PasswordStore};
 use super::program;
 use super::state::MailState;
 
@@ -73,4 +73,51 @@ async fn a_saved_account_is_read_from_the_keychain_and_listed() {
     assert!(!response.is_error);
     assert!(response.for_ui.is_some(), "the panel gets structured data");
     slot.forget();
+}
+
+/// The chat's own route, with the in-memory store: the saved account, then the
+/// calls the mail tools make. Prints each outcome, so a refusal the panel shows as
+/// "not set up" can be read here.
+#[tokio::test]
+#[ignore = "starts the real sidecar against the lab fake server on 127.0.0.1:1260"]
+async fn the_chat_route_lists_the_lab_mail_with_the_panel_arguments() {
+    let folder = std::env::temp_dir().join(format!("kalsa-mail-chat-route-{}", std::process::id()));
+    fs::create_dir_all(&folder).expect("scratch folder");
+    let state_file = folder.join("server.state");
+    let account = lab_account("lab@example.test");
+    account::save(&state_file, &account).expect("account saved beside the state file");
+    let store = Memory::default();
+    store.save(account.account_id(), LAB_PASSWORD).expect("stored");
+
+    let mail = MailState::default();
+    let mut slot = mail.lock().await;
+    for args in [
+        json!({"folder": "INBOX"}),
+        json!({"days": 7, "folder": "INBOX"}),
+        json!({"folder": "INBOX", "query": "fattura"}),
+        json!({"folder": "INBOX", "query": "scadenza più vicina"}),
+        json!({"folder": "INBOX", "from": "Andrea"}),
+        json!({"folder": "INBOX", "days": 14}),
+        json!({"folder": "INBOX", "query": ""}),
+        json!({"folder": "INBOX", "from": ""}),
+        json!({"folder": "INBOX", "query": "fattura \"scadenza\" \\ x"}),
+        json!({"folder": "INBOX", "query": "zzqqxxnomatchzz"}),
+    ] {
+        let open = || {
+            let program = program::current()?;
+            host::open_saved(&state_file, &store, &program)
+        };
+        let arguments = args.as_object().cloned().unwrap_or_default();
+        match slot.call("mail.list", arguments, open).await {
+            Ok(response) => eprintln!(
+                "REPRO {args} -> is_error={} for_ui={} for_model={:?}",
+                response.is_error,
+                response.for_ui.is_some(),
+                response.for_model
+            ),
+            Err(error) => eprintln!("REPRO {args} -> Err({error:?})"),
+        }
+    }
+    slot.forget();
+    let _ = fs::remove_dir_all(&folder);
 }

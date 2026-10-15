@@ -62,6 +62,7 @@ impl<L: Launch> Host<L> {
             file_digest(record.command()).map_err(|_| Error::BinaryUnreadable(server.clone()))?;
         let binary = self.pins.binary_state(server, record.command(), &program_sha256);
         if binary != PinState::Pinned {
+            log::warn!("mcp server {server}: program pin is {binary:?}, not started");
             self.sessions.remove(server);
             return Ok(Listing {
                 server: server.clone(),
@@ -74,11 +75,18 @@ impl<L: Launch> Host<L> {
 
         let connection = match self.sessions.entry(server.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => entry.insert(self.launcher.launch(record, &program_sha256).await?),
+            Entry::Vacant(entry) => match self.launcher.launch(record, &program_sha256).await {
+                Ok(connection) => entry.insert(connection),
+                Err(error) => {
+                    log::warn!("mcp server {server}: start failed: {error:?}");
+                    return Err(error);
+                }
+            },
         };
         let tools = match connection.list_tools(server).await {
             Ok(tools) => tools,
             Err(error) => {
+                log::warn!("mcp server {server}: listing its tools failed: {error:?}");
                 self.drop_if_gone(server, &error);
                 return Err(error);
             }
@@ -95,6 +103,7 @@ impl<L: Launch> Host<L> {
             let sha256 = tool_digest(&tool).map_err(|_| Error::Protocol(server.clone()))?;
             let definition = self.pins.tool_state(&name, &sha256);
             if definition == PinState::Changed {
+                log::warn!("mcp tool {name}: definition pin is changed");
                 changed.push(name.clone());
             }
             listed.push((name, tool, definition));
@@ -128,15 +137,30 @@ impl<L: Launch> Host<L> {
         arguments: Map<String, Value>,
     ) -> Result<CallOutcome, Error> {
         let name = NamespacedName::parse(name)?;
-        let listing = self.list(name.server()).await?;
+        let listing = match self.list(name.server()).await {
+            Ok(listing) => listing,
+            Err(error) => {
+                log::warn!("mcp {name}: listing failed: {error:?}");
+                return Err(error);
+            }
+        };
         match self.permission(&listing, &name, conversation)? {
-            Permission::Deny(reason) => Err(Error::Denied(name, reason)),
+            Permission::Deny(reason) => {
+                log::warn!("mcp {name}: denied: {reason}");
+                Err(Error::Denied(name, reason))
+            }
             Permission::Ask => Ok(CallOutcome::NeedsConfirmation(PendingCall::new(
                 conversation,
                 name,
                 arguments,
             ))),
-            Permission::Allow => self.run(conversation, &name, arguments).await.map(CallOutcome::Ran),
+            Permission::Allow => match self.run(conversation, &name, arguments).await {
+                Ok(result) => Ok(CallOutcome::Ran(result)),
+                Err(error) => {
+                    log::warn!("mcp {name}: call failed: {error:?}");
+                    Err(error)
+                }
+            },
         }
     }
 
@@ -150,7 +174,10 @@ impl<L: Launch> Host<L> {
         let name = pending.name().clone();
         let listing = self.list(name.server()).await?;
         match self.permission(&listing, &name, pending.conversation())? {
-            Permission::Deny(reason) => Err(Error::Denied(name, reason)),
+            Permission::Deny(reason) => {
+                log::warn!("mcp {name}: confirmation refused: {reason}");
+                Err(Error::Denied(name, reason))
+            }
             Permission::Ask | Permission::Allow => {
                 self.run(pending.conversation(), &name, arguments).await
             }

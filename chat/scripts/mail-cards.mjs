@@ -70,6 +70,11 @@ globalThis.window = {
         // Tauri rejects an argument it cannot read with a plain string.
         const refused = contractError(command, args);
         if (refused !== null) throw refused;
+        // The failure checks below set this to answer one call with a refusal or a rejection.
+        if (globalThis.__mailStubOverride) {
+          const answered = await globalThis.__mailStubOverride(command);
+          if (answered !== undefined) return answered;
+        }
         if (command === "brain_mail_list") {
           return { for_model: ["<<<email-text x>>>"], for_ui: LIST, is_error: false };
         }
@@ -283,6 +288,10 @@ check("the web tools are still offered to it", blockedNames.includes("web_search
 let doorCalls = 0;
 globalThis.window.__TAURI__.core.invoke = async (command) => {
   doorCalls++;
+  if (globalThis.__mailStubOverride) {
+    const answered = await globalThis.__mailStubOverride(command);
+    if (answered !== undefined) return answered;
+  }
   if (command === "brain_mail_list") return { for_model: ["mail"], for_ui: LIST, is_error: false };
   throw new Error(`mail-cards: no fixture declares ${command}`);
 };
@@ -428,6 +437,25 @@ check("a negative or fractional day count is refused", !accepts("brain_mail_list
 check("a mail command the contract does not name is refused", !accepts("brain_mail_delete", { args: {} }));
 check("account_test takes no arguments", accepts("brain_mail_account_test", undefined));
 check("a non-mail command is not judged here", accepts("brain_other_command", { anything: true }));
+/* -------------------------------------- a failed call says why, in a short line */
+
+globalThis.__mailStubOverride = async (command) =>
+  command === "brain_mail_list" ? { for_model: ["The mail server refused the credentials"], for_ui: null, is_error: true } : undefined;
+const sidecarRefusal = await app.runMailList({ days: 1 });
+check("a sidecar refusal reaches the model with its own sentence", sidecarRefusal.ok === false && sidecarRefusal.text.includes("refused the credentials"), sidecarRefusal.text);
+globalThis.__mailStubOverride = async (command) => {
+  if (command === "brain_mail_list") throw { code: "mail.server_gone" };
+  return undefined;
+};
+const coded = await app.runMailList({ days: 1 });
+check("a rejected command's code reaches the model", coded.ok === false && coded.text.includes("mail.server_gone"), coded.text);
+globalThis.__mailStubOverride = async (command) => {
+  if (command === "brain_mail_list") throw "invalid args for brain_mail_list: value \"secret-query\"";
+  return undefined;
+};
+const bare = await app.runMailList({ days: 1 });
+check("a string rejection is named by a code and its values are not echoed", bare.text.includes("mail.bad_arguments") && !bare.text.includes("secret-query"), bare.text);
+globalThis.__mailStubOverride = null;
 equal("a string day count is coerced and the call runs", (await app.runMailList({ days: "2" })).ok, true);
 equal("a fractional day count is refused before any call", (await app.runMailList({ days: 1.5 })).ok, false);
 equal("a read id that is not a whole number is refused before any call", (await app.runMailRead({ id: "4x" })).ok, false);

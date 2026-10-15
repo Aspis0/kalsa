@@ -152,8 +152,10 @@ export async function executeToolCall(
     if (coded !== null && typeof coded === "object" && typeof coded.code === "string" && typeof coded.text === "string") {
       return { text: coded.text, ok: false, resultCode: coded.code };
     }
-    // Anything else is a surprise and is passed on as it reads.
-    const detail = error instanceof Error ? error.message : String(error);
+    // Anything else is a surprise and is passed on as it reads. A rejected command
+    // with only a code says that code, not "[object Object]".
+    const detail =
+      error instanceof Error ? error.message : typeof coded?.code === "string" ? coded.code : String(error);
     return { text: `${name} could not run: ${detail}`, ok: false };
   }
 }

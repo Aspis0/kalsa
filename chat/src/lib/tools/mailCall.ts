@@ -41,11 +41,30 @@ function answerText(response: MailResponse): string {
   return response.for_model.join("\n");
 }
 
-async function call(command: string, args: Record<string, unknown>): Promise<MailResponse> {
-  const raw = await invoke<unknown>(command, { args });
+/** An answer, or the code of a command that rejected. A rejection is `{ code }`, or a
+    plain string when Tauri could not read the arguments; the string is not echoed,
+    because it can carry the values that were sent. */
+type Answer = MailResponse & { code?: string };
+
+async function call(command: string, args: Record<string, unknown>): Promise<Answer> {
+  let raw: unknown;
+  try {
+    raw = await invoke<unknown>(command, { args });
+  } catch (error) {
+    const code = typeof error === "string" ? "mail.bad_arguments" : (object(error).code as unknown);
+    return { for_model: [], for_ui: undefined, is_error: true, code: typeof code === "string" ? code : "mail.call_failed" };
+  }
   const r = object(raw);
   const forModel = Array.isArray(r.for_model) ? r.for_model.filter((x): x is string => typeof x === "string") : [];
   return { for_model: forModel, for_ui: r.for_ui, is_error: r.is_error === true };
+}
+
+/** What the model reads when a call did not run: the code the command rejected with,
+    or the sidecar's own fixed sentence for the refusal (never mail content). */
+function failure(response: Answer): string {
+  if (response.code !== undefined) return `No mail was shown: the mail call failed (${response.code}).`;
+  const reason = (response.for_model[0] ?? "").slice(0, 120);
+  return reason === "" ? NOT_MAIL : `No mail was shown: ${reason}`;
 }
 
 function listArgs(model: Record<string, unknown>): Built {
@@ -90,8 +109,8 @@ export async function runMailList(model: Record<string, unknown>): Promise<{ tex
   const response = await call("brain_mail_list", built.args);
   const records = mailRecords(response.for_ui);
   lastList.remember(records);
-  const body = answerText(response) || NOT_MAIL;
-  return { text: response.is_error ? NOT_MAIL : body, ok: !response.is_error, records };
+  if (response.is_error) return { text: failure(response), ok: false, records };
+  return { text: answerText(response) || NOT_MAIL, ok: true, records };
 }
 
 /** One mail in full: the record for the card, the body for the Mail tab. */
@@ -107,7 +126,7 @@ export async function runMailRead(model: Record<string, unknown>): Promise<{
   const record = mailRecord(response.for_ui);
   if (record !== null) attachments.remember(record.id, record.attachments.map((a) => a.name));
   return {
-    text: response.is_error ? NOT_MAIL : answerText(response),
+    text: response.is_error ? failure(response) : answerText(response),
     ok: !response.is_error,
     record,
     body: fencedBody(response.for_model),
@@ -119,12 +138,13 @@ export async function runMailDraft(model: Record<string, unknown>): Promise<{ te
   const built = draftArgs(model);
   if (!built.ok) return { text: built.text, ok: false, draft: null };
   const response = await call("brain_mail_draft", built.args);
+  if (response.is_error) return { text: failure(response), ok: false, draft: null };
   const r = object(response.for_ui);
   const to = typeof r.to === "string" ? r.to : "";
   if (to === "") return { text: NOT_MAIL, ok: false, draft: null };
   const body = typeof r.body === "string" ? r.body : "";
   return {
-    text: response.is_error ? NOT_MAIL : `Draft written for ${to}. Nothing was sent.`,
+    text: `Draft written for ${to}. Nothing was sent.`,
     ok: !response.is_error,
     draft: {
       kind: "draft",

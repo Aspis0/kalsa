@@ -93,12 +93,30 @@ pub(crate) async fn brain_mail_draft(
     call(&app, &state, "mail.draft", &args).await
 }
 
+/// Logs a failed call by its code and an error result by its fixed sentence: the
+/// sidecar's error texts are constants, never mail content, and no arguments are logged.
 async fn call<T: Serialize>(
     app: &AppHandle,
     state: &MailState,
     name: &str,
     args: &T,
 ) -> Result<ToolResponse, CommandFailure> {
+    match dispatch(app, state, name, args).await {
+        Ok(response) => {
+            if response.is_error {
+                let reason: String = response.for_model.first().map(|text| text.chars().take(80).collect()).unwrap_or_default();
+                log::warn!("mail call {name} returned is_error: {reason}");
+            }
+            Ok(response)
+        }
+        Err(error) => {
+            log::warn!("mail call {name} failed: {}", error.code());
+            Err(error.into())
+        }
+    }
+}
+
+async fn dispatch<T: Serialize>(app: &AppHandle, state: &MailState, name: &str, args: &T) -> Result<ToolResponse, MailError> {
     let arguments = arguments(args)?;
     let path = state_file(app)?;
     let open = || {
@@ -106,7 +124,7 @@ async fn call<T: Serialize>(
         host::open_saved(&path, &Keychain, &program)
     };
     let mut slot = state.lock().await;
-    Ok(slot.call(name, arguments, open).await?)
+    slot.call(name, arguments, open).await
 }
 
 fn arguments<T: Serialize>(args: &T) -> Result<Map<String, Value>, MailError> {

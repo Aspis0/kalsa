@@ -2972,6 +2972,7 @@ dependencies = [
 name = "kalsa-mcp"
 version = "0.0.5"
 dependencies = [
+ "log",
  "rmcp",
  "serde",
  "serde_json",

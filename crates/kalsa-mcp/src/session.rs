@@ -63,10 +63,33 @@ impl Connection {
                 for_model: text_parts(&result.content),
                 for_ui: result.structured_content,
             }),
-            Ok(Ok(_)) => Err(Error::Unsupported(server.clone())),
-            Ok(Err(error)) => Err(service_error(error, server)),
-            Err(_) => Err(Error::ServerGone(server.clone())),
+            Ok(Ok(_)) => {
+                log::warn!("mcp {server}: {tool} answered with a reply it does not expect");
+                Err(Error::Unsupported(server.clone()))
+            }
+            Ok(Err(error)) => {
+                log::warn!("mcp {server}: {tool} failed: rmcp {}", service_error_kind(&error));
+                Err(service_error(error, server))
+            }
+            Err(_) => {
+                log::warn!("mcp {server}: {tool} passed its {CALL_DEADLINE:?} deadline");
+                Err(Error::ServerGone(server.clone()))
+            }
         }
+    }
+}
+
+/// The kind of an rmcp failure, named without its message: a message can carry what the
+/// server sent back.
+fn service_error_kind(error: &ServiceError) -> &'static str {
+    match error {
+        ServiceError::McpError(_) => "server error reply",
+        ServiceError::TransportSend(_) => "transport send",
+        ServiceError::TransportClosed => "transport closed",
+        ServiceError::UnexpectedResponse => "unexpected response",
+        ServiceError::Cancelled { .. } => "cancelled",
+        ServiceError::Timeout { .. } => "request timeout",
+        _ => "other",
     }
 }
 
