@@ -6,7 +6,8 @@
 use crate::account::Account;
 use crate::draft;
 use crate::fence::Fence;
-use crate::imap::{self, MailError};
+use crate::imap::MailError;
+use crate::kept::KeptSession;
 use crate::label::signals::{self, Around, Signal};
 use crate::label::{self, language, Sender};
 use crate::listed::Listed;
@@ -69,42 +70,38 @@ impl MailServer {
         let account = Arc::new(account);
         let senders = Arc::new(Mutex::new(Senders::default()));
         let listed = Arc::new(Mutex::new(Listed::default()));
+        let kept = Arc::new(Mutex::new(KeptSession::new(account.clone())));
         let tool_router = ToolRouter::new()
             .with_route(ToolRoute::new(tools::list(), {
-                let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
+                let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());
                 move |Parameters(args): Parameters<ListArgs>| {
-                    let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
-                    async move { guarded(list(account, senders, listed, args)).await }
+                    let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());
+                    async move { guarded(list(account, senders, listed, kept, args)).await }
                 }
             }))
             .with_route(ToolRoute::new(tools::read(), {
-                let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
+                let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());
                 move |Parameters(args): Parameters<ReadArgs>| {
-                    let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
-                    async move { guarded(read(account, senders, listed, args)).await }
+                    let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());
+                    async move { guarded(read(account, senders, listed, kept, args)).await }
                 }
             }))
             .with_route(ToolRoute::new(tools::draft(), {
-                let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
+                let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());
                 move |Parameters(args): Parameters<DraftArgs>| {
-                    let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
-                    async move { guarded(draft_reply(account, senders, listed, args)).await }
+                    let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());
+                    async move { guarded(draft_reply(account, senders, listed, kept, args)).await }
                 }
             }))
             .with_route(ToolRoute::new(tools::send(), {
-                let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
+                let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());
                 move |Parameters(args): Parameters<SendArgs>| {
-                    let (account, senders, listed) = (account.clone(), senders.clone(), listed.clone());
-                    async move { guarded(send(account, senders, listed, args)).await }
+                    let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());
+                    async move { guarded(send(account, senders, listed, kept, args)).await }
                 }
             }));
         MailServer { tool_router }
     }
-}
-
-async fn open(account: &Account, folder: &str) -> Result<Mailbox, MailError> {
-    let session = imap::connect(account).await?;
-    Mailbox::examine(session, folder).await
 }
 
 pub(crate) fn default_folder() -> String {
@@ -129,35 +126,31 @@ async fn list(
     account: Arc<Account>,
     cache: Arc<Mutex<Senders>>,
     listed: Arc<Mutex<Listed>>,
+    kept: Arc<Mutex<KeptSession>>,
     args: ListArgs,
 ) -> CallToolResult {
     let days = args.days.unwrap_or(1).clamp(1, MAX_DAYS);
     let limit = limit_of(args.limit);
     let folder = args.folder.unwrap_or_else(default_folder);
-    let mut mailbox = match open(&account, &folder).await {
-        Ok(mailbox) => mailbox,
-        Err(error) => return view::failed(error),
-    };
-    let uids = match mailbox
-        .uids(days, args.from.as_deref(), args.query.as_deref(), limit)
-        .await
-    {
-        Ok(uids) => uids,
-        Err(error) => return view::failed(error),
-    };
-    listed
+    let (from, query) = (args.from, args.query);
+    let (from, query) = (from.as_deref(), query.as_deref());
+    let (scope, cache, listed) = (folder.as_str(), &cache, &listed);
+    let read = kept
         .lock()
         .await
-        .remember(&folder, mailbox.uid_validity, &uids);
-    let sources = match mailbox.sources(&uids).await {
-        Ok(sources) => sources,
+        .call(scope, move |mut mailbox| async move {
+            let uids = mailbox.uids(days, from, query, limit).await?;
+            let sources = mailbox.sources(&uids).await?;
+            let senders = senders_of(cache, &mut mailbox).await?;
+            mailbox.confirm().await?;
+            listed.lock().await.remember(scope, mailbox.uid_validity, &uids);
+            Ok::<_, MailError>(((sources, senders), mailbox))
+        })
+        .await;
+    let (sources, senders) = match read {
+        Ok(read) => read,
         Err(error) => return view::failed(error),
     };
-    let senders = match senders_of(&cache, &mut mailbox).await {
-        Ok(senders) => senders,
-        Err(error) => return view::failed(error),
-    };
-    mailbox.logout().await;
 
     let parsed: Vec<(u32, ParsedMail)> = sources
         .iter()
@@ -216,26 +209,27 @@ pub(crate) async fn one(
     account: &Account,
     cache: &Arc<Mutex<Senders>>,
     listed: &Arc<Mutex<Listed>>,
+    kept: &Arc<Mutex<KeptSession>>,
     folder: &str,
     uid: u32,
 ) -> Result<(u32, ParsedMail, label::Labels, Vec<Signal>), MailError> {
-    let mut mailbox = open(account, folder).await?;
-    if !cache.lock().await.agrees_with(folder, mailbox.uid_validity) {
-        mailbox.logout().await;
-        return Err(MailError::Stale);
-    }
-    let allowed = check_listed(&*listed.lock().await, folder, mailbox.uid_validity, uid);
-    if let Err(error) = allowed {
-        mailbox.logout().await;
-        return Err(error);
-    }
-    let sources = mailbox.sources(&[uid]).await?;
-    let senders = senders_of(cache, &mut mailbox).await;
-    mailbox.logout().await;
+    let (sources, senders) = kept
+        .lock()
+        .await
+        .call(folder, move |mut mailbox| async move {
+            if !cache.lock().await.agrees_with(folder, mailbox.uid_validity) {
+                return Err(MailError::Stale);
+            }
+            check_listed(&*listed.lock().await, folder, mailbox.uid_validity, uid)?;
+            let sources = mailbox.sources(&[uid]).await?;
+            let senders = senders_of(cache, &mut mailbox).await?;
+            mailbox.confirm().await?;
+            Ok::<_, MailError>(((sources, senders), mailbox))
+        })
+        .await?;
 
     let source = source_of(sources, uid)?;
     let parsed = mail::parse(&source.bytes);
-    let senders = senders?;
     let labels = label::label(uid, &parsed, &senders, account.trusted_authserv_id());
     let around = Around {
         history: &senders,
@@ -257,10 +251,11 @@ async fn read(
     account: Arc<Account>,
     cache: Arc<Mutex<Senders>>,
     listed: Arc<Mutex<Listed>>,
+    kept: Arc<Mutex<KeptSession>>,
     args: ReadArgs,
 ) -> CallToolResult {
     let folder = args.folder.unwrap_or_else(default_folder);
-    let (uid, parsed, labels, found) = match one(&account, &cache, &listed, &folder, args.id).await {
+    let (uid, parsed, labels, found) = match one(&account, &cache, &listed, &kept, &folder, args.id).await {
         Ok(answer) => answer,
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
@@ -278,10 +273,11 @@ async fn draft_reply(
     account: Arc<Account>,
     cache: Arc<Mutex<Senders>>,
     listed: Arc<Mutex<Listed>>,
+    kept: Arc<Mutex<KeptSession>>,
     args: DraftArgs,
 ) -> CallToolResult {
     let folder = args.folder.unwrap_or_else(default_folder);
-    let (uid, parsed, _, _) = match one(&account, &cache, &listed, &folder, args.reply_to_id).await {
+    let (uid, parsed, _, _) = match one(&account, &cache, &listed, &kept, &folder, args.reply_to_id).await {
         Ok(answer) => answer,
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
@@ -409,11 +405,12 @@ mod tests {
     #[tokio::test]
     async fn a_read_names_the_mail_it_was_asked_for_even_when_the_server_answers_wider() {
         let line = fake_imap::serve(fake_imap::Login::Accept, fake_imap::uid::Answers::Wider).await;
-        let account = crate::account::read(line.as_bytes()).expect("the test line is well formed");
+        let account = Arc::new(crate::account::read(line.as_bytes()).expect("the test line is well formed"));
         let cache = Arc::new(Mutex::new(Senders::default()));
         let listed = Arc::new(Mutex::new(Listed::default()));
+        let kept = Arc::new(Mutex::new(KeptSession::new(account.clone())));
         listed.lock().await.remember("INBOX", Some(7), &[105]);
-        let (uid, parsed, _, _) = one(&account, &cache, &listed, "INBOX", 105)
+        let (uid, parsed, _, _) = one(&account, &cache, &listed, &kept, "INBOX", 105)
             .await
             .expect("the listed mail reads");
         assert_eq!(uid, 105);
@@ -440,5 +437,43 @@ mod tests {
         assert!(matches!(refused, Err(MailError::NotListed)));
         let message = MailError::NotListed.message();
         assert!(!message.contains("99"), "the message must not echo the id");
+    }
+
+    async fn kept_rig() -> (Arc<fake_imap::Seen>, Arc<Account>, Arc<Mutex<Senders>>, Arc<Mutex<Listed>>, Arc<Mutex<KeptSession>>) {
+        let (line, seen) = fake_imap::serve_seen(fake_imap::Login::Accept, fake_imap::uid::Answers::Exact).await;
+        let account = Arc::new(crate::account::read(line.as_bytes()).expect("the test line is well formed"));
+        let cache = Arc::new(Mutex::new(Senders::default()));
+        let listed = Arc::new(Mutex::new(Listed::default()));
+        let kept = Arc::new(Mutex::new(KeptSession::new(account.clone())));
+        listed.lock().await.remember("INBOX", Some(7), &[105]);
+        (seen, account, cache, listed, kept)
+    }
+
+    /// A session that dies before its search answers must not read as an empty folder.
+    #[tokio::test]
+    async fn a_list_on_a_session_that_dies_before_its_search_reconnects_and_lists_the_mail() {
+        let (seen, account, cache, listed, kept) = kept_rig().await;
+        one(&account, &cache, &listed, &kept, "INBOX", 105).await.expect("the first read");
+
+        seen.hang_up_on_uid.store(true, std::sync::atomic::Ordering::SeqCst);
+        let args = ListArgs { days: None, folder: None, from: None, query: None, limit: None };
+        let answer = list(account.clone(), cache.clone(), listed.clone(), kept.clone(), args).await;
+        let count = answer.structured_content.as_ref().and_then(|data| data["count"].as_u64());
+        assert_eq!(count, Some(2));
+        assert_eq!(seen.logins.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    /// The same for a read: an empty fetch on a dead session is not an answer.
+    #[tokio::test]
+    async fn a_read_on_a_session_that_dies_before_its_fetch_reconnects_and_answers() {
+        let (seen, account, cache, listed, kept) = kept_rig().await;
+        one(&account, &cache, &listed, &kept, "INBOX", 105).await.expect("the first read");
+
+        seen.hang_up_on_uid.store(true, std::sync::atomic::Ordering::SeqCst);
+        let (uid, _, _, _) = one(&account, &cache, &listed, &kept, "INBOX", 105)
+            .await
+            .expect("the read after the drop");
+        assert_eq!(uid, 105);
+        assert_eq!(seen.logins.load(std::sync::atomic::Ordering::SeqCst), 2);
     }
 }

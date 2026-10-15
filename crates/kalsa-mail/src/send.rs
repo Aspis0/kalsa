@@ -14,6 +14,7 @@ use crate::account::Account;
 use crate::compose::{self, ComposeError};
 use crate::imap::MailError;
 use crate::invisible;
+use crate::kept::KeptSession;
 use crate::listed::Listed;
 use crate::mcp;
 use crate::senders::Senders;
@@ -42,10 +43,11 @@ pub async fn send(
     account: Arc<Account>,
     cache: Arc<Mutex<Senders>>,
     listed: Arc<Mutex<Listed>>,
+    kept: Arc<Mutex<KeptSession>>,
     args: SendArgs,
 ) -> CallToolResult {
     let folder = args.folder.unwrap_or_else(mcp::default_folder);
-    let (_, original, _, _) = match mcp::one(&account, &cache, &listed, &folder, args.reply_to_id).await {
+    let (_, original, _, _) = match mcp::one(&account, &cache, &listed, &kept, &folder, args.reply_to_id).await {
         Ok(found) => found,
         Err(error) => return failure(fetch_code(error)),
     };

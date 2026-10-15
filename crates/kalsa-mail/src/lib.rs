@@ -11,6 +11,7 @@ mod html_hide;
 mod html_text;
 
 mod invisible;
+mod kept;
 mod link;
 mod listed;
 pub mod tools;

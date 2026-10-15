@@ -65,12 +65,11 @@ async fn the_fixture_mailbox_lists_reads_and_drafts() {
     let senders = mailbox.all_uids().await.expect("all uids");
     let headers = mailbox.headers(&senders).await.expect("sender history");
     assert!(headers.len() >= sources.len());
-    let history: Vec<label::Sender> = senders
-        .iter()
-        .zip(headers)
+    let history: Vec<label::Sender> = headers
+        .into_iter()
         .filter_map(|(uid, header)| {
             let (address, _) = mail::sender_of(&header);
-            (!address.is_empty()).then_some(label::Sender { address, uid: *uid })
+            (!address.is_empty()).then_some(label::Sender { address, uid })
         })
         .collect();
 

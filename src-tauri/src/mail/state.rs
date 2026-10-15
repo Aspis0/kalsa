@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use kalsa_mcp::error::Error as HostError;
 use kalsa_mcp::host::Host;
 use kalsa_mcp::launch::StdioLauncher;
@@ -38,9 +40,9 @@ impl Slot<'_> {
         &mut self,
         name: &str,
         arguments: Map<String, Value>,
-        open: impl FnOnce() -> Result<Host<StdioLauncher>, MailError>,
+        open: impl Future<Output = Result<Host<StdioLauncher>, MailError>>,
     ) -> Result<ToolResponse, MailError> {
-        self.ensure_open(open)?;
+        self.ensure_open(open).await?;
         let host = self.host()?;
         match host.call(PANEL_CONVERSATION, name, arguments).await {
             Ok(CallOutcome::Ran(result)) => Ok(result.into()),
@@ -55,9 +57,9 @@ impl Slot<'_> {
     pub(crate) async fn confirmed_send(
         &mut self,
         arguments: Map<String, Value>,
-        open: impl FnOnce() -> Result<Host<StdioLauncher>, MailError>,
+        open: impl Future<Output = Result<Host<StdioLauncher>, MailError>>,
     ) -> Result<ToolResponse, MailError> {
-        self.ensure_open(open)?;
+        self.ensure_open(open).await?;
         let host = self.host()?;
         let pending = match host.call(PANEL_CONVERSATION, "mail.send", arguments.clone()).await {
             Ok(CallOutcome::NeedsConfirmation(pending)) => pending,
@@ -70,9 +72,12 @@ impl Slot<'_> {
         }
     }
 
-    fn ensure_open(&mut self, open: impl FnOnce() -> Result<Host<StdioLauncher>, MailError>) -> Result<(), MailError> {
+    async fn ensure_open(
+        &mut self,
+        open: impl Future<Output = Result<Host<StdioLauncher>, MailError>>,
+    ) -> Result<(), MailError> {
         if self.0.is_none() {
-            *self.0 = Some(open()?);
+            *self.0 = Some(open.await?);
         }
         Ok(())
     }

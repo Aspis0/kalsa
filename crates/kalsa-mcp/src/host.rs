@@ -58,8 +58,12 @@ impl<L: Launch> Host<L> {
         if trust == Trust::ThirdParty {
             return Err(Error::ThirdPartyNeedsSandbox(server.clone()));
         }
-        let program_sha256 =
-            file_digest(record.command()).map_err(|_| Error::BinaryUnreadable(server.clone()))?;
+        // Every call hashes the whole program, so the read stays off the runtime's threads.
+        let program = record.command().to_path_buf();
+        let program_sha256 = tokio::task::spawn_blocking(move || file_digest(&program))
+            .await
+            .map_err(|_| Error::BinaryUnreadable(server.clone()))?
+            .map_err(|_| Error::BinaryUnreadable(server.clone()))?;
         let binary = self.pins.binary_state(server, record.command(), &program_sha256);
         if binary != PinState::Pinned {
             log::warn!("mcp server {server}: program pin is {binary:?}, not started");

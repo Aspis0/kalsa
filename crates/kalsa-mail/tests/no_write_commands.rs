@@ -155,7 +155,7 @@ fn delivery_and_composition_are_reached_only_through_the_send_tool() {
         "send is served as a tool route"
     );
     assert!(
-        mcp.contains("guarded(send(account, senders, listed, args))"),
+        mcp.contains("guarded(send(account, senders, listed, kept, args))"),
         "the send route is the only caller of send"
     );
 }

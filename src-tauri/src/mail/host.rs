@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use kalsa_mcp::host::Host;
 use kalsa_mcp::launch::StdioLauncher;
@@ -11,7 +11,7 @@ use serde_json::{json, Map, Value};
 use super::account::{self, MailAccount};
 use super::bootstrap;
 use super::error::{refusal_of, MailError};
-use super::keychain::PasswordStore;
+use super::keychain::{Keychain, PasswordStore};
 use super::program::{self, Program};
 use super::state::PANEL_CONVERSATION;
 use super::tool_pins;
@@ -32,10 +32,23 @@ pub(crate) fn open_saved(
     build(program, &account, &password)
 }
 
+/// `program::current` and `open_saved` on a blocking thread. The digest reads the whole
+/// sidecar and the keychain may ask the person, so neither may run on the async runtime.
+pub(crate) async fn open_in_background(state_file: PathBuf) -> Result<Host<StdioLauncher>, MailError> {
+    tokio::task::spawn_blocking(move || {
+        let program = program::current()?;
+        open_saved(&state_file, &Keychain, &program)
+    })
+    .await
+    .map_err(|_| MailError::Failed)?
+}
+
 /// Starts the sidecar for an account, lists the newest mails, and shuts the sidecar
 /// down. The caller passes the password it already read, and nothing is saved here.
 pub(crate) async fn probe(account: &MailAccount, password: &str) -> Result<Vec<String>, MailError> {
-    let program = program::current()?;
+    let program = tokio::task::spawn_blocking(program::current)
+        .await
+        .map_err(|_| MailError::Failed)??;
     let mut host = build(&program, account, password)?;
     let outcome = host.call(PANEL_CONVERSATION, "mail.list", probe_arguments()).await;
     drop(host);

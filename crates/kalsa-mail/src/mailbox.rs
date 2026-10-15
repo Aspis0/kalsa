@@ -5,7 +5,7 @@
 //! by accident. There is no write command in this file, and no way to reach one from
 //! a tool call.
 
-use crate::imap::{MailError, Transport, READ_DEADLINE};
+use crate::imap::{MailError, Transport, CONNECT_DEADLINE, READ_DEADLINE};
 use async_imap::Session;
 use chrono::Datelike;
 use futures_util::StreamExt;
@@ -32,6 +32,8 @@ pub struct Mailbox {
     /// A folder that is rebuilt gets a new value, and every id we handed out before
     /// it now names a different message.
     pub uid_validity: Option<u32>,
+    /// The UID the next new mail will get. The same value as at the last read means no mail came in between.
+    pub uid_next: Option<u32>,
 }
 
 impl Mailbox {
@@ -42,11 +44,12 @@ impl Mailbox {
         let opened = timeout(READ_DEADLINE, session.examine(folder))
             .await
             .map_err(|_| MailError::Timeout)?
-            .map_err(|_| MailError::Mailbox)?;
+            .map_err(|error| lost_or(&error, MailError::Mailbox))?;
         Ok(Mailbox {
             session,
             folder: folder.to_string(),
             uid_validity: opened.uid_validity,
+            uid_next: opened.uid_next,
         })
     }
 
@@ -84,8 +87,9 @@ impl Mailbox {
         Ok(uids)
     }
 
-    /// Sender and date headers of these UIDs, newest last.
-    pub async fn headers(&mut self, uids: &[u32]) -> Result<Vec<Vec<u8>>, MailError> {
+    /// The header block of each UID the server answered for, paired with the UID its own
+    /// response carries. A UID the server leaves out has no entry, so callers never pair by position.
+    pub async fn headers(&mut self, uids: &[u32]) -> Result<Vec<(u32, Vec<u8>)>, MailError> {
         if uids.is_empty() {
             return Ok(Vec::new());
         }
@@ -93,8 +97,10 @@ impl Mailbox {
         let mut stream = bounded(self.session.uid_fetch(set, "BODY.PEEK[HEADER]")).await?;
         let mut out = Vec::with_capacity(uids.len());
         while let Some(fetch) = stream.next().await {
-            let fetch = fetch.map_err(|_| MailError::Protocol)?;
-            out.push(fetch.header().map(<[u8]>::to_vec).unwrap_or_default());
+            let fetch = fetch.map_err(|error| lost_or(&error, MailError::Protocol))?;
+            if let Some(uid) = fetch.uid {
+                out.push((uid, fetch.header().map(<[u8]>::to_vec).unwrap_or_default()));
+            }
         }
         Ok(out)
     }
@@ -120,7 +126,7 @@ impl Mailbox {
             }
             let mut stream = bounded(self.session.uid_fetch(set_of(&group.0), &group.1)).await?;
             while let Some(fetch) = stream.next().await {
-                let fetch = fetch.map_err(|_| MailError::Protocol)?;
+                let fetch = fetch.map_err(|error| lost_or(&error, MailError::Protocol))?;
                 let uid = fetch.uid.unwrap_or_default();
                 out.push(Source {
                     uid,
@@ -144,7 +150,7 @@ impl Mailbox {
         let mut stream = bounded(self.session.uid_fetch(set_of(uids), "RFC822.SIZE")).await?;
         let mut sizes = std::collections::HashMap::new();
         while let Some(fetch) = stream.next().await {
-            let fetch = fetch.map_err(|_| MailError::Protocol)?;
+            let fetch = fetch.map_err(|error| lost_or(&error, MailError::Protocol))?;
             if let (Some(uid), Some(size)) = (fetch.uid, fetch.size) {
                 sizes.insert(uid, size as usize);
             }
@@ -155,6 +161,24 @@ impl Mailbox {
     pub async fn logout(&mut self) {
         let _ = self.session.logout().await;
     }
+
+    pub fn into_session(self) -> Session<Transport> {
+        self.session
+    }
+
+    /// Proves the socket still answers. Call it after the last command of a read.
+    pub async fn confirm(&mut self) -> Result<(), MailError> {
+        check_session(&mut self.session).await
+    }
+}
+
+/// CHECK's reply is read strictly. A closed socket makes most other replies come back
+/// empty, which reads as a real answer: an empty list, or a message that is not there.
+pub async fn check_session(session: &mut Session<Transport>) -> Result<(), MailError> {
+    timeout(CONNECT_DEADLINE, session.check())
+        .await
+        .map_err(|_| MailError::Connect)?
+        .map_err(|_| MailError::Connect)
 }
 
 /// Every command goes through here, so no await in this file is unbounded.
@@ -165,7 +189,16 @@ where
     timeout(READ_DEADLINE, command)
         .await
         .map_err(|_| MailError::Timeout)?
-        .map_err(|_| MailError::Command)
+        .map_err(|error| lost_or(&error, MailError::Command))
+}
+
+/// A socket that died is `Connect`, the one failure a new session can cure. Anything the
+/// server said is `otherwise`, so a refusal is never retried.
+fn lost_or(error: &async_imap::error::Error, otherwise: MailError) -> MailError {
+    match error {
+        async_imap::error::Error::Io(_) | async_imap::error::Error::ConnectionLost => MailError::Connect,
+        _ => otherwise,
+    }
 }
 
 fn set_of(uids: &[u32]) -> String {
@@ -232,6 +265,16 @@ mod tests {
     fn a_big_mail_is_never_asked_for_whole() {
         assert_eq!(full_body_query(), "BODY.PEEK[]");
         assert_eq!(partial_body_query(MESSAGE_LIMIT), "BODY.PEEK[]<0.262144>");
+    }
+
+    #[test]
+    fn a_dead_socket_is_a_connection_failure_and_a_refusal_never_is() {
+        let lost = async_imap::error::Error::ConnectionLost;
+        assert_eq!(lost_or(&lost, MailError::Command), MailError::Connect);
+        let io = async_imap::error::Error::Io(std::io::Error::other("reset"));
+        assert_eq!(lost_or(&io, MailError::Command), MailError::Connect);
+        let refused = async_imap::error::Error::No("[AUTHENTICATIONFAILED]".to_string());
+        assert_eq!(lost_or(&refused, MailError::Command), MailError::Command);
     }
 
     #[test]

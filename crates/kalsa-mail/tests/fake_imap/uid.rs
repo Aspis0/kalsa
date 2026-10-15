@@ -10,6 +10,8 @@ pub enum Answers {
     Wider,
     /// Only the newest known message, whatever was asked for.
     Other,
+    /// Like `Exact`, but a header fetch leaves out the lowest UID: a server that drops one response.
+    HeaderOmitsLowest,
 }
 
 const MESSAGES: [(u32, &str); 2] = [
@@ -59,8 +61,12 @@ fn fetch(tag: &str, words: Vec<&str>, answers: Answers) -> Vec<u8> {
         Part::Whole
     };
 
+    let omits_lowest = matches!((answers, &part), (Answers::HeaderOmitsLowest, Part::Header));
     let mut out = Vec::new();
     for (seq, uid, body) in chosen(answers, &set) {
+        if omits_lowest && uid == MESSAGES[0].0 {
+            continue;
+        }
         out.extend(match part {
             Part::Size => format!("* {seq} FETCH (UID {uid} RFC822.SIZE {})\r\n", body.len()).into_bytes(),
             Part::Header => literal(seq, uid, "BODY[HEADER]", header_of(body)),
@@ -91,7 +97,7 @@ fn chosen(answers: Answers, set: &[u32]) -> Vec<(usize, u32, &'static str)> {
         .iter()
         .enumerate()
         .filter(|(index, (uid, _))| match answers {
-            Answers::Exact => set.contains(uid),
+            Answers::Exact | Answers::HeaderOmitsLowest => set.contains(uid),
             Answers::Wider => *uid >= lowest,
             Answers::Other => *index == newest,
         })

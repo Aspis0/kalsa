@@ -64,11 +64,8 @@ async fn a_saved_account_is_read_from_the_keychain_and_listed() {
     account::save(&state_file, &account).expect("account saved beside the state file");
 
     let mail = MailState::default();
-    let open = || {
-        let program = program::current()?;
-        host::open_saved(&state_file, &Keychain, &program)
-    };
     let mut slot = mail.lock().await;
+    let open = host::open_in_background(state_file.clone());
     let response = slot.call("mail.list", one_day(), open).await.expect("the list answers");
     assert!(!response.is_error);
     assert!(response.for_ui.is_some(), "the panel gets structured data");
@@ -103,7 +100,7 @@ async fn the_chat_route_lists_the_lab_mail_with_the_panel_arguments() {
         json!({"folder": "INBOX", "query": "fattura \"scadenza\" \\ x"}),
         json!({"folder": "INBOX", "query": "zzqqxxnomatchzz"}),
     ] {
-        let open = || {
+        let open = async {
             let program = program::current()?;
             host::open_saved(&state_file, &store, &program)
         };

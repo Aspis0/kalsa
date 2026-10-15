@@ -8,7 +8,6 @@ use super::accounts::{self, AccountForm};
 use super::account::{self, MailAccount};
 use super::error::{refusal_of, CommandFailure, MailError};
 use super::keychain::Keychain;
-use super::program;
 use super::host;
 use super::state::{MailState, ToolResponse};
 
@@ -145,12 +144,8 @@ async fn call<T: Serialize>(
 async fn dispatch<T: Serialize>(app: &AppHandle, state: &MailState, name: &str, args: &T) -> Result<ToolResponse, MailError> {
     let arguments = arguments(args)?;
     let path = state_file(app)?;
-    let open = || {
-        let program = program::current()?;
-        host::open_saved(&path, &Keychain, &program)
-    };
     let mut slot = state.lock().await;
-    slot.call(name, arguments, open).await
+    slot.call(name, arguments, host::open_in_background(path)).await
 }
 
 fn arguments<T: Serialize>(args: &T) -> Result<Map<String, Value>, MailError> {
@@ -205,12 +200,8 @@ pub(crate) async fn send_confirmed(
         .cloned()
         .unwrap_or_default();
     let path = state_file(app)?;
-    let open = || {
-        let program = program::current()?;
-        host::open_saved(&path, &Keychain, &program)
-    };
     let mut slot = state.lock().await;
-    let response = slot.confirmed_send(arguments, open).await?;
+    let response = slot.confirmed_send(arguments, host::open_in_background(path)).await?;
     Ok(sent_of(response)?.sent_to)
 }
 
