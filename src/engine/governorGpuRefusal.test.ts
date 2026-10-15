@@ -3,13 +3,23 @@
  * private to `LlamaService.ts` (it needs the native engine to set), so the rule
  * itself lives beside the governor's inputs and is tested here, case by case.
  */
-import { gpuRefusedForMemory } from "./governorGpuRefusal";
+import { gpuRefusedForMemory, npuLaneResolved } from "./governorGpuRefusal";
 
-const ANDROID = { platformOs: "android", attempted: true, measured: true, fit: "NoFit" } as const;
+const ANDROID = {
+  platformOs: "android",
+  attempted: true,
+  measured: true,
+  fit: "NoFit",
+  laneOnly: false,
+} as const;
 
 describe("was the GPU refused for memory", () => {
   test("a measured free memory that did not fit", () => {
     expect(gpuRefusedForMemory(ANDROID)).toBe(true);
+  });
+
+  test("a lane-only load is not refused: prefill runs on the NPU, not slow", () => {
+    expect(gpuRefusedForMemory({ ...ANDROID, laneOnly: true })).toBe(false);
   });
 
   test("unknown memory is not low memory", () => {
@@ -40,5 +50,29 @@ describe("was the GPU refused for memory", () => {
     // The sensor gate refuses the governor with the fit still good: Fit, so
     // there is no memory refusal to report.
     expect(gpuRefusedForMemory({ ...ANDROID, fit: "Fit" })).toBe(false);
+  });
+});
+
+describe("was the NPU lane resolved, by the native load's own stats", () => {
+  test("HTP0 with no fallback is a resolved lane", () => {
+    expect(npuLaneResolved({ npu_device: "HTP0", npu_fallback: null })).toBe(true);
+  });
+
+  test("a GPU device or any fallback is not", () => {
+    expect(npuLaneResolved({ npu_device: "GPU", npu_fallback: null })).toBe(false);
+    expect(npuLaneResolved({ npu_device: "HTP0", npu_fallback: "htp runtime failed" })).toBe(false);
+    expect(npuLaneResolved({ npu_device: null, npu_fallback: null })).toBe(false);
+  });
+
+  test("an unread or failed stats call keeps the memory line", () => {
+    // No stats at all: the app cannot prove the lane ran, so the line shows.
+    expect(npuLaneResolved(null)).toBe(false);
+    const line = (stats: Parameters<typeof npuLaneResolved>[0]) =>
+      gpuRefusedForMemory({ ...ANDROID, laneOnly: npuLaneResolved(stats) });
+    expect(line(null)).toBe(true);
+    // The HTP runtime failed after the lane was claimed: prefill is on the CPU,
+    // so the line is not hidden.
+    expect(line({ npu_device: "GPU", npu_fallback: "htp runtime failed" })).toBe(true);
+    expect(line({ npu_device: "HTP0", npu_fallback: null })).toBe(false);
   });
 });

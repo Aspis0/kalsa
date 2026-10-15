@@ -76,7 +76,7 @@ import {
   readBenchNpuLane,
   readGovernorThermo,
 } from "./governorInputs";
-import { gpuRefusedForMemory } from "./governorGpuRefusal";
+import { gpuRefusedForMemory, npuLaneResolved } from "./governorGpuRefusal";
 import {
   startGovernorBatteryTrace,
   stopGovernorBatteryTrace,
@@ -408,6 +408,8 @@ let activeGovernorAttempted = false;
  *  measured refusal rather than "not proven". Without either it is the same
  *  verdict an unknown memory gets (`governorInputs.ts` `laneFit`). */
 let activeGovernorFitMeasured = false;
+/** The governor ran lane-only: GPU fit NoFit, the NPU lane's own fit Fit. */
+let activeGovernorLaneOnly = false;
 let activeGovernorActive = false;
 let activeGovernorForced = false;
 let activeGovernorFallbackReason = "";
@@ -1795,6 +1797,23 @@ async function refreshGovernorBeforeCompletion(
   return snapshot;
 }
 
+/** The native load's NPU outcome from getGovernorStats. A failed or slow read
+ *  is not a resolved lane, so the memory line stays up when the app is unsure. */
+async function readNpuLaneResolved(engine: LlamaContext | null): Promise<boolean> {
+  if (!engine) return false;
+  try {
+    return npuLaneResolved(
+      await withNativeCallTimeout(
+        engine.getGovernorStats(),
+        ENGINE_AUX_CALL_TIMEOUT_MS,
+        "getGovernorStats",
+      ),
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function emitGovernorTelemetry(
   engine: LlamaContext,
   thermoSource: GovernorThermoSnapshot["thermo_source"],
@@ -1809,6 +1828,9 @@ async function emitGovernorTelemetry(
       ENGINE_AUX_CALL_TIMEOUT_MS,
       "getGovernorStats",
     );
+    // The load-time read can predate a runtime HTP failure; a turn's stats
+    // can only take the lane-only claim away, never grant it.
+    if (activeGovernorLaneOnly && !npuLaneResolved(stats)) activeGovernorLaneOnly = false;
     // Only decode_tokens_gpu is missing from the installed pin's
     // GovernorStats; the optional member gives the emission a place to read
     // it, and ?? 0 covers builds where the pin predates the field.
@@ -2096,6 +2118,7 @@ export function isGpuRefusedForMemory(): boolean {
     fit: activeGovernorFit,
     attempted: activeGovernorAttempted,
     measured: activeGovernorFitMeasured,
+    laneOnly: activeGovernorLaneOnly,
   });
 }
 
@@ -2467,6 +2490,20 @@ export function initEngine(
         governorFeatureEnabled && Platform.OS === "android"
           ? await readHtpRuntimeArch()
           : null;
+      // One object for both the params and the plan log, so the price the
+      // plan prints is the price the lane was judged by.
+      const npuLaneInputs = {
+        android: Platform.OS === "android",
+        // Same source of truth as the governorLoad gate below
+        // (… && !options.mmprojPath): vision never claims the lane.
+        hasMmproj: Boolean(options.mmprojPath),
+        lanePref: benchNpuLane,
+        // Re-priced when the effective pref requests the lane (absent reads
+        // as "auto"); with the lane off buildGovernorParams prices the entry
+        // as if this were absent.
+        laneModel,
+        htpArch,
+      };
       const governorBase =
         governorFeatureEnabled && pricedModel != null
           ? buildGovernorParams(pricedModel, deviceProfile, {
@@ -2479,18 +2516,7 @@ export function initEngine(
             },
             benchGovernorForce,
             benchNoRepack,
-            {
-              android: Platform.OS === "android",
-              // Same source of truth as the governorLoad gate below
-              // (… && !options.mmprojPath): vision never claims the lane.
-              hasMmproj: Boolean(options.mmprojPath),
-              lanePref: benchNpuLane,
-              // Re-priced when the effective pref requests the lane (absent
-              // reads as "auto"); with the lane off buildGovernorParams
-              // prices the entry as if this were absent.
-              laneModel,
-              htpArch,
-            },
+            npuLaneInputs,
             benchDecodeHop,
           )
           : null;
@@ -2502,7 +2528,8 @@ export function initEngine(
         governorBase.enabled &&
         governorThermo != null &&
         governorThermo.sensor_valid &&
-        governorBase.gpu_fit !== "NoFit" &&
+        // A GPU NoFit still loads when the lane fits lane-only (prefill HTP0).
+        (governorBase.gpu_fit !== "NoFit" || governorBase.npu_lane_enabled === true) &&
         !options.mmprojPath &&
         !streamExperts
           ? {
@@ -2520,6 +2547,7 @@ export function initEngine(
         governorBase,
         governorLoad,
         governorKey,
+        npuLaneInputs,
       };
     };
 
@@ -2582,6 +2610,7 @@ export function initEngine(
       governorBase,
       governorLoad,
       governorKey,
+      npuLaneInputs,
     } = await deriveMemoryFit(fitMemoryBytes);
     if (windowCeilingTokens(effectiveNCtx) <= 0) {
       // n_ctx <= WINDOW_RESERVE_TOKENS leaves no verbatim window and makes the
@@ -2612,7 +2641,7 @@ export function initEngine(
             governorBase,
             benchNoRepack,
             benchNpuLane,
-            { laneModel, availableSrc },
+            { laneModel, npu: npuLaneInputs, availableSrc },
           ),
         )}`,
       );
@@ -2931,6 +2960,14 @@ export function initEngine(
     activeStreamExperts = streamExperts;
     activeGovernorKey = governorUsed ? governorKey : "off";
     activeGovernorFit = governorBase?.gpu_fit ?? null;
+    // Outcome, not intent: the lane is lane-only only when the native load
+    // resolved HTP0. The stats read is awaited here, once per load, and only
+    // for a load that could be lane-only.
+    activeGovernorLaneOnly =
+      governorUsed &&
+      governorBase?.gpu_fit === "NoFit" &&
+      governorBase.npu_lane_enabled === true &&
+      (await readNpuLaneResolved(context));
     activeGovernorAttempted =
       governorFeatureEnabled && governorBase != null && governorBase.enabled;
     activeGovernorFitMeasured =
@@ -3138,6 +3175,7 @@ async function disposeEngineLocked(opts?: {
     activeGovernorFit = null;
     activeGovernorAttempted = false;
     activeGovernorFitMeasured = false;
+    activeGovernorLaneOnly = false;
     activeGovernorActive = false;
     activeGovernorForced = false;
     activeGovernorFallbackReason = "";

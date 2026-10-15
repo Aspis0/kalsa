@@ -37,6 +37,15 @@ function effectiveNpuLanePref(pref?: BenchNpuLanePref): BenchNpuLanePref {
  *  8 GB device lands on decode_repack=false exactly like today. */
 export const NPU_PREFILL_EXTRA_MIB = 219;
 
+/** Safety margin added to every fit the governor decides, GPU and NPU alike,
+ *  on top of the price (owner decision 2026-10-15: at least 300 MiB). */
+const FIT_MARGIN_MIB = 300;
+
+/** Adreno fixed cost of the GPU leg, measured ≈ 770 MiB on the Xiaomi 14. It
+ *  is paid only when something is offloaded to the GPU, so the lane-only price
+ *  leaves it out. */
+const GPU_LEG_FIXED_MIB = 800;
+
 /** Effective KV ggml types of the governor's NPU lane, applied to the types
  *  the context will actually receive (effectiveCacheTypes of the load's
  *  catalog values — with flash attention off the engine has already forced
@@ -169,7 +178,28 @@ function modelKind(model: GovernorModel) {
   return "Dense" as const;
 }
 
-function lanePrice(model: GovernorModel, memory: MemorySnapshot, repack: boolean) {
+/** The NPU lane's eligibility gates other than the memory fit. The fit cannot
+ *  decide them: the fit's price depends on whether the lane is eligible
+ *  (lane-only when the GPU does not fit), so the gates come first. */
+function npuLaneGates(
+  model: GovernorModel,
+  lanePref: BenchNpuLanePref,
+  npu?: NpuLaneInputs,
+): boolean {
+  if (lanePref === "off") return false;
+  const androidOk = npu?.android ?? false;
+  const visionOk = !npu?.hasMmproj;
+  if (lanePref === "on") return androidOk && visionOk;
+  const arch = npu?.htpArch ?? null;
+  return androidOk && visionOk && arch !== null && arch >= 73 && modelKind(model) !== "MoE";
+}
+
+function lanePrice(
+  model: GovernorModel,
+  memory: MemorySnapshot,
+  repack: boolean,
+  gpuLeg: boolean,
+) {
   const kv = model.kvBytesPerToken;
   if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return null;
 
@@ -195,13 +225,13 @@ function lanePrice(model: GovernorModel, memory: MemorySnapshot, repack: boolean
         totalMiB: estimate.totalMiB + estimate.weightsMiB,
       }
     : estimate;
+  // nonEvictableMiB already holds compute and KV (memoryEstimate.ts), so they
+  // are not added again here.
   const offloadedBytes = memory.offloadedBytes ?? model.sizeBytes;
   const requiredMiB =
     priced.nonEvictableMiB +
-    800 +
-    (1.05 * offloadedBytes) / MIB +
-    priced.computeMiB +
-    priced.kvMiB;
+    (gpuLeg ? GPU_LEG_FIXED_MIB : 0) +
+    (1.05 * offloadedBytes) / MIB;
   return { priced, requiredMiB };
 }
 
@@ -209,9 +239,10 @@ function laneFit(
   model: GovernorModel,
   memory: MemorySnapshot,
   repack: boolean,
-  extraMiB = 0,
+  extraMiB: number,
+  gpuLeg: boolean,
 ) {
-  const lane = lanePrice(model, memory, repack);
+  const lane = lanePrice(model, memory, repack, gpuLeg);
   if (!lane) return "NoFit" as const;
   const verdict = fitMemoryEstimate(
     lane.priced,
@@ -222,7 +253,9 @@ function laneFit(
   if (verdict.status === "unknown" || verdict.status === "does_not_fit") return "NoFit" as const;
 
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
-  return lane.requiredMiB + extraMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
+  return lane.requiredMiB + extraMiB + FIT_MARGIN_MIB <= availableMiB
+    ? ("Fit" as const)
+    : ("NoFit" as const);
 }
 
 export function buildGovernorPlanLog(
@@ -245,33 +278,41 @@ export function buildGovernorPlanLog(
   lane?: {
     /** The model priced at npuLaneCacheTypes — what the NPU lane fit compares. */
     laneModel?: GovernorModel;
+    /** The lane's gate inputs, the same object buildGovernorParams received. */
+    npu?: NpuLaneInputs;
     /** Which source supplied availableMemoryBytes: the post-release uncached
      *  read ("fresh"), the app-start cache it fell back to ("cached"), or
      *  neither ("none": both were null). */
     availableSrc?: "fresh" | "cached" | "none";
   },
 ) {
-  // The binding fit check is requiredMiB + extraMiB <= availableMiB, so the
-  // printed required_mib must carry the same +219 MiB HTP prefill copy and
-  // the same lane-priced KV the decision used — otherwise a postmortem
-  // recomputing fit-vs-available from this line disagrees with the verdict
-  // by exactly the extra. The effective pref decides both (an absent/invalid
-  // read is "auto"); with the lane off the binding check is the GPU lane's
-  // own (no extra, entry pricing).
+  // The binding fit check is requiredMiB + extraMiB + FIT_MARGIN_MIB <=
+  // availableMiB, so the printed required_mib carries the same margin, the
+  // same +219 MiB HTP prefill copy and the same lane-priced KV the decision
+  // used — otherwise a postmortem recomputing fit-vs-available from this line
+  // disagrees with the verdict. The effective pref decides both (an absent or
+  // invalid read is "auto"); with the lane off the binding check is the GPU
+  // lane's own (no extra, entry pricing). A GPU NoFit with an eligible lane is
+  // decided by the lane-only price, which leaves the GPU leg out; a refused
+  // lane (arch, MoE, vision) keeps the GPU-inclusive price, as its fit did.
   const lanePref = effectiveNpuLanePref(npuLanePref);
   const laneRequested = lanePref !== "off";
+  const laneOnly =
+    npuLaneGates(model, lanePref, lane?.npu) && governor.gpu_fit === "NoFit";
   const pricedModel = laneRequested ? (lane?.laneModel ?? model) : model;
   const extraMiB = laneRequested ? NPU_PREFILL_EXTRA_MIB : 0;
-  const withRepack = lanePrice(pricedModel, memory, true);
-  const withoutRepack = lanePrice(pricedModel, memory, false);
+  const withRepack = lanePrice(pricedModel, memory, true, !laneOnly);
+  const withoutRepack = lanePrice(pricedModel, memory, false, !laneOnly);
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
   const roundMiB = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+  const printedMiB = (price: { requiredMiB: number } | null) =>
+    roundMiB((price?.requiredMiB ?? 0) + extraMiB + FIT_MARGIN_MIB);
 
   return {
     gpu_fit: governor.gpu_fit,
     decode_repack: governor.decode_repack,
-    required_mib_with_repack: roundMiB((withRepack?.requiredMiB ?? 0) + extraMiB),
-    required_mib_without_repack: roundMiB((withoutRepack?.requiredMiB ?? 0) + extraMiB),
+    required_mib_with_repack: printedMiB(withRepack),
+    required_mib_without_repack: printedMiB(withoutRepack),
     available_mib: roundMiB(availableMiB),
     bench_norepack_forced: benchNoRepack ?? null,
     // Intent, not outcome: the loader resolves the device after this line; a
@@ -292,6 +333,9 @@ export function buildGovernorPlanLog(
     // NoFit or a thermal gate can still refuse.
     pacing_start: governor.decode_pacing_headroom_start ?? null,
     pacing_full: governor.decode_pacing_headroom_full ?? null,
+    // Which price the printed required_mib are: the GPU-inclusive one, or the
+    // lane-only one that leaves the 800 MiB GPU leg out.
+    npu_price: laneOnly ? "lane_only" : "with_gpu",
   };
 }
 
@@ -300,19 +344,20 @@ function gpuFit(
   memory: MemorySnapshot,
   benchNoRepack: boolean | undefined,
   extraMiB = 0,
+  gpuLeg = true,
 ) {
   // Price the lane WITH repack first: P1 (decode_repack false) drops the CPU
   // repack copy and costs ~1.41x lane decode plus KLD p99 0.034 -> 0.042, so
-  // it is only taken where the repack-priced lane does not fit (8 GB S23:
-  // 4358.70 MiB required with repack vs 2998.06 without). kalsa.bench.norepack
-  // outranks this fit decision so one arm measures one configuration: "1"
-  // skips the with-repack attempt (no-repack arm), "0" skips the P1 fallback
-  // (repack-on arm, refused rather than silently re-priced); absent lets the
-  // production order above decide.
-  if (benchNoRepack !== true && laneFit(model, memory, true, extraMiB) === "Fit") {
+  // it is only taken where the repack-priced lane does not fit (on the S23
+  // ship model the repack copy alone is ~1520 MiB, the weights' file size).
+  // kalsa.bench.norepack outranks this fit decision so one arm measures one
+  // configuration: "1" skips the with-repack attempt (no-repack arm), "0"
+  // skips the P1 fallback (repack-on arm, refused rather than silently
+  // re-priced); absent lets the production order above decide.
+  if (benchNoRepack !== true && laneFit(model, memory, true, extraMiB, gpuLeg) === "Fit") {
     return { fit: "Fit" as const, decodeRepack: true };
   }
-  if (benchNoRepack !== false && laneFit(model, memory, false, extraMiB) === "Fit") {
+  if (benchNoRepack !== false && laneFit(model, memory, false, extraMiB, gpuLeg) === "Fit") {
     return { fit: "Fit" as const, decodeRepack: false };
   }
   return { fit: "NoFit" as const, decodeRepack: benchNoRepack === false };
@@ -331,14 +376,21 @@ export function buildGovernorParams(
   const lane = gpuFit(modelEntry, memory, benchNoRepack);
   // Only a requested lane re-prices: lanePref is the one place "requested"
   // lives, so a load with the lane off (pref "off") prices npu_fit at the
-  // entry's own caller profile, byte-identical to 7ddf39ad.
+  // entry's own caller profile.
   const lanePref = effectiveNpuLanePref(npu?.lanePref);
   const laneRequested = lanePref !== "off";
+  // The lane's gates other than the fit (see npuLaneGates). An eligible lane
+  // with a GPU NoFit loads lane-only (prefill on HTP0, nothing on the GPU), so
+  // its fit prices that load without the GPU leg. A GPU Fit keeps the
+  // GPU-inclusive price: the one-copy GPU leg may run.
+  const gates = npuLaneGates(modelEntry, lanePref, npu);
+  const laneOnly = gates && lane.fit === "NoFit";
   const npuLane = gpuFit(
     laneRequested ? (npu?.laneModel ?? modelEntry) : modelEntry,
     memory,
     benchNoRepack,
     NPU_PREFILL_EXTRA_MIB,
+    !laneOnly,
   );
   // NPU lane eligibility (owner rule 2026-09-28). The default is "auto" since
   // the owner's 2026-10-02 decision: the S23 measurement (lane-on prefill
@@ -351,22 +403,14 @@ export function buildGovernorParams(
   // has no expert-readability signal, and the engine requires the pair.
   // bench pref: "off" forces off; "on" bypasses only the auto gates (arch
   // and kind); fit, platform and vision stay hard. When HTP0 does not
-  // resolve at load the binding clears the lane, so the engine falls back to
-  // GPU only on a GPU-qualified generation and to CPU otherwise.
-  const androidOk = npu?.android ?? false;
-  const visionOk = !npu?.hasMmproj;
-  const arch = npu?.htpArch ?? null;
-  const kindOk = modelKind(modelEntry) !== "MoE";
-  const fitOk = npuLane.fit === "Fit";
-  const autoOk = androidOk && visionOk && arch !== null && arch >= 73 && kindOk && fitOk;
-  const laneEnabled =
-    lanePref === "auto" ? autoOk
-    : lanePref === "on" ? androidOk && visionOk && fitOk
-    : false; // "off"
+  // resolve at load the binding clears the lane: prefill then goes to the GPU
+  // only when the GPU fit is Fit on a GPU-qualified generation, and stays on
+  // the CPU when gpu_fit is NoFit (a lane-only load has no GPU fallback).
+  const laneEnabled = gates && npuLane.fit === "Fit";
   // The governor also loads lane-only: a generation whose GPU prefill is not
-  // qualified (Unknown) still runs prefill on HTP0 with decode on CPU,
-  // so enabled is GPU-qualified OR lane enabled — and when both are false
-  // the Android-only n_gpu_layers guard lands the load on CPU.
+  // qualified (Unknown), or whose GPU fit is NoFit, still runs prefill on HTP0
+  // with decode on CPU, so enabled is GPU-qualified OR lane enabled — and when
+  // both are false the Android-only n_gpu_layers guard lands the load on CPU.
   const enabled = force || GPU_PREFILL_CORRECT[generation] || laneEnabled;
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
@@ -389,8 +433,10 @@ export function buildGovernorParams(
     // V73, V75 and V81 carry owner enablement decisions; V79 passed the token oracle (S5 run 6).
     // No committed logit-oracle PASS exists for any generation.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
+    // A GPU NoFit routes no prefill to the GPU, whatever the generation.
     gpu_prefill_measured:
-      generation === "V73" || generation === "V75" || generation === "V79" || generation === "V81",
+      (generation === "V73" || generation === "V75" || generation === "V79" || generation === "V81") &&
+      lane.fit === "Fit",
     bench_force_gpu_prefill: force,
     npu_lane_enabled: laneEnabled,
     npu_fit: npuLane.fit,

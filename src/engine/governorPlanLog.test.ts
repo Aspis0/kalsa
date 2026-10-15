@@ -46,13 +46,13 @@ describe("governor plan log", () => {
 
     const plan = buildGovernorPlanLog(model, memory, governor, undefined);
     // The absent pref is "auto" now, so the printed required_mib are the
-    // lane's own (+219 MiB HTP prefill copy); the lane-off prices stay pinned
-    // below (4518.12 / 2998.06).
+    // lane's own (+219 MiB HTP prefill copy, +300 margin); the lane-off prices
+    // stay pinned below (4517.12 / 2997.06).
     expect(plan).toEqual({
       gpu_fit: "Fit",
       decode_repack: true,
-      required_mib_with_repack: 4737.12,
-      required_mib_without_repack: 3217.06,
+      required_mib_with_repack: 4736.12,
+      required_mib_without_repack: 3216.06,
       available_mib: 4519,
       bench_norepack_forced: null,
       npu_device: null,
@@ -62,6 +62,7 @@ describe("governor plan log", () => {
       available_src: null,
       pacing_start: 0.87,
       pacing_full: 0.99,
+      npu_price: "with_gpu",
     });
     // Instruments parse this line: the pre-npu_lane keys keep their order
     // and the later keys are appended.
@@ -79,6 +80,7 @@ describe("governor plan log", () => {
       "available_src",
       "pacing_start",
       "pacing_full",
+      "npu_price",
     ]);
     expect(
       buildGovernorPlanLog(
@@ -109,7 +111,8 @@ describe("governor plan log", () => {
       offloadedBytes: model.sizeBytes,
     };
     // S23, no vision: the lane fits only WITHOUT repack once the +219 MiB
-    // HTP prefill copy is priced (4737.12 > 4519, 3217.06 <= 4519).
+    // HTP prefill copy and the +300 margin are priced (4736.12 > 4519,
+    // 3216.06 <= 4519).
     const governor = buildGovernorParams(model, s23, memory, false, undefined, {
       android: true,
       hasMmproj: false,
@@ -130,13 +133,14 @@ describe("governor plan log", () => {
         availableSrc: "fresh",
       }),
     ).toMatchObject({
-      required_mib_with_repack: 4737.12,
-      required_mib_without_repack: 3217.06,
+      required_mib_with_repack: 4736.12,
+      required_mib_without_repack: 3216.06,
       available_mib: 4519,
       npu_fit: "Fit",
       available_src: "fresh",
       decode_repack: false,
       npu_lane: "auto",
+      npu_price: "with_gpu",
     });
   });
 
@@ -168,14 +172,14 @@ describe("governor plan log", () => {
       "auto",
       { laneModel, availableSrc: "cached" },
     );
-    expect(plan.required_mib_with_repack).toBeGreaterThan(4737.12);
-    expect(plan.required_mib_without_repack).toBeGreaterThan(3217.06);
+    expect(plan.required_mib_with_repack).toBeGreaterThan(4736.12);
+    expect(plan.required_mib_without_repack).toBeGreaterThan(3216.06);
     expect(plan.npu_fit).toBe("Fit");
     expect(plan.available_src).toBe("cached");
     // Lane off: the binding decision is the GPU lane's own — no extra.
     const laneOff = buildGovernorPlanLog(model, memory, buildGovernorParams(model, s23, memory), undefined, "off");
-    expect(laneOff.required_mib_with_repack).toBe(4518.12);
-    expect(laneOff.required_mib_without_repack).toBe(2998.06);
+    expect(laneOff.required_mib_with_repack).toBe(4517.12);
+    expect(laneOff.required_mib_without_repack).toBe(2997.06);
   });
 
   test("reports the effective lane pref, defaulting an absent one to auto", () => {

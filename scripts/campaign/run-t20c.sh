@@ -437,7 +437,7 @@ fi
 governor_pref="$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.governor.enabled';" 2>/dev/null | tr -d '[:space:]')" || governor_pref=""
 log "governor readback: $GOVERNOR_PREF_KEY=${governor_pref:-UNREADABLE} plan=${governor_plan_json:-ABSENT}"
 campaign_governor_verify "$governor_plan_json" "$governor_pref" \
-  || die "governor not engaged before turn 1 — refusing to start (no gpu_fit Fit plan or pref not set)"
+  || die "governor not engaged before turn 1 — refusing to start (no GPU or lane-only fit in the plan, or pref not set)"
 log "--- end governor engagement ---"
 
 rc=0

@@ -2130,6 +2130,13 @@ EOF
     printf '%s\n' 'I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit"}' > "$out/nofit.txt"
     nofit=$(campaign_governor_wait_plan "$out/nofit.txt" 6) || exit 1
     campaign_governor_verify "$nofit" 1 && exit 1
+    # Lane-only: GPU NoFit, the NPU lane fits and is not off → engaged; lane off → refused.
+    printf '%s\n' 'I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit","npu_fit":"Fit","npu_lane":"auto"}' > "$out/lane.txt"
+    lane=$(campaign_governor_wait_plan "$out/lane.txt" 6) || exit 1
+    campaign_governor_verify "$lane" 1 || exit 1
+    printf '%s\n' 'I ReactNativeJS: KALSA_GOVERNOR_PLAN {"gpu_fit":"NoFit","npu_fit":"Fit","npu_lane":"off"}' > "$out/lane-off.txt"
+    laneoff=$(campaign_governor_wait_plan "$out/lane-off.txt" 6) || exit 1
+    campaign_governor_verify "$laneoff" 1 && exit 1
     campaign_governor_wait_plan "$out/absent.txt" 1 && exit 1
     exit 0
   ) > "$out/log.txt" 2>&1

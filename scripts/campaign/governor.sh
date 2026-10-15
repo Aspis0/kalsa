@@ -68,7 +68,8 @@ PY
   return 1
 }
 
-# Engagement = pref read back as 1 AND the load plan says gpu_fit Fit.
+# Engagement = pref read back as 1 AND the load plan engages the governor:
+# gpu_fit Fit, or a lane-only load (npu_fit Fit with the NPU lane not off).
 # The pref value is an argument (the caller reads it back from the store),
 # so this function stays testable without a device.
 campaign_governor_verify() {
@@ -77,12 +78,12 @@ campaign_governor_verify() {
     log "governor verify FAILED: $GOVERNOR_PREF_KEY=${pref:-ABSENT}"
     return 1
   fi
-  local fit
-  fit=$(printf '%s' "$plan_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("gpu_fit"))' 2>/dev/null) || fit=""
-  if [ "$fit" != "Fit" ]; then
-    log "governor verify FAILED: gpu_fit=${fit:-unreadable} (pref=1 but the load plan refuses the governor)"
+  local engaged
+  engaged=$(printf '%s' "$plan_json" | python3 -c 'import json,sys; p=json.load(sys.stdin); print("gpu_fit" if p.get("gpu_fit")=="Fit" else "lane_only" if p.get("npu_fit")=="Fit" and p.get("npu_lane")!="off" else "")' 2>/dev/null) || engaged=""
+  if [ -z "$engaged" ]; then
+    log "governor verify FAILED: no GPU or lane-only fit (pref=1 but the load plan refuses the governor)"
     return 1
   fi
-  log "governor verified: $GOVERNOR_PREF_KEY=1 gpu_fit=Fit plan=$plan_json"
+  log "governor verified: $GOVERNOR_PREF_KEY=1 engaged=$engaged plan=$plan_json"
   return 0
 }

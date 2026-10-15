@@ -23,9 +23,9 @@ export const GOVERNOR_ENABLED_DEFAULT = true;
  * GOVERNOR_ENABLED_DEFAULT. ON is the safe side of that error: the
  * governorLoad gate still refuses the governor on its own — correctness
  * (governorBase.enabled), thermal (governorThermo.sensor_valid plus the
- * engine's own stops), memory fit (gpu_fit "NoFit"), vision (mmprojPath) and
- * MoE streaming (streamExperts) — so an unreadable flag cannot force a load
- * the phone cannot serve.
+ * engine's own stops), memory fit (gpu_fit "NoFit" with no lane-only fit),
+ * vision (mmprojPath) and MoE streaming (streamExperts) — so an unreadable
+ * flag cannot force a load the phone cannot serve.
  */
 export async function readGovernorEnabled(): Promise<boolean> {
   try {

@@ -235,9 +235,9 @@ describe("governor inputs", () => {
     // The binding forces no_extra_bufts on the governor decode model
     // (llama.rn-kalsa cpp/rn-llama.cpp load_governor_models), so the lane
     // never allocates the CPU repack copy: its budget is
-    // 800 + 1.05·W + 2×compute@256 + 2×KV = 2998.06 MiB for LFM 2.6B at
-    // ctx 8192. Pricing the repack copy back in at 1.0×W (4518.12 MiB)
-    // flips Fit to NoFit.
+    // 800 + 1.05·W + compute@256 + KV + 300 margin = 2997.06 MiB for LFM 2.6B
+    // at ctx 8192 (W 1520.06, KV 52, compute 249). Pricing the repack copy
+    // back in at 1.0×W (4517.12 MiB) flips Fit to NoFit.
     expect(buildGovernorParams(lfm!, s23, laneAt(2999 * 1024 ** 2)).gpu_fit).toBe("Fit");
     // One MiB below the requirement flips — the pin is the exact number.
     expect(buildGovernorParams(lfm!, s23, laneAt(2997 * 1024 ** 2)).gpu_fit).toBe("NoFit");
@@ -252,7 +252,7 @@ describe("governor inputs", () => {
       mmap: true,
       availableMemoryBytes: availableMiB * 1024 ** 2,
     });
-    // Repack-priced requirement 4518.12 MiB (2998.06 repack-free + 1520.06
+    // Repack-priced requirement 4517.12 MiB (2997.06 repack-free + 1520.06
     // for a conservative 1.0×W copy): at/above it the lane keeps the repack
     // copy (decode_repack true — upstream default, full decode speed and
     // KLD). One MiB below, repack is dropped only to keep the lane alive.
@@ -262,15 +262,22 @@ describe("governor inputs", () => {
     });
     expect(buildGovernorParams(lfm, s23, laneAt(4518))).toMatchObject({
       gpu_fit: "Fit",
+      decode_repack: true,
+    });
+    expect(buildGovernorParams(lfm, s23, laneAt(4517))).toMatchObject({
+      gpu_fit: "Fit",
       decode_repack: false,
     });
     expect(buildGovernorParams(lfm, s23, laneAt(2999))).toMatchObject({
       gpu_fit: "Fit",
       decode_repack: false,
     });
-    // Repack-free requirement is 2998.06 MiB: one MiB below, neither price
-    // fits — NoFit, the lane is refused rather than shrunk silently.
-    expect(buildGovernorParams(lfm, s23, laneAt(2998)).gpu_fit).toBe("NoFit");
+    // Repack-free requirement is 2997.06 MiB: 2998 fits it, 2997 does not —
+    // neither price fits there, so the lane is refused rather than shrunk.
+    expect(buildGovernorParams(lfm, s23, laneAt(2998))).toMatchObject({
+      gpu_fit: "Fit",
+      decode_repack: false,
+    });
     expect(buildGovernorParams(lfm, s23, laneAt(2997)).gpu_fit).toBe("NoFit");
   });
 
@@ -667,15 +674,17 @@ describe("governor inputs", () => {
       laneModel,
       htpArch: 73,
     };
-    // Lane requirement with the upgraded KV: 3030.06 MiB repack-free + 219
-    // HTP prefill copy = 3249.06 MiB (catalog KV would need 3217.06). One MiB
-    // below the upgraded boundary the lane refuses where the caller-profile
-    // price would still have passed; one above it claims HTP0.
+    // Lane requirement with the upgraded KV, GPU leg included (the GPU fits
+    // here, so the NPU fit keeps the 800 MiB): 249 + 68 + 800 + 1596.06 =
+    // 2713.06 MiB, + 219 HTP prefill copy + 300 margin = 3232.06 MiB (the
+    // catalog KV would need 3216.06). One MiB below the upgraded boundary the
+    // lane refuses where the caller-profile price would still have passed;
+    // one above it claims HTP0.
     expect(
-      buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, inputs),
+      buildGovernorParams(lfm, s23, laneAt(3232), false, undefined, inputs),
     ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
     expect(
-      buildGovernorParams(lfm, s23, laneAt(3250), false, undefined, inputs),
+      buildGovernorParams(lfm, s23, laneAt(3233), false, undefined, inputs),
     ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
   });
 
@@ -703,14 +712,15 @@ describe("governor inputs", () => {
       laneModel,
       htpArch: 73,
     };
-    // 3249 MiB admitted the pre-fix caller-profile price (3217.06 MiB) — a
-    // false Fit: the f16 V the engine really holds prices 3090.06 + 219 HTP
-    // copy = 3309.06 MiB. Refused one MiB below, claimed one above.
+    // 3232 MiB admitted the caller-profile price (3216.06 MiB) — a false Fit:
+    // the f16 V the engine really holds prices 249 + 98 + 800 + 1596.06 =
+    // 2743.06 MiB, + 219 HTP copy + 300 margin = 3262.06 MiB. Refused one MiB
+    // below, claimed one above.
     expect(
-      buildGovernorParams(lfm, s23, laneAt(3309), false, undefined, inputs),
+      buildGovernorParams(lfm, s23, laneAt(3262), false, undefined, inputs),
     ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
     expect(
-      buildGovernorParams(lfm, s23, laneAt(3310), false, undefined, inputs),
+      buildGovernorParams(lfm, s23, laneAt(3263), false, undefined, inputs),
     ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
   });
 
@@ -724,14 +734,14 @@ describe("governor inputs", () => {
       mmap: true,
       availableMemoryBytes: availableMiB * 1024 ** 2,
     });
-    // At 3249 MiB the two prices disagree: the entry's own caller profile
-    // needs 3217.06 MiB (Fit), the upgraded KV 3249.06 (NoFit). An "off" lane
+    // At 3232 MiB the two prices disagree: the entry's own caller profile
+    // needs 3216.06 MiB (Fit), the upgraded KV 3232.06 (NoFit). An "off" lane
     // must report the pre-lane price, so the whole plan equals a load whose
     // inputs never carried a laneModel.
     const laneOff = { android: true, hasMmproj: false, lanePref: "off" as const, htpArch: null };
-    const baseline = buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, laneOff);
+    const baseline = buildGovernorParams(lfm, s23, laneAt(3232), false, undefined, laneOff);
     expect(
-      buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, {
+      buildGovernorParams(lfm, s23, laneAt(3232), false, undefined, {
         ...laneOff,
         laneModel,
       }),
@@ -742,7 +752,7 @@ describe("governor inputs", () => {
     // The absent pref requests the lane, so the same lane model re-prices and
     // flips this verdict.
     expect(
-      buildGovernorParams(lfm, s23, laneAt(3249), false, undefined, {
+      buildGovernorParams(lfm, s23, laneAt(3232), false, undefined, {
         android: true,
         hasMmproj: false,
         laneModel,
@@ -764,7 +774,7 @@ describe("governor inputs", () => {
     });
     // The load's own estimate stays at the caller profile even with a
     // lane-priced model in the inputs: the repack-free boundaries
-    // (2998.06 MiB) hold byte-identically.
+    // (2997.06 MiB with the margin) hold byte-identically.
     const inputs = { android: true, hasMmproj: false, laneModel, htpArch: null };
     expect(
       buildGovernorParams(lfm, s23, laneAt(2999), false, undefined, inputs).gpu_fit,
