@@ -3,13 +3,15 @@
 
 mod fake_imap;
 
-use fake_imap::fetch::Answers;
+use fake_imap::uid::Answers;
 use fake_imap::Login;
+use kalsa_mail::account;
 use kalsa_mail::imap;
 use kalsa_mail::mailbox::{Mailbox, Source};
 
 async fn open(answers: Answers) -> Mailbox {
-    let account = fake_imap::serve(Login::Accept, answers).await;
+    let line = fake_imap::serve(Login::Accept, answers).await;
+    let account = account::read(line.as_bytes()).expect("the test line is well formed");
     let session = imap::connect(&account).await.expect("the fake accepts LOGIN");
     Mailbox::examine(session, "INBOX").await.expect("INBOX opens")
 }

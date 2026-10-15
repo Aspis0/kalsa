@@ -2,9 +2,20 @@
 //! come from the mail being answered; the subject and the body are the person's own.
 
 use lettre::message::{Mailbox, Message, SinglePart};
+use lettre::Address;
 
 use crate::draft;
 use crate::mail::ParsedMail;
+
+/// The address a value is, lowercased, or nothing. Parsing and drafting use the same
+/// test, so a reply is never addressed to text that only contains an `@`.
+pub(crate) fn as_address(value: &str) -> Option<String> {
+    value
+        .trim()
+        .parse::<Address>()
+        .ok()
+        .map(|address| address.to_string().to_lowercase())
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ComposeError {

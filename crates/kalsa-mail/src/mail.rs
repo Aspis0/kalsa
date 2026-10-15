@@ -1,6 +1,7 @@
 //! RFC822 source -> what the server reads: ordered headers, the sender, the
 //! thread, and a body bounded to 64 KB.
 
+use crate::compose::as_address;
 use crate::encoded_word;
 use crate::html_text;
 use crate::link::{self, Link};
@@ -121,9 +122,7 @@ fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedM
             .and_then(|m| m.reply_to())
             .and_then(first_addr)
             .and_then(|addr| addr.address())
-            .map(str::trim)
-            .map(str::to_lowercase)
-            .filter(|address| !address.is_empty())
+            .and_then(as_address)
             .or_else(|| header(&headers, "reply-to").and_then(address_in)),
         date_ms: message
             .as_ref()
@@ -263,15 +262,15 @@ fn text_of(message: &Message<'_>) -> Option<String> {
     })
 }
 
-/// `"Name" <addr@host>` -> `addr@host`, without needing a full address parser.
+/// `"Name" <addr@host>` -> `addr@host`. A value that holds no address is no address.
 fn address_in(value: &str) -> Option<String> {
     let inside = match (value.find('<'), value.rfind('>')) {
         (Some(open), Some(close)) if close > open => &value[open + 1..close],
         _ => value,
     };
-    let address = inside.trim().to_lowercase();
-    (!address.is_empty()).then_some(address)
+    as_address(inside)
 }
+
 
 fn attachments(message: &Message<'_>) -> Vec<Attachment> {
     message

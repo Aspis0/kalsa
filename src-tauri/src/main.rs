@@ -2503,6 +2503,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             files::brain_files_list,
             files::brain_files_read,
             files::brain_files_search,
+            mail::commands::brain_mail_account_get,
             mail::commands::brain_mail_account_save,
             mail::commands::brain_mail_account_delete,
             mail::commands::brain_mail_account_test,

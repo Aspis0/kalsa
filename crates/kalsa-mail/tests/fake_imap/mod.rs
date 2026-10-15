@@ -1,16 +1,18 @@
 //! A strict IMAP fake on a real socket, for the tests that need the wire. It answers
-//! LOGIN by the policy it is given, EXAMINE only for the folders it knows, and UID FETCH
-//! by the answers policy. Any other command is refused, as a real server refuses it.
+//! LOGIN by the policy it is given, EXAMINE only for the folders it knows, and UID
+//! SEARCH and FETCH by the answers policy. Any other command is refused, as a real server
+//! refuses it.
+//!
+//! It names no crate of this one, so the library's own tests include it as well.
 
 // Each test file uses one policy, so the other ones are unused in that file.
 #![allow(dead_code)]
 
-pub mod fetch;
+pub mod uid;
 
-use fetch::Answers;
-use kalsa_mail::account::{self, Account};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
+use uid::Answers;
 
 #[derive(Clone, Copy)]
 pub enum Login {
@@ -18,15 +20,12 @@ pub enum Login {
     Refuse,
 }
 
-/// Starts one fake on a fresh port and returns the account that reaches it.
-pub async fn serve(login: Login, answers: Answers) -> Account {
+/// Starts one fake on a fresh port and returns the account line that reaches it.
+pub async fn serve(login: Login, answers: Answers) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let port = listener.local_addr().expect("address").port();
     tokio::spawn(serve_one(listener, login, answers));
-    let line = format!(
-        r#"{{"host":"127.0.0.1","port":{port},"user":"lab","password":"lab","tls":false}}"#
-    );
-    account::read(line.as_bytes()).expect("the test line is well formed")
+    format!(r#"{{"host":"127.0.0.1","port":{port},"user":"lab","password":"lab","tls":false}}"#)
 }
 
 async fn serve_one(listener: TcpListener, login: Login, answers: Answers) {
@@ -52,7 +51,7 @@ async fn serve_one(listener: TcpListener, login: Login, answers: Answers) {
             )
             .into_bytes(),
             "EXAMINE" => format!("{tag} NO [NONEXISTENT] unknown mailbox\r\n").into_bytes(),
-            "UID" => fetch::answer(tag, rest, answers),
+            "UID" => uid::answer(tag, rest, answers),
             "LOGOUT" => {
                 let _ = write
                     .write_all(format!("* BYE\r\n{tag} OK LOGOUT completed\r\n").as_bytes())

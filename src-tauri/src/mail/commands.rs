@@ -5,7 +5,7 @@ use serde_json::{json, Map, Value};
 use tauri::{AppHandle, State};
 
 use super::accounts::{self, AccountForm};
-use super::account::MailAccount;
+use super::account::{self, MailAccount};
 use super::error::{refusal_of, CommandFailure, MailError};
 use super::keychain::Keychain;
 use super::program;
@@ -56,6 +56,27 @@ pub(crate) async fn brain_mail_account_save(
 pub(crate) async fn brain_mail_account_delete(app: AppHandle, state: State<'_, MailState>) -> Result<(), CommandFailure> {
     let path = state_file(&app)?;
     Ok(accounts::delete(&state, &Keychain, &path).await?)
+}
+
+/// The address and server of the saved account, or `null`. Nothing else leaves: the
+/// password stays in the keychain and the login name is not shown.
+#[derive(Serialize)]
+pub(crate) struct SavedAccount {
+    email: String,
+    host: String,
+}
+
+fn shown(account: Option<MailAccount>) -> Option<SavedAccount> {
+    account.map(|account| SavedAccount {
+        email: account.email,
+        host: account.host,
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn brain_mail_account_get(app: AppHandle) -> Result<Option<SavedAccount>, CommandFailure> {
+    let path = state_file(&app)?;
+    Ok(shown(account::load(&path)?))
 }
 
 /// Tests the saved account only. It takes no server and no password, so a caller
@@ -220,6 +241,7 @@ mod tests {
         let close = open + source[open..].find(']').expect("the list closes");
         let registered = &source[open..close];
         for command in [
+            "mail::commands::brain_mail_account_get",
             "mail::commands::brain_mail_account_save",
             "mail::commands::brain_mail_account_delete",
             "mail::commands::brain_mail_account_test",
@@ -230,6 +252,34 @@ mod tests {
         ] {
             assert!(registered.contains(command), "{command} is not in generate_handler!");
         }
+    }
+
+    #[test]
+    fn the_saved_account_is_its_address_and_server_and_nothing_more() {
+        let account = MailAccount::new("lab@example.test", "imap.example.test", 993, Some("login-name")).expect("valid");
+        let saved = serde_json::to_value(shown(Some(account))).expect("serializes");
+        assert_eq!(saved, json!({"email": "lab@example.test", "host": "imap.example.test"}));
+    }
+
+    #[test]
+    fn the_answer_comes_from_the_state_file_on_disk() {
+        let dir = std::env::temp_dir().join(format!("kalsa-mail-account-get-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        let state = dir.join("server.state");
+        let none = shown(account::load(&state).expect("loads"));
+        assert_eq!(serde_json::to_value(none).expect("serializes"), Value::Null);
+
+        let account = MailAccount::new("lab@example.test", "imap.example.test", 993, Some("login-name")).expect("valid");
+        account::save(&state, &account).expect("saved");
+        let saved = serde_json::to_value(shown(account::load(&state).expect("loads"))).expect("serializes");
+        assert_eq!(saved, json!({"email": "lab@example.test", "host": "imap.example.test"}));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn with_no_saved_account_the_answer_is_null() {
+        assert_eq!(serde_json::to_value(shown(None)).expect("serializes"), Value::Null);
     }
 
     #[test]

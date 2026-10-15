@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use super::error::MailError;
 
 /// The account as it is saved on disk. The password is not here: it lives in the keychain.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Debug))]
 pub(crate) struct MailAccount {
     pub(crate) email: String,
     pub(crate) host: String,
