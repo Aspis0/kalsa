@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../../i18n/useLanguage";
 import { available, invoke } from "../../lib/tauri";
 import { readAccount } from "../../lib/mail/account";
@@ -50,6 +50,10 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
       the next click is not something the person can act on. */
   const [saveError, setSaveError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  /** Set by every save and every removal: an answer that was already on its
+      way must not put the old account back under the person's hands. */
+  const answered = useRef(false);
+  const [readFailed, setReadFailed] = useState(false);
   const [passwordShown, setPasswordShown] = useState(false);
   /** Whether this address wants a code of its own; read from the address so
       the box appears while the person is still typing it. */
@@ -69,15 +73,23 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     // The answer lands after the page is up, so it fills what is still empty:
     // a field the person has already typed into is theirs, not the backend's.
-    void readAccount().then((account) => {
-      if (account === null) return;
+    void readAccount().then(
+      (account) => {
+      if (account === null || answered.current) return;
+      setReadFailed(false);
       setLinked(account.email);
       setEmail((typed) => (typed === "" ? account.email : typed));
       if (account.host !== "") {
         setServer((typed) => (typed === "" ? account.host : typed));
         setServerSource((source) => (source === "guess" ? "saved" : source));
       }
-    });
+      },
+      // A read that fails leaves the page usable and says it does not know:
+      // claiming no account is there would be a sentence it cannot stand behind.
+      () => {
+        if (!answered.current) setReadFailed(true);
+      },
+    );
   }, []);
 
   // The mailbox is closed to any model but the approved ones, so the page says
@@ -103,6 +115,8 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
       yet, and it said so in words about a password that was never used. */
   async function connect(): Promise<void> {
     if (!canSave) return;
+    answered.current = true;
+    setReadFailed(false);
     setBusy(true);
     setNote(null);
     setSaveError(null);
@@ -145,9 +159,9 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
           <>
             {/* The account this machine has, said before anything is asked of
                 the person: an empty page that looks like a form is a form. */}
-            <p className={linked === "" ? "mail-linked is-none" : "mail-linked"} role="status">
-              <Icon name={linked === "" ? "info" : "check"} size={15} />
-              {linked === "" ? t.accountNone : t.accountLinked(linked)}
+            <p className={linked === "" || readFailed ? "mail-linked is-none" : "mail-linked"} role="status">
+              <Icon name={linked === "" || readFailed ? "info" : "check"} size={15} />
+              {readFailed ? t.accountUnknown : linked === "" ? t.accountNone : t.accountLinked(linked)}
             </p>
 
             <div className="mail-help">
@@ -221,6 +235,8 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                   className="mail-btn"
                   disabled={busy}
                   onClick={() => {
+                    answered.current = true;
+                    setReadFailed(false);
                     setBusy(true);
                     void invoke("brain_mail_account_delete").then(
                       () => {

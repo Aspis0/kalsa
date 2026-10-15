@@ -169,6 +169,9 @@ function cleanMessage(value: unknown): ChatMessage | null {
     ...(typeof value.sentOn === "string" && value.sentOn ? { sentOn: value.sentOn } : {}),
     ...(typeof value.mailNote === "string" && value.mailNote ? { mailNote: value.mailNote } : {}),
     ...(typeof value.mailId === "string" && value.mailId ? { mailId: value.mailId } : {}),
+    ...(typeof value.mailSubject === "string" && value.mailSubject
+      ? { mailSubject: value.mailSubject.slice(0, 500) }
+      : {}),
     ...(typeof value.failed === "string" && (FAILED_KINDS as readonly string[]).includes(value.failed)
       ? { failed: value.failed as ChatErrorKind }
       : {}),
@@ -286,13 +289,16 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
  */
 function forDisk(messages: ChatMessage[]): unknown[] {
   return messages.map((message) => {
-    if (message.toolRuns === undefined) return message;
+    // The subject is a stranger's words: the thread shows it while the chat is
+    // open and the disk keeps none of it.
+    const { mailSubject: _subject, ...shown } = message;
+    if (message.toolRuns === undefined) return shown;
     return {
-      ...message,
+      ...shown,
       toolRuns: message.toolRuns.map((run) => {
-        const shown = run.mail === undefined ? undefined : mailCount(run.mail);
+        const count = run.mail === undefined ? undefined : mailCount(run.mail);
         if (!isMailRun(run.name)) {
-          return shown === undefined ? run : { ...run, mailShown: shown };
+          return count === undefined ? run : { ...run, mailShown: count };
         }
         // A mail run keeps its name and its count, never its arguments or its
         // result: a body was read into one, a reply written into the other.
@@ -302,7 +308,7 @@ function forDisk(messages: ChatMessage[]): unknown[] {
           ...rest,
           arguments: "",
           result: "",
-          ...(shown === undefined ? {} : { mailShown: shown }),
+          ...(count === undefined ? {} : { mailShown: count }),
         };
       }),
     };

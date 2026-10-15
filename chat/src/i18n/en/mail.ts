@@ -94,6 +94,7 @@ email: "Email address",
   accountNone: "No account linked",
   accountLinked: (email: string) =>
     `Linked: ${email}`,
+  accountUnknown: "Kalsa could not read the saved account.",
   helpAlways: "Gmail and iCloud need an app password, not your usual one.",
   helpShow: "How to get one",
   needEmail: "Type your email address.",

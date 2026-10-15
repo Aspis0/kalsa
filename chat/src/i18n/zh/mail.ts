@@ -86,6 +86,7 @@ export const MAIL = {
     "accountNone": "尚未连接任何账户",
     "accountLinked": (email: string) =>
       `已连接：${email}`,
+    "accountUnknown": "Kalsa 无法读取已保存的账户。",
     "helpAlways": "Gmail 和 iCloud 需要应用专用密码，不是你平时的那个。",
     "helpShow": "如何获取",
     "needEmail": "填写你的邮箱地址。",

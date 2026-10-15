@@ -148,17 +148,19 @@ const STRING_ROUNDS = [
 /** What the person is read to have said, in every request this run made. */
 const WIRE_USERS = [];
 
+/** The app's own note is the first block of a turn it opened for a mail: it is
+    the only text allowed to name an id, and it is dropped whole. Every other
+    line is read as it stands, so a leak sitting beside the note is seen. */
+function personWords(content) {
+  const blocks = content.split("\n\n");
+  return blocks[0].match(/reply_to_id|mail_draft/) === null ? blocks.join("\n\n") : blocks.slice(1).join("\n\n");
+}
+
 /** No person turn may carry a mail field: a sender's words are a stranger's
     text, and on the wire they would read as the person's own instruction,
-    outside the fence. The app's own note is the one line that names an id, and
-    it is left out: what is hunted is anything that is not ours. */
+    outside the fence. */
 function checkWireCarriesNoSubject(label) {
-  const said = WIRE_USERS.map((content) =>
-    content
-      .split("\n")
-      .filter((line) => !/reply_to_id|mail_draft/.test(line))
-      .join("\n"),
-  ).join("\n");
+  const said = WIRE_USERS.map(personWords).join("\n");
   const leaked = MAILBOX.flatMap((mail) => [
     ...(said.includes(mail.subject) ? [mail.subject] : []),
     ...(mail.from.name !== "" && said.includes(mail.from.name) ? [mail.from.name] : []),

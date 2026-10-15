@@ -87,6 +87,7 @@ export const MAIL = {
     "accountNone": "Nessun account collegato",
     "accountLinked": (email: string) =>
       `Collegato: ${email}`,
+    "accountUnknown": "Kalsa non è riuscita a leggere l'account salvato.",
     "helpAlways": "Per Gmail e iCloud serve una password per le app, non quella di sempre.",
     "helpShow": "Come si ottiene",
     "needEmail": "Scrivi il tuo indirizzo email.",
