@@ -134,49 +134,91 @@ exactly the OOM-protection tension the owner named: lowering that charge weakens
 be scoped to the case where the buffer genuinely does not exist, and must keep charging it when a
 GPU leg IS present.
 
-### What still has to be measured before changing it
+### 1ter. The phantom charge, corrected like for like — and a second, larger defect
 
-**RESOLVED 2026-10-15 by existing evidence — the coordinator had not looked in the right lab cell.**
+Raised by the brain session (`dab6be60`) and verified here. Three corrections to the 870.19 figure,
+which was wrong because it compared unlike things.
 
-`xiaomi-merge-b11514-legs-74` is *"one-copy legs on the real Xiaomi 14 (SM8650, Adreno 750, v75)
-with the merged engine"*, **ship model `a247afd6`** — the same model as today's run — with the GPU
-leg present. Its `raw/legs_report.grep` carries the engine's own post-load audit line
-(`llama-model.cpp:1670`, `shared weights: TILE32 %zu HOST %zu CPU %zu bytes`):
+**1.1 The 870.19 is not a like-for-like comparison.** It set `800 + 1.05 x W` = 2396.06 (a term
+that **excludes** the 219) against a measured total of 1525.87 MiB (which **includes** the HOST
+219.75). Compared properly:
+
+| | MiB |
+|---|---:|
+| weight-side charge: `1.05 x 1520.06` + 219 | 1815.06 |
+| measured weights (TILE32 + HOST) | 1525.87 |
+| **weight overcharge** | **289.19** |
+| the `800` | **unknown** — not a weight term, and a lane-only load still pays FastRPC, the HTP session, the skel and rpcmem, so it is not zero |
+
+**So the real phantom is somewhere between 289 and 1089 MiB. The weights audit line cannot place it.**
+
+**1.2 HOST is not a prefill copy.** `legs_report.grep:10`, the line before the audit, reads
+`shared weights: token_embd.weight reused for output.weight from HTP0-HOST-W`. HOST is the **tied
+embedding/output table**. The 219 matches numerically and its origin is confirmed, but the code's
+explanation of what it buys is wrong.
+
+**1.3 A second and larger defect: compute and KV are counted twice.** This one applies to the
+**GPU fit as well as the lane**, so it is OOM-guard territory.
+
+- `memoryEstimate.ts:164` — `const nonEvictableMiB = anonWeightsMiB + repackMiB + computeMiB + kvMiB;`
+- `governorInputs.ts:199-205` — `requiredMiB = priced.nonEvictableMiB + 800 + 1.05*offloadedBytes + priced.computeMiB + priced.kvMiB`
+
+`computeMiB` and `kvMiB` are inside `nonEvictableMiB` and are then added again. With mmap on,
+`memoryEstimate.ts:158-162` sets `anonWeightsMiB = 0` and the without-repack path leaves
+`repackMiB = 0`, so `nonEvictableMiB = compute + kv` and
 
 ```
-shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+requiredMiB = 2*(compute+kv) + 800 + 1.05*offloadedBytes
 ```
 
-| | bytes | MiB |
-|---|---:|---:|
-| TILE32 (the shared weights buffer) | 1369571328 | **1306.12** |
-| HOST | 230420480 | **219.75** |
-| CPU | 0 | **0.00** |
-| **measured total on the Xiaomi** | 1600991808 | **1525.87** |
+Solving from today's numbers: `3166.06 - 800 - 1596.06 = 770.00 = 2*(compute+kv)`, so
+**`compute + kv = 385.00 MiB`, of which 385.00 MiB is the duplicate.**
 
-Three things fall out, all measured on the owner's phone with the ship model:
+| | MiB |
+|---|---:|
+| `compute + kv`, counted twice | **385.00** |
+| today's lane shortfall | **380.13** |
+| **margin if the duplicate alone were removed** | **+4.87** |
 
-1. **The 219 is real and it is the HOST buffer.** `NPU_PREFILL_EXTRA_MIB = 219` vs a measured
-   219.75 MiB — **0.34 % error**. Its apparent origin is confirmed: the sum lands on
-   **1525.87 MiB**, digit for digit the "HTP0 prefill 1525.87 MiB" of
-   `governor-npu-prefill/DESIGN.md:29`. Spike and device agree.
-2. **The GPU leg costs zero extra weight memory.** One TILE32 buffer, `CPU 0`, and
-   `llama-model.cpp:1197-1199` says the GPU leg *imports* that same buffer. The
-   `800 + 1.05 x offloadedBytes` = **2396.06 MiB** term prices a buffer that this run proves is
-   not allocated. **Phantom charge: 2396.06 - 1525.87 = 870.19 MiB**, and the entire model fits in
-   less than half of the single term being charged.
-3. **This is the half the Xiaomi ladder never had.** `gpu-layers-history/VERDICT.md` recorded that
-   the Xiaomi layer ladder carried speed but *no memory accounting*. Cell 74 is a memory
-   measurement on the Xiaomi, which is the join that report said did not exist.
+**The entire refusal is numerically explained by a duplicated term.** And note the second-order
+finding: a **+4.87 MiB** margin is not headroom, it is a coin flip. Even if the double count is
+removed, this lane has no comfortable margin on the Xiaomi at 3.0 GB available. That, not the fix,
+is the thing worth knowing.
 
-**Residual, stated rather than assumed:** cell 74 had a **GPU leg**. The pure lane-only case (no
-GPU leg at all) is still not directly measured. The mechanism says it is the same buffer or
-cheaper — the HOST 219.75 appeared with a GPU leg present, and no leg can add memory that does not
-allocate — but the number for a lane-only load should be captured in the same cell, since it is
-the configuration the fix will actually enable.
+`gpuFit` (`:298-319`) calls `laneFit` -> `lanePrice`, and it is used for **both** the GPU lane
+(`:331`) and the NPU lane (`:337`), so the double count is shared.
 
-**Until that one residual is captured, do not change `lanePrice`.** Everything else it needed is
-now measured, on the right device, with the right model.
+**The counter-hypothesis, which is not yet refuted.** The q44 calibration derived
+`~750 MiB fixed + ~1.0 x offloaded bytes` as an affine reading. If that 750 was tuned to *absorb*
+compute and KV, then the explicit `+ compute + kv` is redundant by design, not a bug. The q44 raw
+data that settles it is present and needs no device:
+`results/ngl_sweep_s23/device/kalsa_q44/points/{ngl0,ngl7,ngl13,ngl19,ngl99}/sampler.csv`
+(columns `MemAvailable_kB, VmRSS_kB, RssAnon_kB, RssFile_kB, VmSwap_kB`).
+
+**The ngl0 row argues against the counter-hypothesis.** At ngl0 the sampler shows
+`RssFile 2801644 kB` with `RssAnon 640 kB` — weights file-backed, anon ~0 — and at ngl0 there is **no
+Adreno buffer at all**. So the "750 MiB fixed, present even at ngl 0" cannot be Adreno prealloc; it
+is the cost of the process being resident, which is where compute and KV live. If so, the code adds
+them a second time. **This is an argument from one row, not a derivation** — the q44 per-point
+re-read is the work that settles it, and it is offline.
+
+### What the measurement cell must read
+
+Because of 1.1 and 1.3, the weights audit line alone cannot decide the patch. The cell reads, before
+and after a **lane-only** load of `a247afd6`:
+
+- `shared weights: TILE32 ... HOST ... CPU ...` (weights only)
+- **MemAvailable** — this is the number that decides it, because the fit compares against MemAvailable
+- process PSS / RSS / RssAnon / RssFile, to separate file-backed from anon
+- dmabuf / rpcmem totals if readable (`/sys/kernel/dmabuf/buffers`, `dmabuf_dump`); TILE32 rpcmem
+  probably does not show in RSS but does lower MemAvailable
+
+Cell 74 had a **GPU leg**; the pure lane-only case is still unmeasured, and that is the
+configuration a fix would enable. It ran in-app on 2026-10-11 (14 turns, prefill and decode on the
+NPU, no crash), so it is not a new risk on the daily driver.
+
+**Until the MemAvailable delta and the q44 re-read are in, do not change `lanePrice`, and do not
+touch the GPU fit.**
 
 ---
 
