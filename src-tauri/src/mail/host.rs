@@ -94,9 +94,8 @@ fn subjects(for_ui: Option<&Value>) -> Vec<String> {
 mod tests {
     use std::path::PathBuf;
 
-    use kalsa_mail::imap::LOGIN_REFUSED;
-
     use super::*;
+    use crate::mail::error::LOGIN_REFUSED;
     use crate::mail::keychain::Memory;
 
     fn scratch(name: &str) -> (PathBuf, PathBuf) {

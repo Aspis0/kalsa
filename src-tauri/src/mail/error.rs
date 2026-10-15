@@ -1,4 +1,3 @@
-use kalsa_mail::imap::LOGIN_REFUSED;
 use kalsa_mcp::error::Error as HostError;
 use kalsa_mcp::permission::DenyReason;
 use serde::Serialize;
@@ -78,6 +77,10 @@ impl From<MailError> for CommandFailure {
     }
 }
 
+/// The code the sidecar answers a refused login with. The sidecar's own constant is
+/// `kalsa_mail::imap::LOGIN_REFUSED`; the host does not link the sidecar, so a test pins the two.
+pub(crate) const LOGIN_REFUSED: &str = "login_refused";
+
 /// The failure a sidecar error result stands for when it names a refused login, the
 /// one the person can fix with a new password. `None` leaves the reporting to the caller.
 pub(crate) fn refusal_of(data: Option<&Value>) -> Option<MailError> {
@@ -92,6 +95,11 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn the_host_and_the_sidecar_name_a_refused_login_the_same_way() {
+        assert_eq!(LOGIN_REFUSED, kalsa_mail::imap::LOGIN_REFUSED);
+    }
 
     #[test]
     fn a_refused_login_is_invalid_account_and_no_other_code_is() {
