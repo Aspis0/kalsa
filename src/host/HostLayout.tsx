@@ -94,7 +94,7 @@ export function HostLayout({
   const mail = useMailHost({
     send: sendHost.send,
     askDraftText: t("chat.mail.askDraft"),
-    conversationId: conv.conversations.activeId,
+    conversationId: conv.conversationsReady ? conv.conversations.activeId : undefined,
   });
   return (
     <>
@@ -117,9 +117,8 @@ export function HostLayout({
           actions={actions}
           onMiniappOpen={onMiniappOpen}
         />
+        <MailReadSheet mode={mode} />
       </MailActionsContext.Provider>
-
-      <MailReadSheet mode={mode} />
 
       <HostDrawer
         open={drawerOpen}

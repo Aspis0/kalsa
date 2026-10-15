@@ -140,7 +140,9 @@ const notes = options.notes === undefined ? null : readNotes(options.notes);
 
 const markdown = process.env.ALPHA_TESTERS_MD ?? DEFAULT_MARKDOWN;
 if (!existsSync(markdown)) die(`tester guide markdown not found at ${markdown}; set ALPHA_TESTERS_MD`);
-const guide = spawnSync(process.execPath, [BUILD_GUIDE, markdown, "--check"], { encoding: "utf8" });
+const guideModule = process.env.GUIDE_TS;
+const guideArgs = guideModule ? ["--out", guideModule] : [];
+const guide = spawnSync(process.execPath, [BUILD_GUIDE, markdown, "--check", ...guideArgs], { encoding: "utf8" });
 if (guide.status !== 0) die(`guide.ts is stale or the markdown does not convert; run build-guide.mjs\n${guide.stderr}`);
 
 const local = await digestOf(file);

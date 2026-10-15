@@ -6,8 +6,23 @@ import path from "node:path";
 
 const HERE = __dirname;
 const RELEASE = path.join(HERE, "scripts", "release.mjs");
-const DEFAULT_MARKDOWN = path.resolve(HERE, "../../../kalsa-brain/docs/ALPHA-TESTERS.md");
+const BUILD_GUIDE = path.join(HERE, "scripts", "build-guide.mjs");
 const work = mkdtempSync(path.join(tmpdir(), "kalsa-release-test-"));
+// A synthetic tester guide, EN and IT with the same section shape: CI checks out
+// this repo alone, so the real guide in kalsa-brain is not there to read.
+const DEFAULT_MARKDOWN = path.join(work, "ALPHA-TESTERS.md");
+const SECTION_TITLES = ["Requirements", "Mac", "Windows", "First start", "Phone", "Problems", "Download", "Uninstall"];
+writeFileSync(
+  DEFAULT_MARKDOWN,
+  `# Tester guide\n\n${SECTION_TITLES.map((title, i) => `## ${i + 1}. ${title}\n\nPlaceholder ${i + 1}.\n`).join("\n")}`,
+);
+writeFileSync(
+  path.join(work, "ALPHA-TESTERS.it.md"),
+  `# Guida\n\n${SECTION_TITLES.map((title, i) => `## ${i + 1}. ${title}\n\nSegnaposto ${i + 1}.\n`).join("\n")}`,
+);
+// The gate compares the markdown with a guide module, so the module is built from the same pair.
+const GUIDE_MODULE = path.join(work, "guide.ts");
+spawnSync(process.execPath, [BUILD_GUIDE, DEFAULT_MARKDOWN, "--out", GUIDE_MODULE]);
 const installer = path.join(work, "Kalsa-alpha-0.0.1-mac.dmg");
 const installerBytes = "mac installer bytes\n";
 writeFileSync(installer, installerBytes);
@@ -53,7 +68,7 @@ function release(args: string[], env: Record<string, string> = {}) {
   const log = path.join(work, `calls-${calls++}.log`);
   const res = spawnSync(process.execPath, [RELEASE, ...args], {
     encoding: "utf8",
-    env: { PATH: fakeBin, ALPHA_TESTERS_MD: DEFAULT_MARKDOWN, FAKE_LOG: log, FAKE_MANIFEST: "{}", ...env },
+    env: { PATH: fakeBin, ALPHA_TESTERS_MD: DEFAULT_MARKDOWN, GUIDE_TS: GUIDE_MODULE, FAKE_LOG: log, FAKE_MANIFEST: "{}", ...env },
   });
   return { status: res.status, out: res.stdout + res.stderr, log: existsSync(log) ? readFileSync(log, "utf8") : "" };
 }
@@ -291,6 +306,14 @@ describe("the guide gate", () => {
     const stale = path.join(work, "stale.md");
     writeFileSync(stale, "## 1. A different guide\n\nNot the committed one.\n");
     const res = release(mac(), { ALPHA_TESTERS_MD: stale });
+    expect(res.status).toBe(1);
+    expect(res.out).toContain("guide.ts is stale");
+  });
+
+  test("a guide module that does not match the markdown stops the release", () => {
+    const stale = path.join(work, "stale-guide.ts");
+    writeFileSync(stale, "export const GUIDE_HTML = [];\n");
+    const res = release(mac(), { GUIDE_TS: stale });
     expect(res.status).toBe(1);
     expect(res.out).toContain("guide.ts is stale");
   });

@@ -2,11 +2,12 @@
 /**
  * Writes workers/download/guide.ts from the tester guide markdown.
  *
- *   node scripts/build-guide.mjs <ALPHA-TESTERS.md> [--check]
+ *   node scripts/build-guide.mjs <ALPHA-TESTERS.md> [--check] [--out <guide.ts>]
  *
  * The Italian guide is read from the sibling <ALPHA-TESTERS.it.md>.
  *
  * --check exits 1 when the committed guide.ts is not what the markdown produces.
+ * --out writes or checks another module instead of the committed one.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -14,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import { parseBlocks, renderBlock } from "./markdown-subset.mjs";
 
-const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../guide.ts");
+const DEFAULT_OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../guide.ts");
 
 // The page links #mac and #windows, so those two install sections keep their names.
 const SECTION_IDS = {
@@ -122,9 +123,11 @@ function guideModule(english, italian) {
 
 const args = process.argv.slice(2);
 const check = args.includes("--check");
-const [source] = args.filter((arg) => arg !== "--check");
+const outAt = args.indexOf("--out");
+const out = outAt === -1 ? DEFAULT_OUT : path.resolve(args[outAt + 1]);
+const [source] = (outAt === -1 ? args : args.toSpliced(outAt, 2)).filter((arg) => arg !== "--check");
 if (!source) {
-  console.error("usage: build-guide.mjs <ALPHA-TESTERS.md> [--check]");
+  console.error("usage: build-guide.mjs <ALPHA-TESTERS.md> [--check] [--out <guide.ts>]");
   process.exit(2);
 }
 
@@ -140,12 +143,12 @@ const expected = guideModule(english, italian);
 if (check) {
   let current = "";
   try {
-    current = readFileSync(OUT, "utf8");
+    current = readFileSync(out, "utf8");
   } catch {}
   if (current !== expected) {
     console.error(`guide.ts is out of date with ${source}; run scripts/build-guide.mjs`);
     process.exit(1);
   }
 } else {
-  writeFileSync(OUT, expected);
+  writeFileSync(out, expected);
 }
