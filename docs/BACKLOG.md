@@ -500,3 +500,9 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - Link signals skip anchors with no host: `javascript:`, `data:` and relative hrefs get no phishing signal (`label/phishing.rs` continues when `domain::host_of` is None), so a URL-looking label can hide such a target. The pane renders text only, so nothing runs; it is a warning blind spot. The rule for those schemes is the owner's call.
 - Test gaps: `tests/body_urls.rs` checks the raw href reaches `parsed.links`, not that the labeler emits a signal, and has no userinfo, IDN, trailing-dot, IPv6, non-HTTP or scheme-less case. `mail-cards.mjs` normalizes 12 items, so the 50-item cap and a 50-item store write are not pinned.
 - Mail reads are slow: every read logs in to IMAP afresh, runs SEARCH ALL and fetches headers. Reuse the session or cache the list's UIDs.
+- The send confirmation (`SendConfirm` in `ChatSurface.tsx`) stays on screen across a chat switch or a closed pane; it still sends the draft the person saw, but it should close with the mail (pre-existing, luna re-check of 92d071e0).
+
+## Phone mail, luna review of baac1a3c (2026-10-15, left over; phone repo)
+- HTTPS mail reads have no response-size cap (`src/remote/doorRoad.ts` uses `res.json()`); tunnel reads cap at 512 KiB. Cap both.
+- A turn that started before a pairing change can still deliver a draft afterwards, sendable through the new door. Needs a turn-level pairing identity.
+- `workers/download/guide.test.ts` still reads the guide from the sibling kalsa-brain checkout when present (skips visibly in CI). `GUIDE_TS` set by accident during a real release would check another module than the committed one.
