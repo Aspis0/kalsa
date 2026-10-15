@@ -7,7 +7,7 @@ import { draftFor, pendingFor, sentToFor } from "../../lib/mail/drafts";
 import type { Drafts, SentTo } from "../../lib/mail/drafts";
 import type { PendingSend } from "../../lib/mail/pending";
 import { reasonItems } from "../../lib/mail/reasons";
-import { NOT_LISTED } from "../../lib/mail/failure";
+import { NOT_LISTED, LOGIN_REFUSED } from "../../lib/mail/failure";
 import type { MailCardItem, MailRecord } from "../../lib/mail/types";
 import { initials } from "./initials";
 import { stampFull, stampRelative } from "./mailTime";
@@ -94,6 +94,10 @@ export function MailView({ open, opening, onDraft, onReply, onAskDraft, onSend, 
   // Recipient, subject and body are the sidecar's own draft for this mail: the
   // backend sends to that address, and to nothing this panel could guess.
   const pending = pendingFor(drafts, item.id);
+  // A refused read has no mail to read. Every coded refusal says what happened
+  // and what to do, so the pane never shows an empty body under a header.
+  const readError =
+    open.code === NOT_LISTED ? t.notListed : open.code === LOGIN_REFUSED ? t.loginRefused : t.readFailed;
 
   return (
     <div className="mail-view">
@@ -125,8 +129,8 @@ export function MailView({ open, opening, onDraft, onReply, onAskDraft, onSend, 
         </div>
       ) : null}
 
-      {open.code === NOT_LISTED ? (
-        <p className="panel-empty">{t.notListed}</p>
+      {open.code ? (
+        <p className="panel-empty">{readError}</p>
       ) : (
         <div className="mail-body">{body || preview}</div>
       )}

@@ -205,6 +205,21 @@ equal("a proposal with no gist still draws its card", junk.mail.items[0].gist, "
 const duplicated = app.runMailShow({ items: [{ id: "412", gist: "uno" }, { id: "412", gist: "due" }] }, TURN);
 equal("the same id twice is one card", duplicated.mail.items.length, 1);
 
+/* A newsletter is the badge the code gave it: a count under the cards. A model
+   naming one does not turn it into a card, and is told why rather than being
+   left to think the id was invented. */
+const withNewsletter = app.runMailShow({ items: [{ id: "407", gist: "Una newsletter." }, { id: "412", gist: "Una mail." }] }, TURN);
+equal("mail_show never draws a newsletter as a card", withNewsletter.mail.items.map((item) => item.id), ["412"]);
+check("and the model is told it stays a count", withNewsletter.text.includes("newsletter"), withNewsletter.text);
+equal("while the count under the cards is unchanged", withNewsletter.mail.bulk, 1);
+
+const onlyNewsletter = app.runMailShow({ items: [{ id: "407", gist: "Una newsletter." }] }, TURN);
+equal("a selection of nothing but newsletters draws nothing", onlyNewsletter.mail.items, []);
+
+const newslettersOnly = app.cardsFrom([MAILS[2], MAILS[2], MAILS[2]]);
+equal("a list of newsletters has no cards", newslettersOnly.items, []);
+equal("and is nothing but its count", newslettersOnly.bulk, 3);
+
 /* ---------------------------------------------------------------- the reasons */
 
 check(

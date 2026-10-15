@@ -5953,6 +5953,168 @@ const tests = {
       mock.close();
     }
   },
+
+  // A mailbox holding nothing but newsletters still says how many: the count is
+  // the only thing that mail has to say.
+  async mailnewsletters() {
+    const mock = listEndpoint();
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, fixtureOf(MAIL_NEWSLETTERS_ONLY));
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le newsletter");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-bulk", { timeout: 30000 });
+
+      check("mail: no newsletter became a card", (await page.locator(".mail-card").count()) === 0, String(await page.locator(".mail-card").count()));
+      const bulk = await page.locator(".mail-bulk").innerText();
+      check("mail: the turn still says how many there are", bulk.includes("3"), bulk);
+      check("mail: and there is nothing to reveal", (await page.locator(".mail-more").count()) === 0);
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
+  // A selection the model made is a card the person was shown. One that sits
+  // past the cards the list draws is drawn as its own group, not left behind
+  // the reveal button, and one already on screen is not drawn twice.
+  async mailbeyond() {
+    const mock = listEndpoint(["821", "810"]);
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere la mail numero 11");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+
+      const cardCount = await page.locator(".mail-card").count();
+      check("mail: the list draws eight and the selection one more", cardCount === 9, String(cardCount));
+      check("mail: the selection past them is on screen", (await page.getByText("Mail numero 11", { exact: true }).count()) === 1, String(await page.getByText("Mail numero 11", { exact: true }).count()));
+      check("mail: its own line is on it", (await page.getByText("La sintesi numero 0.").count()) === 1, String(await page.getByText("La sintesi numero 0.").count()));
+      check("mail: a card the list already drew is not drawn twice", (await page.getByText("Mail numero 0", { exact: true }).count()) === 1, String(await page.getByText("Mail numero 0", { exact: true }).count()));
+      const moreText = await page.locator(".mail-more").innerText();
+      check("mail: the list itself is still asking for the other four", /4/.test(moreText), moreText);
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
+  // One read, one chat. A slow read begun in one chat must not land in the
+  // pane of another: the pane is empty in the chat the person switched to.
+  async mailscope() {
+    const mock = listEndpoint();
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+        convos: [
+          { id: "k1", title: "Prima chat", createdAt: 1, updatedAt: 2, messages: [{ id: "m1", role: "user", content: "ciao", createdAt: 1 }] },
+          { id: "k2", title: "Seconda chat", createdAt: 1, updatedAt: 3, messages: [{ id: "m2", role: "user", content: "ciao", createdAt: 1 }] },
+        ],
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      await stubMailDoor(page);
+      await stubSlowMailRead(page, 1500);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      await openSidebar(page, "Prima chat");
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail di oggi");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+
+      await page.locator(".mail-card").first().getByRole("button", { name: /Apri|Open/ }).click();
+      await page.waitForSelector(".mail-view", { timeout: 10000 });
+      await openSidebar(page, "Seconda chat");
+      await page.waitForTimeout(3000);
+
+      check("mail: the panel is still open in the chat it was opened in", (await page.locator(".panel-open").count()) === 1);
+      check("mail: and the other chat's mail did not land in it", (await page.locator(".mail-view-subject").count()) === 0);
+      check("mail: the pane says it is empty, not that it is loading", (await page.locator(".tool-spin").count()) === 0);
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
+  // Closing the pane during a read dismisses it. An answer that lands after the
+  // close must not fill what the person just shut.
+  async mailclose() {
+    const mock = listEndpoint();
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      await stubMailDoor(page);
+      await stubSlowMailRead(page, 1500);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail di oggi");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+
+      await page.locator(".mail-card").first().getByRole("button", { name: /Apri|Open/ }).click();
+      await page.waitForSelector(".mail-view", { timeout: 10000 });
+      await page.locator(".panel-close").click();
+      await page.waitForTimeout(3000);
+
+      check("mail: the pane stayed shut", (await page.locator(".panel-open").count()) === 0);
+      check("mail: and the read that landed after it filled nothing", (await page.locator(".mail-view-subject").count()) === 0);
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
 };
 
 /** The endpoint a mail turn needs: list the mailbox, draw the cards, then say
@@ -6126,9 +6288,53 @@ function listFixture() {
   return { list: { for_model: MAIL_FENCE([["folder", "INBOX"]]), for_ui: { folder: "INBOX", count: items.length, items }, is_error: false }, reads };
 }
 
+/** The same mailbox with nothing but newsletters in it: a list the cap has no
+    cards for, which still has a count to say. */
+const MAIL_NEWSLETTERS_ONLY = Array.from({ length: 3 }, (_, at) => ({
+  id: `7${String(30 + at).padStart(2, "0")}`,
+  from: { name: "Newsletter", address: "news@example.it" },
+  subject: `Newsletter numero ${at}`,
+  date: "Tue, 13 Oct 2026 09:00:00 +0000",
+  body: "Solo una newsletter.",
+  labels: { label: "bulk", reasons: ["bulk_header"] },
+}));
+
+function fixtureOf(box) {
+  const reads = {};
+  for (const mail of box) {
+    reads[mail.id] = {
+      for_model: MAIL_FENCE([["from", `${mail.from.name} <${mail.from.address}>`], ["subject", mail.subject], ["body", mail.body]]),
+      for_ui: { ...MAIL_LIST_ITEM(mail), thread_ids: [`<${mail.id}@mailbox.example.it>`], attachments: [] },
+      is_error: false,
+    };
+  }
+  return { list: { for_model: MAIL_FENCE([["folder", "INBOX"]]), for_ui: { folder: "INBOX", count: box.length, items: box.map(MAIL_LIST_ITEM) }, is_error: false }, reads };
+}
+
+/** A read that takes its time, so a pane can be asked to hold one across a
+    switch of chat or a close. Wraps whatever door stub was installed first. */
+async function stubSlowMailRead(page, ms) {
+  await page.addInitScript((delay) => {
+    const previous = window.__TAURI__;
+    window.__TAURI__ = {
+      ...previous,
+      core: {
+        invoke: async (command, args) => {
+          if (command !== "brain_mail_read") return previous.core.invoke(command, args);
+          const inner = (args && typeof args === "object" && args.args) || {};
+          const read = window.__MAIL_FIXTURE__.reads[String(inner.id)];
+          await new Promise((done) => setTimeout(done, delay));
+          return read ?? { for_model: [], for_ui: null, is_error: true };
+        },
+      },
+    };
+  }, ms);
+}
+
 /** The model asks once for the list and stops. The cards under an answer are the
-    list's own, which is the flow the cap is about. */
-function listEndpoint() {
+    list's own, which is the flow the cap is about. `show` adds a `mail_show`
+    naming those ids, for the flow where a selection must reach the screen. */
+function listEndpoint(show = null) {
   const piece = (delta, finish) =>
     `data: ${JSON.stringify({
       id: "chatcmpl-list",
@@ -6147,6 +6353,26 @@ function listEndpoint() {
         "tool_calls",
       ),
     ],
+    ...(show === null
+      ? []
+      : [
+          [
+            piece(
+              {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "c2",
+                    type: "function",
+                    function: { name: "mail_show", arguments: JSON.stringify({ items: show.map((id, at) => ({ id, gist: `La sintesi numero ${at}.` })) }) },
+                  },
+                ],
+              },
+              "tool_calls",
+            ),
+          ],
+        ]),
     [piece({ role: "assistant", content: "Ecco la posta di oggi." }, "stop")],
   ];
   const cors = {

@@ -22,7 +22,7 @@ import "./mail.css";
 /** How many cards a turn draws before asking. A list can carry fifty mails and a
     turn is not a page: past this the person decides to keep reading. The rest
     are already in `mail.items`, so the button reveals rather than fetches. */
-const DRAWN = 8;
+export const DRAWN = 8;
 
 export function MailCardsView({ mail, selected, onOpen, onDraft, onSend, sent, drafts, onSave, onCompose }: {
   mail: Mail;
@@ -54,7 +54,9 @@ export function MailCardsView({ mail, selected, onOpen, onDraft, onSend, sent, d
   }
   const { table } = useLanguage();
   const t = table.mail;
-  if (mail.items.length === 0) return null;
+  // A mailbox holding nothing but newsletters still says so: the count is the only
+  // thing that mail has to say, and an empty turn would say nothing at all.
+  if (mail.items.length === 0 && mail.bulk === 0) return null;
   const items = all ? mail.items : mail.items.slice(0, DRAWN);
   const rest = mail.items.length - items.length;
   return (

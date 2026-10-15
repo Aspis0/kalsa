@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { runMailRead } from "../lib/tools/mailCall";
 import { withBody, withDraft, withSent } from "../lib/mail/drafts";
@@ -15,7 +15,7 @@ import type { PendingSend } from "../lib/mail/pending";
  * and cannot send one.
  */
 
-export function useMail(compose: (text: string, mail?: { id: string; subject: string; note: string }) => void) {
+export function useMail(conversation: string | null, compose: (text: string, mail?: { id: string; subject: string; note: string }) => void) {
   const { table } = useLanguage();
   const t = table.mail;
   const [open, setOpen] = useState<OpenMail | null>(null);
@@ -32,6 +32,20 @@ export function useMail(compose: (text: string, mail?: { id: string; subject: st
   /** Where each reply went, under the same key, for the same reason. */
   const [sent, setSent] = useState<SentTo>({});
   const [send, setSend] = useState<PendingSend | null>(null);
+
+  /** Drops the read in flight and the mail on screen. One press of the ticket is
+      what every "this answer no longer applies" ends in: a new «Apri», a closed
+      pane, and another chat. */
+  function invalidate(): void {
+    reading.current += 1;
+    setOpening(false);
+    setOpen(null);
+  }
+
+  // The open mail belongs to the chat it was opened in. One hook serves every
+  // chat, so without this a slow read begun in one finishes into the pane of
+  // whichever chat is active when it lands.
+  useEffect(invalidate, [conversation]);
 
   /** Reads the mail in full and shows it in the panel. The record comes from
       the sidecar; the body from the fenced text, which is the only copy of it
@@ -69,10 +83,13 @@ export function useMail(compose: (text: string, mail?: { id: string; subject: st
   }
 
   /** Another mail is another reply. The pending confirmation is about the mail
-      that was on screen, so it goes; the replies already written stay. */
+      that was on screen, so it goes; the replies already written stay.
+      Closing the pane dismisses the read too: an answer that lands afterwards
+      must not reopen what the person just shut. */
   function changeMail(next: OpenMail | null): void {
+    if (next === null) return invalidate();
     setOpen(next);
-    if (next !== null) setSend(null);
+    setSend(null);
   }
 
   function done(id: string, to: string): void {

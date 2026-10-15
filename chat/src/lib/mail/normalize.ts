@@ -10,8 +10,10 @@ import type { Mail, MailCardItem, MailDraft, MailFrom, MailLabels } from "./type
 const LABELS = new Set(["normal", "suspicious", "bulk"]);
 
 /** The sidecar answers a list with at most this many mails (`mcp::MAX_ITEMS`), so
-    nothing a turn drew is dropped here: the cards a reload shows are the ones the
-    list drew, and the reveal button counts the same mails either way. */
+    this bound drops nothing the list drew. It matters on the way in and not on
+    the way out: `cleanToolRuns` normalises on every store write, so a list is
+    shortened while the person is still looking at it, not only after a reload.
+    What a reload offers is the count the envelope left behind, not the cards. */
 const MAX_ITEMS = 50;
 
 function record(value: unknown): Record<string, unknown> | null {

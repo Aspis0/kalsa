@@ -36,6 +36,8 @@ export const MAIL = {
     "noMail": "现在没有打开的邮件。在卡片上按「打开」，就能在这里读。",
     "openingMail": "正在打开邮件…",
     "notListed": "这封邮件已经不在列表里，所以打不开：请让 Kalsa 重新列出你的邮件。",
+    "loginRefused": "这封邮件打不开，因为邮箱服务器拒绝了登录：请在设置 → 邮件里检查账号。",
+    "readFailed": "这封邮件没有打开成功，请稍后重试。",
     "thread": "在这段对话里",
     "oneMessage": "还有 1 条消息",
     "otherMessages": (count: number) => `还有 ${count} 条消息`,

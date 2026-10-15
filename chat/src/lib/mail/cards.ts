@@ -35,7 +35,9 @@ export function cardsFrom(records: MailRecord[]): MailCards {
   };
 }
 
-/** The ids a card set carries, for deciding that a later set replaces it. */
+/** The ids a card set carries, in the order they arrived. What a turn draws from
+    those — the list's own cards, and whether a later set joins them or stands
+    beside them — is the thread's call, not this one's. */
 export function cardIds(cards: MailCards): string[] {
   return cards.items.map((item: MailCardItem) => item.id);
 }

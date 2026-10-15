@@ -1,10 +1,9 @@
 import { useLanguage } from "../../i18n/useLanguage";
 import type { DraftRecord, Drafts, SentTo } from "../../lib/mail/drafts";
-import type { MailCards, MailCardItem } from "../../lib/mail/types";
-import { MailCardsView } from "./MailCards";
+import type { Mail, MailCards, MailCardItem } from "../../lib/mail/types";
+import { MailCardsView, DRAWN } from "./MailCards";
 import { MailFailureCard } from "./MailFailureCard";
 import { mailFailure, UNKNOWN_FAILURE } from "../../lib/mail/failure";
-import { cardIds } from "../../lib/mail/cards";
 import type { MailFailure } from "../../lib/mail/failure";
 import type { ToolRun } from "../../lib/types";
 import { MAIL_TOOLS } from "../../lib/tools/definitions";
@@ -53,24 +52,33 @@ export function MailRows({
     .map((run) => ({ id: run.id, why: mailFailure(run.resultCode) ?? UNKNOWN_FAILURE }))
     .filter((entry): entry is { id: string; why: MailFailure } => entry.why !== null);
   const told = new Set(notices.map((entry) => entry.id));
-  // The list drew the cards, and a model's `mail_show` only ever adds the one
-  // line it wrote: its own set is never drawn beside the list, and a mail it
-  // did not name stays on screen.
+  // The list drew the cards, and a model's `mail_show` adds the one line it
+  // wrote: an id the list already drew keeps its place and gains the gist. The
+  // exception is an id past the cards the list draws — a selection the person
+  // was shown is drawn as its own group rather than left behind a reveal, and
+  // only the ids that are not already on screen go in it.
   const sets = runs.filter((run): run is ToolRun & { mail: MailCards } => run.mail?.kind === "cards" && !told.has(run.id));
   const listed = sets[0];
   const lines = new Map<string, string>();
   for (const run of sets) {
     for (const item of run.mail.items) if (item.gist !== "") lines.set(item.id, item.gist);
   }
-  const baseIds = new Set(listed === undefined ? [] : cardIds(listed.mail));
   const cards: MailCards | null =
     listed === undefined
       ? null
       : { ...listed.mail, items: listed.mail.items.map((item) => ({ ...item, gist: lines.get(item.id) ?? item.gist })) };
-  const beyond = sets.filter((run) => run !== listed && run.mail.items.some((item) => !baseIds.has(item.id)));
+  const onScreen = new Set(cards === null ? [] : cards.items.slice(0, DRAWN).map((item) => item.id));
   const drafted = runs.filter((run) => run.mail?.kind === "draft" && !told.has(run.id));
+  const groups: { key: string; mail: Mail }[] = [
+    ...sets
+      .filter((run) => run !== listed)
+      .map((run) => ({ run, mail: { ...run.mail, items: run.mail.items.filter((item) => !onScreen.has(item.id)) } }))
+      .filter((entry) => entry.mail.items.length > 0)
+      .map((entry) => ({ key: entry.run.id, mail: entry.mail })),
+    ...drafted.flatMap((run) => (run.mail === undefined ? [] : [{ key: run.id, mail: run.mail }])),
+  ];
   const stubs = runs.filter((run) => run.mail === undefined && run.mailShown !== undefined);
-  if (notices.length === 0 && cards === null && beyond.length === 0 && drafted.length === 0 && stubs.length === 0) {
+  if (notices.length === 0 && cards === null && groups.length === 0 && stubs.length === 0) {
     return null;
   }
   return (
@@ -97,24 +105,20 @@ export function MailRows({
           onCompose={onComposeMail}
         />
       ) : null}
-      {[...beyond, ...drafted].map((run) => {
-        const mail = run.mail;
-        if (mail === undefined) return null;
-        return (
-          <MailCardsView
-            key={run.id}
-            mail={mail}
-            selected={selected}
-            onOpen={onOpen}
-            onDraft={onDraft}
-            onSend={onSend}
-            sent={sent}
-            drafts={drafts}
-            onSave={onSave}
-            onCompose={onComposeMail}
-          />
-        );
-      })}
+      {groups.map((group) => (
+        <MailCardsView
+          key={group.key}
+          mail={group.mail}
+          selected={selected}
+          onOpen={onOpen}
+          onDraft={onDraft}
+          onSend={onSend}
+          sent={sent}
+          drafts={drafts}
+          onSave={onSave}
+          onCompose={onComposeMail}
+        />
+      ))}
     </>
   );
 }

@@ -15,6 +15,10 @@ export type MailFailureKind = "keychain" | "noAccount" | "refused" | "unreachabl
     fix in Settings: the mailbox was reloaded, and the person asks for it again. */
 export const NOT_LISTED = "not_listed";
 
+/** The sidecar's own code for a refused login (`imap::LOGIN_REFUSED`). The pane
+    says this one is a fix in Settings, so it is told apart from the rest. */
+export const LOGIN_REFUSED = "login_refused";
+
 export interface MailFailure {
   kind: MailFailureKind;
   /** Whether the person can fix it in Settings → Mail, which the card offers. */

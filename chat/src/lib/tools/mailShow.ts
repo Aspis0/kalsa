@@ -29,12 +29,19 @@ export function runMailShow(args: unknown, conversation: object): ToolOutcome {
   const cards: MailCardItem[] = [];
   const seen = new Set<string>();
   let dropped = 0;
+  let newsletters = 0;
   for (const proposed of items.slice(0, MAX_CARDS)) {
     const pair = proposed && typeof proposed === "object" ? (proposed as Record<string, unknown>) : {};
     const id = mailId(pair.id);
     const record = id === null ? null : lastList.find(id, conversation);
     if (record === null || seen.has(record.id)) {
       dropped += 1;
+      continue;
+    }
+    // A newsletter is the badge the code gave it: a count under the cards, never
+    // a card of its own. Naming one here does not change what it is.
+    if (record.labels.label === "bulk") {
+      newsletters += 1;
       continue;
     }
     seen.add(record.id);
@@ -51,5 +58,6 @@ export function runMailShow(args: unknown, conversation: object): ToolOutcome {
   const drawn = cards.length;
   const said = `Drew ${drawn} mail ${drawn === 1 ? "card" : "cards"}.`;
   const lost = dropped > 0 ? ` ${dropped} proposed ${dropped === 1 ? "id was" : "ids were"} not in the last list and ${dropped === 1 ? "was" : "were"} dropped.` : "";
-  return { text: `${said}${lost}`, ok: drawn > 0, mail: { kind: "cards", items: cards, bulk: lastList.bulk(conversation) } };
+  const newslettersLeft = newsletters > 0 ? ` ${newsletters} ${newsletters === 1 ? "id names a newsletter and stays" : "ids name newsletters and stay"} in the count under the cards.` : "";
+  return { text: `${said}${lost}${newslettersLeft}`, ok: drawn > 0, mail: { kind: "cards", items: cards, bulk: lastList.bulk(conversation) } };
 }

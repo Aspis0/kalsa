@@ -37,6 +37,8 @@ export const MAIL = {
     "noMail": "Aucun mail ouvert. Appuyez sur Ouvrir sur une carte pour le lire ici.",
     "openingMail": "Ouverture du mail…",
     "notListed": "Ce mail ne peut pas être ouvert car il n'est plus dans la liste : demandez à Kalsa d'afficher à nouveau vos mails.",
+    "loginRefused": "Ce mail ne peut pas être ouvert car le serveur de messagerie a refusé la connexion : vérifiez le compte dans Réglages → Mail.",
+    "readFailed": "Ce mail n'a pas pu être ouvert. Réessayez dans un instant.",
     "thread": "Dans cette conversation",
     "oneMessage": "1 autre message",
     "otherMessages": (count: number) => `${count} autres messages`,

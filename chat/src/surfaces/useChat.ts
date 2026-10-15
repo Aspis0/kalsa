@@ -179,7 +179,7 @@ export function useChat(shell: ChatShell) {
     setDraft(text);
   }, []);
   // The mail open beside the chat, and the two ways anything comes of it.
-  const mail = useMail(compose);
+  const mail = useMail(activeId, compose);
   // Pictures attached but not yet sent, per conversation. The bytes are in
   // IndexedDB the moment the chip exists; this map holds only the reference
   // and the chip's object URL, and follows the draft's own durability.

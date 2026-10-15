@@ -41,6 +41,8 @@ export const MAIL = {
   noMail: "No mail is open. Press Open on a mail card to read it here.",
   openingMail: "Opening the mail…",
   notListed: "That mail can't be opened because it's no longer in the list: ask Kalsa to list your mail again.",
+  loginRefused: "That mail can't be opened because the mail server refused the login: check the account in Settings → Mail.",
+  readFailed: "That mail couldn't be opened. Try again in a moment.",
   thread: "In this conversation",
   oneMessage: "1 other message",
   otherMessages: (count: number) => `${count} other messages`,
