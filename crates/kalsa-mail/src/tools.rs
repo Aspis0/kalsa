@@ -22,7 +22,7 @@ pub(crate) fn list() -> Tool {
     Tool::new(
         "list",
         "List the newest mails of a folder with a short snippet and a label (bulk, \
-suspicious or normal). Read-only.",
+suspicious or normal). Each mail starts with its id, shown as \"mail id N\". Read-only.",
         schema(json!({
             "type": "object",
             "properties": {
@@ -61,7 +61,7 @@ and the attachment names and sizes. Attachments are never opened.",
             "properties": {
                 "id": {
                     "type": "integer",
-                    "description": "The UID, as it appears in a list result."
+                    "description": "The number shown as \"mail id N\" in a list result."
                 },
                 "folder": {
                     "type": "string",
@@ -86,7 +86,7 @@ sent and nothing is saved.",
             "properties": {
                 "reply_to_id": {
                     "type": "integer",
-                    "description": "The UID of the message being answered."
+                    "description": "The number shown as \"mail id N\" in a list result, of the message being answered."
                 },
                 "body": {
                     "type": "string",
@@ -116,7 +116,7 @@ The recipient is the address that mail came from, never an argument.",
             "properties": {
                 "reply_to_id": {
                     "type": "integer",
-                    "description": "The UID of the message being answered."
+                    "description": "The number shown as \"mail id N\" in a list result, of the message being answered."
                 },
                 "subject": {
                     "type": "string",

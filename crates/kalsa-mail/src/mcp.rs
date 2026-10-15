@@ -264,7 +264,7 @@ async fn draft_reply(
     args: DraftArgs,
 ) -> CallToolResult {
     let folder = args.folder.unwrap_or_else(default_folder);
-    let (_, parsed, _, _) = match one(&account, &cache, &listed, &folder, args.reply_to_id).await {
+    let (uid, parsed, _, _) = match one(&account, &cache, &listed, &folder, args.reply_to_id).await {
         Ok(answer) => answer,
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
@@ -274,11 +274,7 @@ async fn draft_reply(
     match draft::reply_to(&parsed, &args.body) {
         Ok(draft) => {
             let fence = Fence::new();
-            let lines = vec![
-                fence.field("to", &draft.to),
-                fence.field("subject", &draft.subject),
-                fence.field("body", &draft.body),
-            ];
+            let lines = draft.fenced(&fence, uid);
             view::result(&fence, &draft, lines)
         }
         Err(message) => view::error(message),

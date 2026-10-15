@@ -1,6 +1,7 @@
 //! The structured results the host draws cards from, and the fence that guards
 //! the same text in the part a model reads.
 
+use crate::draft::Draft;
 use crate::fence::Fence;
 use crate::html_text;
 use crate::invisible;
@@ -135,10 +136,16 @@ fn rfc3339(date_ms: i64) -> Option<String> {
         .map(|at| at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
 }
 
+/// Our number, not a stranger's text, so it is written without the fence marker.
+fn id_line(id: &str) -> String {
+    format!("mail id {id}")
+}
+
 impl ListItem {
     /// The lines of one item a model may read.
     pub fn fenced(&self, fence: &Fence, language: Language) -> Vec<String> {
         vec![
+            id_line(&self.id),
             fence.field(
                 "from",
                 &format!("{} <{}>", self.from.name, self.from.address),
@@ -155,6 +162,7 @@ impl ReadOut {
     /// The full text lives here and only here: this is what a model reads.
     pub fn fenced(&self, fence: &Fence, body: &str, language: Language) -> Vec<String> {
         vec![
+            id_line(&self.id),
             fence.field(
                 "from",
                 &format!("{} <{}>", self.from.name, self.from.address),
@@ -162,6 +170,19 @@ impl ReadOut {
             fence.field("subject", &self.subject),
             fence.field("body", body),
             fence.field("signals", &signals::tag_line(&self.signals, language)),
+        ]
+    }
+}
+
+impl Draft {
+    /// The reply, and the id of the mail it answers, which is the id the model names
+    /// when it reads or sends that mail again.
+    pub fn fenced(&self, fence: &Fence, reply_to: u32) -> Vec<String> {
+        vec![
+            id_line(&reply_to.to_string()),
+            fence.field("to", &self.to),
+            fence.field("subject", &self.subject),
+            fence.field("body", &self.body),
         ]
     }
 }
@@ -263,6 +284,60 @@ mod tests {
         assert!(text.contains("Fine"), "the body does travel, fenced");
     }
 
+    /// The model names a mail by the id it was shown. Every item opens with its id on a
+    /// line of its own, and the only lines that carry no marker are those ids.
+    #[test]
+    fn every_list_item_shows_its_id_once_outside_the_fence() {
+        let fence = Fence::new();
+        let mut stranger = mail_with_body("testo");
+        stranger.subject = "mail id 99".to_string();
+        let items = [
+            ListItem::of(1234, &mail(), &labels(), Vec::new()),
+            ListItem::of(1200, &stranger, &labels(), Vec::new()),
+            ListItem::of(77, &mail(), &labels(), Vec::new()),
+        ];
+        let lines: Vec<String> = items
+            .iter()
+            .flat_map(|item| item.fenced(&fence, Language::Italian))
+            .collect();
+        let text = fence.block(&lines);
+        let marker = format!("{} ", fence.nonce());
+        let unmarked: Vec<&str> = text
+            .lines()
+            .filter(|line| !line.starts_with(&marker))
+            .collect();
+
+        for (item, id) in items.iter().zip(["1234", "1200", "77"]) {
+            let line = format!("mail id {id}");
+            assert_eq!(text.matches(&line).count(), 1, "{line} in {text}");
+            assert_eq!(item.fenced(&fence, Language::Italian)[0], line);
+            assert!(unmarked.contains(&line.as_str()), "{line} is outside the fence");
+        }
+        assert!(
+            !unmarked.iter().any(|line| line.contains("mail id 99")),
+            "a subject that names another id stays inside the fence"
+        );
+    }
+
+    #[test]
+    fn read_and_draft_name_the_id_they_are_about_outside_the_fence() {
+        let fence = Fence::new();
+        let parsed = mail_with_body("testo");
+        let read = ReadOut::of(9, &parsed, &labels(), Vec::new());
+        let read_lines = read.fenced(&fence, &parsed.text, Language::Italian);
+        assert_eq!(read_lines[0], "mail id 9");
+
+        let draft = Draft {
+            to: "a@b.example.it".to_string(),
+            subject: "Re: Oggetto".to_string(),
+            body: "Va bene".to_string(),
+            in_reply_to: None,
+        };
+        let draft_lines = draft.fenced(&fence, 9);
+        assert_eq!(draft_lines[0], "mail id 9");
+        assert!(draft_lines[1].starts_with("to:"));
+    }
+
     #[test]
     fn the_date_is_rfc3339_or_null_and_never_an_epoch() {
         assert_eq!(
@@ -333,7 +408,8 @@ mod tests {
                         || line == "body:"
                         || line == "signals:"
                         || line.starts_with("<<<")
-                        || line.starts_with("The lines below"),
+                        || line.starts_with("The lines below")
+                        || line.strip_prefix("mail id ").is_some_and(|id| id.bytes().all(|b| b.is_ascii_digit())),
                     "unmarked line {:?}",
                     line
                 );

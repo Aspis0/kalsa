@@ -1,9 +1,9 @@
 {
   "binaries": {},
   "tools": {
-    "mail.draft": "c941f17e30705e267ecf101d64461bec1b0678b313a9789926376577f11612da",
-    "mail.list": "1083a387ec84230bf495c6eb349c4bc2d06abb121e324fcc64e352d9f4cb24b2",
-    "mail.read": "79909a97ce1fbe7b13ab1b45c4f25c9e6116dcb33070716c7c8a5d6c1520ee81",
-    "mail.send": "910cb5c3f57ff4de7e0069f4187dde431174ecab6d26c2b2077cc239c2c8b5ca"
+    "mail.draft": "d16edb881827b3fc4b0fe1c364d2c8a7f1032b41f7f4cfdfaa2bf65a047196ba",
+    "mail.list": "0221e29d267b90ad79ce32fdd87254330d886ab2a4884e365134e70fdfccad05",
+    "mail.read": "61fe1f53ecf04a83b043902dab80ba577c6d8907155aeb044c8e38251b835f2b",
+    "mail.send": "54cfc9f5d1a12ea8268ff746d0bc5c921ffbe6a261e9f7f77e2fac635b05f721"
   }
 }
