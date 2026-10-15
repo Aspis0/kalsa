@@ -54,6 +54,9 @@ export const phoneEvents = () =>
 function installEnvironment() {
   globalThis.localStorage = new MemoryStorage();
   globalThis.window = {
+    // streamRound's idle timer is a browser one.
+    setTimeout,
+    clearTimeout,
     __TAURI__: {
       core: {
         invoke: (command, args) => {
@@ -88,6 +91,8 @@ async function compile(dir) {
         export { ChatRequestError } from "../src/lib/chat.ts";
         export { systemPrompt } from "../src/lib/attachments.ts";
         export { sentDatePhrase } from "../src/lib/sentDate.ts";
+        export { streamChatCompletion } from "../src/lib/toolLoop.ts";
+        export { offeredTools } from "../src/lib/tools/registry.ts";
         export { TABLES } from "../src/i18n/index.ts";
       `,
       resolveDir: SCRIPTS_DIR,

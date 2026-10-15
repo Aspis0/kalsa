@@ -4,6 +4,7 @@
 //
 // Run: node scripts/phone-chat-turn.mjs   (from chat/)
 
+import { createServer } from "node:http";
 import {
   CARDS,
   DRAFT,
@@ -206,9 +207,121 @@ async function turns(app) {
   }
 }
 
+/** The phone's reasoning of a refused round, through the REAL loop: a server
+    that answers with the rounds it is given, one per request. The phone's
+    frames are one way, so round one's reasoning can only be sent if round one
+    stands. */
+function scriptedBrain(rounds) {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, authorization",
+  };
+  let round = 0;
+  const open = [];
+  const server = createServer((req, res) => {
+    if (req.method === "OPTIONS") return void res.writeHead(204, cors).end();
+    req.resume();
+    res.writeHead(200, { "content-type": "text/event-stream", ...cors });
+    open.push(res);
+    const script = rounds[Math.min(round, rounds.length - 1)];
+    round += 1;
+    const chunks = Array.isArray(script) ? script : script.chunks;
+    for (const delta of chunks) res.write(`data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`);
+    // A round the test holds open: the stream stays open until the turn stops.
+    if (!Array.isArray(script)) return;
+    res.write("data: [DONE]\n\n");
+    res.end();
+  });
+  return {
+    async listen() {
+      await new Promise((ready) => server.listen(0, "127.0.0.1", ready));
+      return `http://127.0.0.1:${server.address().port}`;
+    },
+    close: () => {
+      for (const res of open) res.end();
+      server.close();
+    },
+  };
+}
+
+const think = (text) => ({ reasoning_content: text });
+const say = (text, finish = "stop") => ({ content: text, finish_reason: finish });
+
+async function refusedReasoning(app) {
+  console.log("\n# the reasoning of a refused round");
+  const abortable = () => new AbortController().signal;
+  // Round one refuses, so the loop asks again without tools: the reasoning of
+  // round one is never sent, and the retry's is.
+  {
+    const brain = scriptedBrain([
+      [think("Cerco gli strumenti."), say("Non posso aiutarti con questa richiesta.")],
+      [think("Provo senza strumenti."), say("Ecco cosa posso fare.")],
+    ]);
+    const settings = { ...SETTINGS, endpoint: await brain.listen() };
+    const { log, sink } = recorder(app);
+    await app.runPhoneTurn(turnOf([USER("fammi vedere le mail")]), settings, sink, abortable(), { loop: app.streamChatCompletion, facts: facts() });
+    equal("the refused round's reasoning never reaches the phone", log.filter(([event]) => event === "reasoning"), [
+      ["reasoning", { text: "Provo senza strumenti." }],
+    ]);
+    equal("and the retry's answer follows it", log.at(-2), ["delta", { text: "Ecco cosa posso fare." }]);
+    equal("the turn still ends once", log.at(-1), ["done", {}]);
+    brain.close();
+  }
+  // A round that stands sends its reasoning, in order, before its answer.
+  {
+    const brain = scriptedBrain([[think("Guardo le mail."), say("Due mail sono arrivate.")]]);
+    const settings = { ...SETTINGS, endpoint: await brain.listen() };
+    const { log, sink } = recorder(app);
+    await app.runPhoneTurn(turnOf([USER("fammi vedere le mail")]), settings, sink, abortable(), { loop: app.streamChatCompletion, facts: facts() });
+    equal("a round that stands sends its reasoning before its answer", log, [
+      ["reasoning", { text: "Guardo le mail." }],
+      ["delta", { text: "Due mail sono arrivate." }],
+      ["done", {}],
+    ]);
+    brain.close();
+  }
+  // Stopped mid-hold: the round never stands, so nothing it held is sent.
+  {
+    const brain = scriptedBrain([{ chunks: [think("Guardo le mail."), say("Due mail sono arrivate")] }]);
+    const settings = { ...SETTINGS, endpoint: await brain.listen() };
+    const { log, sink } = recorder(app);
+    const controller = new AbortController();
+    const running = app.runPhoneTurn(turnOf([USER("fammi vedere le mail")]), settings, sink, controller.signal, { loop: app.streamChatCompletion, facts: facts() });
+    await new Promise((r) => setTimeout(r, 300));
+    controller.abort();
+    await running;
+    equal("a round stopped mid-hold sends no reasoning at all", log.filter(([event]) => event === "reasoning"), []);
+    equal("and the turn ends as cancelled", log.at(-1), ["error", { code: "cancelled" }]);
+    brain.close();
+  }
+  // The chat can take a frame back, so it keeps streaming: the hold is the
+  // phone's, not the loop's.
+  {
+    const brain = scriptedBrain([[think("Cerco gli strumenti."), say("Non posso aiutarti con questa richiesta.")]]);
+    const settings = { ...SETTINGS, endpoint: await brain.listen() };
+    const seen = [];
+    await app.streamChatCompletion({
+      endpoint: settings.endpoint,
+      token: settings.token,
+      model: settings.model,
+      messages: [{ role: "user", content: "fammi vedere le mail" }],
+      sampling: {},
+      signal: abortable(),
+      tools: app.offeredTools(true, "en", settings.model),
+      runTool: async () => ({ ok: true, text: "" }),
+      onToken: (text) => seen.push(text),
+      onReasoning: (text) => seen.push(`[${text}]`),
+    });
+    check("a chat turn still streams the reasoning of a round it can withdraw", seen.includes("[Cerco gli strumenti.]"), JSON.stringify(seen));
+    brain.close();
+  }
+}
+
 await withPhone(async (app) => {
   requests(app);
   wire(app);
   await turns(app);
+  await refusedReasoning(app);
 });
 summary();

@@ -70,6 +70,15 @@ export function hidesOnSeat(device: PairedDevice, devices: PairedDevice[]): bool
   return device.pairing_again != null && devices.some((row) => row.id === device.pairing_again);
 }
 
+/** The name the app gives a device, in the reader's language. The label the
+    store carries is English words minted in Rust ("This computer", "Paired
+    phone 2") and is never empty, so it is never shown: the app words it
+    instead, and Rust numbers a phone one above the id it will mint
+    (pairing.rs), which is the number here. */
+export function deviceName(t: English["devices"], device: PairedDevice): string {
+  return device.kind === "host" ? t.thisComputerLabel : t.deviceLabel(device.id + 1);
+}
+
 export function pairedSentence(t: English["devices"], dto: PairingState): string {
   const house = Array.isArray(dto.devices) ? dto.devices : [];
   const phones = house.filter((device) => device.kind !== "host" && !hidesOnSeat(device, house));
@@ -79,7 +88,7 @@ export function pairedSentence(t: English["devices"], dto: PairingState): string
   const undelivered = pending ? t.undeliveredClause : "";
   if (approved.length === 0 && waiting.length > 0) {
     if (waiting.length === 1) {
-      const name = waiting[0].phone ?? waiting[0].label ?? dto.phone ?? t.yourPhone;
+      const name = waiting[0].phone ?? deviceName(t, waiting[0]);
       const owed = pending ? t.owedPending : "";
       return t.waitingNamed(name, owed);
     }
@@ -96,7 +105,7 @@ export function pairedSentence(t: English["devices"], dto: PairingState): string
       : t.worksWith(dto.phone ?? t.yourPhone);
   }
   if (approved.length === 1) {
-    const name = approved[0].phone ?? approved[0].label ?? dto.phone ?? t.yourPhone;
+    const name = approved[0].phone ?? deviceName(t, approved[0]);
     return pending ? t.savedPending(name) : t.worksWith(name);
   }
   return pending ? t.worksWithCountPending(approved.length) : t.worksWithCount(approved.length);

@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon";
 import { useLanguage } from "../i18n/useLanguage";
 import { codeSentence } from "../lib/rustText";
 import type { PairedDevice } from "./pairingWords";
+import { deviceName } from "./pairingWords";
 
 // A button the row holds after one press. It is aria-disabled, not
 // disabled: disabling it would drag the owner's focus to <body> the moment
@@ -76,9 +77,8 @@ export function PhoneRow({
   const host = device.kind === "host";
   // The stored label is minted in English by Rust ("This computer", "Paired
   // phone 2"), so a row that showed it would be English in every language. The
-  // app words it instead, one above the id: that is the number Rust's own label
-  // carries, so this row and anything reading the stored label agree.
-  const name = host ? t.thisComputerLabel : t.deviceLabel(device.id + 1);
+  // app words it instead — the same words the Phones page's sentence uses.
+  const name = deviceName(t, device);
   // A row waiting for the owner's decision carries the wash —
   // a standing tint that survives reduced motion, since "needs
   // you" is information — and, when motion is allowed, a waiting

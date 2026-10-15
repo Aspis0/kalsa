@@ -3,7 +3,8 @@ import type { StreamOptions, ToolPhrases, WireMessage } from "./chat";
 import { runRound } from "./streamRound";
 import type { Round } from "./streamRound";
 import { isToolRefusal } from "./refusal";
-import { createAnswerHold } from "./answerHold";
+import { createAnswerHold, createReasoningHold } from "./answerHold";
+import type { ReasoningHold } from "./answerHold";
 import { accumulate } from "./toolCalls";
 import type { ToolCall } from "./toolCalls";
 import { canonicalToolName } from "./repairToolCall";
@@ -71,8 +72,12 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     toolChoice: "auto" | "none",
     hideInventedCalls: boolean,
     hold: ReturnType<typeof createAnswerHold> | null,
+    reason: ReasoningHold | null = null,
   ): Promise<Round> {
-    const sinks = hold === null ? options : { ...options, onToken: hold.push };
+    const sinks =
+      hold === null && reason === null
+        ? options
+        : { ...options, onToken: hold?.push ?? options.onToken, onReasoning: reason?.push ?? options.onReasoning };
     for (;;) {
       try {
         return await runRound(sinks, conversation, offer, toolChoice, hideInventedCalls);
@@ -115,11 +120,31 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // replaces; a later round that can still call may be one written-out call
     // the recovery replaces. Either way the text is held until the round says
     // which it was, so what gets replaced is never shown.
-    const hold = tools.length > 0 && (round === 0 || !last) ? createAnswerHold(options.onToken) : null;
+    // A wire that cannot take text back holds the round's reasoning the same
+    // way, and sends it the instant the answer is shown — the reasoning reads
+    // before the answer, and a round that is replaced sends neither.
+    const reason: ReasoningHold | null =
+      options.holdReasoning === true && tools.length > 0
+        ? createReasoningHold(options.onReasoning)
+        : null;
+    const hold =
+      tools.length > 0 && (round === 0 || !last)
+        ? createAnswerHold(
+            reason === null
+              ? options.onToken
+              : (text) => {
+                  reason.release();
+                  options.onToken(text);
+                },
+          )
+        : null;
     let answered: Round;
     try {
-      answered = await askRound(tools, last ? "none" : "auto", hideInventedCalls, hold);
+      answered = await askRound(tools, last ? "none" : "auto", hideInventedCalls, hold, reason);
     } catch (error) {
+      // The round died on the way out, so it never stands: nothing it held is
+      // sent. The answer text still settles as it always has.
+      reason?.drop();
       hold?.settle(false);
       throw error;
     }
@@ -136,6 +161,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       round === 0 && tools.length > 0 && !signal.aborted && isToolRefusal(answered.text, answered.toolCalls);
     if (refused) {
       hold?.settle(true);
+      reason?.drop();
       options.onWithdraw?.(answered.reasoning);
       logUiEvent("chat.retry_without_tools");
       fitHistory();
@@ -173,6 +199,9 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         }
         return;
       }
+      // The round stands as a call: its reasoning is the person's to read, and
+      // only the text that was written instead of the call goes.
+      reason?.release();
       hold?.drop();
       fromText = true;
       logUiEvent("chat.tool_call_recovered");

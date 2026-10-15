@@ -69,6 +69,9 @@ export async function runPhoneTurn(
       onToolRun: sink.toolRun,
       toolPhrases: TABLES[turn.language].tools,
       thinking: loadThinking(settings.model),
+      // The phone cannot take a frame back: a round that turns out to be a
+      // refusal must send its reasoning only if the round stands.
+      holdReasoning: true,
       onReasoning: sink.reasoning,
       onToken: sink.delta,
     });

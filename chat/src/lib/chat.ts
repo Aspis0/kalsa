@@ -102,6 +102,11 @@ export interface StreamOptions {
   /** Takes the reasoning of a refused round out of the row before it is asked
       again without tools. The refused answer text is never shown. */
   onWithdraw?: (reasoning: string) => void;
+  /** This wire cannot take reasoning back, so the first round's is held and
+      sent only once that round stands, reasoning before its answer. For the
+      phone, whose frames are one way; a chat that can withdraw it says nothing
+      and keeps streaming. */
+  holdReasoning?: boolean;
   /** The reader's thinking choice for this model: `false` asks the model's own
       template not to think. `undefined` leaves it to the template. */
   thinking?: boolean;

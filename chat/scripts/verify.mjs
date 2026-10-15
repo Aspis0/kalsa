@@ -5980,7 +5980,9 @@ const tests = {
                   state: "paired",
                   devices: [
                     { id: 0, kind: "host", label: "This computer" },
-                    { id: 1, label: "Paired phone 2", phone: "+39 333 0000001" },
+                    // No `phone` of its own: the sentence then has only the
+                    // name the app words for it, which is the one under test.
+                    { id: 1, label: "Paired phone 2" },
                   ],
                 };
               }
@@ -6001,6 +6003,11 @@ const tests = {
       // says the same 2 in the reader's words.
       check("phones: the phone is named in the language, with Rust's own number", rows.includes("telefono 2"), rows.join(" | "));
       check("phones: and not with the English label Rust minted", !rows.some((name) => /This computer|Paired phone/.test(name)), rows.join(" | "));
+      // The sentence that names the one phone the house works with reads the
+      // same name; it used to read `device.label`, which is never empty.
+      const sentence = (await page.locator(".phones-lead").first().innerText()).trim();
+      check("phones: the sentence names it in the language too", sentence.includes("telefono 2"), sentence);
+      check("phones: and the English label is in no sentence", !/Paired phone|This computer/.test(await page.locator(".surface-page").innerText()), sentence);
     } finally {
       await browser.close();
     }

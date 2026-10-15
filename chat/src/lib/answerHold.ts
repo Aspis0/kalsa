@@ -67,6 +67,43 @@ export function createAnswerHold(show: (text: string) => void): AnswerHold {
   };
 }
 
+/** Holds a round's reasoning until the round says whether it stands, for a
+    wire that cannot take text back once it has sent it (the phone's). The
+    answer text is held for the same reason and settles the same way; this is
+    its reasoning. */
+export interface ReasoningHold {
+  push: (text: string) => void;
+  /** The round stands: everything held goes out now, and later text as it
+      arrives. Called before the round's answer is shown, so the reasoning
+      reads before it. */
+  release: () => void;
+  /** The round will not stand — it was refused, or it died — and nothing it
+      held goes out, nor anything that arrives after it. */
+  drop: () => void;
+}
+
+export function createReasoningHold(show: (text: string) => void): ReasoningHold {
+  let held = "";
+  let state: "held" | "open" | "dropped" = "held";
+  return {
+    push(text) {
+      if (state === "dropped") return;
+      if (state === "open") show(text);
+      else held += text;
+    },
+    release() {
+      if (state !== "held") return;
+      state = "open";
+      if (held !== "") show(held);
+      held = "";
+    },
+    drop() {
+      state = "dropped";
+      held = "";
+    },
+  };
+}
+
 /** The keys the recovery reads a tool's name from (recoverToolCall.ts). */
 const CALL_KEYS = ["name", "tool", "tool_name", "toolName", "function"];
 
