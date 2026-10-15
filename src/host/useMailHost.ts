@@ -17,6 +17,7 @@ import {
   sendRemoteMailDraft,
 } from "../engine/remote/mailApi";
 import { normalizeMailRead, type OpenedMail } from "../domain/mailPayload";
+import { subscribePairingCompleted } from "../pairing/pairingCompletedAt";
 
 export type MailReadState =
   | { status: "idle" }
@@ -37,8 +38,13 @@ export type MailActions = {
   closeMail: () => void;
   sendDraft: (draftId: string, body: string) => void;
   openMail: MailReadState;
+  /** The conversation the open read was made in; the sheet draws nothing for another. */
+  openedFor: string | undefined;
   sends: Readonly<Record<string, MailSendState>>;
 };
+
+type OpenRead = { owner: string | undefined; state: MailReadState };
+const NO_READ: OpenRead = { owner: undefined, state: { status: "idle" } };
 
 export function useMailHost(params: {
   send: (text: string, opts?: { mailReplyFor?: string }) => void;
@@ -50,7 +56,7 @@ export function useMailHost(params: {
   conversationId: string | undefined;
 }): MailActions {
   const { send, askDraftText } = params;
-  const [openMail, setOpenMail] = useState<MailReadState>({ status: "idle" });
+  const [opened, setOpened] = useState<OpenRead>(NO_READ);
   const [sends, setSends] = useState<Record<string, MailSendState>>({});
   /** The one read in flight, and which Open it answers: a read that lands
    *  after Close, or after a newer Open, has been answered for a sheet that no
@@ -64,37 +70,54 @@ export function useMailHost(params: {
     [send, askDraftText],
   );
 
-  const readMail = useCallback(async (mailId: string) => {
-    read.current?.controller.abort();
-    const controller = new AbortController();
-    const id = (read.current?.id ?? 0) + 1;
-    read.current = { id, controller };
-    setOpenMail({ status: "loading" });
-    const result = await readRemoteMail(mailId, controller.signal);
-    if (read.current?.id !== id) return;
-    read.current = null;
-    setOpenMail(
-      result.ok
-        ? // A record the computer changed under us after its own card is the
-          // only way this can fail to read; it reads as a failure, not a blank.
-          readStateOr(result.value, MAIL_ROUTE_ABSENT)
-        : { status: "failed", errorCode: result.errorCode },
-    );
-  }, []);
+  const readMail = useCallback(
+    async (mailId: string) => {
+      const owner = params.conversationId;
+      read.current?.controller.abort();
+      const controller = new AbortController();
+      const id = (read.current?.id ?? 0) + 1;
+      read.current = { id, controller };
+      setOpened({ owner, state: { status: "loading" } });
+      const result = await readRemoteMail(mailId, controller.signal);
+      if (read.current?.id !== id) return;
+      read.current = null;
+      setOpened({
+        owner,
+        state: result.ok
+          ? // A record the computer changed under us after its own card is the
+            // only way this can fail to read; it reads as a failure, not a blank.
+            readStateOr(result.value, MAIL_ROUTE_ABSENT)
+          : { status: "failed", errorCode: result.errorCode },
+      });
+    },
+    [params.conversationId],
+  );
 
   const closeMail = useCallback(() => {
     read.current?.controller.abort();
     read.current = null;
-    setOpenMail({ status: "idle" });
+    setOpened(NO_READ);
   }, []);
 
   useEffect(() => {
-    setOpenMail({ status: "idle" });
+    setOpened(NO_READ);
     return () => {
       read.current?.controller.abort();
       read.current = null;
     };
   }, [params.conversationId]);
+
+  // A pairing completing shuts the open mail: it was read through the computer
+  // this phone no longer talks to.
+  useEffect(
+    () =>
+      subscribePairingCompleted(() => {
+        read.current?.controller.abort();
+        read.current = null;
+        setOpened(NO_READ);
+      }),
+    [],
+  );
 
   const sendDraft = useCallback(async (draftId: string, body: string) => {
     setSends((prev) => ({ ...prev, [draftId]: { status: "sending" } }));
@@ -107,7 +130,15 @@ export function useMailHost(params: {
     }));
   }, []);
 
-  return { draftReply, readMail, closeMail, sendDraft, openMail, sends };
+  return {
+    draftReply,
+    readMail,
+    closeMail,
+    sendDraft,
+    openMail: opened.state,
+    openedFor: opened.owner,
+    sends,
+  };
 }
 
 function readStateOr(

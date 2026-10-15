@@ -37,3 +37,14 @@ describe("EN/IT structural parity", () => {
     expect(res.stderr).toContain("section 1 differs: English has 1 paragraphs, 0 list items, 0 quotes, 1 code spans");
   });
 });
+
+describe("the command line", () => {
+  test.each([
+    ["a bare --out", ["guide.md", "--out"]],
+    ["--out followed by another flag", ["guide.md", "--out", "--check"]],
+  ])("%s prints usage and exits 2", (_label, args) => {
+    const res = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
+    expect(res.status).toBe(2);
+    expect(res.stderr).toContain("usage: build-guide.mjs");
+  });
+});

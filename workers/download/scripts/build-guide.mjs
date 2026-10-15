@@ -121,13 +121,20 @@ function guideModule(english, italian) {
   ].join("\n");
 }
 
+const USAGE = "usage: build-guide.mjs <ALPHA-TESTERS.md> [--check] [--out <guide.ts>]";
 const args = process.argv.slice(2);
 const check = args.includes("--check");
 const outAt = args.indexOf("--out");
-const out = outAt === -1 ? DEFAULT_OUT : path.resolve(args[outAt + 1]);
+const outArg = outAt === -1 ? undefined : args[outAt + 1];
+// A missing value, or another flag in its place, is not a path.
+if (outAt !== -1 && (outArg === undefined || outArg.startsWith("--"))) {
+  console.error(USAGE);
+  process.exit(2);
+}
+const out = outArg === undefined ? DEFAULT_OUT : path.resolve(outArg);
 const [source] = (outAt === -1 ? args : args.toSpliced(outAt, 2)).filter((arg) => arg !== "--check");
 if (!source) {
-  console.error("usage: build-guide.mjs <ALPHA-TESTERS.md> [--check] [--out <guide.ts>]");
+  console.error(USAGE);
   process.exit(2);
 }
 

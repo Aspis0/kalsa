@@ -139,6 +139,30 @@ describe("useHistoryHost re-marks the open list when a pairing completes", () =>
     expect(now().messages[0].failureSource).toBe("remote");
   });
 
+  test("a completion drops the open list's mail cards and reply drafts", async () => {
+    await mount();
+    await act(async () => {
+      now().setMessages(() => [
+        {
+          id: "m1",
+          role: "assistant",
+          text: "Here is your mail.",
+          createdAt: STAMP,
+          mail: [{ kind: "cards", items: [], bulk: 0 }],
+          mailDrafts: [
+            { draftId: "d1", to: "old@example.com", toName: "", subject: "Re", body: "old body" },
+          ],
+        },
+      ]);
+    });
+    await act(async () => {
+      await markPairingCompleted(STAMP);
+    });
+    expect(now().messages[0].mail).toBeUndefined();
+    expect(now().messages[0].mailDrafts).toBeUndefined();
+    expect(now().messages[0].text).toBe("Here is your mail.");
+  });
+
   test("an unmounted host no longer reacts", async () => {
     await mount();
     await act(async () => {

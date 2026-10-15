@@ -91,10 +91,11 @@ export function HostLayout({
 }: HostLayoutProps) {
   const t = useLocale().t;
   const { mode } = useLabTheme<{ mode: ThemeMode }>();
+  const conversationId = conv.conversationsReady ? conv.conversations.activeId : undefined;
   const mail = useMailHost({
     send: sendHost.send,
     askDraftText: t("chat.mail.askDraft"),
-    conversationId: conv.conversationsReady ? conv.conversations.activeId : undefined,
+    conversationId,
   });
   return (
     <>
@@ -109,7 +110,7 @@ export function HostLayout({
           sendHost={sendHost}
           onMenuPress={onMenuPress}
           onNewChatPress={onNewChatPress}
-          conversationId={conv.conversationsReady ? conv.conversations.activeId : undefined}
+          conversationId={conversationId}
           arms={arms}
           attachments={attachments}
           libraryDocs={library.library.docs ?? []}
@@ -117,7 +118,7 @@ export function HostLayout({
           actions={actions}
           onMiniappOpen={onMiniappOpen}
         />
-        <MailReadSheet mode={mode} />
+        <MailReadSheet mode={mode} conversationId={conversationId} />
       </MailActionsContext.Provider>
 
       <HostDrawer

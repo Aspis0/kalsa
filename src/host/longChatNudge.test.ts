@@ -64,8 +64,9 @@ describe("once per conversation: latch, reset, gate (Chat:921-922, 1314-1327)", 
     expect(SURFACE).toContain("}, [conversationId]);");
     // …and the id reaches the surface from the store this host already passes:
     expect(LAYOUT).toContain(
-      "conversationId={conv.conversationsReady ? conv.conversations.activeId : undefined}",
+      "const conversationId = conv.conversationsReady ? conv.conversations.activeId : undefined;",
     );
+    expect(LAYOUT).toContain("conversationId={conversationId}");
     // sample: a reset keyed on messages would re-fire per append
     expect(SURFACE).toContain("}, [conversationId]);");
     expect(SURFACE.includes("}, [view.transcript.length]);")).toBe(false);

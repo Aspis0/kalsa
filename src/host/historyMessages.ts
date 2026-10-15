@@ -70,6 +70,22 @@ export function markStaleRemoteFailures(
   return changed ? next : messages;
 }
 
+/** Mail cards and reply drafts belong to the pairing whose answer brought
+ *  them: a pairing change drops them, so a draft built for the old computer
+ *  can never be sent through the new one. Volatile, so nothing on disk moves. */
+export function withoutMail(messages: Message[]): Message[] {
+  let changed = false;
+  const next = messages.map((message) => {
+    if (message.mail === undefined && message.mailDrafts === undefined) return message;
+    changed = true;
+    const copy = { ...message };
+    delete copy.mail;
+    delete copy.mailDrafts;
+    return copy;
+  });
+  return changed ? next : messages;
+}
+
 /** Validate every field (even nested) of a persisted history payload: a
  *  corrupt record is skipped or clipped, never thrown on. */
 export function sanitizeHistoryMessages(

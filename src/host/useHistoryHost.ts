@@ -22,7 +22,12 @@ import {
   type HistoryWriteTicket,
 } from "../chat/historyWriteGuard";
 import { createHistoryWriter, type HistoryWriter } from "./historyWrite";
-import { buildPersistableMessages, markStaleRemoteFailures, sanitizeHistoryMessages } from "./historyMessages";
+import {
+  buildPersistableMessages,
+  markStaleRemoteFailures,
+  sanitizeHistoryMessages,
+  withoutMail,
+} from "./historyMessages";
 import {
   getPairingCompletedAt,
   subscribePairingCompleted,
@@ -284,6 +289,8 @@ export function useHistoryHost(params: HistoryHostParams): {
   useEffect(
     () =>
       subscribePairingCompleted(() => {
+        // Mail from the previous pairing goes at once, before the stamp is read.
+        setMessages(withoutMail);
         void getPairingCompletedAt()
           .catch(() => null)
           .then((stamp) => {

@@ -17,11 +17,21 @@ import { elevation, modes, radius, spacing, type, type ThemeMode } from "../../t
 import { MIN_TOUCH_TARGET } from "./shellGeometry";
 import { useMailActions } from "./mailActions";
 
-export function MailReadSheet({ mode }: { mode: ThemeMode }) {
+export function MailReadSheet({
+  mode,
+  conversationId,
+}: {
+  mode: ThemeMode;
+  conversationId: string | undefined;
+}) {
   const { t } = useLocale();
   const mail = useMailActions();
   const state = mail?.openMail;
-  if (!mail || !state || state.status === "idle") return null;
+  // The read the host holds may still be the previous conversation's for one
+  // render after a switch: its owner is checked here, not left to an effect.
+  if (!mail || !state || state.status === "idle" || mail.openedFor !== conversationId) {
+    return null;
+  }
   const colors = modes[mode];
   return (
     <Modal

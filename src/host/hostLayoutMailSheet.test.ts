@@ -48,18 +48,19 @@ const OPENED = {
   body: "Body text",
 };
 
-function mailHost(openMail: MailActions["openMail"]): MailActions {
+function mailHost(openMail: MailActions["openMail"], openedFor = "active"): MailActions {
   return {
     draftReply: jest.fn(),
     readMail: jest.fn(),
     closeMail: jest.fn(),
     sendDraft: jest.fn(),
     openMail,
+    openedFor,
     sends: {},
   };
 }
 
-function layoutProps(conversationsReady: boolean): HostLayoutProps {
+function layoutProps(conversationsReady: boolean, activeId = "active"): HostLayoutProps {
   return {
     insets: { top: 0, bottom: 0 },
     draft: "",
@@ -77,7 +78,7 @@ function layoutProps(conversationsReady: boolean): HostLayoutProps {
     onMiniappOpen: jest.fn(),
     drawerOpen: false,
     setDrawerOpen: jest.fn(),
-    conv: { conversationsReady, conversations: { activeId: "active" } },
+    conv: { conversationsReady, conversations: { activeId } },
     conversationActions: {},
     personas: {},
     onExportPress: jest.fn(),
@@ -121,6 +122,16 @@ describe("the mail read sheet under the real HostLayout", () => {
     const body = renderer.root.findAll((node) => node.props.testID === "shell.mailRead.body");
     expect(body).toHaveLength(1);
     expect(body[0].props.children).toBe("Body text");
+  });
+
+  it("draws no sheet on the first render after the conversation switches", () => {
+    mockMail = mailHost({ status: "loading" });
+    const renderer = mountLayout(layoutProps(true));
+    expect(sheetsIn(renderer)).toHaveLength(1);
+
+    // The host still holds the read made in "active" until its own reset runs.
+    rerender(renderer, layoutProps(true, "next"));
+    expect(sheetsIn(renderer)).toHaveLength(0);
   });
 
   it("draws no sheet while nothing is open", () => {

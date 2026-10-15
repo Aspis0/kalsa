@@ -1,7 +1,8 @@
 /**
  * What the mail sheet shows while a read is in flight: a read that answers
  * after Close, or after a newer Open, must never touch the sheet — and a
- * conversation switch must not leave one chat's mail over another's.
+ * conversation switch or a pairing completing must not leave one chat's mail
+ * over another's.
  */
 type Deferred<T> = {
   resolve: (value: T) => void;
@@ -31,10 +32,12 @@ jest.mock("../engine/remote/mailApi", () => ({
 }));
 
 jest.mock("react-native", () => ({}));
+jest.mock("expo-secure-store", () => ({ setItemAsync: jest.fn(async () => undefined) }));
 
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 
+import { markPairingCompleted } from "../pairing/pairingCompletedAt";
 import { useMailHost, type MailActions } from "./useMailHost";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean })
@@ -110,6 +113,20 @@ describe("a mail read in flight", () => {
       pending[0].resolve({ ok: true, value: { record: record("105"), body: "ciao" } });
     });
     expect(actions!.openMail).toEqual({ status: "idle" });
+  });
+
+  it("is shut by a pairing completing, and the computer's read is told so", async () => {
+    await mount();
+    await act(async () => {
+      void actions!.readMail("105");
+    });
+    await act(async () => {
+      await markPairingCompleted(1_700_000_100_000);
+    });
+
+    expect(openCalls[0].signal.aborted).toBe(true);
+    expect(actions!.openMail).toEqual({ status: "idle" });
+    expect(actions!.openedFor).toBeUndefined();
   });
 
   it("does not survive a conversation switch", async () => {
