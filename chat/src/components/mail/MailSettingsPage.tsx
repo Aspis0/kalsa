@@ -36,8 +36,10 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [server, setServer] = useState("");
-  /** Whether the person typed the server. A guessed one is shown, never sent. */
-  const [serverTyped, setServerTyped] = useState(false);
+  /** Where the host in the field came from. A typed or saved host is the
+      person's own and rides the save; a guessed one is the app's, and the
+      backend guesses the same one from the address. */
+  const [serverSource, setServerSource] = useState<"typed" | "saved" | "guess">("guess");
   const [note, setNote] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -71,7 +73,10 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
       if (account === null) return;
       setLinked(account.email);
       setEmail((typed) => (typed === "" ? account.email : typed));
-      if (account.host !== "") setServer((typed) => (typed === "" ? account.host : typed));
+      if (account.host !== "") {
+        setServer((typed) => (typed === "" ? account.host : typed));
+        setServerSource((source) => (source === "guess" ? "saved" : source));
+      }
     });
   }, []);
 
@@ -83,7 +88,12 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   function onEmail(next: string): void {
     setEmail(next);
     const guess = guessServer(next);
-    if (!serverTyped) setServer(guess?.host ?? "");
+    // A host the person typed outranks any address; one the app guessed or the
+    // account saved gives way, because the address they just named decides.
+    if (serverSource !== "typed") {
+      setServer(guess?.host ?? "");
+      setServerSource("guess");
+    }
     setNote(guess === null && next.includes("@") ? t.unknownServer : null);
   }
 
@@ -98,9 +108,9 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
     setSaveError(null);
     setSubjects([]);
     try {
-      const typed = serverTyped && server.trim() !== "" ? { host: server.trim() } : {};
+      const own = serverSource !== "guess" && server.trim() !== "" ? { host: server.trim() } : {};
       const given = prepareCredentials(email, password);
-      await invoke("brain_mail_account_save", { input: { ...given, ...typed } });
+      await invoke("brain_mail_account_save", { input: { ...given, ...own } });
       setLinked(given.email);
       const found = await invoke<string[]>("brain_mail_account_test");
       setSubjects(found);
@@ -184,11 +194,11 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                 <span>{t.server}</span>
                 <input
                   type="text"
-                  value={serverTyped ? server : ""}
-                  placeholder={server || t.serverPlaceholder}
+                  value={serverSource === "guess" ? "" : server}
+                  placeholder={serverSource === "guess" ? server || t.serverPlaceholder : ""}
                   onChange={(event) => {
                     setServer(event.target.value);
-                    setServerTyped(true);
+                    setServerSource("typed");
                   }}
                 />
               </label>

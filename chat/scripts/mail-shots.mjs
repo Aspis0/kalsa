@@ -333,7 +333,12 @@ async function seed(page, theme, opts = {}) {
     appVersion: APP_VERSION,
     failTest: opts.failTest === true,
     failList: opts.failList ?? null,
-    account: opts.account === null ? null : { email: opts.account ?? "luca@libero.it", host: "imap.libero.it" },
+    account:
+      opts.account === null
+        ? null
+        : typeof opts.account === "string"
+          ? { email: opts.account, host: "imap.libero.it" }
+          : opts.account,
   });
 }
 
@@ -475,10 +480,28 @@ async function shootSettings(browser) {
       { timeout: 10000 },
     );
     check(`${theme}: and the address is in the field`, (await restarted.getByLabel("Indirizzo email", { exact: true }).inputValue()) === "rig.launcher@gmail.com");
-    check(`${theme}: with the host it reads with`, (await restarted.getByLabel("Server").getAttribute("placeholder")) === "imap.libero.it");
+    check(`${theme}: with the host it reads with`, (await restarted.getByLabel("Server").inputValue()) === "imap.libero.it");
     check(`${theme}: and no password to retype`, (await restarted.getByLabel("Password", { exact: true }).inputValue()) === "");
     await mustSee(restarted, "La password salvata resta su questo computer", `${theme}: which says so under the empty field`);
     await restarted.close();
+
+    /* A host that came from the saved account is the person's own: type only
+       the password and the save must carry that host, or the backend guesses a
+       different one for a person who has their own server. */
+    const own = await browser.newPage({ viewport });
+    await seed(own, theme, { account: { email: "studio@posta.example.it", host: "mail.studio.example.it" } });
+    await own.goto(APP);
+    await own.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(own);
+    await own.waitForFunction(() => (document.querySelector(".mail-settings-fields input[type=text]")?.value ?? "") !== "", null, { timeout: 10000 });
+    check(`${theme}: the saved host is a value, not a grey hint`, (await own.getByLabel("Server").inputValue()) === "mail.studio.example.it");
+    await own.getByLabel("Password", { exact: true }).fill("password-di-prova");
+    await own.getByRole("button", { name: "Collega questo account" }).click();
+    await mustSee(own, "Collegato: studio@posta.example.it", `${theme}: it links with the password alone`);
+    const saves = await own.evaluate(() => (window.__STUB_CALLS__ ?? []).filter(([c]) => c === "brain_mail_account_save").map(([, a]) => a));
+    const input = saves.length === 1 ? saves[0].input : {};
+    check(`${theme}: and the save carries that host`, input.host === "mail.studio.example.it", JSON.stringify(input));
+    await own.close();
 
     /* The help opens while the address is being typed: the field being typed
        into must not move. */
