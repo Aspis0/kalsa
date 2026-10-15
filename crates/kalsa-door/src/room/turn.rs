@@ -792,8 +792,8 @@ fn engine_vision(port: u16, key: &kalsa_supervisor::EngineKey) -> bool {
         return false;
     };
     // Its own head, not `private_headers`: /props is not a completion and
-    // carries no slot. It still needs the key — the engine refuses it like
-    // every route outside /health.
+    // carries no slot. It still needs the key: /props is not one of the
+    // engine's public paths.
     let head = format!(
         "GET /props HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer {}\r\nConnection: close\r\n\r\n",
         key.as_str()

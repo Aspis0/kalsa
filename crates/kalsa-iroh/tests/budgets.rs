@@ -5,8 +5,9 @@
 
 use std::time::Duration;
 
-use kalsa_door::{Door, EngineKey};
+use kalsa_door::Door;
 use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, Lane, NodeKey, RelayChoice};
+use kalsa_supervisor::EngineKey;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 

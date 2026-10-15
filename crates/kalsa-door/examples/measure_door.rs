@@ -8,14 +8,15 @@
 //!
 //! The engine's header support is asserted by the harness, not here.
 //!
-//! `--api-key` carries the engine's own key: the door writes it into every
-//! head it sends upstream, so the harness must run against an engine that
-//! expects that same one.
+//! `KALSA_ENGINE_KEY` carries the engine's own key, never argv, which other
+//! processes can read: the door writes it into every head it sends upstream,
+//! so the harness must run against an engine that expects that same one.
 
 use std::io::{self, BufRead, Write};
 use std::net::TcpListener;
 
-use kalsa_door::{DeviceEntry, DeviceId, Devices, Door, EngineKey, EnginePrivateHeaders};
+use kalsa_door::{DeviceEntry, DeviceId, Devices, Door, EnginePrivateHeaders};
+use kalsa_supervisor::EngineKey;
 
 fn arg(flag: &str) -> Result<String, String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -37,8 +38,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let capacity: u32 = arg("--capacity")?
         .parse()
         .map_err(|_| "--capacity must be a number")?;
-    let engine_key =
-        EngineKey::from_hex(&arg("--api-key")?).ok_or("--api-key must be 64 hex characters")?;
+    // The variable's own error can quote its value (NotUnicode), so it is
+    // mapped to a fixed string like every other error here.
+    let engine_key = EngineKey::from_hex(
+        &std::env::var("KALSA_ENGINE_KEY").map_err(|_| "KALSA_ENGINE_KEY must be set")?,
+    )
+    .ok_or("KALSA_ENGINE_KEY must be 64 hex characters")?;
 
     let stdin = io::stdin();
     let mut lines = stdin.lock().lines();

@@ -34,9 +34,7 @@ pub enum ServerState {
     Stopped,
     Starting,
     Running {
-        /// The server's pid — 0 when adopted blind (see `take_over`): ours,
-        /// pid unknown, watched by health instead of by pid, and never a
-        /// signal target. `terminate_pid` refuses 0 outright.
+        /// The pid of the child this run spawned.
         pid: u32,
         port: u16,
     },
@@ -146,7 +144,7 @@ pub struct StartWaiter {
 /// observed late, and never a stale failure from a start before it.
 #[derive(Clone, Debug)]
 pub enum StartSettled {
-    /// Up: running, or adopted and running.
+    /// Up: the child this start spawned is running and answering.
     Up,
     /// The start failed; the reason is the caller's to word.
     Failed(Failure),
@@ -171,11 +169,6 @@ impl StartWaiter {
 }
 
 enum Started {
-    /// A server from an earlier run of this app is alive and answering. Use it:
-    /// loading a model again costs the user tens of seconds. The pid is `None`
-    /// when the state file's writer died before recording one: adopted blind,
-    /// watched by health, never signalled.
-    Adopted { pid: Option<u32> },
     Spawned {
         child: ChildHandle,
         instance: InstanceFile,
@@ -185,6 +178,7 @@ enum Started {
 /// The server we believe is running, and how we came to own it.
 struct Owned {
     child: Option<ChildHandle>,
+    /// Never set by a start, which adopts nothing; the stop paths still read it.
     adopted_pid: Option<u32>,
     instance: Option<InstanceFile>,
     config: ServerConfig,
@@ -255,9 +249,8 @@ impl Watch {
 
     /// The pid of the engine this supervisor holds a killable identity for
     /// right now. Loaded fresh every call, so a pid a stop already proved
-    /// gone is never handed out. `None` when no engine was started, when one
-    /// was adopted (an adopted pid is never held — see `finish_engine`), or
-    /// when the engine's going is proven.
+    /// gone is never handed out. `None` when no engine was started, or when
+    /// the engine's going is proven.
     pub fn engine_pid(&self) -> Option<u32> {
         self.engine.pid()
     }
@@ -268,10 +261,7 @@ impl Watch {
     /// said. This is the one kill path the app has: the exit handler runs it
     /// after its steps come back, the exit watchdog at its deadline, and
     /// both reach here so neither can drift into signalling a pid the
-    /// supervisor no longer vouches for. An adopted engine is never killed
-    /// through it: its only voucher is a state file a previous run wrote,
-    /// stale by exit time — a recycled pid may name a stranger, and the stop
-    /// walk already signalled the pid while the file still vouched for it.
+    /// supervisor no longer vouches for.
     pub fn finish_engine(&self, grace: Duration) -> Option<Termination> {
         self.engine.kill(grace)
     }
@@ -321,19 +311,16 @@ impl Supervisor {
 
     /// The release count, shared with the stderr drain: a consumer that owns
     /// the model's session state (the app's metrics) keeps its last-applied
-    /// value and applies every release it has not seen yet. An adopted server
-    /// is the gap: we hold no pipe to it, so releases during adoption are
-    /// unannounced to us.
+    /// value and applies every release it has not seen yet. Releases arrive on
+    /// the stderr pipe of the child this run spawned, and nothing else is read.
     pub fn release_watcher(&self) -> Arc<AtomicU64> {
         Arc::clone(&self.releases)
     }
 
     /// Whether the server holds the model in memory right now. `None` when
-    /// nothing can say: a server adopted from an earlier run is reused without
-    /// a `ChildHandle` (`take_over`), so there is no pipe and its releases and
-    /// reloads are never announced. An adopted server is still serving — the
-    /// door answers and the model comes back when a message arrives — so this
-    /// answers about the model, never about whether the server counts as up.
+    /// nothing has said yet since the server was spawned: the drain thread has
+    /// not looked. This answers about the model, never about whether the server
+    /// counts as up.
     pub fn model_asleep(&self) -> Option<bool> {
         self.residency.asleep()
     }
@@ -392,7 +379,7 @@ impl Supervisor {
     }
 
     /// Sends the start to the worker and returns at once with the handle to
-    /// its verdict: adoption, the handshake and the spawn all happen on the
+    /// its verdict: the takeover, the handshake and the spawn all happen on the
     /// worker thread, the UI watches `state()`, and a caller that must know
     /// whether the request was taken blocks on the waiter's outcome.
     pub fn start(&self, config: ServerConfig) -> StartWaiter {
@@ -521,32 +508,6 @@ fn work(
                     stderr_dir.as_ref(),
                 );
                 match started {
-                    Ok(Started::Adopted { pid }) => {
-                        set(
-                            &state,
-                            ServerState::Running {
-                                pid: pid.unwrap_or(0),
-                                port: config.port,
-                            },
-                        );
-                        // An adopted engine's pid is never held: its only
-                        // voucher is a state file a previous run wrote, and
-                        // by exit time that word is stale.
-                        engine.clear();
-                        log::info!(
-                            "engine adopted #{starts}: {} (pid {})",
-                            engine_name(&config.exe),
-                            pid.map(|pid| pid.to_string())
-                                .unwrap_or_else(|| "unknown".to_string())
-                        );
-                        let _ = settled.send(StartSettled::Up);
-                        owned = Some(Owned {
-                            child: None,
-                            adopted_pid: pid,
-                            instance: None,
-                            config: *config,
-                        });
-                    }
                     Ok(Started::Spawned { child, instance }) => {
                         set(
                             &state,
@@ -617,11 +578,10 @@ fn work(
                                 set(&state, ServerState::Failed { reason });
                             }
                         }
-                        // An adopted server with a pid is watched by pid; one
-                        // adopted blind has no pid to watch, so its health is
-                        // the watch — which is the stricter of the two anyway:
-                        // a recycled pid looks alive, a dead server answers
-                        // nothing.
+                        // A child-less server with a pid is watched by pid; one
+                        // without a pid is watched by health, which is the
+                        // stricter of the two: a recycled pid looks alive, a
+                        // dead server answers nothing.
                         None => {
                             if let Some(pid) = run.adopted_pid {
                                 if !child::pid_alive(pid) {
@@ -763,14 +723,13 @@ fn stop(
                 (witness, walk, escalated)
             }
             (None, Some(pid), _) => {
-                // Adopted from an earlier run. The proof it was ours was the
-                // lock, and time has passed: if the server died and the pid
-                // was recycled, the lock is gone and the pid now names
-                // somebody else's program. Terminate only a pid the file
-                // still vouches for; when it does not, THAT is reported as
-                // the unknown it is instead of being skipped in silence.
-                // The identity was never held for an adopted engine, and
-                // this walk does not start holding it.
+                // A pid held without a child. No start produces one, so only a
+                // planted pid gets here. The proof it was ours was the lock,
+                // and time has passed: if the server died and the pid was
+                // recycled, the lock is gone and the pid now names somebody
+                // else's program. Terminate only a pid the file still vouches
+                // for; when it does not, THAT is reported as the unknown it is
+                // instead of being skipped in silence.
                 engine.clear();
                 let report = match InstanceFile::inspect(&run.config.state_file) {
                     Ok(Existing::Live { pid: current, .. }) => {
@@ -814,8 +773,8 @@ fn stop(
                 };
                 (witness, walk, escalated)
             }
-            // Adopted blind: no pid was ever recorded, so the process half
-            // can never be proven here — only the port can speak (§9:
+            // No pid was ever recorded, so the process half can never be
+            // proven here — only the port can speak (§9:
             // `Stopped` only after the probe fails), and what it could not
             // prove becomes the suspicion record beside the state file.
             (None, None, _) => {
@@ -894,7 +853,7 @@ fn stop(
     set(state, end);
 }
 
-/// Reuses or clears a previous instance, then spawns and waits for readiness.
+/// Stops or clears a previous instance, then spawns and waits for readiness.
 fn start_blocking(
     config: &ServerConfig,
     releases: Arc<AtomicU64>,
@@ -911,26 +870,11 @@ fn start_blocking(
     // The suspicion a previous stop could not disprove, settled FIRST: a
     // refusing port means there was nothing — recovered, deleted before this
     // walk goes on, whatever it then does. An answering port leaves the
-    // record standing for the adoption below, which replaces it the moment
-    // an instance of ours is alive; a start that fails with a stranger
-    // still on the port keeps it, because the suspicion is still open.
+    // record standing; a start that fails with a stranger or an orphan still
+    // on the port keeps it, because the suspicion is still open.
     let suspect = Suspect::of(&config.state_file);
     suspect.settle_before_start(presence::probe, config.address(), presence::PROBE_TIMEOUT);
-    if let Some(started) = take_over(config)? {
-        suspect.clear();
-        // The adopted server was started by an EARLIER run of this app, with
-        // that run's key, which lived only in that run's memory: this one
-        // holds a different key and the server will answer 401 to every
-        // request that carries it. Said here, in words and a port, because a
-        // silent fallback to no key would reopen the port to any web page.
-        log::error!(
-            "adopted a server on port {} from an earlier run of this app: it \
-             answers to that run's engine key, which is gone, so requests to it \
-             will be refused until it is stopped and started again",
-            config.port
-        );
-        return Ok(started);
-    }
+    take_over(config)?;
     preflight_port(config)?;
     let mut instance =
         InstanceFile::claim(&config.state_file).map_err(|e| Failure::InstanceUnwritable {
@@ -1130,78 +1074,35 @@ fn log_stderr_tail(child: &ChildHandle) {
 
 /// What the state file says about a previous run.
 ///
+/// Nothing of an earlier run is adopted: its engine key died with that run, so
+/// it would answer every authenticated request with 401.
+///
 /// The lock decides what may be trusted: while it is held, the process it names
-/// is the server we started, so we may reuse it or close it. Without the lock
-/// the pid means nothing (it may have been recycled) and is never signalled.
-fn take_over(config: &ServerConfig) -> Result<Option<Started>, Failure> {
+/// is the server we started, so we may close it. Without the lock the pid means
+/// nothing (it may have been recycled) and is never signalled.
+fn take_over(config: &ServerConfig) -> Result<(), Failure> {
     match InstanceFile::inspect(&config.state_file) {
-        Ok(Existing::None) => Ok(None),
+        Ok(Existing::None) => Ok(()),
         Ok(Existing::Stale) => {
             let _ = std::fs::remove_file(&config.state_file);
-            Ok(None)
+            Ok(())
         }
-        Ok(Existing::Live { pid, port, binding }) => {
-            // The lock vouches for the pid being a server we started; the
-            // binding says it is the server we are asking for. Same binary
-            // under different arguments is a different server — adopting it
-            // would run a model and flags nobody asked for. A file with no
-            // binding predates the record and describes a server started
-            // under the old contract: nothing to mismatch.
-            let same_command = binding.as_deref().map_or(true, |b| b == config.binding());
-            if port == config.port
-                && same_command
-                && child::pid_alive(pid)
-                && health::health_ok(config.address(), "/health", PROBE_TIMEOUT)
-            {
-                return Ok(Some(Started::Adopted { pid: Some(pid) }));
-            }
-            // Ours, but not usable as configured: wedged, or left on a port the
-            // app no longer uses. Close it and start fresh.
+        Ok(Existing::Live { pid, .. }) => {
+            // Ours, but it holds the previous run's key. Closing it frees the
+            // port; if it survives, the port check that follows refuses.
             if child::pid_alive(pid) {
                 let _ = child::terminate_pid(pid, config.stop_grace);
             }
             let _ = std::fs::remove_file(&config.state_file);
-            Ok(None)
+            Ok(())
         }
-        Ok(Existing::Unidentified { port, binding }) => {
-            // The writer died between the spawn and the describe: the record
-            // names the server but no pid, so nothing here may be signalled
-            // — a pid found anywhere else is somebody else's. What is known
-            // is enough to reuse: the lock proves an heir of ours is alive,
-            // and port plus exact command say which server it must be. The
-            // heir is likely still loading its model, so its health is
-            // awaited the way the start handshake awaits it. Adopted blind
-            // when it answers; reported, never touched, otherwise.
-            let same_command = binding.as_deref().map_or(true, |b| b == config.binding());
-            if port == config.port && same_command && await_healthy(config) {
-                return Ok(Some(Started::Adopted { pid: None }));
-            }
-            Err(Failure::InstanceUnreadable {
-                detail: "our state file names a server but no pid, and it cannot be adopted as configured"
-                    .to_string(),
-            })
-        }
+        Ok(Existing::Unidentified { .. }) => Err(Failure::InstanceUnreadable {
+            detail: "an engine from an earlier run holds the port and must be stopped; its state file names no pid"
+                .to_string(),
+        }),
         Err(e) => Err(Failure::InstanceUnreadable {
             detail: format!("our state file cannot be read: {e}"),
         }),
-    }
-}
-
-/// The heir of a mid-sentence writer is likely still loading its model:
-/// await its health the way the start handshake does — a probe with a
-/// deadline, never a sleep. There is no child handle to watch for an early
-/// exit, because the child is not ours to wait on; silence through the
-/// deadline is the answer.
-fn await_healthy(config: &ServerConfig) -> bool {
-    let deadline = Instant::now() + config.ready_timeout;
-    loop {
-        if health::health_ok(config.address(), "/health", PROBE_TIMEOUT) {
-            return true;
-        }
-        if Instant::now() >= deadline {
-            return false;
-        }
-        std::thread::sleep(TICK);
     }
 }
 
@@ -1574,13 +1475,12 @@ mod tests {
         let _ = std::fs::remove_file(&config.state_file);
     }
 
+    #[cfg(unix)]
     #[test]
-    fn an_adopted_server_has_no_answer_about_its_model() {
-        // The gap the residency's third value exists for: a server from an
-        // earlier run of this app is reused by `take_over` without a
-        // `ChildHandle`, so no stderr pipe is ever held and nothing can
-        // announce a release or a reload. The answer must be "not known",
-        // never "in memory".
+    fn a_live_orphan_of_an_earlier_run_is_stopped_and_never_adopted() {
+        // An earlier run's engine is alive, answers /health, and is named by a
+        // state file this run holds the lock of. Its key died with that run, so
+        // it must be stopped, and the fresh start must not take it over.
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind the stand-in health port");
         let port = listener
             .local_addr()
@@ -1593,8 +1493,8 @@ mod tests {
                 let _ = listener.set_nonblocking(true);
                 while !stop.load(Ordering::Relaxed) {
                     match listener.accept() {
-                        // Every probe gets a 200: an adopted server is one that
-                        // answers, which is how it came to be adopted.
+                        // Every probe gets a 200, so the adoption rule would
+                        // have taken this server over.
                         Ok((mut stream, _)) => {
                             let _ = std::io::Write::write_all(&mut stream, b"HTTP/1.0 200 OK\r\n\r\n");
                         }
@@ -1603,21 +1503,27 @@ mod tests {
                 }
             }
         });
-        // A state file this very process holds the lock on, naming a live pid:
-        // the shape `inspect` reports as Live, which `take_over` adopts when the
-        // port answers. No `binding` line, so no command to mismatch.
+        // The shell backgrounds a `sleep` and exits, as a crashed run leaves
+        // it: the sleep is reparented, so it is not this test's child to reap.
+        let orphan = std::process::Command::new("/bin/sh")
+            .args(["-c", "sleep 30 </dev/null >/dev/null 2>&1 & echo $!"])
+            .output()
+            .expect("start the earlier run's engine");
+        let orphan_pid: u32 = String::from_utf8_lossy(&orphan.stdout)
+            .trim()
+            .parse()
+            .expect("the shell prints the orphan's pid");
         let config = config(port);
         std::fs::write(
             &config.state_file,
-            format!("kalsa-brain v1\npid={}\nport={port}\n", std::process::id()),
+            format!("kalsa-brain v1\npid={orphan_pid}\nport={port}\n"),
         )
         .expect("write the earlier run's state file");
         let lock = std::fs::File::open(&config.state_file).expect("open the state file");
         crate::hold_state_lock(&lock).expect("hold the lock as an earlier run would");
 
-        let residency = Residency::new();
-        let adopted = start_blocking(&config, Arc::new(AtomicU64::new(0)), residency.clone(), 1, &EngineId::new(), None);
-        let announced = residency.asleep();
+        let started = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new(), None);
+        let orphan_alive = child::pid_alive(orphan_pid);
 
         // Teardown before the assertions, so a failing one cannot leave the
         // listener accepting or the state file behind for the rest of the run.
@@ -1628,15 +1534,11 @@ mod tests {
         drop(lock);
         let _ = std::fs::remove_file(&config.state_file);
 
-        match adopted.expect("the earlier run's server must be adopted, not started again") {
-            Started::Adopted { pid } => assert!(pid.is_some(), "a Live state file names a pid"),
-            Started::Spawned { .. } => panic!("the earlier run's server was spawned a second time"),
-        }
-        assert_eq!(
-            announced,
-            None,
-            "an adopted server has no pipe: its model's residency must stay unknown, not be assumed loaded"
-        );
+        assert!(!orphan_alive, "the earlier run's engine was left running");
+        let refused = started
+            .err()
+            .expect("the stand-in still holds the port, so the start must be refused, not adopted");
+        assert!(matches!(refused, Failure::PortTaken), "{refused:?}");
     }
 
     #[cfg(unix)]
@@ -1848,8 +1750,7 @@ mod tests {
         // that demanded a refusal from a listener it had just dropped could
         // read a ghost `There{Silent}` under concurrent socket activity (the
         // flake this seam retires: three live reproductions, no listener
-        // visible at capture time). The answering twin of this case runs the
-        // full worker integration in `suspect_record.rs`.
+        // visible at capture time). The answering twin is the next test.
         let port = 8296;
         let state_file = config(port).state_file;
         let _ = std::fs::remove_file(&state_file);
@@ -1875,6 +1776,49 @@ mod tests {
             std::fs::read_to_string(&suspect_path).expect("the suspicion record beside the state");
         assert!(
             recorded.contains("adopted blind") && recorded.contains("Gone"),
+            "the record carries no measures: {recorded}"
+        );
+        let _ = std::fs::remove_file(&suspect_path);
+    }
+
+    #[test]
+    fn a_blind_stop_with_an_answering_port_is_a_failed_stop_and_leaves_the_record() {
+        // The answering twin of the silent case above: the port answers, so the
+        // stop is unconfirmed, carries its measures, and leaves the record for
+        // the next start. SCRIPTED probe, no socket.
+        let port = 8320;
+        let state_file = config(port).state_file;
+        let _ = std::fs::remove_file(&state_file);
+        let suspect_path = format!("{}.orphan", state_file.display());
+        let _ = std::fs::remove_file(&suspect_path);
+        let answering: presence::Probe = |_, _| presence::Presence::There {
+            evidence: presence::Evidence::Answered {
+                status: "200".into(),
+            },
+        };
+
+        let mut owned = Some(Owned {
+            child: None,
+            adopted_pid: None,
+            instance: None,
+            config: config(port),
+        });
+        let state = Arc::new(Mutex::new(ServerState::Running { pid: 0, port }));
+        stop(&mut owned, None, &state, answering, None, &EngineId::new());
+
+        match state.lock().expect("the state lock").clone() {
+            ServerState::Failed {
+                reason: Failure::StopUnconfirmed { measures },
+            } => assert!(
+                measures.contains("Answered"),
+                "the measures miss the port's answer: {measures}"
+            ),
+            other => panic!("a blind engine with an answering port reported as {other:?}"),
+        }
+        let recorded =
+            std::fs::read_to_string(&suspect_path).expect("the suspicion record beside the state");
+        assert!(
+            recorded.contains("adopted blind") && recorded.contains("Answered"),
             "the record carries no measures: {recorded}"
         );
         let _ = std::fs::remove_file(&suspect_path);

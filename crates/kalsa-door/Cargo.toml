@@ -30,8 +30,8 @@ unicode-normalization = "0.1"
 # stream, with the door adding the credential and the wire.
 kalsa-room = { path = "../kalsa-room" }
 # The engine's credential, which the door reads and never mints: every head
-# it writes upstream carries it, and the engine that answers refuses every
-# route outside /health without it. The type, not a String, so no struct
+# it writes upstream carries it, and the engine refuses its routes without it.
+# The type, not a String, so no struct
 # here can be derived into printing it.
 kalsa-supervisor = { path = "../kalsa-supervisor" }
 

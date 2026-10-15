@@ -4,8 +4,9 @@
 //! `Access-Control-Allow-Origin: *`, so without this any web page the owner
 //! opens can drive the local model and reach the slot routes. The key is what
 //! makes the port private to this process: the fork takes it from the
-//! environment and refuses every route outside `/health` without it (kalsallama
-//! `common/arg.cpp:3496-3506`, `server-http.cpp:251-300`).
+//! environment and refuses every route without it except `/health`,
+//! `/v1/health` and its UI assets (kalsallama `common/arg.cpp:3496-3506`,
+//! `server-http.cpp:251-300`).
 //!
 //! It lives in memory and nowhere else. Not in argv, which the supervisor logs
 //! whole and writes into the instance state file; not in a file, not in the

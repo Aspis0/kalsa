@@ -114,11 +114,9 @@ const RESIDENCY_RELEASED: u8 = 2;
 /// Whether the server holds the model in memory right now, as its own stderr
 /// announces it.
 ///
-/// Three-valued, and the third value is the point: a server adopted from an
-/// earlier run of this app is reused without a `ChildHandle` (see
-/// `supervisor::take_over`), so there is no pipe to read and no announcement
-/// can ever arrive. Its residency stays unknown rather than being assumed
-/// loaded.
+/// Three-valued, and the third value is the point: right after a spawn, before
+/// the drain thread has read its pipe, no announcement has been seen, so the
+/// residency stays unknown rather than being assumed loaded.
 ///
 /// Deliberately a different fact from the release *counter*. The counter only
 /// ever goes up, so no poll can miss an event; and for the same reason no
@@ -438,9 +436,8 @@ pub fn pid_alive(pid: u32) -> bool {
 /// Stops a process we identified as ours through the state file, by pid: there
 /// is no handle to it, it belongs to a previous run of this app. Callers must
 /// have proven ownership first — this function cannot tell whose process it is.
-/// Pid 0 is refused outright: it is this crate's marker for "ours, pid
-/// unknown" (an orphan adopted blind), and signalling 0 would signal our own
-/// process group instead of any server.
+/// Pid 0 is refused outright: signalling 0 would signal our own process group
+/// instead of any server.
 pub fn terminate_pid(pid: u32, grace: Duration) -> Termination {
     if pid == 0 {
         return Termination::Unknown {
@@ -982,10 +979,9 @@ mod tests {
 
     #[test]
     fn a_pipe_we_do_not_hold_gives_no_answer_about_the_model() {
-        // The adopted server's shape: `ChildHandle` is never made for a server
-        // reused from an earlier run, so the drain is handed nothing and no
-        // announcement can ever arrive. The answer must stay unknown — a
-        // defaulted bit would claim the model is in memory on no evidence.
+        // A drain handed no pipe gets no announcements. The answer must stay
+        // unknown — a defaulted bit would claim the model is in memory on no
+        // evidence.
         let residency = Residency::new();
         let _tail = drain_stderr(None, Arc::new(AtomicU64::new(0)), residency.clone(), None);
         assert_eq!(

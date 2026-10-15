@@ -8,8 +8,8 @@ use std::net::TcpListener;
 use std::time::Duration;
 
 use common::{
-    clear_files, config, is_dead, recorded_pid, unique_port, wait_for, wait_reaped, FakeHealth,
-    When,
+    clear_files, config, is_dead, recorded_pid, reparented_sleeper, unique_port, wait_dead,
+    wait_for, FakeHealth, When,
 };
 use kalsa_supervisor::{Failure, InstanceFile, ServerState, Supervisor};
 
@@ -53,39 +53,34 @@ fn a_stale_state_file_naming_a_live_stranger_kills_nothing() {
 // porting it to Windows is out of scope.
 #[cfg(unix)]
 #[test]
-fn a_live_instance_of_ours_is_reused_instead_of_reloaded() {
+fn a_live_instance_of_ours_is_stopped_and_never_reused() {
     let port = unique_port();
     clear_files(port);
     // The orphan: a process still holding the state file's lock, and answering.
-    let mut orphan = common::sleeper();
-    let orphan_pid = orphan.id();
+    let orphan_pid = reparented_sleeper();
     let _health = FakeHealth::start(port, When::Now);
     let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
     claim.describe(orphan_pid, port).expect("describe");
 
-    // The executable does not exist: if the supervisor tried to spawn, the state
-    // could not become Running.
     let supervisor = Supervisor::new();
-    let mut cfg = config("fake_server.sh", port);
-    cfg.exe = std::path::PathBuf::from("/nonexistent/llama-server");
-    let _ = supervisor.start(cfg);
+    let _ = supervisor.start(config("fake_server.sh", port));
 
-    let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
+    // The orphan is closed, not reused. The fake health still holds the port,
+    // so the fresh start is refused there, and nothing reports Running.
+    let state = wait_for(&supervisor, |s| {
+        matches!(s, ServerState::Running { .. } | ServerState::Failed { .. })
+    });
     match state {
-        ServerState::Running {
-            pid,
-            port: reported,
-        } => {
-            assert_eq!(pid, orphan_pid, "the orphan should have been adopted");
-            assert_eq!(reported, port);
-        }
-        other => panic!("unexpected state {other:?}"),
+        ServerState::Failed {
+            reason: Failure::PortTaken,
+        } => {}
+        other => panic!("the earlier run's engine was not refused: {other:?}"),
     }
-    assert!(!is_dead(orphan_pid), "the adopted server was killed");
-
+    assert!(
+        wait_dead(orphan_pid),
+        "the earlier run's engine was left running"
+    );
     supervisor.shutdown();
-    let _ = orphan.kill();
-    let _ = orphan.wait();
 }
 
 // The fake child here is a shell-script fixture (tests/fixtures/*.sh);
@@ -96,8 +91,7 @@ fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
     let port = unique_port();
     clear_files(port);
     // Ours (it holds the lock) but wedged: nothing answers on the port.
-    let mut wedged = common::sleeper();
-    let wedged_pid = wedged.id();
+    let wedged_pid = reparented_sleeper();
     let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
     claim.describe(wedged_pid, port).expect("describe");
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
@@ -112,47 +106,7 @@ fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
         }
         other => panic!("unexpected state {other:?}"),
     }
-    assert!(
-        wait_reaped(&mut wedged, Duration::from_secs(5)),
-        "the wedged instance was left alive"
-    );
-    supervisor.shutdown();
-}
-
-// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
-// porting it to Windows is out of scope.
-#[cfg(unix)]
-#[test]
-fn an_adopted_server_that_dies_is_reported_not_kept_running() {
-    let port = unique_port();
-    clear_files(port);
-    let mut orphan = common::sleeper();
-    let _health = FakeHealth::start(port, When::Now);
-    let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
-    claim.describe(orphan.id(), port).expect("describe");
-
-    // The executable does not exist: Running can only mean the orphan was
-    // adopted.
-    let supervisor = Supervisor::new();
-    let mut cfg = config("fake_server.sh", port);
-    cfg.exe = std::path::PathBuf::from("/nonexistent/llama-server");
-    let _ = supervisor.start(cfg);
-    wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
-
-    // The adopted server dies with no supervisor handle on it: the state must
-    // follow, not stay Running forever.
-    orphan.kill().expect("kill the orphan");
-    let _ = orphan.wait();
-    let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
-    assert!(
-        matches!(
-            state,
-            ServerState::Failed {
-                reason: Failure::ServerExited { .. }
-            }
-        ),
-        "an adopted server's death went unreported: {state:?}"
-    );
+    assert!(wait_dead(wedged_pid), "the wedged instance was left alive");
     supervisor.shutdown();
 }
 
@@ -163,11 +117,9 @@ fn an_adopted_server_that_dies_is_reported_not_kept_running() {
 fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
     let port = unique_port();
     clear_files(port);
-    // Ours, alive, answering now — pid, port and health all check out. The
-    // only thing that refuses this adoption must be the command: it is a
-    // different server than the one being asked for.
-    let mut orphan = common::sleeper();
-    let orphan_pid = orphan.id();
+    // Ours, alive, answering now, and a different server than the one asked
+    // for. It is closed whatever its command, never adopted.
+    let orphan_pid = reparented_sleeper();
     let _health = FakeHealth::start(port, When::Now);
     let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
     // The record in start order: port and command before the pid, so a
@@ -180,8 +132,8 @@ fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
     let supervisor = Supervisor::new();
     let _ = supervisor.start(config("fake_server.sh", port));
 
-    // Refused as the wrong server: the orphan is closed, and the start then
-    // reports the port the fake health still holds — never adopted.
+    // The orphan is closed, and the start then reports the port the fake
+    // health still holds — never adopted.
     let state = wait_for(&supervisor, |s| {
         matches!(s, ServerState::Running { .. } | ServerState::Failed { .. })
     });
@@ -195,24 +147,20 @@ fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
         other => panic!("unexpected state {other:?}"),
     }
     assert!(
-        wait_reaped(&mut orphan, Duration::from_secs(5)),
+        wait_dead(orphan_pid),
         "the different-command orphan was left alive"
     );
     supervisor.shutdown();
 }
 
 #[test]
-fn a_mid_sentence_orphan_is_adopted_blind_not_left_invisible() {
-    // Finding A: the writer died between the spawn and the describe, so the
-    // file names the server but no pid. The lock (held here, as the heir
-    // would hold it), the matching port and command, and an answering port
-    // are enough to reuse — and reuse is the only option, because without a
-    // pid nothing may be signalled.
+fn a_mid_sentence_orphan_is_refused_not_adopted_blind() {
+    // The writer died between the spawn and the describe: the file names the
+    // server but no pid. Nothing may be signalled and nothing adopted, so the
+    // start is refused by name, and no server is spawned over it.
     let port = unique_port();
     clear_files(port);
-    let health = FakeHealth::start(port, When::Now);
-    // The executable does not exist: Running can only mean the orphan was
-    // adopted, and pid 0 can only mean adopted blind.
+    let _health = FakeHealth::start(port, When::Now);
     let mut cfg = config("fake_server.sh", port);
     cfg.exe = std::path::PathBuf::from("/nonexistent/llama-server");
     let claim = {
@@ -226,24 +174,16 @@ fn a_mid_sentence_orphan_is_adopted_blind_not_left_invisible() {
 
     let supervisor = Supervisor::new();
     let _ = supervisor.start(cfg);
-    let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
-    match state {
-        ServerState::Running { pid: 0, port: reported } => assert_eq!(reported, port),
-        other => panic!("a mid-sentence orphan was not adopted blind: {other:?}"),
-    }
-
-    // A blind adoptee is watched by health, not by pid: when the port goes
-    // quiet the state follows, instead of claiming Running forever.
-    drop(health);
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
+    match state {
+        ServerState::Failed {
+            reason: Failure::InstanceUnreadable { detail },
+        } => assert!(detail.contains("must be stopped"), "{detail}"),
+        other => panic!("a mid-sentence orphan was not refused: {other:?}"),
+    }
     assert!(
-        matches!(
-            state,
-            ServerState::Failed {
-                reason: Failure::ServerExited { .. }
-            }
-        ),
-        "a blind adoptee's death went unreported: {state:?}"
+        !common::pid_file(port).exists(),
+        "a server was spawned over an unidentified instance"
     );
     supervisor.shutdown();
     drop(claim);
@@ -254,8 +194,7 @@ fn a_mid_sentence_orphan_is_adopted_blind_not_left_invisible() {
 fn a_mid_sentence_orphan_of_a_different_command_is_reported_not_adopted() {
     // Ours, alive, answering — but a different server than asked for. With
     // no pid it can be neither adopted nor closed, so the start reports and
-    // touches nothing. Fast by construction: the mismatch short-circuits
-    // before any wait for health.
+    // touches nothing.
     let port = unique_port();
     clear_files(port);
     let _health = FakeHealth::start(port, When::Now);
@@ -289,15 +228,13 @@ fn a_mid_sentence_orphan_of_a_different_command_is_reported_not_adopted() {
 }
 
 #[test]
-fn a_silent_mid_sentence_orphan_is_reported_after_its_deadline() {
-    // Locked and matching, but nothing answers: the heir is wedged or gone
-    // past reaching. Silence through the deadline is the answer — the wait
-    // is bounded, and nothing about the outcome depends on timing, because
-    // nothing on this port can ever answer.
+fn a_silent_mid_sentence_orphan_is_refused_at_once() {
+    // Locked and matching, but nothing answers. It is refused without a wait:
+    // an unidentified instance is never signalled, so there is nothing to
+    // wait out.
     let port = unique_port();
     clear_files(port);
-    let mut cfg = config("fake_server.sh", port);
-    cfg.ready_timeout = Duration::from_millis(300);
+    let cfg = config("fake_server.sh", port);
     let claim = {
         let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
         claim

@@ -131,8 +131,8 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         &source.sha256[..12]
     );
 
-    // This walk starts its own engine, so it mints its own key — the same
-    // one the app's run holds — and every request it makes below carries it.
+    // This walk starts its own engine, so it mints its own key, separate from
+    // the app run's; every request it makes below carries this one.
     let key = EngineKey::mint().expect("the OS has randomness");
 
     // ── 3. the machine, measured for real (as main.rs measures it) ─────────

@@ -2926,6 +2926,7 @@ dependencies = [
  "iroh",
  "iroh-mdns-address-lookup",
  "kalsa-door",
+ "kalsa-supervisor",
  "tokio",
  "tracing",
  "windows-sys 0.59.0",
@@ -2939,6 +2940,7 @@ dependencies = [
  "kalsa-door",
  "kalsa-probe",
  "kalsa-runtime",
+ "kalsa-supervisor",
  "serde",
  "serde_json",
 ]

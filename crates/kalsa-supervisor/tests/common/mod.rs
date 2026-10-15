@@ -180,6 +180,21 @@ pub fn sleeper() -> std::process::Child {
         .expect("spawn sleep")
 }
 
+/// A process an earlier run left behind: the shell backgrounds it and exits, so
+/// init reaps it and this test is not its parent (a child of ours would stay a
+/// zombie after the stop, and look alive).
+#[cfg(unix)]
+pub fn reparented_sleeper() -> u32 {
+    let out = Command::new("/bin/sh")
+        .args(["-c", "sleep 300 </dev/null >/dev/null 2>&1 & echo $!"])
+        .output()
+        .expect("start the earlier run's engine");
+    String::from_utf8_lossy(&out.stdout)
+        .trim()
+        .parse()
+        .expect("the shell prints the orphan's pid")
+}
+
 /// `ps -p` prints nothing for a pid that no longer exists.
 pub fn is_dead(pid: u32) -> bool {
     let output = Command::new("ps")

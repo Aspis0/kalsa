@@ -97,7 +97,8 @@ pub(super) struct Shared {
     /// reaches the engine through a client's own request.
     pub(super) port: u16,
     /// The app's key for that engine, written into every head that goes
-    /// upstream. The engine answers nothing outside `/health` without it.
+    /// upstream. Without it the engine refuses every route but `/health`,
+    /// `/v1/health` and UI assets.
     pub(super) key: Arc<kalsa_supervisor::EngineKey>,
     /// The per-slot context the launch funded (`--ctx-size /
     /// `--parallel`), for the room's transcript budget. `None` when the

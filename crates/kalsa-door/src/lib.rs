@@ -83,9 +83,6 @@ pub use room::guest_entry;
 /// The device id the room's AI guest sits at: the reserved top of the
 /// range, above every id a pairing store mints.
 pub const ROOM_DEVICE: u32 = u32::MAX;
-/// Re-exported so an app that constructs a door can mint the key without
-/// naming the supervisor's crate: this key is a door argument.
-pub use kalsa_supervisor::EngineKey;
 pub use slots::EnginePrivateHeaders;
 pub(crate) use slots::{DeviceSet, LeaseError, SlotLease};
 
@@ -98,6 +95,8 @@ use std::net::{SocketAddr, TcpListener};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
+
+use kalsa_supervisor::EngineKey;
 
 const TOKEN_BYTES: usize = 64;
 const WORKERS: usize = 4;
@@ -312,9 +311,10 @@ pub struct Door {
     /// and the phone falls back to the old path.
     phone_chat: Option<Arc<dyn PhoneChat>>,
     /// The app's key for the engine this door forwards to. Required, not
-    /// optional: the engine answers nothing outside `/health` without it,
-    /// and a door built without one would be a door quietly talking to a
-    /// port that any web page can also drive.
+    /// optional: the engine refuses its routes without it (only `/health`,
+    /// `/v1/health` and UI assets are public), and a door built without one
+    /// would be a door quietly talking to a port that any web page can also
+    /// drive.
     engine_key: Arc<EngineKey>,
 }
 

@@ -1130,6 +1130,13 @@ def start_door_runner(door_bin, engine_port, capacity, timeout_s=15.0):
     `listening 127.0.0.1:<1-65535>` (fullmatch - protocol, not text); the
     line itself is never quoted. Returns (proc, door_port, credentials).
     """
+    if not os.environ.get("KALSA_ENGINE_KEY"):
+        raise SystemExit(
+            "--door-bin refuses to start: measure_door reads the engine's key "
+            "from KALSA_ENGINE_KEY, and this harness has none to give it - "
+            "engine-harness.py starts its engine keyless, so there is no key "
+            "to match. Set KALSA_ENGINE_KEY to the key of an engine that expects "
+            "it, or run direct (--door-bin absent).")
     credentials = [secrets.token_hex(32) for _ in range(capacity)]
     proc = None
     try:

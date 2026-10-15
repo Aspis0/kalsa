@@ -36,5 +36,7 @@ windows-sys = { version = "0.59", features = [
 [dev-dependencies]
 # The round-trip test runs the real door as the tunnel's upstream.
 kalsa-door = { path = "../kalsa-door" }
+# The engine key the door is built with, named where it is owned.
+kalsa-supervisor = { path = "../kalsa-supervisor" }
 # #[tokio::test] and the multi-thread flavor the endpoint's tasks need.
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

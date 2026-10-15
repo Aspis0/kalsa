@@ -90,16 +90,15 @@ const MAIN_WINDOW_LABEL: &str = "main";
 /// reload of a window that never closed.
 static PAGE_LOADS: AtomicU64 = AtomicU64::new(0);
 
-/// The app's brain, managed as an `Arc` so the ticker's thread can hold it
-/// weakly: that thread carries the disk tier's tick and the door's reconcile
-/// ([`ticker`]), and it must never keep the app alive to do its work.
-/// The engine key a test hands its own fixtures. Minted per call and never
-/// read: only a child's environment and the wire ever see a key.
+/// A test's engine key: minted per call, never read back.
 #[cfg(test)]
 pub(crate) fn a_key() -> EngineKey {
     EngineKey::mint().expect("the OS has randomness")
 }
 
+/// The app's brain, managed as an `Arc` so the ticker's thread can hold it
+/// weakly: that thread carries the disk tier's tick and the door's reconcile
+/// ([`ticker`]), and it must never keep the app alive to do its work.
 struct Brain {
     supervisor: Supervisor,
     /// This run's key for the engine, minted once at startup and given to

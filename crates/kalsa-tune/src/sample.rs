@@ -530,11 +530,10 @@ mod check_tests {
         EngineKey::mint().expect("the OS has randomness")
     }
 
-    /// The stub's head, captured instead of swallowed. The engine refuses
-    /// every route outside `/health` without the key
-    /// (`server-http.cpp:251-300`), so a request that reaches it without one
-    /// is a request the real server answers 401 — and a sample this crate
-    /// would have read as a measurement.
+    /// The stub's head, captured instead of swallowed. The engine refuses its
+    /// routes without the key (`server-http.cpp:251-300`), so a request that
+    /// reaches it without one is a request the real server answers 401 — and a
+    /// sample this crate would have read as a measurement.
     #[test]
     fn every_request_carries_the_engine_key() {
         use std::io::Read;

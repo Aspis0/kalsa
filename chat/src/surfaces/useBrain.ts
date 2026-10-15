@@ -63,7 +63,8 @@ export interface BrainState {
   // Only on `running`: the DOOR's OpenAI-style address, and `null` while
   // the door is not up. The engine's own port is deliberately not offered
   // as a fallback — the page's own chat is a device at the door, and the
-  // engine port has no credential and no slot. The catalog's own name for
+  // engine port needs the app's engine key, which this page never holds, and
+  // has no slot. The catalog's own name for
   // what launched rides along (absent on the development path).
   endpoint?: string | null;
   model?: string;

@@ -24,3 +24,5 @@ serde_json = "1"
 # The same conversation repeated through the real door, the way the app
 # wires door and server together.
 kalsa-door = { path = "../kalsa-door" }
+# The engine key the door is built with, named where it is owned.
+kalsa-supervisor = { path = "../kalsa-supervisor" }

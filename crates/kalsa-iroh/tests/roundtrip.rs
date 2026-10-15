@@ -129,7 +129,7 @@ async fn the_full_loop_carries_http_through_the_tunnel_and_the_door() {
         _upstream.1.port(),
         one_device(CREDENTIAL),
         1,
-        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
+        &kalsa_supervisor::EngineKey::mint().expect("the OS has randomness"),
     )
     .expect("door builds")
     .start()
@@ -199,7 +199,7 @@ async fn the_desk_lane_reaches_the_desk_and_the_lanes_never_cross() {
         _upstream.1.port(),
         one_device(CREDENTIAL),
         1,
-        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
+        &kalsa_supervisor::EngineKey::mint().expect("the OS has randomness"),
     )
     .expect("door builds")
     .start()
@@ -274,7 +274,7 @@ async fn a_desk_lane_with_no_desk_carries_nothing() {
         _upstream.1.port(),
         one_device(CREDENTIAL),
         1,
-        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
+        &kalsa_supervisor::EngineKey::mint().expect("the OS has randomness"),
     )
     .expect("door builds")
     .start()
@@ -345,7 +345,7 @@ async fn the_n0_road_carries_http_by_node_id_alone() {
         _upstream.1.port(),
         one_device(CREDENTIAL),
         1,
-        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
+        &kalsa_supervisor::EngineKey::mint().expect("the OS has randomness"),
     )
     .expect("door builds")
     .start()
