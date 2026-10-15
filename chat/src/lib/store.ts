@@ -266,6 +266,9 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
       ...(miniapp ? { miniapp } : {}),
       ...(mail ? { mail } : {}),
       ...(typeof r.mailShown === "number" && r.mailShown >= 0 ? { mailShown: Math.round(r.mailShown) } : {}),
+      // The refusal's code is how the screen words a failure; dropping it here
+      // would make a notice vanish on the next store write.
+      ...(typeof r.resultCode === "string" && r.resultCode !== "" ? { resultCode: r.resultCode } : {}),
     });
   }
   return runs.length > 0 ? { toolRuns: runs } : {};

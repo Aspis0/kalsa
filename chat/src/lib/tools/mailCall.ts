@@ -18,10 +18,12 @@ import * as lastList from "../mail/lastList";
 import { unsignedInteger } from "../mail/wholeNumber";
 import type { MailDraft, MailRecord, MailResponse } from "../mail/types";
 
-/** The words the model reads when a mail command did not run. English, like
-    every other refusal on the wire; the screen words its own from `is_error`. */
+/** What the model reads when a call did not run. English, like every other
+    refusal on the wire. The cause is already on the screen as Kalsa's own
+    notice, so the model is told to stop rather than left to invent a fix. */
 const INBOX = "INBOX";
 const NOT_MAIL = "No mail was shown: it is not set up, or the server could not be reached.";
+const ALREADY_TOLD = "Kalsa has already told the reader what failed; do not add advice or a fix.";
 const DAYS_NOT_WHOLE = "days must be a whole number of days.";
 const ID_NOT_WHOLE = "The mail id must be the whole number mail_list gave for that mail.";
 
@@ -59,12 +61,18 @@ async function call(command: string, args: Record<string, unknown>): Promise<Ans
   return { for_model: forModel, for_ui: r.for_ui, is_error: r.is_error === true };
 }
 
-/** What the model reads when a call did not run: the code the command rejected with,
-    or the sidecar's own fixed sentence for the refusal (never mail content). */
+/** The rejection's code, only when the screen has a cause to word: a call that
+    answered with prose has nothing for the notice card to say. */
+function codeOf(response: Answer): { code?: string } {
+  return response.code === undefined ? {} : { code: response.code };
+}
+
+/** What the model reads when a call did not run, in one line: the code the
+    command rejected with and the fact that the reader has been told. The
+    screen words the cause itself from `code`. */
 function failure(response: Answer): string {
-  if (response.code !== undefined) return `No mail was shown: the mail call failed (${response.code}).`;
-  const reason = (response.for_model[0] ?? "").slice(0, 120);
-  return reason === "" ? NOT_MAIL : `No mail was shown: ${reason}`;
+  const cause = response.code ?? (response.for_model[0] ?? "").slice(0, 120);
+  return `${cause === "" ? NOT_MAIL : `No mail was shown: ${cause}`} ${ALREADY_TOLD}`;
 }
 
 function listArgs(model: Record<string, unknown>): Built {
@@ -103,13 +111,13 @@ function draftArgs(model: Record<string, unknown>): Built {
  * is that bare UID, so a second folder would let one folder's id name another's
  * mail. One folder is the only way those ids mean what they say.
  */
-export async function runMailList(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; records: MailRecord[] }> {
+export async function runMailList(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; records: MailRecord[]; code?: string }> {
   const built = listArgs(model);
   if (!built.ok) return { text: built.text, ok: false, records: [] };
   const response = await call("brain_mail_list", built.args);
   const records = mailRecords(response.for_ui);
   lastList.remember(records);
-  if (response.is_error) return { text: failure(response), ok: false, records };
+  if (response.is_error) return { text: failure(response), ok: false, records, ...codeOf(response) };
   return { text: answerText(response) || NOT_MAIL, ok: true, records };
 }
 
@@ -119,6 +127,7 @@ export async function runMailRead(model: Record<string, unknown>): Promise<{
   ok: boolean;
   record: MailRecord | null;
   body: string;
+  code?: string;
 }> {
   const built = readArgs(model);
   if (!built.ok) return { text: built.text, ok: false, record: null, body: "" };
@@ -130,15 +139,16 @@ export async function runMailRead(model: Record<string, unknown>): Promise<{
     ok: !response.is_error,
     record,
     body: fencedBody(response.for_model),
+    ...(response.is_error ? codeOf(response) : {}),
   };
 }
 
 /** A reply as an object. The recipient came from the mail, never from the model. */
-export async function runMailDraft(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; draft: MailDraft | null }> {
+export async function runMailDraft(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; draft: MailDraft | null; code?: string }> {
   const built = draftArgs(model);
   if (!built.ok) return { text: built.text, ok: false, draft: null };
   const response = await call("brain_mail_draft", built.args);
-  if (response.is_error) return { text: failure(response), ok: false, draft: null };
+  if (response.is_error) return { text: failure(response), ok: false, draft: null, ...codeOf(response) };
   const r = object(response.for_ui);
   const to = typeof r.to === "string" ? r.to : "";
   if (to === "") return { text: NOT_MAIL, ok: false, draft: null };

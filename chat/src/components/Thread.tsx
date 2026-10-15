@@ -49,6 +49,8 @@ interface ThreadProps {
   mailDrafts: Drafts;
   onSaveMail: (replyToId: string, record: DraftRecord) => void;
   onComposeMail: (replyToId: string, body: string) => void;
+  /** A failed mail call offers the account page, where its own fix lives. */
+  onOpenMailSettings: () => void;
 }
 
 function errorCopy(
@@ -166,6 +168,7 @@ function AssistantRow({
   mailDrafts,
   onSaveMail,
   onComposeMail,
+  onOpenMailSettings,
 }: {
   message: ChatMessage;
   streaming: boolean;
@@ -186,6 +189,7 @@ function AssistantRow({
   mailDrafts: Drafts;
   onSaveMail: (replyToId: string, record: DraftRecord) => void;
   onComposeMail: (replyToId: string, body: string) => void;
+  onOpenMailSettings: () => void;
 }) {
   const { table, tag } = useLanguage();
   const t = table.thread;
@@ -247,6 +251,7 @@ function AssistantRow({
         drafts={mailDrafts}
         onSave={onSaveMail}
         onComposeMail={onComposeMail}
+        onOpenMailSettings={onOpenMailSettings}
       />
         {message.stopped && failedHere === null ? <p className="row-note">{t.stoppedEarly}</p> : null}
         {showNoAnswer ? (
@@ -307,6 +312,7 @@ export function Thread({
   mailDrafts,
   onSaveMail,
   onComposeMail,
+  onOpenMailSettings,
 }: ThreadProps) {
   const { table, tag } = useLanguage();
   const { ref: scrollRef, following, toBottom } = useStickToBottom();
@@ -350,6 +356,7 @@ export function Thread({
                 mailDrafts={mailDrafts}
                 onSaveMail={onSaveMail}
                 onComposeMail={onComposeMail}
+                onOpenMailSettings={onOpenMailSettings}
               />
             ),
           )}

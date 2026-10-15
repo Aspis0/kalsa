@@ -455,6 +455,45 @@ globalThis.__mailStubOverride = async (command) => {
 };
 const bare = await app.runMailList({ days: 1 });
 check("a string rejection is named by a code and its values are not echoed", bare.text.includes("mail.bad_arguments") && !bare.text.includes("secret-query"), bare.text);
+/* ------------------------------- a failure is Kalsa's notice, not the model's prose */
+
+/** The live bug: the tool answered with a code, the model never saw the cause,
+    and it invented one ("contatta il supporto", "riavvia il dispositivo"). The
+    code leaves the call, the thread words it, the model is told to stop. */
+globalThis.__mailStubOverride = async (command) => {
+  if (command === "brain_mail_list") throw { code: "mail.keychain" };
+  return undefined;
+};
+const refusedCall = await app.runMailList({ days: 1 });
+globalThis.__mailStubOverride = null;
+equal("the cause travels out on the run", refusedCall.code, "mail.keychain");
+check("the model's answer is one line", !refusedCall.text.includes("\n"), refusedCall.text);
+check("the model is told the reader already has the cause", refusedCall.text.includes("do not add advice"), refusedCall.text);
+check("and it is told the code, not to guess one", refusedCall.text.includes("mail.keychain"), refusedCall.text);
+
+const CAUSES = [
+  ["mail.keychain", "keychain", false],
+  ["mail.not_configured", "noAccount", true],
+  ["mail.invalid_account", "refused", true],
+  ["mail.server_gone", "unreachable", false],
+  ["mail.failed", "unreachable", false],
+  ["mail.not_approved", "program", false],
+  ["mail.program_changed", "program", false],
+];
+for (const [code, kind, inSettings] of CAUSES) {
+  const why = app.mailFailure(code);
+  check(`${code} is ${kind}, ${inSettings ? "fixable in Settings" : "nothing to open"}`, why !== null && why.kind === kind && why.inSettings === inSettings, JSON.stringify(why));
+}
+check("a code with no notice of its own draws none", app.mailFailure("web.search_failed") === null);
+check("a call that carried no code draws none", app.mailFailure(undefined) === null);
+
+const IT = app.ITALIAN_MAIL.failure;
+const KINDS = ["keychain", "noAccount", "refused", "unreachable", "program"];
+check("every cause has its own Italian sentence", new Set(KINDS.map((kind) => IT[kind])).size === KINDS.length && KINDS.every((kind) => IT[kind].length > 20));
+check("the notice has a title and a way into Settings", IT.title.length > 0 && IT.openSettings.length > 0);
+check("no cause offers the advice the model invented", KINDS.every((kind) => !/supporto|riavvia|restart/i.test(IT[kind])));
+check("the same sentence is not repeated as English", new Set([app.ENGLISH_MAIL.failure.keychain, IT.keychain]).size === 2);
+
 globalThis.__mailStubOverride = null;
 equal("a string day count is coerced and the call runs", (await app.runMailList({ days: "2" })).ok, true);
 equal("a fractional day count is refused before any call", (await app.runMailList({ days: 1.5 })).ok, false);

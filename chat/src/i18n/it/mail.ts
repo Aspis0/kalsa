@@ -111,6 +111,17 @@ export const MAIL = {
       "payment_urgency_new_sender": "Mittente nuovo chiede un pagamento",
       "hidden_text": "Testo nascosto",
     } as Record<string, string>,
+  // Una chiamata che è fallita: la notizia di Kalsa, al posto di un rimedio
+  // che il modello avrebbe solo indovinato.
+  failure: {
+    title: "Kalsa non è riuscita a leggere la tua posta",
+    keychain: "macOS ha chiesto la password del Mac per leggere la password della posta. Riprova e, quando compare la richiesta, scegli «Consenti sempre».",
+    noAccount: "Nessun account di posta collegato.",
+    refused: "Il server ha rifiutato la password.",
+    unreachable: "Il server della posta non risponde. Riprova tra poco.",
+    program: "Kalsa non ha avviato il programma della posta perché non è quello previsto.",
+    openSettings: "Apri le impostazioni della Mail",
+  },
   sendErrors: {
     "mail.send_not_configured": "La mail non è configurata. Aggiungi un account in Impostazioni → Mail.",
     "mail.send_no_recipient": "Quella mail non ha un indirizzo a cui rispondere.",

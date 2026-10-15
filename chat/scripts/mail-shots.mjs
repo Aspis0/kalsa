@@ -149,7 +149,12 @@ function installMailStub(config) {
         if (command === "brain_telemetry_status") return { enabled: false, noticeSeen: true };
         if (command === "brain_capability") return { kind: "unmeasured", chosen: true, chosen_model: config.model };
         if (command === "brain_window_hidden") return false;
-        if (command === "brain_mail_list") return mail.list;
+        if (command === "brain_mail_list") {
+          // A mailbox that will not answer at all: the card the thread draws
+          // is the cause, not whatever the model says about it.
+          if (config.failList) throw { code: config.failList };
+          return mail.list;
+        }
         if (command === "brain_mail_read") return mail.reads[String(inner(args).id)] ?? failed;
         if (command === "brain_mail_draft") {
           const named = mail.drafts[String(inner(args).reply_to_id)];
@@ -203,6 +208,7 @@ async function seed(page, theme, opts = {}) {
     model: "Alibaba Qwen 3.6",
     appVersion: APP_VERSION,
     failTest: opts.failTest === true,
+    failList: opts.failList ?? null,
   });
 }
 
@@ -337,6 +343,53 @@ async function openMailSettings(page) {
   await page.waitForSelector(".mail-field", { timeout: 15000 });
 }
 
+/** One turn from the composer, asked for mail that will not come. */
+async function ask(page, theme, failList) {
+  await page.locator('.rail-item[data-surface="chat"]').click();
+  const box = page.locator(".composer-input");
+  await box.waitFor({ timeout: 15000 });
+  await box.fill("Fammi vedere le mail importanti di oggi");
+  await box.press("Enter");
+  await page.waitForSelector(".mail-failure", { timeout: 30000 });
+  check(`${theme}: the notice names the code the command answered with`, failList !== null);
+}
+
+/** 21 — a mailbox that will not answer: the thread says the cause Kalsa
+    knows, and the model is not left to invent one. Its own pass, because the
+    cards and the draft run before it cannot reach that step. */
+async function shootMailFailure(browser) {
+  const viewport = { width: WINDOW.width, height: 1280 };
+  for (const theme of ["light", "dark"]) {
+    const suffix = theme === "dark" ? "-dark" : "";
+
+    const broken = await browser.newPage({ viewport });
+    await seed(broken, theme, { account: null, failList: "mail.keychain" });
+    await broken.goto(APP);
+    await broken.waitForSelector(".rail", { timeout: 20000 });
+    await ask(broken, theme, "mail.keychain");
+    await mustSee(broken, "macOS ha chiesto la password del Mac", `${theme}: the notice is the real cause`);
+    await mustSee(broken, "Consenti sempre", `${theme}: and it says the one action`);
+    check(`${theme}: the keychain asks for no page`, (await broken.locator(".mail-failure-go").count()) === 0);
+    check(`${theme}: no card is drawn for a call that failed`, (await broken.locator(".mail-card").count()) === 0);
+    check(`${theme}: the model's advice is not what the card says`, !(await broken.locator(".mail-failure").innerText()).includes("supporto"));
+    await shot(broken, `21-mail-error${suffix}`);
+    await broken.close();
+
+    /* A cause whose fix is an account: the notice offers the way there, and
+       it lands on the page it names. */
+    const noAccount = await browser.newPage({ viewport });
+    await seed(noAccount, theme, { account: null, failList: "mail.not_configured" });
+    await noAccount.goto(APP);
+    await noAccount.waitForSelector(".rail", { timeout: 20000 });
+    await ask(noAccount, theme, "mail.not_configured");
+    await mustSee(noAccount, "Nessun account di posta collegato.", `${theme}: no account says so in one line`);
+    await noAccount.locator(".mail-failure-go").click();
+    await noAccount.waitForSelector(".mail-field", { timeout: 15000 });
+    await mustSee(noAccount, "Indirizzo email", `${theme}: its button opens the account page`);
+    await noAccount.close();
+  }
+}
+
 async function run() {
   mkdirSync(OUT, { recursive: true });
   const vite = spawn(
@@ -365,6 +418,10 @@ async function run() {
   try {
     if (process.argv[2] === "settings") {
       await shootSettings(browser);
+      return;
+    }
+    if (process.argv[2] === "failure") {
+      await shootMailFailure(browser);
       return;
     }
     for (const theme of ["light", "dark"]) {
@@ -487,6 +544,7 @@ async function run() {
         await mustSee(page, "Fattura n. 104", "light: the three subjects are listed");
         await shot(page, "13-settings-mail");
       }
+
       await page.close();
     }
   } catch (err) {

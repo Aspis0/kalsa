@@ -110,6 +110,16 @@ export const MAIL = {
       "payment_urgency_new_sender": "新来的发件人催你付款",
       "hidden_text": "藏着看不见的字",
     } as Record<string, string>,
+  // 一次失败的邮件调用：这是 Kalsa 自己的说明，而不是模型只能靠猜的修复方法。
+  failure: {
+    title: "Kalsa 无法读取你的邮件",
+    keychain: "macOS 要求输入 Mac 密码才能读取邮箱密码。请重试，出现提示时选择「始终允许」。",
+    noAccount: "尚未连接邮箱账户。",
+    refused: "服务器拒绝了密码。",
+    unreachable: "邮箱服务器没有回应，请稍后再试。",
+    program: "Kalsa 没有启动邮件程序，因为它不是预期的那个程序。",
+    openSettings: "打开邮件设置",
+  },
   sendErrors: {
     "mail.send_not_configured": "邮件还没有设置。请在设置 → 邮件里添加账号。",
     "mail.send_no_recipient": "这封邮件没有可回复的地址。",

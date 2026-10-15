@@ -419,3 +419,41 @@
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* A call that did not run: Kalsa's own cause, where the cards would have been. */
+.mail-failure {
+  padding: 12px 14px;
+  margin: 0 0 12px;
+  background: var(--card);
+  border: 1px solid var(--warn-face);
+  border-radius: var(--radius);
+}
+
+.mail-failure-head {
+  display: flex;
+  margin: 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--warn-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.mail-failure-cause {
+  margin: 6px 0 0;
+  color: var(--tx2);
+  font-size: 13.5px;
+  line-height: 19px;
+}
+
+.mail-failure-go {
+  padding: 0;
+  margin: 8px 0 0;
+  color: var(--ac);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 13.5px;
+  text-decoration: underline;
+  cursor: pointer;
+}

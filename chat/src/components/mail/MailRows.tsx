@@ -2,6 +2,9 @@ import { useLanguage } from "../../i18n/useLanguage";
 import type { DraftRecord, Drafts, SentTo } from "../../lib/mail/drafts";
 import type { MailCardItem } from "../../lib/mail/types";
 import { MailCardsView } from "./MailCards";
+import { MailFailureCard } from "./MailFailureCard";
+import { mailFailure } from "../../lib/mail/failure";
+import type { MailFailure } from "../../lib/mail/failure";
 import type { ToolRun } from "../../lib/types";
 import { MAIL_TOOLS } from "../../lib/tools/definitions";
 import type { PendingSend } from "../../lib/mail/pending";
@@ -24,6 +27,7 @@ export function MailRows({
   drafts,
   onSave,
   onComposeMail,
+  onOpenMailSettings,
 }: {
   runs: ToolRun[];
   /** The card the Mail tab is showing, so the thread can mark it. */
@@ -35,14 +39,25 @@ export function MailRows({
   drafts: Drafts;
   onSave: (replyToId: string, record: DraftRecord) => void;
   onComposeMail: (replyToId: string, body: string) => void;
+  onOpenMailSettings: () => void;
 }) {
   const { table } = useLanguage();
   const t = table.mail;
-  const drawn = runs.filter((run) => run.mail !== undefined);
+  // A call that failed has a cause to say; it drew no cards, so it shows the
+  // notice in their place.
+  const notices = runs
+    .filter((run) => NAMES.has(run.name))
+    .map((run) => ({ id: run.id, why: mailFailure(run.resultCode) }))
+    .filter((entry): entry is { id: string; why: MailFailure } => entry.why !== null);
+  const told = new Set(notices.map((entry) => entry.id));
+  const drawn = runs.filter((run) => run.mail !== undefined && !told.has(run.id));
   const stubs = runs.filter((run) => run.mail === undefined && run.mailShown !== undefined);
-  if (drawn.length === 0 && stubs.length === 0) return null;
+  if (notices.length === 0 && drawn.length === 0 && stubs.length === 0) return null;
   return (
     <>
+      {notices.map((entry) => (
+        <MailFailureCard key={entry.id} failure={entry.why} onOpenSettings={onOpenMailSettings} />
+      ))}
       {stubs.map((run) => (
         <p className="mail-stub" key={run.id}>
           {t.shownCount(run.mailShown as number)}

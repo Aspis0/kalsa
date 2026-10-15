@@ -71,6 +71,7 @@ export async function loadApp() {
         export { runMailShow } from "../src/lib/tools/mailShow.ts";
         export { sendReply } from "../src/lib/mail/send.ts";
         export { accountEmail, rememberAccount } from "../src/lib/mail/account.ts";
+        export { mailFailure } from "../src/lib/mail/failure.ts";
         export { runMailList, runMailRead, runMailDraft } from "../src/lib/tools/mailCall.ts";
         export { draftFor, withDraft, sentToFor, withSent } from "../src/lib/mail/drafts.ts";
         export { pendingFor, withBody } from "../src/lib/mail/drafts.ts";

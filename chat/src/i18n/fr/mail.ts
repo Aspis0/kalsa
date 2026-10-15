@@ -111,6 +111,17 @@ export const MAIL = {
       "payment_urgency_new_sender": "Un expéditeur inconnu demande un paiement",
       "hidden_text": "Texte caché",
     } as Record<string, string>,
+  // Un appel qui a échoué : l'avis de Kalsa, à la place d'un correctif que le
+  // modèle aurait seulement deviné.
+  failure: {
+    title: "Kalsa n'a pas pu lire tes e-mails",
+    keychain: "macOS a demandé le mot de passe du Mac pour lire celui de la messagerie. Réessaie et, quand la demande s'affiche, choisis « Toujours autoriser ».",
+    noAccount: "Aucun compte de messagerie n'est connecté.",
+    refused: "Le serveur a refusé le mot de passe.",
+    unreachable: "Le serveur de messagerie ne répond pas. Réessaie dans un instant.",
+    program: "Kalsa n'a pas lancé le programme de messagerie parce que ce n'est pas celui prévu.",
+    openSettings: "Ouvrir les réglages Mail",
+  },
   sendErrors: {
     "mail.send_not_configured": "Le mail n'est pas configuré. Ajoute un compte dans Réglages → Mail.",
     "mail.send_no_recipient": "Ce mail n'a aucune adresse de réponse.",

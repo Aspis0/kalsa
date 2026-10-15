@@ -175,6 +175,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
               mailDrafts={mailDrafts}
               onSaveMail={saveMailDraft}
               onComposeMail={editDraft}
+              onOpenMailSettings={() => openSurface("mail")}
             />
           )}
           {attachStatus ? (

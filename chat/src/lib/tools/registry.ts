@@ -107,15 +107,20 @@ export async function executeToolCall(
     }
     if (name === "mail_list") {
       const listed = await runMailList(record);
-      return { text: listed.text, ok: listed.ok };
+      return { text: listed.text, ok: listed.ok, ...(listed.code ? { resultCode: listed.code } : {}) };
     }
     if (name === "mail_read") {
       const read = await runMailRead(record);
-      return { text: read.text, ok: read.ok };
+      return { text: read.text, ok: read.ok, ...(read.code ? { resultCode: read.code } : {}) };
     }
     if (name === "mail_draft") {
       const drafted = await runMailDraft(record);
-      return { text: drafted.text, ok: drafted.ok, ...(drafted.draft ? { mail: drafted.draft } : {}) };
+      return {
+        text: drafted.text,
+        ok: drafted.ok,
+        ...(drafted.code ? { resultCode: drafted.code } : {}),
+        ...(drafted.draft ? { mail: drafted.draft } : {}),
+      };
     }
     if (name === "web_search") {
       const query = typeof record.query === "string" ? record.query.trim() : "";

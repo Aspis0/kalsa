@@ -120,6 +120,17 @@ export const MAIL = {
     payment_urgency_new_sender: "New sender wants a payment, with a deadline",
     hidden_text: "Hidden text",
   } as Record<string, string>,
+  // A mail call that failed: Kalsa's own notice, in place of a fix the model
+  // would only guess at.
+  failure: {
+    title: "Kalsa could not read your mail",
+    keychain: "macOS asked for the Mac password to read the mail password. Try again and, when the request appears, choose “Always Allow”.",
+    noAccount: "No mail account is connected.",
+    refused: "The server refused the password.",
+    unreachable: "The mail server is not answering. Try again shortly.",
+    program: "Kalsa did not start the mail program because it is not the expected one.",
+    openSettings: "Open the mail settings",
+  },
   sendErrors: {
     "mail.send_not_configured": "Mail isn't set up. Add an account in Settings → Mail.",
     "mail.send_no_recipient": "That mail has no address to reply to.",
