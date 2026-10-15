@@ -137,3 +137,7 @@ heat is meaningless.
 - `archived/ALIVE-2026-09-full.md`: diary to 2026-09-20. `archived/PLAN-2026-10-09-full.md` /
   `archived/PLAN-2026-09-full.md`: the PLAN archives.
 - Current state and next steps: `PLAN.md` (living). Current gate statuses: `PLAN.md`, "Gates and dates".
+- `scratchpad/agents/gpu-layers-history/`: 2026-10-15 audit of the "GPU at several layer counts"
+  history, four independent read-only sweeps (`SCOPE-A/B/C/D.md`, 347 lines) integrated into
+  `VERDICT.md`. Reading it before arguing about the Xiaomi `NoFit`: per-layer MEMORY exists only
+  for the S23, per-layer SPEED only for the Xiaomi, and the two were never measured together.

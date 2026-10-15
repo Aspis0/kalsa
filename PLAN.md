@@ -156,6 +156,28 @@ One weight copy read by NPU, GPU and CPU; the governor hops decode between legs.
   Xiaomi load. Enabling it = add Adreno 750 / E031.45 to the engine's measured gate (correctness
   evidence: cells 72, 74), re-vendor, then the row. The NPU voltage-corner knob
   (engine `6e06ce5a1`) stays lab-only, not wired into the governor.
+- **Partial layer offload — evidence audit (2026-10-15).** The "GPU at several layer counts"
+  history exists but in two halves that never met: MEMORY per ngl was measured **only on the
+  S23** (`q44-ngl-sweep-mem`, ngl {0,7,13,19,99}, 1 Hz meminfo/smaps, `ALIVE-2026-09-full.md:449`,
+  k not constant → `800 MiB + 1.05×bytes`), and SPEED per ngl **only on the Xiaomi**
+  (`results/gpu_prefill_recheck_xiaomi/report.md:106-109`, 53.8 / 89.5 / 200.3 / 216.7 t/s, with
+  **zero** memory instrumentation in ~286 artifacts). The q44 row itself says the constants
+  "need a second model/device before shipping"; that was never discharged, and today's
+  `NoFit` on the Xiaomi is decided by the S23-fitted constant
+  (`gpufit-drop-memory-gate/REPORT.md:120`). Reframing, because partial offload was **already
+  rejected on speed on this phone** (`report.md:178`: "ngl 8 ≈ CPU … Full offload is the right
+  product setting"): the only useful outcome of loosening the gate is reaching **full** offload
+  (216.7 t/s vs 109.4 s measured today), so the question is "recover full-GPU prefill on the
+  Xiaomi", not "make NoFit smarter" / "ship partial offload". Shortfall today is 380 MiB
+  (12.6 %); force-stopping the app lifted MemAvailable ~3.65 → ~5 GB on this same phone
+  (`analysis/XIAOMI-QWEN-FITGATE-…-2026-09-20.md:80`), i.e. 3.5× the shortfall — so the first
+  step is a cold-process re-run, not a constant re-fit. Closed option: a swap-aware gate was
+  explicitly rejected (same file `:82-83`). Caution: full-GPU offload of the 17.25B GGUF
+  **kernel-rebooted this phone** with 6.7 GB free (`q16-xiaomi/REPORT.md:338,400,417`,
+  FAIL-HARD, do not retry). Two traps: "half-offload is NEVER right" is about the MoE
+  trunk/experts split, not layer counts; and `NoFit` can also mean unknown SoC, not low RAM
+  (`PLAN-2026-10-09-full.md:958-959`). Full verdict + verification ledger:
+  `scratchpad/agents/gpu-layers-history/VERDICT.md` (scopes A-D, 347 lines).
 
 ### Engine and upstream
 
