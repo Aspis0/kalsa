@@ -97,10 +97,16 @@ Tre revisioni ostili di luna, un modello diverso da chi ha scritto il codice:
 - 2ª: 0 P0, 3 P1, 6 P2, tutti corretti;
 - 3ª: 0 P0, 0 P1, 7 P2.
 
-Pubblicato su **brain** fino a 6ce1646a (28 commit). Nessun tag, nessuna release, main non toccato. Ultima passata sui P2 rimasti in corso:
-- la parte prima della @ dell'indirizzo non va più resa minuscola;
-- un oggetto con un a capo non deve poter aggiungere intestazioni alla mail;
-- piccoli difetti della pagina Posta.
+Pubblicato su **brain** fino a 0b97e60b. Nessun tag, nessuna release, main non toccato. Ultima passata sui P2 rimasti, fatta:
+- b3640bf0: la parte prima della @ dell'indirizzo non viene più resa minuscola; un oggetto con un a capo non può aggiungere intestazioni alla mail;
+- 5611e966: piccoli difetti della pagina Posta corretti.
+
+Queste ultime due correzioni non sono ancora state provate dal vivo.
+
+## Cosa serve da te stamattina
+1. **Portachiavi**: decidere A, B o C (vedi sopra).
+2. **Prova con la tua Gmail vera**: ricostruisco la tua app di prova all'ultimo commit. Alla prima lettura della posta macOS ti chiederà la password del Mac, una volta: «Consenti sempre». Poi provo lista, bozza e invio, solo verso aspis.launcher@gmail.com.
+3. **Due bozze nello stesso turno**: mostrarne una sola?
 
 ## Incidenti miei stanotte
 - Due volte i tasti che mandavo alla versione di prova sono finiti in un'altra finestra comparsa all'improvviso. La prima volta il Finder ha aperto la rinomina di "Whole Body esg-yki Results": annullata, nome intatto, verificato su disco. La seconda volta il documento "reply5" di PubVia, aperto da un'altra sessione: l'indirizzo del laboratorio è finito nel testo, l'ho tolto subito con un Annulla, il testo è tornato "chemotherapy" e non era stato salvato. Da allora ogni tasto parte solo se in primo piano c'è la Kalsa di prova.
