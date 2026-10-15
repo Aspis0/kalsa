@@ -17,6 +17,11 @@ import { chromium } from "@playwright/test";
 import { APP_VERSION } from "./lib/brain-stub.mjs";
 import { HOSTILE_SUBJECT, MAILBOX, SENTENCE, SHOW, mailFixture } from "./lib/mail-mock.mjs";
 
+/** The cards a list draws: every mail but the newsletters, which stay a count
+    under the cards. Written off the mailbox so the shots cannot rot into a
+    number the fixture no longer has. */
+const CARDED = MAILBOX.filter((mail) => mail.labels?.label !== "bulk").length;
+
 const CHAT_DIR = fileURLToPath(new URL("..", import.meta.url));
 const OUT = process.env.MAIL_SHOTS_OUT ?? "/tmp/kalsa-mail-ux";
 // The owner's dev server on 1420 is not ours: this run brings its own and
@@ -607,8 +612,8 @@ async function shootWeakModel(browser) {
     await page.goto(APP);
     await page.waitForSelector(".rail", { timeout: 20000 });
     await askForMail(page);
-    await page.locator(".mail-card").nth(8).waitFor({ timeout: 15000 });
-    check(`${theme}: every listed mail is a card, with no mail_show`, (await page.locator(".mail-card").count()) === 9, `${await page.locator(".mail-card").count()} cards`);
+    await page.locator(".mail-card").nth(CARDED - 1).waitFor({ timeout: 15000 });
+    check(`${theme}: every mail but the newsletters is a card, with no mail_show`, (await page.locator(".mail-card").count()) === CARDED, `${await page.locator(".mail-card").count()} cards`);
     check(`${theme}: and they are the list's own, once`, (await page.locator(".mail-turn").count()) === 1);
     await mustSee(page, "John Smith", `${theme}: a card carries the sender the list named`);
     check(`${theme}: the model never had to write a gist`, (await page.locator(".mail-card .mail-gist").count()) === 0);
@@ -730,7 +735,7 @@ async function run() {
       await mustSee(page, SENTENCE, `${theme}: the assistant's one sentence`);
       await mustSee(page, "Sospetta", `${theme}: the badge on the card that carries one`);
       await mustSee(page, "newsletter", `${theme}: the line under the cards`);
-      check(`${theme}: every listed mail is a card`, (await page.locator(".mail-card").count()) === 9, `${await page.locator(".mail-card").count()} cards`);
+      check(`${theme}: every mail but the newsletters is a card`, (await page.locator(".mail-card").count()) === CARDED, `${await page.locator(".mail-card").count()} cards`);
       check(`${theme}: the list is drawn once, not beside the model's set`, (await page.locator(".mail-turn").count()) === 1);
       await mustSee(page, "Vuole spostare l'incontro", `${theme}: the model's line landed on the card it named`);
       check(

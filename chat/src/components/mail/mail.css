@@ -173,6 +173,30 @@
   font-size: 13px;
 }
 
+/* What is left of the list past the cards drawn. It reveals, it does not open:
+   the Mail tab shows one mail and never a list. */
+.mail-more {
+  margin: 10px 0 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--tx2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mail-more:hover {
+  color: var(--tx);
+  text-decoration: underline;
+}
+
+.mail-more:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .mail-careful {
   display: flex;
   margin: 8px 0 0;

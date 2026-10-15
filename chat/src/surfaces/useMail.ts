@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLanguage } from "../i18n/useLanguage";
 import { runMailRead } from "../lib/tools/mailCall";
 import { withBody, withDraft, withSent } from "../lib/mail/drafts";
@@ -19,6 +19,12 @@ export function useMail(compose: (text: string, mail?: { id: string; subject: st
   const { table } = useLanguage();
   const t = table.mail;
   const [open, setOpen] = useState<OpenMail | null>(null);
+  /** Whether a read is still running, so the pane can say so instead of
+      saying no mail is open. The read is the slowest call the mailbox makes. */
+  const [opening, setOpening] = useState(false);
+  /** Which read owns the pane. Two «Apri» in a row run one behind the other, and
+      the first answer must not land on top of the mail the second one opened. */
+  const reading = useRef(0);
   /** The words of every reply in hand, each under the mail it answers. The chat's
       draft card and the panel's box are two views of the same entry: one reply
       can never be shown under another mail's name. */
@@ -31,8 +37,13 @@ export function useMail(compose: (text: string, mail?: { id: string; subject: st
       the sidecar; the body from the fenced text, which is the only copy of it
       that ever leaves the server. */
   async function show(item: MailCardItem): Promise<void> {
+    const ticket = reading.current + 1;
+    reading.current = ticket;
+    setOpening(true);
     const answer = await runMailRead({ id: item.id });
-    setOpen({ item, record: answer.record, body: answer.body });
+    if (reading.current !== ticket) return;
+    setOpening(false);
+    setOpen({ item, record: answer.record, body: answer.body, code: answer.code });
   }
 
   /** "Scrivi una risposta: " in the composer: the person finishes the sentence.
@@ -71,6 +82,7 @@ export function useMail(compose: (text: string, mail?: { id: string; subject: st
 
   return {
     open,
+    opening,
     setOpen: changeMail,
     show,
     reply,

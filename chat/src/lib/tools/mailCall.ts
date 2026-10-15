@@ -64,9 +64,18 @@ async function call(command: string, args: Record<string, unknown>): Promise<Ans
 }
 
 /** The rejection's code, only when the screen has a cause to word: a call that
-    answered with prose has nothing for the notice card to say. */
+    answered with prose has nothing for the notice card to say. A host that
+    refuses a command throws its code; a sidecar that names its own cause puts
+    it in the structured answer, which arrives as a call that did run. */
 function codeOf(response: Answer): { code?: string } {
-  return response.code === undefined ? {} : { code: response.code };
+  const code = response.code ?? namedCode(response.for_ui);
+  return code === undefined ? {} : { code };
+}
+
+/** The code a failed call carries in its own answer, if it named one. */
+function namedCode(forUi: unknown): string | undefined {
+  const code = object(forUi).code;
+  return typeof code === "string" && code !== "" ? code : undefined;
 }
 
 /** What the model reads when a call did not run, in one line: the code the

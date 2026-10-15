@@ -19,6 +19,11 @@ import "./mail.css";
  * each — so a card cannot carry a sender or a subject the mailbox never had.
  */
 
+/** How many cards a turn draws before asking. A list can carry fifty mails and a
+    turn is not a page: past this the person decides to keep reading. The rest
+    are already in `mail.items`, so the button reveals rather than fetches. */
+const DRAWN = 8;
+
 export function MailCardsView({ mail, selected, onOpen, onDraft, onSend, sent, drafts, onSave, onCompose }: {
   mail: Mail;
   selected: string | null;
@@ -34,6 +39,7 @@ export function MailCardsView({ mail, selected, onOpen, onDraft, onSend, sent, d
   /** Modifica: the draft's words in the composer, where they can be rewritten. */
   onCompose: (replyToId: string, body: string) => void;
 }) {
+  const [all, setAll] = useState(false);
   if (mail.kind === "draft") {
     return (
       <MailDraftCard
@@ -49,13 +55,20 @@ export function MailCardsView({ mail, selected, onOpen, onDraft, onSend, sent, d
   const { table } = useLanguage();
   const t = table.mail;
   if (mail.items.length === 0) return null;
+  const items = all ? mail.items : mail.items.slice(0, DRAWN);
+  const rest = mail.items.length - items.length;
   return (
     <div className="mail-turn">
       <div className="mail-cards">
-        {mail.items.map((item) => (
+        {items.map((item) => (
           <MailCard key={item.id} item={item} selected={selected === item.id} onOpen={onOpen} onDraft={onDraft} />
         ))}
       </div>
+      {rest > 0 ? (
+        <button type="button" className="mail-more" onClick={() => setAll(true)}>
+          {rest === 1 ? t.oneMoreMail : t.moreMail(rest)}
+        </button>
+      ) : null}
       {mail.bulk > 0 ? <p className="mail-bulk">{mail.bulk === 1 ? t.oneNewsletter : t.moreNewsletters(mail.bulk)}</p> : null}
       <p className="mail-careful">
         <Icon name="alert" size={14} />

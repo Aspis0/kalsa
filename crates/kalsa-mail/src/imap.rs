@@ -20,6 +20,11 @@ pub const READ_DEADLINE: Duration = Duration::from_secs(60);
 /// one failure the person can fix themselves, so the string is shared, not guessed.
 pub const LOGIN_REFUSED: &str = "login_refused";
 
+/// The structured code a read of an id no list of this session returned is answered
+/// with. The host has no Settings fix for this one — the mailbox is the fix, and the
+/// screen says so — so it is carried rather than left as the sentence alone.
+pub const NOT_LISTED: &str = "not_listed";
+
 /// Every failure is a fixed string. A mail server puts whatever it likes in a reply,
 /// including the login it has just seen, so no reply text is ever formatted.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

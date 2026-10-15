@@ -1199,6 +1199,7 @@ export function useChat(shell: ChatShell) {
     saveMiniappState,
     // Mail: the panel's mail, and what Apri and the draft buttons do.
     mailOpen: mail.open,
+    mailOpening: mail.opening,
     setMailOpen: mail.setOpen,
     openMail: mail.show,
     replyTo: mail.reply,

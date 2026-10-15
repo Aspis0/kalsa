@@ -1,7 +1,8 @@
 // The rule the whole mail path rests on, and the places a stranger's words
 // could leak: the model proposes ids, the code draws every other field from
-// the sidecar's own record; an id nobody sent draws nothing; and a card never
-// reaches localStorage, only its count does.
+// the sidecar's own record; an id nobody sent draws nothing; a newsletter is a
+// count and never a card; and a card never reaches localStorage, only its
+// count does.
 //
 // Pure: a stub door, a memory localStorage, no server.
 // Run: node scripts/mail-cards.mjs   (from chat/)
@@ -115,13 +116,29 @@ equal("a list record keeps every mail", app.mailRecords(LIST).length, 3);
     because the cards waited for a model that never called mail_show. The list
     draws them now, and the model is told the person already has them. */
 const listed = await app.runMailList({ days: 1 }, TURN);
-check("a list draws cards with no mail_show", listed.cards !== undefined && listed.cards.items.length === 3, JSON.stringify(listed.cards?.items.length));
-equal("a card is the record it came from", listed.cards.items.map((item) => item.subject), MAILS.map((mail) => mail.subject));
-equal("the badge is the code's, not the model's", listed.cards.items.filter((item) => item.labels.label === "bulk").length, 1);
+check("a list draws cards with no mail_show", listed.cards !== undefined && listed.cards.items.length === 2, JSON.stringify(listed.cards?.items.length));
+equal("a card is the record it came from", listed.cards.items.map((item) => item.subject), [MAILS[0].subject, MAILS[1].subject]);
+equal("a newsletter is never a card", listed.cards.items.filter((item) => item.labels.label === "bulk").length, 0);
 check("no model wrote a line on them yet", listed.cards.items.every((item) => item.gist === ""));
 check("the model is told not to list them again", listed.text.includes("Do not list them again"), listed.text.slice(0, 120));
 equal("an empty list draws no cards", app.cardsFrom([]).items.length, 0);
-equal("the list's order is kept", app.cardIds(app.cardsFrom(app.mailRecords(LIST))), MAILS.map((mail) => mail.id));
+equal("the list's order is kept", app.cardIds(app.cardsFrom(app.mailRecords(LIST))), [MAILS[0].id, MAILS[1].id]);
+
+/* ------------------------------------------------------------- a list, not a page */
+
+/** Twelve normal mails and three newsletters, as the sidecar answers it. How many
+    of these are drawn at once is the card list's own rule: what travels is the
+    whole list, so the rest are one press away rather than gone. */
+const MANY = [
+  ...Array.from({ length: 12 }, (_, at) => ({ ...MAILS[0], id: String(500 + at), subject: `Mail ${at}` })),
+  ...Array.from({ length: 3 }, (_, at) => ({ ...MAILS[2], id: String(700 + at), subject: `Newsletter ${at}` })),
+];
+const many = app.cardsFrom(MANY);
+equal("the wire carries every normal mail, not only the ones that fit", many.items.length, 12);
+equal("the newest mail is the first card", many.items[0].id, "500");
+equal("no newsletter among them became a card", many.items.filter((item) => item.labels.label === "bulk").length, 0);
+equal("the newsletters are still the code's count", many.bulk, 3);
+equal("a reload draws the same list", app.normalizeMail({ kind: "cards", items: many.items, bulk: many.bulk }).items.length, 12);
 
 /* ------------------------------------------------------- the fence, read back */
 

@@ -5910,6 +5910,49 @@ const tests = {
       mock.close();
     }
   },
+
+  // A list is a list, not a page: eight cards, the rest one press away, and a
+  // button that reveals rather than opens — the Mail tab shows one mail.
+  async mailreveal() {
+    const mock = listEndpoint();
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail di oggi");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+
+      check("mail: eight cards were drawn, not twelve", (await page.locator(".mail-card").count()) === 8, String(await page.locator(".mail-card").count()));
+      const more = await page.locator(".mail-more").innerText();
+      check("mail: the button names what is left", /4/.test(more), more);
+      const bulk = await page.locator(".mail-bulk").innerText();
+      check("mail: the newsletters are still only a count", bulk.includes("2"), bulk);
+
+      await page.locator(".mail-more").click();
+      await page.waitForTimeout(300);
+      check("mail: the rest are drawn inline", (await page.locator(".mail-card").count()) === 12, String(await page.locator(".mail-card").count()));
+      check("mail: the button has nothing left to say", (await page.locator(".mail-more").count()) === 0);
+      check("mail: and nothing else opened", (await page.locator(".mail-view").count()) === 0);
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
 };
 
 /** The endpoint a mail turn needs: list the mailbox, draw the cards, then say
@@ -6048,6 +6091,89 @@ const SHOW = [
   { id: "418", gist: "La fattura di ottobre scade il 25." },
   { id: "421", gist: "Si spaccia per Poste Italiane e chiede la password." },
 ];
+
+/** Twelve normal mails and two newsletters: more than one screenful of cards,
+    so the reveal has something to reveal. Newest first, like a real list. */
+const MAIL_REVEAL_BOX = [
+  ...Array.from({ length: 12 }, (_, at) => ({
+    id: `8${String(10 + at).padStart(2, "0")}`,
+    from: { name: `Persona ${at}`, address: `persona${at}@example.it` },
+    subject: `Mail numero ${at}`,
+    date: "Tue, 13 Oct 2026 10:00:00 +0000",
+    body: `Il corpo della mail numero ${at}.`,
+    labels: { label: "normal", reasons: [] },
+  })),
+  ...Array.from({ length: 2 }, (_, at) => ({
+    id: `9${String(20 + at).padStart(2, "0")}`,
+    from: { name: "Newsletter", address: "news@example.it" },
+    subject: `Newsletter numero ${at}`,
+    date: "Tue, 13 Oct 2026 09:00:00 +0000",
+    body: "Solo una newsletter.",
+    labels: { label: "bulk", reasons: ["bulk_header"] },
+  })),
+];
+
+function listFixture() {
+  const items = MAIL_REVEAL_BOX.map(MAIL_LIST_ITEM);
+  const reads = {};
+  for (const mail of MAIL_REVEAL_BOX) {
+    reads[mail.id] = {
+      for_model: MAIL_FENCE([["from", `${mail.from.name} <${mail.from.address}>`], ["subject", mail.subject], ["body", mail.body]]),
+      for_ui: { ...MAIL_LIST_ITEM(mail), thread_ids: [`<${mail.id}@mailbox.example.it>`], attachments: [] },
+      is_error: false,
+    };
+  }
+  return { list: { for_model: MAIL_FENCE([["folder", "INBOX"]]), for_ui: { folder: "INBOX", count: items.length, items }, is_error: false }, reads };
+}
+
+/** The model asks once for the list and stops. The cards under an answer are the
+    list's own, which is the flow the cap is about. */
+function listEndpoint() {
+  const piece = (delta, finish) =>
+    `data: ${JSON.stringify({
+      id: "chatcmpl-list",
+      object: "chat.completion.chunk",
+      created: 1,
+      model: "Alibaba Qwen 3.6",
+      choices: [{ index: 0, delta, finish_reason: finish ?? null }],
+    })}\n\n`;
+  const rounds = [
+    [
+      piece(
+        {
+          role: "assistant",
+          tool_calls: [{ index: 0, id: "c1", type: "function", function: { name: "mail_list", arguments: JSON.stringify({ days: 1 }) } }],
+        },
+        "tool_calls",
+      ),
+    ],
+    [piece({ role: "assistant", content: "Ecco la posta di oggi." }, "stop")],
+  ];
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, authorization",
+  };
+  let round = 0;
+  return createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      if (req.method === "OPTIONS") return void res.writeHead(204, cors).end();
+      if (req.url?.includes("/kalsa/chat/")) return void res.writeHead(204, cors).end();
+      if (!req.url?.includes("/chat/completions")) return void res.writeHead(404, cors).end();
+      try {
+        if (!JSON.parse(body).messages.some((m) => m.role === "tool")) round = 0;
+      } catch {
+        round = 0;
+      }
+      res.writeHead(200, { "content-type": "text/event-stream", ...cors });
+      for (const line of rounds[Math.min(round, rounds.length - 1)]) res.write(`${line}data: [DONE]\n\n`);
+      res.end();
+      round += 1;
+    });
+  });
+}
 
 /** The mailbox as plain data the page can index, because a node closure
     cannot cross into a browser page. */

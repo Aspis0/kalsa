@@ -4,7 +4,7 @@
 use crate::draft::Draft;
 use crate::fence::Fence;
 use crate::html_text;
-use crate::imap::{MailError, LOGIN_REFUSED};
+use crate::imap::{MailError, LOGIN_REFUSED, NOT_LISTED};
 use crate::invisible;
 use crate::label::language::Language;
 use crate::label::signals::{self, Signal};
@@ -207,12 +207,19 @@ pub fn error(message: &str) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(message.to_string())])
 }
 
-/// Only a refused login carries a code: it is the one failure the person fixes
-/// themselves. Every other failure is the plain sentence.
+/// Two failures carry a code, and the screen says what to do about each: a refused
+/// login is the one failure a person fixes in Settings, and a read of an id no list
+/// of this session returned is the one they fix by asking for the mailbox again.
+/// Every other failure is the plain sentence.
 pub fn failed(failure: MailError) -> CallToolResult {
     let mut result = error(failure.message());
-    if failure == MailError::Login {
-        result.structured_content = Some(json!({ "code": LOGIN_REFUSED }));
+    let code = match failure {
+        MailError::Login => Some(LOGIN_REFUSED),
+        MailError::NotListed => Some(NOT_LISTED),
+        _ => None,
+    };
+    if let Some(code) = code {
+        result.structured_content = Some(json!({ "code": code }));
     }
     result
 }
@@ -351,10 +358,15 @@ mod tests {
     }
 
     #[test]
-    fn a_refused_login_carries_its_code_and_no_other_failure_does() {
+    fn the_two_failures_a_person_can_act_on_carry_a_code_and_the_others_do_not() {
         let refused = failed(MailError::Login);
         assert_eq!(refused.is_error, Some(true));
         assert_eq!(refused.structured_content, Some(json!({ "code": LOGIN_REFUSED })));
+        // An id no list of this session returned: the mailbox is the fix, and the
+        // pane can only say so if the code reaches it.
+        let stale = failed(MailError::NotListed);
+        assert_eq!(stale.is_error, Some(true));
+        assert_eq!(stale.structured_content, Some(json!({ "code": NOT_LISTED })));
         let timed_out = failed(MailError::Timeout);
         assert_eq!(timed_out.is_error, Some(true));
         assert_eq!(timed_out.structured_content, None);

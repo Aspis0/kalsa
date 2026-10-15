@@ -13,6 +13,8 @@ export const MAIL = {
   download: "Save",
   moreNewsletters: (count: number) => `and ${count} newsletters`,
   oneNewsletter: "and 1 newsletter",
+  moreMail: (count: number) => `Show ${count} more mails`,
+  oneMoreMail: "Show 1 more mail",
   suspicious: "Suspicious",
   careful: "Kalsa can be wrong. Read the mail yourself before you act on it.",
   // What a reloaded chat has of a turn: the count, never the cards.
@@ -37,6 +39,8 @@ export const MAIL = {
   tab: "Mail",
   tabAria: "Mail panel",
   noMail: "No mail is open. Press Open on a mail card to read it here.",
+  openingMail: "Opening the mail…",
+  notListed: "That mail can't be opened because it's no longer in the list: ask Kalsa to list your mail again.",
   thread: "In this conversation",
   oneMessage: "1 other message",
   otherMessages: (count: number) => `${count} other messages`,

@@ -73,6 +73,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
     panelOpen,
     setPanelOpen,
     mailOpen,
+    mailOpening,
     setMailOpen,
     openMail,
     replyTo,
@@ -254,6 +255,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
           }}
           onAttachFile={(path, name) => void attachFromDisk(path, name)}
           mail={mailOpen}
+          mailOpening={mailOpening}
           mailDrafts={mailDrafts}
           mailSent={mailSent}
           onMailDraft={editDraft}

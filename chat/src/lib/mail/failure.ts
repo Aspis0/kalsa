@@ -10,6 +10,11 @@
 
 export type MailFailureKind = "keychain" | "noAccount" | "refused" | "unreachable" | "program" | "storage" | "unknown";
 
+/** The sidecar's own code for a read of an id no list of this session returned
+    (`imap::NOT_LISTED`). It is not in the table below because there is nothing to
+    fix in Settings: the mailbox was reloaded, and the person asks for it again. */
+export const NOT_LISTED = "not_listed";
+
 export interface MailFailure {
   kind: MailFailureKind;
   /** Whether the person can fix it in Settings → Mail, which the card offers. */

@@ -9,6 +9,11 @@ import type { Mail, MailCardItem, MailDraft, MailFrom, MailLabels } from "./type
 
 const LABELS = new Set(["normal", "suspicious", "bulk"]);
 
+/** The sidecar answers a list with at most this many mails (`mcp::MAX_ITEMS`), so
+    nothing a turn drew is dropped here: the cards a reload shows are the ones the
+    list drew, and the reveal button counts the same mails either way. */
+const MAX_ITEMS = 50;
+
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 }
@@ -65,7 +70,7 @@ export function normalizeMail(value: unknown): Mail | null {
   if (r === null) return null;
   if (r.kind === "draft") return draft(r);
   if (r.kind !== "cards" || !Array.isArray(r.items)) return null;
-  const items = r.items.slice(0, 40).map(card).filter((x): x is MailCardItem => x !== null);
+  const items = r.items.slice(0, MAX_ITEMS).map(card).filter((x): x is MailCardItem => x !== null);
   return {
     kind: "cards",
     items,

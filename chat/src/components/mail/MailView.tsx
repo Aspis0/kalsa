@@ -7,6 +7,7 @@ import { draftFor, pendingFor, sentToFor } from "../../lib/mail/drafts";
 import type { Drafts, SentTo } from "../../lib/mail/drafts";
 import type { PendingSend } from "../../lib/mail/pending";
 import { reasonItems } from "../../lib/mail/reasons";
+import { NOT_LISTED } from "../../lib/mail/failure";
 import type { MailCardItem, MailRecord } from "../../lib/mail/types";
 import { initials } from "./initials";
 import { stampFull, stampRelative } from "./mailTime";
@@ -25,10 +26,15 @@ export interface OpenMail {
   item: MailCardItem;
   record: MailRecord | null;
   body: string;
+  /** The sidecar's own cause for a read that answered with no body, when it named
+      one. A refused read is a sentence, never a blank. */
+  code?: string;
 }
 
-export function MailView({ open, onDraft, onReply, onAskDraft, onSend, drafts, sent }: {
+export function MailView({ open, opening, onDraft, onReply, onAskDraft, onSend, drafts, sent }: {
   open: OpenMail | null;
+  /** A read is running. The pane has nothing to draw of the mail until it lands. */
+  opening: boolean;
   onDraft: (body: string) => void;
   /** The person typed: only the words change, never the recipient. */
   onReply: (replyToId: string, body: string) => void;
@@ -55,6 +61,19 @@ export function MailView({ open, onDraft, onReply, onAskDraft, onSend, drafts, s
   // empty box, never the reply that was written for somebody else.
   const reply = draftFor(drafts, open?.item.id ?? "");
   const replyBox = useAutoSize(reply === null ? "" : reply.body);
+
+  // A read in flight is not an empty mailbox. Saying «no mail is open» while the
+  // «Apri» the person just pressed is still answering is what read as broken.
+  if (opening) {
+    return (
+      <div className="mail-view">
+        <p className="panel-empty">
+          <span className="tool-spin" aria-hidden="true" />
+          {t.openingMail}
+        </p>
+      </div>
+    );
+  }
 
   if (open === null) {
     return (
@@ -106,7 +125,11 @@ export function MailView({ open, onDraft, onReply, onAskDraft, onSend, drafts, s
         </div>
       ) : null}
 
-      <div className="mail-body">{body || preview}</div>
+      {open.code === NOT_LISTED ? (
+        <p className="panel-empty">{t.notListed}</p>
+      ) : (
+        <div className="mail-body">{body || preview}</div>
+      )}
 
       {/* The model's line when it wrote one, and the mail's own opening
           otherwise: the box never carries a summary nobody wrote. */}

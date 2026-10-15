@@ -32,6 +32,9 @@ interface PanelProps {
   /** The mail the cards opened beside the chat, the reply being written to it,
       and the way a draft leaves. */
   mail: OpenMail | null;
+  /** A mail being read, so the Mail tab is the one the press asked for while the
+      read is still running. */
+  mailOpening: boolean;
   mailDrafts: Drafts;
   mailSent: SentTo;
   onMailDraft: (body: string) => void;
@@ -65,6 +68,7 @@ export function Panel({
   onPin,
   onAttachFile,
   mail,
+  mailOpening,
   mailDrafts,
   mailSent,
   onMailDraft,
@@ -75,16 +79,15 @@ export function Panel({
 }: PanelProps) {
   // Attached is the default so an arriving attachment is the first thing
   // the panel shows — the behaviour the panel had before it grew a tab. A card
-  // that opened a mail arrives with one, and puts that in front instead.
+  // that opened a mail puts that in front instead, and it does so on the press:
+  // waiting for the answer left the person on «Attached» while they read.
   const { table } = useLanguage();
   const t = table.files;
   const m = table.mail;
   const [tab, setTab] = useState<"files" | "attached" | "mail">(mail !== null ? "mail" : "attached");
-  // The panel is already mounted when a card opens a mail, so the tab follows
-  // the arrival: Apri is one press, not two.
   useEffect(() => {
-    if (mail !== null) setTab("mail");
-  }, [mail]);
+    if (mail !== null || mailOpening) setTab("mail");
+  }, [mail, mailOpening]);
   // Pinned first: the documents that ride every message stand above the ones
   // riding only the next send.
   const active = attachments.filter((a) => a.active);
@@ -138,6 +141,7 @@ export function Panel({
         {tab === "mail" ? (
           <MailView
             open={mail}
+            opening={mailOpening}
             drafts={mailDrafts}
             sent={mailSent}
             onDraft={onMailDraft}

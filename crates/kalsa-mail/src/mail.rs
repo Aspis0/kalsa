@@ -100,6 +100,11 @@ fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedM
         Some(plain) if html.is_some() => !html_text::same_wording(plain, &scan.text),
         _ => false,
     };
+    // Both body paths land here, so the pane and the model read one shortened
+    // text. After `halves_disagree`, which asks whether the sender's two halves
+    // say the same thing and would otherwise disagree with itself over our own
+    // rendering; the rules that judge a link read `links_in`, not this.
+    let text = link::domains_only(&scan.text);
 
     ParsedMail {
         from_address: from
@@ -138,7 +143,7 @@ fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedM
             .and_then(|m| m.subject().map(str::to_string))
             .or_else(|| header(&headers, "subject").map(str::to_string))
             .unwrap_or_default(),
-        text: scan.text,
+        text,
         links: link::links_in(&body_source),
         body: body_source,
         hidden: scan.hidden || halves_disagree,
