@@ -89,23 +89,38 @@ and `LlamaService.ts:2537` and `:2669` both set `offloadedBytes: modelInfo.sizeB
 **2. The lane then adds the HTP copy on top of that.** `governorInputs.ts:38`
 `NPU_PREFILL_EXTRA_MIB = 219`, applied at `:264` whenever the lane is requested.
 
-**3. So lane-required >= gpu-required + 219.** Today's numbers, from
-`xiaomi-stage0-obs-aa789620/raw/harness.log:63-64` and the later refusal:
+**3. So lane-required >= gpu-required + 219.** Today's numbers, from `xiaomi-stage0-obs-aa789620/raw/harness.log:63-64` and
+`governor-nofit-prefill/REPORT.md:16,22`:
 
-| quantity | value | source |
+**Read the requirement as the LANE's, not the GPU's.** `buildGovernorPlanLog` already folds the
++219 into what it prints (`governorInputs.ts:273-274`,
+`required_mib_without_repack: roundMiB((withoutRepack?.requiredMiB ?? 0) + extraMiB)`), and it is
+keyed on the **pref**, not on the fit: `npu_lane` is documented as *"the effective pref ASKED for,
+not the resolved lane"* (`governorInputs.ts:279-282`). The init line prints `"npu_lane":"auto"`, the
+pref is a user setting and did not change between 11:06 and 14:35, so `extraMiB = 219` at both
+moments. `lanePrice` does not read available memory at all. **An earlier version of this table
+counted the 219 a second time; that was wrong and is corrected here.**
+
+| quantity | value | derivation |
 |---|---:|---|
 | `required_mib_with_repack` | 4905.12 | harness.log:63 |
-| `required_mib_without_repack` | 3385.06 | harness.log:63 |
-| implied `weightsMiB` (repack term) | **1520.06** | 4905.12 - 3385.06 |
-| `available_mib` at refusal | 3004.93 | the `NoFit` line |
-| GPU shortfall | **380.13** | 3385.06 - 3004.93 |
-| lane required (= gpu + 219) | 3604.06 | 3385.06 + 219 |
+| `required_mib_without_repack` | 3385.06 | harness.log:63 — **this is the lane, 219 included** |
+| implied `weightsMiB` | **1520.06** | 4905.12 - 3385.06; extraMiB and KV cancel |
+| `available_mib` at refusal | 3004.93 | `governor-nofit-prefill/REPORT.md:22` |
+| **lane shortfall** | **380.13** | 3385.06 - 3004.93 |
+| GPU required | **<= 3166.06** | 3385.06 - 219, and less again if the lane KV went q4 -> q8 |
+| GPU shortfall | **<= 161.13** | 3166.06 - 3004.93 |
 | GPU weight term charged to the lane | **2396.06** | 800 + 1.05 x 1520.06 |
-| lane required with that term removed | **1208.00** | 3604.06 - 2396.06 |
-| **headroom the lane would then have** | **+1796.93** | 3004.93 - 1208.00 |
+| lane required with that term removed | **989.00** | 3385.06 - 2396.06 |
+| **headroom the lane would then have** | **+2015.93** | 3004.93 - 989.00 |
 
 **The lane is today charged ~2396 MiB of GPU weight upload it does not have, and is refused for
-missing 599 MiB.** That is the bug, and it is not a gate problem.
+missing 380 MiB.** That is the bug, and it is not a gate problem.
+
+**Do not mix in the S23 numbers.** The `4358.70 / 2998.06` pair that appears in a `gpuFit` code
+comment (and `required_mib_with_repack 4518.12 / without 2998.06` in `governor-npu-prefill/DESIGN.md:28`)
+belong to a Galaxy S23 run, not this phone. They are a different device, a different model and a
+different date. They are not comparable to any row above.
 
 **Why the term should not apply.** The `800 + 1.05 x offloadedBytes` term prices the **Adreno**
 weight buffer. On a lane-only Hexagon load there is no GPU leg, so no such buffer is allocated —
@@ -121,14 +136,19 @@ GPU leg IS present.
 
 ### What still has to be measured before changing it
 
-The arithmetic above is arithmetic, not a measurement. The unmeasured question is the one the brain
-session asked: **what does one-copy on Hexagon actually allocate when the NPU is the only leg?** If
-the HTP path needs a device-side copy of its own on top of the host mapping, the `219` already
-covers it and the right change is to drop only the GPU term. If HTP also pulls a full second copy,
-the number moves again. Per `governor-npu-prefill/DESIGN.md:29` the measured HTP0 prefill buffer was
-**1525.87 MiB vs OpenCL 1307.20**, but that is a spike on a different device and model.
+The arithmetic above is arithmetic, not a measurement. Two unmeasured items, in order of leverage:
 
-**Until that is measured, do not change `lanePrice`.** Guessing here is how the q44 constants got
+1. **The 219 itself.** `NPU_PREFILL_EXTRA_MIB = 219` is a hardcoded constant
+   (`governorInputs.ts:38`). Its apparent origin is the spike delta **1525.87 - 1307.20 = 218.67**
+   (`governor-npu-prefill/DESIGN.md:29`) — on a different device and a different model. No
+   coordinator evidence either way.
+2. **What one-copy on Hexagon allocates when the NPU is the only leg.** The question the brain
+   session posed, and it is the one that decides the shape of the fix: does the HTP path need a
+   device-side copy of its own on top of the host mapping (in which case the 219 covers it and only
+   the GPU term should go), or does it pull a second full copy (in which case the number moves
+   again)?
+
+**Until both are measured, do not change `lanePrice`.** Guessing here is how the q44 constants got
 into trouble in the first place.
 
 ---
