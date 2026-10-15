@@ -107,7 +107,12 @@ export async function executeToolCall(
     }
     if (name === "mail_list") {
       const listed = await runMailList(record);
-      return { text: listed.text, ok: listed.ok, ...(listed.code ? { resultCode: listed.code } : {}) };
+      return {
+        text: listed.text,
+        ok: listed.ok,
+        ...(listed.code ? { resultCode: listed.code } : {}),
+        ...(listed.cards ? { mail: listed.cards } : {}),
+      };
     }
     if (name === "mail_read") {
       const read = await runMailRead(record);

@@ -115,6 +115,7 @@ export function messageTokens(message: ChatMessage): number {
     // The documents bound to this turn weigh what their rendered block
     // weighs — history, like the words they ride with.
     (message.docTokens ?? 0) +
+    (message.mailNote ? estTokens(message.mailNote) : 0) +
     (message.sentOn ? estTokens(sentLine(message.sentOn)) : 0)
   );
 }
@@ -591,7 +592,9 @@ function userWireContent(
   const videos = message.role === "user" ? (message.videos ?? []) : [];
   // The block sits before the words: the model reads what was attached, then
   // what was asked about it.
-  const block = turnDocBlock(docs);
+  // The model's own note for this turn rides first, and only on the wire.
+  const note = message.role === "user" && message.mailNote ? message.mailNote : "";
+  const block = note && docs.length > 0 ? `${note}\n\n${turnDocBlock(docs)}` : note ? note : turnDocBlock(docs);
   // The date a turn was sent rides after its words, as it was stored.
   const said =
     message.role === "user" && message.sentOn

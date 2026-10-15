@@ -35,6 +35,9 @@ export const MAIL = {
     "otherMessages": (count: number) => `还有 ${count} 条消息`,
     "attachments": "附件",
     "aiSummary": "AI 摘要",
+    "askDraft": (subject: string) => `给「${subject}」写一封回信。`,
+    "askDraftNote": (id: string) =>
+      `这封回信是给 id 为 ${id} 的邮件的。调用 mail_draft，reply_to_id 传 ${id}，并写下回信的内容。`,
     "makeDraft": "生成草稿",
     "generating": "正在写…",
     "noAttachments": "没有附件。",

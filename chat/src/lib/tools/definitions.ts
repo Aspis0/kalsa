@@ -142,7 +142,7 @@ export const MAIL_TOOLS: ToolDefinition[] = [
       parameters: {
         type: "object",
         properties: {
-          id: { type: "string", description: "The mail's id, as mail_list gave it." },
+          id: { type: "integer", description: "The mail's id, as mail_list gave it." },
         },
         required: ["id"],
       },
@@ -157,7 +157,7 @@ export const MAIL_TOOLS: ToolDefinition[] = [
       parameters: {
         type: "object",
         properties: {
-          reply_to_id: { type: "string", description: "The id of the mail being answered." },
+          reply_to_id: { type: "integer", description: "The id of the mail being answered." },
           body: { type: "string", description: "The words of the reply, as the person would write them." },
         },
         required: ["reply_to_id", "body"],
@@ -199,7 +199,7 @@ export function mailShowTool(language: Language): ToolDefinition {
             items: {
               type: "object",
               properties: {
-                id: { type: "string", description: "The mail's id, exactly as mail_list gave it." },
+                id: { type: "integer", description: "The mail's id, exactly as mail_list gave it." },
                 gist: { type: "string", description: "One short line about what this mail wants." },
               },
               required: ["id", "gist"],

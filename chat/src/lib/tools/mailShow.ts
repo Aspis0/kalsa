@@ -7,6 +7,7 @@
 
 import type { ToolOutcome } from "../chat";
 import * as lastList from "../mail/lastList";
+import { mailId } from "../mail/mailId";
 import type { MailCardItem } from "../mail/types";
 
 const NO_LIST = "mail_show: there is no list in this conversation. Call mail_list first.";
@@ -30,8 +31,8 @@ export function runMailShow(args: unknown): ToolOutcome {
   let dropped = 0;
   for (const proposed of items.slice(0, MAX_CARDS)) {
     const pair = proposed && typeof proposed === "object" ? (proposed as Record<string, unknown>) : {};
-    const id = typeof pair.id === "string" ? pair.id : "";
-    const record = id === "" ? null : lastList.find(id);
+    const id = mailId(pair.id);
+    const record = id === null ? null : lastList.find(id);
     if (record === null || seen.has(record.id)) {
       dropped += 1;
       continue;

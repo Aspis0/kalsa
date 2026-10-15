@@ -12,11 +12,12 @@
 
 import { invoke } from "../tauri";
 import * as attachments from "../mail/attachments";
+import { cardsFrom } from "../mail/cards";
 import { fencedBody } from "../mail/fence";
 import { mailRecord, mailRecords } from "../mail/records";
 import * as lastList from "../mail/lastList";
 import { unsignedInteger } from "../mail/wholeNumber";
-import type { MailDraft, MailRecord, MailResponse } from "../mail/types";
+import type { MailCards, MailDraft, MailRecord, MailResponse } from "../mail/types";
 
 /** What the model reads when a call did not run. English, like every other
     refusal on the wire. The cause is already on the screen as Kalsa's own
@@ -24,6 +25,7 @@ import type { MailDraft, MailRecord, MailResponse } from "../mail/types";
 const INBOX = "INBOX";
 const NOT_MAIL = "No mail was shown: it is not set up, or the server could not be reached.";
 const ALREADY_TOLD = "Kalsa has already told the reader what failed; do not add advice or a fix.";
+const ALREADY_SHOWN = "These are already drawn as cards the reader can open. Do not list them again; answer in at most 1–3 lines on what matters.";
 const DAYS_NOT_WHOLE = "days must be a whole number of days.";
 const ID_NOT_WHOLE = "The mail id must be the whole number mail_list gave for that mail.";
 
@@ -111,14 +113,16 @@ function draftArgs(model: Record<string, unknown>): Built {
  * is that bare UID, so a second folder would let one folder's id name another's
  * mail. One folder is the only way those ids mean what they say.
  */
-export async function runMailList(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; records: MailRecord[]; code?: string }> {
+export async function runMailList(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; records: MailRecord[]; code?: string; cards?: MailCards }> {
   const built = listArgs(model);
   if (!built.ok) return { text: built.text, ok: false, records: [] };
   const response = await call("brain_mail_list", built.args);
   const records = mailRecords(response.for_ui);
   lastList.remember(records);
   if (response.is_error) return { text: failure(response), ok: false, records, ...codeOf(response) };
-  return { text: answerText(response) || NOT_MAIL, ok: true, records };
+  // The cards are the app's own: the person sees them whether or not a model
+  // goes on to call mail_show, which only ever adds its one line per card.
+  return { text: `${answerText(response) || NOT_MAIL} ${ALREADY_SHOWN}`, ok: true, records, cards: cardsFrom(records) };
 }
 
 /** One mail in full: the record for the card, the body for the Mail tab. */

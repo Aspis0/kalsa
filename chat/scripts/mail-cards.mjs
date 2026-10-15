@@ -108,6 +108,20 @@ equal("the attachment size of a record with none reads zero", app.mailRecord({ i
 equal("a list of junk draws nothing", app.mailRecords({ items: [1, null, { no: "id" }] }), []);
 equal("a list record keeps every mail", app.mailRecords(LIST).length, 3);
 
+/* ------------------------------------------- the cards are the app's own */
+
+/** What the owner saw live: the list came back and no cards were drawn,
+    because the cards waited for a model that never called mail_show. The list
+    draws them now, and the model is told the person already has them. */
+const listed = await app.runMailList({ days: 1 });
+check("a list draws cards with no mail_show", listed.cards !== undefined && listed.cards.items.length === 3, JSON.stringify(listed.cards?.items.length));
+equal("a card is the record it came from", listed.cards.items.map((item) => item.subject), MAILS.map((mail) => mail.subject));
+equal("the badge is the code's, not the model's", listed.cards.items.filter((item) => item.labels.label === "bulk").length, 1);
+check("no model wrote a line on them yet", listed.cards.items.every((item) => item.gist === ""));
+check("the model is told not to list them again", listed.text.includes("Do not list them again"), listed.text.slice(0, 120));
+equal("an empty list draws no cards", app.cardsFrom([]).items.length, 0);
+equal("the list's order is kept", app.cardIds(app.cardsFrom(app.mailRecords(LIST))), MAILS.map((mail) => mail.id));
+
 /* ------------------------------------------------------- the fence, read back */
 
 /** The shape the sidecar really sends: ONE string per field, each holding
@@ -134,6 +148,29 @@ equal("a card's subject is the record's, not the model's", shown.mail.items[0].s
 equal("a card's sender is the record's", shown.mail.items[0].from.address, "john.smith@acme.com");
 equal("the badge the code gave survives the model's choice", shown.mail.items[1].labels.label, "suspicious");
 equal("the newsletters are counted by the code", shown.mail.bulk, 1);
+
+/* One id, one form: Qwen sends 412, another model sends "412", and the list is
+   keyed by neither until it is the same decimal text. Live, the numeric one
+   was dropped and the cards never came. */
+equal("a numeric id is the same id", app.mailId(412), "412");
+equal("a digit string is the same id", app.mailId("412"), "412");
+equal("a padded digit string is the same id", app.mailId(" 0412 "), "412");
+equal("a float is not an id", app.mailId(41.2), null);
+equal("words are not an id", app.mailId("quattrocento"), null);
+equal("nothing is not an id", app.mailId(undefined), null);
+
+await app.runMailList({ days: 1 });
+for (const [shape, items] of [
+  ["numbers", [{ id: 412, gist: "Chiede di spostare l'incontro." }]],
+  ["strings", [{ id: "412", gist: "Chiede di spostare l'incontro." }]],
+]) {
+  const shown2 = app.runMailShow({ items });
+  check(`mail_show takes an id written as ${shape}`, shown2.mail.items.length === 1 && shown2.mail.items[0].id === "412", shown2.text);
+  check(`and drops nothing when it is ${shape}`, !shown2.text.includes("dropped"), shown2.text);
+}
+// mail_read and mail_draft read their id through the same whole-number rule,
+// so a float is refused before the call exactly as a string word is.
+equal("a read id that is a float never reaches the mailbox", (await app.runMailRead({ id: 41.2 })).text.includes("whole number"), true);
 
 const invented = app.runMailShow({ items: [{ id: "999", gist: "Una mail che non esiste." }] });
 equal("an id the mailbox never sent draws nothing", invented.mail.items, []);

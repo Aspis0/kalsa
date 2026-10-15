@@ -40,6 +40,9 @@ export const MAIL = {
   otherMessages: (count: number) => `${count} other messages`,
   attachments: "Attachments",
   aiSummary: "AI summary",
+  askDraft: (subject: string) => `Write a reply to "${subject}".`,
+  askDraftNote: (id: string) =>
+      `The reply is for the mail with id ${id}. Call mail_draft with reply_to_id ${id} and the words of the reply.`,
   makeDraft: "Write a draft",
   generating: "Writing…",
   noAttachments: "No attachments.",

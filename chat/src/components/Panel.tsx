@@ -7,7 +7,8 @@ import { BudgetMeter } from "./BudgetMeter";
 import { FilesBrowser } from "./FilesBrowser";
 import { MailView } from "./mail/MailView";
 import type { OpenMail } from "./mail/MailView";
-import type { DraftRecord, Drafts, SentTo } from "../lib/mail/drafts";
+import type { Drafts, SentTo } from "../lib/mail/drafts";
+import type { MailCardItem } from "../lib/mail/types";
 import type { PendingSend } from "../lib/mail/pending";
 import "./Panel.css";
 import "./mail/panelMail.css";
@@ -35,7 +36,8 @@ interface PanelProps {
   mailSent: SentTo;
   onMailDraft: (body: string) => void;
   onMailReply: (replyToId: string, body: string) => void;
-  onMailSave: (replyToId: string, record: DraftRecord) => void;
+  /** The panel asks the chat model to write the reply for one mail. */
+  onMailAskDraft: (item: MailCardItem) => void;
   onMailSend: (send: PendingSend) => void;
   onClose: () => void;
 }
@@ -67,7 +69,7 @@ export function Panel({
   mailSent,
   onMailDraft,
   onMailReply,
-  onMailSave,
+  onMailAskDraft,
   onMailSend,
   onClose,
 }: PanelProps) {
@@ -140,7 +142,7 @@ export function Panel({
             sent={mailSent}
             onDraft={onMailDraft}
             onReply={onMailReply}
-            onSave={onMailSave}
+            onAskDraft={onMailAskDraft}
             onSend={onMailSend}
           />
         ) : tab === "files" ? (

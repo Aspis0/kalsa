@@ -55,10 +55,95 @@ const call = (id, name, args) => ({
   function: { name, arguments: JSON.stringify(args) },
 });
 
+/** The panel's "Genera bozza" turn: the model is asked for one mail's reply and
+    writes it with mail_draft, exactly as a real one would after the prompt. */
+function draftRounds(id, asked) {
+  // The words are that mail's own reply, the way a model that read it writes:
+  // one mail's words never answer for another's.
+  const body = asked ?? mailFixture().drafts[id]?.for_ui.body ?? "";
+  return [
+    [
+      chunk(
+        {
+          role: "assistant",
+          tool_calls: [
+            call(`call_d_${id}`, "mail_draft", {
+              reply_to_id: id,
+              body,
+            }),
+          ],
+        },
+        "tool_calls",
+      ),
+      "data: [DONE]\n\n",
+    ],
+    [chunk({ role: "assistant", content: "Ho preparato la risposta. Non è stata inviata." }, "stop"), "data: [DONE]\n\n"],
+  ];
+}
+
+/**
+ * A weak local model, which is what the owner saw live: it asks for the list,
+ * never calls mail_show, and writes the mails out as a markdown list. The cards
+ * are the app's own, so they must stand anyway.
+ */
+const WEAK_ROUNDS = [
+  [chunk({ role: "assistant", tool_calls: [call("call_w1", "mail_list", { days: 1 })] }, "tool_calls"), "data: [DONE]\n\n"],
+  [
+    chunk(
+      {
+        role: "assistant",
+        content:
+          "Ecco le tue mail:\n\n1. **John Smith** — Possiamo spostare l'incontro?\n2. **Poste Italiane** — Verifica subito\n3. **Sole 24 Ore** — Le notizie",
+      },
+      "stop",
+    ),
+    "data: [DONE]\n\n",
+  ],
+];
+
+/** Which model this harness plays, from what the turn asked for: a panel
+    request for a reply is answered with a draft, everything else follows the
+    scenario. Each kind counts its own rounds, so one page's turn never eats
+    another's. */
+function roundsFor(messages) {
+  const last = [...messages].reverse().find((m) => m.role === "user");
+  const said = typeof last?.content === "string" ? last.content : "";
+  // The panel's own request names the mail; a person asking for a reply in the
+  // thread is the same turn, and the model answers it the same way.
+  const panel = said.match(/reply_to_id (\d+)/i);
+  if (panel) return { kind: `draft-${panel[1]}`, rounds: draftRounds(panel[1]) };
+  const inThread = said.match(/Scrivi a (\w+)/i);
+  if (inThread) {
+    return {
+      kind: `asked-${inThread[1]}`,
+      rounds: draftRounds("412", "Ciao John,\n\nlunedì alle 11 va benissimo. Ti confermo l'appuntamento.\n\nA presto,\nLuca"),
+    };
+  }
+  if (process.argv[2] === "weak") return { kind: "weak", rounds: WEAK_ROUNDS };
+  return process.argv[2] === "ids" ? { kind: "ids", rounds: STRING_ROUNDS } : { kind: "mail", rounds: ROUNDS };
+}
+
+/** The ids as a model that writes them as numbers — what Qwen does, and what
+    the schema asks for. */
+const asNumbers = ({ id, gist }) => ({ id: Number(id), gist });
+
+/** And the same ids as the text another model writes them as. */
+const asText = ({ id, gist }) => ({ id: String(id), gist });
+
+/** A model that does call mail_show, with its ids written as text. */
+const STRING_ROUNDS = [
+  [chunk({ role: "assistant", tool_calls: [call("call_s1", "mail_list", { days: 1 })] }, "tool_calls"), "data: [DONE]\n\n"],
+  [
+    chunk({ role: "assistant", tool_calls: [call("call_s2", "mail_show", { items: SHOW.map(asText) })] }, "tool_calls"),
+    "data: [DONE]\n\n",
+  ],
+  [chunk({ role: "assistant", content: SENTENCE }, "stop"), "data: [DONE]\n\n"],
+];
+
 const ROUNDS = [
   [chunk({ role: "assistant", tool_calls: [call("call_1", "mail_list", { days: 1 })] }, "tool_calls"), "data: [DONE]\n\n"],
   [
-    chunk({ role: "assistant", tool_calls: [call("call_2", "mail_show", { items: SHOW })] }, "tool_calls"),
+    chunk({ role: "assistant", tool_calls: [call("call_2", "mail_show", { items: SHOW.map(asNumbers) })] }, "tool_calls"),
     "data: [DONE]\n\n",
   ],
   [chunk({ role: "assistant", content: SENTENCE }, "stop"), "data: [DONE]\n\n"],
@@ -87,7 +172,6 @@ const ROUNDS = [
  * harness, and it says so rather than answering something else.
  */
 function mockEndpoint() {
-  let round = 0;
   // The page is on another port, so the browser asks first.
   const CORS = {
     "Access-Control-Allow-Origin": "*",
@@ -113,16 +197,21 @@ function mockEndpoint() {
       }
       // A new turn is a request with no tool result in it yet, so the rounds
       // start again: the second page of the run asks for the same mail.
-      let fresh = false;
+      let messages = [];
       try {
-        fresh = !JSON.parse(body).messages.some((m) => m.role === "tool");
+        messages = JSON.parse(body).messages;
       } catch {
-        fresh = true;
+        messages = [];
       }
-      if (fresh) round = 0;
+      const { kind, rounds } = roundsFor(messages);
+      // Which round of the scenario this is, read off the request rather than
+      // remembered: the assistant turns since the person's last message are the
+      // rounds that turn has already spent. A new turn, a new page and the
+      // panel's own request for a reply each start at the first one.
+      const asked = messages.map((m) => m.role).lastIndexOf("user");
+      const at = messages.slice(asked + 1).filter((m) => m.role === "assistant").length;
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...CORS });
-      const chosen = ROUNDS[Math.min(round, ROUNDS.length - 1)];
-      round += 1;
+      const chosen = rounds[Math.min(at, rounds.length - 1)];
       for (const piece of chosen) res.write(piece);
       res.end();
     });
@@ -390,6 +479,55 @@ async function shootMailFailure(browser) {
   }
 }
 
+/**
+ * 22 — the weak local model, which is what the owner's own test produced: the
+ * list answered, no mail_show, and the mails written out as text. The cards are
+ * the app's own and must be on screen, and the turn must not end as a failure.
+ */
+async function shootWeakModel(browser) {
+  const viewport = { width: WINDOW.width, height: 1040 };
+  for (const theme of ["light", "dark"]) {
+    const page = await browser.newPage({ viewport });
+    await seed(page, theme);
+    await page.goto(APP);
+    await page.waitForSelector(".rail", { timeout: 20000 });
+    await askForMail(page);
+    await page.locator(".mail-card").nth(7).waitFor({ timeout: 15000 });
+    check(`${theme}: every listed mail is a card, with no mail_show`, (await page.locator(".mail-card").count()) === 8, `${await page.locator(".mail-card").count()} cards`);
+    check(`${theme}: and they are the list's own, once`, (await page.locator(".mail-turn").count()) === 1);
+    await mustSee(page, "John Smith", `${theme}: a card carries the sender the list named`);
+    check(`${theme}: the model never had to write a gist`, (await page.locator(".mail-card .mail-gist").count()) === 0);
+    const shown = await page.locator(".mail-card").first().innerText();
+    check(`${theme}: the card shows the subject, not the model's line`, shown.includes("Possiamo spostare"), shown.slice(0, 60));
+    check(`${theme}: nothing in the thread says the check failed`, (await page.getByText("Kalsa non è riuscita a finire il controllo").count()) === 0);
+    check(`${theme}: no run is marked failed or refused`, (await page.locator(".tool-run-failed").count()) === 0);
+    await shot(page, `22-mail-weak${theme === "dark" ? "-dark" : ""}`);
+    await page.locator(".mail-card", { hasText: "Fattura n. 104" }).getByRole("button", { name: "Apri" }).click();
+    await page.waitForSelector(".mail-view-subject", { timeout: 15000 });
+    await mustSee(page, "Sintesi", `${theme}: a card from the list opens in the panel`);
+    await page.close();
+  }
+}
+
+/**
+ * 23 — the same turn with the ids written as text, the shape a model that does
+ * call mail_show may use. The cards are the same either way: one id, one form.
+ */
+async function shootTextIds(browser) {
+  const viewport = { width: WINDOW.width, height: 1040 };
+  for (const theme of ["light", "dark"]) {
+    const page = await browser.newPage({ viewport });
+    await seed(page, theme);
+    await page.goto(APP);
+    await page.waitForSelector(".rail", { timeout: 20000 });
+    await askForMail(page);
+    await page.locator(".mail-card").first().waitFor({ timeout: 15000 });
+    await mustSee(page, "Vuole spostare l'incontro", `${theme}: ids written as text still find their cards`);
+    check(`${theme}: and the model was told nothing was dropped`, !((await page.locator(".thread").innerText()).includes("not in the last list")));
+    await page.close();
+  }
+}
+
 async function run() {
   mkdirSync(OUT, { recursive: true });
   const vite = spawn(
@@ -424,6 +562,14 @@ async function run() {
       await shootMailFailure(browser);
       return;
     }
+    if (process.argv[2] === "weak") {
+      await shootWeakModel(browser);
+      return;
+    }
+    if (process.argv[2] === "ids") {
+      await shootTextIds(browser);
+      return;
+    }
     for (const theme of ["light", "dark"]) {
       const page = await browser.newPage({ viewport: WINDOW });
       await seed(page, theme);
@@ -434,7 +580,9 @@ async function run() {
       await mustSee(page, SENTENCE, `${theme}: the assistant's one sentence`);
       await mustSee(page, "Sospetta", `${theme}: the badge on the card that carries one`);
       await mustSee(page, "newsletter", `${theme}: the line under the cards`);
-      check(`${theme}: three cards`, (await page.locator(".mail-card").count()) === 3);
+      check(`${theme}: every listed mail is a card`, (await page.locator(".mail-card").count()) === 8, `${await page.locator(".mail-card").count()} cards`);
+      check(`${theme}: the list is drawn once, not beside the model's set`, (await page.locator(".mail-turn").count()) === 1);
+      await mustSee(page, "Vuole spostare l'incontro", `${theme}: the model's line landed on the card it named`);
       check(
         `${theme}: one badge only`,
         (await page.locator(".mail-card .mail-suspect").count()) === 1,
@@ -442,7 +590,7 @@ async function run() {
       );
       // Apri the invoice: it is the one that has an attachment, so the panel
       // shows the list and the card afterwards knows to offer Scarica.
-      await page.locator(".mail-card").nth(1).getByRole("button", { name: "Apri" }).click();
+      await page.locator(".mail-card", { hasText: "Fattura n. 104" }).getByRole("button", { name: "Apri" }).click();
       await mustSee(page, "Sintesi", `${theme}: the Mail tab opened`);
       check(`${theme}: the Mail tab is the one showing`, await page.locator("#files-tab-mail[aria-selected=true]").isVisible());
       check(`${theme}: the attachment is listed, not opened`, (await page.locator(".mail-attach-list li").count()) === 1);
@@ -459,9 +607,12 @@ async function run() {
       // Genera bozza: the panel's own box, which the sidecar answers with the
       // mail's recipient and the person's words to write into it. The mail is
       // opened again because the panel was closed for the card's picture.
-      await page.locator(".mail-card").nth(1).getByRole("button", { name: "Apri" }).click();
+      await page.locator(".mail-card", { hasText: "Fattura n. 104" }).getByRole("button", { name: "Apri" }).click();
       await page.getByRole("button", { name: "Genera bozza" }).click();
-      await page.waitForSelector(".mail-reply textarea", { timeout: 15000 });
+      // The reply is a whole model turn now, not one command.
+      await page.waitForSelector(".mail-reply textarea", { timeout: 30000 });
+      await mustSee(page, "Scrivi una risposta a «Fattura n. 104", `${theme}: the turn says which mail, by its subject`);
+      check(`${theme}: the internal id stays off the screen`, !(await page.locator(".thread").innerText()).includes("reply_to_id"));
       await shot(page, `${theme === "light" ? "03" : "09"}-mail-panel-draft`);
 
       // The draft card, drawn by a real turn: the model calls mail_draft and
@@ -475,14 +626,14 @@ async function run() {
       await shot(page, `${theme === "light" ? "04" : "10"}-draft-card`);
 
       // The panel now shows the same reply the card holds (fix 12).
-      await page.locator(".mail-card").first().getByRole("button", { name: "Apri" }).click();
+      await page.locator(".mail-card", { hasText: "Possiamo spostare" }).getByRole("button", { name: "Apri" }).click();
       await page.waitForSelector(".mail-reply textarea", { timeout: 10000 });
       const shared = await page.locator(".mail-reply textarea").inputValue();
       check(`${theme}: the panel and the card hold one reply`, shared.includes("lunedì alle 11"), shared.slice(0, 60));
       await shot(page, `${theme === "light" ? "03" : "09"}-mail-panel-draft`);
 
       // John's reply must not follow the person into another mailbox (P0).
-      await page.locator(".mail-card").nth(1).getByRole("button", { name: "Apri" }).click();
+      await page.locator(".mail-card", { hasText: "Fattura n. 104" }).getByRole("button", { name: "Apri" }).click();
       await page.waitForSelector(".mail-view-subject", { timeout: 10000 });
       const other = await page.locator(".mail-reply").innerText();
       check(`${theme}: another mail never shows John's words`, !other.includes("lunedì alle 11"), other.slice(0, 80));
@@ -502,7 +653,7 @@ async function run() {
       );
       await page.locator(".mail-send-dialog .mail-btn").click();
       await page.waitForSelector(".mail-send-dialog", { timeout: 5000, state: "detached" });
-      await page.locator(".mail-card").first().getByRole("button", { name: "Apri" }).click();
+      await page.locator(".mail-card", { hasText: "Possiamo spostare" }).getByRole("button", { name: "Apri" }).click();
       await page.waitForSelector(".mail-reply textarea", { timeout: 10000 });
       const backAgain = await page.locator(".mail-reply textarea").inputValue();
       check(`${theme}: John's reply is still where it was`, backAgain.includes("lunedì alle 11"), backAgain.slice(0, 60));

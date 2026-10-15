@@ -96,6 +96,10 @@ export interface ChatMessage {
   images?: MessageImage[];
   /** Videos attached to this user turn, in attach order. */
   videos?: MessageVideo[];
+  /** An instruction for the model only, riding before this turn's words. It is
+      never rendered and never shown as the person's: an internal id means
+      nothing to a reader, so only the model is told it. */
+  mailNote?: string;
   /** Documents bound to this user turn, by attachment id: their text rides
       the wire as a block before this message's words, and drops with the
       turn when the fit sheds it. */

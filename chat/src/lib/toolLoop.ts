@@ -96,6 +96,14 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
   }
 
   let forceWords = false;
+  // Whether the app has already drawn what this turn asked for. A mail list the
+  // person can see is not a half-finished check, so a model that then rambles,
+  // re-lists the mails or asks for tools again cannot end the turn as a failure.
+  let drewMail = false;
+  const noteRun: NonNullable<StreamOptions["onToolRun"]> = (run) => {
+    if (MAIL_NAMES.has(run.name) && run.state === "ok" && run.mail !== undefined) drewMail = true;
+    options.onToolRun?.(run);
+  };
   for (let round = 0; round <= toolRounds; round += 1) {
     const last = forceWords || round >= toolRounds;
     // Hiding invented markup is for the capped round alone: the round that asks
@@ -183,6 +191,12 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // refused: the thread says what happened. A recovered call is exempt: it
     // was recovered only from a round that finished `stop`.
     if (!fromText && (!forTools(answered.finishReason) || last)) {
+      // The cards are already on screen: whatever the model did after the list
+      // is its own business, not a failed check for the reader to answer again.
+      if (drewMail) {
+        hold?.settle(false);
+        return;
+      }
       refuse(
         options,
         calls,
@@ -220,7 +234,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
       const answer = await runToolCall(
         call,
         canonical === null ? null : definitions.get(canonical)!,
-        { say, runTool: runTool!, onToolRun: options.onToolRun, signal, url, conversation },
+        { say, runTool: runTool!, onToolRun: noteRun, signal, url, conversation },
       );
       results.push(answer.result);
       wireTexts.push(answer.wire);
@@ -271,6 +285,10 @@ function webResultIn(conversation: WireMessage[]): boolean {
     the sidecar, and once it is in the wire the answer text is a channel it
     can speak into — the same reason a page is. */
 const WEB_NAMES = new Set([...WEB_TOOLS, ...MAIL_TOOLS].map((tool) => tool.function.name));
+
+/** Every name the mailbox answers under, `mail_show` among them: the app's own
+    drawing can come from any of them, and only a run that drew is proof. */
+const MAIL_NAMES = new Set([...MAIL_TOOLS.map((tool) => tool.function.name), "mail_show"]);
 
 /**
  * The working conversation shrinks when the engine refuses the prompt as too

@@ -36,6 +36,9 @@ export const MAIL = {
     "otherMessages": (count: number) => `${count} autres messages`,
     "attachments": "Pièces jointes",
     "aiSummary": "Résumé IA",
+    "askDraft": (subject: string) => `Écris une réponse à « ${subject} ».`,
+    "askDraftNote": (id: string) =>
+      `La réponse est pour le mail d'id ${id}. Appelle mail_draft avec reply_to_id ${id} et les mots de la réponse.`,
     "makeDraft": "Rédiger un brouillon",
     "generating": "Rédaction…",
     "noAttachments": "Aucune pièce jointe.",

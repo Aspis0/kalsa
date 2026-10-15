@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLanguage } from "../../i18n/useLanguage";
 import type { English } from "../../i18n/en/all";
 import { Icon } from "../Icon";
 import { accountEmail } from "../../lib/mail/account";
 import { draftFor, pendingFor, sentToFor } from "../../lib/mail/drafts";
-import type { DraftRecord, Drafts, SentTo } from "../../lib/mail/drafts";
+import type { Drafts, SentTo } from "../../lib/mail/drafts";
 import type { PendingSend } from "../../lib/mail/pending";
 import { reasonItems } from "../../lib/mail/reasons";
-import { runMailDraft } from "../../lib/tools/mailCall";
 import type { MailCardItem, MailRecord } from "../../lib/mail/types";
 import { initials } from "./initials";
 import { stampFull, stampRelative } from "./mailTime";
@@ -28,13 +27,14 @@ export interface OpenMail {
   body: string;
 }
 
-export function MailView({ open, onDraft, onReply, onSave, onSend, drafts, sent }: {
+export function MailView({ open, onDraft, onReply, onAskDraft, onSend, drafts, sent }: {
   open: OpenMail | null;
   onDraft: (body: string) => void;
   /** The person typed: only the words change, never the recipient. */
   onReply: (replyToId: string, body: string) => void;
   /** A draft the sidecar wrote, with the address the backend will send to. */
-  onSave: (replyToId: string, record: DraftRecord) => void;
+  /** Genera bozza: the chat model writes the reply, the box shows it. */
+  onAskDraft: (item: MailCardItem) => void;
   onSend: (send: PendingSend) => void;
   /** The replies in hand, so the chat's card and this box are one reply rather
       than a box here and a different one there. */
@@ -43,12 +43,7 @@ export function MailView({ open, onDraft, onReply, onSave, onSend, drafts, sent 
 }) {
   const { table, tag } = useLanguage();
   const t = table.mail;
-  const [drafting, setDrafting] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setDrafting(false);
-  }, [open?.item.id]);
 
   // This mail's own reply. Opening another mail shows that mail's words or an
   // empty box, never the reply that was written for somebody else.
@@ -143,18 +138,11 @@ export function MailView({ open, onDraft, onReply, onSave, onSend, drafts, sent 
           <button
             type="button"
             className="mail-btn"
-            disabled={drafting || sentTo !== null}
-            onClick={() => {
-              setDrafting(true);
-              void runMailDraft({ reply_to_id: item.id }).then((answer) => {
-                setDrafting(false);
-                if (answer.draft === null) return;
-                onSave(item.id, { to: answer.draft.to, subject: answer.draft.subject, body: answer.draft.body });
-              });
-            }}
+            disabled={sentTo !== null}
+            onClick={() => onAskDraft(open.item)}
           >
             <Icon name="zap" size={15} />
-            {drafting ? t.generating : t.makeDraft}
+            {t.makeDraft}
           </button>
         </div>
         {words !== "" ? (
