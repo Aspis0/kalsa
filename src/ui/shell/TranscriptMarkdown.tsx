@@ -43,6 +43,8 @@ type MarkdownBlocksProps = {
   colors: DesignColors;
   /** The message id the testIDs hang off. */
   id: string;
+  /** Turn-route answer: a link is shown, never opened by a tap (§3). */
+  linksAsText?: boolean;
   /** The width the answer really got, which is what the table decides on. */
   readingMeasure: number;
   sources?: readonly TranscriptSource[];
@@ -56,6 +58,7 @@ type BlockContext = MarkdownBlocksProps & { t: TranslateFn };
 export function MarkdownBlocks({
   colors,
   id,
+  linksAsText,
   readingMeasure,
   sources,
   styles,
@@ -64,7 +67,7 @@ export function MarkdownBlocks({
   const { t } = useLocale();
   const document = useMemo(() => parseMarkdownDocument(text), [text]);
   const prefix = `transcript.answer.${id}`;
-  const context: BlockContext = { colors, id, readingMeasure, sources, styles, t, text };
+  const context: BlockContext = { colors, id, linksAsText, readingMeasure, sources, styles, t, text };
 
   return (
     <>
@@ -115,6 +118,7 @@ function inline(context: BlockContext, testID: string, color: string): InlineCon
   return {
     color,
     idPrefix: testID,
+    linksAsText: context.linksAsText,
     sources: context.sources,
     styles: context.styles,
     t: context.t,

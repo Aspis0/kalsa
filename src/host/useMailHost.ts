@@ -9,7 +9,7 @@
  * draft's recipient and subject come from the computer and are shown, never
  * chosen (PHONE-CHAT-PROTOCOL §5).
  */
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   MAIL_ROUTE_ABSENT,
@@ -45,10 +45,17 @@ export function useMailHost(params: {
   /** The sentence the card's button sends as this turn's words, in the app's
    *  language: the computer pins its work to the mail, not to the sentence. */
   askDraftText: string;
+  /** The conversation the sheet belongs to. A mail read for another one is
+   *  that one's mail, and must not open here. */
+  conversationId: string | undefined;
 }): MailActions {
   const { send, askDraftText } = params;
   const [openMail, setOpenMail] = useState<MailReadState>({ status: "idle" });
   const [sends, setSends] = useState<Record<string, MailSendState>>({});
+  /** The one read in flight, and which Open it answers: a read that lands
+   *  after Close, or after a newer Open, has been answered for a sheet that no
+   *  longer exists. */
+  const read = useRef<{ id: number; controller: AbortController } | null>(null);
 
   const draftReply = useCallback(
     (mailId: string) => {
@@ -58,8 +65,14 @@ export function useMailHost(params: {
   );
 
   const readMail = useCallback(async (mailId: string) => {
+    read.current?.controller.abort();
+    const controller = new AbortController();
+    const id = (read.current?.id ?? 0) + 1;
+    read.current = { id, controller };
     setOpenMail({ status: "loading" });
-    const result = await readRemoteMail(mailId);
+    const result = await readRemoteMail(mailId, controller.signal);
+    if (read.current?.id !== id) return;
+    read.current = null;
     setOpenMail(
       result.ok
         ? // A record the computer changed under us after its own card is the
@@ -69,7 +82,19 @@ export function useMailHost(params: {
     );
   }, []);
 
-  const closeMail = useCallback(() => setOpenMail({ status: "idle" }), []);
+  const closeMail = useCallback(() => {
+    read.current?.controller.abort();
+    read.current = null;
+    setOpenMail({ status: "idle" });
+  }, []);
+
+  useEffect(() => {
+    setOpenMail({ status: "idle" });
+    return () => {
+      read.current?.controller.abort();
+      read.current = null;
+    };
+  }, [params.conversationId]);
 
   const sendDraft = useCallback(async (draftId: string, body: string) => {
     setSends((prev) => ({ ...prev, [draftId]: { status: "sending" } }));

@@ -93,13 +93,17 @@ export type TranscriptMessage = {
    */
   miniapp?: TranscriptMiniapp;
   /**
-   * The mail an answer brought, and the reply draft the computer built for it
-   * (PHONE-CHAT-PROTOCOL §3). NEVER PERSISTED, unlike `miniapp`: a card offers
-   * to act on what the computer could see during that turn, so a reopen must
-   * not offer it again — `historyPersistable` drops both.
+   * The mail an answer brought, and the reply drafts the computer built for it
+   * (PHONE-CHAT-PROTOCOL §3). One turn may bring several sets and several
+   * drafts, so both are lists. NEVER PERSISTED, unlike `miniapp`: a card
+   * offers to act on what the computer could see during that turn, so a reopen
+   * must not offer it again — `historyPersistable` drops both.
    */
-  mail?: MailCards;
-  mailDraft?: MailDraft;
+  mail?: readonly MailCards[];
+  mailDrafts?: readonly MailDraft[];
+  /** This answer came from the turn route: a link in it is shown and never
+   *  opened by a tap. The markdown around it is untouched. */
+  linksAsText?: boolean;
 };
 
 /**

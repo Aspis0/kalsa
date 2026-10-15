@@ -19,9 +19,10 @@ export const MAIL_ROUTES = {
   send: "/kalsa/chat/mail/send",
 } as const;
 
-/** One tunnel read: a mail body can take longer than a probe's, and a wedged
- *  tunnel must fail visibly instead of leaving the sheet open forever. */
-const MAIL_READ_TIMEOUT_MS = 30_000;
+/** One tunnel read, above the computer's own answer wait (30 s) plus the hand-
+ *  over: a read the computer was about to answer must not fail on the phone's
+ *  clock. */
+const MAIL_READ_TIMEOUT_MS = 45_000;
 
 /** `404` is this computer saying it has no such route, never a mail that is
  *  missing. */

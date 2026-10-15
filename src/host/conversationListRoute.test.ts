@@ -8,6 +8,7 @@ jest.mock("react", () => ({
   ...jest.requireActual("react"),
   useCallback: (callback: unknown) => callback,
   useEffect: () => undefined,
+  useRef: (initial: unknown) => ({ current: initial }),
   useState: (initial: unknown) => {
     const index = mockHookCursor++;
     if (!(index in mockHookStates)) mockHookStates[index] = initial;

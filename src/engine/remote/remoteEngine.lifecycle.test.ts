@@ -45,6 +45,11 @@ jest.mock("../../remote/irohBridge", () => ({
   openIrohTunnel: jest.fn(),
 }));
 
+jest.mock("./remoteImageBytes", () => ({
+  readRemotePictures: jest.fn(async () => new Map()),
+  storedPictureSizes: jest.fn(async () => new Map()),
+}));
+
 jest.mock("../thinkStream", () => ({
   createThinkStreamCleaner: jest.fn(() => ({
     cleanDelta: (text: string) => text,
@@ -897,6 +902,102 @@ describe("RemoteEngine lifecycle", () => {
     expect(lastUser).toBeDefined();
     expect(lastUser!.content).toContain("Needle");
     expect(lastUser!.content).toContain("hello");
+  });
+
+  test("the completions body keeps the facts on the last user turn", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    let request: { messages: { role: string; content: string }[] } | undefined;
+    streamOpenAiChat.mockImplementation((
+      req: { messages: { role: string; content: string }[] },
+      handlers: {
+        onDelta: (d: { kind: string; content: string; reasoning: string; finishReason: null }) => void;
+        onFinish: (f: { kind: string; finishReason: string }) => void;
+      },
+    ) => {
+      request = req;
+      queueMicrotask(() => {
+        handlers.onDelta({
+          kind: "delta",
+          content: "hi",
+          reasoning: "",
+          finishReason: null,
+        });
+        handlers.onFinish({ kind: "complete", finishReason: "stop" });
+      });
+      return { requestId: "completions", abort: jest.fn(), xhr: {}, isClosed: () => false };
+    });
+    const imageBytes = jest.requireMock("./remoteImageBytes") as {
+      storedPictureSizes: jest.Mock;
+      readRemotePictures: jest.Mock;
+    };
+    imageBytes.storedPictureSizes.mockResolvedValue(new Map([["file:///a.jpg", 1024]]));
+    imageBytes.readRemotePictures.mockResolvedValue(
+      new Map([
+        [
+          "file:///a.jpg",
+          { uri: "file:///a.jpg", bytes: 3, dataUri: "data:image/jpeg;base64,AAAA" },
+        ],
+      ]),
+    );
+    imageBytes.storedPictureSizes.mockImplementation(async (uris: readonly string[]) =>
+      new Map(uris.map((uri) => [uri, 1024])),
+    );
+    imageBytes.readRemotePictures.mockImplementation(async (uris: readonly string[]) => {
+      const pictures = new Map<string, { uri: string; bytes: number; dataUri: string }>();
+      uris.forEach((uri) => {
+        pictures.set(uri, { uri, bytes: 3, dataUri: "data:image/jpeg;base64,AAAA" });
+      });
+      return pictures;
+    });
+
+    // A picture turn asks /props whether the desk can see, on its own fetch.
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url).endsWith("/props")
+        ? { ok: true, status: 200, json: async () => ({ modalities: { vision: true } }) }
+        : { ok: true, status: 200, json: async () => ({ data: [{ id: "ornith" }] }) },
+    );
+
+    // A picture turn cannot use the turn route (§2), so this is the body that
+    // picture turns and old-computer turns both send.
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "hello", images: ["file:///a.jpg"] }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: (error: Error) => {
+          throw error;
+        },
+      },
+      undefined,
+      {
+        locale: "en",
+        turnId: "t-completions",
+        memoryFacts: [
+          { id: "f1", text: "The cat is named Needle", createdAt: 1_700_000_000_000 },
+        ],
+      },
+    );
+
+    expect(request).toBeDefined();
+    const messages = request!.messages;
+    const system = messages.find((m) => m.role === "system");
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    // A picture rides the same message as parts, so the words are the text one.
+    const words = (message: { content: unknown }): string =>
+      typeof message.content === "string"
+        ? message.content
+        : ((message.content as { type: string; text?: string }[]).find((part) => part.type === "text")
+            ?.text ?? "");
+    expect(system).toBeDefined();
+    expect(words(system!)).not.toContain("Needle");
+    expect(lastUser).toBeDefined();
+    expect(words(lastUser!)).toContain("Needle");
+    expect(words(lastUser!)).toContain("hello");
   });
 
   test("editing the URL or server model drops remote readiness", async () => {

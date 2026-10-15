@@ -60,7 +60,7 @@ export function toPersistableHistoryMessages(
     // turn (PHONE-CHAT-PROTOCOL §6): a reopened conversation shows the answer
     // without offering to act on a mail that may be gone by then.
     delete next.mail;
-    delete next.mailDraft;
+    delete next.mailDrafts;
     if (rec.streaming && allowStreamingPartial) {
       next.interrupted = true;
     }

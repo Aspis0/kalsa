@@ -28,8 +28,9 @@ jest.mock("../../i18n", () => ({
     params === undefined ? key : `${key}:${JSON.stringify(params)}` }),
 }));
 
+const mockUseMailActions = jest.fn(() => ({ sendDraft: mockSendDraft, sends: {} }));
 jest.mock("./mailActions", () => ({
-  useMailActions: () => ({ sendDraft: mockSendDraft, sends: {} }),
+  useMailActions: () => mockUseMailActions(),
 }));
 
 import React from "react";
@@ -123,5 +124,82 @@ describe("the reply draft card", () => {
     await press(renderer, "transcript.mailDraft.send");
     await press(renderer, "shell.mailConfirm.cancel");
     expect(mockSendDraft).not.toHaveBeenCalled();
+  });
+
+  it("a blank body cannot be confirmed: the computer would send its own words", async () => {
+    const renderer = await render();
+    await type(renderer, "transcript.mailDraft.body", "   ");
+    const send = renderer.root.find((node) => node.props.testID === "transcript.mailDraft.send");
+    expect(send.props.disabled).toBe(true);
+    expect(texts(renderer)).toContain("chat.mail.bodyEmpty");
+  });
+
+  it("a sent draft is read-only and offers no second send", async () => {
+    mockUseMailActions.mockReturnValueOnce({
+      sendDraft: mockSendDraft,
+      sends: { abc123: { status: "sent", sentTo: "marco@dominic8.it" } },
+    });
+    const renderer = await render();
+    expect(
+      renderer.root.find((node) => node.props.testID === "transcript.mailDraft.body").props.editable,
+    ).toBe(false);
+    expect(
+      renderer.root.find((node) => node.props.testID === "transcript.mailDraft.send").props.disabled,
+    ).toBe(true);
+  });
+});
+
+describe("two draft cards side by side", () => {
+  const SECOND: MailDraft = {
+    draftId: "second99",
+    to: "altro@x.it",
+    toName: "",
+    subject: "Vacanze",
+    body: "Body del secondo.",
+  };
+
+  async function renderTwo(): Promise<ReactTestRenderer> {
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        React.createElement(
+          "View",
+          null,
+          React.createElement(MailDraftCard, { draft: DRAFT, colors: modes.light, key: DRAFT.draftId }),
+          React.createElement(MailDraftCard, { draft: SECOND, colors: modes.light, key: SECOND.draftId }),
+        ),
+      );
+    });
+    return renderer;
+  }
+
+  it("sending the first card posts that draft's id with that draft's text", async () => {
+    const renderer = await renderTwo();
+    // The mocked react-native host reports one element twice — the component
+    // and the element it renders — so a value list keeps only its first of each.
+    const bodies = renderer.root.findAll(
+      (node) => node.props.testID === "transcript.mailDraft.body",
+    );
+    expect([...new Set(bodies.map((node) => node.props.value))]).toEqual([
+      DRAFT.body,
+      SECOND.body,
+    ]);
+
+    await act(async () => {
+      bodies[0].props.onChangeText("Riscritto solo sul primo.");
+    });
+    const sends = renderer.root.findAll((node) => node.props.testID === "transcript.mailDraft.send");
+    await act(async () => {
+      sends[0].props.onPress();
+    });
+    const confirms = renderer.root.findAll(
+      (node) => node.props.testID === "shell.mailConfirm.send",
+    );
+    await act(async () => {
+      confirms[0].props.onPress();
+    });
+
+    expect(mockSendDraft).toHaveBeenCalledTimes(1);
+    expect(mockSendDraft).toHaveBeenCalledWith("abc123", "Riscritto solo sul primo.");
   });
 });

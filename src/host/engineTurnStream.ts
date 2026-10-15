@@ -287,7 +287,11 @@ export async function streamEngineTurn(
                   ) {
                     forceRebuildByChat.set(chatId, true);
                   }
-                  const shownError = hostStreamErrorText(error.message, deps.t);
+                  const shownError = hostStreamErrorText(
+                    error.message,
+                    deps.t,
+                    (error as { contractCode?: boolean }).contractCode === true,
+                  );
                   callbacks.onDelta?.(`⚠️ ${shownError}`, `⚠️ ${shownError}`);
                   try {
                     // The engine's own sentence, or humanized remote reason.

@@ -14,8 +14,16 @@ export function hostEngineErrorText(
   return remote ? humanRemoteBrainError(message, t) : message;
 }
 
-/** The streamed host path humanizes machine codes only, matching AppShell. */
-export function hostStreamErrorText(message: string, t: TranslateFn): string {
+/** The streamed host path humanizes machine codes only, matching AppShell.
+ *  `contractCode` is the turn route's own flag: every failure of that route is
+ *  a code (or a transport code), and an unknown one must read as the generic
+ *  sentence rather than as itself. */
+export function hostStreamErrorText(
+  message: string,
+  t: TranslateFn,
+  contractCode = false,
+): string {
+  if (contractCode) return humanContractFailure(message, t);
   if (message.startsWith("remote_brain_")) {
     return humanRemoteBrainError(message, t);
   }

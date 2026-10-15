@@ -85,6 +85,8 @@ export function MailSendConfirm({
               testID="shell.mailConfirm.send"
               accessibilityRole="button"
               accessibilityLabel={t("chat.mail.send")}
+              accessibilityState={{ disabled: body.trim() === "" }}
+              disabled={body.trim() === ""}
               onPress={onConfirm}
               style={({ pressed }) => [
                 styles.button,

@@ -31,6 +31,22 @@ describe("remote engine failures never expose internal codes", () => {
       `⚠️ ${en.settings.remoteBrainFailGeneric}`,
     );
     // Keep the tested formatter on the live stream error callback.
-    expect(STREAM).toContain("hostStreamErrorText(error.message, deps.t)");
+    expect(STREAM).toContain("const shownError = hostStreamErrorText(");
+  });
+
+  test("a turn-route failure is a code, known or not, and never shown as itself", () => {
+    expect(hostStreamErrorText("no_runner", t, true)).toBe(en.chat.mail.failNoRunner);
+    expect(hostStreamErrorText("mail.keychain", t, true)).toBe(en.chat.mail.failKeychain);
+    expect(hostStreamErrorText("remote_brain_timeout", t, true)).toBe(
+      en.settings.remoteBrainFailTimeout,
+    );
+    // A code a newer computer invented, and our own malformed-frame marker:
+    // both read as the generic sentence.
+    expect(hostStreamErrorText("mail.newflag", t, true)).toBe(en.chat.mail.failGeneric);
+    expect(hostStreamErrorText("stream_malformed", t, true)).toBe(en.chat.mail.failGeneric);
+    // The same string without the flag is the engine's own text, shown as it is.
+    expect(hostStreamErrorText("Generation was interrupted.", t)).toBe(
+      "Generation was interrupted.",
+    );
   });
 });

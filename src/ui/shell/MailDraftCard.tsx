@@ -31,6 +31,11 @@ export function MailDraftCard({
   const [confirming, setConfirming] = useState(false);
   const send = mail?.sends[draft.draftId];
   const busy = send?.status === "sending";
+  const sent = send?.status === "sent";
+  // A blank edit is not a draft: the computer would fall back to the words it
+  // wrote, so the confirm would show one text and the computer would send
+  // another. Nothing to send means no confirm.
+  const blank = body.trim() === "";
   return (
     <View
       testID="transcript.mailDraft"
@@ -48,6 +53,7 @@ export function MailDraftCard({
         value={body}
         onChangeText={setBody}
         multiline
+        editable={!sent}
         accessibilityRole="text"
         accessibilityLabel={t("chat.mail.body")}
         style={[styles.field, { borderColor: colors.border, color: colors.ink }]}
@@ -69,8 +75,8 @@ export function MailDraftCard({
           testID="transcript.mailDraft.send"
           accessibilityRole="button"
           accessibilityLabel={t("chat.mail.send")}
-          accessibilityState={{ disabled: send?.status === "sent" }}
-          disabled={send?.status === "sent"}
+          accessibilityState={{ disabled: sent || blank }}
+          disabled={sent || blank}
           onPress={() => setConfirming(true)}
           style={({ pressed }) => [
             styles.send,
@@ -80,6 +86,11 @@ export function MailDraftCard({
           <Text style={[type.label, { color: colors.onAccent }]}>{t("chat.mail.send")}</Text>
         </Pressable>
       )}
+      {blank && !sent ? (
+        <Text style={[type.caption, { color: colors.danger }]} testID="transcript.mailDraft.blank">
+          {t("chat.mail.bodyEmpty")}
+        </Text>
+      ) : null}
       <MailSendConfirm
         body={body}
         colors={colors}

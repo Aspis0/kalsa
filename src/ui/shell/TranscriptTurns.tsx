@@ -23,7 +23,6 @@ import { ThoughtCloud } from "../thinking/ThoughtCloud";
 import { MiniappCard } from "./MiniappCard";
 import { MailCardList } from "./MailCardList";
 import { MailDraftCard } from "./MailDraftCard";
-import { MailReadSheet } from "./MailReadSheet";
 import { ChipRow, CopyChip, SpeakChip } from "./TranscriptChips";
 import { SourceChips, ToolRows } from "./TranscriptEvidence";
 import { MarkdownBlocks } from "./TranscriptMarkdown";
@@ -134,9 +133,10 @@ function AnswerView({
   ctas,
   id,
   labels,
+  linksAsText,
   miniapp,
   mail,
-  mailDraft,
+  mailDrafts,
   onCopy,
   onLongPress,
   onMiniappOpen,
@@ -160,11 +160,13 @@ function AnswerView({
   /** The mini-app card under this answer (D1 row 28); the opener applies
    *  the controller's open policy in the host. */
   miniapp?: TranscriptMiniapp;
-  /** The mail this answer brought, and the reply draft the computer built for
-   *  it (PHONE-CHAT-PROTOCOL §3). Both are the computer's own payload and
-   *  both are gone once the answer is stored. */
-  mail?: MailCards;
-  mailDraft?: MailDraft;
+  /** The mail this answer brought, and the reply drafts the computer built for
+   *  it (PHONE-CHAT-PROTOCOL §3). Both are the computer's own payload and both
+   *  are gone once the answer is stored. */
+  mail?: readonly MailCards[];
+  mailDrafts?: readonly MailDraft[];
+  /** From the turn route: a link in this answer is shown, never opened. */
+  linksAsText?: boolean;
   /** The width the answer got, handed on because the table's own decision
    *  (`tableScrollDecision`) is a function of the column count and this width. */
   readingMeasure: number;
@@ -223,6 +225,7 @@ function AnswerView({
             <MarkdownBlocks
               colors={colors}
               id={id}
+              linksAsText={linksAsText}
               readingMeasure={readingMeasure}
               sources={sources}
               styles={styles}
@@ -271,11 +274,20 @@ function AnswerView({
           onOpen={onMiniappOpen ? () => onMiniappOpen(miniapp, id) : undefined}
         />
       ) : null}
-      {mail ? <MailCardList cards={mail} colors={colors} /> : null}
-      {mailDraft ? <MailDraftCard colors={colors} draft={mailDraft} /> : null}
-      {/* The sheet hangs here because the card that opened it hangs here: the
-          mail is read over the answer that brought it. */}
-      <MailReadSheet colors={colors} />
+      {mail
+        ? mail.map((cards, index) => (
+            // Append-only, so the position is the identity: a second set never
+            // moves the first, and the first keeps its Open buttons.
+            <MailCardList cards={cards} colors={colors} key={index} />
+          ))
+        : null}
+      {mailDrafts
+        ? mailDrafts.map((draft) => (
+            // Keyed by the draft id: a second draft is a second card, and the
+            // first keeps the body the person edited under its own id.
+            <MailDraftCard colors={colors} draft={draft} key={draft.draftId} />
+          ))
+        : null}
       {sources ? <SourceChips sources={sources} styles={styles} /> : null}
       {ctas && ctas.length > 0 ? (
         // D1 row 26: the controller drew these as buttons, but its own press

@@ -746,7 +746,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       sentTo: "Sent to {to}",
       mailOpening: "Beginning of the mail",
       reading: "Reading the mail…",
-      notRead: "That mail could not be read.",
+      bodyEmpty: "Write something to send, or ask for a new draft.",
       failBusy: "The computer is already answering something else.",
       failNoRunner:
         "The computer did not answer. Open Kalsa on the computer and try again.",

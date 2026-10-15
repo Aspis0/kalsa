@@ -17,8 +17,11 @@ import { HostChatSurface } from "./HostChatSurface";
 import { HostDrawer } from "./HostDrawer";
 import { HostFurniture } from "./HostFurniture";
 import { MailActionsContext } from "../ui/shell/mailActions";
+import { MailReadSheet } from "../ui/shell/MailReadSheet";
 import { useMailHost } from "./useMailHost";
 import { useLocale } from "../i18n";
+import { useLabTheme } from "../ui/labTheme";
+import type { ThemeMode } from "../theme/design";
 
 export interface HostLayoutProps {
   /** Safe-area insets: `top` paints the strip below the notch, `bottom`
@@ -87,7 +90,12 @@ export function HostLayout({
   streaming,
 }: HostLayoutProps) {
   const t = useLocale().t;
-  const mail = useMailHost({ send: sendHost.send, askDraftText: t("chat.mail.askDraft") });
+  const { mode } = useLabTheme<{ mode: ThemeMode }>();
+  const mail = useMailHost({
+    send: sendHost.send,
+    askDraftText: t("chat.mail.askDraft"),
+    conversationId: conv.conversations.activeId,
+  });
   return (
     <>
       <MailActionsContext.Provider value={mail}>
@@ -110,6 +118,8 @@ export function HostLayout({
           onMiniappOpen={onMiniappOpen}
         />
       </MailActionsContext.Provider>
+
+      <MailReadSheet mode={mode} />
 
       <HostDrawer
         open={drawerOpen}

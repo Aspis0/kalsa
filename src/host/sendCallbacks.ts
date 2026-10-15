@@ -140,13 +140,21 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
       if (!fence.owns(token)) return;
       const cards = normalizeMailCards(raw);
       if (!cards) return;
-      patch((message) => ({ ...message, mail: cards }));
+      // One turn can list the mail twice (the desktop draws both sets); the
+      // first set keeps its Open buttons because the list is a list.
+      patch((message) => ({ ...message, mail: [...(message.mail ?? []), cards] }));
     },
     onMailDraft: (raw: unknown) => {
       if (!fence.owns(token)) return;
       const draft = normalizeMailDraft(raw);
       if (!draft) return;
-      patch((message) => ({ ...message, mailDraft: draft }));
+      // A second draft is a second card, never a swap: a draft id stays
+      // sendable for its 30 minutes, and its card keeps its own body.
+      patch((message) => ({ ...message, mailDrafts: [...(message.mailDrafts ?? []), draft] }));
+    },
+    onLinksAsText: () => {
+      if (!fence.owns(token)) return;
+      patch((message) => ({ ...message, linksAsText: true }));
     },
     // Result images/downloads ride with the reply (RNA-seq job context).
     onImages: (imgs: ResultImage[], dls: ResultDownload[]) => {

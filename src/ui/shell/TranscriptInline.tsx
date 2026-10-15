@@ -23,7 +23,9 @@
  *    audit to find**: WCAG 2.5.8's own "Inline" exception (a target in a
  *    sentence is exempt; its size is set by the line height), and the
  *    alternative leaves the address with no route at all. Making it inert like
- *    the marker is an open owner decision, not a silent one.
+ *    the marker is an open owner decision, not a silent one — except on the
+ *    turn route, where `linksAsText` makes every link inert: a mail the model
+ *    read can put an address into its answer (PHONE-CHAT-PROTOCOL §3).
  */
 import type React from "react";
 import { Linking, Text } from "react-native";
@@ -39,6 +41,9 @@ export type InlineContext = {
   color: string;
   /** `transcript.answer.<id>.b<block>` — the path a link's testID extends. */
   idPrefix: string;
+  /** A turn-route answer (PHONE-CHAT-PROTOCOL §3): a link is read, never
+   *  opened. The markdown around it stays exactly as it is. */
+  linksAsText?: boolean;
   sources?: readonly TranscriptSource[];
   styles: TranscriptStyles;
   t: TranslateFn;
@@ -55,13 +60,14 @@ export function renderInline(
     cached &&
     cached.color === context.color &&
     cached.idPrefix === context.idPrefix &&
+    cached.linksAsText === context.linksAsText &&
     cached.sources === context.sources &&
     cached.styles === context.styles &&
     cached.t === context.t
   ) {
     return cached.output;
   }
-  const { color, idPrefix, sources, styles, t } = context;
+  const { color, idPrefix, linksAsText, sources, styles, t } = context;
   const output = nodes.map((node, index) => {
     switch (node.type) {
       case "text":
@@ -95,6 +101,15 @@ export function renderInline(
       case "link": {
         // An empty label would be a zero-width tap target.
         if (!node.text) return null;
+        // A turn-route answer: the address is shown with the label so a reader
+        // can judge it, and no tap on this sentence opens anything.
+        if (linksAsText) {
+          return (
+            <Text key={index} style={{ color }}>
+              {`${node.text} (${node.href.trim()})`}
+            </Text>
+          );
+        }
         if (!sourceChipDecision(node.href).tappable) {
           return (
             <Text key={index} style={{ color }}>

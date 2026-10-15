@@ -108,13 +108,18 @@ export type Message = {
   sources?: MessageSource[];
   miniapp?: { kind: string; title: string; blocks: any[]; state?: Record<string, unknown> };
   /**
-   * The mail a remote answer brought, and the reply draft the computer built.
-   * Both are volatile: they describe what was on the computer's screen during
-   * one turn, so `historyPersistable` never writes them and a reopened
-   * conversation shows the answer without them.
+   * The mail a remote answer brought, and the reply drafts the computer
+   * built. Both are lists — one turn may list the mail twice and draft for two
+   * mails — and both are volatile: they describe what was on the computer's
+   * screen during one turn, so `historyPersistable` never writes them and a
+   * reopened conversation shows the answer without them.
    */
-  mail?: MailCards;
-  mailDraft?: MailDraft;
+  mail?: MailCards[];
+  mailDrafts?: MailDraft[];
+  /** The answer came from the turn route, where a link is shown and never
+   *  opened by a tap (PHONE-CHAT-PROTOCOL §3). Survives a reopen: the answer
+   *  does, and so does where it came from. */
+  linksAsText?: boolean;
   attachments?: LocalAttachment[];
   // RNA-seq job context: result image/download links delivered alongside the
   // assistant reply.

@@ -23,7 +23,7 @@ describe("mail never reaches the phone's disk", () => {
     const message = stored[0] as Record<string, unknown>;
     expect(message.text).toBe("hai 2 mail");
     expect(message.mail).toBeUndefined();
-    expect(message.mailDraft).toBeUndefined();
+    expect(message.mailDrafts).toBeUndefined();
   });
 
   test("an answer without mail is untouched by the strip", () => {
@@ -31,5 +31,12 @@ describe("mail never reaches the phone's disk", () => {
       { id: "m1", role: "assistant", text: "ciao" },
     ]);
     expect(stored).toEqual([{ id: "m1", role: "assistant", text: "ciao" }]);
+  });
+
+  test("the link mark stays: a reopened turn-route answer is still turn-route", () => {
+    const stored = toPersistableHistoryMessages([
+      { id: "m1", role: "assistant", text: "vedi [qui](https://x.it)", linksAsText: true },
+    ]) as Record<string, unknown>[];
+    expect(stored[0].linksAsText).toBe(true);
   });
 });

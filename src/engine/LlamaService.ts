@@ -845,6 +845,12 @@ export type EngineCallbacks = {
   onMailCards?: (cards: unknown) => void;
   onMailDraft?: (draft: unknown) => void;
   /**
+   * The answer arrived from the turn route, where a link is shown and never
+   * opened by a tap (PHONE-CHAT-PROTOCOL §3). The markdown around it is the
+   * phone's own rendering either way; only the link changes.
+   */
+  onLinksAsText?: () => void;
+  /**
    * Unmodified model output for the assistant turn (think wrappers etc.).
    * Fired once when the final text is produced; UI stream stays cleaned via onDelta.
    * The second argument records the MECHANISM that produced the string, at

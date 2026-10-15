@@ -59,15 +59,16 @@ describe("the turn route and its silent fallback", () => {
     expect(routes).toEqual(["turn", "completions", "completions"]);
   });
 
-  test("a mid-turn failure is a failure, and a dead door is not a refusal", () => {
+  test("only a door saying \"no such route\" counts as an old computer", () => {
+    // A revoked credential or a sick server says nothing about the route, and
+    // remembering one would take the route away for the whole session.
+    expect(isTurnRouteRefusal({ error: new Error("remote_brain_http_401") })).toBe(false);
+    expect(isTurnRouteRefusal({ error: new Error("remote_brain_http_500") })).toBe(false);
+    expect(isTurnRouteRefusal({ error: new Error("remote_brain_http_0") })).toBe(false);
     expect(isTurnRouteRefusal({ error: new Error("remote_brain_timeout") })).toBe(false);
     expect(isTurnRouteRefusal(undefined)).toBe(false);
-    // Status 0 is no answer at all, and remembering it would take the route
-    // away from a computer that has it.
-    expect(isTurnRouteRefusal({ error: new Error("remote_brain_http_0") })).toBe(false);
-    // A 401 IS a refusal by the letter of the rule, and the old route will say
-    // the same: nothing is remembered that the fallback would not honour.
-    expect(isTurnRouteRefusal({ error: new Error("remote_brain_http_401") })).toBe(true);
     expect(isTurnRouteRefusal({ error: new Error("remote_brain_http_404") })).toBe(true);
+    expect(isTurnRouteRefusal({ error: new Error("remote_brain_http_405") })).toBe(true);
+    expect(isTurnRouteRefusal({ error: new Error("remote_brain_http_501") })).toBe(true);
   });
 });

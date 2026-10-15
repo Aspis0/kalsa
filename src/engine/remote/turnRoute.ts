@@ -15,16 +15,16 @@ export function isTurnRouteAbsent(): boolean {
   return turnRouteAbsent;
 }
 
-/** A computer that answered a non-2xx before the first SSE byte does not
- *  know this route; a token problem or a dead network must not be mistaken
- *  for one, so only the refusal itself counts. Deciding it and remembering it
- *  are two things: the caller that saw the answer says so, and the fallback
- *  below is the only place the verdict is kept. */
+/** A computer that answered a non-2xx before the first SSE byte may simply not
+ *  know this route — but only a door saying "no such route" means that. A 401
+ *  (revoked credential) or a 5xx (a proxy, a server in trouble) says nothing
+ *  about the route, and remembering one as an old computer would take the turn
+ *  route away from a computer that has it. */
 export function isTurnRouteRefusal(failure: { error?: Error } | undefined): boolean {
   const status = /^remote_brain_http_(\d{3})$/.exec(failure?.error?.message ?? "");
-  // Status 0 is not an answer: a dead road must not be remembered as a
-  // computer that does not know the route.
-  return status !== null && Number(status[1]) > 0;
+  if (status === null) return false;
+  const code = Number(status[1]);
+  return code === 404 || code === 405 || code === 501;
 }
 
 /** A pairing change is a different computer: its answer must be asked again. */

@@ -755,10 +755,20 @@ export async function streamRemoteAssistantTurn(
   /** The turn route's rows and mail, in the caller's own shape (§3): a tool
    *  row is the same event the local engine's tool call produces, so the
    *  transcript draws both without knowing which road carried the turn. */
+  let markedLinks = false;
   const safeTurnEvent = (event: TurnSseEvent) => {
     try {
       if (event.kind === "reasoning") noteReasoningArrived();
-      else if (event.kind === "delta") emitAnswerText(event.text);
+      else if (event.kind === "delta") {
+        // §3: an answer from this route may stay markdown, but a mail the model
+        // read can put a link into it — shown, never opened. Marked once, on
+        // the first word, so a refused attempt that falls back marks nothing.
+        if (!markedLinks) {
+          markedLinks = true;
+          callbacks.onLinksAsText?.();
+        }
+        emitAnswerText(event.text);
+      }
       else if (event.kind === "tool_run") callbacks.onTool?.({ name: event.name });
       else if (event.kind === "cards") callbacks.onMailCards?.(event.cards);
       else if (event.kind === "draft") callbacks.onMailDraft?.(event.draft);
@@ -861,6 +871,12 @@ export async function streamRemoteAssistantTurn(
               (err as { code?: string; preservePartial?: boolean }).code = finish.kind;
               (err as { preservePartial?: boolean }).preservePartial =
                 finish.kind === "interrupted" || finish.kind === "truncated";
+              // Every failure of this route is a contract code or a transport
+              // code: the phone's own table must say something about both, and
+              // an unknown code must never reach a screen as itself.
+              if (route === "turn" && finish.kind === "error") {
+                (err as { contractCode?: boolean }).contractCode = true;
+              }
               settle(err);
             },
           },

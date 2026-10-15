@@ -2,23 +2,27 @@
  * One mail opened from a card (PHONE-CHAT-PROTOCOL §4): the record's own words
  * and the computer's fence-free body, in a sheet a person reads and closes.
  *
- * The sheet carries no action of its own. Everything it shows came from the
- * computer, and the only press it takes is the one that leaves.
+ * ONE sheet for the whole conversation, mounted by the host beside the
+ * transcript: a card is a row, and a sheet per row would stack N identical
+ * modals while a mail is open. It carries no action of its own — everything it
+ * shows came from the computer, and the only press it takes is the one that
+ * leaves.
  */
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 
 import { useLocale } from "../../i18n";
 import { humanContractFailure } from "../../engine/remote/phoneChatFailures";
 import { senderLine } from "../../domain/mailPayload";
-import { elevation, radius, spacing, type, type DesignColors } from "../../theme/design";
+import { elevation, modes, radius, spacing, type, type ThemeMode } from "../../theme/design";
 import { MIN_TOUCH_TARGET } from "./shellGeometry";
 import { useMailActions } from "./mailActions";
 
-export function MailReadSheet({ colors }: { colors: DesignColors }) {
+export function MailReadSheet({ mode }: { mode: ThemeMode }) {
   const { t } = useLocale();
   const mail = useMailActions();
   const state = mail?.openMail;
   if (!mail || !state || state.status === "idle") return null;
+  const colors = modes[mode];
   return (
     <Modal
       visible
