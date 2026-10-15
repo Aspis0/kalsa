@@ -165,3 +165,36 @@ describe("a confirmed death holds until the user or a good load clears it", () =
     expect(laterClean).not.toHaveBeenCalled();
   });
 });
+
+describe("a load in flight in this runtime is never judged from the exit record", () => {
+  test("its live marker stays present, whatever an old exit record says", async () => {
+    const store = makeStore();
+    let settle: () => void = () => undefined;
+    jest.spyOn(Date, "now").mockReturnValue(STAMP);
+    const inFlight = guardedLoad(
+      store,
+      MODEL,
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
+    );
+    jest.restoreAllMocks();
+    const predating = jest.fn(exitAt("crash", STAMP - 1_000));
+    expect(await readLoadMarker(store, MODEL, predating)).toBe(true);
+    expect(predating).not.toHaveBeenCalled();
+    expect(await store.getItem(MARKER_KEY)).not.toBeNull();
+    settle();
+    await inFlight;
+    expect(await store.getItem(MARKER_KEY)).toBeNull();
+  });
+
+  test("after the load settles, a leftover marker follows the normal rules", async () => {
+    const store = makeStore();
+    await store.setItem(MARKER_KEY, JSON.stringify({ at: STAMP }));
+    expect(
+      await readLoadMarker(store, MODEL, exitAt("crash", STAMP - 1_000)),
+    ).toBe(false);
+    expect(await store.getItem(MARKER_KEY)).toBeNull();
+  });
+});

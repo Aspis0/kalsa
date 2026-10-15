@@ -13,6 +13,7 @@
  */
 import type { ExitInfo } from "../../modules/kalsa-lifecycle/src";
 import { isUncleanExit } from "../logReport/exitReasons";
+import { loadMarkerKey } from "./loadMarkerKey";
 
 export interface LoadMarkerStore {
   getItem(key: string): Promise<string | null>;
@@ -23,21 +24,22 @@ export interface LoadMarkerStore {
 /** The newest Android process-exit record, or null when none can be read. */
 export type ExitReader = () => ExitInfo | null;
 
-const markerKey = (modelId: string): string => `kalsa.load.dead.${modelId}`;
 const LAST_GOOD_KEY = "kalsa.model.lastGoodId";
+/** Loads in flight in this runtime, per model id: their markers are live. */
+const loadsInFlight = new Map<string, number>();
 
 export async function writeLoadMarker(
   store: LoadMarkerStore,
   modelId: string,
 ): Promise<void> {
-  await store.setItem(markerKey(modelId), JSON.stringify({ at: Date.now() }));
+  await store.setItem(loadMarkerKey(modelId), JSON.stringify({ at: Date.now() }));
 }
 
 export async function clearLoadMarker(
   store: LoadMarkerStore,
   modelId: string,
 ): Promise<void> {
-  await store.removeItem(markerKey(modelId));
+  await store.removeItem(loadMarkerKey(modelId));
 }
 
 /**
@@ -54,13 +56,14 @@ export async function readLoadMarker(
   modelId: string,
   readExit: ExitReader,
 ): Promise<boolean> {
-  const raw = await store.getItem(markerKey(modelId));
+  const raw = await store.getItem(loadMarkerKey(modelId));
   if (raw === null) return false;
+  if (loadsInFlight.has(modelId)) return true;
   const marker = parseMarker(raw);
   if (marker.confirmed) return true;
   if (isDeathDuringLoad(marker.at, readExit())) {
     const confirmed = JSON.stringify({ at: marker.at, confirmed: true });
-    await store.setItem(markerKey(modelId), confirmed).catch(() => undefined);
+    await store.setItem(loadMarkerKey(modelId), confirmed).catch(() => undefined);
     return true;
   }
   await clearLoadMarker(store, modelId).catch(() => undefined);
@@ -109,18 +112,24 @@ export async function readLastGoodModelId(
  * Marker lifecycle for ONE load attempt: written before `load` runs, cleared
  * the moment `load` settles — success or handled failure alike. If code is
  * running after the load failed, the process survived and the marker must not
- * outlive it; a storage failure never blocks the load (fail open).
+ * outlive it; a storage failure never blocks the load (fail open). While it
+ * runs, readLoadMarker treats this runtime's marker as live, never as a stale
+ * one from an earlier process.
  */
 export async function guardedLoad<T>(
   store: LoadMarkerStore,
   modelId: string,
   load: () => Promise<T>,
 ): Promise<T> {
-  await writeLoadMarker(store, modelId).catch(() => undefined);
+  loadsInFlight.set(modelId, (loadsInFlight.get(modelId) ?? 0) + 1);
   try {
+    await writeLoadMarker(store, modelId).catch(() => undefined);
     return await load();
   } finally {
     await clearLoadMarker(store, modelId).catch(() => undefined);
+    const remaining = (loadsInFlight.get(modelId) ?? 1) - 1;
+    if (remaining > 0) loadsInFlight.set(modelId, remaining);
+    else loadsInFlight.delete(modelId);
   }
 }
 

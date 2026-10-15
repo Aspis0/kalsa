@@ -31,6 +31,7 @@ import { getStrings } from "../i18n";
 import { MODEL_REGISTRY } from "./ModelRegistry";
 import { DEV_MODEL_REGISTRY } from "./devModelCatalog";
 import {
+  deleteModelFiles,
   downloadModelBundle,
   fileSpecFor,
   finalizeDownloadedFile,
@@ -225,5 +226,12 @@ describe("ModelDownloader SHA-256 verification", () => {
     ).resolves.toEqual({ status: "aborted" });
     expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
     expect(FileSystem.writeAsStringAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteModelFiles clears the model's load marker", () => {
+  it("removes the marker key of the deleted model", async () => {
+    await deleteModelFiles(model);
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(`kalsa.load.dead.${model.id}`);
   });
 });

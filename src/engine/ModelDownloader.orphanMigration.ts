@@ -24,6 +24,7 @@ import {
   listOrphanModelDirNames,
   MODELS_DIR,
 } from "./ModelDownloader";
+import { loadMarkerKey } from "./loadMarkerKey";
 
 /** Versioned key for the pending (undecided) orphan migration payload. */
 export const ORPHAN_MIGRATION_STORAGE_KEY = "kalsa.models.orphanMigration.v1";
@@ -209,8 +210,8 @@ export async function detectOrphansAtBoot(
 }
 
 /**
- * Delete outcome: remove the given orphan dirs (best-effort) and clear their
- * resume blobs, then drop the pending migration. Reuses the existing resume-key
+ * Delete outcome: remove the given orphan dirs (best-effort), clear their
+ * resume blobs and load markers, then drop the pending migration. Reuses the existing resume-key
  * cleanup. Never throws to the caller.
  */
 export async function deleteOrphanDirs(orphans: readonly string[]): Promise<void> {
@@ -228,6 +229,7 @@ export async function deleteOrphanDirs(orphans: readonly string[]): Promise<void
       // Best-effort: skip this orphan and continue.
     }
     await clearOrphanResumeKeys(id);
+    await AsyncStorage.removeItem(loadMarkerKey(id)).catch(() => undefined);
   }
   await clearPendingOrphanMigration();
 }

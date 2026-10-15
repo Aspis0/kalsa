@@ -270,4 +270,19 @@ describe("orphan migration persistence (detect-only, no delete)", () => {
     const deletedTargets = deleteAsync.mock.calls.map((c) => c[0] as string);
     expect(deletedTargets).not.toContain(`file:///kalsa/models/${MODEL_REGISTRY[0]!.id}`);
   });
+
+  it("DELETE: clears the deleted orphan's load marker, so a later model with the id starts clean", async () => {
+    readDirectoryAsync.mockResolvedValue(["qwen3.5-2b"]);
+    getInfoAsync.mockImplementation(async () => ({
+      exists: true,
+      isDirectory: true,
+      size: 1234,
+    }));
+    const markerKey = "kalsa.load.dead.qwen3.5-2b";
+    await AsyncStorage.setItem(markerKey, JSON.stringify({ at: 1, confirmed: true }));
+
+    await deleteOrphanDirs(["qwen3.5-2b"]);
+
+    expect(await AsyncStorage.getItem(markerKey)).toBeNull();
+  });
 });

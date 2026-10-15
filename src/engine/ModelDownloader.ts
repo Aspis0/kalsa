@@ -6,6 +6,7 @@ import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL } from "./ModelRegistry"
 import type { ModelInfo, ModelFileSpec } from "./ModelRegistry";
 import type { ModelGateVerdict } from "./deviceProfile";
 import { resolveModelArtifact } from "./modelHost";
+import { loadMarkerKey } from "./loadMarkerKey";
 
 /**
  * Download bundle modelli (GGUF + mmproj vision) da HuggingFace con:
@@ -614,6 +615,8 @@ export async function deleteModelFiles(model: ModelInfo): Promise<void> {
       spec?.sha256,
     );
   }
+  // A deleted model must not inherit a death verdict from its old files.
+  await AsyncStorage.removeItem(loadMarkerKey(model.id)).catch(() => undefined);
 }
 
 // ── Orphan migration (catalog-prune disk leak, M1) ───────────────────────────
