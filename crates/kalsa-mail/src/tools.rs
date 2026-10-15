@@ -2,6 +2,7 @@
 //! that runs them: a host that found one of these changed has to see it by reading
 //! this file alone, and these schemas are what it hashes.
 
+use crate::mcp::MAX_ITEMS;
 use rmcp::model::{JsonObject, Tool, ToolAnnotations};
 use serde_json::{json, Value};
 
@@ -43,6 +44,12 @@ suspicious or normal). Each mail starts with its id, shown as \"mail id N\". Rea
                 "query": {
                     "type": "string",
                     "description": "Free text to look for in the whole message."
+                },
+                "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": MAX_ITEMS,
+                    "description": "How many of the newest mails to return. Defaults to 50."
                 }
             },
             "additionalProperties": false
@@ -221,6 +228,13 @@ mod tests {
         let days = list().input_schema["properties"]["days"].clone();
         assert_eq!(days["minimum"], json!(1));
         assert_eq!(days["maximum"], json!(MAX_DAYS));
+    }
+
+    #[test]
+    fn the_limit_argument_is_bounded_to_the_fifty_a_list_can_return() {
+        let limit = list().input_schema["properties"]["limit"].clone();
+        assert_eq!(limit["minimum"], json!(1));
+        assert_eq!(limit["maximum"], json!(MAX_ITEMS));
     }
 
     /// T3: the schema is not the guard. The clamp is, because `days` also reaches

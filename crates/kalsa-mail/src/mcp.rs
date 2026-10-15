@@ -123,17 +123,18 @@ async fn list(
     args: ListArgs,
 ) -> CallToolResult {
     let days = args.days.unwrap_or(1).clamp(1, MAX_DAYS);
+    let limit = args.limit.unwrap_or(MAX_ITEMS).clamp(1, MAX_ITEMS);
     let folder = args.folder.unwrap_or_else(default_folder);
     let mut mailbox = match open(&account, &folder).await {
         Ok(mailbox) => mailbox,
-        Err(error) => return view::error(error.message()),
+        Err(error) => return view::failed(error),
     };
     let uids = match mailbox
-        .uids(days, args.from.as_deref(), args.query.as_deref(), MAX_ITEMS)
+        .uids(days, args.from.as_deref(), args.query.as_deref(), limit)
         .await
     {
         Ok(uids) => uids,
-        Err(error) => return view::error(error.message()),
+        Err(error) => return view::failed(error),
     };
     listed
         .lock()
@@ -141,11 +142,11 @@ async fn list(
         .remember(&folder, mailbox.uid_validity, &uids);
     let sources = match mailbox.sources(&uids).await {
         Ok(sources) => sources,
-        Err(error) => return view::error(error.message()),
+        Err(error) => return view::failed(error),
     };
     let senders = match senders_of(&cache, &mut mailbox).await {
         Ok(senders) => senders,
-        Err(error) => return view::error(error.message()),
+        Err(error) => return view::failed(error),
     };
     mailbox.logout().await;
 
@@ -248,7 +249,7 @@ async fn read(
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
         }
-        Err(error) => return view::error(error.message()),
+        Err(error) => return view::failed(error),
     };
     let language = language::of([&parsed]);
     let out = ReadOut::of(uid, &parsed, &labels, found);
@@ -269,7 +270,7 @@ async fn draft_reply(
         Err(MailError::Protocol) => {
             return view::error("there is no message with that id in this folder")
         }
-        Err(error) => return view::error(error.message()),
+        Err(error) => return view::failed(error),
     };
     match draft::reply_to(&parsed, &args.body) {
         Ok(draft) => {
@@ -291,6 +292,8 @@ struct ListArgs {
     from: Option<String>,
     /// Free text to look for in the whole message.
     query: Option<String>,
+    /// How many of the newest mails to return. Fifty by default, and at most fifty.
+    limit: Option<usize>,
 }
 
 #[derive(Deserialize)]

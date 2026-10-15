@@ -6,11 +6,11 @@ use kalsa_mcp::outcome::{CallOutcome, ToolResult};
 use kalsa_mcp::record::{ServerRecord, Trust};
 use kalsa_mcp::registry::Registry;
 use kalsa_mcp::server_id::ServerId;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 use super::account::{self, MailAccount};
 use super::bootstrap;
-use super::error::MailError;
+use super::error::{refusal_of, MailError};
 use super::keychain::PasswordStore;
 use super::program::{self, Program};
 use super::state::PANEL_CONVERSATION;
@@ -37,13 +37,17 @@ pub(crate) fn open_saved(
 pub(crate) async fn probe(account: &MailAccount, password: &str) -> Result<Vec<String>, MailError> {
     let program = program::current()?;
     let mut host = build(&program, account, password)?;
-    let arguments = json!({"days": 1}).as_object().cloned().unwrap_or_default();
-    let outcome = host.call(PANEL_CONVERSATION, "mail.list", arguments).await;
+    let outcome = host.call(PANEL_CONVERSATION, "mail.list", probe_arguments()).await;
     drop(host);
     match outcome? {
         CallOutcome::Ran(result) => listing_result(result),
         CallOutcome::NeedsConfirmation(_) => Err(MailError::Confirmation),
     }
+}
+
+/// The newest mails the test asks for, and no more: only the subjects are shown.
+fn probe_arguments() -> Map<String, Value> {
+    json!({"days": 1, "limit": TEST_SUBJECTS}).as_object().cloned().unwrap_or_default()
 }
 
 /// An error result is a failure, never an empty inbox. The sidecar's sentence is logged
@@ -52,7 +56,7 @@ fn listing_result(result: ToolResult) -> Result<Vec<String>, MailError> {
     if result.is_error {
         let reason: String = result.for_model.first().map(|text| text.chars().take(80).collect()).unwrap_or_default();
         log::warn!("mail account test returned is_error: {reason}");
-        return Err(MailError::Failed);
+        return Err(refusal_of(result.for_ui.as_ref()).unwrap_or(MailError::Failed));
     }
     Ok(subjects(result.for_ui.as_ref()))
 }
@@ -89,6 +93,8 @@ fn subjects(for_ui: Option<&Value>) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+
+    use kalsa_mail::imap::LOGIN_REFUSED;
 
     use super::*;
     use crate::mail::keychain::Memory;
@@ -179,6 +185,19 @@ mod tests {
     fn an_error_result_is_a_failure_not_an_empty_inbox() {
         let refused = result(true, Some(json!({"items": []})));
         assert_eq!(listing_result(refused), Err(MailError::Failed));
+    }
+
+    #[test]
+    fn a_refused_login_on_the_probe_is_invalid_account() {
+        let refused = result(true, Some(json!({"code": LOGIN_REFUSED})));
+        assert_eq!(listing_result(refused), Err(MailError::InvalidAccount));
+    }
+
+    #[test]
+    fn the_probe_asks_for_only_the_subjects_it_shows() {
+        let asked = probe_arguments();
+        assert_eq!(asked["limit"], json!(TEST_SUBJECTS));
+        assert_eq!(asked["days"], json!(1));
     }
 
     #[test]

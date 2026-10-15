@@ -1,6 +1,8 @@
+use kalsa_mail::imap::LOGIN_REFUSED;
 use kalsa_mcp::error::Error as HostError;
 use kalsa_mcp::permission::DenyReason;
 use serde::Serialize;
+use serde_json::Value;
 
 /// What the mail commands can fail with. The UI translates the code; nothing
 /// here carries a server reply, an address or a password.
@@ -73,5 +75,28 @@ pub(crate) struct CommandFailure {
 impl From<MailError> for CommandFailure {
     fn from(error: MailError) -> Self {
         Self { code: error.code() }
+    }
+}
+
+/// The failure a sidecar error result stands for when it names a refused login, the
+/// one the person can fix with a new password. `None` leaves the reporting to the caller.
+pub(crate) fn refusal_of(data: Option<&Value>) -> Option<MailError> {
+    match data.and_then(|data| data.get("code")).and_then(Value::as_str) {
+        Some(LOGIN_REFUSED) => Some(MailError::InvalidAccount),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn a_refused_login_is_invalid_account_and_no_other_code_is() {
+        assert_eq!(refusal_of(Some(&json!({"code": LOGIN_REFUSED}))), Some(MailError::InvalidAccount));
+        assert_eq!(refusal_of(Some(&json!({"code": "refused"}))), None);
+        assert_eq!(refusal_of(None), None);
     }
 }

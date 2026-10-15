@@ -4,6 +4,7 @@
 use crate::draft::Draft;
 use crate::fence::Fence;
 use crate::html_text;
+use crate::imap::{MailError, LOGIN_REFUSED};
 use crate::invisible;
 use crate::label::language::Language;
 use crate::label::signals::{self, Signal};
@@ -11,6 +12,7 @@ use crate::label::Labels;
 use crate::mail::ParsedMail;
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde::Serialize;
+use serde_json::json;
 
 pub const SNIPPET_LIMIT: usize = 200;
 
@@ -205,6 +207,16 @@ pub fn error(message: &str) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(message.to_string())])
 }
 
+/// Only a refused login carries a code: it is the one failure the person fixes
+/// themselves. Every other failure is the plain sentence.
+pub fn failed(failure: MailError) -> CallToolResult {
+    let mut result = error(failure.message());
+    if failure == MailError::Login {
+        result.structured_content = Some(json!({ "code": LOGIN_REFUSED }));
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -336,6 +348,16 @@ mod tests {
         let draft_lines = draft.fenced(&fence, 9);
         assert_eq!(draft_lines[0], "mail id 9");
         assert!(draft_lines[1].starts_with("to:"));
+    }
+
+    #[test]
+    fn a_refused_login_carries_its_code_and_no_other_failure_does() {
+        let refused = failed(MailError::Login);
+        assert_eq!(refused.is_error, Some(true));
+        assert_eq!(refused.structured_content, Some(json!({ "code": LOGIN_REFUSED })));
+        let timed_out = failed(MailError::Timeout);
+        assert_eq!(timed_out.is_error, Some(true));
+        assert_eq!(timed_out.structured_content, None);
     }
 
     #[test]

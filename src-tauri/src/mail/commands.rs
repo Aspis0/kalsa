@@ -6,7 +6,7 @@ use tauri::{AppHandle, State};
 
 use super::accounts::{self, AccountForm};
 use super::account::MailAccount;
-use super::error::{CommandFailure, MailError};
+use super::error::{refusal_of, CommandFailure, MailError};
 use super::keychain::Keychain;
 use super::program;
 use super::host;
@@ -95,6 +95,7 @@ pub(crate) async fn brain_mail_draft(
 
 /// Logs a failed call by its code and an error result by its fixed sentence: the
 /// sidecar's error texts are constants, never mail content, and no arguments are logged.
+/// A refused login is thrown, not answered, so the chat reads its code like any other failure.
 async fn call<T: Serialize>(
     app: &AppHandle,
     state: &MailState,
@@ -104,6 +105,10 @@ async fn call<T: Serialize>(
     match dispatch(app, state, name, args).await {
         Ok(response) => {
             if response.is_error {
+                if let Some(refused) = refusal_of(response.for_ui.as_ref()) {
+                    log::warn!("mail call {name} was refused: {}", refused.code());
+                    return Err(refused.into());
+                }
                 let reason: String = response.for_model.first().map(|text| text.chars().take(80).collect()).unwrap_or_default();
                 log::warn!("mail call {name} returned is_error: {reason}");
             }

@@ -16,6 +16,10 @@ use tokio::time::{timeout, Duration};
 pub const CONNECT_DEADLINE: Duration = Duration::from_secs(20);
 pub const READ_DEADLINE: Duration = Duration::from_secs(60);
 
+/// The structured code a refused login is answered with. The host turns it into the
+/// one failure the person can fix themselves, so the string is shared, not guessed.
+pub const LOGIN_REFUSED: &str = "login_refused";
+
 /// Every failure is a fixed string. A mail server puts whatever it likes in a reply,
 /// including the login it has just seen, so no reply text is ever formatted.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
