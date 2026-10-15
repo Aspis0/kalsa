@@ -178,6 +178,26 @@ One weight copy read by NPU, GPU and CPU; the governor hops decode between legs.
   trunk/experts split, not layer counts; and `NoFit` can also mean unknown SoC, not low RAM
   (`PLAN-2026-10-09-full.md:958-959`). Full verdict + verification ledger:
   `scratchpad/agents/gpu-layers-history/VERDICT.md` (scopes A-D, 347 lines).
+- **CORRECTION + REGRESSION (2026-10-15, supersedes the framing above).** The NPU prefill lane on
+  the Xiaomi is already measured and already proved in-app: `xiaomi14-3way/REPORT.md:18,22` (29/09,
+  first NPU v75 run) gives **NPU prefill 5.2x CPU and 4.7x OpenCL**, and
+  `xiaomi-g2-inapp-233486dd/REPORT.md:3,26` (11/10) ran **14 in-app turns with prefill AND decode on
+  the NPU, 0 CPU/0 GPU decode tokens, no crash**. Same 4.7x as the S23
+  (`s23-heat-arms-engine/REPORT.md:85-87`), so it is a property of the legs, not of v73. **Today the
+  same phone loaded `n_gpu_layers = 0` and prefilled 1760 tokens in 109.4 s: this is a REGRESSION
+  between APK `233486dd` and `aa789620`, not a gap in evidence.** Lane gate is
+  `governorInputs.ts:355-370` (`enabled = force || GPU_PREFILL_CORRECT[gen] || laneEnabled`, with
+  `fitOk = npuLane.fit === "Fit"`); its own comment at `:366-369` describes the working 11/10
+  configuration. Three earlier premises were wrong and are corrected on record: the lane is NOT
+  hardcoded off, SM8650/V75 data DOES exist, and **one-copy is the primary path while two-model is
+  the fallback** (`llama-model.cpp:1195-1199`: "the one-copy buffer the GPU leg imports ... every
+  device but Hexagon, and every device in two-copy mode"; `rn-llama.cpp:444` gates it on
+  `npu_lane_enabled`). Owner policy 2026-10-15: **no OOM, no reboot, degrade gently** - that is
+  Fable milestone 3 (`governor-plan-fable/PLAN.md:64-66`), never implemented, and today's code is
+  the opposite (`llama-governor-policy.cpp:379-383`: LOWBAT/CRITICAL -> CPU prefill, the hottest
+  backend). Live hazard to respect: a non-native TILE32 weight is refused outright with
+  `split_failed` (`ggml/src/ggml-backend.cpp:1554-1562`). Plan, with the four suspects for the
+  regression and the no-coder-before-step-1/2 rule: `scratchpad/agents/PLAN-NPU-LANE-2026-10-15.md`.
 
 ### Engine and upstream
 

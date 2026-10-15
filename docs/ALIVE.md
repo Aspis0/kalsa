@@ -141,3 +141,9 @@ heat is meaningless.
   history, four independent read-only sweeps (`SCOPE-A/B/C/D.md`, 347 lines) integrated into
   `VERDICT.md`. Reading it before arguing about the Xiaomi `NoFit`: per-layer MEMORY exists only
   for the S23, per-layer SPEED only for the Xiaomi, and the two were never measured together.
+- `scratchpad/agents/PLAN-NPU-LANE-2026-10-15.md`: the NPU prefill lane is measured on the Xiaomi
+  (4.7x OpenCL, 29/09) and ran in-app on 11/10 (prefill+decode on the NPU, no crash); it stopped
+  running by 15/10. Read this before touching the fit gate - the plan reframes the work as a
+  regression hunt, and it voids three coordinator premises recorded earlier the same day.
+- Owner policy 2026-10-15: **no OOM, no reboot, degrade gently.** Degrading means stepping down a
+  leg, never dropping to zero layers and hoping.
