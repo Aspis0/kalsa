@@ -892,6 +892,8 @@ fn an_engine_start_line_keeps_escape_shaped_separators_from_argv_to_the_file() {
         port,
         ready_timeout: Duration::from_millis(300),
         stop_grace: Duration::from_millis(50),
+
+        api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
     });
     // The worker writes on its own thread: wait for the line rather than
     // for the settle, which can land either side of the write.

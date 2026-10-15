@@ -129,6 +129,7 @@ async fn the_full_loop_carries_http_through_the_tunnel_and_the_door() {
         _upstream.1.port(),
         one_device(CREDENTIAL),
         1,
+        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
     )
     .expect("door builds")
     .start()
@@ -193,11 +194,16 @@ async fn stub_desk(listener: TcpListener, hits: Arc<AtomicUsize>) {
 async fn the_desk_lane_reaches_the_desk_and_the_lanes_never_cross() {
     let _upstream = upstream_guard().await;
     let door_listener = std::net::TcpListener::bind("127.0.0.1:0").expect("door listener binds");
-    let running_door =
-        kalsa_door::Door::new(door_listener, _upstream.1.port(), one_device(CREDENTIAL), 1)
-            .expect("door builds")
-            .start()
-            .expect("door starts");
+    let running_door = kalsa_door::Door::new(
+        door_listener,
+        _upstream.1.port(),
+        one_device(CREDENTIAL),
+        1,
+        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
+    )
+    .expect("door builds")
+    .start()
+    .expect("door starts");
 
     let desk_listener = TcpListener::bind("127.0.0.1:0").await.expect("desk binds");
     let desk_addr = desk_listener.local_addr().expect("desk address");
@@ -263,11 +269,16 @@ async fn the_desk_lane_reaches_the_desk_and_the_lanes_never_cross() {
 async fn a_desk_lane_with_no_desk_carries_nothing() {
     let _upstream = upstream_guard().await;
     let door_listener = std::net::TcpListener::bind("127.0.0.1:0").expect("door listener binds");
-    let running_door =
-        kalsa_door::Door::new(door_listener, _upstream.1.port(), one_device(CREDENTIAL), 1)
-            .expect("door builds")
-            .start()
-            .expect("door starts");
+    let running_door = kalsa_door::Door::new(
+        door_listener,
+        _upstream.1.port(),
+        one_device(CREDENTIAL),
+        1,
+        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
+    )
+    .expect("door builds")
+    .start()
+    .expect("door starts");
 
     let book = AddressBook::new();
     let server = bridge_to(running_door.address(), &book).await;
@@ -334,6 +345,7 @@ async fn the_n0_road_carries_http_by_node_id_alone() {
         _upstream.1.port(),
         one_device(CREDENTIAL),
         1,
+        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
     )
     .expect("door builds")
     .start()

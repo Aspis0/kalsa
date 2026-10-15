@@ -139,11 +139,13 @@ fn a_slow_room_ask_is_measured_inside_its_bound_and_refused_past_it() {
     let rate = room_prompt_rate(
         slow_engine(Duration::from_millis(600)),
         Duration::from_secs(5),
+        &kalsa_supervisor::EngineKey::mint().unwrap(),
     );
     assert_eq!(rate, Ok(22.7));
     let hung = room_prompt_rate(
         slow_engine(Duration::from_secs(3)),
         Duration::from_millis(300),
+        &kalsa_supervisor::EngineKey::mint().unwrap(),
     );
     assert_eq!(hung, Err(Refusal::NoUsableAnswer));
 }

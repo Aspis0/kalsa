@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 use kalsa_launch::Offload;
 use kalsa_runtime::ServerBackend;
+use kalsa_supervisor::EngineKey;
 
 use kalsa_tune::{measure_tune, Ask, Candidate};
 
@@ -100,7 +101,7 @@ fn the_metal_build_measures_full_and_forced_off() {
         chat: true,
         min_generated: kalsa_tune::DRAFT_MIN_GENERATED,
     };
-    let tuned = measure_tune(&resolved, &root, &ask, false, &[], build, &mut |_| {}, &mut |_| {});
+    let tuned = measure_tune(&resolved, &root, &ask, false, &[], build, &EngineKey::mint().expect("the OS has randomness"), &mut |_| {}, &mut |_| {});
 
     let mut lines = Vec::new();
     let mut scored = 0usize;

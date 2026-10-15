@@ -4,6 +4,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use kalsa_supervisor::EngineKey;
 use serde_json::Value;
 
 /// One fixed prompt: the same work for every request of the check, a
@@ -108,9 +109,9 @@ pub enum Answer {
 
 /// The decode rate for one short request, read the way the tune reads its
 /// samples: the same `rate_from`, after the same discarded warm-up.
-pub fn checked_rate(addr: SocketAddr, timeout: Duration) -> Answer {
-    let _ = request(addr, timeout, CHECK_WARMUP_N_PREDICT);
-    match post(addr, timeout, CHECK_N_PREDICT) {
+pub fn checked_rate(addr: SocketAddr, timeout: Duration, key: &EngineKey) -> Answer {
+    let _ = request(addr, timeout, CHECK_WARMUP_N_PREDICT, key);
+    match post(addr, timeout, CHECK_N_PREDICT, key) {
         Ok(text) => rate_from(&text, CHECK_N_PREDICT).map_or(Answer::Failed, Answer::Rate),
         Err(SendFailed::Timeout) => Answer::Timeout,
         Err(SendFailed::Failed) => Answer::Failed,
@@ -136,9 +137,27 @@ fn agent(timeout: Duration) -> ureq::Agent {
         .build()
 }
 
+/// The header every request to the engine carries. Bearer, which is the first
+/// form the fork reads (`server-http.cpp:272-282`); the key is read here and
+/// never minted, so this crate cannot answer a server it has no key for.
+fn authorized(key: &EngineKey) -> String {
+    format!("Bearer {}", key.as_str())
+}
+
 /// One POST to `/completion`, shared by the tune's samples and the check.
-fn post(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Result<String, SendFailed> {
-    post_to(addr, timeout, "/completion", &completion_body(n_predict))
+fn post(
+    addr: SocketAddr,
+    timeout: Duration,
+    n_predict: u64,
+    key: &EngineKey,
+) -> Result<String, SendFailed> {
+    post_to(
+        addr,
+        timeout,
+        "/completion",
+        &completion_body(n_predict),
+        key,
+    )
 }
 
 pub(crate) fn post_to(
@@ -146,10 +165,12 @@ pub(crate) fn post_to(
     timeout: Duration,
     path: &str,
     body: &str,
+    key: &EngineKey,
 ) -> Result<String, SendFailed> {
     match agent(timeout)
         .post(&format!("http://{addr}{path}"))
         .timeout(timeout)
+        .set("Authorization", &authorized(key))
         .send_string(body)
     {
         // The body has its own deadline; running out of time while reading
@@ -190,8 +211,13 @@ pub(crate) fn post_to(
 /// parseable body is no sample: a server still loading answers 503, a
 /// build without the endpoint answers 404, and neither is this crate's
 /// problem to surface — it is a lifetime with no usable answer.
-pub(crate) fn request(addr: SocketAddr, timeout: Duration, n_predict: u64) -> Option<f64> {
-    rate_from(&post(addr, timeout, n_predict).ok()?, n_predict)
+pub(crate) fn request(
+    addr: SocketAddr,
+    timeout: Duration,
+    n_predict: u64,
+    key: &EngineKey,
+) -> Option<f64> {
+    rate_from(&post(addr, timeout, n_predict, key).ok()?, n_predict)
 }
 
 /// One POST of one ask at one length: the draft dimension's own request.
@@ -206,10 +232,11 @@ pub(crate) fn request_ask(
     timeout: Duration,
     ask: &Ask,
     n_predict: u64,
+    key: &EngineKey,
 ) -> Option<f64> {
     let (path, body) = ask_body(ask, n_predict);
     rate_from(
-        &post_to(addr, timeout, path, &body).ok()?,
+        &post_to(addr, timeout, path, &body, key).ok()?,
         ask.min_generated,
     )
 }
@@ -267,10 +294,11 @@ fn completion_body(n_predict: u64) -> String {
 /// inherited `LLAMA_ARG_ALIAS` (applied before the command line) can sort
 /// into the set before ours and take the `id`
 /// (`server-context.cpp:1384-1395`), and the entry still carries ours.
-pub(crate) fn serves_id(addr: SocketAddr, nonce: &str, timeout: Duration) -> bool {
+pub(crate) fn serves_id(addr: SocketAddr, nonce: &str, timeout: Duration, key: &EngineKey) -> bool {
     let reply = agent(timeout)
         .get(&format!("http://{addr}/v1/models"))
         .timeout(timeout)
+        .set("Authorization", &authorized(key))
         .call();
     match reply {
         // A refused redirect arrives as an Ok: the status gates the
@@ -498,6 +526,61 @@ mod check_tests {
     use super::*;
     use std::net::TcpListener;
 
+    fn a_key() -> EngineKey {
+        EngineKey::mint().expect("the OS has randomness")
+    }
+
+    /// The stub's head, captured instead of swallowed. The engine refuses
+    /// every route outside `/health` without the key
+    /// (`server-http.cpp:251-300`), so a request that reaches it without one
+    /// is a request the real server answers 401 — and a sample this crate
+    /// would have read as a measurement.
+    #[test]
+    fn every_request_carries_the_engine_key() {
+        use std::io::Read;
+        let key = a_key();
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let (head_tx, head_rx) = std::sync::mpsc::channel();
+        let wanted = 3;
+        std::thread::spawn(move || {
+            for _ in 0..wanted {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    return;
+                };
+                let mut got: Vec<u8> = Vec::new();
+                let mut chunk = [0u8; 512];
+                while !got.windows(4).any(|window| window == b"\r\n\r\n") {
+                    match stream.read(&mut chunk) {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => got.extend_from_slice(&chunk[..n]),
+                    }
+                }
+                let _ = head_tx.send(String::from_utf8_lossy(&got).to_ascii_lowercase());
+                use std::io::Write;
+                let _ = stream.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n");
+            }
+        });
+        // One identity GET and the check's two POSTs: every request this
+        // crate sends, on both roads it has.
+        let _ = serves_id(addr, "nonce", Duration::from_millis(500), &key);
+        let _ = checked_rate(addr, Duration::from_millis(500), &key);
+        for _ in 0..wanted {
+            let head = head_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("the stub answered every request");
+            assert_eq!(
+                head.matches("authorization:").count(),
+                1,
+                "the key must be sent exactly once: {head}"
+            );
+            assert!(
+                head.contains(&format!("authorization: bearer {}", key.as_str())),
+                "the request did not carry the engine's key: {head}"
+            );
+        }
+    }
+
     /// One request read to the end of its body — headers, then the
     /// content-length bytes (a GET has none). The stubs drain before
     /// answering: bytes still unread at close reset the connection and
@@ -644,7 +727,7 @@ mod check_tests {
         let addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("addr");
         assert!(
             matches!(
-                checked_rate(addr, Duration::from_millis(100)),
+                checked_rate(addr, Duration::from_millis(100), &a_key()),
                 Answer::Timeout
             ),
             "an unanswered request is a timeout"
@@ -656,7 +739,7 @@ mod check_tests {
         let dead: SocketAddr = format!("127.0.0.1:{dead_port}").parse().expect("addr");
         assert!(
             matches!(
-                checked_rate(dead, Duration::from_millis(500)),
+                checked_rate(dead, Duration::from_millis(500), &a_key()),
                 Answer::Failed
             ),
             "a refused connection is a failure, not a slow card"
@@ -673,7 +756,7 @@ mod check_tests {
     #[test]
     fn a_redirect_is_refused_and_never_dialled() {
         let redirect = redirect(2);
-        let answer = checked_rate(redirect.addr, Duration::from_millis(500));
+        let answer = checked_rate(redirect.addr, Duration::from_millis(500), &a_key());
         assert!(
             !redirect.target_dialled(),
             "the redirect target was dialled"
@@ -710,7 +793,7 @@ mod check_tests {
         let addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("addr");
         assert!(
             matches!(
-                checked_rate(addr, Duration::from_millis(100)),
+                checked_rate(addr, Duration::from_millis(100), &a_key()),
                 Answer::Timeout
             ),
             "a stalled body is the same timeout as a stalled header"
@@ -729,7 +812,7 @@ mod check_tests {
             payload
         );
         let addr = stub_server(2, reply);
-        match checked_rate(addr, Duration::from_millis(500)) {
+        match checked_rate(addr, Duration::from_millis(500), &a_key()) {
             Answer::Rate(rate) => assert_eq!(rate, 45.4, "the rate the body reported"),
             Answer::Timeout => panic!("a served answer must not read as slow"),
             Answer::Failed => panic!("a real 200 answer must not read as a failure"),
@@ -743,7 +826,7 @@ mod check_tests {
     fn serves_id_refuses_a_redirect_and_never_dials_it() {
         let nonce = "kalsa-tune-00112233445566778899aabbccddeeff";
         let redirect = redirect(1);
-        let seen = serves_id(redirect.addr, nonce, Duration::from_millis(500));
+        let seen = serves_id(redirect.addr, nonce, Duration::from_millis(500), &a_key());
         assert!(
             redirect.reply_written(),
             "the redirect was never sent, so the refusals above mean nothing"
@@ -770,7 +853,7 @@ mod check_tests {
                 payload
             );
             let (addr, sent) = stub_server_reported(1, reply);
-            let seen = serves_id(addr, nonce, Duration::from_millis(500));
+            let seen = serves_id(addr, nonce, Duration::from_millis(500), &a_key());
             assert!(
                 matches!(sent.recv_timeout(Duration::from_secs(2)), Ok(true)),
                 "the {status} was never sent, so the refusal above means nothing"

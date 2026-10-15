@@ -11,6 +11,9 @@ license.workspace = true
 [dependencies]
 kalsa-launch = { path = "../kalsa-launch" }
 kalsa-runtime = { path = "../kalsa-runtime" }
+# The engine's credential, read and never minted: every request this crate
+# sends to a server carries it, and the server it talks to is the app's own.
+kalsa-supervisor = { path = "../kalsa-supervisor" }
 # The workspace's own pair: ureq blocks like kalsa-download does (no async
 # runtime on the old laptops this runs on), serde_json parses the answer.
 serde_json = "1"

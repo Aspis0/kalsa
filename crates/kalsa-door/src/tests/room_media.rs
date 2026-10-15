@@ -35,12 +35,18 @@ fn media_room() -> (crate::RunningDoor, Arc<Room>, [String; 3]) {
     ]);
     let room = Arc::new(Room::open(&scratch("room-media")).unwrap());
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let door =
-        crate::Door::new_with_engine(listener, 1, devices, 3, EnginePrivateHeaders::Consumed)
-            .unwrap()
-            .with_room(Arc::clone(&room), DeviceId::new(HOST))
-            .start()
-            .unwrap();
+    let door = crate::Door::new_with_engine(
+        listener,
+        1,
+        devices,
+        3,
+        EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .with_room(Arc::clone(&room), DeviceId::new(HOST))
+    .start()
+    .unwrap();
     (door, room, [host, one, two])
 }
 

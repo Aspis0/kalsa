@@ -7,11 +7,15 @@
 //! saying "done": EOF shuts the worker pool down and exits 0.
 //!
 //! The engine's header support is asserted by the harness, not here.
+//!
+//! `--api-key` carries the engine's own key: the door writes it into every
+//! head it sends upstream, so the harness must run against an engine that
+//! expects that same one.
 
 use std::io::{self, BufRead, Write};
 use std::net::TcpListener;
 
-use kalsa_door::{DeviceEntry, DeviceId, Devices, Door, EnginePrivateHeaders};
+use kalsa_door::{DeviceEntry, DeviceId, Devices, Door, EngineKey, EnginePrivateHeaders};
 
 fn arg(flag: &str) -> Result<String, String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -33,6 +37,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let capacity: u32 = arg("--capacity")?
         .parse()
         .map_err(|_| "--capacity must be a number")?;
+    let engine_key =
+        EngineKey::from_hex(&arg("--api-key")?).ok_or("--api-key must be 64 hex characters")?;
 
     let stdin = io::stdin();
     let mut lines = stdin.lock().lines();
@@ -68,6 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         devices,
         capacity,
         EnginePrivateHeaders::Consumed,
+        &engine_key,
     )?
     .start()?;
     let mut stdout = io::stdout();

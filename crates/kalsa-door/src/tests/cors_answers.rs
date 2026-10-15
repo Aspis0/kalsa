@@ -299,6 +299,8 @@ fn the_busy_answer_to_a_read_request_names_the_origin_that_asked() {
                 seat_waiters: std::sync::atomic::AtomicUsize::new(0),
                 seat_waiting: std::sync::Mutex::new(std::collections::HashSet::new()),
                 chat: None,
+
+                key: Arc::new(crate::a_key()),
             }),
             &registry,
             &active,

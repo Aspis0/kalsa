@@ -97,6 +97,7 @@ fn prepared_with(main: &str, args: ServerArgs) -> PreparedStart {
         server: ServerConfig {
             exe: PathBuf::from(main),
             argv: args.argv(),
+            api_key: crate::a_key(),
             state_file: PathBuf::from("/tmp/kalsa-tune-step-test.state"),
             port: PORT,
             ready_timeout: std::time::Duration::from_secs(1),
@@ -293,6 +294,7 @@ fn exe_for_returns_the_main_build_without_asking() {
         (ServerBackend::Cpu, Path::new("/m")),
         &mut processor,
         &machine,
+        &crate::a_key(),
         &mut |_| {},
     )
     .expect("the main build needs no decision");
@@ -322,6 +324,7 @@ fn exe_for_uses_the_resolved_processor_build() {
         (ServerBackend::Vulkan, Path::new("/m")),
         &mut processor,
         &machine,
+        &crate::a_key(),
         &mut |_| {},
     )
     .expect("the memo answers without asking the store");
@@ -376,6 +379,7 @@ fn a_record_hit_keeps_the_winner_and_never_measures() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("a kept record must not measure"),
     );
@@ -449,6 +453,7 @@ fn a_processor_winner_logs_cpu_build_and_no_device_pin() {
             PathBuf::from("/builds/vulkan/kalsa-server"),
         ),
         &mut memo,
+        &crate::a_key(),
         &mut |_: Progress| {},
         |_, _, _, _, _| panic!("a kept record must not measure"),
     );
@@ -508,6 +513,7 @@ fn a_second_seat_keeps_the_record_and_launches_the_new_plan() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut stubbed(),
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -535,6 +541,7 @@ fn a_second_seat_keeps_the_record_and_launches_the_new_plan() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut stubbed(),
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("the second seat's start must answer from the record"),
     );
@@ -581,6 +588,7 @@ fn a_smaller_per_slot_window_still_misses_the_record() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut stubbed(),
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -603,6 +611,7 @@ fn a_smaller_per_slot_window_still_misses_the_record() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut stubbed(),
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             measured.set(true);
@@ -654,6 +663,7 @@ fn a_refused_tune_is_not_saved_and_the_rule_stands() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -733,6 +743,7 @@ fn a_single_candidate_is_skipped_and_never_measured() {
         &dir,
         (ServerBackend::Cpu, PathBuf::from("/main-cpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("one candidate must not be measured"),
     );
@@ -934,6 +945,7 @@ fn a_processor_fallback_still_tunes_the_graphics_candidate() {
         // The MAIN verdict, carried beside the CPU build the fallback chose.
         (ServerBackend::Vulkan, PathBuf::from("/gpu-exe")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, rule, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -1010,6 +1022,7 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         cut_first,
     );
@@ -1041,6 +1054,7 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         cut_first,
     );
@@ -1065,6 +1079,7 @@ fn a_pass_one_cut_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("the saved record answers; nothing measures"),
     );
@@ -1144,6 +1159,7 @@ fn an_interrupted_marker_never_spends_the_one_retry() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         cut_measure,
     );
@@ -1168,6 +1184,7 @@ fn an_interrupted_marker_never_spends_the_one_retry() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         cut_measure,
     );
@@ -1222,6 +1239,7 @@ fn an_all_refused_tune_is_retried_once_and_then_stands() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         refused_tune,
     );
@@ -1246,6 +1264,7 @@ fn an_all_refused_tune_is_retried_once_and_then_stands() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         refused_tune,
     );
@@ -1261,6 +1280,7 @@ fn an_all_refused_tune_is_retried_once_and_then_stands() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("the saved no-winner record answers; nothing measures"),
     );
@@ -1325,6 +1345,7 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         dropped,
     );
@@ -1353,6 +1374,7 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         dropped,
     );
@@ -1373,6 +1395,7 @@ fn a_dropped_candidate_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("the saved record answers; nothing measures"),
     );
@@ -1451,6 +1474,7 @@ fn a_legacy_record_is_refused_and_the_tune_runs_again() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             measured.set(measured.get() + 1);
@@ -1523,6 +1547,7 @@ fn a_panicking_tune_leaves_the_plan_standing() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("the measure exploded"),
     );
@@ -1594,6 +1619,7 @@ fn the_tune_passes_a_start_and_a_close_for_every_candidate_to_the_walk() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             // The production seam's shape, candidate by candidate: the
@@ -1671,6 +1697,7 @@ fn the_cut_report_reaches_the_walk_untouched() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, counts, _| {
             // One candidate measured, then the budget: the plan still
@@ -1798,6 +1825,7 @@ fn both_cuts_report_whether_the_next_start_is_still_owed_a_measurement() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut collect,
         cut_measure,
     );
@@ -1820,6 +1848,7 @@ fn both_cuts_report_whether_the_next_start_is_still_owed_a_measurement() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut collect,
         cut_measure,
     );
@@ -1862,6 +1891,7 @@ fn the_measure_receives_the_markers_trials_as_the_prior() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -1884,6 +1914,7 @@ fn the_measure_receives_the_markers_trials_as_the_prior() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, prior, counts, _| {
             *handed.borrow_mut() = prior.to_vec();
@@ -1913,6 +1944,7 @@ fn the_measure_receives_the_markers_trials_as_the_prior() {
         &fresh,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, prior, counts, _| {
             fresh_handed.set(prior.is_empty());
@@ -1969,6 +2001,7 @@ fn the_pool_restores_only_the_entries_the_plan_keeps() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -1998,6 +2031,7 @@ fn the_pool_restores_only_the_entries_the_plan_keeps() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, prior, counts, _| {
             *handed.borrow_mut() = prior.to_vec();
@@ -2091,6 +2125,7 @@ fn a_stop_whose_marker_cannot_be_written_promises_nothing_and_keeps_nothing() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut collect,
         unsaveable_measure,
     );
@@ -2142,6 +2177,7 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, rule, _, counts, _| {
             passes.set(passes.get() + 1);
@@ -2221,6 +2257,7 @@ fn a_draft_winner_is_measured_persisted_and_reused() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("a kept record must not measure"),
     );
@@ -2251,6 +2288,7 @@ fn a_failing_draft_candidate_loses() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -2294,6 +2332,7 @@ fn a_failing_draft_candidate_loses() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("a kept record must not measure"),
     );
@@ -2326,6 +2365,7 @@ fn a_launch_without_a_drafter_measures_no_draft_lifetimes() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, rule, _, counts, _| {
             passes.set(passes.get() + 1);
@@ -2371,6 +2411,7 @@ fn off_wins_the_second_ask_even_though_the_grid_measured_it() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -2483,6 +2524,7 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         cut_tune,
     );
@@ -2512,6 +2554,7 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         cut_tune,
     );
@@ -2536,6 +2579,7 @@ fn a_cut_sweep_is_withheld_once_and_saved_the_second_time() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |_, _, _, _, _| panic!("a kept record must not measure"),
     );
@@ -2605,6 +2649,7 @@ fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         cut_with_winner,
     );
@@ -2628,6 +2673,7 @@ fn a_retry_that_refuses_everything_keeps_the_first_attempts_winner() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         refuses_all,
     );
@@ -2725,6 +2771,7 @@ fn a_slower_retry_cannot_erase_the_first_attempts_faster_winner() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         fast_then_cut,
     );
@@ -2743,6 +2790,7 @@ fn a_slower_retry_cannot_erase_the_first_attempts_faster_winner() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         slower_winner,
     );
@@ -2796,6 +2844,7 @@ fn an_unresolvable_draft_exe_leaves_the_tune_unsaved() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -2846,6 +2895,7 @@ fn the_processor_leg_carries_the_drafter_pinned_to_the_cpu() {
         &dir,
         (ServerBackend::Metal, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -2920,6 +2970,7 @@ fn an_integrated_gpu_measures_the_mixed_shape_and_keeps_a_processor_fallback() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));
@@ -2985,6 +3036,7 @@ fn a_dedicated_gpu_is_not_offered_the_mixed_shape() {
         &dir,
         (ServerBackend::Vulkan, PathBuf::from("/main-gpu")),
         &mut memo,
+        &crate::a_key(),
         &mut progress,
         |resolved, _, _, counts, _| {
             counts(all_done(resolved.len()));

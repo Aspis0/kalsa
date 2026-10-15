@@ -36,7 +36,7 @@ use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use kalsa_supervisor::{terminate_pid, Existing, InstanceFile, Termination};
+use kalsa_supervisor::{terminate_pid, EngineKey, Existing, InstanceFile, Termination};
 #[cfg(windows)]
 use kalsa_supervisor::{confine, Job};
 
@@ -47,12 +47,17 @@ const OUTPUT_TAIL: usize = 8;
 
 /// The seam tests use to stand in for a real process: the probe never calls
 /// `Command` directly.
+///
+/// `engine_key` is `Some` for a llama-server, which refuses to answer
+/// without it, and `None` for the probe binaries — they are not servers and
+/// read no such variable.
 pub(crate) trait Launch {
     fn spawn(
         &self,
         exe: &Path,
         args: &[String],
         inherit: Option<&File>,
+        engine_key: Option<&EngineKey>,
     ) -> io::Result<Box<dyn Running>>;
 }
 
@@ -78,8 +83,9 @@ impl Launch for OsLaunch {
         exe: &Path,
         args: &[String],
         inherit: Option<&File>,
+        engine_key: Option<&EngineKey>,
     ) -> io::Result<Box<dyn Running>> {
-        Ok(Box::new(Child::start(exe, args, inherit)?))
+        Ok(Box::new(Child::start(exe, args, inherit, engine_key)?))
     }
 }
 
@@ -94,7 +100,12 @@ struct Child {
 }
 
 impl Child {
-    fn start(exe: &Path, args: &[String], inherit: Option<&File>) -> io::Result<Self> {
+    fn start(
+        exe: &Path,
+        args: &[String],
+        inherit: Option<&File>,
+        engine_key: Option<&EngineKey>,
+    ) -> io::Result<Self> {
         let mut cmd = Command::new(exe);
         cmd.args(args)
             .stdin(Stdio::null())
@@ -104,6 +115,11 @@ impl Child {
         // a child of ours, because those knobs are the ones that print
         // prompt text and key fragments.
         kalsa_supervisor::strip_llama_env(&mut cmd, std::env::vars_os());
+        // After the strip, which takes this name too: the key is the one the
+        // tune's own client sends, not a shell's leftover.
+        if let Some(key) = engine_key {
+            cmd.env(kalsa_supervisor::API_KEY_ENV, key.as_str());
+        }
         kalsa_supervisor::hide_console(&mut cmd);
         if exe.is_absolute() {
             if let Some(dir) = exe.parent() {
@@ -306,7 +322,8 @@ mod tests {
             "ping",
             vec!["-n".to_string(), "300".to_string(), "127.0.0.1".to_string()],
         );
-        let mut child = Child::start(Path::new(exe), &args, None).expect("spawn the stand-in");
+        let mut child =
+            Child::start(Path::new(exe), &args, None, None).expect("spawn the stand-in");
         assert!(
             matches!(child.try_exit(), Ok(None)),
             "the stand-in must be healthy and running"

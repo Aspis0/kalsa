@@ -43,10 +43,16 @@ fn a_worker_stuck_in_a_handler_does_not_hold_shutdown() {
 fn a_wake_that_cannot_land_does_not_hold_shutdown() {
     bounded(Duration::from_secs(20), || {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let mut door = Door::new(listener, 1, door_devices(&[&credential()]), 1)
-            .unwrap()
-            .start()
-            .unwrap();
+        let mut door = Door::new(
+            listener,
+            1,
+            door_devices(&[&credential()]),
+            1,
+            &crate::a_key(),
+        )
+        .unwrap()
+        .start()
+        .unwrap();
         // A scouted-then-released port: nothing listens, so every wake
         // attempt is refused.
         let scout = TcpListener::bind("127.0.0.1:0").unwrap();

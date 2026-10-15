@@ -36,6 +36,7 @@ fn house(engine: Vec<Reply>) -> (crate::RunningDoor, Engine, [String; 2]) {
         devices,
         1,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))

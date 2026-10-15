@@ -195,6 +195,11 @@ impl ChildHandle {
     /// search path and loads the first `ggml-*` name it scores — a module
     /// planted in an inherited directory would run. Absolute paths only: a
     /// relative program path is resolved against `current_dir`.
+    ///
+    /// `key` reaches the child through the environment, never argv: argv is
+    /// logged whole (`supervisor::argv_line`) and written into the instance
+    /// state file (`config::binding`), so a key there would be a key in the
+    /// log and on disk.
     pub fn spawn(
         exe: &Path,
         args: &[String],
@@ -202,6 +207,7 @@ impl ChildHandle {
         releases: Arc<AtomicU64>,
         residency: Residency,
         stderr_dir: Option<&crate::stderr_log::StderrLogConfig>,
+        key: &crate::engine_key::EngineKey,
     ) -> io::Result<Self> {
         let mut cmd = Command::new(exe);
         cmd.args(args)
@@ -209,6 +215,9 @@ impl ChildHandle {
             .stdout(Stdio::null())
             .stderr(Stdio::piped());
         strip_llama_env(&mut cmd, std::env::vars_os());
+        // After the strip, which removes this name too: the key is ours, set
+        // deliberately, and the strip's job is to take the shell's copy.
+        cmd.env(crate::engine_key::API_KEY_ENV, key.as_str());
         hide_console(&mut cmd);
         if exe.is_absolute() {
             if let Some(dir) = exe.parent() {
@@ -695,6 +704,48 @@ pub use job::{confine, Job};
 mod tests {
     use super::*;
 
+    fn a_key() -> crate::engine_key::EngineKey {
+        crate::engine_key::EngineKey::mint().expect("the OS has randomness")
+    }
+
+    /// The whole access control of the port: the key reaches the child in its
+    /// ENVIRONMENT, and nowhere else. argv is logged whole and written into
+    /// the instance state file, so a key there would be a key in the log and
+    /// on disk. The child prints what it was given, which is how this can see
+    /// the env the fork will read.
+    #[cfg(unix)]
+    #[test]
+    fn the_key_travels_in_the_environment_and_never_in_argv() {
+        let key = a_key();
+        let args = vec![
+            "-c".into(),
+            "printf '%s\\n' \"$LLAMA_API_KEY\" >&2; sleep 30".into(),
+        ];
+        let child = ChildHandle::spawn(
+            Path::new("/bin/sh"),
+            &args,
+            None,
+            Arc::new(AtomicU64::new(0)),
+            Residency::new(),
+            None,
+            &key,
+        )
+        .expect("spawn the child");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !child.output_tail().iter().any(|line| line == key.as_str()) {
+            assert!(
+                Instant::now() < deadline,
+                "the child never saw the key in its environment: {:?}",
+                child.output_tail()
+            );
+            std::thread::sleep(WAIT_POLL);
+        }
+        assert!(
+            !args.iter().any(|arg| arg.contains(key.as_str())),
+            "the key was passed in argv, which is logged and written to the state file"
+        );
+    }
+
     /// The flag has no getter on `Command`, but its effect has: a child
     /// started behind CREATE_NO_WINDOW has no console, so
     /// `GetConsoleWindow()` inside it is NULL and the child prints 0
@@ -753,6 +804,7 @@ mod tests {
             Arc::clone(&releases),
             residency.clone(),
             None,
+            &a_key(),
         )
         .expect("spawn the announcing child");
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -787,6 +839,7 @@ mod tests {
             Arc::clone(&releases),
             residency.clone(),
             None,
+            &a_key(),
         )
         .expect("spawn the quiet child");
         std::thread::sleep(Duration::from_millis(300));
@@ -822,6 +875,7 @@ mod tests {
             Arc::clone(&releases),
             residency.clone(),
             None,
+            &a_key(),
         )
         .expect("spawn the sleeping-then-waking child");
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -877,6 +931,7 @@ mod tests {
             releases,
             residency,
             None,
+            &a_key(),
         )
         .expect("spawn the stand-in");
         let grace = Duration::from_secs(2);
@@ -908,6 +963,7 @@ mod tests {
             releases,
             residency,
             None,
+            &a_key(),
         )
         .expect("spawn the stand-in");
         let grace = Duration::from_secs(1);
@@ -974,6 +1030,7 @@ mod tests {
             Arc::new(AtomicU64::new(0)),
             Residency::new(),
             Some(&config),
+            &a_key(),
         )
         .expect("spawn the talking child");
         let file = dir.join("kalsa-engine.log");
@@ -1095,6 +1152,7 @@ mod tests {
             Arc::new(AtomicU64::new(0)),
             Residency::new(),
             None,
+            &a_key(),
         )
         .expect("spawn the stand-in");
         let begun = Instant::now();

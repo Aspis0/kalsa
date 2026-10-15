@@ -83,6 +83,9 @@ pub use room::guest_entry;
 /// The device id the room's AI guest sits at: the reserved top of the
 /// range, above every id a pairing store mints.
 pub const ROOM_DEVICE: u32 = u32::MAX;
+/// Re-exported so an app that constructs a door can mint the key without
+/// naming the supervisor's crate: this key is a door argument.
+pub use kalsa_supervisor::EngineKey;
 pub use slots::EnginePrivateHeaders;
 pub(crate) use slots::{DeviceSet, LeaseError, SlotLease};
 
@@ -308,6 +311,19 @@ pub struct Door {
     /// The app's side of the phone's chat. Absent, the chat routes answer 404
     /// and the phone falls back to the old path.
     phone_chat: Option<Arc<dyn PhoneChat>>,
+    /// The app's key for the engine this door forwards to. Required, not
+    /// optional: the engine answers nothing outside `/health` without it,
+    /// and a door built without one would be a door quietly talking to a
+    /// port that any web page can also drive.
+    engine_key: Arc<EngineKey>,
+}
+
+/// The engine key a test's door hands its fake upstream. Minted per call and
+/// never read: the tests that care read the header off the wire, which is the
+/// only place it is ever written.
+#[cfg(test)]
+pub(crate) fn a_key() -> EngineKey {
+    EngineKey::mint().expect("the OS has randomness")
 }
 
 /// The devices with a connection currently being served. Presence, not
@@ -375,6 +391,9 @@ pub struct RunningDoor {
     /// door that was started, never from a caller and never from a constant.
     chats: Arc<paging::Chats>,
     upstream_port: u16,
+    /// The engine's key, carried the same way the port is: the disk tier
+    /// calls the engine from this struct, so this is where it finds out.
+    engine_key: Arc<EngineKey>,
     /// The line the accept loop fills. Shutdown closes it to end every
     /// worker's wait, and it lives here rather than in the accept thread
     /// because that thread is one of the things still blocked.
@@ -411,6 +430,7 @@ impl Door {
         upstream_port: u16,
         devices: Devices,
         capacity: u32,
+        engine_key: &EngineKey,
     ) -> Result<Self, DoorError> {
         Self::new_with_engine(
             listener,
@@ -418,6 +438,7 @@ impl Door {
             devices,
             capacity,
             EnginePrivateHeaders::NotConsumed,
+            engine_key,
         )
     }
 
@@ -433,6 +454,7 @@ impl Door {
         devices: Devices,
         capacity: u32,
         engine: EnginePrivateHeaders,
+        engine_key: &EngineKey,
     ) -> Result<Self, DoorError> {
         if capacity == 0 {
             return Err(DoorError::CapacityZero);
@@ -465,6 +487,7 @@ impl Door {
             phone_chat: None,
             slot_context: None,
             clocks: clocks::Clocks::default(),
+            engine_key: Arc::new(engine_key.clone()),
         })
     }
 
@@ -601,7 +624,8 @@ impl RunningDoor {
     /// so the caller's clock is the only one that decides, which is what lets
     /// a test prove "the quiet has not lasted" without sleeping.
     pub fn save_idle(&self, now: Instant) -> usize {
-        self.chats.save_idle(&self.devices, self.upstream_port, now)
+        self.chats
+            .save_idle(&self.devices, self.upstream_port, &self.engine_key, now)
     }
 
     /// What the app's tick calls when the supervisor says the engine no longer
@@ -632,7 +656,7 @@ impl RunningDoor {
     /// a slot a restore holds. Not on `Drop`: a door dropped after its engine
     /// is gone would wait out the budget for a save nothing can answer.
     pub fn save_on_quit(&self, budget: Duration) {
-        self.chats.save_on_quit(&self.devices, self.upstream_port, budget);
+        self.chats.save_on_quit(&self.devices, self.upstream_port, &self.engine_key, budget);
     }
 
     /// Replaces the credential set without stopping anything: the listener

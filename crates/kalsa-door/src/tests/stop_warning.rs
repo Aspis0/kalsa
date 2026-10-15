@@ -94,10 +94,16 @@ fn a_wake_that_cannot_land_while_the_acceptor_waits_warns() {
     bounded(Duration::from_secs(20), || {
         capture();
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let mut door = Door::new(listener, no_upstream(), door_devices(&[&credential()]), 1)
-            .unwrap()
-            .start()
-            .unwrap();
+        let mut door = Door::new(
+            listener,
+            no_upstream(),
+            door_devices(&[&credential()]),
+            1,
+            &crate::a_key(),
+        )
+        .unwrap()
+        .start()
+        .unwrap();
         // A scouted-then-released port: nothing listens, so every wake
         // attempt is refused and the acceptor is never reached.
         let scout = TcpListener::bind("127.0.0.1:0").unwrap();

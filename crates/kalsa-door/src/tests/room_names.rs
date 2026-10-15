@@ -33,6 +33,7 @@ fn room_of(host_label: &str) -> (crate::RunningDoor, Arc<Room>, [String; 3]) {
         devices,
         3,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))

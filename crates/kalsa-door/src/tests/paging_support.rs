@@ -292,6 +292,7 @@ fn door_with(
         door_devices(tokens),
         4,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap();
     if let Some(hash) = hash {

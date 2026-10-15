@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use kalsa_runtime::{free_loopback_port, serve, ServeError};
+use kalsa_supervisor::EngineKey;
 
 use crate::candidates::Candidate;
 use crate::passes::{self, First, Report, Samples, Tuned};
@@ -102,6 +103,7 @@ pub fn measure_tune(
     drafter: bool,
     prior: &[(Candidate, Kept)],
     build: impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
+    key: &EngineKey,
     progress: &mut dyn FnMut(Report),
     checkpoint: &mut dyn FnMut(&Trials),
 ) -> Tuned {
@@ -115,8 +117,8 @@ pub fn measure_tune(
         || started.elapsed(),
         progress,
         checkpoint,
-        |candidate, exe| first_lifetime(state_root, candidate, exe, build, ask),
-        |candidate, exe| decode_lifetime(state_root, candidate, exe, build, ask),
+        |candidate, exe| first_lifetime(state_root, candidate, exe, build, ask, key),
+        |candidate, exe| decode_lifetime(state_root, candidate, exe, build, ask, key),
     )
 }
 
@@ -129,6 +131,7 @@ pub(crate) fn lifetime<A>(
     candidate: &Candidate,
     resolved_exe: &PathBuf,
     build: &impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
+    key: &EngineKey,
     requests: impl FnOnce(SocketAddr) -> Result<A, Refusal>,
 ) -> Result<A, Refusal> {
     let port = free_loopback_port().map_err(|_| Refusal::DidNotStart)?;
@@ -148,7 +151,7 @@ pub(crate) fn lifetime<A>(
     let mut argv = without_aliases(argv);
     argv.extend(["--alias".to_string(), nonce.clone()]);
     let mut server =
-        serve(state_root, port, &exe, &argv, READY_TIMEOUT).map_err(|error| match error {
+        serve(state_root, port, &exe, &argv, READY_TIMEOUT, key).map_err(|error| match error {
             ServeError::DidNotStart => Refusal::DidNotStart,
             ServeError::NotReady { .. } => Refusal::NotReady,
         })?;
@@ -158,7 +161,7 @@ pub(crate) fn lifetime<A>(
     // `ctx_http.start()` at :463-468 on `833cde99b`), so a foreign
     // server can answer while ours is still initialising — timing the
     // liveness gate cannot prove, identity can.
-    if !serves_id(server.address(), &nonce, IDENTITY_TIMEOUT) {
+    if !serves_id(server.address(), &nonce, IDENTITY_TIMEOUT, key) {
         return Err(Refusal::DidNotStart);
     }
     let measured = requests(server.address());
@@ -167,7 +170,7 @@ pub(crate) fn lifetime<A>(
     // other lifetime with those facts earns: the refusal is about the
     // measurement, and those facts are about whether it was ever ours.
     let child_is_alive = server.alive();
-    let on_our_model = serves_id(server.address(), &nonce, IDENTITY_TIMEOUT);
+    let on_our_model = serves_id(server.address(), &nonce, IDENTITY_TIMEOUT, key);
     conclude(measured, child_is_alive, on_our_model)
 }
 
@@ -183,11 +186,18 @@ fn first_lifetime(
     resolved_exe: &PathBuf,
     build: &impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
     ask: &Ask,
+    key: &EngineKey,
 ) -> Result<First, Refusal> {
-    lifetime(state_root, candidate, resolved_exe, build, |addr| {
-        let _ = post_to(addr, REQUEST_TIMEOUT, "/completion", &room::warmup_body());
-        let prompt_rate = room_prompt_rate(addr, ROOM_REQUEST_TIMEOUT)?;
-        let rates = draft_requests(addr, ask);
+    lifetime(state_root, candidate, resolved_exe, build, key, |addr| {
+        let _ = post_to(
+            addr,
+            REQUEST_TIMEOUT,
+            "/completion",
+            &room::warmup_body(),
+            key,
+        );
+        let prompt_rate = room_prompt_rate(addr, ROOM_REQUEST_TIMEOUT, key)?;
+        let rates = draft_requests(addr, ask, key);
         Ok(First {
             prompt_rate,
             off: measured(rates),
@@ -198,8 +208,8 @@ fn first_lifetime(
 /// The shape's prefill rate from the room ask, within `timeout`. A timeout
 /// or an HTTP error is a lifetime with no usable answer, the same reading
 /// the decode pass gives one.
-fn room_prompt_rate(addr: SocketAddr, timeout: Duration) -> Result<f64, Refusal> {
-    match post_to(addr, timeout, "/completion", &room::ask_body()) {
+fn room_prompt_rate(addr: SocketAddr, timeout: Duration, key: &EngineKey) -> Result<f64, Refusal> {
+    match post_to(addr, timeout, "/completion", &room::ask_body(), key) {
         Ok(answer) => room::prompt_rate(&answer),
         Err(_) => Err(Refusal::NoUsableAnswer),
     }
@@ -213,9 +223,10 @@ fn decode_lifetime(
     resolved_exe: &PathBuf,
     build: &impl Fn(&Candidate, &PathBuf, u16) -> (PathBuf, Vec<String>),
     ask: &Ask,
+    key: &EngineKey,
 ) -> Samples {
-    lifetime(state_root, candidate, resolved_exe, build, |addr| {
-        measured(draft_requests(addr, ask))
+    lifetime(state_root, candidate, resolved_exe, build, key, |addr| {
+        measured(draft_requests(addr, ask, key))
     })
 }
 
@@ -223,7 +234,7 @@ fn decode_lifetime(
 /// ask's own prompt, then two measured requests. Shared by a shape's first
 /// lifetime and every drafted setting, so all decode numbers are the same
 /// work made.
-fn draft_requests(addr: SocketAddr, ask: &Ask) -> Vec<f64> {
+fn draft_requests(addr: SocketAddr, ask: &Ask, key: &EngineKey) -> Vec<f64> {
     let mut rates = Vec::with_capacity(MEASURED_REQUESTS);
     for attempt in 0..(WARMUP_REQUESTS + MEASURED_REQUESTS) {
         let n_predict = if attempt < WARMUP_REQUESTS {
@@ -231,7 +242,7 @@ fn draft_requests(addr: SocketAddr, ask: &Ask) -> Vec<f64> {
         } else {
             ask.n_predict
         };
-        let rate = request_ask(addr, REQUEST_TIMEOUT, ask, n_predict);
+        let rate = request_ask(addr, REQUEST_TIMEOUT, ask, n_predict, key);
         if attempt >= WARMUP_REQUESTS {
             if let Some(rate) = rate {
                 rates.push(rate);

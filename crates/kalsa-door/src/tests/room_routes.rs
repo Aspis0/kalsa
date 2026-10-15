@@ -37,6 +37,7 @@ fn room_of() -> (crate::RunningDoor, Arc<Room>, [String; 3]) {
         devices,
         3,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))
@@ -424,7 +425,7 @@ fn a_door_without_a_room_answers_with_one_sentence() {
     let token = credential();
     let devices = devices_labeled(&[(HOST, "This computer", &token)]);
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let door = crate::Door::new(listener, 1, devices, 1)
+    let door = crate::Door::new(listener, 1, devices, 1, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -534,6 +535,7 @@ fn a_cached_epoch_from_before_a_recovery_is_refused() {
             devices_labeled(&[(HOST, "This computer", &one)]),
             3,
             EnginePrivateHeaders::Consumed,
+            &crate::a_key(),
         )
         .unwrap()
         .with_room(Arc::clone(room), DeviceId::new(HOST))
@@ -739,6 +741,7 @@ fn a_member_the_room_cannot_place_is_refused_not_shown_everything() {
         devices_labeled(&[(HOST, "This computer", &host), (3, "Paired phone", &phone)]),
         2,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))
@@ -767,12 +770,18 @@ fn the_guest_seat_is_never_a_room_member() {
     ]);
     let room = Arc::new(Room::open(&scratch("room-guest-seat")).unwrap());
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let door =
-        crate::Door::new_with_engine(listener, 1, devices, 2, EnginePrivateHeaders::Consumed)
-            .unwrap()
-            .with_room(Arc::clone(&room), DeviceId::new(HOST))
-            .start()
-            .unwrap();
+    let door = crate::Door::new_with_engine(
+        listener,
+        1,
+        devices,
+        2,
+        EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .with_room(Arc::clone(&room), DeviceId::new(HOST))
+    .start()
+    .unwrap();
     let answer = body_json(&get(
         door.address(),
         Some(&format!("Bearer {one}")),

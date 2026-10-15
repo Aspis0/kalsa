@@ -218,6 +218,7 @@ fn the_second_turn_is_measured_against_the_first() {
         PORT,
         devices,
         kalsa_launch::DEFAULT_PARALLEL,
+        &kalsa_door::EngineKey::mint().expect("the OS has randomness"),
     )
     .expect("the door accepts its credential")
     .start()

@@ -63,7 +63,7 @@ use crash_restart::CrashRestart;
 use kalsa_pairing::store::DeviceKind;
 use kalsa_probe::{Measurement, ProbeConfig};
 use kalsa_supervisor::{
-    Failure, ServerConfig, StartOutcome, StartSettled, StartWaiter, Supervisor, ServerState, Watch,
+    EngineKey, Failure, ServerConfig, StartOutcome, StartSettled, StartWaiter, Supervisor, ServerState, Watch,
 };
 use serde::Serialize;
 use tauri::{Emitter, Manager, RunEvent, State};
@@ -93,8 +93,21 @@ static PAGE_LOADS: AtomicU64 = AtomicU64::new(0);
 /// The app's brain, managed as an `Arc` so the ticker's thread can hold it
 /// weakly: that thread carries the disk tier's tick and the door's reconcile
 /// ([`ticker`]), and it must never keep the app alive to do its work.
+/// The engine key a test hands its own fixtures. Minted per call and never
+/// read: only a child's environment and the wire ever see a key.
+#[cfg(test)]
+pub(crate) fn a_key() -> EngineKey {
+    EngineKey::mint().expect("the OS has randomness")
+}
+
 struct Brain {
     supervisor: Supervisor,
+    /// This run's key for the engine, minted once at startup and given to
+    /// every engine child and every client in this process. Memory only, and
+    /// one value for the whole run: the door outlives any one engine, so a
+    /// key that changed per start would leave the door talking to a port it
+    /// could not answer on.
+    engine_key: EngineKey,
     /// The door slot, an `Arc` because the timer's thread takes it out of the
     /// lock and calls the door on its own — a save can wait on the engine for
     /// seconds, and the tick must not hold the slot's lock across it.
@@ -470,6 +483,7 @@ impl Brain {
         let metrics = Arc::new(metrics::RuntimeMetrics::new(supervisor.release_watcher()));
         Self {
             supervisor,
+            engine_key: EngineKey::mint().expect("the OS has randomness"),
             door: Arc::new(Mutex::new(None)),
             pairing_install: Mutex::new(()),
             launch: Mutex::new(None),
@@ -916,6 +930,7 @@ impl Brain {
                     devices.clone(),
                     capacity,
                     engine,
+                    &self.engine_key,
                 )
                 .map_err(|_| "The authenticated door could not start.".to_string())?;
                 // The disk tier's two halves, from the record of the engine
@@ -1714,6 +1729,9 @@ pub(crate) async fn settle(
     // stored, so this is the enrolled set, not who is talking right now.
     let devices = enrolled_devices(&pairing_file(app)?);
     let emitter = app.clone();
+    // The walk outlives this borrow of the app state, so the key moves in
+    // with it rather than being read through `brain` on the other thread.
+    let engine_key = brain.engine_key.clone();
 
     let outcome = tauri::async_runtime::spawn_blocking(move || {
         // Every reading the walk makes on its way to the page — the runtime
@@ -1764,6 +1782,7 @@ pub(crate) async fn settle(
             state_file,
             slot_save_path,
             &runtime_root,
+            &engine_key,
             &mut progress,
         )
         .map_err(CommandError::from);
@@ -1875,7 +1894,9 @@ fn settle_walk(
                     |config: ServerConfig| restart_after_check(brain, stops_seen, config);
                 match speed_check(
                     &mut prepared,
-                    |addr| kalsa_tune::checked_rate(addr, kalsa_tune::CHECK_TIMEOUT),
+                    |addr| {
+                        kalsa_tune::checked_rate(addr, kalsa_tune::CHECK_TIMEOUT, &brain.engine_key)
+                    },
                     || brain.supervisor.stop(),
                     restart,
                 ) {

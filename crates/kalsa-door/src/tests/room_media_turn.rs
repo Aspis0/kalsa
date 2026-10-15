@@ -34,6 +34,7 @@ fn turn_room(engine: Engine) -> (crate::RunningDoor, Arc<Room>, Engine, [String;
         devices,
         4,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))
@@ -208,6 +209,7 @@ fn the_images_never_eat_the_message_the_turn_is_about() {
         devices,
         2,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))

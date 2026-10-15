@@ -11,6 +11,9 @@ license.workspace = true
 # The log facade: the app installs the one file sink; a test run with no
 # logger installed pays nothing but the macro calls.
 log = "0.4"
+# 256 bits per engine key, from the OS: the port's whole access control.
+# Already in the graph through kalsa-door and the app, so no new crate enters it.
+getrandom = "0.3"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

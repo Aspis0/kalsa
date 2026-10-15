@@ -170,7 +170,14 @@ fn a_door_the_app_never_gave_a_directory_refuses_the_action_and_says_why() {
 fn a_model_hash_that_is_not_eight_hex_characters_is_refused() {
     for bad in ["", "a1b2c3d", "a1b2c3d45", "A1B2C3D4", "a1b2c3dg", "a1b2c3d4 "] {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let door = Door::new(listener, 1, door_devices(&[&credential()]), 1).unwrap();
+        let door = Door::new(
+            listener,
+            1,
+            door_devices(&[&credential()]),
+            1,
+            &crate::a_key(),
+        )
+        .unwrap();
         assert!(
             matches!(door.with_model_hash(bad), Err(DoorError::InvalidModelHash)),
             "the model hash {bad:?} was accepted"

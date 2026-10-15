@@ -10,7 +10,7 @@ fn two_devices_get_distinct_slots_below_the_capacity() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let (first, second) = (credential(), credential());
-    let door = Door::new_with_engine(listener, upstream.port, door_devices(&[&first, &second]), 4, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream.port, door_devices(&[&first, &second]), 4, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -47,7 +47,7 @@ fn a_device_beyond_the_seats_takes_an_idle_seat() {
     let address = listener.local_addr().unwrap();
     let tokens: Vec<String> = (0..5).map(|_| credential()).collect();
     let refs: Vec<&str> = tokens.iter().map(String::as_str).collect();
-    let door = Door::new_with_engine(listener, upstream.port, door_devices(&refs), 4, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream.port, door_devices(&refs), 4, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -89,6 +89,7 @@ fn a_full_house_of_live_requests_refuses_the_next_without_touching_the_upstream(
         door_devices(&[&first, &second]),
         1,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .start()
@@ -141,7 +142,7 @@ fn client_copies_of_the_private_headers_never_reach_the_upstream() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new_with_engine(listener, upstream.port, door_devices(&[&token]), 4, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream.port, door_devices(&[&token]), 4, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -286,7 +287,7 @@ fn the_same_device_keeps_one_slot_across_two_requests() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new_with_engine(listener, upstream.port, door_devices(&[&token]), 4, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream.port, door_devices(&[&token]), 4, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -391,7 +392,13 @@ fn a_capacity_above_one_needs_the_engine_declaration() {
     // than one device would be auto-scheduled into one slot. The door must
     // refuse to be built, not serve it quietly.
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let refused = Door::new(listener, 1, door_devices(&[&credential()]), 2);
+    let refused = Door::new(
+        listener,
+        1,
+        door_devices(&[&credential()]),
+        2,
+        &crate::a_key(),
+    );
     assert!(
         matches!(
             refused,
@@ -406,13 +413,27 @@ fn a_capacity_above_one_needs_the_engine_declaration() {
         door_devices(&[&credential()]),
         2,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .is_ok());
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    assert!(Door::new(listener, 1, door_devices(&[&credential()]), 1).is_ok());
+    assert!(Door::new(
+        listener,
+        1,
+        door_devices(&[&credential()]),
+        1,
+        &crate::a_key()
+    )
+    .is_ok());
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     assert!(matches!(
-        Door::new(listener, 1, door_devices(&[&credential()]), 0),
+        Door::new(
+            listener,
+            1,
+            door_devices(&[&credential()]),
+            0,
+            &crate::a_key()
+        ),
         Err(DoorError::CapacityZero)
     ));
 }

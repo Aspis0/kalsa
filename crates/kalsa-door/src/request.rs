@@ -2,6 +2,8 @@ use std::io::Read;
 use std::net::TcpStream;
 use std::time::Instant;
 
+use kalsa_supervisor::EngineKey;
+
 pub(super) const MAX_HEAD: usize = 32 * 1024;
 pub(super) const MAX_BODY: usize = 16 * 1024 * 1024;
 
@@ -78,8 +80,8 @@ impl UnsealedHead {
     /// Seals the head and hands back the only value that exposes wire bytes.
     /// `parse` has already dropped any client copy, so the engine — which
     /// reads the FIRST match — reads exactly the door's. Not authentication.
-    pub(super) fn seal(mut self, slot: u32, salt: &[u8; 32]) -> SealedHead {
-        private_headers(&mut self.forwarded, slot, salt);
+    pub(super) fn seal(mut self, slot: u32, salt: &[u8; 32], key: &EngineKey) -> SealedHead {
+        private_headers(&mut self.forwarded, slot, salt, key);
         self.forwarded.extend_from_slice(b"\r\n");
         SealedHead {
             bytes: self.forwarded,
@@ -90,10 +92,17 @@ impl UnsealedHead {
 /// The door's private headers, written in the one place the wire form is: the
 /// sealed completion and the door's own call to the engine both carry them, so
 /// the engine reads one device either way.
-pub(super) fn private_headers(head: &mut Vec<u8>, slot: u32, salt: &[u8; 32]) {
+///
+/// The Authorization line is the app's key and only the app's: `parse` drops
+/// the client's, so a phone's credential can never reach the engine, and this
+/// is the only value that is written.
+pub(super) fn private_headers(head: &mut Vec<u8>, slot: u32, salt: &[u8; 32], key: &EngineKey) {
     head.extend_from_slice(format!("X-Kalsa-Slot: {slot}\r\n").as_bytes());
     head.extend_from_slice(b"X-Kalsa-Cache-Salt: ");
     head.extend_from_slice(hex(salt).as_bytes());
+    head.extend_from_slice(b"\r\n");
+    head.extend_from_slice(b"Authorization: Bearer ");
+    head.extend_from_slice(key.as_str().as_bytes());
     head.extend_from_slice(b"\r\n");
 }
 
@@ -403,7 +412,13 @@ mod tests {
         // Everything the door genuinely forwards still flows.
         assert!(forwarded.contains("Host: localhost\r\n"));
         assert_eq!(head.body_length, 0);
+        // The client's own Authorization is the door's to keep: it
+        // authenticates the device, and the engine must never see it.
         assert!(head.authorization.is_none());
+        assert!(
+            !forwarded.to_ascii_lowercase().contains("authorization"),
+            "a client's credential reached the upstream: {forwarded}"
+        );
     }
 
     #[test]
@@ -492,15 +507,18 @@ mod tests {
     }
 
     /// The sealed head is the only thing writable upstream: one blank line,
-    /// each private header exactly once.
+    /// each private header exactly once, and the app's own key — never the
+    /// credential the phone authenticated with, which stops at the door.
     #[test]
     fn the_sealed_head_carries_the_private_headers_and_one_terminator() {
         let head = parse(
             b"POST /v1/chat/completions HTTP/1.1\r\nHost: localhost\r\n\
+               Authorization: Bearer PHONE-CREDENTIAL-CANARY\r\n\
                Connection: close\r\n\r\n",
         )
         .expect("a well-formed head parses");
-        let sealed = head.seal(2, &[0xab; 32]);
+        let key = crate::a_key();
+        let sealed = head.seal(2, &[0xab; 32], &key);
         let bytes = sealed.bytes();
         let text = std::str::from_utf8(bytes).expect("the sealed head is ASCII");
 
@@ -530,6 +548,19 @@ mod tests {
         assert!(
             text.contains("X-Kalsa-Cache-Salt: abababababababababababababababababababababababababababababababab\r\n"),
             "the salt is the lowercase hex of the bytes given: {text:?}"
+        );
+        assert_eq!(
+            text.matches("Authorization: ").count(),
+            1,
+            "exactly one credential may reach the engine: {text:?}"
+        );
+        assert!(
+            text.contains(&format!("Authorization: Bearer {}\r\n", key.as_str())),
+            "the engine must be sent the app's own key: {text:?}"
+        );
+        assert!(
+            !text.contains("PHONE-CREDENTIAL-CANARY"),
+            "the client's credential reached the engine: {text:?}"
         );
         // The request line still opens the head exactly once.
         assert_eq!(
@@ -591,7 +622,7 @@ mod tests {
             !forwarded.contains("777") && !forwarded.to_ascii_lowercase().contains("x-kalsa-slot"),
             "a private header named by the client's Connection line survived: {forwarded}"
         );
-        let sealed = named.seal(3, &[0u8; 32]);
+        let sealed = named.seal(3, &[0u8; 32], &crate::a_key());
         let text = std::str::from_utf8(sealed.bytes()).unwrap();
         assert_eq!(text.matches("X-Kalsa-Slot: ").count(), 1);
         assert!(text.contains("X-Kalsa-Slot: 3\r\n"));

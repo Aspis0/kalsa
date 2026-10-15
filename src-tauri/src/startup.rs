@@ -37,7 +37,7 @@ use kalsa_launch::{KvCache, LaunchInput, Offload, PromptCache, ServerArgs, Serve
 use kalsa_probe::Measurement;
 use kalsa_reuse::find_reusable;
 use kalsa_runtime::ServerBackend;
-use kalsa_supervisor::{ServerConfig, DEFAULT_STOP_GRACE};
+use kalsa_supervisor::{EngineKey, ServerConfig, DEFAULT_STOP_GRACE};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -293,6 +293,7 @@ pub(crate) struct PreparedStart {
 /// The whole walk. `server_override` (development) replaces the decide step:
 /// the developer pins a binary and owns its bytes. Everything else is the
 /// product order.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run(
     server_override: Option<PathBuf>,
     machine: Machine,
@@ -302,6 +303,7 @@ pub(crate) fn run(
     state_file: PathBuf,
     slot_save_path: PathBuf,
     root: &Path,
+    key: &EngineKey,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PreparedStart, StartupFailure> {
     // A measurement the probe itself calls unreliable — every attempt failed
@@ -328,7 +330,7 @@ pub(crate) fn run(
         }
         None => {
             progress(Progress::Deciding);
-            let decision = kalsa_runtime::decide(machine.measurement.will_run_on, &mut |p| {
+            let decision = kalsa_runtime::decide(machine.measurement.will_run_on, key, &mut |p| {
                 progress(Progress::RuntimeBytes {
                     done: p.bytes_done,
                     total: p.bytes_total,
@@ -369,7 +371,7 @@ pub(crate) fn run(
         listed_devices = listed.unwrap_or_default();
         if routed != backend {
             progress(Progress::Deciding);
-            let cpu = kalsa_runtime::decide_cpu(machine.measurement.will_run_on, &mut |p| {
+            let cpu = kalsa_runtime::decide_cpu(machine.measurement.will_run_on, key, &mut |p| {
                 progress(Progress::RuntimeBytes {
                     done: p.bytes_done,
                     total: p.bytes_total,
@@ -395,7 +397,7 @@ pub(crate) fn run(
             let step =
                 choose_with_processor_fallback((backend, exe), &machine, phone, chosen, || {
                     progress(Progress::Deciding);
-                    kalsa_runtime::decide_cpu(machine.measurement.will_run_on, &mut |p| {
+                    kalsa_runtime::decide_cpu(machine.measurement.will_run_on, key, &mut |p| {
                         progress(Progress::RuntimeBytes {
                             done: p.bytes_done,
                             total: p.bytes_total,
@@ -478,6 +480,7 @@ pub(crate) fn run(
                 state_file,
                 slot_save_path,
                 overrides,
+                key,
             )?;
             // The tune sits between the plan and the launch: it may rewrite
             // the exe, argv, threads and offload, and it may never fail the
@@ -496,6 +499,7 @@ pub(crate) fn run(
                 root,
                 main,
                 &mut memo,
+                key,
                 progress,
                 |resolved, rule, prior, inner, checkpoint| {
                     crate::tune_step::measure_with_rule(
@@ -503,6 +507,7 @@ pub(crate) fn run(
                         resolved,
                         rule,
                         prior,
+                        key,
                         inner,
                         checkpoint,
                     )
@@ -532,6 +537,7 @@ pub(crate) fn run(
         slot_save_path,
         &machine,
         overrides,
+        key,
     )
 }
 
@@ -1036,6 +1042,7 @@ fn planned_config(
         // is exercised through `run`, where the app's own path arrives.
         PathBuf::from("/slots"),
         LaunchOverrides::default(),
+        &a_key(),
     )
 }
 
@@ -1077,6 +1084,14 @@ fn funded_parallel(requested: u32, funds: impl Fn(u32) -> bool) -> u32 {
         .unwrap_or(1)
 }
 
+/// The engine key a test's plan carries. Minted per call and never read:
+/// only the child's environment and the wire ever see a key.
+#[cfg(test)]
+fn a_key() -> EngineKey {
+    EngineKey::mint().expect("the OS has randomness")
+}
+
+#[allow(clippy::too_many_arguments)]
 fn planned_config_with_overrides(
     backend: ServerBackend,
     exe: PathBuf,
@@ -1095,6 +1110,7 @@ fn planned_config_with_overrides(
     state_file: PathBuf,
     slot_save_path: PathBuf,
     overrides: LaunchOverrides,
+    key: &EngineKey,
 ) -> Result<PreparedStart, StartupFailure> {
     let automatic = ServerSettings::defaults(kalsa_launch::DEFAULT_IDLE_UNLOAD_SECONDS);
     // The raw owner choice, not yet floored: whether a projector RIDES is
@@ -1293,6 +1309,7 @@ fn planned_config_with_overrides(
     let server = ServerConfig {
         exe,
         argv: args.argv(),
+        api_key: key.clone(),
         state_file,
         port: PORT,
         ready_timeout: READY_TIMEOUT,
@@ -1333,6 +1350,7 @@ fn planned_config_with_overrides(
 /// measurement only when there is one, and the offload follows the build the
 /// dev walk assumed — there is no verdict for a binary that was never
 /// decided.
+#[allow(clippy::too_many_arguments)]
 fn dev_config_with_overrides(
     exe: PathBuf,
     model: PathBuf,
@@ -1341,6 +1359,7 @@ fn dev_config_with_overrides(
     slot_save_path: PathBuf,
     machine: &Machine,
     overrides: LaunchOverrides,
+    key: &EngineKey,
 ) -> Result<PreparedStart, StartupFailure> {
     // The dev path is unbudgeted, so the funding cap has nothing to say here:
     // the seat count is the enrolled devices, taken down only when the engine
@@ -1412,6 +1431,7 @@ fn dev_config_with_overrides(
     let server = ServerConfig {
         exe,
         argv: args.argv(),
+        api_key: key.clone(),
         state_file,
         port: PORT,
         ready_timeout: READY_TIMEOUT,
@@ -1829,6 +1849,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
+            &a_key(),
         )
         .expect("the automatic row is fundable on the test machine");
         assert_eq!(
@@ -1873,6 +1894,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
+            &a_key(),
         )
         .expect("a card-sized row is fundable on this test machine");
         assert_eq!(config.info.args.device.as_deref(), Some("Vulkan0"));
@@ -1960,6 +1982,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
+            &a_key(),
         )
         .expect("the pick the preview offers funds on the card it was sized against");
         assert_eq!(
@@ -2063,6 +2086,7 @@ mod tests {
             state_file.clone(),
             root.join("slots"),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect_err("a choice this walk cannot honour must not start");
@@ -2568,6 +2592,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             root.join("slots"),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect("the override is the answer");
@@ -2612,6 +2637,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             slots.clone(),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect("the dev override is the answer");
@@ -2657,6 +2683,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             blocker.join("slots"),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect_err("a folder that cannot be made must stop the walk");
@@ -2701,6 +2728,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             root.join("slots"),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect_err("an unreliable measurement is not a decision");
@@ -3040,6 +3068,7 @@ mod tests {
                 PathBuf::from("/state/server.state"),
                 PathBuf::from("/slots"),
                 LaunchOverrides::default(),
+                &a_key(),
             )
         };
 
@@ -3108,6 +3137,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
+            &a_key(),
         )
         .expect("two seats share the small window");
         assert_eq!(config.info.args.parallel, 2, "both seats are funded");
@@ -3144,6 +3174,7 @@ mod tests {
             state_file,
             root.join("slots"),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect("the saved values are within the machine's bounds");
@@ -3188,6 +3219,7 @@ mod tests {
             state_file,
             root.join("slots"),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect_err("the dev path has a conservative context ceiling");
@@ -3229,6 +3261,7 @@ mod tests {
             state_file,
             root.join("slots"),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect("the dev override is the answer");
@@ -3272,6 +3305,7 @@ mod tests {
                 internet_road: false,
                 ..LaunchOverrides::default()
             },
+            &a_key(),
         )
         .expect_err("262144 exceeds the row's funded maximum on 8 GiB");
         assert!(matches!(err, StartupFailure::ContextTooLarge { .. }));
@@ -3312,6 +3346,7 @@ mod tests {
                     context_tokens: context,
                     ..LaunchOverrides::default()
                 },
+                &a_key(),
             )
         };
         // No owner choice: the chat default, on a machine that funds four
@@ -3380,6 +3415,7 @@ mod tests {
                 kv_cache: Some(KvCache::F16),
                 ..LaunchOverrides::default()
             },
+            &a_key(),
         )
         .expect_err("20000 is beyond the f16 funded maximum of 18196");
         assert!(
@@ -3405,6 +3441,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
+            &a_key(),
         )
         .expect("20000 fits the q8_0 cache");
         // The override is a ceiling, not a target: with no owner window, a
@@ -3556,6 +3593,7 @@ mod tests {
             PathBuf::from("/state/dev.state"),
             root.join("slots"),
             &root,
+            &a_key(),
             &mut |_| {},
         )
         .expect("the override is the answer");
@@ -3645,6 +3683,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
+            &a_key(),
         )
         .expect("the row funds the fixture machine")
     }
@@ -3719,6 +3758,7 @@ mod tests {
             PathBuf::from("/state/server.state"),
             PathBuf::from("/slots"),
             LaunchOverrides::default(),
+            &a_key(),
         )
         .expect("the row funds its projector on the fixture machine");
         let joined = config.server.argv.join(" ");

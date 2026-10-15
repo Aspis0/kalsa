@@ -35,7 +35,7 @@ use std::time::{Duration, Instant};
 use serde_json::Value;
 
 use kalsa_probe::ProbeConfig;
-use kalsa_supervisor::{ServerState, StartOutcome, Supervisor};
+use kalsa_supervisor::{EngineKey, ServerState, StartOutcome, Supervisor};
 
 use crate::capability::CHOSEN_REASON;
 use crate::tune_step::{tune_label, tune_line, Tune};
@@ -131,6 +131,10 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         &source.sha256[..12]
     );
 
+    // This walk starts its own engine, so it mints its own key — the same
+    // one the app's run holds — and every request it makes below carries it.
+    let key = EngineKey::mint().expect("the OS has randomness");
+
     // ── 3. the machine, measured for real (as main.rs measures it) ─────────
     eprintln!("measuring this machine; the probe runs for real");
     let machine = Machine {
@@ -172,6 +176,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         state_file,
         slot_save_path,
         &kalsa_runtime::runtime_root(),
+        &key,
         &mut progress,
     )
     .map_err(|failure| crate::failure::words(&failure))
@@ -311,7 +316,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
     // line the panel would show.
     match crate::speed_check(
         &mut prepared,
-        |addr| kalsa_tune::checked_rate(addr, kalsa_tune::CHECK_TIMEOUT),
+        |addr| kalsa_tune::checked_rate(addr, kalsa_tune::CHECK_TIMEOUT, &key),
         || supervisor.stop(),
         |config| {
             let waiter = supervisor.start(config);
@@ -333,7 +338,7 @@ fn the_app_walks_a_chosen_catalog_row_for_real() {
         eprintln!("speed: {checked}");
     }
 
-    let answer = chat_completion(port, PROMPT, MAX_TOKENS);
+    let answer = chat_completion(port, PROMPT, MAX_TOKENS, &key);
     // The "model" field is the answering server's self-report, not a
     // process identity: what it proves is that the server behind this port
     // names the path we prepared. The bind race stays a residual — the

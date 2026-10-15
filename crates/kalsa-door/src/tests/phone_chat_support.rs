@@ -101,7 +101,7 @@ pub(super) fn chat_door(page: Option<std::sync::Arc<Page>>, clocks: Clocks) -> (
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = token();
-    let mut door = Door::new(listener, 1, devices_labeled(&[(1, "Phone", token.as_str())]), 1)
+    let mut door = Door::new(listener, 1, devices_labeled(&[(1, "Phone", token.as_str())]), 1, &crate::a_key())
         .unwrap()
         .with_clocks(clocks);
     if let Some(page) = page {

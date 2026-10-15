@@ -33,6 +33,7 @@ fn house(dir: &Path) -> (crate::RunningDoor, Arc<Room>, tier::Engine, String) {
         devices,
         1,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_model_hash(HASH)

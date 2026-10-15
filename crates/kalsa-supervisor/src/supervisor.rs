@@ -918,6 +918,17 @@ fn start_blocking(
     suspect.settle_before_start(presence::probe, config.address(), presence::PROBE_TIMEOUT);
     if let Some(started) = take_over(config)? {
         suspect.clear();
+        // The adopted server was started by an EARLIER run of this app, with
+        // that run's key, which lived only in that run's memory: this one
+        // holds a different key and the server will answer 401 to every
+        // request that carries it. Said here, in words and a port, because a
+        // silent fallback to no key would reopen the port to any web page.
+        log::error!(
+            "adopted a server on port {} from an earlier run of this app: it \
+             answers to that run's engine key, which is gone, so requests to it \
+             will be refused until it is stopped and started again",
+            config.port
+        );
         return Ok(started);
     }
     preflight_port(config)?;
@@ -940,6 +951,7 @@ fn start_blocking(
         releases,
         residency,
         stderr_dir,
+        &config.api_key,
     )
     .map_err(|e| Failure::ServerNotStarted {
         detail: format!("could not start the server: {e}"),
@@ -1254,7 +1266,6 @@ fn exit_signal(status: std::process::ExitStatus) -> Option<i64> {
 /// why the code gets a line of its own: a report must be able to tell a clean
 /// exit from an access violation, and the tail cannot say that. A status with
 /// no code is a killed process on a platform with signals.
-
 fn exit_code(status: std::process::ExitStatus) -> String {
     match status.code() {
         Some(code) => code.to_string(),
@@ -1480,6 +1491,19 @@ mod tests {
         assert!(line.ends_with("--threads 4"), "{line}");
     }
 
+    /// The line the start log prints. The key is in the child's environment
+    /// and in no argument, so this renderer — the one thing that writes argv
+    /// anywhere — cannot put it in the log.
+    #[test]
+    fn the_logged_argv_line_carries_no_key() {
+        let config = config(8123);
+        let line = argv_line(&config.argv);
+        assert!(
+            !line.contains(config.api_key.as_str()),
+            "the engine key reached the argv log line: {line}"
+        );
+    }
+
     fn config(port: u16) -> ServerConfig {
         ServerConfig {
             exe: PathBuf::from("/nonexistent/llama-server"),
@@ -1489,6 +1513,7 @@ mod tests {
                 "--port".into(),
                 port.to_string(),
             ],
+            api_key: crate::engine_key::EngineKey::mint().unwrap(),
             state_file: std::env::temp_dir().join(format!("kalsa-supervisor-unit-{port}.state")),
             port,
             ready_timeout: Duration::from_secs(1),
@@ -1637,6 +1662,7 @@ mod tests {
             Arc::clone(&releases),
             residency.clone(),
             None,
+            &crate::engine_key::EngineKey::mint().unwrap(),
         )
         .expect("spawn the server that released its model");
         let deadline = Instant::now() + Duration::from_secs(5);
@@ -1977,6 +2003,7 @@ mod tests {
             Arc::new(AtomicU64::new(0)),
             residency,
             None,
+            &crate::engine_key::EngineKey::mint().unwrap(),
         )
         .expect("spawn the child that is already on its way out");
         #[cfg(windows)]
@@ -2226,6 +2253,7 @@ mod tests {
             Arc::clone(&releases),
             Residency::new(),
             None,
+            &crate::engine_key::EngineKey::mint().unwrap(),
         )
         .expect("spawn the stand-in engine");
         let pid = child.pid();
@@ -2278,6 +2306,7 @@ mod tests {
                 "--port".into(),
                 port.to_string(),
             ],
+            api_key: crate::engine_key::EngineKey::mint().unwrap(),
             state_file: std::env::temp_dir().join("kalsa-supervisor-publish-at-spawn.state"),
             port,
             ready_timeout: Duration::from_secs(1),
@@ -2343,6 +2372,7 @@ mod tests {
             Arc::clone(&releases),
             residency.clone(),
             None,
+            &crate::engine_key::EngineKey::mint().unwrap(),
         )
         .expect("spawn the stand-in engine");
         let pid = child.pid();

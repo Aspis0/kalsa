@@ -19,6 +19,8 @@
 //! carries it. The app owns the tick and the interval, the door owns the save
 //! — the slot, the device and the salt are all its own.
 
+use kalsa_supervisor::EngineKey;
+
 use std::time::Instant;
 
 use super::io::{save, Saved};
@@ -62,6 +64,7 @@ pub(super) fn save_idle(
     chats: &Chats,
     devices: &DeviceSet,
     upstream_port: u16,
+    key: &EngineKey,
     now: Instant,
 ) -> usize {
     let (Some(idle_save), Some(model), Some(dir)) = (
@@ -179,6 +182,7 @@ pub(super) fn save_idle(
             port: upstream_port,
             slot: index as u32,
             salt: &salt,
+            key,
             deadline: Instant::now() + PAGING_PATIENCE,
             patience: PAGING_PATIENCE,
         };

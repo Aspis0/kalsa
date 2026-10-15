@@ -135,6 +135,7 @@ pub fn config(exe: &str, port: u16) -> ServerConfig {
             "--model".into(),
             "/nonexistent/model.gguf".into(),
         ],
+        api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
         state_file: state_file(port),
         port,
         ready_timeout: Duration::from_secs(3),

@@ -38,6 +38,7 @@ pub(super) fn room_at(engine: Vec<Reply>) -> (crate::RunningDoor, Arc<Room>, Eng
         devices,
         4,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))
@@ -69,6 +70,7 @@ fn room_slotted_at(
         devices,
         4,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))
@@ -441,6 +443,7 @@ fn a_busy_computer_keeps_the_call_waiting_for_a_seat() {
         devices,
         1,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(HOST))
@@ -608,12 +611,18 @@ fn a_real_engine_answers_a_called_room() {
     ]);
     let room = Arc::new(Room::open(&scratch("room-real")).unwrap());
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let door =
-        crate::Door::new_with_engine(listener, port, devices, 2, EnginePrivateHeaders::Consumed)
-            .unwrap()
-            .with_room(Arc::clone(&room), DeviceId::new(HOST))
-            .start()
-            .unwrap();
+    let door = crate::Door::new_with_engine(
+        listener,
+        port,
+        devices,
+        2,
+        EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .with_room(Arc::clone(&room), DeviceId::new(HOST))
+    .start()
+    .unwrap();
     let bearer = format!("Bearer {one}");
     post(
         door.address(),

@@ -35,6 +35,8 @@ mod io;
 mod names;
 mod sweep;
 
+use kalsa_supervisor::EngineKey;
+
 use std::fs;
 use std::io::Read;
 use std::net::TcpStream;
@@ -184,6 +186,7 @@ impl Chats {
     /// back. The body is read or drained on every path: an unread body in the
     /// receive buffer makes the kernel reset the socket on close, and a reset
     /// erases the answer the client had not read yet.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn serve(
         &self,
         client: &mut TcpStream,
@@ -192,6 +195,7 @@ impl Chats {
         salt: [u8; 32],
         slot: u32,
         upstream_port: u16,
+        key: &EngineKey,
         deadline: Instant,
     ) -> Vec<u8> {
         let origin = head.origin.as_deref();
@@ -230,6 +234,7 @@ impl Chats {
             port: upstream_port,
             slot,
             salt: &salt,
+            key,
             deadline,
             patience: PAGING_PATIENCE,
         };
@@ -469,6 +474,7 @@ impl Chats {
         slot: u32,
         evicted: DeviceId,
         upstream_port: u16,
+        key: &EngineKey,
     ) -> Result<bool, ChatError> {
         let (Some(model), Some(dir)) = (self.model.as_deref(), self.dir.as_deref()) else {
             return Ok(false);
@@ -497,6 +503,7 @@ impl Chats {
             port: upstream_port,
             slot,
             salt: &salt,
+            key,
             deadline: Instant::now() + PAGING_PATIENCE,
             patience: PAGING_PATIENCE,
         };
@@ -526,6 +533,7 @@ impl Chats {
         slot: u32,
         device: DeviceId,
         upstream_port: u16,
+        key: &EngineKey,
     ) -> Option<String> {
         let (Some(model), Some(dir)) = (self.model.as_deref(), self.dir.as_deref()) else {
             return None;
@@ -546,6 +554,7 @@ impl Chats {
             port: upstream_port,
             slot,
             salt: &devices.cache_salt(device)?,
+            key,
             deadline: Instant::now() + PAGING_PATIENCE,
             patience: PAGING_PATIENCE,
         };
@@ -569,8 +578,14 @@ impl Chats {
     /// Writes out every slot that changed and has been quiet long enough, and
     /// answers how many were written. The whole decision is [`cadence`]'s; `now`
     /// is the tick's own instant, so the caller's clock is the only one read.
-    pub(crate) fn save_idle(&self, devices: &DeviceSet, upstream_port: u16, now: Instant) -> usize {
-        cadence::save_idle(self, devices, upstream_port, now)
+    pub(crate) fn save_idle(
+        &self,
+        devices: &DeviceSet,
+        upstream_port: u16,
+        key: &EngineKey,
+        now: Instant,
+    ) -> usize {
+        cadence::save_idle(self, devices, upstream_port, key, now)
     }
 
     /// Writes out the resident chat that a completion changed since its last
@@ -583,7 +598,13 @@ impl Chats {
     /// Only `Resident` is written: an `Evicted` or `Unknown` slot is not in
     /// the engine, so there is nothing to save, and writing it would overwrite
     /// the file with a state the door cannot name.
-    pub(crate) fn save_on_quit(&self, devices: &DeviceSet, upstream_port: u16, budget: Duration) {
+    pub(crate) fn save_on_quit(
+        &self,
+        devices: &DeviceSet,
+        upstream_port: u16,
+        key: &EngineKey,
+        budget: Duration,
+    ) {
         let (Some(model), Some(dir)) = (self.model.as_deref(), self.dir.as_deref()) else {
             return;
         };
@@ -606,6 +627,7 @@ impl Chats {
                 port: upstream_port,
                 slot: index as u32,
                 salt: &salt,
+                key,
                 deadline,
                 patience: budget,
             };

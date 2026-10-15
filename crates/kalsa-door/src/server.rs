@@ -68,6 +68,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         set: Arc::clone(&door.devices),
         room: door.room.clone(),
         port: door.upstream_port,
+        key: Arc::clone(&door.engine_key),
         slot_context: door.slot_context,
         clocks: door.clocks,
         chats: Arc::clone(&chats),
@@ -184,6 +185,7 @@ pub(super) fn start(door: Door) -> Result<RunningDoor, DoorError> {
         active,
         chats,
         upstream_port,
+        engine_key: Arc::clone(&door.engine_key),
         queue,
         wake: address,
         #[cfg(test)]

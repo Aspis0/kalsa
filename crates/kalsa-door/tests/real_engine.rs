@@ -28,7 +28,7 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use kalsa_door::{DeviceEntry, DeviceId, Devices, Door, EnginePrivateHeaders};
+use kalsa_door::{DeviceEntry, DeviceId, Devices, Door, EngineKey, EnginePrivateHeaders};
 
 /// Neither the app's port nor the launcher harness's, so a stray server from
 /// another run is identifiable rather than silently answering here.
@@ -121,6 +121,9 @@ fn two_devices_are_served_in_the_slots_the_door_sealed() {
         return;
     };
     let engine_dir = std::path::Path::new(&exe).parent().expect("an engine path");
+    // One key for the child and the door: the engine refuses everything
+    // outside /health without it, exactly as the app's does.
+    let key = EngineKey::mint().expect("the OS has randomness");
     let log = File::create(std::env::temp_dir().join("kalsa-door-real-engine.log"));
     let child = Command::new(&exe)
         .current_dir(engine_dir)
@@ -139,6 +142,7 @@ fn two_devices_are_served_in_the_slots_the_door_sealed() {
             "--threads",
             "6",
         ])
+        .env("LLAMA_API_KEY", key.as_str())
         .stdout(Stdio::null())
         .stderr(Stdio::from(log.expect("a log file beside the test")))
         .spawn()
@@ -168,6 +172,7 @@ fn two_devices_are_served_in_the_slots_the_door_sealed() {
         devices,
         2,
         EnginePrivateHeaders::Consumed,
+        &key,
     )
     .expect("a door for two declared devices")
     .start()

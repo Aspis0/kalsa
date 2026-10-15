@@ -23,7 +23,7 @@ fn slow_to_give_up(
 ) -> (RunningDoor, SocketAddr) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let door = Door::new(listener, port, door_devices(&[token]), 1)
+    let door = Door::new(listener, port, door_devices(&[token]), 1, &crate::a_key())
         .unwrap()
         .with_head_patience(head_patience)
         .with_clocks(clocks)

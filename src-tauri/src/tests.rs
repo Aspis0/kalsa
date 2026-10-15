@@ -1987,6 +1987,8 @@ fn the_vision_restart_stops_the_running_engine_before_starting_again() {
         port,
         ready_timeout: Duration::from_secs(10),
         stop_grace: Duration::from_secs(2),
+
+        api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
     };
     // The health listener binds only once the child's pid file exists, so
     // the supervisor's pre-spawn port check sees a free port — the same
@@ -2148,6 +2150,8 @@ fn the_tick_invalidates_a_failed_servers_map_with_nobody_polling() {
         port,
         ready_timeout: Duration::from_secs(1),
         stop_grace: Duration::from_millis(50),
+
+        api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
     });
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
@@ -2182,6 +2186,7 @@ fn the_tick_invalidates_a_failed_servers_map_with_nobody_polling() {
         devices.clone(),
         4,
         kalsa_door::EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_model_hash("a1b2c3d4")
@@ -2389,6 +2394,8 @@ impl RunningEngine {
             port,
             ready_timeout: Duration::from_secs(10),
             stop_grace: Duration::from_secs(2),
+
+            api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
         };
         let accepted = brain.supervisor.start(config);
         assert_eq!(accepted.outcome(), StartOutcome::Accepted);
@@ -3412,6 +3419,7 @@ fn the_panel_numbers_are_read_from_the_door_not_from_traffic() {
         devices,
         4,
         kalsa_door::EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_model_hash("a1b2c3d4")
@@ -3566,6 +3574,8 @@ fn a_stop_during_the_tune_prevents_the_start_after_it() {
             port: 8199,
             ready_timeout: Duration::from_secs(1),
             stop_grace: Duration::from_millis(50),
+
+            api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
         },
         info: startup::LaunchInfo {
             args,
@@ -3627,6 +3637,8 @@ fn a_stop_during_the_tuned_start_prevents_the_retry() {
             port: 8198,
             ready_timeout: Duration::from_secs(1),
             stop_grace: Duration::from_millis(50),
+
+            api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
         },
         args,
     ));
@@ -3654,6 +3666,7 @@ fn gone_config(tag: &str, port: u16) -> kalsa_supervisor::ServerConfig {
         port,
         ready_timeout: Duration::from_secs(1),
         stop_grace: Duration::from_millis(50),
+        api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
     }
 }
 

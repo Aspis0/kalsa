@@ -28,6 +28,7 @@
             Path::new("/nonexistent/kalsa-server"),
             &[],
             Duration::from_secs(1),
+            &kalsa_supervisor::EngineKey::mint().unwrap(),
         ) {
             Err(error) => error,
             Ok(_) => panic!("nothing to run"),
@@ -57,6 +58,7 @@
             Path::new("/bin/sh"),
             &args,
             Duration::from_secs(1),
+            &kalsa_supervisor::EngineKey::mint().unwrap(),
         ) {
             Err(error) => error,
             Ok(_) => panic!("nothing will answer /health"),
@@ -81,6 +83,7 @@
             Path::new("ping"),
             &args,
             Duration::from_secs(1),
+            &kalsa_supervisor::EngineKey::mint().unwrap(),
         ) {
             Err(error) => error,
             Ok(_) => panic!("nothing will answer /health"),
@@ -100,7 +103,7 @@
         let root = scratch("early-exit");
         let port = free_loopback_port().expect("a port");
         let args = ["-c".to_string(), "exit 7".to_string()];
-        let error = match serve(&root, port, Path::new("/bin/sh"), &args, Duration::from_secs(5)) {
+        let error = match serve(&root, port, Path::new("/bin/sh"), &args, Duration::from_secs(5), &kalsa_supervisor::EngineKey::mint().unwrap()) {
             Err(error) => error,
             Ok(_) => panic!("nothing to answer"),
         };
@@ -126,7 +129,7 @@
         let instance = InstanceFile::claim(&state).expect("claim");
         let args = ["-c".to_string(), "exec sleep 30".to_string()];
         let running = OsLaunch
-            .spawn(Path::new("/bin/sh"), &args, Some(instance.handle()))
+            .spawn(Path::new("/bin/sh"), &args, Some(instance.handle()), None)
             .expect("spawn");
         let pid = running.pid();
         let handle = Disposable {
@@ -187,7 +190,7 @@
         let instance = InstanceFile::claim(&state).expect("claim");
         let args = ["-c".to_string(), "exit 7".to_string()];
         let running = OsLaunch
-            .spawn(Path::new("/bin/sh"), &args, Some(instance.handle()))
+            .spawn(Path::new("/bin/sh"), &args, Some(instance.handle()), None)
             .expect("spawn");
         let mut handle = Disposable {
             running,

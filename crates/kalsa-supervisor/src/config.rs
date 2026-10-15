@@ -10,6 +10,8 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::engine_key::EngineKey;
+
 /// Loopback only: the phone reaches the server through a tunnel, so the
 /// server is never exposed on the LAN (plan, section 7).
 pub(crate) const HOST: &str = "127.0.0.1";
@@ -25,6 +27,11 @@ pub struct ServerConfig {
     /// launch crate (`kalsa-launch`) and passed through untouched: the
     /// supervisor runs the launch decision, it does not have one.
     pub argv: Vec<String>,
+    /// The credential the server refuses to answer without, handed to the
+    /// child in its environment. Not part of `argv` on purpose: argv is
+    /// written into the state file below and logged whole. `Debug` reaches
+    /// it, which is why `EngineKey`'s prints a fixed word.
+    pub api_key: EngineKey,
     /// Where this instance announces itself, so a later start can recognise
     /// its own orphan instead of killing a stranger. See `instance`.
     pub state_file: PathBuf,
@@ -84,11 +91,48 @@ mod tests {
         let config = ServerConfig {
             exe: PathBuf::from("/nonexistent/llama-server"),
             argv: vec!["--port".into(), "8123".into()],
+            api_key: crate::engine_key::EngineKey::mint().unwrap(),
             state_file: PathBuf::from("/tmp/kalsa-brain.state"),
             port: 8123,
             ready_timeout: Duration::from_secs(1),
             stop_grace: Duration::from_millis(50),
         };
         assert_eq!(config.address().to_string(), "127.0.0.1:8123");
+    }
+
+    /// The state file records `binding()`, which is argv joined. A key that
+    /// reached argv by accident would be on disk with everything else.
+    #[test]
+    fn the_key_is_not_part_of_the_identity_written_to_disk() {
+        let config = ServerConfig {
+            exe: PathBuf::from("/nonexistent/llama-server"),
+            argv: vec!["--port".into(), "8123".into()],
+            api_key: crate::engine_key::EngineKey::mint().unwrap(),
+            state_file: PathBuf::from("/tmp/kalsa-brain.state"),
+            port: 8123,
+            ready_timeout: Duration::from_secs(1),
+            stop_grace: Duration::from_millis(50),
+        };
+        assert!(!config.binding().contains(config.api_key.as_str()));
+    }
+
+    /// `ServerConfig` is `Debug`, and it holds the key: a derived print must
+    /// still be a fixed word, or the log becomes a place the key reaches.
+    #[test]
+    fn a_config_debugging_does_not_print_its_key() {
+        let config = ServerConfig {
+            exe: PathBuf::from("/nonexistent/llama-server"),
+            argv: vec!["--port".into(), "8123".into()],
+            api_key: crate::engine_key::EngineKey::mint().unwrap(),
+            state_file: PathBuf::from("/tmp/kalsa-brain.state"),
+            port: 8123,
+            ready_timeout: Duration::from_secs(1),
+            stop_grace: Duration::from_millis(50),
+        };
+        let rendered = format!("{config:?}");
+        assert!(
+            !rendered.contains(config.api_key.as_str()),
+            "Debug printed the key: {rendered}"
+        );
     }
 }

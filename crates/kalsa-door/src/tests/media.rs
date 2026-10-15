@@ -247,6 +247,7 @@ fn a_room_message_never_carries_media_to_the_engine() {
         devices,
         2,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_room(Arc::clone(&room), DeviceId::new(0))

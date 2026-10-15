@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 
 use kalsa_launch::{Offload, ServerArgs};
 use kalsa_runtime::ServerBackend;
-use kalsa_supervisor::ServerConfig;
+use kalsa_supervisor::{EngineKey, ServerConfig};
 
 use crate::failure::StartupFailure;
 use crate::startup::{LaunchInfo, Machine, PreparedStart, Progress};
@@ -106,6 +106,7 @@ pub(crate) fn exe_for(
     main: (ServerBackend, &Path),
     processor: &mut Option<Result<PathBuf, StartupFailure>>,
     machine: &Machine,
+    key: &EngineKey,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<PathBuf, StartupFailure> {
     if candidate.backend == main.0 {
@@ -117,6 +118,7 @@ pub(crate) fn exe_for(
     progress(Progress::Deciding);
     let resolved = kalsa_runtime::decide_cpu(
         machine.measurement.will_run_on,
+        key,
         &mut |bytes: kalsa_download::Progress| {
             progress(Progress::RuntimeBytes {
                 done: bytes.bytes_done,
@@ -176,6 +178,7 @@ pub(crate) fn measure_with_rule(
     resolved: &[(kalsa_tune::Candidate, PathBuf)],
     rule: &ServerArgs,
     prior: &[(kalsa_tune::Candidate, kalsa_tune::record::Kept)],
+    key: &EngineKey,
     counts: &mut dyn FnMut(kalsa_tune::Report),
     checkpoint: &mut dyn FnMut(&kalsa_tune::record::Trials),
 ) -> kalsa_tune::Tuned {
@@ -205,6 +208,7 @@ pub(crate) fn measure_with_rule(
                 port,
             )
         },
+        key,
         counts,
         checkpoint,
     )
@@ -220,12 +224,14 @@ pub(crate) fn measure_with_rule(
 /// the whole budget on every start forever. Nothing here fails the walk:
 /// the whole step is caught below, and any panic degrades to the plan with
 /// one log line.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn tune_launch(
     prepared: &mut PreparedStart,
     machine: &Machine,
     root: &Path,
     main: (ServerBackend, PathBuf),
     memo: &mut Memo,
+    key: &EngineKey,
     progress: &mut dyn FnMut(Progress),
     measure: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
@@ -243,7 +249,7 @@ pub(crate) fn tune_launch(
     prepared.rule_launch = Some((rule.clone(), rule_info.clone()));
     crate::telemetry::transition("tune", "tune_measure");
     let result = catch_unwind(AssertUnwindSafe(|| {
-        tune_launch_inner(prepared, machine, root, main, memo, progress, measure)
+        tune_launch_inner(prepared, machine, root, main, memo, key, progress, measure)
     }));
     if result.is_err() {
         crate::telemetry::events::tune_failure();
@@ -256,12 +262,14 @@ pub(crate) fn tune_launch(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn tune_launch_inner(
     prepared: &mut PreparedStart,
     machine: &Machine,
     root: &Path,
     main: (ServerBackend, PathBuf),
     memo: &mut Memo,
+    key: &EngineKey,
     progress: &mut dyn FnMut(Progress),
     measure: impl Fn(
         &[(kalsa_tune::Candidate, PathBuf)],
@@ -322,6 +330,7 @@ fn tune_launch_inner(
                     (main.0, &main.1),
                     &mut memo.processor,
                     machine,
+                    key,
                     progress,
                 ) {
                     Ok(exe) => resolved.push((*candidate, exe)),
@@ -517,6 +526,7 @@ fn tune_launch_inner(
             (main.0, &main.1),
             &mut memo.processor,
             machine,
+            key,
             progress,
         )
         .ok()
@@ -552,6 +562,7 @@ fn tune_launch_inner(
                     machine,
                     main,
                     memo,
+                    key,
                     progress,
                     &prepared.server,
                 );
@@ -690,12 +701,14 @@ fn thousands(rate: f64) -> String {
 /// reply in the record, on its own exe, threads, offload and draft
 /// setting, same port — the launch (and the args) the per-start check
 /// hands the slot to when the card answers slow.
+#[allow(clippy::too_many_arguments)]
 fn processor_launch(
     record: &kalsa_tune::record::Record,
     rule_args: &ServerArgs,
     machine: &Machine,
     main: (ServerBackend, PathBuf),
     memo: &mut Memo,
+    key: &EngineKey,
     progress: &mut dyn FnMut(Progress),
     base: &ServerConfig,
 ) -> Option<(ServerConfig, ServerArgs)> {
@@ -717,6 +730,7 @@ fn processor_launch(
         (main.0, &main.1),
         &mut memo.processor,
         machine,
+        key,
         progress,
     )
     .ok()?;

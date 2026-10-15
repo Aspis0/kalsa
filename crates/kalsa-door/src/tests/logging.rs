@@ -407,10 +407,16 @@ fn a_second_door_in_the_same_process_still_audits_an_authorized_request() {
     let door_of = |token: &str| {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
-        let door = Door::new(listener, upstream.port, device_set(&[(41, token)]), 1)
-            .unwrap()
-            .start()
-            .unwrap();
+        let door = Door::new(
+            listener,
+            upstream.port,
+            device_set(&[(41, token)]),
+            1,
+            &crate::a_key(),
+        )
+        .unwrap()
+        .start()
+        .unwrap();
         (door, address)
     };
     let request = chat_post(ORIGIN, Some(&format!("Bearer {token}")), None);

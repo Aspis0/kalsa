@@ -22,7 +22,7 @@ use std::path::Path;
 use std::process::ExitStatus;
 use std::time::{Duration, Instant};
 
-use kalsa_supervisor::{InstanceFile, DEFAULT_STOP_GRACE};
+use kalsa_supervisor::{EngineKey, InstanceFile, DEFAULT_STOP_GRACE};
 
 use crate::child::{self, Launch, Running};
 
@@ -65,12 +65,13 @@ pub(crate) fn probe(
     model: &Path,
     params: &ProbeParams,
     state_file: &Path,
+    key: &EngineKey,
 ) -> Result<(), String> {
     // Claimed before the spawn: the fd must already be locked when the child
     // inherits it, or an orphan left by a force-quit could not be identified.
     let mut instance = InstanceFile::claim(state_file)
         .map_err(|e| format!("could not claim the probe state file: {e}"))?;
-    let outcome = run(launch, exe, model, params, &mut instance);
+    let outcome = run(launch, exe, model, params, &mut instance, key);
     instance.release();
     outcome
 }
@@ -81,6 +82,7 @@ fn run(
     model: &Path,
     params: &ProbeParams,
     instance: &mut InstanceFile,
+    key: &EngineKey,
 ) -> Result<(), String> {
     let args = vec![
         "--host".to_string(),
@@ -92,7 +94,7 @@ fn run(
         "--no-webui".to_string(),
     ];
     let mut running = launch
-        .spawn(exe, &args, Some(instance.handle()))
+        .spawn(exe, &args, Some(instance.handle()), Some(key))
         .map_err(|e| format!("the candidate would not start: {e}"))?;
     let _ = instance.describe(running.pid(), params.port);
 
@@ -223,6 +225,7 @@ mod tests {
             _exe: &Path,
             _args: &[String],
             _inherit: Option<&File>,
+            _engine_key: Option<&EngineKey>,
         ) -> std::io::Result<Box<dyn Running>> {
             let run = match self.mode {
                 Mode::Answer => FakeRun {
@@ -294,6 +297,7 @@ mod tests {
             Path::new("/models/tiny.gguf"),
             &params(port, 2),
             &dir.join("probe.state"),
+            &EngineKey::mint().unwrap(),
         )
         .expect("a healthy candidate passes");
         assert!(served.load(Ordering::SeqCst), "the probe must ask /health");
@@ -314,6 +318,7 @@ mod tests {
             Path::new("/models/tiny.gguf"),
             &params(0, 2),
             &dir.join("probe.state"),
+            &EngineKey::mint().unwrap(),
         )
         .expect_err("an unsupported device must fail the candidate");
         assert!(err.contains("Unsupported device"), "{err}");
@@ -334,6 +339,7 @@ mod tests {
             Path::new("/models/tiny.gguf"),
             &params(0, 0), // ~immediate deadline
             &dir.join("probe.state"),
+            &EngineKey::mint().unwrap(),
         )
         .expect_err("a hang must fail the candidate, not wait forever");
         assert!(err.contains("did not answer"), "{err}");
@@ -368,6 +374,7 @@ mod tests {
             Path::new("/models/tiny.gguf"),
             &params(0, 2),
             &dir.join("probe.state"),
+            &EngineKey::mint().unwrap(),
         )
         .expect_err("an exit without an answer must fail");
         assert!(err.contains("before answering"), "{err}");

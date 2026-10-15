@@ -6,6 +6,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::Duration;
 
+use kalsa_supervisor::EngineKey;
 use serde_json::Value;
 
 /// A cold model compiles kernels on its first token; give it room.
@@ -14,7 +15,7 @@ const READ_TIMEOUT: Duration = Duration::from_secs(300);
 /// much that the model's own words become the panic message.
 const BODY_SHOWN: usize = 2048;
 
-pub(super) fn chat_completion(port: u16, prompt: &str, max_tokens: u32) -> Value {
+pub(super) fn chat_completion(port: u16, prompt: &str, max_tokens: u32, key: &EngineKey) -> Value {
     let body = serde_json::json!({
         "messages": [{ "role": "user", "content": prompt }],
         "max_tokens": max_tokens,
@@ -26,7 +27,9 @@ pub(super) fn chat_completion(port: u16, prompt: &str, max_tokens: u32) -> Value
         .expect("a read timeout is set");
     let request = format!(
         "POST /v1/chat/completions HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\
-         Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+         Authorization: Bearer {}\r\nContent-Type: application/json\r\n\
+         Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        key.as_str(),
         body.len()
     );
     stream.write_all(request.as_bytes()).expect("the request is sent");

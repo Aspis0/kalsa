@@ -12,6 +12,7 @@
 //! -- --ignored --nocapture`.
 
 use kalsa_probe::ProbeConfig;
+use kalsa_supervisor::EngineKey;
 
 #[test]
 #[ignore = "downloads the real release and runs a real server"]
@@ -25,14 +26,18 @@ fn the_real_release_downloads_extracts_and_answers() {
     );
 
     let mut last = 0u64;
-    let decision = kalsa_runtime::decide(measured.will_run_on, &mut |p| {
-        // Progress is not decoration here: a walk that never reports bytes is
-        // a walk that silently found nothing to do.
-        if p.bytes_done > last {
-            last = p.bytes_done;
-            eprintln!("  {} / {} bytes", p.bytes_done, p.bytes_total);
-        }
-    })
+    let decision = kalsa_runtime::decide(
+        measured.will_run_on,
+        &EngineKey::mint().unwrap(),
+        &mut |p| {
+            // Progress is not decoration here: a walk that never reports bytes is
+            // a walk that silently found nothing to do.
+            if p.bytes_done > last {
+                last = p.bytes_done;
+                eprintln!("  {} / {} bytes", p.bytes_done, p.bytes_total);
+            }
+        },
+    )
     .expect("the release this machine's backend names must download, extract and answer");
 
     let exe = &decision.exe;

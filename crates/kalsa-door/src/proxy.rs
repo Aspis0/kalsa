@@ -96,6 +96,9 @@ pub(super) struct Shared {
     /// The engine's loopback port, for the room's turns — everything else
     /// reaches the engine through a client's own request.
     pub(super) port: u16,
+    /// The app's key for that engine, written into every head that goes
+    /// upstream. The engine answers nothing outside `/health` without it.
+    pub(super) key: Arc<kalsa_supervisor::EngineKey>,
     /// The per-slot context the launch funded (`--ctx-size /
     /// `--parallel`), for the room's transcript budget. `None` when the
     /// door was built without one; the turn then keeps the fallback.
@@ -211,6 +214,7 @@ pub(super) fn handle(
     let devices: &DeviceSet = &shared.set;
     let stop: &AtomicBool = &shared.stop;
     let chats: &paging::Chats = &shared.chats;
+    let key: &kalsa_supervisor::EngineKey = &shared.key;
     // The request's own line, written when this guard drops however the
     // request leaves. Installed before the head is read, so a request
     // answered before its first byte is on the record too.
@@ -401,7 +405,7 @@ pub(super) fn handle(
     // request with the same refusal `activate` gives: nothing has been sent
     // to the engine on this path, so the slot still holds what the map says.
     if let Some(evicted) = lease.evicted() {
-        match chats.handover(devices, lease.slot(), evicted, upstream_port) {
+        match chats.handover(devices, lease.slot(), evicted, upstream_port, key) {
             Ok(saved) => log::info!(
                 "{}",
                 audit::line::handover_line(lease.slot(), evicted, device, saved, None)
@@ -426,7 +430,7 @@ pub(super) fn handle(
     // engine is about to be asked to continue — and without this the engine
     // rebuilds the whole history from nothing, a minute on a small CPU after
     // every room use. No outcome of the recall fails the request it serves.
-    if let Some(chat) = chats.recall(devices, lease.slot(), device, upstream_port) {
+    if let Some(chat) = chats.recall(devices, lease.slot(), device, upstream_port, key) {
         log::info!("{}", audit::line::recall_line(lease.slot(), device, &chat));
     }
     // Presence for the running door: this device, exactly while the door is
@@ -481,6 +485,7 @@ pub(super) fn handle(
             salt,
             lease.slot(),
             upstream_port,
+            &shared.key,
             deadline,
         );
         let _ = answer_to(&mut client, &answer, deadline);
@@ -581,7 +586,7 @@ pub(super) fn handle(
         #[cfg(test)]
         devices.run_in_write_hook();
         // The sealed bytes are the only thing ever written upstream.
-        let sealed = head.seal(lease.slot(), &salt);
+        let sealed = head.seal(lease.slot(), &salt, &shared.key);
         if write_with_deadline(&mut upstream, sealed.bytes(), deadline).is_err() {
             return;
         }

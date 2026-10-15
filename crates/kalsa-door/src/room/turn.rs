@@ -287,7 +287,7 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
     // see is the engine's own answer, and a model switch is believed at
     // the very next call. An engine that does not answer is blind — the
     // honest default.
-    let vision = engine_vision(shared.port);
+    let vision = engine_vision(shared.port, &shared.key);
     let prompt_bytes = room_system_prompt(vision).len();
     let mut budget = budget_of(shared.slot_context);
     // One free retry for an engine problem: a stream that broke, a socket
@@ -321,10 +321,13 @@ fn run_one_turn(door: &Arc<RoomDoor>, shared: &Arc<Shared>, turn: u64) -> &'stat
                     // says it holds.
                     if let Some(evicted) = lease.evicted() {
                         let to = DeviceId::new(ROOM_DEVICE);
-                        match shared
-                            .chats
-                            .handover(&shared.set, lease.slot(), evicted, shared.port)
-                        {
+                        match shared.chats.handover(
+                            &shared.set,
+                            lease.slot(),
+                            evicted,
+                            shared.port,
+                            &shared.key,
+                        ) {
                             Ok(saved) => log::info!(
                                 "{}",
                                 crate::audit::line::handover_line(
@@ -486,7 +489,7 @@ fn ask_the_engine(
         )
         .as_bytes(),
     );
-    crate::request::private_headers(&mut head, lease.slot(), salt);
+    crate::request::private_headers(&mut head, lease.slot(), salt, &shared.key);
     head.extend_from_slice(b"\r\n");
     head.extend_from_slice(&body);
     if proxy::write_with_deadline(&mut engine, &head, Instant::now() + Duration::from_secs(30))
@@ -782,14 +785,19 @@ fn data_uri(room: &kalsa_room::Room, id: &str) -> Option<String> {
 /// Whether the engine can see: its `/props` says so, `modalities` naming
 /// the media it takes. Absent, or not exactly true, is cannot — the same
 /// rule every reader of that answer runs. Five seconds, once a turn.
-fn engine_vision(port: u16) -> bool {
+fn engine_vision(port: u16, key: &kalsa_supervisor::EngineKey) -> bool {
     let address = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
     let deadline = Instant::now() + Duration::from_secs(5);
     let Ok(mut engine) = TcpStream::connect_timeout(&address, Duration::from_secs(5)) else {
         return false;
     };
-    let head =
-        format!("GET /props HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
+    // Its own head, not `private_headers`: /props is not a completion and
+    // carries no slot. It still needs the key — the engine refuses it like
+    // every route outside /health.
+    let head = format!(
+        "GET /props HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer {}\r\nConnection: close\r\n\r\n",
+        key.as_str()
+    );
     if proxy::write_with_deadline(&mut engine, head.as_bytes(), deadline).is_err() {
         return false;
     }

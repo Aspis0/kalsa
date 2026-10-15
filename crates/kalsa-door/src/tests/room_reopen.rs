@@ -28,6 +28,7 @@ fn house(dir: &Path) -> (crate::RunningDoor, Arc<Room>, tier::Engine, String) {
         devices,
         1,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_model_hash(HASH)
@@ -281,6 +282,7 @@ fn a_third_concurrent_switch_waiter_is_answered_rather_than_parked() {
         devices,
         1,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_model_hash(HASH)

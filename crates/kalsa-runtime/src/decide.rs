@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use kalsa_download::{DownloadError, Progress};
 use kalsa_probe::Backend;
-use kalsa_supervisor::DEFAULT_STOP_GRACE;
+use kalsa_supervisor::{EngineKey, DEFAULT_STOP_GRACE};
 
 use crate::assets::{Platform, ServerBackend};
 use crate::candidates_for;
@@ -106,6 +106,7 @@ impl fmt::Display for DecideError {
 /// Blocking on purpose: call it from a background thread.
 pub fn decide(
     detected: Backend,
+    key: &EngineKey,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<Decision, DecideError> {
     decide_in(
@@ -114,6 +115,7 @@ pub fn decide(
         detected,
         None,
         &OsLaunch,
+        key,
         &store::ensure_probe_model,
         progress,
     )
@@ -135,6 +137,7 @@ pub fn decide(
 /// again.
 pub fn decide_cpu(
     detected: Backend,
+    key: &EngineKey,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<Decision, DecideError> {
     decide_in(
@@ -143,6 +146,7 @@ pub fn decide_cpu(
         detected,
         Some(ServerBackend::Cpu),
         &OsLaunch,
+        key,
         &store::ensure_probe_model,
         progress,
     )
@@ -150,12 +154,14 @@ pub fn decide_cpu(
 
 /// The whole walk, with the store root, the process launcher and the probe
 /// model's fetch injected.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn decide_in(
     root: &Path,
     platform: Option<Platform>,
     detected: Backend,
     only: Option<ServerBackend>,
     launch: &dyn Launch,
+    key: &EngineKey,
     fetch_probe_model: &dyn Fn(&Path, &mut dyn FnMut(Progress)) -> Result<PathBuf, StoreError>,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<Decision, DecideError> {
@@ -218,7 +224,7 @@ pub(crate) fn decide_in(
                 continue;
             }
         };
-        match probe::probe(launch, &exe, &model, &params, &state_file(root)) {
+        match probe::probe(launch, &exe, &model, &params, &state_file(root), key) {
             Ok(()) => {
                 // Best effort: a failed save costs seconds on the next start,
                 // never correctness.
@@ -380,6 +386,7 @@ mod tests {
             Backend::Cpu,
             None,
             &OsLaunch,
+            &EngineKey::mint().unwrap(),
             &store::ensure_probe_model,
             &mut |_| {},
         )
@@ -485,6 +492,7 @@ mod tests {
             Backend::Metal,
             None,
             &NeverProbe,
+            &EngineKey::mint().unwrap(),
             &dead_wire,
             &mut |_| {},
         )
@@ -520,6 +528,7 @@ mod tests {
             Backend::Metal,
             None,
             &NeverProbe,
+            &EngineKey::mint().unwrap(),
             &full_disk,
             &mut |_| {},
         )
@@ -541,6 +550,7 @@ mod tests {
             Backend::Metal,
             None,
             &OsLaunch,
+            &EngineKey::mint().unwrap(),
             &store::ensure_probe_model,
             &mut |_| {},
         )
@@ -645,6 +655,7 @@ mod tests {
             Backend::Cpu,
             None,
             &OsLaunch,
+            &EngineKey::mint().unwrap(),
             &store::ensure_probe_model,
             &mut |_| {},
         )
@@ -725,6 +736,7 @@ mod tests {
             detected,
             None,
             &NeverProbe,
+            &EngineKey::mint().unwrap(),
             &store::ensure_probe_model,
             &mut |_| {},
         )
@@ -858,6 +870,7 @@ mod tests {
             _exe: &Path,
             _args: &[String],
             _inherit: Option<&std::fs::File>,
+            _engine_key: Option<&EngineKey>,
         ) -> std::io::Result<Box<dyn Running>> {
             panic!("the walk launched a probe where none may run");
         }

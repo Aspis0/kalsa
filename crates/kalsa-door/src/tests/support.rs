@@ -314,10 +314,16 @@ pub(super) fn assert_origin_aware(response: &[u8], expected: Option<&str>, case:
 pub(super) fn door(upstream_port: u16, tokens: &[&str]) -> (RunningDoor, SocketAddr) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let door = Door::new(listener, upstream_port, door_devices(tokens), 1)
-        .unwrap()
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream_port,
+        door_devices(tokens),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .start()
+    .unwrap();
     (door, address)
 }
 
@@ -359,11 +365,17 @@ pub(super) fn door_with(
 ) -> (RunningDoor, SocketAddr) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let door = Door::new(listener, upstream_port, door_devices(tokens), 1)
-        .unwrap()
-        .with_clocks(clocks)
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream_port,
+        door_devices(tokens),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .with_clocks(clocks)
+    .start()
+    .unwrap();
     (door, address)
 }
 

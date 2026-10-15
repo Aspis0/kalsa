@@ -133,7 +133,13 @@ fn door_devices(credentials: &[&str]) -> Devices {
 #[test]
 fn a_non_loopback_listener_is_refused_at_construction() {
     let listener = TcpListener::bind("0.0.0.0:0").unwrap();
-    let result = Door::new(listener, 1, door_devices(&[&credential()]), 1);
+    let result = Door::new(
+        listener,
+        1,
+        door_devices(&[&credential()]),
+        1,
+        &crate::a_key(),
+    );
     assert!(matches!(result, Err(DoorError::NonLoopback(_))));
 }
 
@@ -151,6 +157,7 @@ fn an_upstream_on_the_listening_port_is_refused_at_construction() {
         door_devices(&[&credential()]),
         2,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     );
     assert!(
         matches!(refused, Err(DoorError::UpstreamIsListener { port: named }) if named == port),
@@ -173,10 +180,16 @@ fn the_running_door_reports_the_address_it_serves() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let bound_address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
-        .unwrap()
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream_port,
+        door_devices(&[&token]),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .start()
+    .unwrap();
     assert_eq!(door.address(), bound_address);
     assert_eq!(
         request(door.address(), Some(&format!("Bearer {token}"))),
@@ -194,10 +207,16 @@ fn every_authentication_failure_has_the_same_refusal() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
-        .unwrap()
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream_port,
+        door_devices(&[&token]),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .start()
+    .unwrap();
     let wrong = format!("Bearer {}", wrong_credential(&token));
     let refusal = request(address, Some(&wrong));
     assert!(refusal.starts_with(b"HTTP/1.1 401"));
@@ -226,10 +245,16 @@ fn every_authentication_failure_has_the_same_refusal() {
 fn an_unauthenticated_socket_is_not_an_active_phone() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let door = Door::new(listener, 1, door_devices(&[&credential()]), 1)
-        .unwrap()
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        1,
+        door_devices(&[&credential()]),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .start()
+    .unwrap();
     let client = TcpStream::connect(address).unwrap();
     thread::sleep(Duration::from_millis(25));
     assert!(door.active_devices().is_empty());
@@ -314,10 +339,16 @@ fn an_authenticated_connection_is_active_as_its_device() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
-        .unwrap()
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream_port,
+        door_devices(&[&token]),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .start()
+    .unwrap();
 
     let mut client = TcpStream::connect(address).unwrap();
     client.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
@@ -432,7 +463,7 @@ fn an_added_device_disturbs_nobody_and_starts_authenticating() {
     let address = listener.local_addr().unwrap();
     let first = credential();
     let second = credential();
-    let door = Door::new_with_engine(listener, upstream_port, door_devices(&[&first]), 2, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream_port, door_devices(&[&first]), 2, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -479,7 +510,7 @@ fn a_removed_device_is_cut_mid_answer_and_refused_after() {
     let address = listener.local_addr().unwrap();
     let revoked = credential();
     let keeper = credential();
-    let door = Door::new_with_engine(listener, upstream_port, door_devices(&[&revoked, &keeper]), 2, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream_port, door_devices(&[&revoked, &keeper]), 2, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -562,6 +593,8 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
                 seat_waiters: std::sync::atomic::AtomicUsize::new(0),
                 seat_waiting: std::sync::Mutex::new(std::collections::HashSet::new()),
                 chat: None,
+
+                key: Arc::new(crate::a_key()),
             }),
             &registry,
             &active,
@@ -664,11 +697,17 @@ fn a_queued_request_is_served_and_a_silent_one_answered_busy() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
-        .unwrap()
-        .with_head_patience(head_patience)
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream_port,
+        door_devices(&[&token]),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .with_head_patience(head_patience)
+    .start()
+    .unwrap();
 
     let request_for = |path: &str, stream: &mut TcpStream| {
         stream
@@ -737,10 +776,16 @@ fn an_authenticated_request_when_upstream_is_down_returns_a_clean_error() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
-        .unwrap()
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream_port,
+        door_devices(&[&token]),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .start()
+    .unwrap();
     let response = request(address, Some(&format!("Bearer {token}")));
     assert_eq!(
         response,
@@ -795,10 +840,16 @@ fn handled_requests_free_their_slot_so_the_door_stays_open() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_port, door_devices(&[&token]), 1)
-        .unwrap()
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream_port,
+        door_devices(&[&token]),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .start()
+    .unwrap();
     for _ in 0..(MAX_CONNECTIONS * 2) {
         let response = request(address, Some(&format!("Bearer {token}")));
         assert_eq!(
@@ -843,6 +894,8 @@ fn a_connection_that_waited_past_the_queue_bound_is_answered_busy() {
                 seat_waiters: std::sync::atomic::AtomicUsize::new(0),
                 seat_waiting: std::sync::Mutex::new(std::collections::HashSet::new()),
                 chat: None,
+
+                key: Arc::new(crate::a_key()),
             }),
             &registry,
             &active,
@@ -891,7 +944,7 @@ fn an_sse_response_reaches_the_client_before_the_upstream_finishes() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1006,7 +1059,7 @@ fn an_answer_survives_a_brutal_disconnect_and_resumes_from_the_last_event_id() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1090,7 +1143,7 @@ fn a_returning_client_rejoins_an_answer_still_in_motion() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1133,7 +1186,7 @@ fn a_resume_the_door_cannot_honor_is_refused_and_starts_nothing() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1219,7 +1272,7 @@ fn the_generation_continues_after_its_client_dies() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let token = credential();
-    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1)
+    let door = Door::new(listener, upstream_address.port(), door_devices(&[&token]), 1, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1342,7 +1395,7 @@ fn two_devices_each_open_the_door_with_their_own_credential() {
     let address = listener.local_addr().unwrap();
     let (first, second) = (credential(), credential());
     assert_ne!(first, second, "pairing mints every device its own secret");
-    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&first, &second]), 2, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&first, &second]), 2, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1387,7 +1440,7 @@ fn device_b_cannot_resume_device_a_s_answer() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let (mine, theirs) = (credential(), credential());
-    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&mine, &theirs]), 2, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&mine, &theirs]), 2, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1444,7 +1497,7 @@ fn a_revoked_device_is_refused_and_its_answer_dies_with_the_door() {
     let (upstream_address, upstream_stop, upstream_thread) = sse_upstream();
     let (leaving, staying) = (credential(), credential());
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&leaving, &staying]), 2, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream_address.port(), door_devices(&[&leaving, &staying]), 2, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1460,7 +1513,7 @@ fn a_revoked_device_is_refused_and_its_answer_dies_with_the_door() {
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
-    let rebuilt = Door::new(listener, upstream_address.port(), door_devices(&[&staying]), 1)
+    let rebuilt = Door::new(listener, upstream_address.port(), door_devices(&[&staying]), 1, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -1505,7 +1558,7 @@ fn an_idle_door_does_not_wake_its_acceptor() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let token = credential();
-        let door = Door::new(listener, 1, door_devices(&[&token]), 1)
+        let door = Door::new(listener, 1, door_devices(&[&token]), 1, &crate::a_key())
             .unwrap()
             .start()
             .unwrap();
@@ -1536,10 +1589,16 @@ fn an_idle_door_does_not_wake_its_acceptor() {
 fn shutdown_returns_promptly_with_the_acceptor_blocked() {
     support::bounded(Duration::from_secs(20), || {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let door = Door::new(listener, 1, door_devices(&[&credential()]), 1)
-            .unwrap()
-            .start()
-            .unwrap();
+        let door = Door::new(
+            listener,
+            1,
+            door_devices(&[&credential()]),
+            1,
+            &crate::a_key(),
+        )
+        .unwrap()
+        .start()
+        .unwrap();
         // The acceptor is in its wait; nothing has knocked and nothing will.
         thread::sleep(Duration::from_millis(50));
         let begun = Instant::now();

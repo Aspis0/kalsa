@@ -13,10 +13,16 @@ fn revocation_frees_the_slot_and_kept_devices_keep_theirs() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let (a, b) = (credential(), credential());
-    let door = Door::new(listener, upstream.port, door_devices(&[&a]), 1)
-        .unwrap()
-        .start()
-        .unwrap();
+    let door = Door::new(
+        listener,
+        upstream.port,
+        door_devices(&[&a]),
+        1,
+        &crate::a_key(),
+    )
+    .unwrap()
+    .start()
+    .unwrap();
     let first = request(address, Some(&format!("Bearer {a}")));
     assert!(first.starts_with(b"HTTP/1.1 200 OK"));
     door.set_devices(door_devices(&[&b]));
@@ -43,7 +49,7 @@ fn revocation_frees_the_slot_and_kept_devices_keep_theirs() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let (keeper, leaving) = (credential(), credential());
-    let door = Door::new_with_engine(listener, upstream.port, door_devices(&[&keeper, &leaving]), 2, EnginePrivateHeaders::Consumed)
+    let door = Door::new_with_engine(listener, upstream.port, door_devices(&[&keeper, &leaving]), 2, EnginePrivateHeaders::Consumed, &crate::a_key())
         .unwrap()
         .start()
         .unwrap();
@@ -239,6 +245,8 @@ fn the_request_write_holds_the_gate_against_a_forget() {
                     seat_waiters: std::sync::atomic::AtomicUsize::new(0),
                     seat_waiting: std::sync::Mutex::new(std::collections::HashSet::new()),
                     chat: None,
+
+                    key: Arc::new(crate::a_key()),
                 }),
                 &registry,
                 &active,
@@ -324,6 +332,8 @@ fn a_revoked_device_is_refused_without_opening_an_upstream_socket() {
                     seat_waiters: std::sync::atomic::AtomicUsize::new(0),
                     seat_waiting: std::sync::Mutex::new(std::collections::HashSet::new()),
                     chat: None,
+
+                    key: Arc::new(crate::a_key()),
                 }),
                 &registry,
                 &active,

@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use kalsa_door::Door;
+use kalsa_door::{Door, EngineKey};
 use kalsa_iroh::{AddressBook, Bridge, BridgeConfig, Lane, NodeKey, RelayChoice};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -71,10 +71,16 @@ async fn a_stranger_past_its_budget_is_refused_and_the_owner_is_not() {
 
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("door binds");
     let door_address = listener.local_addr().unwrap();
-    let door = Door::new(listener, upstream_port, one_device(CREDENTIAL), 1)
-        .expect("door builds")
-        .start()
-        .expect("door starts");
+    let door = Door::new(
+        listener,
+        upstream_port,
+        one_device(CREDENTIAL),
+        1,
+        &EngineKey::mint().expect("the OS has randomness"),
+    )
+    .expect("door builds")
+    .start()
+    .expect("door starts");
 
     let book = AddressBook::new();
     let road_key = NodeKey::generate().expect("entropy");

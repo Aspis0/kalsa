@@ -122,7 +122,7 @@ fn a_hung_engine_cannot_hold_the_quit_past_its_patience() {
 
     let patience = Duration::from_millis(150);
     let started = Instant::now();
-    door.chats.save_on_quit(&door.devices, engine.port, patience);
+    door.chats.save_on_quit(&door.devices, engine.port, &crate::a_key(), patience);
     let took = started.elapsed();
 
     assert!(
@@ -154,8 +154,12 @@ fn a_quit_under_a_restore_returns_in_bound_and_saves_nothing() {
         let before = engine.sent().len();
 
         let started = Instant::now();
-        door.chats
-            .save_on_quit(&door.devices, engine.port, Duration::from_millis(200));
+        door.chats.save_on_quit(
+            &door.devices,
+            engine.port,
+            &crate::a_key(),
+            Duration::from_millis(200),
+        );
         let took = started.elapsed();
 
         assert!(

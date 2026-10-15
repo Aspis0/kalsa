@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use kalsa_supervisor::{InstanceFile, DEFAULT_STOP_GRACE};
+use kalsa_supervisor::{EngineKey, InstanceFile, DEFAULT_STOP_GRACE};
 
 use crate::child::{self, Launch, OsLaunch};
 use crate::probe::health_ok;
@@ -71,6 +71,7 @@ pub fn serve(
     exe: &Path,
     args: &[String],
     ready_timeout: Duration,
+    key: &EngineKey,
 ) -> Result<Disposable, ServeError> {
     let state = crate::decide::state_file(root);
     // A force-quit child from a previous run holds this file's lock and
@@ -78,7 +79,7 @@ pub fn serve(
     // rides the same file, so the next start's reap covers it too.
     child::reap_orphan(&state, DEFAULT_STOP_GRACE);
     let mut instance = InstanceFile::claim(&state).map_err(|_| ServeError::DidNotStart)?;
-    match run(port, exe, args, ready_timeout, &mut instance) {
+    match run(port, exe, args, ready_timeout, &mut instance, key) {
         Ok((running, addr)) => Ok(Disposable {
             running,
             instance: Some(instance),
@@ -98,9 +99,10 @@ fn run(
     args: &[String],
     ready_timeout: Duration,
     instance: &mut InstanceFile,
+    key: &EngineKey,
 ) -> Result<(Box<dyn child::Running>, SocketAddr), ServeError> {
     let mut running = OsLaunch
-        .spawn(exe, args, Some(instance.handle()))
+        .spawn(exe, args, Some(instance.handle()), Some(key))
         .map_err(|_| ServeError::DidNotStart)?;
     if instance.describe(running.pid(), port).is_err() {
         // A child we cannot name after a force-quit cannot be reaped: the

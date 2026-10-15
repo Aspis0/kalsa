@@ -34,6 +34,7 @@ fn house_at(
         devices,
         capacity,
         EnginePrivateHeaders::Consumed,
+        &crate::a_key(),
     )
     .unwrap()
     .with_clocks(clocks)

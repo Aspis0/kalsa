@@ -8,11 +8,15 @@
 //! (`server-context.cpp:5638`, `:5674`), and the door's own two private
 //! headers. Those are the headers a completion carries, so the engine sees the
 //! same device and — on a restore — stamps the slot with that device's
-//! namespace instead of dropping it (`server-context.cpp:2882-2885`).
+//! namespace instead of dropping it (`server-context.cpp:2882-2885`). The
+//! app's engine key rides in the same private headers: the server refuses
+//! this request without it, like every other.
 
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::time::{Duration, Instant};
+
+use kalsa_supervisor::EngineKey;
 
 use crate::proxy;
 use crate::request;
@@ -39,6 +43,7 @@ pub(super) struct Engine<'a> {
     pub(super) port: u16,
     pub(super) slot: u32,
     pub(super) salt: &'a [u8; 32],
+    pub(super) key: &'a EngineKey,
     pub(super) deadline: Instant,
     pub(super) patience: Duration,
 }
@@ -68,7 +73,7 @@ impl Engine<'_> {
             )
             .as_bytes(),
         );
-        request::private_headers(&mut head, self.slot, self.salt);
+        request::private_headers(&mut head, self.slot, self.salt, self.key);
         head.extend_from_slice(b"\r\n");
         head.extend_from_slice(body.as_bytes());
 
