@@ -15,7 +15,7 @@ const APP = "http://localhost:5173";
 // Copied on purpose, the way dev/smoke-react.mjs keeps its strings: node
 // cannot import chat.ts (its own imports are extensionless), and a copied
 // sentence goes red the day the product's changes.
-const DOOR_SILENT_TEXT = "The door did not answer, so the state of this device's slot is unknown.";
+const DOOR_SILENT_TEXT = "Kalsa couldn't open this conversation. Try again.";
 const CONV_KEY = "crescent-chat.conversations.v1";
 const SET_KEY = "crescent-chat.settings.v1";
 const THEME_KEY = "crescent-chat.theme.v1";
@@ -83,6 +83,16 @@ async function sendAndWait(page, text, marker, timeout = 25000) {
   } catch {
     check(`arrived: ${marker}`, false, "wait timed out");
   }
+}
+
+/** The POST addresses this page sent. The failed answer no longer prints the
+    address it called, so the composed URL is checked where it is sent. */
+function recordPosts(page) {
+  const urls = [];
+  page.on("request", (req) => {
+    if (req.method() === "POST") urls.push(req.url());
+  });
+  return () => urls;
 }
 
 async function waitSummary(page, label) {
@@ -348,6 +358,13 @@ async function stubFileDoor(page, { roots = null, listings = {}, read = [], sear
       window.__TAURI__ = {
         core: {
           invoke: async (command, args) => {
+            // The brain's pair and start-up reads, answered as stubDoor answers
+            // them: this stub owns __TAURI__, so the seed's brain stub returns early.
+            const brain = window.__STUB_BRAIN__;
+            if (brain && command === "brain_state") return brain.state;
+            if (brain && command === "brain_host_credential") return brain.credential;
+            const startUp = window.__STUB_START_UP__;
+            if (startUp && Object.hasOwn(startUp, command)) return startUp[command];
             window.__FILE_CALLS__.push({ command, args });
             if (command === "brain_files_roots") return roots;
             if (command === "brain_files_list") return listings[args.path] ?? null;
@@ -539,12 +556,12 @@ const tests = {
     for (const [endpoint, called] of cases) {
       const browser = await chromium.launch({ args: ["--no-sandbox"] });
       const page = await browser.newPage();
+      const posted = recordPosts(page);
       await seed(page, { settings: { endpoint, token: "t", model: "x" } });
       await openChat(page);
       await page.waitForTimeout(1200);
-      await sendAndWait(page, "Hello?", "did not accept the key");
-      const shown = await page.locator(".error-url").textContent();
-      check(`badurl: ${endpoint}`, (shown ?? "").includes(called), shown?.trim());
+      await sendAndWait(page, "Hello?", "Kalsa couldn't answer.");
+      check(`badurl: ${endpoint}`, posted().includes(called), posted().join(" "));
       await browser.close();
     }
     // .../v1 base composes without doubling and actually streams.
@@ -568,9 +585,13 @@ const tests = {
     });
     await openChat(page);
     await page.waitForTimeout(1200);
-    await sendAndWait(page, "Hello?", "refused the key");
-    const body = await page.locator(".thread").textContent();
-    check("forbidden: names 403, not 401", (body ?? "").includes("403"));
+    await sendAndWait(page, "Hello?", "Kalsa couldn't answer.");
+    const body = (await page.locator(".thread").textContent()) ?? "";
+    check(
+      "forbidden: the refusal is Kalsa's sentence, with no raw status",
+      body.includes("Turn Kalsa off and on again from Home.") && !body.includes("403"),
+      body.slice(-160),
+    );
     await browser.close();
   },
 
@@ -606,8 +627,8 @@ const tests = {
     await seed(page, { settings: okSettings("emptycut-demo") });
     await openChat(page);
     await page.waitForTimeout(1200);
-    await sendAndWait(page, "Say nothing.", "not as a chat stream");
-    check("emptycut: honest diagnosis", true);
+    await sendAndWait(page, "Say nothing.", "Kalsa couldn't answer.");
+    check("emptycut: the empty stream lands as the failed answer", (await page.locator(".error-block").count()) === 1);
     await browser.close();
   },
 
@@ -626,15 +647,19 @@ const tests = {
   async html() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
+    const posted = recordPosts(page);
     await seed(page, { settings: okSettings("html-demo") });
     await openChat(page);
     await page.waitForTimeout(1200);
-    await sendAndWait(page, "A page?", "not as a chat stream");
-    const shown = await page.locator(".error-url").textContent();
-    check("html: shows called URL", (shown ?? "").includes("/ok/v1/chat/completions"));
+    await sendAndWait(page, "A page?", "Kalsa couldn't answer.");
+    check(
+      "html: the chat went to the composed address",
+      posted().includes("http://127.0.0.1:18081/ok/v1/chat/completions"),
+      posted().join(" "),
+    );
     // The failed answer keeps one road out: Try again. The settings road
     // left with the address it used to fix.
-    const actions = await page.locator(".error-actions button").allTextContents();
+    const actions = await page.locator(".error-block button").allTextContents();
     check(
       "html: the failed answer offers Try again and no settings road",
       actions.includes("Try again") && !actions.includes("Open settings"),
@@ -648,10 +673,10 @@ const tests = {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage();
     // The brain answers "running" but its endpoint is dead: the door's own
-    // activate cannot be reached, so the open is REFUSED with the door's
-    // sentence. There is no saved address left to point the chat at — the
-    // URL-error copy this used to assert is now reachable only mid-session,
-    // when a door dies under a live stream.
+    // activate cannot be reached, so the open is REFUSED as a silent door, and
+    // the shell speaks its own sentence for that. There is no saved address left to
+    // point the chat at — the URL-error copy this used to assert is now
+    // reachable only mid-session, when a door dies under a live stream.
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18999", token: "t", model: "x" },
     });
@@ -659,7 +684,7 @@ const tests = {
     await page.waitForTimeout(1200);
     // It is the SEND that asks the door: the open either mints or is
     // refused, and this door cannot be reached, so the refusal lands as the
-    // door's own sentence and the chat never opens.
+    // shell's sentence and the chat never opens.
     await page.getByRole("textbox", { name: "Message" }).fill("Nobody home?");
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     try {
@@ -1354,7 +1379,7 @@ const tests = {
     await seed(page, { settings: okSettings("jsonthink-demo") });
     await openChat(page);
     await page.waitForTimeout(1200);
-    await sendAndWait(page, "JSON thinking.", "gave no answer");
+    await sendAndWait(page, "JSON thinking.", "Kalsa did not produce an answer.");
     check("jsonthink: cloud present", (await page.locator(".thought").count()) === 1);
     check("jsonthink: not an error", (await page.locator(".error-block").count()) === 0);
     const index = JSON.parse((await stored(page, "crescent-chat.index.v2")) ?? "[]");
@@ -1469,7 +1494,7 @@ const tests = {
     const row = (await page.locator(".panel-row .panel-name").textContent()) ?? "";
     check("attachtxt: panel lists file", row.includes("report.txt"));
     const meta = (await page.locator(".panel-row .panel-meta").textContent()) ?? "";
-    check("attachtxt: type and estimate shown", meta.includes("txt") && meta.includes("1000"));
+    check("attachtxt: type shown, no token figure", meta.trim() === "txt", meta.trim());
     const attachId = await page.evaluate(() =>
       Object.keys({ ...localStorage }).find((k) => k.startsWith("crescent-chat.attach.")),
     );
@@ -1497,7 +1522,12 @@ const tests = {
       systems.length === 1 && body?.messages?.[0] === systems[0],
       `${systems.length} system message(s)`,
     );
-    check("attachtxt: wire has pinned block", (systems[0]?.content ?? "").includes("Report body.") && (systems[0]?.content ?? "").includes("report.txt"));
+    // A new document rides the turn it was sent with; the system message stays clean.
+    const turns = JSON.stringify((body?.messages ?? []).filter((m) => m.role === "user"));
+    check(
+      "attachtxt: the document rides its own turn, system message clean",
+      turns.includes("Report body.") && turns.includes("report.txt") && !(systems[0]?.content ?? "").includes("Report body."),
+    );
     await browser.close();
   },
 
@@ -1596,7 +1626,7 @@ const tests = {
     ]);
     await page.waitForTimeout(600);
     const status = (await page.locator(".attach-status").textContent()) ?? "";
-    check("attachrejects: unsupported said", status.includes("not a readable kind"));
+    check("attachrejects: unsupported said", status.includes("Kalsa can't read this kind of file."), status.trim());
     check("attachrejects: nothing stored", (await page.locator(".panel-row").count()) === 0);
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "huge.txt", mimeType: "text/plain", buffer: Buffer.alloc(33 * 1024 * 1024, 97) },
@@ -2080,10 +2110,10 @@ const tests = {
     const doc = (await page.locator(".attach-status").textContent()) ?? "";
     check(
       "attachlegacy: .doc names the older format and the way out",
-      doc.includes("Word") && doc.includes("older format") && doc.includes(".docx"),
+      doc.includes("Word") && doc.includes("old format") && doc.includes("save a new copy"),
       doc.trim(),
     );
-    check("attachlegacy: .doc does not get the generic message", !doc.includes("not a readable kind"), doc.trim());
+    check("attachlegacy: .doc does not get the generic message", !doc.includes("Kalsa can't read this kind of file"), doc.trim());
     check("attachlegacy: .doc stored nothing", (await page.locator(".panel-row").count()) === 0);
     await page.locator('.composer input[type="file"]').setInputFiles([
       { name: "deck.ppt", mimeType: "application/vnd.ms-powerpoint", buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0]) },
@@ -2092,7 +2122,7 @@ const tests = {
     const ppt = (await page.locator(".attach-status").textContent()) ?? "";
     check(
       "attachlegacy: .ppt names the older format too",
-      ppt.includes("PowerPoint") && ppt.includes("older format") && ppt.includes(".pptx"),
+      ppt.includes("PowerPoint") && ppt.includes("old format") && ppt.includes("save a new copy"),
       ppt.trim(),
     );
     await browser.close();
@@ -2181,7 +2211,7 @@ const tests = {
       { name: "big.txt", mimeType: "text/plain", buffer: Buffer.from(`B testo. ${"y".repeat(1185)}`) },
     ]);
     await page.waitForTimeout(1500);
-    const banner = page.locator('[data-notice="slot"]');
+    const banner = page.locator(".notice-banner", { hasText: "too much for Kalsa at once" });
     check("refusefit: refusal shown", (await banner.count()) === 1);
     const text = ((await banner.count()) === 1 ? await banner.textContent() : null) ?? "";
     // The banner states the refusal in words; it shows no token figures.
@@ -2295,33 +2325,43 @@ const tests = {
     await openChat(page);
     await page.waitForTimeout(1200);
     await page.locator('.composer input[type="file"]').setInputFiles([
-      { name: "anchor.txt", mimeType: "text/plain", buffer: Buffer.from(`ANCHOR ${"n".repeat(1673)}`) },
+      { name: "anchor.txt", mimeType: "text/plain", buffer: Buffer.from(`ANCHOR ${"n".repeat(393)}`) },
     ]);
     await page.waitForTimeout(1500);
-    check("oversizesend: attached first", ((await page.locator(".panel-list").textContent()) ?? "").includes("anchor.txt"));
-    await page.getByRole("textbox", { name: "Message" }).fill(`Tip it over the edge now, please, and do not hold anything back at all. ${"m".repeat(28)}`);
+    // Active, not under "Previously attached": a refused attach walks back there.
+    check(
+      "oversizesend: attached first",
+      (await page.locator(".panel-row:not(.panel-row-history)").count()) === 1,
+    );
+    // The prompt and the 512-token reserve take most of a 1024 window: a
+    // 115-token anchor attaches, and a 200-token message on top of it does not
+    // fit the send.
+    await page.getByRole("textbox", { name: "Message" }).fill(`Tip it over the edge now, please, and do not hold anything back at all. ${"m".repeat(727)}`);
     await page.getByRole("textbox", { name: "Message" }).press("Enter");
     try {
       await page.waitForFunction(
-        () => document.querySelector(".thread")?.textContent?.includes("exceeds the context"),
+        () => document.querySelector(".thread")?.textContent?.includes("are too much for Kalsa at once."),
         null,
         { timeout: 20000 },
       );
     } catch {
       check("oversizesend: refused aloud", false, "wait timed out");
     }
-    const detailCount = await page.locator(".error-detail").count();
-    const detail = detailCount === 1 ? (await page.locator(".error-detail").textContent()) ?? "" : "";
-    check("oversizesend: numbers shown", detail.includes("1,024"), detail.slice(0, 100));
+    // The failed answer says what to do; the window's figures stay out of it.
+    const block = (await page.locator(".error-block").textContent()) ?? "";
+    check(
+      "oversizesend: says what to do, with no numbers",
+      block.includes("Remove a file or shorten your message.") && !/\d/.test(block),
+      block.slice(0, 120),
+    );
     await browser.close();
   },
 
   // The fit note: no bar anymore — quiet while there is room, the one
-  // almost-full sentence once the free share of the window runs low. Nine
-  // seeded turns are 330 tokens of history (28 each plus the 78-token
-  // prompt), so a 1024 window has 162 free before the attach (past the 15%
-  // line: quiet) and 112 after the 50-token document lands (under it: the
-  // sentence).
+  // almost-full sentence once the free share of the window runs low. Free is
+  // the window less the reserve and the history, and the 15% line of a 1024
+  // window is 154 tokens. Nine seeded turns of about 27 tokens each leave more
+  // than that free before the attach, and a 150-token document takes it under.
   async metersum() {
     const browser = await chromium.launch({ args: ["--no-sandbox"] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -2344,7 +2384,7 @@ const tests = {
     check("metersum: room to spare says nothing", (await page.locator(".budget-almost").count()) === 0);
     check("metersum: no bar remains", (await page.locator(".budget-bar").count()) === 0 && (await page.locator("[data-term]").count()) === 0);
     await page.locator('.composer input[type="file"]').setInputFiles([
-      { name: "m.txt", mimeType: "text/plain", buffer: Buffer.from(`METER ${"w".repeat(193)}`) },
+      { name: "m.txt", mimeType: "text/plain", buffer: Buffer.from(`METER ${"w".repeat(594)}`) },
     ]);
     await page.waitForTimeout(1500);
     const note = page.locator(".budget-almost");
@@ -2400,8 +2440,8 @@ const tests = {
     await seed(page, { settings: okSettings("silent-demo") });
     await openChat(page);
     await page.waitForTimeout(1200);
-    await sendAndWait(page, "Are you there?", "took too long", 80000);
-    check("silent: idle timeout fires", true);
+    await sendAndWait(page, "Are you there?", "Kalsa stopped answering after a minute without new words.", 80000);
+    check("silent: idle timeout fires", (await page.locator(".error-block").count()) === 1);
     await browser.close();
   },
   // Tool calling, end to end: the model asks for a search, the tool runs
@@ -2663,8 +2703,13 @@ const tests = {
     check("bad: a broken call never reached the door", calls.length === 0, JSON.stringify(calls));
     const wired = (await allBodies(page)).at(-1)?.messages ?? [];
     const result = wired.filter((m) => m.role === "tool")[0];
-    const modelWords = "The arguments were not valid JSON. Call the tool again with a JSON object.";
-    check("bad: the model was told, as a tool result", result?.content === modelWords, result?.content ?? "no tool result");
+    // The repair guide: what failed, and the one call the next round re-sends.
+    const modelWords = "The arguments to web_search were not valid JSON, so the call did not run.";
+    check(
+      "bad: the model was told, as a tool result",
+      (result?.content ?? "").startsWith(modelWords) && (result?.content ?? "").includes('"query"'),
+      result?.content ?? "no tool result",
+    );
     const echoed = wired.filter((m) => m.role === "assistant" && m.tool_calls).flatMap((m) => m.tool_calls);
     check(
       "bad: the echoed arguments are an empty object",
@@ -2674,7 +2719,7 @@ const tests = {
     const text = (await page.locator(".thread").textContent()) ?? "";
     check(
       "bad: the thread shows the failure, not a silent call",
-      text.includes("Kalsa couldn't finish checking. Ask again."),
+      text.includes("Kalsa couldn't search the web. Try again."),
       text.slice(0, 200),
     );
     check("bad: the turn still produced an answer", text.includes("still say"));
@@ -2702,7 +2747,11 @@ const tests = {
       bodies.slice(0, 4).every((b) => b.tool_choice === "auto") && bodies[4]?.tool_choice === "none",
       bodies.map((b) => b.tool_choice).join(","),
     );
-    check("loop: the forced round still offered the tools", (bodies[4]?.tools ?? []).length === 2);
+    check(
+      "loop: the forced round still offered the tools",
+      (bodies[4]?.tools ?? []).length > 0 && (bodies[4]?.tools ?? []).length === (bodies[0]?.tools ?? []).length,
+      `${(bodies[4]?.tools ?? []).length} vs ${(bodies[0]?.tools ?? []).length}`,
+    );
     check("loop: the answer arrived", ((await page.locator(".thread").textContent()) ?? "").includes("looked enough"));
     await browser.close();
   },
@@ -2893,7 +2942,11 @@ const tests = {
     await sendAndWait(page, "Show me the tags.", "the answer is 42", 40000);
     const text = (await page.locator(".thread").textContent()) ?? "";
     check("burn: an answer arrives even though the calls were refused", text.includes("the answer is 42"), text.slice(0, 200));
-    check("burn: the refused call is on the record too", text.includes("ended the turn as"), text.slice(0, 260));
+    check(
+      "burn: the refused call is on the record too",
+      text.includes("Searched for: burn 0") && text.includes("Kalsa couldn't search the web. Try again."),
+      text.slice(0, 260),
+    );
     const bodies = await allBodies(page);
     check("burn: the fallback round asked for words", bodies.at(-1)?.tool_choice === "none", JSON.stringify(bodies.map((b) => b.tool_choice)));
     await browser.close();
@@ -3592,7 +3645,7 @@ const tests = {
     await page.waitForTimeout(2500);
     const outgoing = (await page.locator(".webgate-outgoing").textContent()) ?? "";
     check("gate twoconv: the first ask is still the one shown", outgoing.includes("alpha"), `${outgoing.length} chars shown`);
-    check("gate twoconv: the waiting count is said", ((await page.locator(".webgate").textContent()) ?? "").includes("waiting behind"), "ask on screen");
+    check("gate twoconv: the waiting count is said", ((await page.locator(".webgate").textContent()) ?? "").includes("Kalsa has 1 more to check after this one."), "ask on screen");
     await page.getByRole("button", { name: "Send it" }).click();
     await page
       .locator(".webgate-outgoing", { hasText: "beta" })
@@ -4497,15 +4550,16 @@ const tests = {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     const messages = [];
     for (let i = 0; i < 20; i++) {
-      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(94)}`, createdAt: i });
+      messages.push({ id: `u${i}`, role: "user", content: `Q${String(i).padStart(2, "0")} ${"q".repeat(26)}`, createdAt: i });
     }
     await seed(page, {
       settings: { endpoint: "http://127.0.0.1:18081/tight", token: "t", model: "tools-demo" },
       convos: [{ id: "tf", title: "Tool fit", createdAt: 1, updatedAt: 1, messages }],
     });
-    // A search big enough that the round carrying its result overruns the
-    // tight window's budget even though the first wire fit it.
-    await stubDoor(page, { search: `${LISBON} ${"x".repeat(300)}` });
+    // Twenty short turns fit the first wire of a 1024 window beside the prompt
+    // and the 512-token reserve. A search big enough that the round carrying
+    // its result overruns the budget sheds the oldest turns.
+    await stubDoor(page, { search: `${LISBON} ${"x".repeat(700)}` });
     await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
     await openChat(page);
     await page.waitForTimeout(1200);

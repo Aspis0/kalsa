@@ -560,8 +560,7 @@ export function createStore(): ConversationStore {
       writeError = null;
       return true;
     } catch {
-      writeError =
-        "Browser storage is full — new messages are kept for this session only and will be lost on reload.";
+      writeError = "storage-full";
       return false;
     }
   }
