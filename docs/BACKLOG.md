@@ -515,3 +515,5 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - Load marker: storage failures fail open (marker write, the confirmed write, read errors → false), so a real crash can be forgotten after a later clean exit.
 - Load marker: stamp and Android exit timestamps are both wall clock; a clock step can flip the "older than the stamp" rule.
 - Load marker: Android `DEPENDENCY_DIED` (and other unmapped reasons) map to "other" = clean in `KalsaLifecycleModule.kt`; a dependency death during native init is not treated as a death.
+- Low-memory line (phone 20ac2eb8): the runtime CPU fallback inside a turn (`LlamaService.ts` ~6095) reloads without a React state change, so the line updates only at the next render; a GPU init that fails from memory pressure while the estimate said Fit falls back to CPU (`LlamaService.ts` ~2942) without the line.
+- `src/engine/LlamaService.ts` is a God file (6942 lines, 245 commits). Owner 2026-10-15: split it with the usual pipeline (explorer map → plan → one cut at a time, each reviewed and checked on the S23), coordinated with the governor session.
