@@ -7,7 +7,7 @@
  * actions the contract gives a card — open it, or ask the computer for a
  * reply.
  */
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useLocale, type TranslationKey } from "../../i18n";
@@ -96,6 +96,11 @@ function MailRow({ item, colors }: { item: MailCardItem; colors: DesignColors })
   );
 }
 
+/** How many cards one list draws before its button asks. A turn is not a page:
+ *  past this the person decides to keep reading. The rest are already in hand,
+ *  so the button reveals and never fetches — the desktop draws it the same way. */
+const DRAWN = 8;
+
 export const MailCardList = memo(function MailCardList({
   cards,
   colors,
@@ -104,11 +109,27 @@ export const MailCardList = memo(function MailCardList({
   colors: DesignColors;
 }) {
   const { t } = useLocale();
+  const [revealed, setRevealed] = useState(false);
+  const drawn = revealed ? cards.items : cards.items.slice(0, DRAWN);
+  const rest = cards.items.length - drawn.length;
+  const more =
+    rest === 1 ? t("chat.mail.oneMoreMail") : t("chat.mail.moreMail", { count: rest });
   return (
     <View testID="transcript.mail.cards" style={styles.list}>
-      {cards.items.map((item) => (
+      {drawn.map((item) => (
         <MailRow key={item.id} item={item} colors={colors} />
       ))}
+      {rest > 0 ? (
+        <Pressable
+          testID="transcript.mail.more"
+          accessibilityRole="button"
+          accessibilityLabel={more}
+          onPress={() => setRevealed(true)}
+          style={({ pressed }) => [styles.more, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Text style={[type.label, { color: colors.accent }]}>{more}</Text>
+        </Pressable>
+      ) : null}
       {cards.bulk > 0 ? (
         // A line, not a card each: the count is the computer's and the desktop
         // draws it the same way.
@@ -143,5 +164,11 @@ const styles = {
     justifyContent: "center" as const,
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
+  },
+  more: {
+    minHeight: MIN_TOUCH_TARGET,
+    alignItems: "center" as const,
+    flexDirection: "row" as const,
+    justifyContent: "center" as const,
   },
 } as const;

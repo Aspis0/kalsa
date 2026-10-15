@@ -26,11 +26,34 @@ describe("pairing copy", () => {
     expect(it.pairing.waitingAllow).not.toMatch(/conness|collegato/i);
   });
 
+  test("the generic computer name is a whole sentence, preposition and all", () => {
+    // "su il tuo computer" and "a il tuo computer" are not Italian: the article
+    // belongs to the label, so it contracts with the preposition. A hostname
+    // keeps the plain preposition, which is why these are separate strings.
+    expect(en.pairing.waitingAllowComputer).toBe(
+      "Waiting for you to press Allow on your computer",
+    );
+    expect(it.pairing.waitingAllowComputer).toBe(
+      "In attesa che tu prema Consenti sul tuo computer",
+    );
+    expect(en.pairing.pairedWithComputer).toBe("Paired with your computer");
+    expect(it.pairing.pairedWithComputer).toBe("Collegato al tuo computer");
+    for (const sentence of [it.pairing.waitingAllowComputer, it.pairing.pairedWithComputer]) {
+      expect(sentence).not.toMatch(/\b(su|a) il tuo computer\b/);
+    }
+  });
+
   test("only the poll's paired verdict says paired, and it names the computer", () => {
     expect(en.pairing.pairedWith).toBe("Paired with {computer}");
     expect(it.pairing.pairedWith).toBe("Collegato a {computer}");
-    expect(en.pairing.yourComputer).toBe("your computer");
-    expect(it.pairing.yourComputer).toBe("il tuo computer");
+  });
+
+  test("the invite field has a heading of its own, not the button's words twice", () => {
+    expect(en.pairing.pasteInvite).toBe("Paste invite");
+    expect(en.pairing.pasteInviteHeading).toBe("Paste the invite link");
+    expect(it.pairing.pasteInvite).toBe("Incolla invito");
+    expect(it.pairing.pasteInviteHeading).toBe("Incolla il link di invito");
+    expect(it.pairing.pasteInviteHeading).not.toBe(it.pairing.pasteInvite);
   });
 
   test("a tailnet ceremony names its host in the status, in both catalogues", () => {

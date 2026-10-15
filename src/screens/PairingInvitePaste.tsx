@@ -27,7 +27,7 @@ export function PairingInvitePaste({ disabled, onInvite }: Props) {
 
   return (
     <View style={{ gap: 8 }}>
-      <Text style={{ fontWeight: "600" }}>{t("pairing.pasteInvite")}</Text>
+      <Text style={{ fontWeight: "600" }}>{t("pairing.pasteInviteHeading")}</Text>
       <TextInput
         testID="pairing.invite.input"
         value={value}

@@ -8,11 +8,19 @@ import { recoverLocalAfterRemoteBootFailure } from "./remoteBootFallback";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+// The door probe beside the fallback needs no keystore here: this file judges
+// the plan, and every plan it builds passes `doorReady` explicitly.
+jest.mock("../engine/remote/remoteDoorConfig", () => ({
+  getRemoteDoorConfig: jest.fn(),
+}));
+jest.mock("../engine/remote/doorRequestBase", () => ({
+  doorRequestBase: jest.fn(() => ({ ok: false })),
+}));
+
 const BOOT_HOOK = readFileSync(join(__dirname, "usePipelineScans.ts"), "utf8");
 
 const localSnapshot = {
   backend: "local" as const,
-  url: "https://computer.example",
   hydrationOk: true,
 };
 
@@ -20,6 +28,7 @@ function plan(overrides: Partial<Parameters<typeof planRemoteHostBoot>[0]> = {})
   return planRemoteHostBoot({
     snapshot: localSnapshot,
     hydrationStale: false,
+    doorReady: true,
     savedModelId: "qwen-small",
     defaultLocalModelId: "qwen-default",
     remoteModelId: REMOTE_COMPUTER_MODEL_ID,
@@ -63,9 +72,10 @@ describe("host boot preserves the remote boot contract", () => {
     expect(pick).toHaveBeenCalledWith("qwen-small");
   });
 
-  test("a selected remote backend with no address demotes and persists only its remote id", () => {
+  test("a selected remote backend with no reachable door demotes and persists only its remote id", () => {
     const decision = plan({
-      snapshot: { ...localSnapshot, backend: "remote", url: "" },
+      snapshot: { ...localSnapshot, backend: "remote" },
+      doorReady: false,
       savedModelId: REMOTE_COMPUTER_MODEL_ID,
     });
 

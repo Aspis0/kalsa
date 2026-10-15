@@ -25,7 +25,7 @@ import type { ThemeMode } from "../theme/design";
 
 export interface HostLayoutProps {
   /** Safe-area insets: `top` paints the strip below the notch, `bottom`
-   *  feeds the drawer and the notice band. */
+   *  feeds the drawer, the notice band and the mail sheet's close row. */
   insets: { top: number; bottom: number };
   draft: ChatSurfaceProps["draft"];
   onDraftChange: ChatSurfaceProps["onDraftChange"];
@@ -118,7 +118,11 @@ export function HostLayout({
           actions={actions}
           onMiniappOpen={onMiniappOpen}
         />
-        <MailReadSheet mode={mode} conversationId={conversationId} />
+        <MailReadSheet
+          mode={mode}
+          conversationId={conversationId}
+          bottomInset={insets.bottom}
+        />
       </MailActionsContext.Provider>
 
       <HostDrawer

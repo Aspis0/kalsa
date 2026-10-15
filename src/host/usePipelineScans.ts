@@ -45,7 +45,7 @@ import {
   subscribeModelSwitchSettled,
 } from "./modelSwitchState";
 import { pickHostBootModel, planRemoteHostBoot } from "./remoteHostBoot";
-import { recoverLocalAfterRemoteBootFailure } from "./remoteBootFallback";
+import { hostDoorIsReachable, recoverLocalAfterRemoteBootFailure } from "./remoteBootFallback";
 import { decideRemoteHostProbe } from "./remoteHostProbe";
 
 export interface ScanRefs {
@@ -123,6 +123,7 @@ export function usePipelineScans(params: {
       try {
         const snapshot = await hydrateRemoteBrainSettings();
         if (!bootStillCurrent()) return;
+        const doorReady = await hostDoorIsReachable();
         const saved = snapshot.hydrationOk
           ? await AsyncStorage.getItem(MODEL_STORAGE_KEY)
           : null;
@@ -130,6 +131,7 @@ export function usePipelineScans(params: {
         const plan = planRemoteHostBoot({
           snapshot,
           hydrationStale: !isHydrationCurrent(snapshot),
+          doorReady,
           savedModelId: saved,
           defaultLocalModelId: getDefaultModel().id,
           remoteModelId: REMOTE_COMPUTER_MODEL_ID,

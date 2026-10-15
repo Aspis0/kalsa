@@ -875,10 +875,10 @@ describe("PairingScreen", () => {
     expect(bodies[1]).toContain('"weights_bytes":1234');
     expect(bodies[1]).toContain('"battery_powered":true');
     expect(bodies[1]).not.toContain('"weights_bytes":0');
-    // Manual entry has no scanned host: the Allow line names the generic
-    // computer (the bare-key mock keeps the key visible in the sentence).
+    // Manual entry has no scanned host: the Allow line is its own whole
+    // sentence, because Italian contracts "su il tuo computer" into "sul".
     expect(renderer.root.findByProps({ testID: "pairing.waiting" }).props.children)
-      .toBe("Waiting for you to press Allow on pairing.yourComputer");
+      .toBe("pairing.waitingAllowComputer");
     await act(async () => renderer.unmount());
   });
 
@@ -1088,7 +1088,7 @@ describe("PairingScreen", () => {
     });
 
     expect(renderer.root.findByProps({ testID: "pairing.paired" }).props.children)
-      .toBe("Paired with pairing.yourComputer");
+      .toBe("pairing.pairedWithComputer");
     // The success moment: checkmark + the sentence in one banner row, with
     // the plain status line hidden - one placement per view.
     expect(renderer.root.findByProps({ testID: "pairing.paired.banner" })).toBeDefined();

@@ -10,21 +10,34 @@
  */
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 
-import { useLocale } from "../../i18n";
+import { useLocale, type Locale } from "../../i18n";
 import { humanContractFailure } from "../../engine/remote/phoneChatFailures";
 import { senderLine } from "../../domain/mailPayload";
+import { formatAddedDate } from "../../documents/DocumentLibrary";
 import { elevation, modes, radius, spacing, type, type ThemeMode } from "../../theme/design";
 import { MIN_TOUCH_TARGET } from "./shellGeometry";
 import { useMailActions } from "./mailActions";
 
+/** The record's wire date as the app dates things elsewhere. A stamp the
+ *  platform cannot read draws nothing: a raw `2026-10-13T18:13:38Z` on the
+ *  screen is worse than no date at all. */
+function sentOn(iso: string, locale: Locale): string {
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? formatAddedDate(ms, locale) : "";
+}
+
 export function MailReadSheet({
   mode,
   conversationId,
+  bottomInset,
 }: {
   mode: ThemeMode;
   conversationId: string | undefined;
+  /** The host's safe-area bottom, so the sheet's last row clears the Android
+   *  navigation bar. */
+  bottomInset: number;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const mail = useMailActions();
   const state = mail?.openMail;
   // The read the host holds may still be the previous conversation's for one
@@ -33,6 +46,7 @@ export function MailReadSheet({
     return null;
   }
   const colors = modes[mode];
+  const date = state.status === "ready" ? sentOn(state.mail.record.date, locale) : "";
   return (
     <Modal
       visible
@@ -44,7 +58,10 @@ export function MailReadSheet({
       <View style={styles.backdrop}>
         <View
           testID="shell.mailRead.card"
-          style={[styles.card, { backgroundColor: colors.surface }]}
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, paddingBottom: spacing.lg + bottomInset },
+          ]}
         >
           {state.status === "loading" ? (
             <Text style={[type.body, { color: colors.silence }]}>
@@ -67,9 +84,9 @@ export function MailReadSheet({
               <Text style={[type.caption, { color: colors.silence }]}>
                 {senderLine(state.mail.record.from)}
               </Text>
-              {state.mail.record.date !== "" ? (
-                <Text style={[type.caption, { color: colors.silence }]}>
-                  {state.mail.record.date}
+              {date !== "" ? (
+                <Text style={[type.caption, { color: colors.silence }]} testID="shell.mailRead.date">
+                  {date}
                 </Text>
               ) : null}
               <ScrollView style={styles.body}>

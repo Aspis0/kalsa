@@ -5,12 +5,13 @@ import { ENGINE_BACKEND_KEY, REMOTE_BRAIN_URL_KEY } from "./remoteSettings";
 const LOCAL_ID = "qwen-local";
 
 function applyBoot(store: Record<string, string | undefined>) {
-  const urlRaw = store[REMOTE_BRAIN_URL_KEY];
   const decision = decideRemoteBoot({
     hydrationOk: true,
     hydrationStale: false,
     backend: store[ENGINE_BACKEND_KEY] === "remote" ? "remote" : "local",
-    url: urlRaw ?? "",
+    // A manual door only: this harness has no pairing, so the door is the
+    // typed address and nothing else.
+    doorReady: (store[REMOTE_BRAIN_URL_KEY] ?? "").trim().length > 0,
     savedModelId: store[CHAT_MODEL_STORAGE_KEY] ?? null,
     defaultLocalModelId: LOCAL_ID,
     remoteModelId: REMOTE_COMPUTER_MODEL_ID,
@@ -27,13 +28,14 @@ function applyBoot(store: Record<string, string | undefined>) {
 describe("decideRemoteBoot", () => {
   test("a snapshot a newer hydration replaced never boots remote", () => {
     // The values in hand were read before the user cleared the address in
-    // Settings: acting on them would switch the backend to remote with an empty
-    // cache URL, and the phone would report a failure that never happened.
+    // Settings: acting on them would switch the backend to remote with a door
+    // that no longer exists, and the phone would report a failure that never
+    // happened.
     const decision = decideRemoteBoot({
       hydrationOk: true,
       hydrationStale: true,
       backend: "remote",
-      url: "http://192.168.1.50:8000",
+      doorReady: true,
       savedModelId: REMOTE_COMPUTER_MODEL_ID,
       defaultLocalModelId: LOCAL_ID,
       remoteModelId: REMOTE_COMPUTER_MODEL_ID,
@@ -51,7 +53,7 @@ describe("decideRemoteBoot", () => {
     expect(REMOTE_COMPUTER_MODEL_ID).toBe("kalsa-remote-mac");
   });
 
-  test("two boots stay local when remote backend has no URL and remote model key", () => {
+  test("two boots stay local when the remote backend has no door and a remote model key", () => {
     const store: Record<string, string | undefined> = {
       [ENGINE_BACKEND_KEY]: "remote",
       [CHAT_MODEL_STORAGE_KEY]: REMOTE_COMPUTER_MODEL_ID,
@@ -63,7 +65,7 @@ describe("decideRemoteBoot", () => {
     expect(store[CHAT_MODEL_STORAGE_KEY]).not.toBe(REMOTE_COMPUTER_MODEL_ID);
   });
 
-  test("two boots stay local when URL is empty string and model key is remote", () => {
+  test("two boots stay local when the door is an empty address and the model key is remote", () => {
     const store: Record<string, string | undefined> = {
       [ENGINE_BACKEND_KEY]: "remote",
       [REMOTE_BRAIN_URL_KEY]: "",
@@ -75,7 +77,7 @@ describe("decideRemoteBoot", () => {
     expect(store[CHAT_MODEL_STORAGE_KEY]).toBe(LOCAL_ID);
   });
 
-  test("remote with a URL stays remote", () => {
+  test("remote with a door stays remote", () => {
     const store: Record<string, string | undefined> = {
       [ENGINE_BACKEND_KEY]: "remote",
       [REMOTE_BRAIN_URL_KEY]: "https://mac.example.ts.net",
@@ -90,7 +92,7 @@ describe("decideRemoteBoot", () => {
       hydrationOk: false,
       hydrationStale: false,
       backend: "remote",
-      url: "https://mac.example.ts.net",
+      doorReady: true,
       savedModelId: REMOTE_COMPUTER_MODEL_ID,
       defaultLocalModelId: LOCAL_ID,
       remoteModelId: REMOTE_COMPUTER_MODEL_ID,
@@ -105,12 +107,12 @@ describe("decideRemoteBoot", () => {
   test("a stale saved remote id cannot override a later local choice", () => {
     // The remote→local switch wrote the backend key but its model-id write
     // failed: storage holds backend=local next to the old remote id, with a
-    // URL still present. The backend key alone is the live choice.
+    // door still reachable. The backend key alone is the live choice.
     const decision = decideRemoteBoot({
       hydrationOk: true,
       hydrationStale: false,
       backend: "local",
-      url: "https://mac.example.ts.net",
+      doorReady: true,
       savedModelId: REMOTE_COMPUTER_MODEL_ID,
       defaultLocalModelId: LOCAL_ID,
       remoteModelId: REMOTE_COMPUTER_MODEL_ID,

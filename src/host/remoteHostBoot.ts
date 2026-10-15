@@ -20,8 +20,10 @@ export type RemoteHostBootPlan =
     };
 
 export function planRemoteHostBoot(input: {
-  snapshot: Pick<RemoteBrainSnapshot, "backend" | "url" | "hydrationOk">;
+  snapshot: Pick<RemoteBrainSnapshot, "backend" | "hydrationOk">;
   hydrationStale: boolean;
+  /** The engine's own door verdict — see `decideRemoteBoot`. */
+  doorReady: boolean;
   savedModelId: string | null;
   defaultLocalModelId: string;
   remoteModelId: string;
@@ -34,7 +36,7 @@ export function planRemoteHostBoot(input: {
     hydrationOk: input.snapshot.hydrationOk,
     hydrationStale: input.hydrationStale,
     backend: input.snapshot.backend,
-    url: input.snapshot.url,
+    doorReady: input.doorReady,
     savedModelId: input.savedModelId,
     defaultLocalModelId: input.defaultLocalModelId,
     remoteModelId: input.remoteModelId,

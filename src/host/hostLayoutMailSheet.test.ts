@@ -22,7 +22,7 @@ jest.mock("react-native", () => ({
   View: "View",
 }));
 jest.mock("../i18n", () => ({
-  useLocale: () => ({ t: (key: string) => key }),
+  useLocale: () => ({ t: (key: string) => key, locale: "en" }),
 }));
 jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ mode: "light" }) }));
 jest.mock("./HostChatSurface", () => ({ HostChatSurface: "HostChatSurface" }));
@@ -34,6 +34,8 @@ import { act, create, type ReactTestRenderer } from "react-test-renderer";
 
 import { HostLayout, type HostLayoutProps } from "./HostLayout";
 import type { MailActions } from "./useMailHost";
+import { formatAddedDate } from "../documents/DocumentLibrary";
+import { spacing } from "../theme/design";
 
 const OPENED = {
   record: {
@@ -48,6 +50,10 @@ const OPENED = {
   body: "Body text",
 };
 
+function opened(date: string) {
+  return { ...OPENED, record: { ...OPENED.record, date } };
+}
+
 function mailHost(openMail: MailActions["openMail"], openedFor = "active"): MailActions {
   return {
     draftReply: jest.fn(),
@@ -60,9 +66,13 @@ function mailHost(openMail: MailActions["openMail"], openedFor = "active"): Mail
   };
 }
 
-function layoutProps(conversationsReady: boolean, activeId = "active"): HostLayoutProps {
+function layoutProps(
+  conversationsReady: boolean,
+  activeId = "active",
+  insets = { top: 0, bottom: 0 },
+): HostLayoutProps {
   return {
-    insets: { top: 0, bottom: 0 },
+    insets,
     draft: "",
     onDraftChange: jest.fn(),
     view: {},
@@ -147,5 +157,38 @@ describe("the mail read sheet under the real HostLayout", () => {
 
     mountLayout(layoutProps(true));
     expect(mockUseMailHost).toHaveBeenLastCalledWith(expect.objectContaining({ conversationId: "active" }));
+  });
+
+  it("dates the mail the way the app dates things, never as the wire stamp", () => {
+    const stamp = "2026-10-13T18:13:38Z";
+    mockMail = mailHost({ status: "ready", mail: opened(stamp) });
+    const renderer = mountLayout(layoutProps(true));
+    const dates = renderer.root.findAll((node) => node.props.testID === "shell.mailRead.date");
+    expect(dates).toHaveLength(1);
+    const text = dates[0].props.children as string;
+    expect(text).toBe(formatAddedDate(Date.parse(stamp), "en"));
+    expect(text).not.toContain("2026-10-13T");
+  });
+
+  it("draws no date at all when the wire stamp cannot be read", () => {
+    mockMail = mailHost({ status: "ready", mail: opened("ieri pomeriggio") });
+    const renderer = mountLayout(layoutProps(true));
+    expect(renderer.root.findAll((node) => node.props.testID === "shell.mailRead.date")).toHaveLength(0);
+  });
+
+  it("keeps the close row clear of the Android navigation bar", () => {
+    mockMail = mailHost({ status: "ready", mail: OPENED });
+    const renderer = mountLayout(layoutProps(true, "active", { top: 24, bottom: 48 }));
+    const card = renderer.root.find((node) => node.props.testID === "shell.mailRead.card");
+    const style = Object.assign({}, ...(card.props.style as object[]));
+    expect(style.paddingBottom).toBe(spacing.lg + 48);
+  });
+
+  it("closes on the sheet's own padding when the phone has no navigation bar", () => {
+    mockMail = mailHost({ status: "ready", mail: OPENED });
+    const renderer = mountLayout(layoutProps(true, "active", { top: 24, bottom: 0 }));
+    const card = renderer.root.find((node) => node.props.testID === "shell.mailRead.card");
+    const style = Object.assign({}, ...(card.props.style as object[]));
+    expect(style.paddingBottom).toBe(spacing.lg);
   });
 });

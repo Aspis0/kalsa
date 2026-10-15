@@ -82,6 +82,14 @@ function texts(renderer: ReactTestRenderer): string[] {
     .map((node) => node.props.children as string);
 }
 
+/** What Send actually draws: the pressable hands the style function to the
+ *  platform, so the resolved style is the only way to see a disabled button. */
+function sendLooks(renderer: ReactTestRenderer): { opacity?: number } {
+  const send = renderer.root.find((node) => node.props.testID === "transcript.mailDraft.send");
+  const [base, live] = send.props.style({ pressed: false }) as object[];
+  return Object.assign({}, base, live);
+}
+
 describe("the reply draft card", () => {
   beforeEach(() => jest.clearAllMocks());
 
@@ -134,6 +142,15 @@ describe("the reply draft card", () => {
     expect(texts(renderer)).toContain("chat.mail.bodyEmpty");
   });
 
+  it("a send that cannot happen must not look like one that can", async () => {
+    const armed = await render();
+    expect(sendLooks(armed).opacity).toBe(1);
+
+    const blank = await render();
+    await type(blank, "transcript.mailDraft.body", "   ");
+    expect(sendLooks(blank).opacity).toBeLessThan(1);
+  });
+
   it("a sent draft is read-only and offers no second send", async () => {
     mockUseMailActions.mockReturnValueOnce({
       sendDraft: mockSendDraft,
@@ -146,6 +163,9 @@ describe("the reply draft card", () => {
     expect(
       renderer.root.find((node) => node.props.testID === "transcript.mailDraft.send").props.disabled,
     ).toBe(true);
+    // The guard is invisible on screen unless the style follows it: a spent
+    // draft drew a full-strength accent button, so it read as armed.
+    expect(sendLooks(renderer).opacity).toBeLessThan(1);
   });
 });
 

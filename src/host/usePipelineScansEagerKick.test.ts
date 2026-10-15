@@ -43,8 +43,13 @@ jest.mock("../documents/docOpGate", () => ({
   isDeleteActive: jest.fn(() => false),
 }));
 jest.mock("../engine/remote/remoteSettings", () => ({
+  getRemoteContextSize: jest.fn(() => 8192),
   hydrateRemoteBrainSettings: jest.fn(async () => ({ hydrationOk: false })),
   isHydrationCurrent: jest.fn(() => false),
+}));
+jest.mock("./remoteBootFallback", () => ({
+  hostDoorIsReachable: jest.fn(async () => true),
+  recoverLocalAfterRemoteBootFailure: jest.fn(),
 }));
 jest.mock("../engine/remote/remoteComputerModel", () => ({
   REMOTE_COMPUTER_MODEL: { id: "remote", name: "Remote" },

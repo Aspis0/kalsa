@@ -396,7 +396,18 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
   // Which host names the current phase: the desk (port included) while
   // claiming, the door while waiting; an outcome outranks the name.
   const pairHost = pairHosts === null ? null : busy ? pairHosts.claim : pairHosts.confirm;
-  const yourComputer = t("pairing.yourComputer");
+  // The generic label carries its own article ("il tuo computer"), so the two
+  // sentences that name a computer are whole strings each: Italian contracts
+  // "su il" into "sul" and "a il" into "al", and a template with a host name in
+  // it must keep the plain preposition.
+  const waitingAllow =
+    pairHost === null
+      ? t("pairing.waitingAllowComputer")
+      : t("pairing.waitingAllow", { computer: pairHost });
+  const pairedWith =
+    pairHost === null
+      ? t("pairing.pairedWithComputer")
+      : t("pairing.pairedWith", { computer: pairHost });
   const status: { testID: string; text: string; error: boolean } =
     state === "waiting"
       ? // The wait is an Allow wait: name the screen to look at. Nothing in
@@ -404,7 +415,7 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
         // when the poll below says so (Jelly pairing run, issue 3).
         {
           testID: "pairing.waiting",
-          text: t("pairing.waitingAllow", { computer: pairHost ?? yourComputer }),
+          text: waitingAllow,
           error: false,
         }
       : pairHost !== null && busy
@@ -484,12 +495,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
                 <Text
                   testID="pairing.paired"
                   accessibilityRole="text"
-                  accessibilityLabel={t("pairing.pairedWith", {
-                    computer: pairHost ?? yourComputer,
-                  })}
+                  accessibilityLabel={pairedWith}
                   style={[type.bodyStrong, { color: colors.ink }]}
                 >
-                  {t("pairing.pairedWith", { computer: pairHost ?? yourComputer })}
+                  {pairedWith}
                 </Text>
               </View>
               <Pressable

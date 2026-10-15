@@ -80,7 +80,10 @@ export function MailDraftCard({
           onPress={() => setConfirming(true)}
           style={({ pressed }) => [
             styles.send,
-            { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 },
+            {
+              backgroundColor: colors.accent,
+              opacity: sent || blank ? 0.5 : pressed ? 0.85 : 1,
+            },
           ]}
         >
           <Text style={[type.label, { color: colors.onAccent }]}>{t("chat.mail.send")}</Text>

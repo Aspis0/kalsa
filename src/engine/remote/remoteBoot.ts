@@ -25,12 +25,18 @@ export function decideRemoteBoot(input: {
    */
   hydrationStale: boolean;
   backend: EngineBackendMode;
-  url: string;
+  /**
+   * True when the engine has a door it would dial: the manual address, or a
+   * pairing that owns its own. This is `doorRequestBase(getRemoteDoorConfig())`
+   * upstream, never the manual address alone — a paired phone reaches its
+   * computer through the pairing record, so judging it by the manual address
+   * alone demotes a perfectly reachable computer to the phone at every start.
+   */
+  doorReady: boolean;
   savedModelId: string | null;
   defaultLocalModelId: string;
   remoteModelId: string;
 }): RemoteBootDecision {
-  const urlReady = input.url.trim().length > 0;
   if (!input.hydrationOk || input.hydrationStale) {
     return {
       kind: "local",
@@ -45,7 +51,7 @@ export function decideRemoteBoot(input: {
   // single source of truth the two stores cannot flip-flop: boot only ever
   // writes that key as "local" (recoverLocalBackend), never back to remote.
   const wantsRemote = input.backend === "remote";
-  if (wantsRemote && !urlReady) {
+  if (wantsRemote && !input.doorReady) {
     return {
       kind: "local",
       persistModelId: input.defaultLocalModelId,
