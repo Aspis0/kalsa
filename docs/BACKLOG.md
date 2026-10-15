@@ -495,3 +495,8 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - `telemetry::privacy_tests::public_catalog_ids_match_shared_contract` fails on brain: "missing public model 392e6e30aa21cb00" (catalog data drift).
 - Phone chat (GLM-5.3 P3): a failed thread spawn in `chat/mod.rs`, `turn.rs` and `mail.rs` drops the socket with no terminal frame; no test revokes a device mid-turn or mid-read; one phone can hold all 8 body-admission slots until the connection deadline (300 s).
 - Phone chat: a send already inside `send_confirmed` (blocking SMTP) still completes if the phone is revoked during it.
+
+## Mail live fixes, luna review of 6bd34292 (2026-10-15, left over)
+- Link signals skip anchors with no host: `javascript:`, `data:` and relative hrefs get no phishing signal (`label/phishing.rs` continues when `domain::host_of` is None), so a URL-looking label can hide such a target. The pane renders text only, so nothing runs; it is a warning blind spot. The rule for those schemes is the owner's call.
+- Test gaps: `tests/body_urls.rs` checks the raw href reaches `parsed.links`, not that the labeler emits a signal, and has no userinfo, IDN, trailing-dot, IPv6, non-HTTP or scheme-less case. `mail-cards.mjs` normalizes 12 items, so the 50-item cap and a 50-item store write are not pinned.
+- Mail reads are slow: every read logs in to IMAP afresh, runs SEARCH ALL and fetches headers. Reuse the session or cache the list's UIDs.
