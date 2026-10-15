@@ -76,7 +76,9 @@ shows (`mail.invalid_account`, `mail.keychain`, `mail.storage`, …). The phone 
 sentence per code and a generic one for an unknown code; the computer's words are not shown.
 
 `gist` and the answer text are the model's; `from`, `subject` and `reasons` are the mail's.
-Both are a stranger's words to the phone: plain text, never markup, never a link.
+The mail's fields and the gist are plain text, never markup. The answer text may be markdown
+(lists, tables) like the desktop's, but on this route a link in it is shown and never opened by a
+tap: a mail the model read can put a link into the answer.
 
 ## 4. Open a mail
 
