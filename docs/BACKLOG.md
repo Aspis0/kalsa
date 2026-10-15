@@ -483,3 +483,13 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - Control characters from a hostile Message-ID reach `In-Reply-To`/`References` (no CR/LF, so this is not injection). Pass both through `invisible::one_line` in `compose.rs`.
 - `brain_mail_account_save` accepts any typed host for a known provider's address. Warn when the host does not match the provider.
 - The updater endpoint is still the `REPLACE_WITH_UPDATE_KEY` placeholder in tauri.conf.json.
+
+## Engine key and phone chat leftovers (reviews of 2026-10-15)
+- Dev runners still start a keyless engine: `dev/engine-harness.py`, `measure-model-switch.py`, `measure-slot-restore.py`, `spike-kv-paging.py`. Mint a key per run, set `LLAMA_API_KEY`, send Bearer. `measure-concurrency.py --door-bin` refuses until then.
+- `EngineKey::mint().expect(..)` at app start (`src-tauri/src/main.rs`) panics if the OS RNG fails. Show a startup failure instead; never start a keyless engine.
+- No automated test runs the real fork against the key: add a real-engine smoke (no key → 401, key → 200). Checked by hand on the rig on 2026-10-15.
+- `Owned.adopted_pid` in `kalsa-supervisor` is now set only by tests (adoption is gone). Remove it with its stop and watch branches.
+- Phone chat: a card or draft event over the caps (subject > 1 KiB, gist > 4 KiB) is refused whole and the phone silently gets no cards for that turn. Truncate on the page instead.
+- Phone chat, idempotent send (luna P2-5): a send whose answer is lost cannot be retried safely.
+- Qwen 3.6 35B on the rig looped in reasoning after `mail_list` ("One last check…", 6.7k tokens, 237 s) on 1 of 2 tries. Desktop and phone share the loop; consider a reasoning budget.
+- `telemetry::privacy_tests::public_catalog_ids_match_shared_contract` fails on brain: "missing public model 392e6e30aa21cb00" (catalog data drift).
