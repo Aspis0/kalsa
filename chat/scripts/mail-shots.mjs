@@ -478,8 +478,9 @@ async function run() {
         await page.getByRole("button", { name: "Configura la mail" }).click();
         await page.waitForSelector(".mail-settings-block, .mail-field", { timeout: 15000 });
         await page.getByLabel("Indirizzo email").fill("luca@libero.it");
-        const guessed = await page.getByLabel("Server").inputValue();
+        const guessed = await page.getByLabel("Server").getAttribute("placeholder");
         check("light: the server guessed from the address", guessed === "imapmail.libero.it", `got "${guessed}"`);
+        check("light: the guess is a hint, not a typed value", (await page.getByLabel("Server").inputValue()) === "");
         await page.getByLabel("Password", { exact: true }).fill("password-di-prova");
         await page.getByRole("button", { name: "Collega questo account" }).click();
         await mustSee(page, "Ultime 3 mail ricevute", "light: Collega checked the account");

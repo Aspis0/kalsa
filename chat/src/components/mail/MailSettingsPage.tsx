@@ -165,7 +165,7 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                     aria-pressed={passwordShown}
                     onClick={() => setPasswordShown((shown) => !shown)}
                   >
-                    <Icon name={passwordShown ? "clip" : "lock"} size={16} />
+                    <Icon name={passwordShown ? "eyeOff" : "eye"} size={16} />
                   </button>
                 </span>
               </div>
@@ -173,8 +173,8 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                 <span>{t.server}</span>
                 <input
                   type="text"
-                  value={server}
-                  placeholder="imap.esempio.it"
+                  value={serverTyped ? server : ""}
+                  placeholder={server || "imap.esempio.it"}
                   onChange={(event) => {
                     setServer(event.target.value);
                     setServerTyped(true);
