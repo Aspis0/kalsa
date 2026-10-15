@@ -467,3 +467,7 @@ The hidden-text label is best effort. The boundary is the fence, the host's tain
 
 ## Mail: several accounts (owner 2026-10-14: "multiaccount per un'altra versione")
 - Settings → Mail lists the accounts, with "Aggiungi un altro account", and each password sits in the keychain. "Mail importanti di oggi" looks in all of them. Every card carries a small account label in a stable colour. A reply always leaves from the account that received the mail; the code decides that, never the model. The host side is one registry record per account.
+
+## Mail: audit of the night fixes (2026-10-15, P2 left over)
+- Credential wiring has no end-to-end test: the page mock accepts any saved password and the IMAP fake accepts every LOGIN, so removing `prepareCredentials` from `connect()` stays green. Make the fake check the password it was given.
+- `test_saved` (`src-tauri/src/mail/accounts.rs`) releases the account lock before probing, so a save or delete during a slow probe can return the old account's subjects. Plausible, not reproduced.
