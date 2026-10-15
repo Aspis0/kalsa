@@ -39,7 +39,7 @@ export function startPhoneChatRunner(): () => void {
     const work =
       body.kind === "turn"
         ? runPhoneTurn(body.turn, currentSettings(), sink, controller.signal)
-        : runPhoneRead(body.id, sink);
+        : runPhoneRead(body.id, sink, controller.signal);
     void work.catch(() => sink.fail("engine")).finally(() => live.delete(request));
   }
 

@@ -38,7 +38,7 @@ async function reads(app) {
   {
     bridge.answer = async (command) => (command === "brain_mail_read" ? { for_model: [], for_ui: RECORD, is_error: false } : undefined);
     const { log, sink } = recorder(app);
-    await app.runPhoneRead("105", sink);
+    await app.runPhoneRead("105", sink, new AbortController().signal);
     equal("a read sends the record as the Mail tab has it, then done", log, [
       [
         "read",
@@ -55,9 +55,35 @@ async function reads(app) {
       throw { code: "mail.keychain" };
     };
     const { log, sink } = recorder(app);
-    await app.runPhoneRead("105", sink);
+    await app.runPhoneRead("105", sink, new AbortController().signal);
     equal("a failed read is its own code, once", log, [["error", { code: "mail.keychain" }]]);
   }
+}
+
+async function stoppedReads(app) {
+  console.log("\n# a stopped read");
+  bridge.calls.length = 0;
+  {
+    const controller = new AbortController();
+    controller.abort();
+    const { log, sink } = recorder(app);
+    await app.runPhoneRead("105", sink, controller.signal);
+    equal("a read stopped before it starts is cancelled and never sent", [log, bridge.calls.length], [[["error", { code: "cancelled" }]], 0]);
+  }
+  {
+    let release;
+    bridge.answer = (command) => (command === "brain_mail_read" ? new Promise((resolve) => (release = resolve)) : undefined);
+    const controller = new AbortController();
+    const { log, sink } = recorder(app);
+    const running = app.runPhoneRead("105", sink, controller.signal);
+    await tick();
+    controller.abort();
+    release({ for_model: [], for_ui: RECORD, is_error: false });
+    await running;
+    await tick();
+    equal("a stop during the read ends it as cancelled, and the late answer is dropped", log, [["error", { code: "cancelled" }]]);
+  }
+  bridge.answer = async () => undefined;
 }
 
 async function runner(app) {
@@ -88,12 +114,27 @@ async function runner(app) {
     ["accepted", {}],
     ["error", { code: "mail.keychain" }],
   ]);
+  let release;
+  bridge.answer = (command) => (command === "brain_mail_read" ? new Promise((resolve) => (release = resolve)) : undefined);
+  bridge.calls.length = 0;
+  emit("phone-chat-request", { request: "e4", kind: "read", read: { id: "105" } });
+  await tick();
+  emit("phone-chat-stop", { request: "e4" });
+  await tick();
+  release({ for_model: [], for_ui: RECORD, is_error: false });
+  await tick();
+  equal("a phone's stop ends its read: accepted, cancelled once, no read sent", phoneEvents(), [
+    ["accepted", {}],
+    ["error", { code: "cancelled" }],
+  ]);
+  bridge.answer = async () => undefined;
   await stop();
   check("stopping removes both listeners", bridge.unlistened === 2 && bridge.handlers.size === 0, `unlistened=${bridge.unlistened}`);
 }
 
 await withPhone(async (app) => {
   await reads(app);
+  await stoppedReads(app);
   await runner(app);
 });
 summary();
