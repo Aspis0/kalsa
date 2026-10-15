@@ -181,6 +181,9 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       const turns = before
         .filter((m) => !(m.role === "assistant" && m.content === ""))
         .filter((m) => m.content.length > 0 || m.role === "user");
+      // The mail this turn was opened for, if it was: a reply written for
+      // another one is refused however the model names it.
+      const openedFor = [...before].reverse().find((m) => m.role === "user")?.mailId;
       // The whole store of attachments rides the build: the pinned ones as
       // the system message's block, the per-turn ones through the ids their
       // messages bound.
@@ -440,6 +443,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
               },
               conversation,
               currentSettings.model,
+              openedFor,
             ),
           onToolRun: ingestToolRun,
           onWithdraw: withdraw,

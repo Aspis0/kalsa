@@ -14,6 +14,10 @@
  */
 
 const MARKER = /^kalsa-mail-[0-9a-f]{16} ?/;
+/** The next field's own label line. Fields run one after another inside the
+    fence, so a field that read to the end marker took the labels and the text
+    of every field after it. */
+const FIELD = /^[a-z_]+:$/;
 
 /** The value of one fenced field, or "" when the field is absent or empty. */
 export function fencedField(lines: string[], label: string): string {
@@ -23,6 +27,7 @@ export function fencedField(lines: string[], label: string): string {
   const out: string[] = [];
   for (const raw of flat.slice(start + 1)) {
     if (raw.startsWith("<<<")) break;
+    if (FIELD.test(raw)) break;
     if (raw === "") continue;
     const line = raw.replace(MARKER, "");
     if (line === "(empty)") return "";

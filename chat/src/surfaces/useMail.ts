@@ -15,7 +15,7 @@ import type { PendingSend } from "../lib/mail/pending";
  * and cannot send one.
  */
 
-export function useMail(compose: (text: string) => void) {
+export function useMail(compose: (text: string, mail?: { id: string; subject: string; note: string }) => void) {
   const { table } = useLanguage();
   const t = table.mail;
   const [open, setOpen] = useState<OpenMail | null>(null);
@@ -35,10 +35,11 @@ export function useMail(compose: (text: string) => void) {
     setOpen({ item, record: answer.record, body: answer.body });
   }
 
-  /** "Rispondi a John: " in the composer: the person finishes the sentence. */
+  /** "Scrivi una risposta: " in the composer: the person finishes the sentence.
+      The sender's name stays on the card — in the box it would read to the
+      model as the person's own words, outside the fence. */
   function reply(item: MailCardItem): void {
-    const name = item.from.name || item.from.address;
-    compose(t.replyLine(name));
+    compose(t.replyLine(), { id: item.id, subject: item.subject, note: t.replyNote(item.id) });
   }
 
   /** Modifica: the draft's words in the composer, editable. */

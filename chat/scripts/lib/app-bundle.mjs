@@ -72,6 +72,7 @@ export async function loadApp() {
         export { sendReply } from "../src/lib/mail/send.ts";
         export { accountEmail, rememberAccount } from "../src/lib/mail/account.ts";
         export { mailFailure, UNKNOWN_FAILURE } from "../src/lib/mail/failure.ts";
+export { fencedField } from "../src/lib/mail/fence.ts";
 export { cardsFrom, cardIds } from "../src/lib/mail/cards.ts";
 export { mailId } from "../src/lib/mail/mailId.ts";
         export { runMailList, runMailRead, runMailDraft } from "../src/lib/tools/mailCall.ts";

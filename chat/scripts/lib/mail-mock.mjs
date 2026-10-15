@@ -215,6 +215,7 @@ export function mailFixture() {
         { label: "from", value: `${mail.from.name} <${mail.from.address}>` },
         { label: "subject", value: mail.subject },
         { label: "body", value: mail.body },
+        { label: "signals", value: `segnali:\n${(mail.labels?.reasons ?? ["diretta"]).join(", ")}` },
       ]),
       for_ui: mailReadOut(mail),
       is_error: false,

@@ -82,6 +82,9 @@ export async function executeToolCall(
   /** The model running this turn: the mailbox is closed to any but the
       approved ones, so the tool list and the executor agree on who may read. */
   model: string,
+  /** The mail this turn was opened for, when the person pressed a button on one
+      of its cards: a draft for any other id is refused. */
+  openedFor: string | undefined,
   /** The sentence a stopped call answers with, in the owner's language;
       absent is English. */
   stoppedText = "Stopped before this finished.",
@@ -119,7 +122,7 @@ export async function executeToolCall(
       return { text: read.text, ok: read.ok, ...(read.code ? { resultCode: read.code } : {}) };
     }
     if (name === "mail_draft") {
-      const drafted = await runMailDraft(record);
+      const drafted = await runMailDraft(record, openedFor);
       return {
         text: drafted.text,
         ok: drafted.ok,

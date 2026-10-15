@@ -150,9 +150,18 @@ export async function runMailRead(model: Record<string, unknown>): Promise<{
 }
 
 /** A reply as an object. The recipient came from the mail, never from the model. */
-export async function runMailDraft(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; draft: MailDraft | null; code?: string }> {
+export async function runMailDraft(model: Record<string, unknown>, openedFor?: string): Promise<{ text: string; ok: boolean; draft: MailDraft | null; code?: string }> {
   const built = draftArgs(model);
   if (!built.ok) return { text: built.text, ok: false, draft: null };
+  // The person pressed a button on one mail: the reply is for that one, and a
+  // model answering with any other id is refused here rather than downstream.
+  if (openedFor !== undefined && String(built.args.reply_to_id) !== openedFor) {
+    return {
+      text: `No draft was written: this turn is for the mail with id ${openedFor}, and the reply_to_id was ${built.args.reply_to_id}. Write the reply for ${openedFor}.`,
+      ok: false,
+      draft: null,
+    };
+  }
   const response = await call("brain_mail_draft", built.args);
   if (response.is_error) return { text: failure(response), ok: false, draft: null, ...codeOf(response) };
   const r = object(response.for_ui);
@@ -160,7 +169,7 @@ export async function runMailDraft(model: Record<string, unknown>): Promise<{ te
   if (to === "") return { text: NOT_MAIL, ok: false, draft: null };
   const body = typeof r.body === "string" ? r.body : "";
   return {
-    text: `Draft written for ${to}. Nothing was sent.`,
+    text: "Draft written. Nothing was sent.",
     ok: !response.is_error,
     draft: {
       kind: "draft",

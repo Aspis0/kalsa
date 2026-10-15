@@ -146,6 +146,20 @@
   border-color: var(--ac);
 }
 
+/* A button that cannot be pressed has to look like it: after a reply is sent
+   "Genera bozza" stays out of reach, and the greyed label says so. */
+.mail-btn:disabled {
+  color: var(--tx3);
+  border-color: var(--line);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mail-btn:disabled:hover {
+  color: var(--tx3);
+  border-color: var(--line);
+}
+
 .mail-btn:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;

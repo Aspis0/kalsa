@@ -5,7 +5,9 @@
 export const MAIL = {
     "open": "打开",
     "replyDraft": "回复草稿",
-    "replyLine": (name: string) => `回复 ${name}：`,
+    "replyLine": () => "写一封回信：",
+    "replyNote": (id: string) =>
+      `这个人正在回复 id 为 ${id} 的邮件。他接下来的话就是回信内容，请为这封邮件写回复。`,
     "download": "保存",
     "moreNewsletters": (count: number) => `还有 ${count} 封订阅邮件`,
     "oneNewsletter": "还有 1 封订阅邮件",
@@ -35,6 +37,7 @@ export const MAIL = {
     "otherMessages": (count: number) => `还有 ${count} 条消息`,
     "attachments": "附件",
     "aiSummary": "AI 摘要",
+    "mailOpening": "邮件开头",
     "askDraft": () => "给这封邮件写一封回信。",
     "askDraftNote": (id: string) =>
       `这封回信是给 id 为 ${id} 的邮件的。调用 mail_draft，reply_to_id 传 ${id}，并写下回信的内容。`,

@@ -108,12 +108,14 @@ export function MailView({ open, onDraft, onReply, onAskDraft, onSend, drafts, s
 
       <div className="mail-body">{body || preview}</div>
 
+      {/* The model's line when it wrote one, and the mail's own opening
+          otherwise: the box never carries a summary nobody wrote. */}
       <section className="mail-gist-box">
         <p className="mail-gist-title">
-          <Icon name="zap" size={15} />
-          {t.aiSummary}
+          <Icon name={item.gist === "" ? "file" : "zap"} size={15} />
+          {item.gist === "" ? t.mailOpening : t.aiSummary}
         </p>
-        <p className="mail-gist-text">{item.gist || preview}</p>
+        <p className="mail-gist-text">{item.gist === "" ? preview : item.gist}</p>
       </section>
 
       <section className="mail-attach">

@@ -100,6 +100,9 @@ export interface ChatMessage {
       and sent nowhere: a subject is a stranger's text and never rides the wire
       as if it were the person's instruction. */
   mailSubject?: string;
+  /** The mail this turn was opened for. The app enforces it: a model that
+      answers for another id gets nothing, whoever asked. */
+  mailId?: string;
   /** An instruction for the model only, riding before this turn's words. It is
       never rendered and never shown as the person's: an internal id means
       nothing to a reader, so only the model is told it. */

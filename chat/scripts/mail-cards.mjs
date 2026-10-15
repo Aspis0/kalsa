@@ -536,6 +536,35 @@ check("a refused password points at the app password help", IT.refused.includes(
 check("the same sentence is not repeated as English", new Set([app.ENGLISH_MAIL.failure.keychain, IT.keychain]).size === 2);
 check("the English placeholders are not Italian", !/esempio/.test(app.ENGLISH_MAIL.emailPlaceholder) && !/esempio/.test(app.ENGLISH_MAIL.serverPlaceholder), app.ENGLISH_MAIL.emailPlaceholder);
 
+/* The fields run one after another inside the fence: a body that read to the end
+   marker took every label and line of the fields after it, and the panel showed
+   the sidecar's "signals" as if the sender had written them. */
+const withSignals = [
+  "<<<email-text kalsa-mail-0123456789abcdef>>>",
+  "body:",
+  "kalsa-mail-0123456789abcdef Buongiorno,",
+  "kalsa-mail-0123456789abcdef come stai?",
+  "signals:",
+  "kalsa-mail-0123456789abcdef diretti, scadenza",
+  "<<<end-email-text kalsa-mail-0123456789abcdef>>>",
+];
+equal("the body is the mail's own words and stop", app.fencedBody(withSignals), "Buongiorno,\ncome stai?");
+equal("and the field after it is still readable", app.fencedField(withSignals, "signals"), "diretti, scadenza");
+
+/* A turn opened for one mail: the model may not answer for another, whoever
+   asked, and the address of the draft never goes back in the tool result. */
+globalThis.__mailStubOverride = async (command) =>
+  command === "brain_mail_draft"
+    ? { for_model: ["ok"], for_ui: { to: "john.smith@acme.com", subject: "Re: x", body: "Va bene." }, is_error: false }
+    : undefined;
+const pinned = await app.runMailDraft({ reply_to_id: "412", body: "Va bene." }, "412");
+check("a draft for the mail the turn was opened for is written", pinned.draft !== null, pinned.text);
+check("and its recipient stays off the tool result", !pinned.text.includes("john.smith@acme.com"), pinned.text);
+const elsewhere = await app.runMailDraft({ reply_to_id: "421", body: "Va bene." }, "412");
+check("a draft for another mail is refused", elsewhere.draft === null && elsewhere.ok === false, elsewhere.text);
+check("and the refusal names the mail the turn is for", elsewhere.text.includes("412"), elsewhere.text);
+globalThis.__mailStubOverride = null;
+
 globalThis.__mailStubOverride = null;
 equal("a string day count is coerced and the call runs", (await app.runMailList({ days: "2" }, TURN)).ok, true);
 equal("a fractional day count is refused before any call", (await app.runMailList({ days: 1.5 }, TURN)).ok, false);

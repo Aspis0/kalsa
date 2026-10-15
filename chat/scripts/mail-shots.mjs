@@ -111,7 +111,12 @@ function roundsFor(messages) {
   // The panel's own request names the mail; a person asking for a reply in the
   // thread is the same turn, and the model answers it the same way.
   const panel = said.match(/reply_to_id (\d+)/i);
-  if (panel) return { kind: `draft-${panel[1]}`, rounds: draftRounds(panel[1]) };
+  if (panel) {
+    // The obedient model answers for the mail it was asked about; the `pin`
+    // scenario plays the one that does not, which the app has to refuse.
+    const other = process.argv[2] === "pin" ? (panel[1] === "412" ? "418" : "412") : panel[1];
+    return { kind: `draft-${panel[1]}`, rounds: draftRounds(other) };
+  }
   const inThread = said.match(/Scrivi a (\w+)/i);
   if (inThread) {
     return {
@@ -143,12 +148,22 @@ const STRING_ROUNDS = [
 /** What the person is read to have said, in every request this run made. */
 const WIRE_USERS = [];
 
-/** No user turn may carry a mail field: a subject is a stranger's text, and on
-    the wire it would read as the person's own instruction, outside the fence. */
+/** No person turn may carry a mail field: a sender's words are a stranger's
+    text, and on the wire they would read as the person's own instruction,
+    outside the fence. The app's own note is the one line that names an id, and
+    it is left out: what is hunted is anything that is not ours. */
 function checkWireCarriesNoSubject(label) {
-  const said = WIRE_USERS.join("\n");
-  const leaked = MAILBOX.filter((mail) => said.includes(mail.subject)).map((mail) => mail.subject);
-  check(`${label}: no mail subject rides as the person's words`, leaked.length === 0, leaked.join(" | "));
+  const said = WIRE_USERS.map((content) =>
+    content
+      .split("\n")
+      .filter((line) => !/reply_to_id|mail_draft/.test(line))
+      .join("\n"),
+  ).join("\n");
+  const leaked = MAILBOX.flatMap((mail) => [
+    ...(said.includes(mail.subject) ? [mail.subject] : []),
+    ...(mail.from.name !== "" && said.includes(mail.from.name) ? [mail.from.name] : []),
+  ]);
+  check(`${label}: no sender text rides as the person's words`, leaked.length === 0, leaked.join(" | "));
   check(`${label}: and the one that reads as an instruction is not there either`, !said.includes(HOSTILE_SUBJECT));
 }
 
@@ -579,7 +594,8 @@ async function shootWeakModel(browser) {
     await shot(page, `22-mail-weak${theme === "dark" ? "-dark" : ""}`);
     await page.locator(".mail-card", { hasText: "Fattura n. 104" }).getByRole("button", { name: "Apri" }).click();
     await page.waitForSelector(".mail-view-subject", { timeout: 15000 });
-    await mustSee(page, "Sintesi", `${theme}: a card from the list opens in the panel`);
+    await mustSee(page, "Inizio della mail", `${theme}: a card from the list opens in the panel`);
+    check(`${theme}: and with no model line, the box says what it really shows`, (await page.locator(".mail-gist-title", { hasText: "Sintesi AI" }).count()) === 0);
     checkWireCarriesNoSubject(theme);
     await page.close();
   }
@@ -600,6 +616,35 @@ async function shootTextIds(browser) {
     await page.locator(".mail-card").first().waitFor({ timeout: 15000 });
     await mustSee(page, "Vuole spostare l'incontro", `${theme}: ids written as text still find their cards`);
     check(`${theme}: and the model was told nothing was dropped`, !((await page.locator(".thread").innerText()).includes("not in the last list")));
+    await page.close();
+  }
+}
+
+/** 24 — a turn opened for one mail and a model that answers for another: the
+    reply is refused here, and no draft is drawn for a mail nobody chose. */
+async function shootWrongDraft(browser) {
+  const viewport = { width: WINDOW.width, height: 1040 };
+  for (const theme of ["light", "dark"]) {
+    const page = await browser.newPage({ viewport });
+    await seed(page, theme);
+    await page.goto(APP);
+    await page.waitForSelector(".rail", { timeout: 20000 });
+    await askForMail(page);
+    await page.locator(".mail-card", { hasText: "Fattura n. 104" }).getByRole("button", { name: "Apri" }).click();
+    await page.waitForSelector(".mail-view-subject", { timeout: 15000 });
+    await page.getByRole("button", { name: "Genera bozza" }).click();
+    // The turn is over when the model stops answering; the draft never came.
+    await page.waitForFunction(
+      () => (window.__STUB_CALLS__ ?? []).length > 12,
+      null,
+      { timeout: 30000 },
+    );
+    await page.waitForTimeout(1500);
+    check(`${theme}: a draft for another mail draws nothing`, (await page.locator(".mail-draft").count()) === 0);
+    check(`${theme}: and the panel opens no reply box`, (await page.locator(".mail-reply textarea").count()) === 0);
+    check(`${theme}: the chosen mail is still the one open`, (await page.locator(".mail-view-subject").innerText()).includes("Fattura n. 104"));
+    checkWireCarriesNoSubject(theme);
+    await shot(page, `24-mail-wrong-draft${theme === "dark" ? "-dark" : ""}`);
     await page.close();
   }
 }
@@ -646,6 +691,10 @@ async function run() {
       await shootTextIds(browser);
       return;
     }
+    if (process.argv[2] === "pin") {
+      await shootWrongDraft(browser);
+      return;
+    }
     for (const theme of ["light", "dark"]) {
       const page = await browser.newPage({ viewport: WINDOW });
       await seed(page, theme);
@@ -689,8 +738,7 @@ async function run() {
       await page.waitForSelector(".mail-reply textarea", { timeout: 30000 });
       await mustSee(page, "Scrivi una risposta a questa mail.", `${theme}: the turn asks for a reply`);
       await mustSee(page, "Fattura n. 104", `${theme}: and says which mail, as the person sees it`);
-      const shownTurn = await page.locator(".row-user").last().innerText();
-      check(`${theme}: the person's own words name no mail field`, !shownTurn.includes("mail id") && !shownTurn.includes("reply_to_id"));
+      checkWireCarriesNoSubject(theme);
       await shot(page, `${theme === "light" ? "03" : "09"}-mail-panel-draft`);
 
       // The draft card, drawn by a real turn: the model calls mail_draft and

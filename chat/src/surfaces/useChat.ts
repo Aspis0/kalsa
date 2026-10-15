@@ -5,7 +5,7 @@
 // unmount: the draft survives it because THIS hook lives in the shell, not
 // because the state lives in any particular file.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useCallback } from "react";
 import { createStore, firstCharacters, titleFor, uid } from "../lib/store";
 import { activateChat, eraseChat, fetchContextSize, serverBase } from "../lib/chat";
 import { ensureContextSize, hasContextSize } from "../lib/contextSize";
@@ -171,8 +171,15 @@ export function useChat(shell: ChatShell) {
   // draft must survive that round trip, so it lives in the hook the shell
   // holds — the hook does not unmount when the chat does.
   const [draft, setDraft] = useState("");
+  // What a card put in the composer, and the mail it was opened for: the words
+  // in the box are the person's, so the id rides the wire in the note alone.
+  const pendingMail = useRef<{ id: string; subject: string; note: string; prefix: string } | null>(null);
+  const compose = useCallback((text: string, mail?: { id: string; subject: string; note: string }) => {
+    pendingMail.current = mail === undefined ? null : { ...mail, prefix: text };
+    setDraft(text);
+  }, []);
   // The mail open beside the chat, and the two ways anything comes of it.
-  const mail = useMail(setDraft);
+  const mail = useMail(compose);
   // Pictures attached but not yet sent, per conversation. The bytes are in
   // IndexedDB the moment the chip exists; this map holds only the reference
   // and the chip's object URL, and follows the draft's own durability.
@@ -813,17 +820,26 @@ export function useChat(shell: ChatShell) {
   // `opened` is the chat the gate has just taken from the door, and only the
   // gate can mint one: a chat that is already open never takes this path,
   // because it was offered when it was selected.
-  function sendMessage(text: string, opened: ActiveChat | null = null, note = "", subject = ""): string | null {
+  function sendMessage(text: string, opened: ActiveChat | null = null, note = "", subject = "", mailId = ""): string | null {
     // The one funnel every new user message passes — composer and brain bar —
     // and with it the attach gate: a document still reading is in no wire yet,
     // and the chat still to be created is held by the attach making one.
     // `retry` re-runs an existing turn and has its own gate on the same text.
     return attachGate.run(opened !== null ? opened.id : (active?.id ?? null), () =>
-      sendNow(text, opened, note, subject),
+      sendNow(text, opened, note, subject, mailId),
     );
   }
 
-  function sendNow(text: string, opened: ActiveChat | null, note = "", subject = ""): string | null {
+  function sendNow(text: string, opened: ActiveChat | null, note = "", subject = "", mailId = ""): string | null {
+    // A composer a card filled carries the mail with it, as long as the
+    // person kept what it wrote; if they cleared it, they are asking something
+    // else and no mail rides along.
+    const opened4 = pendingMail.current;
+    pendingMail.current = null;
+    const kept = opened4 !== null && text.startsWith(opened4.prefix);
+    const says = note || (kept ? opened4.note : "");
+    const subject2 = subject || (kept ? opened4.subject : "");
+    const mailId2 = mailId || (kept ? opened4.id : "");
     // The brand bites here. An `ActiveChat` is the door's answer for one chat,
     // so it is used for that chat or refused — never passed over in favour of
     // whatever this render happened to call active. The render's chat is
@@ -883,8 +899,9 @@ export function useChat(shell: ChatShell) {
           ...(bindable.length > 0
             ? { docs: bindable.map((a) => a.id), docTokens: estTokens(boundBlock) }
             : {}),
-          ...(note === "" ? {} : { mailNote: note }),
-          ...(subject === "" ? {} : { mailSubject: subject }),
+          ...(says === "" ? {} : { mailNote: says }),
+          ...(subject2 === "" ? {} : { mailSubject: subject2 }),
+          ...(mailId2 === "" ? {} : { mailId: mailId2 }),
         }),
         { id: assistantId, role: "assistant", content: decline ?? "", createdAt: Date.now() },
       ],
@@ -915,14 +932,14 @@ export function useChat(shell: ChatShell) {
   // shows Stop (not Send) while its own conversation is generating.
   /** `note` is for the model alone: it rides the wire before the words and is
       never part of what the person sees or typed. */
-  function send(text: string, note = "", subject = ""): boolean {
+  function send(text: string, note = "", subject = "", mailId = ""): boolean {
     // The freeze is the gate's `pending`, applied here as well as in the
     // composer — and reread from the gate, not taken from this render's
     // snapshot: the freeze must be the gate's word at the moment Enter lands.
     // A send into the outgoing chat during a switch is the race C4 closes,
     // whichever control produced it.
     if (gate.getSnapshot().pending) return false;
-    if (active) return sendMessage(text, null, note, subject) !== null;
+    if (active) return sendMessage(text, null, note, subject, mailId) !== null;
     // The first message of a chat that does not exist yet waits for the door,
     // and the words stay in the box until it answers: a refusal has to leave
     // them where the person wrote them, not swallow them. `false` is "do not

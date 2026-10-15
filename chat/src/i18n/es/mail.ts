@@ -6,7 +6,9 @@
 export const MAIL = {
     "open": "Abrir",
     "replyDraft": "Borrador de respuesta",
-    "replyLine": (name: string) => `Responder a ${name}: `,
+    "replyLine": () => "Escribe una respuesta: ",
+    "replyNote": (id: string) =>
+      `La persona está respondiendo al correo con id ${id}. Sus palabras vienen después; escribe la respuesta para ese correo.`,
     "download": "Guardar",
     "moreNewsletters": (count: number) => `y ${count} newsletters`,
     "oneNewsletter": "y 1 newsletter",
@@ -36,6 +38,7 @@ export const MAIL = {
     "otherMessages": (count: number) => `${count} mensajes más`,
     "attachments": "Adjuntos",
     "aiSummary": "Resumen con IA",
+    "mailOpening": "Comienzo del correo",
     "askDraft": () => "Escribe una respuesta a este correo.",
     "askDraftNote": (id: string) =>
       `La respuesta es para el correo con id ${id}. Llama a mail_draft con reply_to_id ${id} y con las palabras de la respuesta.`,
