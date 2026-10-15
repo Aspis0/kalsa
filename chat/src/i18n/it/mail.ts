@@ -36,7 +36,7 @@ export const MAIL = {
     "otherMessages": (count: number) => `${count} altri messaggi`,
     "attachments": "Allegati",
     "aiSummary": "Sintesi AI",
-    "askDraft": (subject: string) => `Scrivi una risposta a «${subject}».`,
+    "askDraft": () => "Scrivi una risposta a questa mail.",
     "askDraftNote": (id: string) =>
       `La risposta è per la mail con id ${id}. Chiama mail_draft con reply_to_id ${id} e con le parole della risposta.`,
     "makeDraft": "Genera bozza",
@@ -120,9 +120,11 @@ export const MAIL = {
     title: "Kalsa non è riuscita a leggere la tua posta",
     keychain: "macOS ha chiesto la password del Mac per leggere la password della posta. Riprova e, quando compare la richiesta, scegli «Consenti sempre».",
     noAccount: "Nessun account di posta collegato.",
-    refused: "Il server ha rifiutato la password.",
+    "refused": "Il server ha rifiutato la password. Per Gmail e iCloud può servire una password per le app.",
     unreachable: "Il server della posta non risponde. Riprova tra poco.",
     program: "Kalsa non ha avviato il programma della posta perché non è quello previsto.",
+    "storage": "Kalsa non è riuscita a salvare quello che deve ricordare su questo computer. Riprova fra poco.",
+    "unknown": "Kalsa non è riuscita a leggere la posta. Riprova fra poco.",
     openSettings: "Apri le impostazioni della Mail",
   },
   sendErrors: {

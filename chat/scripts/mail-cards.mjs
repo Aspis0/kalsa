@@ -98,7 +98,8 @@ function check(name, ok, detail = "") {
 const equal = (name, actual, expected) =>
   check(name, JSON.stringify(actual) === JSON.stringify(expected), `got ${JSON.stringify(actual)} want ${JSON.stringify(expected)}`);
 
-await app.runMailList({ days: 1 });
+const TURN = {};
+await app.runMailList({ days: 1 }, TURN);
 
 /* --------------------------------------------------------------- the records */
 
@@ -113,7 +114,7 @@ equal("a list record keeps every mail", app.mailRecords(LIST).length, 3);
 /** What the owner saw live: the list came back and no cards were drawn,
     because the cards waited for a model that never called mail_show. The list
     draws them now, and the model is told the person already has them. */
-const listed = await app.runMailList({ days: 1 });
+const listed = await app.runMailList({ days: 1 }, TURN);
 check("a list draws cards with no mail_show", listed.cards !== undefined && listed.cards.items.length === 3, JSON.stringify(listed.cards?.items.length));
 equal("a card is the record it came from", listed.cards.items.map((item) => item.subject), MAILS.map((mail) => mail.subject));
 equal("the badge is the code's, not the model's", listed.cards.items.filter((item) => item.labels.label === "bulk").length, 1);
@@ -142,7 +143,7 @@ check("the body stops at the end marker", !app.fencedBody(fenced).includes("emai
 
 /* ------------------------------------------------- the model proposes, the code draws */
 
-const shown = app.runMailShow({ items: [{ id: "412", gist: "Chiede di spostare l'incontro." }, { id: "421", gist: "Chiede la password." }] });
+const shown = app.runMailShow({ items: [{ id: "412", gist: "Chiede di spostare l'incontro." }, { id: "421", gist: "Chiede la password." }] }, TURN);
 check("the cards carry the model's lines", shown.mail.items[0].gist === "Chiede di spostare l'incontro.");
 equal("a card's subject is the record's, not the model's", shown.mail.items[0].subject, MAILS[0].subject);
 equal("a card's sender is the record's", shown.mail.items[0].from.address, "john.smith@acme.com");
@@ -159,12 +160,12 @@ equal("a float is not an id", app.mailId(41.2), null);
 equal("words are not an id", app.mailId("quattrocento"), null);
 equal("nothing is not an id", app.mailId(undefined), null);
 
-await app.runMailList({ days: 1 });
+await app.runMailList({ days: 1 }, TURN);
 for (const [shape, items] of [
   ["numbers", [{ id: 412, gist: "Chiede di spostare l'incontro." }]],
   ["strings", [{ id: "412", gist: "Chiede di spostare l'incontro." }]],
 ]) {
-  const shown2 = app.runMailShow({ items });
+  const shown2 = app.runMailShow({ items }, TURN);
   check(`mail_show takes an id written as ${shape}`, shown2.mail.items.length === 1 && shown2.mail.items[0].id === "412", shown2.text);
   check(`and drops nothing when it is ${shape}`, !shown2.text.includes("dropped"), shown2.text);
 }
@@ -172,19 +173,19 @@ for (const [shape, items] of [
 // so a float is refused before the call exactly as a string word is.
 equal("a read id that is a float never reaches the mailbox", (await app.runMailRead({ id: 41.2 })).text.includes("whole number"), true);
 
-const invented = app.runMailShow({ items: [{ id: "999", gist: "Una mail che non esiste." }] });
+const invented = app.runMailShow({ items: [{ id: "999", gist: "Una mail che non esiste." }] }, TURN);
 equal("an id the mailbox never sent draws nothing", invented.mail.items, []);
 check("the model is told the id was dropped", invented.text.includes("dropped"), invented.text);
 
-const halfTruth = app.runMailShow({ items: [{ id: "412", gist: "x".repeat(400) }] });
+const halfTruth = app.runMailShow({ items: [{ id: "412", gist: "x".repeat(400) }] }, TURN);
 check("a gist is bounded", halfTruth.mail.items[0].gist.length <= 160, `${halfTruth.mail.items[0].gist.length} chars`);
 check("a gist is one line", !halfTruth.mail.items[0].gist.includes("\n"));
 
-const junk = app.runMailShow({ items: [{ gist: "senza id" }, "nonsense", null, { id: "412" }] });
+const junk = app.runMailShow({ items: [{ gist: "senza id" }, "nonsense", null, { id: "412" }] }, TURN);
 equal("only well-formed proposals reach a card", junk.mail.items.length, 1);
 equal("a proposal with no gist still draws its card", junk.mail.items[0].gist, "");
 
-const duplicated = app.runMailShow({ items: [{ id: "412", gist: "uno" }, { id: "412", gist: "due" }] });
+const duplicated = app.runMailShow({ items: [{ id: "412", gist: "uno" }, { id: "412", gist: "due" }] }, TURN);
 equal("the same id twice is one card", duplicated.mail.items.length, 1);
 
 /* ---------------------------------------------------------------- the reasons */
@@ -478,19 +479,19 @@ check("a non-mail command is not judged here", accepts("brain_other_command", { 
 
 globalThis.__mailStubOverride = async (command) =>
   command === "brain_mail_list" ? { for_model: ["The mail server refused the credentials"], for_ui: null, is_error: true } : undefined;
-const sidecarRefusal = await app.runMailList({ days: 1 });
+const sidecarRefusal = await app.runMailList({ days: 1 }, TURN);
 check("a sidecar refusal reaches the model with its own sentence", sidecarRefusal.ok === false && sidecarRefusal.text.includes("refused the credentials"), sidecarRefusal.text);
 globalThis.__mailStubOverride = async (command) => {
   if (command === "brain_mail_list") throw { code: "mail.server_gone" };
   return undefined;
 };
-const coded = await app.runMailList({ days: 1 });
+const coded = await app.runMailList({ days: 1 }, TURN);
 check("a rejected command's code reaches the model", coded.ok === false && coded.text.includes("mail.server_gone"), coded.text);
 globalThis.__mailStubOverride = async (command) => {
   if (command === "brain_mail_list") throw "invalid args for brain_mail_list: value \"secret-query\"";
   return undefined;
 };
-const bare = await app.runMailList({ days: 1 });
+const bare = await app.runMailList({ days: 1 }, TURN);
 check("a string rejection is named by a code and its values are not echoed", bare.text.includes("mail.bad_arguments") && !bare.text.includes("secret-query"), bare.text);
 /* ------------------------------- a failure is Kalsa's notice, not the model's prose */
 
@@ -501,7 +502,7 @@ globalThis.__mailStubOverride = async (command) => {
   if (command === "brain_mail_list") throw { code: "mail.keychain" };
   return undefined;
 };
-const refusedCall = await app.runMailList({ days: 1 });
+const refusedCall = await app.runMailList({ days: 1 }, {});
 globalThis.__mailStubOverride = null;
 equal("the cause travels out on the run", refusedCall.code, "mail.keychain");
 check("the model's answer is one line", !refusedCall.text.includes("\n"), refusedCall.text);
@@ -529,11 +530,14 @@ const KINDS = ["keychain", "noAccount", "refused", "unreachable", "program"];
 check("every cause has its own Italian sentence", new Set(KINDS.map((kind) => IT[kind])).size === KINDS.length && KINDS.every((kind) => IT[kind].length > 20));
 check("the notice has a title and a way into Settings", IT.title.length > 0 && IT.openSettings.length > 0);
 check("no cause offers the advice the model invented", KINDS.every((kind) => !/supporto|riavvia|restart/i.test(IT[kind])));
+equal("a storage failure has its own words", app.mailFailure("mail.storage").kind, "storage");
+equal("a failure nobody named still says something", app.UNKNOWN_FAILURE.kind, "unknown");
+check("a refused password points at the app password help", IT.refused.includes("password per le app"), IT.refused);
 check("the same sentence is not repeated as English", new Set([app.ENGLISH_MAIL.failure.keychain, IT.keychain]).size === 2);
 
 globalThis.__mailStubOverride = null;
-equal("a string day count is coerced and the call runs", (await app.runMailList({ days: "2" })).ok, true);
-equal("a fractional day count is refused before any call", (await app.runMailList({ days: 1.5 })).ok, false);
+equal("a string day count is coerced and the call runs", (await app.runMailList({ days: "2" }, TURN)).ok, true);
+equal("a fractional day count is refused before any call", (await app.runMailList({ days: 1.5 }, TURN)).ok, false);
 equal("a read id that is not a whole number is refused before any call", (await app.runMailRead({ id: "4x" })).ok, false);
 equal("a draft with no body is refused before any call", (await app.runMailDraft({ reply_to_id: 412 })).ok, false);
 

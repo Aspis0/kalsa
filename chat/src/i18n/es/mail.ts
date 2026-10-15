@@ -36,7 +36,7 @@ export const MAIL = {
     "otherMessages": (count: number) => `${count} mensajes más`,
     "attachments": "Adjuntos",
     "aiSummary": "Resumen con IA",
-    "askDraft": (subject: string) => `Escribe una respuesta a «${subject}».`,
+    "askDraft": () => "Escribe una respuesta a este correo.",
     "askDraftNote": (id: string) =>
       `La respuesta es para el correo con id ${id}. Llama a mail_draft con reply_to_id ${id} y con las palabras de la respuesta.`,
     "makeDraft": "Redactar borrador",
@@ -120,9 +120,11 @@ export const MAIL = {
     title: "Kalsa no ha podido leer tu correo",
     keychain: "macOS pidió la contraseña del Mac para leer la contraseña del correo. Inténtalo de nuevo y, cuando aparezca la petición, elige «Permitir siempre».",
     noAccount: "No hay ninguna cuenta de correo conectada.",
-    refused: "El servidor rechazó la contraseña.",
+    "refused": "El servidor rechazó la contraseña. Gmail e iCloud pueden necesitar una contraseña de aplicación.",
     unreachable: "El servidor de correo no responde. Inténtalo dentro de un rato.",
     program: "Kalsa no abrió el programa de correo porque no es el previsto.",
+    "storage": "Kalsa no pudo guardar lo que debe recordar en este ordenador. Inténtalo dentro de un rato.",
+    "unknown": "Kalsa no pudo leer tu correo. Inténtalo dentro de un rato.",
     openSettings: "Abre los ajustes del correo",
   },
   sendErrors: {

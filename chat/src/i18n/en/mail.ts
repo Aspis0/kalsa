@@ -40,7 +40,7 @@ export const MAIL = {
   otherMessages: (count: number) => `${count} other messages`,
   attachments: "Attachments",
   aiSummary: "AI summary",
-  askDraft: (subject: string) => `Write a reply to "${subject}".`,
+  askDraft: () => "Write a reply to this mail.",
   askDraftNote: (id: string) =>
       `The reply is for the mail with id ${id}. Call mail_draft with reply_to_id ${id} and the words of the reply.`,
   makeDraft: "Write a draft",
@@ -129,9 +129,11 @@ export const MAIL = {
     title: "Kalsa could not read your mail",
     keychain: "macOS asked for the Mac password to read the mail password. Try again and, when the request appears, choose “Always Allow”.",
     noAccount: "No mail account is connected.",
-    refused: "The server refused the password.",
+    refused: "The server refused the password. Gmail and iCloud may need an app password.",
     unreachable: "The mail server is not answering. Try again shortly.",
     program: "Kalsa did not start the mail program because it is not the expected one.",
+    storage: "Kalsa could not save what it must remember on this computer. Try again shortly.",
+    unknown: "Kalsa could not read your mail. Try again shortly.",
     openSettings: "Open the mail settings",
   },
   sendErrors: {

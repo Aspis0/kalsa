@@ -35,7 +35,7 @@ export const MAIL = {
     "otherMessages": (count: number) => `还有 ${count} 条消息`,
     "attachments": "附件",
     "aiSummary": "AI 摘要",
-    "askDraft": (subject: string) => `给「${subject}」写一封回信。`,
+    "askDraft": () => "给这封邮件写一封回信。",
     "askDraftNote": (id: string) =>
       `这封回信是给 id 为 ${id} 的邮件的。调用 mail_draft，reply_to_id 传 ${id}，并写下回信的内容。`,
     "makeDraft": "生成草稿",
@@ -118,9 +118,11 @@ export const MAIL = {
     title: "Kalsa 无法读取你的邮件",
     keychain: "macOS 要求输入 Mac 密码才能读取邮箱密码。请重试，出现提示时选择「始终允许」。",
     noAccount: "尚未连接邮箱账户。",
-    refused: "服务器拒绝了密码。",
+    "refused": "服务器拒绝了密码。Gmail 和 iCloud 可能需要使用应用专用密码。",
     unreachable: "邮箱服务器没有回应，请稍后再试。",
     program: "Kalsa 没有启动邮件程序，因为它不是预期的那个程序。",
+    "storage": "Kalsa 无法在这台电脑上保存需要记住的内容。请稍后再试。",
+    "unknown": "Kalsa 无法读取你的邮件。请稍后再试。",
     openSettings: "打开邮件设置",
   },
   sendErrors: {

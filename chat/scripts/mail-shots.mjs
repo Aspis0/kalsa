@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
 import { APP_VERSION } from "./lib/brain-stub.mjs";
-import { SENTENCE, SHOW, mailFixture } from "./lib/mail-mock.mjs";
+import { HOSTILE_SUBJECT, MAILBOX, SENTENCE, SHOW, mailFixture } from "./lib/mail-mock.mjs";
 
 const CHAT_DIR = fileURLToPath(new URL("..", import.meta.url));
 const OUT = process.env.MAIL_SHOTS_OUT ?? "/tmp/kalsa-mail-ux";
@@ -140,6 +140,18 @@ const STRING_ROUNDS = [
   [chunk({ role: "assistant", content: SENTENCE }, "stop"), "data: [DONE]\n\n"],
 ];
 
+/** What the person is read to have said, in every request this run made. */
+const WIRE_USERS = [];
+
+/** No user turn may carry a mail field: a subject is a stranger's text, and on
+    the wire it would read as the person's own instruction, outside the fence. */
+function checkWireCarriesNoSubject(label) {
+  const said = WIRE_USERS.join("\n");
+  const leaked = MAILBOX.filter((mail) => said.includes(mail.subject)).map((mail) => mail.subject);
+  check(`${label}: no mail subject rides as the person's words`, leaked.length === 0, leaked.join(" | "));
+  check(`${label}: and the one that reads as an instruction is not there either`, !said.includes(HOSTILE_SUBJECT));
+}
+
 const ROUNDS = [
   [chunk({ role: "assistant", tool_calls: [call("call_1", "mail_list", { days: 1 })] }, "tool_calls"), "data: [DONE]\n\n"],
   [
@@ -208,6 +220,11 @@ function mockEndpoint() {
       // remembered: the assistant turns since the person's last message are the
       // rounds that turn has already spent. A new turn, a new page and the
       // panel's own request for a reply each start at the first one.
+      // Every person turn that reaches the wire, kept so a run can prove none
+      // of them carries a stranger's mail text as the person's own words.
+      for (const message of messages) {
+        if (message.role === "user" && typeof message.content === "string") WIRE_USERS.push(message.content);
+      }
       const asked = messages.map((m) => m.role).lastIndexOf("user");
       const at = messages.slice(asked + 1).filter((m) => m.role === "assistant").length;
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...CORS });
@@ -422,6 +439,25 @@ async function shootSettings(browser) {
     check(`${theme}: and the refusal is shown once`, (await failed.locator(".mail-note.is-warn").count()) === 1);
     await shot(failed, shotOf("20-settings-mail-failed"));
     await failed.close();
+
+    /* A deleted account leaves this machine too: the page says so, and a
+       reload does not bring the address back. */
+    const gone = await browser.newPage({ viewport });
+    await seed(gone, theme, { account: null });
+    await gone.goto(APP);
+    await gone.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(gone);
+    await gone.getByLabel("Indirizzo email", { exact: true }).fill("luca@libero.it");
+    await gone.getByLabel("Password", { exact: true }).fill("password-di-prova");
+    await gone.getByRole("button", { name: "Collega questo account" }).click();
+    await mustSee(gone, "Collegato: luca@libero.it", `${theme}: the account is linked`);
+    await gone.getByRole("button", { name: "Elimina questo account" }).click();
+    await mustSee(gone, "Nessun account collegato", `${theme}: deleting it says the page has none`);
+    await gone.reload();
+    await openMailSettings(gone);
+    await mustSee(gone, "Nessun account collegato", `${theme}: and it does not come back on reload`);
+    check(`${theme}: the address is gone from this machine's storage`, (await gone.evaluate(() => localStorage.getItem("crescent-chat.mail-account.v1"))) === null);
+    await gone.close();
   }
 }
 
@@ -492,8 +528,8 @@ async function shootWeakModel(browser) {
     await page.goto(APP);
     await page.waitForSelector(".rail", { timeout: 20000 });
     await askForMail(page);
-    await page.locator(".mail-card").nth(7).waitFor({ timeout: 15000 });
-    check(`${theme}: every listed mail is a card, with no mail_show`, (await page.locator(".mail-card").count()) === 8, `${await page.locator(".mail-card").count()} cards`);
+    await page.locator(".mail-card").nth(8).waitFor({ timeout: 15000 });
+    check(`${theme}: every listed mail is a card, with no mail_show`, (await page.locator(".mail-card").count()) === 9, `${await page.locator(".mail-card").count()} cards`);
     check(`${theme}: and they are the list's own, once`, (await page.locator(".mail-turn").count()) === 1);
     await mustSee(page, "John Smith", `${theme}: a card carries the sender the list named`);
     check(`${theme}: the model never had to write a gist`, (await page.locator(".mail-card .mail-gist").count()) === 0);
@@ -505,6 +541,7 @@ async function shootWeakModel(browser) {
     await page.locator(".mail-card", { hasText: "Fattura n. 104" }).getByRole("button", { name: "Apri" }).click();
     await page.waitForSelector(".mail-view-subject", { timeout: 15000 });
     await mustSee(page, "Sintesi", `${theme}: a card from the list opens in the panel`);
+    checkWireCarriesNoSubject(theme);
     await page.close();
   }
 }
@@ -580,12 +617,12 @@ async function run() {
       await mustSee(page, SENTENCE, `${theme}: the assistant's one sentence`);
       await mustSee(page, "Sospetta", `${theme}: the badge on the card that carries one`);
       await mustSee(page, "newsletter", `${theme}: the line under the cards`);
-      check(`${theme}: every listed mail is a card`, (await page.locator(".mail-card").count()) === 8, `${await page.locator(".mail-card").count()} cards`);
+      check(`${theme}: every listed mail is a card`, (await page.locator(".mail-card").count()) === 9, `${await page.locator(".mail-card").count()} cards`);
       check(`${theme}: the list is drawn once, not beside the model's set`, (await page.locator(".mail-turn").count()) === 1);
       await mustSee(page, "Vuole spostare l'incontro", `${theme}: the model's line landed on the card it named`);
       check(
-        `${theme}: one badge only`,
-        (await page.locator(".mail-card .mail-suspect").count()) === 1,
+        `${theme}: every suspicious mail keeps the badge the code gave it`,
+        (await page.locator(".mail-card .mail-suspect").count()) === 2,
         `${await page.locator(".mail-card .mail-suspect").count()} badges`,
       );
       // Apri the invoice: it is the one that has an attachment, so the panel
@@ -611,8 +648,10 @@ async function run() {
       await page.getByRole("button", { name: "Genera bozza" }).click();
       // The reply is a whole model turn now, not one command.
       await page.waitForSelector(".mail-reply textarea", { timeout: 30000 });
-      await mustSee(page, "Scrivi una risposta a «Fattura n. 104", `${theme}: the turn says which mail, by its subject`);
-      check(`${theme}: the internal id stays off the screen`, !(await page.locator(".thread").innerText()).includes("reply_to_id"));
+      await mustSee(page, "Scrivi una risposta a questa mail.", `${theme}: the turn asks for a reply`);
+      await mustSee(page, "Fattura n. 104", `${theme}: and says which mail, as the person sees it`);
+      const shownTurn = await page.locator(".row-user").last().innerText();
+      check(`${theme}: the person's own words name no mail field`, !shownTurn.includes("mail id") && !shownTurn.includes("reply_to_id"));
       await shot(page, `${theme === "light" ? "03" : "09"}-mail-panel-draft`);
 
       // The draft card, drawn by a real turn: the model calls mail_draft and
@@ -669,6 +708,7 @@ async function run() {
       // The second press is the one that leaves.
       const sends = await page.evaluate(() => (window.__STUB_CALLS__ ?? []).filter(([c]) => c === "brain_mail_send").length);
       check(`${theme}: nothing was sent before the second press`, sends === 0, `${sends} sends`);
+      checkWireCarriesNoSubject(theme);
       await page.locator(".mail-send-dialog .mail-send-go").click();
       await page.waitForSelector(".mail-sent", { timeout: 15000 });
       await mustSee(page, "Inviata a john.smith@acme.com", `${theme}: the sent state names its recipient`);

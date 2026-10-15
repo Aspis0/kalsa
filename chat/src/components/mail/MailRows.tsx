@@ -3,7 +3,7 @@ import type { DraftRecord, Drafts, SentTo } from "../../lib/mail/drafts";
 import type { MailCards, MailCardItem } from "../../lib/mail/types";
 import { MailCardsView } from "./MailCards";
 import { MailFailureCard } from "./MailFailureCard";
-import { mailFailure } from "../../lib/mail/failure";
+import { mailFailure, UNKNOWN_FAILURE } from "../../lib/mail/failure";
 import { cardIds } from "../../lib/mail/cards";
 import type { MailFailure } from "../../lib/mail/failure";
 import type { ToolRun } from "../../lib/types";
@@ -46,9 +46,11 @@ export function MailRows({
   const t = table.mail;
   // A call that failed has a cause to say; it drew no cards, so it shows the
   // notice in their place.
+  // A call the sidecar refused without a code of its own still failed, and a
+  // silent failure is worse than a plain sentence.
   const notices = runs
-    .filter((run) => NAMES.has(run.name))
-    .map((run) => ({ id: run.id, why: mailFailure(run.resultCode) }))
+    .filter((run) => NAMES.has(run.name) && (run.resultCode !== undefined || run.state === "failed" || run.state === "refused"))
+    .map((run) => ({ id: run.id, why: mailFailure(run.resultCode) ?? UNKNOWN_FAILURE }))
     .filter((entry): entry is { id: string; why: MailFailure } => entry.why !== null);
   const told = new Set(notices.map((entry) => entry.id));
   // The list drew the cards, and a model's `mail_show` only ever adds the one

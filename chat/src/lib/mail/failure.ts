@@ -8,7 +8,7 @@
  * left to the sentence the sidecar already wrote.
  */
 
-export type MailFailureKind = "keychain" | "noAccount" | "refused" | "unreachable" | "program";
+export type MailFailureKind = "keychain" | "noAccount" | "refused" | "unreachable" | "program" | "storage" | "unknown";
 
 export interface MailFailure {
   kind: MailFailureKind;
@@ -24,7 +24,12 @@ const BY_CODE: Record<string, MailFailure> = {
   "mail.failed": { kind: "unreachable", inSettings: false },
   "mail.not_approved": { kind: "program", inSettings: false },
   "mail.program_changed": { kind: "program", inSettings: false },
+  "mail.storage": { kind: "storage", inSettings: false },
 };
+
+/** What a failure nobody wrote words for says: the sidecar refused in its own
+    prose, with no code of its own, and Kalsa's sentence stands in for it. */
+export const UNKNOWN_FAILURE: MailFailure = { kind: "unknown", inSettings: false };
 
 export function mailFailure(code: string | undefined): MailFailure | null {
   return code === undefined ? null : (BY_CODE[code] ?? null);

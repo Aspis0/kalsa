@@ -17,6 +17,16 @@ export function rememberAccount(email: string): void {
   }
 }
 
+/** The account was deleted: its address leaves this machine's copy too, or
+    Settings goes on showing a link that is not there. */
+export function forgetAccount(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // No storage: there was nothing saved to take away.
+  }
+}
+
 /** The account address, or "" when no account has been saved on this machine. */
 export function accountEmail(): string {
   try {

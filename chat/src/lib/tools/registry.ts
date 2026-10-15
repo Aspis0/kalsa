@@ -103,10 +103,10 @@ export async function executeToolCall(
       if (!mailAllowed(model)) return { text: MAIL_CLOSED, ok: false };
     }
     if (name === "mail_show") {
-      return runMailShow(record);
+      return runMailShow(record, conversation);
     }
     if (name === "mail_list") {
-      const listed = await runMailList(record);
+      const listed = await runMailList(record, conversation);
       return {
         text: listed.text,
         ok: listed.ok,

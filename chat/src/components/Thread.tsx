@@ -334,6 +334,7 @@ export function Thread({
                 <MessageImages images={message.images} />
                 <MessageVideos videos={message.videos} />
                 {message.content ? <div className="user-bubble">{message.content}</div> : null}
+                {message.mailSubject ? <p className="row-mail-subject">{message.mailSubject}</p> : null}
               </div>
             ) : (
               <AssistantRow

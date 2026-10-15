@@ -21,8 +21,8 @@ function oneLine(gist: unknown): string {
   return gist.replace(/\s+/g, " ").trim().slice(0, GIST_CHARS);
 }
 
-export function runMailShow(args: unknown): ToolOutcome {
-  if (!lastList.listed()) return { text: NO_LIST, ok: false };
+export function runMailShow(args: unknown, conversation: object): ToolOutcome {
+  if (!lastList.listed(conversation)) return { text: NO_LIST, ok: false };
   const items = args && typeof args === "object" ? (args as Record<string, unknown>).items : null;
   if (!Array.isArray(items)) return { text: "mail_show: no items were given.", ok: false };
 
@@ -32,7 +32,7 @@ export function runMailShow(args: unknown): ToolOutcome {
   for (const proposed of items.slice(0, MAX_CARDS)) {
     const pair = proposed && typeof proposed === "object" ? (proposed as Record<string, unknown>) : {};
     const id = mailId(pair.id);
-    const record = id === null ? null : lastList.find(id);
+    const record = id === null ? null : lastList.find(id, conversation);
     if (record === null || seen.has(record.id)) {
       dropped += 1;
       continue;
@@ -51,5 +51,5 @@ export function runMailShow(args: unknown): ToolOutcome {
   const drawn = cards.length;
   const said = `Drew ${drawn} mail ${drawn === 1 ? "card" : "cards"}.`;
   const lost = dropped > 0 ? ` ${dropped} proposed ${dropped === 1 ? "id was" : "ids were"} not in the last list and ${dropped === 1 ? "was" : "were"} dropped.` : "";
-  return { text: `${said}${lost}`, ok: drawn > 0, mail: { kind: "cards", items: cards, bulk: lastList.bulk() } };
+  return { text: `${said}${lost}`, ok: drawn > 0, mail: { kind: "cards", items: cards, bulk: lastList.bulk(conversation) } };
 }

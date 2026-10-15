@@ -813,17 +813,17 @@ export function useChat(shell: ChatShell) {
   // `opened` is the chat the gate has just taken from the door, and only the
   // gate can mint one: a chat that is already open never takes this path,
   // because it was offered when it was selected.
-  function sendMessage(text: string, opened: ActiveChat | null = null, note = ""): string | null {
+  function sendMessage(text: string, opened: ActiveChat | null = null, note = "", subject = ""): string | null {
     // The one funnel every new user message passes — composer and brain bar —
     // and with it the attach gate: a document still reading is in no wire yet,
     // and the chat still to be created is held by the attach making one.
     // `retry` re-runs an existing turn and has its own gate on the same text.
     return attachGate.run(opened !== null ? opened.id : (active?.id ?? null), () =>
-      sendNow(text, opened, note),
+      sendNow(text, opened, note, subject),
     );
   }
 
-  function sendNow(text: string, opened: ActiveChat | null, note = ""): string | null {
+  function sendNow(text: string, opened: ActiveChat | null, note = "", subject = ""): string | null {
     // The brand bites here. An `ActiveChat` is the door's answer for one chat,
     // so it is used for that chat or refused — never passed over in favour of
     // whatever this render happened to call active. The render's chat is
@@ -884,6 +884,7 @@ export function useChat(shell: ChatShell) {
             ? { docs: bindable.map((a) => a.id), docTokens: estTokens(boundBlock) }
             : {}),
           ...(note === "" ? {} : { mailNote: note }),
+          ...(subject === "" ? {} : { mailSubject: subject }),
         }),
         { id: assistantId, role: "assistant", content: decline ?? "", createdAt: Date.now() },
       ],
@@ -914,14 +915,14 @@ export function useChat(shell: ChatShell) {
   // shows Stop (not Send) while its own conversation is generating.
   /** `note` is for the model alone: it rides the wire before the words and is
       never part of what the person sees or typed. */
-  function send(text: string, note = ""): boolean {
+  function send(text: string, note = "", subject = ""): boolean {
     // The freeze is the gate's `pending`, applied here as well as in the
     // composer — and reread from the gate, not taken from this render's
     // snapshot: the freeze must be the gate's word at the moment Enter lands.
     // A send into the outgoing chat during a switch is the race C4 closes,
     // whichever control produced it.
     if (gate.getSnapshot().pending) return false;
-    if (active) return sendMessage(text, null, note) !== null;
+    if (active) return sendMessage(text, null, note, subject) !== null;
     // The first message of a chat that does not exist yet waits for the door,
     // and the words stay in the box until it answers: a refusal has to leave
     // them where the person wrote them, not swallow them. `false` is "do not

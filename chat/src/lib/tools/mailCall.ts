@@ -113,16 +113,18 @@ function draftArgs(model: Record<string, unknown>): Built {
  * is that bare UID, so a second folder would let one folder's id name another's
  * mail. One folder is the only way those ids mean what they say.
  */
-export async function runMailList(model: Record<string, unknown>): Promise<{ text: string; ok: boolean; records: MailRecord[]; code?: string; cards?: MailCards }> {
+export async function runMailList(model: Record<string, unknown>, conversation: object): Promise<{ text: string; ok: boolean; records: MailRecord[]; code?: string; cards?: MailCards }> {
   const built = listArgs(model);
   if (!built.ok) return { text: built.text, ok: false, records: [] };
   const response = await call("brain_mail_list", built.args);
   const records = mailRecords(response.for_ui);
-  lastList.remember(records);
+  lastList.remember(records, conversation);
   if (response.is_error) return { text: failure(response), ok: false, records, ...codeOf(response) };
   // The cards are the app's own: the person sees them whether or not a model
-  // goes on to call mail_show, which only ever adds its one line per card.
-  return { text: `${answerText(response) || NOT_MAIL} ${ALREADY_SHOWN}`, ok: true, records, cards: cardsFrom(records) };
+  // goes on to call mail_show, which only ever adds its one line per card. An
+  // empty list has no cards, so nothing is said about them.
+  const shown = records.length === 0 ? answerText(response) || NOT_MAIL : `${answerText(response) || NOT_MAIL} ${ALREADY_SHOWN}`;
+  return { text: shown, ok: true, records, cards: cardsFrom(records) };
 }
 
 /** One mail in full: the record for the card, the body for the Mail tab. */

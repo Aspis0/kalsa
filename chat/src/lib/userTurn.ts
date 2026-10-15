@@ -8,7 +8,7 @@ export function newUserTurn(
   id: string,
   text: string,
   sentAt: Date,
-  riders: Partial<Pick<ChatMessage, "images" | "videos" | "docs" | "docTokens" | "mailNote">> = {},
+  riders: Partial<Pick<ChatMessage, "images" | "videos" | "docs" | "docTokens" | "mailNote" | "mailSubject">> = {},
 ): ChatMessage {
   return {
     id,

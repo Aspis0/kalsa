@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useLanguage } from "../../i18n/useLanguage";
 import { available, invoke } from "../../lib/tauri";
-import { accountEmail, rememberAccount } from "../../lib/mail/account";
+import { accountEmail, forgetAccount, rememberAccount } from "../../lib/mail/account";
+import { forgetAll } from "../../lib/mail/lastList";
 import { prepareCredentials } from "../../lib/mail/credentials";
 import { accountErrorKey } from "../../lib/mail/accountError";
 import { guessServer } from "../../lib/mail/providers";
@@ -205,6 +206,8 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                         setBusy(false);
                         setSubjects([]);
                         setLinked("");
+                        forgetAccount();
+                        forgetAll();
                         setNote(t.removed);
                       },
                       () => setBusy(false),

@@ -36,7 +36,7 @@ export const MAIL = {
     "otherMessages": (count: number) => `${count} autres messages`,
     "attachments": "Pièces jointes",
     "aiSummary": "Résumé IA",
-    "askDraft": (subject: string) => `Écris une réponse à « ${subject} ».`,
+    "askDraft": () => "Écris une réponse à ce mail.",
     "askDraftNote": (id: string) =>
       `La réponse est pour le mail d'id ${id}. Appelle mail_draft avec reply_to_id ${id} et les mots de la réponse.`,
     "makeDraft": "Rédiger un brouillon",
@@ -120,9 +120,11 @@ export const MAIL = {
     title: "Kalsa n'a pas pu lire tes e-mails",
     keychain: "macOS a demandé le mot de passe du Mac pour lire celui de la messagerie. Réessaie et, quand la demande s'affiche, choisis « Toujours autoriser ».",
     noAccount: "Aucun compte de messagerie n'est connecté.",
-    refused: "Le serveur a refusé le mot de passe.",
+    "refused": "Le serveur a refusé le mot de passe. Gmail et iCloud peuvent demander un mot de passe d'application.",
     unreachable: "Le serveur de messagerie ne répond pas. Réessaie dans un instant.",
     program: "Kalsa n'a pas lancé le programme de messagerie parce que ce n'est pas celui prévu.",
+    "storage": "Kalsa n'a pas pu enregistrer ce qu'elle doit mémoriser sur cet ordinateur. Réessaie dans un instant.",
+    "unknown": "Kalsa n'a pas pu lire tes e-mails. Réessaie dans un instant.",
     openSettings: "Ouvrir les réglages Mail",
   },
   sendErrors: {

@@ -168,6 +168,7 @@ function cleanMessage(value: unknown): ChatMessage | null {
     ...(typeof value.reasoningMs === "number" ? { reasoningMs: value.reasoningMs } : {}),
     ...(typeof value.sentOn === "string" && value.sentOn ? { sentOn: value.sentOn } : {}),
     ...(typeof value.mailNote === "string" && value.mailNote ? { mailNote: value.mailNote } : {}),
+    ...(typeof value.mailSubject === "string" && value.mailSubject ? { mailSubject: value.mailSubject } : {}),
     ...(typeof value.failed === "string" && (FAILED_KINDS as readonly string[]).includes(value.failed)
       ? { failed: value.failed as ChatErrorKind }
       : {}),

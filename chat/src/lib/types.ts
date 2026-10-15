@@ -96,6 +96,10 @@ export interface ChatMessage {
   images?: MessageImage[];
   /** Videos attached to this user turn, in attach order. */
   videos?: MessageVideo[];
+  /** Which mail this turn is about, shown to the person under their own words
+      and sent nowhere: a subject is a stranger's text and never rides the wire
+      as if it were the person's instruction. */
+  mailSubject?: string;
   /** An instruction for the model only, riding before this turn's words. It is
       never rendered and never shown as the person's: an internal id means
       nothing to a reader, so only the model is told it. */

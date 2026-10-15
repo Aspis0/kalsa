@@ -261,7 +261,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
           onMailAskDraft={(item) => {
             // The reply is written by the chat model, not by the page: a turn
             // naming this mail, and the draft it writes lands in the same box.
-            if (send(table.mail.askDraft(item.subject), table.mail.askDraftNote(item.id))) setPanelOpen(true);
+            if (send(table.mail.askDraft(), table.mail.askDraftNote(item.id), item.subject)) setPanelOpen(true);
           }}
           onMailSend={setMailSend}
           onClose={() => {
