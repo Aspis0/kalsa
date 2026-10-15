@@ -32,6 +32,9 @@ mod paging_route;
 mod props;
 mod paging_support;
 mod paging_sweep;
+mod phone_chat;
+mod phone_chat_mail;
+mod phone_chat_support;
 mod revocation;
 mod room_engine;
 mod room_gate;
@@ -558,6 +561,7 @@ fn a_connection_whose_stamp_has_expired_still_gets_its_head_read() {
                 chats: Arc::new(crate::paging::Chats::new(1, None, None, None)),
                 seat_waiters: std::sync::atomic::AtomicUsize::new(0),
                 seat_waiting: std::sync::Mutex::new(std::collections::HashSet::new()),
+                chat: None,
             }),
             &registry,
             &active,
@@ -838,6 +842,7 @@ fn a_connection_that_waited_past_the_queue_bound_is_answered_busy() {
                 chats: Arc::new(crate::paging::Chats::new(1, None, None, None)),
                 seat_waiters: std::sync::atomic::AtomicUsize::new(0),
                 seat_waiting: std::sync::Mutex::new(std::collections::HashSet::new()),
+                chat: None,
             }),
             &registry,
             &active,

@@ -11,6 +11,9 @@ tauri-build = { version = "2.7", features = [] }
 [dependencies]
 # Digest checks over the chosen model's downloaded bytes.
 sha2 = "0.10"
+# The phone chat's request and draft ids: 128 random bits each. Already in the
+# graph through kalsa-door, so no new crate enters it.
+getrandom = "0.3"
 kalsa-catalog = { path = "../crates/kalsa-catalog" }
 kalsa-door = { path = "../crates/kalsa-door" }
 # The file panel's listing, search and read. The whole filesystem is in

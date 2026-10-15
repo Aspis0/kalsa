@@ -50,6 +50,7 @@
 //! returning phone is told the truth instead of being kept waiting.
 
 mod audit;
+mod chat;
 mod chunk;
 mod clocks;
 mod cors;
@@ -76,6 +77,7 @@ mod token;
 #[cfg(test)]
 mod tests;
 
+pub use chat::{ChatEvent, Opened, PhoneChat};
 pub use devices::{DeviceEntry, DeviceId, Devices};
 pub use room::guest_entry;
 /// The device id the room's AI guest sits at: the reserved top of the
@@ -303,6 +305,9 @@ pub struct Door {
     /// the host seats. `None` — the door built by a caller that has not
     /// opened one — answers every room route with one honest sentence.
     room: Option<Arc<room::RoomDoor>>,
+    /// The app's side of the phone's chat. Absent, the chat routes answer 404
+    /// and the phone falls back to the old path.
+    phone_chat: Option<Arc<dyn PhoneChat>>,
 }
 
 /// The devices with a connection currently being served. Presence, not
@@ -457,6 +462,7 @@ impl Door {
             idle_save: None,
             response_observer: None,
             room: None,
+            phone_chat: None,
             slot_context: None,
             clocks: clocks::Clocks::default(),
         })
@@ -516,6 +522,14 @@ impl Door {
     /// and a guest does not borrow it.
     pub fn with_room(mut self, room: Arc<kalsa_room::Room>, host: DeviceId) -> Self {
         self.room = Some(Arc::new(room::RoomDoor::new(room, host)));
+        self
+    }
+
+    /// The app's side of the phone's chat: its window runs the phone's turns and
+    /// answers its mail reads and sends. A door built without one answers the
+    /// chat routes with 404.
+    pub fn with_phone_chat(mut self, hook: Arc<dyn PhoneChat>) -> Self {
+        self.phone_chat = Some(hook);
         self
     }
 

@@ -1,0 +1,173 @@
+//! The phone's turn route through the door's socket: validation, the 404
+//! without a hook, the stream's framing, busy, the runner's timeout, and a
+//! phone that goes away. The mail routes are in `phone_chat_mail`.
+
+use std::io::Read;
+use std::sync::Arc;
+use std::time::Duration;
+
+use serde_json::json;
+
+use super::paging_support::status_of;
+use super::phone_chat_support::{answer, chat_door, event, open, text, Page, TURN};
+use super::room_support::read_all;
+use super::support::bounded;
+use crate::clocks::Clocks;
+
+#[test]
+fn a_chat_body_the_contract_refuses_is_a_bad_request_and_reaches_no_page() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page::default());
+        let (door, address) = chat_door(Some(Arc::clone(&page)), Clocks::default());
+        let too_many = format!(
+            r#"{{"messages":[{}]}}"#,
+            vec![r#"{"role":"user","content":"x"}"#; 201].join(",")
+        );
+        for body in [
+            r#"{"messages":[{"role":"system","content":"x"}]}"#,
+            r#"{"messages":[{"role":"user","content":["image"]}]}"#,
+            r#"{"messages":[{"role":"user","content":"x"}],"reply_for":"10a"}"#,
+            r#"{"messages":[{"role":"user","content":"x"}],"language":"fr"}"#,
+            r#"{"messages":"hello"}"#,
+            "not json",
+            too_many.as_str(),
+        ] {
+            let response = text(&answer(address, "/kalsa/chat/turn", body));
+            assert!(
+                response.contains("event: error\ndata: {\"code\":\"bad_request\"}"),
+                "a turn took {body:.60}: {response}"
+            );
+        }
+        assert!(page.opened().is_empty(), "a refused turn reached the page");
+        drop(door);
+    });
+}
+
+#[test]
+fn without_the_app_hook_the_chat_routes_answer_404() {
+    bounded(Duration::from_secs(20), || {
+        let (door, address) = chat_door(None, Clocks::default());
+        assert_eq!(status_of(&answer(address, "/kalsa/chat/turn", TURN)), 404);
+        assert_eq!(status_of(&answer(address, "/kalsa/chat/mail/read", r#"{"id":"105"}"#)), 404);
+        assert_eq!(status_of(&answer(address, "/kalsa/chat/mail/send", "{}")), 404);
+        drop(door);
+    });
+}
+
+#[test]
+fn a_chat_route_under_the_wrong_method_is_not_a_turn() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page::default());
+        let (door, address) = chat_door(Some(Arc::clone(&page)), Clocks::default());
+        let response = read_all(&mut open(address, "GET", "/kalsa/chat/turn", ""));
+        assert_eq!(status_of(&response), 404);
+        assert!(page.opened().is_empty());
+        drop(door);
+    });
+}
+
+#[test]
+fn a_turn_streams_the_pages_events_in_order_and_ends_with_one_terminal_frame() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page::default());
+        let (door, address) = chat_door(Some(Arc::clone(&page)), Clocks::default());
+        let mut stream = open(address, "POST", "/kalsa/chat/turn", TURN);
+        let sender = page.page(0);
+        sender.send(event("accepted", json!({}))).unwrap();
+        sender.send(event("reasoning", json!({"text": "pensiero"}))).unwrap();
+        sender.send(event("delta", json!({"text": "Ciao"}))).unwrap();
+        sender.send(event("tool_run", json!({"id": "t1", "name": "mail_list", "state": "ok"}))).unwrap();
+        sender.send(event("done", json!({}))).unwrap();
+        sender.send(event("delta", json!({"text": "dopo la fine"}))).unwrap();
+        let response = text(&read_all(&mut stream));
+        drop(door);
+
+        assert!(response.starts_with("HTTP/1.1 200 OK\r\n"), "{response}");
+        assert!(response.contains("Content-Type: text/event-stream"), "{response}");
+        let stream_body = response.split_once("\r\n\r\n").map_or("", |(_, body)| body);
+        let frames: Vec<&str> = stream_body.split("\n\n").filter(|frame| !frame.is_empty()).collect();
+        let names: Vec<&str> = frames
+            .iter()
+            .map(|frame| frame.lines().next().unwrap_or_default())
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "event: turn",
+                "event: reasoning",
+                "event: delta",
+                "event: tool_run",
+                "event: done"
+            ],
+            "{response}"
+        );
+        assert!(frames[0].ends_with(r#"data: {"turn":"req-1"}"#), "{response}");
+        assert!(!response.contains("dopo la fine"), "an event after the terminal frame was written");
+        assert_eq!(
+            page.opened(),
+            vec![("turn".to_string(), json!({
+                "messages": [{"role": "user", "content": "che mail ho ricevuto oggi?"}],
+                "reply_for": "105",
+                "language": "it"
+            }))]
+        );
+        assert!(page.stops.lock().unwrap().is_empty(), "a finished turn was stopped");
+    });
+}
+
+#[test]
+fn a_second_turn_of_one_device_is_busy_and_the_first_keeps_going() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page::default());
+        let (door, address) = chat_door(Some(Arc::clone(&page)), Clocks::default());
+        let mut first = open(address, "POST", "/kalsa/chat/turn", TURN);
+        let sender = page.page(0);
+        sender.send(event("accepted", json!({}))).unwrap();
+        sender.send(event("delta", json!({"text": "primo"}))).unwrap();
+
+        let second = text(&answer(address, "/kalsa/chat/turn", TURN));
+        assert!(second.contains("event: error\ndata: {\"code\":\"busy\"}"), "{second}");
+        assert_eq!(page.opened().len(), 1, "the busy turn reached the page");
+
+        sender.send(event("delta", json!({"text": "secondo"}))).unwrap();
+        sender.send(event("done", json!({}))).unwrap();
+        let first = text(&read_all(&mut first));
+        drop(door);
+        assert!(first.contains("primo") && first.contains("secondo"), "{first}");
+    });
+}
+
+#[test]
+fn a_page_that_never_takes_the_turn_ends_it_as_no_runner() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page::default());
+        let clocks = Clocks::default().chat_runner_wait(Duration::from_millis(200));
+        let (door, address) = chat_door(Some(Arc::clone(&page)), clocks);
+        let response = text(&answer(address, "/kalsa/chat/turn", TURN));
+        assert!(response.contains("event: error\ndata: {\"code\":\"no_runner\"}"), "{response}");
+        assert!(page.stopped("req-1"), "the page was never told to stop");
+        drop(door);
+    });
+}
+
+#[test]
+fn a_phone_that_goes_away_stops_its_turn() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page::default());
+        let (door, address) = chat_door(Some(Arc::clone(&page)), Clocks::default());
+        let mut stream = open(address, "POST", "/kalsa/chat/turn", TURN);
+        let sender = page.page(0);
+        sender.send(event("accepted", json!({}))).unwrap();
+        sender.send(event("delta", json!({"text": "parte"}))).unwrap();
+        let mut seen = Vec::new();
+        let mut chunk = [0u8; 256];
+        while !text(&seen).contains("parte") {
+            let read = stream.read(&mut chunk).unwrap();
+            assert!(read > 0, "the stream closed before the first delta");
+            seen.extend_from_slice(&chunk[..read]);
+        }
+        drop(stream);
+        assert!(page.stopped("req-1"), "the page was not told to stop");
+        drop(door);
+    });
+}

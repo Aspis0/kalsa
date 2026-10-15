@@ -28,6 +28,7 @@ mod metrics;
 mod oom;
 mod options;
 mod pairing;
+mod phone_chat;
 mod room;
 mod room_commands;
 mod room_events;
@@ -135,6 +136,9 @@ struct Brain {
     /// the brain still runs, and the door's room routes answer with the one
     /// honest sentence instead of a room that pretends.
     room: OnceLock<Arc<kalsa_room::Room>>,
+    /// The phone's chat on this computer: the door's hook, which the page
+    /// answers through `brain_phone_chat_event`.
+    phone_chat: Arc<phone_chat::Bridge>,
     /// The room's event feed stop flag, set by the app's exit path so the
     /// follower thread ends with the window it feeds. Under a mutex so a
     /// second spawn attempt walks away instead of doubling the feed.
@@ -480,6 +484,7 @@ impl Brain {
             gate: Mutex::new(()),
             crash_restart: CrashRestart::default(),
             room: OnceLock::new(),
+            phone_chat: Arc::new(phone_chat::Bridge::default()),
             room_events: Mutex::new(None),
         }
     }
@@ -934,6 +939,7 @@ impl Brain {
                     Some(per_slot) => door.with_slot_context(per_slot),
                     None => door,
                 };
+                let door = door.with_phone_chat(self.phone_chat.clone());
                 let door = match tier {
                     Ok(tier) => match door
                         .with_slot_dir(tier.slot_dir)
@@ -2511,6 +2517,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             mail::commands::brain_mail_read,
             mail::commands::brain_mail_draft,
             mail::commands::brain_mail_send,
+            phone_chat::brain_phone_chat_event,
             brain_open_log_folder,
             brain_send_log,
             brain_log_webview_error,
@@ -2524,6 +2531,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let guard = std::sync::Arc::clone(&guard);
             let exiting = Arc::clone(&exiting);
             move |app| {
+            app.state::<Arc<Brain>>().phone_chat.attach(app.handle().clone());
             // The log is the first thing that works, so everything after it
             // is on the record — on STDERR, until the instance lock below
             // says this process owns the log: two apps writing one file

@@ -247,6 +247,9 @@ pub(crate) fn route_of(target: &[u8]) -> String {
         }
         .to_string();
     }
+    if let Some(name) = crate::chat::route_name(path) {
+        return name.to_string();
+    }
     if crate::paging::owns(path) {
         return match crate::paging::route(path) {
             Some(crate::paging::Route::Activate) => "/kalsa/chat/activate".to_string(),

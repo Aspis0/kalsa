@@ -46,6 +46,14 @@ const DETACHED_GRACE: Duration = Duration::from_secs(2 * 60);
 /// reads it (see `room::turn`).
 pub(crate) const SEAT_WAIT: Duration = Duration::from_secs(120);
 
+/// How long a phone's turn or mail read waits for the window to say it has
+/// taken the request. Past that the phone is told no runner answered.
+const CHAT_RUNNER_WAIT: Duration = Duration::from_secs(10);
+
+/// How long a phone's mail read waits for the window's answer, counted from
+/// the hand-over.
+const CHAT_ANSWER_WAIT: Duration = Duration::from_secs(30);
+
 /// The limits one door applies. `Default` is the product's; a test builds its
 /// own door with shorter ones.
 #[derive(Clone, Copy, Debug)]
@@ -57,6 +65,8 @@ pub(crate) struct Clocks {
     pub(crate) queue_wait: Duration,
     pub(crate) detached_grace: Duration,
     pub(crate) seat_wait: Duration,
+    pub(crate) chat_runner_wait: Duration,
+    pub(crate) chat_answer_wait: Duration,
 }
 
 impl Default for Clocks {
@@ -68,6 +78,8 @@ impl Default for Clocks {
             queue_wait: QUEUE_WAIT,
             detached_grace: DETACHED_GRACE,
             seat_wait: SEAT_WAIT,
+            chat_runner_wait: CHAT_RUNNER_WAIT,
+            chat_answer_wait: CHAT_ANSWER_WAIT,
         }
     }
 }
@@ -96,6 +108,10 @@ impl Clocks {
     }
     pub(crate) fn seat_wait(mut self, value: Duration) -> Self {
         self.seat_wait = value;
+        self
+    }
+    pub(crate) fn chat_runner_wait(mut self, value: Duration) -> Self {
+        self.chat_runner_wait = value;
         self
     }
 }

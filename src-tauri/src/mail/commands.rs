@@ -187,18 +187,31 @@ pub(crate) async fn brain_mail_send(
     state: State<'_, MailState>,
     args: SendArgs,
 ) -> Result<SendResponse, CommandFailure> {
-    let arguments = json!({"reply_to_id": args.reply_to_id, "subject": args.subject, "body": args.body})
+    let sent_to = send_confirmed(&app, &state, args.reply_to_id, args.subject, args.body).await?;
+    Ok(SendResponse { sent_to })
+}
+
+/// The one send path: the panel's button and the phone's confirm both come
+/// here after the person's click. Returns the recipient the mail named.
+pub(crate) async fn send_confirmed(
+    app: &AppHandle,
+    state: &MailState,
+    reply_to_id: u32,
+    subject: String,
+    body: String,
+) -> Result<String, MailError> {
+    let arguments = json!({"reply_to_id": reply_to_id, "subject": subject, "body": body})
         .as_object()
         .cloned()
         .unwrap_or_default();
-    let path = state_file(&app)?;
+    let path = state_file(app)?;
     let open = || {
         let program = program::current()?;
         host::open_saved(&path, &Keychain, &program)
     };
     let mut slot = state.lock().await;
     let response = slot.confirmed_send(arguments, open).await?;
-    Ok(sent_of(response)?)
+    Ok(sent_of(response)?.sent_to)
 }
 
 fn sent_of(response: ToolResponse) -> Result<SendResponse, MailError> {

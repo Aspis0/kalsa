@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::audit;
+use crate::chat;
 use crate::cors;
 use crate::devices::{DeviceId, Devices};
 use crate::jobs::ResumeDecision;
@@ -113,6 +114,9 @@ pub(super) struct Shared {
     /// and be answered busy — so the wait is a scarce thing on purpose.
     pub(super) seat_waiters: AtomicUsize,
     pub(super) seat_waiting: Mutex<std::collections::HashSet<DeviceId>>,
+    /// The phone's chat, when the app installed its side; `None` answers the
+    /// chat routes with 404.
+    pub(super) chat: Option<Arc<crate::chat::Chat>>,
 }
 
 /// How often a waiting switch looks for its seat again — the room turn's
@@ -301,6 +305,21 @@ pub(super) fn handle(
         let answer = slot_routes::refusal_response(head.origin.as_deref());
         audit::reason("door.slot_route");
         let _ = answer_to(&mut client, &answer, deadline);
+        return;
+    }
+    // The phone's chat routes come before the seat: a turn takes no seat, since
+    // the window's own completions need one. Before the disk tier below, which
+    // claims every path under `/kalsa/`.
+    if chat::owns(&head.target) {
+        chat::serve(
+            client,
+            chat::Request {
+                head: &head,
+                device,
+                shared,
+            },
+            deadline,
+        );
         return;
     }
     // A new completion from device D supersedes D's DETACHED answer (a Stop
