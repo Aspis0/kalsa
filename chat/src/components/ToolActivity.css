@@ -16,6 +16,15 @@
   line-height: 22px;
 }
 
+/* A running mail call: the same line as a web check, laid out like one summary,
+   with no chevron because there is nothing to open — the cards take its place. */
+.mail-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
 .tool-run > summary {
   display: inline-flex;
   max-width: 100%;

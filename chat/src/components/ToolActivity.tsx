@@ -5,7 +5,7 @@ import { publicHttpUrl } from "../lib/publicUrl";
 import { Openable } from "./Openable";
 import { Icon } from "./Icon";
 import { MiniappView } from "./miniapp/MiniappView";
-import { isMailTool } from "./mail/MailRows";
+import { isMailRun } from "../lib/mail/runs";
 import "./ToolActivity.css";
 import { TOOL_STOPPED } from "../lib/types";
 import type { ToolRun } from "../lib/types";
@@ -27,6 +27,14 @@ function webWords(t: English["tools"], code: string): string {
 
 const MINIAPP = "create_miniapp";
 
+/** What a running mail call says it is doing. A real IMAP read is silent for
+    seconds, and a row is the only sign the turn is still working. */
+function mailLine(t: English["tools"], name: string): string {
+  if (name === "mail_draft") return t.writingDraft;
+  if (name === "mail_show") return t.choosingMail;
+  return t.readingMail;
+}
+
 /**
  * What Kalsa did on the web before it answered: one quiet line per check inside
  * the answer, opening to what was asked and the sources. The page never loads
@@ -35,13 +43,15 @@ const MINIAPP = "create_miniapp";
  * policy forbids.
  */
 export function ToolActivity({ runs, awaitingOk }: { runs: ToolRun[]; awaitingOk: boolean }) {
-  // A mail card is the tool's whole visible output, so the quiet web row
-  // would say twice what the card already says.
-  const web = runs.filter((run) => run.name !== MINIAPP && !isMailTool(run.name));
-  if (web.length === 0) return null;
+  // A mail card is the tool's whole visible output, so the quiet web row would
+  // say twice what the card already says. While it runs there is no card yet,
+  // so a running mail run keeps a row of its own — the same spinner, with no
+  // chevron: nothing opens, the cards take this row's place.
+  const rows = runs.filter((run) => run.name !== MINIAPP && (!isMailRun(run.name) || run.state === "running"));
+  if (rows.length === 0) return null;
   return (
     <div className="tool-activity">
-      {web.map((run) => (
+      {rows.map((run) => (
         <ToolRow key={run.id} run={run} awaitingOk={awaitingOk} />
       ))}
     </div>
@@ -73,6 +83,18 @@ export function MiniappRows({
 function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
   const { table } = useLanguage();
   const t = table.tools;
+  // A running mail call is the only mail row: the answer becomes cards the turn
+  // draws itself, so a finished call says nothing here and a refused one says
+  // it on its own notice card.
+  if (isMailRun(run.name)) {
+    if (run.state !== "running") return null;
+    return (
+      <p className="tool-run mail-run">
+        <span className="tool-spin" aria-hidden="true" />
+        <span>{mailLine(t, run.name)}</span>
+      </p>
+    );
+  }
   const args = readArguments(run.name, run.arguments).args;
   const query = typeof args.query === "string" ? args.query : "";
   // The fragment is dropped at the door and never offered back on the card:

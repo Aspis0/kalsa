@@ -145,9 +145,3 @@ export function MailRows({
     </>
   );
 }
-
-/** Whether a name is one of the mailbox's tools, so the reader's rows stay
-    quiet about them: the cards are the tool's whole visible output. */
-export function isMailTool(name: string): boolean {
-  return NAMES.has(name);
-}

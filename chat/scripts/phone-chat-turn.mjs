@@ -58,10 +58,21 @@ function wire(app) {
   console.log("\n# the wire");
   const convo = [USER("che mail ho?"), { role: "assistant", content: "Due." }, USER("rispondi al primo")];
   const plain = app.phoneWire(turnOf(convo), { vision: false, think: false, nctx: 8192 }, NOW);
-  equal("the system message is the desktop's own prompt", plain.wire[0], {
+  // The phone is offered no mini app and draws none, so its prompt is the
+  // desktop's own minus the two sentences about building one — every other byte
+  // is the desktop's, or the engine's cache would prefill two prompts.
+  equal("the system message is the desktop's own prompt, without the mini app sentences", plain.wire[0], {
     role: "system",
-    content: app.systemPrompt(false, false).content,
+    content: app.systemPrompt(false, false).content.replace(
+      /Use create_miniapp[^.]*\. |Miniapps \(a table, calculator, quiz or checklist\) open inline in the chat\. /g,
+      "",
+    ),
   });
+  check(
+    "the phone's prompt names no mini app",
+    !plain.wire[0].content.includes("create_miniapp") && !plain.wire[0].content.includes("Miniapps ("),
+    JSON.stringify(plain.wire[0].content.slice(0, 200)),
+  );
   equal("only the last words carry the send date", plain.wire.slice(1).map((m) => m.content), [
     "che mail ho?",
     "Due.",
@@ -127,6 +138,10 @@ async function turns(app) {
       ["delta", { text: "Ecco." }],
       ["done", {}],
     ]);
+    // Every field of a card and of its labels is one word, so the cards frame
+    // has no camelCase to fix — the read frame's `threadIds` was the only one.
+    const keys = Object.keys(CARDS).concat(Object.keys(CARDS.items[0]), Object.keys(CARDS.items[0].labels));
+    check("the cards frame is snake_case already", !keys.some((key) => /[A-Z]/.test(key)), keys.join(", "));
   }
   {
     const { loop } = fakeLoop(async (o) => {

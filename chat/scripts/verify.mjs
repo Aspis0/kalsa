@@ -5911,6 +5911,101 @@ const tests = {
     }
   },
 
+  // A mailbox that takes seconds to answer says so while it waits: the turn
+  // draws no dots and no cards until the list lands, so the row is the only
+  // sign the turn is still working — and it goes when the cards arrive.
+  async mailworking() {
+    const mock = listEndpoint();
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      // Registered after the seed, which clears storage: this row's words are
+      // the English ones, so the test can say which sentence it wants.
+      await page.addInitScript(() => {
+        localStorage.setItem("crescent-chat.language.v1", "en");
+      });
+      await stubMailDoor(page);
+      await stubSlowMail(page, "brain_mail_list", 4000);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("What came in today?");
+      await box.press("Enter");
+
+      await page.locator(".tool-activity .tool-spin").first().waitFor({ timeout: 15000 }).catch(() => check("mail: the running list showed a row", false, "never appeared"));
+      const shown = (await page.locator(".tool-activity").count()) === 0 ? "" : ((await page.locator(".tool-activity").innerText()) ?? "").trim();
+      check("mail: a running list says what it is doing", shown === "Reading your mail…", JSON.stringify(shown));
+      check("mail: and the turn is not silent while it waits", (await page.locator(".waiting-row").count()) === 0);
+      check("mail: the row is a spinner, not a card", (await page.locator(".mail-card").count()) === 0);
+
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+      check("mail: the cards are the list's own", (await page.locator(".mail-card").count()) === 8, String(await page.locator(".mail-card").count()));
+      check("mail: and the row is gone now the cards are drawn", (await page.locator(".tool-activity .tool-spin").count()) === 0);
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
+  // The Phones page names each row in the reader's own language. The label the
+  // store carries is minted in English by Rust and is never null, so a row that
+  // showed it would read "Paired phone 2" in every language.
+  async phonerows() {
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, { settings: okSettings("Alibaba Qwen 3.6"), theme: "light" });
+      await page.addInitScript(() => {
+        localStorage.setItem("crescent-chat.language.v1", "it");
+      });
+      await page.addInitScript(() => {
+        const previous = window.__TAURI__;
+        window.__TAURI__ = {
+          ...previous,
+          core: {
+            invoke: async (command) => {
+              if (command === "brain_pairing") {
+                return {
+                  state: "paired",
+                  devices: [
+                    { id: 0, kind: "host", label: "This computer" },
+                    { id: 1, label: "Paired phone 2", phone: "+39 333 0000001" },
+                  ],
+                };
+              }
+              return previous.core.invoke(command);
+            },
+          },
+        };
+      });
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await page.locator('.rail-item[data-surface="devices"]').click();
+      const names = page.locator(".surface-device-name");
+      await names.first().waitFor({ timeout: 15000 });
+      const rows = await names.allTextContents();
+      check("phones: this computer is named in the language", rows.includes("Questo computer"), rows.join(" | "));
+      // Rust numbers a record one above the id it will mint (pairing.rs), so
+      // the stored label of this phone reads "Paired phone 2" and the row
+      // says the same 2 in the reader's words.
+      check("phones: the phone is named in the language, with Rust's own number", rows.includes("telefono 2"), rows.join(" | "));
+      check("phones: and not with the English label Rust minted", !rows.some((name) => /This computer|Paired phone/.test(name)), rows.join(" | "));
+    } finally {
+      await browser.close();
+    }
+  },
+
   // A list is a list, not a page: eight cards, the rest one press away, and a
   // button that reveals rather than opens — the Mail tab shows one mail.
   async mailreveal() {
@@ -6140,7 +6235,7 @@ const tests = {
         window.__MAIL_FIXTURE__ = fixture;
       }, listFixture());
       await stubMailDoor(page);
-      await stubSlowMailRead(page, 1500);
+      await stubSlowMail(page, "brain_mail_read", 1500);
 
       await page.goto(APP);
       await page.waitForSelector(".rail", { timeout: 20000 });
@@ -6182,7 +6277,7 @@ const tests = {
         window.__MAIL_FIXTURE__ = fixture;
       }, listFixture());
       await stubMailDoor(page);
-      await stubSlowMailRead(page, 1500);
+      await stubSlowMail(page, "brain_mail_read", 1500);
 
       await page.goto(APP);
       await page.waitForSelector(".rail", { timeout: 20000 });
@@ -6472,24 +6567,28 @@ async function subjectsOn(page) {
   return subjects.length - new Set(subjects).size;
 }
 
-/** A read that takes its time, so a pane can be asked to hold one across a
-    switch of chat or a close. Wraps whatever door stub was installed first. */
-async function stubSlowMailRead(page, ms) {
-  await page.addInitScript((delay) => {
+/** One mail command that answers late, the way a real IMAP read does: a pane can
+    be asked to hold a read across a switch of chat or a close, and a turn can
+    be asked to say so while it waits. Wraps whatever door stub was installed
+    first. */
+async function stubSlowMail(page, command, ms) {
+  await page.addInitScript(({ slow, delay }) => {
+    const mail = window.__MAIL_FIXTURE__;
+    const failed = { for_model: [], for_ui: null, is_error: true };
+    const inner = (args) => (args && typeof args === "object" && args.args) || {};
     const previous = window.__TAURI__;
     window.__TAURI__ = {
       ...previous,
       core: {
-        invoke: async (command, args) => {
-          if (command !== "brain_mail_read") return previous.core.invoke(command, args);
-          const inner = (args && typeof args === "object" && args.args) || {};
-          const read = window.__MAIL_FIXTURE__.reads[String(inner.id)];
+        invoke: async (name, args) => {
+          if (name !== slow) return previous.core.invoke(name, args);
+          const answer = slow === "brain_mail_list" ? mail.list : mail.reads[String(inner(args).id)];
           await new Promise((done) => setTimeout(done, delay));
-          return read ?? { for_model: [], for_ui: null, is_error: true };
+          return answer ?? failed;
         },
       },
     };
-  }, ms);
+  }, { slow: command, delay: ms });
 }
 
 /** The model asks once for the list and stops. The cards under an answer are the

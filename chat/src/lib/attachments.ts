@@ -425,8 +425,13 @@ export async function extractAttachment(file: File): Promise<Attachment> {
  * `/props`, and the Think sentence follows the chat template's own switch (the
  * sentence is sent only where the button is drawn). A model's capabilities
  * change only when the model does, which restarts the engine and its cache.
+ *
+ * A phone's turn is the third axis, and the only one that is per surface: the
+ * phone is offered no mini app and draws none, so the two sentences about
+ * them would name a tool the model cannot call. Every other turn sends the
+ * bytes below unchanged.
  */
-function promptBytes(vision: boolean, think: boolean): string {
+function promptBytes(vision: boolean, think: boolean, phone: boolean): string {
   return (
     "You are Kalsa, a private assistant running on this computer. " +
     "You can write, explain, translate, summarise and answer from your own knowledge; that needs no tool. " +
@@ -436,14 +441,16 @@ function promptBytes(vision: boolean, think: boolean): string {
     "Attached files reach you as plain text in a message; if no text is there, " +
     "no file reached you. " +
     "Use a tool only when a task needs one, and only the tools you are given. " +
-    "Use create_miniapp only when the person asks for a comparison table, calculator, quiz or checklist. " +
+    (phone
+      ? ""
+      : "Use create_miniapp only when the person asks for a comparison table, calculator, quiz or checklist. ") +
     "Reply in the language the user writes in. " +
     "The app around you: " +
     (think
       ? "A Think button sits in the message box: when it is off you answer at once, without reasoning first; when it is on, any reasoning you do is folded above your answer for the person to open. "
       : "") +
     "A paperclip in the message box attaches files. " +
-    "Miniapps (a table, calculator, quiz or checklist) open inline in the chat. " +
+    (phone ? "" : "Miniapps (a table, calculator, quiz or checklist) open inline in the chat. ") +
     "Phones paired to this computer can get answers from you too. " +
     "The Room is a group chat on this computer where people call you by writing @Kalsa or with the button in the message box that asks you. " +
     "You cannot press these buttons yourself; tell the person which one to use."
@@ -451,14 +458,14 @@ function promptBytes(vision: boolean, think: boolean): string {
 }
 
 /** The prompt for the model now being served. */
-export function systemPrompt(vision: boolean, think: boolean): WireMessage {
-  return { role: "system", content: promptBytes(vision, think) };
+export function systemPrompt(vision: boolean, think: boolean, phone = false): WireMessage {
+  return { role: "system", content: promptBytes(vision, think, phone) };
 }
 
 /** What the wire spends on a conversation: the stored messages plus the fixed
     system prompt — the whole of it that is not documents. */
-export function wireTokens(messages: ChatMessage[], vision = false, think = false): number {
-  return historyTokens(messages) + estTokens(promptBytes(vision, think));
+export function wireTokens(messages: ChatMessage[], vision = false, think = false, phone = false): number {
+  return historyTokens(messages) + estTokens(promptBytes(vision, think, phone));
 }
 
 /**
@@ -519,8 +526,8 @@ export function turnDocBlock(docs: Attachment[]): string {
  * the engine's cache holds onto; the documents' own weight is the fit's
  * `docTokens`, so nothing is counted twice.
  */
-function systemMessage(docs: Attachment[], vision: boolean, think: boolean): WireMessage {
-  const prompt = systemPrompt(vision, think);
+function systemMessage(docs: Attachment[], vision: boolean, think: boolean, phone: boolean): WireMessage {
+  const prompt = systemPrompt(vision, think, phone);
   if (docs.length === 0) return prompt;
   return { role: "system", content: `${prompt.content}\n\n${docBlockText(docs)}` };
 }
@@ -561,15 +568,18 @@ function notValidGuide(name: string): string {
 }
 
 /**
- * How the model now being served sees pictures: `vision` says whether it can
+ * How the model now being served sees this turn: `vision` says whether it can
  * look at all, and `url` hands back the data URI of a stored image — null
  * when its bytes are gone. Absent (harnesses, attach trials) is the same as
  * a model without eyes. `think` says whether the chat template offers the
  * Think switch, which is what the prompt may describe; absent is no switch.
+ * `phone` says the turn is a paired phone's, which is the one app around the
+ * model that draws no mini app; absent is this computer.
  */
 export interface MediaView {
   vision: boolean;
   think?: boolean;
+  phone?: boolean;
   url: (id: string) => string | null;
 }
 
@@ -697,7 +707,7 @@ export function buildPinnedContext(
   const byId = new Map(docs.map((d) => [d.id, d]));
   const docTokens = pinned.reduce((sum, d) => sum + d.tokens, 0);
   const turns = [...messages];
-  let histTokens = wireTokens(turns, media?.vision ?? false, media?.think ?? false);
+  let histTokens = wireTokens(turns, media?.vision ?? false, media?.think ?? false, media?.phone ?? false);
   let dropped = 0;
   const shedOne = (): void => {
     const shed = turns.shift();
@@ -725,6 +735,6 @@ export function buildPinnedContext(
     }
   }
   const wire = turns.flatMap((message) => wireFor(message, media, byId));
-  wire.unshift(systemMessage(pinned, media?.vision ?? false, media?.think ?? false));
+  wire.unshift(systemMessage(pinned, media?.vision ?? false, media?.think ?? false, media?.phone ?? false));
   return { status: "ok", wire, dropped, docTokens, historyTokens: histTokens };
 }

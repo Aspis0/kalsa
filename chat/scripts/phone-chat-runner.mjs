@@ -43,12 +43,22 @@ async function reads(app) {
       [
         "read",
         {
-          record: { id: "105", from: { name: "Ann", address: "ann@example.com" }, subject: "Hi", date: null, snippet: "", threadIds: [], attachments: [], labels: { label: "normal", reasons: [] } },
+          record: { id: "105", from: { name: "Ann", address: "ann@example.com" }, subject: "Hi", date: null, snippet: "", thread_ids: [], attachments: [], labels: { label: "normal", reasons: [] } },
           body: "",
         },
       ],
       ["done", {}],
     ]);
+    // The protocol's wire is snake_case (§1) and the phone's reader reads id,
+    // from.name, from.address, subject, gist, date, labels.label and
+    // labels.reasons — every one of those is one word and keeps its name here.
+    const sent = log[0][1].record;
+    check("no field of the record is left in the app's camelCase", !("threadIds" in sent), JSON.stringify(Object.keys(sent)));
+    for (const field of ["id", "from", "subject", "date", "labels"]) {
+      check(`the phone still reads ${field}`, field in sent, JSON.stringify(Object.keys(sent)));
+    }
+    check("the phone still reads from.name and from.address", "name" in sent.from && "address" in sent.from, JSON.stringify(sent.from));
+    check("the phone still reads labels.label and labels.reasons", "label" in sent.labels && "reasons" in sent.labels, JSON.stringify(sent.labels));
   }
   {
     bridge.answer = async () => {

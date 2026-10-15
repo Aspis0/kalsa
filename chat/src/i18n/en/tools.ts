@@ -7,6 +7,10 @@ export const TOOLS = {
   searching: "Searching the web…",
   openingPage: "Opening a page…",
   waitingForOk: "Waiting for your OK…",
+  // A running mail call: a real mailbox read is silent for seconds.
+  readingMail: "Reading your mail…",
+  writingDraft: "Writing the draft…",
+  choosingMail: "Choosing the cards…",
   pageNotOpened: "Kalsa couldn't open that page. Try again.",
   searchDidNotRun: "Kalsa couldn't search the web. Try again.",
   couldNotFinish: "Kalsa couldn't finish checking. Ask again.",

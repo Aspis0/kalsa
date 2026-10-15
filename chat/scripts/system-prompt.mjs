@@ -56,6 +56,25 @@ function equal(label, actual, expected) {
   );
 }
 
+// The desktop's blind prompt, byte for byte: the engine caches this prefix, so a
+// word that moves is a re-prefill of every conversation. Only a phone's turn
+// differs, and only by the two mini app sentences it cannot use
+// (phone-chat-turn.mjs).
+const DESKTOP_BLIND =
+  "You are Kalsa, a private assistant running on this computer. " +
+  "You can write, explain, translate, summarise and answer from your own knowledge; that needs no tool. " +
+  "You cannot see images, audio or video. " +
+  "Attached files reach you as plain text in a message; if no text is there, no file reached you. " +
+  "Use a tool only when a task needs one, and only the tools you are given. " +
+  "Use create_miniapp only when the person asks for a comparison table, calculator, quiz or checklist. " +
+  "Reply in the language the user writes in. " +
+  "The app around you: " +
+  "A paperclip in the message box attaches files. " +
+  "Miniapps (a table, calculator, quiz or checklist) open inline in the chat. " +
+  "Phones paired to this computer can get answers from you too. " +
+  "The Room is a group chat on this computer where people call you by writing @Kalsa or with the button in the message box that asks you. " +
+  "You cannot press these buttons yourself; tell the person which one to use.";
+
 let dir = null;
 let server = null;
 try {
@@ -110,6 +129,13 @@ try {
   for (const v of VARIANTS) {
     const content = systemPrompt(v.vision, v.think).content;
     const tokens = wireTokens([], v.vision, v.think);
+    if (!v.vision && !v.think) {
+      check(
+        "the blind desktop prompt is the pinned bytes",
+        content === DESKTOP_BLIND,
+        JSON.stringify(content),
+      );
+    }
     check(
       `${v.name}: under the ${PROMPT_CEILING_TOKENS}-token ceiling`,
       tokens > 0 && tokens < PROMPT_CEILING_TOKENS,

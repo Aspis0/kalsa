@@ -36,6 +36,9 @@ export function phoneWire(turn: PhoneTurn, facts: PhoneFacts, now: Date): Pinned
   return buildPinnedContext(wireTurns(messages), [], facts.nctx, {
     vision: facts.vision,
     think: facts.think,
+    // The phone draws no mini app and is offered none, so the prompt says
+    // nothing about building one.
+    phone: true,
     url: () => null,
   });
 }

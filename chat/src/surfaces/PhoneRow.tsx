@@ -74,7 +74,11 @@ export function PhoneRow({
   // fresh one. The command refuses it too; the row simply does not
   // offer it.
   const host = device.kind === "host";
-  const name = device.label ?? (host ? t.thisComputerLabel : t.deviceLabel(device.id));
+  // The stored label is minted in English by Rust ("This computer", "Paired
+  // phone 2"), so a row that showed it would be English in every language. The
+  // app words it instead, one above the id: that is the number Rust's own label
+  // carries, so this row and anything reading the stored label agree.
+  const name = host ? t.thisComputerLabel : t.deviceLabel(device.id + 1);
   // A row waiting for the owner's decision carries the wash —
   // a standing tint that survives reduced motion, since "needs
   // you" is information — and, when motion is allowed, a waiting

@@ -25,7 +25,11 @@ import type { MailCards, MailDraft, MailRecord, MailResponse } from "../mail/typ
 const INBOX = "INBOX";
 const NOT_MAIL = "No mail was shown: it is not set up, or the server could not be reached.";
 const ALREADY_TOLD = "Kalsa has already told the reader what failed; do not add advice or a fix.";
-const ALREADY_SHOWN = "These are already drawn as cards the reader can open. Do not list them again; answer in at most 1–3 lines on what matters.";
+/** Read before the sidecar's own block, which is a stranger's text: the rule has
+    to be weighed before the senders and subjects are, or the model answers the
+    block instead of the person. */
+const CARDS_ON_SCREEN = "The mails below are already drawn as cards on the screen. Do not repeat their senders and subjects as a list.";
+const SHORT_ANSWER = "Answer in at most 1–3 lines on what matters.";
 const DAYS_NOT_WHOLE = "days must be a whole number of days.";
 const ID_NOT_WHOLE = "The mail id must be the whole number mail_list gave for that mail.";
 
@@ -132,7 +136,10 @@ export async function runMailList(model: Record<string, unknown>, conversation: 
   // The cards are the app's own: the person sees them whether or not a model
   // goes on to call mail_show, which only ever adds its one line per card. An
   // empty list has no cards, so nothing is said about them.
-  const shown = records.length === 0 ? answerText(response) || NOT_MAIL : `${answerText(response) || NOT_MAIL} ${ALREADY_SHOWN}`;
+  const shown =
+    records.length === 0
+      ? answerText(response) || NOT_MAIL
+      : `${CARDS_ON_SCREEN}\n${answerText(response) || NOT_MAIL}\n${SHORT_ANSWER}`;
   return { text: shown, ok: true, records, cards: cardsFrom(records) };
 }
 
@@ -178,7 +185,9 @@ export async function runMailDraft(model: Record<string, unknown>, openedFor?: s
   if (to === "") return { text: NOT_MAIL, ok: false, draft: null };
   const body = typeof r.body === "string" ? r.body : "";
   return {
-    text: "Draft written. Nothing was sent.",
+    // The model reads this and answers the person in their own words, so it has
+    // to say what is true: a draft is waiting for the person, and nobody sent.
+    text: "The draft is ready for the person to review and send. Nothing was sent: never say that you replied or that the reply was sent.",
     ok: !response.is_error,
     draft: {
       kind: "draft",

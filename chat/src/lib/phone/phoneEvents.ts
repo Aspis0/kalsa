@@ -43,7 +43,7 @@ export function phoneSink(send: (event: string, data: unknown) => void): PhoneSi
       const [event, data] = mailEvent(run.mail);
       emit(event, data);
     },
-    read: (record, body) => emit("read", { record, body }),
+    read: (record, body) => emit("read", { record: recordWire(record), body }),
     done: () => end("done", {}),
     fail: (code) => end("error", { code }),
   };
@@ -62,5 +62,22 @@ function draftWire(draft: MailDraft) {
     to_name: draft.toName,
     subject: draft.subject,
     body: draft.body,
+  };
+}
+
+/** A record as the protocol's snake_case carries it (docs §1), which is how the
+    sidecar built it: `records.ts` reads `thread_ids` into `threadIds`, and this
+    turns it back rather than putting the app's own spelling on a wire that does
+    not use it. Every other field is one word and keeps its name. */
+function recordWire(record: MailRecord) {
+  return {
+    id: record.id,
+    from: record.from,
+    subject: record.subject,
+    date: record.date,
+    snippet: record.snippet,
+    thread_ids: record.threadIds,
+    attachments: record.attachments,
+    labels: record.labels,
   };
 }

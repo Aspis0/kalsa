@@ -120,7 +120,17 @@ check("a list draws cards with no mail_show", listed.cards !== undefined && list
 equal("a card is the record it came from", listed.cards.items.map((item) => item.subject), [MAILS[0].subject, MAILS[1].subject]);
 equal("a newsletter is never a card", listed.cards.items.filter((item) => item.labels.label === "bulk").length, 0);
 check("no model wrote a line on them yet", listed.cards.items.every((item) => item.gist === ""));
-check("the model is told not to list them again", listed.text.includes("Do not list them again"), listed.text.slice(0, 120));
+check("the model is told not to list them again", listed.text.includes("Do not repeat their senders and subjects as a list."), listed.text.slice(0, 120));
+// The rule has to be read before the block, or a model that weighs the block
+// first re-lists the senders it has just been handed.
+const [before, ...rest] = listed.text.split("\n");
+const [block, ...after] = rest;
+check("the cards-are-on-screen rule comes before the sidecar's block", before.includes("already drawn as cards"), JSON.stringify(before));
+check("the block the model reads is still the sidecar's own", block === "<<<email-text x>>>", JSON.stringify(block));
+check("the short reminder comes after it", after.join(" ").includes("at most 1–3 lines"), JSON.stringify(after));
+const mailList = app.MAIL_TOOLS.find((tool) => tool.function.name === "mail_list").function;
+check("mail_list does not ask for a mail_show round", !/After it, call mail_show/.test(mailList.description), mailList.description);
+check("mail_list says the app draws the cards itself", mailList.description.includes("draws a card for every mail"), mailList.description);
 equal("an empty list draws no cards", app.cardsFrom([]).items.length, 0);
 equal("the list's order is kept", app.cardIds(app.cardsFrom(app.mailRecords(LIST))), [MAILS[0].id, MAILS[1].id]);
 
@@ -592,6 +602,10 @@ globalThis.__mailStubOverride = async (command) =>
 const pinned = await app.runMailDraft({ reply_to_id: "412", body: "Va bene." }, "412");
 check("a draft for the mail the turn was opened for is written", pinned.draft !== null, pinned.text);
 check("and its recipient stays off the tool result", !pinned.text.includes("john.smith@acme.com"), pinned.text);
+// The model answers the person in their own words off this text, so it has to
+// name the draft and forbid the reply: "Ho risposto" from a draft is a lie.
+check("the draft is announced as a draft waiting for the person", pinned.text.includes("ready for the person to review and send"), pinned.text);
+check("and the model is told never to call it a reply that went out", pinned.text.includes("never say that you replied"), pinned.text);
 const elsewhere = await app.runMailDraft({ reply_to_id: "421", body: "Va bene." }, "412");
 check("a draft for another mail is refused", elsewhere.draft === null && elsewhere.ok === false, elsewhere.text);
 check("and the refusal names the mail the turn is for", elsewhere.text.includes("412"), elsewhere.text);

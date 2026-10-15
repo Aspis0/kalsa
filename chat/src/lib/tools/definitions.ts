@@ -122,7 +122,7 @@ export const MAIL_TOOLS: ToolDefinition[] = [
     function: {
       name: "mail_list",
       description:
-        "List mail from the person's mailbox: an id, who sent it, the subject, the time, a short snippet, and whether it looks bulk (a newsletter) or suspicious. Call this first when the person asks what arrived, what is important today, or anything about their mail. It only reads. After it, call mail_show with the ids worth putting in front of the person.",
+        "List mail from the person's mailbox: an id, who sent it, the subject, the time, a short snippet, and whether it looks bulk (a newsletter) or suspicious. Call this first when the person asks what arrived, what is important today, or anything about their mail. It only reads. The app draws a card for every mail it returns, so the person sees them without mail_show; call mail_show only to write your own one line under those cards.",
       parameters: {
         type: "object",
         properties: {
