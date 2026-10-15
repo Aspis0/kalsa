@@ -1,15 +1,22 @@
 //! The bridge's rules on the page's events and on the paired phones: what it
 //! refuses, what it forwards, what it stores, and what a new pairing drops.
 
+use std::cell::Cell;
 use std::sync::mpsc;
 use std::time::Instant;
 
 use kalsa_door::{ChatEvent, DeviceId};
 use serde_json::{json, Value};
 
+use super::drafts::Owner;
 use super::{digest, lock, Bridge, Live, SendOutcome, MAX_EVENT_BYTES};
 
 const ID: &str = "0123456789abcdef0123456789abcdef";
+
+/// Device 1 as paired under the credential "cred-a".
+fn owner_a() -> Owner {
+    (DeviceId::new(1), digest("cred-a"))
+}
 
 /// A bridge that has paired device 1 under the credential "cred-a", with one
 /// live request of that phone, and the door's end of its events.
@@ -87,7 +94,7 @@ fn a_draft_reaches_the_phone_under_an_id_and_the_store_keeps_the_mail_not_the_re
     assert_eq!(draft.data["reply_to_id"], "105");
     assert_eq!(draft.data["to"], "segreteria@studio.example.it");
     let ticket = lock(&bridge.drafts)
-        .begin(DeviceId::new(1), id, None, Instant::now())
+        .begin(owner_a(), id, None, Instant::now())
         .expect("the draft is stored under the id the phone holds");
     assert_eq!(ticket.reply_to_id, 105);
 }
@@ -207,7 +214,7 @@ fn a_reused_id_under_a_new_credential_cannot_spend_the_old_draft() {
     bridge.pair(&[(DeviceId::new(1), "cred-b".to_string())]);
     assert_eq!(
         lock(&bridge.drafts)
-            .begin(DeviceId::new(1), ID, None, Instant::now())
+            .begin(owner_a(), ID, None, Instant::now())
             .err(),
         Some("draft_unknown")
     );
@@ -224,7 +231,7 @@ fn a_draft_survives_a_pairing_pass_that_keeps_its_phone() {
 fn a_send_that_unwinds_frees_its_draft_for_a_retry() {
     let bridge = bridge_with_draft();
     assert!(lock(&bridge.drafts)
-        .begin(DeviceId::new(1), ID, None, Instant::now())
+        .begin(owner_a(), ID, None, Instant::now())
         .is_ok());
     let unwound = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let _outcome = SendOutcome {
@@ -236,6 +243,65 @@ fn a_send_that_unwinds_frees_its_draft_for_a_retry() {
     }));
     assert!(unwound.is_err());
     assert!(lock(&bridge.drafts)
-        .begin(DeviceId::new(1), ID, None, Instant::now())
+        .begin(owner_a(), ID, None, Instant::now())
         .is_ok());
+}
+
+/// The send path with its window and its mail replaced by recorders: `mailed`
+/// says whether the mail was reached.
+fn send_with(
+    bridge: &Bridge,
+    device: u32,
+    still_paired: bool,
+    mailed: &Cell<bool>,
+) -> Result<String, String> {
+    bridge.send_draft_via(
+        DeviceId::new(device),
+        ID,
+        None,
+        |_| still_paired,
+        |_| {
+            mailed.set(true);
+            Ok("segreteria@studio.example.it".to_string())
+        },
+    )
+}
+
+#[test]
+fn a_paired_phone_sends_its_draft_once_and_the_draft_is_spent() {
+    let bridge = bridge_with_draft();
+    let mailed = Cell::new(false);
+    assert_eq!(
+        send_with(&bridge, 1, true, &mailed),
+        Ok("segreteria@studio.example.it".to_string())
+    );
+    assert!(mailed.get());
+    assert_eq!(
+        send_with(&bridge, 1, true, &Cell::new(false)),
+        Err("draft_unknown".to_string())
+    );
+}
+
+/// A phone revoked after its draft was taken, before the mail goes: the mail
+/// must not leave.
+#[test]
+fn a_phone_revoked_mid_send_sends_nothing() {
+    let bridge = bridge_with_draft();
+    let mailed = Cell::new(false);
+    assert_eq!(
+        send_with(&bridge, 1, false, &mailed),
+        Err("draft_unknown".to_string())
+    );
+    assert!(!mailed.get(), "the mail was reached after the phone was revoked");
+}
+
+#[test]
+fn a_device_that_is_not_paired_never_reaches_the_mail() {
+    let bridge = bridge_with_draft();
+    let mailed = Cell::new(false);
+    assert_eq!(
+        send_with(&bridge, 9, true, &mailed),
+        Err("draft_unknown".to_string())
+    );
+    assert!(!mailed.get());
 }

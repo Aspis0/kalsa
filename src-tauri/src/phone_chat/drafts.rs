@@ -11,6 +11,10 @@ use kalsa_door::DeviceId;
 /// person starts the reply again.
 const LIFE: Duration = Duration::from_secs(30 * 60);
 
+/// Drafts one phone may hold at once. A phone that runs turns back to back
+/// would otherwise fill the table for the whole half hour.
+const PER_OWNER: usize = 16;
+
 /// The phone that made a draft: its id, and a digest of its credential. Ids are
 /// reused once the top one is forgotten, so the id alone cannot tell the old
 /// phone from the next one paired under it.
@@ -51,6 +55,17 @@ impl Drafts {
         now: Instant,
     ) {
         self.prune(now);
+        let held: Vec<(String, Instant)> = self
+            .entries
+            .iter()
+            .filter(|(_, draft)| draft.owner == owner)
+            .map(|(id, draft)| (id.clone(), draft.created))
+            .collect();
+        if held.len() >= PER_OWNER {
+            if let Some((oldest, _)) = held.iter().min_by_key(|(_, created)| *created) {
+                self.entries.remove(oldest);
+            }
+        }
         let draft = Draft {
             owner,
             reply_to_id,
@@ -62,11 +77,11 @@ impl Drafts {
         self.entries.insert(id, draft);
     }
 
-    /// Starts the send of a draft the device made. The edited body wins only
-    /// when it is not blank; otherwise the stored body goes.
+    /// Starts the send of a draft `owner` made. The edited body wins only when
+    /// it is not blank; otherwise the stored body goes.
     pub(super) fn begin(
         &mut self,
-        device: DeviceId,
+        owner: Owner,
         id: &str,
         edited: Option<String>,
         now: Instant,
@@ -75,7 +90,7 @@ impl Drafts {
         let draft = self
             .entries
             .get_mut(id)
-            .filter(|draft| draft.owner.0 == device)
+            .filter(|draft| draft.owner == owner)
             .ok_or("draft_unknown")?;
         if draft.sending {
             return Err("busy");
@@ -129,24 +144,25 @@ mod tests {
 
     use kalsa_door::DeviceId;
 
-    use super::{Drafts, Owner, LIFE};
+    use super::{Drafts, Owner, LIFE, PER_OWNER};
 
     const ID: &str = "0123456789abcdef0123456789abcdef";
 
-    fn phone(id: u32) -> DeviceId {
-        DeviceId::new(id)
-    }
-
     fn owner(id: u32, digest: u8) -> Owner {
-        (phone(id), [digest; 32])
+        (DeviceId::new(id), [digest; 32])
     }
 
-    /// A draft made by device 1 at `now`, replying to mail 105.
+    /// The phone that made the stored draft, paired under its first credential.
+    fn mine() -> Owner {
+        owner(1, 0xaa)
+    }
+
+    /// A draft made by `mine()` at `now`, replying to mail 105.
     fn stored(now: Instant) -> Drafts {
         let mut drafts = Drafts::default();
         drafts.insert(
             ID.to_string(),
-            owner(1, 0xaa),
+            mine(),
             105,
             "Re: Fattura".to_string(),
             "Va bene, grazie.".to_string(),
@@ -160,10 +176,24 @@ mod tests {
         let now = Instant::now();
         let mut drafts = stored(now);
         assert_eq!(
-            drafts.begin(phone(2), ID, None, now).err(),
+            drafts.begin(owner(2, 0xaa), ID, None, now).err(),
             Some("draft_unknown")
         );
-        assert!(drafts.begin(phone(1), ID, None, now).is_ok());
+        assert!(drafts.begin(mine(), ID, None, now).is_ok());
+    }
+
+    /// The owner check is the full owner, not the id: a reused id under a
+    /// new credential is refused here, with no pairing purge in between.
+    #[test]
+    fn a_draft_whose_credential_digest_differs_is_unknown_without_a_purge() {
+        let now = Instant::now();
+        let mut drafts = stored(now);
+        assert_eq!(
+            drafts.begin(owner(1, 0xbb), ID, None, now).err(),
+            Some("draft_unknown")
+        );
+        assert_eq!(drafts.count(), 1, "the refusal must not be the purge's work");
+        assert!(drafts.begin(mine(), ID, None, now).is_ok());
     }
 
     #[test]
@@ -171,11 +201,11 @@ mod tests {
         let now = Instant::now();
         let mut drafts = stored(now);
         let almost = now + LIFE - Duration::from_secs(1);
-        assert!(drafts.begin(phone(1), ID, None, almost).is_ok());
+        assert!(drafts.begin(mine(), ID, None, almost).is_ok());
         drafts.finish(ID, false, almost);
         let late = now + LIFE;
         assert_eq!(
-            drafts.begin(phone(1), ID, None, late).err(),
+            drafts.begin(mine(), ID, None, late).err(),
             Some("draft_unknown")
         );
     }
@@ -187,7 +217,7 @@ mod tests {
         let late = now + LIFE;
         assert_eq!(
             drafts
-                .begin(phone(1), "ffffffffffffffffffffffffffffffff", None, late)
+                .begin(mine(), "ffffffffffffffffffffffffffffffff", None, late)
                 .err(),
             Some("draft_unknown")
         );
@@ -198,10 +228,10 @@ mod tests {
     fn a_sent_draft_is_spent() {
         let now = Instant::now();
         let mut drafts = stored(now);
-        assert!(drafts.begin(phone(1), ID, None, now).is_ok());
+        assert!(drafts.begin(mine(), ID, None, now).is_ok());
         drafts.finish(ID, true, now);
         assert_eq!(
-            drafts.begin(phone(1), ID, None, now).err(),
+            drafts.begin(mine(), ID, None, now).err(),
             Some("draft_unknown")
         );
     }
@@ -210,17 +240,17 @@ mod tests {
     fn a_second_send_while_the_first_is_in_flight_is_busy() {
         let now = Instant::now();
         let mut drafts = stored(now);
-        assert!(drafts.begin(phone(1), ID, None, now).is_ok());
-        assert_eq!(drafts.begin(phone(1), ID, None, now).err(), Some("busy"));
+        assert!(drafts.begin(mine(), ID, None, now).is_ok());
+        assert_eq!(drafts.begin(mine(), ID, None, now).err(), Some("busy"));
     }
 
     #[test]
     fn a_failed_send_frees_the_draft_for_a_retry() {
         let now = Instant::now();
         let mut drafts = stored(now);
-        assert!(drafts.begin(phone(1), ID, None, now).is_ok());
+        assert!(drafts.begin(mine(), ID, None, now).is_ok());
         drafts.finish(ID, false, now);
-        assert!(drafts.begin(phone(1), ID, None, now).is_ok());
+        assert!(drafts.begin(mine(), ID, None, now).is_ok());
     }
 
     #[test]
@@ -228,16 +258,16 @@ mod tests {
         let now = Instant::now();
         let mut drafts = stored(now);
         let edited = drafts
-            .begin(phone(1), ID, Some("Ci sentiamo.".to_string()), now)
+            .begin(mine(), ID, Some("Ci sentiamo.".to_string()), now)
             .unwrap();
         assert_eq!(edited.body, "Ci sentiamo.");
         drafts.finish(ID, false, now);
         let blank = drafts
-            .begin(phone(1), ID, Some("   ".to_string()), now)
+            .begin(mine(), ID, Some("   ".to_string()), now)
             .unwrap();
         assert_eq!(blank.body, "Va bene, grazie.");
         drafts.finish(ID, false, now);
-        let absent = drafts.begin(phone(1), ID, None, now).unwrap();
+        let absent = drafts.begin(mine(), ID, None, now).unwrap();
         assert_eq!(absent.body, "Va bene, grazie.");
     }
 
@@ -246,7 +276,7 @@ mod tests {
         let now = Instant::now();
         let mut drafts = stored(now);
         let ticket = drafts
-            .begin(phone(1), ID, Some("altro testo".to_string()), now)
+            .begin(mine(), ID, Some("altro testo".to_string()), now)
             .unwrap();
         assert_eq!(ticket.reply_to_id, 105);
         assert_eq!(ticket.subject, "Re: Fattura");
@@ -275,7 +305,7 @@ mod tests {
         drafts.keep_paired(&[owner(2, 0xcc)], now);
         assert_eq!(drafts.count(), 0);
         assert_eq!(
-            drafts.begin(phone(1), ID, None, now).err(),
+            drafts.begin(mine(), ID, None, now).err(),
             Some("draft_unknown")
         );
     }
@@ -289,7 +319,7 @@ mod tests {
         drafts.keep_paired(&[owner(1, 0xbb)], now);
         assert_eq!(drafts.count(), 0);
         assert_eq!(
-            drafts.begin(phone(1), ID, None, now).err(),
+            drafts.begin(mine(), ID, None, now).err(),
             Some("draft_unknown")
         );
     }
@@ -298,7 +328,36 @@ mod tests {
     fn a_draft_of_a_phone_still_paired_under_its_credential_is_kept() {
         let now = Instant::now();
         let mut drafts = stored(now);
-        drafts.keep_paired(&[owner(1, 0xaa)], now);
+        drafts.keep_paired(&[mine()], now);
         assert_eq!(drafts.count(), 1);
+    }
+
+    /// A phone past its cap loses its own oldest draft, and nobody else's.
+    #[test]
+    fn a_phone_holds_at_most_its_cap_and_loses_its_oldest_draft() {
+        let now = Instant::now();
+        let mut drafts = Drafts::default();
+        let other = owner(2, 0xcc);
+        drafts.insert(
+            "other".to_string(),
+            other,
+            7,
+            String::new(),
+            String::new(),
+            now,
+        );
+        let id = |index: usize| format!("{index:032x}");
+        for index in 0..=PER_OWNER {
+            let made = now + Duration::from_millis(index as u64 + 1);
+            drafts.insert(id(index), mine(), 105, String::new(), String::new(), made);
+        }
+        assert_eq!(drafts.count(), PER_OWNER + 1, "the other phone's draft stays");
+        assert_eq!(
+            drafts.begin(mine(), &id(0), None, now).err(),
+            Some("draft_unknown"),
+            "the oldest of the phone's drafts is the one dropped"
+        );
+        assert!(drafts.begin(mine(), &id(PER_OWNER), None, now).is_ok());
+        assert!(drafts.begin(other, "other", None, now).is_ok());
     }
 }

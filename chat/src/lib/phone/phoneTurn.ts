@@ -19,8 +19,8 @@ import { phoneWire } from "./phoneWire";
 
 const FACTS_TIMEOUT_MS = 8000;
 
-/** A phone turn carries no pinned documents, so no call is ever held for the
-    owner. If one were asked for anyway, the answer is no and no desktop dialog opens. */
+/** A phone turn pins no documents, and the web gate asks only when documents are
+    pinned: `confirm` is never called, so web tools run whenever the web switch is on. */
 const PHONE_GATE: WebGate = { documents: () => [], confirm: async () => false };
 
 /** The desktop's tool list without `create_miniapp`: the phone cannot draw a

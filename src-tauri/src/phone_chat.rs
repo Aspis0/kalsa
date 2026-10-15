@@ -20,7 +20,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::mail::commands::send_confirmed;
 use crate::mail::state::MailState;
-use drafts::{Drafts, Owner};
+use drafts::{Drafts, Owner, Ticket};
 
 const REQUEST_EVENT: &str = "phone-chat-request";
 const STOP_EVENT: &str = "phone-chat-stop";
@@ -169,6 +169,13 @@ impl Bridge {
         }
     }
 
+    fn paired_owner(&self, device: DeviceId) -> Option<Owner> {
+        lock(&self.paired)
+            .iter()
+            .copied()
+            .find(|(paired, _)| *paired == device)
+    }
+
     fn send_draft(
         &self,
         device: DeviceId,
@@ -176,32 +183,54 @@ impl Bridge {
         edited: Option<String>,
     ) -> Result<String, String> {
         let app = self.app.get().ok_or("mail.failed")?;
+        let state = app.state::<MailState>();
+        self.send_draft_via(
+            device,
+            draft_id,
+            edited,
+            |owner| self.paired_owner(device) == Some(owner),
+            |ticket| {
+                let sent = tauri::async_runtime::block_on(send_confirmed(
+                    app,
+                    &state,
+                    ticket.reply_to_id,
+                    ticket.subject,
+                    ticket.body,
+                ));
+                sent.map_err(|error| {
+                    log::warn!("a phone's mail send was refused: {}", error.code());
+                    error.code().to_string()
+                })
+            },
+        )
+    }
+
+    /// The send with its pairing check and its mail supplied. The caller's owner
+    /// comes from the paired set and the draft must be that owner's; the caller
+    /// is checked again once the draft is taken, just before the mail goes.
+    fn send_draft_via(
+        &self,
+        device: DeviceId,
+        draft_id: &str,
+        edited: Option<String>,
+        still_paired: impl FnOnce(Owner) -> bool,
+        mail: impl FnOnce(Ticket) -> Result<String, String>,
+    ) -> Result<String, String> {
+        let owner = self.paired_owner(device).ok_or("draft_unknown")?;
         let ticket = lock(&self.drafts)
-            .begin(device, draft_id, edited, Instant::now())
+            .begin(owner, draft_id, edited, Instant::now())
             .map_err(str::to_string)?;
         let mut outcome = SendOutcome {
             drafts: &self.drafts,
             draft_id,
             sent: false,
         };
-        let state = app.state::<MailState>();
-        let sent = tauri::async_runtime::block_on(send_confirmed(
-            app,
-            &state,
-            ticket.reply_to_id,
-            ticket.subject,
-            ticket.body,
-        ));
-        match sent {
-            Ok(sent_to) => {
-                outcome.sent = true;
-                Ok(sent_to)
-            }
-            Err(error) => {
-                log::warn!("a phone's mail send was refused: {}", error.code());
-                Err(error.code().to_string())
-            }
+        if !still_paired(owner) {
+            return Err("draft_unknown".to_string());
         }
+        let sent = mail(ticket)?;
+        outcome.sent = true;
+        Ok(sent)
     }
 }
 
@@ -222,10 +251,7 @@ impl Drop for SendOutcome<'_> {
 impl PhoneChat for Bridge {
     fn open(&self, device: DeviceId, kind: &'static str, body: Value) -> Option<Opened> {
         let app = self.app.get()?;
-        let owner = lock(&self.paired)
-            .iter()
-            .copied()
-            .find(|(paired, _)| *paired == device)?;
+        let owner = self.paired_owner(device)?;
         let request = random_hex()?;
         let reply_for = body
             .get("reply_for")
