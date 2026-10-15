@@ -198,6 +198,22 @@ One weight copy read by NPU, GPU and CPU; the governor hops decode between legs.
   backend). Live hazard to respect: a non-native TILE32 weight is refused outright with
   `split_failed` (`ggml/src/ggml-backend.cpp:1554-1562`). Plan, with the four suspects for the
   regression and the no-coder-before-step-1/2 rule: `scratchpad/agents/PLAN-NPU-LANE-2026-10-15.md`.
+- **ROOT CAUSE FOUND, and it is one line (2026-10-15, supersedes the "regression" framing above).**
+  Not a code regression: at engine init today the harness read back
+  `"gpu_fit":"Fit","npu_fit":"Fit","npu_device":"HTP0","available_mib":5555.19` in
+  `xiaomi-stage0-obs-aa789620/raw/harness.log:63-64`; later the same build saw
+  `available_mib 3004.93` -> `gpu_fit=NoFit`. **Available memory fell ~2550 MiB with no code change.**
+  The defect is that **`LlamaService.ts:2564` drops the WHOLE governor when `gpu_fit === "NoFit"`** -
+  `npu_fit` appears nowhere in that condition (verified by grep over the block). With
+  `governorLoad = null`, `n_gpu_layers` falls to 0 on Android's cpu-only backend (`:2717-2718`) and
+  prefill takes 109.4 s. **A GPU memory shortfall killed a NPU lane that needs no GPU memory at all**,
+  even though that lane prefills 4.7x faster than the GPU here and ran 14 in-app turns on 11/10
+  without a crash. The design already says "step down to the lane"
+  (`governorInputs.ts:366-369`); the app gate contradicts it. Fix shape: when `gpu_fit` is NoFit but
+  `npu_fit` is Fit and the lane gates hold, load the governor lane-only. Guarded by the lane's own
+  fit - **not** by loosening the GPU gate, which stays as the OOM protection. The app repo is the
+  brain session's, so the fix needs their coordination. Corrected plan:
+  `scratchpad/agents/PLAN-NPU-LANE-2026-10-15.md` (section 1 records the voided hypothesis list).
 
 ### Engine and upstream
 
