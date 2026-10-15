@@ -359,8 +359,8 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
   `kalsa-wt-s0b` (Xiaomi 39.0 / 42.6 C skin -> 0.083 / 0.203, S23 unchanged), writer claude-haiku-5-5,
   hostile audit codex/gpt-6-luna round 1 DO-NOT-SHIP on a test-gap (rounding direction unpinned), fixed and
   amended, round 2 SHIP; coordinator re-ran jest (EXIT=0), tsc (EXIT=0), provenance 1205 files (EXIT=0) and
-  both rounding mutations by hand (`ceil` -> EXIT=1, restored -> EXIT=0). NOT PUSHED: the owner's OK is
-  required. Still owed: the >= 20 completions of DESIGN 3.3 (the dev build stays installed on the Xiaomi, so
+  both rounding mutations by hand (`ceil` -> EXIT=1, restored -> EXIT=0). **PUSHED 2026-10-15 on the owner's OK:
+app main `54c36105` (fast-forward over `357e36d2`, 3 files, rev-list 0/0).** Still owed: the >= 20 completions of DESIGN 3.3 (the dev build stays installed on the Xiaomi, so
   the batch can be collected from normal use), then Stage 2.
 - DECIDED 2026-10-11 (owner: "non viene supportato dall'app finché non scriviamo il kernel per mali GPU"):
   the Jelly Star (Helio G99, Mali-G57) is NOT supported by the app until a Mali GPU kernel exists; LFM on
