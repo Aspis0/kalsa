@@ -610,6 +610,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     thinkingStatus: "Sto pensando",
     writingStatus: "Sto scrivendo",
     coolingStatus: "In raffreddamento",
+    lowFreeMemoryStatus: "Poca memoria libera: la risposta sarà lenta.",
     reasoningLabel: "Ragionamento",
     interrupted: "Generazione interrotta.",
     truncated: "Risposta fermata al limite di token.",

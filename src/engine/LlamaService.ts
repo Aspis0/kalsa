@@ -75,6 +75,7 @@ import {
   readBenchNpuLane,
   readGovernorThermo,
 } from "./governorInputs";
+import { gpuRefusedForMemory } from "./governorGpuRefusal";
 import {
   startGovernorBatteryTrace,
   stopGovernorBatteryTrace,
@@ -2140,6 +2141,16 @@ export function getEngineLostModelId(): string | null {
   return engineLostRecoveryState.armed
     ? engineLostRecoveryState.lostModelId
     : null;
+}
+
+/** True while the loaded model runs without the GPU because the governor could
+ *  not fit it in memory. Cleared with the rest of the load latch on dispose. */
+export function isGpuRefusedForMemory(): boolean {
+  return gpuRefusedForMemory({
+    platformOs: Platform.OS,
+    fit: activeGovernorFit,
+    attempted: activeGovernorAttempted,
+  });
 }
 
 export function getLastKnownEngineRssBytes(): number | null {

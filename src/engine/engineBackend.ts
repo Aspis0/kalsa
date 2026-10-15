@@ -18,6 +18,7 @@ import {
   invalidateConversationSessions as localInvalidateConversationSessions,
   invalidateEngineSession as localInvalidateEngineSession,
   isEngineLostRecovery as localIsEngineLostRecovery,
+  isGpuRefusedForMemory as localIsGpuRefusedForMemory,
   isEngineReady as localIsEngineReady,
   markKvNonReproducible as localMarkKvNonReproducible,
   nativeEngineWorkInFlight as localNativeWorkInFlight,
@@ -129,6 +130,10 @@ export function isEngineLostRecovery(modelId?: string): boolean {
 
 export function getEngineLostModelId(): string | null {
   return isRemoteEngineBackend() ? null : localGetEngineLostModelId();
+}
+
+export function isGpuRefusedForMemory(): boolean {
+  return isRemoteEngineBackend() ? false : localIsGpuRefusedForMemory();
 }
 
 export function markKvNonReproducible(

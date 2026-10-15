@@ -12,6 +12,7 @@ import {
   type ComposerState,
 } from "../ui/shell/composerState";
 import type { TranscriptMessage } from "../ui/shell/transcriptTypes";
+import type { TranslationKey } from "../i18n";
 import type { ModelPipelineState } from "./hostPipelineState";
 import { hostComposerPhase } from "./composerPhase";
 import { toTranscriptMessages } from "./messageMapper";
@@ -58,6 +59,24 @@ export interface ComposerView {
   /** The welcome gate: the host shows the first-open block only once the
    *  history load has settled. */
   historyLoaded: boolean;
+}
+
+/**
+ * The one line under the field. The wait for the first token is where a load
+ * without the GPU spends its seconds, so the line that says why stands in for
+ * that one — and says it at idle too, where nothing else speaks. The other
+ * holds name something the person must act on (a model to reload, a PDF still
+ * being read) and keep their own words.
+ *
+ * This is only which sentence is drawn: the hold the phase decides still gates
+ * `canSend`, so a send that waits for the first token is still refused.
+ */
+export function composerStatusKey(
+  hold: TranslationKey | null,
+  gpuRefusedForMemory: boolean,
+): TranslationKey | null {
+  const waiting = hold === null || hold === "shell.held.prefill";
+  return waiting && gpuRefusedForMemory ? "chat.lowFreeMemoryStatus" : hold;
 }
 
 export function composerView(input: ComposerViewInput): ComposerView {

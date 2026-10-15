@@ -32,7 +32,7 @@ import { Transcript } from "../ui/shell/Transcript";
 import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
 import type { TranscriptMiniapp } from "../ui/shell/transcriptTypes";
 import type { ComposerArms } from "./composerArms";
-import type { ComposerView } from "./composerView";
+import { composerStatusKey, type ComposerView } from "./composerView";
 import { type AttachAction } from "./HostAttachSheet";
 import { HostChatSurfaceOverlays } from "./HostChatSurfaceOverlays";
 import { LongChatNudgeRow } from "./LongChatNudgeRow";
@@ -40,7 +40,7 @@ import type { useMessageActions } from "./messageActions";
 import type { SendHost } from "./sendHost";
 import type { AttachmentsHost } from "./useAttachments";
 import { useHostEngine } from "./useHostEngine";
-import { getRemoteVision, refreshRemoteVision } from "../engine/engineBackend";
+import { getRemoteVision, isGpuRefusedForMemory, refreshRemoteVision } from "../engine/engineBackend";
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 import { useModelBar } from "./useModelBar";
@@ -238,7 +238,7 @@ export function HostChatSurface({
   // conversation, the welcome block rides INSIDE the transcript's own
   // scrolling content (D1 row 12).
   const empty = welcomeVisible(view.historyLoaded, view.transcript.length) ? <WelcomeBlock mode={mode} /> : undefined;
-
+  const statusKey = composerStatusKey(view.composer.hold, isGpuRefusedForMemory());
   return (
     <>
     <Shell
@@ -251,7 +251,7 @@ export function HostChatSurface({
       draft={draft}
       onDraftChange={bumpDraftOnType}
       editable={view.composer.field.editable}
-      holdReason={view.composer.hold === null ? null : t(view.composer.hold)}
+      holdReason={statusKey === null ? null : t(statusKey)}
       face={view.composer.face}
       faceLabel={t(view.composer.faceLabel)}
       faceEnabled={view.composer.faceEnabled}

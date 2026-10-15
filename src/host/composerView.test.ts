@@ -5,7 +5,7 @@
  * fails to hold the composer.
  */
 import type { ModelPipelineState } from "./hostPipelineState";
-import { composerView, type ComposerViewInput } from "./composerView";
+import { composerStatusKey, composerView, type ComposerViewInput } from "./composerView";
 import type { LocalAttachment, Message } from "./hostMessage";
 
 const fisica: LocalAttachment = {
@@ -171,5 +171,45 @@ describe("the chips are `composerState`'s shape, one per row (§2.7)", () => {
       composerView(input({ messages: [sent], remoteActive: true, remoteVision: false })).transcript[0]
         .images,
     ).toBeUndefined();
+  });
+});
+
+describe("the low-memory line, which belongs to the load", () => {
+  it("stands in for the wait for the first token, and speaks at idle", () => {
+    // The 109 seconds happen here: a load on the CPU waits for its first
+    // token, and that is exactly where the person needs to be told why.
+    expect(composerStatusKey("shell.held.prefill", true)).toBe("chat.lowFreeMemoryStatus");
+    expect(composerStatusKey(null, true)).toBe("chat.lowFreeMemoryStatus");
+    // Nothing to say when the load took the GPU, or when it never refused one.
+    expect(composerStatusKey("shell.held.prefill", false)).toBe("shell.held.prefill");
+    expect(composerStatusKey(null, false)).toBeNull();
+  });
+
+  it("never takes a hold that names something to act on", () => {
+    for (const hold of [
+      "shell.held.loading",
+      "shell.held.unloaded",
+      "shell.held.converting",
+      "shell.held.tooHot",
+      "shell.held.unknown",
+      "shell.held.thinking",
+    ] as const) {
+      expect(composerStatusKey(hold, true)).toBe(hold);
+    }
+  });
+
+  it("changes only the sentence, never the send", () => {
+    // The phase still holds `prefill`, so the send is still refused: the line
+    // says why the wait is long, it does not un-wait it.
+    const view = composerView(input({ draft: "ciao", sending: true }));
+    expect(view.composer.hold).toBe("shell.held.prefill");
+    expect(view.composer.canSend).toBe(false);
+    expect(view.sendEnabled).toBe(false);
+    expect(composerStatusKey(view.composer.hold, true)).toBe("chat.lowFreeMemoryStatus");
+    // At idle the line costs the send nothing: it is not a hold.
+    const idle = composerView(input({ draft: "ciao" }));
+    expect(idle.composer.canSend).toBe(true);
+    expect(idle.sendEnabled).toBe(true);
+    expect(composerStatusKey(idle.composer.hold, true)).toBe("chat.lowFreeMemoryStatus");
   });
 });

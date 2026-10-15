@@ -614,6 +614,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     thinkingStatus: "Thinking",
     writingStatus: "Writing",
     coolingStatus: "Cooling down",
+    lowFreeMemoryStatus: "Low on free memory: replies will be slow.",
     reasoningLabel: "Reasoning",
     interrupted: "Generation was interrupted.",
     truncated: "Reply stopped at the token limit.",
