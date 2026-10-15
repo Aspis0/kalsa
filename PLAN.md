@@ -345,6 +345,23 @@ tags, `--clobber`, `workflow_dispatch` dash trap, Actions quota) are in
   breaker latch 6 h, blind cap 2048 tokens, lookahead 10 s - all re-checked against Stage 0 data before Stage 2;
   the blind cap must count across the tool rounds of one turn, not reset per completion (AUDIT-3). Open owner
   question: repeat cell 75 (3 runs per leg) before Stage 3.
+  Status 2026-10-15 (coordinator session, `xiaomi-stage0-obs-aa789620`): **the Xiaomi Stage 0 arm ran on the
+  owner's phone (6 turns, 8 rows, `aa789620`) and OPEN 1 is CLOSED - the Xiaomi's passive trips are finite for
+  all three legs, cpu 60-115 C, npu 100 C, gpu 95 C, so the GPU block ceiling is 90 C and the zone guard will
+  not bind on the blind path. OPEN 4 is CLOSED negatively: the battery sysfs is not readable by the app on the
+  Xiaomi either (`bsys:[0,null,0,null]` on every row), so the app push stays the battery source and DESIGN 5.1's
+  native 5 s refresh branch is dead.** The app-sample freshness gate of DESIGN 5.1 is also settled by
+  measurement: the app sample age reaches 503 s inside one paced completion on the Xiaomi (350 s on the S23),
+  so a 120 s wall-clock gate false-disarms the pass; the rule becomes ownership-first with a 1200 s backstop
+  (`learning-governor/DESIGN-ADDENDUM-2026-10-15.md`, Items B and C). Criteria 1, 2, 4, 5, 6 PASS; criterion 3
+  not testable (the phone paced from the first completion) and criterion 8 not observable (no native line
+  reaches logcat, pre-existing). Stage 0b is WRITTEN and audit-clear: app `54c36105` in worktree
+  `kalsa-wt-s0b` (Xiaomi 39.0 / 42.6 C skin -> 0.083 / 0.203, S23 unchanged), writer claude-haiku-5-5,
+  hostile audit codex/gpt-6-luna round 1 DO-NOT-SHIP on a test-gap (rounding direction unpinned), fixed and
+  amended, round 2 SHIP; coordinator re-ran jest (EXIT=0), tsc (EXIT=0), provenance 1205 files (EXIT=0) and
+  both rounding mutations by hand (`ceil` -> EXIT=1, restored -> EXIT=0). NOT PUSHED: the owner's OK is
+  required. Still owed: the >= 20 completions of DESIGN 3.3 (the dev build stays installed on the Xiaomi, so
+  the batch can be collected from normal use), then Stage 2.
 - DECIDED 2026-10-11 (owner: "non viene supportato dall'app finché non scriviamo il kernel per mali GPU"):
   the Jelly Star (Helio G99, Mali-G57) is NOT supported by the app until a Mali GPU kernel exists; LFM on
   its CPU is thermally non-viable (`analysis/CISWIRE-CHAR3GRAM-KV-AND-THERMAL-2026-09-19.md`). M1 is

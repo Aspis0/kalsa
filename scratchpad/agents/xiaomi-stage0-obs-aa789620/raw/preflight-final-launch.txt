@@ -1,0 +1,12 @@
+# Surviving preflight lines from the FINAL (successful) launch only.
+# run-arm.sh truncates harness.log at every launch, so the two refusal lines
+# quoted in ../REPORT.md (script not found; device identity mismatch) came from the
+# console of those earlier launches and are NOT archived on disk - they are
+# transcript quotes, not artefacts. The three refused launches left no device state
+# (they died at preflight, before any app launch).
+#
+T20C config flags compaction=anchored memory=0 toolhelp=0
+T20C thermal pause battery > 43 C
+[ci] JavaScript provenance gate passed; evidence=/Users/marco/Projects/kalsa-wt-severe/results/s0-xiaomi-aa789620/.metro-preflight.noeqcP
+[ci] battery preflight floor=enforced level=78 temp=31.2C charging=false
+[ci] screen: timeout pinned to 2147483647 (saved: 86400000), keyguard dismissed — no restore at exit
