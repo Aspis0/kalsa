@@ -16,6 +16,7 @@ import type { ConversationStore } from "../lib/store";
 import { uid } from "../lib/store";
 import { buildPinnedContext, CONTEXT_RESERVE_TOKENS, wireSize } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
+import { wireTurns } from "../lib/wireTurns";
 import { getImage } from "../lib/imageStore";
 import { blobToDataUrl } from "../lib/images";
 import { selectWireImages, wireBodyBytes, WIRE_BODY_BUDGET } from "../lib/wireBudget";
@@ -178,9 +179,7 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
       // is the whole history.
       const at = conv.messages.findIndex((m) => m.id === assistantId);
       const before = at === -1 ? conv.messages : conv.messages.slice(0, at);
-      const turns = before
-        .filter((m) => !(m.role === "assistant" && m.content === ""))
-        .filter((m) => m.content.length > 0 || m.role === "user");
+      const turns = wireTurns(before);
       // The mail this turn was opened for, if it was: a reply written for
       // another one is refused however the model names it.
       const openedFor = [...before].reverse().find((m) => m.role === "user")?.mailId;

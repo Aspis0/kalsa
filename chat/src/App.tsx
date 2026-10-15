@@ -31,6 +31,7 @@ import { WebGateDialog } from "./components/WebGateDialog";
 import { RecoveredNotice } from "./components/RecoveredNotice";
 import { useEngineRecovery } from "./surfaces/useEngineRecovery";
 import { useUpdates } from "./lib/useUpdates";
+import { startPhoneChatRunner } from "./lib/phone/phoneRunner";
 import { UpdateNotice } from "./components/UpdateNotice";
 import { Icon } from "./components/Icon";
 import "./components/NoticeBanner.css";
@@ -60,6 +61,9 @@ export function App() {
   const [settings, setSettings] = useState<ChatSettings>(() => loadSettings());
   const chat = useChat({ openSurface, announce: setLiveMessage, setSlotNotice, settings });
   const updates = useUpdates(chat.streamingAny);
+
+  // A paired phone's turn runs in this window whichever page is shown.
+  useEffect(() => startPhoneChatRunner(), []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

@@ -1,0 +1,99 @@
+// The phone chat's mail read and its runner, driven through the real modules:
+// a read's answer, the request and stop listeners, and their removal.
+// The turn and the wire are in phone-chat-turn.mjs.
+//
+// Run: node scripts/phone-chat-runner.mjs   (from chat/)
+
+import {
+  USER,
+  bridge,
+  check,
+  emit,
+  equal,
+  phoneEvents,
+  recorder,
+  summary,
+  tick,
+  withPhone,
+} from "./lib/phone-harness.mjs";
+
+const RECORD = {
+  id: "105",
+  from: { name: "Ann", address: "ann@example.com" },
+  subject: "Hi",
+  date: null,
+  snippet: "",
+  thread_ids: [],
+  attachments: [],
+  labels: { label: "normal", reasons: [] },
+};
+
+async function reads(app) {
+  console.log("\n# the mail read");
+  equal("a read parses", app.readPhoneRequest({ request: "r3", kind: "read", read: { id: "105" } }), {
+    request: "r3",
+    body: { kind: "read", id: "105" },
+  });
+  check("a read id that is not digits is answered, not parsed", app.readPhoneRequest({ request: "r4", kind: "read", read: { id: "1x" } }).body === null);
+  {
+    bridge.answer = async (command) => (command === "brain_mail_read" ? { for_model: [], for_ui: RECORD, is_error: false } : undefined);
+    const { log, sink } = recorder(app);
+    await app.runPhoneRead("105", sink);
+    equal("a read sends the record as the Mail tab has it, then done", log, [
+      [
+        "read",
+        {
+          record: { id: "105", from: { name: "Ann", address: "ann@example.com" }, subject: "Hi", date: null, snippet: "", threadIds: [], attachments: [], labels: { label: "normal", reasons: [] } },
+          body: "",
+        },
+      ],
+      ["done", {}],
+    ]);
+  }
+  {
+    bridge.answer = async () => {
+      throw { code: "mail.keychain" };
+    };
+    const { log, sink } = recorder(app);
+    await app.runPhoneRead("105", sink);
+    equal("a failed read is its own code, once", log, [["error", { code: "mail.keychain" }]]);
+  }
+}
+
+async function runner(app) {
+  console.log("\n# the runner");
+  bridge.calls.length = 0;
+  bridge.answer = async () => undefined;
+  const stop = app.startPhoneChatRunner();
+  check("both listeners are registered", bridge.handlers.has("phone-chat-request") && bridge.handlers.has("phone-chat-stop"));
+  emit("phone-chat-request", { request: "e1", kind: "turn", turn: { messages: [] } });
+  equal("a request with a bad body is answered bad_request, not accepted", phoneEvents(), [["error", { code: "bad_request" }]]);
+  bridge.calls.length = 0;
+  emit("phone-chat-request", { request: "e2", kind: "turn", turn: { messages: [USER("ciao")] } });
+  await tick();
+  equal("a turn is accepted, then fails at once with no door", phoneEvents(), [
+    ["accepted", {}],
+    ["error", { code: "engine" }],
+  ]);
+  bridge.calls.length = 0;
+  emit("phone-chat-stop", { request: "nobody" });
+  emit("phone-chat-request", { kind: "turn" });
+  check("a stop for an unknown request and a request with no id do nothing", bridge.calls.length === 0);
+  bridge.answer = async () => {
+    throw { code: "mail.keychain" };
+  };
+  emit("phone-chat-request", { request: "e3", kind: "read", read: { id: "105" } });
+  await tick();
+  equal("a read is accepted, then answered with its code", phoneEvents().slice(-2), [
+    ["accepted", {}],
+    ["error", { code: "mail.keychain" }],
+  ]);
+  await stop();
+  check("stopping removes both listeners", bridge.unlistened === 2 && bridge.handlers.size === 0, `unlistened=${bridge.unlistened}`);
+}
+
+await withPhone(async (app) => {
+  await reads(app);
+  await runner(app);
+});
+summary();

@@ -395,7 +395,9 @@ export function getBrainRead(): BrainRead {
   return readSnapshot;
 }
 
-function getBrainServer(): BrainServer | null {
+// Read outside React too (the phone runner): the snapshot is current while the
+// App's own hook keeps the poll subscribed.
+export function getBrainServer(): BrainServer | null {
   return serverSnapshot;
 }
 
