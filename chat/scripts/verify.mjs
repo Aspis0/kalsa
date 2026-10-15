@@ -6073,6 +6073,53 @@ const tests = {
     }
   },
 
+  // Modifica: the draft's words go into the composer, where they can be
+  // rewritten. A mail id is not a sentence, and the words the person typed in
+  // the card are the ones that go there — not the ones the sidecar first wrote.
+  async maildraftedit() {
+    const mock = draftEndpoint("810", "Ciao Persona 0,\n\nlunedì alle 11 va bene.\n\nA presto");
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, fixtureOf(MAIL_REVEAL_BOX));
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Scrivi una risposta alla prima mail");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-draft", { timeout: 30000 });
+
+      const written = "Ciao Persona 0,\n\nlunedì alle 11 va bene.\n\nA presto";
+      const shown = await page.locator(".mail-draft-body").inputValue();
+      check("draft: the card holds the words the reply was written with", shown === written, JSON.stringify(shown));
+      const rewritten = "Ciao Persona 0,\n\nmartedì alle 9 va meglio.\n\nA presto";
+      await page.locator(".mail-draft-body").fill(rewritten);
+      await page.waitForTimeout(300);
+
+      await page.getByRole("button", { name: /Modifica|Edit/ }).first().click();
+      await page.waitForTimeout(400);
+
+      const composed = await box.inputValue();
+      check("draft: Modifica put the person's words in the composer", composed === rewritten, JSON.stringify(composed));
+      check("draft: and not the mail id", !/^\d+$/.test(composed.trim()), JSON.stringify(composed));
+      check("draft: nor the words it was written with", composed !== written, JSON.stringify(composed));
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
   // One read, one chat. A slow read begun in one chat must not land in the
   // pane of another: the pane is empty in the chat the person switched to.
   async mailscope() {
@@ -6342,16 +6389,80 @@ const MAIL_NEWSLETTERS_ONLY = Array.from({ length: 3 }, (_, at) => ({
   labels: { label: "bulk", reasons: ["bulk_header"] },
 }));
 
+/** Answers a mail turn with the rounds it is given, one per model call. */
+function serveRounds(rounds) {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, authorization",
+  };
+  let round = 0;
+  return createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      if (req.method === "OPTIONS") return void res.writeHead(204, cors).end();
+      if (req.url?.includes("/kalsa/chat/")) return void res.writeHead(204, cors).end();
+      if (!req.url?.includes("/chat/completions")) return void res.writeHead(404, cors).end();
+      try {
+        if (!JSON.parse(body).messages.some((m) => m.role === "tool")) round = 0;
+      } catch {
+        round = 0;
+      }
+      res.writeHead(200, { "content-type": "text/event-stream", ...cors });
+      for (const line of rounds[Math.min(round, rounds.length - 1)]) res.write(`${line}data: [DONE]\n\n`);
+      res.end();
+      round += 1;
+    });
+  });
+}
+
+/** The turn that writes a reply, the way a model does after reading the mail:
+    the list, then `mail_draft`. Nothing is sent. */
+function draftEndpoint(replyTo, body) {
+  const rounds = [
+    mailRound({ id: "c1", name: "mail_list", args: { days: 1 } }),
+    mailRound({ id: "c2", name: "mail_draft", args: { reply_to_id: replyTo, body } }),
+    mailRound({ content: "Ecco la bozza: non è stata inviata." }),
+  ];
+  return serveRounds(rounds);
+}
+
+/** One model turn as this file writes it: a chunk of assistant output. */
+function mailRound({ id, name, args, content }) {
+  const delta = name === undefined ? { content } : { role: "assistant", tool_calls: [{ index: 0, id, type: "function", function: { name, arguments: JSON.stringify(args) } }] };
+  const chunk = `data: ${JSON.stringify({
+    id: "chatcmpl-list",
+    object: "chat.completion.chunk",
+    created: 1,
+    model: "Alibaba Qwen 3.6",
+    choices: [{ index: 0, delta, finish_reason: content === undefined ? "tool_calls" : "stop" }],
+  })}\n\n`;
+  return [chunk];
+}
+
 function fixtureOf(box) {
   const reads = {};
+  const drafts = {};
   for (const mail of box) {
     reads[mail.id] = {
       for_model: MAIL_FENCE([["from", `${mail.from.name} <${mail.from.address}>`], ["subject", mail.subject], ["body", mail.body]]),
       for_ui: { ...MAIL_LIST_ITEM(mail), thread_ids: [`<${mail.id}@mailbox.example.it>`], attachments: [] },
       is_error: false,
     };
+    // The sidecar writes the reply itself; words the model sent with the call
+    // take its place, exactly as a real draft does.
+    drafts[mail.id] = {
+      for_model: MAIL_FENCE([["to", mail.from.address], ["subject", `Re: ${mail.subject}`], ["body", `Ciao,\n\nrispondo a ${mail.subject}.\n\nA presto`]]),
+      for_ui: { kind: "draft", to: mail.from.address, toName: mail.from.name, subject: `Re: ${mail.subject}`, body: `Ciao,\n\nrispondo a ${mail.subject}.\n\nA presto`, reply_to_id: mail.id },
+      is_error: false,
+    };
   }
-  return { list: { for_model: MAIL_FENCE([["folder", "INBOX"]]), for_ui: { folder: "INBOX", count: box.length, items: box.map(MAIL_LIST_ITEM) }, is_error: false }, reads };
+  return {
+    list: { for_model: MAIL_FENCE([["folder", "INBOX"]]), for_ui: { folder: "INBOX", count: box.length, items: box.map(MAIL_LIST_ITEM) }, is_error: false },
+    reads,
+    drafts,
+  };
 }
 
 /** The subjects drawn on screen, once per card. Two cards with the same subject
@@ -6424,30 +6535,7 @@ function listEndpoint(...shows) {
     ]),
     [piece({ role: "assistant", content: "Ecco la posta di oggi." }, "stop")],
   ];
-  const cors = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, authorization",
-  };
-  let round = 0;
-  return createServer((req, res) => {
-    let body = "";
-    req.on("data", (chunk) => (body += chunk));
-    req.on("end", () => {
-      if (req.method === "OPTIONS") return void res.writeHead(204, cors).end();
-      if (req.url?.includes("/kalsa/chat/")) return void res.writeHead(204, cors).end();
-      if (!req.url?.includes("/chat/completions")) return void res.writeHead(404, cors).end();
-      try {
-        if (!JSON.parse(body).messages.some((m) => m.role === "tool")) round = 0;
-      } catch {
-        round = 0;
-      }
-      res.writeHead(200, { "content-type": "text/event-stream", ...cors });
-      for (const line of rounds[Math.min(round, rounds.length - 1)]) res.write(`${line}data: [DONE]\n\n`);
-      res.end();
-      round += 1;
-    });
-  });
+  return serveRounds(rounds);
 }
 
 /** The mailbox as plain data the page can index, because a node closure
@@ -6482,6 +6570,11 @@ async function stubMailDoor(page) {
         invoke: async (command, args) => {
           if (command === "brain_mail_list") return mail.list;
           if (command === "brain_mail_read") return mail.reads[String(inner(args).id)] ?? failed;
+          if (command === "brain_mail_draft") {
+            const named = mail.drafts[String(inner(args).reply_to_id)];
+            if (named === undefined) return failed;
+            return { ...named, for_ui: { ...named.for_ui, body: String(inner(args).body ?? named.for_ui.body) } };
+          }
           if (command === "brain_mail_account_test") return ["Fattura n. 104"];
           return previous.core.invoke(command, args);
         },

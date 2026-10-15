@@ -38,8 +38,9 @@ export function MailCardsView({ mail, more, onReveal, selected, onOpen, onDraft,
   /** The replies in hand, under the mail each one answers. */
   drafts: Drafts;
   onSave: (replyToId: string, record: DraftRecord) => void;
-  /** Modifica: the draft's words in the composer, where they can be rewritten. */
-  onCompose: (replyToId: string, body: string) => void;
+  /** Modifica: the draft's words in the composer, where they can be rewritten.
+    One meaning and one argument — the same words the panel's box would send. */
+  onCompose: (body: string) => void;
 }) {
   if (mail.kind === "draft") {
     return (
@@ -153,7 +154,7 @@ function MailDraftCard({ draft, drafts, sent, onSave, onSend, onCompose }: {
   sent: SentTo;
   onSave: (replyToId: string, record: DraftRecord) => void;
   onSend: (send: PendingSend) => void;
-  onCompose: (replyToId: string, body: string) => void;
+  onCompose: (body: string) => void;
 }) {
   const { table } = useLanguage();
   const t = table.mail;
@@ -199,7 +200,7 @@ function MailDraftCard({ draft, drafts, sent, onSave, onSend, onCompose }: {
             () => setCopied(false),
           );
         }}
-        onEdit={() => onCompose(draft.replyToId, body)}
+        onEdit={() => onCompose(body)}
         copied={copied}
       />
     </article>

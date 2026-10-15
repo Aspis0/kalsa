@@ -56,7 +56,7 @@ interface ThreadProps {
   mailSent: SentTo;
   mailDrafts: Drafts;
   onSaveMail: (replyToId: string, record: DraftRecord) => void;
-  onComposeMail: (replyToId: string, body: string) => void;
+  onComposeMail: (body: string) => void;
   /** A failed mail call offers the account page, where its own fix lives. */
   onOpenMailSettings: () => void;
 }
@@ -196,7 +196,7 @@ function AssistantRow({
   mailSent: SentTo;
   mailDrafts: Drafts;
   onSaveMail: (replyToId: string, record: DraftRecord) => void;
-  onComposeMail: (replyToId: string, body: string) => void;
+  onComposeMail: (body: string) => void;
   onOpenMailSettings: () => void;
 }) {
   const { table, tag } = useLanguage();

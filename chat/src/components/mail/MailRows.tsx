@@ -44,7 +44,7 @@ export function MailRows({
   sent: SentTo;
   drafts: Drafts;
   onSave: (replyToId: string, record: DraftRecord) => void;
-  onComposeMail: (replyToId: string, body: string) => void;
+  onComposeMail: (body: string) => void;
   onOpenMailSettings: () => void;
 }) {
   const { table } = useLanguage();
