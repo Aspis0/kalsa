@@ -493,3 +493,5 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - Phone chat, idempotent send (luna P2-5): a send whose answer is lost cannot be retried safely.
 - Qwen 3.6 35B on the rig looped in reasoning after `mail_list` ("One last check…", 6.7k tokens, 237 s) on 1 of 2 tries. Desktop and phone share the loop; consider a reasoning budget.
 - `telemetry::privacy_tests::public_catalog_ids_match_shared_contract` fails on brain: "missing public model 392e6e30aa21cb00" (catalog data drift).
+- Phone chat (GLM-5.3 P3): a failed thread spawn in `chat/mod.rs`, `turn.rs` and `mail.rs` drops the socket with no terminal frame; no test revokes a device mid-turn or mid-read; one phone can hold all 8 body-admission slots until the connection deadline (300 s).
+- Phone chat: a send already inside `send_confirmed` (blocking SMTP) still completes if the phone is revoked during it.
