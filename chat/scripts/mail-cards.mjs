@@ -534,6 +534,7 @@ equal("a storage failure has its own words", app.mailFailure("mail.storage").kin
 equal("a failure nobody named still says something", app.UNKNOWN_FAILURE.kind, "unknown");
 check("a refused password points at the app password help", IT.refused.includes("password per le app"), IT.refused);
 check("the same sentence is not repeated as English", new Set([app.ENGLISH_MAIL.failure.keychain, IT.keychain]).size === 2);
+check("the English placeholders are not Italian", !/esempio/.test(app.ENGLISH_MAIL.emailPlaceholder) && !/esempio/.test(app.ENGLISH_MAIL.serverPlaceholder), app.ENGLISH_MAIL.emailPlaceholder);
 
 globalThis.__mailStubOverride = null;
 equal("a string day count is coerced and the call runs", (await app.runMailList({ days: "2" }, TURN)).ok, true);

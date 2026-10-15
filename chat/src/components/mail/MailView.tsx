@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLanguage } from "../../i18n/useLanguage";
 import type { English } from "../../i18n/en/all";
 import { Icon } from "../Icon";
-import { accountEmail } from "../../lib/mail/account";
+import { readAccount } from "../../lib/mail/account";
 import { draftFor, pendingFor, sentToFor } from "../../lib/mail/drafts";
 import type { Drafts, SentTo } from "../../lib/mail/drafts";
 import type { PendingSend } from "../../lib/mail/pending";
@@ -44,6 +44,12 @@ export function MailView({ open, onDraft, onReply, onAskDraft, onSend, drafts, s
   const { table, tag } = useLanguage();
   const t = table.mail;
   const [copied, setCopied] = useState(false);
+  /** The address this machine sends from, asked of the backend: the panel shows
+      it as "A:", and the backend is the only one that knows it. */
+  const [account, setAccount] = useState("");
+  useEffect(() => {
+    void readAccount().then((saved) => setAccount(saved === null ? "" : saved.email));
+  }, []);
 
   // This mail's own reply. Opening another mail shows that mail's words or an
   // empty box, never the reply that was written for somebody else.
@@ -64,7 +70,7 @@ export function MailView({ open, onDraft, onReply, onAskDraft, onSend, drafts, s
   const name = shown.from.name || shown.from.address;
   const reasons = shown.labels.label === "suspicious" ? reasonItems(t, shown.labels.reasons) : [];
   const attachments = record?.attachments ?? [];
-  const recipient = accountEmail();
+  const recipient = account;
   const words = reply === null ? "" : reply.body;
   // Recipient, subject and body are the sidecar's own draft for this mail: the
   // backend sends to that address, and to nothing this panel could guess.

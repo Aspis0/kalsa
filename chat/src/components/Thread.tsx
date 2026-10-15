@@ -25,6 +25,14 @@ export interface FailedState {
   at?: number;
 }
 
+/** The newest turn the person sent: the thread follows it into place. */
+function lastUser(messages: ChatMessage[]): string | null {
+  for (let at = messages.length - 1; at >= 0; at -= 1) {
+    if (messages[at].role === "user") return messages[at].id;
+  }
+  return null;
+}
+
 interface ThreadProps {
   messages: ChatMessage[];
   streaming: boolean;
@@ -317,6 +325,12 @@ export function Thread({
   const { table, tag } = useLanguage();
   const { ref: scrollRef, following, toBottom } = useStickToBottom();
   const lastId = messages.length > 0 ? messages[messages.length - 1].id : null;
+  // Sending brings the thread back to the end: the person asked something and
+  // reads the answer where they asked it, not by hunting up for it.
+  const asked = lastUser(messages);
+  useEffect(() => {
+    if (asked !== null) toBottom();
+  }, [asked, toBottom]);
 
   return (
     <div className="thread-wrap">

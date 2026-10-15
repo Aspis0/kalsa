@@ -282,6 +282,8 @@ const CONTRACT = {
   // Take no arguments at all.
   brain_mail_account_delete: { param: null, fields: {} },
   brain_mail_account_test: { param: null, fields: {} },
+  // The saved account, and never its password.
+  brain_mail_account_get: { param: null, fields: {} },
   // commands.rs `ListArgs`, snake_case.
   brain_mail_list: {
     param: "args",

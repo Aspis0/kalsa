@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLanguage } from "../../i18n/useLanguage";
 import { available, invoke } from "../../lib/tauri";
-import { accountEmail, forgetAccount, rememberAccount } from "../../lib/mail/account";
+import { readAccount } from "../../lib/mail/account";
 import { forgetAll } from "../../lib/mail/lastList";
 import { prepareCredentials } from "../../lib/mail/credentials";
 import { accountErrorKey } from "../../lib/mail/accountError";
@@ -41,9 +41,9 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   const [note, setNote] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  /** What this machine has linked, read once and kept in step with every save
-      and every removal: the page has no command that answers it. */
-  const [linked, setLinked] = useState(accountEmail());
+  /** What this machine has linked, from the backend on open and after every
+      save or removal, so the fields and the line above them cannot disagree. */
+  const [linked, setLinked] = useState("");
   /** A refused save, kept until the next attempt: a reason that disappears on
       the next click is not something the person can act on. */
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -55,11 +55,25 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   /** The address must be whole before it can name a provider, so an unfinished
       one gets the plain form of the fields rather than a wrong guess. */
   const canSave = email.includes("@") && password !== "";
-  const missing = email.includes("@") ? (password === "" ? t.needPassword : "") : t.needEmail;
+  /** The fields already stand for the linked account: there is nothing missing
+      to write, and saying otherwise after a saved account reads as a fault. */
+  const saved = linked !== "" && email.trim() === linked;
+  const missing = saved ? "" : email.includes("@") ? (password === "" ? t.needPassword : "") : t.needEmail;
   /** This address's steps on their own; both providers while it is still blank,
       because which one it will be is what the person has not said yet. */
   const helpProviders = appPassword === null ? [] : [appPassword];
   const helpShown = helpOpen || appPassword !== null;
+
+  useEffect(() => {
+    // The answer lands after the page is up, so it fills what is still empty:
+    // a field the person has already typed into is theirs, not the backend's.
+    void readAccount().then((account) => {
+      if (account === null) return;
+      setLinked(account.email);
+      setEmail((typed) => (typed === "" ? account.email : typed));
+      if (account.host !== "") setServer((typed) => (typed === "" ? account.host : typed));
+    });
+  }, []);
 
   // The mailbox is closed to any model but the approved ones, so the page says
   // where to change it rather than leaving a form that cannot be used.
@@ -87,9 +101,6 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
       const typed = serverTyped && server.trim() !== "" ? { host: server.trim() } : {};
       const given = prepareCredentials(email, password);
       await invoke("brain_mail_account_save", { input: { ...given, ...typed } });
-      // The address is the card's "A:", and no command reads it back, so the
-      // page keeps it from the moment the account is kept.
-      rememberAccount(given.email);
       setLinked(given.email);
       const found = await invoke<string[]>("brain_mail_account_test");
       setSubjects(found);
@@ -141,12 +152,10 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                 {t.helpShow}
               </button>
             </div>
-            {helpShown ? <AppPasswordBox providers={helpOpen || appPassword === null ? ["google", "apple"] : helpProviders} /> : null}
-
             <div className="mail-settings-fields">
               <label className="mail-field">
                 <span>{t.email}</span>
-                <input type="email" value={email} placeholder="nome@esempio.it" onChange={(event) => onEmail(event.target.value)} />
+                <input type="email" value={email} placeholder={t.emailPlaceholder} onChange={(event) => onEmail(event.target.value)} />
               </label>
               {/* The eye is a sibling of the input, never inside the label: a
                   button inside a label is announced as part of the field. */}
@@ -169,13 +178,14 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                     <Icon name={passwordShown ? "eyeOff" : "eye"} size={16} />
                   </button>
                 </span>
+                {linked === "" ? null : <small>{t.passwordKept}</small>}
               </div>
               <label className="mail-field">
                 <span>{t.server}</span>
                 <input
                   type="text"
                   value={serverTyped ? server : ""}
-                  placeholder={server || "imap.esempio.it"}
+                  placeholder={server || t.serverPlaceholder}
                   onChange={(event) => {
                     setServer(event.target.value);
                     setServerTyped(true);
@@ -183,6 +193,7 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                 />
               </label>
             </div>
+            {helpShown ? <AppPasswordBox providers={helpOpen || appPassword === null ? ["google", "apple"] : helpProviders} /> : null}
             {guessServer(email)?.supported === false ? (
               <p className="mail-settings-block" role="status">
                 <Icon name="info" size={15} />
@@ -206,7 +217,6 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
                         setBusy(false);
                         setSubjects([]);
                         setLinked("");
-                        forgetAccount();
                         forgetAll();
                         setNote(t.removed);
                       },

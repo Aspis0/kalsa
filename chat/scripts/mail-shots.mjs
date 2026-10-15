@@ -242,7 +242,7 @@ function mockEndpoint() {
     read names arrives in the command's own `args`, exactly as the real one
     does. `__STUB_CALLS__` records every call so a run can check what ran. */
 function installMailStub(config) {
-  const mail = window.__MAIL_FIXTURE__;
+  const mail = { ...window.__MAIL_FIXTURE__, account: config.account };
   const failed = { for_model: [], for_ui: null, is_error: true };
   const inner = args => (args && typeof args === "object" && args.args) || {};
   window.__TAURI__ = {
@@ -280,8 +280,16 @@ function installMailStub(config) {
           if (config.failTest) throw { code: "mail.invalid_account", text: "the login was refused" };
           return mail.testSubjects;
         }
-        if (command === "brain_mail_account_save") return mail.saved;
-        if (command === "brain_mail_account_delete") return null;
+        if (command === "brain_mail_account_get") return mail.account;
+        if (command === "brain_mail_account_save") {
+          const given = inner(args).input ?? {};
+          mail.account = { email: String(given.email ?? ""), host: String(given.host ?? "") };
+          return mail.saved;
+        }
+        if (command === "brain_mail_account_delete") {
+          mail.account = null;
+          return null;
+        }
         throw new Error(`mail-shots: no fixture declares ${command}`);
       },
     },
@@ -296,11 +304,6 @@ async function seed(page, theme, opts = {}) {
     localStorage.clear();
     localStorage.setItem("crescent-chat.theme.v1", cfg.theme);
     localStorage.setItem("crescent-chat.language.v1", "it");
-    // The account the person reads with: what the card's "A:" says. No
-    // account is the page a person meets before saving one.
-    if (opts.account !== null) {
-      localStorage.setItem("crescent-chat.mail-account.v1", JSON.stringify({ email: opts.account ?? "luca@libero.it" }));
-    }
     localStorage.setItem(
       "crescent-chat.settings.v1",
       JSON.stringify({ webTools: true, model: cfg.model, thinking: false }),
@@ -315,6 +318,7 @@ async function seed(page, theme, opts = {}) {
     appVersion: APP_VERSION,
     failTest: opts.failTest === true,
     failList: opts.failList ?? null,
+    account: opts.account === null ? null : { email: opts.account ?? "luca@libero.it", host: "imap.libero.it" },
   });
 }
 
@@ -420,6 +424,8 @@ async function shootSettings(browser) {
     await saved.getByRole("button", { name: "Collega questo account" }).click();
     await mustSee(saved, "Collegato: luca@libero.it", `${theme}: the page says which account is linked`);
     await mustSee(saved, "Ultime 3 mail ricevute", `${theme}: one press checks the account`);
+    check(`${theme}: and it does not then ask for the password again`, (await saved.getByText("Scrivi la password").count()) === 0);
+    await mustSee(saved, "Fattura n. 104", `${theme}: the three newest subjects are on the page`);
     check(`${theme}: the newest subjects are listed`, (await saved.locator(".mail-subjects li").count()) === 3);
     check(`${theme}: a linked account can be removed`, (await saved.getByRole("button", { name: "Elimina questo account" }).count()) === 1);
     await shot(saved, shotOf("19-settings-mail-saved"));
@@ -440,6 +446,39 @@ async function shootSettings(browser) {
     await shot(failed, shotOf("20-settings-mail-failed"));
     await failed.close();
 
+    /* 17b — an app that restarts: the account is asked of the backend, and the
+       fields stand for it instead of reading as an empty form. */
+    const restarted = await browser.newPage({ viewport });
+    await seed(restarted, theme, { account: "rig.launcher@gmail.com" });
+    await restarted.goto(APP);
+    await restarted.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(restarted);
+    await mustSee(restarted, "Collegato: rig.launcher@gmail.com", `${theme}: a restarted app says what it has`);
+    await restarted.waitForFunction(
+      () => (document.querySelector("input[type=email]")?.value ?? "") !== "",
+      null,
+      { timeout: 10000 },
+    );
+    check(`${theme}: and the address is in the field`, (await restarted.getByLabel("Indirizzo email", { exact: true }).inputValue()) === "rig.launcher@gmail.com");
+    check(`${theme}: with the host it reads with`, (await restarted.getByLabel("Server").getAttribute("placeholder")) === "imap.libero.it");
+    check(`${theme}: and no password to retype`, (await restarted.getByLabel("Password", { exact: true }).inputValue()) === "");
+    await mustSee(restarted, "La password salvata resta su questo computer", `${theme}: which says so under the empty field`);
+    await restarted.close();
+
+    /* The help opens while the address is being typed: the field being typed
+       into must not move. */
+    const steady = await browser.newPage({ viewport });
+    await seed(steady, theme, { account: null });
+    await steady.goto(APP);
+    await steady.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(steady);
+    const before = await steady.getByLabel("Password", { exact: true }).boundingBox();
+    await steady.getByLabel("Indirizzo email").fill("luca@gmail.com");
+    await steady.waitForSelector(".mail-apppass", { timeout: 10000 });
+    const after = await steady.getByLabel("Password", { exact: true }).boundingBox();
+    check(`${theme}: the help opening does not move the field being typed`, Math.abs(after.y - before.y) < 1, `${before.y} → ${after.y}`);
+    await steady.close();
+
     /* A deleted account leaves this machine too: the page says so, and a
        reload does not bring the address back. */
     const gone = await browser.newPage({ viewport });
@@ -456,7 +495,7 @@ async function shootSettings(browser) {
     await gone.reload();
     await openMailSettings(gone);
     await mustSee(gone, "Nessun account collegato", `${theme}: and it does not come back on reload`);
-    check(`${theme}: the address is gone from this machine's storage`, (await gone.evaluate(() => localStorage.getItem("crescent-chat.mail-account.v1"))) === null);
+    check(`${theme}: and the fields are empty again, not prefilled`, (await gone.getByLabel("Indirizzo email", { exact: true }).inputValue()) === "");
     await gone.close();
   }
 }
@@ -658,8 +697,13 @@ async function run() {
       // the app draws what came back.
       const again = page.locator(".composer-input");
       await again.click();
+      // Read back up: sending must bring the thread to the answer anyway.
+      await page.locator(".thread").evaluate((el) => el.scrollTo(0, 0));
       await again.fill("Scrivi a John che lunedì alle 11 va bene");
       await again.press("Enter");
+      await page.waitForSelector(".mail-draft", { timeout: 30000 });
+      const atEnd = await page.locator(".thread").evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight <= 2);
+      check(`${theme}: sending brings the thread to the latest`, atEnd);
       await page.waitForSelector(".mail-draft", { timeout: 30000 });
       await mustSee(page, "john.smith@acme.com", `${theme}: the draft's recipient came from the mail`);
       await shot(page, `${theme === "light" ? "04" : "10"}-draft-card`);
@@ -725,6 +769,9 @@ async function run() {
         await page.locator('.rail-item[data-surface="settings"]').click();
         await page.getByRole("button", { name: "Configura la mail" }).click();
         await page.waitForSelector(".mail-settings-block, .mail-field", { timeout: 15000 });
+        // The page opens with the saved account in the field: editing it is a
+        // person clearing it and typing another, not filling an empty form.
+        await page.getByLabel("Indirizzo email").fill("");
         await page.getByLabel("Indirizzo email").fill("luca@libero.it");
         const guessed = await page.getByLabel("Server").getAttribute("placeholder");
         check("light: the server guessed from the address", guessed === "imapmail.libero.it", `got "${guessed}"`);

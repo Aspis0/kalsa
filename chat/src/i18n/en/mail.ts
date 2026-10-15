@@ -51,7 +51,10 @@ export const MAIL = {
   // Settings.
   title: "Mail",
   addAccount: "Add an account",
-  email: "Email address",
+email: "Email address",
+  emailPlaceholder: "name@example.com",
+  serverPlaceholder: "imap.example.com",
+  passwordKept: "The saved password stays on this computer: write it only to change it.",
   password: "Password",
   server: "Server",
   save: "Save",

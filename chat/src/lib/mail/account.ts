@@ -1,40 +1,24 @@
 /**
- * The address the person reads their mail with, kept beside the app's other
- * settings. The card and the Mail tab both show it as the recipient of
- * everything they send, and no command answers it: the account's own record
- * lives in Rust, and this is the copy the page can read without one.
+ * The account this machine reads its mail with, asked of the backend.
+ *
+ * The page and the Mail tab both show it, and neither keeps its own copy: a
+ * copy in browser storage said a deleted account was still linked, and said it
+ * with nothing in the fields to contradict it. The answer carries the address
+ * and the host and never the password — that stays where Rust put it.
  */
 
-const KEY = "crescent-chat.mail-account.v1";
+import { invoke } from "../tauri";
 
-export function rememberAccount(email: string): void {
-  const clean = email.trim();
-  if (clean === "") return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ email: clean }));
-  } catch {
-    // No storage: the page forgets it and the Mail tab says what it has.
-  }
+export interface MailAccount {
+  email: string;
+  host: string;
 }
 
-/** The account was deleted: its address leaves this machine's copy too, or
-    Settings goes on showing a link that is not there. */
-export function forgetAccount(): void {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // No storage: there was nothing saved to take away.
-  }
-}
-
-/** The account address, or "" when no account has been saved on this machine. */
-export function accountEmail(): string {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw === null) return "";
-    const parsed = JSON.parse(raw) as { email?: unknown };
-    return typeof parsed.email === "string" ? parsed.email : "";
-  } catch {
-    return "";
-  }
+/** The saved account, or null when this machine has none. */
+export function readAccount(): Promise<MailAccount | null> {
+  return invoke<MailAccount | null>("brain_mail_account_get").then((answer) => {
+    if (answer === null || typeof answer !== "object") return null;
+    const email = typeof answer.email === "string" ? answer.email : "";
+    return email === "" ? null : { email, host: typeof answer.host === "string" ? answer.host : "" };
+  });
 }
