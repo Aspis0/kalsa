@@ -4,7 +4,6 @@
 //! is not spent on it.
 
 use std::net::TcpStream;
-use std::sync::atomic::Ordering;
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::Arc;
 use std::thread;
@@ -12,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
-use super::{Chat, SLICE};
+use super::{withdrawn, Chat, Lane, SLICE};
 use crate::cors;
 use crate::devices::DeviceId;
 use crate::proxy::{self, Shared};
@@ -34,7 +33,7 @@ pub(super) fn start(
     origin: Option<&[u8]>,
     deadline: Instant,
 ) {
-    let Some(guard) = chat.take_turn(device) else {
+    let Some(guard) = chat.take(Lane::Turn, device) else {
         refuse(&mut client, origin, deadline, "busy");
         return;
     };
@@ -84,6 +83,12 @@ fn follow(
     if !wire.send(&head(origin)) {
         return;
     }
+    // Asked before the page is: a stop or a forget that came with the request
+    // must not reach the window at all.
+    if withdrawn(shared, device) {
+        wire.send(&frame("error", &json!({"code": "cancelled"})));
+        return;
+    }
     let Some(opened) = chat.hook.open(device, "turn", turn) else {
         wire.send(&frame("error", &json!({"code": "no_runner"})));
         return;
@@ -93,7 +98,12 @@ fn follow(
     let runner_by = Instant::now() + shared.clocks.chat_runner_wait;
     let mut accepted = false;
     loop {
-        if shared.stop.load(Ordering::SeqCst) || !shared.set.holds(device) || proxy::client_gone(&wire.client) {
+        if proxy::client_gone(&wire.client) {
+            chat.hook.stop(&request);
+            return;
+        }
+        if withdrawn(shared, device) {
+            wire.send(&frame("error", &json!({"code": "cancelled"})));
             chat.hook.stop(&request);
             return;
         }

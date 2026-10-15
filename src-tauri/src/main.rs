@@ -838,6 +838,18 @@ impl Brain {
             .iter()
             .find(|device| device.kind == DeviceKind::Host)
             .map(|device| device.handshake.credential_hex());
+        // The paired phones by id and credential, for the phone chat's drafts:
+        // handed to the bridge before the door takes the same set.
+        let phones: Vec<(kalsa_door::DeviceId, String)> = stored_devices
+            .iter()
+            .filter(|device| !device.waiting)
+            .map(|device| {
+                (
+                    kalsa_door::DeviceId::new(device.id),
+                    device.handshake.credential_hex(),
+                )
+            })
+            .collect();
         let mut entries = stored_devices
             .into_iter()
             .filter(|device| !device.waiting)
@@ -905,6 +917,7 @@ impl Brain {
                 if let (Some(room), Some(host_id)) = (self.room.get(), active.host.or(host)) {
                     room::reconcile(room, host_id, &active.devices, &devices);
                 }
+                self.phone_chat.pair(&phones);
                 active.door.set_devices(devices.clone());
                 active.devices = devices;
                 active.host = host;
@@ -924,6 +937,7 @@ impl Brain {
                 let engine = self.engine_headers();
                 let capacity = door_capacity(capacity, engine);
                 let metrics = Arc::clone(&self.metrics);
+                self.phone_chat.pair(&phones);
                 let door = kalsa_door::Door::new_with_engine(
                     listener,
                     upstream_port,

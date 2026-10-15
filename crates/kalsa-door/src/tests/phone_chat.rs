@@ -9,8 +9,8 @@ use std::time::Duration;
 use serde_json::json;
 
 use super::paging_support::status_of;
-use super::phone_chat_support::{answer, chat_door, event, open, text, Page, TURN};
-use super::room_support::read_all;
+use super::phone_chat_support::{answer, chat_door, chat_door_for, event, open, text, token_of, Page, TURN};
+use super::room_support::{devices_labeled, read_all};
 use super::support::bounded;
 use crate::clocks::Clocks;
 
@@ -169,5 +169,52 @@ fn a_phone_that_goes_away_stops_its_turn() {
         drop(stream);
         assert!(page.stopped("req-1"), "the page was not told to stop");
         drop(door);
+    });
+}
+
+#[test]
+fn a_forgotten_phone_is_told_its_turn_was_cancelled() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page::default());
+        let (door, address) = chat_door_for(Some(Arc::clone(&page)), Clocks::default(), 2);
+        let mut stream = open(address, "POST", "/kalsa/chat/turn", TURN);
+        let sender = page.page(0);
+        sender.send(event("accepted", json!({}))).unwrap();
+        sender.send(event("delta", json!({"text": "parte"}))).unwrap();
+        let mut seen = Vec::new();
+        let mut chunk = [0u8; 256];
+        while !text(&seen).contains("parte") {
+            let read = stream.read(&mut chunk).unwrap();
+            assert!(read > 0, "the stream closed before the first delta");
+            seen.extend_from_slice(&chunk[..read]);
+        }
+        let keep = token_of(2);
+        door.set_devices(devices_labeled(&[(2, "Keep", keep.as_str())]));
+        let rest = text(&read_all(&mut stream));
+        assert!(rest.contains("event: error\ndata: {\"code\":\"cancelled\"}"), "{rest}");
+        assert!(page.stopped("req-1"), "the page was not told to stop");
+        drop(door);
+    });
+}
+
+#[test]
+fn a_stopped_door_tells_the_phone_its_turn_was_cancelled() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page::default());
+        let (door, address) = chat_door(Some(Arc::clone(&page)), Clocks::default());
+        let mut stream = open(address, "POST", "/kalsa/chat/turn", TURN);
+        let sender = page.page(0);
+        sender.send(event("accepted", json!({}))).unwrap();
+        sender.send(event("delta", json!({"text": "parte"}))).unwrap();
+        let mut seen = Vec::new();
+        let mut chunk = [0u8; 256];
+        while !text(&seen).contains("parte") {
+            let read = stream.read(&mut chunk).unwrap();
+            assert!(read > 0, "the stream closed before the first delta");
+            seen.extend_from_slice(&chunk[..read]);
+        }
+        door.shutdown();
+        let rest = text(&read_all(&mut stream));
+        assert!(rest.contains("event: error\ndata: {\"code\":\"cancelled\"}"), "{rest}");
     });
 }

@@ -11,8 +11,13 @@ use kalsa_door::DeviceId;
 /// person starts the reply again.
 const LIFE: Duration = Duration::from_secs(30 * 60);
 
+/// The phone that made a draft: its id, and a digest of its credential. Ids are
+/// reused once the top one is forgotten, so the id alone cannot tell the old
+/// phone from the next one paired under it.
+pub(super) type Owner = (DeviceId, [u8; 32]);
+
 pub(super) struct Draft {
-    device: DeviceId,
+    owner: Owner,
     reply_to_id: u32,
     subject: String,
     body: String,
@@ -36,19 +41,18 @@ pub(super) struct Drafts {
 }
 
 impl Drafts {
-    /// Stores a draft under `id`, dropping the ones that have expired.
     pub(super) fn insert(
         &mut self,
         id: String,
-        device: DeviceId,
+        owner: Owner,
         reply_to_id: u32,
         subject: String,
         body: String,
         now: Instant,
     ) {
-        self.entries.retain(|_, draft| now.duration_since(draft.created) < LIFE);
+        self.prune(now);
         let draft = Draft {
-            device,
+            owner,
             reply_to_id,
             subject,
             body,
@@ -67,10 +71,11 @@ impl Drafts {
         edited: Option<String>,
         now: Instant,
     ) -> Result<Ticket, &'static str> {
+        self.prune(now);
         let draft = self
             .entries
             .get_mut(id)
-            .filter(|draft| draft.device == device && now.duration_since(draft.created) < LIFE)
+            .filter(|draft| draft.owner.0 == device)
             .ok_or("draft_unknown")?;
         if draft.sending {
             return Err("busy");
@@ -88,18 +93,43 @@ impl Drafts {
 
     /// Ends the send `begin` started. A sent draft is spent; a failed one
     /// waits for the person to try again.
-    pub(super) fn finish(&mut self, id: &str, sent: bool) {
+    pub(super) fn finish(&mut self, id: &str, sent: bool, now: Instant) {
+        self.prune(now);
         if sent {
             self.entries.remove(id);
         } else if let Some(draft) = self.entries.get_mut(id) {
             draft.sending = false;
         }
     }
+
+    /// Drops the drafts of every phone not in `paired`: a forgotten phone's
+    /// drafts go, and so does a draft whose id is now another credential's.
+    pub(super) fn keep_paired(&mut self, paired: &[Owner], now: Instant) {
+        self.prune(now);
+        self.entries
+            .retain(|_, draft| paired.contains(&draft.owner));
+    }
+
+    /// Drops every draft past its life. Run on each access, so an expired
+    /// draft's subject and body do not outlive the next touch of the table.
+    fn prune(&mut self, now: Instant) {
+        self.entries
+            .retain(|_, draft| now.duration_since(draft.created) < LIFE);
+    }
+
+    #[cfg(test)]
+    pub(super) fn count(&self) -> usize {
+        self.entries.len()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::time::{Duration, Instant};
+
+    use kalsa_door::DeviceId;
+
+    use super::{Drafts, Owner, LIFE};
 
     const ID: &str = "0123456789abcdef0123456789abcdef";
 
@@ -107,12 +137,16 @@ mod tests {
         DeviceId::new(id)
     }
 
+    fn owner(id: u32, digest: u8) -> Owner {
+        (phone(id), [digest; 32])
+    }
+
     /// A draft made by device 1 at `now`, replying to mail 105.
     fn stored(now: Instant) -> Drafts {
         let mut drafts = Drafts::default();
         drafts.insert(
             ID.to_string(),
-            phone(1),
+            owner(1, 0xaa),
             105,
             "Re: Fattura".to_string(),
             "Va bene, grazie.".to_string(),
@@ -125,7 +159,10 @@ mod tests {
     fn a_draft_belongs_to_the_device_that_made_it() {
         let now = Instant::now();
         let mut drafts = stored(now);
-        assert_eq!(drafts.begin(phone(2), ID, None, now).err(), Some("draft_unknown"));
+        assert_eq!(
+            drafts.begin(phone(2), ID, None, now).err(),
+            Some("draft_unknown")
+        );
         assert!(drafts.begin(phone(1), ID, None, now).is_ok());
     }
 
@@ -135,9 +172,26 @@ mod tests {
         let mut drafts = stored(now);
         let almost = now + LIFE - Duration::from_secs(1);
         assert!(drafts.begin(phone(1), ID, None, almost).is_ok());
-        drafts.finish(ID, false);
+        drafts.finish(ID, false, almost);
         let late = now + LIFE;
-        assert_eq!(drafts.begin(phone(1), ID, None, late).err(), Some("draft_unknown"));
+        assert_eq!(
+            drafts.begin(phone(1), ID, None, late).err(),
+            Some("draft_unknown")
+        );
+    }
+
+    #[test]
+    fn an_expired_draft_is_pruned_by_any_access_not_only_by_an_insert() {
+        let now = Instant::now();
+        let mut drafts = stored(now);
+        let late = now + LIFE;
+        assert_eq!(
+            drafts
+                .begin(phone(1), "ffffffffffffffffffffffffffffffff", None, late)
+                .err(),
+            Some("draft_unknown")
+        );
+        assert_eq!(drafts.count(), 0);
     }
 
     #[test]
@@ -145,8 +199,11 @@ mod tests {
         let now = Instant::now();
         let mut drafts = stored(now);
         assert!(drafts.begin(phone(1), ID, None, now).is_ok());
-        drafts.finish(ID, true);
-        assert_eq!(drafts.begin(phone(1), ID, None, now).err(), Some("draft_unknown"));
+        drafts.finish(ID, true, now);
+        assert_eq!(
+            drafts.begin(phone(1), ID, None, now).err(),
+            Some("draft_unknown")
+        );
     }
 
     #[test]
@@ -162,7 +219,7 @@ mod tests {
         let now = Instant::now();
         let mut drafts = stored(now);
         assert!(drafts.begin(phone(1), ID, None, now).is_ok());
-        drafts.finish(ID, false);
+        drafts.finish(ID, false, now);
         assert!(drafts.begin(phone(1), ID, None, now).is_ok());
     }
 
@@ -170,12 +227,16 @@ mod tests {
     fn the_edited_body_replaces_the_stored_one_only_when_it_is_not_blank() {
         let now = Instant::now();
         let mut drafts = stored(now);
-        let edited = drafts.begin(phone(1), ID, Some("Ci sentiamo.".to_string()), now).unwrap();
+        let edited = drafts
+            .begin(phone(1), ID, Some("Ci sentiamo.".to_string()), now)
+            .unwrap();
         assert_eq!(edited.body, "Ci sentiamo.");
-        drafts.finish(ID, false);
-        let blank = drafts.begin(phone(1), ID, Some("   ".to_string()), now).unwrap();
+        drafts.finish(ID, false, now);
+        let blank = drafts
+            .begin(phone(1), ID, Some("   ".to_string()), now)
+            .unwrap();
         assert_eq!(blank.body, "Va bene, grazie.");
-        drafts.finish(ID, false);
+        drafts.finish(ID, false, now);
         let absent = drafts.begin(phone(1), ID, None, now).unwrap();
         assert_eq!(absent.body, "Va bene, grazie.");
     }
@@ -192,19 +253,52 @@ mod tests {
     }
 
     #[test]
-    fn an_unknown_id_is_unknown_and_inserting_prunes_the_expired() {
+    fn inserting_prunes_the_expired() {
         let now = Instant::now();
         let mut drafts = stored(now);
-        assert_eq!(drafts.begin(phone(1), "ffffffffffffffffffffffffffffffff", None, now).err(), Some("draft_unknown"));
         let later = now + LIFE;
         drafts.insert(
             "fedcba9876543210fedcba9876543210".to_string(),
-            phone(1),
+            owner(1, 0xbb),
             106,
             String::new(),
             String::new(),
             later,
         );
         assert!(!drafts.entries.contains_key(ID));
+    }
+
+    #[test]
+    fn a_forgotten_phones_drafts_are_dropped_when_the_pairing_changes() {
+        let now = Instant::now();
+        let mut drafts = stored(now);
+        drafts.keep_paired(&[owner(2, 0xcc)], now);
+        assert_eq!(drafts.count(), 0);
+        assert_eq!(
+            drafts.begin(phone(1), ID, None, now).err(),
+            Some("draft_unknown")
+        );
+    }
+
+    /// The forgotten top id is paired again to another phone before the next
+    /// pairing pass sees the gap: the new credential must not spend the old draft.
+    #[test]
+    fn a_reused_id_under_a_new_credential_cannot_spend_the_old_draft() {
+        let now = Instant::now();
+        let mut drafts = stored(now);
+        drafts.keep_paired(&[owner(1, 0xbb)], now);
+        assert_eq!(drafts.count(), 0);
+        assert_eq!(
+            drafts.begin(phone(1), ID, None, now).err(),
+            Some("draft_unknown")
+        );
+    }
+
+    #[test]
+    fn a_draft_of_a_phone_still_paired_under_its_credential_is_kept() {
+        let now = Instant::now();
+        let mut drafts = stored(now);
+        drafts.keep_paired(&[owner(1, 0xaa)], now);
+        assert_eq!(drafts.count(), 1);
     }
 }
