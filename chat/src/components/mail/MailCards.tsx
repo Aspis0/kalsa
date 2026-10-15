@@ -17,15 +17,17 @@ import "./mail.css";
  * The cards under an answer. Every field of a card came from the sidecar's own
  * record for that id — the model proposed which ids matter and wrote one line
  * each — so a card cannot carry a sender or a subject the mailbox never had.
+ *
+ * How many of them are drawn is the thread's decision, not this one's: it draws
+ * what it is handed and says how many are held back, so one place knows what is
+ * on screen and nothing here can draw the same mail twice.
  */
 
-/** How many cards a turn draws before asking. A list can carry fifty mails and a
-    turn is not a page: past this the person decides to keep reading. The rest
-    are already in `mail.items`, so the button reveals rather than fetches. */
-export const DRAWN = 8;
-
-export function MailCardsView({ mail, selected, onOpen, onDraft, onSend, sent, drafts, onSave, onCompose }: {
+export function MailCardsView({ mail, more, onReveal, selected, onOpen, onDraft, onSend, sent, drafts, onSave, onCompose }: {
   mail: Mail;
+  /** How many of `mail.items` are not drawn, for the button that brings them in. */
+  more?: number;
+  onReveal?: () => void;
   selected: string | null;
   onOpen: (item: MailCardItem) => void;
   onDraft: (item: MailCardItem) => void;
@@ -39,7 +41,6 @@ export function MailCardsView({ mail, selected, onOpen, onDraft, onSend, sent, d
   /** Modifica: the draft's words in the composer, where they can be rewritten. */
   onCompose: (replyToId: string, body: string) => void;
 }) {
-  const [all, setAll] = useState(false);
   if (mail.kind === "draft") {
     return (
       <MailDraftCard
@@ -57,17 +58,16 @@ export function MailCardsView({ mail, selected, onOpen, onDraft, onSend, sent, d
   // A mailbox holding nothing but newsletters still says so: the count is the only
   // thing that mail has to say, and an empty turn would say nothing at all.
   if (mail.items.length === 0 && mail.bulk === 0) return null;
-  const items = all ? mail.items : mail.items.slice(0, DRAWN);
-  const rest = mail.items.length - items.length;
+  const rest = more ?? 0;
   return (
     <div className="mail-turn">
       <div className="mail-cards">
-        {items.map((item) => (
+        {mail.items.map((item) => (
           <MailCard key={item.id} item={item} selected={selected === item.id} onOpen={onOpen} onDraft={onDraft} />
         ))}
       </div>
       {rest > 0 ? (
-        <button type="button" className="mail-more" onClick={() => setAll(true)}>
+        <button type="button" className="mail-more" onClick={() => onReveal?.()}>
           {rest === 1 ? t.oneMoreMail : t.moreMail(rest)}
         </button>
       ) : null}

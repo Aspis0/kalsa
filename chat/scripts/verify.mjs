@@ -6024,6 +6024,49 @@ const tests = {
       check("mail: a card the list already drew is not drawn twice", (await page.getByText("Mail numero 0", { exact: true }).count()) === 1, String(await page.getByText("Mail numero 0", { exact: true }).count()));
       const moreText = await page.locator(".mail-more").innerText();
       check("mail: the list itself is still asking for the other four", /4/.test(moreText), moreText);
+
+      await page.locator(".mail-more").click();
+      await page.waitForTimeout(300);
+      check("mail: revealing brings in the four, not a second copy of the selection", (await page.locator(".mail-card").count()) === 12, String(await page.locator(".mail-card").count()));
+      check("mail: the selection is still on screen exactly once", (await page.getByText("Mail numero 11", { exact: true }).count()) === 1, String(await page.getByText("Mail numero 11", { exact: true }).count()));
+      check("mail: no mail is drawn twice after the reveal", (await subjectsOn(page)) === 0, JSON.stringify(await subjectsOn(page)));
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
+  // Two `mail_show` rounds naming a mail the first already drew: the second
+  // group must not put it on screen again.
+  async mailbeyondtwice() {
+    const mock = listEndpoint(["821"], ["821", "820"]);
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail undici e dieci");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+
+      const cardCount = await page.locator(".mail-card").count();
+      check("mail: two selections naming two mails draw eight and two", cardCount === 10, String(cardCount));
+      check("mail: the mail both named is drawn once", (await page.getByText("Mail numero 11", { exact: true }).count()) === 1, String(await page.getByText("Mail numero 11", { exact: true }).count()));
+      check("mail: the mail only the second named is on screen", (await page.getByText("Mail numero 10", { exact: true }).count()) === 1, String(await page.getByText("Mail numero 10", { exact: true }).count()));
+      check("mail: and nothing is drawn twice", (await subjectsOn(page)) === 0, JSON.stringify(await subjectsOn(page)));
     } finally {
       await browser.close();
       mock.close();
@@ -6311,6 +6354,13 @@ function fixtureOf(box) {
   return { list: { for_model: MAIL_FENCE([["folder", "INBOX"]]), for_ui: { folder: "INBOX", count: box.length, items: box.map(MAIL_LIST_ITEM) }, is_error: false }, reads };
 }
 
+/** The subjects drawn on screen, once per card. Two cards with the same subject
+    is one mail on screen twice, whatever the groups say. */
+async function subjectsOn(page) {
+  const subjects = await page.locator(".mail-card .mail-subject").allInnerTexts();
+  return subjects.length - new Set(subjects).size;
+}
+
 /** A read that takes its time, so a pane can be asked to hold one across a
     switch of chat or a close. Wraps whatever door stub was installed first. */
 async function stubSlowMailRead(page, ms) {
@@ -6332,9 +6382,9 @@ async function stubSlowMailRead(page, ms) {
 }
 
 /** The model asks once for the list and stops. The cards under an answer are the
-    list's own, which is the flow the cap is about. `show` adds a `mail_show`
-    naming those ids, for the flow where a selection must reach the screen. */
-function listEndpoint(show = null) {
+    list's own, which is the flow the cap is about. Each `shows` entry is one
+    more `mail_show` round naming those ids. */
+function listEndpoint(...shows) {
   const piece = (delta, finish) =>
     `data: ${JSON.stringify({
       id: "chatcmpl-list",
@@ -6353,26 +6403,25 @@ function listEndpoint(show = null) {
         "tool_calls",
       ),
     ],
-    ...(show === null
-      ? []
-      : [
-          [
-            piece(
-              {
-                role: "assistant",
-                tool_calls: [
-                  {
-                    index: 0,
-                    id: "c2",
-                    type: "function",
-                    function: { name: "mail_show", arguments: JSON.stringify({ items: show.map((id, at) => ({ id, gist: `La sintesi numero ${at}.` })) }) },
-                  },
-                ],
+    ...shows.map((ids, at) => [
+      piece(
+        {
+          role: "assistant",
+          tool_calls: [
+            {
+              index: 0,
+              id: `c${at + 2}`,
+              type: "function",
+              function: {
+                name: "mail_show",
+                arguments: JSON.stringify({ items: ids.map((id, nth) => ({ id, gist: `La sintesi numero ${nth}.` })) }),
               },
-              "tool_calls",
-            ),
+            },
           ],
-        ]),
+        },
+        "tool_calls",
+      ),
+    ]),
     [piece({ role: "assistant", content: "Ecco la posta di oggi." }, "stop")],
   ];
   const cors = {
