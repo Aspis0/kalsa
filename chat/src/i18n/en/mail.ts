@@ -22,7 +22,6 @@ export const MAIL = {
   to: "To",
   subject: "Subject",
   body: "Message",
-  edit: "Edit",
   copy: "Copy",
   copied: "Copied",
   send: "Send",
@@ -49,6 +48,8 @@ export const MAIL = {
   askDraft: () => "Write a reply to this mail.",
   askDraftNote: (id: string) =>
     `The person pressed reply on the mail with id ${id}. That mail exists and is on their screen right now: write the reply for it and nothing else. Call mail_draft with reply_to_id ${id} directly — never mail_list first, and never tell the person the mail is missing.`,
+  redraftNote: (id: string) =>
+    `A draft for the mail with id ${id} is on the screen. If the person's words ask to change it, call mail_draft again with reply_to_id ${id} and the whole new text: the card is the only copy that can be sent, so a new version written as answer text changes nothing. If their words are about something else, answer them and ignore this note.`,
   makeDraft: "Write a draft",
   generating: "Writing…",
   noAttachments: "No attachments.",

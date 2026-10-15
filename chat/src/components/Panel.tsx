@@ -37,7 +37,6 @@ interface PanelProps {
   mailOpening: boolean;
   mailDrafts: Drafts;
   mailSent: SentTo;
-  onMailDraft: (body: string) => void;
   onMailReply: (replyToId: string, body: string) => void;
   /** The panel asks the chat model to write the reply for one mail. */
   onMailAskDraft: (item: MailCardItem) => void;
@@ -71,7 +70,6 @@ export function Panel({
   mailOpening,
   mailDrafts,
   mailSent,
-  onMailDraft,
   onMailReply,
   onMailAskDraft,
   onMailSend,
@@ -144,7 +142,6 @@ export function Panel({
             opening={mailOpening}
             drafts={mailDrafts}
             sent={mailSent}
-            onDraft={onMailDraft}
             onReply={onMailReply}
             onAskDraft={onMailAskDraft}
             onSend={onMailSend}

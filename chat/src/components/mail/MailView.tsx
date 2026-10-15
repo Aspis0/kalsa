@@ -31,14 +31,12 @@ export interface OpenMail {
   code?: string;
 }
 
-export function MailView({ open, opening, onDraft, onReply, onAskDraft, onSend, drafts, sent }: {
+export function MailView({ open, opening, onReply, onAskDraft, onSend, drafts, sent }: {
   open: OpenMail | null;
   /** A read is running. The pane has nothing to draw of the mail until it lands. */
   opening: boolean;
-  onDraft: (body: string) => void;
   /** The person typed: only the words change, never the recipient. */
   onReply: (replyToId: string, body: string) => void;
-  /** A draft the sidecar wrote, with the address the backend will send to. */
   /** Genera bozza: the chat model writes the reply, the box shows it. */
   onAskDraft: (item: MailCardItem) => void;
   onSend: (send: PendingSend) => void;
@@ -195,7 +193,6 @@ export function MailView({ open, opening, onDraft, onReply, onAskDraft, onSend, 
             pending={pending}
             sentTo={sentTo}
             onAsk={onSend}
-            onEdit={() => onDraft(words)}
             onCopy={() => {
               void navigator.clipboard?.writeText(words).then(
                 () => setCopied(true),

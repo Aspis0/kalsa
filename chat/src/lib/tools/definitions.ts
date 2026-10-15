@@ -153,7 +153,7 @@ export const MAIL_TOOLS: ToolDefinition[] = [
     function: {
       name: "mail_draft",
       description:
-        "Write a reply to one of the person's mails and show it as a draft the person can edit. Nothing is ever sent: the draft stays on this computer and the person sends it themselves. Name the mail to answer by its id and give the words of the reply.",
+        "Write a reply to one of the person's mails and show it as a draft the person can edit. Nothing is ever sent: the draft stays on this computer and the person sends it themselves. Name the mail to answer by its id and give the words of the reply. The words you write become that card and nothing else, so to change a draft call mail_draft again with the same reply_to_id and the whole new body — never write the new version as your answer text. The reply is the person's mail from their own account: never sign it as Kalsa and never name Kalsa in it. A signature name is the person's own, and only if the mail being answered gives it; otherwise sign nothing.",
       parameters: {
         type: "object",
         properties: {

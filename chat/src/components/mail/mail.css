@@ -207,7 +207,7 @@
   line-height: 18px;
 }
 
-/* The draft. Nothing here sends: the buttons edit and copy, and the line
+/* The draft. Nothing here sends: the buttons copy and send, and the line
    under them says so. */
 .mail-draft {
   padding: 16px 18px 14px;

@@ -6300,9 +6300,9 @@ const tests = {
     }
   },
 
-  // Modifica: the draft's words go into the composer, where they can be
-  // rewritten. A mail id is not a sentence, and the words the person typed in
-  // the card are the ones that go there — not the ones the sidecar first wrote.
+  // The card's box is the reply: what the person types there is what the card
+  // sends. It must survive a trip off the chat surface and a switch of
+  // conversation and back, because each remount must leave the stored words be.
   async maildraftedit() {
     const mock = draftEndpoint("810", "Ciao Persona 0,\n\nlunedì alle 11 va bene.\n\nA presto");
     await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
@@ -6312,6 +6312,7 @@ const tests = {
       await seed(page, {
         settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
         theme: "light",
+        convos: [{ id: "k9", title: "Altra chat", createdAt: 1, updatedAt: 2, messages: [{ id: "m9", role: "user", content: "ciao", createdAt: 1 }] }],
       });
       await page.addInitScript((fixture) => {
         window.__MAIL_FIXTURE__ = fixture;
@@ -6326,21 +6327,25 @@ const tests = {
       await box.fill("Scrivi una risposta alla prima mail");
       await box.press("Enter");
       await page.waitForSelector(".mail-draft", { timeout: 30000 });
+      await waitTurnDone(page);
 
       const written = "Ciao Persona 0,\n\nlunedì alle 11 va bene.\n\nA presto";
-      const shown = await page.locator(".mail-draft-body").inputValue();
-      check("draft: the card holds the words the reply was written with", shown === written, JSON.stringify(shown));
+      const card = page.locator(".mail-draft-body");
+      check("draft: the card holds the words the reply was written with", (await card.inputValue()) === written, JSON.stringify(await card.inputValue()));
       const rewritten = "Ciao Persona 0,\n\nmartedì alle 9 va meglio.\n\nA presto";
-      await page.locator(".mail-draft-body").fill(rewritten);
+      await card.fill(rewritten);
       await page.waitForTimeout(300);
 
-      await page.getByRole("button", { name: /Modifica|Edit/ }).first().click();
+      await page.locator('.rail-item[data-surface="settings"]').click();
       await page.waitForTimeout(400);
+      await page.locator('.rail-item[data-surface="chat"]').click();
+      await card.waitFor({ timeout: 10000 });
+      check("draft: the typed words survive leaving the chat and coming back", (await card.inputValue()) === rewritten, JSON.stringify(await card.inputValue()));
 
-      const composed = await box.inputValue();
-      check("draft: Modifica put the person's words in the composer", composed === rewritten, JSON.stringify(composed));
-      check("draft: and not the mail id", !/^\d+$/.test(composed.trim()), JSON.stringify(composed));
-      check("draft: nor the words it was written with", composed !== written, JSON.stringify(composed));
+      await openSidebar(page, "Altra chat");
+      await openSidebar(page, "Scrivi una risposta alla");
+      await card.waitFor({ timeout: 10000 });
+      check("draft: and survive a switch of conversation and back", (await card.inputValue()) === rewritten, JSON.stringify(await card.inputValue()));
     } finally {
       await browser.close();
       mock.close();
@@ -6425,6 +6430,72 @@ const tests = {
       check("pane: the draft button closed the pane, so the chat is what is read", (await page.locator(".panel.panel-open").count()) === 0, String(await page.locator(".panel.panel-open").count()));
       await page.waitForFunction((n) => document.querySelectorAll(".mail-draft").length > n, before, { timeout: 30000 });
       check("pane: and its draft is on screen too", (await page.locator(".mail-draft").count()) > before, String(await page.locator(".mail-draft").count()));
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
+  // "più formale" right after a draft names no mail of its own. The note that
+  // names the draft rides that one message, the model redrafts through
+  // mail_draft, and the card in hand is the new one. A message after a reply
+  // that drew no draft carries no note.
+  async mailredraft() {
+    const first = "Ciao,\n\nva bene cosi.\n\nA presto";
+    const second = "Gentilissimo,\n\nconfermo quanto concordato.\n\nCordiali saluti";
+    const wire = [];
+    const mock = redraftEndpoint("810", first, second, wire);
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, fixtureOf(MAIL_REVEAL_BOX));
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-draft", { timeout: 30000 });
+      await waitTurnDone(page);
+      check("redraft: the first draft is on the card", (await page.locator(".mail-draft-body").first().inputValue()).includes("va bene cosi"));
+
+      await box.fill("più formale");
+      await box.press("Enter");
+      // The mock only drafts again if the wire carries the note that names the mail.
+      await page.waitForFunction(() => document.querySelectorAll(".mail-draft").length === 2, null, { timeout: 30000 });
+      await waitTurnDone(page);
+
+      await box.fill("grazie");
+      await box.press("Enter");
+      await waitTurnDone(page);
+      await box.fill("che tempo fa?");
+      await box.press("Enter");
+      await waitTurnDone(page);
+
+      check("redraft: the first message carries no note", wire[0]?.noted === false, JSON.stringify(wire[0]));
+      check("redraft: the change request after the draft carries the note", wire[1]?.noted === true, JSON.stringify(wire[1]));
+      check("redraft: the message after the redraft carries it too, as the rule says", wire[2]?.noted === true, JSON.stringify(wire[2]));
+      check("redraft: a message after a reply with no draft carries no note", wire[3]?.noted === false, JSON.stringify(wire[3]));
+      const rows = await page.locator(".row-user").allTextContents();
+      check("redraft: the change request is shown as the person's own words", rows[1]?.includes("più formale"), JSON.stringify(rows[1]));
+      check("redraft: and no subject chip rides it", (await page.locator(".row-user").nth(1).locator(".row-mail-subject").count()) === 0);
+      const cards = await page.locator(".mail-draft-body").evaluateAll((nodes) => nodes.map((node) => node.value));
+      check("redraft: the card in hand is the one the last mail_draft built", cards.at(-1) === second, JSON.stringify(cards.at(-1)));
+      // Both cards name mail 810, so both read the one stored record: the words
+      // the last mail_draft wrote. No card is left offering the replaced ones.
+      check("redraft: no card still offers the words that were replaced", cards.every((body) => body === second), JSON.stringify(cards));
+      const answer = await page.locator(".row-assistant").nth(1).innerText();
+      check("redraft: the model did not answer with the new words as text", !answer.includes("confermo quanto concordato"), answer.slice(0, 120));
     } finally {
       await browser.close();
       mock.close();
@@ -6753,6 +6824,59 @@ function draftEndpoint(replyTo, body) {
     mailRound({ content: "Ecco la bozza: non è stata inviata." }),
   ];
   return serveRounds(rounds);
+}
+
+/** The draft, then a change request after it, then two messages that change
+    nothing. Each new turn lands in `wire` with whether its last user message
+    carries the note that names the draft. Only a change request that carries
+    that note is redrafted; the rest are answered in words. */
+function redraftEndpoint(replyTo, first, second, wire) {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, authorization",
+  };
+  const opening = [
+    mailRound({ id: "c1", name: "mail_list", args: { days: 1 } }),
+    mailRound({ id: "c2", name: "mail_draft", args: { reply_to_id: replyTo, body: first } }),
+    mailRound({ content: "Ecco la bozza." }),
+  ];
+  const again = [
+    mailRound({ id: "c3", name: "mail_draft", args: { reply_to_id: replyTo, body: second } }),
+    mailRound({ content: "Ecco la bozza più formale." }),
+  ];
+  const wordsOnly = [mailRound({ content: "Ecco una risposta." })];
+  let plan = opening;
+  let round = 0;
+  return createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      if (req.method === "OPTIONS") return void res.writeHead(204, cors).end();
+      if (req.url?.includes("/kalsa/chat/")) return void res.writeHead(204, cors).end();
+      if (!req.url?.includes("/chat/completions")) return void res.writeHead(404, cors).end();
+      let messages = [];
+      try {
+        messages = JSON.parse(body).messages;
+      } catch {
+        messages = [];
+      }
+      // A request ending on the person's own words is a new turn; one ending on
+      // a tool result is the next round of the turn already in hand.
+      const last = messages[messages.length - 1];
+      if (last?.role === "user") {
+        round = 0;
+        const said = String(last.content);
+        const noted = said.includes(`reply_to_id ${replyTo}`);
+        wire.push({ said: said.slice(0, 80), noted });
+        plan = wire.length === 1 ? opening : noted && said.includes("più formale") ? again : wordsOnly;
+      }
+      res.writeHead(200, { "content-type": "text/event-stream", ...cors });
+      for (const line of plan[Math.min(round, plan.length - 1)]) res.write(`${line}data: [DONE]\n\n`);
+      res.end();
+      round += 1;
+    });
+  });
 }
 
 /** One model turn as this file writes it: a chunk of assistant output. */

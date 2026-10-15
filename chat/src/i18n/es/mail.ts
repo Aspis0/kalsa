@@ -19,7 +19,6 @@ export const MAIL = {
     "to": "Para",
     "subject": "Asunto",
     "body": "Mensaje",
-    "edit": "Editar",
     "copy": "Copiar",
     "copied": "Copiado",
     "send": "Enviar",
@@ -45,6 +44,8 @@ export const MAIL = {
     "askDraft": () => "Escribe una respuesta a este correo.",
     "askDraftNote": (id: string) =>
       `La persona ha pulsado «responder» en el correo con id ${id}. Ese correo existe y está en su pantalla ahora mismo: escribe la respuesta para ese y para nada más. Llama a mail_draft con reply_to_id ${id} directamente, nunca antes a mail_list, y nunca le digas a la persona que el correo no está.`,
+    "redraftNote": (id: string) =>
+      `Hay en pantalla un borrador para el correo con id ${id}. Si las palabras de la persona piden cambiarlo, llama otra vez a mail_draft con reply_to_id ${id} y con todo el texto nuevo: la tarjeta es la única copia que se puede enviar, así que una versión nueva escrita como texto de respuesta no cambia nada. Si sus palabras hablan de otra cosa, responde a eso e ignora esta nota.`,
     "makeDraft": "Redactar borrador",
     "generating": "Escribiendo…",
     "noAttachments": "Sin adjuntos.",

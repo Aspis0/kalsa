@@ -527,3 +527,12 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - Load marker: Android `DEPENDENCY_DIED` (and other unmapped reasons) map to "other" = clean in `KalsaLifecycleModule.kt`; a dependency death during native init is not treated as a death.
 - Low-memory line (phone 20ac2eb8): the runtime CPU fallback inside a turn (`LlamaService.ts` ~6095) reloads without a React state change, so the line updates only at the next render; a GPU init that fails from memory pressure while the estimate said Fit falls back to CPU (`LlamaService.ts` ~2942) without the line.
 - `src/engine/LlamaService.ts` is a God file (6942 lines, 245 commits). Owner 2026-10-15: split it with the usual pipeline (explorer map → plan → one cut at a time, each reviewed and checked on the S23), coordinated with the governor session.
+
+## Phone: LlamaService split, cut 1 (phone 4f571791, 2026-10-15, phone repo)
+- `cleanTranslationOutput` (now in `src/engine/outputCleaners.ts`, moved verbatim) turns a single-line "Ecco la traduzione: Ciao" into "": the lead-in strip eats the only line. Pre-existing; the cut kept it as is.
+
+## Mail redraft and «Modifica» removal, deepseek review (2026-10-15, left over)
+- Draft tool runs are stripped on persist (`lib/store.ts` `forDisk` drops `mail`), so after a reload the draft cards are gone and a change asked in chat carries no redraft note.
+- "Never sign as Kalsa" is prompt-only (`definitions.ts` mail_draft description); no code checks the body, and the mail-cards check only reads the description back.
+- A redraft adds a second card for the same mail instead of replacing the first; both show the one stored record, so neither offers the old words.
+- The fresh-chat branch of `send` drops the mail riders (note, subject, pin); unreachable from a card today because cards need an active chat.

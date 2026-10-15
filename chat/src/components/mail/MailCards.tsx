@@ -23,7 +23,7 @@ import "./mail.css";
  * on screen and nothing here can draw the same mail twice.
  */
 
-export function MailCardsView({ mail, more, onReveal, selected, onOpen, onDraft, onSend, sent, drafts, onSave, onCompose }: {
+export function MailCardsView({ mail, more, onReveal, selected, onOpen, onDraft, onSend, sent, drafts, onSave }: {
   mail: Mail;
   /** How many of `mail.items` are not drawn, for the button that brings them in. */
   more?: number;
@@ -38,9 +38,6 @@ export function MailCardsView({ mail, more, onReveal, selected, onOpen, onDraft,
   /** The replies in hand, under the mail each one answers. */
   drafts: Drafts;
   onSave: (replyToId: string, record: DraftRecord) => void;
-  /** Modifica: the draft's words in the composer, where they can be rewritten.
-    One meaning and one argument — the same words the panel's box would send. */
-  onCompose: (body: string) => void;
 }) {
   if (mail.kind === "draft") {
     return (
@@ -50,7 +47,6 @@ export function MailCardsView({ mail, more, onReveal, selected, onOpen, onDraft,
         sent={sent}
         onSave={onSave}
         onSend={onSend}
-        onCompose={onCompose}
       />
     );
   }
@@ -148,21 +144,21 @@ function MailCard({ item, selected, onOpen, onDraft }: {
 
 /** The draft, with the recipient fixed by the mail it answers. Sending is a
     second press on the confirm this opens; the card itself never sends. */
-function MailDraftCard({ draft, drafts, sent, onSave, onSend, onCompose }: {
+function MailDraftCard({ draft, drafts, sent, onSave, onSend }: {
   draft: MailDraft;
   drafts: Drafts;
   sent: SentTo;
   onSave: (replyToId: string, record: DraftRecord) => void;
   onSend: (send: PendingSend) => void;
-  onCompose: (body: string) => void;
 }) {
   const { table } = useLanguage();
   const t = table.mail;
   const [copied, setCopied] = useState(false);
   /** This mail's own words, never another mail's. */
   const mine = draftFor(drafts, draft.replyToId);
-  // The reply the model wrote becomes the one in hand, so the Mail tab shows
-  // these words instead of an empty box of its own.
+  // The reply the model wrote becomes the one in hand only while nothing is
+  // stored: a remount must not overwrite the person's edits. A newer draft run
+  // replaces the stored record where its turn lands it.
   useEffect(() => {
     if (mine === null) onSave(draft.replyToId, { to: draft.to, subject: draft.subject, body: draft.body });
   }, [draft.body, draft.replyToId, draft.subject, draft.to, mine, onSave]);
@@ -200,7 +196,6 @@ function MailDraftCard({ draft, drafts, sent, onSave, onSend, onCompose }: {
             () => setCopied(false),
           );
         }}
-        onEdit={() => onCompose(body)}
         copied={copied}
       />
     </article>

@@ -677,6 +677,21 @@ check("and the refusal names the mail the turn is for", elsewhere.text.includes(
   globalThis.__mailStubOverride = null;
 }
 
+/* The draft is the person's mail: a reply signed by the assistant is a stranger
+   writing in their name. */
+{
+  const draft = app.MAIL_TOOLS.find((tool) => tool.function.name === "mail_draft").function;
+  check("mail_draft says never to sign as Kalsa", draft.description.includes("never sign it as Kalsa"), draft.description);
+  check("and never to name Kalsa in it", draft.description.includes("never name Kalsa in it"), draft.description);
+  check("and to sign only with the person's own name", draft.description.includes("the person's own") && draft.description.includes("otherwise sign nothing"), draft.description);
+  check(
+    "mail_draft says a change means another call, not more text",
+    draft.description.includes("call mail_draft again with the same reply_to_id") &&
+      draft.description.includes("never write the new version as your answer text"),
+    draft.description,
+  );
+}
+
 /* The note a pinned turn carries is what the model weighs before it calls. */
 {
   const note = app.TABLES.it.mail.askDraftNote("412");

@@ -77,7 +77,6 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
     mailOpening,
     setMailOpen,
     openMail,
-    editDraft,
     mailDrafts,
     saveMailDraft,
     typeMailDraft,
@@ -184,7 +183,6 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
               mailSent={mailSent}
               mailDrafts={mailDrafts}
               onSaveMail={saveMailDraft}
-              onComposeMail={editDraft}
               onOpenMailSettings={() => openSurface("mail")}
             />
           )}
@@ -267,7 +265,6 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
           mailOpening={mailOpening}
           mailDrafts={mailDrafts}
           mailSent={mailSent}
-          onMailDraft={editDraft}
           onMailReply={typeMailDraft}
           onMailAskDraft={askDraft}
           onMailSend={setMailSend}

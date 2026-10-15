@@ -14,6 +14,7 @@ import { loadThinking } from "../lib/thinking";
 import type { LiveSettings, ToolRun } from "../lib/types";
 import type { ConversationStore } from "../lib/store";
 import { uid } from "../lib/store";
+import type { DraftRecord } from "../lib/mail/drafts";
 import { buildPinnedContext, CONTEXT_RESERVE_TOKENS, wireSize } from "../lib/attachments";
 import type { MediaView } from "../lib/attachments";
 import { wireTurns } from "../lib/wireTurns";
@@ -47,9 +48,11 @@ interface TurnEngine {
   /** The per-endpoint context cache send-time reads — never fetched here:
       send-time never waits on /props. */
   contextSizes: { current: Map<string, number> };
+  /** Stores the reply a draft run wrote, as the mail card would. */
+  saveMailDraft: (replyToId: string, record: DraftRecord) => void;
 }
 
-export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
+export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: TurnEngine) {
   const { table, language } = useLanguage();
   // The stable callbacks below read the table through this ref, so a
   // language chosen mid-session reaches the next turn's words.
@@ -400,6 +403,11 @@ export function useChatTurns({ store, announce, contextSizes }: TurnEngine) {
           ? b.toolRuns.map((existing) => (existing.id === run.id ? run : existing))
           : [...b.toolRuns, run];
         publish();
+        // A newly written draft replaces the stored one for its mail: the card
+        // is only ever drawn from the store, so this is how the new words show.
+        if (run.mail?.kind === "draft") {
+          saveMailDraft(run.mail.replyToId, { to: run.mail.to, subject: run.mail.subject, body: run.mail.body });
+        }
       }
       try {
         await streamChatCompletion({

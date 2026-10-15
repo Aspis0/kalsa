@@ -14,7 +14,7 @@ import type { PendingSend } from "../lib/mail/pending";
  * and cannot send one.
  */
 
-export function useMail(conversation: string | null, compose: (text: string) => void) {
+export function useMail(conversation: string | null) {
   const [open, setOpen] = useState<OpenMail | null>(null);
   /** Whether a read is still running, so the pane can say so instead of
       saying no mail is open. The read is the slowest call the mailbox makes. */
@@ -57,14 +57,6 @@ export function useMail(conversation: string | null, compose: (text: string) => 
     setOpen({ item, record: answer.record, body: answer.body, code: answer.code });
   }
 
-  /** "Scrivi una risposta: " in the composer: the person finishes the sentence.
-      The sender's name stays on the card — in the box it would read to the
-      model as the person's own words, outside the fence. */
-  /** Modifica: the draft's words in the composer, editable. */
-  function edit(body: string): void {
-    compose(body);
-  }
-
   /** A draft the sidecar wrote, with the address the backend will send to. */
   function save(id: string, record: DraftRecord): void {
     setDrafts((before) => withDraft(before, id, record));
@@ -95,7 +87,6 @@ export function useMail(conversation: string | null, compose: (text: string) => 
     opening,
     setOpen: changeMail,
     show,
-    edit,
     drafts,
     save,
     type: type_,

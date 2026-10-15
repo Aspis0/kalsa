@@ -5,14 +5,14 @@
 // unmount: the draft survives it because THIS hook lives in the shell, not
 // because the state lives in any particular file.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, useCallback } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createStore, firstCharacters, titleFor, uid } from "../lib/store";
 import { activateChat, eraseChat, fetchContextSize, serverBase } from "../lib/chat";
 import { ensureContextSize, hasContextSize } from "../lib/contextSize";
 import { createSlotGate } from "../lib/slotGate";
 import type { ActiveChat, DoorAccess, SlotNotice } from "../lib/slotGate";
 import { loadThinking, saveThinking, thinkingSupport } from "../lib/thinking";
-import type { ChatSettings, Conversation, ConversationMeta } from "../lib/types";
+import type { ChatMessage, ChatSettings, Conversation, ConversationMeta } from "../lib/types";
 import type { FailedState } from "../components/Thread";
 import { createAttachGate, NEW_CHAT } from "../lib/attachGate";
 import type { Attachment } from "../lib/attachments";
@@ -117,6 +117,18 @@ function slotCode(notice: SlotNotice): string {
   }
 }
 
+/** The mail a message's last draft is for, when that message is an assistant
+    turn holding one: the draft on screen right after it. */
+function draftIdOf(message: ChatMessage | undefined): string | null {
+  if (message?.role !== "assistant") return null;
+  const runs = message.toolRuns ?? [];
+  for (let run = runs.length - 1; run >= 0; run -= 1) {
+    const mail = runs[run].mail;
+    if (mail?.kind === "draft") return mail.replyToId;
+  }
+  return null;
+}
+
 export function useChat(shell: ChatShell) {
   const { openSurface, announce, setSlotNotice, settings } = shell;
   const { table, tag } = useLanguage();
@@ -171,9 +183,8 @@ export function useChat(shell: ChatShell) {
   // draft must survive that round trip, so it lives in the hook the shell
   // holds — the hook does not unmount when the chat does.
   const [draft, setDraft] = useState("");
-  const compose = useCallback((text: string) => setDraft(text), []);
   // The mail open beside the chat, and the two ways anything comes of it.
-  const mail = useMail(activeId, compose);
+  const mail = useMail(activeId);
   // Pictures attached but not yet sent, per conversation. The bytes are in
   // IndexedDB the moment the chip exists; this map holds only the reference
   // and the chip's object URL, and follows the draft's own durability.
@@ -283,7 +294,7 @@ export function useChat(shell: ChatShell) {
     [conversations, activeId],
   );
 
-  const turns = useChatTurns({ store, announce, contextSizes: nctxCache });
+  const turns = useChatTurns({ store, announce, contextSizes: nctxCache, saveMailDraft: mail.save });
   const { live, streamingByConv, failedById } = turns;
 
   const active = useMemo(() => {
@@ -825,9 +836,6 @@ export function useChat(shell: ChatShell) {
   }
 
   function sendNow(text: string, opened: ActiveChat | null, note = "", subject = "", mailId = ""): string | null {
-    const says = note;
-    const subject2 = subject;
-    const mailId2 = mailId;
     // The brand bites here. An `ActiveChat` is the door's answer for one chat,
     // so it is used for that chat or refused — never passed over in favour of
     // whatever this render happened to call active. The render's chat is
@@ -843,6 +851,11 @@ export function useChat(shell: ChatShell) {
         messages: [],
       };
     }
+    // A message right after a draft may ask to change it ("più formale"), so the
+    // note names that draft. Only the note carries over: the pin and the chip
+    // are set by a card press alone, so an unrelated message is never tied to it.
+    const shownDraft = note === "" && mailId === "" ? draftIdOf(conv.messages[conv.messages.length - 1]) : null;
+    const wireNote = shownDraft === null ? note : table.mail.redraftNote(shownDraft);
     const assistantId = uid();
     const userId = uid();
     // Whatever chips this conversation holds ride the new user turn as
@@ -887,9 +900,9 @@ export function useChat(shell: ChatShell) {
           ...(bindable.length > 0
             ? { docs: bindable.map((a) => a.id), docTokens: estTokens(boundBlock) }
             : {}),
-          ...(says === "" ? {} : { mailNote: says }),
-          ...(subject2 === "" ? {} : { mailSubject: subject2 }),
-          ...(mailId2 === "" ? {} : { mailId: mailId2 }),
+          ...(wireNote === "" ? {} : { mailNote: wireNote }),
+          ...(subject === "" ? {} : { mailSubject: subject }),
+          ...(mailId === "" ? {} : { mailId }),
         }),
         { id: assistantId, role: "assistant", content: decline ?? "", createdAt: Date.now() },
       ],
@@ -1190,7 +1203,6 @@ export function useChat(shell: ChatShell) {
     mailOpening: mail.opening,
     setMailOpen: mail.setOpen,
     openMail: mail.show,
-    editDraft: mail.edit,
     mailDrafts: mail.drafts,
     saveMailDraft: mail.save,
     typeMailDraft: mail.type,

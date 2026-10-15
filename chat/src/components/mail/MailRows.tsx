@@ -31,7 +31,6 @@ export function MailRows({
   sent,
   drafts,
   onSave,
-  onComposeMail,
   onOpenMailSettings,
 }: {
   runs: ToolRun[];
@@ -43,7 +42,6 @@ export function MailRows({
   sent: SentTo;
   drafts: Drafts;
   onSave: (replyToId: string, record: DraftRecord) => void;
-  onComposeMail: (body: string) => void;
   onOpenMailSettings: () => void;
 }) {
   const { table } = useLanguage();
@@ -122,7 +120,6 @@ export function MailRows({
           sent={sent}
           drafts={drafts}
           onSave={onSave}
-          onCompose={onComposeMail}
         />
       ) : null}
       {groups.map((group) => (
@@ -138,7 +135,6 @@ export function MailRows({
           sent={sent}
           drafts={drafts}
           onSave={onSave}
-          onCompose={onComposeMail}
         />
       ))}
     </>

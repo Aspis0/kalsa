@@ -56,7 +56,6 @@ interface ThreadProps {
   mailSent: SentTo;
   mailDrafts: Drafts;
   onSaveMail: (replyToId: string, record: DraftRecord) => void;
-  onComposeMail: (body: string) => void;
   /** A failed mail call offers the account page, where its own fix lives. */
   onOpenMailSettings: () => void;
 }
@@ -175,7 +174,6 @@ function AssistantRow({
   mailSent,
   mailDrafts,
   onSaveMail,
-  onComposeMail,
   onOpenMailSettings,
 }: {
   message: ChatMessage;
@@ -196,7 +194,6 @@ function AssistantRow({
   mailSent: SentTo;
   mailDrafts: Drafts;
   onSaveMail: (replyToId: string, record: DraftRecord) => void;
-  onComposeMail: (body: string) => void;
   onOpenMailSettings: () => void;
 }) {
   const { table, tag } = useLanguage();
@@ -265,7 +262,6 @@ function AssistantRow({
         sent={mailSent}
         drafts={mailDrafts}
         onSave={onSaveMail}
-        onComposeMail={onComposeMail}
         onOpenMailSettings={onOpenMailSettings}
       />
         )}
@@ -327,7 +323,6 @@ export function Thread({
   mailSent,
   mailDrafts,
   onSaveMail,
-  onComposeMail,
   onOpenMailSettings,
 }: ThreadProps) {
   const { table, tag } = useLanguage();
@@ -378,7 +373,6 @@ export function Thread({
                 mailSent={mailSent}
                 mailDrafts={mailDrafts}
                 onSaveMail={onSaveMail}
-                onComposeMail={onComposeMail}
                 onOpenMailSettings={onOpenMailSettings}
               />
             ),

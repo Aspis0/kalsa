@@ -88,11 +88,10 @@ export function SendConfirm({ pending, onClose, onSent }: {
 /** The buttons every place that can send a reply carries, and the state it
     lands in. One component so the chat's card and the panel's section cannot
     drift apart on what a press does. */
-export function SendControls({ pending, sentTo, onAsk, onEdit, onCopy, copied }: {
+export function SendControls({ pending, sentTo, onAsk, onCopy, copied }: {
   pending: PendingSend | null;
   sentTo: string | null;
   onAsk: (send: PendingSend) => void;
-  onEdit: () => void;
   onCopy: () => void;
   copied: boolean;
 }) {
@@ -108,10 +107,6 @@ export function SendControls({ pending, sentTo, onAsk, onEdit, onCopy, copied }:
   }
   return (
     <div className="mail-card-actions">
-      <button type="button" className="mail-btn" onClick={onEdit}>
-        <Icon name="pencil" size={16} />
-        {t.edit}
-      </button>
       <button type="button" className="mail-btn" onClick={onCopy}>
         <Icon name={copied ? "check" : "copy"} size={16} />
         {copied ? t.copied : t.copy}

@@ -18,7 +18,6 @@ export const MAIL = {
     "to": "收件人",
     "subject": "主题",
     "body": "正文",
-    "edit": "修改",
     "copy": "复制",
     "copied": "已复制",
     "send": "发送",
@@ -44,6 +43,8 @@ export const MAIL = {
     "askDraft": () => "给这封邮件写一封回信。",
     "askDraftNote": (id: string) =>
       `这个人刚刚按下了 id 为 ${id} 的邮件上的「回复」。这封邮件确实存在，此刻就在他的屏幕上：只为它写回信，不要写别的。直接用 reply_to_id ${id} 调用 mail_draft，不要先调用 mail_list，也绝不要告诉这个人这封邮件找不到。`,
+    "redraftNote": (id: string) =>
+      `屏幕上有一份 id 为 ${id} 的邮件的草稿。如果这个人的话是要求修改它，就再次用 reply_to_id ${id} 调用 mail_draft，并给出完整的新内容：卡片是唯一能被发出去的那一份，所以把新版本写成回答的文字不会改变任何东西。如果他的话是在说别的，就回答他的话，忽略这条提示。`,
     "makeDraft": "生成草稿",
     "generating": "正在写…",
     "noAttachments": "没有附件。",

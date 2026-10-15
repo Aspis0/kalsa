@@ -19,7 +19,6 @@ export const MAIL = {
     "to": "À",
     "subject": "Objet",
     "body": "Message",
-    "edit": "Modifier",
     "copy": "Copier",
     "copied": "Copié",
     "send": "Envoyer",
@@ -45,6 +44,8 @@ export const MAIL = {
     "askDraft": () => "Écris une réponse à ce mail.",
     "askDraftNote": (id: string) =>
       `La personne a pressé « répondre » sur le mail d'id ${id}. Ce mail existe et il est à l'écran en ce moment : écris la réponse pour ce mail et pour rien d'autre. Appelle mail_draft avec reply_to_id ${id} directement, jamais mail_list avant, et ne dis jamais à la personne que ce mail est introuvable.`,
+    "redraftNote": (id: string) =>
+      `Un brouillon pour le mail d'id ${id} est à l'écran. Si les mots de la personne demandent de le changer, appelle mail_draft à nouveau avec reply_to_id ${id} et tout le nouveau texte : la carte est la seule copie qui peut être envoyée, donc une nouvelle version écrite comme texte de réponse ne change rien. Si ses mots parlent d'autre chose, réponds-lui et ignore cette note.`,
     "makeDraft": "Rédiger un brouillon",
     "generating": "Rédaction…",
     "noAttachments": "Aucune pièce jointe.",
