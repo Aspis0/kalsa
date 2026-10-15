@@ -227,6 +227,12 @@ function AssistantRow({
     hasReasoning && message.content === "" && !streaming && failedHere === null && !message.stopped;
   // The copy and time row only under an answer that is done and whole.
   const finished = !live && message.content !== "" && failedHere === null && !interrupted;
+  // The cards, the notices and the counts wait for the first word of the
+  // answer: what the model found is the answer's to introduce, and a card that
+  // appears above a sentence nobody has read yet answers a question the person
+  // has not asked. A turn that ends without an answer — a failure, a stop, a
+  // round that was refused — still shows them all, so none is ever lost.
+  const mailPending = streaming && message.content === "";
   return (
     <div className="row row-assistant" title={stamp(message.createdAt, tag)}>
       {hasReasoning ? (
@@ -241,7 +247,7 @@ function AssistantRow({
       ) : null}
       <MiniappRows runs={toolRuns} onState={(runId, state) => onMiniappState(message.id, runId, state)} />
       <div className="assistant-bubble">
-        <ToolActivity runs={toolRuns} awaitingOk={awaitingOk} />
+        <ToolActivity runs={toolRuns} awaitingOk={awaitingOk} mailPending={mailPending} />
         {showThinking ? (
           <WaitingRow text={t.readingMessage} spoken={t.waitingFirstWord} />
         ) : message.content ? (
@@ -249,6 +255,7 @@ function AssistantRow({
         ) : null}
         {/* The cards follow the sentence that introduces them: what Kalsa
             found, then the mail itself. */}
+        {mailPending ? null : (
         <MailRows
         runs={toolRuns}
         selected={mailOpen}
@@ -261,6 +268,7 @@ function AssistantRow({
         onComposeMail={onComposeMail}
         onOpenMailSettings={onOpenMailSettings}
       />
+        )}
         {message.stopped && failedHere === null ? <p className="row-note">{t.stoppedEarly}</p> : null}
         {showNoAnswer ? (
           <div className="no-answer">

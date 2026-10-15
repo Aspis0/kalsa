@@ -188,6 +188,20 @@ export async function runMailRead(model: Record<string, unknown>): Promise<{
   };
 }
 
+/** What a pinned turn hears when its own session cannot see the mail. It says
+    what is true — the mail is there, this list is too short — and what to do
+    about it, and never offers the person a different mail in place of theirs. */
+function notSeenAgain(openedFor: string): string {
+  return `The mail with id ${openedFor} exists: the person pressed it and it is on their screen. This session has not listed it, so no draft was written. Call mail_list with days large enough to reach that mail, then call mail_draft again with reply_to_id ${openedFor}. Never tell the person the mail does not exist, and do not offer them another mail instead of it.`;
+}
+
+/** The words of a draft the model has just written. The card is already on the
+    person's screen with its subject and its words, so repeating either is
+    saying twice what they can read, and a mail id is the tool's handle on a
+    mail, never something to read out. */
+const DRAFT_SHOWN =
+  "The draft is now on the person's screen as a card they can read, edit and send themselves. Do not repeat its subject or its words, and do not say you replied or that anything was sent: one short line is enough. A mail id is a handle for your tool calls only — never mention one to the person.";
+
 /** A reply as an object. The recipient came from the mail, never from the model. */
 export async function runMailDraft(model: Record<string, unknown>, openedFor?: string): Promise<{ text: string; ok: boolean; draft: MailDraft | null; code?: string }> {
   const built = draftArgs(model);
@@ -202,7 +216,14 @@ export async function runMailDraft(model: Record<string, unknown>, openedFor?: s
     };
   }
   const response = await call("brain_mail_draft", built.args);
-  if (response.is_error) return { text: failure(response), ok: false, draft: null, ...codeOf(response) };
+  if (response.is_error) {
+    // The mail the person pressed exists: what failed is this session's hold on
+    // it. A model that reads "not in a list of this session" as "no such mail"
+    // tells the person a mail they are looking at does not exist.
+    return openedFor === undefined
+      ? { text: failure(response), ok: false, draft: null, ...codeOf(response) }
+      : { text: notSeenAgain(openedFor), ok: false, draft: null, ...codeOf(response) };
+  }
   const r = object(response.for_ui);
   const to = typeof r.to === "string" ? r.to : "";
   if (to === "") return { text: NOT_MAIL, ok: false, draft: null };
@@ -210,7 +231,7 @@ export async function runMailDraft(model: Record<string, unknown>, openedFor?: s
   return {
     // The model reads this and answers the person in their own words, so it has
     // to say what is true: a draft is waiting for the person, and nobody sent.
-    text: "The draft is ready for the person to review and send. Nothing was sent: never say that you replied or that the reply was sent.",
+    text: DRAFT_SHOWN,
     ok: !response.is_error,
     draft: {
       kind: "draft",

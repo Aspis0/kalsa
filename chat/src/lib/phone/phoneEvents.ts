@@ -25,23 +25,35 @@ export function phoneSink(send: (event: string, data: unknown) => void): PhoneSi
   // The loop reports a run again when its mail arrives; the card set or draft
   // is sent once per run however many reports there are.
   const drawn = new Set<string>();
+  // The phone shows the cards under the answer, so they wait for its first word
+  // as the desktop waits. Same frames, later: nothing is lost either way,
+  // because whatever is held goes out before the turn's terminal event.
+  let held: { event: string; data: unknown }[] = [];
   const emit = (event: string, data: unknown): void => {
     if (!ended) send(event, data);
   };
+  const release = (): void => {
+    for (const frame of held) emit(frame.event, frame.data);
+    held = [];
+  };
   const end = (event: string, data: unknown): void => {
     if (ended) return;
+    release();
     ended = true;
     send(event, data);
   };
   return {
     reasoning: (text) => emit("reasoning", { text }),
-    delta: (text) => emit("delta", { text }),
+    delta: (text) => {
+      emit("delta", { text });
+      if (text !== "") release();
+    },
     toolRun(run) {
       emit("tool_run", { id: run.id, name: run.name, state: run.state });
       if (run.mail === undefined || drawn.has(run.id)) return;
       drawn.add(run.id);
       const [event, data] = mailEvent(run.mail);
-      emit(event, data);
+      held.push({ event, data });
     },
     read: (record, body) => emit("read", { record: recordWire(record), body }),
     done: () => end("done", {}),

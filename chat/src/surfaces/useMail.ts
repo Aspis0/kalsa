@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useLanguage } from "../i18n/useLanguage";
 import { runMailRead } from "../lib/tools/mailCall";
 import { withBody, withDraft, withSent } from "../lib/mail/drafts";
 import type { DraftRecord, Drafts, SentTo } from "../lib/mail/drafts";
@@ -15,9 +14,7 @@ import type { PendingSend } from "../lib/mail/pending";
  * and cannot send one.
  */
 
-export function useMail(conversation: string | null, compose: (text: string, mail?: { id: string; subject: string; note: string }) => void) {
-  const { table } = useLanguage();
-  const t = table.mail;
+export function useMail(conversation: string | null, compose: (text: string) => void) {
   const [open, setOpen] = useState<OpenMail | null>(null);
   /** Whether a read is still running, so the pane can say so instead of
       saying no mail is open. The read is the slowest call the mailbox makes. */
@@ -63,10 +60,6 @@ export function useMail(conversation: string | null, compose: (text: string, mai
   /** "Scrivi una risposta: " in the composer: the person finishes the sentence.
       The sender's name stays on the card — in the box it would read to the
       model as the person's own words, outside the fence. */
-  function reply(item: MailCardItem): void {
-    compose(t.replyLine(), { id: item.id, subject: item.subject, note: t.replyNote(item.id) });
-  }
-
   /** Modifica: the draft's words in the composer, editable. */
   function edit(body: string): void {
     compose(body);
@@ -102,7 +95,6 @@ export function useMail(conversation: string | null, compose: (text: string, mai
     opening,
     setOpen: changeMail,
     show,
-    reply,
     edit,
     drafts,
     save,

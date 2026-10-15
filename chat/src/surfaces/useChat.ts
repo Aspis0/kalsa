@@ -171,13 +171,7 @@ export function useChat(shell: ChatShell) {
   // draft must survive that round trip, so it lives in the hook the shell
   // holds — the hook does not unmount when the chat does.
   const [draft, setDraft] = useState("");
-  // What a card put in the composer, and the mail it was opened for: the words
-  // in the box are the person's, so the id rides the wire in the note alone.
-  const pendingMail = useRef<{ id: string; subject: string; note: string; prefix: string } | null>(null);
-  const compose = useCallback((text: string, mail?: { id: string; subject: string; note: string }) => {
-    pendingMail.current = mail === undefined ? null : { ...mail, prefix: text };
-    setDraft(text);
-  }, []);
+  const compose = useCallback((text: string) => setDraft(text), []);
   // The mail open beside the chat, and the two ways anything comes of it.
   const mail = useMail(activeId, compose);
   // Pictures attached but not yet sent, per conversation. The bytes are in
@@ -831,15 +825,9 @@ export function useChat(shell: ChatShell) {
   }
 
   function sendNow(text: string, opened: ActiveChat | null, note = "", subject = "", mailId = ""): string | null {
-    // A composer a card filled carries the mail with it, as long as the
-    // person kept what it wrote; if they cleared it, they are asking something
-    // else and no mail rides along.
-    const opened4 = pendingMail.current;
-    pendingMail.current = null;
-    const kept = opened4 !== null && text.startsWith(opened4.prefix);
-    const says = note || (kept ? opened4.note : "");
-    const subject2 = subject || (kept ? opened4.subject : "");
-    const mailId2 = mailId || (kept ? opened4.id : "");
+    const says = note;
+    const subject2 = subject;
+    const mailId2 = mailId;
     // The brand bites here. An `ActiveChat` is the door's answer for one chat,
     // so it is used for that chat or refused — never passed over in favour of
     // whatever this render happened to call active. The render's chat is
@@ -1202,7 +1190,6 @@ export function useChat(shell: ChatShell) {
     mailOpening: mail.opening,
     setMailOpen: mail.setOpen,
     openMail: mail.show,
-    replyTo: mail.reply,
     editDraft: mail.edit,
     mailDrafts: mail.drafts,
     saveMailDraft: mail.save,

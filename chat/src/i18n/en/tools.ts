@@ -11,6 +11,7 @@ export const TOOLS = {
   readingMail: "Reading your mail…",
   writingDraft: "Writing the draft…",
   writingCardLines: "Writing a line under each card…",
+  mailReady: "Your mail is ready.",
   pageNotOpened: "Kalsa couldn't open that page. Try again.",
   searchDidNotRun: "Kalsa couldn't search the web. Try again.",
   couldNotFinish: "Kalsa couldn't finish checking. Ask again.",

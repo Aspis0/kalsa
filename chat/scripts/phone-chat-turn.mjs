@@ -131,12 +131,15 @@ async function turns(app) {
     const { log, sink } = recorder(app);
     await app.runPhoneTurn(turnOf([USER("mail")]), SETTINGS, sink, abortable(), { loop, facts: facts() });
     // A repeated report re-sends its row (the state is the same), never a second card set.
-    equal("a tool run with cards is a tool_run, then the cards once", log, [
+    // The cards follow the answer that introduces them, as on the desktop: the
+    // phone draws them under the first word, and a turn with no word at all
+    // still sends them before its terminal frame.
+    equal("a tool run with cards is a tool_run, then the cards once the answer starts", log, [
       ["tool_run", { id: "0-c1", name: "mail_list", state: "running" }],
       ["tool_run", { id: "0-c1", name: "mail_list", state: "ok" }],
-      ["cards", CARDS],
       ["tool_run", { id: "0-c1", name: "mail_list", state: "ok" }],
       ["delta", { text: "Ecco." }],
+      ["cards", CARDS],
       ["done", {}],
     ]);
     // Every field of a card and of its labels is one word, so the cards frame
@@ -162,6 +165,28 @@ async function turns(app) {
     sink.fail("engine");
     sink.delta("late");
     check("exactly one terminal event, and nothing after it", terminals(log) === 1 && log.length === 1, JSON.stringify(log));
+  }
+  {
+    // A turn whose answer never arrives must still deliver the cards: the
+    // phone's frames are one way, so a held card is only ever held until the
+    // turn's terminal frame, never dropped.
+    const { loop } = fakeLoop(async (o) => {
+      o.onToolRun({ id: "0-c1", name: "mail_list", arguments: "{}", result: "1 mail", state: "ok", mail: CARDS });
+      throw new app.ChatRequestError("http", "HTTP 500");
+    });
+    const { log, sink } = recorder(app);
+    await app.runPhoneTurn(turnOf([USER("fammi vedere le mail")]), SETTINGS, sink, abortable(), { loop, facts: facts() });
+    equal("a turn with no answer still sends its cards before it ends", log.at(-2)[0], "cards");
+    equal("and then the turn's own code", log.at(-1), ["error", { code: "engine" }]);
+  }
+  {
+    const { loop } = fakeLoop(async (o) => {
+      o.onToolRun({ id: "0-c1", name: "mail_list", arguments: "{}", result: "1 mail", state: "ok", mail: CARDS });
+    });
+    const { log, sink } = recorder(app);
+    await app.runPhoneTurn(turnOf([USER("fammi vedere le mail")]), SETTINGS, sink, abortable(), { loop, facts: facts() });
+    equal("a turn that says nothing sends its cards before done", log.at(-2)[0], "cards");
+    equal("and then done", log.at(-1), ["done", {}]);
   }
   {
     const { loop } = fakeLoop(async () => {

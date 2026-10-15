@@ -5,9 +5,6 @@
 export const MAIL = {
     "open": "打开",
     "replyDraft": "回复草稿",
-    "replyLine": () => "写一封回信：",
-    "replyNote": (id: string) =>
-      `这个人正在回复 id 为 ${id} 的邮件。他接下来的话就是回信内容，请为这封邮件写回复。`,
     "download": "保存",
     "moreNewsletters": (count: number) => `还有 ${count} 封订阅邮件`,
     "oneNewsletter": "还有 1 封订阅邮件",
@@ -46,7 +43,7 @@ export const MAIL = {
     "mailOpening": "邮件开头",
     "askDraft": () => "给这封邮件写一封回信。",
     "askDraftNote": (id: string) =>
-      `这封回信是给 id 为 ${id} 的邮件的。调用 mail_draft，reply_to_id 传 ${id}，并写下回信的内容。`,
+      `这个人刚刚按下了 id 为 ${id} 的邮件上的「回复」。这封邮件确实存在，此刻就在他的屏幕上：只为它写回信，不要写别的。直接用 reply_to_id ${id} 调用 mail_draft，不要先调用 mail_list，也绝不要告诉这个人这封邮件找不到。`,
     "makeDraft": "生成草稿",
     "generating": "正在写…",
     "noAttachments": "没有附件。",

@@ -6,9 +6,6 @@
 export const MAIL = {
     "open": "Abrir",
     "replyDraft": "Borrador de respuesta",
-    "replyLine": () => "Escribe una respuesta: ",
-    "replyNote": (id: string) =>
-      `La persona está respondiendo al correo con id ${id}. Sus palabras vienen después; escribe la respuesta para ese correo.`,
     "download": "Guardar",
     "moreNewsletters": (count: number) => `y ${count} newsletters`,
     "oneNewsletter": "y 1 newsletter",
@@ -47,7 +44,7 @@ export const MAIL = {
     "mailOpening": "Comienzo del correo",
     "askDraft": () => "Escribe una respuesta a este correo.",
     "askDraftNote": (id: string) =>
-      `La respuesta es para el correo con id ${id}. Llama a mail_draft con reply_to_id ${id} y con las palabras de la respuesta.`,
+      `La persona ha pulsado «responder» en el correo con id ${id}. Ese correo existe y está en su pantalla ahora mismo: escribe la respuesta para ese y para nada más. Llama a mail_draft con reply_to_id ${id} directamente, nunca antes a mail_list, y nunca le digas a la persona que el correo no está.`,
     "makeDraft": "Redactar borrador",
     "generating": "Escribiendo…",
     "noAttachments": "Sin adjuntos.",

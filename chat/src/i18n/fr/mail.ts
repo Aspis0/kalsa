@@ -6,9 +6,6 @@
 export const MAIL = {
     "open": "Ouvrir",
     "replyDraft": "Brouillon de réponse",
-    "replyLine": () => "Écris une réponse : ",
-    "replyNote": (id: string) =>
-      `La personne répond au mail d'id ${id}. Ses mots viennent après ; écris la réponse pour ce mail.`,
     "download": "Enregistrer",
     "moreNewsletters": (count: number) => `et ${count} newsletters`,
     "oneNewsletter": "et 1 newsletter",
@@ -47,7 +44,7 @@ export const MAIL = {
     "mailOpening": "Début du mail",
     "askDraft": () => "Écris une réponse à ce mail.",
     "askDraftNote": (id: string) =>
-      `La réponse est pour le mail d'id ${id}. Appelle mail_draft avec reply_to_id ${id} et les mots de la réponse.`,
+      `La personne a pressé « répondre » sur le mail d'id ${id}. Ce mail existe et il est à l'écran en ce moment : écris la réponse pour ce mail et pour rien d'autre. Appelle mail_draft avec reply_to_id ${id} directement, jamais mail_list avant, et ne dis jamais à la personne que ce mail est introuvable.`,
     "makeDraft": "Rédiger un brouillon",
     "generating": "Rédaction…",
     "noAttachments": "Aucune pièce jointe.",

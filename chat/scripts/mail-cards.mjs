@@ -649,14 +649,45 @@ globalThis.__mailStubOverride = async (command) =>
 const pinned = await app.runMailDraft({ reply_to_id: "412", body: "Va bene." }, "412");
 check("a draft for the mail the turn was opened for is written", pinned.draft !== null, pinned.text);
 check("and its recipient stays off the tool result", !pinned.text.includes("john.smith@acme.com"), pinned.text);
-// The model answers the person in their own words off this text, so it has to
-// name the draft and forbid the reply: "Ho risposto" from a draft is a lie.
-check("the draft is announced as a draft waiting for the person", pinned.text.includes("ready for the person to review and send"), pinned.text);
-check("and the model is told never to call it a reply that went out", pinned.text.includes("never say that you replied"), pinned.text);
+// The model answers the person in their own words off this text: the card is
+// already on their screen, so it must not be read out, and an id read aloud is
+// an id the person has no way to use.
+check("the draft is announced as a card the person already has", pinned.text.includes("on the person's screen as a card"), pinned.text);
+check("and the model is told never to read its subject or words back", pinned.text.includes("Do not repeat its subject or its words"), pinned.text);
+check("and never to call it a reply that went out", pinned.text.includes("do not say you replied"), pinned.text);
+check("and never to name a mail id to the person", pinned.text.includes("never mention one to the person"), pinned.text);
+check("the words themselves are not in the result", !pinned.text.includes("Va bene."), pinned.text);
 const elsewhere = await app.runMailDraft({ reply_to_id: "421", body: "Va bene." }, "412");
 check("a draft for another mail is refused", elsewhere.draft === null && elsewhere.ok === false, elsewhere.text);
 check("and the refusal names the mail the turn is for", elsewhere.text.includes("412"), elsewhere.text);
-globalThis.__mailStubOverride = null;
+
+/* The session can lose the mail the person pressed — a list of one day, a
+   rebuilt folder — and the model must not hear that the mail is gone. */
+{
+  globalThis.__mailStubOverride = async (command) =>
+    command === "brain_mail_draft"
+      ? { for_model: ["that message was not in a list of this session; list the folder first"], for_ui: { code: "not_listed" }, is_error: true }
+      : undefined;
+  const stale = await app.runMailDraft({ reply_to_id: "412", body: "Va bene." }, "412");
+  check("a stale session still tells the model the mail exists", stale.text.includes("The mail with id 412 exists"), stale.text);
+  check("and what to do about it", stale.text.includes("mail_list with days large enough") && stale.text.includes("reply_to_id 412"), stale.text);
+  check("and never that the mail is missing", !/does not exist|not found|no mail/i.test(stale.text.replace(/Never tell the person the mail does not exist/, "")), stale.text);
+  const unpinned = await app.runMailDraft({ reply_to_id: "412", body: "Va bene." });
+  check("without a pin the model's own id is not promised to exist", !unpinned.text.includes("The mail with id 412 exists"), unpinned.text);
+  globalThis.__mailStubOverride = null;
+}
+
+/* The note a pinned turn carries is what the model weighs before it calls. */
+{
+  const note = app.TABLES.it.mail.askDraftNote("412");
+  check("the pinned note says the mail is there", note.includes("Quella mail esiste"), note);
+  check("and says to call mail_draft directly", note.includes("mail_draft con reply_to_id 412 direttamente"), note);
+  check("and never to list first", note.includes("mai prima mail_list"), note);
+  for (const language of ["en", "es", "fr", "zh"]) {
+    const words = app.TABLES[language].mail.askDraftNote("412");
+    check(`${language}: its own pinned note says not to list first`, words.includes("mail_list") && words.includes("412"), words);
+  }
+}
 
 globalThis.__mailStubOverride = null;
 equal("a string day count is coerced and the call runs", (await app.runMailList({ days: "2" }, TURN)).ok, true);

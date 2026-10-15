@@ -5958,6 +5958,85 @@ const tests = {
     }
   },
 
+  // The cards are the answer's to introduce: they wait for its first word, and
+  // a turn that never writes one still shows them.
+  async mailheldcards() {
+    // The model takes its time over the sentence that introduces them.
+    const mock = serveRounds(
+      [mailRound({ id: "c1", name: "mail_list", args: { days: 1 } }), mailRound({ content: "Ecco la posta di oggi." })],
+      async (round) => {
+        if (round === 1) await new Promise((r) => setTimeout(r, 6000));
+      },
+    );
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail di oggi");
+      await box.press("Enter");
+
+      // The list is answered and the model is still thinking: the row says the
+      // mail is ready, and no card is on the screen yet.
+      await page.waitForFunction(() => document.querySelector(".mail-run")?.textContent?.includes("Your mail is ready"), null, { timeout: 30000 });
+      check("mail: no card is drawn before the answer starts", (await page.locator(".mail-card").count()) === 0);
+      check("mail: and the bulk count is held with them", (await page.locator(".mail-bulk").count()) === 0);
+      check("mail: the row is still there, so the turn is not blank", (await page.locator(".tool-activity .tool-spin").count()) === 1);
+
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+      check("mail: the cards arrive with the first word of the answer", (await page.locator(".mail-card").count()) === 8, String(await page.locator(".mail-card").count()));
+      check("mail: and the row has given way to them", (await page.locator(".mail-run").count()) === 0);
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+
+    // A turn that never writes an answer loses nothing: the cards are there at
+    // the end, under the notice that there was none.
+    const quiet = serveRounds([mailRound({ id: "c1", name: "mail_list", args: { days: 1 } }), mailRound({ content: "" })]);
+    await new Promise((done) => quiet.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser2 = await chromium.launch();
+    const page2 = await browser2.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page2, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page2.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      await stubMailDoor(page2);
+
+      await page2.goto(APP);
+      await page2.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page2);
+      const box2 = page2.locator(".composer-input");
+      await box2.waitFor({ timeout: 15000 });
+      await box2.fill("Fammi vedere le mail di oggi");
+      await box2.press("Enter");
+
+      await page2.waitForSelector(".mail-card", { timeout: 30000 });
+      check("mail: a turn with no answer still shows the cards", (await page2.locator(".mail-card").count()) === 8, String(await page2.locator(".mail-card").count()));
+      check("mail: and the row is gone with them", (await page2.locator(".mail-run").count()) === 0);
+    } finally {
+      await browser2.close();
+      quiet.close();
+    }
+  },
+
   // The Phones page names each row in the reader's own language. The label the
   // store carries is minted in English by Rust and is never null, so a row that
   // showed it would read "Paired phone 2" in every language.
@@ -6268,6 +6347,90 @@ const tests = {
     }
   },
 
+  // «Bozza di risposta» on a card is one press: the turn carries the mail, and
+  // the composer is never asked to carry it instead.
+  async mailreplycard() {
+    const mock = draftEndpoint("810", "Va bene, lunedì va bene.");
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, fixtureOf(MAIL_REVEAL_BOX));
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+      await waitTurnDone(page);
+
+      const before = (await page.locator(".row-user").count());
+      await page.getByRole("button", { name: "Draft a reply" }).first().click();
+      await page.waitForFunction((n) => document.querySelectorAll(".row-user").length === n + 1, before, { timeout: 30000 });
+      check("card reply: the composer was never prefilled", (await box.inputValue()) === "", JSON.stringify(await box.inputValue()));
+      const asked = (await page.locator(".row-user").allTextContents()).at(-1);
+      check("card reply: the turn is the ask, and names no mail id", asked.includes("Write a reply to this mail"), asked);
+      await page.waitForSelector(".mail-draft", { timeout: 30000 });
+      check("card reply: the draft the turn asked for arrived as a card", (await page.locator(".mail-draft").count()) >= 1, String(await page.locator(".mail-draft").count()));
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
+  // «Genera bozza» in the pane is the same one press, and it closes the pane:
+  // the turn is what the person reads, and the chat has to be in front.
+  async mailreplypane() {
+    const mock = draftEndpoint("810", "Va bene, lunedì va bene.");
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, fixtureOf(MAIL_REVEAL_BOX));
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail");
+      await box.press("Enter");
+      await page.waitForSelector(".mail-card", { timeout: 30000 });
+      await waitTurnDone(page);
+
+      await page.getByRole("button", { name: "Open" }).first().click();
+      await page.locator(".mail-reply").waitFor({ timeout: 15000 });
+      check("pane: the mail is open beside the chat", (await page.locator(".panel.panel-open").count()) === 1, String(await page.locator(".panel.panel-open").count()));
+      const before = (await page.locator(".mail-draft").count());
+
+      await page.locator(".mail-reply-head .mail-btn").first().click();
+      await page.waitForFunction(() => !document.querySelector(".panel.panel-open"), null, { timeout: 15000 }).catch(() => {});
+      check("pane: the draft button closed the pane, so the chat is what is read", (await page.locator(".panel.panel-open").count()) === 0, String(await page.locator(".panel.panel-open").count()));
+      await page.waitForFunction((n) => document.querySelectorAll(".mail-draft").length > n, before, { timeout: 30000 });
+      check("pane: and its draft is on screen too", (await page.locator(".mail-draft").count()) > before, String(await page.locator(".mail-draft").count()));
+    } finally {
+      await browser.close();
+      mock.close();
+    }
+  },
+
   // One read, one chat. A slow read begun in one chat must not land in the
   // pane of another: the pane is empty in the chat the person switched to.
   async mailscope() {
@@ -6537,8 +6700,15 @@ const MAIL_NEWSLETTERS_ONLY = Array.from({ length: 3 }, (_, at) => ({
   labels: { label: "bulk", reasons: ["bulk_header"] },
 }));
 
+/** The turn in the thread is not running: the door's slot frees a beat after
+    the last frame, so a second press must wait for that, not for the text. */
+async function waitTurnDone(page) {
+  await page.waitForFunction(() => document.querySelector(".thread")?.getAttribute("aria-busy") === "false", null, { timeout: 30000 });
+  await page.waitForTimeout(1200);
+}
+
 /** Answers a mail turn with the rounds it is given, one per model call. */
-function serveRounds(rounds) {
+function serveRounds(rounds, before = () => {}) {
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -6553,14 +6723,23 @@ function serveRounds(rounds) {
       if (req.url?.includes("/kalsa/chat/")) return void res.writeHead(204, cors).end();
       if (!req.url?.includes("/chat/completions")) return void res.writeHead(404, cors).end();
       try {
-        if (!JSON.parse(body).messages.some((m) => m.role === "tool")) round = 0;
+        // A request whose last word is the person's is a new turn: the rounds
+        // start again. A round inside a turn ends on a tool result or an
+        // answer, never on a user message, so the tool messages of an earlier
+        // turn in the same chat do not hide the new one.
+        const messages = JSON.parse(body).messages;
+        if (messages.length === 0 || messages[messages.length - 1].role === "user") round = 0;
       } catch {
         round = 0;
       }
       res.writeHead(200, { "content-type": "text/event-stream", ...cors });
-      for (const line of rounds[Math.min(round, rounds.length - 1)]) res.write(`${line}data: [DONE]\n\n`);
-      res.end();
+      // `before` waits out a round, so a test can watch the turn between two.
+      const held = round;
       round += 1;
+      void Promise.resolve(before(held)).then(() => {
+        for (const line of rounds[Math.min(held, rounds.length - 1)]) res.write(`${line}data: [DONE]\n\n`);
+        res.end();
+      });
     });
   });
 }

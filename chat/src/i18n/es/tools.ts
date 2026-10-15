@@ -8,6 +8,7 @@ export const TOOLS = {
     "readingMail": "Leo tu correo…",
     "writingDraft": "Escribo el borrador…",
     "writingCardLines": "Escribo una línea bajo cada tarjeta…",
+    "mailReady": "Tu correo está listo.",
     "pageNotOpened": "Kalsa no pudo abrir esa página. Prueba de nuevo.",
     "searchDidNotRun": "Kalsa no pudo buscar en la web. Prueba de nuevo.",
     "couldNotFinish": "Kalsa no terminó de comprobarlo. Pregunta de nuevo.",

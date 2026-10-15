@@ -17,6 +17,7 @@ import { useBrain } from "./useBrain";
 import { VisionOffer } from "../components/VisionOffer";
 import { useLanguage } from "../i18n/useLanguage";
 import type { Chat } from "./useChat";
+import type { MailCardItem } from "../lib/mail/types";
 
 export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: number | null }) {
   const { table } = useLanguage();
@@ -76,7 +77,6 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
     mailOpening,
     setMailOpen,
     openMail,
-    replyTo,
     editDraft,
     mailDrafts,
     saveMailDraft,
@@ -88,6 +88,15 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
     openSurface,
   } = chat;
   const empty = !active || active.messages.length === 0;
+  // The reply is written by the chat model, not by the page: one press sends a
+  // turn that names the mail, and the draft it writes lands as a card under
+  // that turn. The pane closes because the turn is the thing to read now — a
+  // card in the chat and the mail still beside it would be two of one mail.
+  const askDraft = (item: MailCardItem): void => {
+    if (!send(table.mail.askDraft(), table.mail.askDraftNote(item.id), item.subject, item.id)) return;
+    setPanelOpen(false);
+    setMailOpen(null);
+  };
 
   return (
     <div className="chat-page">
@@ -170,7 +179,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
                 void openMail(item);
                 setPanelOpen(true);
               }}
-              onReplyMail={replyTo}
+              onReplyMail={askDraft}
               onSendMail={setMailSend}
               mailSent={mailSent}
               mailDrafts={mailDrafts}
@@ -260,11 +269,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
           mailSent={mailSent}
           onMailDraft={editDraft}
           onMailReply={typeMailDraft}
-          onMailAskDraft={(item) => {
-            // The reply is written by the chat model, not by the page: a turn
-            // naming this mail, and the draft it writes lands in the same box.
-            if (send(table.mail.askDraft(), table.mail.askDraftNote(item.id), item.subject, item.id)) setPanelOpen(true);
-          }}
+          onMailAskDraft={askDraft}
           onMailSend={setMailSend}
           onClose={() => {
             setPanelOpen(false);

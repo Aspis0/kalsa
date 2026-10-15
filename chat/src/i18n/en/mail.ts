@@ -7,9 +7,6 @@ export const MAIL = {
   // The cards.
   open: "Open",
   replyDraft: "Draft a reply",
-  replyLine: () => "Write a reply: ",
-  replyNote: (id: string) =>
-    `The person is answering the mail with id ${id}. Their words follow; write the reply for that mail.`,
   download: "Save",
   moreNewsletters: (count: number) => `and ${count} newsletters`,
   oneNewsletter: "and 1 newsletter",
@@ -51,7 +48,7 @@ export const MAIL = {
   mailOpening: "Beginning of the mail",
   askDraft: () => "Write a reply to this mail.",
   askDraftNote: (id: string) =>
-      `The reply is for the mail with id ${id}. Call mail_draft with reply_to_id ${id} and the words of the reply.`,
+    `The person pressed reply on the mail with id ${id}. That mail exists and is on their screen right now: write the reply for it and nothing else. Call mail_draft with reply_to_id ${id} directly — never mail_list first, and never tell the person the mail is missing.`,
   makeDraft: "Write a draft",
   generating: "Writing…",
   noAttachments: "No attachments.",

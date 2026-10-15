@@ -44,12 +44,15 @@ function mailLine(t: English["tools"], name: string): string {
  * that would be a request out of the webview, which the content security
  * policy forbids.
  */
-export function ToolActivity({ runs, awaitingOk }: { runs: ToolRun[]; awaitingOk: boolean }) {
+export function ToolActivity({ runs, awaitingOk, mailPending = false }: { runs: ToolRun[]; awaitingOk: boolean; mailPending?: boolean }) {
   // A mail card is the tool's whole visible output, so the quiet web row would
   // say twice what the card already says. While it runs there is no card yet,
-  // so a running mail run keeps a row of its own — the same spinner, with no
-  // chevron: nothing opens, the cards take this row's place.
-  const rows = runs.filter((run) => run.name !== MINIAPP && (!isMailRun(run.name) || run.state === "running"));
+  // and the cards wait for the answer's first word — so a mail run keeps a row
+  // of its own across both, and the same spinner with no chevron: nothing
+  // opens, the cards take this row's place.
+  const rows = runs.filter((run) =>
+    run.name === MINIAPP ? false : isMailRun(run.name) ? run.state === "running" || (mailPending && run.state === "ok") : true,
+  );
   if (rows.length === 0) return null;
   return (
     <div className="tool-activity">
@@ -85,15 +88,14 @@ export function MiniappRows({
 function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
   const { table } = useLanguage();
   const t = table.tools;
-  // A running mail call is the only mail row: the answer becomes cards the turn
-  // draws itself, so a finished call says nothing here and a refused one says
-  // it on its own notice card.
+  // A mail run has one row while the turn is still working on its answer: the
+  // answer's first word, or the end of the turn, is what puts the cards there
+  // and takes the row away. A refused call says itself on its own notice.
   if (isMailRun(run.name)) {
-    if (run.state !== "running") return null;
     return (
       <p className="tool-run mail-run">
         <span className="tool-spin" aria-hidden="true" />
-        <span>{mailLine(t, run.name)}</span>
+        <span>{run.state === "running" ? mailLine(t, run.name) : t.mailReady}</span>
       </p>
     );
   }

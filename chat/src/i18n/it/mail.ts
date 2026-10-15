@@ -6,9 +6,6 @@
 export const MAIL = {
     "open": "Apri",
     "replyDraft": "Bozza di risposta",
-    "replyLine": () => "Scrivi una risposta: ",
-    "replyNote": (id: string) =>
-      `La persona sta rispondendo alla mail con id ${id}. Le sue parole vengono dopo; scrivi la risposta per quella mail.`,
     "download": "Scarica",
     "moreNewsletters": (count: number) => `e ${count} newsletter`,
     "oneNewsletter": "e 1 newsletter",
@@ -47,7 +44,7 @@ export const MAIL = {
     "mailOpening": "Inizio della mail",
     "askDraft": () => "Scrivi una risposta a questa mail.",
     "askDraftNote": (id: string) =>
-      `La risposta è per la mail con id ${id}. Chiama mail_draft con reply_to_id ${id} e con le parole della risposta.`,
+      `La persona ha premuto «rispondi» sulla mail con id ${id}. Quella mail esiste ed è sullo schermo in questo momento: scrivi la risposta per quella e per nient'altro. Chiama mail_draft con reply_to_id ${id} direttamente, mai prima mail_list, e non dire mai alla persona che la mail manca.`,
     "makeDraft": "Genera bozza",
     "generating": "Sto scrivendo…",
     "noAttachments": "Nessun allegato.",

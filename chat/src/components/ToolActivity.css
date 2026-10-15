@@ -16,13 +16,19 @@
   line-height: 22px;
 }
 
-/* A running mail call: the same line as a web check, laid out like one summary,
-   with no chevron because there is nothing to open — the cards take its place. */
+/* A running mail call, and the cards that are still waiting for the answer's
+   first word. One step louder than the web row it borrows its spinner from: a
+   real mailbox read is seconds of silence, and a line too quiet to notice is
+   the same as no line. Accent like the spinner it turns beside. */
 .mail-run {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   margin: 0;
+  color: var(--ac);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
 }
 
 .tool-run > summary {
