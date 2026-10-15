@@ -2,7 +2,7 @@ use std::path::Path;
 
 use kalsa_mcp::host::Host;
 use kalsa_mcp::launch::StdioLauncher;
-use kalsa_mcp::outcome::CallOutcome;
+use kalsa_mcp::outcome::{CallOutcome, ToolResult};
 use kalsa_mcp::record::{ServerRecord, Trust};
 use kalsa_mcp::registry::Registry;
 use kalsa_mcp::server_id::ServerId;
@@ -41,9 +41,20 @@ pub(crate) async fn probe(account: &MailAccount, password: &str) -> Result<Vec<S
     let outcome = host.call(PANEL_CONVERSATION, "mail.list", arguments).await;
     drop(host);
     match outcome? {
-        CallOutcome::Ran(result) => Ok(subjects(result.for_ui.as_ref())),
+        CallOutcome::Ran(result) => listing_result(result),
         CallOutcome::NeedsConfirmation(_) => Err(MailError::Confirmation),
     }
+}
+
+/// An error result is a failure, never an empty inbox. The sidecar's sentence is logged
+/// the way `commands.rs` logs it, and not shown.
+fn listing_result(result: ToolResult) -> Result<Vec<String>, MailError> {
+    if result.is_error {
+        let reason: String = result.for_model.first().map(|text| text.chars().take(80).collect()).unwrap_or_default();
+        log::warn!("mail account test returned is_error: {reason}");
+        return Err(MailError::Failed);
+    }
+    Ok(subjects(result.for_ui.as_ref()))
 }
 
 /// The sidecar as the only server: its digest approved, its tool definitions
@@ -153,5 +164,26 @@ mod tests {
         ]});
         assert_eq!(subjects(Some(&data)), vec!["one", "two", "three"]);
         assert!(subjects(Some(&json!({"mails": []}))).is_empty());
+    }
+
+    fn result(is_error: bool, for_ui: Option<Value>) -> ToolResult {
+        ToolResult {
+            server: ServerId::new(MAIL_SERVER).expect("id"),
+            is_error,
+            for_model: vec!["that folder could not be opened".to_string()],
+            for_ui,
+        }
+    }
+
+    #[test]
+    fn an_error_result_is_a_failure_not_an_empty_inbox() {
+        let refused = result(true, Some(json!({"items": []})));
+        assert_eq!(listing_result(refused), Err(MailError::Failed));
+    }
+
+    #[test]
+    fn a_good_result_lists_its_subjects() {
+        let listed = result(false, Some(json!({"items": [{"subject": "one"}]})));
+        assert_eq!(listing_result(listed), Ok(vec!["one".to_string()]));
     }
 }

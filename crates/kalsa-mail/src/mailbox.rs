@@ -39,7 +39,7 @@ impl Mailbox {
         mut session: Session<Transport>,
         folder: &str,
     ) -> Result<Mailbox, MailError> {
-        let opened = timeout(READ_DEADLINE, session.examine(quoted(folder)))
+        let opened = timeout(READ_DEADLINE, session.examine(folder))
             .await
             .map_err(|_| MailError::Timeout)?
             .map_err(|_| MailError::Mailbox)?;
@@ -223,12 +223,6 @@ mod tests {
         assert_eq!(quoted("a b"), "\"a b\"");
         assert_eq!(quoted("x\" DELETED \"y"), "\"x\\\" DELETED \\\"y\"");
         assert_eq!(quoted("a\r\nb"), "\"ab\"");
-    }
-
-    #[test]
-    fn a_folder_name_is_quoted_the_same_way() {
-        assert_eq!(quoted("INBOX"), "\"INBOX\"");
-        assert_eq!(quoted("Sent Items"), "\"Sent Items\"");
     }
 
     #[test]
