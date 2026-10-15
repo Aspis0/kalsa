@@ -35,20 +35,30 @@ pub enum When {
 impl FakeHealth {
     pub fn start(port: u16, when: When) -> Self {
         let stop = Arc::new(AtomicBool::new(false));
+        // `When::Now` is bound before this returns, so the supervisor's next probe
+        // finds the port answering. A thread that bound later raced that probe,
+        // and a refused probe is read as "nothing there".
+        let now = match when {
+            When::Now => Some(bind_or_wait(port)),
+            When::OnceChildIsUp => None,
+        };
         let accepting = std::thread::spawn({
             let stop = Arc::clone(&stop);
             move || {
-                if let When::OnceChildIsUp = when {
-                    let gate = pid_file(port);
-                    while !gate.exists() && !stop.load(Ordering::Relaxed) {
-                        std::thread::sleep(Duration::from_millis(20));
-                    }
-                }
-                let listener = loop {
-                    match TcpListener::bind(("127.0.0.1", port)) {
-                        Ok(listener) => break listener,
-                        Err(_) if stop.load(Ordering::Relaxed) => return,
-                        Err(_) => std::thread::sleep(Duration::from_millis(20)),
+                let listener = match now {
+                    Some(listener) => listener,
+                    None => {
+                        let gate = pid_file(port);
+                        while !gate.exists() && !stop.load(Ordering::Relaxed) {
+                            std::thread::sleep(Duration::from_millis(20));
+                        }
+                        loop {
+                            match TcpListener::bind(("127.0.0.1", port)) {
+                                Ok(listener) => break listener,
+                                Err(_) if stop.load(Ordering::Relaxed) => return,
+                                Err(_) => std::thread::sleep(Duration::from_millis(20)),
+                            }
+                        }
                     }
                 };
                 listener.set_nonblocking(true).expect("nonblocking");
@@ -70,6 +80,19 @@ impl FakeHealth {
             port,
             stop,
             accepting: Some(accepting),
+        }
+    }
+}
+
+/// Binds the port now. A listener the previous test is still tearing down may
+/// hold it for a moment, so this retries for a few seconds before giving up.
+fn bind_or_wait(port: u16) -> TcpListener {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match TcpListener::bind(("127.0.0.1", port)) {
+            Ok(listener) => return listener,
+            Err(_) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
+            Err(e) => panic!("the fake health port {port} stayed taken: {e}"),
         }
     }
 }
