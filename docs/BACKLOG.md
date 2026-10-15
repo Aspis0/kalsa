@@ -506,3 +506,12 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - HTTPS mail reads have no response-size cap (`src/remote/doorRoad.ts` uses `res.json()`); tunnel reads cap at 512 KiB. Cap both.
 - A turn that started before a pairing change can still deliver a draft afterwards, sendable through the new door. Needs a turn-level pairing identity.
 - `workers/download/guide.test.ts` still reads the guide from the sibling kalsa-brain checkout when present (skips visibly in CI). `GUIDE_TS` set by accident during a real release would check another module than the committed one.
+
+## Phone: boot mode and load marker, luna reviews of ef8482cc and fe43287f (2026-10-15, phone repo)
+- Boot keeps «Il tuo computer» when the computer is off or forgot the phone, and the pill says the computer does not answer; it does not fall back to the phone (same as a typed address). Owner may prefer an automatic local fallback.
+- `deferred-remote` (a document delete in flight at boot) falls through to local and is never retried (`usePipelineScans.ts` boot effect).
+- A removed pairing record plus an old typed address can still select remote at boot.
+- The boot readiness check awaits secure-store reads with no timeout.
+- Load marker: storage failures fail open (marker write, the confirmed write, read errors → false), so a real crash can be forgotten after a later clean exit.
+- Load marker: stamp and Android exit timestamps are both wall clock; a clock step can flip the "older than the stamp" rule.
+- Load marker: Android `DEPENDENCY_DIED` (and other unmapped reasons) map to "other" = clean in `KalsaLifecycleModule.kt`; a dependency death during native init is not treated as a death.
