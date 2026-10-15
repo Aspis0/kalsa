@@ -5,16 +5,18 @@ use lettre::message::{Mailbox, Message, SinglePart};
 use lettre::Address;
 
 use crate::draft;
+use crate::invisible;
 use crate::mail::ParsedMail;
 
-/// The address a value is, lowercased, or nothing. Parsing and drafting use the same
-/// test, so a reply is never addressed to text that only contains an `@`.
+/// The address a value is, or nothing. Parsing and drafting use the same test, so a
+/// reply is never addressed to text that only contains an `@`. Only the domain is
+/// lowercased: the local part may be case-sensitive at the receiving server.
 pub(crate) fn as_address(value: &str) -> Option<String> {
     value
         .trim()
         .parse::<Address>()
         .ok()
-        .map(|address| address.to_string().to_lowercase())
+        .map(|address| format!("{}@{}", address.user(), address.domain().to_lowercase()))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -32,7 +34,7 @@ pub fn reply(original: &ParsedMail, from: &str, subject: &str, body: &str) -> Re
     let draft = draft::reply_to(original, body).map_err(|_| ComposeError::NoRecipient)?;
     let from: Mailbox = from.parse().map_err(|_| ComposeError::Invalid)?;
     let to: Mailbox = draft.to.parse().map_err(|_| ComposeError::Invalid)?;
-    let subject = match subject.trim() {
+    let subject = match invisible::one_line(subject).as_str() {
         "" => draft.subject,
         typed => typed.to_owned(),
     };
@@ -98,6 +100,22 @@ mod tests {
     fn a_subject_the_person_typed_replaces_the_default() {
         let reply = reply(&original("<root@studio.example.it>"), "maria@example.it", "Giovedi alle 11", "Va bene.").expect("composed");
         assert!(text_of(&reply).contains("Subject: Giovedi alle 11"));
+    }
+
+    #[test]
+    fn a_recipient_keeps_its_local_part_as_written_and_lowercases_the_domain() {
+        let raw = b"From: Studio <andrea@studio.example.it>\r\nReply-To: Luca.Ferri@Studio.Example.IT\r\nMessage-ID: <orig@studio.example.it>\r\nSubject: Riunione\r\n\r\nTesto";
+        let reply = reply(&crate::mail::parse(raw), "maria@example.it", "", "Va bene.").expect("composed");
+        assert_eq!(reply.to, "Luca.Ferri@studio.example.it");
+    }
+
+    #[test]
+    fn a_typed_subject_is_one_line_and_cannot_add_a_header() {
+        let typed = "Ciao\r\nBcc: x@y.example";
+        let reply = reply(&original("<root@studio.example.it>"), "Maria <maria@example.it>", typed, "Va bene.").expect("composed");
+        let wire = text_of(&reply);
+        assert!(!wire.lines().any(|line| line.starts_with("Bcc:")), "{wire}");
+        assert!(wire.contains("Subject: Ciao Bcc: x@y.example\r\n"), "{wire}");
     }
 
     #[test]
