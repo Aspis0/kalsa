@@ -202,23 +202,74 @@ is the cost of the process being resident, which is where compute and KV live. I
 them a second time. **This is an argument from one row, not a derivation** — the q44 per-point
 re-read is the work that settles it, and it is offline.
 
-### What the measurement cell must read
+### 1quater. The q44 re-read: the duplicate is 385.00 MiB, and the 800 is a GPU term
 
-Because of 1.1 and 1.3, the weights audit line alone cannot decide the patch. The cell reads, before
-and after a **lane-only** load of `a247afd6`:
+Offline re-read of the q44 raw, as the brain session required and as Marco approved. The sweep ran
+**`llama-bench -m ... -ngl $ngl -fa off -t 4 -p 512 -n 128 -r 1 -o jsonl`** with no `--ubatch-size`
+(`results/ngl_sweep_s23/device/kalsa_q44/driver.sh:235,256`), on the **S23**, with
+**`LFM2.5-8B-A1B-KEXP.gguf`, `model_size = 3317921536` = 3091 MiB** — not the 1520 MiB ship model,
+and at a bench-sized context, not the app's.
 
-- `shared weights: TILE32 ... HOST ... CPU ...` (weights only)
-- **MemAvailable** — this is the number that decides it, because the fit compares against MemAvailable
-- process PSS / RSS / RssAnon / RssFile, to separate file-backed from anon
-- dmabuf / rpcmem totals if readable (`/sys/kernel/dmabuf/buffers`, `dmabuf_dump`); TILE32 rpcmem
-  probably does not show in RSS but does lower MemAvailable
+The measured table (`q44-ngl-sweep-mem/REPORT.md:48-54`):
 
-Cell 74 had a **GPU leg**; the pure lane-only case is still unmeasured, and that is the
-configuration a fix would enable. It ran in-app on 2026-10-11 (14 turns, prefill and decode on the
-NPU, no crash), so it is not a new risk on the daily driver.
+| ngl | off | ΔMA MiB | set-tensor MiB | k_set | OPENCL sum_mib (created) |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 0 | **35.5** | 0 | n/a | **753.69 (Adreno prealloc only)** |
+| 7 | 7 | 1764.9 | 1014.9 | 1.74 | 5051.89 |
+| 13 | 13 | 2597.9 | 1810.9 | 1.43 | 8127.72 |
+| 19 | 19 | 3296.3 | 2602.2 | 1.27 | 11197.17 |
+| 99 | 25 | 3346.1 | 3179.8 | 1.05 | 13432.17 |
 
-**Until the MemAvailable delta and the q44 re-read are in, do not change `lanePrice`, and do not
-touch the GPU fit.**
+**The counter-hypothesis is refuted, and it is refuted by the ngl0 row after all — but for a
+different reason than the coordinator first gave.**
+
+At **ngl 0** the model is resident, and the total MemAvailable drop is **35.5 MiB**. So compute + KV
+at this context is at most ~35 MiB. The "fixed" term the sweep derived is
+`ΔMA − set_tensor` = 750.0 / 787.0 / 694.1 / 166.3 at ngl 7/13/19/99, and it lands on
+`OPENCL sum_mib 753.69 "Adreno prealloc only"` from the **ngl0 row of the same table** — 800/753.69 =
+1.06. **The `800` in `lanePrice` is the Adreno fixed cost, not compute and KV.** It therefore does
+**not** absorb them, and the structural double count stands.
+
+**The duplicate, as a number, at today's context and ubatch:**
+
+```
+requiredMiB = 2*(compute+kv) + 800 + 1.05*offloadedBytes
+3166.06 - 800 - 1596.06 = 770.00 = 2*(compute+kv)
+compute + kv = 385.00 MiB      ->  DUPLICATE = 385.00 MiB
+```
+
+| | MiB |
+|---|---:|
+| duplicate | **385.00** |
+| today's lane shortfall | **380.13** |
+| margin if the duplicate alone were removed | **+4.87** |
+
+**Scope limit, stated not glossed:** the q44 numbers validate the *identity* of the 800 (a GPU term)
+and the *structure* of the double count. They do **not** validate the *level* of 385 MiB, which is
+today's compute + KV at today's ctx, ubatch and KV types on the Xiaomi, for the 1520 MiB ship model.
+The 35.5 MiB at ngl0 is measured on a 3091 MiB model at bench ctx and says nothing about that level.
+
+**Separate concern, opposite direction.** The same report advises against a single k: *"do not ship
+a single k from this cell; if the app needs one conservative number ... use the high end (~1.7–2.0)
+system byte per offloaded-weight byte, not the pooled mean"* (`REPORT.md:71`), and notes the 1.7–2.0
+band mixes the two denominators (`1.74` is k_set at ngl7, `1.99` is k_layer at ngl7, `:58-59`). The app
+uses the affine `800 + 1.05x`, which the report itself calls an over-prediction in the safe direction
+at **bench** ctx (`:82`). That is defensible where it was measured and untested at the app's ctx. **The
+duplicate over-charges by 385 while the k may under-charge the early GPU layers; the two partly offset,
+and the net is unknown.** That is exactly why the lane-only cell needs its GPU-leg control.
+
+### Step 2 cell, final spec (agreed with the brain session)
+
+Xiaomi 14, `a247afd6`, production ctx/ubatch/KV types of today's load. Three MemAvailable reads, not
+two: **before load, after load, and at PEAK during the first long prefill** at 1 Hz or faster — compute
+buffers and the HTP session/rpcmem grow on the first graph run, so a post-load read alone under-reads.
+Plus the `shared weights: TILE32 ... HOST ... CPU ...` line, PSS/RSS/RssAnon/RssFile, and dmabuf/rpcmem
+totals where readable. **One control, back to back in the same session: the same model with the GPU leg
+at the same available memory** — without it, one lane-only cell cannot attribute the 800 between the GPU
+leg and the process.
+
+**+4.87 MiB is a coin flip, not headroom.** Whatever this cell returns, the lane as a "degrade gently"
+target needs an explicit margin, and that margin is the owner's call.
 
 ---
 
