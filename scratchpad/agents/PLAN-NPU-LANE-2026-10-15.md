@@ -136,20 +136,47 @@ GPU leg IS present.
 
 ### What still has to be measured before changing it
 
-The arithmetic above is arithmetic, not a measurement. Two unmeasured items, in order of leverage:
+**RESOLVED 2026-10-15 by existing evidence — the coordinator had not looked in the right lab cell.**
 
-1. **The 219 itself.** `NPU_PREFILL_EXTRA_MIB = 219` is a hardcoded constant
-   (`governorInputs.ts:38`). Its apparent origin is the spike delta **1525.87 - 1307.20 = 218.67**
-   (`governor-npu-prefill/DESIGN.md:29`) — on a different device and a different model. No
-   coordinator evidence either way.
-2. **What one-copy on Hexagon allocates when the NPU is the only leg.** The question the brain
-   session posed, and it is the one that decides the shape of the fix: does the HTP path need a
-   device-side copy of its own on top of the host mapping (in which case the 219 covers it and only
-   the GPU term should go), or does it pull a second full copy (in which case the number moves
-   again)?
+`xiaomi-merge-b11514-legs-74` is *"one-copy legs on the real Xiaomi 14 (SM8650, Adreno 750, v75)
+with the merged engine"*, **ship model `a247afd6`** — the same model as today's run — with the GPU
+leg present. Its `raw/legs_report.grep` carries the engine's own post-load audit line
+(`llama-model.cpp:1670`, `shared weights: TILE32 %zu HOST %zu CPU %zu bytes`):
 
-**Until both are measured, do not change `lanePrice`.** Guessing here is how the q44 constants got
-into trouble in the first place.
+```
+shared weights: TILE32 1369571328 HOST 230420480 CPU 0 bytes
+```
+
+| | bytes | MiB |
+|---|---:|---:|
+| TILE32 (the shared weights buffer) | 1369571328 | **1306.12** |
+| HOST | 230420480 | **219.75** |
+| CPU | 0 | **0.00** |
+| **measured total on the Xiaomi** | 1600991808 | **1525.87** |
+
+Three things fall out, all measured on the owner's phone with the ship model:
+
+1. **The 219 is real and it is the HOST buffer.** `NPU_PREFILL_EXTRA_MIB = 219` vs a measured
+   219.75 MiB — **0.34 % error**. Its apparent origin is confirmed: the sum lands on
+   **1525.87 MiB**, digit for digit the "HTP0 prefill 1525.87 MiB" of
+   `governor-npu-prefill/DESIGN.md:29`. Spike and device agree.
+2. **The GPU leg costs zero extra weight memory.** One TILE32 buffer, `CPU 0`, and
+   `llama-model.cpp:1197-1199` says the GPU leg *imports* that same buffer. The
+   `800 + 1.05 x offloadedBytes` = **2396.06 MiB** term prices a buffer that this run proves is
+   not allocated. **Phantom charge: 2396.06 - 1525.87 = 870.19 MiB**, and the entire model fits in
+   less than half of the single term being charged.
+3. **This is the half the Xiaomi ladder never had.** `gpu-layers-history/VERDICT.md` recorded that
+   the Xiaomi layer ladder carried speed but *no memory accounting*. Cell 74 is a memory
+   measurement on the Xiaomi, which is the join that report said did not exist.
+
+**Residual, stated rather than assumed:** cell 74 had a **GPU leg**. The pure lane-only case (no
+GPU leg at all) is still not directly measured. The mechanism says it is the same buffer or
+cheaper — the HOST 219.75 appeared with a GPU leg present, and no leg can add memory that does not
+allocate — but the number for a lane-only load should be captured in the same cell, since it is
+the configuration the fix will actually enable.
+
+**Until that one residual is captured, do not change `lanePrice`.** Everything else it needed is
+now measured, on the right device, with the right model.
 
 ---
 
