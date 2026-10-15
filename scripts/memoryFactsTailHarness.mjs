@@ -578,12 +578,16 @@ async function main() {
     path.join(projectRoot, "src/engine/LlamaService.ts"),
     "utf8",
   );
-  const llamaRegion = (from, to) => {
-    const a = llamaSrc.indexOf(from);
+  const extractSrc = readFileSync(
+    path.join(projectRoot, "src/engine/memoryExtractParse.ts"),
+    "utf8",
+  );
+  const llamaRegion = (from, to, src = llamaSrc) => {
+    const a = src.indexOf(from);
     assert(a >= 0, `region start not found: ${from}`);
-    const b = llamaSrc.indexOf(to, a);
+    const b = src.indexOf(to, a);
     assert(b > a, `region end not found after ${from}`);
-    return shapeOf(llamaSrc.slice(a, b + to.length));
+    return shapeOf(src.slice(a, b + to.length));
   };
 
   test("MEMORY_FACTS_ON_USER_TAIL is true in ttftFlags.ts", () => {
@@ -638,7 +642,7 @@ async function main() {
   });
 
   test("parseMemoryExtract clamps adds to the shared cap, exact shape", () => {
-    const shape = llamaRegion("const add = Array.isArray(obj.add)", ": [];");
+    const shape = llamaRegion("const add = Array.isArray(obj.add)", ": [];", extractSrc);
     assert(
       shape ===
         'const add = Array.isArray(obj.add) ? obj.add .filter((item): item is string => typeof item === "string") .map((item) => item.replace(/\\s+/g, " ").trim().slice(0, PROMPT_FACT_CHARS)) .filter((item) => item.length > 0) .slice(0, 3) : [];',
@@ -650,6 +654,7 @@ async function main() {
     const region = llamaRegion(
       "function parseMemoryExtract(",
       "return { add, remove, parseOutcome: 1 };",
+      extractSrc,
     );
     const hit = region.match(/.{0,30}\b120\b.{0,30}/);
     assert(!hit, `handwritten 120 survived in parseMemoryExtract — found: ${hit?.[0]}`);
