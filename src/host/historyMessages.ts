@@ -127,6 +127,11 @@ export function sanitizeHistoryMessages(
     if (record.edited === true) {
       message.edited = true;
     }
+    // An answer from the computer's turn route keeps its links inert after a
+    // reload; the mark is restored only as a strict true, never from a corrupt value.
+    if (record.role === "assistant" && record.linksAsText === true) {
+      message.linksAsText = true;
+    }
     // The stamped date line: replayed byte-identical after a reload, so the
     // KV prefix the turn was sent with stays valid across restarts.
     if (typeof record.sentOn === "string" && record.sentOn.trim().length > 0) {
