@@ -8,6 +8,10 @@
  * question, and the platform is asked because iOS prices the same lanes and
  * runs Metal: a `NoFit` there cost nothing and must not claim it did.
  *
+ * A `NoFit` is also the verdict when there was nothing to measure against, so
+ * `measured` is asked too: the line names a cause, and only a fit that had the
+ * numbers has one.
+ *
  * Lives beside the governor's inputs and not in `LlamaService.ts` so the rule
  * is testable without the native engine, and so the fit work has one owner.
  */
@@ -15,6 +19,16 @@ export function gpuRefusedForMemory(input: {
   platformOs: string;
   fit: "Fit" | "NoFit" | "Unknown" | null;
   attempted: boolean;
+  /** The fit had both numbers to compare: a free-memory sample and a KV price
+   *  for this model. Without either, its `NoFit` means "not proven to fit" —
+   *  the same verdict an unknown memory gets — and a line saying the memory is
+   *  low would be reporting a measurement nobody took. */
+  measured: boolean;
 }): boolean {
-  return input.platformOs === "android" && input.attempted && input.fit === "NoFit";
+  return (
+    input.platformOs === "android" &&
+    input.attempted &&
+    input.measured &&
+    input.fit === "NoFit"
+  );
 }

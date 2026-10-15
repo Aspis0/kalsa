@@ -400,6 +400,10 @@ let activeFitMemoryBytes: number | null = null;
 let activeGovernorKey: string | null = null;
 let activeGovernorFit: "Fit" | "NoFit" | "Unknown" | null = null;
 let activeGovernorAttempted = false;
+/** The fit had a free-memory sample and a KV price, so its `NoFit` is a
+ *  measured refusal rather than "not proven". Without either it is the same
+ *  verdict an unknown memory gets (`governorInputs.ts` `laneFit`). */
+let activeGovernorFitMeasured = false;
 let activeGovernorActive = false;
 let activeGovernorForced = false;
 let activeGovernorFallbackReason = "";
@@ -2150,6 +2154,7 @@ export function isGpuRefusedForMemory(): boolean {
     platformOs: Platform.OS,
     fit: activeGovernorFit,
     attempted: activeGovernorAttempted,
+    measured: activeGovernorFitMeasured,
   });
 }
 
@@ -2987,6 +2992,10 @@ export function initEngine(
     activeGovernorFit = governorBase?.gpu_fit ?? null;
     activeGovernorAttempted =
       governorFeatureEnabled && governorBase != null && governorBase.enabled;
+    activeGovernorFitMeasured =
+      typeof fitMemoryBytes === "number" &&
+      typeof pricedModel?.kvBytesPerToken === "number" &&
+      pricedModel.kvBytesPerToken > 0;
     activeGovernorActive = governorUsed;
     activeGovernorForced = governorFeatureEnabled && governorBase?.forced === true;
     if (activeGovernorAttempted && !governorLoad && !activeGovernorFallbackReason) {
@@ -3187,6 +3196,7 @@ async function disposeEngineLocked(opts?: {
     activeGovernorKey = null;
     activeGovernorFit = null;
     activeGovernorAttempted = false;
+    activeGovernorFitMeasured = false;
     activeGovernorActive = false;
     activeGovernorForced = false;
     activeGovernorFallbackReason = "";
