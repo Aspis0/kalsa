@@ -838,12 +838,12 @@ describe("decode-pacing lines from the declared SEVERE table", () => {
     }
   });
 
-  test("the Xiaomi 14 sends its own scale: 0.053 and 0.173", () => {
+  test("the Xiaomi 14 sends its own scale: 0.083 and 0.203", () => {
     expect(
       buildGovernorParams(model, device("23127PN0CG", 12 * 1024 ** 3, "SM8650"), memory),
     ).toMatchObject({
-      decode_pacing_headroom_start: 0.053,
-      decode_pacing_headroom_full: 0.173,
+      decode_pacing_headroom_start: 0.083,
+      decode_pacing_headroom_full: 0.203,
     });
   });
 
@@ -875,7 +875,7 @@ describe("decode-pacing lines from the declared SEVERE table", () => {
         { ...device("23127PN0CG", 12 * 1024 ** 3, "SM8650"), osName: fingerprint },
         memory,
       ),
-    ).toMatchObject({ decode_pacing_headroom_start: 0.053, decode_pacing_headroom_full: 0.173 });
+    ).toMatchObject({ decode_pacing_headroom_start: 0.083, decode_pacing_headroom_full: 0.203 });
   });
 
   test("an iOS-like profile sends no pacing keys", () => {
@@ -901,8 +901,8 @@ describe("decode-pacing lines from the declared SEVERE table", () => {
       pacing_full: 0.99,
     });
     expect(planFor(device("23127PN0CG", 12 * 1024 ** 3, "SM8650"))).toMatchObject({
-      pacing_start: 0.053,
-      pacing_full: 0.173,
+      pacing_start: 0.083,
+      pacing_full: 0.203,
     });
     expect(planFor(device("Phone", 12 * 1024 ** 3, "SM8650"))).toMatchObject({
       pacing_start: null,

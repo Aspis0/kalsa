@@ -1,6 +1,7 @@
 import type { DeviceProfile } from "./deviceProfile";
 
-/** Decode-pacing lines in skin degrees C: the S23's calibrated 0.87 / 0.99
+/** Default decode-pacing lines in skin degrees C, used by every row that
+ *  declares no lines of its own (today the S23): its calibrated 0.87 / 0.99
  *  headroom lines (owner 2026-10-10 / 2026-10-11), i.e. 12 + 30 x 0.87 and
  *  12 + 30 x 0.99. The app picks the lines in skin degrees; the engine
  *  compares headroom, so each model's scale is derived below from its own
@@ -15,7 +16,13 @@ const PACING_FULL_SKIN_C = 41.7;
  *  models get no row. */
 const DEGREES_BETWEEN_ZERO_AND_ONE = 30;
 
-const DECLARED_SEVERE: ReadonlyArray<{ model: RegExp; severeSkinC: number }> = [
+const DECLARED_SEVERE: ReadonlyArray<{
+  model: RegExp;
+  severeSkinC: number;
+  /** Own pacing lines in skin C; an absent one falls back to the default. */
+  startSkinC?: number;
+  fullSkinC?: number;
+}> = [
   // Galaxy S23 (SM-S911): Android status 3 (SEVERE) measured at headroom 1.003,
   // skin 42.1 C (lab cell s23-headroom-cal-78). The 0.87 / 0.99 lines come from
   // the S23's calibrated fits (cells s23-g2-graduated-867affaa,
@@ -24,8 +31,9 @@ const DECLARED_SEVERE: ReadonlyArray<{ model: RegExp; severeSkinC: number }> = [
   // Xiaomi 14 (23127PN0CG): HAL Threshold mType=3 (SEVERE), read with
   // `dumpsys thermalservice` on 2026-10-11. The array index is the status, and
   // index 3 holds 66.5 C. The in-app fit (cell xiaomi-g2-inapp-233486dd) puts
-  // headroom 1.0 at ~66.9 C, consistent with it.
-  { model: /^23127PN0CG$/, severeSkinC: 66.5 },
+  // headroom 1.0 at ~66.9 C, consistent with it. Its pacing lines are its own
+  // (owner 2026-10-12): the S23's 3.6 C ramp, placed on this SEVERE.
+  { model: /^23127PN0CG$/, severeSkinC: 66.5, startSkinC: 39.0, fullSkinC: 42.6 },
 ];
 
 /** Headroom for a skin temperature on a phone whose SEVERE is severeSkinC,
@@ -51,7 +59,13 @@ export function pacingHeadroomLines(profile: DeviceProfile): {
   const row = DECLARED_SEVERE.find((entry) => entry.model.test(modelName));
   if (!row) return null;
   return {
-    decode_pacing_headroom_start: headroomAt(PACING_START_SKIN_C, row.severeSkinC),
-    decode_pacing_headroom_full: headroomAt(PACING_FULL_SKIN_C, row.severeSkinC),
+    decode_pacing_headroom_start: headroomAt(
+      row.startSkinC ?? PACING_START_SKIN_C,
+      row.severeSkinC,
+    ),
+    decode_pacing_headroom_full: headroomAt(
+      row.fullSkinC ?? PACING_FULL_SKIN_C,
+      row.severeSkinC,
+    ),
   };
 }
