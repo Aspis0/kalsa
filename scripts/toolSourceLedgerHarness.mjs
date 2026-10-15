@@ -292,7 +292,7 @@ async function main() {
     const assigned = Array.from({ length: 20 }, (_, i) => i + 50);
     const suffix = buildCiteInstructionSuffix(assigned, en, "sources");
     check("worst-case suffix ≤ 700", suffix.length <= 700, `len=${suffix.length}`);
-    // TOOL_RESULT_MAX_CHARS is 2500 in LlamaService; keep headroom for use-rule.
+    // TOOL_RESULT_MAX_CHARS is 2500 in toolResultFormat.ts; keep headroom for use-rule.
     const TOOL_RESULT_MAX_CHARS = 2500;
     check(
       "retrieval budget + suffix under tool result max",
