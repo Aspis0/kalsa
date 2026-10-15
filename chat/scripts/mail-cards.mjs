@@ -176,6 +176,31 @@ for (const plain of ["luca@libero.it", "luca@virgilio.it", "luca@aruba.it", "luc
 }
 equal("no address asks for nothing", app.appPasswordProvider(""), null);
 
+/* The password as each provider wants it sent. Google's and Apple's codes are
+   copied in groups of four, and a space inside somebody else's account
+   password is a character of it. */
+equal("Google's code is sent without the spaces", app.prepareCredentials("luca@gmail.com", "abcd efgh ijkl mnop").password, "abcdefghijklmnop");
+equal("Apple's code is sent without the spaces", app.prepareCredentials("luca@icloud.com", " abcd-efgh-ijkl-mnop ").password, "abcd-efgh-ijkl-mnop");
+equal("another provider's password is sent as typed", app.prepareCredentials("luca@libero.it", "una password con spazi").password, "una password con spazi");
+equal("the address is trimmed whatever it is", app.prepareCredentials("  luca@libero.it  ", "x").email, "luca@libero.it");
+equal("a trimmed Gmail address still strips the spaces", app.prepareCredentials(" luca@gmail.com ", "a b c").password, "abc");
+
+/* The sentence a refused command is shown as. An IMAP login the server refuses
+   arrives as mail.invalid_account (error.rs), and a code nobody knows is the
+   plain "it did not work" rather than a word the person would read as a
+   diagnosis. */
+equal("no account saved yet", app.accountErrorKey("mail.not_configured"), "notConfigured");
+equal("the address or the password is wrong", app.accountErrorKey("mail.invalid_account"), "invalidAccount");
+equal("the keychain could not be read", app.accountErrorKey("mail.keychain"), "keychain");
+equal("Outlook is not supported", app.accountErrorKey("mail.unsupported_provider"), "unsupportedProvider");
+equal("the helper is not approved", app.accountErrorKey("mail.not_approved"), "notApproved");
+equal("the helper changed under us", app.accountErrorKey("mail.program_changed"), "helperGone");
+equal("the helper is gone", app.accountErrorKey("mail.server_gone"), "helperGone");
+equal("everything else the host refuses", app.accountErrorKey("mail.failed"), "failed");
+equal("a code this build does not know", app.accountErrorKey("mail.from_the_future"), "failed");
+equal("no code at all", app.accountErrorKey(""), "failed");
+check("the Italian table has a sentence for every one", ["notConfigured", "invalidAccount", "keychain", "unsupportedProvider", "notApproved", "helperGone", "failed"].every((key) => app.ITALIAN_MAIL.errors[key].length > 0));
+
 /* The pages the person is sent to are constants, so nothing the model or the
    person types can point one somewhere else. */
 equal("Google's page is the one Google publishes", app.APP_PASSWORD_PAGE.google, "https://myaccount.google.com/apppasswords");

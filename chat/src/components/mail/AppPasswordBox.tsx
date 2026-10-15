@@ -6,34 +6,41 @@ import { Openable } from "../Openable";
 import "./mail.css";
 
 /**
- * How to get the code this provider wants instead of the account password,
- * under the field it goes in. The address is a constant in the app, so this is
- * the person's own browser on a page the provider publishes — never anything a
- * model or a typed string can point somewhere else.
+ * How to get the code a provider wants instead of the account password. The
+ * addresses are constants in the app, so this is the person's own browser on a
+ * page the provider publishes — never anything a model or a typed string can
+ * point somewhere else.
+ *
+ * Two providers when the address is still empty, because which one it will be
+ * is exactly what the person has not said yet.
  */
-export function AppPasswordBox({ provider, failed = false }: {
-  provider: AppPasswordProvider;
+export function AppPasswordBox({ providers, failed = false }: {
+  providers: AppPasswordProvider[];
   /** Marks the box as the answer to a refused connection, where the reason is
-      already written above it: the title stays the how-to, not a second copy. */
+      already written above it. */
   failed?: boolean;
 }) {
   const { table } = useLanguage();
   const t = table.mail.appPassword;
-  const steps = provider === "google" ? t.stepsGoogle : t.stepsApple;
+  if (providers.length === 0) return null;
 
   return (
     <div className={failed ? "mail-apppass is-failed" : "mail-apppass"}>
-      <p className="mail-apppass-title">
-        <Icon name="lock" size={15} />
-        {t.title}
-      </p>
-      <ol className="mail-apppass-steps">
-        {steps.map((step) => (
-          <li key={step}>{step}</li>
-        ))}
-      </ol>
+      {providers.map((provider) => (
+        <section key={provider} className="mail-apppass-for">
+          <p className="mail-apppass-title">
+            <Icon name="lock" size={15} />
+            {provider === "google" ? "Google" : "Apple"}
+          </p>
+          <ol className="mail-apppass-steps">
+            {(provider === "google" ? t.stepsGoogle : t.stepsApple).map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          <Openable url={APP_PASSWORD_PAGE[provider]}>{t.openPage}</Openable>
+        </section>
+      ))}
       <p className="mail-apppass-note">{t.note}</p>
-      <Openable url={APP_PASSWORD_PAGE[provider]}>{t.openPage}</Openable>
     </div>
   );
 }

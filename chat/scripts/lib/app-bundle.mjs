@@ -66,6 +66,8 @@ export async function loadApp() {
         export { fencedBody } from "../src/lib/mail/fence.ts";
         export { guessServer } from "../src/lib/mail/providers.ts";
         export { appPasswordProvider, APP_PASSWORD_PAGE } from "../src/lib/mail/appPassword.ts";
+        export { prepareCredentials } from "../src/lib/mail/credentials.ts";
+        export { accountErrorKey } from "../src/lib/mail/accountError.ts";
         export { runMailShow } from "../src/lib/tools/mailShow.ts";
         export { sendReply } from "../src/lib/mail/send.ts";
         export { accountEmail, rememberAccount } from "../src/lib/mail/account.ts";

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import type { English } from "../../i18n/en/all";
 import { useLanguage } from "../../i18n/useLanguage";
 import { available, invoke } from "../../lib/tauri";
-import { rememberAccount } from "../../lib/mail/account";
+import { accountEmail, rememberAccount } from "../../lib/mail/account";
+import { prepareCredentials } from "../../lib/mail/credentials";
+import { accountErrorKey } from "../../lib/mail/accountError";
 import { guessServer } from "../../lib/mail/providers";
 import { appPasswordProvider } from "../../lib/mail/appPassword";
 import { mailAllowed } from "../../lib/mail/allowlist";
@@ -19,11 +20,12 @@ import "./settingsMail.css";
  * deleting is blocked whatever the person would prefer.
  */
 
-/** The words for a refused save. Tauri rejects a refusal with its `{ code }` and
-    an argument it cannot read with a plain string, so only a code can be named. */
-function saveFailure(error: unknown, t: English["mail"]): string {
+/** The words for a refused command. Tauri rejects a refusal with its `{ code }`
+    and an argument it cannot read with a plain string, so only a code can be
+    named. */
+function refusalCode(error: unknown): string {
   const code = (error as { code?: unknown } | null)?.code;
-  return code === "mail.unsupported_provider" ? t.outlook : t.testFailed;
+  return typeof code === "string" ? code : "";
 }
 
 export function MailSettingsPage({ onBack }: { onBack: () => void }) {
@@ -35,12 +37,28 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
   const [server, setServer] = useState("");
   /** Whether the person typed the server. A guessed one is shown, never sent. */
   const [serverTyped, setServerTyped] = useState(false);
-  const [note, setNote] = useState<{ kind: "ok" | "warn"; text: string } | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  /** What this machine has linked, read once and kept in step with every save
+      and every removal: the page has no command that answers it. */
+  const [linked, setLinked] = useState(accountEmail());
+  /** A refused save, kept until the next attempt: a reason that disappears on
+      the next click is not something the person can act on. */
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [passwordShown, setPasswordShown] = useState(false);
   /** Whether this address wants a code of its own; read from the address so
       the box appears while the person is still typing it. */
   const appPassword = appPasswordProvider(email);
+  /** The address must be whole before it can name a provider, so an unfinished
+      one gets the plain form of the fields rather than a wrong guess. */
+  const canSave = email.includes("@") && password !== "";
+  const missing = email.includes("@") ? (password === "" ? t.needPassword : "") : t.needEmail;
+  /** This address's steps on their own; both providers while it is still blank,
+      because which one it will be is what the person has not said yet. */
+  const helpProviders = appPassword === null ? [] : [appPassword];
+  const helpShown = helpOpen || appPassword !== null;
 
   // The mailbox is closed to any model but the approved ones, so the page says
   // where to change it rather than leaving a form that cannot be used.
@@ -51,40 +69,35 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
     setEmail(next);
     const guess = guessServer(next);
     if (!serverTyped) setServer(guess?.host ?? "");
-    setNote(guess === null && next.includes("@") ? { kind: "warn", text: t.unknownServer } : null);
+    setNote(guess === null && next.includes("@") ? t.unknownServer : null);
   }
 
-  async function save(): Promise<void> {
+  /** One press does the whole thing: keep the account, then check it. Two
+      buttons made a question the page could not answer — Prova tested the
+      saved account, which is nothing at all when the person has not saved one
+      yet, and it said so in words about a password that was never used. */
+  async function connect(): Promise<void> {
+    if (!canSave) return;
     setBusy(true);
     setNote(null);
+    setSaveError(null);
+    setSubjects([]);
     try {
       const typed = serverTyped && server.trim() !== "" ? { host: server.trim() } : {};
-      await invoke("brain_mail_account_save", { input: { email, password, ...typed } });
+      const given = prepareCredentials(email, password);
+      await invoke("brain_mail_account_save", { input: { ...given, ...typed } });
       // The address is the card's "A:", and no command reads it back, so the
-      // page keeps it from the moment the person saves it.
-      rememberAccount(email);
-      setNote({ kind: "ok", text: t.saved });
-      setPassword("");
-    } catch (error) {
-      setNote({ kind: "warn", text: saveFailure(error, t) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function test(): Promise<void> {
-    setBusy(true);
-    setSubjects([]);
-    setNote(null);
-    try {
+      // page keeps it from the moment the account is kept.
+      rememberAccount(given.email);
+      setLinked(given.email);
       const found = await invoke<string[]>("brain_mail_account_test");
       setSubjects(found);
-      setNote({ kind: "ok", text: t.testOk(found.length) });
-    } catch {
-      // A provider that wants its own code is the likeliest reason a correct
-      // password was refused, so the steps follow the refusal where the person
-      // is already looking.
-      setNote({ kind: "warn", text: appPassword === null ? t.testFailed : t.appPassword.failed });
+      setNote(t.testOk(found.length));
+      setPassword("");
+      setPasswordShown(false);
+    } catch (error) {
+      const code = refusalCode(error);
+      setSaveError(t.errors[accountErrorKey(code)]);
     } finally {
       setBusy(false);
     }
@@ -108,24 +121,54 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
           </p>
         ) : (
           <>
+            {/* The account this machine has, said before anything is asked of
+                the person: an empty page that looks like a form is a form. */}
+            <p className={linked === "" ? "mail-linked is-none" : "mail-linked"} role="status">
+              <Icon name={linked === "" ? "info" : "check"} size={15} />
+              {linked === "" ? t.accountNone : t.accountLinked(linked)}
+            </p>
+
+            <div className="mail-help">
+              <p className="mail-help-line">{t.helpAlways}</p>
+              <button
+                type="button"
+                className="mail-help-toggle"
+                aria-expanded={helpShown}
+                onClick={() => setHelpOpen((open) => !open)}
+              >
+                <Icon name={helpShown ? "down" : "right"} size={14} stroke={2.2} />
+                {t.helpShow}
+              </button>
+            </div>
+            {helpShown ? <AppPasswordBox providers={helpOpen || appPassword === null ? ["google", "apple"] : helpProviders} /> : null}
+
             <div className="mail-settings-fields">
               <label className="mail-field">
                 <span>{t.email}</span>
                 <input type="email" value={email} placeholder="nome@esempio.it" onChange={(event) => onEmail(event.target.value)} />
               </label>
-              <label className="mail-field">
-                <span>{t.password}</span>
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-              </label>
-              {appPassword !== null ? (
-                <>
-                  <p className="mail-apppass-why">
-                    <Icon name="info" size={15} />
-                    {t.appPassword.needed}
-                  </p>
-                  <AppPasswordBox provider={appPassword} />
-                </>
-              ) : null}
+              {/* The eye is a sibling of the input, never inside the label: a
+                  button inside a label is announced as part of the field. */}
+              <div className="mail-field">
+                <label htmlFor="mail-password">{t.password}</label>
+                <span className="mail-field-with-eye">
+                  <input
+                    id="mail-password"
+                    type={passwordShown ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="mail-eye"
+                    aria-label={passwordShown ? t.hidePassword : t.showPassword}
+                    aria-pressed={passwordShown}
+                    onClick={() => setPasswordShown((shown) => !shown)}
+                  >
+                    <Icon name={passwordShown ? "clip" : "lock"} size={16} />
+                  </button>
+                </span>
+              </div>
               <label className="mail-field">
                 <span>{t.server}</span>
                 <input
@@ -146,44 +189,46 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
               </p>
             ) : null}
             <div className="mail-settings-actions">
-              <button type="button" className="mail-btn" disabled={busy} onClick={() => void save()}>
+              <button type="button" className="mail-btn" disabled={busy || !canSave} onClick={() => void connect()}>
                 <Icon name="check" size={16} />
-                {t.save}
+                {busy ? t.testing : t.connect}
               </button>
-              <button type="button" className="mail-btn" disabled={busy} onClick={() => void test()}>
-                <Icon name="zap" size={16} />
-                {busy ? t.testing : t.test}
-              </button>
-              <button
-                type="button"
-                className="mail-btn"
-                disabled={busy}
-                onClick={() => {
-                  setBusy(true);
-                  void invoke("brain_mail_account_delete").then(
-                    () => {
-                      setBusy(false);
-                      setSubjects([]);
-                      setNote({ kind: "ok", text: t.removed });
-                    },
-                    () => setBusy(false),
-                  );
-                }}
-              >
-                <Icon name="trash" size={16} />
-                {t.remove}
-              </button>
+              {linked !== "" ? (
+                <button
+                  type="button"
+                  className="mail-btn"
+                  disabled={busy}
+                  onClick={() => {
+                    setBusy(true);
+                    void invoke("brain_mail_account_delete").then(
+                      () => {
+                        setBusy(false);
+                        setSubjects([]);
+                        setLinked("");
+                        setNote(t.removed);
+                      },
+                      () => setBusy(false),
+                    );
+                  }}
+                >
+                  <Icon name="trash" size={16} />
+                  {t.remove}
+                </button>
+              ) : null}
             </div>
-            {note ? (
-              <>
-                <p className={`mail-note${note.kind === "warn" ? " is-warn" : ""}`} role="status">
-                  <Icon name={note.kind === "ok" ? "check" : "alert"} size={15} />
-                  {note.text}
-                </p>
-                {note.kind === "warn" && appPassword !== null ? (
-                  <AppPasswordBox provider={appPassword} failed />
-                ) : null}
-              </>
+            {saveError !== null ? (
+              <p className="mail-note is-warn" role="alert">
+                <Icon name="alert" size={15} />
+                {saveError}
+              </p>
+            ) : missing !== "" ? (
+              <p className="mail-note">{missing}</p>
+            ) : null}
+            {note !== null ? (
+              <p className="mail-note" role="status">
+                <Icon name="check" size={15} />
+                {note}
+              </p>
             ) : null}
             {subjects.length > 0 ? (
               <ul className="mail-subjects">

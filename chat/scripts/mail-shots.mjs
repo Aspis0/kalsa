@@ -164,7 +164,9 @@ function installMailStub(config) {
           return { sentTo: answered.for_ui.from.address };
         }
         if (command === "brain_mail_account_test") {
-          if (config.failTest) throw new Error("mail-shots: the connection was refused");
+          // What Rust sends when the login itself is refused: a coded failure,
+          // not an exception the page has to read a message out of.
+          if (config.failTest) throw { code: "mail.invalid_account", text: "the login was refused" };
           return mail.testSubjects;
         }
         if (command === "brain_mail_account_save") return mail.saved;
@@ -178,18 +180,21 @@ function installMailStub(config) {
 
 /* ----------------------------------------------------------------- the page */
 
-async function seed(page, theme, failTest = false) {
+async function seed(page, theme, opts = {}) {
   await page.addInitScript((cfg) => {
     localStorage.clear();
     localStorage.setItem("crescent-chat.theme.v1", cfg.theme);
     localStorage.setItem("crescent-chat.language.v1", "it");
-    // The account the person reads with: what the card's "A:" says.
-    localStorage.setItem("crescent-chat.mail-account.v1", JSON.stringify({ email: "luca@libero.it" }));
+    // The account the person reads with: what the card's "A:" says. No
+    // account is the page a person meets before saving one.
+    if (opts.account !== null) {
+      localStorage.setItem("crescent-chat.mail-account.v1", JSON.stringify({ email: opts.account ?? "luca@libero.it" }));
+    }
     localStorage.setItem(
       "crescent-chat.settings.v1",
       JSON.stringify({ webTools: true, model: cfg.model, thinking: false }),
     );
-  }, { theme, model: "Alibaba Qwen 3.6" });
+  }, { theme, model: "Alibaba Qwen 3.6", account: opts.account });
   await page.addInitScript((fixture) => {
     window.__MAIL_FIXTURE__ = fixture;
   }, mailFixture());
@@ -197,7 +202,7 @@ async function seed(page, theme, failTest = false) {
     endpoint: ENDPOINT,
     model: "Alibaba Qwen 3.6",
     appVersion: APP_VERSION,
-    failTest: failTest === true,
+    failTest: opts.failTest === true,
   });
 }
 
@@ -240,40 +245,87 @@ async function mustSee(page, needle, label) {
 
 /** The two Settings states that changed: a Gmail address with the box under
     the field, and the same page after a refused connection. */
+/** The three Settings states a person meets, plus the refused connection. */
 async function shootSettings(browser) {
-  // The box makes this page taller than the chat window, and a screenshot
+  // The help box makes this page taller than the chat window, and a screenshot
   // shows only the window.
-  const viewport = { width: WINDOW.width, height: 1560 };
+  const viewport = { width: WINDOW.width, height: 1720 };
   for (const theme of ["light", "dark"]) {
     const dark = theme === "dark";
     const shotOf = (name) => `${name}${dark ? "-dark" : ""}`;
 
-    const page = await browser.newPage({ viewport });
-    await seed(page, theme);
-    await page.goto(APP);
-    await page.waitForSelector(".rail", { timeout: 20000 });
-    await openMailSettings(page);
-    await page.getByLabel("Indirizzo email").fill("luca@gmail.com");
-    await mustSee(page, "Come si ottiene la password per le app", `${theme}: the app password box is there`);
-    check(`${theme}: Google says 2-Step Verification is needed first`, (await page.locator(".mail-apppass-steps").innerText()).includes("Verifica in due passaggi"));
-    check(`${theme}: the steps are numbered`, (await page.locator(".mail-apppass-steps li").count()) === 4);
-    check(`${theme}: the box says the code is only for mail`, (await page.locator(".mail-apppass-note").innerText()).includes("solo per la mail"));
-    const link = await page.locator(".mail-apppass .tool-link").innerText();
-    check(`${theme}: one button opens the provider's page`, (await page.locator(".mail-apppass .tool-link").count()) === 1, link);
-    await shot(page, shotOf("14-settings-mail-gmail"));
-    await page.close();
+    /* 17 — nobody has typed anything: what this machine has, and the help
+       waiting behind one line. */
+    const empty = await browser.newPage({ viewport });
+    await seed(empty, theme, { account: null });
+    await empty.goto(APP);
+    await empty.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(empty);
+    await mustSee(empty, "Nessun account collegato", `${theme}: an empty page says so`);
+    await mustSee(empty, "Per Gmail e iCloud serve una password per le app", `${theme}: the help is there before any typing`);
+    check(`${theme}: the steps are folded away`, (await empty.locator(".mail-apppass").count()) === 0);
+    check(`${theme}: Collega waits for the address`, await empty.getByRole("button", { name: "Collega questo account" }).isDisabled());
+    check(`${theme}: nothing to remove without an account`, (await empty.getByRole("button", { name: "Elimina questo account" }).count()) === 0);
+    await mustSee(empty, "Scrivi il tuo indirizzo email", `${theme}: and says what is missing`);
+    await shot(empty, shotOf("17-settings-mail-empty"));
+    await empty.getByRole("button", { name: "Come si ottiene" }).click();
+    check(`${theme}: the disclosure opens both providers`, (await empty.locator(".mail-apppass-for").count()) === 2);
+    await empty.close();
 
+    /* 18 — a Gmail address: the steps open by themselves, with its button. */
+    const gmail = await browser.newPage({ viewport });
+    await seed(gmail, theme, { account: null });
+    await gmail.goto(APP);
+    await gmail.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(gmail);
+    await gmail.getByLabel("Indirizzo email").fill("luca@gmail.com");
+    await gmail.waitForSelector(".mail-apppass", { timeout: 10000 });
+    check(`${theme}: Google says 2-Step Verification is needed first`, (await gmail.locator(".mail-apppass-steps").innerText()).includes("Verifica in due passaggi"));
+    check(`${theme}: the steps are numbered`, (await gmail.locator(".mail-apppass-steps li").count()) === 4);
+    check(`${theme}: the box says the code is only for mail`, (await gmail.locator(".mail-apppass-note").innerText()).includes("solo per la mail"));
+    check(`${theme}: one button opens the provider's page`, (await gmail.locator(".mail-apppass .tool-link").count()) === 1);
+    check(`${theme}: Collega waits for the password`, await gmail.getByRole("button", { name: "Collega questo account" }).isDisabled());
+    await mustSee(gmail, "Scrivi la password", `${theme}: and says which field is missing`);
+    await gmail.getByLabel("Password", { exact: true }).fill("abcd efgh ijkl mnop");
+    check(`${theme}: the password is hidden by default`, (await gmail.getByLabel("Password", { exact: true }).getAttribute("type")) === "password");
+    await gmail.getByRole("button", { name: "Mostra la password" }).click();
+    check(`${theme}: the eye shows it`, (await gmail.getByLabel("Password", { exact: true }).getAttribute("type")) === "text");
+    check(`${theme}: and the eye says so in words`, (await gmail.getByRole("button", { name: "Nascondi la password" }).count()) === 1);
+    await gmail.getByRole("button", { name: "Nascondi la password" }).click();
+    check(`${theme}: and hides it again`, (await gmail.getByLabel("Password", { exact: true }).getAttribute("type")) === "password");
+    check(`${theme}: with both fields Collega is ready`, await gmail.getByRole("button", { name: "Collega questo account" }).isEnabled());
+    await shot(gmail, shotOf("18-settings-mail-gmail"));
+    await gmail.close();
+
+    /* 19 — saved: the page says which account this machine holds. */
+    const saved = await browser.newPage({ viewport });
+    await seed(saved, theme, { account: null });
+    await saved.goto(APP);
+    await saved.waitForSelector(".rail", { timeout: 20000 });
+    await openMailSettings(saved);
+    await saved.getByLabel("Indirizzo email").fill("luca@libero.it");
+    await saved.getByLabel("Password", { exact: true }).fill("password-di-prova");
+    await saved.getByRole("button", { name: "Collega questo account" }).click();
+    await mustSee(saved, "Collegato: luca@libero.it", `${theme}: the page says which account is linked`);
+    await mustSee(saved, "Ultime 3 mail ricevute", `${theme}: one press checks the account`);
+    check(`${theme}: the newest subjects are listed`, (await saved.locator(".mail-subjects li").count()) === 3);
+    check(`${theme}: a linked account can be removed`, (await saved.getByRole("button", { name: "Elimina questo account" }).count()) === 1);
+    await shot(saved, shotOf("19-settings-mail-saved"));
+    await saved.close();
+
+    /* 20 — a refused connection says the likeliest cause and shows the steps. */
     const failed = await browser.newPage({ viewport });
-    await seed(failed, theme, true);
+    await seed(failed, theme, { failTest: true, account: null });
     await failed.goto(APP);
     await failed.waitForSelector(".rail", { timeout: 20000 });
     await openMailSettings(failed);
     await failed.getByLabel("Indirizzo email").fill("luca@gmail.com");
-    await failed.getByLabel("Password").fill("abcd efgh ijkl mnop");
-    await failed.getByRole("button", { name: "Prova" }).click();
-    await mustSee(failed, "Serve la password per le app", `${theme}: the refusal names the likely cause`);
-    check(`${theme}: the same box follows the refusal`, (await failed.locator(".mail-apppass.is-failed").count()) === 1);
-    await shot(failed, shotOf("16-settings-mail-gmail-failed"));
+    await failed.getByLabel("Password", { exact: true }).fill("abcd efgh ijkl mnop");
+    await failed.getByRole("button", { name: "Collega questo account" }).click();
+    await mustSee(failed, "L'indirizzo o la password non sono giusti", `${theme}: the refusal says what was refused`);
+    check(`${theme}: the app password box is there for a Gmail address`, (await failed.locator(".mail-apppass").count()) === 1);
+    check(`${theme}: and the refusal is shown once`, (await failed.locator(".mail-note.is-warn").count()) === 1);
+    await shot(failed, shotOf("20-settings-mail-failed"));
     await failed.close();
   }
 }
@@ -428,14 +480,20 @@ async function run() {
         await page.getByLabel("Indirizzo email").fill("luca@libero.it");
         const guessed = await page.getByLabel("Server").inputValue();
         check("light: the server guessed from the address", guessed === "imapmail.libero.it", `got "${guessed}"`);
-        await page.getByLabel("Password").fill("password-di-prova");
-        await page.getByRole("button", { name: "Prova" }).click();
-        await mustSee(page, "Ultime 3 mail ricevute", "light: Prova listed the latest mail");
+        await page.getByLabel("Password", { exact: true }).fill("password-di-prova");
+        await page.getByRole("button", { name: "Collega questo account" }).click();
+        await mustSee(page, "Ultime 3 mail ricevute", "light: Collega checked the account");
         await mustSee(page, "Fattura n. 104", "light: the three subjects are listed");
         await shot(page, "13-settings-mail");
       }
       await page.close();
     }
+  } catch (err) {
+    // A shot that throws stopped the run: saying nothing about it would let a
+    // half-written set of pictures pass for a whole one.
+    failures += 1;
+    const why = err instanceof Error ? err.message.split("\n")[0] : String(err);
+    console.log(`FAIL the run stopped before the end\n     ${why}`);
   } finally {
     await browser.close();
     mock.close();

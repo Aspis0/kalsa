@@ -223,21 +223,11 @@
 /* How to get a code the provider wants instead of the password: a quiet box
    under the field it belongs to, numbered because it is a sequence. */
 .mail-apppass {
-  margin: 4px 24px 18px;
+  margin: 10px 24px 0;
   padding: 14px 16px 15px;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 14px;
-}
-
-.mail-apppass-why {
-  display: flex;
-  margin: 0 24px 10px;
-  align-items: center;
-  gap: 7px;
-  color: var(--warn-ink);
-  font-size: 13.5px;
-  line-height: 20px;
 }
 
 .mail-apppass-title {

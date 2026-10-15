@@ -23,6 +23,46 @@
   padding-top: 18px;
 }
 
+/* What this machine has linked, and the help that waits before any typing. */
+.mail-linked {
+  display: flex;
+  margin: 18px 24px 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--ac-tx);
+  font-size: 13.5px;
+  line-height: 20px;
+}
+
+.mail-linked.is-none {
+  color: var(--tx2);
+}
+
+.mail-help {
+  margin: 14px 24px 0;
+}
+
+.mail-help-line {
+  margin: 0 0 6px;
+  color: var(--tx2);
+  font-size: 13.5px;
+  line-height: 20px;
+}
+
+.mail-help-toggle {
+  display: inline-flex;
+  padding: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--ac-tx);
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .mail-field {
   display: flex;
   padding: 0 24px;
@@ -31,6 +71,38 @@
   gap: 6px;
   color: var(--tx2);
   font-size: 14px;
+}
+
+/* The eye sits at the right end of the password field, inside it. */
+.mail-field-with-eye {
+  position: relative;
+  display: block;
+}
+
+.mail-field-with-eye input {
+  padding-right: 44px;
+}
+
+.mail-eye {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  color: var(--tx2);
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mail-eye:hover {
+  color: var(--tx);
+  background: var(--card);
 }
 
 .mail-field input {

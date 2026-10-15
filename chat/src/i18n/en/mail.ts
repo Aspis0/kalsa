@@ -82,6 +82,25 @@ export const MAIL = {
   unknownServer: "We don't know this provider, so fill the server in yourself.",
   // With the small model running the mailbox stays closed: the owner decides
   // which AI to use, and the card says where to change it.
+  accountNone: "No account linked",
+  accountLinked: (email: string) =>
+    `Linked: ${email}`,
+  helpAlways: "Gmail and iCloud need an app password, not your usual one.",
+  helpShow: "How to get one",
+  needEmail: "Type your email address.",
+  needPassword: "Type the password.",
+  connect: "Connect this account",
+  showPassword: "Show the password",
+  hidePassword: "Hide the password",
+  errors: {
+    notConfigured: "There is no account to check yet.",
+    invalidAccount: "The address or the password is not right.",
+    keychain: "Kalsa could not read the saved password from this computer.",
+    unsupportedProvider: "Outlook is not supported yet.",
+    notApproved: "Kalsa's mail helper is not approved on this computer.",
+    helperGone: "Kalsa's mail helper is no longer available.",
+    failed: "Kalsa could not connect. Check the address and try again.",
+  },
   modelNotAllowed: "This AI cannot read mail. Change it in Settings → Your AI.",
   back: "Back to Settings",
   canDo: "What Kalsa can do with your mail",
