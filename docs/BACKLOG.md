@@ -471,3 +471,15 @@ The hidden-text label is best effort. The boundary is the fence, the host's tain
 ## Mail: audit of the night fixes (2026-10-15, P2 left over)
 - Credential wiring has no end-to-end test: the page mock accepts any saved password and the IMAP fake accepts every LOGIN, so removing `prepareCredentials` from `connect()` stays green. Make the fake check the password it was given.
 - `test_saved` (`src-tauri/src/mail/accounts.rs`) releases the account lock before probing, so a save or delete during a slow probe can return the old account's subjects. Plausible, not reproduced.
+
+## Security audit of the desktop, GLM-5.3 (2026-10-15)
+Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, no key) is fixed separately. The rest:
+- P1: every gate lives in the WebView. `brain_mail_send`, `brain_mail_read`, `brain_files_read` and the other commands are callable by any script in the page. No injection into the page was found (closed CSP, raw HTML shown as text, no remote images). A Rust-side send token was considered and not done, because a script that can call send can also call draft. The real defence is keeping the page free of script injection. Revisit if mini apps or attachments ever render active content.
+- `web_search` query words can carry mail text to Exa without an ask: the gate is armed only by pinned documents. Arm a lighter ask when fenced mail is in the conversation (`toolLoop.ts` already knows `MAIL_NAMES`).
+- Telemetry uploads the log folder. The llama-server stderr filter is a blacklist (`supervisor.rs` `REQUEST_LINE_MARKS`). Invert it to an allowlist.
+- `mailbox.rs` `headers()` fetches whole header blocks with no size cap. One mail with a multi-megabyte header costs memory and the call's deadline. Fetch only FROM and DATE, partially.
+- Sidecar pin: there is a verify → spawn → verify swap race (`kalsa-mcp/src/launch.rs`). Hash and execute a private copy.
+- Pairing desk lane: six free identities exhaust it (declared at `kalsa-iroh/src/bridge.rs:122`). Open the lane only while an offer is live.
+- Control characters from a hostile Message-ID reach `In-Reply-To`/`References` (no CR/LF, so this is not injection). Pass both through `invisible::one_line` in `compose.rs`.
+- `brain_mail_account_save` accepts any typed host for a known provider's address. Warn when the host does not match the provider.
+- The updater endpoint is still the `REPLACE_WITH_UPDATE_KEY` placeholder in tauri.conf.json.
