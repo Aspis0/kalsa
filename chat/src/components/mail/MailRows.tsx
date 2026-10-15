@@ -7,7 +7,8 @@ import { MailFailureCard } from "./MailFailureCard";
 import { mailFailure, UNKNOWN_FAILURE } from "../../lib/mail/failure";
 import type { MailFailure } from "../../lib/mail/failure";
 import type { ToolRun } from "../../lib/types";
-import { MAIL_TOOLS } from "../../lib/tools/definitions";
+import { isMailRun } from "../../lib/mail/runs";
+import { CARDS_PER_GROUP } from "../../lib/mail/cards";
 import type { PendingSend } from "../../lib/mail/pending";
 
 /**
@@ -16,12 +17,10 @@ import type { PendingSend } from "../../lib/mail/pending";
  * A run whose cards were only ever in memory shows the count it left behind.
  */
 
-const NAMES = new Set(MAIL_TOOLS.map((tool) => tool.function.name));
-
-/** How many cards one group draws before its button asks. A list can carry fifty
-    mails and a turn is not a page: past this the person decides to keep
-    reading. The rest are already in hand, so the button reveals, never fetches. */
-const DRAWN = 8;
+/** How many cards one group draws before its button asks: the cap is the
+    cards' own rule (`CARDS_PER_GROUP`), which the model's words about the screen
+    read too. */
+const DRAWN = CARDS_PER_GROUP;
 
 export function MailRows({
   runs,
@@ -59,7 +58,7 @@ export function MailRows({
   // A call the sidecar refused without a code of its own still failed, and a
   // silent failure is worse than a plain sentence.
   const notices = runs
-    .filter((run) => NAMES.has(run.name) && (run.resultCode !== undefined || run.state === "failed" || run.state === "refused"))
+    .filter((run) => isMailRun(run.name) && (run.resultCode !== undefined || run.state === "failed" || run.state === "refused"))
     .map((run) => ({ id: run.id, why: mailFailure(run.resultCode) ?? UNKNOWN_FAILURE }))
     .filter((entry): entry is { id: string; why: MailFailure } => entry.why !== null);
   const told = new Set(notices.map((entry) => entry.id));

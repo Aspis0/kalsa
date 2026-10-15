@@ -5980,9 +5980,18 @@ const tests = {
                   state: "paired",
                   devices: [
                     { id: 0, kind: "host", label: "This computer" },
-                    // No `phone` of its own: the sentence then has only the
-                    // name the app words for it, which is the one under test.
-                    { id: 1, label: "Paired phone 2" },
+                    // The shape Rust really sends: `phone` is an English
+                    // capability sentence, and it always arrives with the code
+                    // and the figure the page renders it from.
+                    {
+                      id: 1,
+                      label: "Paired phone 2",
+                      phone: "phone with 3 GB of model weights",
+                      phone_code: "pairing.phone_with_ai",
+                      phone_params: { gb: 3 },
+                      waiting: false,
+                      pairing_again: false,
+                    },
                   ],
                 };
               }
@@ -6004,12 +6013,49 @@ const tests = {
       check("phones: the phone is named in the language, with Rust's own number", rows.includes("telefono 2"), rows.join(" | "));
       check("phones: and not with the English label Rust minted", !rows.some((name) => /This computer|Paired phone/.test(name)), rows.join(" | "));
       // The sentence that names the one phone the house works with reads the
-      // same name; it used to read `device.label`, which is never empty.
+      // same name; it used to read `device.label` or `device.phone`, which are
+      // English words Rust wrote and never empty.
       const sentence = (await page.locator(".phones-lead").first().innerText()).trim();
       check("phones: the sentence names it in the language too", sentence.includes("telefono 2"), sentence);
-      check("phones: and the English label is in no sentence", !/Paired phone|This computer/.test(await page.locator(".surface-page").innerText()), sentence);
+      check("phones: and no English Rust wrote is in any sentence", !/Paired phone|This computer|GB of model weights/.test(await page.locator(".surface-page").innerText()), sentence);
     } finally {
       await browser.close();
+    }
+  },
+
+  // A mail_show that draws nothing has failed, and its failure is told the same
+  // way every other mail failure is — it is a mail tool, `mail_show` included.
+  async mailshownothing() {
+    const mock = listEndpoint(["999"]);
+    await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, {
+        settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+        theme: "light",
+      });
+      await page.addInitScript((fixture) => {
+        window.__MAIL_FIXTURE__ = fixture;
+      }, listFixture());
+      await stubMailDoor(page);
+
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await openChat(page);
+      const box = page.locator(".composer-input");
+      await box.waitFor({ timeout: 15000 });
+      await box.fill("Fammi vedere le mail di oggi");
+      await box.press("Enter");
+
+      await page.waitForSelector(".mail-failure", { timeout: 30000 });
+      const why = (await page.locator(".mail-failure").first().innerText()).trim();
+      check("mail: a mail_show that drew nothing says so", why.length > 0, why);
+      check("mail: and the run itself is not left as a quiet row", (await page.locator(".tool-activity").count()) === 0);
+      check("mail: the list's own cards are still the ones drawn", (await page.locator(".mail-card").count()) === 8, String(await page.locator(".mail-card").count()));
+    } finally {
+      await browser.close();
+      mock.close();
     }
   },
 

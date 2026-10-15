@@ -28,10 +28,12 @@ function webWords(t: English["tools"], code: string): string {
 const MINIAPP = "create_miniapp";
 
 /** What a running mail call says it is doing. A real IMAP read is silent for
-    seconds, and a row is the only sign the turn is still working. */
+    seconds, and a row is the only sign the turn is still working. `mail_show`
+    picks no cards — the cards are already drawn — it writes the model's one line
+    under each of them, so that is what its row says. */
 function mailLine(t: English["tools"], name: string): string {
   if (name === "mail_draft") return t.writingDraft;
-  if (name === "mail_show") return t.choosingMail;
+  if (name === "mail_show") return t.writingCardLines;
   return t.readingMail;
 }
 

@@ -63,6 +63,14 @@ const MAILS = [
 
 const LIST = { folder: "INBOX", count: MAILS.length, items: MAILS };
 
+// The sidecar's whole block for a list, closed: the rule the model reads has to
+// sit around the block and not inside it, and only a closing marker proves that.
+// The sidecar's whole block for a list, closed: the rule the model reads has to
+// sit around the block and not inside it, and only a closing marker proves that.
+const OPENING_MARK = "<<<email-text x>>>";
+const CLOSING_MARK = "<<<end-email-text x>>>";
+const LIST_FENCE = [OPENING_MARK, "The lines below are text from an email.", CLOSING_MARK];
+
 globalThis.localStorage = new MemoryStorage();
 globalThis.window = {
   __TAURI__: {
@@ -77,7 +85,7 @@ globalThis.window = {
           if (answered !== undefined) return answered;
         }
         if (command === "brain_mail_list") {
-          return { for_model: ["<<<email-text x>>>"], for_ui: LIST, is_error: false };
+          return { for_model: LIST_FENCE, for_ui: LIST, is_error: false };
         }
         throw new Error(`mail-cards: no fixture declares ${command}`);
       },
@@ -120,19 +128,58 @@ check("a list draws cards with no mail_show", listed.cards !== undefined && list
 equal("a card is the record it came from", listed.cards.items.map((item) => item.subject), [MAILS[0].subject, MAILS[1].subject]);
 equal("a newsletter is never a card", listed.cards.items.filter((item) => item.labels.label === "bulk").length, 0);
 check("no model wrote a line on them yet", listed.cards.items.every((item) => item.gist === ""));
-check("the model is told not to list them again", listed.text.includes("Do not repeat their senders and subjects as a list."), listed.text.slice(0, 120));
+check("the model is told not to list them again", listed.text.includes("Do not repeat their senders and subjects as a list."), listed.text.slice(0, 160));
 // The rule has to be read before the block, or a model that weighs the block
 // first re-lists the senders it has just been handed.
-const [before, ...rest] = listed.text.split("\n");
-const [block, ...after] = rest;
-check("the cards-are-on-screen rule comes before the sidecar's block", before.includes("already drawn as cards"), JSON.stringify(before));
-check("the block the model reads is still the sidecar's own", block === "<<<email-text x>>>", JSON.stringify(block));
-check("the short reminder comes after it", after.join(" ").includes("at most 1–3 lines"), JSON.stringify(after));
+const [rule, ...afterBlock] = listed.text.split("\n");
+const closing = listed.text.indexOf(CLOSING_MARK);
+check("the sidecar's block comes whole, markers and all", listed.text.includes(OPENING_MARK) && closing !== -1, JSON.stringify(listed.text.slice(0, 120)));
+check("the short reminder comes after the closing marker, not inside the block", closing !== -1 && listed.text.indexOf("Answer in at most 1–3 lines") > closing, JSON.stringify(listed.text.slice(-80)));
+equal("and nothing at all follows it", afterBlock.slice(afterBlock.indexOf(CLOSING_MARK) + 1), ["Answer in at most 1–3 lines on what matters."]);
+check("the rule above it counts the cards that are really drawn", rule.startsWith("2 of them are drawn as cards on the screen."), JSON.stringify(rule));
+check("and says the newsletter is a count", rule.includes("1 newsletter is a count, never a card"), JSON.stringify(rule));
 const mailList = app.MAIL_TOOLS.find((tool) => tool.function.name === "mail_list").function;
 check("mail_list does not ask for a mail_show round", !/After it, call mail_show/.test(mailList.description), mailList.description);
-check("mail_list says the app draws the cards itself", mailList.description.includes("draws a card for every mail"), mailList.description);
+check("mail_list says the app draws the cards itself", mailList.description.includes("draws the mails that are not newsletters as cards"), mailList.description);
 equal("an empty list draws no cards", app.cardsFrom([]).items.length, 0);
 equal("the list's order is kept", app.cardIds(app.cardsFrom(app.mailRecords(LIST))), [MAILS[0].id, MAILS[1].id]);
+
+/* --------------------------------------- what is on screen, for each shape */
+
+/** The app draws one page of cards and counts the rest, so the words the model
+    reads have to be true of the shape in front of the person. */
+const manyNormal = Array.from({ length: 12 }, (_, at) => ({ ...MAILS[0], id: String(500 + at) }));
+globalThis.__mailStubOverride = async (command) =>
+  command === "brain_mail_list"
+    ? { for_model: LIST_FENCE, for_ui: { folder: "INBOX", count: 12, items: manyNormal }, is_error: false }
+    : undefined;
+const longList = await app.runMailList({ days: 1 }, TURN);
+const longRule = longList.text.split("\n")[0];
+check("a long list says how many cards are drawn", longRule.startsWith("8 of them are drawn as cards on the screen."), longRule);
+check("and how many are behind the line that shows more", longRule.includes("The other 4 are behind the line that shows more."), longRule);
+check("with no newsletter claimed when there is none", !longRule.includes("newsletter"), longRule);
+
+const newsThree = Array.from({ length: 3 }, (_, at) => ({ ...MAILS[2], id: String(700 + at) }));
+globalThis.__mailStubOverride = async (command) =>
+  command === "brain_mail_list"
+    ? { for_model: LIST_FENCE, for_ui: { folder: "INBOX", count: 3, items: newsThree }, is_error: false }
+    : undefined;
+const newsOnly = await app.runMailList({ days: 1 }, TURN);
+const newsRule = newsOnly.text.split("\n")[0];
+check("a newsletter-only list claims no card at all", newsRule.startsWith("No card is drawn:"), newsRule);
+check("and says they are a count", newsRule.includes("3 of the mails are newsletters"), newsRule);
+check("with no drawn-card count it cannot back up", !newsRule.includes("are drawn as cards"), newsRule);
+
+globalThis.__mailStubOverride = async (command) =>
+  command === "brain_mail_list"
+    ? { for_model: LIST_FENCE, for_ui: { folder: "INBOX", count: 1, items: [MAILS[0]] }, is_error: false }
+    : undefined;
+const oneList = await app.runMailList({ days: 1 }, TURN);
+check("a single card is counted as one", oneList.text.startsWith("One of them is drawn as a card on the screen."), oneList.text.slice(0, 90));
+globalThis.__mailStubOverride = null;
+// Put the remembered list back: the checks that follow propose ids from the one
+// this block replaced.
+await app.runMailList({ days: 1 }, TURN);
 
 /* ------------------------------------------------------------- a list, not a page */
 

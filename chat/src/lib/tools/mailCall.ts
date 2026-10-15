@@ -12,7 +12,7 @@
 
 import { invoke } from "../tauri";
 import * as attachments from "../mail/attachments";
-import { cardsFrom } from "../mail/cards";
+import { cardsFrom, CARDS_PER_GROUP } from "../mail/cards";
 import { fencedBody } from "../mail/fence";
 import { mailRecord, mailRecords } from "../mail/records";
 import * as lastList from "../mail/lastList";
@@ -28,10 +28,33 @@ const ALREADY_TOLD = "Kalsa has already told the reader what failed; do not add 
 /** Read before the sidecar's own block, which is a stranger's text: the rule has
     to be weighed before the senders and subjects are, or the model answers the
     block instead of the person. */
-const CARDS_ON_SCREEN = "The mails below are already drawn as cards on the screen. Do not repeat their senders and subjects as a list.";
 const SHORT_ANSWER = "Answer in at most 1–3 lines on what matters.";
 const DAYS_NOT_WHOLE = "days must be a whole number of days.";
 const ID_NOT_WHOLE = "The mail id must be the whole number mail_list gave for that mail.";
+
+/**
+ * What the person is looking at right now, in the one shape that is true of
+ * every list: how many cards are drawn, how many are behind the line that shows
+ * more, and the newsletters, which are a count and never a card. A model told
+ * "the mails are on screen" when only two cards and a count are there answers
+ * about eight mails that nobody is reading.
+ */
+function onScreen(cards: MailCards): string {
+  const total = cards.items.length;
+  const bulk = cards.bulk;
+  const noRepeat = " Do not repeat their senders and subjects as a list.";
+  if (total === 0) {
+    const all = bulk === 1 ? "the only mail is a newsletter" : `all ${bulk} of the mails are newsletters`;
+    return `No card is drawn: ${all}, and a newsletter is shown as a count only.${noRepeat}`;
+  }
+  const drawn = Math.min(total, CARDS_PER_GROUP);
+  const cards_line =
+    drawn === 1 ? "One of them is drawn as a card on the screen." : `${drawn} of them are drawn as cards on the screen.`;
+  const behind = total - drawn;
+  const more = behind > 0 ? ` The other ${behind} are behind the line that shows more.` : "";
+  const news = bulk > 0 ? ` ${bulk} ${bulk === 1 ? "newsletter is" : "newsletters are"} a count, never a card.` : "";
+  return `${cards_line}${more}${news}${noRepeat}`;
+}
 
 /** The backend arguments a tool call was built into, or the refusal to show the model. */
 type Built = { ok: true; args: Record<string, unknown> } | { ok: false; text: string };
@@ -134,13 +157,13 @@ export async function runMailList(model: Record<string, unknown>, conversation: 
   lastList.remember(records, conversation);
   if (response.is_error) return { text: failure(response), ok: false, records, ...codeOf(response) };
   // The cards are the app's own: the person sees them whether or not a model
-  // goes on to call mail_show, which only ever adds its one line per card. An
-  // empty list has no cards, so nothing is said about them.
+  // goes on to call mail_show, which only ever adds its one line per card. The
+  // rule above the block says how many of them there really are, because a
+  // newsletter is a count and the list draws only the first page of the rest.
+  const cards = cardsFrom(records);
   const shown =
-    records.length === 0
-      ? answerText(response) || NOT_MAIL
-      : `${CARDS_ON_SCREEN}\n${answerText(response) || NOT_MAIL}\n${SHORT_ANSWER}`;
-  return { text: shown, ok: true, records, cards: cardsFrom(records) };
+    records.length === 0 ? answerText(response) || NOT_MAIL : `${onScreen(cards)}\n${answerText(response) || NOT_MAIL}\n${SHORT_ANSWER}`;
+  return { text: shown, ok: true, records, cards };
 }
 
 /** One mail in full: the record for the card, the body for the Mail tab. */

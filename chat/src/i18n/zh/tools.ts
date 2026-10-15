@@ -7,7 +7,7 @@ export const TOOLS = {
     "waitingForOk": "等待你的确认…",
     "readingMail": "正在读取你的邮件…",
     "writingDraft": "正在起草…",
-    "choosingMail": "正在挑选卡片…",
+    "writingCardLines": "正在为每张卡片写一行说明…",
     "pageNotOpened": "Kalsa 无法打开那个页面。请再试。",
     "searchDidNotRun": "Kalsa 无法搜索网络。请再试。",
     "couldNotFinish": "Kalsa 没有核查完。请再问一次。",

@@ -10,7 +10,7 @@ export const TOOLS = {
   // A running mail call: a real mailbox read is silent for seconds.
   readingMail: "Reading your mail…",
   writingDraft: "Writing the draft…",
-  choosingMail: "Choosing the cards…",
+  writingCardLines: "Writing a line under each card…",
   pageNotOpened: "Kalsa couldn't open that page. Try again.",
   searchDidNotRun: "Kalsa couldn't search the web. Try again.",
   couldNotFinish: "Kalsa couldn't finish checking. Ask again.",

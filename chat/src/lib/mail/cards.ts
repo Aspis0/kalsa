@@ -9,6 +9,13 @@
 
 import type { MailCardItem, MailCards, MailRecord } from "./types";
 
+/** How many cards one group draws at once. A list can carry fifty mails and a
+    turn is not a page: past this the person decides to keep reading. The rest
+    are already in hand, so the button reveals, never fetches. The app draws the
+    cap and the model's own words about what is drawn read it from here, so the
+    two cannot disagree about how many cards are on the screen. */
+export const CARDS_PER_GROUP = 8;
+
 /** The sidecar lists newest first and that order is kept: a card reads in the
     order the mailbox already decided, not in one the app re-sorts.
 
@@ -17,8 +24,9 @@ import type { MailCardItem, MailCards, MailRecord } from "./types";
     of what the badge is for. `bulk` still counts the whole list, so the line
     under the cards is not wrong by the number of cards.
 
-    How many of these are drawn at once is `MailCards`' own rule, not this one's:
-    what the wire carries is the whole list, and the app decides what fits. */
+    How many of these are drawn at once is `CARDS_PER_GROUP`'s rule, not this
+    one's: what the wire carries is the whole list, and the app decides what
+    fits. */
 export function cardsFrom(records: MailRecord[]): MailCards {
   const normal = records.filter((record) => record.labels.label !== "bulk");
   return {

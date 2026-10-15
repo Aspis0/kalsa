@@ -121,23 +121,22 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // the recovery replaces. Either way the text is held until the round says
     // which it was, so what gets replaced is never shown.
     // A wire that cannot take text back holds the round's reasoning the same
-    // way, and sends it the instant the answer is shown — the reasoning reads
-    // before the answer, and a round that is replaced sends neither.
+    // way and for exactly as long: it goes out the instant the answer does, and
+    // a round that streams its answer streams its reasoning, because there is
+    // nothing left for the reasoning to be held back from.
+    const held = tools.length > 0 && (round === 0 || !last);
     const reason: ReasoningHold | null =
-      options.holdReasoning === true && tools.length > 0
-        ? createReasoningHold(options.onReasoning)
-        : null;
-    const hold =
-      tools.length > 0 && (round === 0 || !last)
-        ? createAnswerHold(
-            reason === null
-              ? options.onToken
-              : (text) => {
-                  reason.release();
-                  options.onToken(text);
-                },
-          )
-        : null;
+      held && options.holdReasoning === true ? createReasoningHold(options.onReasoning) : null;
+    const hold = held
+      ? createAnswerHold(
+          reason === null
+            ? options.onToken
+            : (text) => {
+                reason.release();
+                options.onToken(text);
+              },
+        )
+      : null;
     let answered: Round;
     try {
       answered = await askRound(tools, last ? "none" : "auto", hideInventedCalls, hold, reason);

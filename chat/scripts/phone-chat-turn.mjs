@@ -281,6 +281,23 @@ async function refusedReasoning(app) {
     ]);
     brain.close();
   }
+  // The last round of a turn — asked for in words, after tools are spent — is
+  // not a round that can be refused, so nothing is held and both streams live.
+  {
+    const brain = scriptedBrain([[say("")], [think("Scrivo senza strumenti."), say("Ecco cosa posso fare.")]]);
+    const settings = { ...SETTINGS, endpoint: await brain.listen() };
+    const { log, sink } = recorder(app);
+    await app.runPhoneTurn(turnOf([USER("fammi vedere le mail")]), settings, sink, abortable(), { loop: app.streamChatCompletion, facts: facts() });
+    // The empty round settles as an empty frame, which shows nothing; it is
+    // left out so this reads about the last round's own two frames.
+    const said = log.filter(([event, data]) => !(event === "delta" && data.text === ""));
+    equal("the last round's reasoning is not held back", said, [
+      ["reasoning", { text: "Scrivo senza strumenti." }],
+      ["delta", { text: "Ecco cosa posso fare." }],
+      ["done", {}],
+    ]);
+    brain.close();
+  }
   // Stopped mid-hold: the round never stands, so nothing it held is sent.
   {
     const brain = scriptedBrain([{ chunks: [think("Guardo le mail."), say("Due mail sono arrivate")] }]);

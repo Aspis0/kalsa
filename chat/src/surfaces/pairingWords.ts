@@ -70,11 +70,12 @@ export function hidesOnSeat(device: PairedDevice, devices: PairedDevice[]): bool
   return device.pairing_again != null && devices.some((row) => row.id === device.pairing_again);
 }
 
-/** The name the app gives a device, in the reader's language. The label the
-    store carries is English words minted in Rust ("This computer", "Paired
-    phone 2") and is never empty, so it is never shown: the app words it
-    instead, and Rust numbers a phone one above the id it will mint
-    (pairing.rs), which is the number here. */
+/** The name the app gives a device, in the reader's language. Two fields of a
+    device are English words nobody chose and so are never shown: the label Rust
+    mints ("This computer", "Paired phone 2"), and `phone`, which is the
+    capability sentence Rust writes for a phone's model ("phone with 3 GB of
+    model weights", or empty for a phone that has none). Rust numbers a phone
+    one above the id it will mint (pairing.rs), which is the number here. */
 export function deviceName(t: English["devices"], device: PairedDevice): string {
   return device.kind === "host" ? t.thisComputerLabel : t.deviceLabel(device.id + 1);
 }
@@ -88,9 +89,8 @@ export function pairedSentence(t: English["devices"], dto: PairingState): string
   const undelivered = pending ? t.undeliveredClause : "";
   if (approved.length === 0 && waiting.length > 0) {
     if (waiting.length === 1) {
-      const name = waiting[0].phone ?? deviceName(t, waiting[0]);
       const owed = pending ? t.owedPending : "";
-      return t.waitingNamed(name, owed);
+      return t.waitingNamed(deviceName(t, waiting[0]), owed);
     }
     return t.waitingCount(waiting.length, undelivered);
   }
@@ -99,13 +99,14 @@ export function pairedSentence(t: English["devices"], dto: PairingState): string
       ? t.mixedOne(phones.length, undelivered)
       : t.mixedMany(phones.length, waiting.length, undelivered);
   }
+  // No phone is admitted yet, so there is none to name: `dto.phone` is the same
+  // capability sentence, and the person's own phone is what the sentence is
+  // about.
   if (approved.length === 0) {
-    return pending
-      ? t.savedPending(dto.phone ?? t.yourPhone)
-      : t.worksWith(dto.phone ?? t.yourPhone);
+    return pending ? t.savedPending(t.yourPhone) : t.worksWith(t.yourPhone);
   }
   if (approved.length === 1) {
-    const name = approved[0].phone ?? deviceName(t, approved[0]);
+    const name = deviceName(t, approved[0]);
     return pending ? t.savedPending(name) : t.worksWith(name);
   }
   return pending ? t.worksWithCountPending(approved.length) : t.worksWithCount(approved.length);
