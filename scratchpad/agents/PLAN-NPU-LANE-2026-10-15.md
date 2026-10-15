@@ -8,6 +8,13 @@ brain session, so it needs their coordination and the owner's OK.
 problem a *code regression between APK `233486dd` and `aa789620`*. **That was wrong.** Same build,
 different available memory. Section 1 records the correction so the next session does not inherit it.
 
+**AMENDED AGAIN 2026-10-15 (`8a77a82f` -> this). The one-line gate fix in section 4 is a NO-OP, and
+the coordinator was wrong.** The brain session reviewed the brief, re-read every cited line, and
+refused it under the stop condition. The coordinator re-verified their objection and it holds. See
+section 1bis: the NPU lane is priced as a strict *superset* of the GPU lane, so
+`gpu_fit === NoFit` implies `npu_fit === NoFit` **always**, and no gate change can ever make the
+lane rescue a GPU-NoFit load. The real defect is a ~2396 MiB phantom charge in `lanePrice`.
+
 **Scope reports:** `npu-prefill-xiaomi-history/E1-SCOPE.md`, `one-model-production/E2-SCOPE.md`,
 `gpu-layers-history/VERDICT.md`. Every citation below was re-opened by the coordinator after the
 delegates reported it.
@@ -59,7 +66,73 @@ The version-1 hypothesis list (`fitOk` false, `htpArch` null, `kindOk` false,
 
 ---
 
-## 2. What is genuinely proven, and it is a lot
+## 1bis. The gate fix is a no-op; the real defect is a phantom charge
+
+Found by the brain session (`dab6be60`) reviewing the coordinator's brief, and re-verified by the
+coordinator. Three independent lines of evidence, all coordinator-confirmed on disk:
+
+**1. The lane is priced as a strict superset of the GPU lane, so the lane can never rescue a
+GPU-NoFit load.** `src/engine/governorInputs.ts:199-205`:
+
+```ts
+  const requiredMiB =
+    priced.nonEvictableMiB +
+    800 +
+    (1.05 * offloadedBytes) / MIB +
+    priced.computeMiB +
+    priced.kvMiB;
+```
+
+and `LlamaService.ts:2537` and `:2669` both set `offloadedBytes: modelInfo.sizeBytes`
+**unconditionally** — the full model size, whether or not a GPU leg exists.
+
+**2. The lane then adds the HTP copy on top of that.** `governorInputs.ts:38`
+`NPU_PREFILL_EXTRA_MIB = 219`, applied at `:264` whenever the lane is requested.
+
+**3. So lane-required >= gpu-required + 219.** Today's numbers, from
+`xiaomi-stage0-obs-aa789620/raw/harness.log:63-64` and the later refusal:
+
+| quantity | value | source |
+|---|---:|---|
+| `required_mib_with_repack` | 4905.12 | harness.log:63 |
+| `required_mib_without_repack` | 3385.06 | harness.log:63 |
+| implied `weightsMiB` (repack term) | **1520.06** | 4905.12 - 3385.06 |
+| `available_mib` at refusal | 3004.93 | the `NoFit` line |
+| GPU shortfall | **380.13** | 3385.06 - 3004.93 |
+| lane required (= gpu + 219) | 3604.06 | 3385.06 + 219 |
+| GPU weight term charged to the lane | **2396.06** | 800 + 1.05 x 1520.06 |
+| lane required with that term removed | **1208.00** | 3604.06 - 2396.06 |
+| **headroom the lane would then have** | **+1796.93** | 3004.93 - 1208.00 |
+
+**The lane is today charged ~2396 MiB of GPU weight upload it does not have, and is refused for
+missing 599 MiB.** That is the bug, and it is not a gate problem.
+
+**Why the term should not apply.** The `800 + 1.05 x offloadedBytes` term prices the **Adreno**
+weight buffer. On a lane-only Hexagon load there is no GPU leg, so no such buffer is allocated —
+the engine says so: `llama-model.cpp:1195-1199`, *"the one-copy buffer the GPU leg imports ... Null
+when no device offers both, which is every device but Hexagon, and every device in two-copy mode"*.
+The one-copy comment is about the GPU leg *importing* the shared buffer; with no GPU leg, nothing
+imports it and nothing allocates it.
+
+**So the fix is a pricing change, in the engine/governor, not a one-line app gate.** And it is
+exactly the OOM-protection tension the owner named: lowering that charge weakens a guard, so it must
+be scoped to the case where the buffer genuinely does not exist, and must keep charging it when a
+GPU leg IS present.
+
+### What still has to be measured before changing it
+
+The arithmetic above is arithmetic, not a measurement. The unmeasured question is the one the brain
+session asked: **what does one-copy on Hexagon actually allocate when the NPU is the only leg?** If
+the HTP path needs a device-side copy of its own on top of the host mapping, the `219` already
+covers it and the right change is to drop only the GPU term. If HTP also pulls a full second copy,
+the number moves again. Per `governor-npu-prefill/DESIGN.md:29` the measured HTP0 prefill buffer was
+**1525.87 MiB vs OpenCL 1307.20**, but that is a spike on a different device and model.
+
+**Until that is measured, do not change `lanePrice`.** Guessing here is how the q44 constants got
+into trouble in the first place.
+
+---
+
 
 | Fact | Citation | Verified |
 |---|---|---|
