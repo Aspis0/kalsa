@@ -21,11 +21,15 @@ import { useLocale } from "../../i18n";
 import { spacing, type as typeRole, type DesignColors } from "../../theme/design";
 import { ThoughtCloud } from "../thinking/ThoughtCloud";
 import { MiniappCard } from "./MiniappCard";
+import { MailCardList } from "./MailCardList";
+import { MailDraftCard } from "./MailDraftCard";
+import { MailReadSheet } from "./MailReadSheet";
 import { ChipRow, CopyChip, SpeakChip } from "./TranscriptChips";
 import { SourceChips, ToolRows } from "./TranscriptEvidence";
 import { MarkdownBlocks } from "./TranscriptMarkdown";
 import { StreamCaret } from "./StreamCaret";
 import type { TranscriptStyles } from "./TranscriptParts";
+import type { MailCards, MailDraft } from "../../domain/mailPayload";
 import { TranslationUnder } from "./TranslationBlock";
 import type { TranscriptLayout } from "./transcriptLayout";
 import { UserImages } from "./UserImages";
@@ -131,6 +135,8 @@ function AnswerView({
   id,
   labels,
   miniapp,
+  mail,
+  mailDraft,
   onCopy,
   onLongPress,
   onMiniappOpen,
@@ -154,6 +160,11 @@ function AnswerView({
   /** The mini-app card under this answer (D1 row 28); the opener applies
    *  the controller's open policy in the host. */
   miniapp?: TranscriptMiniapp;
+  /** The mail this answer brought, and the reply draft the computer built for
+   *  it (PHONE-CHAT-PROTOCOL §3). Both are the computer's own payload and
+   *  both are gone once the answer is stored. */
+  mail?: MailCards;
+  mailDraft?: MailDraft;
   /** The width the answer got, handed on because the table's own decision
    *  (`tableScrollDecision`) is a function of the column count and this width. */
   readingMeasure: number;
@@ -260,6 +271,11 @@ function AnswerView({
           onOpen={onMiniappOpen ? () => onMiniappOpen(miniapp, id) : undefined}
         />
       ) : null}
+      {mail ? <MailCardList cards={mail} colors={colors} /> : null}
+      {mailDraft ? <MailDraftCard colors={colors} draft={mailDraft} /> : null}
+      {/* The sheet hangs here because the card that opened it hangs here: the
+          mail is read over the answer that brought it. */}
+      <MailReadSheet colors={colors} />
       {sources ? <SourceChips sources={sources} styles={styles} /> : null}
       {ctas && ctas.length > 0 ? (
         // D1 row 26: the controller drew these as buttons, but its own press

@@ -151,9 +151,8 @@ describe("a doorless iroh pairing through RemoteEngine", () => {
     const modelsTunnel = new FakeTunnel([jsonResponse('{"data":[{"id":"ornith"}]}')]);
     const chatTunnel = new FakeTunnel([
       sseResponse([
-        'data: {"choices":[{"delta":{"content":"ciao mondo"}}]}\n\n',
-        'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
-        "data: [DONE]\n\n",
+        'event: delta\ndata: {"text":"ciao mondo"}\n\n',
+        "event: done\ndata: {}\n\n",
       ]),
     ]);
     (openIrohTunnel as jest.Mock)
@@ -203,7 +202,7 @@ describe("a doorless iroh pairing through RemoteEngine", () => {
     expect(text(propsTunnel.writes[0])).toContain(`Authorization: Bearer ${CREDENTIAL}\r\n`);
     expect(text(modelsTunnel.writes[0])).toContain("GET /v1/models HTTP/1.1\r\n");
     expect(text(modelsTunnel.writes[0])).toContain("Host: iroh.kalsa.invalid\r\n");
-    expect(text(chatTunnel.writes[0])).toContain("POST /v1/chat/completions HTTP/1.1\r\n");
+    expect(text(chatTunnel.writes[0])).toContain("POST /kalsa/chat/turn HTTP/1.1\r\n");
     expect(text(chatTunnel.writes[0])).toContain("Host: iroh.kalsa.invalid\r\n");
     expect(text(chatTunnel.writes[0])).toContain(`Authorization: Bearer ${CREDENTIAL}\r\n`);
 

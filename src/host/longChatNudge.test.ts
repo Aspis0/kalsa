@@ -109,6 +109,8 @@ describe("the row: named node, real box, both catalogues", () => {
     expect(en.chat.longChatNudge).toContain("long");
     expect(italian.chat.longChatNudge).toContain("lunga");
     // sample: an English-only key would be caught by the it lookup above.
-    expect((italian.chat as Record<string, string | undefined>).missingKey).toBeUndefined();
+    expect(
+      (italian.chat as unknown as Record<string, string | undefined>).missingKey,
+    ).toBeUndefined();
   });
 });

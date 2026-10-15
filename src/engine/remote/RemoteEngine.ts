@@ -14,7 +14,14 @@ import {
 } from "../memoryFactsTail";
 import { planRemoteTurn, remoteChatBodyJson, type RemoteImageRefusal } from "./openaiMessages";
 import { buildRemoteSystemPrompt } from "./remotePrompt";
-import { streamOpenAiChat } from "./openaiTransport";
+import { streamOpenAiChat, type RemoteChatRequest } from "./openaiTransport";
+import { TURN_ROUTE_PATH, toTurnMessages, turnBodyJson } from "./turnBody";
+import {
+  forgetTurnRouteVerdict,
+  isTurnRouteRefusal,
+  streamTurnWithFallback,
+} from "./turnRoute";
+import type { TurnSseEvent } from "./turnSse";
 import { getRemoteDoorConfig, getRemoteDoorToken } from "./remoteDoorConfig";
 import type { RemoteDoorConfig } from "./remoteDoorConfig";
 import { doorRequestBase } from "./doorRequestBase";
@@ -72,6 +79,9 @@ setRemoteConfigChangedHook(() => {
   // The capability belonged to the server just edited away: until a probe
   // speaks for the new one, no picture may be sent.
   setRemoteVision(false);
+  // And the turn route's verdict: the edited address is another computer, whose
+  // answer to "do you know this route?" has never been asked.
+  forgetTurnRouteVerdict();
 });
 
 /**
@@ -724,102 +734,166 @@ export async function streamRemoteAssistantTurn(
     reportPreStreamError(new Error(PICTURE_REFUSAL_CODES[plan.reason]));
     return;
   }
-  await new Promise<void>((resolve) => {
-    const settle = (err?: Error) => {
-      try {
-        finishOnce(err);
-      } finally {
-        resolve();
+  const noteReasoningArrived = () => {
+    if (thinking || writing) return;
+    thinking = true;
+    safeStatus(strings.chat.thinkingStatus);
+  };
+
+  const emitAnswerText = (content: string) => {
+    if (!content) return;
+    emitted += content;
+    const visibleChunk = think.cleanDelta(content);
+    if (!writing && visibleChunk) {
+      writing = true;
+      safeStatus(strings.chat.writingStatus);
+      console.log("remote.brain.token", JSON.stringify({ n: visibleChunk.length }));
+    }
+    if (visibleChunk) queue(visibleChunk);
+  };
+
+  /** The turn route's rows and mail, in the caller's own shape (§3): a tool
+   *  row is the same event the local engine's tool call produces, so the
+   *  transcript draws both without knowing which road carried the turn. */
+  const safeTurnEvent = (event: TurnSseEvent) => {
+    try {
+      if (event.kind === "reasoning") noteReasoningArrived();
+      else if (event.kind === "delta") emitAnswerText(event.text);
+      else if (event.kind === "tool_run") callbacks.onTool?.({ name: event.name });
+      else if (event.kind === "cards") callbacks.onMailCards?.(event.cards);
+      else if (event.kind === "draft") callbacks.onMailDraft?.(event.draft);
+      else if (event.kind === "turn") {
+        console.log("remote.brain.turn", JSON.stringify({ turn: event.turn }));
       }
-    };
-    if (!stillMine()) {
-      releaseTurnTunnel();
-      resolve();
-      return;
+    } catch {
+      // never wedge the stream on a UI throw
     }
-    const handle = streamOpenAiChat(
-      {
-        completionsUrl: joinRemoteApiUrl(base, "/v1/chat/completions"),
-        model: serverModel,
-        messages: plan.messages,
-        maxTokens,
-        temperature,
-        token: token && canSendAuthorization(base) ? token : null,
-        signal,
-      },
-      {
-        onDelta: (delta) => {
-          if (delta.reasoning && !thinking && !writing) {
-            thinking = true;
-            safeStatus(strings.chat.thinkingStatus);
+  };
+
+  await streamTurnWithFallback({
+    // Pictures have no place in a conversation of strings: such a turn goes
+    // the old way (PHONE-CHAT-PROTOCOL §2).
+    wantsTurnRoute: pictureUris.length === 0,
+    attempt: async (route) => {
+      if (road.road === "iroh" && turnTunnel === null) {
+        // The refused attempt consumed the turn's tunnel and the shim closed
+        // it; the retry rides a new one, as a fresh turn would.
+        try {
+          turnTunnel = await road.openTunnel(signal);
+        } catch (error) {
+          if ((error as { code?: string }).code !== "interrupted") throw error;
+          const err = new Error(strings.chat.interrupted);
+          (err as { code?: string; preservePartial?: boolean }).code = "interrupted";
+          (err as { preservePartial?: boolean }).preservePartial = true;
+          finishOnce(err);
+          return "settled";
+        }
+      }
+      return new Promise<"settled" | "absent">((resolve) => {
+        const settle = (err?: Error) => {
+          try {
+            finishOnce(err);
+          } finally {
+            resolve("settled");
           }
-          if (delta.content) {
-            emitted += delta.content;
-            const visibleChunk = think.cleanDelta(delta.content);
-            if (!writing && visibleChunk) {
-              writing = true;
-              safeStatus(strings.chat.writingStatus);
-              console.log(
-                "remote.brain.token",
-                JSON.stringify({ n: visibleChunk.length }),
+        };
+        if (!stillMine()) {
+          releaseTurnTunnel();
+          resolve("settled");
+          return;
+        }
+        const doorToken = token && canSendAuthorization(base) ? token : null;
+        const request: RemoteChatRequest =
+          route === "turn"
+            ? {
+                dialect: "turn",
+                completionsUrl: joinRemoteApiUrl(base, TURN_ROUTE_PATH),
+                body: turnBodyJson({
+                  messages: toTurnMessages(turnMessages),
+                  replyFor: options.mailReplyFor,
+                  language: locale,
+                }),
+                token: doorToken,
+                signal,
+              }
+            : {
+                completionsUrl: joinRemoteApiUrl(base, "/v1/chat/completions"),
+                model: serverModel,
+                messages: plan.messages,
+                maxTokens,
+                temperature,
+                token: doorToken,
+                signal,
+              };
+        const handle = streamOpenAiChat(
+          request,
+          {
+            onDelta: (delta) => {
+              if (delta.reasoning) noteReasoningArrived();
+              emitAnswerText(delta.content);
+            },
+            onTurnEvent: safeTurnEvent,
+            onFinish: (finish) => {
+              if (finish.kind === "complete") {
+                settle();
+                return;
+              }
+              // A computer that does not know this route refused it before any
+              // byte: the turn has not been sent, and the person is told
+              // nothing — an older computer is not an error (§1).
+              if (route === "turn" && isTurnRouteRefusal(finish)) {
+                resolve("absent");
+                return;
+              }
+              // The transport's 401 is authorization-blind: the door the turn
+              // rode decides which failure — and which sentence — it earns.
+              const raw =
+                finish.kind === "truncated"
+                  ? strings.chat.truncated
+                  : finish.kind === "interrupted"
+                    ? strings.chat.interrupted
+                    : finish.error?.message || strings.chat.serviceUnreachable;
+              const err = new Error(
+                raw === "remote_brain_http_401" && door.source === "manual"
+                  ? "remote_brain_token_refused"
+                  : raw,
               );
-            }
-            if (visibleChunk) queue(visibleChunk);
-          }
-        },
-        onFinish: (finish) => {
-          if (finish.kind === "complete") {
-            settle();
-            return;
-          }
-          // The transport's 401 is authorization-blind: the door the turn
-          // rode decides which failure — and which sentence — it earns.
-          const raw =
-            finish.kind === "truncated"
-              ? strings.chat.truncated
-              : finish.kind === "interrupted"
-                ? strings.chat.interrupted
-                : finish.error?.message || strings.chat.serviceUnreachable;
-          const err = new Error(
-            raw === "remote_brain_http_401" && door.source === "manual"
-              ? "remote_brain_token_refused"
-              : raw,
-          );
-          (err as { code?: string; preservePartial?: boolean }).code =
-            finish.kind;
-          (err as { preservePartial?: boolean }).preservePartial =
-            finish.kind === "interrupted" || finish.kind === "truncated";
-          settle(err);
-        },
-      },
-      road.road === "iroh"
-        ? () =>
-            createIrohChatXhr(() => {
-              const tunnel = turnTunnel;
-              turnTunnel = null;
-              if (tunnel === null) throw new Error("iroh door tunnel already consumed");
-              return tunnel;
-            })
-        : undefined,
-    );
-    if (handle.isClosed()) {
-      // The transport finished before send(): whatever the shim did not take
-      // is still ours to close.
-      releaseTurnTunnel();
-      return;
-    }
-    if (!stillMine()) {
-      handle.abort();
-      resolve();
-      return;
-    }
-    lastRequestId = handle.requestId;
-    activeStream = handle;
-    console.log(
-      "remote.brain.stream",
-      JSON.stringify({ requestId: lastRequestId, model: activeId }),
-    );
-    if (signal?.aborted) handle.abort();
+              (err as { code?: string; preservePartial?: boolean }).code = finish.kind;
+              (err as { preservePartial?: boolean }).preservePartial =
+                finish.kind === "interrupted" || finish.kind === "truncated";
+              settle(err);
+            },
+          },
+          road.road === "iroh"
+            ? () =>
+                createIrohChatXhr(() => {
+                  const tunnel = turnTunnel;
+                  turnTunnel = null;
+                  if (tunnel === null) throw new Error("iroh door tunnel already consumed");
+                  return tunnel;
+                })
+            : undefined,
+        );
+        if (handle.isClosed()) {
+          // The transport finished before send(): whatever the shim did not take
+          // is still ours to close.
+          releaseTurnTunnel();
+          return;
+        }
+        if (!stillMine()) {
+          handle.abort();
+          resolve("settled");
+          return;
+        }
+        lastRequestId = handle.requestId;
+        activeStream = handle;
+        console.log(
+          "remote.brain.stream",
+          JSON.stringify({ requestId: lastRequestId, model: activeId, route }),
+        );
+        if (signal?.aborted) handle.abort();
+      });
+    },
   });
   } catch (err) {
     if (!closed) {

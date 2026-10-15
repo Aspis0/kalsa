@@ -153,8 +153,15 @@ function isIrohStandInUrl(url: string): boolean {
  * the iroh road the establishment tunnel carries the first request and
  * every later one opens its own. A later connect failing fails that
  * request — the operation does not change roads halfway.
+ *
+ * `timeoutMs` is one tunnel read, and only the tunnel road has one: an
+ * operation that may take longer than a probe reads (a mail body) says so,
+ * everyone else keeps the probe's deadline.
  */
-export function doorFetchFor(road: DoorRoad): DoorFetch {
+export function doorFetchFor(
+  road: DoorRoad,
+  timeoutMs: number = PROBE_JSON_TIMEOUT_MS,
+): DoorFetch {
   if (road.road === "https") {
     // Wrapped only to carry the same shape as the tunnel road: json() stays
     // the response's own, and the body is read only when someone asks
@@ -179,7 +186,7 @@ export function doorFetchFor(road: DoorRoad): DoorFetch {
     const tunnel = pending ?? (await road.openTunnel(init.signal));
     pending = null;
     return fetchJsonOverTunnel(tunnel, url, init, {
-      timeoutMs: PROBE_JSON_TIMEOUT_MS,
+      timeoutMs,
       signal: init.signal,
     });
   };

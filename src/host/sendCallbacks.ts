@@ -9,6 +9,7 @@
  * `payload?.proposed_actions` — `undefined` for a tool — and dropped it.
  */
 import { normalizeMiniapp } from "../domain/askAssistant";
+import { normalizeMailCards, normalizeMailDraft } from "../domain/mailPayload";
 import type { EngineTurnCallbacks } from "./engineTurnDeps";
 import type { TurnFence, TurnToken } from "./turnGuards";
 import { toolNameFromActionsPayload } from "./messageMapper";
@@ -131,6 +132,21 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
         ...message,
         miniapp: normalized as Message["miniapp"],
       }));
+    },
+    // Mail cards and a reply draft ride the answer like a mini-app does:
+    // stored, never ending the stream, dropped when the payload does not
+    // carry what a card can draw.
+    onMailCards: (raw: unknown) => {
+      if (!fence.owns(token)) return;
+      const cards = normalizeMailCards(raw);
+      if (!cards) return;
+      patch((message) => ({ ...message, mail: cards }));
+    },
+    onMailDraft: (raw: unknown) => {
+      if (!fence.owns(token)) return;
+      const draft = normalizeMailDraft(raw);
+      if (!draft) return;
+      patch((message) => ({ ...message, mailDraft: draft }));
     },
     // Result images/downloads ride with the reply (RNA-seq job context).
     onImages: (imgs: ResultImage[], dls: ResultDownload[]) => {

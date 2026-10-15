@@ -56,6 +56,11 @@ export function toPersistableHistoryMessages(
     // restore from the pairing stamp, and an in-memory-only field that rode
     // into the boot JSON would break the save/load hash parity.
     delete next.failureStale;
+    // The mail and the draft describe what the computer could see during one
+    // turn (PHONE-CHAT-PROTOCOL §6): a reopened conversation shows the answer
+    // without offering to act on a mail that may be gone by then.
+    delete next.mail;
+    delete next.mailDraft;
     if (rec.streaming && allowStreamingPartial) {
       next.interrupted = true;
     }

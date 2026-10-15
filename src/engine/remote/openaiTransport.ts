@@ -21,20 +21,33 @@ import { isDevBuild } from "../../util/devBuild";
 import { redactForLog } from "./redactForLog";
 import { canSendAuthorization, remoteUrlGateError } from "./remoteUrl";
 import { remoteChatBodyJson, type OpenAiChatMessage } from "./openaiMessages";
+import { parseTurnSseFrame, type TurnSseEvent } from "./turnSse";
 
-export type RemoteChatRequest = {
+export type RemoteChatRequest = RemoteChatRoute & {
   /** @deprecated T6 replaces this with joinRemoteApiUrl */
   baseUrl?: string;
   completionsUrl?: string;
-  model: string;
-  messages: OpenAiChatMessage[];
-  maxTokens: number;
-  temperature: number;
   token?: string | null;
   signal?: AbortSignal;
   requestId?: string;
   inactivityMs?: number;
 };
+
+/**
+ * The two wires a chat turn can take. `/v1/chat/completions` builds its own
+ * body from the OpenAI fields; `/kalsa/chat/turn` sends the contract body
+ * verbatim and its named events arrive through `onTurnEvent` instead of
+ * `onDelta`.
+ */
+export type RemoteChatRoute =
+  | {
+      dialect?: "openai";
+      model: string;
+      messages: OpenAiChatMessage[];
+      maxTokens: number;
+      temperature: number;
+    }
+  | { dialect: "turn"; body: string };
 
 export type RemoteFinishKind = "complete" | "truncated" | "interrupted" | "error";
 
@@ -47,6 +60,9 @@ export type RemoteFinish = {
 export type RemoteChatHandlers = {
   onDelta: (delta: OpenAiSseEvent) => void;
   onFinish: (finish: RemoteFinish) => void;
+  /** The turn route's events, as they arrive. The OpenAI route never calls
+   *  it, and the turn route has no `onDelta`: one dialect at a time. */
+  onTurnEvent?: (event: TurnSseEvent) => void;
 };
 
 export type XhrLike = {
@@ -179,6 +195,28 @@ export function streamOpenAiChat(
     handlers.onFinish(finish);
   };
 
+  /** The turn route's terminal frame is `done`, its `error` carries the code
+   *  the phone must show (§3); cards, a draft and tool rows reach the host as
+   *  they arrive, and `turn` carries only an id nothing on the phone reads. */
+  const consumeTurnFrame = (event: TurnSseEvent) => {
+    if (closed || frozenAfterTerminal || event.kind === "ignore") return;
+    if (event.kind === "error") {
+      console.warn("remote.brain.turn_error", JSON.stringify({ code: event.code }));
+      emitFinish({
+        kind: "error",
+        finishReason: lastFinishReason,
+        error: new Error(event.code),
+      });
+      return;
+    }
+    if (event.kind === "done") {
+      sawTerminal = true;
+      frozenAfterTerminal = true;
+      return;
+    }
+    handlers.onTurnEvent?.(event);
+  };
+
   const consume = () => {
     if (closed) return;
     bumpIdle();
@@ -190,6 +228,10 @@ export function streamOpenAiChat(
     buffer = split.rest;
     for (const frame of split.frames) {
       if (closed) return;
+      if (req.dialect === "turn") {
+        consumeTurnFrame(parseTurnSseFrame(frame));
+        continue;
+      }
       for (const event of parseSseFrame(frame)) {
         if (closed) return;
         if (event.kind === "ignore") continue;
@@ -362,12 +404,14 @@ export function streamOpenAiChat(
 
   try {
     xhr.send(
-      remoteChatBodyJson({
-        model: req.model,
-        messages: req.messages,
-        maxTokens: req.maxTokens,
-        temperature: req.temperature,
-      }),
+      req.dialect === "turn"
+        ? req.body
+        : remoteChatBodyJson({
+            model: req.model,
+            messages: req.messages,
+            maxTokens: req.maxTokens,
+            temperature: req.temperature,
+          }),
     );
   } catch (err) {
     failSetup(err);

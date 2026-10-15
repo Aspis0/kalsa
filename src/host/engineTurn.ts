@@ -66,6 +66,7 @@ export function handleSendStream(
     notes?: boolean;
     onNotice?: () => void;
     sentOn?: string;
+    mailReplyFor?: string;
   },
 ): Promise<{ afterSessionSave?: () => void }> {
   const {

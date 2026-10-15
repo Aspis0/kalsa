@@ -101,7 +101,7 @@ class FakeXhr {
     FakeXhr.sent.push(this.wire);
     queueMicrotask(() => {
       this.status = 200;
-      this.responseText = 'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n';
+      this.responseText = "event: done\ndata: {}\n\n";
       this.readyState = 2;
       this.onreadystatechange?.();
       this.readyState = 4;
@@ -207,7 +207,7 @@ describe("the door road fallback through RemoteEngine", () => {
     expect(FakeXhr.sent).toHaveLength(1);
     const wire = FakeXhr.sent[0];
     expect(wire.method).toBe("POST");
-    expect(wire.url).toBe(`${DOOR_URL}/v1/chat/completions`);
+    expect(wire.url).toBe(`${DOOR_URL}/kalsa/chat/turn`);
     expect(wire.headers).toContainEqual(["Authorization", `Bearer ${CREDENTIAL}`]);
     // One connect attempt per operation, then the paired URL each time. The
     // fallback is silent at engine level: the road line belongs to the

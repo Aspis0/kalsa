@@ -86,11 +86,12 @@ export interface SendHostParams {
 
 export interface SendHost {
   /** `opts.edited` badges the re-sent user bubble; `opts.sentOn` keeps a
-   *  regenerated turn's date line; `attachments` is a FOREIGN set (edit and
-   *  regenerate re-send the target's own) — absent means "consume the rows". */
+   *  regenerated turn's date line; `opts.mailReplyFor` pins the turn to the
+   *  mail a card's "Draft a reply" was asked for (PHONE-CHAT-PROTOCOL §2);
+   *  `attachments` is a FOREIGN set — absent means "consume the rows". */
   send: (
     text: string,
-    opts?: { edited?: boolean; sentOn?: string },
+    opts?: { edited?: boolean; sentOn?: string; mailReplyFor?: string },
     attachments?: readonly LocalAttachment[],
   ) => Promise<void>;
   stop: () => void;
@@ -128,7 +129,7 @@ export function useSendHost(params: SendHostParams): SendHost {
 
   const send = async (
     text: string,
-    opts?: { edited?: boolean; sentOn?: string },
+    opts?: { edited?: boolean; sentOn?: string; mailReplyFor?: string },
     attachments?: readonly LocalAttachment[],
   ): Promise<void> => {
     const trimmed = text.trim();
@@ -283,7 +284,7 @@ export function useSendHost(params: SendHostParams): SendHost {
         // The typed seam carries the same frozen snapshot the engine half
         // receives below (`sendStream.SendRequest.attachments`).
         attachments: snapshot,
-        history: params.messagesRef.current, sentOn: composition.sentOn,
+        history: params.messagesRef.current, sentOn: composition.sentOn, mailReplyFor: opts?.mailReplyFor,
         // Research or armed notes hand the engine its options. A truncated
         // notes context speaks through this build's single notice slot
         // (D1 row 40) — the controller sent the same catalogue line to its

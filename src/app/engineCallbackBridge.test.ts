@@ -46,6 +46,8 @@ describe("engineCallbackBridge", () => {
       "onTool",
       "onSources",
       "onMiniapp",
+      "onMailCards",
+      "onMailDraft",
       "onModelEmittedText",
       "onThinkingText",
       "onDone",

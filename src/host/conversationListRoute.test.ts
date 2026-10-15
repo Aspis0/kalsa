@@ -52,6 +52,13 @@ jest.mock("../ui/labTheme", () => ({ useLabTheme: () => ({ mode: "light" }) }));
 jest.mock("../screens/SettingsHeader", () => ({ SettingsHeader: "SettingsHeader" }));
 jest.mock("../../assets/icon.png", () => "brand-icon");
 jest.mock("./HostChatSurface", () => ({ HostChatSurface: "HostChatSurface" }));
+// HostLayout's mail actions reach the door's token store, whose module jest
+// cannot parse; the layout's own routing is what this file is about.
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined),
+}));
 jest.mock("./HostFurniture", () => ({ HostFurniture: "HostFurniture" }));
 
 import { DrawerContent } from "../theme/components/DrawerContent";

@@ -67,7 +67,9 @@ export function splitSseFrames(buffer: string): { frames: string[]; rest: string
   return { frames, rest: normalized.slice(start) };
 }
 
-function frameLines(frame: string): string[] {
+/** One frame's lines. Shared with the turn dialect, which walks them the same
+ *  way over its own named events. */
+export function frameLines(frame: string): string[] {
   return normalizeSseNewlines(frame).split("\n");
 }
 

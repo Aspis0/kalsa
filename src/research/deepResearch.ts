@@ -219,7 +219,8 @@ export async function runDeepResearch(
   opts: RunDeepResearchOpts,
 ): Promise<DeepResearchOutcome> {
   const strings = getStrings(opts.locale);
-  const chat = strings.chat as Record<string, string>;
+  // Indexed by key only, so a nested group (`chat.mail`) is harmless here.
+  const chat = strings.chat as unknown as Record<string, string>;
   const errors = strings.errors as Record<string, string>;
   const status = (label: string) => opts.callbacks?.onStatus?.({ label });
 

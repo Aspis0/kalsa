@@ -9,6 +9,7 @@
 import type { TranslationKey, Locale } from "../../i18n";
 import type { ReactNode } from "react";
 import type { ThemeMode } from "../../theme/design";
+import type { MailCards, MailDraft } from "../../domain/mailPayload";
 import type { StopTone } from "./composerState";
 import type { Insets } from "./shellGeometry";
 
@@ -91,6 +92,14 @@ export type TranscriptMessage = {
    * reopen still draws its card, and the sheet still opens from it.
    */
   miniapp?: TranscriptMiniapp;
+  /**
+   * The mail an answer brought, and the reply draft the computer built for it
+   * (PHONE-CHAT-PROTOCOL §3). NEVER PERSISTED, unlike `miniapp`: a card offers
+   * to act on what the computer could see during that turn, so a reopen must
+   * not offer it again — `historyPersistable` drops both.
+   */
+  mail?: MailCards;
+  mailDraft?: MailDraft;
 };
 
 /**

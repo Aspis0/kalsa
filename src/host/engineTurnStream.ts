@@ -308,6 +308,7 @@ export async function streamEngineTurn(
                 operativeContext,
                 lastUserMessage: text,
                 lastUserBare: lastUserHistoryContent,
+                mailReplyFor: sendOpts?.mailReplyFor,
                 assembleBoundary: anchoredOn
                   ? boundaryForAssemble
                   : legacyWindowStart,

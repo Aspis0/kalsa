@@ -162,6 +162,11 @@ export function toTranscriptMessage(message: Message, opts: MapperOptions): Tran
     // kind + title, the sheet reads the rest — nothing is projected away
     // here, because the sheet opens from THIS object.
     if (message.miniapp) mapped.miniapp = message.miniapp;
+    // The mail and the draft cross whole for the same reason: the card draws
+    // the gist and the sheet draws the rest, and the draft card offers its own
+    // send. Both are gone once the answer is stored (historyPersistable).
+    if (message.mail) mapped.mail = message.mail;
+    if (message.mailDraft) mapped.mailDraft = message.mailDraft;
   } else if (message.edited === true) {
     // The edit badge lives on the user bubble it belongs to (the controller
     // drew it under the capsule, `Chat:5437-5445`); answers never carry it.

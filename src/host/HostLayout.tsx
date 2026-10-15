@@ -4,9 +4,11 @@
  * its ratchet (`fileSize.test.ts`): the root decides WHAT exists, this file
  * arranges HOW the strip/surface, the drawer and the furniture sit together.
  *
- * Every prop arrives flat and already built by the root — no decisions are
- * made here, so a reader looking for "who owns this state" still finds it in
- * one place: the root.
+ * Every prop arrives flat and already built by the root — so a reader looking
+ * for "who owns this state" still finds it in one place: the root. The one
+ * exception is the mail actions, built here because they are the surface's own
+ * (it starts the turn and holds what an opened mail reads) and every frame
+ * between the surface and the card that presses them says nothing about mail.
  */
 import type { ChatSurfaceProps } from "./HostChatSurface";
 import type { HostDrawerProps } from "./HostDrawer";
@@ -14,6 +16,9 @@ import type { HostFurnitureProps } from "./HostFurniture";
 import { HostChatSurface } from "./HostChatSurface";
 import { HostDrawer } from "./HostDrawer";
 import { HostFurniture } from "./HostFurniture";
+import { MailActionsContext } from "../ui/shell/mailActions";
+import { useMailHost } from "./useMailHost";
+import { useLocale } from "../i18n";
 
 export interface HostLayoutProps {
   /** Safe-area insets: `top` paints the strip below the notch, `bottom`
@@ -81,26 +86,30 @@ export function HostLayout({
   library,
   streaming,
 }: HostLayoutProps) {
+  const t = useLocale().t;
+  const mail = useMailHost({ send: sendHost.send, askDraftText: t("chat.mail.askDraft") });
   return (
     <>
-      <HostChatSurface
-        insets={insets}
-        draft={draft}
-        onDraftChange={onDraftChange}
-        view={view}
-        modelHost={modelHost}
-        showNoticeKey={showNoticeKey}
-        sendHost={sendHost}
-        onMenuPress={onMenuPress}
-        onNewChatPress={onNewChatPress}
-        conversationId={conv.conversationsReady ? conv.conversations.activeId : undefined}
-        arms={arms}
-        attachments={attachments}
-        libraryDocs={library.library.docs ?? []}
-        onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
-        actions={actions}
-        onMiniappOpen={onMiniappOpen}
-      />
+      <MailActionsContext.Provider value={mail}>
+        <HostChatSurface
+          insets={insets}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          view={view}
+          modelHost={modelHost}
+          showNoticeKey={showNoticeKey}
+          sendHost={sendHost}
+          onMenuPress={onMenuPress}
+          onNewChatPress={onNewChatPress}
+          conversationId={conv.conversationsReady ? conv.conversations.activeId : undefined}
+          arms={arms}
+          attachments={attachments}
+          libraryDocs={library.library.docs ?? []}
+          onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
+          actions={actions}
+          onMiniappOpen={onMiniappOpen}
+        />
+      </MailActionsContext.Provider>
 
       <HostDrawer
         open={drawerOpen}

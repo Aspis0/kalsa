@@ -836,6 +836,15 @@ export type EngineCallbacks = {
   onSources?: (sources: unknown[]) => void;
   onMiniapp?: (miniapp: unknown) => void;
   /**
+   * The mail a remote answer brought, and the reply draft it built
+   * (PHONE-CHAT-PROTOCOL §3). Both are the computer's payload, unparsed here
+   * for the same reason as a mini-app: the engine does not model mail, and
+   * whoever draws the card checks the shape once. Volatile: a turn's cards
+   * never reach the disk (historyPersistable).
+   */
+  onMailCards?: (cards: unknown) => void;
+  onMailDraft?: (draft: unknown) => void;
+  /**
    * Unmodified model output for the assistant turn (think wrappers etc.).
    * Fired once when the final text is produced; UI stream stays cleaned via onDelta.
    * The second argument records the MECHANISM that produced the string, at
@@ -4268,6 +4277,12 @@ function applyOperativeBlockFormat(
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
+  /**
+   * The mail this turn answers: the id of the card a person pressed "Draft a
+   * reply" on. The computer pins the turn to it (PHONE-CHAT-PROTOCOL §2); a
+   * local turn has no mail and leaves it unset.
+   */
+  mailReplyFor?: string;
   /**
    * Durable user facts. Default: last-user tail (format B), not the system
    * prompt — see MEMORY_FACTS_ON_USER_TAIL. Bounded at injection. Empty when

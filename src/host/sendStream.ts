@@ -39,6 +39,8 @@ export interface SendRequest {
   history?: readonly unknown[];
   /** The date line stamped for this send; appended to user turns at assembly. */
   sentOn?: string;
+  /** The mail this turn replies to, when a card's "Draft a reply" started it. */
+  mailReplyFor?: string;
   options?: {
     research?: boolean;
     notes?: boolean;

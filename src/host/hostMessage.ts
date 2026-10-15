@@ -3,6 +3,7 @@
  * preserves the field contract defined by `historyPersistable.ts`.
  */
 import type { EmissionSource } from "../engine/modelEmittedText";
+import type { MailCards, MailDraft } from "../domain/mailPayload";
 
 export type MessageSource = {
   title: string;
@@ -106,6 +107,14 @@ export type Message = {
   statusHistory?: string[];
   sources?: MessageSource[];
   miniapp?: { kind: string; title: string; blocks: any[]; state?: Record<string, unknown> };
+  /**
+   * The mail a remote answer brought, and the reply draft the computer built.
+   * Both are volatile: they describe what was on the computer's screen during
+   * one turn, so `historyPersistable` never writes them and a reopened
+   * conversation shows the answer without them.
+   */
+  mail?: MailCards;
+  mailDraft?: MailDraft;
   attachments?: LocalAttachment[];
   // RNA-seq job context: result image/download links delivered alongside the
   // assistant reply.

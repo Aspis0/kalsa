@@ -237,7 +237,8 @@ describe("RemoteEngine lifecycle", () => {
       completionsUrl: string;
       token: string;
     };
-    expect(request.completionsUrl).toBe(`${pairedDoorUrl}/v1/chat/completions`);
+    // A text-only turn asks the turn route first (PHONE-CHAT-PROTOCOL §1).
+    expect(request.completionsUrl).toBe(`${pairedDoorUrl}/kalsa/chat/turn`);
     expect(request.token).toBe(pairedCredential);
   });
 
@@ -846,11 +847,9 @@ describe("RemoteEngine lifecycle", () => {
     const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
       streamOpenAiChat: jest.Mock;
     };
-    let request:
-      | { messages: Array<{ role: string; content: string }> }
-      | undefined;
+    let request: { body?: string } | undefined;
     streamOpenAiChat.mockImplementation((
-      req: { messages: Array<{ role: string; content: string }> },
+      req: { body?: string },
       handlers: {
         onDelta: (d: { kind: string; content: string; reasoning: string; finishReason: null }) => void;
         onFinish: (f: { kind: string; finishReason: string }) => void;
@@ -885,13 +884,16 @@ describe("RemoteEngine lifecycle", () => {
       },
     );
     expect(request).toBeDefined();
-    const messages = request!.messages;
-    const system = messages.find((m) => m.role === "system");
+    const messages = JSON.parse(request!.body as string).messages as {
+      role: string;
+      content: string;
+    }[];
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     // Format B: the fact block prefixes the last user message and never
-    // rewrites prompt position 0 (ttftFlags.ts:26 is the reason).
-    expect(system).toBeDefined();
-    expect(system!.content).not.toContain("Needle");
+    // rewrites prompt position 0 (ttftFlags.ts:26 is the reason). The turn
+    // route carries no system message at all, and the fact rides with the
+    // words the person wrote.
+    expect(messages.some((m) => m.role === "system")).toBe(false);
     expect(lastUser).toBeDefined();
     expect(lastUser!.content).toContain("Needle");
     expect(lastUser!.content).toContain("hello");
@@ -986,9 +988,9 @@ describe("RemoteEngine lifecycle", () => {
     const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
       streamOpenAiChat: jest.Mock;
     };
-    let request: { model?: string; completionsUrl?: string } | undefined;
+    let request: { body?: string; dialect?: string; completionsUrl?: string } | undefined;
     streamOpenAiChat.mockImplementation((
-      req: { model?: string; completionsUrl?: string },
+      req: { body?: string; dialect?: string; completionsUrl?: string },
       handlers: {
         onDelta: (d: { kind: string; content: string; reasoning: string; finishReason: null }) => void;
         onFinish: (f: { kind: string; finishReason: string }) => void;
@@ -1022,7 +1024,9 @@ describe("RemoteEngine lifecycle", () => {
     releaseToken();
     await turn;
     expect(request).toBeDefined();
-    expect(request!.model).toBe("ornith");
+    // The whole request went to the door the turn decided before the edit.
+    // The model no longer rides the wire at all: the turn route names a route,
+    // and the computer runs the model it serves.
     expect(String(request!.completionsUrl)).toContain("127.0.0.1:8000");
   });
 

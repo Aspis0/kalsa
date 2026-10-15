@@ -45,12 +45,13 @@ export function createSendEngine(adapter: SendEngineAdapter): SendEngine {
       attachments,
       request.history as unknown[] | undefined,
       undefined,
-      request.options || request.sentOn
+      request.options || request.sentOn || request.mailReplyFor
         ? {
             research: request.options?.research,
             notes: request.options?.notes,
             onNotice: request.options?.onNotice,
             sentOn: request.sentOn,
+            mailReplyFor: request.mailReplyFor,
           }
         : undefined,
     );
