@@ -133,7 +133,7 @@ impl Bridge {
             text("body")?,
         );
         let draft_id = random_hex()?;
-        lock(&self.drafts).insert(
+        let stored = lock(&self.drafts).insert(
             draft_id.clone(),
             owner,
             reply_to_id,
@@ -141,6 +141,9 @@ impl Bridge {
             body.clone(),
             Instant::now(),
         );
+        if !stored {
+            return None;
+        }
         Some(json!({
             "draft_id": draft_id,
             "reply_to_id": reply_to_id.to_string(),

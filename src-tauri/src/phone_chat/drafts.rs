@@ -45,6 +45,9 @@ pub(super) struct Drafts {
 }
 
 impl Drafts {
+    /// Stores a draft, and answers `false` when the owner's cap is full of drafts
+    /// that are sending. A sending draft is never evicted: its duplicate must
+    /// answer busy, and a failed send must still find it.
     pub(super) fn insert(
         &mut self,
         id: String,
@@ -53,18 +56,24 @@ impl Drafts {
         subject: String,
         body: String,
         now: Instant,
-    ) {
+    ) -> bool {
         self.prune(now);
-        let held: Vec<(String, Instant)> = self
+        let held = self
             .entries
-            .iter()
-            .filter(|(_, draft)| draft.owner == owner)
-            .map(|(id, draft)| (id.clone(), draft.created))
-            .collect();
-        if held.len() >= PER_OWNER {
-            if let Some((oldest, _)) = held.iter().min_by_key(|(_, created)| *created) {
-                self.entries.remove(oldest);
-            }
+            .values()
+            .filter(|draft| draft.owner == owner)
+            .count();
+        if held >= PER_OWNER {
+            let oldest = self
+                .entries
+                .iter()
+                .filter(|(_, draft)| draft.owner == owner && !draft.sending)
+                .min_by_key(|(_, draft)| draft.created)
+                .map(|(id, _)| id.clone());
+            let Some(oldest) = oldest else {
+                return false;
+            };
+            self.entries.remove(&oldest);
         }
         let draft = Draft {
             owner,
@@ -75,6 +84,7 @@ impl Drafts {
             sending: false,
         };
         self.entries.insert(id, draft);
+        true
     }
 
     /// Starts the send of a draft `owner` made. The edited body wins only when
@@ -359,5 +369,51 @@ mod tests {
         );
         assert!(drafts.begin(mine(), &id(PER_OWNER), None, now).is_ok());
         assert!(drafts.begin(other, "other", None, now).is_ok());
+    }
+
+    /// A send in flight at the cap survives the next insert: the oldest draft
+    /// that is not sending is the one evicted, and its duplicate answers busy.
+    #[test]
+    fn a_sending_draft_is_never_evicted_at_the_cap() {
+        let now = Instant::now();
+        let mut drafts = Drafts::default();
+        let id = |index: usize| format!("{index:032x}");
+        for index in 0..PER_OWNER {
+            let made = now + Duration::from_millis(index as u64 + 1);
+            assert!(drafts.insert(id(index), mine(), 105, String::new(), String::new(), made));
+        }
+        assert!(drafts.begin(mine(), &id(0), None, now).is_ok());
+        let next = now + Duration::from_millis(PER_OWNER as u64 + 1);
+        assert!(drafts.insert(id(PER_OWNER), mine(), 105, String::new(), String::new(), next));
+        assert_eq!(
+            drafts.begin(mine(), &id(0), None, now).err(),
+            Some("busy"),
+            "the draft in flight was evicted"
+        );
+        assert_eq!(
+            drafts.begin(mine(), &id(1), None, now).err(),
+            Some("draft_unknown"),
+            "the oldest draft that was not sending should have gone"
+        );
+    }
+
+    /// When every draft the owner holds is sending, the new one is refused and
+    /// nothing is evicted: `insert` answers `false`.
+    #[test]
+    fn a_cap_full_of_sending_drafts_refuses_the_new_one() {
+        let now = Instant::now();
+        let mut drafts = Drafts::default();
+        let id = |index: usize| format!("{index:032x}");
+        for index in 0..PER_OWNER {
+            let made = now + Duration::from_millis(index as u64 + 1);
+            assert!(drafts.insert(id(index), mine(), 105, String::new(), String::new(), made));
+            assert!(drafts.begin(mine(), &id(index), None, made).is_ok());
+        }
+        assert!(!drafts.insert(id(PER_OWNER), mine(), 105, String::new(), String::new(), now));
+        assert_eq!(drafts.count(), PER_OWNER, "a sending draft was evicted to make room");
+        assert_eq!(
+            drafts.begin(mine(), &id(PER_OWNER), None, now).err(),
+            Some("draft_unknown")
+        );
     }
 }
