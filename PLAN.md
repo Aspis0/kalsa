@@ -77,6 +77,25 @@ must exit 0) -> CI APK -> device verification. The app pin moves only with the o
 - S23 before every session: `persist.traced.enable` must be 0 (the DSP-daemon spin fix).
 - No `apk.yml` dispatch without telling kalsa-brain first (agreed 2026-10-07).
 
+### No claim without a cited line (owner, 2026-10-15)
+
+> *"Basta cercare e usare explorers e non c'è bisogno di allucinare niente. Basta citare le righe
+> lette."*
+
+- **If you cannot cite `file:line` for it, you did not read it — do not assert it.** Search first,
+  then speak. A claim about our own code or our own history is never made from memory, from a
+  subagent's summary, or from a plausible-sounding inference.
+- **A delegated report is not evidence.** Re-open every load-bearing citation on disk, with a real
+  exit code, before it enters a document or a commit. A delegate correcting the coordinator is
+  checked twice, like any other claim.
+- **"Not verified" is a valid, expected answer** and is written down as such. Never fill a gap with
+  the likely story.
+- What this rule is for, from 2026-10-15 where all three coordinator claims of the day were wrong on
+  first pass and each was dissolved by one cited line: `governorInputs.ts:395` (the NPU lane was not
+  hardcoded off), `xiaomi14-3way/REPORT.md:18` (SM8650/v75 NPU prefill does exist),
+  `xiaomi-stage0-obs-aa789620/raw/harness.log:63` (same APK, so not a regression). Each was stated
+  confidently and none was read.
+
 ## Gates and dates (recovered 2026-09-21; statuses as the record shows on 2026-10-09)
 
 Critical path: **G0 baseline -> G1 model -> G2 complete chat -> G3 correct profiles -> G4
