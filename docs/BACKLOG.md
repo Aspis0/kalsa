@@ -467,6 +467,3 @@ The hidden-text label is best effort. The boundary is the fence, the host's tain
 
 ## Mail: several accounts (owner 2026-10-14: "multiaccount per un'altra versione")
 - Settings → Mail lists the accounts, with "Aggiungi un altro account", and each password sits in the keychain. "Mail importanti di oggi" looks in all of them. Every card carries a small account label in a stable colour. A reply always leaves from the account that received the mail; the code decides that, never the model. The host side is one registry record per account.
-
-## verify.mjs: 38 failures that predate the mail work
-Measured 2026-10-14 with `npm run verify` (dev server + mock started by the runner) on 60f782bb (before the mail UI) and on 1d713431 (after): the same 38 FAILs on both, none added by mail. Groups: endpoint-arrival tests (quota, badurl, forbidden, html, "arrived: … wait timed out"), files panel (filestree/filessearch/samequery/filescycle/filesattach click timeouts), attachments (attachtxt, attachrejects, attachlegacy, refusefit, oversizesend, metersum), tool loop (bad, loop, burn, gate twoconv, toolfit). Logs were /tmp/verify-base.log and /tmp/verify-wt.log.
