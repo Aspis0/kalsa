@@ -36,6 +36,13 @@ export const TOOLS = {
   moreWaiting: (count: number) => `Kalsa has ${count} more to check after this one.`,
   sendIt: "Send it",
   refuse: "Refuse",
+  // The one-time notice, before this install's first search: the provider's
+  // own name is read from the code that sends the query, never written here.
+  noticeTitle: "Search the web?",
+  noticeBody: (provider: string) =>
+    `Kalsa will send the search to ${provider}. ${provider} sees the search words and your internet address. Your conversation stays on this computer.`,
+  noticeGo: "Search",
+  noticeNotNow: "Not now",
   webSearchFailed: "Kalsa couldn't search the web just now. Try again.",
   webPageTooLong: "That page is too long for Kalsa to read.",
   linkNotInChat: "Kalsa didn't open that link: it hasn't appeared in this chat.",

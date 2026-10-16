@@ -26,9 +26,17 @@ import { executeToolCall, offeredTools } from "../lib/tools/registry";
 import type { GateCheck } from "../lib/tools/registry";
 import { covered, remember } from "../lib/webgate/allowance";
 import type { Allowances } from "../lib/webgate/allowance";
+import { answerSearchNotice, searchNotice } from "../lib/webgate/searchNotice";
 import type { FailedState } from "../components/Thread";
 import { useLanguage } from "../i18n/useLanguage";
 import { logUiEvent } from "../lib/uiLog";
+
+/** What an ask on screen is: the gate's own question about one call, or the
+    one-time notice naming the service a search goes to. The notice is not a
+    gate check — nothing is pinned and no string is on show — so it keeps its
+    own shape instead of a check with empty fields, and nothing downstream can
+    mistake one for the other. */
+type Ask = { kind: "gate"; check: GateCheck } | { kind: "notice"; provider: string };
 
 /** One held web call and the one function that ends its wait. The id is the
     ask's identity on screen: an answer carries it back, and settles only the
@@ -37,7 +45,7 @@ import { logUiEvent } from "../lib/uiLog";
 interface GateAsk {
   id: string;
   conversationId: string;
-  check: GateCheck;
+  ask: Ask;
   settle: (allow: boolean) => void;
 }
 
@@ -76,8 +84,11 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
   );
   const [live, setLiveState] = useState<Record<string, { convId: string; content: string; reasoning: string; tail: string; toolRuns: ToolRun[] }>>({});
 
-  // The web-call gate: while documents are pinned or mail is in the chat, every
-  // outgoing web call is held here until the owner sends it or refuses it.
+  // What the owner is asked before a web call leaves: the gate's own question
+  // while documents are pinned or mail is in the chat, and the one-time notice
+  // before this install's first search of all. They share one queue, so a
+  // plain conversation with nothing attached still asks about the provider and
+  // then, if it was answered and the gate is armed, about the call itself.
   // Streams in different conversations run at once, so asks can too: they
   // queue in arrival order and the dialog shows the head alone — one clean
   // question at a time rather than a batch that invites a careless yes, with
@@ -114,38 +125,46 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
   );
 
   // Settles the queued asks of this conversation that an allowance now covers:
-  // they go out without ever being shown.
+  // they go out without ever being shown. The notice is never covered: it is
+  // about the provider, not about this conversation's documents, and what an
+  // allowance remembers says nothing about whether it was answered.
   function sweep(conversationId: string): void {
     for (const queued of [...gateAsks.current]) {
-      const covers = queued.conversationId === conversationId && covered(allowances.current, conversationId, queued.check);
+      const ask = queued.ask;
+      const covers =
+        ask.kind === "gate" &&
+        queued.conversationId === conversationId &&
+        covered(allowances.current, conversationId, ask.check);
       if (covers && gateAsks.current.includes(queued)) queued.settle(true);
     }
   }
 
-  // Hold one web call for the owner, unless what this conversation already
+  // Hold one ask for the owner, unless what this conversation already
   // allowed covers it. The ask joins the queue's tail; whatever is at the head
   // is what the dialog shows. Stop ends that conversation's
   // own wait as a refusal — the turn is gone, so the call must not leave
   // after it — and advances the queue to the next ask, if any.
-  function askOwner(conversationId: string, check: GateCheck, signal: AbortSignal): Promise<boolean> {
-    if (covered(allowances.current, conversationId, check)) return Promise.resolve(true);
+  function hold(conversationId: string, ask: Ask, signal: AbortSignal): Promise<boolean> {
+    if (ask.kind === "gate" && covered(allowances.current, conversationId, ask.check)) {
+      return Promise.resolve(true);
+    }
     return new Promise((resolve) => {
-      let ask: GateAsk;
+      let queued: GateAsk;
       const settle = (allowed: boolean) => {
         signal.removeEventListener("abort", onAbort);
-        const at = gateAsks.current.indexOf(ask);
+        const at = gateAsks.current.indexOf(queued);
         if (at !== -1) gateAsks.current.splice(at, 1);
         setGateShown(gateAsks.current[0] ?? null);
         setGateWaiting(Math.max(0, gateAsks.current.length - 1));
-        if (allowed) {
-          remember(allowances.current, conversationId, check);
+        if (allowed && ask.kind === "gate") {
+          remember(allowances.current, conversationId, ask.check);
           sweep(conversationId);
         }
         resolve(allowed);
       };
       const onAbort = () => settle(false);
-      ask = { id: uid(), conversationId, check, settle };
-      gateAsks.current.push(ask);
+      queued = { id: uid(), conversationId, ask, settle };
+      gateAsks.current.push(queued);
       setGateShown(gateAsks.current[0] ?? null);
       setGateWaiting(Math.max(0, gateAsks.current.length - 1));
       announce(table.shell.gateWaiting);
@@ -155,6 +174,34 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
       }
       signal.addEventListener("abort", onAbort);
     });
+  }
+
+  // The one-time notice in front of this install's first search, on the same
+  // queue as the gate's own question so only one dialog is ever up. "Search"
+  // keeps the answer for good; "Not now" keeps nothing, and the next search
+  // asks again.
+  async function firstSearchAsk(conversationId: string, signal: AbortSignal): Promise<boolean> {
+    const state = await searchNotice();
+    // No name means no notice can be shown, so the search does not go out: the
+    // owner would never be told who receives it. Refused in the gate's own
+    // words, exactly as "Not now" is.
+    if (state.provider === "") return false;
+    if (state.answered) return true;
+    const allowed = await hold(conversationId, { kind: "notice", provider: state.provider }, signal);
+    // Two conversations can reach this install's first search together, and the
+    // second queues behind the first. The answer the owner gave the first is an
+    // answer about the install, so re-read it here rather than ask again what
+    // they have just been told — and settle whatever else is queued behind on
+    // the same question, which would otherwise wait for a second click on a
+    // question that has already been answered.
+    if (state.answered) return true;
+    if (allowed) {
+      await answerSearchNotice();
+      for (const queued of [...gateAsks.current]) {
+        if (queued.ask.kind === "notice" && gateAsks.current.includes(queued)) queued.settle(true);
+      }
+    }
+    return allowed;
   }
 
   // Answers the ask it names — the one the dialog was showing. If that ask is
@@ -468,7 +515,8 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
               runSignal,
               {
                 documents: () => docs,
-                confirm: (check) => askOwner(conversationId, check, runSignal),
+                confirm: (check) => hold(conversationId, { kind: "gate", check }, runSignal),
+                firstSearch: () => firstSearchAsk(conversationId, runSignal),
               },
               conversation,
               currentSettings.model,

@@ -24,6 +24,7 @@ mod text;
 mod url;
 
 pub use fetch::fetch;
+pub use search::provider_name;
 pub use search::search;
 
 /// The address gate on its own: the same rules [`fetch`] applies, for a caller

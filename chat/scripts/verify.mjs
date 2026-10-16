@@ -259,11 +259,19 @@ async function resetMock(page) {
  * The desktop door, stubbed for the browser: a place to answer the two web
  * commands and to watch what was asked of them. `tools` are the definitions a
  * real bridge would be given; without one, none are offered at all.
+ * `notice` is what the one-time first-search notice answers, and defaults to
+ * a service already told — the ask is the subject of its own tests, and every
+ * other case here must reach the gate as it always did. `noticeBroken` makes
+ * that command reject every time, the way a bridge that has gone away does;
+ * `noticeFailsOnce` rejects only the first call, for the window that has to
+ * recover from it.
  */
-async function stubDoor(page, { search = null, fetch = null, hang = false } = {}) {
+async function stubDoor(page, { search = null, fetch = null, hang = false, notice = { provider: "Exa", answered: true }, noticeBroken = false, noticeFailsOnce = false } = {}) {
   await page.addInitScript(
-    ({ search, fetchResult, hang }) => {
+    ({ search, fetchResult, hang, notice, noticeBroken, noticeFailsOnce }) => {
       window.__TOOL_CALLS__ = [];
+      window.__NOTICE_ANSWERS__ = 0;
+      window.__NOTICE_FAILS__ = 0;
       window.__POSTS__ = [];
       window.__ROOM_HANDLERS__ = [];
       window.__ROOM_SEQ__ = 100;
@@ -281,6 +289,20 @@ async function stubDoor(page, { search = null, fetch = null, hang = false } = {}
             }
             if (command === "brain_open_url") {
               window.__TOOL_CALLS__.push({ command, args });
+              return null;
+            }
+            // The notice's own two commands, kept out of __TOOL_CALLS__: that
+            // list is the web calls that reached the engine, and these are
+            // about whether the owner has been told.
+            if (command === "brain_web_search_notice") {
+              if (noticeBroken || (noticeFailsOnce && window.__NOTICE_FAILS__ === 0)) {
+                window.__NOTICE_FAILS__ += 1;
+                throw new Error("the bridge is gone");
+              }
+              return notice;
+            }
+            if (command === "brain_web_search_notice_answered") {
+              window.__NOTICE_ANSWERS__ += 1;
               return null;
             }
             if (command.startsWith("brain_web_")) {
@@ -303,7 +325,7 @@ async function stubDoor(page, { search = null, fetch = null, hang = false } = {}
         event: { listen: () => Promise.resolve(() => {}) },
       };
     },
-    { search, fetchResult: fetch, hang },
+    { search, fetchResult: fetch, hang, notice, noticeBroken, noticeFailsOnce },
   );
 }
 
@@ -3820,6 +3842,339 @@ const tests = {
     check("gate abortpromote: B's turn finished", ((await page.locator(".thread").textContent()) ?? "").includes("All done in beta."), "thread on screen");
     await browser.close();
   },
+
+  // The one-time notice before this install's first search: which service
+  // receives the query, asked once, before anything else the gate would say.
+  // Nothing is pinned in these cases, so the gate on its own stays silent —
+  // what speaks here is the notice.
+
+  async noticeask() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, notice: { provider: "Exa", answered: false } });
+    await seedOnce(page, toolSettings("notice-demo"));
+    await scriptModel(page, [{ id: "q1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' }], "It is mild there.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather in Lisbon?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await noticeShown(page, "notice ask: the notice appeared");
+    const ask = ((await page.locator('[data-notice="first-search"]').textContent().catch(() => "")) ?? "");
+    check("notice ask: it names the service the query goes to", ask.includes("Exa"), ask);
+    check("notice ask: it says what that service sees", ask.includes("sees the search words"), ask);
+    check("notice ask: it offers the two answers", ask.includes("Not now"), ask);
+    check("notice ask: the search has not left", (await searchesReached(page)) === 0, (await searchedQueries(page)).join(", "));
+    await answerNotice(page, "notice ask: the notice could be answered");
+    await page
+      .waitForFunction(() => document.querySelector(".thread")?.textContent?.includes("mild"), null, { timeout: 20000 })
+      .catch(() => check("notice ask: the answer arrived", false, "wait timed out"));
+    check("notice ask: one search left after the answer", (await searchesReached(page)) === 1, (await searchedQueries(page)).join(", "));
+    await browser.close();
+  },
+
+  // "Search" is the end of it: the answer is written to the door, and no
+  // search after it — this turn's or a later one's — is asked about again.
+  async noticesearch() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, notice: { provider: "Exa", answered: false } });
+    await seedOnce(page, toolSettings("notice-saved"));
+    await scriptModel(
+      page,
+      [
+        { id: "q1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' },
+        { id: "q2", name: "web_search", arguments: '{"query":"weather in Porto"}' },
+      ],
+      "All of them looked mild.",
+    );
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather in Lisbon?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await noticeShown(page, "notice search: the notice appeared");
+    await answerNotice(page, "notice search: the notice could be answered");
+    await waitTurnDone(page);
+    check("notice search: the answer was written to the door", (await page.evaluate(() => window.__NOTICE_ANSWERS__)) === 1);
+    // The second search of this same turn, after the answer: out, unasked.
+    check("notice search: the rest of this turn went out", (await searchesReached(page)) === 2, (await searchedQueries(page)).join(", "));
+    check("notice search: no notice is on screen again", (await page.locator('[data-notice="first-search"]').count()) === 0);
+    // And a turn of its own, whose search must leave the same way.
+    await sendAndWait(page, "And Porto again?", "All of them looked mild.");
+    await waitTurnDone(page);
+    check("notice search: the next turn's search left too", (await searchesReached(page)) === 3, (await searchedQueries(page)).join(", "));
+    check("notice search: the answer was written once", (await page.evaluate(() => window.__NOTICE_ANSWERS__)) === 1);
+    check("notice search: still no notice on screen", (await page.locator('[data-notice="first-search"]').count()) === 0);
+    await browser.close();
+  },
+
+  // "Not now" skips this search and forgets the question: the model is told
+  // the same refusal the gate returns, nothing was sent, and the next search
+  // of the same turn asks again.
+  async noticenow() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, notice: { provider: "Exa", answered: false } });
+    await seedOnce(page, toolSettings("notice-notnow"));
+    const bodies = [];
+    await scriptModel(
+      page,
+      [
+        { id: "q1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' },
+        { id: "q2", name: "web_search", arguments: '{"query":"weather in Porto"}' },
+      ],
+      "Understood, I will answer without it.",
+      bodies,
+    );
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather in Lisbon?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await noticeShown(page, "notice notnow: the notice appeared");
+    await page.getByRole("button", { name: "Not now", exact: true }).click();
+    await noticeShown(page, "notice notnow: the next search asks again");
+    check("notice notnow: nothing was sent", (await searchesReached(page)) === 0, (await searchedQueries(page)).join(", "));
+    check("notice notnow: no answer was written", (await page.evaluate(() => window.__NOTICE_ANSWERS__)) === 0);
+    const wire = bodies.map((b) => JSON.parse(b));
+    const result = (wire[1]?.messages ?? []).filter((m) => m.role === "tool")[0];
+    check(
+      "notice notnow: the model was refused in the gate's own words",
+      (result?.content ?? "").includes("did not allow"),
+      `${(result?.content ?? "").length} chars of result`,
+    );
+    // Answered properly this time: the search runs and the answer is kept.
+    await answerNotice(page, "notice notnow: the notice could be answered");
+    await page
+      .waitForFunction(() => document.querySelector(".thread")?.textContent?.includes("answer without it"), null, { timeout: 20000 })
+      .catch(() => check("notice notnow: the turn finished", false, "wait timed out"));
+    check("notice notnow: the second search left", (await searchesReached(page)) === 1, (await searchedQueries(page)).join(", "));
+    check("notice notnow: only the real answer was written", (await page.evaluate(() => window.__NOTICE_ANSWERS__)) === 1);
+    await browser.close();
+  },
+
+  // Both asks on one call: the notice is first, the gate second, and the
+  // search leaves only after both were answered.
+  async noticeorder() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, notice: { provider: "Exa", answered: false } });
+    await seedOnce(page, toolSettings("notice-order"));
+    await scriptModel(page, [{ id: "q1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' }], "It is mild there.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await attachGateDoc(page, "notes.txt", "Just some notes so the gate is armed.");
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather in Lisbon?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await noticeShown(page, "notice order: the notice came first");
+    check("notice order: the gate has not asked yet", (await page.locator(".webgate-outgoing").count()) === 0);
+    await answerNotice(page, "notice order: the notice could be answered");
+    await gateAsk(page, "notice order: the gate asked second");
+    check("notice order: the gate shows the exact query", (((await page.locator(".webgate-outgoing").textContent().catch(() => "")) ?? "").includes("weather in Lisbon")));
+    await page.getByRole("button", { name: "Send it" }).click();
+    await page
+      .waitForFunction(() => document.querySelector(".thread")?.textContent?.includes("mild"), null, { timeout: 20000 })
+      .catch(() => check("notice order: the answer arrived", false, "wait timed out"));
+    check("notice order: one search left, after both answers", (await searchesReached(page)) === 1, (await searchedQueries(page)).join(", "));
+    await browser.close();
+  },
+
+  // The gate's allow button takes focus when it opens, and an Enter the owner
+  // was typing in the composer then accepts the call they never read. This
+  // notice must not repeat that.
+  async noticefocus() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, notice: { provider: "Exa", answered: false } });
+    await seedOnce(page, toolSettings("notice-focus"));
+    await scriptModel(page, [{ id: "q1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' }], "It is mild there.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather in Lisbon?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await noticeShown(page, "notice focus: the notice appeared");
+    const focusedConfirm = await page.evaluate(() => {
+      const confirm = document.querySelector('[data-notice="first-search"] .webgate-allow');
+      return document.activeElement === confirm;
+    });
+    check("notice focus: the confirm button is not focused", focusedConfirm === false);
+    // Pressing Enter cannot be the check here: mid-turn it stops the stream,
+    // which settles any ask on purpose, so the dialog would close either way.
+    // What decides the bug is where focus sat the moment the dialog opened —
+    // the owner's next Enter goes wherever focus already was.
+    check("notice focus: nothing left while the notice waits", (await searchesReached(page)) === 0, (await searchedQueries(page)).join(", "));
+    // The owner answers it the way anyone would: by clicking.
+    await answerNotice(page, "notice focus: the notice could be answered");
+    await waitTurnDone(page);
+    check("notice focus: clicking it does answer", (await searchesReached(page)) === 1, (await searchedQueries(page)).join(", "));
+    await browser.close();
+  },
+
+  // A door that cannot be asked cannot say the owner was told, so it must not
+  // be taken as having said it: the search is refused, in the same words a
+  // "Not now" gets, and nothing leaves.
+  async noticebroken() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, noticeBroken: true });
+    await seedOnce(page, toolSettings("notice-broken"));
+    const bodies = [];
+    await scriptModel(page, [{ id: "q1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' }], "I could not look it up.", bodies);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather in Lisbon?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await waitTurnDone(page);
+    await page.waitForTimeout(600);
+    check("notice broken: no notice was shown", (await page.locator('[data-notice="first-search"]').count()) === 0);
+    check("notice broken: nothing left", (await searchesReached(page)) === 0, (await searchedQueries(page)).join(", "));
+    const wire = bodies.map((b) => JSON.parse(b));
+    const result = (wire[1]?.messages ?? []).filter((m) => m.role === "tool")[0];
+    check(
+      "notice broken: the model was refused in the gate's own words",
+      (result?.content ?? "").includes("did not allow"),
+      `${(result?.content ?? "").length} chars of result`,
+    );
+    await browser.close();
+  },
+
+  // A door that answers without naming a service has said nothing about who
+  // would receive the query, so there is no notice to show and nothing to
+  // send: the search is held.
+  async noticenoname() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, notice: { answered: true } });
+    await seedOnce(page, toolSettings("notice-noname"));
+    await scriptModel(page, [{ id: "q1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' }], "I could not look it up.");
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather in Lisbon?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await waitTurnDone(page);
+    await page.waitForTimeout(600);
+    check("notice noname: no notice was shown", (await page.locator('[data-notice="first-search"]').count()) === 0);
+    check("notice noname: nothing left", (await searchesReached(page)) === 0, (await searchedQueries(page)).join(", "));
+    check(
+      "notice noname: the turn still finished on words",
+      ((await page.locator(".thread").textContent()) ?? "").includes("could not look it up"),
+      "thread on screen",
+    );
+    await browser.close();
+  },
+
+  // Two conversations reach this install's first search together. The answer is
+  // about the install, not about one chat, so the second conversation must not
+  // be asked a question that has already been answered.
+  async noticetwoconv() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await stubDoor(page, { search: LISBON, notice: { provider: "Exa", answered: false } });
+    await seedOnce(page, toolSettings("notice-two"));
+    // One route, two conversations: the user's own words say which one is
+    // asking, so the two can be told apart on screen and on the wire.
+    await page.route("**/v1/chat/completions", async (route) => {
+      const raw = route.request().postData() ?? "{}";
+      let body = {};
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        /* the default round below answers anyway */
+      }
+      const messages = body.messages ?? [];
+      const rounds = messages.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls)).length;
+      const which = String([...messages].reverse().find((m) => m.role === "user")?.content ?? "").includes("alpha") ? "alpha" : "beta";
+      const frames = [];
+      if (rounds === 0) {
+        frames.push({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  { index: 0, id: `t-${which}`, type: "function", function: { name: "web_search", arguments: JSON.stringify({ query: `query about ${which} topic` }) } },
+                ],
+              },
+            },
+          ],
+        });
+        frames.push({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
+      } else {
+        const answer = `All done in ${which}.`;
+        for (let at = 0; at < answer.length; at += 9) frames.push({ choices: [{ delta: { content: answer.slice(at, at + 9) } }] });
+        frames.push({ choices: [{ delta: {}, finish_reason: "stop" }] });
+      }
+      const sse = frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n";
+      await route.fulfill({ status: 200, contentType: "text/event-stream", body: sse });
+    });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("Look something up about alpha please");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await noticeShown(page, "notice two conv: the notice appeared");
+    // While A waits, B starts its own turn: its notice queues behind this one.
+    await page.getByRole("button", { name: "New chat", exact: true }).first().click();
+    await page.getByRole("textbox", { name: "Message" }).fill("Look something up about beta please");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    await page.waitForTimeout(2500);
+    check("notice two conv: the first notice is still the one shown", ((await page.locator('[data-notice="first-search"]').textContent().catch(() => "")) ?? "").includes("Exa"));
+    await answerNotice(page, "notice two conv: the notice could be answered");
+    await page
+      .locator('[data-notice="first-search"]')
+      .waitFor({ state: "detached", timeout: 10000 })
+      .catch(() => check("notice two conv: no second notice took the screen", false, "still on screen"));
+    check(
+      "notice two conv: both searches left, in order",
+      (await searchesReached(page)) === 2,
+      (await searchedQueries(page)).join(", "),
+    );
+    check("notice two conv: the answer was written once", (await page.evaluate(() => window.__NOTICE_ANSWERS__)) === 1);
+    // Neither turn hung: both conversations finished with their own answer.
+    await openSidebar(page, "about alpha");
+    check("notice two conv: A's turn finished", ((await page.locator(".thread").textContent()) ?? "").includes("All done in alpha."), "thread on screen");
+    await openSidebar(page, "about beta");
+    check("notice two conv: B's turn finished", ((await page.locator(".thread").textContent()) ?? "").includes("All done in beta."), "thread on screen");
+    await browser.close();
+  },
+
+  // A door that fails once must not take the window down with it: the search
+  // that hit the failure is still refused, because no notice could be shown,
+  // and the next search asks the door again — the notice comes up normally, in
+  // the same session, with no restart.
+  async noticebridgeback() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: LISBON, notice: { provider: "Exa", answered: false }, noticeFailsOnce: true });
+    await seedOnce(page, toolSettings("notice-bridge-back"));
+    const bodies = [];
+    await scriptModel(
+      page,
+      [
+        { id: "q1", name: "web_search", arguments: '{"query":"weather in Lisbon"}' },
+        { id: "q2", name: "web_search", arguments: '{"query":"weather in Porto"}' },
+      ],
+      "Both looked mild.",
+      bodies,
+    );
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await page.getByRole("textbox", { name: "Message" }).fill("What is the weather around Portugal?");
+    await page.getByRole("textbox", { name: "Message" }).press("Enter");
+    // The first search hit the broken door; the second found it back.
+    await noticeShown(page, "notice bridge back: the door was asked again and the notice appeared");
+    check("notice bridge back: nothing left while the notice waits", (await searchesReached(page)) === 0, (await searchedQueries(page)).join(", "));
+    const wire = bodies.map((b) => JSON.parse(b));
+    const first = (wire[1]?.messages ?? []).filter((m) => m.role === "tool")[0];
+    check(
+      "notice bridge back: the search that hit the failure was refused",
+      (first?.content ?? "").includes("did not allow"),
+      `${(first?.content ?? "").length} chars of result`,
+    );
+    check("notice bridge back: the bridge failed once, and answered after that", (await page.evaluate(() => window.__NOTICE_FAILS__)) === 1);
+    await answerNotice(page, "notice bridge back: the notice could be answered");
+    await waitTurnDone(page);
+    check("notice bridge back: the recovered search left", (await searchesReached(page)) === 1, (await searchedQueries(page)).join(", "));
+    check("notice bridge back: the answer was written once", (await page.evaluate(() => window.__NOTICE_ANSWERS__)) === 1);
+    await browser.close();
+  },
+
   // The Room, end to end in the browser: the host posts through the composer
   // and the message lands in the thread. The dev server runs StrictMode,
   // whose double-invoked state updater is exactly what a reducer that
@@ -7396,6 +7751,16 @@ function searchesReached(page) {
   return page.evaluate(() => (window.__TOOL_CALLS__ ?? []).filter((c) => c.command === "brain_web_search").length);
 }
 
+/** The queries that reached the engine, in order. How many left is the
+    assertion; which ones is what the message needs to say when it fails. */
+function searchedQueries(page) {
+  return page.evaluate(() =>
+    (window.__TOOL_CALLS__ ?? [])
+      .filter((c) => c.command === "brain_web_search")
+      .map((c) => String(c.args?.query)),
+  );
+}
+
 /** A mail list, then a web search the owner refuses. With `document`, one file
     is pinned too, so the ask names both reasons. */
 async function mailGateRun({ document }) {
@@ -7524,6 +7889,25 @@ async function gateAsk(page, label) {
   } catch {
     check(label, false, "the ask never appeared");
   }
+}
+
+/** The same, for the first-search notice, which is a different dialog on the
+    same stage: waiting on `.webgate` would pass on the gate's own ask. */
+async function noticeShown(page, label) {
+  try {
+    await page.locator('[data-notice="first-search"]').waitFor({ timeout: 10000 });
+  } catch {
+    check(label, false, "the notice never appeared");
+  }
+}
+
+/** Answer the notice with "Search". A click with nothing on screen to click is a
+    failure like any other, never a raw TimeoutError (round-24 rule). */
+async function answerNotice(page, label) {
+  await page
+    .getByRole("button", { name: "Search", exact: true })
+    .click({ timeout: 5000 })
+    .catch(() => check(label, false, "no Search button on screen"));
 }
 
   // The two servers this suite cannot run without. A missing one does not fail

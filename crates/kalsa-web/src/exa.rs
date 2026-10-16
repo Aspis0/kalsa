@@ -14,6 +14,11 @@ use crate::WebError;
 
 const ENDPOINT: &str = "https://mcp.exa.ai/mcp";
 const PROTOCOL_VERSION: &str = "2025-03-26";
+/// What this provider is called in the sentence the page shows the owner
+/// before their first search. It lives beside the dialect rather than in the
+/// page's copy: a release that answers with another service ships another
+/// module, and the words the owner reads change with the code that sends it.
+pub(crate) const NAME: &str = "Exa";
 /// The header the handshake hands back, echoed on everything after it.
 const SESSION: &str = "mcp-session-id";
 /// Exa clamps at five; four is enough to answer from and cheap to read.

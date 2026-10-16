@@ -28,6 +28,7 @@ import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ExpertsSurface } from "./surfaces/ExpertsSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { WebGateDialog } from "./components/WebGateDialog";
+import { WebSearchNotice } from "./components/WebSearchNotice";
 import { RecoveredNotice } from "./components/RecoveredNotice";
 import { useEngineRecovery } from "./surfaces/useEngineRecovery";
 import { useUpdates } from "./lib/useUpdates";
@@ -202,9 +203,25 @@ export function App() {
           ) : null}
           {/* The ask lives at the stage's level, not inside the chat layout: a
               call can still be held after the owner navigates home, and the ask
-              must stay on screen and answerable until it is answered. */}
+              must stay on screen and answerable until it is answered. The
+              one-time first-search notice is the other kind of ask, and takes
+              the screen only when it is the one at the head of the queue. */}
           {chat.gateShown ? (
-            <WebGateDialog id={chat.gateShown.id} check={chat.gateShown.check} waiting={chat.gateWaiting} onAnswer={chat.answerGate} />
+            chat.gateShown.ask.kind === "notice" ? (
+              <WebSearchNotice
+                id={chat.gateShown.id}
+                provider={chat.gateShown.ask.provider}
+                waiting={chat.gateWaiting}
+                onAnswer={chat.answerGate}
+              />
+            ) : (
+              <WebGateDialog
+                id={chat.gateShown.id}
+                check={chat.gateShown.ask.check}
+                waiting={chat.gateWaiting}
+                onAnswer={chat.answerGate}
+              />
+            )
           ) : null}
           <div className="stage-notices">
             {engine.recovered ? (

@@ -15,12 +15,17 @@
 //! request and between reads. What it cannot do is interrupt a socket already
 //! waiting in a read — no HTTP client in this crate can be withdrawn mid-read —
 //! so a stopped call ends at its next step, or when the read times out.
+//!
+//! Two commands here are not calls: they are the one-time notice the page
+//! shows before this install's first search, which needs the provider's name
+//! from the code that sends the query, and an answer that outlives the window.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use tauri::State;
+use serde::Serialize;
+use tauri::{AppHandle, Manager, State};
 
 /// The web calls that are running, by the id the page gave them.
 #[derive(Default)]
@@ -136,6 +141,67 @@ pub(crate) fn brain_web_stop(id: u64, calls: State<WebCalls>) {
     calls.stop(id);
 }
 
+/// The one-time notice's whole state in one answer: which service this build
+/// searches with, and whether this install has been told. The name is the
+/// provider's own (`kalsa_web::provider_name`), never a string the page
+/// carries — a release that answers with another service changes this
+/// sentence by changing the code that sends the query.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SearchNotice {
+    provider: &'static str,
+    answered: bool,
+}
+
+/// What the owner would be told before their first search, and whether they
+/// already have been. A data directory this build cannot reach reads as
+/// unanswered: the notice then stands in front of the first search rather
+/// than never being shown at all.
+#[tauri::command]
+pub(crate) fn brain_web_search_notice(app: AppHandle) -> SearchNotice {
+    SearchNotice {
+        provider: kalsa_web::provider_name(),
+        answered: app
+            .path()
+            .app_data_dir()
+            .is_ok_and(|dir| notice::answered(&dir)),
+    }
+}
+
+/// Keep the answer: this install's first search has been told. A write the
+/// disk refuses is reported rather than swallowed, so the page is not left
+/// believing an answer it never stored.
+#[tauri::command]
+pub(crate) fn brain_web_search_notice_answered(app: AppHandle) -> Result<(), &'static str> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| "the search notice could not be saved")?;
+    notice::answer(&dir).map_err(|_| "the search notice could not be saved")
+}
+
+/// The stored answer to that notice: a file in the data directory whose
+/// PRESENCE is the answer, like the unclean-exit marker beside it
+/// (`instance::session_marker`) and the projector on disk for the vision
+/// offer. A flag kept anywhere else could disagree with what the owner was
+/// told, and ask again after a yes.
+mod notice {
+    use std::path::Path;
+
+    const NAME: &str = "search.notice";
+
+    pub(super) fn answered(dir: &Path) -> bool {
+        dir.join(NAME).exists()
+    }
+
+    /// The bytes carry nothing: presence is the whole answer, so a write that
+    /// lands half-finished still counts — the one thing a torn write cannot
+    /// do here is ask the owner twice.
+    pub(super) fn answer(dir: &Path) -> std::io::Result<()> {
+        std::fs::write(dir.join(NAME), b"1")
+    }
+}
+
 /// Open an address in this computer's browser, after checking it with the gate
 /// `web_fetch` uses.
 ///
@@ -193,7 +259,7 @@ fn open_in_browser(url: &str) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::open_checked;
+    use super::{notice, open_checked};
 
     /// What the page may ask to open, and what it may not. Every address here
     /// is refused before anything is spawned, so this test opens nothing.
@@ -222,5 +288,27 @@ mod tests {
                 Ok(()) => panic!("{address} was handed to this computer's browser"),
             }
         }
+    }
+
+    /// The notice is unanswered on a computer that has never searched, and
+    /// answered on one that has — the file is the whole memory of it, so a
+    /// second read has to see the same answer as the first.
+    #[test]
+    fn the_first_search_notice_is_remembered_once_the_file_lands() {
+        let dir = std::env::temp_dir().join(format!(
+            "kalsa-search-notice-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("a clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).expect("a scratch directory");
+        assert!(!notice::answered(&dir), "a fresh install has not been told");
+        notice::answer(&dir).expect("the answer is kept");
+        assert!(notice::answered(&dir), "the file's presence IS the answer");
+        notice::answer(&dir).expect("answering twice is not an error");
+        assert!(notice::answered(&dir));
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

@@ -41,6 +41,10 @@ export interface WebGate {
   documents: () => PinnedDoc[];
   /** Held for the owner's answer: true lets the call leave, false refuses it. */
   confirm: (check: GateCheck) => Promise<boolean>;
+  /** The one-time notice in front of this install's first search, asked
+      before `confirm` on the same call. Its answer is the page's to keep;
+      this only asks. */
+  firstSearch: () => Promise<boolean>;
 }
 
 /**
@@ -142,6 +146,10 @@ export async function executeToolCall(
       // of it would run.
       const refusal = searchQueryRefusal(query, conversation);
       if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
+      // The notice comes after the refusal because nothing is sent there, and
+      // before the gate because the owner has to know who receives a search
+      // before deciding whether this one may go.
+      if (!(await notified(gate, signal))) return heldBack(query, signal, stoppedText);
       if (!(await admitted(gate, "web_search", query, conversation, signal))) return heldBack(query, signal, stoppedText);
       return { text: await through("brain_web_search", { query }, signal), ok: true };
     }
@@ -183,6 +191,26 @@ export async function executeToolCall(
  * conversation with nothing attached runs exactly as it always did — and the
  * detectors only decide how loudly the question warns, never whether it is asked.
  */
+
+/**
+ * The one-time notice, asked in front of the gate's own question: which
+ * service this install sends its searches to, once, before the first one
+ * leaves. Whether it has been asked already is the page's memory
+ * (`webgate/searchNotice.ts`); this only asks and takes the answer.
+ */
+async function notified(gate: WebGate | null, signal?: AbortSignal): Promise<boolean> {
+  if (gate === null) return true;
+  let allowed: boolean;
+  try {
+    allowed = await gate.firstSearch();
+  } catch {
+    // A page that cannot answer must not fail open: the words stay inside.
+    return false;
+  }
+  // Stop while the notice was up ends the wait with a refusal, and the
+  // aborted check below turns it into the turn's own stopped sentence.
+  return allowed && !Boolean(signal?.aborted);
+}
 
 const MAIL_CLOSED =
   "The mailbox is closed to this AI: it must be one of the approved models. Tell the person to switch AI in Settings → Your AI, then ask again.";

@@ -306,6 +306,9 @@ try {
         asks.push(c);
         return allowed;
       },
+      // This install has already been told which service searches go to; what
+      // these cases are about is the rule that runs before it.
+      firstSearch: async () => true,
     });
     const armed = [{ role: "user", content: "Read https://news.example/story — my notes are attached." }];
     let r = await attempt("https://news.example/story", armed, gate(false));
@@ -324,6 +327,7 @@ try {
         asks.push(c);
         return allowed;
       },
+      firstSearch: async () => true,
     });
     // What the sidecar answers a list with: every value line carries the call's
     // marker, and an empty list has only the block's own delimiters.

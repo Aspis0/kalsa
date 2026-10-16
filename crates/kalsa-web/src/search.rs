@@ -6,9 +6,10 @@
 //!
 //! **A second provider would supply** a module next to `exa.rs` that builds its
 //! own request bodies and reads its own answers, taking one [`Budget`] for the
-//! operation and calling [`post`] with `budget.agent()` per request, plus a line
-//! in [`search`] choosing between them. Nothing in this file, `fetch.rs`,
-//! `url.rs`, `body.rs` or `text.rs` would move.
+//! operation and calling [`post`] with `budget.agent()` per request, a
+//! [`NAME`](exa::NAME) beside its endpoint, plus a line in [`search`]
+//! choosing between them. Nothing in this file, `fetch.rs`, `url.rs`,
+//! `body.rs` or `text.rs` would move.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -31,6 +32,13 @@ pub fn search(query: &str, stop: &AtomicBool) -> Result<String, WebError> {
     // One provider exists, so one is named here. This is where a second one
     // would be chosen between.
     exa::search(query, stop)
+}
+
+/// The service [`search`] sends to, named for the owner: the chosen
+/// provider's own [`NAME`](exa::NAME), so a caller can tell its audience who
+/// receives their words without knowing which provider was compiled in.
+pub fn provider_name() -> &'static str {
+    exa::NAME
 }
 
 /// When a search operation started, and how long it may run in total. A search

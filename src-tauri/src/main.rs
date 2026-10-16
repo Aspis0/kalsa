@@ -2540,6 +2540,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             web::brain_web_search,
             web::brain_web_fetch,
             web::brain_web_stop,
+            web::brain_web_search_notice,
+            web::brain_web_search_notice_answered,
             web::brain_open_url,
             files::brain_files_roots,
             files::brain_files_list,
