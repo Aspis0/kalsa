@@ -580,8 +580,8 @@ fn signal_group(pid: u32, signal: i32) -> io::Result<()> {
 /// the drain sees every line the moment the server writes it, so no release
 /// can fall between polls.
 ///
-/// The file withholds request/generated-text families, then applies the
-/// app's redactor to identifying data before clipping and writing each line.
+/// The file keeps only the lines the engine allowlist names. Those go through the
+/// app's redactor and are clipped before they are written.
 fn drain_stderr(
     stderr: Option<std::process::ChildStderr>,
     releases: Arc<AtomicU64>,
@@ -614,10 +614,10 @@ fn drain_stderr(
                 residency.set(RESIDENCY_IN_MEMORY);
             }
             if let Some((file, redact)) = file.as_ref() {
-                let safe = if crate::supervisor::carries_request_text(&line) {
-                    crate::supervisor::WITHHELD.to_string()
-                } else {
+                let safe = if crate::engine_lines::is_safe_engine_line(&line) {
                     crate::stderr_log::clip_line(&redact(&line))
+                } else {
+                    crate::supervisor::withheld_marker(&line).to_string()
                 };
                 file.write_line(&safe);
             }
@@ -993,7 +993,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn the_stderr_file_receives_only_lines_the_denylist_allows() {
+    fn the_stderr_file_receives_only_lines_the_allowlist_names() {
         let dir = std::env::temp_dir().join(format!(
             "kalsa-stderr-drain-{}-{}",
             std::process::id(),

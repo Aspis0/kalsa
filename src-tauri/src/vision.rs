@@ -439,7 +439,7 @@ mod tests {
     /// catches the bump, wherever after the press it lands.
     #[test]
     fn a_stop_during_the_download_wins_over_the_restart() {
-        let brain = Brain::new();
+        let brain = Brain::new().expect("the OS has randomness");
         let state_file = scratch("stop-wins").join("state.json");
         let row = offered(&brain, &state_file);
         match prepare(&brain, &state_file).expect("the offer prepares") {
@@ -467,7 +467,7 @@ mod tests {
     /// mid-download meets the same refusal from its own side.
     #[test]
     fn a_second_enable_while_one_runs_is_refused_not_raced() {
-        let brain = Brain::new();
+        let brain = Brain::new().expect("the OS has randomness");
         let state_file = scratch("double-enable").join("state.json");
         offered(&brain, &state_file);
         let first = begin(&brain);
@@ -489,7 +489,7 @@ mod tests {
     /// row at all, the automatic path), the restart goes through.
     #[test]
     fn a_model_chosen_during_the_download_keeps_the_file_and_skips_the_restart() {
-        let brain = Brain::new();
+        let brain = Brain::new().expect("the OS has randomness");
         let state_file = scratch("switch").join("state.json");
         let row = offered(&brain, &state_file);
         let began = brain.stops.load(Ordering::SeqCst);

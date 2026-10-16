@@ -39,7 +39,7 @@ impl StderrLog {
         }
     }
 
-    /// One line, already carried through the drain's denylist pass. A
+    /// One line, already through the drain's allowlist pass. A
     /// folder or file that will not take it costs the line, never the
     /// server: a failed write closes the file for this child's life, the
     /// in-memory tail and the exit line keep theirs.

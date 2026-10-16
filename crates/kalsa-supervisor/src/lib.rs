@@ -13,6 +13,7 @@ mod config;
 mod drain;
 mod engine_id;
 mod engine_key;
+mod engine_lines;
 mod health;
 mod instance;
 mod presence;
@@ -25,6 +26,7 @@ pub use child::{hide_console, pid_alive, strip_llama_env, terminate_pid, Step, T
 pub use child::{confine, Job};
 pub use config::{ServerConfig, DEFAULT_STOP_GRACE};
 pub use engine_key::{EngineKey, API_KEY_ENV};
+pub use engine_lines::OUT_OF_MEMORY_WORDS;
 pub use instance::{hold_state_lock, Existing, InstanceFile};
 pub use supervisor::{
     Failure, ServerState, StartOutcome, StartSettled, StartWaiter, Supervisor, Watch,

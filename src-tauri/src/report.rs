@@ -117,11 +117,12 @@ pub(crate) fn header_is_well_formed(value: &str) -> bool {
 /// redact, and this body is uploaded as it sits, so the joined body goes
 /// through the same rule here, before any send.
 ///
-/// The engine's stderr file (`kalsa-engine.log`, beside these two) is
-/// deliberately NOT a half: its lines pass the drain's denylist, but they
-/// never pass the sink's redaction this body is built on, so sending it
-/// would upload home paths and hostnames the log's promise keeps back. It
-/// stays a local diagnostic.
+/// The engine's stderr file (`kalsa-engine.log`, beside these two) is not
+/// read here and stays a local diagnostic. Only the engine lines the allowlist
+/// names are kept, and some of them reach the live log: the exit's tail is
+/// logged as `engine stderr:` when the engine stops or fails to start. That
+/// line is in this body, so it goes through the logger's redaction first: the
+/// home directory is written as `~`, and a model file name still shows.
 pub(crate) fn read_body(log_dir: &Path) -> String {
     let body = crate::logging::with_log_held(|| {
         let halves = [

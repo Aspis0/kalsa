@@ -75,7 +75,8 @@ pub(crate) async fn test_saved(
 }
 
 /// The account the form typed. A known provider fills in the server its own help page
-/// states; a provider that cannot be set up in step one is refused.
+/// states, and a typed server must name that same one; a provider that cannot be set up
+/// in step one is refused.
 fn typed_account(form: &AccountForm) -> Result<MailAccount, MailError> {
     if form.password.is_empty() {
         return Err(MailError::InvalidAccount);
@@ -86,17 +87,24 @@ fn typed_account(form: &AccountForm) -> Result<MailAccount, MailError> {
         Some(Setup::Guessed { host, port }) => (Some(*host), Some(*port)),
         None => (None, None),
     };
-    let host = form
-        .host
-        .clone()
-        .or_else(|| guessed_host.map(str::to_owned))
-        .ok_or(MailError::InvalidAccount)?;
+    let typed = form.host.as_deref().filter(|typed| !typed.trim().is_empty());
+    let host = match (typed, guessed_host) {
+        (Some(typed), Some(guessed)) if !names_same_host(typed, guessed) => return Err(MailError::InvalidAccount),
+        (_, Some(guessed)) => guessed.to_owned(),
+        (Some(typed), None) => typed.to_owned(),
+        (None, None) => return Err(MailError::InvalidAccount),
+    };
     let port = form.port.or(guessed_port).unwrap_or(993);
     let local_part = known
         .filter(|guess| guess.local_part_username)
         .and_then(|_| form.email.split_once('@').map(|(local, _)| local.to_owned()));
     let user = form.user.clone().or(local_part);
     MailAccount::new(&form.email, &host, port, user.as_deref())
+}
+
+/// DNS names are case-insensitive and a trailing dot names the same host.
+fn names_same_host(typed: &str, guessed: &str) -> bool {
+    typed.trim().trim_end_matches('.').eq_ignore_ascii_case(guessed)
 }
 
 #[cfg(test)]
@@ -161,6 +169,34 @@ mod tests {
         let mut typed = form("anna@hotmail.com", "fake-password");
         typed.host = Some("outlook.office365.com".into());
         assert_eq!(typed_account(&typed), Err(MailError::UnsupportedProvider));
+    }
+
+    #[test]
+    fn a_typed_host_that_is_not_the_known_providers_server_is_refused() {
+        let mut typed = form("anna@aruba.it", "fake-password");
+        typed.host = Some("evil.example".into());
+        assert_eq!(typed_account(&typed), Err(MailError::InvalidAccount));
+    }
+
+    #[test]
+    fn a_typed_host_naming_the_known_providers_server_is_accepted_in_any_case_with_a_trailing_dot() {
+        let mut typed = form("anna@aruba.it", "fake-password");
+        typed.host = Some("IMAP.Aruba.it.".into());
+        assert_eq!(typed_account(&typed).expect("same host").host, "imap.aruba.it");
+    }
+
+    #[test]
+    fn an_empty_typed_host_takes_the_known_providers_server() {
+        let mut typed = form("anna@aruba.it", "fake-password");
+        typed.host = Some("  ".into());
+        assert_eq!(typed_account(&typed).expect("guessed").host, "imap.aruba.it");
+    }
+
+    #[test]
+    fn an_unknown_provider_keeps_the_typed_host() {
+        let mut typed = form("anna@example.it", "fake-password");
+        typed.host = Some("mail.example.it".into());
+        assert_eq!(typed_account(&typed).expect("typed").host, "mail.example.it");
     }
 
     #[test]

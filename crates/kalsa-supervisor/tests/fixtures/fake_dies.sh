@@ -15,5 +15,5 @@ if [ -n "$port" ]; then
 fi
 
 sleep 0.5
-echo "fake server: failed to load the model" >&2
+echo "GGML_ASSERT fake-dies.cpp:7 failed to load the model" >&2
 exit 7

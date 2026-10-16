@@ -19,6 +19,7 @@ use crate::engine_id::EngineId;
 use crate::child::{self, ChildHandle, Residency, Termination};
 use crate::config::ServerConfig;
 use crate::drain;
+use crate::engine_lines::{is_failure_line, is_out_of_memory_line, is_safe_engine_line};
 use crate::health;
 use crate::instance::{Existing, InstanceFile};
 use crate::presence;
@@ -991,81 +992,46 @@ fn argv_line(argv: &[String]) -> String {
 /// not cannot carry much of it.
 const STDERR_CLIP: usize = 300;
 
-// These families can quote request or generated text at default verbosity.
-// Keep the same filter on the file and the app log's exit tail.
-const REQUEST_LINE_MARKS: &[&str] = &[
-    "got exception",
-    "got another exception",
-    "last read",
-    "parse_error",
-    "json.exception",
-    "unsupported Responses tool type",
-    "downloading image from",
-    "loading image from local file",
-    "old: ...",
-    "new: ...",
-    "api_keys:",
-    "awaiting trigger",
-    "unparsed",
-    "Failed to format input",
-    "anthropic string not as expected",
-    "Ignoring content part type",
-    "Tool call mismatch",
-    "Ignoring non-text content part",
-    "failed to apply template",
-    "common_chat_templates_init: error:",
-    "failed to parse tool use chat template",
-    "chat template parsing error",
-    "pre_decode() failed:",
-    "decode() failed:",
-    "post_decode() failed:",
-    "on unknown completion id=",
-    "conv_id=",
-    "name=",
-    "proxying request to model ",
-    " is not ready",
-    "unknown error while validating model",
-    "starting download for model",
-    "(CORS) skip non-localhost origin:",
-    "MCP tool \"",
-    "MCP warmup: failed to spawn",
-    "MCP '",
-];
-
 /// The withheld lines' replacement, named once so the log reads the same
 /// wherever the filter bites — the app log's stderr lines and the engine's
 /// stderr file alike.
 pub(crate) const WITHHELD: &str = "<a request error line was withheld>";
 
-pub(crate) fn carries_request_text(line: &str) -> bool {
-    REQUEST_LINE_MARKS.iter().any(|mark| line.contains(mark))
-        || (line.contains("task id = ") && line.contains("error:"))
+/// A withheld line that names an out-of-memory death leaves this instead: `oom.rs`
+/// reads the death from its words, and the marker keeps the words but not the line.
+pub(crate) const OUT_OF_MEMORY_WITHHELD: &str = "<a line with out of memory was withheld>";
+
+/// The marker one withheld line leaves in its place.
+pub(crate) fn withheld_marker(line: &str) -> &'static str {
+    if is_out_of_memory_line(line) {
+        OUT_OF_MEMORY_WITHHELD
+    } else {
+        WITHHELD
+    }
 }
 
-/// The engine's own last words, made safe for the log: a line that carries
-/// request bytes becomes the one withheld sentence, every other line is
-/// clipped to [`STDERR_CLIP`] characters. One withheld line is logged for
-/// however many were dropped — the count is the shape of one bad request,
-/// not information the log needs.
+/// The engine's own last words, made safe for the log: a line the engine
+/// allowlist does not name becomes a withheld marker, every other line is
+/// clipped to [`STDERR_CLIP`] characters. One marker is logged for however many
+/// were dropped — the count is the shape of one bad request, not information the
+/// log needs. An out-of-memory marker wins over the generic one.
 fn sanitized_tail(lines: &[String]) -> Vec<String> {
     let mut out = Vec::new();
-    let mut withheld = false;
+    let mut withheld = None;
     for line in lines {
-        if carries_request_text(line) {
-            withheld = true;
-            continue;
+        if is_safe_engine_line(line) {
+            let clipped: String = line.chars().take(STDERR_CLIP).collect();
+            out.push(clipped);
+        } else if withheld != Some(OUT_OF_MEMORY_WITHHELD) {
+            withheld = Some(withheld_marker(line));
         }
-        let clipped: String = line.chars().take(STDERR_CLIP).collect();
-        out.push(clipped);
     }
-    if withheld {
-        out.push(WITHHELD.to_string());
-    }
+    out.extend(withheld.map(str::to_owned));
     out
 }
 
-/// Withhold request/generated-text families before the app logger redacts
-/// identifying data from the remaining exit diagnostics.
+/// Only the allowlisted lines reach the app log, which redacts identifying data
+/// from what it writes.
 fn log_stderr_tail(child: &ChildHandle) {
     for line in sanitized_tail(&child.output_tail()) {
         log::warn!("engine stderr: {line}");
@@ -1137,10 +1103,19 @@ fn preflight_port(config: &ServerConfig) -> Result<(), Failure> {
     }
 }
 
-// Fatal diagnostics can precede backtrace frames; prefer them through the same request-text filter.
 fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> Failure {
-    let tail = sanitized_tail(&child.output_tail());
-    let fatal = tail.iter().rev().find(|line| ["GGML_ASSERT", "vk::DeviceLostError", "vk::OutOfDeviceMemoryError", "CUDA error", "out of memory", "segmentation fault"].iter().any(|shape| line.contains(shape)));
+    exit_reason_from(&child.output_tail(), status)
+}
+
+// Fatal diagnostics can precede backtrace frames; prefer them, and an out-of-memory
+// marker counts as one. A withheld line is never the reason: its marker is what the
+// tail ends with.
+fn exit_reason_from(raw_tail: &[String], status: std::process::ExitStatus) -> Failure {
+    let tail = sanitized_tail(raw_tail);
+    let fatal = tail
+        .iter()
+        .rev()
+        .find(|line| is_failure_line(line) || line.as_str() == OUT_OF_MEMORY_WITHHELD);
     Failure::ServerExited {
         exit_code: status.code().map(i64::from),
         exit_signal: exit_signal(status),
@@ -1189,9 +1164,9 @@ mod tests {
     #[test]
     fn the_awaiting_trigger_line_is_withheld() {
         // Defence in depth, not an observed line: absent from the shipped
-        // build's own strings and from the default verbosity, kept on the
-        // list so a future build that prints it prints it nowhere.
-        assert!(carries_request_text("srv  update_slots: awaiting trigger"));
+        // build's own strings and from the default verbosity. The allowlist
+        // never names it, so a future build that prints it prints it nowhere.
+        assert!(!is_safe_engine_line("srv  update_slots: awaiting trigger"));
     }
 
     /// The exception family the fork's server prints with request bytes in
@@ -1217,12 +1192,13 @@ mod tests {
     fn the_engine_stderr_tail_never_carries_request_bytes() {
         let kept = sanitized_tail(&dead_engine_tail());
         let joined = kept.join("\n");
-        for mark in REQUEST_LINE_MARKS {
-            assert!(!joined.contains(mark), "a request line survived: {mark}");
-        }
         assert!(
             !joined.contains("marco"),
             "request bytes survived the filter: {joined}"
+        );
+        assert!(
+            !joined.contains("interpretive dance"),
+            "a request's tool name survived the filter: {joined}"
         );
         assert_eq!(
             kept.iter().filter(|line| line.as_str() == WITHHELD).count(),
@@ -1233,6 +1209,67 @@ mod tests {
             joined.contains("all slots are idle") && joined.contains("metal dispatch"),
             "the ordinary lines survive: {joined}"
         );
+    }
+
+    /// A family the allowlist does not name is withheld, while the start and
+    /// crash lines it does name are kept: the test for the default-deny rule.
+    #[test]
+    fn an_unknown_line_family_is_withheld_and_the_known_lines_survive() {
+        let tail = vec![
+            "load: metal dispatch queue created".to_string(),
+            "slot render: marco's prompt text".to_string(),
+            "/src/ggml-vulkan.cpp:1234: GGML_ASSERT(ctx != nullptr) failed".to_string(),
+        ];
+        let kept = sanitized_tail(&tail);
+        assert_eq!(kept, vec![
+            "load: metal dispatch queue created".to_string(),
+            "/src/ggml-vulkan.cpp:1234: GGML_ASSERT(ctx != nullptr) failed".to_string(),
+            WITHHELD.to_string(),
+        ]);
+    }
+
+    const QUOTED_ASSERT: &str = "/src/llama-context.cpp:1504: GGML_ASSERT(cparams.n_ubatch >= n_tokens && \"encoder requires n_ubatch >= n_tokens\") failed";
+
+    /// The quoted assertion is the crash's own line: kept verbatim, because the
+    /// telemetry signature and the exit reason both read it.
+    #[test]
+    fn a_quoted_assert_line_is_kept_verbatim() {
+        assert_eq!(sanitized_tail(&[QUOTED_ASSERT.to_string()]), vec![QUOTED_ASSERT.to_string()]);
+    }
+
+    /// The exit detail names the quoted assertion, not the generic marker.
+    #[cfg(unix)]
+    #[test]
+    fn the_exit_detail_names_a_quoted_assert_line() {
+        let tail = vec!["slot render: marco's prompt".to_string(), QUOTED_ASSERT.to_string()];
+        let status = std::os::unix::process::ExitStatusExt::from_raw(6);
+        match exit_reason_from(&tail, status) {
+            Failure::ServerExited { detail, .. } => assert_eq!(detail, QUOTED_ASSERT),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    /// A request's line never reads as an out-of-memory death, even when it quotes
+    /// the words: `oom.rs` would skip the restart for a prompt's sake.
+    #[test]
+    fn a_request_line_about_out_of_memory_leaves_the_generic_marker() {
+        let request = vec!["slot render: marco asks about out of memory".to_string()];
+        assert_eq!(sanitized_tail(&request), vec![WITHHELD.to_string()]);
+    }
+
+    /// A backend's out-of-memory line leaves a marker that still says the words, and
+    /// it wins over the generic marker.
+    #[test]
+    fn a_backend_out_of_memory_line_leaves_the_marker_that_names_the_death() {
+        let backend = "ggml_backend_cuda_buffer_type_alloc_buffer: allocating 512.00 MiB on device 0: cudaMalloc failed: out of memory";
+        assert_eq!(sanitized_tail(&[backend.to_string()]), vec![OUT_OF_MEMORY_WITHHELD.to_string()]);
+        assert!(OUT_OF_MEMORY_WITHHELD.contains("out of memory"));
+        let both = vec![
+            "slot render: marco's prompt".to_string(),
+            backend.to_string(),
+            "slot render: more prompt".to_string(),
+        ];
+        assert_eq!(sanitized_tail(&both), vec![OUT_OF_MEMORY_WITHHELD.to_string()]);
     }
 
     /// The exit's own number, on the line of its own the log writes: the
@@ -1363,7 +1400,7 @@ mod tests {
 
     #[test]
     fn a_long_engine_stderr_line_is_clipped_to_three_hundred_characters() {
-        let long = format!("E backend scan: {}", "x".repeat(STDERR_CLIP + 200));
+        let long = format!("load: {}", "x".repeat(STDERR_CLIP + 200));
         let kept = sanitized_tail(&[long]);
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].chars().count(), STDERR_CLIP);

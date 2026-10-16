@@ -86,7 +86,7 @@ fn a_failed_walk_still_leaves_a_reliable_measurement_kept() {
     // screen. But the machine WAS measured, and what was measured must
     // survive the refusal, or every retry measures again and throws it
     // away again.
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let verdict = settle_walk(
         &brain,
         (
@@ -127,7 +127,7 @@ fn an_unreadable_credential_store_does_not_fail_a_running_brain() {
     // running, answering the local chat — does not report itself failed
     // for it. The problem stays visible where pairing lives, on the
     // Devices page, which reads the same store every poll.
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let unreadable = std::env::temp_dir().join(format!(
         "kalsa-brain-unreadable-store-{}.json",
         std::process::id()
@@ -147,7 +147,7 @@ fn an_unreadable_credential_store_does_not_fail_a_running_brain() {
 
 #[test]
 fn a_second_press_while_a_walk_is_running_starts_nothing() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     assert!(brain.begin_walk(|| {}).is_some(), "the first press goes through");
     assert!(
         brain.begin_walk(|| {}).is_none(),
@@ -167,7 +167,7 @@ fn a_second_press_while_a_walk_is_running_starts_nothing() {
 
 #[test]
 fn the_model_page_reads_the_name_from_the_launch_record() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     assert_eq!(
         brain.model_dto().display_name,
         None,
@@ -332,7 +332,7 @@ fn a_listener_bind_error_aborts_pairing_startup() {
 
 #[test]
 fn starting_keeps_the_launch_record_until_the_server_is_running() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let args = kalsa_launch::ServerArgs {
         model_path: PathBuf::from("/models/model.gguf"),
         port: startup::PORT,
@@ -386,7 +386,7 @@ fn a_drain_takes_the_launch_record_down_with_it() {
     // what must not go on describing the engine being torn down: the record
     // carries the capacity and the capability `start_door_if_paired` builds
     // a door from, and neither belongs to an engine on its way out.
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     brain.record_launch(
         startup::LaunchInfo {
             args: launch_args("/models/draining.gguf", startup::PORT),
@@ -422,7 +422,7 @@ fn a_refused_start_never_publishes_its_record() {
     // The second walk of a double start is refused by the supervisor:
     // its argv must not replace the record of the server that kept
     // running, and an accepted start must still publish.
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let running = startup::LaunchInfo {
         args: launch_args("/models/running.gguf", 8137),
         maximum_context: startup::ContextMaxima {
@@ -702,7 +702,7 @@ fn a_road_that_cannot_open_leaves_the_door_serving() {
     // keeps standing, and the panel says the road is not available.
     let (_dir, file) = scratch_pairing("failure");
     std::fs::create_dir_all(road::key_path(&file)).unwrap();
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let started = brain.start_door_if_paired(8130, &file, true);
     assert!(
         started.is_ok(),
@@ -724,7 +724,7 @@ fn a_road_turned_off_by_its_switch_stays_closed_while_the_door_serves() {
     // switch off, a running door does not open one — and the door keeps
     // serving, because the road was always additive.
     let (dir, file) = scratch_pairing("switch-off");
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let started = brain.start_door_if_paired(8130, &file, false);
     assert!(started.is_ok(), "{started:?}");
     assert!(brain.door_port().is_some(), "the door must be serving");
@@ -752,7 +752,7 @@ fn a_poll_reconciles_the_road_with_the_switch_the_file_carries() {
     let (dir, file) = scratch_pairing("reconcile");
     let state_file = dir.0.join("server.state");
     let book = kalsa_iroh::AddressBook::new();
-    let mut brain = Brain::new();
+    let mut brain = Brain::new().expect("the OS has randomness");
     brain.road = Arc::new(road::Road::offline(book.clone()));
     brain
         .start_door_if_paired(8130, &file, true)
@@ -793,7 +793,7 @@ fn a_second_poll_with_the_same_door_does_not_restart_the_road() {
     // must not be torn down and rebuilt by every poll.
     let (_dir, file) = scratch_pairing("idempotent");
     std::fs::create_dir_all(road::key_path(&file)).unwrap();
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     brain.start_door_if_paired(8130, &file, true).unwrap();
     wait_for_road(&brain, road::RoadState::Unavailable);
     let before = brain.road.snapshot();
@@ -808,7 +808,7 @@ fn a_second_poll_with_the_same_door_does_not_restart_the_road() {
 
 #[test]
 fn stopping_the_door_closes_the_road() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let epoch = brain.road.begin();
     brain.road.finish(epoch, None);
     assert!(matches!(
@@ -839,7 +839,7 @@ fn the_road_reaches_the_door_the_app_started() {
     let (upstream, upstream_port) = TestUpstream::start();
 
     let book = kalsa_iroh::AddressBook::new();
-    let mut brain = Brain::new();
+    let mut brain = Brain::new().expect("the OS has randomness");
     brain.road = Arc::new(road::Road::offline(book.clone()));
     brain.start_door_if_paired(upstream_port, &file, true).unwrap();
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
@@ -972,7 +972,7 @@ fn a_set_change_keeps_the_door_and_a_leased_seat_refuses_the_next_request() {
     // that half).
     let (_dir, file) = scratch_pairing("set-swap");
     let (upstream, port) = TestUpstream::slow_start();
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     brain.start_door_if_paired(port, &file, false).unwrap();
     let original = kalsa_pairing::store::load(&file).unwrap().credential_hex();
     let newcomer = "cd".repeat(32);
@@ -1049,7 +1049,7 @@ fn setting_advanced_values_writes_the_file_used_by_startup() {
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     let state_file = root.join("server.state");
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let pairing = root.join("pairing.json");
     let dto = brain
         .set_advanced(&state_file, &pairing, Some(2048), None, Some(false), None, None, None)
@@ -1078,7 +1078,7 @@ fn saving_the_idle_clock_keeps_every_other_launch_value() {
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     let state_file = root.join("server.state");
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let pairing = root.join("pairing.json");
     options::save(
         &state_file,
@@ -1163,7 +1163,7 @@ fn a_stopped_panel_reports_the_saved_launch_values_as_next_start() {
         },
     )
     .expect("save the owner's choice");
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let panel = brain.advanced(&state_file);
     assert!(!panel.running);
     assert_eq!(panel.ubatch_size, 1024);
@@ -1229,7 +1229,7 @@ fn a_store_holding_only_the_host_starts_the_door() {
         .expect("the store reloads")
         .remove(0);
 
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     brain.record_launch(
         startup::LaunchInfo {
             args: kalsa_launch::ServerArgs {
@@ -1321,7 +1321,7 @@ fn the_door_the_app_builds_carries_the_model_identity_and_the_slot_directory() {
 
     let seen = Arc::new(Mutex::new(Vec::<String>::new()));
     let (engine, upstream) = TestUpstream::recording_slot(Arc::clone(&seen));
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     brain.record_launch(
         startup::LaunchInfo {
             args: kalsa_launch::ServerArgs {
@@ -1390,7 +1390,7 @@ fn a_model_with_no_catalog_identity_leaves_the_door_serving_and_the_route_says_w
     // chat route refuses with its own sentence, and a line on the record says
     // why. This is the one degraded state, and it is never silence.
     let (root, file, host, slot_dir) = launched_brain("no-identity");
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     brain.record_launch(
         startup::LaunchInfo {
             args: kalsa_launch::ServerArgs {
@@ -1448,7 +1448,7 @@ fn a_digest_the_door_refuses_builds_no_door_rather_than_one_that_cannot_name_a_c
     // `with_model_hash`, and seven characters are refused before it.
     for digest in ["A1B2C3D4", "a1b2c3dg", "a1b2c3d"] {
         let (root, file, _host, slot_dir) = launched_brain("refused-digest");
-        let brain = Brain::new();
+        let brain = Brain::new().expect("the OS has randomness");
         brain.record_launch(
             startup::LaunchInfo {
                 args: kalsa_launch::ServerArgs {
@@ -1500,7 +1500,7 @@ fn a_missing_store_is_no_seat_and_no_door() {
     let file = root.join(PAIRING_FILE);
     assert_eq!(enrolled_devices(&file), 0);
 
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     brain.start_door_if_paired(1, &file, false).unwrap();
     assert!(brain.door_port().is_none(), "an empty store builds no door");
     let _ = std::fs::remove_dir_all(root);
@@ -1561,7 +1561,7 @@ fn a_waiting_device_is_refused_until_the_owner_allows_it() {
     );
 
     let (_upstream, engine_port) = TestUpstream::slow_start();
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     brain.start_door_if_paired(engine_port, &file, false).unwrap();
     let door_port = brain.door_port().unwrap();
 
@@ -1958,7 +1958,7 @@ fn stand_in_engine() -> (
 /// handshake, the ownership and the stop rungs all execute for real.
 #[test]
 fn the_vision_restart_stops_the_running_engine_before_starting_again() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let exe = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../crates/kalsa-supervisor/tests/fixtures/fake_server.sh");
     assert!(exe.is_file(), "the supervisor's fake server fixture is missing");
@@ -2426,7 +2426,8 @@ impl RunningEngine {
 }
 
 /// The line the probe engine writes to its stderr before it becomes the fixture.
-const STDERR_PROBE: &str = "kalsa-stderr-probe";
+/// It takes a startup shape, the only kind the stderr file keeps.
+const STDERR_PROBE: &str = "load: kalsa-stderr-probe";
 
 /// `path` as one POSIX shell word: single quotes, with each embedded quote
 /// closed, escaped and reopened.
@@ -2482,7 +2483,7 @@ fn a_fixture_path_with_quotes_and_metacharacters_survives_the_probe_wrapper() {
 #[cfg(unix)]
 #[test]
 fn the_engine_stderr_is_kept_in_the_log_folder() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let dir = std::env::temp_dir().join(format!("kalsa-engine-stderr-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     keep_engine_stderr(&brain, dir.clone());
@@ -2521,7 +2522,7 @@ fn the_setup_hook_keeps_the_engine_stderr_once() {
 #[test]
 fn the_reconcile_follows_the_engine_with_no_page_involved() {
     let (root, file, _host, _slots) = launched_brain("door-reconcile");
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let desk = pairing::Desk::new(file.clone());
     let engine = RunningEngine::start(&brain, "door-reconcile");
     let leaving = AtomicBool::new(false);
@@ -2581,7 +2582,7 @@ fn the_reconcile_follows_the_engine_with_no_page_involved() {
 #[test]
 fn a_tick_reads_no_store_for_an_open_door_and_never_raises_while_leaving() {
     let (root, file, _host, _slots) = launched_brain("door-reconcile-battery");
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let desk = pairing::Desk::new(file.clone());
     let engine = RunningEngine::start(&brain, "door-reconcile-battery");
     let leaving = AtomicBool::new(false);
@@ -2663,7 +2664,7 @@ fn a_tick_reads_no_store_for_an_open_door_and_never_raises_while_leaving() {
 #[test]
 fn a_stop_landing_during_a_raise_leaves_the_door_down() {
     let (root, file, _host, _slots) = launched_brain("door-raise-recheck");
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let desk = pairing::Desk::new(file.clone());
     let engine = RunningEngine::start(&brain, "door-raise-recheck");
     let leaving = AtomicBool::new(false);
@@ -2718,7 +2719,7 @@ fn a_raise_parked_mid_install_cannot_outlive_a_later_read() {
     let phone = kalsa_pairing::store::load(&phone_file).expect("the phone reloads");
     let phone = kalsa_pairing::store::add_device(&file, "Paired phone", &phone)
         .expect("a phone pairs beside the host");
-    let brain = Arc::new(Brain::new());
+    let brain = Arc::new(Brain::new().expect("the OS has randomness"));
 
     // The brake: with the door lock held, the first raise reads the store
     // and parks before it can install anything.
@@ -3107,7 +3108,7 @@ fn the_switch_save_pin_bites_when_the_save_is_deleted_reordered_unawaited_or_ung
 /// save runs must wait for the stop, so no start can land between them.
 #[test]
 fn a_walk_claimed_during_a_turn_off_waits_for_its_save() {
-    let brain = Arc::new(Brain::new());
+    let brain = Arc::new(Brain::new().expect("the OS has randomness"));
     let (saving, in_save) = std::sync::mpsc::channel();
     let (finish, release) = std::sync::mpsc::channel::<()>();
     let turning_off = Arc::clone(&brain);
@@ -3188,7 +3189,7 @@ fn the_quit_pin_bites_when_the_declaration_waits_on_the_gate() {
 /// regardless, and the panic is caught where the save's warning is logged.
 #[test]
 fn the_engine_stop_goes_on_when_the_save_panics() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let engine = RunningEngine::start(&brain, "save-panics");
     brain.save_then_stop(|| panic!("the save broke"));
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -3206,7 +3207,7 @@ fn the_engine_stop_goes_on_when_the_save_panics() {
 /// Turn off's save it must return anyway, and still move the generation.
 #[test]
 fn a_quit_declared_while_the_gate_is_held_does_not_wait_for_it() {
-    let brain = Arc::new(Brain::new());
+    let brain = Arc::new(Brain::new().expect("the OS has randomness"));
     let held = brain.gate.lock().unwrap_or_else(|e| e.into_inner());
     let (declared, returned) = std::sync::mpsc::channel();
     let quitting = Arc::clone(&brain);
@@ -3466,7 +3467,7 @@ fn the_pairing_dto_carries_the_desks_actual_port() {
     // must be its only claimant in this binary.
     let holder = pairing_desk_with(root.join("pairing.json"), |desk| transport::serve_on(desk, 0))
         .unwrap();
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let dto = serde_json::to_value(tauri::async_runtime::block_on(pairing_dto(&brain, &holder)))
         .unwrap();
     assert_eq!(
@@ -3557,7 +3558,7 @@ fn the_retry_comes_from_the_starts_own_settled_report() {
 /// follows the tune must not happen and nothing may be recorded for it.
 #[test]
 fn a_stop_during_the_tune_prevents_the_start_after_it() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let stops_seen = brain.stops.load(Ordering::SeqCst);
     // The Turn off, mid-tune:
     brain.stops.fetch_add(1, Ordering::SeqCst);
@@ -3612,7 +3613,7 @@ fn a_stop_during_the_tune_prevents_the_start_after_it() {
 /// could fix: the retry must not queue it back up.
 #[test]
 fn a_stop_during_the_tuned_start_prevents_the_retry() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let stops_seen = brain.stops.load(Ordering::SeqCst);
     let settled = Some(StartSettled::Failed(Failure::ServerNotStarted {
         detail: "the tuned exe vanished".to_string(),
@@ -3676,7 +3677,7 @@ fn gone_config(tag: &str, port: u16) -> kalsa_supervisor::ServerConfig {
 /// first, then stops it, so the state ends down either way.
 #[test]
 fn a_stop_between_the_check_and_the_send_ends_with_the_state_down() {
-    let brain = std::sync::Arc::new(Brain::new());
+    let brain = std::sync::Arc::new(Brain::new().expect("the OS has randomness"));
     let stops_seen = brain.begin_walk(|| {}).expect("first walk");
     let config = gone_config("between-check-send", 8197);
 
@@ -3744,7 +3745,7 @@ fn a_stop_between_the_check_and_the_send_ends_with_the_state_down() {
 /// bump and the later check refuses the start.
 #[test]
 fn a_stop_between_the_claim_and_the_snapshot_refuses_the_start() {
-    let brain = std::sync::Arc::new(Brain::new());
+    let brain = std::sync::Arc::new(Brain::new().expect("the OS has randomness"));
 
     let (entered_tx, entered_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
@@ -3947,7 +3948,7 @@ fn a_check_timeout_reads_as_slow() {
 /// launch was the last one tried.
 #[test]
 fn a_graphics_start_that_does_not_come_up_falls_back_to_the_processor() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let stops_seen = brain.begin_walk(|| {}).expect("first walk");
     let prepared = graphics_prepared("fallback", 8178, 8179);
     let graphics_threads = prepared.info.args.threads;
@@ -3976,7 +3977,7 @@ fn a_graphics_start_that_does_not_come_up_falls_back_to_the_processor() {
 /// graphics launch stays the recorded one and the failure is the walk's.
 #[test]
 fn a_graphics_start_with_no_processor_beside_it_keeps_its_own_launch() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let stops_seen = brain.begin_walk(|| {}).expect("first walk");
     let mut prepared = graphics_prepared("no-fallback", 8176, 8177);
     let graphics_threads = prepared.info.args.threads;
@@ -3995,7 +3996,7 @@ fn a_graphics_start_with_no_processor_beside_it_keeps_its_own_launch() {
 /// is never queued.
 #[test]
 fn a_turn_off_during_the_check_prevents_the_restart() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let stops_seen = brain.begin_walk(|| {}).expect("first walk");
     // The Turn off, mid-check:
     brain.stops.fetch_add(1, Ordering::SeqCst);
@@ -4153,7 +4154,7 @@ fn a_failed_check_keeps_the_graphics_launch() {
 /// door down forever.
 #[test]
 fn the_walk_guard_releases_the_claim_on_every_exit() {
-    let brain = Brain::new();
+    let brain = Brain::new().expect("the OS has randomness");
     let _seen = brain.begin_walk(|| {}).expect("first claim");
     {
         let _walk = WalkGuard(&brain);

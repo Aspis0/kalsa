@@ -40,7 +40,15 @@ pub(crate) async fn open_in_background(state_file: PathBuf) -> Result<Host<Stdio
         open_saved(&state_file, &Keychain, &program)
     })
     .await
-    .map_err(|_| MailError::Failed)?
+    .map_err(blocking_task_failed)?
+}
+
+/// A blocking task that did not finish. Only its outcome is logged: a panic payload
+/// is not, since it can carry the bootstrap line.
+fn blocking_task_failed(error: tokio::task::JoinError) -> MailError {
+    let how = if error.is_panic() { "panicked" } else { "was cancelled" };
+    log::warn!("mail blocking task {how}");
+    MailError::Failed
 }
 
 /// Starts the sidecar for an account, lists the newest mails, and shuts the sidecar
@@ -48,7 +56,7 @@ pub(crate) async fn open_in_background(state_file: PathBuf) -> Result<Host<Stdio
 pub(crate) async fn probe(account: &MailAccount, password: &str) -> Result<Vec<String>, MailError> {
     let program = tokio::task::spawn_blocking(program::current)
         .await
-        .map_err(|_| MailError::Failed)??;
+        .map_err(blocking_task_failed)??;
     let mut host = build(&program, account, password)?;
     let outcome = host.call(PANEL_CONVERSATION, "mail.list", probe_arguments()).await;
     drop(host);

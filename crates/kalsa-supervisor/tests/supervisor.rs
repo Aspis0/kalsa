@@ -85,7 +85,7 @@ fn a_server_dying_after_it_served_is_reported_without_taking_us_down() {
             assert_eq!(exit_code, Some(7));
             assert_eq!(exit_signal, None);
             assert!(
-            detail.contains("failed to load the model"),
+            detail.contains("GGML_ASSERT fake-dies.cpp:7"),
             "detail: {detail}"
         );
         },

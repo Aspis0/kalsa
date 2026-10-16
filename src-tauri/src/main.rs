@@ -477,12 +477,12 @@ fn disk_tier(launch: Option<&startup::LaunchInfo>) -> Result<DiskTier, DiskTierR
 }
 
 impl Brain {
-    fn new() -> Self {
+    fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let supervisor = Supervisor::new();
         let metrics = Arc::new(metrics::RuntimeMetrics::new(supervisor.release_watcher()));
-        Self {
+        Ok(Self {
             supervisor,
-            engine_key: EngineKey::mint().expect("the OS has randomness"),
+            engine_key: EngineKey::mint()?,
             door: Arc::new(Mutex::new(None)),
             pairing_install: Mutex::new(()),
             launch: Mutex::new(None),
@@ -499,7 +499,7 @@ impl Brain {
             room: OnceLock::new(),
             phone_chat: Arc::new(phone_chat::Bridge::default()),
             room_events: Mutex::new(None),
-        }
+        })
     }
 
     /// Claims the single walk and takes the stop generation it races, as
@@ -2497,7 +2497,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ui_event::page_line(load, event, webview.label(), payload.url().as_str())
             );
         })
-        .manage(Arc::new(Brain::new()))
+        .manage(Arc::new(Brain::new()?))
         .manage(web::WebCalls::default())
         .manage(files::Searches::default())
         .manage(mail::state::MailState::default())
