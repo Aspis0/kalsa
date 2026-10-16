@@ -482,7 +482,9 @@ impl Brain {
         let metrics = Arc::new(metrics::RuntimeMetrics::new(supervisor.release_watcher()));
         Ok(Self {
             supervisor,
-            engine_key: EngineKey::mint()?,
+            // getrandom's error is std::error::Error only with its `std` feature,
+            // which only the test build turns on: its words are what we keep.
+            engine_key: EngineKey::mint().map_err(|error| error.to_string())?,
             door: Arc::new(Mutex::new(None)),
             pairing_install: Mutex::new(()),
             launch: Mutex::new(None),
