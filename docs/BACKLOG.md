@@ -532,6 +532,7 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - The fresh-chat branch of `send` drops the mail riders (note, subject, pin); unreachable from a card today because cards need an active chat.
 
 ## Phone: NPU lane alone when the GPU does not fit (phone d598a4b9, kalsa.rn d4754cb5, deepseek review, 2026-10-15, phone repo)
+- Xiaomi in-app, 2026-10-15 23:40 (APK 38821127533): at 5472 MiB available the full plan runs (gpu Fit, npu Fit, HTP0): prefill 1241 tokens on the NPU in 2.6 s, decode on the NPU 7.4 tok/s, prewarm 1760 tokens 3.6 s. At 3182 MiB the plan was gpu Fit, npu NoFit (with_gpu price 3300): the NPU is dropped and the GPU kept, prewarm 14.4 s. The lane-only branch only fires on GPU NoFit, so between ~3080 and ~3300 MiB the phone loses the NPU although NPU-alone (~2500) would fit. Owner's call: prefer lane-only over GPU-without-NPU there. Lane-only itself is still unverified in-app (could not get the GPU to NoFit; LMK freed memory on reload).
 - Lane-only one-copy load is {HTP0} with no OpenCL leg: the tied token_embd output projection (Q6_K) runs on the CPU, slower; whether the CPU reads the HTP host buffer in place or the scheduler copies it is unmeasured.
 - The lane-only memory cell ran at the bench's ctx 2048 (governor-bench has no `-c`); the app's ctx 16384 KV on HTP is priced, not measured.
 - «Poca memoria libera» after a runtime HTP failure between the load and the first turn's stats stays hidden until those stats arrive.
