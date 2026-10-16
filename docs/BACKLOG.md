@@ -475,13 +475,8 @@ The hidden-text label is best effort. The boundary is the fence, the host's tain
 ## Security audit of the desktop, GLM-5.3 (2026-10-15)
 Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, no key) is fixed separately. The rest:
 - P1: every gate lives in the WebView. `brain_mail_send`, `brain_mail_read`, `brain_files_read` and the other commands are callable by any script in the page. No injection into the page was found (closed CSP, raw HTML shown as text, no remote images). A Rust-side send token was considered and not done, because a script that can call send can also call draft. The real defence is keeping the page free of script injection. Revisit if mini apps or attachments ever render active content.
-- `web_search` query words can carry mail text to Exa without an ask: the gate is armed only by pinned documents. Arm a lighter ask when fenced mail is in the conversation (`toolLoop.ts` already knows `MAIL_NAMES`).
-- Telemetry uploads the log folder. The llama-server stderr filter is a blacklist (`supervisor.rs` `REQUEST_LINE_MARKS`). Invert it to an allowlist.
-- `mailbox.rs` `headers()` fetches whole header blocks with no size cap. One mail with a multi-megabyte header costs memory and the call's deadline. Fetch only FROM and DATE, partially.
 - Sidecar pin: there is a verify → spawn → verify swap race (`kalsa-mcp/src/launch.rs`). Hash and execute a private copy.
 - Pairing desk lane: six free identities exhaust it (declared at `kalsa-iroh/src/bridge.rs:122`). Open the lane only while an offer is live.
-- Control characters from a hostile Message-ID reach `In-Reply-To`/`References` (no CR/LF, so this is not injection). Pass both through `invisible::one_line` in `compose.rs`.
-- `brain_mail_account_save` accepts any typed host for a known provider's address. Warn when the host does not match the provider.
 - The updater endpoint is still the `REPLACE_WITH_UPDATE_KEY` placeholder in tauri.conf.json.
 
 ## Engine key and phone chat leftovers (reviews of 2026-10-15)
@@ -500,11 +495,9 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 
 ## Mail kept IMAP session, deepseek review (2026-10-15, left over)
 - The global mail state lock is still held across `host.call` (`src-tauri/src/mail/state.rs`), so settings, save and delete queue behind a live IMAP or SMTP round trip (up to 60 s). The runtime no longer starves; serialization remains. Making `Host` (kalsa-mcp) callable concurrently is a redesign.
-- Idle expiry of the kept IMAP session is lazy: an authenticated session stays open until the next call. Close it on a timer, or LOGOUT when the sidecar goes idle.
 - The senders "known" set is only appended to, never pruned on EXPUNGE, so a deleted sender still counts as known for the `PaymentUrgencyNewSender` hint.
 - Concurrent tool calls queue on the one kept session: a 50-item list delays an unrelated single read.
 - Each read now sends 2-3 IMAP CHECKs (before and after the body); the cost on a real server is not measured.
-- A `spawn_blocking` panic in `open_in_background` (`src-tauri/src/mail/host.rs`) becomes `MailError::Failed` with no log line.
 
 ## Mail live fixes, luna review of 6bd34292 (2026-10-15, left over)
 - Link signals skip anchors with no host: `javascript:`, `data:` and relative hrefs get no phishing signal (`label/phishing.rs` continues when `domain::host_of` is None), so a URL-looking label can hide such a target. The pane renders text only, so nothing runs; it is a warning blind spot. The rule for those schemes is the owner's call.
@@ -544,3 +537,20 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - The GPU threshold moved by 300 − (compute + KV) (−53 MiB at ctx 16384, −250 at ubatch 512): accepted, J(1) measured 2870 MiB vs 3000 predicted without the duplicate; a second device (S23) J(1) cell at the app's ctx would confirm.
 - `PairingScreen` "an edit stops the abandoned poll's probes at once" failed once under the full jest run (probes 2, expected > 2), passed 3/3 alone: a timing flake.
 - A {HTP0, GPUOpenCL} bench load without GGML_OPENCL_TILE32_UNMEASURED on the Adreno 750 asserts (`GGML_ASSERT(tensor->view_src->data != NULL)`, ggml-backend.cpp:2275) instead of refusing.
+
+## Brain hardening batch (2ae17805, 70db5303, chat commit; deepseek 743cd1e1 and c02fffcb, 2026-10-15, left over)
+- Engine stderr allowlist (`crates/kalsa-supervisor/src/engine_lines.rs`) is anchored at the line start: an engine line that reprints user text over several lines lets through any such line that begins like an allowed family or a failure (`GGML_ASSERT`, `slot release:`, bare prefixes `load: `, `main: `, `srv init:`). Tighten the GGML_ASSERT shape to `<file>:<n>: GGML_ASSERT(...) failed` and drop the bare prefixes not seen in the real log. Flagged twice by the background security review.
+- The allowlist is safe only at the engine's default verbosity (`slot launch_slot_` dumps the slot JSON at DEBUG); the invariant lives in `kalsa-launch` `LOUD` and `child.rs` `strip_llama_env`.
+- `segmentation fault` is start-anchored: `signal 11 (segmentation fault)` is not a failure line.
+- llama.cpp load families (`load_tensors`, `llama_model_loader`, …) not seen in the 2102-line real log are unverified; a backend that prints its load under another family is withheld.
+- A withheld line not under `slot `/`srv `/`que ` and not matching `REQUEST_TEXT_MARKS` counts for out-of-memory: a request echo under another family can still mark a death as OOM (no auto-restart).
+- `Brain::new` failing on the OS RNG exits before logging is installed: no log line, no dialog.
+- The kept IMAP session's port is not pinned with the host for a known provider (`accounts.rs` `form.port.or(guessed_port)`); TLS is host-decided, so a wrong port only fails.
+- `kalsa-mail` clippy: 2 pre-existing `duplicate_mod` errors. `a_starting_engine_is_publishable_before_it_is_ready` (kalsa-supervisor) is flaky, pre-existing.
+- Web gate: the mail allowance is one per conversation (owner, 2026-10-15: ask once, then normal), so mail arriving after the allow is never asked about; no detector compares a query against mail text.
+- Web gate: the mail arm reads the wire, so a conversation whose mail tool result was shed by the context fit stops asking.
+- Web gate: the dialog's Allow button takes focus on appear (`WebGateDialog.tsx`), so an Enter typed into the composer as the ask lands allows the call.
+- Phone: web calls in a conversation with mail run with no ask and no sensitive-data detection (owner's choice, 2026-10-15); only the unseen-address and provenance refusals apply.
+- A mail card's «draft a reply» goes through `sendMessage`, which has no streaming guard (`useChat.ts`): a second turn can start in a conversation already streaming.
+- Mail send confirm: a Send offered while another send is in flight is ignored with no message (`useMail.ts` `offerSend`).
+- A draft run arms the web gate like a read does (the draft carries fenced mail).
