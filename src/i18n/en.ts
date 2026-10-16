@@ -1198,6 +1198,29 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     checklistPrompt: "Turn this into an ordered checklist.",
   },
 
+  /** The one-time, before-the-first-search privacy notice. {provider} is the
+   *  display name of the provider registry's active provider, never a literal
+   *  here. */
+  searchNotice: {
+    title: "Search the web?",
+    body: "Kalsa will send the search to {provider}. {provider} sees the search words and your internet address. Your conversation stays on this phone.",
+    search: "Search",
+    notNow: "Not now",
+    /** The model-facing text when the user said "Not now": this search is
+     *  skipped and the notice comes back next time. */
+    declined: "The search did not run: the user chose not to send it to the web this time. Answer from what you already know, and say the search did not run.",
+    /** Fail-closed text: the stored choice or the provider name could not be
+     *  read, so the search did not run. */
+    unavailable:
+      "The search did not run: the web-search permission could not be read on this phone. Say the search did not run and that they can try again.",
+    /** The primary request already went out and failed, so "did not run" would
+     *  be false. {primary} and {fallback} are provider display names. Used for
+     *  the decline and for the fail-closed case alike: either way the query
+     *  never reached the fallback. */
+    fallbackDeclined:
+      "The search reached {primary} but failed, and the user chose not to send it to {fallback}. Say the search failed and that they can try again.",
+  },
+
   wizard: {
     back: "Back",
     next: "Next",

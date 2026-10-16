@@ -57,8 +57,22 @@ function labelForPrimaryFailure(
   return "Primary";
 }
 
+/**
+ * The tool's first-search gate, injected by the host so this module stays free
+ * of UI. Called once per search, after the empty-query check and before
+ * searchWeb, so the user is never asked about a query that never runs.
+ */
+/**
+ * The one-time per-provider consent, injected by the host so this module stays
+ * free of UI. searchWeb calls it for every recipient it is about to send a
+ * query to — the active provider and, when that fails, the free Exa MCP
+ * fallback — because only searchWeb knows who the recipients are.
+ */
+type SearchConsentGate = NonNullable<Parameters<typeof searchWeb>[1]["consent"]>;
+
 export function makeWebSearchExecutor(
   locale: Locale,
+  consent: SearchConsentGate,
 ): (
   name: string,
   args: Record<string, unknown>,
@@ -73,13 +87,15 @@ export function makeWebSearchExecutor(
     const query = String(args.query ?? "").trim();
     if (!query) return { text: strings.errors.emptySearchQuery };
 
-    // Privacy gate lives at executeTool (runToolGate / registry).
+    // Privacy gate lives at executeTool (runToolGate / registry). This one is
+    // here rather than there because only a query that is really about to run
+    // is worth asking about.
 
     // searchWeb also clamps; tool-level default is 4.
     const numResults = normalizeNumResults(args.numResults ?? 4);
     let outcome: Awaited<ReturnType<typeof searchWeb>>;
     try {
-      outcome = await searchWeb(query, { locale, numResults, signal });
+      outcome = await searchWeb(query, { locale, numResults, signal, consent });
     } catch (error) {
       if (!(signal?.aborted)) {
         try {
@@ -103,6 +119,10 @@ export function makeWebSearchExecutor(
       }
       throw error;
     }
+
+    // A refused recipient made no request at all: relay the refusal instead of
+    // dressing an empty result set up as an answer.
+    if (outcome.refused) return { text: outcome.refused };
 
     const sources = outcome.results.map((result) => ({
       title: result.title,

@@ -10,6 +10,7 @@
  */
 import type { LlamaContext } from "llama.rn";
 import { getCachedDeviceProfile } from "./deviceProfile";
+import { markGovernorTurnGap, resetGovernorTurnCost } from "./governorTurnLog";
 import {
   buildObservationRow,
   type GovernorObservationRow,
@@ -39,12 +40,17 @@ export function resetObservationBaseline(): void {
   prevStats = null;
   gapPending = false;
   generation += 1;
+  // The report's per-turn decode-cost line deltas against its own baseline.
+  // Same meaning, same call: resetting it here is what stops a future call
+  // site from forgetting it.
+  resetGovernorTurnCost();
 }
 
 /** The completion before the next read was skipped: its counters fold into
- *  the next row, which must carry gap:1. */
+ *  the next row, which must carry gap:1 — and into the next report line. */
 export function markObservationGap(): void {
   gapPending = true;
+  markGovernorTurnGap();
 }
 
 export type ObservationReadArgs = {

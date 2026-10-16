@@ -8,9 +8,24 @@
  * standalone `--ignoreConfig` compile the session harnesses run. ModelRegistry
  * re-exports the type, so app-side importers are unaffected.
  */
+/** The closed set of cache ggml type names, named once so KvCacheProfile and
+ *  the report's governor cache-type enums (tagSchemas.ts) cannot drift. */
+export const KV_CACHE_TYPES = [
+  "f16",
+  "f32",
+  "q8_0",
+  "q4_0",
+  "q4_1",
+  "iq4_nl",
+  "q5_0",
+  "q5_1",
+] as const;
+
+export type KvCacheType = (typeof KV_CACHE_TYPES)[number];
+
 export type KvCacheProfile = {
-  k: "f16" | "f32" | "q8_0" | "q4_0" | "q4_1" | "iq4_nl" | "q5_0" | "q5_1";
-  v: "f16" | "f32" | "q8_0" | "q4_0" | "q4_1" | "iq4_nl" | "q5_0" | "q5_1";
+  k: KvCacheType;
+  v: KvCacheType;
 };
 
 // The standalone `--ignoreConfig` harness compile has no node types; this

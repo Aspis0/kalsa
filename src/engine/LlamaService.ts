@@ -66,6 +66,15 @@ import {
   resetObservationBaseline,
 } from "./governorObservationRead";
 import { noteSpeedBreakerTrip, recordLearnedObservation } from "./governorLearned";
+import {
+  GOVERNOR_NOT_ELIGIBLE_REASON,
+  GOVERNOR_THERMO_INVALID_REASON,
+  governorFallbackCodeFromNative,
+  governorTurnLogLines,
+  governorTurnPayloads,
+  type GovernorFallbackCode,
+} from "./governorTurnLog";
+import { logGovernorLoad } from "./governorLoadLog";
 import { readHtpRuntimeArch } from "./htpRuntimeArch";
 import { cleanTranslationOutput, stripThinkAndFences } from "./outputCleaners";
 import {
@@ -399,6 +408,10 @@ let activeGovernorLaneOnly = false;
 let activeGovernorActive = false;
 let activeGovernorForced = false;
 let activeGovernorFallbackReason = "";
+/** The same fallback as the report's closed code. Two variables, one per
+ *  audience: the prose rides the wide logcat line bench tools read, the code
+ *  rides KALSA_GOVERNOR_COST, which never carries free text. */
+let activeGovernorFallbackCode: GovernorFallbackCode = "none";
 /** JSON of engine override for session meta; undefined when production defaults. */
 let activeEngineKnob: string | undefined;
 /** Speculative knobs for session meta (save/load match). Cleared on dispose. */
@@ -2016,6 +2029,19 @@ async function emitGovernorTelemetry(
         state_source: stats.state_source,
       })}`,
     );
+    // The uploaded report reads these two, not the wide line above (which
+    // bench tools own): same facts, short keys, inside normalize.ts's clip.
+    for (const line of governorTurnLogLines(
+      governorTurnPayloads({
+        stats: npuStats,
+        forced: activeGovernorForced,
+        fallbackCode: activeGovernorFallbackCode,
+        routeChunks: (completionResult as { route_chunks?: unknown } | null | undefined)
+          ?.route_chunks,
+      }),
+    )) {
+      console.log(line);
+    }
     if (stats.failure_reason) {
       console.warn(
         `KALSA_GOVERNOR_FAILED ${JSON.stringify({
@@ -2031,6 +2057,9 @@ async function emitGovernorTelemetry(
       "[emitGovernorTelemetry] governor stats unavailable:",
       error instanceof Error ? error.message : error,
     );
+    // This turn produced no COST line, so the next one must not delta across
+    // the hole and call the two turns' cost one turn's.
+    markObservationGap();
   }
 }
 
@@ -2929,6 +2958,7 @@ export function initEngine(
     const governorLoadEpoch = beginNativeLogEpoch();
     let governorUsed = false;
     activeGovernorFallbackReason = "";
+    activeGovernorFallbackCode = "none";
     try {
       // A runtime-fallback reload must be CPU-only whatever governorLoad, the
       // governor setting or eligibility say at this moment: it takes the
@@ -2956,6 +2986,7 @@ export function initEngine(
         governorUsed = !governorRuntimeOff && !result.retried;
         if (result.retried) {
           activeGovernorFallbackReason = result.fallbackReason ?? "native governor fallback";
+          activeGovernorFallbackCode = governorFallbackCodeFromNative(result.fallbackReason);
         }
       } else {
         context = await initLlama(params);
@@ -2985,6 +3016,10 @@ export function initEngine(
               : params.n_gpu_layers ?? 0,
         })}`,
       );
+      // What this load BUILT: the legs, the KV decision, the zone counts. The
+      // uploaded report reads it from here; without the line it could see a
+      // turn's numbers but never the load that produced them.
+      logGovernorLoad(context.governorLoad);
     } catch (error) {
       try {
         // Opt-in telemetry: categories + allowlisted signal only (no stack/path).
@@ -3092,8 +3127,11 @@ export function initEngine(
     activeGovernorForced = governorFeatureEnabled && governorBase?.forced === true;
     if (activeGovernorAttempted && !governorLoad && !activeGovernorFallbackReason) {
       activeGovernorFallbackReason = governorThermo?.sensor_valid
-        ? "governor not eligible"
-        : "governor: thermo profile invalid";
+        ? GOVERNOR_NOT_ELIGIBLE_REASON
+        : GOVERNOR_THERMO_INVALID_REASON;
+      activeGovernorFallbackCode = governorThermo?.sensor_valid
+        ? "not_eligible"
+        : "thermo_invalid";
     }
     activeEngineKnob =
       options.engineOverride !== undefined
@@ -3205,6 +3243,9 @@ async function reloadGovernorRuntimeFallback(
     console.log(
       `KALSA_GOVERNOR_RUNTIME_FALLBACK ${JSON.stringify({ reason, turnId, attempt })}`,
     );
+    // The turn this fallback abandons gets no COST line, so the next one must
+    // not fold its counters into the next turn's delta.
+    markObservationGap();
   } catch {
     // telemetry never throws
   }
@@ -3225,6 +3266,10 @@ async function reloadGovernorRuntimeFallback(
     // history — accepted.
     sessionRestore: undefined,
   });
+  // After the reload, which resets the code itself: from here on this context
+  // is CPU-only because the governor fell back at runtime, and that is the
+  // reason the report's COST line must carry for the rest of the session.
+  activeGovernorFallbackCode = "runtime";
 }
 
 async function noteEngineRssAfterInit(): Promise<void> {
@@ -3293,6 +3338,7 @@ async function disposeEngineLocked(opts?: {
     activeGovernorActive = false;
     activeGovernorForced = false;
     activeGovernorFallbackReason = "";
+    activeGovernorFallbackCode = "none";
     // The observation baseline dies with the governor identity: a new load
     // starts its rows fresh (first_row again).
     resetObservationBaseline();
@@ -5439,6 +5485,10 @@ export async function streamAssistantTurn(
       finishOnce(() => callbacks.onDone());
     } catch (error) {
       const stopped = Boolean(aborted || signal?.aborted);
+      // The turn produced no COST line: either it threw before
+      // emitGovernorTelemetry, or the user stopped it. The next turn's delta
+      // must not span the hole.
+      markObservationGap();
       if (stopped) {
         finishOnce(() => callbacks.onDone());
         return;

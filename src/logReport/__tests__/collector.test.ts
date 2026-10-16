@@ -129,10 +129,18 @@ describe("accepted and rejected console lines", () => {
   it("excluded tags are never written", () => {
     const { collector } = loadFresh();
     collector.installLogReportCollector();
-    console.log('KALSA_SESSION {"op":"save","stemHash":"abc"}');
     console.log('KALSA_NATIVE {"raw":"the user said hello"}');
     console.log("not a tag at all");
     expect(storedLines()).toEqual([]);
+  });
+
+  it("writes a session verdict but never the stem that rides beside it", () => {
+    const { collector, logStore } = loadFresh();
+    collector.installLogReportCollector();
+    console.log('KALSA_SESSION {"op":"save","ok":false,"reason":"governor_mode","stemHash":"a1b2c3d4"}');
+    const stored = logStore.readReportText();
+    expect(stored).toContain('KALSA_SESSION {"op":"save","ok":false,"reason":"governor_mode"}');
+    expect(stored).not.toContain("a1b2c3d4");
   });
 
   it("a field of the wrong kind is dropped and the remaining record still counts", () => {

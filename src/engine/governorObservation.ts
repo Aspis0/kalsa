@@ -15,7 +15,7 @@ import type { GovernorStats } from "llama.rn";
 /** The binding commit this row format (v:1) was built against; package.json
  *  pins the same sha. The row carries its own copy so a pulled observations
  *  file identifies its producer without the repo. */
-export const OBSERVATION_BINDING_PIN = "f385ebdde06dacce61bb3360144cd5dca6de489e";
+export const OBSERVATION_BINDING_PIN = "6d14bf735baecab5cbeb43c73eba12b72870dc00";
 
 /**
  * The Stage 0 fields the 861a3cc3 wire carries. The binding's committed
@@ -131,9 +131,10 @@ const finiteOrNull = (value: number | undefined): number | null =>
  * whose layers sat on HTP0 (llama-ext.h:517-524). A device named "" (the
  * binding's unknown) names no device, so it is dropped rather than stored;
  * with nothing left, or with no chunk array at all, the answer is null —
- * absent, never invented.
+ * absent, never invented. The per-turn report line (governorTurnLog.ts) reads
+ * the same list, so the row and the uploaded report cannot disagree.
  */
-function prefillDevices(routeChunks: unknown): string[] | null {
+export function prefillDevices(routeChunks: unknown): string[] | null {
   if (!Array.isArray(routeChunks)) return null;
   const devices: string[] = [];
   for (const chunk of routeChunks) {

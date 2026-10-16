@@ -18,6 +18,11 @@ export type SearchProviderId = "exa-mcp" | "exa" | "brave" | "tavily";
 export type ProviderMeta = {
   id: SearchProviderId;
   /**
+   * Short display name for sentences that name the provider (the one-time
+   * first-search notice). Copes interpolate it; they never hardcode a brand.
+   */
+  name: string;
+  /**
    * English brand label for non-UI paths (error messages, logs).
    * UI must use i18n keys settings.provider* instead of this field.
    */
@@ -32,23 +37,27 @@ export const DEFAULT_PROVIDER_ID: SearchProviderId = "exa-mcp";
 export const PROVIDERS: Record<SearchProviderId, ProviderMeta> = {
   "exa-mcp": {
     id: "exa-mcp",
+    name: "Exa",
     label: "Exa MCP (free)",
     needsKey: false,
   },
   exa: {
     id: "exa",
+    name: "Exa",
     label: "Exa API",
     needsKey: true,
     keyPlaceholder: "exa-…",
   },
   brave: {
     id: "brave",
+    name: "Brave",
     label: "Brave Search",
     needsKey: true,
     keyPlaceholder: "BSA…",
   },
   tavily: {
     id: "tavily",
+    name: "Tavily",
     label: "Tavily",
     needsKey: true,
     keyPlaceholder: "tvly-…",

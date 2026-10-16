@@ -70,6 +70,18 @@ function projectValue(rule: FieldRule, value: unknown): unknown {
       }
       return out;
     }
+    case "enumArray": {
+      if (!Array.isArray(value) || value.length > rule.maxItems) return undefined;
+      const out: string[] = [];
+      for (const item of value) {
+        // A name outside the closed backend set (a new ggml backend, a
+        // colon-separated multi-HTP alias) drops the whole field: the list's
+        // value is "which of the known devices ran this", not a free string.
+        if (typeof item !== "string" || !rule.values.includes(item)) return undefined;
+        out.push(item);
+      }
+      return out;
+    }
     case "idObj": {
       if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
       const out: Record<string, string> = {};

@@ -1166,6 +1166,25 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     checklistPrompt: "Trasforma questo in una checklist ordinata.",
   },
 
+  /** Avviso una tantum, prima della prima ricerca. {provider} è il nome
+   *  visualizzato del provider attivo nel registro, mai un letterale qui. */
+  searchNotice: {
+    title: "Cercare sul web?",
+    body: "Kalsa manderà la ricerca a {provider}. {provider} vede le parole cercate e il tuo indirizzo internet. La conversazione resta su questo telefono.",
+    search: "Cerca",
+    notNow: "Non ora",
+    declined:
+      "La ricerca non è partita: l'utente ha scelto di non mandarla sul web questa volta. Rispondi con quello che sai già e di' che la ricerca non è partita.",
+    unavailable:
+      "La ricerca non è partita: non è stato possibile leggere il permesso di ricerca sul web su questo telefono. Di' che la ricerca non è partita e che si può riprovare.",
+    /** La richiesta al provider principale è già partita ed è fallita, quindi
+     *  "non è partita" sarebbe falso. {primary} e {fallback} sono i nomi dei
+     *  provider. Vale sia per il rifiuto sia per il caso chiuso: in entrambi
+     *  la ricerca non è mai arrivata al fallback. */
+    fallbackDeclined:
+      "La ricerca è arrivata a {primary} ma non è riuscita, e l'utente ha scelto di non mandarla a {fallback}. Di' che la ricerca non è riuscita e che si può riprovare.",
+  },
+
   wizard: {
     back: "Indietro",
     next: "Avanti",

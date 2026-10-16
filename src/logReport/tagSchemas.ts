@@ -10,6 +10,9 @@
  * catalog model ids pass. Every closed set quotes the code that emits it.
  */
 
+import { GOVERNOR_FALLBACK_CODES } from "../engine/governorTurnLog";
+import { KV_CACHE_TYPES } from "../engine/kvCacheProfile";
+
 export type FieldRule =
   | { k: "num"; nullable?: true }
   | { k: "bool"; nullable?: true }
@@ -17,7 +20,7 @@ export type FieldRule =
   /** A monotonic turn counter (`mintTurnId`, LlamaService.ts:546-548) — never a conversation id. */
   | { k: "counter" }
   /** A bounded identifier prefix; full ids are never collected. */
-  | { k: "safeId8" }
+  | { k: "safeId8"; nullable?: true }
   /** A catalog model id; the accepted set is installed at startup. */
   | { k: "modelId" }
   /** A finite number, or a depth-1 object of them under exactly these keys —
@@ -36,7 +39,11 @@ export type FieldRule =
    *  non-string or over-long cell drops the whole field. Nullable because the
    *  row always carries the key and null means "no device named" — an
    *  explicit absence, not a missing field. */
-  | { k: "strArray"; maxLen: number; maxItems: number; nullable?: true };
+  | { k: "strArray"; maxLen: number; maxItems: number; nullable?: true }
+  /** A bounded-length array drawn from a CLOSED set of literals — the turn
+   *  line's distinct prefill devices, where an unknown backend name drops the
+   *  whole field rather than riding as free text. */
+  | { k: "enumArray"; values: readonly string[]; maxItems: number; nullable?: true };
 
 type TagSchema = Record<string, FieldRule>;
 
@@ -50,8 +57,71 @@ const enumOrNull = (...values: string[]): FieldRule => ({
   values,
   nullable: true,
 });
+/** The same, over an exported closed set the schema must not restate. */
+const enumSetOrNull = (values: readonly string[]): FieldRule => ({
+  k: "enum",
+  values,
+  nullable: true,
+});
 
 const PAUSE_REASONS = enumOf("thermal", "profile", "reload", "unexplained");
+
+/** Cache ggml type names a governor context runs with: the app's own closed
+ *  set, plus nothing else the lane can produce — decide_governor_lane_kv only
+ *  ever keeps an F32/F16/Q8_0 request or rewrites it to q8_0 (llama.rn
+ *  cpp/rn-llama.cpp:113-137). */
+const GOVERNOR_KV_TYPES = KV_CACHE_TYPES;
+
+/**
+ * ggml backend device names a governor prefill chunk can report as its layer
+ * device (`layers_device`, llama-governor.cpp:23-30 → ggml_backend_dev_name).
+ * The binding names the three itself at llama-ext.h:518-520 ("HTP0",
+ * "GPUOpenCL", "CPU"); the Hexagon backend builds the rest as "HTP"+<index>
+ * (ggml-hexagon.cpp:10145). Anything else — a new backend, a colon-separated
+ * multi-HTP alias — is NOT in the set and fails closed.
+ */
+const LAYER_DEVICES = ["CPU", "GPUOpenCL", "HTP0", "HTP1", "HTP2", "HTP3"] as const;
+
+/**
+ * Every code-defined `reason` a KALSA_SESSION line carries. NOT in the set,
+ * by design: the `meta_mismatch:<field>` / `tokens_loaded:0` composites
+ * (chatKvSessionLoad.ts:105-215) build their suffix from a meta field name, and
+ * `sessionErrorReason`'s `error:<Name>` class (chatKvSessionShared.ts) from a
+ * JS error name — both open-ended, so both fail closed. `diskReason` is a
+ * different field and rides with `reason: "disk"`.
+ */
+const SESSION_REASONS = [
+  // shouldSaveSession gate (sessionPersistence.ts:872-890)
+  "no_context",
+  "kv_poisoned",
+  "disposing",
+  "kv_not_chat",
+  "kv_not_reproducible",
+  // save/load protocol (chatKvSessionSave.ts, chatKvSessionLoad.ts, chatKvSessionNative.ts)
+  "no_session_key",
+  "session_identity_unavailable",
+  "kv_prefix_unavailable", // chatKvSessionSave.ts:139, op "mark_prefix"
+  "no_file",
+  "no_meta",
+  "last_exchange_prefix",
+  "unchanged",
+  "native_shorter_than_npast",
+  "meta_write",
+  "evicted",
+  "disk",
+  "load_error",
+  // the native refusals (sessionPersistence.ts:806-821)
+  "governor_mode",
+  "kv_inconsistent",
+  // prewarm (LlamaService.ts:1661)
+  "n_predict_rejected",
+  // evict run (sessionEvictMarker.ts:26-30)
+  "evict_failed",
+  "over_budget_unevictable",
+  "deficit_uncoverable",
+  "invalid_budget",
+  "gate_unreadable",
+] as const;
 
 /** Tool names: src/agent/toolNames.ts:13 plus the clamp placeholder (toolCallTelemetry.ts:43). */
 const TOOL_NAMES = enumOf(
@@ -98,6 +168,87 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
       "gpu-prefill-incorrect-Unknown",
     ),
     forced: BOOL,
+  },
+  // governorTurnLog.ts: the per-turn governor report, split in two because the
+  // full field set does not fit normalize.ts's 300-char clip. TURN answers
+  // "which device ran this prefill and what decided it"; COST answers "what the
+  // KV commit and the decode hop paid, and did the governor bail".
+  KALSA_GOVERNOR_TURN: {
+    // Engine names: RNLlamaJSI.cpp governorEngineName (CPU, GPU and the
+    // GPU_COOLMODE decode state both read "GPU").
+    ep: enumOf("Unknown", "CPU", "GPU", "NPU"),
+    ed: enumOf("Unknown", "CPU", "GPU", "NPU"),
+    rr: NUM, // prefill_router_rule; the engine's list, llama-governor-policy.cpp:517-554
+    th: BOOL, // prefill_thermal_handoff (the arming that makes rule 10 possible)
+    hn: NUMN, // prefill_npu_headroom_c — null when no sample placed the route
+    hg: NUMN, // prefill_gpu_headroom_c
+    // npu_device is the governor's PREFILL device, which the binding types as
+    // "HTP0" | "GPU" (llama.rn types.ts GovernorStats.npu_device) — "GPU" is
+    // what the two-model load publishes when the lane is off.
+    npu: enumOrNull("HTP0", "GPU"),
+    // llama-governor-device.cpp:31 and cpp/rn-governor-params.h:161.
+    npuf: enumOrNull("htp-device-missing", "htp-runtime-error"),
+    ck: enumSetOrNull(GOVERNOR_KV_TYPES),
+    cv: enumSetOrNull(GOVERNOR_KV_TYPES),
+    kv: enumOrNull("host", "device"), // cpp/rn-llama.cpp setGovernorKvCache
+    // Chunks of the binding's prefill_chunks accumulator. Nullable, like
+    // `dev`: the accumulator is empty when no chunk ran, which is a fact about
+    // this turn, not a missing field.
+    chunks: NUMN,
+    // The distinct layer devices that ran this turn's prefill chunks, drawn
+    // from the names the binding names at llama-ext.h:518-520 and builds as
+    // "HTP"+<index> (ggml-hexagon.cpp:10145) or "CPU"/"GPUOpenCL". Capped at
+    // four: the governor loads list devices {HTP0, GPUOpenCL} (llama-ext.h:196)
+    // so three distinct names is the real ceiling, and the cap bounds the line.
+    dev: { k: "enumArray", values: LAYER_DEVICES, maxItems: 4, nullable: true },
+    therm: enumOf(
+      "Unknown",
+      "FAST",
+      "WARM",
+      "COOLMODE",
+      "CRITICAL",
+      "LOWBAT",
+      "Invalid", // llama.rn RNLlamaJSI.cpp:58-66
+    ),
+    forced: BOOL,
+  },
+  // governorTurnLog.ts. `dhb`, `tok` and `hops` are the cost THIS turn added,
+  // not the engine's cumulative counters (the observation row deltas the same
+  // way); `first`/`gap` are its honesty flags. `fr` is the code, not the reason
+  // prose: the wide logcat line still carries that verbatim.
+  KALSA_GOVERNOR_COST: {
+    cb: NUM, // commit_bytes — this turn's prefill→decode commit
+    cm: NUM, // commit_ms
+    dhb: NUM, // decode_hop_commit_bytes, delta
+    tok: { k: "numArray", len: 3 }, // decode tokens per leg, delta
+    hops: NUM, // decode_hops, delta
+    first: NUM, // 1 = first line after a load/clear: the numbers are cumulative
+    gap: NUM, // 1 = a negative delta: the counters restarted under this line
+    failed: BOOL,
+    fr: { k: "enum", values: GOVERNOR_FALLBACK_CODES },
+  },
+  // governorLoadLog.ts from the init result's governorLoad (llama.rn
+  // GovernorLoadFacts); one line per governor load. The legs and the zone
+  // counts are what a postmortem needs when a turn's numbers look wrong.
+  KALSA_GOVERNOR_LOAD: {
+    npu: BOOL,
+    gpu: BOOL,
+    cpu: BOOL,
+    one: BOOL, // one_copy
+    // The matched legs-table row's SoC model ("SM8550"), a bounded model
+    // string — safeId8, so a future row's longer name drops rather than rides.
+    // Nullable because null is the load's own "no row matched", which is the
+    // fact that explains a two-model load with one_copy false.
+    soc: { k: "safeId8", nullable: true },
+    ck: enumSetOrNull(GOVERNOR_KV_TYPES),
+    cv: enumSetOrNull(GOVERNOR_KV_TYPES),
+    // cpp/rn-llama.cpp setGovernorKvCache / the two lane-kv branches.
+    kvr: enumOrNull("htp-prefill-kv", "flash-attn-off"),
+    hop: NUM, // hop_tokens
+    zcpu: NUM,
+    znpu: NUM,
+    zgpu: NUM,
+    th: BOOL, // prefill_thermal_handoff armed at this load
   },
   // LlamaService.ts:1821. `reason` (stats.failure_reason) is DROPPED: native
   // free prose (llama.rn rn-governor.cpp:47-58 builds it from error strings).
@@ -370,6 +521,28 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     textEst: NUM,
     measuredCharsPerToken: NUMN,
     windowTokens: NUMN,
+  },
+  // Session save/load/reconcile outcomes (chatKvSessionSave.ts, chatKvSessionLoad.ts,
+  // chatKvSessionNative.ts, chatKvSessionShared.ts, engineTurnWindow.ts,
+  // engineTurnSlide.ts, engineTurnCompactor.ts, LlamaService.ts, sessionEvictMarker.ts).
+  // `ok` + `reason` + `ms` only: enough to see that a save was refused because
+  // the governor holds the context, without collecting a single session artifact
+  // (stems, hashes, meta field names, victim models and byte counts all drop).
+  KALSA_SESSION: {
+    op: enumOf(
+      "save",
+      "mark_prefix",
+      "load",
+      "init",
+      "evict",
+      "prewarm",
+      "window_align",
+      "window_reconcile",
+      "window_slide",
+    ),
+    ok: BOOL,
+    reason: enumSetOrNull(SESSION_REASONS),
+    ms: NUM,
   },
   // LlamaService.ts:4448-4454; ContextMode at compactor.ts:313.
   KALSA_THINKING: {

@@ -16,6 +16,8 @@ import { createDocumentChatExecutor } from "../documents/documentChatTool";
 import type { DocRetrieverIndex } from "../context/retrievalLoop";
 import type { LibraryDoc, LibraryState } from "../documents/DocumentLibrary";
 import { makeWebSearchExecutor } from "../agent/webSearchTool";
+import { confirmSearchProvider } from "../search/firstSearchNotice";
+import { showFirstWebSearchNotice } from "./webSearchNotice";
 import { makeWriteNoteExecutor } from "../agent/writeNoteTool";
 import { makeCreateMiniappExecutor } from "../agent/createMiniappTool";
 import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
@@ -83,7 +85,17 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
     toolhelpRef,
     injectedFactsRef,
   } = deps;
-    const searchExec = makeWebSearchExecutor(locale);
+    // Before a phone web search sends its query: one notice per provider the
+    // query would reach, the first time this install reaches it. The active
+    // provider id resolves with searchWeb's own fallback rule, so the notice
+    // cannot name one provider while the search goes to another.
+    const searchExec = makeWebSearchExecutor(locale, async (providerId) =>
+      confirmSearchProvider({
+        locale,
+        providerId,
+        confirm: (providerName) => showFirstWebSearchNotice(providerName, locale),
+      }),
+    );
     const writeNoteExec = makeWriteNoteExecutor(locale);
     // create_miniapp is ungated and always on; opens the built miniapp inline
     // via the current turn's onMiniapp hook (threaded through a ref).
