@@ -11,7 +11,7 @@ const source = fs.readFileSync(path.resolve(__dirname, "LlamaService.ts"), "utf8
 describe("lane-only claim wiring in LlamaService", () => {
   test("the load latch is the native outcome, not the governor's intent", () => {
     expect(source).toMatch(
-      /activeGovernorLaneOnly =\s*governorUsed &&[\s\S]*?npu_lane_enabled === true &&\s*\(await readNpuLaneResolved\(context\)\)/,
+      /activeGovernorLaneOnly =\s*governorUsed &&\s*governorBase\?\.gpu_leg === false &&\s*governorBase\.npu_lane_enabled === true &&\s*\(await readNpuLaneResolved\(context\)\)/,
     );
   });
 
@@ -21,8 +21,8 @@ describe("lane-only claim wiring in LlamaService", () => {
     );
   });
 
-  test("the plan log prices with the gate inputs buildGovernorParams used", () => {
-    expect(source).toMatch(/\{ laneModel, npu: npuLaneInputs, availableSrc \}/);
+  test("the plan log is given no gate inputs of its own, only the params", () => {
+    expect(source).toMatch(/\{ laneModel, availableSrc \}/);
     expect(source).toMatch(/buildGovernorParams\(pricedModel, deviceProfile, \{[\s\S]*?\},\s*benchGovernorForce,\s*benchNoRepack,\s*npuLaneInputs,/);
   });
 });

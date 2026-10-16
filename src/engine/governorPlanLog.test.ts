@@ -63,6 +63,7 @@ describe("governor plan log", () => {
       pacing_start: 0.87,
       pacing_full: 0.99,
       npu_price: "with_gpu",
+      gpu_leg: true,
     });
     // Instruments parse this line: the pre-npu_lane keys keep their order
     // and the later keys are appended.
@@ -81,6 +82,7 @@ describe("governor plan log", () => {
       "pacing_start",
       "pacing_full",
       "npu_price",
+      "gpu_leg",
     ]);
     expect(
       buildGovernorPlanLog(

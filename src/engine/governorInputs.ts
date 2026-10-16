@@ -180,7 +180,7 @@ function modelKind(model: GovernorModel) {
 
 /** The NPU lane's eligibility gates other than the memory fit. The fit cannot
  *  decide them: the fit's price depends on whether the lane is eligible
- *  (lane-only when the GPU does not fit), so the gates come first. */
+ *  (lane-only when the GPU leg is left out), so the gates come first. */
 function npuLaneGates(
   model: GovernorModel,
   lanePref: BenchNpuLanePref,
@@ -263,6 +263,8 @@ export function buildGovernorPlanLog(
   memory: MemorySnapshot,
   governor: {
     gpu_fit: "Fit" | "NoFit";
+    gpu_leg: boolean;
+    npu_price: "lane_only" | "with_gpu";
     decode_repack: boolean;
     npu_device?: string | null;
     npu_fallback?: string | null;
@@ -278,8 +280,6 @@ export function buildGovernorPlanLog(
   lane?: {
     /** The model priced at npuLaneCacheTypes — what the NPU lane fit compares. */
     laneModel?: GovernorModel;
-    /** The lane's gate inputs, the same object buildGovernorParams received. */
-    npu?: NpuLaneInputs;
     /** Which source supplied availableMemoryBytes: the post-release uncached
      *  read ("fresh"), the app-start cache it fell back to ("cached"), or
      *  neither ("none": both were null). */
@@ -292,13 +292,11 @@ export function buildGovernorPlanLog(
   // used — otherwise a postmortem recomputing fit-vs-available from this line
   // disagrees with the verdict. The effective pref decides both (an absent or
   // invalid read is "auto"); with the lane off the binding check is the GPU
-  // lane's own (no extra, entry pricing). A GPU NoFit with an eligible lane is
-  // decided by the lane-only price, which leaves the GPU leg out; a refused
-  // lane (arch, MoE, vision) keeps the GPU-inclusive price, as its fit did.
+  // lane's own (no extra, entry pricing). The price is the one buildGovernorParams
+  // decided with (npu_price), so a caller's pref cannot change it here.
   const lanePref = effectiveNpuLanePref(npuLanePref);
   const laneRequested = lanePref !== "off";
-  const laneOnly =
-    npuLaneGates(model, lanePref, lane?.npu) && governor.gpu_fit === "NoFit";
+  const laneOnly = governor.npu_price === "lane_only";
   const pricedModel = laneRequested ? (lane?.laneModel ?? model) : model;
   const extraMiB = laneRequested ? NPU_PREFILL_EXTRA_MIB : 0;
   const withRepack = lanePrice(pricedModel, memory, true, !laneOnly);
@@ -336,6 +334,7 @@ export function buildGovernorPlanLog(
     // Which price the printed required_mib are: the GPU-inclusive one, or the
     // lane-only one that leaves the 800 MiB GPU leg out.
     npu_price: laneOnly ? "lane_only" : "with_gpu",
+    gpu_leg: governor.gpu_leg,
   };
 }
 
@@ -363,6 +362,25 @@ function gpuFit(
   return { fit: "NoFit" as const, decodeRepack: benchNoRepack === false };
 }
 
+/** The NPU lane's load and its verdict. The GPU leg is left out only where the
+ *  lane takes the load alone: the GPU does not fit, or the GPU-inclusive lane
+ *  does not fit but the lane-only price does. A refused lane (gates false) keeps
+ *  the GPU-inclusive price it always had, even when the GPU does not fit. */
+function npuLaneLoad(
+  gates: boolean,
+  gpuOwnFit: "Fit" | "NoFit",
+  priceLane: (gpuLeg: boolean) => ReturnType<typeof gpuFit>,
+) {
+  if (!gates) return { gpuLeg: gpuOwnFit === "Fit", npuLane: priceLane(true) };
+  if (gpuOwnFit === "NoFit") return { gpuLeg: false, npuLane: priceLane(false) };
+  const withGpu = priceLane(true);
+  if (withGpu.fit === "Fit") return { gpuLeg: true, npuLane: withGpu };
+  const laneOnly = priceLane(false);
+  return laneOnly.fit === "Fit"
+    ? { gpuLeg: false, npuLane: laneOnly }
+    : { gpuLeg: true, npuLane: withGpu };
+}
+
 export function buildGovernorParams(
   modelEntry: GovernorModel,
   deviceProfile: DeviceProfile,
@@ -380,17 +398,12 @@ export function buildGovernorParams(
   const lanePref = effectiveNpuLanePref(npu?.lanePref);
   const laneRequested = lanePref !== "off";
   // The lane's gates other than the fit (see npuLaneGates). An eligible lane
-  // with a GPU NoFit loads lane-only (prefill on HTP0, nothing on the GPU), so
-  // its fit prices that load without the GPU leg. A GPU Fit keeps the
-  // GPU-inclusive price: the one-copy GPU leg may run.
+  // takes the load alone (prefill on HTP0, no GPU leg) when the GPU does not
+  // fit, or when the GPU-inclusive lane does not fit and the lane-only one does.
   const gates = npuLaneGates(modelEntry, lanePref, npu);
-  const laneOnly = gates && lane.fit === "NoFit";
-  const npuLane = gpuFit(
-    laneRequested ? (npu?.laneModel ?? modelEntry) : modelEntry,
-    memory,
-    benchNoRepack,
-    NPU_PREFILL_EXTRA_MIB,
-    !laneOnly,
+  const npuModel = laneRequested ? (npu?.laneModel ?? modelEntry) : modelEntry;
+  const { gpuLeg, npuLane } = npuLaneLoad(gates, lane.fit, (withGpuLeg) =>
+    gpuFit(npuModel, memory, benchNoRepack, NPU_PREFILL_EXTRA_MIB, withGpuLeg),
   );
   // NPU lane eligibility (owner rule 2026-09-28). The default is "auto" since
   // the owner's 2026-10-02 decision: the S23 measurement (lane-on prefill
@@ -404,12 +417,12 @@ export function buildGovernorParams(
   // bench pref: "off" forces off; "on" bypasses only the auto gates (arch
   // and kind); fit, platform and vision stay hard. When HTP0 does not
   // resolve at load the binding clears the lane: prefill then goes to the GPU
-  // only when the GPU fit is Fit on a GPU-qualified generation, and stays on
-  // the CPU when gpu_fit is NoFit (a lane-only load has no GPU fallback).
+  // only when the GPU leg runs on a GPU-qualified generation, and stays on the
+  // CPU otherwise (a lane-only load has no GPU fallback).
   const laneEnabled = gates && npuLane.fit === "Fit";
   // The governor also loads lane-only: a generation whose GPU prefill is not
-  // qualified (Unknown), or whose GPU fit is NoFit, still runs prefill on HTP0
-  // with decode on CPU, so enabled is GPU-qualified OR lane enabled — and when
+  // qualified (Unknown), or that runs without the GPU leg, still runs prefill on
+  // HTP0 with decode on CPU, so enabled is GPU-qualified OR lane enabled — and when
   // both are false the Android-only n_gpu_layers guard lands the load on CPU.
   const enabled = force || GPU_PREFILL_CORRECT[generation] || laneEnabled;
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
@@ -418,6 +431,12 @@ export function buildGovernorParams(
     generation,
     model_kind: modelKind(modelEntry),
     gpu_fit: lane.fit,
+    // Whether the load runs the GPU leg: false on a lane-only load even when
+    // gpu_fit is Fit. Always emitted, so the binding never has to guess.
+    gpu_leg: gpuLeg,
+    // The price the NPU fit used, which the plan log prints: lane-only exactly
+    // when the lane is priced without the GPU leg (lane on or off).
+    npu_price: gates && !gpuLeg ? ("lane_only" as const) : ("with_gpu" as const),
     // Binding param governor.decode_repack (default true): false makes
     // load_governor_models drop the decode model's CPU repack copy (P1).
     // When the NPU lane is on, its own fit decides — the HTP copy costs
@@ -433,11 +452,12 @@ export function buildGovernorParams(
     // V73, V75 and V81 carry owner enablement decisions; V79 passed the token oracle (S5 run 6).
     // No committed logit-oracle PASS exists for any generation.
     // The generation list is duplicated in the engine; the form refactor should carry it once.
-    // A GPU NoFit routes no prefill to the GPU, whatever the generation.
+    // Without the GPU leg no prefill goes to the GPU, whatever the generation.
     gpu_prefill_measured:
       (generation === "V73" || generation === "V75" || generation === "V79" || generation === "V81") &&
-      lane.fit === "Fit",
-    bench_force_gpu_prefill: force,
+      gpuLeg,
+    // No GPU leg means no GPU prefill to force, whatever the bench asked for.
+    bench_force_gpu_prefill: force && gpuLeg,
     npu_lane_enabled: laneEnabled,
     npu_fit: npuLane.fit,
     // Claim only what is switched on: with the lane off the binding skips

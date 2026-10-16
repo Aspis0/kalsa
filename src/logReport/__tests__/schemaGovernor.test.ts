@@ -87,6 +87,14 @@ describe("KALSA_GOVERNOR_PLAN (governorInputs.ts:228-243)", () => {
     expect(line("with_gpu")).toEqual({ gpu_fit: "NoFit", npu_price: "with_gpu" });
     expect(line("lane_only on /Users/marco")).toEqual({ gpu_fit: "NoFit" });
   });
+
+  it("keeps gpu_leg only as a boolean", () => {
+    const line = (leg: string) =>
+      record("KALSA_GOVERNOR_PLAN", `{"gpu_fit":"Fit","gpu_leg":${leg}}`);
+    expect(line("false")).toEqual({ gpu_fit: "Fit", gpu_leg: false });
+    expect(line("true")).toEqual({ gpu_fit: "Fit", gpu_leg: true });
+    expect(line('"false on /Users/marco"')).toEqual({ gpu_fit: "Fit" });
+  });
 });
 
 describe("KALSA_GOVERNOR_FALLBACK (LlamaService.ts:2456)", () => {

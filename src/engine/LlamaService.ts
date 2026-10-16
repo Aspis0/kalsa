@@ -392,7 +392,7 @@ let activeGovernorAttempted = false;
  *  measured refusal rather than "not proven". Without either it is the same
  *  verdict an unknown memory gets (`governorInputs.ts` `laneFit`). */
 let activeGovernorFitMeasured = false;
-/** The governor ran lane-only: GPU fit NoFit, the NPU lane's own fit Fit. */
+/** The governor ran lane-only: no GPU leg, the NPU lane's own fit Fit. */
 let activeGovernorLaneOnly = false;
 let activeGovernorActive = false;
 let activeGovernorForced = false;
@@ -2624,7 +2624,7 @@ export function initEngine(
         governorBase.enabled &&
         governorThermo != null &&
         governorThermo.sensor_valid &&
-        // A GPU NoFit still loads when the lane fits lane-only (prefill HTP0).
+        // A load without the GPU leg still loads when the lane fits (prefill HTP0).
         (governorBase.gpu_fit !== "NoFit" || governorBase.npu_lane_enabled === true) &&
         !options.mmprojPath &&
         !streamExperts
@@ -2737,7 +2737,7 @@ export function initEngine(
             governorBase,
             benchNoRepack,
             benchNpuLane,
-            { laneModel, npu: npuLaneInputs, availableSrc },
+            { laneModel, availableSrc },
           ),
         )}`,
       );
@@ -3061,7 +3061,7 @@ export function initEngine(
     // for a load that could be lane-only.
     activeGovernorLaneOnly =
       governorUsed &&
-      governorBase?.gpu_fit === "NoFit" &&
+      governorBase?.gpu_leg === false &&
       governorBase.npu_lane_enabled === true &&
       (await readNpuLaneResolved(context));
     activeGovernorAttempted =

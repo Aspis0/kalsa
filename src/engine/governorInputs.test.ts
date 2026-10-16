@@ -89,11 +89,13 @@ describe("governor inputs", () => {
       generation: "V75",
       model_kind: "Hybrid",
       gpu_fit: "Fit",
+      gpu_leg: true,
       decode_repack: true,
       gpu_prefill_measured: true,
       bench_force_gpu_prefill: false,
       npu_lane_enabled: false,
       npu_fit: "Fit",
+      npu_price: "with_gpu",
       htp_trunk_readable: false,
       htp_experts_readable: false,
       npu_device: null,
@@ -674,18 +676,25 @@ describe("governor inputs", () => {
       laneModel,
       htpArch: 73,
     };
-    // Lane requirement with the upgraded KV, GPU leg included (the GPU fits
-    // here, so the NPU fit keeps the 800 MiB): 249 + 68 + 800 + 1596.06 =
-    // 2713.06 MiB, + 219 HTP prefill copy + 300 margin = 3232.06 MiB (the
-    // catalog KV would need 3216.06). One MiB below the upgraded boundary the
-    // lane refuses where the caller-profile price would still have passed;
-    // one above it claims HTP0.
-    expect(
-      buildGovernorParams(lfm, s23, laneAt(3232), false, undefined, inputs),
-    ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
+    // The GPU fits here. With the GPU leg the upgraded lane prices 249 + 68 +
+    // 800 + 1596.06 + 219 + 300 = 3232.06 MiB (the catalog KV would need
+    // 3216.06). Integer inputs bracket the boundary: 3233 is 0.94 MiB above it
+    // and keeps the GPU leg; 3232 is 0.06 MiB short, so the GPU-inclusive lane
+    // is refused and the lane alone decides. Lane-only the upgraded lane prices
+    // 249 + 68 + 1596.06 + 219 + 300 = 2432.06 MiB: 2432 is 0.06 MiB short and
+    // refused, 2433 claims HTP0 without the GPU leg.
     expect(
       buildGovernorParams(lfm, s23, laneAt(3233), false, undefined, inputs),
-    ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
+    ).toMatchObject({ gpu_leg: true, npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(3232), false, undefined, inputs),
+    ).toMatchObject({ gpu_leg: false, npu_fit: "Fit", npu_lane_enabled: true });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(2432), false, undefined, inputs),
+    ).toMatchObject({ gpu_fit: "NoFit", npu_fit: "NoFit", npu_lane_enabled: false });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(2433), false, undefined, inputs),
+    ).toMatchObject({ gpu_leg: false, npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
   });
 
   test("flash attention off prices the lane at the engine-forced f16 V", () => {
@@ -712,16 +721,23 @@ describe("governor inputs", () => {
       laneModel,
       htpArch: 73,
     };
-    // 3232 MiB admitted the caller-profile price (3216.06 MiB) — a false Fit:
-    // the f16 V the engine really holds prices 249 + 98 + 800 + 1596.06 =
-    // 2743.06 MiB, + 219 HTP copy + 300 margin = 3262.06 MiB. Refused one MiB
-    // below, claimed one above.
-    expect(
-      buildGovernorParams(lfm, s23, laneAt(3262), false, undefined, inputs),
-    ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
+    // With the GPU leg the f16 V the engine really holds prices 249 + 98 + 800 +
+    // 1596.06 + 219 + 300 = 3262.06 MiB. Integer inputs bracket it: 3263 is 0.94
+    // MiB above and keeps the GPU leg; 3262 is 0.06 MiB short, so the lane alone
+    // decides (its price, 249 + 98 + 1596.06 + 219 + 300 = 2462.06 MiB): 2462 is
+    // 0.06 MiB short and refused, 2463 claims HTP0 without the GPU leg.
     expect(
       buildGovernorParams(lfm, s23, laneAt(3263), false, undefined, inputs),
-    ).toMatchObject({ npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
+    ).toMatchObject({ gpu_leg: true, npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(3262), false, undefined, inputs),
+    ).toMatchObject({ gpu_leg: false, npu_fit: "Fit", npu_lane_enabled: true });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(2462), false, undefined, inputs),
+    ).toMatchObject({ gpu_fit: "NoFit", npu_fit: "NoFit", npu_lane_enabled: false });
+    expect(
+      buildGovernorParams(lfm, s23, laneAt(2463), false, undefined, inputs),
+    ).toMatchObject({ gpu_leg: false, npu_fit: "Fit", npu_lane_enabled: true, npu_device: "HTP0" });
   });
 
   test("an \"off\" lane ignores the lane-priced model (7ddf39ad byte-identical)", () => {
@@ -749,8 +765,9 @@ describe("governor inputs", () => {
     // The baseline itself is the discriminating Fit: had the re-price leaked
     // into a lane-off load, npu_fit would read NoFit here.
     expect(baseline.npu_fit).toBe("Fit");
-    // The absent pref requests the lane, so the same lane model re-prices and
-    // flips this verdict.
+    // The absent pref requests the lane, so the same lane model re-prices: the
+    // GPU-inclusive upgraded price (3232.06) is refused here, and the lane
+    // alone (2432.06 with the upgraded KV) carries the load.
     expect(
       buildGovernorParams(lfm, s23, laneAt(3232), false, undefined, {
         android: true,
@@ -758,7 +775,7 @@ describe("governor inputs", () => {
         laneModel,
         htpArch: 73,
       }),
-    ).toMatchObject({ npu_fit: "NoFit", npu_lane_enabled: false });
+    ).toMatchObject({ gpu_leg: false, npu_fit: "Fit", npu_lane_enabled: true });
   });
 
   test("the lane-priced KV never moves the GPU lane estimate", () => {
