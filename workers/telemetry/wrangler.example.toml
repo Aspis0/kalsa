@@ -20,3 +20,8 @@ new_classes = ["TelemetryBuffer"]
 [vars]
 GITHUB_REPO = "Aspis0/kalsa"
 AUTO_OPEN_ISSUES = "false"
+
+# Copy this with the rest: a fresh template that lost it would leave Workers
+# Logs at Cloudflare's default, keeping request metadata.
+[observability]
+enabled = false

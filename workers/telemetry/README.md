@@ -33,9 +33,33 @@ Design contract: `docs/TELEMETRY_OPTIN.md` (v14 FINAL + diag-addendum).
   Stored entries that cannot be served are counted in `skipped`, not fatal.
   `Cache-Control: no-store`. Fail-closed `503` if unset.
 
-Accepted reports are never silently evicted. The buffer keeps every accepted
-entry until a maintainer flush or `/admin/flush-and-purge`. There is no
-5000-entry cap.
+Accepted reports are deleted automatically **90 days after they were first
+stored**, with no command and no maintainer in the loop. Retention is armed in
+three places, so no path leaves the buffer without a wake:
+
+- **On every write**, whatever its outcome — accepted, duplicate or quota
+  rejected (`index.ts armExpiry`). Arming is a read plus a `setAlarm`.
+- **On construction** of the Durable Object, via `blockConcurrencyWhile`: if no
+  alarm is set and the buffer holds entries, one is armed for the oldest
+  (`index.ts constructor`). This is what covers entries stored before this
+  Worker shipped, and an alarm whose retries ran out — without it, retention
+  would run only when traffic happened to resume, and silence would keep the
+  oldest reports forever. An alarm already set is left alone.
+- **After each sweep**, for the oldest entry still stored; an empty buffer arms
+  nothing.
+
+The mark is `createdAt` + 90 days + 1 ms, the **Worker clock at accept time** —
+never a client value. The extra millisecond is deliberate: expiry means
+*strictly* older, so a wake armed at the mark itself would drop nothing and arm
+the same instant again. A duplicate refreshes `lastSeenAt` and raises `count` but
+cannot extend retention (`retention.ts`). Exactly at the mark is not older than
+it and stays. An entry whose `createdAt` cannot be read as a number is dropped
+rather than kept: its age is unknowable, and keeping it would break the promise
+for good.
+
+What retention is **not**: a per-user delete. A deletion request still needs the
+global `/admin/flush-and-purge` (§Deletion), and one user's reports cannot be
+removed without wiping everyone's. There is still no 5000-entry cap.
 
 ## Staging deploy runbook (required order)
 
@@ -94,7 +118,9 @@ READ_TOKEN=… TELEMETRY_WORKER_URL=https://telemetry.kalsa.io \
 ```
 
 Pages through the whole buffer (500 per request, until empty) and writes the
-entries to `--out`, default `/tmp/kalsa-telemetry-<timestamp>.json`. The file is
+entries to `--out`, default `/tmp/kalsa-telemetry-<timestamp>.json`. A report
+past its 90-day mark is simply gone, so a read can end earlier than an older
+read of the same buffer did. The file is
 created exclusively with mode 0600: an existing path or symlink is refused and
 never overwritten. Prints counts by platform, version, error, diagnostics
 component/stage, top-10 engine signatures, and the newest five. Reads never
@@ -107,7 +133,12 @@ previous and next UTC day. The summary prints the key actually found, or
 
 ## Deletion
 
-- Preferred: `POST /admin/flush-and-purge` with `ADMIN_TOKEN`.
+- Automatic: the 90-day sweep needs no command and is the only path that shrinks
+  the buffer on its own.
+- Preferred on request: `POST /admin/flush-and-purge` with `ADMIN_TOKEN` — it
+  wipes every entry for every user. It deliberately leaves the pending alarm
+  alone: deleting it would race an append that armed one, and a wake against an
+  empty buffer is one no-op sweep that arms nothing further.
 - Manual last resort: `npx wrangler delete` tears down the Worker (and its
   DO storage) — use only if you intend to destroy the environment.
 
@@ -140,8 +171,17 @@ entry's `logRefs` (no repeats, newest last, at most 10: the oldest fall off;
 
 ## Privacy
 
+- Retention is bounded by the 90-day sweep above. An accepted report cannot
+  outlive its first storage by more than the sweep interval plus the alarm's own
+  delivery delay; the delay is Cloudflare's, and nothing here wakes the object
+  while it is idle and un-armed, which is why construction arms it.
 - No payload logs (counts / status only). `flush.mjs` logs status +
   `{created,skipped,duplicates,released,reviewed}` — never the raw body.
+- `[observability] enabled = false` in `wrangler.toml` **and in
+  `wrangler.example.toml`**, so a fresh copy of the template cannot silently lose
+  it: Workers Logs are off, so request metadata is not kept at Cloudflare's
+  default. **This takes effect on the next deploy** — the file alone changes
+  nothing live.
 - Cloudflare may retain connection metadata per their policy; IP is not stored
   in the report body. Rate limit uses `cf-connecting-ip` only.
 

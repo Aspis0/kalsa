@@ -47,6 +47,8 @@ export const contractV2 = require(path.join(out, "contract-v2.js")).V2;
 export class FakeStorage {
   data = new Map();
   writes = 0;
+  /** Epoch ms of the armed alarm, or null when none is armed. */
+  alarm = null;
   async get(key) {
     return this.data.get(key);
   }
@@ -56,6 +58,15 @@ export class FakeStorage {
   }
   async transaction(fn) {
     return fn({ get: (k) => this.get(k), put: (k, v) => this.put(k, v) });
+  }
+  async setAlarm(time) {
+    this.alarm = time;
+  }
+  async getAlarm() {
+    return this.alarm;
+  }
+  async deleteAlarm() {
+    this.alarm = null;
   }
 }
 
@@ -93,8 +104,28 @@ export function seeded(count) {
   return storageWith(Array.from({ length: count }, (_, i) => entry(i)));
 }
 
+export function makeBuffer(storage) {
+  const state = fakeState(storage);
+  return { buffer: new TelemetryBuffer(state), ready: state.ready };
+}
+
+/** Cloudflare runs a constructor's blockConcurrencyWhile callback immediately
+ *  and holds the object locked until it resolves, so the fake keeps the
+ *  promise as `ready` for tests to await. */
+export function fakeState(storage) {
+  const state = {
+    storage,
+    ready: null,
+    blockConcurrencyWhile(callback) {
+      state.ready = callback();
+      return state.ready;
+    },
+  };
+  return state;
+}
+
 export function makeEnv(storage, secrets = {}) {
-  const buffer = new TelemetryBuffer({ storage });
+  const { buffer } = makeBuffer(storage);
   return {
     TELEMETRY_BUFFER: {
       idFromName: () => "singleton",

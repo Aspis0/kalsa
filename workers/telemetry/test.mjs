@@ -19,6 +19,8 @@ const dups = spawnSync("node", ["workers/telemetry/test-duplicates.mjs"], { cwd:
 assert.equal(dups.status, 0, "duplicate counting");
 const refs = spawnSync("node", ["workers/telemetry/test-log-refs.mjs"], { cwd: root, stdio: "inherit" });
 assert.equal(refs.status, 0, "log references");
+const retention = spawnSync("node", ["workers/telemetry/test-retention.mjs"], { cwd: root, stdio: "inherit" });
+assert.equal(retention.status, 0, "90-day retention sweep");
 try {
   const compile = spawnSync("npx", ["tsc", "workers/telemetry/schema.ts", "--outDir", out, "--module", "commonjs", "--target", "es2020", "--skipLibCheck", "--ignoreConfig", "--types", "node"], { cwd: root, encoding: "utf8" });
   assert.equal(compile.status, 0, compile.stdout + compile.stderr);

@@ -5,9 +5,9 @@
 import assert from "node:assert/strict";
 import {
   BASE,
-  TelemetryBuffer,
   entry,
   getReports,
+  makeBuffer,
   makeEnv,
   seeded,
   storageWith,
@@ -179,7 +179,8 @@ await test("malformed stored entries are skipped and counted, never a 500", asyn
 
 console.log("\n[durable object body tolerance]");
 await test("DO /reports: null, non-JSON and bad-typed bodies get the default query", async () => {
-  const buffer = new TelemetryBuffer({ storage: seeded(3) });
+  const { buffer, ready } = makeBuffer(seeded(3));
+  await ready;
   for (const body of ["null", "not json", '{"limit":"x","since":"y"}', "[]"]) {
     const res = await buffer.fetch(new Request("https://do/reports", { method: "POST", body }));
     assert.equal(res.status, 200, body);

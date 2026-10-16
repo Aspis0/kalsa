@@ -36,10 +36,17 @@ interface DurableObjectStorage {
   transaction<T>(
     closure: (txn: DurableObjectTransaction) => Promise<T>,
   ): Promise<T>;
+  /** Absolute epoch ms; a time in the past fires the alarm as soon as it can. */
+  setAlarm(scheduledTime: number): Promise<void>;
+  getAlarm(): Promise<number | null>;
+  deleteAlarm(): Promise<void>;
 }
 
 interface DurableObjectState {
   storage: DurableObjectStorage;
+  /** Runs `callback` before the object serves anything, holding it locked
+   *  until the promise resolves. */
+  blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>;
 }
 
 interface DurableObject {

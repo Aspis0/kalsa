@@ -33,3 +33,10 @@ new_sqlite_classes = ["TelemetryBuffer"]
 [vars]
 GITHUB_REPO = "Aspis0/kalsa"
 AUTO_OPEN_ISSUES = "false"
+
+# The buffer holds validated reports and the Worker emits no runtime logs, so
+# there is nothing to observe. Same block as report/download/pair: without it
+# Workers Logs stay at Cloudflare's default and keep request metadata.
+# Takes effect on the next deploy, not in the file alone.
+[observability]
+enabled = false

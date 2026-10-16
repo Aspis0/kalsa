@@ -55,7 +55,12 @@ describe("storage", () => {
     expect(new TextDecoder().decode(put.value)).toBe("line one\nline two\n");
     expect(put.options?.onlyIf).toEqual({ etagDoesNotMatch: "*" });
     expect(put.options?.httpMetadata).toEqual({ contentType: "text/plain" });
-    expect(Object.keys(put.options?.customMetadata ?? {})).toEqual(["app", "received"]);
+    expect(Object.keys(put.options?.customMetadata ?? {})).toEqual([
+      "app",
+      "received",
+      "dropped",
+      "redacted",
+    ]);
     expect(put.options?.customMetadata?.app).toBe("1.4.0/linux/x86_64");
     const received = put.options?.customMetadata?.received ?? "";
     expect(Number.isNaN(Date.parse(received))).toBe(false);

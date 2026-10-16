@@ -1,12 +1,19 @@
 /**
  * kalsa-report Cloudflare Worker.
  *
- * One route, one job: accept the desktop app's log upload (POST /report) and
- * store it privately in R2. Nothing reads the bucket back here — no GET, no
- * listing; the owner reads reports from the Cloudflare dashboard.
+ * One route, one job: accept the app's log upload (POST /report) and store it
+ * privately in R2. Nothing reads the bucket back here — no GET, no listing;
+ * the owner reads reports from the Cloudflare dashboard.
+ *
+ * Before the put the body is screened server-side — a second defense behind
+ * the clients' own log writers, not a replacement for them. Only the counts
+ * of what was dropped or redacted are stored, never the text itself.
  */
 
 /// <reference path="./cf-ambient.d.ts" />
+
+import { isPhoneApp, keepPhoneLines } from "./phone-body";
+import { redactText } from "./redact";
 
 export interface Env {
   REPORTS: R2Bucket;
@@ -38,8 +45,8 @@ function error(status: number, code: string, message: string): Response {
   return json(status, { error: { code, message } });
 }
 
-function tooLarge(): Response {
-  return error(413, "payload_too_large", `Body exceeds ${MAX_BODY_BYTES} bytes.`);
+function tooLarge(subject = "Body"): Response {
+  return error(413, "payload_too_large", `${subject} exceeds ${MAX_BODY_BYTES} bytes.`);
 }
 
 /** Rejection sampling: 256 % 31 tail bytes are dropped so every char is equiprobable. */
@@ -102,19 +109,61 @@ async function storeReport(
   bytes: Uint8Array,
   app: string,
   received: string,
+  counts: { dropped: string; redacted: string },
 ): Promise<StoreResult> {
   for (let attempt = 0; attempt < MAX_STORE_ATTEMPTS; attempt++) {
     const id = newReportId();
     const stored = await env.REPORTS.put(`${day}/${id}.log`, bytes, {
       onlyIf: { etagDoesNotMatch: "*" },
       httpMetadata: { contentType: "text/plain" },
-      customMetadata: { app, received },
+      customMetadata: { app, received, ...counts },
     });
     if (stored !== null) return { ok: true, id };
   }
   return {
     ok: false,
     response: error(503, "storage_conflict", "Could not allocate a unique report id; retry."),
+  };
+}
+
+type ScreenResult =
+  | { ok: true; bytes: Uint8Array; counts: { dropped: string; redacted: string } }
+  | { ok: false; response: Response };
+
+/**
+ * What goes into the bucket. A phone body keeps only the lines in its own
+ * shapes; both bodies are redacted. The filter runs **first**: the client's
+ * clip length is what tells a truncated-but-real line from an invented one, and
+ * redaction shortens lines.
+ *
+ * Two refusals, both client bugs rather than attacks: a body that is not valid
+ * UTF-8 — decoding it leniently would turn each bad byte into a 3-byte U+FFFD
+ * and triple what we store against a documented 4 MiB — and a screened report
+ * that outgrew the cap, since a marker is longer than what it replaces.
+ */
+function screenBody(bytes: Uint8Array, app: string): ScreenResult {
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return {
+      ok: false,
+      response: error(400, "invalid_utf8", "The report must be valid UTF-8."),
+    };
+  }
+  const kept = isPhoneApp(app) ? keepPhoneLines(text) : { text, dropped: 0 };
+  const scrubbed = redactText(kept.text);
+  const out = new TextEncoder().encode(scrubbed.text);
+  if (out.length > MAX_BODY_BYTES) {
+    return { ok: false, response: tooLarge("Screened report") };
+  }
+  return {
+    ok: true,
+    bytes: out,
+    counts: {
+      dropped: String(kept.dropped + scrubbed.dropped),
+      redacted: String(scrubbed.redactions),
+    },
   };
 }
 
@@ -155,7 +204,16 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (dayObjects.objects.length >= DAILY_CAP) {
     return error(503, "daily_limit", "Too many reports today; try again tomorrow.");
   }
-  const stored = await storeReport(env, day, body.bytes, app, received.toISOString());
+  const screened = screenBody(body.bytes, app);
+  if (!screened.ok) return screened.response;
+  const stored = await storeReport(
+    env,
+    day,
+    screened.bytes,
+    app,
+    received.toISOString(),
+    screened.counts,
+  );
   if (!stored.ok) return stored.response;
   return json(201, { id: stored.id });
 }

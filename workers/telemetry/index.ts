@@ -41,6 +41,7 @@ import {
 } from "./schema";
 import { listReports, parseReadQuery, toReadQuery, type ReadQuery } from "./admin-read";
 import { validBearer } from "./auth";
+import { dropExpired, nextExpiryAt } from "./retention";
 
 export {
   validateReport,
@@ -363,6 +364,17 @@ export class TelemetryBuffer {
   state: DurableObjectState;
   constructor(state: DurableObjectState) {
     this.state = state;
+    // A buffer holding entries with no armed alarm — every entry stored before
+    // this Worker shipped, and any alarm whose retries ran out — is re-armed
+    // the moment the object is constructed. Otherwise retention would only run
+    // when traffic happened to resume, and silence would keep the oldest
+    // reports forever.
+    state.blockConcurrencyWhile(async () => {
+      if ((await state.storage.getAlarm()) !== null) return;
+      const st = await state.storage.get<BufferState>("state");
+      const at = st ? nextExpiryAt(st, Date.now()) : null;
+      if (at !== null) await state.storage.setAlarm(at);
+    });
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -457,11 +469,16 @@ export class TelemetryBuffer {
         logRefs: appendLogRef([], reportLogRef(report as Record<string, unknown>)),
       });
       st.hourCount += 1;
-      // No silent eviction: accepted reports stay until maintainer flush/purge.
+      // No eviction here: an entry stays readable until the 90-day sweep or a
+      // maintainer flush/purge drops it (see retention.ts).
       await txn.put("state", st);
       return { accepted: true as const, reportId };
     });
 
+    // Every write re-establishes the wake, whatever its outcome: a duplicate or
+    // a quota reject changes nothing the sweep cares about, but it proves the
+    // object is alive, and it costs one read.
+    await this.armExpiry();
     if (!result.accepted) {
       return json(reportRejectStatus(result.reason), {
         accepted: false,
@@ -544,7 +561,49 @@ export class TelemetryBuffer {
       purged = st.entries.length;
       await txn.put("state", emptyBufferState());
     });
+    // The pending alarm is deliberately left alone: deleting it here would race
+    // an append that armed one between the transaction and this line, and the
+    // wake it causes is one no-op sweep against an empty buffer that arms
+    // nothing further.
     return json(200, { purged });
+  }
+
+  /**
+   * The retention sweep. Alarms do not repeat on their own, so this handler is
+   * the only thing that keeps the rule running — and an empty buffer arms
+   * nothing. It may also be invoked more than once, or retried after a throw;
+   * both are harmless, the sweep is idempotent.
+   */
+  async alarm(): Promise<void> {
+    const now = Date.now();
+    const armedAt = await this.state.storage.transaction(async (txn) => {
+      const st = (await txn.get<BufferState>("state")) ?? emptyBufferState();
+      const swept = dropExpired(st, now);
+      if (swept.expired > 0) await txn.put("state", swept.state);
+      return nextExpiryAt(swept.state, now);
+    });
+    if (armedAt !== null) await this.state.storage.setAlarm(armedAt);
+  }
+
+  /**
+   * Arms the sweep for the oldest stored entry. The state is read outside the
+   * transaction on purpose: a concurrent sweep can only move the true next
+   * expiry later, so an arm computed from a stale read is at worst a premature
+   * wake, never a missed one.
+   *
+   * Best effort — the entry is already stored, so a storage failure here must
+   * not turn an accepted report into a 500, and the constructor re-arms on the
+   * next wake of this object.
+   */
+  private async armExpiry(): Promise<void> {
+    try {
+      const st = await this.state.storage.get<BufferState>("state");
+      if (!st) return;
+      const at = nextExpiryAt(st, Date.now());
+      if (at !== null) await this.state.storage.setAlarm(at);
+    } catch {
+      /* the sweep re-arms itself on the next construction */
+    }
   }
 }
 
