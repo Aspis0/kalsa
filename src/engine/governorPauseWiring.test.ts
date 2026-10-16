@@ -47,7 +47,11 @@ test("both turn completion sites END a pause through the guarded helper", () => 
 });
 
 test("the turn helper owns both copy keys and emits its line exactly once", () => {
-  const helper = region(noComments, "function endOnGovernorPause", "function sessionErrorReason");
+  const helper = region(
+    noComments,
+    "function endOnGovernorPause",
+    "export function markKvNonReproducible",
+  );
   expect(helper).toContain("strings.errors.coolingTimedOut");
   expect(helper).toContain("strings.chat.serviceUnreachable");
   // The give-up copy appears exactly once in the file: inside that helper.

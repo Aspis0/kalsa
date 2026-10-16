@@ -140,7 +140,6 @@ import { visibleTurnText } from "./truncatedTurnText";
 import { historyMessagePositions } from "./historyMessagePositions";
 import {
   historyThinkPlacementForModel,
-  historyWindowReproducesKv,
   llamaHistoryAssistantFields,
   modelEmittedTextForVisibleReply,
   promptContentForHistoryMessage,
@@ -208,54 +207,28 @@ import {
   prefillDeadlineMs,
 } from "./prefillDeadline";
 import {
-  computeHistoryHashFromMessages,
   computePromptEnvHash,
   historyHash,
   memoryFactTextsForEnvHash,
-  deleteSessionArtifacts,
-  ensureSessionsDir,
-  estimateSessionBytes,
   getSessionConversationId,
-  hasEnoughDiskForSession,
-  isSameSessionSave,
   lastSaveAfterHoldDrop,
   lastSaveTokensForHint,
-  markSessionDivergesAtLastExchange,
   nativeEmptyForHoldDrop,
-  promoteSessionBak,
   readBootMessages,
-  readPersistedHistoryLength,
-  rememberSuccessfulSessionSave,
   readSessionMeta,
-  resolveSessionDiskTokens,
-  sessionDiskGate,
   sessionFileExists,
-  sessionFilePath,
   extractChatKvPaths,
   extractChatKvRestoreSource,
-  sessionHistoryPrefixAccepts,
-  sessionLoadHasTokens,
   sessionRestoreAccepts,
-  sessionMetaMismatchField,
   SESSION_FORMAT_VERSION,
-  buildKvDiagPayload,
-  GOVERNOR_SESSION_REASON,
-  sessionNativeErrorReason,
   sessionAssembleBoundary,
-  shouldDeleteSessionArtifactsOnLoadFailure,
-  warnUnexpectedSessionFailure,
-  sessionNativeSaveCoversNPast,
   shouldSaveSession,
-  writeSessionMeta,
   type SessionSaveFingerprint,
-  type SessionMeta,
 } from "./sessionPersistence";
-import { decideSessionDiskSpace } from "./sessionDiskSpaceDecision";
 import { engineBuildFingerprint, readEngineBuildId } from "./engineIdentity";
 import {
   recordSessionDiskSample,
   sessionBytesPerTokenForModel,
-  type SessionDiskCalibration,
 } from "./sessionDiskCalibration";
 import { registrySessionBytesPerToken } from "./sessionDiskFallback";
 import {
@@ -263,7 +236,6 @@ import {
   saveSessionDiskCalibration,
 } from "./sessionDiskCalibrationStore";
 import {
-  legacySessionStem,
   modelFileIdFromInfo,
   promptEnvChangedFields,
   promptEnvToolHashFields,
@@ -272,13 +244,7 @@ import {
 } from "./sessionKey";
 import {
   deleteLegacyModelSession,
-  deleteSessionsForConversation,
   deleteSessionsForModelConversation,
-  discardStaleConversationSessions,
-  evictSessionPool,
-  evictSessionPoolForSpace,
-  readSessionPoolBudgetBytes,
-  touchSessionUse,
 } from "./sessionPool";
 import {
   INITIAL_KV_REPRO_STATE,
@@ -286,6 +252,25 @@ import {
   type KvReproEvent,
   type KvReproState,
 } from "./kvReproducibility";
+
+import { persistChatKvSession } from "./chatKvSessionSave";
+import {
+  loadChatKvSession,
+  restoreChatKvSession,
+} from "./chatKvSessionLoad";
+import {
+  invalidateConversationSessionFiles,
+  invalidateModelSessions,
+} from "./chatKvSessionInvalidate";
+import {
+  restoreNativeSession,
+  snapshotNativeSession,
+} from "./chatKvSessionNative";
+import {
+  activeSessionStem,
+  noteChatNPast,
+} from "./chatKvSessionShared";
+import type { ChatKvSessionState } from "./chatKvSessionState";
 import { resolveThinkingParams, thinkingSpeedOpts } from "./thinkingBudgets";
 import {
   assembleBoundaryAfterTurn,
@@ -328,7 +313,6 @@ import {
   keepStillValidBakedTails,
   shouldDiscardUnprefixedHeal,
   lastUserContent,
-  parseBakedUserTails,
   prefixMessageContent,
   type BakedUserTail,
 } from "./memoryFactsTail";
@@ -471,7 +455,6 @@ let lastChatNPast: number | undefined;
  */
 let chatKvDiskCurrent = false;
 let lastSuccessfulSessionSave: SessionSaveFingerprint | null = null;
-let kvPrefixUnavailableLoggedKey: string | null = null;
 /**
  * Whether the native KV can be reproduced by re-rendering persisted history.
  * `divergesAtLastExchange` is the safe tool-turn exception: saveEngineSession
@@ -529,17 +512,6 @@ let prewarmQueuedKey: string | null = null;
 /** Bumped on dispose / settings-stale so an in-flight prewarm cannot store. */
 let prewarmGeneration = 0;
 
-function activeSessionStem(
-  modelId: string,
-  conversationId?: string,
-  promptEnvHash?: string,
-): string | null {
-  const conv = conversationId ?? getSessionConversationId();
-  const env = promptEnvHash ?? lastPromptEnvHash;
-  if (!conv || !env) return null;
-  return sessionStem(modelId, conv, env);
-}
-
 /**
  * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
  * bailIfStopped checks this before every completion() call as an early, cheap
@@ -548,6 +520,130 @@ function activeSessionStem(
  * stays correct even after disposeEngineLocked's `finally` resets this flag.
  */
 let disposing = false;
+
+const chatKvSession: ChatKvSessionState = {
+  get context() {
+    return context;
+  },
+  get disposing() {
+    return disposing;
+  },
+  get activeGovernorActive() {
+    return activeGovernorActive;
+  },
+  get activeModelId() {
+    return activeModelId;
+  },
+  get activeModelFileId() {
+    return activeModelFileId;
+  },
+  get activeEngineBuild() {
+    return activeEngineBuild;
+  },
+  get activeEngineCtx() {
+    return activeEngineCtx;
+  },
+  get activeCacheTypeK() {
+    return activeCacheTypeK;
+  },
+  get activeCacheTypeV() {
+    return activeCacheTypeV;
+  },
+  get activeEngineKnob() {
+    return activeEngineKnob;
+  },
+  get activeMtpNMax() {
+    return activeMtpNMax;
+  },
+  get activeSpecType() {
+    return activeSpecType;
+  },
+  get kvReproState() {
+    return kvReproState;
+  },
+  get lastChatNPast() {
+    return lastChatNPast;
+  },
+  set lastChatNPast(value: number | undefined) {
+    lastChatNPast = value;
+  },
+  get lastPromptEnvHash() {
+    return lastPromptEnvHash;
+  },
+  set lastPromptEnvHash(value: string | undefined) {
+    lastPromptEnvHash = value;
+  },
+  get lastSuccessfulSessionSave() {
+    return lastSuccessfulSessionSave;
+  },
+  set lastSuccessfulSessionSave(value: SessionSaveFingerprint | null) {
+    lastSuccessfulSessionSave = value;
+  },
+  get bakedUserTails() {
+    return bakedUserTails;
+  },
+  set bakedUserTails(value: BakedUserTail[]) {
+    bakedUserTails = value;
+  },
+  get bakeUnprefixedHealed() {
+    return bakeUnprefixedHealed;
+  },
+  set bakeUnprefixedHealed(value: boolean) {
+    bakeUnprefixedHealed = value;
+  },
+  get kvHoldsChatSession() {
+    return kvHoldsChatSession;
+  },
+  set kvHoldsChatSession(value: boolean) {
+    kvHoldsChatSession = value;
+  },
+  get chatKvDiskCurrent() {
+    return chatKvDiskCurrent;
+  },
+  set chatKvDiskCurrent(value: boolean) {
+    chatKvDiskCurrent = value;
+  },
+  get lastAssembleBoundary() {
+    return lastAssembleBoundary;
+  },
+  set lastAssembleBoundary(value: number | undefined) {
+    lastAssembleBoundary = value;
+  },
+  get lastAssembleConvId() {
+    return lastAssembleConvId;
+  },
+  set lastAssembleConvId(value: string | undefined) {
+    lastAssembleConvId = value;
+  },
+  get attemptedAssembleStart() {
+    return attemptedAssembleStart;
+  },
+  set attemptedAssembleStart(value: number | undefined) {
+    attemptedAssembleStart = value;
+  },
+  get attemptedAssembleConvId() {
+    return attemptedAssembleConvId;
+  },
+  set attemptedAssembleConvId(value: string | undefined) {
+    attemptedAssembleConvId = value;
+  },
+  get lastCompletionPromptEnvHash() {
+    return lastCompletionPromptEnvHash;
+  },
+  set lastCompletionPromptEnvHash(value: string | undefined) {
+    lastCompletionPromptEnvHash = value;
+  },
+  get lastCompletionPromptEnvInputs() {
+    return lastCompletionPromptEnvInputs;
+  },
+  set lastCompletionPromptEnvInputs(value: PromptEnvInputs | undefined) {
+    lastCompletionPromptEnvInputs = value;
+  },
+  withLifecycleLock,
+  withEngineJob,
+  dropHoldAfterOptionalNativeClear,
+  isContextPoisoned,
+};
 
 /**
  * True after disposeEngineLocked's 60s safety timeout fired while native work
@@ -2997,7 +3093,7 @@ export function initEngine(
     if (activeGovernorActive && options.sessionRestore?.historyHash) {
       console.warn("Governor session restore is disabled until paired KV state exists");
     } else if (options.sessionRestore?.historyHash) {
-      await tryLoadEngineSession(modelId, {
+      await loadChatKvSession(chatKvSession, modelId, {
         historyHash: options.sessionRestore.historyHash,
         promptEnvHash: options.sessionRestore.promptEnvHash,
         modelFileId: activeModelFileId ?? "",
@@ -3397,20 +3493,6 @@ function endOnGovernorPause(
   return true;
 }
 
-/** Telemetry-safe error tag (name/enum only — never message/path/user data). */
-function sessionErrorReason(error: unknown): string {
-  const native = sessionNativeErrorReason(error);
-  if (native) return native;
-  const raw =
-    error instanceof Error
-      ? error.name || "Error"
-      : typeof error === "string"
-        ? "string"
-        : "unknown";
-  const cleaned = raw.replace(/[^A-Za-z0-9_]/g, "").slice(0, 40);
-  return `error:${cleaned || "unknown"}`;
-}
-
 /**
  * Mark the in-memory chat KV as non-reproducible from persisted history.
  * Call when a turn mutates what we persist without matching native KV
@@ -3504,674 +3586,26 @@ async function dropHoldAfterOptionalNativeClear(
   return nativeEmpty;
 }
 
-/** Record chat KV used tokens. 0 / non-finite clears (empty or unknown). */
-function noteChatNPast(value: unknown): void {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    lastChatNPast = Math.floor(value);
-    return;
-  }
-  if (value === 0) lastChatNPast = undefined;
-}
-
-async function sessionDiskGateInput(modelId = activeModelId ?? ""): Promise<{
-  nPast?: number;
-  historyLength?: number | null;
-  nCtx: number;
-  bytesPerToken: number | null;
-  calibration: SessionDiskCalibration;
-}> {
-  const nPast = lastChatNPast;
-  let historyLength: number | null | undefined;
-  if (nPast == null || nPast <= 0) {
-    historyLength = await readPersistedHistoryLength();
-  }
-  const calibration = await loadSessionDiskCalibration();
-  return {
-    nPast,
-    historyLength,
-    nCtx: activeEngineCtx,
-    bytesPerToken: sessionBytesPerTokenForModel(
-      calibration,
-      modelId,
-      registrySessionBytesPerToken(modelId, activeCacheTypeK, activeCacheTypeV),
-      activeCacheTypeK,
-      activeCacheTypeV,
-    ),
-    calibration,
-  };
-}
-
-/**
- * Persist native KV + meta for the active model. Serialized via withEngineJob
- * so it never races a completion. Never throws; returns false on skip/failure.
- *
- * Write is atomic-ish: native save goes to `<path>.tmp`, then moveAsync over the
- * real file; meta is written only after a successful rename. On ANY failure only
- * the tmp is deleted — the previous good `.kvs` + meta stay intact.
- * An identical stem/history/token save is acknowledged without another native write.
- */
 export async function saveEngineSession(
   modelId: string,
   historyHashValue: string,
   historyMessageCount?: number,
 ): Promise<boolean> {
-  if (activeGovernorActive) {
-    logGovernorSessionSkip();
-    return false;
-  }
-  // Capture identity NOW: the FIFO serializes work but not conversation id.
-  // bindActiveConversation can run while this job is queued; resolving the
-  // stem inside the job would write chat A's KV under chat B's filename.
-  const conversationId = getSessionConversationId();
-  const promptEnvHash = lastPromptEnvHash;
-  // FIX 4: lifecycle lock for the full save (disk I/O + native saveSession) so
-  // a concurrent dispose/model-switch cannot null active* fields or release the
-  // context mid-save. Outer lifecycle, inner engine-job (never reverse — that
-  // deadlocks with disposeEngineLocked waiting on engineJobChain).
-  return withLifecycleLock(() =>
-  withEngineJob(async () => {
-    const t0 = Date.now();
-    let usedTokens = resolveSessionDiskTokens({
-      nPast: lastChatNPast,
-      nCtx: activeEngineCtx,
-    });
-    let bytesPerToken: number | null = null;
-    let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
-    // a stable, unsalted 32-bit djb2 of the stem: not invertible in practice from
-    // the hash alone, but a deterministic fingerprint — anyone holding a candidate
-    // stem can confirm a match, and the same conversation links across logs
-    // needed to pair a turn's save with the load after restart
-    let logStemHash: string | null = null;
-    const log = (
-      ok: boolean,
-      extra?: Record<string, number | boolean | string>,
-      op = "save",
-    ) => {
-      try {
-        console.log(
-          `KALSA_SESSION ${JSON.stringify({
-            op,
-            ms: Date.now() - t0,
-            ok,
-            estimatedBytes,
-            usedTokens: usedTokens ?? -1,
-            ...extra,
-            ...(logStemHash ? { stemHash: logStemHash } : {}),
-          })}`,
-        );
-      } catch {
-        // telemetry must never throw
-      }
-    };
-    let tmpPath = "";
-    try {
-      // Sync gates only — early return BEFORE any tmp/backup manipulation so a
-      // refused save leaves the previous good .kvs + meta intact. The marked
-      // tool-prefix path above also avoids all native overwrite operations.
-      const ctx = context;
-      const gate = shouldSaveSession({
-        hasContext: Boolean(ctx && activeModelId === modelId),
-        disposing,
-        kvHoldsChatSession,
-        kvReproducible: kvReproState.reproducible,
-        kvDivergesAtLastExchange: kvReproState.divergesAtLastExchange,
-        kvPoisoned: isContextPoisoned(),
-      });
-      if (!gate.save) {
-        log(false, { reason: gate.reason ?? "no_context" });
-        return false;
-      }
-      // gate.save implies hasContext; re-check for TS narrow + defensive.
-      if (!ctx) {
-        log(false, { reason: "no_context" });
-        return false;
-      }
-      const stem = activeSessionStem(modelId, conversationId, promptEnvHash);
-      if (!stem) {
-        log(false, { reason: "no_session_key" });
-        return false;
-      }
-      logStemHash = historyHash(stem);
-      if (!activeModelFileId || !activeEngineBuild) {
-        log(false, { reason: "session_identity_unavailable" });
-        return false;
-      }
-      if (gate.preservePrefix) {
-        // Never save the live KV after tools: on LFM2.5/hybrid, the next
-        // prompt cannot use partial seq_rm and a restored full-tool KV has no
-        // guaranteed checkpoint at the pre-divergence boundary. Keep the
-        // previous good prefix instead; its exact native state is resumable.
-        const marked = await markSessionDivergesAtLastExchange(stem);
-        if (!marked) {
-          const logKey = conversationId ?? stem;
-          if (kvPrefixUnavailableLoggedKey !== logKey) {
-            kvPrefixUnavailableLoggedKey = logKey;
-            log(false, { reason: "kv_prefix_unavailable" }, "mark_prefix");
-          }
-          return false;
-        }
-        log(true, { reason: "last_exchange_prefix" }, "mark_prefix");
-        return true;
-      }
-      const diskInput = await sessionDiskGateInput(modelId);
-      const diskCalibration = diskInput.calibration;
-      bytesPerToken = diskInput.bytesPerToken;
-      usedTokens = resolveSessionDiskTokens(diskInput);
-      estimatedBytes =
-        usedTokens == null ? 0 : estimateSessionBytes(usedTokens, bytesPerToken ?? undefined);
-      const saveFingerprint: SessionSaveFingerprint = {
-        stem,
-        historyHash: historyHashValue,
-        usedTokens,
-        engineBuild: activeEngineBuild ?? "",
-        conversationId: conversationId ?? "",
-      };
-      if (
-        chatKvDiskCurrent &&
-        isSameSessionSave(lastSuccessfulSessionSave, saveFingerprint)
-      ) {
-        log(true, { reason: "unchanged" });
-        return true;
-      }
-      const diskDecision = await decideSessionDiskSpace(
-        { stem, diskInput },
-        { gate: sessionDiskGate, evict: evictSessionPoolForSpace },
-      );
-      if (!diskDecision.proceed) {
-        log(false, diskDecision.log);
-        return false;
-      }
-      const path = sessionFilePath(stem);
-      tmpPath = `${path}.tmp`;
-      await ensureSessionsDir();
-      // Drop any stale tmp from a previous interrupted save.
-      try {
-        await FileSystem.deleteAsync(tmpPath, { idempotent: true });
-      } catch {
-        // ignore
-      }
-      // llama.rn asymmetry (0.12.8): loadSession strips the file:// URI prefix
-      // (src/index.ts:645) but saveSession does NOT (:649-655) — the native
-      // fopen gets "file:///..." and fails instantly (e2e run 31271420320:
-      // save error in 5ms, restore MISS no_meta). Strip it ourselves for the
-      // native call only; expo-file-system ops keep the URI form.
-      const tokens = await ctx.saveSession(tmpPath.replace(/^file:\/\//, ""));
-      if (!sessionNativeSaveCoversNPast(tokens, lastChatNPast)) {
-        log(false, {
-          reason: "native_shorter_than_npast",
-          tokens: typeof tokens === "number" ? tokens : -1,
-        });
-        try {
-          await FileSystem.deleteAsync(tmpPath, { idempotent: true });
-        } catch {
-          // keep previous .kvs
-        }
-        return false;
-      }
-      // Replace real file only after a complete tmp write. moveAsync fails if
-      // dest exists, and a plain delete-then-move leaves a loss window (kill
-      // between the two loses the previous good file — re-verify finding 2).
-      // Backup-rename instead: dest → .bak, tmp → dest, drop .bak; on failure
-      // restore .bak so the last good restore point always survives.
-      const bakPath = `${path}.bak`;
-      try {
-        await FileSystem.deleteAsync(bakPath, { idempotent: true });
-      } catch {
-        // ignore
-      }
-      let hadPrevious = false;
-      try {
-        const prev = await FileSystem.getInfoAsync(path);
-        hadPrevious = !!prev.exists;
-        if (hadPrevious) await FileSystem.moveAsync({ from: path, to: bakPath });
-      } catch {
-        // ignore — treat as no previous file
-      }
-      try {
-        await FileSystem.moveAsync({ from: tmpPath, to: path });
-      } catch (moveError) {
-        // Restore the previous good file before propagating to the outer catch.
-        if (hadPrevious) {
-          try {
-            await FileSystem.moveAsync({ from: bakPath, to: path });
-          } catch {
-            // ignore — worst case cold start
-          }
-        }
-        throw moveError;
-      }
-      const meta: SessionMeta = {
-        formatVersion: SESSION_FORMAT_VERSION,
-        modelFileId: activeModelFileId,
-        engineBuild: activeEngineBuild,
-        nCtx: activeEngineCtx,
-        cacheTypeK: activeCacheTypeK ?? "",
-        cacheTypeV: activeCacheTypeV ?? "",
-        historyHash: historyHashValue,
-        savedAt: Date.now(),
-      };
-      if (
-        typeof historyMessageCount === "number" &&
-        Number.isInteger(historyMessageCount) &&
-        historyMessageCount >= 0 &&
-        Number.isFinite(historyMessageCount)
-      ) {
-        meta.historyMessageCount = historyMessageCount;
-      }
-      if (promptEnvHash !== undefined) meta.promptEnvHash = promptEnvHash;
-      if (activeMtpNMax !== undefined) meta.mtpNMax = activeMtpNMax;
-      if (activeSpecType !== undefined) meta.specType = activeSpecType;
-      if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
-      if (conversationId) meta.conversationId = conversationId;
-      if (BAKE_FORMAT_B_USER_PREFIX && bakedUserTails.length > 0) {
-        meta.bakedUserTails = bakedUserTails;
-      }
-      // Omit when unknown: a fabricated 0 would hand the next restore a false
-      // "KV starts at the full transcript" fact. Missing reads as unknown and
-      // the held+unknown send reconciles (clears) first.
-      if (lastAssembleBoundary !== undefined) {
-        meta.assembleBoundary = lastAssembleBoundary;
-      }
-      // Meta after rename, before dropping .bak: a failed meta write must not
-      // report success, and the .kvs without meta must not stay (F4).
-      if (!(await writeSessionMeta(stem, meta))) {
-        try {
-          await FileSystem.deleteAsync(path, { idempotent: true });
-        } catch {
-          // ignore
-        }
-        if (hadPrevious) {
-          try {
-            await FileSystem.moveAsync({ from: bakPath, to: path });
-          } catch {
-            // ignore — worst case cold start
-          }
-        }
-        log(false, { reason: "meta_write" });
-        return false;
-      }
-      try {
-        const fileInfo = await FileSystem.getInfoAsync(path);
-        const nextCalibration = recordSessionDiskSample(diskCalibration, {
-          ok: true,
-          modelId,
-          fileBytes:
-            "size" in fileInfo && typeof fileInfo.size === "number"
-              ? fileInfo.size
-              : undefined,
-          usedTokens: tokens,
-          knownBytesPerToken: registrySessionBytesPerToken(
-            modelId,
-            activeCacheTypeK,
-            activeCacheTypeV,
-          ),
-          cacheTypeK: activeCacheTypeK,
-          cacheTypeV: activeCacheTypeV,
-        });
-        if (nextCalibration !== diskCalibration) {
-          await saveSessionDiskCalibration(nextCalibration);
-        }
-      } catch {
-        // Calibration is best-effort; the successful session remains valid.
-      }
-      try {
-        await FileSystem.deleteAsync(bakPath, { idempotent: true });
-      } catch {
-        // ignore
-      }
-      await touchSessionUse(stem);
-      const budgetBytes = await readSessionPoolBudgetBytes();
-      await evictSessionPool(stem, budgetBytes);
-      await deleteLegacyModelSession(modelId);
-      if (!(await sessionFileExists(stem))) {
-        log(false, { reason: "evicted" });
-        return false;
-      }
-      chatKvDiskCurrent = true;
-      noteChatNPast(tokens);
-      const successfulUsedTokens =
-        resolveSessionDiskTokens({ nPast: lastChatNPast, nCtx: activeEngineCtx }) ??
-        saveFingerprint.usedTokens;
-      lastSuccessfulSessionSave = rememberSuccessfulSessionSave(
-        lastSuccessfulSessionSave,
-        { ...saveFingerprint, usedTokens: successfulUsedTokens },
-        true,
-      );
-      log(true, {
-        tokens: typeof tokens === "number" ? tokens : 0,
-        hash: historyHashValue,
-        ...(meta.historyMessageCount !== undefined
-          ? { messageCount: meta.historyMessageCount }
-          : {}),
-      });
-      return true;
-    } catch (error) {
-      const reason = sessionErrorReason(error);
-      // kv_inconsistent et al. are the protocol's own refusals (the .kvs is
-      // kept on purpose); only an unexpected class warns, once per process.
-      warnUnexpectedSessionFailure("[saveEngineSession]", reason);
-      // Failed save: delete ONLY the tmp. Leave previous .kvs + meta intact.
-      if (tmpPath) {
-        try {
-          await FileSystem.deleteAsync(tmpPath, { idempotent: true });
-        } catch {
-          // ignore
-        }
-      }
-      log(false, { reason });
-      return false;
-    }
-  }),
-  );
+  return persistChatKvSession(chatKvSession, modelId, historyHashValue, historyMessageCount);
 }
 
-/**
- * Attempt to restore native KV. Called from initEngine (lock held) and from
- * restoreEngineSession on conversation switch. Never throws.
- */
-async function tryLoadEngineSession(
-  modelId: string,
-  expected: {
-    historyHash: string;
-    promptEnvHash?: string;
-    modelFileId: string;
-    engineBuild: string;
-    nCtx: number;
-    cacheTypeK: string;
-    cacheTypeV: string;
-    mtpNMax?: number;
-    specType?: string;
-    engineKnob?: string;
-    conversationId?: string;
-  },
-): Promise<boolean> {
-  const t0 = Date.now();
-  let loadOk = false;
-  const heldChatKvAtEntry = kvHoldsChatSession;
-  let tokensLoaded: unknown;
-  let logStemHash: string | null = null;
-  const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
-    try {
-      console.log(
-        `KALSA_SESSION ${JSON.stringify({
-          op: "load",
-          ms: Date.now() - t0,
-          ok,
-          tokensOnDisk: buildKvDiagPayload({ ok, tokensLoaded }).tokens_on_disk,
-          ...extra,
-          ...(logStemHash ? { stemHash: logStemHash } : {}),
-        })}`,
-      );
-    } catch {
-      // telemetry must never throw
-    }
-  };
-  let loadStem: string | null = null;
-  const emitKvDiag = () => {
-    try {
-      console.log(
-        "KALSA_KVDIAG",
-        JSON.stringify(
-          buildKvDiagPayload({ ok: loadOk, tokensLoaded }),
-        ),
-      );
-    } catch {
-      // never throw
-    }
-  };
-  try {
-    if (!context) {
-      log(false, { reason: "no_context" });
-      return false;
-    }
-    const convId = expected.conversationId ?? getSessionConversationId();
-    const envHash = expected.promptEnvHash ?? lastPromptEnvHash;
-    const stem = convId && envHash ? sessionStem(modelId, convId, envHash) : null;
-    if (!stem) {
-      log(false, { reason: "no_session_key" });
-      return false;
-    }
-    logStemHash = historyHash(stem);
-    const staleDropped = convId
-      ? await discardStaleConversationSessions(modelId, convId, envHash ?? "")
-      : 0;
-    loadStem = stem;
-    if (!(await sessionFileExists(stem))) {
-      const recovered = await promoteSessionBak(stem);
-      if (!recovered) {
-        const orphanMeta = await readSessionMeta(stem);
-        if (orphanMeta) await deleteSessionArtifacts(stem);
-        if (staleDropped > 0) {
-          log(false, { reason: "meta_mismatch:promptEnvHash" });
-          return false;
-        }
-        const legacy = legacySessionStem(modelId);
-        const legacyFile = legacy ? await sessionFileExists(legacy) : false;
-        const legacyMeta = legacyFile && legacy ? await readSessionMeta(legacy) : null;
-        const expectedConv =
-          typeof convId === "string" && convId.length > 0 ? convId : "";
-        const legacyConv =
-          legacyMeta &&
-          typeof legacyMeta.conversationId === "string" &&
-          legacyMeta.conversationId.length > 0
-            ? legacyMeta.conversationId
-            : "";
-        // Wrong-conversation legacy must stay on disk — deleting it would drop
-        // the only pre-pool restore point when switching chats after upgrade.
-        if (!legacy || !legacyFile || !legacyMeta || legacyConv !== expectedConv) {
-          log(false, { reason: "no_file" });
-          return false;
-        }
-        loadStem = legacy;
-        logStemHash = historyHash(legacy);
-      }
-    }
-    const stored = await readSessionMeta(loadStem);
-    if (!stored) {
-      log(false, { reason: "no_meta" });
-      return false;
-    }
-    if (!(await sessionFileExists(loadStem))) {
-      await deleteSessionArtifacts(loadStem);
-      log(false, { reason: "no_file" });
-      return false;
-    }
-    // Non-history fields only: force historyHash equal on both sides so
-    // sessionMetaMismatchField does not double-check history (prefix check below).
-    const historySentinel = "__prefix_history_skip__";
-    const storedForConfig: SessionMeta = {
-      ...stored,
-      historyHash: historySentinel,
-    };
-    const expectedMeta: SessionMeta = {
-      formatVersion: SESSION_FORMAT_VERSION,
-      modelFileId: expected.modelFileId,
-      engineBuild: expected.engineBuild,
-      nCtx: expected.nCtx,
-      cacheTypeK: expected.cacheTypeK,
-      cacheTypeV: expected.cacheTypeV,
-      historyHash: historySentinel,
-    };
-    if (expected.promptEnvHash !== undefined) {
-      expectedMeta.promptEnvHash = expected.promptEnvHash;
-    }
-    if (expected.mtpNMax !== undefined) expectedMeta.mtpNMax = expected.mtpNMax;
-    if (expected.specType !== undefined) expectedMeta.specType = expected.specType;
-    if (expected.engineKnob !== undefined) expectedMeta.engineKnob = expected.engineKnob;
-    if (expected.conversationId) expectedMeta.conversationId = expected.conversationId;
-    const mismatchField = sessionMetaMismatchField(storedForConfig, expectedMeta);
-    if (mismatchField !== null) {
-      bakedUserTails = [];
-      bakeUnprefixedHealed = false;
-      await deleteSessionArtifacts(loadStem);
-      // Field name only (enum-like) — attributable cold starts: historyHash =
-      // save missed/raced; promptEnvHash = locale (or legacy facts-in-system)
-      // changed (semantically correct cold); nCtx/KV = config change.
-      log(false, {
-        reason: `meta_mismatch:${mismatchField}`,
-      });
-      return false;
-    }
-    // Prefix-aware history: saved hash may be a strict prefix of boot messages
-    // (new user turn already persisted before ensureEngine restore).
-    const bootMessages = await readBootMessages();
-    const historyCheck = sessionHistoryPrefixAccepts(stored, bootMessages);
-    if (!historyCheck.accept) {
-      await deleteSessionArtifacts(loadStem);
-      const bootHash = computeHistoryHashFromMessages(bootMessages);
-      log(false, {
-        reason: `meta_mismatch:${historyCheck.reason}`,
-        ...(historyCheck.reason === "historyHash"
-          ? { metaHash: stored.historyHash, bootHash }
-          : {}),
-      });
-      return false;
-    }
-    // Byte-identity gate: refuse when the prefix cannot re-render the KV
-    // (legacy assistant without modelEmittedText, interrupted without capture).
-    const prefixCount =
-      typeof stored.historyMessageCount === "number"
-        ? stored.historyMessageCount
-        : bootMessages.length;
-    const reproCheck = historyWindowReproducesKv(
-      bootMessages.slice(0, Math.max(0, prefixCount)),
-    );
-    if (!reproCheck.accept) {
-      if (shouldDeleteSessionArtifactsOnLoadFailure(reproCheck.reason)) {
-        await deleteSessionArtifacts(loadStem);
-      }
-      log(false, { reason: `meta_mismatch:${reproCheck.reason}` });
-      return false;
-    }
-    // llama.rn 0.12.8: loadSession strips file://; saveSession does not.
-    // Pass the URI form here — do not strip.
-    const result = await context.loadSession(sessionFilePath(loadStem));
-    tokensLoaded = result?.tokens_loaded;
-    if (!sessionLoadHasTokens(result)) {
-      bakedUserTails = [];
-      bakeUnprefixedHealed = false;
-      await dropHoldAfterOptionalNativeClear(context);
-      await deleteSessionArtifacts(loadStem);
-      log(false, { reason: "tokens_loaded:0" });
-      return false;
-    }
-    kvHoldsChatSession = true;
-    chatKvDiskCurrent = true;
-    noteChatNPast(result?.tokens_loaded);
-    // Missing meta.assembleBoundary reads as unknown (not 0): the restored KV
-    // is held with no start fact, so the next send reconciles before assembly.
-    lastAssembleBoundary = sessionAssembleBoundary(stored);
-    lastAssembleConvId = convId ?? "";
-    // A factual restore supersedes any in-memory reconcile attempt.
-    attemptedAssembleStart = undefined;
-    attemptedAssembleConvId = undefined;
-    // Keep lastPromptEnvHash aligned with the restored KV for a later save.
-    lastPromptEnvHash =
-      stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
-    bakedUserTails = BAKE_FORMAT_B_USER_PREFIX
-      ? parseBakedUserTails(stored.bakedUserTails)
-      : [];
-    bakeUnprefixedHealed = true;
-    loadOk = true;
-    await touchSessionUse(stem);
-    if (loadStem !== stem) await touchSessionUse(loadStem);
-    log(true, {
-      tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
-    });
-    return true;
-  } catch (error) {
-    const reason = sessionErrorReason(error);
-    // Same rule as the save: the expected refusal classes stay on the
-    // structured line, an unexpected class warns once per process.
-    warnUnexpectedSessionFailure("[tryLoadEngineSession]", reason);
-    bakedUserTails = [];
-    bakeUnprefixedHealed = false;
-    await dropHoldAfterOptionalNativeClear(context);
-    if (shouldDeleteSessionArtifactsOnLoadFailure(reason) && loadStem) {
-      await deleteSessionArtifacts(loadStem);
-    }
-    log(false, { reason });
-    return false;
-  } finally {
-    if (!loadOk) {
-      bakeUnprefixedHealed = false;
-      if (heldChatKvAtEntry) {
-        await dropHoldAfterOptionalNativeClear(context);
-      }
-    }
-    emitKvDiag();
-  }
-}
-
-/**
- * Drop on-disk KV for this model + the active conversation (all env-hash
- * variants + legacy per-model file). clearChat / empty-chat background.
- * Serialized on the engine job chain so a queued save cannot resurrect
- * the file after invalidation. Never throws.
- */
 export async function invalidateEngineSession(modelId: string): Promise<void> {
-  if (!modelId) return;
-  const conv = getSessionConversationId();
-  return withEngineJob(async () => {
-    try {
-      if (activeModelId === modelId) {
-        await dropHoldAfterOptionalNativeClear(context);
-        bakedUserTails = [];
-        bakeUnprefixedHealed = false;
-      }
-      if (conv) {
-        await deleteSessionsForModelConversation(modelId, conv);
-      } else {
-        await deleteLegacyModelSession(modelId);
-      }
-    } catch {
-      // never throw
-    }
-  });
+  return invalidateModelSessions(chatKvSession, modelId);
 }
 
-/** Drop every pooled session for a conversation (any model / env hash). */
 export async function invalidateConversationSessions(
   conversationId: string,
 ): Promise<void> {
-  if (!conversationId) return;
-  const wasActive = getSessionConversationId() === conversationId;
-  return withEngineJob(async () => {
-    try {
-      if (wasActive) await dropHoldAfterOptionalNativeClear(context);
-      await deleteSessionsForConversation(conversationId);
-    } catch {
-      // never throw
-    }
-  });
+  return invalidateConversationSessionFiles(chatKvSession, conversationId);
 }
 
-/**
- * Load the active conversation's session into a live engine (chat switch).
- * Same gates as init restore. Never throws.
- */
 export async function restoreEngineSession(modelId: string): Promise<boolean> {
-  if (!modelId) return false;
-  return withLifecycleLock(() =>
-    withEngineJob(async () => {
-      if (!context || activeModelId !== modelId) return false;
-      lastCompletionPromptEnvHash = undefined;
-      lastCompletionPromptEnvInputs = undefined;
-      return tryLoadEngineSession(modelId, {
-        historyHash: "",
-        promptEnvHash: lastPromptEnvHash,
-        modelFileId: activeModelFileId ?? "",
-        engineBuild: activeEngineBuild ?? "",
-        nCtx: activeEngineCtx,
-        cacheTypeK: activeCacheTypeK ?? "",
-        cacheTypeV: activeCacheTypeV ?? "",
-        mtpNMax: activeMtpNMax,
-        specType: activeSpecType,
-        engineKnob: activeEngineKnob,
-        conversationId: getSessionConversationId(),
-      });
-    }),
-  );
+  return restoreChatKvSession(chatKvSession, modelId);
 }
 
 /** namesValid / argsParsed over every emitted call (vacuous true if none). */
@@ -5457,7 +4891,7 @@ export async function streamAssistantTurn(
           void appendObservation(observationRow);
         }
         // tokens_cached is n_past in llama.rn — used-token disk gate.
-        noteChatNPast(result?.tokens_cached);
+        noteChatNPast(chatKvSession, result?.tokens_cached);
 
         // Per-round counters+timings only — never user text / completion content.
         // tool/strategy = last SUCCESSFUL tool earlier in this turn (see
@@ -6118,104 +5552,6 @@ export async function streamAssistantTurn(
   });
 }
 
-/** Native path for saveSession (llama.rn does not strip file:// on save). */
-function nativeSessionPath(uri: string): string {
-  return uri.replace(/^file:\/\//, "");
-}
-
-function logGovernorSessionSkip(): void {
-  try {
-    console.log(
-      `KALSA_SESSION ${JSON.stringify({
-        op: "save",
-        ok: false,
-        reason: GOVERNOR_SESSION_REASON,
-      })}`,
-    );
-  } catch {
-    // telemetry must never throw
-  }
-}
-
-async function snapshotNativeSession(
-  engine: LlamaContext,
-  destPath: string,
-): Promise<boolean> {
-  if (activeGovernorActive && engine === context) {
-    logGovernorSessionSkip();
-    return false;
-  }
-  try {
-    if (!(await hasEnoughDiskForSession(await sessionDiskGateInput()))) return false;
-    await ensureSessionsDir();
-    try {
-      await FileSystem.deleteAsync(destPath, { idempotent: true });
-    } catch {
-      // overwrite
-    }
-    // NOT bounded yet, and the reason is narrower than it first looked. The
-    // duration IS measured: every KALSA_SESSION save payload carries `ms`.
-    // Across the captured runs, 196 successful saves — 77 of them S23 — give a
-    // median of 47 ms and a worst case of 1022 ms at 6636 tokens; loads are
-    // 41 ms median, 135 ms worst. So a 15 s aux bound would sit ~15x above the
-    // slowest save ever recorded, which is the margin this codebase requires of
-    // a backstop.
-    //
-    // What is missing is the SLOW device: not one of those samples is from the
-    // Jelly, and a session write is disk I/O, where a Jelly is furthest from an
-    // S23. Bounding on S23 numbers alone would set the ceiling from the fast
-    // half of the lab. One Jelly save closes this — read `ms` off any
-    // KALSA_SESSION save line — and then the bound goes in with both devices
-    // behind it.
-    await engine.saveSession(nativeSessionPath(destPath));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function restoreNativeSession(
-  engine: LlamaContext,
-  srcPath: string,
-): Promise<boolean> {
-  const t0 = Date.now();
-  let tokensLoaded: unknown;
-  const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
-    try {
-      console.log(
-        `KALSA_SESSION ${JSON.stringify({
-          op: "load",
-          source: "memory_extract_restore",
-          ms: Date.now() - t0,
-          ok,
-          tokensOnDisk: buildKvDiagPayload({ ok, tokensLoaded }).tokens_on_disk,
-          ...extra,
-        })}`,
-      );
-    } catch {
-      // telemetry must never throw
-    }
-  };
-  if (activeGovernorActive && engine === context) {
-    log(false, { reason: GOVERNOR_SESSION_REASON });
-    return false;
-  }
-  try {
-    // Unbounded for the same reason as the save above: disk I/O, never timed.
-    const result = await engine.loadSession(srcPath);
-    tokensLoaded = result?.tokens_loaded;
-    const ok = sessionLoadHasTokens(result);
-    if (ok) noteChatNPast(result?.tokens_loaded);
-    log(ok, {
-      tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
-    });
-    return ok;
-  } catch {
-    log(false, { reason: "load_error" });
-    return false;
-  }
-}
-
 /**
  * Non-streaming completion that extracts durable USER facts from a finished turn.
  * Call only AFTER the chat turn is done — never during streaming.
@@ -6317,6 +5653,7 @@ export async function extractMemory(
         const chatStem =
           modelId != null
             ? activeSessionStem(
+                chatKvSession,
                 modelId,
                 getSessionConversationId() ?? undefined,
                 lastPromptEnvHash,
@@ -6328,7 +5665,7 @@ export async function extractMemory(
             stopReason = "skipped_no_snapshot";
           } else {
             const paths = extractChatKvPaths(chatStem);
-            const snapped = await snapshotNativeSession(engine, paths.snapshot);
+            const snapped = await snapshotNativeSession(chatKvSession, engine, paths.snapshot);
             const diskExists = await sessionFileExists(chatStem);
             const source = extractChatKvRestoreSource({
               snapshotOk: snapped,
@@ -6450,7 +5787,7 @@ export async function extractMemory(
       }
       if (restorePath) {
         if (engine && engine === context) {
-          const restored = await restoreNativeSession(engine, restorePath);
+          const restored = await restoreNativeSession(chatKvSession, engine, restorePath);
           kvHoldsChatSession = restored;
           if (!restored) {
             // The context now holds the extract prompt (or nothing): the chat

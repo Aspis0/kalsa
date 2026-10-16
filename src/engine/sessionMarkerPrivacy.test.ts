@@ -11,8 +11,22 @@
 import fs from "fs";
 import path from "path";
 
-const llamaServiceSource = fs.readFileSync(
-  path.resolve(__dirname, "LlamaService.ts"),
+// The save/load wiring now spans LlamaService.ts and the chatKvSession* files
+// its bodies moved into; every assertion below is about that wiring, wherever
+// it lives, so scan them as one source.
+const llamaServiceSource = [
+  "LlamaService.ts",
+  "chatKvSessionSave.ts",
+  "chatKvSessionLoad.ts",
+  "chatKvSessionInvalidate.ts",
+  "chatKvSessionNative.ts",
+  "chatKvSessionShared.ts",
+]
+  .map((name) => fs.readFileSync(path.resolve(__dirname, name), "utf8"))
+  .join("\n");
+
+const sessionLoadSource = fs.readFileSync(
+  path.resolve(__dirname, "chatKvSessionLoad.ts"),
   "utf8",
 );
 
@@ -75,19 +89,19 @@ test("restoreEngineSession reaches the native load under the governor", () => {
   // hold still drops while A's KV may remain: pre-existing, backlog A6.) An
   // early return leaves conversation A's hold across the switch and B's send
   // then reconciles (and discards B's .kvs).
-  const fnStart = llamaServiceSource.indexOf(
-    "export async function restoreEngineSession",
+  const fnStart = sessionLoadSource.indexOf(
+    "export async function restoreChatKvSession",
   );
-  if (fnStart < 0) throw new Error("restoreEngineSession not found");
-  const lockAt = llamaServiceSource.indexOf("withLifecycleLock", fnStart);
+  if (fnStart < 0) throw new Error("restoreChatKvSession not found");
+  const lockAt = sessionLoadSource.indexOf("withLifecycleLock", fnStart);
   if (lockAt < 0) {
-    throw new Error("restoreEngineSession no longer takes the lifecycle lock");
+    throw new Error("restoreChatKvSession no longer takes the lifecycle lock");
   }
-  const loadAt = llamaServiceSource.indexOf("return tryLoadEngineSession", fnStart);
+  const loadAt = sessionLoadSource.indexOf("return loadChatKvSession", fnStart);
   if (loadAt < 0) {
-    throw new Error("restoreEngineSession no longer calls tryLoadEngineSession");
+    throw new Error("restoreChatKvSession no longer calls loadChatKvSession");
   }
-  const preamble = llamaServiceSource.slice(fnStart, loadAt);
+  const preamble = sessionLoadSource.slice(fnStart, loadAt);
   expect(preamble).not.toMatch(/activeGovernorActive/);
   expect(preamble).not.toMatch(/logGovernorSessionSkip/);
 });
