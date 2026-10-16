@@ -2833,7 +2833,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-brain"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "base64 0.22.1",
  "getrandom 0.3.4",
@@ -2872,7 +2872,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-catalog"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "kalsa-probe",
  "serde_json",
@@ -2880,7 +2880,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-door"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "base64 0.22.1",
  "getrandom 0.3.4",
@@ -2898,7 +2898,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-download"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "kalsa-runtime",
  "libc",
@@ -2909,7 +2909,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-files"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "ignore",
  "nucleo-matcher",
@@ -2919,7 +2919,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-iroh"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "getrandom 0.3.4",
  "hex",
@@ -2934,7 +2934,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-launch"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "kalsa-catalog",
  "kalsa-door",
@@ -2947,7 +2947,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-mail"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "async-imap",
  "base64 0.22.1",
@@ -2974,7 +2974,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-mcp"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "log",
  "rmcp",
@@ -2987,7 +2987,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-pairing"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "base64 0.22.1",
  "getrandom 0.3.4",
@@ -3005,7 +3005,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-probe"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "libc",
  "serde",
@@ -3014,7 +3014,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-reuse"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "kalsa-download",
  "sha2 0.10.9",
@@ -3022,7 +3022,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-room"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "chrono",
  "getrandom 0.3.4",
@@ -3036,7 +3036,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-runtime"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "flate2",
  "kalsa-download",
@@ -3052,14 +3052,14 @@ dependencies = [
 
 [[package]]
 name = "kalsa-sentinel"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "kalsa-supervisor"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "getrandom 0.3.4",
  "libc",
@@ -3069,7 +3069,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-tune"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "getrandom 0.3.4",
  "kalsa-launch",
@@ -3081,7 +3081,7 @@ dependencies = [
 
 [[package]]
 name = "kalsa-web"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "serde_json",
  "ureq",
