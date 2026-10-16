@@ -4,6 +4,7 @@
 use crate::compose::as_address;
 use crate::encoded_word;
 use crate::html_text;
+use crate::invisible;
 use crate::link::{self, Link};
 use mail_parser::{DateTime, HeaderValue, Message, MessageParser, PartType};
 
@@ -137,7 +138,7 @@ fn fill(message: Option<Message<'_>>, headers: Vec<(String, String)>) -> ParsedM
         message_id: message
             .as_ref()
             .and_then(|m| m.message_id())
-            .map(|id| id.trim().to_string()),
+            .and_then(clean_id),
         subject: message
             .as_ref()
             .and_then(|m| m.subject().map(str::to_string))
@@ -319,12 +320,10 @@ fn thread_ids(message: &Message<'_>) -> Vec<String> {
         raw_value(message.in_reply_to()),
     ] {
         for chunk in header.split(|b| b.is_ascii_whitespace() || *b == b',') {
-            let id = String::from_utf8_lossy(chunk)
-                .trim()
-                .trim_start_matches('<')
-                .trim_end_matches('>')
-                .to_string();
-            if !id.is_empty() && !ids.contains(&id) {
+            let Some(id) = clean_id(&String::from_utf8_lossy(chunk)) else {
+                continue;
+            };
+            if !ids.contains(&id) {
                 ids.push(id);
                 if ids.len() == MAX_THREAD_IDS {
                     return ids;
@@ -333,12 +332,17 @@ fn thread_ids(message: &Message<'_>) -> Vec<String> {
         }
     }
     if ids.is_empty() {
-        if let Some(id) = message.message_id() {
-            let id = id.trim().trim_start_matches('<').trim_end_matches('>');
-            if !id.is_empty() {
-                ids.push(id.to_string());
-            }
+        if let Some(id) = message.message_id().and_then(clean_id) {
+            ids.push(id);
         }
     }
     ids
+}
+
+/// An id goes into a threading header as it is, so only a clean one is kept. A mangled id
+/// costs the thread, which is better than a header a mail client cannot read.
+fn clean_id(id: &str) -> Option<String> {
+    let id = id.trim().trim_start_matches('<').trim_end_matches('>');
+    let clean = !id.is_empty() && !id.contains(char::is_whitespace) && invisible::one_line(id) == id;
+    clean.then(|| id.to_string())
 }

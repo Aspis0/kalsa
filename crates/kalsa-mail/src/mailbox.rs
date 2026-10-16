@@ -16,6 +16,11 @@ use tokio::time::timeout;
 /// because a list asked for fifty items.
 pub const MESSAGE_LIMIT: usize = 256 * 1024;
 
+/// How many bytes of one header block this server will hold. The sender history reads
+/// two headers out of every mail in a folder, and a mail can carry megabytes of
+/// `Received:` chains: only what the two headers need is asked for and kept.
+pub const HEADER_LIMIT: usize = 2 * 1024;
+
 /// A mail cut at `MESSAGE_LIMIT` still has to reach past the point where `mail`
 /// stops reading, or every large mail would come back with an empty body.
 const _: () = assert!(MESSAGE_LIMIT > crate::mail::BODY_LIMIT);
@@ -87,19 +92,22 @@ impl Mailbox {
         Ok(uids)
     }
 
-    /// The header block of each UID the server answered for, paired with the UID its own
+    /// The From and Date lines of each UID the server answered for, paired with the UID its own
     /// response carries. A UID the server leaves out has no entry, so callers never pair by position.
+    /// Nothing else of the header block is asked for, and a block that reaches
+    /// [`HEADER_LIMIT`] is cut back to its last whole line.
     pub async fn headers(&mut self, uids: &[u32]) -> Result<Vec<(u32, Vec<u8>)>, MailError> {
         if uids.is_empty() {
             return Ok(Vec::new());
         }
         let set = set_of(uids);
-        let mut stream = bounded(self.session.uid_fetch(set, "BODY.PEEK[HEADER]")).await?;
+        let mut stream = bounded(self.session.uid_fetch(set, &sender_header_query())).await?;
         let mut out = Vec::with_capacity(uids.len());
         while let Some(fetch) = stream.next().await {
             let fetch = fetch.map_err(|error| lost_or(&error, MailError::Protocol))?;
             if let Some(uid) = fetch.uid {
-                out.push((uid, fetch.header().map(<[u8]>::to_vec).unwrap_or_default()));
+                let header = fetch.header().map(<[u8]>::to_vec).unwrap_or_default();
+                out.push((uid, whole_lines(header)));
             }
         }
         Ok(out)
@@ -218,6 +226,23 @@ fn partial_body_query(limit: usize) -> String {
     format!("BODY.PEEK[]<0.{limit}>")
 }
 
+/// The sender history reads From and Date and nothing else, so only those are asked for.
+fn sender_header_query() -> String {
+    format!("BODY.PEEK[HEADER.FIELDS (FROM DATE)]<0.{HEADER_LIMIT}>")
+}
+
+/// A block that reaches the cap was cut somewhere, and the cut can fall inside a line or
+/// inside a UTF-8 character. Only the whole lines before it are kept. A line break is
+/// never part of a multi-byte character, so the cut lands on a character boundary too.
+fn whole_lines(mut header: Vec<u8>) -> Vec<u8> {
+    if header.len() >= HEADER_LIMIT {
+        header.truncate(HEADER_LIMIT);
+        let end = header.iter().rposition(|byte| *byte == b'\n').map_or(0, |at| at + 1);
+        header.truncate(end);
+    }
+    header
+}
+
 /// `17-Oct-2026`, the form IMAP SEARCH takes. A search key carries no time zone, so
 /// this is Utc: a day computed in local time would drop mail the person asked for.
 fn imap_date(days: u32) -> String {
@@ -265,6 +290,23 @@ mod tests {
     fn a_big_mail_is_never_asked_for_whole() {
         assert_eq!(full_body_query(), "BODY.PEEK[]");
         assert_eq!(partial_body_query(MESSAGE_LIMIT), "BODY.PEEK[]<0.262144>");
+    }
+
+    #[test]
+    fn a_sender_read_asks_for_from_and_date_and_a_capped_slice() {
+        assert_eq!(
+            sender_header_query(),
+            "BODY.PEEK[HEADER.FIELDS (FROM DATE)]<0.2048>"
+        );
+    }
+
+    #[test]
+    fn a_cut_header_keeps_only_whole_lines_and_a_whole_one_is_kept_as_it_is() {
+        let mut cut = b"From: a@studio.example.it\r\nX-Pad: ".to_vec();
+        cut.extend("é".repeat(2000).as_bytes());
+        assert_eq!(whole_lines(cut), b"From: a@studio.example.it\r\n".to_vec());
+        let whole = b"From: a@studio.example.it\r\n\r\n".to_vec();
+        assert_eq!(whole_lines(whole.clone()), whole);
     }
 
     #[test]

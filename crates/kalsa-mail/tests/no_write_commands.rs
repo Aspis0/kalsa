@@ -98,8 +98,12 @@ fn the_read_path_uses_peek_and_examine_only() {
         );
     }
     assert!(
-        mailbox.contains("BODY.PEEK[HEADER]"),
-        "the sender history reads headers, not bodies"
+        mailbox.contains("BODY.PEEK[HEADER.FIELDS (FROM DATE)]"),
+        "the sender history reads two headers, not bodies"
+    );
+    assert!(
+        !mailbox.contains("BODY.PEEK[HEADER]"),
+        "the sender history never asks for a whole header block"
     );
     for call in [
         ".select(",

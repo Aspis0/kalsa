@@ -70,7 +70,7 @@ impl MailServer {
         let account = Arc::new(account);
         let senders = Arc::new(Mutex::new(Senders::default()));
         let listed = Arc::new(Mutex::new(Listed::default()));
-        let kept = Arc::new(Mutex::new(KeptSession::new(account.clone())));
+        let kept = KeptSession::start(account.clone());
         let tool_router = ToolRouter::new()
             .with_route(ToolRoute::new(tools::list(), {
                 let (account, senders, listed, kept) = (account.clone(), senders.clone(), listed.clone(), kept.clone());

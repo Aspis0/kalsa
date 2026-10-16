@@ -34,9 +34,11 @@ pub fn reply(original: &ParsedMail, from: &str, subject: &str, body: &str) -> Re
     let draft = draft::reply_to(original, body).map_err(|_| ComposeError::NoRecipient)?;
     let from: Mailbox = from.parse().map_err(|_| ComposeError::Invalid)?;
     let to: Mailbox = draft.to.parse().map_err(|_| ComposeError::Invalid)?;
-    let subject = match invisible::one_line(subject).as_str() {
-        "" => draft.subject,
-        typed => typed.to_owned(),
+    let typed = invisible::one_line(subject);
+    let subject = if typed.is_empty() {
+        invisible::one_line(&draft.subject)
+    } else {
+        typed
     };
     let mut builder = Message::builder().from(from).to(to).subject(subject);
     if let Some(id) = &original.message_id {
@@ -116,6 +118,40 @@ mod tests {
         let wire = text_of(&reply);
         assert!(!wire.lines().any(|line| line.starts_with("Bcc:")), "{wire}");
         assert!(wire.contains("Subject: Ciao Bcc: x@y.example\r\n"), "{wire}");
+    }
+
+    #[test]
+    fn a_hostile_message_id_never_reaches_a_threading_header() {
+        let ids = [
+            "orig\x00@studio.example.it",
+            "orig\x1b[2J@studio.example.it",
+            "orig\x0b@studio.example.it",
+            "orig\r\n Bcc: x@y.example@studio.example.it",
+        ];
+        for id in ids {
+            let raw = format!(
+                "From: Studio <andrea@studio.example.it>\r\nMessage-ID: <{id}>\r\nReferences: <root@studio.example.it>\r\nSubject: Riunione\r\n\r\nSe va bene?"
+            );
+            let reply = reply(&crate::mail::parse(raw.as_bytes()), "maria@example.it", "", "Va bene.").expect("composed");
+            let wire = text_of(&reply);
+            assert!(!wire.contains("In-Reply-To:"), "{id:?}: {wire}");
+            assert!(!wire.lines().any(|line| line.starts_with("Bcc:")), "{id:?}: {wire}");
+            assert!(!wire.chars().any(|c| c.is_control() && c != '\r' && c != '\n'), "{id:?}: {wire}");
+        }
+    }
+
+    #[test]
+    fn a_hostile_reference_is_dropped_and_the_clean_ones_stay() {
+        let raw = b"From: Studio <andrea@studio.example.it>\r\nMessage-ID: <orig@studio.example.it>\r\nReferences: <root\x00@studio.example.it> <mid@studio.example.it>\r\nSubject: Riunione\r\n\r\nSe va bene?";
+        let wire = text_of(&reply(&crate::mail::parse(raw), "maria@example.it", "", "Va bene.").expect("composed"));
+        assert!(wire.contains("References: <mid@studio.example.it> <orig@studio.example.it>\r\n"), "{wire}");
+    }
+
+    #[test]
+    fn a_default_subject_is_one_line_too() {
+        let raw = b"From: Studio <andrea@studio.example.it>\r\nMessage-ID: <orig@studio.example.it>\r\nSubject: Riunione\x00\x0b\r\n Segreta\r\n\r\nSe va bene?";
+        let wire = text_of(&reply(&crate::mail::parse(raw), "maria@example.it", "", "Va bene.").expect("composed"));
+        assert!(wire.contains("Subject: Re: Riunione Segreta\r\n"), "{wire}");
     }
 
     #[test]

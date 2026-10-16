@@ -11,7 +11,7 @@
 pub mod uid;
 
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use uid::Answers;
@@ -32,6 +32,11 @@ pub struct Seen {
     pub hang_up: AtomicBool,
     /// Set by a test: the next UID SEARCH or FETCH finds its socket closed, before any answer.
     pub hang_up_on_uid: AtomicBool,
+    /// What followed `UID FETCH`, in the order the commands arrived.
+    pub fetches: Mutex<Vec<String>>,
+    pub logouts: AtomicUsize,
+    /// Set by a test: a LOGOUT is counted and never answered, and its socket stays open.
+    pub silent_logout: AtomicBool,
 }
 
 impl Default for Seen {
@@ -42,6 +47,9 @@ impl Default for Seen {
             uid_next: AtomicU32::new(116),
             hang_up: AtomicBool::new(false),
             hang_up_on_uid: AtomicBool::new(false),
+            fetches: Mutex::new(Vec::new()),
+            logouts: AtomicUsize::new(0),
+            silent_logout: AtomicBool::new(false),
         }
     }
 }
@@ -104,9 +112,16 @@ async fn serve_one(socket: TcpStream, login: Login, answers: Answers, seen: Arc<
                 if rest.starts_with("SEARCH") {
                     seen.searches.fetch_add(1, Ordering::SeqCst);
                 }
+                if rest.starts_with("FETCH") {
+                    seen.fetches.lock().unwrap_or_else(|poison| poison.into_inner()).push(rest.to_string());
+                }
                 uid::answer(tag, rest, answers)
             }
             "LOGOUT" => {
+                seen.logouts.fetch_add(1, Ordering::SeqCst);
+                if seen.silent_logout.load(Ordering::SeqCst) {
+                    continue;
+                }
                 let _ = write
                     .write_all(format!("* BYE\r\n{tag} OK LOGOUT completed\r\n").as_bytes())
                     .await;

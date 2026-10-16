@@ -3,16 +3,18 @@
 //! A call used to connect, log in and log out: a TLS handshake and a LOGIN on every tool
 //! call. The session is kept instead. Each call still EXAMINEs its folder, so the
 //! UIDVALIDITY it checks is read fresh. A session idle past `IDLE_LIMIT` is not reused,
-//! and a call that fails drops it.
+//! and a timer logs it out; a call that fails drops it.
 
 use std::future::Future;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use async_imap::Session;
+use tokio::sync::Mutex;
+use tokio::time::{sleep, timeout, Instant};
 
 use crate::account::Account;
-use crate::imap::{self, MailError, Transport};
+use crate::imap::{self, MailError, Transport, READ_DEADLINE};
 use crate::mailbox::{check_session, Mailbox};
 
 /// A gap between two of a person's tool calls is seconds to minutes. A longer hold keeps
@@ -34,6 +36,23 @@ impl KeptSession {
         KeptSession { account, kept: None }
     }
 
+    /// Starts the timer that logs an idle session out. It needs a runtime, and it holds only
+    /// a weak handle, so it ends at its next tick after the last strong handle is dropped.
+    pub fn start(account: Arc<Account>) -> Arc<Mutex<KeptSession>> {
+        let kept = Arc::new(Mutex::new(KeptSession::new(account)));
+        let weak = Arc::downgrade(&kept);
+        tokio::spawn(async move {
+            loop {
+                sleep(IDLE_LIMIT).await;
+                let Some(kept) = weak.upgrade() else {
+                    break;
+                };
+                kept.lock().await.release_idle();
+            }
+        });
+        kept
+    }
+
     /// Runs `body` on the folder and keeps the session its answer came back on. An error
     /// keeps nothing, because the state of a socket after an error is unknown. A dead
     /// connection is retried once on a new session, so `body` may run twice and must only read.
@@ -42,8 +61,8 @@ impl KeptSession {
         F: FnMut(Mailbox) -> Fut,
         Fut: Future<Output = Result<(T, Mailbox), MailError>>,
     {
-        let kept = self.kept.take().filter(|kept| kept.idle_since.elapsed() < IDLE_LIMIT);
-        if let Some(kept) = kept {
+        self.release_idle();
+        if let Some(kept) = self.kept.take() {
             let outcome = match alive(kept.session).await {
                 Ok(session) => run(session, folder, &mut body).await,
                 Err(error) => Err(error),
@@ -64,6 +83,23 @@ impl KeptSession {
             answer
         })
     }
+
+    /// Takes an idle session out and logs it out in the background. Dropping the socket
+    /// would leave the login open on the server, and waiting for the LOGOUT would hold
+    /// the lock for as long as a silent server takes to answer.
+    fn release_idle(&mut self) {
+        if let Some(Kept { session, .. }) = self
+            .kept
+            .take_if(|kept| kept.idle_since.elapsed() >= IDLE_LIMIT)
+        {
+            tokio::spawn(log_out(session));
+        }
+    }
+}
+
+/// Bounded, so a server that never answers frees its socket after `READ_DEADLINE`.
+async fn log_out(mut session: Session<Transport>) {
+    let _ = timeout(READ_DEADLINE, session.logout()).await;
 }
 
 /// Before the folder is examined: a closed socket would answer EXAMINE with no UIDVALIDITY.
@@ -99,7 +135,7 @@ mod tests {
     use fake_imap::uid::Answers;
     use fake_imap::Login;
     use std::sync::atomic::Ordering;
-    use tokio::sync::Mutex;
+    use tokio::time::{advance, pause, resume};
 
     struct Rig {
         seen: Arc<fake_imap::Seen>,
@@ -161,5 +197,74 @@ mod tests {
         rig.seen.uid_next.store(117, Ordering::SeqCst);
         read_105(&rig).await.expect("the second read");
         assert_eq!(rig.seen.searches.load(Ordering::SeqCst), 2);
+    }
+
+    async fn started() -> (Arc<Mutex<KeptSession>>, Arc<fake_imap::Seen>) {
+        let (line, seen) = fake_imap::serve_seen(Login::Accept, Answers::Exact).await;
+        let account = Arc::new(crate::account::read(line.as_bytes()).expect("the test line is well formed"));
+        (KeptSession::start(account), seen)
+    }
+
+    async fn call_once(kept: &mut KeptSession) {
+        kept.call("INBOX", |mailbox| async move { Ok::<_, MailError>(((), mailbox)) })
+            .await
+            .expect("the call answers");
+    }
+
+    /// The LOGOUT is written by the client and read by the fake on a later turn of the
+    /// runtime, so the count is polled rather than read once.
+    async fn logouts_seen(seen: &fake_imap::Seen) -> usize {
+        for _ in 0..1000 {
+            let logouts = seen.logouts.load(Ordering::SeqCst);
+            if logouts > 0 {
+                return logouts;
+            }
+            sleep(Duration::from_millis(1)).await;
+        }
+        seen.logouts.load(Ordering::SeqCst)
+    }
+
+    /// The connect runs on the real clock: under a paused clock the runtime advances past
+    /// pending socket I/O, and the connect times out.
+    #[tokio::test]
+    async fn an_idle_session_is_logged_out_without_another_call() {
+        let (kept, seen) = started().await;
+        call_once(&mut *kept.lock().await).await;
+        pause();
+        advance(IDLE_LIMIT / 2).await;
+        assert_eq!(seen.logouts.load(Ordering::SeqCst), 0, "not before the limit");
+        advance(IDLE_LIMIT * 2).await;
+        assert_eq!(logouts_seen(&seen).await, 1);
+    }
+
+    #[tokio::test]
+    async fn a_session_held_by_a_caller_is_not_logged_out_under_it() {
+        let (kept, seen) = started().await;
+        call_once(&mut *kept.lock().await).await;
+        pause();
+        let held = kept.lock().await;
+        advance(IDLE_LIMIT * 2).await;
+        assert_eq!(logouts_seen(&seen).await, 0, "the timer waits for the holder");
+        drop(held);
+        assert_eq!(logouts_seen(&seen).await, 1, "once free, the idle session is closed");
+    }
+
+    /// No timer runs here, so the call itself has to release the idle session. The clock is
+    /// resumed for the reconnect, which needs real socket I/O.
+    #[tokio::test]
+    async fn a_call_after_the_idle_limit_does_not_wait_for_a_silent_logout() {
+        let (line, seen) = fake_imap::serve_seen(Login::Accept, Answers::Exact).await;
+        seen.silent_logout.store(true, Ordering::SeqCst);
+        let account = Arc::new(crate::account::read(line.as_bytes()).expect("the test line is well formed"));
+        let mut kept = KeptSession::new(account);
+        call_once(&mut kept).await;
+        pause();
+        advance(IDLE_LIMIT * 2).await;
+        resume();
+        let started = std::time::Instant::now();
+        call_once(&mut kept).await;
+        assert!(started.elapsed() < Duration::from_secs(10), "took {:?}", started.elapsed());
+        assert_eq!(logouts_seen(&seen).await, 1);
+        assert_eq!(seen.logins.load(Ordering::SeqCst), 2);
     }
 }
