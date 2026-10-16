@@ -22,6 +22,8 @@ export const TOOLS = {
     "gateWhy": (docs: string) => `${docs}, así que Kalsa te muestra qué enviaría a la red antes de enviarlo.`,
     "oneDocument": "Un documento está adjunto",
     "documentsAttached": (count: number) => `${count} documentos están adjuntos`,
+    "mailOnly": "Este chat contiene tu correo",
+    "andMail": " y este chat contiene tu correo",
     "exactTextSearch": "Kalsa buscaría en la web:",
     "exactTextPage": "Kalsa abriría esta dirección:",
     "findingFrom": (source: string) => ` de ${source}`,

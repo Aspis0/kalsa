@@ -5958,6 +5958,121 @@ const tests = {
     }
   },
 
+  // Mail in the chat is outside content, so a web search after a mail list is
+  // held for the owner. The ask says why, in words that name the mail (and the
+  // document, when one is pinned too); refusing it keeps the query off the engine.
+  async mailgate() {
+    await mailGateRun({ document: false });
+  },
+
+  async mailgatedocs() {
+    await mailGateRun({ document: true });
+  },
+
+  // The owner is asked once per conversation: what they allowed covers a later
+  // call with no finding and nothing new in it. Each case is one conversation,
+  // scripted from `calls`; a case that asks again waits on the ask, never throws.
+  async allowanceonce() {
+    await withAllowanceChat([listCall, searchCall("c2", "Acme invoice 40 EUR"), searchCall("c3", "Acme payment terms")], async (page) => {
+      await sendText(page, "What came in today?");
+      await gateAsk(page, "allowance once: the first search asked");
+      await page.getByRole("button", { name: "Send it" }).click();
+      const ended = await turnEnded(page);
+      check("allowance once: the second search went out without an ask", ended && (await page.locator(".webgate").count()) === 0 && (await searchesReached(page)) === 2, `ended ${ended}, searches ${await searchesReached(page)}`);
+    });
+  },
+
+  async allowancefinding() {
+    await withAllowanceChat([listCall, searchCall("c2", "Acme invoice 40 EUR"), searchCall("c3", "IBAN IT60X0542811101000000123456")], async (page) => {
+      await sendText(page, "What came in today?");
+      await gateAsk(page, "allowance finding: the first search asked");
+      await page.getByRole("button", { name: "Send it" }).click();
+      await gateAsk(page, "allowance finding: the search with an IBAN asked again");
+      check("allowance finding: the new ask flags the IBAN", (await page.locator(".webgate-findings").count()) > 0);
+      await page.getByRole("button", { name: "Refuse" }).click();
+      await turnEnded(page);
+      check("allowance finding: the refused search never reached the engine", (await searchesReached(page)) === 1, String(await searchesReached(page)));
+    });
+  },
+
+  async allowanceother() {
+    await withAllowanceChat([listCall, searchCall("c2", "Acme invoice 40 EUR")], async (page) => {
+      await sendText(page, "What came in today?");
+      await gateAsk(page, "allowance other: the first chat asked");
+      await page.getByRole("button", { name: "Send it" }).click();
+      await turnEnded(page);
+      await page.getByRole("button", { name: "New chat", exact: true }).first().click();
+      await sendText(page, "What came in today?");
+      const asked = await page.locator(".webgate").waitFor({ timeout: 10000 }).then(() => true, () => false);
+      check("allowance other: the other chat asked again", asked);
+      await page.getByRole("button", { name: "Refuse" }).click();
+      await turnEnded(page);
+    });
+  },
+
+  // The positive document path: a document pinned before the first search,
+  // allowed once, covers the second search of the same conversation.
+  async allowanceonedoc() {
+    await withAllowanceChat([listCall, searchCall("c2", "Acme invoice 40 EUR"), searchCall("c3", "Acme payment terms")], async (page) => {
+      await attachGateDoc(page, "notes.txt", "Meeting minutes. Nothing sensitive in here at all.");
+      await sendText(page, "What came in today?");
+      await gateAsk(page, "allowance one doc: the first search asked");
+      await page.getByRole("button", { name: "Send it" }).click();
+      const ended = await turnEnded(page);
+      const asks = await page.locator(".webgate").count();
+      check("allowance one doc: the second search with the same document went out without an ask", ended && asks === 0 && (await searchesReached(page)) === 2, `ended ${ended}, asks ${asks}, searches ${await searchesReached(page)}`);
+    });
+  },
+
+  // A different document that happens to share the name is a new document: it asks.
+  async allowancesamename() {
+    const calls = [listCall, searchCall("c2", "Acme invoice 40 EUR")];
+    await withAllowanceChat(calls, async (page) => {
+      await attachGateDoc(page, "notes.txt", "Meeting minutes. Nothing sensitive in here at all.");
+      await sendText(page, "What came in today?");
+      await gateAsk(page, "allowance same name: the first search asked");
+      await page.getByRole("button", { name: "Send it" }).click();
+      await turnEnded(page);
+      await attachGateDoc(page, "notes.txt", "Different words, same file name.");
+      calls.push(searchCall("c3", "Acme payment terms"));
+      await sendText(page, "Search again.");
+      await gateAsk(page, "allowance same name: a different document with the same name asked again");
+      await page.getByRole("button", { name: "Refuse" }).click();
+      await turnEnded(page);
+    });
+  },
+
+  // Two searches in one round: the first is asked, and once it is allowed the
+  // second is covered and goes out with no second question.
+  async allowanceround() {
+    await withAllowanceChat([listCall, [searchCall("c2", "Acme invoice 40 EUR"), searchCall("c3", "Acme payment terms")]], async (page) => {
+      await sendText(page, "What came in today?");
+      await gateAsk(page, "allowance round: the first search asked");
+      await page.getByRole("button", { name: "Send it" }).click();
+      const ended = await turnEnded(page);
+      const asks = await page.locator(".webgate").count();
+      check("allowance round: the second search went out without a second ask", ended && asks === 0 && (await searchesReached(page)) === 2, `ended ${ended}, asks ${asks}, searches ${await searchesReached(page)}`);
+    });
+  },
+
+  async allowancedocument() {
+    const calls = [listCall, searchCall("c2", "Acme invoice 40 EUR")];
+    await withAllowanceChat(calls, async (page) => {
+      await sendText(page, "What came in today?");
+      await gateAsk(page, "allowance document: the first search asked");
+      await page.getByRole("button", { name: "Send it" }).click();
+      await turnEnded(page);
+      await attachGateDoc(page, "notes.txt", "Meeting minutes. Nothing sensitive in here at all.");
+      calls.push(searchCall("c3", "Acme payment terms"));
+      await sendText(page, "Search again.");
+      await gateAsk(page, "allowance document: the search with a new document asked again");
+      const why = (await page.locator(".webgate-why").first().textContent()) ?? "";
+      check("allowance document: the ask names the new document", why.includes("One document is attached"), why);
+      await page.getByRole("button", { name: "Refuse" }).click();
+      await turnEnded(page);
+    });
+  },
+
   // The cards are the answer's to introduce: they wait for its first word, and
   // a turn that never writes one still shows them.
   async mailheldcards() {
@@ -6391,6 +6506,27 @@ const tests = {
       await browser.close();
       mock.close();
     }
+  },
+
+  // The confirm of a send the person has not pressed belongs to the chat and
+  // the pane it was opened in: leaving either takes it away, and it never sends.
+  async mailconfirmchat() {
+    await mailConfirmRun("chat");
+  },
+
+  async mailconfirmpane() {
+    await mailConfirmRun("pane");
+  },
+
+  // A pressed send is not taken away: it stays until its answer, and the one
+  // send goes out.
+  async mailconfirmflight() {
+    await mailConfirmRun("flight");
+  },
+
+  // Closing the pane while the send is on its way takes nothing away either.
+  async mailconfirmpaneflight() {
+    await mailConfirmRun("paneflight");
   },
 
   // «Genera bozza» in the pane is the same one press, and it closes the pane:
@@ -7203,6 +7339,181 @@ async function attachGateDoc(page, name, text) {
     .first()
     .waitFor({ timeout: 8000 })
     .catch(() => check(`gate: ${name} attached`, false, "no panel row appeared"));
+}
+
+/** The mailbox fixture with one fenced mail in its list, as the sidecar writes
+    it: the arm reads the mail text in the answer, not the fact of a list. */
+function oneMailFixture() {
+  const fixture = listFixture();
+  fixture.list = { ...fixture.list, for_model: MAIL_FENCE([["from", "Persona 0 <persona0@example.it>"], ["subject", "Mail numero 0"]]) };
+  return fixture;
+}
+
+/** A chat with the mailbox open to the model, which answers from `calls` (the
+    list it is given is read by reference, so a test may add to it). */
+async function withAllowanceChat(calls, run) {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+  try {
+    await seed(page, { settings: toolSettings("Alibaba Qwen 3.6"), theme: "light" });
+    await page.addInitScript((mail) => {
+      window.__MAIL_FIXTURE__ = mail;
+    }, oneMailFixture());
+    await page.addInitScript(() => {
+      localStorage.setItem("crescent-chat.language.v1", "en");
+    });
+    await stubDoor(page, { search: LISBON });
+    await stubMailDoor(page);
+    await scriptModel(page, calls, "Ok.");
+    await page.goto(APP);
+    await page.waitForSelector(".rail", { timeout: 20000 });
+    await openChat(page);
+    await run(page);
+  } finally {
+    await browser.close();
+  }
+}
+
+const listCall = { id: "c1", name: "mail_list", arguments: "{}" };
+const searchCall = (id, query) => ({ id, name: "web_search", arguments: JSON.stringify({ query }) });
+
+async function sendText(page, text) {
+  const box = page.locator(".composer-input");
+  await box.waitFor({ timeout: 15000 });
+  await box.fill(text);
+  await box.press("Enter");
+}
+
+/** Whether the turn in front of the page ended, false when it is still waiting
+    (for instance on an ask): a bounded wait that reports, never throws. */
+function turnEnded(page) {
+  return page
+    .waitForFunction(() => document.querySelector(".thread")?.getAttribute("aria-busy") === "false", null, { timeout: 15000 })
+    .then(() => true, () => false);
+}
+
+function searchesReached(page) {
+  return page.evaluate(() => (window.__TOOL_CALLS__ ?? []).filter((c) => c.command === "brain_web_search").length);
+}
+
+/** A mail list, then a web search the owner refuses. With `document`, one file
+    is pinned too, so the ask names both reasons. */
+async function mailGateRun({ document }) {
+  const mock = serveRounds([
+    mailRound({ id: "c1", name: "mail_list", args: { days: 1 } }),
+    mailRound({ id: "c2", name: "web_search", args: { query: "Acme invoice 40 EUR" } }),
+    mailRound({ content: "Ok, non cerco." }),
+  ]);
+  await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+  try {
+    await seed(page, {
+      settings: { ...toolSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+      theme: "light",
+    });
+    // The list carries one fenced mail, as the sidecar writes it: the arm reads
+    // the mail text in the answer, not the fact that a list was called.
+    await page.addInitScript((mail) => {
+      window.__MAIL_FIXTURE__ = mail;
+    }, oneMailFixture());
+    await page.addInitScript(() => {
+      localStorage.setItem("crescent-chat.language.v1", "en");
+    });
+    await stubDoor(page, { search: LISBON });
+    await stubMailDoor(page);
+
+    await page.goto(APP);
+    await page.waitForSelector(".rail", { timeout: 20000 });
+    await openChat(page);
+    if (document) await attachGateDoc(page, "notes.txt", "Meeting minutes. Nothing sensitive in here at all.");
+    const box = page.locator(".composer-input");
+    await box.waitFor({ timeout: 15000 });
+    await box.fill("What came in today?");
+    await box.press("Enter");
+    await gateAsk(page, `mail gate${document ? " with a document" : ""}: the ask appeared`);
+    const why = (await page.locator(".webgate-why").first().textContent()) ?? "";
+    const want = document ? "One document is attached and this chat holds your mail" : "This chat holds your mail";
+    check(`mail gate${document ? " with a document" : ""}: the ask says why`, why.includes(want), why);
+    await page.getByRole("button", { name: "Refuse" }).click();
+    await waitTurnDone(page);
+    const searched = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
+    check(`mail gate${document ? " with a document" : ""}: refused, no search reached the door`, searched.length === 0, String(searched.length));
+    check(`mail gate${document ? " with a document" : ""}: the ask is gone after the answer`, (await page.locator(".webgate").count()) === 0);
+  } finally {
+    await browser.close();
+    mock.close();
+  }
+}
+
+/** A reply drafted from a card, the draft's Send pressed once: the confirm is
+    up. Then the person leaves by another chat, or by closing the pane. */
+async function mailConfirmRun(leave) {
+  const mock = draftEndpoint("810", "Va bene, lunedì va bene.");
+  await new Promise((done) => mock.listen(MAIL_MOCK_PORT, "127.0.0.1", done));
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+  try {
+    await seed(page, {
+      settings: { ...okSettings("Alibaba Qwen 3.6"), endpoint: `http://127.0.0.1:${MAIL_MOCK_PORT}/mail` },
+      theme: "light",
+    });
+    await page.addInitScript((fixture) => {
+      window.__MAIL_FIXTURE__ = fixture;
+    }, fixtureOf(MAIL_REVEAL_BOX));
+    await stubMailDoor(page);
+    // A send that takes a while, so the leave lands while it is on its way.
+    await page.addInitScript(() => {
+      const door = window.__TAURI__.core.invoke;
+      window.__TAURI__.core.invoke = async (command, args) => {
+        if (command !== "brain_mail_send") return door(command, args);
+        window.__MAIL_SENDS__ = (window.__MAIL_SENDS__ ?? 0) + 1;
+        await new Promise((done) => setTimeout(done, 2500));
+        return { sentTo: "john.smith@acme.com" };
+      };
+    });
+
+    await page.goto(APP);
+    await page.waitForSelector(".rail", { timeout: 20000 });
+    await openChat(page);
+    const box = page.locator(".composer-input");
+    await box.waitFor({ timeout: 15000 });
+    await box.fill("Fammi vedere le mail");
+    await box.press("Enter");
+    await page.waitForSelector(".mail-card", { timeout: 30000 });
+    await waitTurnDone(page);
+    await page.getByRole("button", { name: "Draft a reply" }).first().click();
+    await page.waitForSelector(".mail-draft", { timeout: 30000 });
+    if (leave === "pane" || leave === "paneflight") {
+      await page.locator(".mail-card").first().getByRole("button", { name: /Apri|Open/ }).click();
+      await page.waitForSelector(".mail-view", { timeout: 10000 });
+    }
+    await page.locator(".mail-draft").first().getByRole("button", { name: "Send", exact: true }).click();
+    const opened = await page.waitForSelector(".mail-send-dialog", { timeout: 10000 }).then(() => true, () => false);
+    check(`confirm ${leave}: the confirm opened`, opened);
+
+    // The flight modes press the confirm's own Send first, then leave while it runs.
+    const inFlight = leave === "flight" || leave === "paneflight";
+    if (inFlight) await page.locator(".mail-send-dialog .mail-send-go").click();
+    // The confirm's scrim sits over the page, so a pointer click cannot reach
+    // the control under it; the leave is pressed through the element itself.
+    const leaving = leave.startsWith("pane") ? page.locator(".panel-close") : page.getByRole("button", { name: "New chat", exact: true }).first();
+    await leaving.evaluate((element) => element.click());
+    await page.waitForTimeout(1500);
+    const sends = () => page.evaluate(() => window.__MAIL_SENDS__ ?? 0);
+    if (inFlight) {
+      check(`confirm ${leave}: it stays on screen while the send is on its way`, (await page.locator(".mail-send-dialog").count()) === 1);
+      check(`confirm ${leave}: a second press cannot send while it is on its way`, await page.locator(".mail-send-dialog .mail-send-go").isDisabled({ timeout: 2000 }).catch(() => false));
+      await page.waitForFunction(() => document.querySelectorAll(".mail-send-dialog").length === 0, null, { timeout: 10000 }).catch(() => check(`confirm ${leave}: the answer closed it`, false, "still on screen"));
+      check(`confirm ${leave}: exactly one send went out`, (await sends()) === 1, String(await sends()));
+    } else {
+      check(`confirm ${leave}: the unpressed confirm is gone`, (await page.locator(".mail-send-dialog").count()) === 0);
+      check(`confirm ${leave}: the send never fired`, (await sends()) === 0, String(await sends()));
+    }
+  } finally {
+    await browser.close();
+    mock.close();
+  }
 }
 
 /** Wait for the ask to be on screen. A wait that stands in for an assertion

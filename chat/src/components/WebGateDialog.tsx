@@ -4,12 +4,12 @@ import { Icon } from "./Icon";
 import "./WebGateDialog.css";
 
 /**
- * The ask itself, shown before a web call leaves an app with documents
- * attached: which tool, the exact string that would leave, what the detector
- * saw, and the two choices. It sits in the page like the other banners rather
- * than as a modal — the turn stays visible behind it, and Stop stays
- * reachable while the owner thinks. Refusing answers the turn as a tool
- * result; nothing here throws and nothing here says "blocked".
+ * The ask itself, shown before a web call leaves while documents are attached
+ * or the mailbox is in the chat: which tool, the exact string that would
+ * leave, what the detector saw, and the two choices. It sits in the page like
+ * the other banners rather than as a modal — the turn stays visible behind it,
+ * and Stop stays reachable while the owner thinks. Refusing answers the turn as
+ * a tool result; nothing here throws and nothing here says "blocked".
  */
 export function WebGateDialog({
   id,
@@ -28,14 +28,16 @@ export function WebGateDialog({
   const { table } = useLanguage();
   const t = table.tools;
   const search = check.tool === "web_search";
-  const docs = check.documents.length === 1 ? t.oneDocument : t.documentsAttached(check.documents.length);
+  const count = check.documentIds.length;
+  const docs = count === 1 ? t.oneDocument : t.documentsAttached(count);
+  const why = count === 0 ? t.mailOnly : check.mail ? docs + t.andMail : docs;
   return (
     <section className="webgate" role="alertdialog" aria-modal="false" aria-labelledby="webgate-title">
       <span className="webgate-icon" aria-hidden="true">
         <Icon name="globe" size={26} />
       </span>
       <h2 id="webgate-title">{search ? t.searchWaitingTitle : t.pageWaitingTitle}</h2>
-      <p className="webgate-why">{t.gateWhy(docs)}</p>
+      <p className="webgate-why">{t.gateWhy(why)}</p>
       <div className="webgate-outgoing">
         <small>{search ? t.exactTextSearch : t.exactTextPage}</small>
         <pre>{check.outgoing}</pre>

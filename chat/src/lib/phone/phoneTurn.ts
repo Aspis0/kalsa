@@ -5,7 +5,6 @@
 import { ChatRequestError, fetchSamplingDefaultsWithStatus, serverBase } from "../chat";
 import { streamChatCompletion } from "../toolLoop";
 import { executeToolCall, offeredTools } from "../tools/registry";
-import type { WebGate } from "../tools/registry";
 import type { ToolDefinition } from "../tools/definitions";
 import { CONTEXT_RESERVE_TOKENS, wireSize } from "../attachments";
 import { loadSampling, samplingWire } from "../sampling";
@@ -18,10 +17,6 @@ import type { PhoneTurn } from "./phoneRequest";
 import { phoneWire } from "./phoneWire";
 
 const FACTS_TIMEOUT_MS = 8000;
-
-/** A phone turn pins no documents, and the web gate asks only when documents are
-    pinned: `confirm` is never called, so web tools run whenever the web switch is on. */
-const PHONE_GATE: WebGate = { documents: () => [], confirm: async () => false };
 
 /** The desktop's tool list without `create_miniapp`: the phone cannot draw a
     mini app yet. */
@@ -64,8 +59,12 @@ export async function runPhoneTurn(
       sampling: samplingWire(loadSampling()),
       signal,
       tools: phoneTools(settings.webTools, turn.language, settings.model),
+      // The phone cannot ask, so its web calls never wait on the gate. What still
+      // applies: a search or page whose address the conversation never showed is
+      // refused (fetchProvenanceRefusal, searchQueryRefusal). No sensitive-data
+      // detection runs on the phone.
       runTool: (name, args, runSignal, conversation) =>
-        executeToolCall(name, args, runSignal, PHONE_GATE, conversation, settings.model, openedFor),
+        executeToolCall(name, args, runSignal, null, conversation, settings.model, openedFor),
       onToolRun: sink.toolRun,
       toolPhrases: TABLES[turn.language].tools,
       thinking: loadThinking(settings.model),

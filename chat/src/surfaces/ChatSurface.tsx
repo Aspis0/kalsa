@@ -84,6 +84,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
     setMailSend,
     mailSent,
     mailDone,
+    mailMarkInFlight,
     openSurface,
   } = chat;
   const empty = !active || active.messages.length === 0;
@@ -273,7 +274,7 @@ export function ChatSurface({ chat, restartedAt }: { chat: Chat; restartedAt: nu
             setMailOpen(null);
           }}
         />
-        <SendConfirm pending={mailSend} onClose={() => setMailSend(null)} onSent={mailDone} />
+        <SendConfirm pending={mailSend} onClose={() => setMailSend(null)} onSent={mailDone} onBusy={mailMarkInFlight} />
       </div>
     </div>
   );

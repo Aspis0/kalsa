@@ -11,16 +11,20 @@ import { fetchProvenanceRefusal, searchQueryRefusal } from "./fetchProvenance";
 import { runMailDraft, runMailList, runMailRead } from "./mailCall";
 import { runMailShow } from "./mailShow";
 import { mailAllowed } from "../mail/allowlist";
+import { isMailRun } from "../mail/runs";
+import { carriesMail } from "../mail/fence";
 import type { Language } from "../../i18n";
 
 /** What one held call looks like to the page: which tool, the exact string
-    that would leave, what the detectors saw in it, and the documents whose
-    presence armed the gate at all. */
+    that would leave, what the detectors saw in it, and what armed the gate at
+    all — the documents pinned, and whether the mailbox is in the conversation. */
 export interface GateCheck {
   tool: "web_search" | "web_fetch";
   outgoing: string;
   findings: GateFinding[];
-  documents: string[];
+  /** The ids of the documents pinned, so an allowance is per document, not per name. */
+  documentIds: string[];
+  mail: boolean;
 }
 
 /**
@@ -138,7 +142,7 @@ export async function executeToolCall(
       // of it would run.
       const refusal = searchQueryRefusal(query, conversation);
       if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
-      if (!(await admitted(gate, "web_search", query, signal))) return heldBack(query, signal, stoppedText);
+      if (!(await admitted(gate, "web_search", query, conversation, signal))) return heldBack(query, signal, stoppedText);
       return { text: await through("brain_web_search", { query }, signal), ok: true };
     }
     if (name === "web_fetch") {
@@ -154,7 +158,7 @@ export async function executeToolCall(
       if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
       // The address is checked whole: a URL carries a payload as well as any
       // query does (`...?q=<IBAN>` leaves exactly as much).
-      if (!(await admitted(gate, "web_fetch", url, signal))) return heldBack(url, signal, stoppedText);
+      if (!(await admitted(gate, "web_fetch", url, conversation, signal))) return heldBack(url, signal, stoppedText);
       return { text: await through("brain_web_fetch", { url }, signal), ok: true };
     }
     return { text: `There is no tool called “${name}”.`, ok: false };
@@ -175,9 +179,9 @@ export async function executeToolCall(
 
 /**
  * The gate itself, and the only door it guards. It asks when a document is
- * pinned — that presence is what arms it, so a plain conversation with
- * nothing attached runs exactly as it always did — and the detectors only
- * decide how loudly the question warns, never whether it is asked.
+ * pinned or mail is in the conversation — either one arms it, so a plain
+ * conversation with nothing attached runs exactly as it always did — and the
+ * detectors only decide how loudly the question warns, never whether it is asked.
  */
 
 const MAIL_CLOSED =
@@ -186,15 +190,17 @@ async function admitted(
   gate: WebGate | null,
   tool: GateCheck["tool"],
   outgoing: string,
+  conversation: WireMessage[],
   signal?: AbortSignal,
 ): Promise<boolean> {
   if (gate === null) return true;
   const docs = gate.documents();
-  if (docs.length === 0) return true;
+  const mail = mailIn(conversation);
+  if (docs.length === 0 && !mail) return true;
   const findings = [...findSensitive(outgoing), ...findCopied(outgoing, docs)];
   let allowed: boolean;
   try {
-    allowed = await gate.confirm({ tool, outgoing, findings, documents: docs.map((d) => d.name) });
+    allowed = await gate.confirm({ tool, outgoing, findings, documentIds: docs.map((d) => d.id), mail });
   } catch {
     // A gate that throws must not fail open: the string stays inside.
     return false;
@@ -202,6 +208,27 @@ async function admitted(
   // Stop while the ask was up ends the wait with a refusal, and the aborted
   // check below turns it into the turn's own stopped sentence.
   return allowed && !Boolean(signal?.aborted);
+}
+
+/** Whether mail text is in the conversation the model is reading: a mail call
+    whose answer carries fenced mail, from this turn or an earlier one. A failed
+    call or an empty list has no mail in it, so it does not arm the gate. */
+function mailIn(conversation: WireMessage[]): boolean {
+  const mailIds = new Set<string>();
+  for (const message of conversation) {
+    if (message.role !== "assistant" || !Array.isArray(message.tool_calls)) continue;
+    for (const call of message.tool_calls) {
+      if (isMailRun(call.function.name)) mailIds.add(call.id);
+    }
+  }
+  return conversation.some(
+    (message) =>
+      message.role === "tool" &&
+      typeof message.tool_call_id === "string" &&
+      mailIds.has(message.tool_call_id) &&
+      typeof message.content === "string" &&
+      carriesMail(message.content),
+  );
 }
 
 /** The tool result a held call answers with, so the turn goes on and says

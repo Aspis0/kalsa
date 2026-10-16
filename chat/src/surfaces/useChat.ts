@@ -1210,6 +1210,7 @@ export function useChat(shell: ChatShell) {
     setMailSend: mail.setSend,
     mailSent: mail.sent,
     mailDone: mail.done,
+    mailMarkInFlight: mail.markInFlight,
     selectConversation,
     newConversation,
     removeConversation,

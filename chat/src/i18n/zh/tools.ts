@@ -22,6 +22,8 @@ export const TOOLS = {
     "gateWhy": (docs: string) => `${docs}，因此 Kalsa 在发送前先给你看它会发到网上的内容。`,
     "oneDocument": "附加了一个文档",
     "documentsAttached": (count: number) => `附加了 ${count} 个文档`,
+    "mailOnly": "此对话包含你的邮件",
+    "andMail": "，且此对话包含你的邮件",
     "exactTextSearch": "Kalsa 会搜索网络：",
     "exactTextPage": "Kalsa 会打开这个地址：",
     "findingFrom": (source: string) => `（来自${source}）`,

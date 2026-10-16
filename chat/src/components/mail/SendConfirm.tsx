@@ -12,10 +12,13 @@ import "./mail.css";
  * only caller of the command.
  */
 
-export function SendConfirm({ pending, onClose, onSent }: {
+export function SendConfirm({ pending, onClose, onSent, onBusy }: {
   pending: PendingSend | null;
   onClose: () => void;
   onSent: (replyToId: string, to: string) => void;
+  /** Told when the press goes out and when its answer is in; the owner keeps a
+      pressed confirm until then, so the answer is never shown to nobody. */
+  onBusy: (busy: boolean) => void;
 }) {
   const { table } = useLanguage();
   const t = table.mail;
@@ -26,7 +29,6 @@ export function SendConfirm({ pending, onClose, onSent }: {
   useEffect(() => {
     cancelRef.current?.focus();
     setRefused(null);
-    setBusy(false);
   }, [pending]);
 
   if (pending === null) return null;
@@ -38,7 +40,7 @@ export function SendConfirm({ pending, onClose, onSent }: {
       aria-modal="true"
       aria-label={t.confirmSendTitle}
       onKeyDown={(event) => {
-        if (event.key === "Escape") {
+        if (event.key === "Escape" && !busy) {
           event.preventDefault();
           onClose();
         }
@@ -66,14 +68,19 @@ export function SendConfirm({ pending, onClose, onSent }: {
             disabled={busy}
             onClick={() => {
               setBusy(true);
-              void sendReply(pending.replyToId, pending.subject, pending.body, t).then((answer) => {
-                setBusy(false);
-                if (answer.ok) {
-                  onSent(pending.replyToId, answer.sentTo);
-                } else {
-                  setRefused(answer.words);
-                }
-              });
+              onBusy(true);
+              void sendReply(pending.replyToId, pending.subject, pending.body, t)
+                .then((answer) => {
+                  if (answer.ok) {
+                    onSent(pending.replyToId, answer.sentTo);
+                  } else {
+                    setRefused(answer.words);
+                  }
+                })
+                .finally(() => {
+                  setBusy(false);
+                  onBusy(false);
+                });
             }}
           >
             <Icon name={busy ? "clock" : "send"} size={16} />

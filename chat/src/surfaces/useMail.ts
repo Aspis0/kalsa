@@ -29,14 +29,31 @@ export function useMail(conversation: string | null) {
   /** Where each reply went, under the same key, for the same reason. */
   const [sent, setSent] = useState<SentTo>({});
   const [send, setSend] = useState<PendingSend | null>(null);
+  /** How many presses of «Invia» are on their way to the server. A confirm with
+      any in flight stays put and cannot be swapped: its answer, sent or refused,
+      is the one thing it still owes the person. */
+  const inFlight = useRef(0);
 
-  /** Drops the read in flight and the mail on screen. One press of the ticket is
-      what every "this answer no longer applies" ends in: a new «Apri», a closed
-      pane, and another chat. */
+  /** Drops the read in flight, the mail on screen and the unpressed confirm. One
+      press of the ticket is what every "this answer no longer applies" ends in:
+      a new «Apri», a closed pane, and another chat. */
   function invalidate(): void {
     reading.current += 1;
     setOpening(false);
     setOpen(null);
+    dropPending();
+  }
+
+  /** A confirm that has not been pressed belongs to the mail and chat it was
+      opened for; once it is pressed it must finish and report. */
+  function dropPending(): void {
+    if (inFlight.current === 0) setSend(null);
+  }
+
+  /** Puts a confirm up or takes one down, but never swaps one out mid-send: the
+      answer that lands belongs to the reply that was pressed. */
+  function offerSend(next: PendingSend | null): void {
+    if (inFlight.current === 0) setSend(next);
   }
 
   // The open mail belongs to the chat it was opened in. One hook serves every
@@ -74,7 +91,13 @@ export function useMail(conversation: string | null) {
   function changeMail(next: OpenMail | null): void {
     if (next === null) return invalidate();
     setOpen(next);
-    setSend(null);
+    dropPending();
+  }
+
+  /** One send starts (true) or its answer is in (false). Pairs are counted, so
+      two sends overlapping cannot clear each other's hold. */
+  function markInFlight(started: boolean): void {
+    inFlight.current += started ? 1 : -1;
   }
 
   function done(id: string, to: string): void {
@@ -92,7 +115,8 @@ export function useMail(conversation: string | null) {
     type: type_,
     sent,
     send,
-    setSend,
+    setSend: offerSend,
+    markInFlight,
     done,
   };
 }

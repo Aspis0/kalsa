@@ -24,6 +24,8 @@ import { selectWireImages, wireBodyBytes, WIRE_BODY_BUDGET } from "../lib/wireBu
 import type { WireImage } from "../lib/wireBudget";
 import { executeToolCall, offeredTools } from "../lib/tools/registry";
 import type { GateCheck } from "../lib/tools/registry";
+import { covered, remember } from "../lib/webgate/allowance";
+import type { Allowances } from "../lib/webgate/allowance";
 import type { FailedState } from "../components/Thread";
 import { useLanguage } from "../i18n/useLanguage";
 import { logUiEvent } from "../lib/uiLog";
@@ -34,6 +36,7 @@ import { logUiEvent } from "../lib/uiLog";
     click lands. */
 interface GateAsk {
   id: string;
+  conversationId: string;
   check: GateCheck;
   settle: (allow: boolean) => void;
 }
@@ -73,23 +76,27 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
   );
   const [live, setLiveState] = useState<Record<string, { convId: string; content: string; reasoning: string; tail: string; toolRuns: ToolRun[] }>>({});
 
-  // The web-call gate: while documents are pinned, every outgoing web call is
-  // held here until the owner sends it or refuses it. Streams in different
-  // conversations run at once, so asks can too: they queue in arrival order
-  // and the dialog shows the head alone — one clean question at a time rather
-  // than a batch that invites a careless yes, with a line saying more are
-  // waiting and each taking the screen the moment the one before it is
-  // answered or stopped. Every ask settles exactly once, by its own dialog
-  // answer or its own turn's Stop — never by another conversation's — so no
-  // turn is left waiting on a promise nobody holds. And an answer names the
-  // ask it was shown: the queue mutates the moment an ask settles, while the
-  // dialog re-renders on React's schedule, so a click on a dialog whose ask
-  // is already gone must do nothing rather than approve whatever took its
-  // place — for this feature, "the owner approved something they were not
-  // shown" is the worst failure available, and identity removes the question.
+  // The web-call gate: while documents are pinned or mail is in the chat, every
+  // outgoing web call is held here until the owner sends it or refuses it.
+  // Streams in different conversations run at once, so asks can too: they
+  // queue in arrival order and the dialog shows the head alone — one clean
+  // question at a time rather than a batch that invites a careless yes, with
+  // a line saying more are waiting and each taking the screen the moment the
+  // one before it is answered or stopped. Every ask settles exactly once, by
+  // its own dialog answer or its own turn's Stop — never by another
+  // conversation's — so no turn is left waiting on a promise nobody holds. And
+  // an answer names the ask it was shown: the queue mutates the moment an ask
+  // settles, while the dialog re-renders on React's schedule, so a click on a
+  // dialog whose ask is already gone must do nothing rather than approve
+  // whatever took its place — for this feature, "the owner approved something
+  // they were not shown" is the worst failure available, and identity removes
+  // the question.
   const [gateShown, setGateShown] = useState<GateAsk | null>(null);
   const [gateWaiting, setGateWaiting] = useState(0);
   const gateAsks = useRef<GateAsk[]>([]);
+  // What the owner has allowed per conversation, so a later call the allowance
+  // covers goes out without a second question. Memory only: a restart forgets it.
+  const allowances = useRef<Allowances>(new Map());
 
   // Leaving with a turn in flight must not leave callbacks writing into a dead
   // tree, or a throttle timer firing after the page is gone. Rust is told to
@@ -106,23 +113,38 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
     [],
   );
 
-  // Hold one web call for the owner. The ask joins the queue's tail; whatever
-  // is at the head is what the dialog shows. Stop ends that conversation's
+  // Settles the queued asks of this conversation that an allowance now covers:
+  // they go out without ever being shown.
+  function sweep(conversationId: string): void {
+    for (const queued of [...gateAsks.current]) {
+      const covers = queued.conversationId === conversationId && covered(allowances.current, conversationId, queued.check);
+      if (covers && gateAsks.current.includes(queued)) queued.settle(true);
+    }
+  }
+
+  // Hold one web call for the owner, unless what this conversation already
+  // allowed covers it. The ask joins the queue's tail; whatever is at the head
+  // is what the dialog shows. Stop ends that conversation's
   // own wait as a refusal — the turn is gone, so the call must not leave
   // after it — and advances the queue to the next ask, if any.
-  function askOwner(check: GateCheck, signal: AbortSignal): Promise<boolean> {
+  function askOwner(conversationId: string, check: GateCheck, signal: AbortSignal): Promise<boolean> {
+    if (covered(allowances.current, conversationId, check)) return Promise.resolve(true);
     return new Promise((resolve) => {
       let ask: GateAsk;
-      const settle = (allow: boolean) => {
+      const settle = (allowed: boolean) => {
         signal.removeEventListener("abort", onAbort);
         const at = gateAsks.current.indexOf(ask);
         if (at !== -1) gateAsks.current.splice(at, 1);
         setGateShown(gateAsks.current[0] ?? null);
         setGateWaiting(Math.max(0, gateAsks.current.length - 1));
-        resolve(allow);
+        if (allowed) {
+          remember(allowances.current, conversationId, check);
+          sweep(conversationId);
+        }
+        resolve(allowed);
       };
       const onAbort = () => settle(false);
-      ask = { id: uid(), check, settle };
+      ask = { id: uid(), conversationId, check, settle };
       gateAsks.current.push(ask);
       setGateShown(gateAsks.current[0] ?? null);
       setGateWaiting(Math.max(0, gateAsks.current.length - 1));
@@ -446,7 +468,7 @@ export function useChatTurns({ store, announce, contextSizes, saveMailDraft }: T
               runSignal,
               {
                 documents: () => docs,
-                confirm: (check) => askOwner(check, runSignal),
+                confirm: (check) => askOwner(conversationId, check, runSignal),
               },
               conversation,
               currentSettings.model,

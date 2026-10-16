@@ -13,7 +13,9 @@
  * with no body.
  */
 
-const MARKER = /^kalsa-mail-[0-9a-f]{16} ?/;
+/** The marker on every value line: the call's nonce, then the space the sidecar
+    always writes before the text (an empty value is the text "(empty)"). */
+const MARKED = /^kalsa-mail-[0-9a-f]{16} /m;
 /** The next field's own label line. Fields run one after another inside the
     fence, so a field that read to the end marker took the labels and the text
     of every field after it. */
@@ -29,11 +31,18 @@ export function fencedField(lines: string[], label: string): string {
     if (raw.startsWith("<<<")) break;
     if (FIELD.test(raw)) break;
     if (raw === "") continue;
-    const line = raw.replace(MARKER, "");
+    const line = raw.replace(MARKED, "");
     if (line === "(empty)") return "";
     out.push(line);
   }
   return out.join("\n");
+}
+
+/** Whether a tool answer carries mail text: a value line is marked. An empty
+    list has only the block's delimiters, and an error answer has no block at
+    all, so neither counts. */
+export function carriesMail(text: string): boolean {
+  return MARKED.test(text);
 }
 
 /** The mail's own words, as the panel shows them. */
