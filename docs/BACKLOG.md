@@ -569,3 +569,13 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - The observation row's `prefill_dev` ignores `route_chunks_truncated`: a long prompt's later chunks may be missing from it.
 - No model-free C++ seam tests the binding's once-per-turn push; it is pinned by source-shape guards only.
 - In-app decode on the NPU lane runs at about half the bench speed: S23 12.2 tok/s vs ~22, Xiaomi 7.4 vs ~23.
+
+## Phone log report, web-search notice, report Worker (app 772ee31a, workers 556e6768, 2026-10-16, leftovers)
+- Phone `echo-of-context` gate (`src/rules/toolGate.ts`): a message not ending in `?` needs query similarity ≥ 0.40, so ordinary requests ("Cerca sul web le notizie di oggi su Samsung", "… Controlla online") are blocked; the refusal text says the query "restates information the user provided about themselves", which is not what the rule tests. S23: 3 of 3 such searches blocked, the user saw "Non ho potuto completare la ricerca".
+- Phone `web_fetch` reaches the network without the provider notice: after a blocked search the model fetched a page on its own. Same for a user-typed URL.
+- Phone-originated desk-mode searches bypass the desktop first-search notice.
+- `KALSA_GOVERNOR_TURN` `hn`/`hg` carry float noise (`38.10000228881836`); round to 0.1.
+- Consent prompt P2s (luna round 4): a queued prompt answers a stop late; a stopped turn's Alert stays on screen; `AbortSignal.any` keeps one listener per call until the turn signal aborts; a throwing `onTimeout` does not cancel.
+- Report Worker accepted limits: space or `?` inside a userinfo password, `peer>10.0.0.1`, HTML entities / fullwidth `＠`, invisible characters splitting an address on desktop lines, a token split by an invisible whose tail the first scan already took keeps its head (`ma<NUL><email>`), double encoding (`%2540`), numbers JSON cannot round-trip, an address written as a number, BOM / lone-CR bodies.
+- Report Worker: an automated commit review flagged redaction bypasses with no detail; not reproduced.
+- Learning governor M7: the wall-minute columns deflate the background heat estimate.
