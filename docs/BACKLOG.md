@@ -523,6 +523,7 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 
 ## Phone: LlamaService split, cut 1 (phone 4f571791, 2026-10-15, phone repo)
 - `cleanTranslationOutput` (now in `src/engine/outputCleaners.ts`, moved verbatim) turns a single-line "Ecco la traduzione: Ciao" into "": the lead-in strip eats the only line. Pre-existing; the cut kept it as is.
+- S23 check of cut 4 (APK 38827346660, 2026-10-15): with the governor off, session save (3135 tokens, 93 ms), load after a force-stop (54 ms) and the next turn's reuse (26 new tokens of 3161) all work. With the governor on, the native refuses session and prewarm-snapshot save/load by design, but the prewarm logs it as `save_error` / `load_error` instead of `governor_mode` (`staticPrefixSnapshot.ts:320`); classify it like `sessionNativeErrorReason` does.
 
 ## Mail redraft and «Modifica» removal, deepseek review (2026-10-15, left over)
 - Draft tool runs are stripped on persist (`lib/store.ts` `forDisk` drops `mail`), so after a reload the draft cards are gone and a change asked in chat carries no redraft note.
