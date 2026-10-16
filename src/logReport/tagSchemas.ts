@@ -180,6 +180,28 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     status_ok: NUM,
     status: NUM,
   },
+  // governorLearned.ts: the learned store's own numbers, after each row it
+  // absorbs. Numbers only — Build.FINGERPRINT and the store key stay out, so
+  // no identifier is collected. tps_* are tok/s per leg (EWMA), prefill_tps_*
+  // the tok/s of the device that ran the prompt, heat_* the learned ucb in
+  // skin C per 1k tokens and heat_bg in C per minute.
+  KALSA_GOVERNOR_LEARNED: {
+    tps_cpu: NUM,
+    tps_gpu: NUM,
+    tps_npu: NUM,
+    prefill_tps_cpu: NUMN,
+    prefill_tps_gpu: NUMN,
+    prefill_tps_npu: NUMN,
+    heat_cpu: NUMN,
+    heat_gpu: NUMN,
+    heat_npu: NUMN,
+    heat_bg: NUMN,
+    heat_sigma: NUM,
+    heat_rows: NUM,
+    heat_rejects: NUM,
+    breaker: NUM,
+    breaker_hold_ms: NUMN,
+  },
   // governorPauseLog.ts:44-58; CoolingEndReason at thermalResume.ts:84-92
   // (absent on enter); battTempTenthsC nullable at thermalResume.ts:102.
   KALSA_THERMAL_COOLING: {

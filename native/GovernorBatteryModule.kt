@@ -99,6 +99,11 @@ class GovernorBatteryModule(context: ReactApplicationContext) :
             result.putNull("socModel")
             result.putNull("socManufacturer")
         }
+        // The learned store is keyed by this: an OTA or a thermal firmware
+        // change leaves the SoC string untouched, so without it learned heat
+        // and speed would outlive the build that measured them. Readable on
+        // every API level, so no version gate.
+        result.putString("buildFingerprint", Build.FINGERPRINT)
         promise.resolve(result)
     }
 

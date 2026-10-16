@@ -53,6 +53,11 @@ export type DeviceProfile = {
    *  iOS/macOS: the Apple chip class from appleDeviceClass (e.g. "A17 Pro"). */
   socModel: string | null;
   socManufacturer: string | null;
+  /** Android Build.FINGERPRINT (the whole build id, "/" and ":" included);
+   * null off Android or on a failed read. The learned store keys on it: an OTA
+   * leaves the SoC string untouched, so without it a learned heat or speed
+   * would outlive the build that measured it. */
+  buildFingerprint: string | null;
   osName: string | null;
   osVersion: string | null;
   /** CPU present count via threadProfile.parseCpuPresent; null when unreadable. */
@@ -527,7 +532,9 @@ type GovernorBatteryMod = {
 async function readSocProperties(): Promise<{
   socModel: string | null;
   socManufacturer: string | null;
+  buildFingerprint: string | null;
 }> {
+  const none = { socModel: null, socManufacturer: null, buildFingerprint: null };
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { NativeModules } = require("react-native") as {
@@ -535,15 +542,16 @@ async function readSocProperties(): Promise<{
     };
     const value = await NativeModules?.GovernorBattery?.readSoc?.();
     if (!value || typeof value !== "object") {
-      return { socModel: null, socManufacturer: null };
+      return none;
     }
     const input = value as Record<string, unknown>;
     return {
       socModel: asNullableString(input.socModel),
       socManufacturer: asNullableString(input.socManufacturer),
+      buildFingerprint: asNullableString(input.buildFingerprint),
     };
   } catch {
-    return { socModel: null, socManufacturer: null };
+    return none;
   }
 }
 
@@ -689,7 +697,7 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     readCpuCoreCount(),
     readCpuCapacities(),
   ]);
-  const { socModel, socManufacturer } = await readSocProperties();
+  const { socModel, socManufacturer, buildFingerprint } = await readSocProperties();
 
   return {
     brand,
@@ -700,6 +708,7 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     availableMemoryBytes,
     socModel: socModel ?? appleClass?.chipClass ?? null,
     socManufacturer: socManufacturer ?? (appleClass ? "Apple" : null),
+    buildFingerprint,
     osName,
     osVersion,
     cpuCoreCount,
@@ -727,6 +736,7 @@ export function getCachedDeviceProfile(): Promise<DeviceProfile> {
       availableMemoryBytes: null,
       socModel: null,
       socManufacturer: null,
+      buildFingerprint: null,
       osName: null,
       osVersion: null,
       cpuCoreCount: null,

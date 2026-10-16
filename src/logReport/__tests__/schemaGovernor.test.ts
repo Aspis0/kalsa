@@ -413,3 +413,52 @@ describe("KALSA_GOVERNOR_BATTERY_SYSFS (binding rn-governor.cpp)", () => {
     ).toEqual({ temp_ok: 1, temp_tenths_c: 301, status_ok: 1, status: 2 });
   });
 });
+
+describe("KALSA_GOVERNOR_LEARNED (governorLearned.ts, Stage 1)", () => {
+  // The payload the store actually writes, numbers and nulls only.
+  const learned = (over: string = "") =>
+    record(
+      "KALSA_GOVERNOR_LEARNED",
+      `{"tps_cpu":13,"tps_gpu":21,"tps_npu":16,` +
+        `"prefill_tps_cpu":null,"prefill_tps_gpu":1200,"prefill_tps_npu":205,` +
+        `"heat_cpu":9.125,"heat_gpu":4,"heat_npu":1.375,"heat_bg":0.5,` +
+        `"heat_sigma":0.2,"heat_rows":7,"heat_rejects":1,"breaker":0,` +
+        `"breaker_hold_ms":null${over}}`,
+    );
+
+  it("keeps the learned numbers and the nullable cells", () => {
+    expect(learned()).toEqual({
+      tps_cpu: 13,
+      tps_gpu: 21,
+      tps_npu: 16,
+      prefill_tps_cpu: null,
+      prefill_tps_gpu: 1200,
+      prefill_tps_npu: 205,
+      heat_cpu: 9.125,
+      heat_gpu: 4,
+      heat_npu: 1.375,
+      heat_bg: 0.5,
+      heat_sigma: 0.2,
+      heat_rows: 7,
+      heat_rejects: 1,
+      breaker: 0,
+      breaker_hold_ms: null,
+    });
+  });
+
+  it("keeps a latched breaker's remaining hold", () => {
+    const latched = record(
+      "KALSA_GOVERNOR_LEARNED",
+      '{"breaker":1,"breaker_hold_ms":3600000}',
+    );
+    expect(latched).toEqual({ breaker: 1, breaker_hold_ms: 3600000 });
+  });
+
+  it("drops a field that is not a finite number", () => {
+    const out = record(
+      "KALSA_GOVERNOR_LEARNED",
+      '{"tps_cpu":13,"heat_gpu":"3.2 C/1k","heat_rows":7}',
+    );
+    expect(out).toEqual({ tps_cpu: 13, heat_rows: 7 });
+  });
+});

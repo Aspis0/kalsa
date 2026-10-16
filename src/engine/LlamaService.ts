@@ -65,6 +65,7 @@ import {
   readGovernorObservationRow,
   resetObservationBaseline,
 } from "./governorObservationRead";
+import { noteSpeedBreakerTrip, recordLearnedObservation } from "./governorLearned";
 import { readHtpRuntimeArch } from "./htpRuntimeArch";
 import { cleanTranslationOutput, stripThinkAndFences } from "./outputCleaners";
 import {
@@ -1938,7 +1939,14 @@ async function emitGovernorTelemetry(
       cache_type_v?: string | null;
       prefill_kv?: string | null;
       decode_tokens_gpu?: number;
+      // Stage 2's speed-breaker latch (DESIGN.md 5.5), absent from every
+      // pin built so far — the same structural-extension shape as above, so
+      // the trip read below is 0 today and the latch simply never trips.
+      decode_speed_breaker?: number;
     };
+    // The trip lives in the policy, which is rebuilt at every load; the app
+    // is what holds it across one (6 h, DESIGN 5.5). Never awaited.
+    void noteSpeedBreakerTrip(npuStats.decode_speed_breaker === 1);
     recordGovernorTurn(stats, completionResult);
     console.log(
       `KALSA_GOVERNOR ${JSON.stringify({
@@ -4902,6 +4910,10 @@ export async function streamAssistantTurn(
             `KALSA_GOVERNOR_COMPLETION ${JSON.stringify(completionLogRow(observationRow))}`,
           );
           void appendObservation(observationRow);
+          // Stage 1 learning (DESIGN.md 5.6): the same row feeds the learned
+          // store, which is shadow state until Stage 2 — nothing reads it
+          // back into a decision. Never awaited.
+          void recordLearnedObservation(observationRow);
         }
         // tokens_cached is n_past in llama.rn — used-token disk gate.
         noteChatNPast(chatKvSession, result?.tokens_cached);

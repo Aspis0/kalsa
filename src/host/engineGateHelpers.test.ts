@@ -39,6 +39,7 @@ const cachedProfile = (availableMemoryBytes: number | null): DeviceProfile => ({
   availableMemoryBytes,
   socModel: null,
   socManufacturer: null,
+  buildFingerprint: null,
   osName: null,
   osVersion: null,
   cpuCoreCount: 8,
