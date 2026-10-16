@@ -15,7 +15,7 @@ import type { GovernorStats } from "llama.rn";
 /** The binding commit this row format (v:1) was built against; package.json
  *  pins the same sha. The row carries its own copy so a pulled observations
  *  file identifies its producer without the repo. */
-export const OBSERVATION_BINDING_PIN = "7d15f8fe6acb0d7278ae46b012e2974453ebba79";
+export const OBSERVATION_BINDING_PIN = "f385ebdde06dacce61bb3360144cd5dca6de489e";
 
 /**
  * The Stage 0 fields the 861a3cc3 wire carries. The binding's committed

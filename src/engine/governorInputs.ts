@@ -456,6 +456,9 @@ export function buildGovernorParams(
     gpu_prefill_measured:
       (generation === "V73" || generation === "V75" || generation === "V79" || generation === "V81") &&
       gpuLeg,
+    // Owner 2026-10-16: a too-hot NPU hands prefill to a cooler GPU on every
+    // generation the engine lists, though GPU prefill still fails R2 on V75/V81.
+    prefill_thermal_handoff: true,
     // No GPU leg means no GPU prefill to force, whatever the bench asked for.
     bench_force_gpu_prefill: force && gpuLeg,
     npu_lane_enabled: laneEnabled,

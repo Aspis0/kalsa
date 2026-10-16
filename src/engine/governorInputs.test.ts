@@ -92,6 +92,7 @@ describe("governor inputs", () => {
       gpu_leg: true,
       decode_repack: true,
       gpu_prefill_measured: true,
+      prefill_thermal_handoff: true,
       bench_force_gpu_prefill: false,
       npu_lane_enabled: false,
       npu_fit: "Fit",
