@@ -556,3 +556,16 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - A mail card's «draft a reply» goes through `sendMessage`, which has no streaming guard (`useChat.ts`): a second turn can start in a conversation already streaming.
 - Mail send confirm: a Send offered while another send is in flight is ignored with no message (`useMail.ts` `offerSend`).
 - A draft run arms the web gate like a read does (the draft carries fenced mail).
+
+## Phone governor FIX 1 / FIX 2 (engine 946daec00, binding f385ebdd, app 647bee72, 2026-10-16, audit leftovers)
+- Lane-only load still reports `prefill_ctx_ngl 99` and TTS codec `use_gpu` follows n_gpu_layers 99 although no GPU is loaded.
+- An app with a binding older than its pin cannot be detected at runtime (the pin skew only shows at CI provenance).
+- The engine `gpu_leg` and prefill tests (`test-governor-gpu-leg`, `-prefill-route-engine`, `-prefill-npu-hot`) are not vendored into the binding; they run only in the engine tree.
+- TTS custom prefill (`tryChatterboxPrefill`, `tryRealtimePrefill`) calls `llama_decode` directly: no prefill headroom sample, no handoff decision.
+- A `clearCache` that passes its busy check between the binding's headroom push and the decode drops the sample (engine clears it): that turn reads unknown, NPU.
+- The decode-failure `KALSA_GOVERNOR_FALLBACK` line omits `prefill_thermal_handoff`.
+- Vendored engine comments still say nothing pushes the prefill headroom (`llama-governor-policy.cpp` ~:471, `llama-governor.h` ~:66).
+- The handoff rule's third bar (`gpu_c > npu_c + hysteresis`) is implied by the other two; kept as the rule's named meaning.
+- The observation row's `prefill_dev` ignores `route_chunks_truncated`: a long prompt's later chunks may be missing from it.
+- No model-free C++ seam tests the binding's once-per-turn push; it is pinned by source-shape guards only.
+- In-app decode on the NPU lane runs at about half the bench speed: S23 12.2 tok/s vs ~22, Xiaomi 7.4 vs ~23.
