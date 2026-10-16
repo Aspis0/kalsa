@@ -7,6 +7,7 @@ describe("containsSensitivePattern", () => {
     "my iban is DE89370400440532013000",
     "transfer to DE89370400440532013000",
     "credit card IT60X0542811101000000123456",
+    "IT60 X054 2811 1010 0000 0123 456",
     "my codice fiscale is RSSMRA85M01A001R",
     "codice fiscale: RSSMRA85M01A001R",
     "codRSSMRA85M01A001R",
@@ -21,19 +22,17 @@ describe("containsSensitivePattern", () => {
     "I live at 123 Main Street",
     "email me at alex@example.com",
     "45.4642, 9.1900",
-    "4155552671 reverse lookup",
-    "415 555 2671",
-    "333.123.4567",
     "+1 415-555-2671",
+    "tel 3471234567",
+    "chiamami al 347-123-4567:",
+    "(415) 555-2671",
     "confirmation code 493812",
     "verification code 493812",
     "one-time code 493812",
-    "codice 493812",
     "conferma 493812",
     "verifica 493812",
-    "your code is 493812",
+    "verification code is: 493812",
     "493812 is your verification code",
-    "code: AB12CD",
     "verification code 4a7b9c8d",
   ])("blocks sensitive text: %s", (text) => {
     expect(containsSensitivePattern(text)).toBe(true);
@@ -58,6 +57,13 @@ describe("containsSensitivePattern", () => {
     "2026-10-16",
     "2026-10-16 14:30",
     "2026.10.16.1",
+    "4155552671 reverse lookup",
+    "415 555 2671",
+    "333.123.4567",
+    "3471234567",
+    "codice 493812",
+    "your code is 493812",
+    "code: AB12CD",
     "1.2.3",
     "v1.2.3.4",
     "12.50 euro",
@@ -69,6 +75,13 @@ describe("containsSensitivePattern", () => {
     "verifica documenti in comune",
   ])("allows ordinary query: %s", (text) => {
     expect(containsSensitivePattern(text)).toBe(false);
+  });
+
+  test.each(["1-", "1.", "1 "])("stays fast on a 100 000-char %j repeat", (unit) => {
+    const input = unit.repeat(100_000 / unit.length);
+    const start = performance.now();
+    containsSensitivePattern(input);
+    expect(performance.now() - start).toBeLessThan(200);
   });
 
   test("allows a non-string value defensively", () => {

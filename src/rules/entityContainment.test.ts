@@ -6,9 +6,31 @@ describe("containsPrivateData", () => {
   test.each([
     ["an identifier", "SECRET_QUERY_XYZ_LEOPOLDO"],
     ["an accent variant", "Leopóldo cat breed"],
-    ["a camelCase identifier", "leopoldoCatBreed"],
   ])("blocks a query that exposes the fact name through %s", (_kind, query) => {
     expect(containsPrivateData(query, FACT)).toBe(true);
+  });
+
+  // Accepted limit: camelCase is not split, so the name stays inside one token.
+  test("accepted limit: a camelCase identifier is not split", () => {
+    expect(containsPrivateData("leopoldoCatBreed", FACT)).toBe(false);
+  });
+
+  // Hyphen and dot are not word breaks: "e-mail" stays one token and
+  // "Example.com" is not "Example".
+  test("does not block a mail app query for an e-mail fact", () => {
+    expect(containsPrivateData("I need Mail app suggestions", "I use e-mail for work")).toBe(false);
+  });
+
+  test("does not block a mail client query for an eMail fact", () => {
+    expect(containsPrivateData("I need Mail client suggestions", "I use eMail for work")).toBe(false);
+  });
+
+  test("does not block an Example search for an Example.com fact", () => {
+    expect(containsPrivateData("I need Example search results", "I read Example.com")).toBe(false);
+  });
+
+  test("does not block an ISO timestamp that contains a stored year", () => {
+    expect(containsPrivateData("2026-10-16T00:00:00.000Z", "My account number is 2026")).toBe(false);
   });
 
   // Accepted limit: inflected forms are not matched, only exact tokens.

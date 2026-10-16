@@ -2,24 +2,36 @@
 
 const CREDENTIAL_LABEL_RE =
   /\b(password|passwd|pwd|passphrase|secret|segreto|token|api[_\s-]?key|apikey|bearer|authorization|auth[_\s-]?code|private[_\s-]?key|chiave\s+privata|otp|pin|cvv|cvc|security\s*code|codice\s*segreto)\b/gi;
+// Compact IBAN, or print form in 4-character groups. Free-form "AB12 …" text
+// with words after it is not an IBAN ("AB123456789 product details").
 const IBAN_PATTERN =
-  /(?:^|[^A-Z0-9])[A-Z]{2}\s*\d{2}(?:\s*[A-Z0-9]){10,30}(?:$|[^A-Z0-9])/i;
+  /(?:^|[^A-Z0-9])[A-Z]{2}\d{2}(?:[A-Z0-9]{11,30}|(?: [A-Z0-9]{4}){2,7}(?: [A-Z0-9]{1,4})?)(?:$|[^A-Z0-9])/i;
 const CF_PATTERN =
   /(?:^|[^A-Z0-9])[A-Z]{6}\s*\d{2}\s*[A-Z]\s*\d{2}\s*[A-Z]\s*\d{3}\s*[A-Z](?:$|[^A-Z0-9])/i;
 const CF_COMPACT_PATTERN = /[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]/i;
 const CARD_RUN_PATTERN = /\b\d(?:[ -]?\d){12,18}\b/g;
-// Bare phone: 9–15 digits, optional + and single space/dot/dash separators.
-// A separated run must end in a 3+ digit group (so "1234567.89" prices and
-// "1.2.3" versions miss) and must not start with a year (so "2026.10.16.1" misses).
-const BARE_PHONE_PATTERN =
-  /(?<![\d:.,])(?!(?:19|20)\d{2}[ .-]\d)\+?\d(?:[ .-]?\d){8,14}(?![\d:]|[.,]\d)(?<=\d{3})/;
-const CODE_WORD = "(?:code|otp|pin|verification|confirmation|codice|conferma|verifica)";
-const CODE_VALUE = "(?:\\d{4,8}|(?=[a-z0-9]*\\d)[a-z0-9]{6,8})";
-// Verification/confirmation code: a code word next to a 4–8 digit (or 6–8
-// alphanumeric with a digit) token, in either order, with an optional "is/è".
-const CODE_NEAR_PATTERN = new RegExp(
-  `\\b${CODE_WORD}\\b[\\s:#=-]{0,3}(?:(?:is|è)\\s{0,3})?${CODE_VALUE}\\b` +
-    `|\\b${CODE_VALUE}\\b[\\s:#=-]{0,3}(?:(?:is|è)\\s{0,3})?(?:(?:your|tuo|tua)\\s{0,3})?${CODE_WORD}\\b`,
+// A bare digit run is a phone only when labelled: a phone word up to 3 words
+// before it, a + prefix (see phonePrefixMatch), or the "(415) 555-2671" form.
+// The run may not touch a letter or digit, and ":digit" (a time) ends it.
+const PHONE_WORDS =
+  "(?:telefono|cellulare|whatsapp|chiamami|chiama|mobile|phone|call|cell|tel|sms)";
+const PHONE_LABEL_PATTERN = new RegExp(
+  `(?<!\\p{L})${PHONE_WORDS}(?!\\p{L})(?:[^\\p{L}\\p{N}\\n]*(?!isbn\\b)\\p{L}+){0,3}[^\\p{L}\\p{N}\\n]*(?<![\\p{L}\\p{N}])(\\+?\\(?\\d[\\d .()/-]*\\d)(?![\\p{L}\\p{N}]|:\\d)`,
+  "giu",
+);
+const PAREN_PHONE_PATTERN =
+  /(?<![\p{L}\p{N}])(\(\d{2,4}\)[ .-]?\d{2,4}(?:[ .-]?\d{2,4}){1,2})(?![\p{L}\p{N}])/gu;
+// Code word (verification, OTP, PIN, ...), optionally "code"/"number"/"numero"/
+// "codice", then an optional "is/è" and ":#=", then a 4–8 digit or 6–8
+// alphanumeric-with-digit value. Bare "code"/"codice" do not trigger.
+const CODE_LABEL = "(?:otp|pin|2fa|one-time|verification|confirmation|verifica|conferma)";
+const CODE_NOUN = "(?:\\s{1,3}(?:code|number|numero|codice)\\b)?";
+const CODE_GLUE = "\\s{0,3}(?:(?:is|è)\\s{0,3})?[:#=]?\\s{0,3}";
+// A 4-digit year is not a code, so "verifica 2024 requisiti" passes.
+const CODE_VALUE = "(?:(?!(?:19|20)\\d{2}\\b)\\d{4,8}|(?=[a-z0-9]{0,7}\\d)[a-z0-9]{6,8})";
+const CODE_PATTERN = new RegExp(
+  `\\b${CODE_LABEL}\\b${CODE_NOUN}${CODE_GLUE}${CODE_VALUE}\\b` +
+    `|\\b${CODE_VALUE}\\b${CODE_GLUE}(?:(?:your|tuo|tua)\\s{0,3})?${CODE_LABEL}\\b${CODE_NOUN}`,
   "i",
 );
 const ADDRESS_CONTEXT_PATTERN =
@@ -94,6 +106,17 @@ function containsCardPattern(raw: string, lower: string): boolean {
   return false;
 }
 
+/** A matched run is a phone when it has 9–15 digits and is not an ISBN-13. */
+function containsPhoneRun(text: string, pattern: RegExp): boolean {
+  for (const match of text.matchAll(pattern)) {
+    const digits = match[1].replace(/\D/g, "");
+    if (digits.length < 9 || digits.length > 15) continue;
+    if (digits.length === 13 && /^97[89]/.test(digits)) continue;
+    return true;
+  }
+  return false;
+}
+
 /**
  * Returns true for high-confidence secret, PII, or personal-medical patterns
  * in text that is about to leave the device through a network tool.
@@ -105,40 +128,29 @@ export function containsSensitivePattern(text: string): boolean {
   const lower = raw.toLowerCase();
 
   if (containsCredentialWithValue(raw)) return true;
-  if (CODE_NEAR_PATTERN.test(raw)) return true;
+  if (CODE_PATTERN.test(raw)) return true;
   if (containsCardPattern(raw, lower)) return true;
   if (IBAN_PATTERN.test(raw)) return true;
 
   const compact = raw.replace(/\s+/g, "");
   if (CF_PATTERN.test(raw) || CF_COMPACT_PATTERN.test(compact)) return true;
 
-  if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(raw)) return true;
+  if (/\b[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,253}\.[A-Z]{2,}\b/i.test(raw)) return true;
 
-  if (/-?\d{1,3}\.\d{4,}\s*,\s*-?\d{1,3}\.\d{4,}/.test(raw)) return true;
+  if (/-?\d{1,3}\.\d{4,30}\s*,\s*-?\d{1,3}\.\d{4,30}/.test(raw)) return true;
 
-  if (
-    /(?:\+|00)?\d{1,3}[\s/-]?(?:\(?\d{1,4}\)?[\s/-]?)?\d{2,4}[\s/-]?\d{2,4}[\s/-]?\d{2,4}/.test(
-      raw,
-    ) &&
-    (raw.match(/\d/g) ?? []).length >= 8 &&
-    /\b(tel|telefono|phone|cell|mobile|whatsapp|numero|chiam\w*)\b/i.test(lower)
-  ) {
-    return true;
-  }
-
-  const phonePrefixMatch = raw.match(/(?:\+|00)[\d\s-]{8,15}\d\b/);
+  const phonePrefixMatch = raw.match(/\+[\d\s-]{8,15}\d\b/);
   if (phonePrefixMatch) {
     const prefixDigits = phonePrefixMatch[0].replace(/\D/g, "");
     if (prefixDigits.length >= 9 && prefixDigits.length <= 13) return true;
   }
 
-  const phoneGroupedMatch = raw.match(/\b\d{2,4}[ -]\d{2,4}(?:[ -]\d{1,4}){0,2}\b(?!:)/);
-  if (phoneGroupedMatch) {
-    const groupedDigits = phoneGroupedMatch[0].replace(/\D/g, "");
-    if (groupedDigits.length >= 9 && groupedDigits.length <= 11) return true;
+  if (
+    containsPhoneRun(raw, PHONE_LABEL_PATTERN) ||
+    containsPhoneRun(raw, PAREN_PHONE_PATTERN)
+  ) {
+    return true;
   }
-
-  if (BARE_PHONE_PATTERN.test(raw)) return true;
 
   if (ADDRESS_CONTEXT_PATTERN.test(raw) && ADDRESS_PATTERN.test(raw)) return true;
 
@@ -146,7 +158,7 @@ export function containsSensitivePattern(text: string): boolean {
     /\b(documento|document|passport|passaporto|id\s*number|numero\s*documento|driver'?s?\s*license|patente)\b/i.test(
       lower,
     ) &&
-    /\d{5,}/.test(raw)
+    /\d{5,30}/.test(raw)
   ) {
     return true;
   }

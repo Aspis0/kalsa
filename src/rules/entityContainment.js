@@ -74,15 +74,11 @@ function containsFactShapedTokens(text) {
 }
 
 /**
- * Strip accents and split identifiers, keeping case so the capitalization
- * signals still work: "SECRET_QUERY_LEOPOLDO" and "Leopóldo" expose "Leopoldo".
+ * Strip accents and split on "_", keeping case so the capitalization signals
+ * still work: "SECRET_QUERY_LEOPOLDO" and "Leopóldo" expose "Leopoldo".
  */
 function foldForMatch(s) {
-  return s
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[_.-]+/g, " ");
+  return s.normalize("NFD").replace(/\p{M}/gu, "").replace(/_/g, " ");
 }
 
 /**

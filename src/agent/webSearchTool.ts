@@ -11,6 +11,9 @@ import { isSafeHttpUrl } from "../util/url";
 
 export { buildWebSearchSnippet, NO_PREVIEW_SNIPPET } from "../search";
 
+/** Longest query the gate and the provider see; a longer query is cut silently. */
+export const MAX_SEARCH_QUERY_CHARS = 500;
+
 /**
  * Tool websearch — esposto al modello locale come function calling.
  * Il modello non sa quale provider è attivo; searchWeb risolve il provider
