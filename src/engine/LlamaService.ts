@@ -5129,17 +5129,26 @@ export async function streamAssistantTurn(
           });
 
           try {
+            // The bound must CANCEL the tool, not merely stop waiting for it:
+            // a search still sitting on its consent prompt would otherwise
+            // resume when the user answers and send a query after this call
+            // has already reported a failure.
+            const toolAbort = new AbortController();
+            const toolSignal = signal
+              ? AbortSignal.any([signal, toolAbort.signal])
+              : toolAbort.signal;
             // kalsa.bench.toolgate=0 blanks lastUserMessage so the echo-of-context
             // rule cannot fire (webSearchTool's only use of this argument).
             const outcome = await withNativeCallTimeout(
               options.executeTool(
                 name,
                 args,
-                signal,
+                toolSignal,
                 toolGateEnabled ? lastUserMessageText : "",
               ),
               TOOL_EXEC_TIMEOUT_MS,
               `executeTool(${name})`,
+              () => toolAbort.abort(),
             );
             toolTel.executed += 1;
             // Error identity from webSearchTool (strings.errors.webSearchPrivacyBlocked),

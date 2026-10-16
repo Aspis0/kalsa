@@ -58,15 +58,12 @@ function labelForPrimaryFailure(
 }
 
 /**
- * The tool's first-search gate, injected by the host so this module stays free
- * of UI. Called once per search, after the empty-query check and before
- * searchWeb, so the user is never asked about a query that never runs.
- */
-/**
  * The one-time per-provider consent, injected by the host so this module stays
  * free of UI. searchWeb calls it for every recipient it is about to send a
  * query to — the active provider and, when that fails, the free Exa MCP
- * fallback — because only searchWeb knows who the recipients are.
+ * fallback — because only searchWeb knows who the recipients are. The turn's
+ * signal travels with it, so a prompt still open when the turn ends stops
+ * waiting instead of answering into a void.
  */
 type SearchConsentGate = NonNullable<Parameters<typeof searchWeb>[1]["consent"]>;
 
@@ -85,11 +82,10 @@ export function makeWebSearchExecutor(
       return { text: strings.errors.unknownTool.replace("{name}", name) };
     }
     const query = String(args.query ?? "").trim();
+    // Only a query that is really about to run is worth asking about, so the
+    // empty case is answered here before the gate ever runs. The rest of the
+    // privacy gate lives at executeTool (runToolGate / registry).
     if (!query) return { text: strings.errors.emptySearchQuery };
-
-    // Privacy gate lives at executeTool (runToolGate / registry). This one is
-    // here rather than there because only a query that is really about to run
-    // is worth asking about.
 
     // searchWeb also clamps; tool-level default is 4.
     const numResults = normalizeNumResults(args.numResults ?? 4);

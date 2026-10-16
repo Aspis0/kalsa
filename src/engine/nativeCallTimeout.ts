@@ -10,17 +10,28 @@
  * native timer for exactly this reason. Moving these too needs a device to
  * validate the timer's lifecycle against dispose, so it stays a follow-up
  * rather than an unverified change.
+ *
+ * `onTimeout` runs when the bound fires, before the rejection. It is how a
+ * caller turns the bound into a CANCELLATION rather than only a lost race: a
+ * tool still awaiting something cancellable — a search prompt, a download —
+ * would otherwise keep running with nobody waiting for its result.
  */
 export async function withNativeCallTimeout<T>(
   p: Promise<T>,
   timeoutMs: number,
   label: string,
+  onTimeout?: () => void,
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const raced = Promise.race([
     p,
     new Promise<never>((resolve, reject) => {
       timer = setTimeout(() => {
+        try {
+          onTimeout?.();
+        } catch {
+          // A cancellation that throws must not replace the timeout itself.
+        }
         reject(new Error(`${label} did not settle within ${timeoutMs}ms`));
       }, timeoutMs);
     }),

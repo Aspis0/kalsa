@@ -223,7 +223,7 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     tok: { k: "numArray", len: 3 }, // decode tokens per leg, delta
     hops: NUM, // decode_hops, delta
     first: NUM, // 1 = first line after a load/clear: the numbers are cumulative
-    gap: NUM, // 1 = a negative delta: the counters restarted under this line
+    gap: NUM, // 1 = the counters describe no single turn (regressed, or a turn was skipped)
     failed: BOOL,
     fr: { k: "enum", values: GOVERNOR_FALLBACK_CODES },
   },

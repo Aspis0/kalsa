@@ -29,9 +29,33 @@ import { PROVIDERS, PROVIDER_IDS, type SearchProviderId } from "./registry";
  *  the other one-time choices (PROVIDER_STORAGE_KEY, GOVERNOR_ENABLED_KEY). */
 export const SEARCH_CONSENT_KEY = "kalsa.search.consent.v1";
 
-/** Storage format marker: anything without it is a value this module never
- *  wrote, and is therefore not read as consent. */
+/** The format marker: anything without it is a value this module never wrote,
+ *  and is therefore not read as consent. */
 const CONSENT_FORMAT = "v1";
+
+/** Storage is a device call that can wedge; a read or write that never settles
+ *  would block every later prompt. The USER'S DIALOG is deliberately not
+ *  bounded — how long someone takes to read a notice is theirs to spend. */
+const STORAGE_TIMEOUT_MS = 5_000;
+
+function withStorageTimeout<T>(op: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("consent storage timed out")),
+      STORAGE_TIMEOUT_MS,
+    );
+    op.then(
+      (value: T) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
 
 /**
  * "allow" the search · "deny" — the user chose "Not now": this search is
@@ -91,9 +115,15 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
 /**
  * Resolve the consent for sending a query to `providerId` on this install.
  *
- * `confirm` is the host's dialog and must resolve false on dismiss as well as
- * on "Not now" — an unanswered dialog is not consent. It runs with no focused
- * button, so a stray Enter never accepts the search.
+ * `signal` is the turn's cancellation. It is honoured twice: a turn cancelled
+ * before its turn in the queue never shows a dialog at all, and one cancelled
+ * while its dialog is open resolves immediately so the queue moves on. RN's
+ * Alert cannot be dismissed programmatically, so a tap on a prompt whose turn
+ * is over is discarded rather than acted on.
+ *
+ * `confirm` must resolve false on dismiss as well as on "Not now" — an
+ * unanswered dialog is not consent — and runs with no focused button, so a
+ * stray Enter never accepts the search.
  *
  * A failed write after "Search" still runs the search: the user answered yes,
  * and asking again next time is the honest outcome of a storage that is down.
@@ -102,6 +132,7 @@ export async function confirmSearchProvider(args: {
   locale: Locale;
   providerId: SearchProviderId;
   confirm: (providerName: string) => Promise<boolean>;
+  signal?: AbortSignal;
   storage?: SearchConsentStorage;
 }): Promise<SearchConsentVerdict> {
   const storage: SearchConsentStorage = args.storage ?? AsyncStorage;
@@ -112,7 +143,7 @@ export async function confirmSearchProvider(args: {
     // Read OUTSIDE the chain on purpose: an already-accepted provider must not
     // queue behind an unrelated open dialog. The read that guards the WRITE is
     // the one inside askOnce.
-    accepted = parseSearchConsent(await storage.getItem(SEARCH_CONSENT_KEY));
+    accepted = parseSearchConsent(await withStorageTimeout(storage.getItem(SEARCH_CONSENT_KEY)));
   } catch {
     return "unavailable";
   }
@@ -120,7 +151,10 @@ export async function confirmSearchProvider(args: {
 
   const alreadyOpen = pending.get(args.providerId);
   if (alreadyOpen) return alreadyOpen;
-  const asking = enqueue(() => askOnce(args, providerName, storage)).finally(() => {
+  const asking = enqueue(async () =>
+    // Cancelled while queued: no dialog, no write, and the queue is free.
+    args.signal?.aborted ? "deny" : askOnce(args, providerName, storage),
+  ).finally(() => {
     pending.delete(args.providerId);
   });
   pending.set(args.providerId, asking);
@@ -131,34 +165,79 @@ async function askOnce(
   args: {
     providerId: SearchProviderId;
     confirm: (providerName: string) => Promise<boolean>;
+    signal?: AbortSignal;
   },
   providerName: string,
   storage: SearchConsentStorage,
 ): Promise<SearchConsentVerdict> {
+  const dialog = args.confirm(providerName);
   let answer = false;
   try {
-    answer = await args.confirm(providerName);
+    answer = await beforeAbort(dialog, args.signal);
   } catch {
     // A dialog that cannot be shown is not consent.
     return "unavailable";
   }
+  // Cancelled while the dialog was open: the queue moves on now and any later
+  // tap on the stale Alert is discarded. Nothing is persisted for a turn that
+  // is over.
   if (!answer) return "deny";
+
   // Inside the chain, so no other dialog can read-modify-write between here
-  // and the setItem below.
-  let next = [args.providerId];
+  // and the setItem below. A read that fails leaves the baseline unknown, and
+  // writing a list built from it would erase every OTHER provider's consent —
+  // so this query runs on the answer the user just gave and nothing is stored.
+  let next: SearchProviderId[];
   try {
-    const stored = parseSearchConsent(await storage.getItem(SEARCH_CONSENT_KEY));
-    next = [...new Set([...stored, args.providerId])];
+    next = [
+      ...new Set([
+        ...parseSearchConsent(await withStorageTimeout(storage.getItem(SEARCH_CONSENT_KEY))),
+        args.providerId,
+      ]),
+    ];
   } catch {
-    // Unreadable: keep only what this answer accepts. A storage that cannot be
-    // read asks again next time rather than losing an earlier consent.
+    return "allow";
   }
   try {
-    await storage.setItem(SEARCH_CONSENT_KEY, `${CONSENT_FORMAT}:${next.join(",")}`);
+    await withStorageTimeout(storage.setItem(SEARCH_CONSENT_KEY, `${CONSENT_FORMAT}:${next.join(",")}`));
   } catch {
     // Consent given, write refused: run the search and ask again next time.
   }
   return "allow";
+}
+
+/**
+ * The dialog's answer, or false as soon as the turn is cancelled. A late answer
+ * is never read: RN's Alert cannot be dismissed programmatically, so the stale
+ * prompt may still be on screen, and a tap on it must not persist consent for a
+ * turn that has ended.
+ */
+function beforeAbort(
+  dialog: Promise<boolean>,
+  signal: AbortSignal | undefined,
+): Promise<boolean> {
+  if (!signal) return dialog;
+  if (signal.aborted) {
+    dialog.catch(() => undefined);
+    return Promise.resolve(false);
+  }
+  return new Promise<boolean>((resolve, reject) => {
+    const onAbort = (): void => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(false);
+    };
+    signal.addEventListener("abort", onAbort);
+    dialog.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (err) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err);
+      },
+    );
+  });
 }
 
 /**

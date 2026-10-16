@@ -5,11 +5,11 @@
  * asserted here is what an uploaded report actually keeps: every field
  * surviving, and every line inside normalize.ts's 300-char clip.
  */
-import { governorLoadLogLine, type GovernorLoadFacts } from "../../engine/governorLoadLog";
-import { resetGovernorTurnCost } from "../../engine/governorTurnLog";
 import {
   governorTurnLogLines,
   governorTurnPayloads,
+  markGovernorTurnGap,
+  resetGovernorTurnCost,
   type GovernorFallbackCode,
   type GovernorTurnStats,
 } from "../../engine/governorTurnLog";
@@ -49,22 +49,6 @@ const ROUTE_CHUNKS = [
   { index: 1, requested: "auto", actual: "cpu", tokens: 256, prefill_ms: 90.25, forced: false, layers_device: "HTP0" },
   { index: 2, requested: "auto", actual: "gpu", tokens: 256, prefill_ms: 120.75, forced: false, layers_device: "GPUOpenCL" },
 ];
-
-const LOAD_FACTS: GovernorLoadFacts = {
-  one_copy: true,
-  npu_leg: true,
-  gpu_leg: true,
-  cpu_leg: true,
-  prefill_thermal_handoff: true,
-  soc: "SM8550",
-  cache_type_k: "q8_0",
-  cache_type_v: "q8_0",
-  kv_reason: "htp-prefill-kv",
-  hop_tokens: 32,
-  zones_cpu: 4,
-  zones_npu: 3,
-  zones_gpu: 2,
-};
 
 /** The whole pipeline for one emitted line: schema projection, then the final
  *  safety pass. null means the line was dropped. */
@@ -222,5 +206,125 @@ describe("KALSA_GOVERNOR_TURN keeps every placement fact", () => {
     const out = report(turnLines({ ...HOT_NPU_HANDOFF, engine_prefill: "the user's laptop" })[0]);
     expect(out?.fields).not.toHaveProperty("ep");
     expect(out?.fields).toMatchObject({ ed: "NPU", rr: 10, chunks: 3 });
+  });
+});
+
+describe("KALSA_GOVERNOR_COST keeps the turn's own cost and its verdict", () => {
+  it("survives the clip whole, legs in [cpu, gpu, npu] order", () => {
+    const out = report(turnLines()[1]);
+    expect(out?.fields).toEqual({
+      cb: HOT_NPU_HANDOFF.commit_bytes,
+      cm: HOT_NPU_HANDOFF.commit_ms,
+      dhb: 4194304,
+      tok: [2048, 1024, 3072],
+      hops: 12,
+      first: 1,
+      gap: 0,
+      failed: false,
+      fr: "none",
+    });
+    expect(out?.line.length).toBeLessThanOrEqual(300);
+  });
+
+  it("keeps the LONGEST cost line inside the clip, every field surviving", () => {
+    // Worst case for COST: the widest numbers a turn can produce (a 4 GiB hop
+    // commit, 65 535 tokens per leg), a latched failure and the longest code.
+    const out = report(
+      turnLines(
+        {
+          ...HOT_NPU_HANDOFF,
+          commit_bytes: 4294967295,
+          commit_ms: 999.5,
+          decode_hop_commit_bytes: 4294967295,
+          decode_tokens_cpu: 65535,
+          decode_tokens_gpu: 65535,
+          decode_tokens_npu: 65535,
+          decode_hops: 65535,
+          failure_reason: "something latched",
+        },
+        ROUTE_CHUNKS,
+        "native_unsupported",
+      )[1],
+    );
+    expect(out?.fields).toEqual({
+      cb: 4294967295,
+      cm: 999.5,
+      dhb: 4294967295,
+      tok: [65535, 65535, 65535],
+      hops: 65535,
+      first: 1,
+      gap: 0,
+      failed: true,
+      fr: "native_unsupported",
+    });
+    expect(out?.line.length).toBeLessThanOrEqual(300);
+  });
+
+  it("reports the second turn's delta, not the running total", () => {
+    turnLines();
+    const second = report(
+      turnLines({
+        ...HOT_NPU_HANDOFF,
+        decode_hop_commit_bytes: 8388608,
+        decode_tokens_cpu: 2560,
+        decode_tokens_gpu: 1024,
+        decode_tokens_npu: 4096,
+        decode_hops: 20,
+      })[1],
+    );
+    expect(second?.fields).toMatchObject({
+      dhb: 8388608 - 4194304,
+      tok: [2560 - 2048, 0, 4096 - 3072],
+      hops: 20 - 12,
+      first: 0,
+      gap: 0,
+    });
+    expect(second?.line.length).toBeLessThanOrEqual(300);
+  });
+
+  it("keeps a gap line's absent numbers absent, and says gap:1", () => {
+    turnLines();
+    markGovernorTurnGap();
+    const out = report(turnLines({ ...HOT_NPU_HANDOFF, decode_hops: 99 }, ROUTE_CHUNKS)[1]);
+    expect(out?.fields).toEqual({
+      cb: HOT_NPU_HANDOFF.commit_bytes,
+      cm: HOT_NPU_HANDOFF.commit_ms,
+      first: 0,
+      gap: 1,
+      failed: false,
+      fr: "none",
+    });
+    // A gap line never carries a subtraction, so it can never read as a turn
+    // whose cost was negative. (Checked from the tag on: the ISO timestamp
+    // prefix contains dashes of its own.)
+    expect(out?.line.slice(out.line.indexOf("KALSA_GOVERNOR_COST"))).not.toContain("-");
+    expect(out?.line.length).toBeLessThanOrEqual(300);
+  });
+
+  it("carries a fallback code, never the reason prose", () => {
+    const out = report(
+      governorTurnLogLines(
+        governorTurnPayloads({
+          stats: {
+            ...HOT_NPU_HANDOFF,
+            failure_reason: "Governor decode failed: 10.0.0.1 said no",
+          },
+          forced: true,
+          fallbackCode: "other",
+          routeChunks: ROUTE_CHUNKS,
+        }),
+      )[1],
+    );
+    expect(out?.fields).toMatchObject({ failed: true, fr: "other" });
+    expect(out?.line).not.toContain("10.0.0.1");
+    expect(out?.line).not.toContain("decode failed");
+  });
+
+  it("drops a code outside the set and keeps the rest of the line", () => {
+    const out = report(
+      turnLines(HOT_NPU_HANDOFF, ROUTE_CHUNKS, "governor not eligible" as never)[1],
+    );
+    expect(out?.fields).not.toHaveProperty("fr");
+    expect(out?.fields).toMatchObject({ cb: HOT_NPU_HANDOFF.commit_bytes, hops: 12 });
   });
 });

@@ -16,9 +16,11 @@ import {
 } from "./firstSearchNotice";
 import type { SearchProviderId } from "./registry";
 
+// Async, like the real thing: a bare jest.fn() returns undefined, which the
+// gate reads as an unreadable baseline rather than as "no consent yet".
 jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
-  default: { getItem: jest.fn(), setItem: jest.fn() },
+  default: { getItem: jest.fn(async () => null), setItem: jest.fn(async () => undefined) },
 }));
 // registry.ts pulls the provider factory chain in, which reaches the secure
 // store through secretStore.ts. The notice never touches a key.
@@ -53,11 +55,13 @@ const gate = (args: {
   storage?: SearchConsentStorage;
   confirm?: (name: string) => Promise<boolean>;
   providerId?: SearchProviderId;
+  signal?: AbortSignal;
 }) =>
   confirmSearchProvider({
     locale: "en",
     providerId: args.providerId ?? "brave",
     confirm: args.confirm ?? (async () => true),
+    signal: args.signal,
     storage: args.storage,
   });
 
@@ -263,6 +267,139 @@ describe("confirmSearchProvider", () => {
       }),
     ).resolves.toBe("allow");
     expect(parseSearchConsent(written as unknown as string).sort()).toEqual(["brave", "tavily"]);
+  });
+});
+
+describe("a cancelled turn frees the queue without persisting anything", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("never opens a dialog for a turn cancelled before its turn in the queue", async () => {
+    const abort = new AbortController();
+    abort.abort();
+    const confirm = jest.fn(async () => true);
+    const storage = fakeStorage();
+    await expect(gate({ storage, confirm, signal: abort.signal })).resolves.toBe("deny");
+    expect(confirm).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
+  });
+
+  it("drops a queued turn whose signal aborts while it waits", async () => {
+    const abort = new AbortController();
+    let release = () => {};
+    const open = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const confirm = jest.fn(async () => {
+      await open;
+      return true;
+    });
+    const first = gate({ storage: fakeStorage(), confirm, providerId: "brave" });
+    const queued = gate({
+      storage: fakeStorage(),
+      confirm,
+      providerId: "tavily",
+      signal: abort.signal,
+    });
+    abort.abort();
+    release();
+    await expect(queued).resolves.toBe("deny");
+    await expect(first).resolves.toBe("allow");
+    // The queued provider was never named to the user.
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledWith("Brave");
+  });
+
+  it("resolves at once when the turn is cancelled with the dialog open", async () => {
+    const abort = new AbortController();
+    let tap!: (answer: boolean) => void;
+    const dialog = new Promise<boolean>((resolve) => {
+      tap = resolve;
+    });
+    const storage = fakeStorage();
+    const asking = gate({ storage, confirm: () => dialog, signal: abort.signal });
+    abort.abort();
+    // The prompt cannot be dismissed programmatically, so the promise settles
+    // on the cancellation and the queue moves on.
+    await expect(asking).resolves.toBe("deny");
+    expect(storage.setItem).not.toHaveBeenCalled();
+
+    // A late tap on the stale Alert is discarded: it is a turn that is over.
+    tap(true);
+    await Promise.resolve();
+    expect(storage.setItem).not.toHaveBeenCalled();
+  });
+
+  it("leaves the queue usable for the next provider after a cancellation", async () => {
+    const abort = new AbortController();
+    let tap!: (answer: boolean) => void;
+    const dialog = new Promise<boolean>((resolve) => {
+      tap = resolve;
+    });
+    const stuck = gate({
+      storage: fakeStorage(),
+      confirm: () => dialog,
+      providerId: "brave",
+      signal: abort.signal,
+    });
+    abort.abort();
+    await expect(stuck).resolves.toBe("deny");
+    // The next first-time provider is asked normally, not behind a wedge.
+    await expect(
+      gate({ storage: fakeStorage(), confirm: async () => true, providerId: "tavily" }),
+    ).resolves.toBe("allow");
+    tap(true);
+  });
+
+  it("does not persist a list built from a baseline it could not read", async () => {
+    // First read answers (the provider is unknown), the in-queue re-read does
+    // not. Writing then would replace every other provider's consent with
+    // this one, which is a consent this module never saw.
+    const getItem = jest
+      .fn<Promise<string | null>, [string]>()
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(new Error("storage offline"));
+    const storage = fakeStorage({ getItem });
+    await expect(gate({ storage })).resolves.toBe("allow");
+    expect(storage.setItem).not.toHaveBeenCalled();
+  });
+
+  it("gives up on a storage call that never settles", async () => {
+    jest.useFakeTimers();
+    try {
+      const storage = fakeStorage({ getItem: jest.fn(() => new Promise<string>(() => undefined)) });
+      const asking = gate({ storage });
+      await jest.advanceTimersByTimeAsync(5_000);
+      await expect(asking).resolves.toBe("unavailable");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("does not bound the user's dialog, only the storage around it", async () => {
+    jest.useFakeTimers();
+    try {
+      // The dialog takes far longer than the storage bound and must still be
+      // waiting: how long someone takes to read a notice is theirs to spend.
+      let tap!: (answer: boolean) => void;
+      const dialog = new Promise<boolean>((resolve) => {
+        tap = resolve;
+      });
+      const storage = fakeStorage();
+      const asking = gate({ storage, confirm: () => dialog });
+      await jest.advanceTimersByTimeAsync(300_000);
+      let settled = false;
+      void asking.then(() => {
+        settled = true;
+      });
+      await jest.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(false);
+      tap(true);
+      await expect(asking).resolves.toBe("allow");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

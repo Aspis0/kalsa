@@ -50,8 +50,15 @@ export type WebSearchOptions = {
    *
    * REQUIRED. There is no ungated path: a caller that cannot ask must not
    * reach a network call by leaving an option out.
+   *
+   * Takes the turn's `signal` so a prompt that is still open when the turn is
+   * cancelled — by the user, or by the tool timeout — can stop waiting instead
+   * of resuming later and sending a query nobody is waiting for.
    */
-  consent: (providerId: SearchProviderId) => Promise<SearchConsentVerdict>;
+  consent: (
+    providerId: SearchProviderId,
+    signal: AbortSignal | undefined,
+  ) => Promise<SearchConsentVerdict>;
 };
 
 export type WebSearchOutcome = {
@@ -114,8 +121,20 @@ export async function searchWeb(
     activeId = DEFAULT_PROVIDER_ID;
   }
 
+  /** A turn that was cancelled while the prompt was open must not go on to
+   *  send: the answer may be "allow" and the turn may still be over. Checked
+   *  after EVERY consent answer, before any provider call. */
+  const cancelled = (): Error => new Error(strings.errors.searchCancelled);
+  const askFor = async (
+    providerId: SearchProviderId,
+  ): Promise<SearchConsentVerdict> => {
+    const verdict = await opts.consent(providerId, opts.signal);
+    if (opts.signal?.aborted) throw cancelled();
+    return verdict;
+  };
+
   // Before the budget starts: however long the user takes to answer is theirs.
-  const primaryVerdict = await opts.consent(activeId);
+  const primaryVerdict = await askFor(activeId);
   if (primaryVerdict !== "allow") {
     return {
       results: [],
@@ -154,7 +173,7 @@ export async function searchWeb(
     // The budget pauses while the dialog is open: the remainder resumes after.
     const remaining = budgetLeft();
     if (remaining <= 0) throw spent();
-    const fallbackVerdict = await opts.consent(DEFAULT_PROVIDER_ID);
+    const fallbackVerdict = await askFor(DEFAULT_PROVIDER_ID);
     deadlineAt = Date.now() + remaining;
     if (fallbackVerdict !== "allow") {
       return {

@@ -61,6 +61,45 @@ beforeEach(() => {
 });
 
 describe("searchWeb and the recipients of one query", () => {
+  it("never sends when the turn is cancelled before the answer lands", async () => {
+    // The 300 s tool timeout aborts the signal while the prompt is open; the
+    // user's late "Search" must not start a request nobody is waiting for.
+    const abort = new AbortController();
+    let tap!: (answer: boolean) => void;
+    let promptOpen!: () => void;
+    const opened = new Promise<void>((resolve) => {
+      promptOpen = resolve;
+    });
+    const consent = jest.fn(async () => {
+      promptOpen();
+      await new Promise<boolean>((resolve) => {
+        tap = resolve;
+      });
+      return "allow" as const;
+    });
+    const searching = searchWeb("kalsa", {
+      ...QUERY,
+      consent,
+      signal: abort.signal,
+    });
+    await opened;
+    abort.abort();
+    tap(true);
+    await expect(searching).rejects.toThrow("Search cancelled");
+    expect(braveSearch).not.toHaveBeenCalled();
+    expect(exaMcpSearch).not.toHaveBeenCalled();
+  });
+
+  it("passes the turn's signal to the gate so it can stop waiting", async () => {
+    const seen: Array<AbortSignal | undefined> = [];
+    const consent = jest.fn(async (_id: string, signal: AbortSignal | undefined) => {
+      seen.push(signal);
+      return "deny" as const;
+    });
+    await searchWeb("kalsa", { ...QUERY, consent, signal: new AbortController().signal });
+    expect(seen[0]).toBeInstanceOf(AbortSignal);
+  });
+
   it("sends nothing before the active provider has been named", async () => {
     const consent = gateFor({ brave: "deny" });
     const out = await searchWeb("kalsa", { ...QUERY, consent });

@@ -89,10 +89,11 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
     // query would reach, the first time this install reaches it. The active
     // provider id resolves with searchWeb's own fallback rule, so the notice
     // cannot name one provider while the search goes to another.
-    const searchExec = makeWebSearchExecutor(locale, async (providerId) =>
+    const searchExec = makeWebSearchExecutor(locale, async (providerId, cancelSignal) =>
       confirmSearchProvider({
         locale,
         providerId,
+        signal: cancelSignal,
         confirm: (providerName) => showFirstWebSearchNotice(providerName, locale),
       }),
     );
