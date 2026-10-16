@@ -15,7 +15,7 @@ import { getActiveModelId, type EngineToolResult, type EngineTurnOptions } from 
 import { createDocumentChatExecutor } from "../documents/documentChatTool";
 import type { DocRetrieverIndex } from "../context/retrievalLoop";
 import type { LibraryDoc, LibraryState } from "../documents/DocumentLibrary";
-import { makeWebSearchExecutor, MAX_SEARCH_QUERY_CHARS } from "../agent/webSearchTool";
+import { clipWebSearchArgs, makeWebSearchExecutor } from "../agent/webSearchTool";
 import { confirmSearchProvider } from "../search/firstSearchNotice";
 import { showFirstWebSearchNotice } from "./webSearchNotice";
 import { makeWriteNoteExecutor } from "../agent/writeNoteTool";
@@ -207,10 +207,7 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
       tools,
       executeTool: async (name, rawArgs, signal, lastUserMessage) => {
         // The gate and the provider both see the capped query (silent cut).
-        const args =
-          name === "web_search" && typeof rawArgs.query === "string"
-            ? { ...rawArgs, query: rawArgs.query.slice(0, MAX_SEARCH_QUERY_CHARS) }
-            : rawArgs;
+        const args = name === "web_search" ? clipWebSearchArgs(rawArgs) : rawArgs;
         // Persona / format-B tails are prompt-only. Prefer the raw user text
         // captured at send (lastUserRawRef) over the engine message content.
         const rawUserText =

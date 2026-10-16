@@ -12,7 +12,16 @@ import { isSafeHttpUrl } from "../util/url";
 export { buildWebSearchSnippet, NO_PREVIEW_SNIPPET } from "../search";
 
 /** Longest query the gate and the provider see; a longer query is cut silently. */
-export const MAX_SEARCH_QUERY_CHARS = 500;
+const MAX_SEARCH_QUERY_CHARS = 500;
+
+/**
+ * Makes `query` a string of at most MAX_SEARCH_QUERY_CHARS, whatever type the
+ * model sent (the fallback parser can return an array). The gate and the
+ * executor both stringify the query, so the cap has to run first.
+ */
+export function clipWebSearchArgs(args: Record<string, unknown>): Record<string, unknown> {
+  return { ...args, query: String(args.query ?? "").slice(0, MAX_SEARCH_QUERY_CHARS) };
+}
 
 /**
  * Tool websearch — esposto al modello locale come function calling.
