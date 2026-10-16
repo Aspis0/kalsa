@@ -32,6 +32,7 @@ pub(super) fn values(key: &str) -> Option<&'static [&'static str]> {
         "modelId" => Some(&[
             "0d59929a1d6c96db",
             "2cba59c35d6c921d",
+            "392e6e30aa21cb00",
             "5aa3a7df6a68207f",
             "6cf2d69e925c832b",
             "abba3efbfbb7c48d",
