@@ -22,7 +22,7 @@ export type ToolRoundTelemetry = {
   skippedDup: number; // skipped by the dedup ledger
   skippedFailedRepeat: number; // skipped by the failed-repeat rule
   failed: number; // executions that threw or returned an error
-  blockedPrivacy: number; // refused by the web-search echo guard
+  blockedPrivacy: number; // web_search refused by the tool gate (memory echo or sensitive pattern)
   namesValid: boolean; // every emitted call named a tool that exists
   argsParsed: boolean; // every emitted call had args that parsed as an object
   /** Tool names emitted this round (for bench tool-selection grading). Privacy-safe: names only, no arguments. */

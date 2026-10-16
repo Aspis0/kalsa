@@ -1,40 +1,12 @@
 /**
  * Built-in tool-call gate. Literal table — Kalsa has no rules.json.
- * Four block rules: sensitive query patterns, echo of last user message, echo
- * of a memory fact, and empty query.
- *
- * echo-of-context: INVERTED comparison — blocks when the search query is
- * UNRELATED to the user's last message (low similarity). A legitimate search
- * paraphrases what the user asked → high similarity → passes. A spurious
- * search is about something else → low similarity → blocked.
- *
- * Two thresholds via a structural signal (question-mark punctuation, not a
- * wordlist): questions ending with "?" or "？" are explicit search requests
- * so use a low threshold; other message forms use a higher threshold.
- *
- * Abstains (does not block) when the comparison is not meaningful:
- * - empty query or empty user message
- * - user message too short (< ECHO_MIN_USER_MSG_LENGTH chars): every query
- *   scores low against it, so the comparison is not reliable
- * - query too short (< ECHO_MIN_QUERY_LENGTH chars): too few 3-grams for
- *   a meaningful cosine
+ * Three block rules: sensitive query patterns, echo of a memory fact, and
+ * empty query.
  */
 
 import type { RuleTable } from "./evaluate";
-import { cosine, ngramVec } from "./ngramSim";
 import { containsPrivateData } from "./entityContainment.js";
 import { containsSensitivePattern } from "./sensitivePatternGate";
-
-/** High threshold: non-question user messages. */
-export const ECHO_SIMILARITY_THRESHOLD = 0.40;
-/** Low threshold: question user messages (ending with ? or ?). */
-const ECHO_QUESTION_THRESHOLD = 0.15;
-/** Minimum user-message length (chars) for the comparison to be meaningful. */
-const ECHO_MIN_USER_MSG_LENGTH = 15;
-/** Minimum query length (chars) for the comparison to be meaningful. */
-const ECHO_MIN_QUERY_LENGTH = 3;
-/** Question-mark codepoints across scripts (structural signal, not a wordlist). */
-const QUESTION_MARK_RE = /[?\uFF1F]$/;
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -49,38 +21,15 @@ function asFacts(value: unknown): readonly string[] {
   return facts;
 }
 
-function echoSim(a: string, b: string): number {
-  return cosine(ngramVec(a), ngramVec(b));
-}
-
 export const TOOL_GATE_TABLE: RuleTable = {
   rules: [
     {
       id: "sensitive-pattern-in-query",
-      // evaluateTurn sorts descending; keep this above both echo rules so the
-      // dedicated sensitive-pattern reason wins when multiple rules fire.
+      // evaluateTurn sorts descending; keep this above echo-of-memory-fact so
+      // the dedicated sensitive-pattern reason wins when both rules fire.
       priority: 25,
       condition: (input) => containsSensitivePattern(asString(input.query)),
       action: { kind: "block", reason: "sensitive-pattern-in-query" },
-    },
-    {
-      id: "echo-of-context",
-      priority: 20,
-      condition: (input) => {
-        const query = asString(input.query).trim();
-        const last = asString(input.lastUserMessage).trim();
-        // Abstain when either side is empty or too short for a meaningful
-        // comparison. Failing open is correct: this rule was shown to cost
-        // the user a working feature 100% of the time.
-        if (!query || !last) return false;
-        if (last.length < ECHO_MIN_USER_MSG_LENGTH) return false;
-        if (query.length < ECHO_MIN_QUERY_LENGTH) return false;
-        const threshold = QUESTION_MARK_RE.test(last)
-          ? ECHO_QUESTION_THRESHOLD
-          : ECHO_SIMILARITY_THRESHOLD;
-        return echoSim(query, last) < threshold;
-      },
-      action: { kind: "block", reason: "echo-of-context" },
     },
     {
       id: "echo-of-memory-fact",

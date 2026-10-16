@@ -13,8 +13,6 @@ import {
 } from "./gateAuditLog";
 import { resolveToolGateTable } from "./toolGateRegistry";
 
-const FACT_CAP = 10;
-
 export type ToolGateResult = {
   blocked: boolean;
   text?: string;
@@ -22,17 +20,12 @@ export type ToolGateResult = {
   decision?: TurnDecision;
 };
 
-function asFacts(facts: readonly string[]): string[] {
-  return facts.slice(0, FACT_CAP);
-}
-
 function snapshotInput(
   toolName: string,
   args: Record<string, unknown>,
   lastUserMessage: string,
   memoryFacts: readonly string[],
 ): Record<string, unknown> {
-  const facts = asFacts(memoryFacts);
   if (toolName === "web_search" || toolName === "web_fetch") {
     return {
       ...(toolName === "web_fetch"
@@ -43,10 +36,10 @@ function snapshotInput(
         : {}),
       query: typeof args.query === "string" ? args.query : String(args.query ?? ""),
       lastUserMessage,
-      memoryFacts: facts,
+      memoryFacts,
     };
   }
-  return { ...args, lastUserMessage, memoryFacts: facts };
+  return { ...args, lastUserMessage, memoryFacts };
 }
 
 function blockText(
@@ -57,6 +50,10 @@ function blockText(
   const strings = getStrings(locale);
   if (toolName === "web_search") {
     if (reason === "empty-query") return strings.errors.emptySearchQuery;
+    if (reason === "sensitive-pattern-in-query") {
+      return strings.errors.webSearchSensitiveBlocked;
+    }
+    if (reason === "gate-error") return strings.errors.webSearchGateFailed;
     return strings.errors.webSearchPrivacyBlocked;
   }
   if (reason === "empty-range" || reason === "malformed-range") {
@@ -119,6 +116,15 @@ export async function runToolGate(opts: {
     );
   } catch {
     // Privacy gates fail closed if evaluation itself cannot complete.
+    if (opts.toolhelpOn) {
+      await appendGateAudit({
+        turnId: opts.turnId,
+        toolName: opts.toolName,
+        ruleId: "gate-error",
+        action: "block",
+        outcome: "blocked",
+      });
+    }
     return {
       blocked: true,
       text: blockText(opts.toolName, "gate-error", opts.locale),

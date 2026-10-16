@@ -32,7 +32,7 @@ export function scoreTool(turn) {
   const called = Boolean(last.tool || last.toolName || last.toolCalled);
   const toolName = last.tool || last.toolName || null;
   const ok = last.toolOk === true || last.toolStatus === "ok";
-  const spurious = last.toolSpurious === true || last.strategy === "echo-of-context";
+  const spurious = last.toolSpurious === true;
   const intent = turn.script?.intent || "";
   const requested = intent === "web-request" || intent === "calendar-request";
   const gate = turn.gateAudit || null;

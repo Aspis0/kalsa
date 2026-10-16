@@ -74,6 +74,18 @@ function containsFactShapedTokens(text) {
 }
 
 /**
+ * Strip accents and split identifiers, keeping case so the capitalization
+ * signals still work: "SECRET_QUERY_LEOPOLDO" and "Leopóldo" expose "Leopoldo".
+ */
+function foldForMatch(s) {
+  return s
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_.-]+/g, " ");
+}
+
+/**
  * Check if query contains private data from fact.
  * Uses three language-independent signals:
  * 1. Distinctive tokens: digits, @, or capitalized mid-sentence in fact OR query
@@ -81,7 +93,9 @@ function containsFactShapedTokens(text) {
  * 3. Consecutive tokens: 2+ consecutive query tokens appear in fact
  * Returns true if query should be blocked.
  */
-function containsPrivateData(query, fact) {
+function containsPrivateData(rawQuery, rawFact) {
+  const query = foldForMatch(rawQuery);
+  const fact = foldForMatch(rawFact);
   const queryTokensOriginal = tokenizeOriginal(query);
   const queryTokensNormalized = tokenizeNormalized(query);
   const factTokensOriginal = tokenizeOriginal(fact);

@@ -23,7 +23,7 @@
 #                  see NOTE(fase0-compaction))
 #   TOOLCHOICE     auto|required|none → kalsa.bench.toolchoice (default auto)
 #   TOOLGATE       1|0 → kalsa.bench.toolgate (default 1; 0 disables the
-#                  echo-of-context rules gate)
+#                  tool gate rules)
 #   NOREPACK       empty|0|1 → kalsa.bench.norepack (empty = absent = production
 #                  repack on; 1 disables weight repacking via no_extra_bufts)
 #   NGL            empty|N → kalsa.bench.engine (empty = absent = cpu-only, the

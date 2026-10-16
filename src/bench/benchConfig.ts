@@ -571,8 +571,10 @@ export function isDevBuild(
 
 /**
  * Bench-only rules-gate switch. Privacy gates are always on in release builds;
- * only a dev build may use "0" to disable the echo-of-context veto for an A/B
- * measurement.
+ * only a dev build may use "0" to skip the tool gate for an A/B measurement.
+ * The echo-of-context veto this switch used to target is gone, so "0" now only
+ * skips the rules sensitive pattern and memory-fact echo. The empty-query check
+ * lives in the search tool and still runs.
  */
 export async function getToolGateEnabled(): Promise<boolean> {
   if (!isDevBuild()) return true;

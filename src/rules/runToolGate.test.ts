@@ -47,7 +47,7 @@ describe("runToolGate", () => {
   test("flag off: web_search still gated, calendar exempt, no audit writes", async () => {
     const blocked = await runToolGate({
       toolName: "web_search",
-      args: { query: QUERY },
+      args: { query: `who knows about ${FACT}` },
       lastUserMessage: "hello there how are you doing today?",
       memoryFacts: [FACT],
       toolhelpOn: false,
@@ -68,9 +68,8 @@ describe("runToolGate", () => {
     expect(await readGateAudit()).toEqual([]);
   });
 
-  // The fact is echoed VERBATIM in the search query. lastUserMessage is kept
-  // short (< ECHO_MIN_USER_MSG_LENGTH) so echo-of-context abstains and the
-  // memory-fact rule is the only one that fires — pinning ruleId explicitly.
+  // The fact is echoed VERBATIM in the search query, so the memory-fact rule is
+  // the one that fires — pinning ruleId explicitly.
   test("web_search blocks a query that echoes a stored memory fact verbatim", async () => {
     const result = await runToolGate({
       toolName: "web_search",
@@ -84,6 +83,48 @@ describe("runToolGate", () => {
     expect(result.blocked).toBe(true);
     expect(result.decision?.ruleId).toBe("echo-of-memory-fact");
     expect(result.decision?.reason).toBe("echo-of-memory-fact");
+    expect(result.text).toBe(getStrings("en").errors.webSearchPrivacyBlocked);
+  });
+
+  test.each([
+    ["Samsung news today", "Cerca sul web le notizie di oggi su Samsung"],
+    [
+      "F1 race results October 2026",
+      "Chi ha vinto il Gran Premio di Formula 1 domenica scorsa",
+    ],
+    [
+      "weather forecast Milan tomorrow",
+      "Cerca sul web le previsioni del meteo di domani a Milano",
+    ],
+    ["notizie Samsung oggi", "Cerca sul web le notizie di oggi su Samsung"],
+  ])(
+    "web_search does not block a plain request: %s",
+    async (query, lastUserMessage) => {
+      const result = await runToolGate({
+        toolName: "web_search",
+        args: { query },
+        lastUserMessage,
+        memoryFacts: [],
+        toolhelpOn: true,
+        locale: "it",
+      });
+
+      expect(result.blocked).toBe(false);
+    },
+  );
+
+  test("web_search sensitive query gets the sensitive-details text", async () => {
+    const result = await runToolGate({
+      toolName: "web_search",
+      args: { query: "4111111111111111" },
+      lastUserMessage: "What is the weather today?",
+      memoryFacts: [],
+      toolhelpOn: false,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.text).toBe(getStrings("en").errors.webSearchSensitiveBlocked);
   });
 
   test("flag on: calendar private-data blocked and audit has no user content", async () => {
@@ -253,6 +294,52 @@ describe("runToolGate", () => {
 
     expect(result.blocked).toBe(true);
     expect(result.text).toBe(getStrings("en").errors.toolPrivacyBlocked);
+    resolve.mockRestore();
+  });
+
+  test("web_search checks every injected memory fact, not only the first ten", async () => {
+    const result = await runToolGate({
+      toolName: "web_search",
+      args: { query: "Leopoldo cat breed" },
+      lastUserMessage: "hi",
+      memoryFacts: [
+        ...Array.from({ length: 10 }, () => "Mi piace la pasta"),
+        FACT,
+      ],
+      toolhelpOn: false,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.decision?.ruleId).toBe("echo-of-memory-fact");
+  });
+
+  test("web_search gate failure gets its own text and a gate-error audit row", async () => {
+    const resolve = jest
+      .spyOn(toolGateRegistry, "resolveToolGateTable")
+      .mockReturnValueOnce({ rules: null as never });
+
+    const result = await runToolGate({
+      toolName: "web_search",
+      args: { query: "weather in Milano" },
+      lastUserMessage: "",
+      memoryFacts: [],
+      toolhelpOn: true,
+      locale: "en",
+      turnId: "turn-gate",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.text).toBe(getStrings("en").errors.webSearchGateFailed);
+    expect(await readGateAudit()).toEqual([
+      {
+        turnId: "turn-gate",
+        toolName: "web_search",
+        ruleId: "gate-error",
+        action: "block",
+        outcome: "blocked",
+      },
+    ]);
     resolve.mockRestore();
   });
 

@@ -21,6 +21,20 @@ describe("containsSensitivePattern", () => {
     "I live at 123 Main Street",
     "email me at alex@example.com",
     "45.4642, 9.1900",
+    "4155552671 reverse lookup",
+    "415 555 2671",
+    "333.123.4567",
+    "+1 415-555-2671",
+    "confirmation code 493812",
+    "verification code 493812",
+    "one-time code 493812",
+    "codice 493812",
+    "conferma 493812",
+    "verifica 493812",
+    "your code is 493812",
+    "493812 is your verification code",
+    "code: AB12CD",
+    "verification code 4a7b9c8d",
   ])("blocks sensitive text: %s", (text) => {
     expect(containsSensitivePattern(text)).toBe(true);
   });
@@ -41,6 +55,18 @@ describe("containsSensitivePattern", () => {
     "cf. Smith 1999",
     "1234567812345678",
     "2024.05.12.001",
+    "2026-10-16",
+    "2026-10-16 14:30",
+    "2026.10.16.1",
+    "1.2.3",
+    "v1.2.3.4",
+    "12.50 euro",
+    "1234567.89 euro",
+    "error code 404",
+    "code review in 2026",
+    "codice fiscale",
+    "verification steps for gmail",
+    "verifica documenti in comune",
   ])("allows ordinary query: %s", (text) => {
     expect(containsSensitivePattern(text)).toBe(false);
   });

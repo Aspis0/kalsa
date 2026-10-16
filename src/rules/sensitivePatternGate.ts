@@ -8,6 +8,20 @@ const CF_PATTERN =
   /(?:^|[^A-Z0-9])[A-Z]{6}\s*\d{2}\s*[A-Z]\s*\d{2}\s*[A-Z]\s*\d{3}\s*[A-Z](?:$|[^A-Z0-9])/i;
 const CF_COMPACT_PATTERN = /[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]/i;
 const CARD_RUN_PATTERN = /\b\d(?:[ -]?\d){12,18}\b/g;
+// Bare phone: 9–15 digits, optional + and single space/dot/dash separators.
+// A separated run must end in a 3+ digit group (so "1234567.89" prices and
+// "1.2.3" versions miss) and must not start with a year (so "2026.10.16.1" misses).
+const BARE_PHONE_PATTERN =
+  /(?<![\d:.,])(?!(?:19|20)\d{2}[ .-]\d)\+?\d(?:[ .-]?\d){8,14}(?![\d:]|[.,]\d)(?<=\d{3})/;
+const CODE_WORD = "(?:code|otp|pin|verification|confirmation|codice|conferma|verifica)";
+const CODE_VALUE = "(?:\\d{4,8}|(?=[a-z0-9]*\\d)[a-z0-9]{6,8})";
+// Verification/confirmation code: a code word next to a 4–8 digit (or 6–8
+// alphanumeric with a digit) token, in either order, with an optional "is/è".
+const CODE_NEAR_PATTERN = new RegExp(
+  `\\b${CODE_WORD}\\b[\\s:#=-]{0,3}(?:(?:is|è)\\s{0,3})?${CODE_VALUE}\\b` +
+    `|\\b${CODE_VALUE}\\b[\\s:#=-]{0,3}(?:(?:is|è)\\s{0,3})?(?:(?:your|tuo|tua)\\s{0,3})?${CODE_WORD}\\b`,
+  "i",
+);
 const ADDRESS_CONTEXT_PATTERN =
   /\b(my|our|home|address|indirizzo|casa|live|living|reside|residing|vivo|abito|abitazione)\b/i;
 const ADDRESS_PATTERN =
@@ -91,6 +105,7 @@ export function containsSensitivePattern(text: string): boolean {
   const lower = raw.toLowerCase();
 
   if (containsCredentialWithValue(raw)) return true;
+  if (CODE_NEAR_PATTERN.test(raw)) return true;
   if (containsCardPattern(raw, lower)) return true;
   if (IBAN_PATTERN.test(raw)) return true;
 
@@ -117,11 +132,13 @@ export function containsSensitivePattern(text: string): boolean {
     if (prefixDigits.length >= 9 && prefixDigits.length <= 13) return true;
   }
 
-  const phoneGroupedMatch = raw.match(/\b\d{2,4}[ -]\d{2,4}(?:[ -]\d{1,4}){0,2}\b/);
+  const phoneGroupedMatch = raw.match(/\b\d{2,4}[ -]\d{2,4}(?:[ -]\d{1,4}){0,2}\b(?!:)/);
   if (phoneGroupedMatch) {
     const groupedDigits = phoneGroupedMatch[0].replace(/\D/g, "");
     if (groupedDigits.length >= 9 && groupedDigits.length <= 11) return true;
   }
+
+  if (BARE_PHONE_PATTERN.test(raw)) return true;
 
   if (ADDRESS_CONTEXT_PATTERN.test(raw) && ADDRESS_PATTERN.test(raw)) return true;
 

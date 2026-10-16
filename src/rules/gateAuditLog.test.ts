@@ -29,7 +29,7 @@ function rec(i: number): GateAuditRecord {
   return {
     turnId: `t${i}`,
     toolName: "web_search",
-    ruleId: i % 2 === 0 ? "echo-of-context" : "none",
+    ruleId: i % 2 === 0 ? "echo-of-memory-fact" : "none",
     action: i % 2 === 0 ? "block" : "none",
     outcome: i % 2 === 0 ? "blocked" : "passed",
   };

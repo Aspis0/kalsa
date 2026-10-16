@@ -914,7 +914,7 @@ jobs:
             block_format: none
             thinking: "default"
           # Gate/nogate pair: TOOLGATE defaults to 1, so the baseline arm
-          # measures the model AND the echo-of-context gate together. The
+          # measures the model AND the tool gate together. The
           # nogate arm sets toolgate: "0" to isolate the model. Without both,
           # a wrong call cannot be attributed to the model rather than the rule.
           - phase: tools

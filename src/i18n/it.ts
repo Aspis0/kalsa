@@ -959,7 +959,11 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     noResultsFound: "Nessun risultato trovato.",
     emptySearchQuery: "Query di ricerca vuota.",
     webSearchPrivacyBlocked:
-      "Ricerca saltata: la query si limita a ripetere informazioni che l'utente ha fornito su di sé. Rispondi direttamente dalla conversazione invece di cercare.",
+      "Ricerca saltata: la query conteneva qualcosa che l'utente ti ha detto di sé. Rispondi dalla conversazione, oppure cerca di nuovo senza quel dettaglio.",
+    webSearchSensitiveBlocked:
+      "Ricerca saltata: la query conteneva dati privati, come un indirizzo email, un numero di telefono o un codice. Cerca di nuovo senza, oppure rispondi senza cercare.",
+    webSearchGateFailed:
+      "Ricerca saltata: il controllo della privacy non è riuscito su questo telefono. Di' che la ricerca non è partita e che si può riprovare.",
     searchSkippedPrivate:
       "Ricerca saltata: questo turno ha già usato dati privati sul dispositivo. Rispondi dal risultato del calendario o del dispositivo invece di cercare.",
     unknownTool: "Tool sconosciuto: {name}",

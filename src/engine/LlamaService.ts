@@ -5137,8 +5137,9 @@ export async function streamAssistantTurn(
             const toolSignal = signal
               ? AbortSignal.any([signal, toolAbort.signal])
               : toolAbort.signal;
-            // kalsa.bench.toolgate=0 blanks lastUserMessage so the echo-of-context
-            // rule cannot fire (webSearchTool's only use of this argument).
+            // kalsa.bench.toolgate=0 skips the gate in agentTurnOptions and blanks
+            // lastUserMessage here. No gate rule reads lastUserMessage any more
+            // (echo-of-context was removed), so the blanking has no effect.
             const outcome = await withNativeCallTimeout(
               options.executeTool(
                 name,
@@ -5151,9 +5152,13 @@ export async function streamAssistantTurn(
               () => toolAbort.abort(),
             );
             toolTel.executed += 1;
-            // Error identity from webSearchTool (strings.errors.webSearchPrivacyBlocked),
+            // Error identity from the gate's web_search block texts
+            // (strings.errors.webSearchPrivacyBlocked, webSearchSensitiveBlocked),
             // not a match on user-visible copy.
-            if (outcome.text === strings.errors.webSearchPrivacyBlocked) {
+            if (
+              outcome.text === strings.errors.webSearchPrivacyBlocked ||
+              outcome.text === strings.errors.webSearchSensitiveBlocked
+            ) {
               toolTel.blockedPrivacy += 1;
             }
             // De-dupe bookkeeping: non-throwing executor returns still count as

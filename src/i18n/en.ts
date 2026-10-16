@@ -966,7 +966,11 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     noResultsFound: "No results found.",
     emptySearchQuery: "Empty search query.",
     webSearchPrivacyBlocked:
-      "Search skipped: the query only restates information the user provided about themselves. Answer directly from the conversation instead of searching.",
+      "Search skipped: the query held something the user told you about themselves. Answer from the conversation, or search again without that detail.",
+    webSearchSensitiveBlocked:
+      "Search skipped: the query held private details such as an email address, a phone number or a code. Search again without them, or answer without searching.",
+    webSearchGateFailed:
+      "Search skipped: the privacy check could not run on this phone. Say the search did not run and that they can try again.",
     searchSkippedPrivate:
       "Search skipped: this turn already used private on-device data. Answer from the calendar or device result instead of searching.",
     unknownTool: "Unknown tool: {name}",
