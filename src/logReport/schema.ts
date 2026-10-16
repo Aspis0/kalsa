@@ -60,6 +60,16 @@ function projectValue(rule: FieldRule, value: unknown): unknown {
       }
       return out;
     }
+    case "strArray": {
+      if (!Array.isArray(value) || value.length > rule.maxItems) return undefined;
+      const out: string[] = [];
+      for (const item of value) {
+        if (typeof item !== "string" || item.length > rule.maxLen) return undefined;
+        if (!/^[a-zA-Z0-9._-]+$/.test(item)) return undefined;
+        out.push(item);
+      }
+      return out;
+    }
     case "idObj": {
       if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
       const out: Record<string, string> = {};

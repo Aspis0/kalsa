@@ -215,3 +215,62 @@ test("the log line is the row minus the win ring", () => {
   expect(logRow.t).toBe("42");
   expect(Object.keys(row).some((key) => key === "win")).toBe(true);
 });
+
+describe("prefill attribution", () => {
+  const chunk = (layers_device: string) => ({
+    index: 0,
+    requested: "auto",
+    actual: "gpu",
+    tokens: 512,
+    prefill_ms: 41,
+    forced: false,
+    layers_device,
+  });
+  const row = (over: Partial<GovernorObservationStats>, routeChunks?: unknown) =>
+    buildObservationRow(null, stats(over), { ...timings, route_chunks: routeChunks }, thermo, ids);
+
+  test("engine_prefill GPU with the layers on HTP0: both facts ride the row", () => {
+    // The mislabel the record has to be able to express (llama-ext.h:508-512):
+    // the route says GPU, the device that ran the matmuls is HTP0.
+    const built = row({ engine_prefill: "GPU", prefill_ms: 1840 }, [chunk("HTP0")]);
+    expect(built.engine_prefill).toBe("GPU");
+    expect(built.prefill_dev).toEqual(["HTP0"]);
+    expect(built.prefill_ms).toBe(1840);
+  });
+
+  test("prefill_ms is the completion's own ms, never a delta across rows", () => {
+    // The binding zeroes prefill_us at every completion start, so a second
+    // row reads its own value rather than this row's minus the previous.
+    const prev = stats({ engine_prefill: "NPU", prefill_ms: 900 });
+    const next = buildObservationRow(
+      prev,
+      stats({ engine_prefill: "GPU", prefill_ms: 250 }),
+      { ...timings, route_chunks: [chunk("GPUOpenCL")] },
+      thermo,
+      ids,
+    );
+    expect(next.first_row).toBe(0);
+    expect(next.prefill_ms).toBe(250);
+    expect(next.engine_prefill).toBe("GPU");
+  });
+
+  test("prefill_dev is the distinct devices in chunk order", () => {
+    const built = row({}, [chunk("HTP0"), chunk("HTP0"), chunk("GPUOpenCL")]);
+    expect(built.prefill_dev).toEqual(["HTP0", "GPUOpenCL"]);
+  });
+
+  test("absent values read null: no engine, no ms, no chunks, no named device", () => {
+    const noStats = row({ engine_prefill: undefined, prefill_ms: undefined }, undefined);
+    expect(noStats.engine_prefill).toBeNull();
+    expect(noStats.prefill_ms).toBeNull();
+    expect(noStats.prefill_dev).toBeNull();
+    // A chunk array that named no device (the binding's "") is not a device.
+    expect(row({}, [chunk("")]).prefill_dev).toBeNull();
+    // Malformed entries drop rather than invent one.
+    expect(row({}, ["nope", null, 7, { layers_device: 7 }]).prefill_dev).toBeNull();
+    // A completion with no prefill carries an empty array, not a device.
+    expect(row({}, []).prefill_dev).toBeNull();
+    // A non-array route_chunks is absent, not a device.
+    expect(row({}, "HTP0").prefill_dev).toBeNull();
+  });
+});

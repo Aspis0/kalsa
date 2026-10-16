@@ -73,6 +73,7 @@ import {
   npuLaneCacheTypes,
   readBenchGovernorForce,
   readBenchDecodeHop,
+  readBenchGuardHeadroom,
   readBenchNpuLane,
   readGovernorThermo,
 } from "./governorInputs";
@@ -2491,6 +2492,14 @@ export function initEngine(
     // rides the governor params, so flipping the key changes governorKey and
     // forces the reload that lets the engine see the new cadence.
     const benchDecodeHop = governorFeatureEnabled ? await readBenchDecodeHop() : 0;
+    // Bench-only HEAT_RANK guard in C (kalsa.bench.guard_headroom, 0 = off),
+    // which raises the bar the NPU-thermal prefill handoff needs so the rule
+    // can be exercised on a phone that cannot reach it. Same reload path as
+    // the cadence above: the value rides the params, so flipping the key
+    // changes governorKey and forces the reload.
+    const benchGuardHeadroom = governorFeatureEnabled
+      ? await readBenchGuardHeadroom()
+      : 0;
     // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
     // repacking). Resolved here so the skip-reload key and the init params share
     // one value; flipping the pref must force a real reload + KALSA_SESSION init.
@@ -2614,6 +2623,7 @@ export function initEngine(
             benchNoRepack,
             npuLaneInputs,
             benchDecodeHop,
+            benchGuardHeadroom,
           )
           : null;
       // Android-only: on iOS the sensor gate is reachable through a bench
@@ -4881,6 +4891,9 @@ export async function streamAssistantTurn(
                 predicted_n: result.timings?.predicted_n,
                 predicted_ms: result.timings?.predicted_ms,
                 predicted_per_second: result.timings?.predicted_per_second,
+                // The row's prefill attribution reads the per-chunk device off
+                // this same array the KALSA_GOVERNOR route fields use.
+                route_chunks: result.route_chunks,
               },
             })
           : null;

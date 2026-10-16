@@ -62,6 +62,10 @@ export type ObservationCompletion = {
   predicted_n?: number;
   predicted_ms?: number;
   predicted_per_second?: number;
+  /** The completion's per-chunk prefill facts as the binding emitted them
+   *  (NativeCompletionResult.route_chunks); untyped because the row builder
+   *  reads it structurally — the field is absent on an older binding. */
+  route_chunks?: unknown;
 };
 
 export type GovernorObservationRow = {
@@ -82,6 +86,18 @@ export type GovernorObservationRow = {
   pred_n: number | null;
   pred_ms: number | null;
   pps: number | null;
+  /** The engine the ROUTE chose for this prefill (CPU|GPU|NPU|Unknown), null
+   *  when the binding named none. This is the route label, not the device:
+   *  on a phone NPU load it reads GPU while Hexagon runs the matmuls, which is
+   *  why prefill_dev sits beside it. */
+  engine_prefill: string | null;
+  /** Wall ms this completion spent prefilling. The binding zeroes prefill_us
+   *  at every completion start (reset_prefill_stats), so unlike the decode
+   *  counters below this is already per-completion and is never a delta. */
+  prefill_ms: number | null;
+  /** The distinct layer devices that ran this completion's prefill chunks, in
+   *  chunk order; null when no chunk named one. */
+  prefill_dev: string[] | null;
   /** Monotonic ms stamps of the completion's first and last decode step
    *  (0 when no step ran — a stopped or paused-first-batch completion). */
   wall: [number, number];
@@ -107,6 +123,26 @@ export type GovernorObservationRow = {
 
 const finiteOrNull = (value: number | undefined): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
+
+/**
+ * The distinct layer devices that ran this completion's prefill, in chunk
+ * order — the answer to "which device ran this turn's prefill", which
+ * engine_prefill alone cannot give: the route label reads GPU on a phone
+ * whose layers sat on HTP0 (llama-ext.h:517-524). A device named "" (the
+ * binding's unknown) names no device, so it is dropped rather than stored;
+ * with nothing left, or with no chunk array at all, the answer is null —
+ * absent, never invented.
+ */
+function prefillDevices(routeChunks: unknown): string[] | null {
+  if (!Array.isArray(routeChunks)) return null;
+  const devices: string[] = [];
+  for (const chunk of routeChunks) {
+    const device = (chunk as { layers_device?: unknown } | null)?.layers_device;
+    if (typeof device !== "string" || device === "" || devices.includes(device)) continue;
+    devices.push(device);
+  }
+  return devices.length > 0 ? devices : null;
+}
 
 const delta = (prev: number, now: number): number => now - prev;
 
@@ -166,6 +202,9 @@ export function buildObservationRow(
     pred_n: finiteOrNull(completion.predicted_n),
     pred_ms: finiteOrNull(completion.predicted_ms),
     pps: finiteOrNull(completion.predicted_per_second),
+    engine_prefill: typeof stats.engine_prefill === "string" ? stats.engine_prefill : null,
+    prefill_ms: finiteOrNull(stats.prefill_ms),
+    prefill_dev: prefillDevices(completion.route_chunks),
     wall: [stats.decode_first_step_ms, stats.decode_last_step_ms],
     first: stats.decode_first_sample,
     bsys: stats.decode_batt_sysfs,

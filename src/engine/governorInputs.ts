@@ -21,6 +21,14 @@ export const BENCH_NPU_LANE_KEY = "kalsa.bench.npu_lane";
  *  measurement knob for heat per token (CPU-only vs hopping); production
  *  never writes this key, and absent or invalid reads 0 = off. */
 export const BENCH_DECODE_HOP_KEY = "kalsa.bench.decode_hop";
+/** Bench-only HEAT_RANK guard in C: the NPU-thermal prefill handoff fires only
+ *  when the NPU zone headroom (passive trip − temp) is under this guard, and a
+ *  phone cannot safely get there, so a bench run raises the guard to exercise
+ *  the rule. The same field also moves the decode hop's guard (one binding
+ *  param, two rules) — a bench arm that sets it makes BOTH easier to reach.
+ *  Production never writes this key; absent or invalid reads 0 = off, and the
+ *  param is then omitted so the params object stays byte-identical. */
+export const BENCH_GUARD_HEADROOM_KEY = "kalsa.bench.guard_headroom";
 
 export type BenchNpuLanePref = "off" | "on" | "auto";
 
@@ -389,6 +397,7 @@ export function buildGovernorParams(
   benchNoRepack: boolean | undefined = undefined,
   npu?: NpuLaneInputs,
   decodeHopTokens = 0,
+  guardHeadroomC = 0,
 ) {
   const generation = generationFor(deviceProfile);
   const lane = gpuFit(modelEntry, memory, benchNoRepack);
@@ -446,6 +455,15 @@ export function buildGovernorParams(
     // from kalsa.bench.decode_hop. Omitted when off so the default params
     // object stays byte-identical to production.
     ...(decodeHopTokens > 0 ? { decode_hop_tokens: decodeHopTokens } : {}),
+    // Binding param governor.decode_guard_headroom_c (default 5,
+    // llama-ext.h:398): the HEAT_RANK guard, from kalsa.bench.guard_headroom.
+    // Sent here it OVERRIDES the device's legs row (rn-governor-params.cpp:401-403).
+    // The NPU-thermal prefill handoff fires when the NPU zone headroom is under
+    // it, which a healthy phone never reaches, so a bench run raises the
+    // guard to exercise the rule. Same field as the decode hop's guard — both
+    // move together. Omitted when off so the default params object stays
+    // byte-identical to production.
+    ...(guardHeadroomC > 0 ? { decode_guard_headroom_c: guardHeadroomC } : {}),
     // Per-model decode-pacing lines from the declared SEVERE table; empty for
     // phones without a measured row, so their params stay byte-identical.
     ...(pacingHeadroomLines(deviceProfile) ?? {}),
@@ -504,6 +522,20 @@ export async function readBenchDecodeHop(): Promise<number> {
   try {
     const value = Number(await AsyncStorage.getItem(BENCH_DECODE_HOP_KEY));
     return Number.isInteger(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** A positive finite number is the guard in C — fractional guards are legal
+ *  (the binding takes a non-negative float); absent or invalid reads 0 = off,
+ *  which omits the param. Unlike readBenchDecodeHop this accepts a decimal:
+ *  the guard is a temperature margin, not a token count. Above the zones'
+ *  115 C trip no leg could ever clear the guard, so such a value reads off. */
+export async function readBenchGuardHeadroom(): Promise<number> {
+  try {
+    const value = Number(await AsyncStorage.getItem(BENCH_GUARD_HEADROOM_KEY));
+    return Number.isFinite(value) && value > 0 && value <= 115 ? value : 0;
   } catch {
     return 0;
   }

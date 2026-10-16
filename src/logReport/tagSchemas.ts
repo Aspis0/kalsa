@@ -29,7 +29,14 @@ export type FieldRule =
   | { k: "numArray"; len: number }
   /** A depth-1 object of bounded identifier strings under exactly these keys
    *  (Stage 0 fingerprint: model id, SoC id, binding pin). */
-  | { k: "idObj"; keys: readonly string[]; maxLen: number };
+  | { k: "idObj"; keys: readonly string[]; maxLen: number }
+  /** A bounded-length array of bounded identifier strings (Stage 0 prefill
+   *  devices). The length is a ceiling, not an exact count: the array holds
+   *  the DISTINCT devices of the turn, so it is short by construction. A
+   *  non-string or over-long cell drops the whole field. Nullable because the
+   *  row always carries the key and null means "no device named" — an
+   *  explicit absence, not a missing field. */
+  | { k: "strArray"; maxLen: number; maxItems: number; nullable?: true };
 
 type TagSchema = Record<string, FieldRule>;
 
@@ -140,6 +147,17 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     pred_n: NUMN,
     pred_ms: NUMN,
     pps: NUMN,
+    // Prefill attribution (governorObservation.ts): the route label the engine
+    // chose, this completion's prefill ms, and the distinct layer devices that
+    // actually ran it. The first quotes RNLlamaJSI.cpp:48-56 (governorEngineName)
+    // and the per-completion reset at llama-governor-runtime.cpp:295-312.
+    engine_prefill: enumOrNull("Unknown", "CPU", "GPU", "NPU"),
+    prefill_ms: NUMN,
+    // Distinct devices in chunk order. maxLen 31 is the binding's
+    // char layers_device[32], NUL-terminated; 8 is far above the real
+    // distinct count (a turn runs on a device per chunk, and a turn has a
+    // handful of chunks).
+    prefill_dev: { k: "strArray", maxLen: 31, maxItems: 8, nullable: true },
     wall: { k: "numArray", len: 2 },
     first: { k: "numArray", len: 13 },
     bsys: { k: "numArray", len: 4 },

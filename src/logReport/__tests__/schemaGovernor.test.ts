@@ -295,6 +295,8 @@ describe("KALSA_GOVERNOR_COMPLETION (governorObservation.ts, Stage 0)", () => {
       decode_zone_trips: [108, 115, 95, 95, null, null],
       decode_window_samples: [],
       decode_window_samples_overflow: false,
+      engine_prefill: "GPU",
+      prefill_ms: 1840,
       thermal_state: "FAST",
       state_source: "battery",
       platform_thermal_status: -1,
@@ -305,7 +307,23 @@ describe("KALSA_GOVERNOR_COMPLETION (governorObservation.ts, Stage 0)", () => {
       buildObservationRow(
         null,
         stats({}),
-        { prompt_n: 512, predicted_n: 96, predicted_ms: 6000, predicted_per_second: 16 },
+        {
+          prompt_n: 512,
+          predicted_n: 96,
+          predicted_ms: 6000,
+          predicted_per_second: 16,
+          route_chunks: [
+            {
+              index: 0,
+              requested: "auto",
+              actual: "gpu",
+              tokens: 512,
+              prefill_ms: 1840,
+              forced: false,
+              layers_device: "HTP0",
+            },
+          ],
+        },
         { batt_temp_tenths_c: 301, batt_level_pct: 88, plugged: false },
         { turnId: "42", round: 1, attempt: 1, gap: false, model: "lfm2.5-1.2b", soc: "SM8550" },
       ),
@@ -330,6 +348,11 @@ describe("KALSA_GOVERNOR_COMPLETION (governorObservation.ts, Stage 0)", () => {
       prompt_n: 512,
       pred_n: 96,
       pps: 16,
+      // The route label and the device that actually ran: both survive, and
+      // they are allowed to disagree (a phone NPU load reads GPU / HTP0).
+      engine_prefill: "GPU",
+      prefill_ms: 1840,
+      prefill_dev: ["HTP0"],
       wall: [1000, 7000],
       bsys: [1, 301, 1, 2],
       trips: [108, 115, 95, 95, null, null],
@@ -339,6 +362,32 @@ describe("KALSA_GOVERNOR_COMPLETION (governorObservation.ts, Stage 0)", () => {
     // The exact-length arrays survive whole.
     expect(projected.first).toHaveLength(13);
     expect(projected.tok).toEqual([7, 0, 89]);
+  });
+
+  it("keeps a prefill engine outside the binding's closed set out", () => {
+    const row = { ...realRow(), engine_prefill: "HTP0" } as Record<string, unknown>;
+    expect(
+      (record("KALSA_GOVERNOR_COMPLETION", JSON.stringify(row)) as Record<string, unknown>)
+        .engine_prefill,
+    ).toBeUndefined();
+  });
+
+  it("drops a device array that is over-long or not a bounded identifier", () => {
+    const project = (prefill_dev: unknown) =>
+      (
+        record(
+          "KALSA_GOVERNOR_COMPLETION",
+          JSON.stringify({ ...realRow(), prefill_dev }),
+        ) as Record<string, unknown>
+      ).prefill_dev;
+    // The real case: several chunks across two devices.
+    expect(project(["GPUOpenCL", "HTP0"])).toEqual(["GPUOpenCL", "HTP0"]);
+    expect(project(Array(9).fill("HTP0"))).toBeUndefined();
+    expect(project(["HTP0; rm -rf /"])).toBeUndefined();
+    expect(project([7])).toBeUndefined();
+    expect(project("HTP0")).toBeUndefined();
+    // A null device list (no prefill ran, or an older binding) stays null.
+    expect(project(null)).toBeNull();
   });
 
   it("drops a truncated array field, not the line", () => {

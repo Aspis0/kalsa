@@ -36,6 +36,7 @@ import {
   npuLaneCacheTypes,
   readBenchDecodeHop,
   readBenchGovernorForce,
+  readBenchGuardHeadroom,
   readBenchNpuLane,
   readGovernorThermo,
 } from "./governorInputs";
@@ -851,6 +852,50 @@ describe("kalsa.bench.decode_hop", () => {
     expect(
       buildGovernorParams(model, s23, memory, false, undefined, undefined, 64),
     ).toMatchObject({ decode_hop_tokens: 64 });
+  });
+});
+
+describe("kalsa.bench.guard_headroom", () => {
+  const guardAt = (value: string | null) => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(value);
+  };
+
+  test("readBenchGuardHeadroom: a positive number is the guard, everything else is 0", async () => {
+    // A fractional guard is legal — the binding takes a non-negative float.
+    guardAt("12.5");
+    await expect(readBenchGuardHeadroom()).resolves.toBe(12.5);
+    guardAt("30");
+    await expect(readBenchGuardHeadroom()).resolves.toBe(30);
+    guardAt(null);
+    await expect(readBenchGuardHeadroom()).resolves.toBe(0);
+    guardAt("0");
+    await expect(readBenchGuardHeadroom()).resolves.toBe(0);
+    guardAt("abc");
+    await expect(readBenchGuardHeadroom()).resolves.toBe(0);
+    guardAt("-4");
+    await expect(readBenchGuardHeadroom()).resolves.toBe(0);
+    guardAt("Infinity");
+    await expect(readBenchGuardHeadroom()).resolves.toBe(0);
+  });
+
+  test("buildGovernorParams emits decode_guard_headroom_c only when > 0", () => {
+    const s23 = device("SM8750");
+    // Default and explicit off: the params stay byte-identical to production.
+    expect(buildGovernorParams(model, s23, memory)).not.toHaveProperty(
+      "decode_guard_headroom_c",
+    );
+    expect(
+      buildGovernorParams(model, s23, memory, false, undefined, undefined, 0, 0),
+    ).not.toHaveProperty("decode_guard_headroom_c");
+    expect(
+      buildGovernorParams(model, s23, memory, false, undefined, undefined, 0, 25),
+    ).toMatchObject({ decode_guard_headroom_c: 25 });
+    // Independent of the cadence: either key alone changes only its own param.
+    const both = buildGovernorParams(model, s23, memory, false, undefined, undefined, 64, 25);
+    expect(both).toMatchObject({ decode_hop_tokens: 64, decode_guard_headroom_c: 25 });
+    const cadenceOnly = buildGovernorParams(model, s23, memory, false, undefined, undefined, 64, 0);
+    expect(cadenceOnly).toMatchObject({ decode_hop_tokens: 64 });
+    expect(cadenceOnly).not.toHaveProperty("decode_guard_headroom_c");
   });
 });
 
