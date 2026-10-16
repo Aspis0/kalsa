@@ -142,6 +142,19 @@ Production also uses the battery-derived FAST/WARM/COOLMODE thermal state and de
 the Xiaomi turn logged battery thermal source, FAST, and 273 decoded NPU tokens.
 [/Users/marco/Projects/kalsa/src/engine/governorInputs.ts:445-448,545-570; /Users/marco/Projects/llama.rn-kalsa-onecopy/cpp/rn-governor-params.cpp:337-338,357-359; /Users/marco/Projects/llama.rn-kalsa-onecopy/cpp/rn-llama.cpp:464-466; /Users/marco/Projects/llama.rn-kalsa-onecopy/cpp/rn-legs-table.cpp:80-91; /Users/marco/Projects/llama.rn-kalsa-onecopy/cpp/rn-governor.cpp:91-105,314-320; /Users/marco/Projects/llama.rn-kalsa-onecopy/cpp/rn-thermal-legs.cpp:116-127; /Users/marco/Projects/llama.rn-kalsa-onecopy/vendor/llama.cpp/src/llama-governor-policy-hop.cpp:182-253; /Users/marco/Projects/llama.rn-kalsa-onecopy/vendor/llama.cpp/src/llama-governor-policy.cpp:226-237,290-315; scratchpad/agents/s23-g2-inapp-1f0e967b/REPORT.md:55; scratchpad/agents/xiaomi-inapp-npu-2026-10-15/REPORT.md:33]
 
+**Done (2026-10-16): governor attribution reaches the uploaded log.** Engine `06bf27e38` puts per-turn
+prefill attribution in the stats, binding `6d14bf73` rebuilds the HTP skels for it, and app `c648c94a`
+lets the KALSA_GOVERNOR_* lines through the log-report allow-list. An S23 production turn on app
+`8b89c094` logged LOAD, COMPLETION (one per round), LEARNED, TURN and COST, and none of them carry chat
+text: `"ep":"NPU","ed":"NPU",...,"npu":"HTP0",...,"therm":"FAST"`. The `hn`/`hg` fields still carry float
+noise (`41.30000305175781`). [scratchpad/agents/s23-search-gate-8b89c094/REPORT.md]
+
+**Learning governor:** M4 (app `647bee72`), M6 (replay, lab `0cd92b4c`) and M7 (learned store, app
+`e7684925`, no decision change) are done. M5, the logit-oracle check of NPU vs GPU prefill, comes before
+M9; its S23 port is in progress in `scratchpad/agents/s23-oracle-m5/`. The expected verdict, stated before
+the run: FAIL R2 with about 95% same-top, as on SM8850. The merged step plan is
+`scratchpad/agents/learning-governor/LEARNING-MERGE.md` (M5 at line 603, the oracle at section 4).
+
 ### Engine
 
 **Done (2026-10-08; merge 904d38fad):** The b11514 merge and its audit fixes are recorded on engine main. The hostile merge audit is on file. [archived/PLAN-2026-10-16-full.md:240-249; scratchpad/agents/onecopy-three-legs/audit-merge-b11514-n2.md:1-6]
@@ -165,6 +178,21 @@ the Xiaomi turn logged battery thermal source, FAST, and 273 decoded NPU tokens.
 **Done (2026-10-15):** The S23 cut-four check found governor-off session save/load and cached reuse working. [/Users/marco/Projects/kalsa-brain/docs/BACKLOG.md:524-526]
 
 **Open:** With the governor on, snapshot save/load errors are mislabeled as save_error/load_error instead of governor_mode. The Xiaomi in-app prewarm also logged save_error. [/Users/marco/Projects/kalsa-brain/docs/BACKLOG.md:524-526; scratchpad/agents/xiaomi-inapp-npu-2026-10-15/REPORT.md:18-21]
+
+### Privacy (2026-10-16)
+
+**Done:** an egress census of desktop, phone and servers sits behind the privacy roadmap (kalsa-brain
+`fd2bd6bb`). Web search asks once, at the first search and before the query leaves, naming the
+provider: phone `c648c94a` + `772ee31a` (a cancelled or timed-out turn never sends), desktop `587f2560`
+(branch `brain`, unreleased; it ships with 0.0.7 when the owner decides). The phone search gate no
+longer blocks ordinary requests (app `90d541f3`, `8b89c094`, `85a3f6fc`); S23 on `8b89c094`: "Cerca sul
+web le notizie di oggi su Samsung" searched, `blockedPrivacy:0`. Report Worker `556e6768` scrubs what a
+reader would decode. [/Users/marco/Projects/kalsa-brain/dev/egress-2026-10-16/E-phone.md; /Users/marco/Projects/kalsa-brain/dev/egress-2026-10-16/E-servers.md; scratchpad/agents/s23-search-gate-8b89c094/REPORT.md]
+
+**Open:** phone `web_fetch` reaches the network without any notice; a forced text-only round still
+executes a text-dialect tool call (S23 round 2, `toolChoice:"none"`, `web_fetch` executed); phone-originated
+desk-mode searches bypass the desktop notice; the consent-prompt P2s and the report Worker's accepted
+limits. [scratchpad/agents/s23-search-gate-8b89c094/REPORT.md; /Users/marco/Projects/kalsa-brain/docs/BACKLOG.md, section "Phone log report, web-search notice, report Worker"]
 
 ### LlamaService split
 

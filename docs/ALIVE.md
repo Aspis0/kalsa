@@ -96,6 +96,13 @@ The S23 and Xiaomi Stage 0 records are observation-only; no controlled speed or 
 
 The frozen records disagree on phone release completion; reconcile the Done label with the cited CI APK state. [archived/PLAN-2026-10-16-full.md:320-329,333-339; archived/ALIVE-2026-10-16-full.md:10-14]
 
+## Governor attribution and privacy, measured on the S23 (2026-10-16)
+
+- A production turn (app `8b89c094`, charging, functional check) logged KALSA_GOVERNOR_LOAD, COMPLETION per round, LEARNED, TURN and COST; none carries chat text (0 matches for the prompt words or `http`). TURN reads `"ep":"NPU","ed":"NPU"`, `"npu":"HTP0"`, `"therm":"FAST"`. [scratchpad/agents/s23-search-gate-8b89c094/REPORT.md]
+- The search gate let "Cerca sul web le notizie di oggi su Samsung" through: `blockedPrivacy:0` on every round; before app `90d541f3` the same kind of request was blocked 3 of 3. [scratchpad/agents/s23-search-gate-8b89c094/REPORT.md]
+- The model called `web_fetch` without any notice on round 1, and again on round 2 after the app had forced `toolChoice:"none"`; the round-2 call came through the LFM text-dialect fallback and was executed. [scratchpad/agents/s23-search-gate-8b89c094/REPORT.md]
+- In S23 normal use the NPU sits 73-78 C during generation against a 95 C trip, so the FIX 2 GPU handoff does not fire. [scratchpad/agents/s23-fix2-heat-2026-10-16/REPORT.md:12,15-16]
+
 ## Gaps
 
 - Physical lane-only memory at app context 16384 is not measured; the bench measurement uses context 2048, and the app test is a price calculation. [scratchpad/agents/xiaomi-lane-only-memory-cell-2026-10-15/REPORT.md:1-6,21-24; /Users/marco/Projects/kalsa/src/engine/governorLaneOnly.test.ts:61-75]
