@@ -139,7 +139,9 @@ type ScreenResult =
  * Two refusals, both client bugs rather than attacks: a body that is not valid
  * UTF-8 — decoding it leniently would turn each bad byte into a 3-byte U+FFFD
  * and triple what we store against a documented 4 MiB — and a screened report
- * that outgrew the cap, since a marker is longer than what it replaces.
+ * that outgrew the cap, since a marker is longer than what it replaces. The
+ * pass is handed the cap and stops at it, so an amplified body is refused
+ * without ever being built.
  */
 function screenBody(bytes: Uint8Array, app: string): ScreenResult {
   let text: string;
@@ -152,8 +154,13 @@ function screenBody(bytes: Uint8Array, app: string): ScreenResult {
     };
   }
   const kept = isPhoneApp(app) ? keepPhoneLines(text) : { text, dropped: 0 };
-  const scrubbed = redactText(kept.text);
+  const scrubbed = redactText(kept.text, MAX_BODY_BYTES);
+  if (scrubbed.truncated) {
+    return { ok: false, response: tooLarge("Screened report") };
+  }
   const out = new TextEncoder().encode(scrubbed.text);
+  // The pass capped the characters; encoding can still add bytes, so the byte
+  // count is what has the last word on what one stored object costs.
   if (out.length > MAX_BODY_BYTES) {
     return { ok: false, response: tooLarge("Screened report") };
   }

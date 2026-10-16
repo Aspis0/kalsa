@@ -109,9 +109,26 @@ write (timestamp + clip = 325 characters) is dropped without being parsed.
 | A URL's credentials (`user:pass@`) | `<cred>@` | the desktop's own spelling; the phone has no rule for it |
 | An email address | `<email>` | **new here**: neither client redacts addresses today |
 | `/Users/<name>`, `/home/<name>`, `/data/user/<n>/<pkg>` | `/Users/<user>`, `/home/<user>`, `/data/user/<n>/<pkg>` | |
-| `C:\Users\<name>` | `C:\Users\<user>` | case-insensitive, spaces in the name allowed; the drive letter stays |
-| An IPv4 literal | `<ip>` | |
-| An IPv6 literal | `<ip6>` | needs a `::`, as in the clients, plus a leading `::1` |
+| `C:\Users\<name>` or `\\server\Users\<name>` | `C:\Users\<user>` | the drive letter and the server stay |
+| An IPv4 literal | `<ip>` | four octets, then an optional `:port`; a five-part dotted number is not a literal |
+| An IPv6 literal | `<ip6>` | the whole run: full, compressed, `%zone`, or IPv4-mapped, closing on a port |
+
+**Any scheme, any case.** A URL scheme is case-insensitive (RFC 3986) and is not
+limited to `http(s)`. Matching `https://` literally stored the whole token of
+`HTTPS://x.io/p?token=abc`, and a redirect through `ftp:` or `s3:` leaked the
+same way, so the rule now takes any `scheme://` — RFC 3986 scheme characters,
+first one a letter, at most 64 of them walked back — and redacts the query, the
+fragment and any credentials on it.
+
+**An authority ends where its URL ends.** A credential only exists inside the
+authority, and everything past the URL's run — a space, a quote, a bracket — is
+prose. `GET https://api.example.com failed, contact marco@example.com` therefore
+stores the URL and redacts only the address; it used to store
+`https://api.example.<cred>@example.com`, having taken `com failed, contact
+marco` with it. The same rule is what keeps a pathless URL from leaving the
+authority open for the rest of the line. For the same reason a `?` or `#` with
+nothing behind it in the URL's own run is left alone: `see https://example.com? yes`
+is a sentence, and calling it a query deleted the word after it.
 
 **On the markers.** Only the *phone's* spellings are reused (`<ip>`, `<ip6>`,
 `/Users/<user>`, …), so a phone report reads the same wherever it was redacted.
@@ -122,21 +139,118 @@ the desktop would have written locally.
 **Known limits of the mirror.** The server does not reproduce the desktop's
 other passes — its tmp-tree, owner-hostname, download-key or Windows-temp rules —
 because each of those is built from the machine's own environment, which the
-Worker does not have. It also requires a group before a `::`, so a compressed
-`2001:db8::1` keeps its leading group (`2001:<ip6>`, nothing identifying) and
-`std::io::Error` survives intact. Like the clients, it over-redacts a dotted
-quad that is really a version number — the safe direction.
+Worker does not have. An IPv6 run needs a `::` or four groups and stops at word
+boundaries, so `std::io::Error` and `12:34:56` survive intact while all of
+`2001:db8::1`, `fe80::1%eth0` and `::ffff:10.0.0.1:8080` goes. An address also
+ends in a group or in `::`, never in a lone `:` — without that, `1:a::C:\Users\marco`
+read as an address and swallowed the drive letter, dropping the profile name.
+An IPv4 literal is exactly four octets, so `10.0.0.7.5` — a version, not an
+address — is left alone, the opposite of the clients, which over-redact it.
 
-**Cost.** The route is unauthenticated and the body ceiling is 4 MiB, so every
-rule is bounded, the URL pass is a forward scan rather than a regex, and each
-rule is skipped unless the line holds the one character it cannot match without.
-A body is worked line by line under a per-line cap of
-`MAX_CLIENT_LINE_CHARS` (the desktop's own `LINE_CHAR_CAP` of 8 KiB plus its
-truncation marker); a longer line comes from neither client and is dropped
-without being scanned. Measured on the machine that wrote this, best of three:
-the adversarial bodies a quadratic version needed minutes for cost under 1 ms
-each, a legitimate 4 MiB phone body ~39 ms and a 4 MiB desktop body ~36 ms
-(`cost.test.ts` holds the budgets and prints what each case actually cost).
+**A Windows account name ends at the path, not at the sentence.** The segment
+may hold a space, so the name ends at the separator that closes it
+(`C:\Users\Marco Gualtieri\Documents` → `C:\Users\<user>\Documents`) — but only
+when that separator arrives before any `:` and does not itself open another path.
+With neither in reach, the name ends at the end of the word, so
+`C:\Users\marco logged out` keeps `logged out` and
+`C:\Users\marco and C:\Users\anna` has both names redacted. The UNC form follows
+the same rule, with the share in place of the `:`.
+
+Three rules are narrower than the text they read, because the shapes they would
+otherwise accept are not the shapes real data has:
+
+- **No address is longer than 64 characters.** Eight groups of four hex digits
+  and seven colons is 39; an IPv4 literal with a port is 21; a zone index sits
+  outside the run. A longer run of hex and colons is therefore not an address and
+  is never handed to the parsers — which is also what keeps a body of `1:1:1:…`
+  from being walked twice. Such a run is left as it is.
+- **A domain label starts with a letter, a digit or a non-ASCII character**
+  (RFC 1035 rules out a leading hyphen). `a@-b` is not an address; on a body of
+  `-@-` the looser rule matched one on every third character.
+- **A userinfo longer than 256 characters is replaced from the start of the
+  authority**, not from 256 characters back. The walk to the `@` is capped because
+  an uncapped one re-read the whole prefix for every `@` in the line, and stopping
+  *at* the cap would have left the username and the next 44 characters in front of
+  the marker. Replacing a long span costs nothing; walking it did.
+
+Two limits the pass accepts rather than fixes:
+
+- **A password holding a space is not redacted** (`https://user:pass word@host/`
+  keeps `pass`). Covering it means letting a credential walk across whitespace,
+  which is exactly what made round 3 turn
+  `GET https://api.example.com failed, contact marco@example.com` into
+  `https://api.example.<cred>@example.com`. One space of tolerance does not
+  rescue it either: `see https://x.io for user@host` has the same shape as the
+  case it would fix. A password with a **dot** in it is redacted whole.
+- **An address that starts immediately after a `>` is left** (`peer>10.0.0.1`),
+  while `<10.0.0.1>` is redacted. Refusing to read an address after a `>` is what
+  keeps `<email>::` from becoming `<ip6>` on a second pass; the bracket forms are
+  untouched because the character before them is `<`.
+
+**Non-ASCII counts.** Every code unit above 0x80 is a word character, so
+`/Users/用户/x`, `C:\Users\用户\x`, `josé@example.com` and `用户@example.com` are
+replaced whole; a rule that stopped at the first non-ASCII character stored the
+rest of the name in the clear (`/Users/<user>é/x`). A surrogate pair is two such
+code units and is covered by the same rule. The cost is some over-redaction —
+an em dash is now a name character — which is the safe direction.
+
+**The pass is stable on its own output.** Redacting twice changes nothing, so a
+stored report can be re-screened without markers moving
+(`idempotence.test.ts`, 20 000 seeded lines plus the shapes that used to fail).
+
+**Cost.** The route is unauthenticated and the body ceiling is 4 MiB, so no rule
+backtracks: the pass is one left-to-right scan per line over a character-class
+lookup table, and a rule that reads backwards — a credential, an address, a mail
+local part — is capped and stops at the token it is reading. One regex pass per
+class cost 100–210 ms on the same adversarial bodies. A body is worked line by
+line under a per-line cap of `MAX_CLIENT_LINE_CHARS` (the desktop's own
+`LINE_CHAR_CAP` of 8 KiB plus its truncation marker); a longer line comes from
+neither client and is dropped without being scanned.
+
+The raw body is capped mid-stream and the request is cancelled there, so
+anything over 4 MiB never reaches the filter or the pass at all. The pass is then
+handed the same cap for its **output** and stops at it, because a marker is
+longer than what it replaces: `a@b` becomes `<email>`, so a body of them is
+2.3× its own size once screened. Building that string first — 29 MB out of a
+4 MiB body, the worst of the shapes the auditor tried — is what the cap exists to
+avoid; the caller is told the screen stopped and refuses the report.
+
+Measured on the machine that wrote this, best of five, in **CPU time** (what
+Cloudflare bills and limits) over 4 MiB bodies, with the route's 4 MiB output cap
+in force:
+
+| body | cost |
+| --- | --- |
+| **worst found: `":: "` — a match every 3 characters** | **70.7 ms** |
+| `"a.a@ "` and `a.a@` | 59 / 26 ms |
+| the combined line, every shape at once | ~51 ms |
+| `"a@b "` | 43 ms |
+| `C:\Users\` / `/Users/` | 36 / 27 ms |
+| `%@a` | 23 ms |
+| the IPv6 shapes (`1:`, `a::`, `::1:` repeated) | 21–25 ms |
+| adversarial URL and IPv4 lines | 10–12 ms |
+| `http://h` followed by 8185 `@` | 42 ms |
+| legitimate 4 MiB phone body | 18 ms |
+| legitimate 4 MiB desktop body | 23 ms |
+
+The worst shape is a body that is nothing but one three-character match, repeated:
+every one of them costs a marker, a gap and a count, so density is the floor. It
+is 139 ms without the output cap — the cap is not what makes the shape cheap, it
+is what stops a sevenfold-amplifying body being assembled at all.
+
+The `http://h` + `@` body is the one to know about: 1 MiB costs 10 ms and 4 MiB
+costs 42 ms — a factor of 4.0 for 4 times the bytes, where a walk back to the
+scheme for every `@` cost 155 ms, 610 ms, 2 417 ms, 9 649 ms and then **40 374 ms**
+at 4 MiB as the `@` run grew inside each line.
+
+Those figures move with the host: repeated runs of the same binary spanned
+46.8–53.1 ms on the combined line, with the load average between 4 and 13.
+`cost.test.ts` runs all twelve adversarial shapes plus the combined line at 1 MiB
+and at 4 MiB, and asserts **linearity** — four times the bytes may not cost
+sixteen times the time — rather than an absolute budget, because jest's module
+wrapper inflates the match-heavy paths about five-fold. It then repeats the
+exercise with the *line* as the variable, which is the direction a body made of
+one repeated shape grows in. Every case prints what it actually cost.
 
 **What the screen is not.** It is a filter and a redactor, not a classifier: it
 cannot tell a prompt that happens to sit inside a well-formed `KALSA_` line
