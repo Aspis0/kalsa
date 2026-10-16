@@ -95,6 +95,9 @@ const CH_NON_ASCII = 0x80;
 function isAlphaCode(code: number): boolean {
   return (code >= CH_a_LOWER && code <= CH_z_LOWER) || (code >= CH_A_UPPER && code <= CH_UPPER_Z);
 }
+function isDigitCode(code: number): boolean {
+  return code >= CH_0 && code <= CH_9;
+}
 function isHexCode(code: number): boolean {
   return (
     (code >= CH_0 && code <= CH_9) ||
@@ -313,7 +316,13 @@ function emailAt(line: string, at: number): boolean {
     // rules out a leading hyphen): on a body of `-@-` the looser rule matched an
     // email on every third character and paid for a million of them.
     const head = line.charCodeAt(i);
-    if (!isDomainCode(head) || head === CH_HYPHEN) return false;
+    if (!isDomainCode(head) || head === CH_HYPHEN) {
+      if (labels === 0) return false;
+      // `write to marco@example.com.` — the full stop ends the sentence, not
+      // the domain: the address is what came before it.
+      i -= 1;
+      break;
+    }
     let len = 0;
     while (i < line.length && len <= MAX_LABEL_CHARS && isDomainCode(line.charCodeAt(i))) {
       i += 1;
@@ -542,12 +551,26 @@ function addressAt(line: string, from: number, end: number): boolean {
   if (from > 0 && (isWordCode(before) || before === CH_DOT || before === CH_CLOSE_ANGLE)) {
     return false;
   }
+  // An IPv4 literal that ends on a dot not followed by a digit stops there,
+  // whatever the rest of the run holds (`10.0.0.7..2001:db8::1word`): the dot
+  // is its boundary, so the far end of the run has no say.
+  const four = ipv4From(line, from, end);
+  if (four !== -1 && four < end && line.charCodeAt(four) === CH_DOT && !isDigitCode(line.charCodeAt(four + 1))) {
+    return matched(from, four, MARK_IP);
+  }
   const after = line.charCodeAt(end);
-  if (after < 128 && (isWordCode(after) || after === CH_DOT)) {
+  // An angle bracket closes this guard too, on the far side of the run. The
+  // marker case is `<email>::`, where the `<` is what precedes the address, but
+  // the same reasoning runs the other way: an address that ends where a marker
+  // begins (`[::<email>`) was refused on the first pass because a word character
+  // followed it, and would be matched on the second.
+  // A dot refuses only when a digit follows it: `1.2.3.4.5` is a version, while
+  // `host 10.0.0.7.` and `10.0.0.7.nip.io` still carry the address.
+  const dotContinues = after === CH_DOT && isDigitCode(line.charCodeAt(end + 1));
+  if (after < 128 && (isWordCode(after) || dotContinues || after === CH_OPEN_ANGLE)) {
     return false;
   }
 
-  const four = ipv4From(line, from, end);
   if (four !== -1 && (four === end || line.charCodeAt(four) === CH_COLON)) {
     return matched(from, four, MARK_IP);
   }
@@ -557,9 +580,11 @@ function addressAt(line: string, from: number, end: number): boolean {
 
 export type Redaction = { text: string; redactions: number; dropped: number; truncated: boolean };
 
-type Pass = { text: string; redactions: number };
+/** What scrubbing one line produced. Exported so a caller can scrub a line by
+ *  another route than the raw text — see `phone-json.ts`. */
+export type LinePass = { text: string; redactions: number };
 
-function redactLine(line: string): Pass {
+export function redactLine(line: string): LinePass {
   // Collected and joined once: appending to a string per match costs a cons cell
   // each, and a body that is nothing but one shape has millions of matches.
   // The writer lives in module state with the match: a body of one shape has
@@ -680,7 +705,11 @@ function redactLine(line: string): Pass {
         }
         end += 1;
       }
-      if (dotted && addressAt(line, i, end)) {
+      // A full stop after the run is punctuation (`host 10.0.0.7.`), not a fifth
+      // group: the address is tried without it.
+      let addrEnd = end;
+      while (addrEnd > i && line.charCodeAt(addrEnd - 1) === CH_DOT) addrEnd -= 1;
+      if (dotted && addressAt(line, i, addrEnd)) {
         swap(line);
         i = mTo;
         continue;
@@ -719,8 +748,17 @@ function redactLine(line: string): Pass {
  * one-character match — so a body can grow while it is screened. Stopping at the
  * bound as we go is what keeps a 4 MiB body of `@a` from becoming 14 MB of
  * string first and a refusal second; the caller sees `truncated` and decides.
+ *
+ * `scrub` is how a single line is scrubbed, and it defaults to the raw text scan.
+ * A phone line carrying JSON is scrubbed by its decoded values instead, through
+ * `phone-json.ts`, because the bytes this pass stores have to be the bytes it
+ * scanned.
  */
-export function redactText(text: string, maxOutput: number): Redaction {
+export function redactText(
+  text: string,
+  maxOutput: number,
+  scrub: (line: string) => LinePass = redactLine,
+): Redaction {
   const kept: string[] = [];
   let chars = 0;
   let redactions = 0;
@@ -733,15 +771,16 @@ export function redactText(text: string, maxOutput: number): Redaction {
       dropped += 1;
       continue;
     }
-    const pass = redactLine(line);
-    // The join adds one separator per line, and it is counted here so that the
-    // string handed back is never longer than `maxOutput`.
+    const pass = scrub(line);
+    // The join adds one separator per line. It is charged to `chars` with the
+    // line it separates, so the string handed back is never longer than
+    // `maxOutput` — counting only the line text let the separators accumulate.
     if (chars + pass.text.length + 1 > maxOutput) {
       truncated = true;
       break;
     }
     kept.push(pass.text);
-    chars += pass.text.length;
+    chars += pass.text.length + 1;
     redactions += pass.redactions;
   }
   return { text: kept.join("\n"), redactions, dropped, truncated };

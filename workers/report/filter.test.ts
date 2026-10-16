@@ -18,6 +18,26 @@ const STALL = phoneLine('{"stage":"prefill"}', "2026-10-16T14:50:02.400Z");
 
 const SEPARATOR = "──────── earlier log ────────";
 
+/** What must not survive in a stored line, whatever shape it arrived in. */
+const TOKEN_FRAGMENTS = [
+  "marco@example.com",
+  "marco\\u0040example.com",
+  "marco%40example.com",
+  "10.0.0.7",
+  "10\\u002e0\\u002e0\\u002e7",
+  "Users\\\\marco",
+  "Users\\/marco",
+  "token=abc",
+];
+
+/**
+ * A phone line whose payload sits exactly at the clip ceiling — the one payload
+ * length the gate keeps without it parsing, and the one an attacker can hit by
+ * counting characters. Padding is `a`, so the line is 325 characters, the cap.
+ */
+const clippedLine = (head: string, tag = "KALSA_ROAD") =>
+  `2026-10-16T14:49:27.123Z ${tag} ${head}${"a".repeat(300 - tag.length - 1 - head.length)}`;
+
 const storedText = (puts: { value: Uint8Array }[]) => new TextDecoder().decode(puts[0].value);
 const metadata = (puts: { options?: { customMetadata?: Record<string, string> } }[]) =>
   puts[0].options?.customMetadata ?? {};
@@ -131,6 +151,7 @@ describe("the phone line gate", () => {
     expect(metadata(puts)).toMatchObject({ dropped: "1", redacted: "0" });
     expect(storedText(puts)).not.toContain("answer");
   });
+
 });
 
 describe("the redaction pass", () => {
@@ -471,6 +492,242 @@ describe("the redaction pass", () => {
     expect(res.status).toBe(201);
     expect(storedText(puts)).toBe("engine ready\n");
     expect(metadata(puts)).toMatchObject({ dropped: "1", redacted: "0" });
+  });
+});
+
+describe("a phone payload is scrubbed through its decoded values", () => {
+  test("an encoded break character cannot keep part of a credential", async () => {
+    const { env, puts } = fakeEnv();
+    // Choosing between the raw and the decoded scan redacted both exactly once
+    // for each of these, so the count could not tell them apart — and the decoded
+    // one is the weaker: it stops at the `?` the escape becomes, and stored the
+    // username and a password prefix in front of the marker.
+    const lines = [
+      "https://user:pa%3Fss@host/",
+      "https://user:pass%20word@host/",
+      "https://user:pa%23ss@host/",
+      "https://user:pa%2Fss@host/",
+      "https://user:pa%40ss%20word@host/",
+    ];
+    await post(env, `${lines.join("\n")}\n`, { "x-kalsa-app": DESKTOP_APP });
+    expect(storedText(puts)).toBe(`${lines.map(() => "https://<cred>@host/").join("\n")}\n`);
+    for (const gone of ["user:", "pass", "pa"]) expect(storedText(puts)).not.toContain(gone);
+
+    const { env: env2, puts: puts2 } = fakeEnv();
+    await post(env2, `${phoneLine('{"u":"https://user:pa%3Fss@host/"}')}\n`, {
+      "x-kalsa-app": PHONE_APP,
+    });
+    expect(storedText(puts2)).toBe(phoneLine('{"u":"https://<cred>@host/"}'));
+  });
+
+  test("a percent-encoded control stays encoded", async () => {
+    const { env, puts } = fakeEnv();
+    // Decoding `%0A` would write a literal newline into the middle of a stored
+    // line and split one report line into two.
+    await post(env, "alpha marco%40example.com %0A bravo\n", { "x-kalsa-app": DESKTOP_APP });
+    const text = storedText(puts);
+    expect(text).toBe("alpha <email> %0A bravo\n");
+    expect(text.split("\n")).toHaveLength(2);
+  });
+
+  test("a `__proto__` key survives the walk and is scrubbed like any other", async () => {
+    const { env, puts } = fakeEnv();
+    // A plain assignment goes to the prototype setter and the entry silently
+    // disappeared from the stored report.
+    const payloads: [string, string][] = [
+      ['{"__proto__":"marco@example.com"}', '{"__proto__":"<email>"}'],
+      ['{"__proto__":{"m":"marco@example.com"}}', '{"__proto__":{"m":"<email>"}}'],
+      ['{"a":{"__proto__":"marco@example.com"},"b":"ok"}', '{"a":{"__proto__":"<email>"},"b":"ok"}'],
+    ];
+    await post(env, `${payloads.map(([p]) => phoneLine(p)).join("\n")}\n`, {
+      "x-kalsa-app": PHONE_APP,
+    });
+    expect(storedText(puts)).toBe(payloads.map(([, want]) => phoneLine(want)).join("\n"));
+  });
+
+  // The gate validates a phone payload by parsing it, the pass used to scan the
+  // raw text, and the raw text is what got stored. Every payload below survived
+  // with zero redactions and decoded back to the token it hid.
+
+  test("no JSON escape hides a token from the pass", async () => {
+    const { env, puts } = fakeEnv();
+    const shapes: [string, string][] = [
+      ['{"m":"marco\\u0040example.com"}', '{"m":"<email>"}'],
+      ['{"ip":"10\\u002e0\\u002e0\\u002e7"}', '{"ip":"<ip>"}'],
+      ['{"ip":"2001\\u003adb8\\u003a\\u003a1"}', '{"ip":"<ip6>"}'],
+      ['{"p":"\\u002fUsers\\u002fmarco"}', '{"p":"/Users/<user>"}'],
+      // `JSON.stringify` really does emit these two, so a peer-reported path
+      // bypassed the path rules on its way past the pass.
+      ['{"p":"C:\\\\Users\\\\marco\\\\x"}', '{"p":"C:\\\\Users\\\\<user>\\\\x"}'],
+      ['{"p":"\\\\\\\\server\\\\Users\\\\marco\\\\x"}', '{"p":"\\\\\\\\server\\\\Users\\\\<user>\\\\x"}'],
+      ['{"u":"https\\u003a//x.io/p?q=1"}', '{"u":"https://x.io/p<query>"}'],
+      ['{"u":"https://x.io/p\\u003fq=1"}', '{"u":"https://x.io/p<query>"}'],
+      ['{"m":"marco%40example.com"}', '{"m":"<email>"}'],
+    ];
+    const body = `${shapes.map(([payload]) => phoneLine(payload)).join("\n")}\n`;
+    const res = await post(env, body, { "x-kalsa-app": PHONE_APP });
+    expect(res.status).toBe(201);
+    expect(metadata(puts).dropped).toBe("0");
+    expect(storedText(puts)).toBe(shapes.map(([, want]) => phoneLine(want)).join("\n"));
+    expect(metadata(puts).redacted).toBe(String(shapes.length));
+  });
+
+  test("the stored line is still the JSON the gate accepted", async () => {
+    const { env, puts } = fakeEnv();
+    // The pass used to start a match *inside* an escape and leave the backslash
+    // behind, storing `marco\<email>` — the address gone, the line unparseable.
+    const payloads = [
+      '{"m":"marco\\u0000@example.com"}',
+      '{"m":"marco\\t@example.com"}',
+      '{"m":"\\ud83d@example.com"}',
+      '{"u":"https:\\/\\/user:p\\u0040ss@host\\/p?q=1"}',
+    ];
+    await post(env, `${payloads.map((p) => phoneLine(p)).join("\n")}\n`, {
+      "x-kalsa-app": PHONE_APP,
+    });
+    for (const line of storedText(puts).split("\n")) {
+      const payload = JSON.parse(line.slice(line.indexOf("{")));
+      expect(payload).not.toBeUndefined();
+    }
+    expect(storedText(puts)).toContain('{"m":"<email>"}');
+    expect(storedText(puts)).toContain("<query>");
+    expect(storedText(puts)).not.toContain("ss@host");
+  });
+
+  test("a key is scrubbed like a value, and so is a nested one", async () => {
+    const { env, puts } = fakeEnv();
+    await post(env, `${phoneLine('{"marco@example.com":"10.0.0.7"}')}\n`, {
+      "x-kalsa-app": PHONE_APP,
+    });
+    expect(storedText(puts)).toBe(phoneLine('{"<email>":"<ip>"}'));
+    const { env: env2, puts: puts2 } = fakeEnv();
+    await post(env2, `${phoneLine('{"a":{"b":["marco@example.com",{"c":"10.0.0.7"}]}}')}\n`, {
+      "x-kalsa-app": PHONE_APP,
+    });
+    expect(storedText(puts2)).toBe(phoneLine('{"a":{"b":["<email>",{"c":"<ip>"}]}}'));
+  });
+
+  test("a percent-encoded token is decoded, scanned, and stored decoded", async () => {
+    const { env, puts } = fakeEnv();
+    // The trigger character is the thing an encoded token is hiding, so neither
+    // body nor redactor sees the query or the address until it is decoded.
+    await post(
+      env,
+      "url https%3A%2F%2Fx.io%2Fp%3Ftoken%3Dabc and mail marco%40example.com now\n",
+      { "x-kalsa-app": DESKTOP_APP },
+    );
+    expect(storedText(puts)).toBe("url https://x.io/p<query> and mail <email> now\n");
+    const { env: env2, puts: puts2 } = fakeEnv();
+    await post(env2, `${phoneLine('{"u":"https%3A%2F%2Fx.io%2Fp%3Ftoken%3Dabc"}')}\n`, {
+      "x-kalsa-app": PHONE_APP,
+    });
+    expect(storedText(puts2)).toBe(phoneLine('{"u":"https://x.io/p<query>"}'));
+  });
+
+  test("a percent sign that starts no escape is left exactly as it arrived", async () => {
+    const { env, puts } = fakeEnv();
+    // Decoding must not invent text: `%` followed by anything but two hex digits
+    // is not an escape, and a body full of percentages has to survive.
+    await post(env, "mail 100% done and 50% off and %zz here\n", { "x-kalsa-app": DESKTOP_APP });
+    expect(storedText(puts)).toBe("mail 100% done and 50% off and %zz here\n");
+  });
+
+  test("a phone line with no JSON payload is still scanned as raw text", async () => {
+    const { env, puts } = fakeEnv();
+    const crash = "2026-10-16T14:49:27.123Z js_error name=TypeError frame=index.bundle:42:7";
+    await post(env, `${crash}\n`, { "x-kalsa-app": PHONE_APP });
+    expect(storedText(puts)).toBe(crash);
+
+    // A payload cut at exactly the clip length, which is the one shape the gate
+    // keeps without it parsing. There is nothing to walk, so the raw text is
+    // all the pass has, and the address in it still goes.
+    const clipped = phoneLine(`{"pad":"${"x".repeat(264)}marco@example.com`);
+    expect(clipped.length).toBe(325);
+    const { env: env2, puts: puts2 } = fakeEnv();
+    await post(env2, `${clipped}\n`, { "x-kalsa-app": PHONE_APP });
+    expect(metadata(puts2).dropped).toBe("0");
+    expect(storedText(puts2)).toContain("<email>");
+    expect(storedText(puts2)).not.toContain("marco@example.com");
+  });
+test("a clipped payload cannot choose the raw-text path", async () => {
+    const { env, puts } = fakeEnv();
+    // The gate keeps a payload that does not parse when its length is exactly
+    // the clip ceiling, and the attacker controls that length. Scanned raw,
+    // `\u0040` means nothing and the token sat in the stored line whole.
+    const shapes: [string, string][] = [
+      ['{"m":"marco@example.com","x":"', '{"m":"<email>","x":"'],
+      ['{"m":"marco\\u0040example.com","x":"', '{"m":"<email>","x":"'],
+      ['{"ip":"10\\u002e0\\u002e0\\u002e7","x":"', '{"ip":"<ip>","x":"'],
+      ['{"ip":"10.0.0.7","x":"', '{"ip":"<ip>","x":"'],
+      ['{"p":"C:\\\\Users\\\\marco\\\\x","z":"', '{"p":"C:\\Users\\<user>\\x","z":"'],
+      ['{"p":"\\/Users\\/marco\\/x","z":"', '{"p":"/Users/<user>/x","z":"'],
+      ['{"u":"https\\u003a//x.io/p?token=abc","z":"', '{"u":"https://x.io/p<query>","z":"'],
+      ['{"m":"marco%40example.com","x":"', '{"m":"<email>","x":"'],
+    ];
+    for (const [head, want] of shapes) {
+      const { env: env2, puts: puts2 } = fakeEnv();
+      const line = clippedLine(head);
+      expect(line.length).toBe(325);
+      await post(env2, `${line}\n`, { "x-kalsa-app": PHONE_APP });
+      // Kept — the clip explains why it does not parse — and the stored text is
+      // the text that was scanned, so it is shorter by whatever the escapes were.
+      expect(metadata(puts2).dropped).toBe("0");
+      expect(storedText(puts2)).toContain(want);
+      for (const gone of TOKEN_FRAGMENTS) expect(storedText(puts2)).not.toContain(gone);
+    }
+  });
+
+  test("an invisible character cannot split a token inside a phone payload", async () => {
+    const { env, puts } = fakeEnv();
+    // A NUL, a TAB or a zero-width space between the parts of an address is two
+    // tokens to every rule and one to a human. They are removed from the scanned
+    // text and that is scanned again. When the first scan already took the tail
+    // of a split token, the head before the invisible stays (the key row): the
+    // deployed pass stored the same, and a removal that runs before the first
+    // scan welds `<address>\tok` and loses a redaction instead.
+    const parsed: [string, string][] = [
+      ['{"m":"marco\\u0000@example.com"}', '{"m":"<email>"}'],
+      ['{"m":"marco\\u0009@example.com"}', '{"m":"<email>"}'],
+      ['{"m":"ma\\u200brco@example.com"}', '{"m":"<email>"}'],
+      ['{"m":"marco\\u00ad@example.com"}', '{"m":"<email>"}'],
+      ['{"ip":"10.0.0\\u0000.7"}', '{"ip":"<ip>"}'],
+      ['{"ip":"10.0.\\u00090.7"}', '{"ip":"<ip>"}'],
+      ['{"ip":"10.0.0\\u200b.7"}', '{"ip":"<ip>"}'],
+      ['{"p":"/Users/ma\\u202erco/x"}', '{"p":"/Users/<user>/x"}'],
+      ['{"ma\\u0000rco@example.com":"v"}', '{"ma\\u0000<email>":"v"}'],
+    ];
+    await post(env, `${parsed.map(([p]) => phoneLine(p)).join("\n")}\n`, {
+      "x-kalsa-app": PHONE_APP,
+    });
+    expect(storedText(puts)).toBe(parsed.map(([, want]) => phoneLine(want)).join("\n"));
+  });
+
+  test("the same, in a payload the clip left unparseable", async () => {
+    const { env, puts } = fakeEnv();
+    const shapes: [string, string][] = [
+      // The raw scan reads `u0000` as the local part, so `marco\\` stays: the
+      // same as the deployed pass, and the domain is gone either way.
+      ['{"m":"marco\\u0000@example.com","x":"', '{"m":"marco\\<email>","x":"'],
+      ['{"ip":"10.0.0\\u200b.7","x":"', '{"ip":"<ip>","x":"'],
+      ['{"ip":"10.0.0\\u0000\\u0000.7","x":"', '{"ip":"<ip>","x":"'],
+    ];
+    for (const [head, want] of shapes) {
+      const { env: env2, puts: puts2 } = fakeEnv();
+      await post(env2, `${clippedLine(head)}\n`, { "x-kalsa-app": PHONE_APP });
+      expect(metadata(puts2).dropped).toBe("0");
+      expect(storedText(puts2)).toContain(want);
+      for (const gone of TOKEN_FRAGMENTS) expect(storedText(puts2)).not.toContain(gone);
+    }
+  });
+
+  test("a desktop line keeps the tab its fields are separated by", async () => {
+    const { env, puts } = fakeEnv();
+    // The invisible characters are removed inside a phone payload, where there
+    // is no field separator to destroy. A desktop log separates its columns with
+    // tabs, so a tab there stays: joining them would cost more structure than the
+    // character is worth.
+    await post(env, "stage=prefill\tcomponent=engine\tseq=7\n", { "x-kalsa-app": DESKTOP_APP });
+    expect(storedText(puts)).toBe("stage=prefill\tcomponent=engine\tseq=7\n");
   });
 });
 

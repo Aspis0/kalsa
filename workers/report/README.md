@@ -101,12 +101,73 @@ the redaction pass — the clip length is what tells a truncated real line from 
 invented one, and redaction shortens lines. A line longer than the phone can
 write (timestamp + clip = 325 characters) is dropped without being parsed.
 
+**A phone line's JSON is scrubbed by its decoded values** (`phone-json.ts`). The
+gate validates that payload by *parsing* it, so scanning the escapes and storing
+them would leave a gap between what was approved and what is kept: a line
+carrying `{"m":"marco@example.com"}` stored verbatim and decoded back to
+the address. The pass therefore parses the payload again, scrubs every string
+value **and every object key** in its decoded form, and rebuilds the line with
+`JSON.stringify`. The bytes stored are the bytes that were scanned, so no escape
+can put a token in front of the pass and then decode itself out of what the pass
+approved. It also ends a second failure: the raw scan used to begin a match
+*inside* an escape and leave the backslash behind, storing `marco\<email>`, which
+no reader can parse.
+
+A payload the clip explains — cut at exactly the client's 300-character budget,
+so it does not parse — is the case an attacker steers, because the length alone
+moves it off the walk-the-values path and onto raw text, where `\u0040` means
+nothing. Those escapes are therefore resolved tolerantly too (`\uXXXX` including
+surrogate pairs, `\/`, `\\`, `\"`, `\b\f\n\r\t`; an unknown or half-cut escape is
+left alone), the invisible characters are removed, and the result is scanned and
+stored. A `js_error` line and a desktop line have no payload at all and go
+through the raw text scan untouched.
+
+**Percent-encoding is decoded and scanned on both paths.** `marco%40example.com`
+and `https%3A%2F%2Fx.io%2Fp%3Ftoken%3Dabc` hide the very character every rule
+starts from, and a reader that decodes them sees the address and the query.
+
+The two scans **compose** rather than compete: the raw pass runs first, and the
+decode runs on what it produced. A marker holds no `%`, so what the first pass
+removed stays removed, and a second scan can only add. Choosing between the two
+results instead — by which redacted more — was wrong, and measurably so:
+`https://user:pa%3Fss@host/` redacts exactly once either way, but the decoded
+scan stops at the `?` the escape becomes and stored `https://user:pa<query>`,
+with the username and a password prefix in front of the marker, where the raw
+scan stores `https://<cred>@host/`. Composing cannot lose that.
+
+The decoded form is stored only when it is what found something, and text that
+decodes to nothing sensitive is kept exactly as it arrived, so `100% done` does
+not become `100 done`. An invalid sequence such as `%zz` is left as it is, and
+`%00`–`%1F` and `%7F` are **never decoded**: a literal newline or NUL written
+into the middle of a stored line would split one report line into two.
+
+Decoding happens **once**. `marco%2540example.com` survives whole, and so does
+`marco%5Cu0040example.com`, whose first decode produces a `\u0040` that a reader
+would resolve on a second pass. Both are accepted limits: the pass is not an
+encoder, and a body can be decoded once more than it was.
+
+**Characters that carry nothing a reader can see are removed from a phone
+payload** before it is scanned — the C0 controls and the format characters a
+font will not draw (U+00AD, U+200B–U+200F, U+202A–U+202E, U+2060–U+2064,
+U+FEFF). A token split across one of them, `marco<NUL>@example.com` or
+`10.0.0<NUL>.7`, is two tokens to every rule and one word to a human. The
+cleaned value is what gets stored, so what is stored is what was scanned. This
+is scoped to a phone payload on purpose: a desktop log separates its columns
+with tabs, and joining them would cost more than the character is worth.
+
+**A JSON payload is walked, not re-typed.** Every string value and every key is
+scrubbed, then the payload is rebuilt with `JSON.stringify` — so a number, a
+`null` and a `__proto__` key are carried by the serializer rather than by a
+plain assignment, which is what silently dropped the last one. A value JSON
+cannot round-trip exactly (`1e400` becomes `null`, a 20-digit integer loses its
+last digits) is changed by that round trip and not by any rule here.
+
 **Both bodies are redacted** (`redact.ts`), mirroring the clients' rules:
 
 | What | Becomes | Note |
 | --- | --- | --- |
 | A URL's query and fragment | `<query>` | the address stays; a query can be a credential |
-| A URL's credentials (`user:pass@`) | `<cred>@` | the desktop's own spelling; the phone has no rule for it |
+| A URL's credentials (`user:pass@`) | `<cred>@` | the desktop's own spelling; the phone has no rule for it; **see the break set below** |
 | An email address | `<email>` | **new here**: neither client redacts addresses today |
 | `/Users/<name>`, `/home/<name>`, `/data/user/<n>/<pkg>` | `/Users/<user>`, `/home/<user>`, `/data/user/<n>/<pkg>` | |
 | `C:\Users\<name>` or `\\server\Users\<name>` | `C:\Users\<user>` | the drive letter and the server stay |
@@ -175,17 +236,48 @@ otherwise accept are not the shapes real data has:
 
 Two limits the pass accepts rather than fixes:
 
-- **A password holding a space is not redacted** (`https://user:pass word@host/`
-  keeps `pass`). Covering it means letting a credential walk across whitespace,
-  which is exactly what made round 3 turn
+- **These characters end the credential walk**, and the text before one is left
+  where it is, so a password holding one keeps its leading part:
+  `?` `#` `/` `@`, `"` `'` `<` `>` `)` `]` `}`, **every code unit ≤ 32** (space,
+  tab, NUL, CR, LF and the rest of the C0 controls), and the 256-character cap
+  above. Everything else walks whole: `.` `\`, `-` `_` `:` `=`, `!` `,`, `é`, and
+  every code unit ≥ 0x80. So `https://user:pa.ss@host/` is replaced whole and
+  `https://user:pass word@host/` keeps `pass`. Covering the space and quote cases
+  means letting a credential walk across whitespace, which is what made an
+  earlier version turn
   `GET https://api.example.com failed, contact marco@example.com` into
-  `https://api.example.<cred>@example.com`. One space of tolerance does not
-  rescue it either: `see https://x.io for user@host` has the same shape as the
-  case it would fix. A password with a **dot** in it is redacted whole.
+  `https://api.example.<cred>@example.com`; one space of tolerance does not
+  rescue it either, because `see https://x.io for user@host` has the same shape
+  as the case it would fix. Note also that a `?` or `#` inside a password is
+  consumed by the query rule first, since the pass scans left to right.
 - **An address that starts immediately after a `>` is left** (`peer>10.0.0.1`),
   while `<10.0.0.1>` is redacted. Refusing to read an address after a `>` is what
   keeps `<email>::` from becoming `<ip6>` on a second pass; the bracket forms are
   untouched because the character before them is `<`.
+
+And these, which need a reader or a serializer we do not have:
+
+- **A raw control or format character splits an address in a raw line** — a NUL,
+  a TAB or a zero-width space written inside `10.0.0.7` in a body that is not a
+  phone payload. Inside a phone payload it cannot: those characters are removed
+  before the scan, in the decoded values and in a payload the clip left
+  unparseable alike. What is left is the tab-separated desktop line, where a tab
+  is a column separator and joining columns would cost more structure than the
+  character is worth. A non-ASCII format character cannot split an address on
+  either path: every code unit ≥ 0x80 is a word character to every rule.
+- **An HTML entity or a fullwidth `@`** (`marco&#64;example.com`,
+  `marco＠example.com`) is stored as it arrived. It is not an address to any
+  parser we run; only a rendering or a reader treats it as one.
+- **An address written as a number** (`{"ip":3232235527}`) is stored as it
+  arrived. Every rule here is textual; a reader that widens a 32-bit integer
+  would have to do the arithmetic the redactor deliberately does not.
+- **A BOM empties the first phone line, and a CR-only body empties the whole
+  one** — the gate splits on `\n`, which is what the phone writes. Data loss
+  rather than a leak, on a body no real client sends.
+- **A stored phone line is not re-validated against the gate.** Re-serializing a
+  payload, resolving an escape or replacing a token all change its length, so a
+  line the pass lengthened past the clip would be dropped by a second pass over
+  the stored report. It matters only if reports are ever re-screened.
 
 **Non-ASCII counts.** Every code unit above 0x80 is a word character, so
 `/Users/用户/x`, `C:\Users\用户\x`, `josé@example.com` and `用户@example.com` are
@@ -215,42 +307,27 @@ longer than what it replaces: `a@b` becomes `<email>`, so a body of them is
 4 MiB body, the worst of the shapes the auditor tried — is what the cap exists to
 avoid; the caller is told the screen stopped and refuses the report.
 
-Measured on the machine that wrote this, best of five, in **CPU time** (what
-Cloudflare bills and limits) over 4 MiB bodies, with the route's 4 MiB output cap
-in force:
+Measured in **CPU time** (what Cloudflare bills and limits), fresh process, best
+of three, with the route's 4 MiB output cap in force:
 
-| body | cost |
+| 4 MiB body | cost |
 | --- | --- |
-| **worst found: `":: "` — a match every 3 characters** | **70.7 ms** |
-| `"a.a@ "` and `a.a@` | 59 / 26 ms |
-| the combined line, every shape at once | ~51 ms |
-| `"a@b "` | 43 ms |
-| `C:\Users\` / `/Users/` | 36 / 27 ms |
-| `%@a` | 23 ms |
-| the IPv6 shapes (`1:`, `a::`, `::1:` repeated) | 21–25 ms |
-| adversarial URL and IPv4 lines | 10–12 ms |
-| `http://h` followed by 8185 `@` | 42 ms |
-| legitimate 4 MiB phone body | 18 ms |
-| legitimate 4 MiB desktop body | 23 ms |
+| realistic phone | 83 ms |
+| realistic desktop | 67 ms |
+| `http://h` + 8185 `@` | 109 ms |
+| percent-dense desktop (`%41` storm) | 111 ms |
+| dot-dense desktop (`10.0.0.7. `) | 70 ms |
+| escape-dense phone (`@` storm, 160 KB) | 2 ms |
 
-The worst shape is a body that is nothing but one three-character match, repeated:
-every one of them costs a marker, a gap and a count, so density is the floor. It
-is 139 ms without the output cap — the cap is not what makes the shape cheap, it
-is what stops a sevenfold-amplifying body being assembled at all.
+Going from 1 MiB to 4 MiB costs 3.87–4.03× on the same shapes: linear. A single
+8192-character `@` line costs 0.26 ms.
 
-The `http://h` + `@` body is the one to know about: 1 MiB costs 10 ms and 4 MiB
-costs 42 ms — a factor of 4.0 for 4 times the bytes, where a walk back to the
-scheme for every `@` cost 155 ms, 610 ms, 2 417 ms, 9 649 ms and then **40 374 ms**
-at 4 MiB as the `@` run grew inside each line.
-
-Those figures move with the host: repeated runs of the same binary spanned
-46.8–53.1 ms on the combined line, with the load average between 4 and 13.
-`cost.test.ts` runs all twelve adversarial shapes plus the combined line at 1 MiB
-and at 4 MiB, and asserts **linearity** — four times the bytes may not cost
-sixteen times the time — rather than an absolute budget, because jest's module
-wrapper inflates the match-heavy paths about five-fold. It then repeats the
-exercise with the *line* as the variable, which is the direction a body made of
-one repeated shape grows in. Every case prints what it actually cost.
+Those figures move with the host. `cost.test.ts` therefore asserts **linearity**
+— four times the bytes may not cost sixteen times the time — rather than an
+absolute budget, because jest's module wrapper inflates the match-heavy paths
+about five-fold. It runs the adversarial shapes at 1 MiB and at 4 MiB, then
+repeats the exercise with the *line* as the variable. Every case prints what it
+actually cost.
 
 **What the screen is not.** It is a filter and a redactor, not a classifier: it
 cannot tell a prompt that happens to sit inside a well-formed `KALSA_` line

@@ -13,6 +13,7 @@
 /// <reference path="./cf-ambient.d.ts" />
 
 import { isPhoneApp, keepPhoneLines } from "./phone-body";
+import { scrubPhoneLine, scrubPlainLine } from "./phone-json";
 import { redactText } from "./redact";
 
 export interface Env {
@@ -153,8 +154,12 @@ function screenBody(bytes: Uint8Array, app: string): ScreenResult {
       response: error(400, "invalid_utf8", "The report must be valid UTF-8."),
     };
   }
-  const kept = isPhoneApp(app) ? keepPhoneLines(text) : { text, dropped: 0 };
-  const scrubbed = redactText(kept.text, MAX_BODY_BYTES);
+  const phone = isPhoneApp(app);
+  const kept = phone ? keepPhoneLines(text) : { text, dropped: 0 };
+  // A phone line carrying JSON is scrubbed through its parsed values rather than
+  // its raw text: the gate validated it by parsing, so scanning the escapes and
+  // storing them is what let a token through.
+  const scrubbed = redactText(kept.text, MAX_BODY_BYTES, phone ? scrubPhoneLine : scrubPlainLine);
   if (scrubbed.truncated) {
     return { ok: false, response: tooLarge("Screened report") };
   }

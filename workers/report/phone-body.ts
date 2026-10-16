@@ -62,6 +62,18 @@ function parsesAsJson(payload: string): boolean {
   }
 }
 
+/**
+ * The JSON payload of a `<ISO> KALSA_TAG {json}` line, or null for any other
+ * line. Exported so that whatever scrubs the line after this gate agrees with
+ * the gate on where the payload starts: two copies of this regex could drift,
+ * and a drift would reopen the differential that a parsed payload and a raw scan
+ * leave open.
+ */
+export function jsonPayloadOf(line: string): string | null {
+  const match = KALSA_LINE.exec(line);
+  return match === null ? null : match[3];
+}
+
 function conforms(line: string): boolean {
   if (JS_ERROR_LINE.test(line)) return true;
   const match = KALSA_LINE.exec(line);

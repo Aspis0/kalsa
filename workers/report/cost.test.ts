@@ -15,6 +15,7 @@
  */
 
 import { keepPhoneLines } from "./phone-body";
+import { scrubPhoneLine } from "./phone-json";
 import { redactText } from "./redact";
 
 const MIB = 1024 * 1024;
@@ -27,6 +28,10 @@ const OUTPUT_CAP = 4 * MIB;
 /** Linear means 4x the bytes costs about 4x the time; quadratic would cost
  *  16x. Six leaves room for measurement noise without admitting a curve. */
 const MAX_SCALING = 6;
+/** The slack is additive because the noise is: on a shared machine a 6 ms
+ *  measurement moves by milliseconds, and a curve this guard exists to catch is
+ *  four times that, not a fraction of it. */
+const SCALING_SLACK_MS = 20;
 
 /** A legitimate 4 MiB body: only a return to super-linear behaviour pushes it
  *  past this. */
@@ -99,7 +104,7 @@ describe("cost stays linear", () => {
         `      ${name.padEnd(10)} ${smallMs.toFixed(1).padStart(6)} ms at 1 MiB, ` +
           `${bigMs.toFixed(1).padStart(6)} ms at 4 MiB — x${(bigMs / smallMs).toFixed(1)}`,
       );
-      expect(bigMs).toBeLessThan(smallMs * MAX_SCALING + 5);
+      expect(bigMs).toBeLessThan(smallMs * MAX_SCALING + SCALING_SLACK_MS);
     });
   }
 
@@ -145,7 +150,7 @@ describe("cost stays linear inside one line", () => {
         `      ${name.padEnd(11)} ${smallMs.toFixed(1).padStart(6)} ms at 1 MiB, ` +
           `${bigMs.toFixed(1).padStart(6)} ms at 4 MiB — x${(bigMs / smallMs).toFixed(1)}`,
       );
-      expect(bigMs).toBeLessThan(smallMs * MAX_SCALING + 5);
+      expect(bigMs).toBeLessThan(smallMs * MAX_SCALING + SCALING_SLACK_MS);
       expect(bigMs).toBeLessThan(CRED_BUDGET_MS);
     });
   }
@@ -161,6 +166,40 @@ describe("cost stays linear inside one line", () => {
     expect(out.truncated).toBe(true);
     expect(out.text.length).toBeLessThanOrEqual(OUTPUT_CAP);
   });
+});
+
+/**
+ * The JSON path is the other direction a body grows: every string value is
+ * walked, parsed and written back, so the cost is the walk plus the parse, not
+ * the scan alone. It is a per-line constant over the line, and this holds it to
+ * the same ratio as everything else.
+ */
+test("a phone body dense in JSON escapes stays linear", () => {
+  // Under the client's own 325-character clip, and every value one a serializer
+  // would emit escaped: a mail, a Windows path, an encoded query.
+  const line = (i: number) =>
+    `${STAMP} KALSA_ROAD {"i":${i},"m":"marco@example.com","p":"C:\\\\Users\\\\marco\\\\x","u":"https://x.io/p?q=token","n":${i}}`;
+  const one = line(1);
+  expect(one.length).toBeLessThanOrEqual(325);
+  const body = (bytes: number) => {
+    const rows = Math.floor(bytes / (one.length + 1));
+    return `${Array.from({ length: rows }, (_, i) => line(i)).join("\n")}\n`;
+  };
+  const small = body(MIB);
+  const big = body(4 * MIB);
+  expect(big.length / small.length).toBeCloseTo(4, 1);
+  const screen = (bodyText: string) =>
+    redactText(keepPhoneLines(bodyText).text, OUTPUT_CAP, scrubPhoneLine);
+  // Nothing may be dropped by the gate, or this would measure the gate.
+  expect(keepPhoneLines(big).dropped).toBe(0);
+  const smallMs = costOfBig(() => screen(small));
+  const bigMs = costOfBig(() => screen(big));
+  console.log(
+    `      ${"json".padEnd(11)} ${smallMs.toFixed(1).padStart(6)} ms at 1 MiB, ` +
+      `${bigMs.toFixed(1).padStart(6)} ms at 4 MiB — x${(bigMs / smallMs).toFixed(1)}`,
+  );
+  expect(bigMs).toBeLessThan(smallMs * MAX_SCALING + SCALING_SLACK_MS);
+  expect(bigMs).toBeLessThan(LEGIT_BUDGET_MS * 2);
 });
 
 describe("a full legitimate body", () => {
