@@ -17,12 +17,18 @@ import { ArrowUp, Mic, Plus, Square } from "lucide-react-native";
 import { useLocale } from "../../i18n";
 import { families, space, type DesignColors } from "../../theme/design";
 import { ComposerDisclaimer } from "./ComposerDisclaimer";
+import { COMPOSER_FIELD_HEIGHT } from "./shellGeometry";
 import { createShellStyles } from "./shellStyles";
 import type { ComposerFace } from "./composerState";
 
 export interface ShellComposerProps {
   /** The band's height and its bottom offset — `shellGeometry`'s numbers. */
   height: number;
+  /** The field's box: the geometry's clamp of what the input measured. */
+  fieldHeight?: number;
+  /** Report what the input measured (`onContentSizeChange`), so the shell can
+   *  re-partition the bands around it. */
+  onContentHeightChange?: (height: number) => void;
   bottomOffset: number;
   colors: DesignColors;
   draft: string;
@@ -49,6 +55,8 @@ export interface ShellComposerProps {
 
 export function ShellComposer({
   height,
+  fieldHeight = COMPOSER_FIELD_HEIGHT,
+  onContentHeightChange,
   bottomOffset,
   colors,
   draft,
@@ -76,7 +84,7 @@ export function ShellComposer({
       style={[styles.composerBand, { height, marginBottom: bottomOffset }]}
       testID="shell.composer"
     >
-      <View style={styles.field}>
+      <View style={[styles.field, { height: fieldHeight }]}>
         <Pressable
           testID="shell.composer.attach"
           accessibilityRole="button"
@@ -113,16 +121,20 @@ export function ShellComposer({
             value={draft}
             onChangeText={onDraftChange}
             editable={editable}
-            style={styles.input}
-            returnKeyType="send"
-            onSubmitEditing={() => {
-              // Enter is SEND, never stop: the control's gate alone
-              // (`canActivate`) is also true on the stop face, where Enter
-              // would end a live turn — generation or cooling alike. The old
-              // composer's onSubmitEditing only ever sent
-              // (`AiChatPage.tsx:4370-4375`).
-              if (face === "send" && canActivate) onSendPress?.();
-            }}
+            // Multiline, as every phone composer is: Return inserts a newline
+            // and the Send button sends. The old single-line field sent on
+            // Return, which made the one-line band a trap for anything longer
+            // than a sentence. Nothing in the product asks for Enter-to-send
+            // (the stop-face gate it once carried was about NOT sending from
+            // the keyboard at all), so the mobile default wins: Send stays the
+            // button, and it is the only way to send.
+            multiline
+            onContentSizeChange={(event) =>
+              onContentHeightChange?.(event.nativeEvent.contentSize.height)
+            }
+            // The box is the geometry's, so the input fills it and scrolls its
+            // own text once the field reaches five lines.
+            style={[styles.input, { height: fieldHeight }]}
           />
         </Pressable>
 

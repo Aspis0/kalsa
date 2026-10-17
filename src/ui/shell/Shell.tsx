@@ -146,9 +146,18 @@ export function Shell({
     () => bottomInsetFor(insets, keyboardHeight),
     [insets.top, insets.bottom, keyboardHeight],
   );
+  // What the composer's input measured. The geometry owns the clamp; this only
+  // carries the number, so the bands re-partition around a grown field.
+  const [composerContentHeight, setComposerContentHeight] = useState(0);
   const geometry = useMemo(
-    () => shellGeometry(width ?? window.width, layoutHeight, layoutInsets),
-    [width, window.width, layoutHeight, layoutInsets],
+    () =>
+      shellGeometry(
+        width ?? window.width,
+        layoutHeight,
+        layoutInsets,
+        composerContentHeight,
+      ),
+    [width, window.width, layoutHeight, layoutInsets, composerContentHeight],
   );
   const [internalDraft, setInternalDraft] = useState("");
   const draft = draftProp ?? internalDraft;
@@ -194,6 +203,8 @@ export function Shell({
 
       <ShellComposer
         height={geometry.composer.height}
+        fieldHeight={geometry.composerFieldHeight}
+        onContentHeightChange={setComposerContentHeight}
         bottomOffset={layoutInsets.bottom}
         colors={colors}
         draft={draft}

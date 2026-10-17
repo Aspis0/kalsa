@@ -149,7 +149,11 @@ describe("the wiring in LlamaService", () => {
     expect(fallbackSpan).toMatch(/const fallbackThinking = joinThinking\(/);
     expect(fallbackSpan).toMatch(/thinking: fallbackThinking,/);
     // Thinking still fires, once, from that same value.
-    expect(fallbackSpan).toMatch(/callbacks\.onThinkingText\?\.\(fallbackThinking\);/);
+    // The span is the round's authoritative one, so it carries the final mark:
+    // the host clears a streamed span the fallback reconciled away.
+    expect(fallbackSpan).toMatch(
+      /callbacks\.onThinkingText\?\.\(fallbackThinking, \{ final: true \}\);/,
+    );
   });
 
   test("the exhausted telemetry carries why the fallback produced nothing", () => {

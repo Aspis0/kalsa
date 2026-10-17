@@ -30,6 +30,7 @@ import {
 } from "../conversations/ConversationsStore";
 import {
   computeHistoryHashFromMessages,
+  getBootMessagesKey,
   readBootMessages,
 } from "../engine/sessionPersistence";
 import {
@@ -153,21 +154,34 @@ const newChatInFlightRef = { current: false };
         }
         const meta = createEmptyConversationMeta();
         const modelId = getActiveModelId();
-        if (modelId && isEngineReady() && !sendingInFlightRef.current) {
-          try {
-            const msgs = await readBootMessages();
-            await saveEngineSession(
-              modelId,
-              computeHistoryHashFromMessages(msgs),
-              msgs.length,
-            );
-          } catch {
-            // previous good .kvs stays
-          }
-        }
+        // UI first: the switch and the drawer land in this tick, before the old
+        // chat's KV save — which waits on the engine FIFO, so awaiting it held
+        // the new chat back ~1 s.
+        //
+        // Order inside this tick is load-bearing, and the save comes BEFORE the
+        // bind: persistChatKvSession captures the conversation id in its first
+        // statement, so a save called after the bind would capture the NEW chat
+        // and write this KV under the new chat's stem — the mix-up the save
+        // exists to prevent. Not awaited: the job is enqueued here, so a send
+        // in the new chat queues behind it on the one engineJobChain.
+        const leavingKey = getBootMessagesKey();
         applyConversations(setActive(upsertMeta(conversationsRef.current, meta), meta.id));
-        bindActiveConversation(meta.id);
         setDrawerOpen(false);
+        if (modelId && isEngineReady() && !sendingInFlightRef.current) {
+          void saveEngineSession(modelId, async () => {
+            // Runs inside the queued job: the read + full-history hash never
+            // touch the tap that opened the chat.
+            const msgs = await readBootMessages(leavingKey);
+            return {
+              historyHash: computeHistoryHashFromMessages(msgs),
+              historyMessageCount: msgs.length,
+            };
+          }).catch(() => {
+            // previous good .kvs stays
+          });
+        }
+        // Last: the bind repoints both the session id and the boot-history key.
+        bindActiveConversation(meta.id);
       } finally {
         newChatInFlightRef.current = false;
       }

@@ -52,10 +52,34 @@ export function stripPillTextColumn(pillWidth: number): number {
  *  re-measured in dp, with the disclaimer row added under the field. */
 export const COMPOSER_SIDE_PADDING = measure.gutter;
 export const COMPOSER_FIELD_HEIGHT = 56;
+export const COMPOSER_TOP_LIFT = 8;
+export const COMPOSER_BOTTOM_LIFT = 14;
+/** The field's line box (`shellStyles`' `input.lineHeight`): the growth unit. */
+export const COMPOSER_LINE_HEIGHT = 21;
+/** Lines the field grows to. Past this it holds its height and scrolls its own
+ *  text — a composer that never stops growing would eat the transcript. */
+export const COMPOSER_MAX_LINES = 5;
+export const COMPOSER_MAX_FIELD_HEIGHT = COMPOSER_MAX_LINES * COMPOSER_LINE_HEIGHT;
 /** The disclaimer is ONE line of `type.caption`: its component truncates rather
  *  than wraps, so the band reserves exactly one line. */
+export const COMPOSER_DISCLAIMER_ROW =
+  COMPOSER_DISCLAIMER_GAP + COMPOSER_DISCLAIMER_HEIGHT;
 export const COMPOSER_HEIGHT =
-  8 + COMPOSER_FIELD_HEIGHT + COMPOSER_DISCLAIMER_GAP + COMPOSER_DISCLAIMER_HEIGHT + 14;
+  COMPOSER_TOP_LIFT + COMPOSER_FIELD_HEIGHT + COMPOSER_DISCLAIMER_ROW + COMPOSER_BOTTOM_LIFT;
+
+/**
+ * The field height for a content height measured by the input
+ * (`onContentSizeChange`): one or two lines stay in the 56 dp capsule (its
+ * touch floor and the band's own look), the field then grows line by line, and
+ * the fifth line is where it stops — after that the input scrolls.
+ */
+export function composerFieldHeight(contentHeight: number): number {
+  if (!Number.isFinite(contentHeight) || contentHeight <= 0) return COMPOSER_FIELD_HEIGHT;
+  const rounded = Math.round(contentHeight);
+  return clamp(
+    Math.min(Math.max(rounded, COMPOSER_FIELD_HEIGHT), COMPOSER_MAX_FIELD_HEIGHT),
+  );
+}
 
 /**
  * The source chip's two sizes (DESIGN.md §2.5): the painted chip stays ~28 dp —
@@ -110,6 +134,9 @@ export type ShellGeometry = {
   strip: Band;
   transcript: Band;
   composer: Band;
+  /** What the field draws at: its measured height, never more than the band's
+   *  room (a squeezed band keeps the 56 dp capsule and clips the rest). */
+  composerFieldHeight: number;
   /** False when the composer band is squeezed below its full height: the line
    *  would spill past the gesture lift, so the field keeps the band alone. */
   disclaimerShown: boolean;
@@ -133,17 +160,39 @@ export type ShellGeometry = {
 };
 
 /**
- * Lay out the three bands (`width` only sizes the horizontal tap targets).
- * Degenerate heights squeeze, never overflow — composer keeps its space first,
- * the strip shrinks to a sliver, the transcript yields last — and in every
- * branch the three heights sum to `usableHeight`: the partition invariant
+ * Lay out the three bands (`width` only sizes the horizontal tap targets;
+ * `composerContentHeight` is what the input measured, and the band grows with
+ * it). Degenerate heights squeeze, never overflow — composer keeps its space
+ * first, the strip shrinks to a sliver, the transcript yields last — and in
+ * every branch the three heights sum to `usableHeight`: the partition invariant
  * survives the short case instead of being waived there.
  */
-export function shellGeometry(width: number, height: number, insets: Insets): ShellGeometry {
+export function shellGeometry(
+  width: number,
+  height: number,
+  insets: Insets,
+  composerContentHeight: number = 0,
+): ShellGeometry {
   const usableHeight = clamp(height - insets.top - insets.bottom);
-  const composerHeight = Math.min(COMPOSER_HEIGHT, usableHeight);
+  // The band follows the field: every line it grows costs the transcript, and
+  // the partition below still sums to `usableHeight` because the composer is
+  // measured last.
+  const wantedField = composerFieldHeight(composerContentHeight);
+  const wantedComposer = COMPOSER_HEIGHT + (wantedField - COMPOSER_FIELD_HEIGHT);
+  const composerHeight = Math.min(wantedComposer, usableHeight);
   const stripHeight = Math.min(STRIP_HEIGHT, clamp(usableHeight - composerHeight));
   const transcriptHeight = clamp(usableHeight - stripHeight - composerHeight);
+  const disclaimerShown = usableHeight >= COMPOSER_HEIGHT;
+  // What is left inside the band once its own lifts (and the disclaimer line,
+  // when shown) are paid. A band squeezed by a short screen has no room to
+  // grow: the field takes what is there, so it always fits the band it draws
+  // in — the 56 dp capsule is a preference for a band that has the space, not
+  // a claim on a band that does not.
+  const bandRoom = clamp(
+    composerHeight - COMPOSER_TOP_LIFT - COMPOSER_BOTTOM_LIFT
+      - (disclaimerShown ? COMPOSER_DISCLAIMER_ROW : 0),
+  );
+  const fieldHeight = clamp(Math.min(wantedField, bandRoom));
 
   const strip: Band = { top: insets.top, height: stripHeight };
   const transcript: Band = {
@@ -166,7 +215,8 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
     strip,
     transcript,
     composer,
-    disclaimerShown: usableHeight >= COMPOSER_HEIGHT,
+    composerFieldHeight: fieldHeight,
+    disclaimerShown,
     transcriptUsableHeight: transcript.height,
     composerBottomOffset: clamp(height - (composer.top + composer.height)),
     minTouchTarget: full,
@@ -177,7 +227,11 @@ export function shellGeometry(width: number, height: number, insets: Insets): Sh
       composerMic: { width: full, height: full },
       composerField: {
         width: Math.max(full, width - 2 * COMPOSER_SIDE_PADDING),
-        height: full,
+        // What the field DRAWS, not the 48 dp floor: a band squeezed on a short
+        // screen gives the field less than that, and reporting the floor here
+        // would describe a box nobody renders. (This target is the one exception
+        // to the 48 dp rule, and only when the screen has no room for it.)
+        height: fieldHeight,
       },
       composerSend: { width: full, height: full },
     },

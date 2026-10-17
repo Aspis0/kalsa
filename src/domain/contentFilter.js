@@ -92,22 +92,48 @@ const VIOLENT_CRIME_PATTERNS = [
   /\bcome\s+fare\s+una\s+bomba\b/i,
 ];
 
-// A "victim" marker distinguishes exfiltration intent ("extract the user's
-// password") from generic dev/UI questions ("extract access token from url",
-// "show password checkbox in html") which must not be blocked.
-const PRIVACY_VICTIM_MARKER =
-  "(?:someone|somebody|another\\s+person|other\\s+people|a\\s+user|the\\s+user|other\\s+users|an?\\s+admin|the\\s+admin|a\\s+customer|the\\s+customer|a\\s+patient|the\\s+patient|a\\s+victim|their|his|her|the\\s+database|the\\s+server|the\\s+system|a\\s+company|an?\\s+employee)";
+// Privacy exfiltration: marker AND verb AND secret, where the "victim" marker
+// is what separates exfiltration intent ("extract the user's password") from
+// the dev/UI questions that must pass ("extract access token from the url").
+//
+// These three patterns replace one pair — an unanchored "marker ahead" lookahead
+// followed by `.*\bverb\b.*\bsecret\b` and its secrets-then-verbs twin — which
+// froze a send for ~1.7 s on an 8 kB message on Hermes (91% of the JS time
+// inside the regex): lookahead and greedy chain both re-walked from every start
+// position, so the work grew quadratically. The pair accepted exactly this
+// conjunction: the two orderings are the same three facts (a verb match and a
+// secret match can never overlap), and the lookahead pinned nothing beyond
+// "marker somewhere".
+//
+// `text` is `normalizeFilterText`'s output — one line, lowercased — and that is
+// the whole contract. No line bound is needed because normalization folded every
+// line terminator into a space, and nothing is claimed about raw multi-line
+// input: the old pair's own `\s+` inside phrases (api\s+key) crossed lines even
+// though its `.` did not, so the normalized text is what these really replace.
+const PRIVACY_VICTIM_RE = new RegExp(
+  "\\b(?:someone|somebody|another\\s+person|other\\s+people|a\\s+user|the\\s+user|" +
+    "other\\s+users|an?\\s+admin|the\\s+admin|a\\s+customer|the\\s+customer|" +
+    "a\\s+patient|the\\s+patient|a\\s+victim|their|his|her|the\\s+database|" +
+    "the\\s+server|the\\s+system|a\\s+company|an?\\s+employee)\\b",
+  "i",
+);
+const PRIVACY_VERB_RE = new RegExp(
+  "\\b(?:reveal|extract|dump|show|steal|leak)\\b",
+  "i",
+);
+const PRIVACY_SECRET_RE = new RegExp(
+  "\\b(?:api\\s+key|access\\s+token|password|private\\s+key|secret\\s+key|" +
+    "patient\\s+name|patient\\s+email|social\\s+security\\s+number)\\b",
+  "i",
+);
 
-const PRIVACY_EXFILTRATION_PATTERNS = [
-  new RegExp(
-    `(?=.*\\b${PRIVACY_VICTIM_MARKER}\\b).*\\b(?:reveal|extract|dump|show|steal|leak)\\b.*\\b(?:api\\s+key|access\\s+token|password|private\\s+key|secret\\s+key|patient\\s+name|patient\\s+email|social\\s+security\\s+number)\\b`,
-    "i",
-  ),
-  new RegExp(
-    `(?=.*\\b${PRIVACY_VICTIM_MARKER}\\b).*\\b(?:api\\s+key|access\\s+token|password|private\\s+key|secret\\s+key|patient\\s+name|patient\\s+email|social\\s+security\\s+number)\\b.*\\b(?:reveal|extract|dump|show|steal|leak)\\b`,
-    "i",
-  ),
-];
+function matchesPrivacyExfiltration(text) {
+  return (
+    PRIVACY_VICTIM_RE.test(text) &&
+    PRIVACY_VERB_RE.test(text) &&
+    PRIVACY_SECRET_RE.test(text)
+  );
+}
 
 const NON_VIOLENT_CRIME_PATTERNS = [
   /\bsteal\s+credit\s+card\b/i,
@@ -200,7 +226,7 @@ function classifyChatContent(input) {
     return buildDecision(CONTENT_FILTER_DECISIONS.block, "violent_crime", categories, false);
   }
 
-  if (matchesAny(PRIVACY_EXFILTRATION_PATTERNS, text)) {
+  if (matchesPrivacyExfiltration(text)) {
     categories.push("privacy");
     return buildDecision(CONTENT_FILTER_DECISIONS.block, "privacy", categories, false);
   }

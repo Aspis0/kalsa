@@ -7,7 +7,9 @@
  * before `ErrorUtils` ever sees them (the root error boundary).
  */
 import { finalizeLine, finalizeRecord } from "./normalize";
-import { appendLine, readReportText } from "./logStore";
+import { AppState, type AppStateStatus } from "react-native";
+
+import { appendLine, flushLogLines, readReportText } from "./logStore";
 import { formatRecord } from "./schema";
 import { formatJsErrorLine } from "./jsErrorLine";
 
@@ -140,10 +142,33 @@ export function installLogReportCollector(): () => void {
     if (!ours) wrapConsoleMethod(name);
   }
   const restoreHandler = installJsErrorHandler();
+  const removeAppState = installBackgroundFlush();
   return () => {
     for (const restore of restoreConsole) restore();
     restoreHandler?.();
+    removeAppState();
   };
+}
+
+/**
+ * The drain is a microtask, so a process killed right after a burst loses it.
+ * Backgrounding is the last moment the JS thread is still ours: iOS gives the
+ * app a grace period after `inactive`/`background`, and that is where the log
+ * store's buffer gets written out. Best effort — an unknown state, or a
+ * listener that never fires, only costs the lines a kill would have cost.
+ */
+function installBackgroundFlush(): () => void {
+  const flushWhenLeaving = (state: AppStateStatus): void => {
+    if (state === "background" || state === "inactive") flushLogLines();
+  };
+  try {
+    const subscription = AppState.addEventListener("change", flushWhenLeaving);
+    return () => subscription.remove();
+  } catch {
+    // No AppState (tests, a platform without it): the microtask drain and the
+    // report flush remain.
+    return () => undefined;
+  }
 }
 
 /** The report text for the sender: newest 4 MiB, cut at a line boundary. */

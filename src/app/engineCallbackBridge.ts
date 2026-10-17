@@ -10,11 +10,16 @@
 import type { EngineCallbacks } from "../engine/LlamaService";
 import type { EmissionSource } from "../engine/modelEmittedText";
 
+/** Which span an `onThinkingText` call carries. */
+export type ThinkingMeta = { final?: boolean };
+
 /** UI-side callback surface the bridge forwards (structural; fed `any`). */
 export type BridgedUiCallbacks = {
   onDelta?: (delta: string, full: string) => void;
   onModelEmittedText?: (text: string, source: EmissionSource) => void;
-  onThinkingText?: (text: string) => void;
+  /** `final` marks the round's reconciled span: authoritative, and allowed to
+   *  be empty — streaming updates never are. */
+  onThinkingText?: (text: string, meta?: ThinkingMeta) => void;
   onStatus?: (status: { label: string }) => void;
   onSources?: (sources: any[]) => void;
   onMiniapp?: (miniapp: any) => void;
@@ -63,7 +68,7 @@ export function bridgeEngineCallbacks(
       ui.onDelta?.(delta, full);
     },
     onModelEmittedText: (text, source) => ui.onModelEmittedText?.(text, source),
-    onThinkingText: (text) => ui.onThinkingText?.(text),
+    onThinkingText: (text, meta) => ui.onThinkingText?.(text, meta),
     onStatus: (status) => ui.onStatus?.(status),
     onSources: (sources) =>
       ui.onSources?.(hooks.mapSource ? hooks.mapSource(sources as any[]) : (sources as any[])),

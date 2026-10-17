@@ -245,6 +245,7 @@ import {
   SESSION_FORMAT_VERSION,
   sessionAssembleBoundary,
   shouldSaveSession,
+  type SessionHistoryFact,
   type SessionSaveFingerprint,
 } from "./sessionPersistence";
 import { engineBuildFingerprint, readEngineBuildId } from "./engineIdentity";
@@ -276,6 +277,7 @@ import {
 } from "./kvReproducibility";
 
 import { persistChatKvSession } from "./chatKvSessionSave";
+import { createStreamCoalescer } from "./streamCoalescer";
 import {
   loadChatKvSession,
   restoreChatKvSession,
@@ -937,7 +939,11 @@ export type EngineCallbacks = {
    * as onModelEmittedText. Display-only: prompt replay replays
    * modelEmittedText (which already carries the raw think span), never this.
    */
-  onThinkingText?: (text: string) => void;
+  /** Reasoning as it is written. `final` marks the round's reconciled span:
+   *  authoritative, and possibly EMPTY (finalize stripped it all) — a consumer
+   *  that only ever paints non-empty text would keep a span that no longer
+   *  exists. */
+  onThinkingText?: (text: string, meta?: { final?: boolean }) => void;
   onDone: () => void;
   onError: (error: Error) => void;
 };
@@ -3627,6 +3633,21 @@ function invalidateChatKvAlignment(): void {
 }
 
 /**
+ * The hold and its owner are ONE fact: a KV that holds a chat session but
+ * cannot say WHICH chat is not a hold anyone may write under a stem, so the
+ * save guard (`chatKvSessionSave`) refuses it. Every path that takes the hold
+ * goes through here, and a hold we cannot name is not taken.
+ */
+function holdChatSession(convId: string): void {
+  if (convId.length === 0) {
+    kvHoldsChatSession = false;
+    return;
+  }
+  lastAssembleConvId = convId;
+  kvHoldsChatSession = true;
+}
+
+/**
  * Drop hold flags. Fingerprint dies only when native chat KV is known empty
  * (t10: flag-only drop must keep last-save tokens).
  */
@@ -3680,7 +3701,12 @@ async function dropHoldAfterOptionalNativeClear(
 
 export async function saveEngineSession(
   modelId: string,
-  historyHashValue: string,
+  // A thunk defers the history read + hash into the queued job: the caller
+  // still enqueues this save in its own tick (which is what orders it ahead of
+  // any later completion), but pays neither the storage read nor the full
+  // history stringify before the UI moves on. New chat uses it; everything
+  // else passes the hash it already holds.
+  historyHashValue: string | (() => Promise<SessionHistoryFact>),
   historyMessageCount?: number,
 ): Promise<boolean> {
   return persistChatKvSession(chatKvSession, modelId, historyHashValue, historyMessageCount);
@@ -4060,6 +4086,15 @@ export async function streamAssistantTurn(
       if (next.trim().length === 0) return acc;
       return acc.length > 0 ? `${acc}\n\n${next}` : next;
     };
+    // Reasoning streams on the SAME cadence as the answer: one onThinkingText
+    // per ~33 ms of tokens, carrying the joined span, so the thinking card fills
+    // while the model thinks instead of appearing whole at the end. The three
+    // authoritative emits (abort, round finalize, tool fallback) still fire
+    // directly — each cancels this first, so a pending trailing flush can never
+    // land a shorter span over the reconciled one.
+    const thinkingCoalescer = createStreamCoalescer((text: string) => {
+      callbacks.onThinkingText?.(text);
+    });
 
     // Think-tag stripper: pure module (src/engine/thinkStream.ts). Stream is
     // conservative (holds after mid-text <think>); finalize does full-round
@@ -4093,7 +4128,8 @@ export async function streamAssistantTurn(
           thinkingAccum,
           thinkCleaner.thinkingText(),
         );
-        callbacks.onThinkingText?.(partialThinking);
+        thinkingCoalescer.cancel();
+        callbacks.onThinkingText?.(partialThinking, { final: true });
         // Truncated mid-think → no visible delta ever fired, so the UI would
         // delete the placeholder wholesale. Close with the same marker as the
         // clean-finish path so the turn keeps its bubble and its thinking.
@@ -4504,7 +4540,8 @@ export async function streamAssistantTurn(
       // Thinking fires after finalize (above) reconciled this round's buffer
       // with the full-round parse; the final round never went through the
       // round-transition flush, so join it here exactly once.
-      callbacks.onThinkingText?.(turnThinking);
+      thinkingCoalescer.cancel();
+      callbacks.onThinkingText?.(turnThinking, { final: true });
       if (modelEmitted) callbacks.onModelEmittedText?.(modelEmitted, "parsed");
       if (finalText) callbacks.onDelta(finalText, streamedTextAtRoundStart + finalText);
       // clean_completion: reducer sets reproducible only if !turnInjected
@@ -4913,6 +4950,18 @@ export async function streamAssistantTurn(
               const raw = data.token ?? "";
               if (raw) rawEmittedAccum += raw;
               const delta = cleanStreamDelta(raw);
+              // Reasoning, as it is written: the round's joined span, pushed
+              // through the same ~33 ms coalescer the answer uses. Only while
+              // the round is still reasoning (`roundWritingEmitted` flips on
+              // the first VISIBLE token) and only when the thinker holds
+              // something — after that the span only changes at a round edge,
+              // which the authoritative emits cover.
+              if (!roundWritingEmitted) {
+                const liveThinking = thinkCleaner.thinkingText();
+                if (liveThinking.trim().length > 0) {
+                  thinkingCoalescer.push(joinThinking(thinkingAccum, liveThinking));
+                }
+              }
               if (delta) {
                 // First VISIBLE content token of the round: thinking is over,
                 // writing begins. Think-block stripping yields no delta, so
@@ -5441,6 +5490,14 @@ export async function streamAssistantTurn(
                   const raw = data.token ?? "";
                   if (raw) rawEmittedAccum += raw;
                   const delta = cleanStreamDelta(raw);
+                  // The fallback round reasons on the same clock as the main
+                  // loop (see its token callback).
+                  if (!roundWritingEmitted) {
+                    const liveThinking = thinkCleaner.thinkingText();
+                    if (liveThinking.trim().length > 0) {
+                      thinkingCoalescer.push(joinThinking(thinkingAccum, liveThinking));
+                    }
+                  }
                   if (delta) {
                     // Same first-visible-token flip as the main loop.
                     if (!roundWritingEmitted) {
@@ -5546,7 +5603,8 @@ export async function streamAssistantTurn(
             // Symmetric with emitFinalText: thinking fires unconditionally
             // after the round's finalize reconciled the buffer — a pure-
             // reasoning fallback must not throw its reasoning away.
-            callbacks.onThinkingText?.(fallbackThinking);
+            thinkingCoalescer.cancel();
+            callbacks.onThinkingText?.(fallbackThinking, { final: true });
             if (fallbackText) {
               exhaustedTel.fallbackOk = true;
               toolFallbackOk = true;
@@ -5651,8 +5709,17 @@ export async function streamAssistantTurn(
           modelId: activeModelId,
         };
       }
+      // Terminal: nothing after this may paint. A pending thinking flush would
+      // fire onThinkingText after onError, and the host has already rolled the
+      // message back.
+      thinkingCoalescer.cancel();
       emitEngineError(callbacks, finishOnce, error);
     } finally {
+      // Belt and braces for every exit that is not a finalize/abort emit (the
+      // early returns, a governor pause, the thrown path above): the coalescer
+      // owns a real timer, and a timer that outlives the turn is a callback
+      // that fires into a turn nobody is listening to any more.
+      thinkingCoalescer.cancel();
       if (energyTraceOn) await stopGovernorBatteryTrace();
       stopStallWatchdog();
       signal?.removeEventListener("abort", onAbort);
@@ -5672,14 +5739,17 @@ export async function streamAssistantTurn(
         });
         if (adopted) {
           lastAssembleBoundary = nextBoundary;
-          lastAssembleConvId = pendingAssembleConvId;
           // A factual commit supersedes any in-memory reconcile attempt.
           attemptedAssembleStart = undefined;
           attemptedAssembleConvId = undefined;
         } else if (nextBoundary !== undefined) {
           lastAssembleBoundary = nextBoundary;
         }
-        kvHoldsChatSession = true;
+        // The KV holds THIS turn's chat whether or not the boundary was
+        // adopted, so the hold names it in both cases — the old code took the
+        // hold unconditionally and named it only on adoption, leaving a held KV
+        // whose owner was stale for every unadopted turn.
+        holdChatSession(pendingAssembleConvId);
         chatKvDiskCurrent = false;
         // Mark this prefix hot so a later ensure() does not wipe chat KV
         // with a system-only prefill. After disk restore the hash stays
@@ -6007,7 +6077,6 @@ export async function extractMemory(
       if (restorePath) {
         if (engine && engine === context) {
           const restored = await restoreNativeSession(chatKvSession, engine, restorePath);
-          kvHoldsChatSession = restored;
           if (!restored) {
             // The context now holds the extract prompt (or nothing): the chat
             // boundary fact is gone whatever the hold/clear outcome is.
@@ -6017,8 +6086,12 @@ export async function extractMemory(
             chatKvDiskCurrent = false;
           } else {
             // Restored from the pooled .kvs, not this turn's snapshot: the
-            // native KV starts at the saved boundary, not the live one.
+            // native KV starts at the saved boundary, not the live one — and
+            // it is some conversation's snapshot that we cannot name, since a
+            // pooled file holds whichever chat was evicted into it. The owner
+            // dies with the alignment, so the hold goes with it.
             invalidateChatKvAlignment();
+            kvHoldsChatSession = false;
           }
         } else {
           dropChatKvHold(

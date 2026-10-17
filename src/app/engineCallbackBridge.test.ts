@@ -56,10 +56,18 @@ describe("engineCallbackBridge", () => {
     ]);
   });
 
-  test("forwards onThinkingText (the once-dropped key)", () => {
+  test("forwards onThinkingText with its stream/final mark", () => {
     const { ui, bridged } = build();
     bridged.onThinkingText?.("the reasoning span");
-    expect(ui.onThinkingText).toHaveBeenCalledWith("the reasoning span");
+    bridged.onThinkingText?.("the reconciled span", { final: true });
+
+    // The meta rides along: the host must be able to tell a streaming update
+    // (never empty) from the round's authoritative span (may be empty, and has
+    // to be able to clear what streaming painted).
+    expect(ui.onThinkingText).toHaveBeenNthCalledWith(1, "the reasoning span", undefined);
+    expect(ui.onThinkingText).toHaveBeenNthCalledWith(2, "the reconciled span", {
+      final: true,
+    });
   });
 
   test("onDelta forwards delta+full and notifies the full tracker", () => {

@@ -12,7 +12,10 @@ describe("the single field fits the measured phone width", () => {
     const geometry = shellGeometry(349, 621, { top: 24, bottom: 16 });
     expect(COMPOSER_SIDE_PADDING).toBe(16);
     expect(geometry.touchTargets.composerField.width).toBe(317);
-    expect(geometry.touchTargets.composerField.height).toBe(MIN_TOUCH_TARGET);
+    // The field reports the box it draws — the 56 dp capsule, and whatever it
+    // has grown to — which is never below the 48 dp floor.
+    expect(geometry.touchTargets.composerField.height).toBe(COMPOSER_FIELD_HEIGHT);
+    expect(geometry.touchTargets.composerField.height).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
     expect(COMPOSER_FIELD_HEIGHT).toBe(56);
   });
 

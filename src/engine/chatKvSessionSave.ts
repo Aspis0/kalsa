@@ -8,7 +8,7 @@ import {
   sessionFilePath, sessionNativeSaveCoversNPast,
   shouldSaveSession, SESSION_FORMAT_VERSION,
   warnUnexpectedSessionFailure, writeSessionMeta,
-  type SessionMeta, type SessionSaveFingerprint,
+  type SessionHistoryFact, type SessionMeta, type SessionSaveFingerprint,
 } from "./sessionPersistence";
 import { decideSessionDiskSpace } from "./sessionDiskSpaceDecision";
 import {
@@ -27,7 +27,12 @@ import {
 } from "./chatKvSessionShared";
 import type { ChatKvSessionState } from "./chatKvSessionState";
 
-/** Write the active model KV + meta to disk; the gates and the write order are LlamaService's, moved verbatim. */
+/**
+ * Write the active model KV + meta to disk; the gates and the write order are LlamaService's, moved verbatim.
+ * `historyHashValue` may be a thunk (see `SessionHistoryFact`): the job resolves
+ * it HERE, after the sync gates and the prefix early-return, so a caller that
+ * must enqueue in its own tick never pays the read + hash on the UI path.
+ */
 let kvPrefixUnavailableLoggedKey: string | null = null;
 
 /**
@@ -42,7 +47,7 @@ let kvPrefixUnavailableLoggedKey: string | null = null;
 export async function persistChatKvSession(
   state: ChatKvSessionState,
   modelId: string,
-  historyHashValue: string,
+  historyHashValue: string | (() => Promise<SessionHistoryFact>),
   historyMessageCount?: number,
 ): Promise<boolean> {
   if (state.activeGovernorActive) {
@@ -122,6 +127,22 @@ export async function persistChatKvSession(
         return false;
       }
       logStemHash = historyHash(stem);
+      // The job can start long after the caller queued it, and the lifecycle
+      // gate sits in FRONT of the engine chain while a send takes no such gate
+      // (streamAssistantTurn goes straight to withEngineJob). So a completion
+      // in the new chat can prime the engine for THAT chat while this save
+      // waits for the gate — and then this job would write the new chat's KV
+      // under this save's stem with this save's history hash. The next open of
+      // this chat would match the hash and serve the wrong context. The held KV
+      // names the conversation it holds — `holdChatSession` (LlamaService) is
+      // the only way to take a hold, so a held KV with NO owner is a state we
+      // refuse on rather than guess at. Refuse, and keep the previous good
+      // .kvs. Legitimate saves are untouched: the gate above already requires a
+      // held KV, and every hold names its conversation.
+      if (state.kvHoldsChatSession && state.lastAssembleConvId !== conversationId) {
+        log(false, { reason: "kv_moved_on" });
+        return false;
+      }
       if (!state.activeModelFileId || !state.activeEngineBuild) {
         log(false, { reason: "session_identity_unavailable" });
         return false;
@@ -149,9 +170,18 @@ export async function persistChatKvSession(
       usedTokens = resolveSessionDiskTokens(diskInput);
       estimatedBytes =
         usedTokens == null ? 0 : estimateSessionBytes(usedTokens, bytesPerToken ?? undefined);
+      // A deferred history is read HERE, not in the caller's tick: the job is
+      // already on the FIFO, so the read costs no UI frame, and everything
+      // below (fingerprint, meta, log) reads the resolved pair.
+      const resolved =
+        typeof historyHashValue === "string"
+          ? { historyHash: historyHashValue, historyMessageCount }
+          : await historyHashValue();
+      const savedHistoryHash = resolved.historyHash;
+      const savedHistoryCount = resolved.historyMessageCount;
       const saveFingerprint: SessionSaveFingerprint = {
         stem,
-        historyHash: historyHashValue,
+        historyHash: savedHistoryHash,
         usedTokens,
         engineBuild: state.activeEngineBuild ?? "",
         conversationId: conversationId ?? "",
@@ -237,16 +267,16 @@ export async function persistChatKvSession(
         nCtx: state.activeEngineCtx,
         cacheTypeK: state.activeCacheTypeK ?? "",
         cacheTypeV: state.activeCacheTypeV ?? "",
-        historyHash: historyHashValue,
+        historyHash: savedHistoryHash,
         savedAt: Date.now(),
       };
       if (
-        typeof historyMessageCount === "number" &&
-        Number.isInteger(historyMessageCount) &&
-        historyMessageCount >= 0 &&
-        Number.isFinite(historyMessageCount)
+        typeof savedHistoryCount === "number" &&
+        Number.isInteger(savedHistoryCount) &&
+        savedHistoryCount >= 0 &&
+        Number.isFinite(savedHistoryCount)
       ) {
-        meta.historyMessageCount = historyMessageCount;
+        meta.historyMessageCount = savedHistoryCount;
       }
       if (promptEnvHash !== undefined) meta.promptEnvHash = promptEnvHash;
       if (state.activeMtpNMax !== undefined) meta.mtpNMax = state.activeMtpNMax;
@@ -329,7 +359,7 @@ export async function persistChatKvSession(
       );
       log(true, {
         tokens: typeof tokens === "number" ? tokens : 0,
-        hash: historyHashValue,
+        hash: savedHistoryHash,
         ...(meta.historyMessageCount !== undefined
           ? { messageCount: meta.historyMessageCount }
           : {}),

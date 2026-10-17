@@ -120,6 +120,19 @@ export type SessionSaveFingerprint = {
   conversationId: string;
 };
 
+/**
+ * The history fact a session meta records. A save may take it as a THUNK
+ * instead of a string: the read + stringify + hash of a full history is too
+ * much JS for a UI tap, and deferring it into the queued job keeps both the tap
+ * and the FIFO position — the save is enqueued in the caller's tick either way,
+ * while the hash lands after the job starts. The thunk must read the history it
+ * was captured for: the caller binds a new conversation in between.
+ */
+export type SessionHistoryFact = {
+  historyHash: string;
+  historyMessageCount: number;
+};
+
 export function isSameSessionSave(
   previous: SessionSaveFingerprint | null,
   next: SessionSaveFingerprint,
@@ -353,10 +366,14 @@ function messageInterrupted(message: unknown): boolean {
   );
 }
 
-/** Boot messages from AsyncStorage. Best-effort; never throws; [] on failure. */
-export async function readBootMessages(): Promise<unknown[]> {
+/**
+ * Boot messages from AsyncStorage. Best-effort; never throws; [] on failure.
+ * `key` defaults to the bound conversation's: pass the key captured BEFORE a
+ * rebind to read the chat being left while the UI already shows the new one.
+ */
+export async function readBootMessages(key: string = bootMessagesKey): Promise<unknown[]> {
   try {
-    const raw = await AsyncStorage.getItem(bootMessagesKey);
+    const raw = await AsyncStorage.getItem(key);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];

@@ -62,10 +62,23 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
         emissionSource = source;
       }
     },
-    onThinkingText: (text) => {
+    onThinkingText: (text, meta) => {
       if (!fence.owns(token)) return;
+      // The round's reconciled span, and the only one that persists: it is
+      // authoritative, so it may be EMPTY (finalize stripped the whole span)
+      // and then it must clear what the stream painted instead of being
+      // dropped as blank — that left a Thinking card on screen holding
+      // reasoning the engine had decided was never reasoning.
+      if (meta?.final === true) {
+        thinkingText = typeof text === "string" && text.trim().length > 0 ? text : undefined;
+        patch((message) => ({ ...message, thinkingText: thinkingText ?? "" }));
+        return;
+      }
       if (typeof text === "string" && text.trim().length > 0) {
-        thinkingText = text;
+        // The engine already throttles this to the answer's cadence (~33 ms),
+        // so the card fills while the model reasons instead of appearing whole
+        // at finalize. Display only: `captured()` keeps the final span.
+        patch((message) => ({ ...message, thinkingText: text }));
       }
     },
     // The engine's own failure sentence (§2.8's failed row): captured verbatim,

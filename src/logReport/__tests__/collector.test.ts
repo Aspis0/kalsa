@@ -1,4 +1,16 @@
 /** Collector wiring tests with a mocked file system: passthrough, rejection, error chaining. */
+
+/** The background flush's AppState listener, captured so a test can fire it. */
+const appStateListeners: Array<(state: string) => void> = [];
+jest.mock("react-native", () => ({
+  AppState: {
+    addEventListener: (_event: string, handler: (state: string) => void) => {
+      appStateListeners.push(handler);
+      return { remove: () => undefined };
+    },
+  },
+}));
+
 jest.mock("expo-file-system", () => {
   const store = new Map<string, string>();
   class FakeFile {
@@ -49,11 +61,31 @@ function loadFresh(): { collector: Collector; logStore: LogStore } {
     collector = require("../collector");
     logStore = require("../logStore");
   });
+  loaded.push(logStore);
   return { collector, logStore };
 }
 
+/**
+ * Every store the running test loaded: a re-evaluated collector keeps writing
+ * through the first module's store, and both share the one fake file.
+ */
+let loaded: LogStore[] = [];
+
+/** What reached the log file, WITHOUT flushing the buffer first. */
+function fileText(): string {
+  return [...fakeFile.store.values()][0] ?? "";
+}
+
 function storedLines(): string[] {
-  const text = [...fakeFile.store.values()][0] ?? "";
+  // The store buffers lines; `readReportText` flushes them into the file and
+  // is the one reader every module instance shares. So flush through one store
+  // first, then read the file once — joining two stores' report texts would
+  // count the same lines twice. The stores' own text is the fallback for a run
+  // whose file backend failed.
+  if (loaded.length > 0) loaded[0].readReportText();
+  const onDisk = [...fakeFile.store.values()][0] ?? "";
+  const text =
+    onDisk.length > 0 ? onDisk : loaded.map((store) => store.readReportText()).join("");
   return text.length === 0 ? [] : text.split("\n").filter((line) => line.length > 0);
 }
 
@@ -61,6 +93,8 @@ let savedConsole: Partial<Record<"log" | "info" | "warn" | "error", unknown>> = 
 
 beforeEach(() => {
   fakeFile.reset();
+  loaded = [];
+  appStateListeners.length = 0;
   savedConsole = {};
   for (const name of ["log", "info", "warn", "error"] as const) {
     savedConsole[name] = console[name];
@@ -333,5 +367,43 @@ describe("ordering of sequentially scheduled console calls", () => {
         expect(line).toContain(`"gapMs":${index}`);
       });
     });
+  });
+});
+
+describe("the background flush", () => {
+  it("writes the buffered lines when the app leaves the foreground", async () => {
+    const { collector, logStore } = loadFresh();
+    collector.installLogReportCollector();
+
+    console.log('KALSA_CTX_FLOOR {"nCtx":7}');
+    // The drain is a microtask; a kill right here would lose the line.
+    expect(fileText()).toBe("");
+
+    for (const listener of appStateListeners) listener("background");
+
+    expect(storedLines()).toEqual([expect.stringContaining('"nCtx":7')]);
+    expect(logStore.readReportText()).toContain('"nCtx":7');
+  });
+
+  it("ignores a state change that keeps the app running", () => {
+    const { collector } = loadFresh();
+    collector.installLogReportCollector();
+    console.log('KALSA_CTX_FLOOR {"nCtx":8}');
+
+    for (const listener of appStateListeners) listener("active");
+
+    expect(fileText()).toBe("");
+  });
+
+  it("stops listening when the collector is uninstalled", () => {
+    const { collector } = loadFresh();
+    const uninstall = collector.installLogReportCollector();
+    const listeners = appStateListeners.length;
+    uninstall();
+
+    console.log('KALSA_CTX_FLOOR {"nCtx":9}');
+    for (const listener of appStateListeners) listener("background");
+    expect(appStateListeners.length).toBe(listeners);
+    expect(fileText()).toBe("");
   });
 });

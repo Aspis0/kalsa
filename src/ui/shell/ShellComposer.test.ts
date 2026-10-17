@@ -21,8 +21,13 @@ jest.mock("../../i18n", () => ({
 
 jest.mock("../../theme/design", () => ({
   families: { sans: "system" },
-  space: { xxs: 4 },
-  type: { caption: { fontFamily: "system", fontSize: 11, lineHeight: 16 } },
+  measure: { gutter: 16 },
+  space: { xs: 8, xxs: 4 },
+  spacing: { xs: 4 },
+  type: {
+    caption: { fontFamily: "system", fontSize: 11, lineHeight: 16 },
+    meta: { fontFamily: "system", fontSize: 11, lineHeight: 14 },
+  },
 }));
 
 jest.mock("./shellStyles", () => ({
@@ -111,9 +116,9 @@ describe("the disclaimer line under the field", () => {
   });
 });
 
-describe("the keyboard's Send key obeys the button's gate", () => {
+describe("the field is a phone composer field", () => {
   const defaults: ShellComposerProps = {
-    height: 60,
+    height: 98,
     bottomOffset: 0,
     colors,
     draft: "ciao",
@@ -132,37 +137,54 @@ describe("the keyboard's Send key obeys the button's gate", () => {
     return renderer;
   }
 
-  function submit(renderer: ReactTestRenderer): void {
-    renderer.root.findByProps({ testID: "shell.composer.field" }).props.onSubmitEditing();
-  }
+  const field = (renderer: ReactTestRenderer) =>
+    renderer.root.findByProps({ testID: "shell.composer.field" });
 
-  test("enabled control → submit fires the button's own onSendPress", async () => {
+  test("multiline: Return is a newline, and Send stays the button", async () => {
     const onSendPress = jest.fn();
     const renderer = await mount({ onSendPress });
-    submit(renderer);
-    expect(onSendPress).toHaveBeenCalledTimes(1);
+    const input = field(renderer);
+
+    expect(input.props.multiline).toBe(true);
+    // The single-line Enter-to-send is gone with the shape that needed it.
+    expect(input.props.onSubmitEditing).toBeUndefined();
+    expect(input.props.returnKeyType).toBeUndefined();
+    // Send is still there, and it is the only thing that sends.
+    expect(renderer.root.findByProps({ testID: "shell.composer.send" }).props.onPress).toBe(
+      onSendPress,
+    );
     await act(async () => renderer.unmount());
   });
 
-  test.each([
-    ["a held send face", { sendEnabled: false } satisfies Partial<ShellComposerProps>],
-    ["a disabled control", { faceEnabled: false } satisfies Partial<ShellComposerProps>],
-  ])("%s → submit does nothing", async (_name, over) => {
-    const onSendPress = jest.fn();
-    const renderer = await mount({ onSendPress, ...over });
-    submit(renderer);
-    expect(onSendPress).not.toHaveBeenCalled();
-    await act(async () => renderer.unmount());
+  test("draws the box it is given, so a grown field grows", async () => {
+    const oneLine = await mount({ fieldHeight: 56 });
+    expect(oneLine.root.findByProps({ testID: "shell.composer.field" }).props.style).toEqual([
+      expect.anything(),
+      { height: 56 },
+    ]);
+    await act(async () => oneLine.unmount());
+
+    const fiveLines = await mount({ fieldHeight: 105 });
+    expect(fiveLines.root.findByProps({ testID: "shell.composer.field" }).props.style).toEqual([
+      expect.anything(),
+      { height: 105 },
+    ]);
+    await act(async () => fiveLines.unmount());
   });
 
-  test.each(["stop", "stopping"] as const)(
-    "the %s face never submits: Enter only ever sends, whatever holds the turn",
-    async (face) => {
-      const onSendPress = jest.fn();
-      const renderer = await mount({ onSendPress, face, sendEnabled: false });
-      submit(renderer);
-      expect(onSendPress).not.toHaveBeenCalled();
-      await act(async () => renderer.unmount());
-    },
-  );
+  test("reports what the input measured, so the shell can re-partition", async () => {
+    const onContentHeightChange = jest.fn();
+    const renderer = await mount({ onContentHeightChange });
+    field(renderer).props.onContentSizeChange({ nativeEvent: { contentSize: { height: 63 } } });
+
+    expect(onContentHeightChange).toHaveBeenCalledWith(63);
+    // Nothing measured, nothing reported: the band never re-partitions on a tap.
+    await act(async () => renderer.unmount());
+
+    const silent = await mount({});
+    silent.root
+      .findByProps({ testID: "shell.composer.field" })
+      .props.onContentSizeChange({ nativeEvent: { contentSize: { height: 63 } } });
+    await act(async () => silent.unmount());
+  });
 });

@@ -203,6 +203,7 @@ export async function loadChatKvSession(
       log(false, { reason: `meta_mismatch:${reproCheck.reason}` });
       return false;
     }
+    const restoredConvId = convId ?? "";
     // llama.rn 0.12.8: loadSession strips file://; saveSession does not.
     // Pass the URI form here — do not strip.
     const result = await state.context.loadSession(sessionFilePath(loadStem));
@@ -215,13 +216,16 @@ export async function loadChatKvSession(
       log(false, { reason: "tokens_loaded:0" });
       return false;
     }
-    state.kvHoldsChatSession = true;
+    // The hold names the conversation it restored: a KV that cannot say which
+    // chat it holds is not a hold (the save guard refuses it), and a legacy
+    // meta with no conversationId reads as unnamed rather than as any chat.
+    state.kvHoldsChatSession = restoredConvId.length > 0;
     state.chatKvDiskCurrent = true;
     noteChatNPast(state, result?.tokens_loaded);
     // Missing meta.assembleBoundary reads as unknown (not 0): the restored KV
     // is held with no start fact, so the next send reconciles before assembly.
     state.lastAssembleBoundary = sessionAssembleBoundary(stored);
-    state.lastAssembleConvId = convId ?? "";
+    state.lastAssembleConvId = restoredConvId;
     // A factual restore supersedes any in-memory reconcile attempt.
     state.attemptedAssembleStart = undefined;
     state.attemptedAssembleConvId = undefined;

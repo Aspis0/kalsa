@@ -2,7 +2,10 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import {
+  COMPOSER_FIELD_HEIGHT,
   COMPOSER_HEIGHT,
+  COMPOSER_LINE_HEIGHT,
+  COMPOSER_MAX_FIELD_HEIGHT,
   MIN_TOUCH_TARGET,
   MODEL_NAME_COLUMN_NEED_DP,
   SHELL_NOTICE_GAP,
@@ -15,6 +18,7 @@ import {
   STRIP_LOCATION_BUDGET_DP,
   STRIP_PILL_HEIGHT,
   bottomInsetFor,
+  composerFieldHeight,
   shellGeometry,
   stripPillTextColumn,
   type Insets,
@@ -125,6 +129,78 @@ describe("the disclaimer line's band", () => {
   it("is shown at the full composer height and dropped one dp below it", () => {
     expect(shellGeometry(349, COMPOSER_HEIGHT, { top: 0, bottom: 0 }).disclaimerShown).toBe(true);
     expect(shellGeometry(349, COMPOSER_HEIGHT - 1, { top: 0, bottom: 0 }).disclaimerShown).toBe(false);
+  });
+});
+
+describe("the field that grows with what is typed", () => {
+  const INSETS = { top: 24, bottom: 16 };
+
+  it("keeps one and two lines in the 56 dp capsule", () => {
+    expect(composerFieldHeight(0)).toBe(COMPOSER_FIELD_HEIGHT);
+    expect(composerFieldHeight(COMPOSER_LINE_HEIGHT)).toBe(COMPOSER_FIELD_HEIGHT);
+    expect(composerFieldHeight(2 * COMPOSER_LINE_HEIGHT)).toBe(COMPOSER_FIELD_HEIGHT);
+  });
+
+  it("grows a line at a time up to five, then holds and scrolls", () => {
+    expect(composerFieldHeight(3 * COMPOSER_LINE_HEIGHT)).toBe(63);
+    expect(composerFieldHeight(4 * COMPOSER_LINE_HEIGHT)).toBe(84);
+    expect(composerFieldHeight(5 * COMPOSER_LINE_HEIGHT)).toBe(COMPOSER_MAX_FIELD_HEIGHT);
+    expect(composerFieldHeight(40 * COMPOSER_LINE_HEIGHT)).toBe(COMPOSER_MAX_FIELD_HEIGHT);
+  });
+
+  it("never grows on nonsense, and rounds a fractional measurement", () => {
+    expect(composerFieldHeight(Number.NaN)).toBe(COMPOSER_FIELD_HEIGHT);
+    expect(composerFieldHeight(-5)).toBe(COMPOSER_FIELD_HEIGHT);
+    expect(composerFieldHeight(Number.POSITIVE_INFINITY)).toBe(COMPOSER_FIELD_HEIGHT);
+    expect(composerFieldHeight(63.4)).toBe(63);
+  });
+
+  it("takes the growth out of the transcript, and still partitions exactly", () => {
+    const oneLine = shellGeometry(349, 621, INSETS, COMPOSER_LINE_HEIGHT);
+    const fiveLines = shellGeometry(349, 621, INSETS, COMPOSER_MAX_FIELD_HEIGHT);
+
+    expect(oneLine.composerFieldHeight).toBe(COMPOSER_FIELD_HEIGHT);
+    expect(fiveLines.composerFieldHeight).toBe(COMPOSER_MAX_FIELD_HEIGHT);
+    // The band is what the transcript gives up, one dp for one dp.
+    expect(fiveLines.composer.height - oneLine.composer.height).toBe(
+      COMPOSER_MAX_FIELD_HEIGHT - COMPOSER_FIELD_HEIGHT,
+    );
+    expect(fiveLines.transcript.height).toBe(oneLine.transcript.height - 49);
+    for (const geometry of [oneLine, fiveLines]) {
+      expect(
+        geometry.strip.height + geometry.transcript.height + geometry.composer.height,
+      ).toBe(geometry.usableHeight);
+      expect(geometry.composer.top + geometry.composer.height).toBe(621 - INSETS.bottom);
+    }
+  });
+
+  it.each([
+    ["a short screen", 120],
+    ["a 60 dp shell", 60],
+    ["a degenerate shell", 20],
+  ])("fits the field inside the band it draws in on %s", (_name, height) => {
+    const geometry = shellGeometry(349, height, INSETS, COMPOSER_MAX_FIELD_HEIGHT);
+    // The band's interior: its two lifts, plus the disclaimer line when shown.
+    // The field never exceeds it — a 60 dp shell has 38 dp of field, not 56.
+    const room = Math.max(
+      0,
+      geometry.composer.height - 8 - 14 - (geometry.disclaimerShown ? 20 : 0),
+    );
+    expect(geometry.composerFieldHeight).toBeLessThanOrEqual(room);
+    expect(geometry.composerFieldHeight).toBeLessThanOrEqual(geometry.composer.height);
+  });
+
+  it("reports the box the field renders, floor or not", () => {
+    // The reported target and the drawn field are the same number, so a band
+    // with room still clears the 48 dp floor and a squeezed one says so.
+    const roomy = shellGeometry(349, 621, INSETS, COMPOSER_FIELD_HEIGHT);
+    expect(roomy.touchTargets.composerField.height).toBe(COMPOSER_FIELD_HEIGHT);
+    expect(roomy.touchTargets.composerField.height).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
+
+    // A 60 dp shell with no insets: 38 dp of field inside the 22 dp of lifts.
+    const short = shellGeometry(349, 60, { top: 0, bottom: 0 }, COMPOSER_MAX_FIELD_HEIGHT);
+    expect(short.composerFieldHeight).toBe(38);
+    expect(short.touchTargets.composerField.height).toBe(short.composerFieldHeight);
   });
 });
 
