@@ -1,0 +1,6 @@
+# The AsyncStorage DB holds the owner's real conversations: never commit it, not even the backup.
+*.sqlite
+# uiautomator dumps can capture whatever chat is on screen; intermediates, not evidence.
+*-ui*.txt
+*-ui*.xml
+__pycache__/
