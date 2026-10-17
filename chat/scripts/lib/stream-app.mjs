@@ -161,7 +161,7 @@ export async function startBrain(brain) {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, authorization",
+    "Access-Control-Allow-Headers": "content-type, authorization, x-kalsa-request",
   };
   const server = createServer((request, response) => {
     if (request.method === "OPTIONS") {

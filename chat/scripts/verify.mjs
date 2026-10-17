@@ -7433,6 +7433,17 @@ const tests = {
   },
 };
 
+// Every mock here stands in for the door, so each one must answer the preflight
+// the way the door does. `x-kalsa-request` rides on the completion fetch
+// (streamRound.ts) to tie a UI timeout line to the door's audit line, and a
+// server that does not allow it refuses the whole turn — the request never
+// leaves the preflight, so the failure looks like a dead engine, not a header.
+const MOCK_CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "content-type, authorization, x-kalsa-request",
+};
+
 /** The endpoint a mail turn needs: list the mailbox, draw the cards, then say
     the one sentence. The same exchange the app's own loop drives. */
 function mailEndpoint() {
@@ -7450,11 +7461,7 @@ function mailEndpoint() {
     [piece({ role: "assistant", tool_calls: [call("c2", "mail_show", { items: SHOW })] }, "tool_calls")],
     [piece({ role: "assistant", content: "Ho trovato 3 mail che richiedono attenzione." }, "stop")],
   ];
-  const cors = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, authorization",
-  };
+  const cors = MOCK_CORS;
   let round = 0;
   return createServer((req, res) => {
     let body = "";
@@ -7624,11 +7631,7 @@ async function waitTurnDone(page) {
 
 /** Answers a mail turn with the rounds it is given, one per model call. */
 function serveRounds(rounds, before = () => {}) {
-  const cors = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, authorization",
-  };
+  const cors = MOCK_CORS;
   let round = 0;
   return createServer((req, res) => {
     let body = "";
@@ -7675,11 +7678,7 @@ function draftEndpoint(replyTo, body) {
     carries the note that names the draft. Only a change request that carries
     that note is redrafted; the rest are answered in words. */
 function redraftEndpoint(replyTo, first, second, wire) {
-  const cors = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, authorization",
-  };
+  const cors = MOCK_CORS;
   const opening = [
     mailRound({ id: "c1", name: "mail_list", args: { days: 1 } }),
     mailRound({ id: "c2", name: "mail_draft", args: { reply_to_id: replyTo, body: first } }),
@@ -8149,7 +8148,10 @@ async function mailGateRun({ document }) {
     await box.waitFor({ timeout: 15000 });
     await box.fill("What came in today?");
     await box.press("Enter");
-    await gateAsk(page, `mail gate${document ? " with a document" : ""}: the ask appeared`);
+    // Everything below reads the ask, so a miss here ends the case: gateAsk has
+    // already recorded it, and the read would otherwise hang for 30 s and report
+    // a TimeoutError instead of the real failure.
+    if (!(await gateAsk(page, `mail gate${document ? " with a document" : ""}: the ask appeared`))) return;
     const why = (await page.locator(".webgate-why").first().textContent()) ?? "";
     const want = document ? "One document is attached and this chat holds your mail" : "This chat holds your mail";
     check(`mail gate${document ? " with a document" : ""}: the ask says why`, why.includes(want), why);
@@ -8235,12 +8237,17 @@ async function mailConfirmRun(leave) {
 }
 
 /** Wait for the ask to be on screen. A wait that stands in for an assertion
-    must FAIL as one, never as a raw TimeoutError (round-24 rule). */
+    must FAIL as one, never as a raw TimeoutError (round-24 rule). The answer
+    comes back so a caller whose next step reads the ask can stop there: the
+    miss is already recorded, and carrying on would hang on a locator that has
+    nothing to read. */
 async function gateAsk(page, label) {
   try {
     await page.locator(".webgate").waitFor({ timeout: 10000 });
+    return true;
   } catch {
     check(label, false, "the ask never appeared");
+    return false;
   }
 }
 

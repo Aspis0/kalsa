@@ -220,7 +220,7 @@ function mockEndpoint() {
   const CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, authorization",
+    "Access-Control-Allow-Headers": "content-type, authorization, x-kalsa-request",
   };
   return createServer((req, res) => {
     let body = "";
