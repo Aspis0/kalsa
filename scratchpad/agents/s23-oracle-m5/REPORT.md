@@ -1014,3 +1014,54 @@ So moving `set_rows` off HTP while the KV buffers stay on HTP0 is not a valid co
 - DB: backup `raw/RKStorage-pre-hexenv-backup.sqlite` (sha256 `c2fbce32…30f8`, 178 rows, integrity `ok`); read-back after the run: integrity `ok`, 189 rows, **no key removed**; additions are the 4 new chats (`kalsa.chat.compactor.*`, `kalsa.messages.*`, `kalsa.session.meta.*`), a new `kalsa.governor.learned.v1` entry for the new binding (`3fbcbfd0`), and the dead marker (removed, see 13.2).
 - App left on an empty new chat, `raw/final-screen-hexenv.png`, `mCurrentFocus=com.kalsa.app/.MainActivity`.
 - Device time: about 40 minutes of arms plus setup (within the ~90 min budget). Battery 58 % → 55 % unplugged; monitor peaks over hC/h0/h1/h2: skin 34.4 °C, battery 32.8 °C, thermal status 0 in all 16 samples; no stop rule fired. (h3 aborted before its monitor started, so it has no samples.)
+
+## 14. FA geometry on the NPU: which setting makes it track the CPU (2026-10-17)
+
+Build `app-release.apk` from `/tmp/apk-fageom.Vku6/…a792233678ecdc9d…` (debuggable, binding `47197d3e`), installed with `-r`, data kept. Prompt `enc-long` (2175 positions, `prefill_chunks` 10), kind H (NPU prefill, teacher-forced to `l1a`'s 32 ids). Reference is `hC2`, a fresh CPU capture on this APK. Oracle: unmodified `oracle_logit.py`, TF, thresholds 0.03 / 0.02 / 0.10. Steps 0–31.
+
+Geometry is read from the `ggml-hex FA-geom` lines (first 3 FA ops with `nek1 > 1024`) in each arm's logcat; the applied line is in `raw/<arm>-geom.txt`.
+
+### 14.1 Build check
+
+`hC2` is bit-identical to `hC` (§13): `oracle=PASS rule=none steps=32 max_dlogp=0.0000 max_dp1=0.0000 divergences=0 first_div=-1`, 0/32 disagreements. The new binding does not move the CPU reference.
+
+### 14.2 Arms
+
+prefill_ms is the `KALSA_GOVERNOR_COMPLETION` value; the CPU arm has no governor line, so it logs none. All NPU arms: `engine_prefill NPU`, `prefill_dev HTP0`, 33/33 `forced:true`, same token ids as `l1a`.
+
+| arm | hexagon-env | applied line | geometry (Br / Bc / n_kv_blocks / n_threads / pipeline) | top-1 disagree vs hC2 (steps 0–31) | max abs dlogp (CPU top-1) | max dp1 | prefill_ms | oracle line (verbatim) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `hC2` | absent | none | CPU, no FA-geom | — (reference) | — | — | not logged | — |
+| `g0` | absent | none | 8 / 2688 / 4 / 4 / 1 | **21 / 32** (2 3 5 6 8 9 11 12 13 15 16 17 18 19 20 21 22 23 24 25 26) | 6.6642 | 0.7835 | 3072.149 | `oracle=FAIL rule=R2 steps=32 max_dlogp=6.6642 max_dp1=0.7835 divergences=0 first_div=-1` |
+| `g1` | `GGML_HEXAGON_FA_NOPIPE=1` | `applied 1, skipped 0`; `overrides … nopipe=1` | 8 / 2688 / 4 / **1** / **0** | **1 / 32** (14) | **0.8948** | 0.0558 | 4015.107 | `oracle=FAIL rule=R2 steps=32 max_dlogp=0.8948 max_dp1=0.0558 divergences=0 first_div=-1` |
+| `g2` | `GGML_HEXAGON_FA_BC_MAX=256` | `applied 1, skipped 0`; `overrides bc_max=256` | 8 / 256 / 32 / 4 / 1 | **20 / 32** (2 5 6 8 9 11 12 13 15 16 17 18 19 20 21 22 23 24 25 26) | 6.6824 | 0.7828 | 3118.808 | `oracle=FAIL rule=R2 steps=32 max_dlogp=6.6824 max_dp1=0.7828 divergences=0 first_div=-1` |
+| `g3` | `GGML_HEXAGON_FA_BC_MAX=128` | `applied 1, skipped 0`; `overrides bc_max=128` | 8 / 128 / 64 / 4 / 1 | **20 / 32** (2 5 6 8 9 11 12 13 15 16 17 18 19 20 21 22 23 24 25 26) | 6.7644 | 0.7830 | 3176.442 | `oracle=FAIL rule=R2 steps=32 max_dlogp=6.7644 max_dp1=0.7830 divergences=0 first_div=-1` |
+| `g4` | `GGML_HEXAGON_FA_NOPIPE=1` (replicate of g1) | `applied 1, skipped 0`; `nopipe=1` | 8 / 2688 / 4 / 1 / 0 | **1 / 32** (14) | 0.8948 | 0.0558 | 4020.592 | `oracle=FAIL rule=R2 steps=32 max_dlogp=0.8948 max_dp1=0.0558 divergences=0 first_div=-1` |
+
+Raw: `raw/{g0,g1,g2,g3,g4,hC2}-geom.txt`, probs `raw/<arm>-probs.jsonl`, steps `raw/steps-hC2-vs-<arm>.txt`.
+
+### 14.3 Why g4 and what it shows
+
+g1 is the only clean arm, and its one knob changes two things at once: `pipeline=0` and `n_threads=1`, shown together in the FA-geom line. No existing key sets them separately, so the culprit between pipelining and thread count cannot be isolated from this build. The next most useful run was a replicate of g1: it is the same file and gives the same verdict and the same prefill to within 0.2 %, so the clean result is repeatable run to run. The prefill figure is also the second timing for the cost.
+
+### 14.4 Answer
+
+**`GGML_HEXAGON_FA_NOPIPE=1` (pipeline off, single HTP thread) is the geometry that makes the NPU track the CPU: 1/32 top-1 disagreements (step 14) and max dlogp 0.89, against 21/32 and 6.66 at the default. It costs about 31 % more prefill (4015 and 4021 ms in the two runs, against 3072 ms for g0, same 2175-token prompt). Block size does nothing: `BC_MAX` 256 and 128 stay at 20/32, with prefill unchanged.**
+
+For comparison, the §13 switches cost more: `FA_SELECT=1` took 62.9 s of prefill (about 20×, 2/32), and `flash_attn_ext` on CPU took 10.9 s (about 3.5×, 2/32). NOPIPE is the cheapest of the three that clears the top-1 bar.
+
+### 14.5 What this does not settle
+
+- **The oracle still FAILs** for g1 and g4. The top-1 bar (≤2/32) is met, but max dlogp 0.89 is still far above the 0.10 limit, and the R2 headline is kept. "Tracks the CPU" here means top-1 agreement, not logit agreement. Nothing in this round is a fix that the oracle accepts.
+- **Pipeline vs threads not separated.** A build with a separate `n_threads` knob would settle it.
+- **One prompt, one length.** The ≤1030-position arms of §12 were not re-run on this build.
+- **The NOPIPE cost is single-run per arm.** The g1/g4 replicate matches to 0.2 %, but g0 has one prefill measurement.
+- **Debug-only.** The switch is read from a file in the app data dir; choosing a geometry for shipping is a product decision.
+
+### 14.6 State left on the device
+
+- `files/hexagon-env` deleted and verified absent (`No such file or directory`).
+- `restore.sh` exit 0 (governor 1, bench keys absent, web 1, tools 0/0).
+- DB: backup `raw/RKStorage-pre-geom-backup.sqlite` (188 rows, integrity `ok`, no `kalsa.load.*`); read-back after restore: integrity `ok`, 202 rows, **no key removed**; additions are 6 new chats (`kalsa.chat.compactor.*`, `kalsa.messages.*`, `kalsa.session.meta.*`) and new `kalsa.governor.learned.v1` entries for binding `47197d3e`.
+- App left on an empty new chat, `raw/final-screen-geom.png`, `mCurrentFocus=com.kalsa.app/.MainActivity`.
+- Monitor peaks over hC2/g0–g4: skin 33.2 °C, battery 32.3 °C, thermal status 0, 15 Awake samples, no stop rule fired. Battery 50 % → 46 % unplugged.
