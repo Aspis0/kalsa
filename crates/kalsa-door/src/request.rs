@@ -6,6 +6,9 @@ use kalsa_supervisor::EngineKey;
 
 pub(super) const MAX_HEAD: usize = 32 * 1024;
 pub(super) const MAX_BODY: usize = 16 * 1024 * 1024;
+/// The caller's name for a request (`X-Kalsa-Request`), long enough for a
+/// timestamp plus entropy and short enough to read in a log line.
+pub(super) const MAX_REQUEST_ID: usize = 32;
 
 /// Why a head could not be read. The cap is its own case because the request
 /// was well formed: its body only declared more bytes than the door holds, and
@@ -41,6 +44,10 @@ pub(super) struct UnsealedHead {
     forwarded: Vec<u8>,
     pub(super) body_length: usize,
     pub(super) authorization: Option<Vec<u8>>,
+    /// The caller's own name for this request (`X-Kalsa-Request`), so a line
+    /// the webview writes about a request and the door's line about it can be
+    /// joined. Opaque to both: neither end reads anything out of it.
+    pub(super) request: Option<Vec<u8>>,
     /// The client's `Origin`, taken once. `None` when it was absent — and
     /// when a second copy arrived, which is an ambiguity rather than an
     /// origin, and never a header the door should reflect.
@@ -182,6 +189,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
     // header named by a `Connection` line that comes LATER must die all the
     // same.
     let mut authorization = None;
+    let mut request_id = None;
     let mut last_event_id = None;
     let mut room_epoch = None;
     let mut range = None;
@@ -212,6 +220,19 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
                     return Err(HeadError::Malformed);
                 }
                 authorization = Some(trim_ows(value).to_vec());
+            }
+            // The caller's name for this request. Kept for the door's own log
+            // and not forwarded: it means nothing to the engine, and a repeat
+            // would leave two names for one request.
+            b"x-kalsa-request" => {
+                if request_id.is_some() {
+                    return Err(HeadError::Malformed);
+                }
+                let value = trim_ows(value);
+                if !valid_request_id(value) {
+                    return Err(HeadError::Malformed);
+                }
+                request_id = Some(value.to_vec());
             }
             b"last-event-id" => {
                 if last_event_id.is_some() {
@@ -299,7 +320,8 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
             && lower.as_slice() != b"kalsa-room-epoch"
             && lower.as_slice() != b"range"
             && lower.as_slice() != b"x-kalsa-slot"
-            && lower.as_slice() != b"x-kalsa-cache-salt";
+            && lower.as_slice() != b"x-kalsa-cache-salt"
+            && lower.as_slice() != b"x-kalsa-request";
         if kept {
             forwarded.extend_from_slice(line);
             forwarded.extend_from_slice(b"\r\n");
@@ -315,6 +337,7 @@ fn parse(bytes: &[u8]) -> Result<UnsealedHead, HeadError> {
         forwarded,
         body_length: body_length.unwrap_or(0),
         authorization,
+        request: request_id,
         origin,
         preflight,
         target: target.to_vec(),
@@ -357,6 +380,19 @@ fn valid_value(value: &[u8]) -> bool {
         .all(|byte| byte == b'\t' || !is_ctl(byte))
 }
 
+/// The caller's own name for a request. Narrower than a header value on
+/// purpose: it goes straight into a log line, so it is letters, digits and
+/// dashes only, and short enough that a line stays readable. The webview
+/// mints a hex token, so nothing a person could type gets through.
+fn valid_request_id(value: &[u8]) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_REQUEST_ID
+        && value
+            .iter()
+            .copied()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+}
+
 fn is_token(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&byte)
 }
@@ -380,7 +416,7 @@ fn trim_ows(value: &[u8]) -> &[u8] {
 
 #[cfg(test)]
 mod tests {
-    use super::parse;
+    use super::{parse, MAX_REQUEST_ID};
 
     /// The protected property: the phone is never promised a socket the
     /// door has already scheduled to close. A keep-alive request in, a
@@ -626,5 +662,51 @@ mod tests {
         let text = std::str::from_utf8(sealed.bytes()).unwrap();
         assert_eq!(text.matches("X-Kalsa-Slot: ").count(), 1);
         assert!(text.contains("X-Kalsa-Slot: 3\r\n"));
+    }
+
+    /// The caller's name for a request joins its own lines together, so the
+    /// door must read it — and must not pass it on, since the engine has no
+    /// use for it and a second copy would leave two names for one request.
+    #[test]
+    fn the_callers_request_name_is_read_for_the_log_and_never_forwarded() {
+        let head = parse(
+            b"POST /v1/chat/completions HTTP/1.1\r\nHost: x\r\n\
+               X-Kalsa-Request: 3f2a9c11\r\n\r\n",
+        )
+        .expect("a well-formed head parses");
+        assert_eq!(
+            head.request.as_deref(),
+            Some(&b"3f2a9c11"[..]),
+            "the caller's name did not reach the door"
+        );
+        let forwarded = std::str::from_utf8(&head.forwarded).unwrap();
+        assert!(
+            !forwarded.to_ascii_lowercase().contains("x-kalsa-request")
+                && !forwarded.contains("3f2a9c11"),
+            "the caller's name reached the engine: {forwarded}"
+        );
+
+        let repeated = parse(
+            b"POST / HTTP/1.1\r\nHost: x\r\n\
+               X-Kalsa-Request: a\r\nX-Kalsa-Request: b\r\n\r\n",
+        );
+        assert!(repeated.is_err(), "two names for one request is ambiguous");
+
+        // It goes straight into a log line, so anything a person could type to
+        // dress up an entry is refused rather than written.
+        for bad in [
+            &b"X-Kalsa-Request: hello world\r\n"[..],
+            b"X-Kalsa-Request: ask/quit\r\n",
+            b"X-Kalsa-Request: \r\n",
+        ] {
+            let raw = [b"POST / HTTP/1.1\r\nHost: x\r\n".as_slice(), bad, b"\r\n"].concat();
+            assert!(parse(&raw).is_err(), "a bad request name parsed: {bad:?}");
+        }
+        let long = vec![b'a'; MAX_REQUEST_ID + 1];
+        let raw = format!(
+            "POST / HTTP/1.1\r\nHost: x\r\nX-Kalsa-Request: {}\r\n\r\n",
+            String::from_utf8(long).unwrap()
+        );
+        assert!(parse(raw.as_bytes()).is_err(), "an over-long request name parsed");
     }
 }

@@ -267,6 +267,9 @@ pub(super) fn handle(
         }
     };
     audit::head(&head.method, &head.target);
+    if let Some(id) = head.request.as_deref() {
+        audit::request(id);
+    }
     // A CORS preflight is answered here, before the credential scan: the
     // browser sends it WITHOUT the credential it is asking permission to
     // send, so authenticating it would answer `401` and the real request

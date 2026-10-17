@@ -24,7 +24,7 @@ const outfile = join(dir, "app.mjs");
 await build({
   stdin: {
     contents: `
-      export { completionBody, IDLE_TIMEOUT_MS, createPrefillWatch } from "../src/lib/chat.ts";
+      export { completionBody, IDLE_TIMEOUT_MS, PREFILL_GAP_CAP_MS, createPrefillWatch } from "../src/lib/chat.ts";
       export { runRound } from "../src/lib/streamRound.ts";
     `,
     resolveDir: SCRIPTS_DIR,
@@ -37,9 +37,14 @@ await build({
   outfile,
   loader: { ".css": "empty" },
   logLevel: "silent",
+  // The app's test-only hooks are behind `import.meta.env.DEV`, which Vite
+  // folds to a literal at build time. Node has no `import.meta.env`, so the
+  // flag is supplied here the same way a dev server would — otherwise the
+  // bundle throws on the property read before a single check runs.
+  define: { "import.meta.env.DEV": "true" },
 });
 const app = await import(pathToFileURL(outfile).href);
-const { runRound, completionBody, createPrefillWatch, IDLE_TIMEOUT_MS } = app;
+const { runRound, completionBody, createPrefillWatch, IDLE_TIMEOUT_MS, PREFILL_GAP_CAP_MS: GAP_CAP_MS } = app;
 
 let fail = 0;
 function check(label, condition, detail) {
@@ -178,10 +183,19 @@ await scenario("the allowance", async () => {
   check("a finished prefill is back to the ordinary bound", watch.report({ total: 5000, processed: 5000, time_ms: 93 * S }) === IDLE_TIMEOUT_MS);
   const slow = createPrefillWatch();
   slow.report({ total: 90000, processed: 0, time_ms: 0 });
-  // A batch of 8192 tokens at 22 tok/s: 372 s. The allowance follows it.
+  // A batch of 8192 tokens at 22 tok/s: 372 s. Three times that is over the
+  // ceiling, and the ceiling is the answer: a turn waits out minutes, not days.
   check(
-    "a batch larger than any constant is covered by the pace it showed",
-    slow.report({ total: 90000, processed: 8192, time_ms: 372 * S }) === 3 * 372 * S,
+    "a batch slower than the ceiling stops at the ceiling",
+    slow.report({ total: 90000, processed: 8192, time_ms: 372 * S }) === GAP_CAP_MS,
+  );
+  const brisk = createPrefillWatch();
+  brisk.report({ total: 90000, processed: 0, time_ms: 0 });
+  // A batch inside the ceiling still follows the pace it showed: 80 s of work
+  // buys 240 s of silence, not the 300 s the ceiling would allow.
+  check(
+    "a batch within the ceiling is covered by the pace it showed",
+    brisk.report({ total: 90000, processed: 4096, time_ms: 80 * S }) === 3 * 80 * S,
   );
   for (const bad of ["nope", null, undefined, {}, { total: "many", processed: 1, time_ms: 1 }]) {
     check(`an unreadable report (${JSON.stringify(bad)}) is only liveness`, createPrefillWatch().report(bad) === IDLE_TIMEOUT_MS);
@@ -221,21 +235,25 @@ await scenario("a slow prefill that keeps reporting", async () => {
   check("nor as thinking", run.reasoning.length === 0);
 });
 
-await scenario("a batch far past the ordinary bound", async () => {
-  // A huge batch the owner chose: 372 s between reports, once the pace is known.
+await scenario("a batch whose pace outruns the ceiling", async () => {
+  // A huge batch the owner chose. Once the pace is known it asks for 600 s of
+  // silence; the ceiling is what the turn actually waits.
   const feed = engine("error");
   const run = start(feed);
+  let settled = false;
+  run.outcome.then(() => {
+    settled = true;
+  });
   await settle();
   await feed.send(progress(0, 90000, 0));
   await advance(200_000); // inside the first-gap guess
   await feed.send(progress(8192, 90000, 200_000));
-  await advance(500_000); // the pace (200 s) allows 600 s
-  await feed.send(progress(16384, 90000, 700_000));
-  await feed.send(progress(90000, 90000, 800_000));
-  await feed.send(word("ok"));
-  await feed.send("[DONE]");
+  await advance(GAP_CAP_MS - 1);
+  await settle();
+  check("a gap shorter than the ceiling is still open", !settled);
+  await advance(2);
   const result = await run.outcome;
-  check("a batch that takes minutes is waited for once the pace is known", result.round !== undefined, String(result.error?.kind));
+  check("a gap wider than the ceiling ends the turn", result.error?.kind === "timeout", String(result.error?.kind));
 });
 
 await scenario("silence before any byte", async () => {

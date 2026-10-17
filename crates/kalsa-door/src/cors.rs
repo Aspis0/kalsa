@@ -56,7 +56,7 @@ pub(super) fn preflight(origin: Option<&[u8]>) -> Vec<u8> {
     format!(
         "HTTP/1.1 204 No Content\r\n{}\
          Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n\
-         Access-Control-Allow-Headers: Authorization, Content-Type\r\n\
+         Access-Control-Allow-Headers: Authorization, Content-Type, X-Kalsa-Request\r\n\
          Access-Control-Max-Age: {MAX_AGE_SECONDS}\r\n\
          Content-Length: 0\r\n\
          Connection: close\r\n\r\n",
@@ -135,7 +135,12 @@ mod tests {
             !answer.contains("DELETE"),
             "a method the door does not serve is advertised: {answer}"
         );
-        assert!(answer.contains("Access-Control-Allow-Headers: Authorization, Content-Type\r\n"));
+        // Every header the webview sends on a completion. `X-Kalsa-Request` is
+        // not decoration: a header missing from this list makes the browser's
+        // preflight fail, and the fetch never leaves the page.
+        assert!(answer.contains(
+            "Access-Control-Allow-Headers: Authorization, Content-Type, X-Kalsa-Request\r\n"
+        ));
         assert!(answer.contains("Access-Control-Max-Age: 600\r\n"));
         assert!(answer.contains("Vary: Origin\r\n"));
         assert!(answer.contains("Content-Length: 0\r\n"));

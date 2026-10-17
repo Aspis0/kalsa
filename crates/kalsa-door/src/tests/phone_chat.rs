@@ -9,6 +9,7 @@ use std::time::Duration;
 use serde_json::json;
 
 use super::paging_support::status_of;
+use super::logging::wait_for_new;
 use super::phone_chat_support::{answer, chat_door, chat_door_for, event, open, text, token_of, Page, TURN};
 use super::room_support::{devices_labeled, read_all};
 use super::support::bounded;
@@ -153,8 +154,10 @@ fn a_page_that_never_takes_the_turn_ends_it_as_no_runner() {
 #[test]
 fn a_phone_that_goes_away_stops_its_turn() {
     bounded(Duration::from_secs(20), || {
+        super::logging::capture();
         let page = Arc::new(Page::default());
         let (door, address) = chat_door(Some(Arc::clone(&page)), Clocks::default());
+        let since = super::logging::line_count();
         let mut stream = open(address, "POST", "/kalsa/chat/turn", TURN);
         let sender = page.page(0);
         sender.send(event("accepted", json!({}))).unwrap();
@@ -168,6 +171,16 @@ fn a_phone_that_goes_away_stops_its_turn() {
         }
         drop(stream);
         assert!(page.stopped("req-1"), "the page was not told to stop");
+        // A turn that died with its reader leaves one line saying how far it
+        // got: the delta above and nothing of its words.
+        let lines = wait_for_new("phone turn dropped", since);
+        let line = lines
+            .iter()
+            .skip(since)
+            .find(|line| line.contains("phone turn dropped"))
+            .expect("a phone that went away mid-turn logged nothing");
+        assert!(line.contains("frames 2"), "{line}");
+        assert!(!line.contains("parte"), "the answer reached the log: {line}");
         drop(door);
     });
 }

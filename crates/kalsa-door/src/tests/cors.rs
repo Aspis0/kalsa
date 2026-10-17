@@ -22,9 +22,11 @@ fn a_preflight_is_answered_before_authentication_and_reaches_no_upstream() {
         header_values(head, "access-control-allow-methods"),
         vec!["POST, GET, OPTIONS".to_string()]
     );
+    // Every header the webview puts on a completion. Drop one and the
+    // browser's preflight fails, so the fetch never leaves the page.
     assert_eq!(
         header_values(head, "access-control-allow-headers"),
-        vec!["Authorization, Content-Type".to_string()]
+        vec!["Authorization, Content-Type, X-Kalsa-Request".to_string()]
     );
     assert!(
         !header_values(head, "access-control-max-age").is_empty(),

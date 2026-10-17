@@ -44,6 +44,7 @@ struct RequestLog {
     reason: RefCell<Option<String>>,
     bytes: Cell<u64>,
     streamed: Cell<bool>,
+    request: RefCell<Option<String>>,
     timings: RefCell<Option<Timings>>,
 }
 
@@ -62,6 +63,7 @@ pub(crate) fn begin() -> Audit {
         bytes: Cell::new(0),
         streamed: Cell::new(false),
         timings: RefCell::new(None),
+        request: RefCell::new(None),
     });
     CURRENT.with(|slot| *slot.borrow_mut() = Some(Rc::clone(&log)));
     Audit(Some(log))
@@ -91,6 +93,13 @@ pub(crate) fn head(method: &[u8], target: &[u8]) {
 
 pub(crate) fn device(device: DeviceId) {
     current(|log| log.device.set(Some(device)));
+}
+
+/// The caller's own name for this request, echoed into the line so the
+/// webview's line about a round and this line about the same request can be
+/// joined. It is already checked to be letters, digits and dashes.
+pub(crate) fn request(id: &[u8]) {
+    current(|log| *log.request.borrow_mut() = Some(String::from_utf8_lossy(id).into_owned()));
 }
 
 /// The status, when a writer did not already leave one: the first answer's
@@ -168,6 +177,12 @@ fn request_line(log: &RequestLog) -> String {
         None => String::new(),
     };
     let streamed = if log.streamed.get() { " stream" } else { "" };
+    let request = log
+        .request
+        .borrow()
+        .as_deref()
+        .map(|id| format!(" request {id}"))
+        .unwrap_or_default();
     let timings = log
         .timings
         .borrow()
@@ -175,7 +190,7 @@ fn request_line(log: &RequestLog) -> String {
         .map(|timings| timings.line_suffix())
         .unwrap_or_default();
     format!(
-        "door request: {} {} device {device} status {status}{reason} {}ms {}b{streamed}{timings}",
+        "door request: {} {} device {device} status {status}{reason} {}ms {}b{streamed}{request}{timings}",
         log.method.borrow(),
         log.route.borrow(),
         log.started.elapsed().as_millis(),
@@ -312,6 +327,7 @@ mod tests {
             bytes: Cell::new(4096),
             streamed: Cell::new(false),
             timings: RefCell::new(None),
+            request: RefCell::new(None),
         });
         assert!(
             line.starts_with("door request: POST /v1/chat/completions device 3 status 200 "),
@@ -337,6 +353,7 @@ mod tests {
             bytes: Cell::new(61),
             streamed: Cell::new(false),
             timings: RefCell::new(None),
+            request: RefCell::new(None),
         });
         assert!(
             line.starts_with(
@@ -428,6 +445,31 @@ mod tests {
         assert_eq!(status_of(b"POST /x HTTP/1.1"), None);
     }
 
+    /// The caller's name joins the webview's line about a round to this one,
+    /// and a request without one is unchanged.
+    #[test]
+    fn a_request_line_carries_the_callers_own_name_for_the_request() {
+        let log = RequestLog {
+            started: Instant::now(),
+            method: RefCell::new(method_of(b"POST")),
+            route: RefCell::new(route_of(b"/v1/chat/completions")),
+            device: Cell::new(Some(DeviceId::new(0))),
+            status: Cell::new(Some(200)),
+            reason: RefCell::new(None),
+            bytes: Cell::new(72880),
+            streamed: Cell::new(true),
+            timings: RefCell::new(None),
+            request: RefCell::new(None),
+        };
+        assert!(!request_line(&log).contains("request "), "an unnamed request grew a name");
+        *log.request.borrow_mut() = Some("3f2a9c11".to_string());
+        assert!(
+            request_line(&log).contains("72880b stream request 3f2a9c11"),
+            "{}",
+            request_line(&log)
+        );
+    }
+
     /// One request line for a target, built the way `handle` fills it.
     fn route_line(target: &[u8]) -> String {
         request_line(&RequestLog {
@@ -440,6 +482,7 @@ mod tests {
             bytes: Cell::new(1),
             streamed: Cell::new(false),
             timings: RefCell::new(None),
+            request: RefCell::new(None),
         })
     }
 }

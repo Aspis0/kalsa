@@ -1,9 +1,9 @@
 import {
   ChatRequestError,
-  IDLE_TIMEOUT_MS,
   completionBody,
   completionsUrl,
   createPrefillWatch,
+  roundTimings,
 } from "./chat";
 import type { StreamOptions, WireMessage } from "./chat";
 import { accumulate } from "./toolCalls";
@@ -121,13 +121,30 @@ function contextOverflow(body: string): boolean {
 const ERROR_BODY_LIMIT = 8 * 1024;
 
 /**
- * The first bytes of a refused answer, read to the ceiling above and then
- * cancelled — a body that keeps coming past it is not this turn's to carry,
- * and one that never ends must not hold the turn open either. The text is
- * classified, never shown or logged.
+ * A short opaque name for one request, sent to the door as `X-Kalsa-Request`
+ * and echoed into its audit line, so a line this page writes about a round and
+ * the door's line about the same request can be joined. Nothing reads meaning
+ * into it: the door checks it is letters, digits and dashes and puts it in a
+ * log, and it carries nothing the owner wrote.
  */
-async function readErrorBody(response: Response): Promise<string> {
-  if (!response.body) return "";
+function requestId(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * The first bytes of a body that is not a stream, read to the ceiling above
+ * and then cancelled — a body that keeps coming past it is not this turn's to
+ * carry, and one that never ends must not hold the turn open either. The text
+ * is classified, never shown or logged.
+ *
+ * The byte count comes back with the text so an idle line can report what this
+ * turn actually read: a body counted nowhere reads as a round that received
+ * nothing, which is the one thing it was not.
+ */
+async function readPlainBody(response: Response): Promise<{ text: string; bytes: number }> {
+  if (!response.body) return { text: "", bytes: 0 };
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let text = "";
@@ -142,7 +159,7 @@ async function readErrorBody(response: Response): Promise<string> {
   } finally {
     void reader.cancel().catch(() => {});
   }
-  return text;
+  return { text: text + decoder.decode(), bytes };
 }
 
 /**
@@ -182,22 +199,45 @@ export async function runRound(
   // stalled read() can be released without confusing the two causes.
   const linked = new AbortController();
   let timedOut = false;
+  // What an idle end reports, so the line says where the round was and how far
+  // it got: the phase it was in, the status it was given, the bytes it read and
+  // how many events it recognised. `fetch` is the wait for the head; `read` a
+  // live stream; `error` a refusal's body; `json` a body that was not a stream.
+  // Counts and names only — never a word of the answer.
+  let phase: "fetch" | "read" | "error" | "json" = "fetch";
+  let status = 0;
+  let received = 0;
+  let events = 0;
+  // The caller's name for this request, echoed into the door's own line so the
+  // two can be joined after the fact. Opaque here and there.
+  const request = requestId();
   const fireIdle = () => {
     timedOut = true;
+    logUiEvent(`chat.idle.${phase}.${status}.${received}.${events}.${request}`);
     linked.abort();
   };
+  // The head — or, failing that, the first chunk or prefill report — puts the
+  // ordinary bound straight back (`alive`), so a server that opens the stream
+  // and then goes quiet is still given up on promptly.
+  const prefill = createPrefillWatch();
   // The silence allowed after the last sign of life: the ordinary bound, or —
   // while the engine reports its prefill and no word has come — what its own
   // pace says the next batch needs (`createPrefillWatch`).
-  const prefill = createPrefillWatch();
-  let allowance = IDLE_TIMEOUT_MS;
+  //
+  // Nothing has arrived yet, so the wait is a LOADING wait, not an idle one: a
+  // request that reaches a sleeping engine is answered by a whole model load
+  // before the door relays a single byte, and that load has been measured from
+  // 1.6 s to 32.3 s on this Mac (kalsa-engine.log). Starting at the ordinary
+  // bound ended those turns at 60 s and threw away complete answers.
+  const timings = roundTimings();
+  let allowance = timings.loadingMs;
   let idle: number | undefined = window.setTimeout(fireIdle, allowance);
   const poke = () => {
     window.clearTimeout(idle);
     idle = window.setTimeout(fireIdle, allowance);
   };
   const alive = () => {
-    allowance = IDLE_TIMEOUT_MS;
+    allowance = timings.idleMs;
     poke();
   };
   const forwardAbort = () => linked.abort();
@@ -223,6 +263,8 @@ export async function runRound(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // The door reads this for its own log and never forwards it.
+        "X-Kalsa-Request": request,
         ...(token.trim() ? { Authorization: `Bearer ${token.trim()}` } : {}),
       },
       body: JSON.stringify(
@@ -230,6 +272,12 @@ export async function runRound(
       ),
       signal: linked.signal,
     });
+    // The head IS a sign of life: the server took the request and opened the
+    // answer. Whatever it does next — stall, refuse, cut — is an ordinary
+    // stream, so from here the ordinary bound applies again. Only the wait
+    // BEFORE this point is the loading wait above.
+    status = response.status;
+    alive();
   } catch (error) {
     finish();
     if (timedOut) throw new ChatRequestError("timeout", "Idle too long", undefined, url);
@@ -248,9 +296,15 @@ export async function runRound(
     // different handling: an overflow can shrink and be retried, an ordinary
     // 400 cannot. Reading the body is the only way to tell them apart, and it
     // is read (bounded) for that decision alone.
-    const overflow =
-      response.status === 400 && contextOverflow(await readErrorBody(response).catch(() => ""));
+    let overflow = false;
+    if (response.status === 400) {
+      phase = "error";
+      const body = await readPlainBody(response).catch(() => ({ text: "", bytes: 0 }));
+      received += body.bytes;
+      overflow = contextOverflow(body.text);
+    }
     finish();
+    if (timedOut) throw new ChatRequestError("timeout", "Idle too long", response.status, url);
     // Stop pressed while that body was being read ends the turn as a Stop,
     // not as the server's 400: the person's word outranks the refusal.
     if (signal.aborted) throw new ChatRequestError("aborted", "Stopped", undefined, url);
@@ -268,9 +322,14 @@ export async function runRound(
   const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
   if (!contentType.includes("text/event-stream")) {
     // A server ignoring stream:true answers plain JSON (or an HTML login
-    // page with status 200). Read it as a completion before giving up.
+    // page with status 200). Read it as a completion before giving up. The
+    // body is read through the same reader as a refusal so its bytes land in
+    // the idle line, and the phase says this was not a stream.
+    phase = "json";
     try {
-      const raw: unknown = await response.json();
+      const body = await readPlainBody(response);
+      received += body.bytes;
+      const raw: unknown = JSON.parse(body.text);
       const complete = readComplete(raw);
       finish();
       if (
@@ -300,7 +359,10 @@ export async function runRound(
     } catch (error) {
       finish();
       // Stop pressed while that body was arriving is a stop, not a server that
-      // answered with something other than a stream.
+      // answered with something other than a stream. A timer that fired is a
+      // timeout, not a Stop and not a bad answer: the body never finished, so
+      // "Not a stream" would be a guess about a body nobody read.
+      if (timedOut) throw new ChatRequestError("timeout", "Idle too long", undefined, url);
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new ChatRequestError("aborted", "Stopped", undefined, url);
       }
@@ -308,6 +370,7 @@ export async function runRound(
     }
   }
 
+  phase = "read";
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -338,6 +401,7 @@ export async function runRound(
     const payload = trimmed.slice(5).trim();
     if (payload === "[DONE]") {
       sawDone = true;
+      events += 1;
       return;
     }
     // One delta may carry thinking, answer text, tool calls and the finish
@@ -350,6 +414,7 @@ export async function runRound(
       if (data.prompt_progress !== undefined && data.prompt_progress !== null) {
         telemetryPrefill(data.prompt_progress);
         allowance = prefill.report(data.prompt_progress);
+        events += 1;
         poke();
       }
       if (!Array.isArray(data.choices)) return;
@@ -362,6 +427,7 @@ export async function runRound(
       if (thought) {
         if (!gotToken && !gotReasoning) logUiEvent("chat.decode");
         gotReasoning = true;
+        events += 1;
         alive();
         think(thought);
       }
@@ -371,6 +437,7 @@ export async function runRound(
         // turns out to be markup and nothing is shown.
         if (!gotToken && !gotReasoning) logUiEvent("chat.decode");
         gotToken = true;
+        events += 1;
         alive();
         const visible = markup === null ? content : markup.push(content);
         if (visible) show(visible);
@@ -382,6 +449,7 @@ export async function runRound(
       if (tools.length > 0 && calls !== toolCalls) {
         if (!gotToken && !gotReasoning && toolCalls.length === 0) logUiEvent("chat.decode");
         toolCalls = calls;
+        events += 1;
         alive();
       }
     }
@@ -392,6 +460,16 @@ export async function runRound(
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      // ANY byte is proof the engine is still there: a keep-alive comment, an
+      // event this reader does not recognise, a partial line — all of them say
+      // the answer is coming, and all of them restart the wait. Only the first
+      // one ends the LOADING wait; after that the allowance in force is the one
+      // the engine's own prefill pace set, and a plain restart must not shorten
+      // it back to the ordinary bound.
+      const first = received === 0;
+      received += value.byteLength;
+      if (first) alive();
+      else poke();
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";

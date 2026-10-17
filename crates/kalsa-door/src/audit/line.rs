@@ -68,6 +68,17 @@ pub(crate) fn chat_line(
     )
 }
 
+/// A phone that went away in the middle of its turn: which phone, and how many
+/// frames of the answer it had already been given. The count is the whole of
+/// it — no word of the answer ever reaches this line, so a report can say how
+/// far a lost turn got without carrying what it was saying.
+pub(crate) fn phone_gone_line(device: DeviceId, frames: u64) -> String {
+    format!(
+        "phone turn dropped: device {} frames {frames}",
+        device.value()
+    )
+}
+
 /// The engine stopped holding what the map claimed, as the door saw it.
 pub(crate) fn residency_line(relaxed: usize) -> String {
     format!("engine residency invalidated: {relaxed} slot(s) -> evicted")
@@ -159,6 +170,20 @@ mod tests {
         assert_eq!(
             refusal_line(503, "door.listener_busy"),
             "door refusal: status 503 reason door.listener_busy"
+        );
+    }
+
+    /// A lost turn must be reportable by how far it got, and must never carry
+    /// a word of the answer it was carrying.
+    #[test]
+    fn a_dropped_phone_turn_names_the_device_and_its_frames() {
+        assert_eq!(
+            phone_gone_line(DeviceId::new(5), 0),
+            "phone turn dropped: device 5 frames 0"
+        );
+        assert_eq!(
+            phone_gone_line(DeviceId::new(4), 137),
+            "phone turn dropped: device 4 frames 137"
         );
     }
 }

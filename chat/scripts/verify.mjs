@@ -2466,6 +2466,33 @@ const tests = {
     check("silent: idle timeout fires", (await page.locator(".error-block").count()) === 1);
     await browser.close();
   },
+  // A request that reaches a SLEEPING engine waits through the whole model
+  // load before the door relays a byte — measured on this Mac at 1.6s to
+  // 32.3s — and the load is not silence that means gone. The live incident of
+  // 2026-10-17: a 10.09s load, a 72,880-byte answer delivered whole, and the
+  // turn thrown away at the 60s idle bound. Here the load is LONGER than that
+  // bound, and the answer must still arrive.
+  async loading() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    // The two waits, shortened for this case so it runs in seconds: the mock's
+    // load (5s) beats the idle bound (3s) and is inside the loading bound (9s),
+    // which is the shape of a wake that the ordinary bound would throw away.
+    // Production keeps 60s and 120s (chat.ts).
+    await page.addInitScript(() => {
+      window.__kalsaTimings__ = { idleMs: 3000, loadingMs: 9000 };
+    });
+    await seed(page, { settings: okSettings("loading-demo") });
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await sendAndWait(page, "Are you there?", "8 sheep left", 25000);
+    check(
+      "loading: the answer survived a load longer than the idle bound",
+      (await page.locator(".error-block").count()) === 0,
+      `${await page.locator(".error-block").count()} error blocks`,
+    );
+    await browser.close();
+  },
   // Tool calling, end to end: the model asks for a search, the tool runs
   // through the desktop door (stubbed here — offered tools exist only where a
   // command can run them), the result goes back on the wire, and the answer

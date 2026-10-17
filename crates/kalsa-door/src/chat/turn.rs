@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 
 use super::{withdrawn, Chat, Lane, SLICE};
+use crate::audit;
 use crate::cors;
 use crate::devices::DeviceId;
 use crate::proxy::{self, Shared};
@@ -52,23 +53,44 @@ pub(super) fn start(
                 client,
                 deadline,
                 last_write: Instant::now(),
+                frames: 0,
             };
             follow(wire, &chat, &shared, device, turn, origin.as_deref());
         });
 }
 
-/// The stream's socket and the clock that paces its pings: the moment the
-/// last byte went out.
+/// The stream's socket, the clock that paces its pings, and how many answer
+/// frames this phone actually holds — counted only once the socket has taken
+/// them, so the count is what the phone could have read.
 struct Wire {
     client: TcpStream,
     deadline: Instant,
     last_write: Instant,
+    frames: u64,
 }
 
 impl Wire {
     fn send(&mut self, bytes: &[u8]) -> bool {
         self.last_write = Instant::now();
         proxy::answer_to(&mut self.client, bytes, self.deadline).is_ok()
+    }
+
+    /// One frame of the answer, as opposed to a ping or the head: what a
+    /// disconnect line counts. The count rises only when the write landed —
+    /// a frame the socket refused was never delivered, and counting it would
+    /// report progress the phone did not get.
+    fn send_frame(&mut self, bytes: &[u8]) -> bool {
+        let sent = self.send(bytes);
+        if sent {
+            self.frames += 1;
+        }
+        sent
+    }
+
+    /// The one line a lost phone leaves, whether it was noticed by the loop's
+    /// own check or by a write that would not land.
+    fn log_gone(&self, device: DeviceId) {
+        log::info!("{}", audit::line::phone_gone_line(device, self.frames));
     }
 }
 
@@ -81,6 +103,9 @@ fn follow(
     origin: Option<&[u8]>,
 ) {
     if !wire.send(&head(origin)) {
+        // The phone was already gone when its turn began. Its own line, like
+        // any other drop.
+        wire.log_gone(device);
         return;
     }
     // Asked before the page is: a stop or a forget that came with the request
@@ -99,6 +124,10 @@ fn follow(
     let mut accepted = false;
     loop {
         if proxy::client_gone(&wire.client) {
+            // The phone went away mid-turn. One line, so a turn that died with
+            // its reader is told apart from one the window refused: the frames
+            // it already held are a count, never a word of the answer.
+            wire.log_gone(device);
             chat.hook.stop(&request);
             return;
         }
@@ -132,7 +161,12 @@ fn follow(
                     _ if accepted && STREAMED.contains(&name) => (frame(name, &event.data), false),
                     _ => continue,
                 };
-                if !wire.send(&bytes) {
+                if !wire.send_frame(&bytes) {
+                    // The phone's socket stopped taking bytes mid-answer: the
+                    // same disconnect the loop's own check reports, reached
+                    // here instead because the phone vanished between two
+                    // slices. One line either way, never the answer's words.
+                    wire.log_gone(device);
                     chat.hook.stop(&request);
                     return;
                 }
@@ -141,7 +175,10 @@ fn follow(
                 }
             }
             Err(RecvTimeoutError::Timeout) => {
+                // A ping is not an answer frame, so it does not raise the
+                // count — but a ping the socket refuses is the same phone gone.
                 if wire.last_write.elapsed() >= PING && !wire.send(b": ping\n\n") {
+                    wire.log_gone(device);
                     chat.hook.stop(&request);
                     return;
                 }

@@ -129,6 +129,12 @@ const THINK_SLOW = Array.from(
   (_, i) => `Slow thought ${i + 1}: patience first, conclusions later.`,
 ).join("\n");
 
+// How long the "loading" model takes before its first byte. It must sit ABOVE
+// the page's idle bound and below its loading bound — the case seeds
+// `__kalsaTimings__` to 3s/9s, so a 5s load is exactly the shape of a wake
+// that would beat the ordinary bound. The real bounds are 60s and 120s.
+const LOADING_HEAD_MS = 5_000;
+
 // The leaked answer, verbatim from the live run of 2026-09-19 (see
 // /tmp/kalsa-tool-live.md): a model forbidden a structured tool call wrote one
 // out as text, and the page showed it.
@@ -167,7 +173,7 @@ function chunk(text) {
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "content-type, authorization",
+  "Access-Control-Allow-Headers": "content-type, authorization, x-kalsa-request",
 };
 
 let lastBody = null;
@@ -370,10 +376,20 @@ const server = http.createServer((req, res) => {
         return;
       }
       if (model.includes("silent-demo")) {
+        // The head IS flushed — this is a stream that opened and then went
+        // quiet, which is what an engine that accepted the request and stalled
+        // looks like. (`writeHead` alone would sit in Node's buffer and never
+        // reach the client, making this the "never answered" case instead.)
         res.writeHead(200, { "Content-Type": "text/event-stream", ...CORS });
-        // Never write: the client's idle timer must give up first.
+        res.flushHeaders();
+        // Never write again: the client's idle timer must give up first.
         return;
       }
+      // A waking engine: the model is loading, so nothing at all is on the
+      // wire until the load is done, then the answer streams normally. The
+      // reader must not spend its idle budget on the load. Measured on this
+      // Mac: a wake that reloads the model takes 1.6s to 32.3s (kalsa-engine.log).
+      if (model.includes("loading-demo")) return streamLoading(res, LOADING_HEAD_MS);
       // Thinking family: reasoning travels in delta.reasoning_content
       // (llama.cpp, DeepSeek) or delta.reasoning (vLLM). Same stream.
       if (model.includes("splitthink-demo")) return streamThinkSplit(res);
@@ -405,6 +421,36 @@ const server = http.createServer((req, res) => {
     return;
   }
 // Thinking family: reasoning first, then (usually) the answer.
+// A waking engine: nothing on the wire while the model loads, then the answer
+// streams normally. Real measured wakes on this Mac took 1.6s to 32.3s.
+function streamLoading(res, headDelayMs) {
+  const answer = "The answer is 8 sheep left.";
+  const aparts = [];
+  for (let i = 0; i < answer.length; i += 7) aparts.push(answer.slice(i, i + 7));
+  let ai = 0;
+  // The load: the client is connected and waiting, and gets nothing at all.
+  const load = setTimeout(() => {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "close",
+      ...CORS,
+    });
+    const timer = setInterval(() => {
+      if (ai < aparts.length) {
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: aparts[ai] } }] })}\n\n`);
+        ai++;
+        return;
+      }
+      clearInterval(timer);
+      res.write("data: [DONE]\n\n");
+      res.end();
+    }, 25);
+    res.on("close", () => clearInterval(timer));
+  }, headDelayMs);
+  res.on("close", () => clearTimeout(load));
+}
+
 function streamThink(res, thought, delayMs, answerField) {
   res.writeHead(200, {
     "Content-Type": "text/event-stream",

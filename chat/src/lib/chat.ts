@@ -158,6 +158,69 @@ export interface ToolOutcome {
 /** No new words for this long means the server is gone, not slow. */
 export const IDLE_TIMEOUT_MS = 60_000;
 
+/**
+ * The silence allowed BEFORE the server has said anything at all — before its
+ * response head.
+ *
+ * A request that reaches a sleeping engine (`--sleep-idle-seconds`) waits
+ * through a whole model load first, and the door relays nothing during it: no
+ * head, no prefill, no byte. Measured on this Mac, that load has taken 1.6 s
+ * to 32.3 s (kalsa-engine.log), and a bigger model or a slower disk takes
+ * longer. The ordinary bound counted that silence as "gone" and ended the
+ * turn at 60 s, throwing away a complete answer the door had already delivered
+ * in full (incident of 2026-10-17: a 10.09 s load, a 72,880-byte answer, and
+ * the phone told its owner the computer was not answering).
+ *
+ * Loading is not silence that means gone: the engine is provably working on
+ * the request. So the wait for the FIRST byte gets its own, larger bound —
+ * about 3.7x the worst load measured here (32.3 s), and spent only until the
+ * head arrives. From the head on this is the ordinary bound again
+ * (`streamRound.ts`), so a server that accepts a request, opens the stream and
+ * then stalls is still given up on promptly.
+ */
+export const LOADING_TIMEOUT_MS = 120_000;
+
+declare global {
+  interface Window {
+    /** A test's own bounds for the two waits, so a case about a slow engine
+        does not have to sit through a real one. Set before the page loads.
+        Read ONLY in a development build — see `roundTimings`. */
+    __kalsaTimings__?: { idleMs?: number; loadingMs?: number };
+  }
+}
+
+/** The narrowest and widest bound a test may ask for. A shorter one lets a
+    case run in seconds; a longer one must never buy a day-long timer. */
+const TIMING_FLOOR_MS = 250;
+const TIMING_CEILING_MS = 600_000;
+
+/**
+ * The two waits, as this page runs them.
+ *
+ * The override exists so a case can exercise a slow engine without waiting
+ * for one, so it is read ONLY when this is a development build: a shipped
+ * bundle folds `import.meta.env.DEV` to `false`, so no page script can reach
+ * a turn's timeouts in a Kalsa anyone is running. Even where it is read, the
+ * value is clamped and anything unusable falls back to the real constant, so a
+ * mistyped override degrades to production behaviour rather than to a dead or
+ * unbounded timer.
+ */
+export function roundTimings(): { idleMs: number; loadingMs: number } {
+  if (!import.meta.env.DEV) {
+    return { idleMs: IDLE_TIMEOUT_MS, loadingMs: LOADING_TIMEOUT_MS };
+  }
+  const over = typeof window === "undefined" ? undefined : window.__kalsaTimings__;
+  return {
+    idleMs: clamp(over?.idleMs, IDLE_TIMEOUT_MS),
+    loadingMs: clamp(over?.loadingMs, LOADING_TIMEOUT_MS),
+  };
+}
+
+function clamp(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(TIMING_CEILING_MS, Math.max(TIMING_FLOOR_MS, value));
+}
+
 /** Before any batch of a prompt has been timed there is nothing to derive a
     gap from, so the first one gets this many times the ordinary bound. */
 const PREFILL_FIRST_GAP_FACTOR = 5;
@@ -166,8 +229,17 @@ const PREFILL_FIRST_GAP_FACTOR = 5;
     that is where it has stopped instead of being slow. */
 const PREFILL_SAFETY = 3;
 
-/** The longest delay a browser timer takes: past it the timer fires at once. */
-const MAX_TIMER_MS = 2_147_483_647;
+/**
+ * The ceiling on ONE gap between prefill reports, however slow the batch
+ * behind it was. Without it a single 12-hour batch would hand the next wait a
+ * 36-hour timer, and a turn that would have ended in minutes would sit for
+ * days. Five minutes is far above the slowest batch measured on this Mac — the
+ * largest prompt this door has timed was 1,281 tokens at 1,517 ms, and the
+ * longest single `time_ms` gap in the engine's own reports is seconds — while
+ * still bounding a report that never comes again to something a person waits
+ * out rather than walks away from.
+ */
+export const PREFILL_GAP_CAP_MS = 300_000;
 
 /**
  * Follows one request's prefill reports (`prompt_progress`: `total` tokens in
@@ -179,25 +251,30 @@ const MAX_TIMER_MS = 2_147_483_647;
  * ordinary bound. The first report has no batch behind it and gets a generous
  * guess; a fully read prompt, or a report that cannot be read, is back to the
  * ordinary bound.
+ *
+ * The ordinary bound is read from `roundTimings`, the same place the reader's
+ * own timers come from: a prefill wait derived from a different number would
+ * quietly disagree with the timer it is feeding.
  */
 export function createPrefillWatch(): { report: (progress: unknown) => number } {
+  const { idleMs } = roundTimings();
   let lastTimeMs: number | null = null;
   return {
     report(progress) {
-      if (typeof progress !== "object" || progress === null) return IDLE_TIMEOUT_MS;
+      if (typeof progress !== "object" || progress === null) return idleMs;
       const { total, processed, time_ms: timeMs } = progress as Record<string, unknown>;
       if (!isFiniteNumber(total) || !isFiniteNumber(processed) || !isFiniteNumber(timeMs)) {
-        return IDLE_TIMEOUT_MS;
+        return idleMs;
       }
       const previous = lastTimeMs;
       lastTimeMs = timeMs;
-      if (processed >= total) return IDLE_TIMEOUT_MS;
-      const firstGap = IDLE_TIMEOUT_MS * PREFILL_FIRST_GAP_FACTOR;
+      if (processed >= total) return idleMs;
+      const firstGap = Math.min(PREFILL_GAP_CAP_MS, idleMs * PREFILL_FIRST_GAP_FACTOR);
       const gap = previous === null ? 0 : timeMs - previous;
       if (!(gap > 0)) return firstGap;
       const allowed = gap * PREFILL_SAFETY;
       if (!Number.isFinite(allowed)) return firstGap;
-      return Math.min(MAX_TIMER_MS, Math.max(IDLE_TIMEOUT_MS, allowed));
+      return Math.min(PREFILL_GAP_CAP_MS, Math.max(idleMs, allowed));
     },
   };
 }
