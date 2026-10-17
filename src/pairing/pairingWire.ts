@@ -1,3 +1,4 @@
+import { cleanModelName } from "./pairingModelName";
 import {
   bytesToHex,
   concatBytes,
@@ -11,6 +12,10 @@ export type PairingPhoneDeclaration = {
   parameters: { total: number; active: number } | null;
   measured_tokens_per_second: number | null;
   battery_powered: boolean | null;
+  /** The marketing model name, cleaned by cleanModelName. Sent only to a desk
+   *  that advertised `m`; absent (undefined) leaves the canonical bytes as
+   *  every pairing before this field signed them. */
+  model?: string;
 };
 
 export type PairingPhoneMacInput = {
@@ -61,13 +66,22 @@ function integerJson(value: number): string {
   return String(value);
 }
 
+/** The model field exactly as serde writes it: last, and absent when unset. */
+function modelJson(model: string | undefined): string {
+  if (model === undefined) return "";
+  // Only a name already in its cleaned form is signable: the desk cleans what
+  // it stores, so a name that would change there must not be signed here.
+  if (cleanModelName(model) !== model) throw new Error("invalid model");
+  return `,"model":${JSON.stringify(model)}`;
+}
+
 export function canonicalPhoneJson(phone: PairingPhoneDeclaration): string {
   const parameters = phone.parameters;
   const parametersJson = parameters === null
     ? "null"
     : `{"total":${integerJson(parameters.total)},"active":${integerJson(parameters.active)}}`;
   const battery = phone.battery_powered === null ? "null" : String(phone.battery_powered);
-  return `{"weights_bytes":${integerJson(phone.weights_bytes)},"parameters":${parametersJson},"measured_tokens_per_second":${floatJson(phone.measured_tokens_per_second)},"battery_powered":${battery}}`;
+  return `{"weights_bytes":${integerJson(phone.weights_bytes)},"parameters":${parametersJson},"measured_tokens_per_second":${floatJson(phone.measured_tokens_per_second)},"battery_powered":${battery}${modelJson(phone.model)}}`;
 }
 
 function assertKeyAndNonce(key: Uint8Array, nonce: Uint8Array): void {

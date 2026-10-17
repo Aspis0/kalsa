@@ -119,6 +119,19 @@ jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => undefined),
 }));
+// The phone's marketing name comes from the device profile; each test sets
+// the name its phone reports (null: a phone that reports none).
+let mockPhoneModelName: string | null = null;
+jest.mock("../engine/deviceProfile", () => {
+  const actual = jest.requireActual("../engine/deviceProfile") as typeof import("../engine/deviceProfile");
+  return {
+    ...actual,
+    getCachedDeviceProfile: async () => ({
+      ...(await actual.getCachedDeviceProfile()),
+      modelName: mockPhoneModelName,
+    }),
+  };
+});
 
 import React from "react";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
@@ -130,6 +143,7 @@ import { irohModulePresent, openIrohTunnel } from "../remote/irohBridge";
 import type { IrohTunnel } from "../remote/irohHttp";
 import { PairingScreen } from "./PairingScreen";
 import type { PairingSquare } from "../pairing/pairingTransport";
+import { parsePairingQr } from "../pairing/pairingQr";
 
 const saveCredentialMock = savePairingCredential as jest.MockedFunction<typeof savePairingCredential>;
 const originalFetch = globalThis.fetch;
@@ -143,6 +157,7 @@ beforeEach(() => {
   (openIrohTunnel as jest.Mock).mockReset();
   mockRandomFills = [0xc0];
   mockRandomError = null;
+  mockPhoneModelName = null;
   storedCredential = { ...preexistingCredential };
   saveCredentialMock.mockImplementation(async (credential, doorUrl) => {
     storedCredential = {
@@ -977,6 +992,61 @@ describe("PairingScreen", () => {
     expect(bodies[1]).toContain('"weights_bytes":0');
     expect(renderer.root.findByProps({ testID: "pairing.waiting" })).toBeDefined();
     expect(renderer.root.findAllByProps({ scannerStub: true })).toHaveLength(0);
+    await act(async () => renderer.unmount());
+  });
+
+  test("a scan of a desk that keeps models sends the phone's model in the signed declaration", async () => {
+    mockPhoneModelName = "iPhone 15 Pro Max";
+    const { bodies } = installFetch(200);
+    const renderer = await render("kalsa-remote-mac", "https://desktop.tailnet.ts.net", false);
+    const parsed = parsePairingQr(
+      JSON.stringify({
+        v: 3,
+        reachable: "http://127.0.0.1:8132",
+        code: "41".repeat(16),
+        nonce: "42".repeat(32),
+        m: 1,
+      }),
+    );
+    if (!parsed.ok) throw new Error(parsed.error);
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.scan" }).props.onPress();
+    });
+    const scanner = renderer.root.findByProps({ scannerStub: true });
+    await act(async () => {
+      scanner.props.onFound(parsed.square);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(bodies[1]).toContain('"model":"iPhone 15 Pro Max"}');
+    expect(JSON.parse(bodies[1]).phone).toStrictEqual({
+      weights_bytes: 0,
+      parameters: null,
+      measured_tokens_per_second: null,
+      battery_powered: true,
+      model: "iPhone 15 Pro Max",
+    });
+    await act(async () => renderer.unmount());
+  });
+
+  test("a typed square sends no model: the phone is drawn by its number until it is named", async () => {
+    mockPhoneModelName = "iPhone 15 Pro Max";
+    const { bodies } = installFetch(200);
+    // render() types the code and nonce by hand; the typed road is what submits.
+    const renderer = await render("kalsa-remote-mac", "https://desktop.tailnet.ts.net", true);
+    await act(async () => {
+      renderer.root.findByProps({ testID: "pairing.submit" }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(bodies[1]).not.toContain('"model"');
+    expect(JSON.parse(bodies[1]).phone).toStrictEqual({
+      weights_bytes: 0,
+      parameters: null,
+      measured_tokens_per_second: null,
+      battery_powered: true,
+    });
     await act(async () => renderer.unmount());
   });
 

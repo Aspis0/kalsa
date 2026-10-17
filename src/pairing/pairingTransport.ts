@@ -54,6 +54,9 @@ export type PairingSquare = {
   node: string;
   /** Optional v3 tailnet URL (validated at scan); "" = absent. Never MAC'd. */
   tailnet: string;
+  /** The desk keeps a phone's model name (its square's `m` is 1). Absent or
+   *  false: the phone's declaration goes without a model, as before. */
+  acceptsModelName?: boolean;
 };
 
 export type PairingSessionOptions = {
@@ -139,9 +142,16 @@ export class PairingSession {
   // Built alongside the claim URL in begin(); complete() replays it so a
   // desk URL problem always surfaces as claim_url, never mid-completion.
   private completeUrl = "";
+  private readonly options: PairingSessionOptions;
 
-  constructor(private readonly options: PairingSessionOptions) {
-    const random = options.randomBytes ?? secureRandomBytes;
+  constructor(input: PairingSessionOptions) {
+    // A desk whose square did not advertise the model capability never hears
+    // a model name: its MAC covers the fields it keeps, and a name it does not
+    // keep would make it refuse the whole declaration.
+    this.options = input.square.acceptsModelName === true
+      ? input
+      : { ...input, phone: { ...input.phone, model: undefined } };
+    const random = this.options.randomBytes ?? secureRandomBytes;
     let bytes: Uint8Array;
     try {
       bytes = random(DELIVERY_TOKEN_BYTES);
@@ -154,7 +164,7 @@ export class PairingSession {
       throw new Error("invalid random source");
     }
     this.deliveryToken = bytesToHex(bytes);
-    this.fetcher = options.fetcher ?? (globalThis.fetch as PairingFetch);
+    this.fetcher = this.options.fetcher ?? (globalThis.fetch as PairingFetch);
   }
 
   private logDiagnostic(record: PairingDiagnostic): void {

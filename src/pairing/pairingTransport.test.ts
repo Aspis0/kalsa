@@ -192,6 +192,41 @@ describe("PairingSession delivery-token lifecycle", () => {
   });
 });
 
+describe("the model name rides only to a desk that keeps it", () => {
+  const named: PairingPhoneDeclaration = { ...phone, model: "Pixel 8" };
+  // One ceremony against a desk that answers claim and complete, returning
+  // the complete body exactly as the desk received it.
+  async function completeBody(
+    advertised: Partial<typeof square & { acceptsModelName: boolean }>,
+  ): Promise<string> {
+    let body = "";
+    const fetcher: PairingFetch = async (url, init) => {
+      if (url.endsWith("/pair/claim")) return response(200);
+      body = init.body;
+      return response(200, seal);
+    };
+    const session = new PairingSession({
+      deskUrl: "https://computer.example:8443/ignored",
+      square: { ...square, ...advertised },
+      phone: named,
+      fetcher,
+      randomBytes: random(0xc0),
+    });
+    await session.begin();
+    return body;
+  }
+
+  test("a desk that advertised the capability receives the name inside the signed phone", async () => {
+    const body = await completeBody({ acceptsModelName: true });
+    expect(JSON.parse(body).phone).toStrictEqual({ ...phone, model: "Pixel 8" });
+  });
+
+  test("a desk that did not advertise it receives the declaration it always signed", async () => {
+    const body = await completeBody({});
+    expect(JSON.parse(body).phone).toStrictEqual(phone);
+  });
+});
+
 describe("pairing request boundary", () => {
   test("an over-limit body is refused before fetch", async () => {
     const fetcher = jest.fn();

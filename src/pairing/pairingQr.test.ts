@@ -11,14 +11,23 @@ const square = (overrides: Record<string, unknown> = {}): string =>
 
 describe("parsePairingQr", () => {
   test("a full v3 square maps onto the form's fields", () => {
-    expect(parsePairingQr(square({ node: NODE }))).toEqual({
+    expect(parsePairingQr(square({ node: NODE }))).toStrictEqual({
       ok: true,
       square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: NODE, tailnet: "" },
     });
   });
 
+  test("the model capability is advertised only by m equal to 1", () => {
+    const advertised = parsePairingQr(square({ m: 1, node: NODE }));
+    expect(advertised.ok && advertised.square.acceptsModelName).toBe(true);
+    const other = parsePairingQr(square({ m: 2 }));
+    expect(other.ok && other.square.acceptsModelName).toBeUndefined();
+    const absent = parsePairingQr(square());
+    expect(absent.ok && absent.square.acceptsModelName).toBeUndefined();
+  });
+
   test("an absent node maps to the empty string the manual form uses", () => {
-    expect(parsePairingQr(square())).toEqual({
+    expect(parsePairingQr(square())).toStrictEqual({
       ok: true,
       square: { reachable: REACHABLE, code: CODE, nonce: NONCE, node: "", tailnet: "" },
     });

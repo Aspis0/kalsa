@@ -11,7 +11,10 @@ import { modes, radius, space, type, type ThemeMode } from "../theme/design";
 import { useLabTheme } from "../ui/labTheme";
 import type { PairingSquare } from "../pairing/pairingTransport";
 
-export type PairingFields = PairingSquare & { doorUrl: string; deskUrl: string };
+// The text the person types. The desk's model capability is not typed: it
+// comes only from a scanned or invited square, so it is left out of the keys
+// this form edits.
+export type PairingFields = Omit<PairingSquare, "acceptsModelName"> & { doorUrl: string; deskUrl: string };
 
 type Props = {
   fields: PairingFields;

@@ -26,6 +26,8 @@ import {
 import { bytesToHex } from "../pairing/sha256";
 import { isAllowedPairingUrl, IROH_TUNNEL_URL, pairingUrlPrefill } from "../pairing/pairingUrls";
 import type { PairingPhoneDeclaration } from "../pairing/pairingWire";
+import { cleanModelName } from "../pairing/pairingModelName";
+import { getCachedDeviceProfile } from "../engine/deviceProfile";
 import { PairingQrScanner } from "./PairingQrScanner";
 import { PairingInvitePaste } from "./PairingInvitePaste";
 import type { TranslationKey } from "../i18n";
@@ -244,7 +246,10 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
         ? pairingUrlPrefill(scanned.tailnet)
         : prefill
       : null;
-    const square = scanned ?? fields;
+    // The typed road never sends a model name: only a scanned or invited square
+    // says its desk keeps one. A phone paired by hand is therefore drawn on the
+    // desk as "telefono N" until the owner renames it.
+    const square: PairingSquare = scanned ?? { ...fields, acceptsModelName: false };
     // The road decides whether an address is required at all: a valid node
     // with the native module dials desk and door directly, while a square
     // with no node is only a validate failure away from the address gates.
@@ -299,12 +304,17 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
       const deskUrlForSession =
         viaIroh && !isAllowedPairingUrl(deskUrl) ? IROH_TUNNEL_URL : deskUrl;
       const signal = deskSignal();
+      // The phone's own marketing name for the desk to draw. A retry keeps the
+      // declaration its session already signed, so the name is read only here.
+      const phoneModel = retryingCompletion
+        ? undefined
+        : cleanModelName((await getCachedDeviceProfile()).modelName);
       const session = retryingCompletion
         ? existing
         : new PairingSession({
             deskUrl: deskUrlForSession,
             square,
-            phone: declarationForModel(currentModelId),
+            phone: { ...declarationForModel(currentModelId), model: phoneModel },
             signal,
             fetcher: useIrohDesk ? createDeskPairingFetch(square.node, signal) : undefined,
             onFailure: (stage) => {
@@ -381,7 +391,17 @@ export function PairingScreen({ initialDoorUrl, currentModelId, onBack, onDone, 
     // prefill — a scan never inherits the previous scan's tailnet host,
     // or the claim would go there without the status naming it.
     const scannedUrls = square.tailnet ? pairingUrlPrefill(square.tailnet) : prefill;
-    setFields((current) => ({ ...current, ...square, ...scannedUrls }));
+    // The form shows the square's text only. The desk's model capability
+    // travels on `square` into run, and is never written into the fields.
+    setFields((current) => ({
+      ...current,
+      reachable: square.reachable,
+      code: square.code,
+      nonce: square.nonce,
+      node: square.node,
+      tailnet: square.tailnet,
+      ...scannedUrls,
+    }));
     void run(square);
   };
 

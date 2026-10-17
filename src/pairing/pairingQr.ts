@@ -80,8 +80,13 @@ export function parsePairingQr(text: string): PairingQrResult {
   // `reachable` is MAC'd exactly as shown and never dialled by the phone:
   // no URL validation, no trimming, no normalisation of any kind here.
   const tailnet = canonicalTailnet(payload.tailnet);
+  // The desk's model capability: `m` is 1 when it keeps a phone's model name.
+  // Any other value, or no key at all, is a desk that does not, and this
+  // phone sends its declaration as it always has. The flag is present only
+  // when advertised, so a square without it reads exactly as before.
+  const capability = payload.m === 1 ? { acceptsModelName: true } : {};
   if (payload.node === undefined) {
-    return { ok: true, square: { reachable, code, nonce, node: "", tailnet } };
+    return { ok: true, square: { reachable, code, nonce, node: "", tailnet, ...capability } };
   }
   const node = payload.node;
   if (typeof node !== "string") return { ok: false, error: "invalidNode" };
@@ -91,5 +96,5 @@ export function parsePairingQr(text: string): PairingQrResult {
   if (!NODE_PATTERN.test(canonicalNode)) {
     return { ok: false, error: "invalidNode" };
   }
-  return { ok: true, square: { reachable, code, nonce, node: canonicalNode, tailnet } };
+  return { ok: true, square: { reachable, code, nonce, node: canonicalNode, tailnet, ...capability } };
 }

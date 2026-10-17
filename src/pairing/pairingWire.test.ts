@@ -44,6 +44,36 @@ describe("pairing wire vectors", () => {
     );
   });
 
+  test("a named declaration carries the model last, quoted as serde_json quotes it", () => {
+    expect(canonicalPhoneJson({ ...phone, model: "Pixel 8" })).toBe(
+      '{"weights_bytes":2200000000,"parameters":{"total":7600000000,"active":2400000000},"measured_tokens_per_second":9.5,"battery_powered":true,"model":"Pixel 8"}',
+    );
+    expect(canonicalPhoneJson({ ...phone, model: 'Pixel "8"' })).toContain('"model":"Pixel \\"8\\""');
+  });
+
+  test("a model the desk would change is refused rather than signed", () => {
+    expect(() => canonicalPhoneJson({ ...phone, model: "Pixel 8​" })).toThrow("invalid model");
+    expect(() => canonicalPhoneJson({ ...phone, model: "" })).toThrow("invalid model");
+  });
+
+  test("the phone MAC covers the model it signed", () => {
+    const input = { reachable: "http://127.0.0.1:8134", node: "", deliveryToken: "", phone };
+    expect(phoneMacHex(code, nonce, { ...input, phone: { ...phone, model: "Pixel 8" } })).not.toBe(
+      phoneMacHex(code, nonce, input),
+    );
+  });
+
+  test("E: a non-ASCII name canonicalises to the frozen bytes the desk parses back", () => {
+    // é, an emoji and U+2028, which JSON leaves unescaped; the desk's serde
+    // writes the same bytes (messages/model_tests.rs pins this hex too).
+    expect(bytesToHex(utf8Bytes(canonicalPhoneJson({
+      ...phone,
+      model: "Café \u{1F642} Pro",
+    })))).toBe(
+      "7b22776569676874735f6279746573223a323230303030303030302c22706172616d6574657273223a7b22746f74616c223a373630303030303030302c22616374697665223a323430303030303030307d2c226d656173757265645f746f6b656e735f7065725f7365636f6e64223a392e352c22626174746572795f706f7765726564223a747275652c226d6f64656c223a22436166c3a920f09f9982e280a850726f227d",
+    );
+  });
+
   test("A: frozen phone MAC with empty node and empty vector token", () => {
     expect(phoneMacHex(code, nonce, {
       reachable: "http://192.168.1.10:4952",
