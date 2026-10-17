@@ -123,6 +123,8 @@ const config = {
         recordAudioAndroid: false,
       },
     ],
+    // Before expo-notifications on purpose: see plugins/withoutPushEntitlement.js.
+    "./plugins/withoutPushEntitlement",
     [
       "expo-notifications",
       {
