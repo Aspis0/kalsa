@@ -59,7 +59,19 @@ struct QrPayloadV3 {
     /// timeout, one rule, a wrong port, any surprise is absence.
     #[serde(skip_serializing_if = "Option::is_none")]
     tailnet: Option<String>,
+    /// Capability flag, always `1` from this desk: it keeps a phone's model
+    /// name, so a phone may send one. One digit on purpose — the square sits
+    /// at the QR version the camera bounds in `qr` pin, and a longer key
+    /// would move it up a version. A key an older desk never wrote reads as
+    /// absent, and absent means "send the declaration every pairing already
+    /// signed": a desk that does not know the field would refuse the MAC over
+    /// a name it does not store.
+    #[serde(rename = "m")]
+    model: u8,
 }
+
+/// The `m` value this desk writes: it keeps a phone's model name.
+const MODEL_CAPABILITY: u8 = 1;
 
 /// The QR's content, or `None` if serialization failed — for a plain struct
 /// of strings it cannot, but a desktop app does not get to bet on "cannot":
@@ -78,6 +90,7 @@ pub(crate) fn encode(
         nonce: hex::encode(nonce),
         node: node.map(str::to_string),
         tailnet: tailnet.map(str::to_string),
+        model: MODEL_CAPABILITY,
     })
     .ok()
 }
@@ -91,6 +104,19 @@ mod tests {
     const TAILNET: &str = "https://desk.tail1234.ts.net";
 
     #[test]
+    fn the_capability_flag_closes_a_square_with_both_optionals() {
+        let code = OneTimeCode::generate().unwrap();
+        let nonce = [9u8; NONCE_BYTES];
+        let json = encode(REACHABLE, &code, &nonce, Some(NODE), Some(TAILNET)).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(value["node"], NODE);
+        assert_eq!(value["tailnet"], TAILNET);
+        assert_eq!(value["m"], 1, "the flag survives the optionals");
+        assert!(json.ends_with(r#","m":1}"#), "the flag is the last field: {json}");
+    }
+
+    #[test]
     fn the_qr_names_its_version_and_carries_both_secrets() {
         let code = OneTimeCode::generate().unwrap();
         let nonce = [9u8; NONCE_BYTES];
@@ -98,6 +124,7 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
 
         assert_eq!(value["v"], 3);
+        assert_eq!(value["m"], 1, "the model capability the phone looks for");
         assert_eq!(value["reachable"], REACHABLE);
         let code_hex = value["code"].as_str().unwrap();
         let nonce_hex = value["nonce"].as_str().unwrap();

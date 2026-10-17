@@ -24,7 +24,11 @@ export interface PairedDevice {
   mail?: boolean;
   // The name the owner gave this phone, in their own words. Absent for the
   // phone nobody has named, which is every phone until they name one.
-  name?: string;
+  name?: string | null;
+  // The phone's marketing model ("iPhone 15 Pro Max"), as the phone declared
+  // it. Drawn for a phone nobody has named; absent for a phone that declared
+  // none and for every phone paired before models were kept.
+  model?: string | null;
   // Present only on a waiting record whose phone already holds an allowed
   // seat: that seat's id. The request is drawn on the seat's row, and this
   // record never gets one of its own.
@@ -87,10 +91,30 @@ export function hidesOnSeat(device: PairedDevice, devices: PairedDevice[]): bool
     The owner's own name comes first, rendered as typed: it is theirs, not the
     app's sentence, so nothing translates it, folds its case or trims it — the
     store did the trimming, once, on the way in. This computer's own record is
-    never renamed, so the host's branch is checked first and stays true. */
-export function deviceName(t: English["devices"], device: PairedDevice): string {
+    never renamed, so the host's branch is checked first and stays true.
+
+    Then the phone's model, when it declared one. Two unnamed phones of the
+    same model would read alike, so each of them carries its number ("iPhone
+    15 Pro Max 5"); a named phone is not counted, since its name already tells
+    it apart. `house` is the whole list the page draws, the rows it is drawn
+    from. Both checks are `typeof`: Rust writes an absent name as null. */
+export function deviceName(
+  t: English["devices"],
+  device: PairedDevice,
+  house: PairedDevice[],
+): string {
   if (device.kind === "host") return t.thisComputerLabel;
-  return device.name ?? t.deviceLabel(device.id + 1);
+  if (typeof device.name === "string") return device.name;
+  if (typeof device.model !== "string") return t.deviceLabel(device.id + 1);
+  const model = device.model;
+  const twins = house.filter(
+    (row) =>
+      row.kind !== "host" &&
+      typeof row.name !== "string" &&
+      row.model === model &&
+      !hidesOnSeat(row, house),
+  );
+  return twins.length > 1 ? `${model} ${device.id + 1}` : model;
 }
 
 export function pairedSentence(t: English["devices"], dto: PairingState): string {
@@ -103,7 +127,7 @@ export function pairedSentence(t: English["devices"], dto: PairingState): string
   if (approved.length === 0 && waiting.length > 0) {
     if (waiting.length === 1) {
       const owed = pending ? t.owedPending : "";
-      return t.waitingNamed(deviceName(t, waiting[0]), owed);
+      return t.waitingNamed(deviceName(t, waiting[0], house), owed);
     }
     return t.waitingCount(waiting.length, undelivered);
   }
@@ -119,7 +143,7 @@ export function pairedSentence(t: English["devices"], dto: PairingState): string
     return pending ? t.savedPending(t.yourPhone) : t.worksWith(t.yourPhone);
   }
   if (approved.length === 1) {
-    const name = deviceName(t, approved[0]);
+    const name = deviceName(t, approved[0], house);
     return pending ? t.savedPending(name) : t.worksWith(name);
   }
   return pending ? t.worksWithCountPending(approved.length) : t.worksWithCount(approved.length);

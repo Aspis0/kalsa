@@ -18,21 +18,23 @@
 //! Size arithmetic, measured rather than guessed — `tests` encodes real
 //! payloads and measures every payload size and symbol version below:
 //! `payload::encode` emits
-//! `{"v":3,"reachable":"http://127.0.0.1:8134","code":"<32 hex>","nonce":"<64 hex>"}`
-//! — 160 bytes for the desk's preferred port; its random fallback port is
-//! the OS's pick, four or five digits — five is the worst case, making 161
-//! and the same symbol version; an open road appends `,"node":"<64 hex>"`
-//! for 234, and a desk whose serve rules are up appends
-//! `,"tailnet":"https://<host>"` behind it — 289 bytes with both for a
-//! real host, and at most 355, a version-14 (73×73) symbol, when the host
-//! is the longest the detection allows: the 100-character cap the desk
-//! puts on a host is the bound on the square.
+//! `{"v":3,"reachable":"http://127.0.0.1:8134","code":"<32 hex>","nonce":"<64 hex>","m":1}`
+//! — 166 bytes for the desk's preferred port; its random fallback port is
+//! the OS's pick, four or five digits — five is the worst case, making 167
+//! and the same symbol version. An open road appends `,"node":"<64 hex>"`
+//! for 240, and a desk whose serve rules are up appends
+//! `,"tailnet":"https://<host>"` behind it — 295 bytes with both for a
+//! real host. The capability flag `m` is written last, after the optionals,
+//! because `model` is the last field `payload` declares. The worst square
+//! is both optionals together on the five-digit fallback port, with the
+//! longest host the detection allows (the 100-character cap): 362 bytes, a
+//! version-14 (73×73) symbol at level M, and the flag still closes it.
 //! Error-correction level M (15% of
 //! codewords recoverable) is deliberate: the scan happens in calm
 //! conditions, and level H would push the same payload past version 12,
 //! buying robustness a single-use, windowed code does not need — a
-//! damaged scan costs a re-scan, nothing else. Level M carries those 160
-//! bytes at version 9 (53×53 modules), the 234-byte node square at
+//! damaged scan costs a re-scan, nothing else. Level M carries those 166
+//! bytes at version 9 (53×53 modules), the 240-byte node square at
 //! version 11 (61×61), and refuses — [`PayloadTooLong`], never a
 //! truncated symbol — past version 40 (2331 bytes). If the payload ever
 //! outgrows its QR, the remedy is upstream in `payload`: the hex overhead

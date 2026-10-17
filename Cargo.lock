@@ -3000,6 +3000,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "subtle",
+ "unicode-properties",
  "windows-sys 0.59.0",
 ]
 

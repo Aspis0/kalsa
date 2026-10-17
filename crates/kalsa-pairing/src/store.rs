@@ -105,6 +105,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
+use unicode_properties::{GeneralCategoryGroup, UnicodeGeneralCategory};
 
 use crate::error::StoreError;
 use crate::handshake::{Credential, Handshake};
@@ -307,6 +308,11 @@ pub struct StoredDevice {
     /// The owner's name for this phone, if they gave it one. `None` is the
     /// ordinary answer and the one every already-paired phone reads back.
     pub name: Option<String>,
+    /// The phone's marketing model name, cleaned. `None` for a phone that
+    /// declared none, and for every record written before models existed.
+    /// Shown only when the owner has not named the phone; never logged, never
+    /// sent anywhere but the Phones page.
+    pub model: Option<String>,
 }
 
 /// Write the handshake result as the store's first device. The parent
@@ -410,7 +416,7 @@ fn replace_record(
         Some(record) => {
             record.kind = kind_of(handshake);
             record.credential_hex = handshake.credential_hex();
-            record.phone = handshake.phone.map(PhoneFields::of);
+            record.phone = shell_keeping_model(phone_shell(handshake), record.phone.as_ref());
             record.delivery = delivery;
         }
         None => records.push(record_from(handshake, 0, DEFAULT_LABEL.to_owned(), delivery)),
@@ -430,7 +436,7 @@ fn record_from(
         kind: kind_of(handshake),
         approval: Approval::Allowed,
         credential_hex: handshake.credential_hex(),
-        phone: handshake.phone.map(PhoneFields::of),
+        phone: phone_shell(handshake),
         delivery,
         // Filled in by the caller that knows it, the way `approval` is: a
         // handshake carried here has no phone-side identity of its own.
@@ -445,6 +451,33 @@ fn record_from(
         // computer, in the page. Nothing about a handshake can know it.
         name: None,
     }
+}
+
+/// The phone's shell as the store keeps it. The model is MAC'd as the phone
+/// declared it and cleaned here, on the way in, with the name's own rules.
+fn phone_shell(handshake: &Handshake) -> Option<PhoneFields> {
+    let model = handshake.model.as_deref().and_then(clean_label);
+    handshake
+        .phone
+        .map(|phone| PhoneFields::of(phone).with_model(model))
+}
+
+/// The phone shell a ceremony leaves on a record that already holds one. A
+/// model is what the phone said about itself, and a re-pair that says nothing
+/// about its model does not un-say the one already stored: the held model
+/// stays unless the ceremony carries its own. `replace()` keeps it like the
+/// name and the mail, because a replacement re-seats the same phone; a
+/// different phone in a seat must clear the model and the name.
+fn shell_keeping_model(
+    incoming: Option<PhoneFields>,
+    held: Option<&PhoneFields>,
+) -> Option<PhoneFields> {
+    let model = incoming
+        .as_ref()
+        .and_then(PhoneFields::model)
+        .map(str::to_owned)
+        .or_else(|| held.and_then(PhoneFields::model).and_then(clean_label));
+    incoming.map(|fields| fields.with_model(model))
 }
 
 /// A handshake without a phone is the host's: the only handshake with no
@@ -523,6 +556,7 @@ fn add_device_record(
     // what the file says cannot come to disagree.
     let mail = record.mail.unwrap_or(true);
     let name = record.name.clone();
+    let model = record.phone.as_ref().and_then(PhoneFields::model).map(str::to_owned);
     records.push(record);
     write_records(&records, path)?;
     Ok(StoredDevice {
@@ -535,6 +569,7 @@ fn add_device_record(
         install_id: install_id.map(str::to_string),
         mail,
         name,
+        model,
     })
 }
 
@@ -571,7 +606,7 @@ pub fn add_device_with_install(
             let record = &mut records[waiting];
             record.credential_hex = handshake.credential_hex();
             record.kind = kind_of(handshake);
-            record.phone = handshake.phone.map(PhoneFields::of);
+            record.phone = shell_keeping_model(phone_shell(handshake), record.phone.as_ref());
             record.delivery = Some(delivery);
             return write_records(&records, path);
         }
@@ -631,6 +666,7 @@ pub fn enrol_host(path: &Path) -> Result<StoredDevice, StoreError> {
         // mail is the owner's own mail, and no page offers to name it.
         mail: true,
         name: None,
+        model: None,
         // The host record is never waiting: self-enrolment mints it
         // allowed, on every launch, and realize() refuses a hand edit
         // that says otherwise.
@@ -705,7 +741,7 @@ pub fn allow_device(path: &Path, id: u32) -> Result<(), StoreError> {
     let seat = &mut records[seat];
     seat.credential_hex = ceremony.credential_hex;
     seat.kind = ceremony.kind;
-    seat.phone = ceremony.phone;
+    seat.phone = shell_keeping_model(ceremony.phone, seat.phone.as_ref());
     seat.delivery = ceremony.delivery;
     write_records(&records, path)
 }
@@ -743,8 +779,8 @@ pub fn set_phone_mail(path: &Path, id: u32, allowed: bool) -> Result<bool, Store
 /// gave it; a name of only spaces, or of nothing a person could see, is that
 /// same clear.
 ///
-/// Characters nobody can see are dropped first — the zero-width family, the
-/// byte-order marks, the bidi overrides, and every Cc control — because a
+/// Characters nobody can see are dropped first — every control, format,
+/// private-use, surrogate and unassigned character (see `invisible`) — because a
 /// name is drawn verbatim and read by a person looking for their own phone.
 /// What survives is then trimmed at both ends and cut to [`NAME_LIMIT`]
 /// CHARACTERS, not bytes: a name is read by a person, and half a `ß` or a
@@ -756,15 +792,7 @@ pub fn set_phone_mail(path: &Path, id: u32, allowed: bool) -> Result<bool, Store
 /// `true` means this id was a phone at all — so a caller that keeps its own
 /// copy of the name knows whether it may be believed.
 pub fn set_device_name(path: &Path, id: u32, name: Option<String>) -> Result<bool, StoreError> {
-    let wanted = name.and_then(|said| {
-        let short: String = said
-            .trim()
-            .chars()
-            .filter(|c| !invisible(*c))
-            .take(NAME_LIMIT)
-            .collect();
-        if short.is_empty() { None } else { Some(short) }
-    });
+    let wanted = name.and_then(|said| clean_label(&said));
     let mut records = read_records_or_empty(path)?;
     let Some(record) = records
         .iter_mut()
@@ -780,32 +808,32 @@ pub fn set_device_name(path: &Path, id: u32, name: Option<String>) -> Result<boo
     Ok(true)
 }
 
+/// What a person reads as a label — an owner's name or a phone's model.
+/// Trimmed, stripped of invisible characters, and cut to [`NAME_LIMIT`]
+/// characters; `None` when nothing a person could see is left. The one
+/// sanitiser for both, so the rules a name obeys are the rules a model obeys.
+pub(crate) fn clean_label(said: &str) -> Option<String> {
+    let short: String = said
+        .trim()
+        .chars()
+        .filter(|c| !invisible(*c))
+        .take(NAME_LIMIT)
+        .collect();
+    if short.is_empty() { None } else { Some(short) }
+}
+
 /// How long an owner's name may be. A phone a person can name in one breath,
 /// and short enough to stay on one row beside its detail.
 const NAME_LIMIT: usize = 40;
 
-/// Whether a character is dropped from a name because nobody can see it, or
-/// because it changes the order of what follows it.
-///
-/// `char::is_control` is the Cc category — a newline, a tab — which has no
-/// place in a name that is drawn on one line. The ranges below are the Cf
-/// characters that matter to a name: the zero-width family, the byte-order
-/// marks and the bidi overrides, which reorder the text around them without
-/// adding a pixel. A name is drawn verbatim and read by a person looking for
-/// their phone, so what it contains has to be what it appears to be.
+/// Whether a character is dropped from a label because nobody can see it, or
+/// because it changes the order of the text after it. That is the Other group
+/// of the Unicode General_Category: Cc (controls), Cf (format: zero-width,
+/// bidi overrides, the tag characters U+E0020..U+E007F), Co (private use),
+/// Cs (surrogates) and Cn (unassigned). The phone drops the same set with
+/// `\p{C}`, so a name the phone signed is a name the desk keeps.
 fn invisible(c: char) -> bool {
-    c.is_control()
-        || matches!(c as u32,
-            0x00AD            // SOFT HYPHEN
-            | 0x061C          // ARABIC LETTER MARK
-            | 0x180E          // MONGOLIAN VOWEL SEPARATOR
-            | 0x200B..=0x200F // ZERO WIDTH SPACE .. RIGHT-TO-LEFT MARK
-            | 0x202A..=0x202E // bidi embedding and override
-            | 0x2060..=0x2064 // word joiner, invisible operators, invisible plus
-            | 0x2066..=0x206F // bidi isolates and deprecated formats
-            | 0xFEFF          // ZERO WIDTH NO-BREAK SPACE (BOM)
-            | 0xFFF9..=0xFFFB // interlinear annotation marks
-        )
+    matches!(c.general_category_group(), GeneralCategoryGroup::Other)
 }
 
 fn write_temp(stored: &impl Serialize, path: &Path) -> Result<(), StoreError> {
@@ -1180,6 +1208,13 @@ fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>
     // The kind decides which fields must be there, and the two never mix: a
     // phone without its fields and a host with them are both corrupt, not
     // silently repaired.
+    // Cleaned again on the way out: a file edited by hand is still read with
+    // the rules a name obeys.
+    let model = record
+        .phone
+        .as_ref()
+        .and_then(PhoneFields::model)
+        .and_then(clean_label);
     let phone = match (record.kind, record.phone) {
         (DeviceKind::Phone, Some(fields)) => Some(
             fields
@@ -1214,7 +1249,7 @@ fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>
     // What a host gets: its credential and nothing a phone would have. What
     // a phone keeps getting: its declaration, taken as given.
     let handshake = match phone {
-        Some(phone) => Handshake::new(phone, credential),
+        Some(phone) => Handshake::new(phone, credential).naming(model.clone()),
         None => Handshake::host(credential),
     };
     Ok((
@@ -1234,6 +1269,7 @@ fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>
             // crosses as absent, which the page draws as the number it has
             // always drawn.
             name: record.name,
+            model,
         },
         record.delivery,
     ))
@@ -1332,5 +1368,7 @@ pub fn clear_delivery(path: &Path, token: &str) -> Result<(), StoreError> {
     write_records(&records, path)
 }
 
+#[cfg(test)]
+mod model_tests;
 #[cfg(test)]
 mod tests;

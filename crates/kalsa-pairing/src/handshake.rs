@@ -65,6 +65,9 @@ pub struct Handshake {
     /// rest of the app branches on what the phone actually said. `None` for
     /// the host, which declared nothing because it is not a phone.
     pub phone: Option<PhoneModel>,
+    /// The phone's marketing model name, as the verified declaration carried
+    /// it. Not part of `PhoneModel`: the catalog has no name to hold.
+    pub(crate) model: Option<String>,
     credential: Credential,
 }
 
@@ -72,8 +75,15 @@ impl Handshake {
     pub(crate) fn new(phone: PhoneModel, credential: Credential) -> Self {
         Self {
             phone: Some(phone),
+            model: None,
             credential,
         }
+    }
+
+    /// The same handshake, naming the phone's model.
+    pub(crate) fn naming(mut self, model: Option<String>) -> Self {
+        self.model = model;
+        self
     }
 
     /// The host's own handshake: this machine's credential and no phone
@@ -81,6 +91,7 @@ impl Handshake {
     pub(crate) fn host(credential: Credential) -> Self {
         Self {
             phone: None,
+            model: None,
             credential,
         }
     }

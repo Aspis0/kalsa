@@ -173,6 +173,10 @@ pub(crate) struct PairedDeviceDto {
     /// this is a name for one person to recognise a device, not a sentence
     /// the app owns, so nothing here translates or tidies it.
     name: Option<String>,
+    /// The phone's marketing model name ("iPhone 15 Pro Max"), drawn for a
+    /// phone nobody has named. Absent for a phone that declared none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
 }
 
 impl PairingDto {
@@ -426,6 +430,7 @@ impl Desk {
                     pairing_again,
                     mail: device.mail,
                     name: device.name,
+                    model: device.model,
                 }
             })
             .collect();

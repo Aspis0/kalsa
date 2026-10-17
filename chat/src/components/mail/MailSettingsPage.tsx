@@ -376,14 +376,14 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
           <ul className="mail-phones">
             {phones.map((device) => (
               <li key={device.id} className="mail-phone">
-                <span className="mail-phone-name">{deviceName(table.devices, device)}</span>
+                <span className="mail-phone-name">{deviceName(table.devices, device, house)}</span>
                 <input
                   className="mail-phone-switch"
                   type="checkbox"
                   role="switch"
                   checked={phoneMail(device)}
                   disabled={switching === device.id}
-                  aria-label={deviceName(table.devices, device)}
+                  aria-label={deviceName(table.devices, device, house)}
                   onChange={(event) => setPhoneMail(device.id, event.currentTarget.checked)}
                 />
               </li>

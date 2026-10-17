@@ -296,12 +296,15 @@ impl Pairing {
         ) {
             return Err(CompleteError::Refused);
         }
+        // Read before `into_phone` consumes the fields. The model is MAC'd
+        // with them, so this is the declared name and no other.
+        let model = declaration.phone.model().map(str::to_owned);
         let Some(phone) = declaration.phone.into_phone() else {
             return Err(CompleteError::Refused);
         };
         let credential = Credential::generate().map_err(|_| CompleteError::Entropy)?;
         let seal = seal_computer(claimed.code.bytes(), &claimed.nonce, &credential);
-        let handshake = Handshake::new(phone, credential);
+        let handshake = Handshake::new(phone, credential).naming(model);
         *self = Self::Paired;
         Ok((handshake, seal))
     }

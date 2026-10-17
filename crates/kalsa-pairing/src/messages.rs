@@ -85,6 +85,13 @@ pub struct PhoneFields {
     parameters: Option<StoredParameters>,
     measured_tokens_per_second: Option<f64>,
     battery_powered: Option<bool>,
+    /// The phone's marketing model name, sent only to a desk whose square
+    /// advertised `m`. Last on purpose, and skipped when absent: a
+    /// phone that sends none, or a desk that never asked, canonicalises to
+    /// the bytes every pairing already signed. Covered by the MAC like the
+    /// rest, so what the desk stores is what the phone signed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
 }
 
 // No Debug on purpose: nothing here needs one, and a derived Debug on a
@@ -105,7 +112,19 @@ impl PhoneFields {
             }),
             measured_tokens_per_second: phone.measured_tokens_per_second,
             battery_powered: phone.battery_powered,
+            model: None,
         }
+    }
+
+    /// The same fields, naming the phone's model as the store keeps it.
+    pub(crate) fn with_model(mut self, model: Option<String>) -> Self {
+        self.model = model;
+        self
+    }
+
+    /// The phone's model name, when the phone declared one.
+    pub(crate) fn model(&self) -> Option<&str> {
+        self.model.as_deref()
     }
 
     /// Rebuild the catalog's type, or `None` when the values cannot exist.
@@ -208,12 +227,40 @@ impl PhoneDeclaration {
     ) -> Option<Self> {
         let mut token = [0u8; DELIVERY_TOKEN_BYTES];
         fill(&mut token).ok()?;
-        Self::sign_with_token(code, nonce, reachable, node, &hex::encode(token), phone)
+        Self::sign_with_token(code, nonce, reachable, node, &hex::encode(token), phone, None)
+    }
+
+    /// [`sign`] for a phone that names its model. `model` is only ever sent
+    /// to a desk whose square advertised `m`; a desk that did not ask gets
+    /// [`sign`]'s bytes. The phone's own signer is in TypeScript, so only the
+    /// tests of this crate need the named form.
+    #[cfg(test)]
+    pub(crate) fn sign_naming(
+        code: &str,
+        nonce: &str,
+        reachable: &str,
+        node: Option<&str>,
+        phone: PhoneModel,
+        model: Option<&str>,
+    ) -> Option<Self> {
+        let mut token = [0u8; DELIVERY_TOKEN_BYTES];
+        fill(&mut token).ok()?;
+        Self::sign_with_token(
+            code,
+            nonce,
+            reachable,
+            node,
+            &hex::encode(token),
+            phone,
+            model,
+        )
     }
 
     /// Re-sign the same pairing attempt after the phone refreshes its
     /// measurement. The token is created once by [`sign`] and is the only
     /// delivery identity the computer accepts after it has saved the seal.
+    /// This re-sign names no model: the phone's own re-sign, in TypeScript,
+    /// carries the name it signed the first time.
     pub fn sign_again(
         &self,
         code: &str,
@@ -229,6 +276,7 @@ impl PhoneDeclaration {
             node,
             &self.delivery_token,
             phone,
+            None,
         )
     }
 
@@ -264,6 +312,7 @@ impl PhoneDeclaration {
         node: Option<&str>,
         delivery_token: &str,
         phone: PhoneModel,
+        model: Option<&str>,
     ) -> Option<Self> {
         let mut key = [0u8; CODE_BYTES];
         hex::decode_to_slice(code, &mut key).ok()?;
@@ -271,7 +320,7 @@ impl PhoneDeclaration {
         hex::decode_to_slice(nonce, &mut nonce_bytes).ok()?;
         let mut token = [0u8; DELIVERY_TOKEN_BYTES];
         hex::decode_to_slice(delivery_token, &mut token).ok()?;
-        let fields = PhoneFields::of(phone);
+        let fields = PhoneFields::of(phone).with_model(model.map(str::to_owned));
         let mac = phone_mac_with_token(
             &key,
             &nonce_bytes,
@@ -490,5 +539,7 @@ fn crypt(key: &[u8; CODE_BYTES], nonce: &[u8; NONCE_BYTES], input: &[u8]) -> Vec
     output
 }
 
+#[cfg(test)]
+mod model_tests;
 #[cfg(test)]
 mod tests;

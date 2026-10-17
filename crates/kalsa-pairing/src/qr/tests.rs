@@ -126,7 +126,7 @@ fn the_svg_draws_exactly_the_encoders_matrix() {
     // And the symbol is the size the arithmetic in the module header
     // promises for this payload at level M — the byte count pinned here,
     // measured from what this test builds.
-    assert_eq!(payload.len(), 163, "the ceremony's own payload");
+    assert_eq!(payload.len(), 169, "the ceremony's own payload");
     assert_eq!(code.version().value(), 9);
 }
 
@@ -137,7 +137,8 @@ fn a_payload_that_does_not_fit_is_an_error_not_a_smaller_symbol() {
     // square that scans into something else.
     let too_long = "x".repeat(2500);
     assert!(matches!(qr_svg(&too_long), Err(PayloadTooLong)));
-    // The 163-byte payload the ceremony actually produces does fit.
+    // The 169-byte payload the ceremony produces with no node and no tailnet
+    // (`m` included) does fit.
     assert!(qr_svg(&offered_svg().0).is_ok());
 }
 
@@ -226,9 +227,9 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     let session =
         Pairing::offer(base, None, None, SystemTime::now(), Duration::from_secs(300)).unwrap();
     let payload = session.qr_payload().unwrap();
-    assert_eq!(payload.len(), 160, "the header's byte count");
+    assert_eq!(payload.len(), 166, "the header's byte count");
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
-    assert_eq!(code.version().value(), 9, "160 bytes at level M");
+    assert_eq!(code.version().value(), 9, "166 bytes at level M");
 
     // The desk's random fallback port is the OS's pick — four or five
     // digits; five is the worst case: one byte more than the base, the
@@ -242,9 +243,9 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     )
     .unwrap();
     let payload = session.qr_payload().unwrap();
-    assert_eq!(payload.len(), 161, "five-digit fallback port byte count");
+    assert_eq!(payload.len(), 167, "five-digit fallback port byte count");
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
-    assert_eq!(code.version().value(), 9, "161 bytes at level M");
+    assert_eq!(code.version().value(), 9, "167 bytes at level M");
     let high = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::High).unwrap();
     assert!(
         high.version().value() > 12,
@@ -260,9 +261,9 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     )
     .unwrap();
     let payload = session.qr_payload().unwrap();
-    assert_eq!(payload.len(), 234, "the open road's byte count");
+    assert_eq!(payload.len(), 240, "the open road's byte count");
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
-    assert_eq!(code.version().value(), 11, "234 bytes at level M");
+    assert_eq!(code.version().value(), 11, "240 bytes at level M");
 
     // The tailnet rides behind the node id, so the desk's largest square is
     // road and tailnet together — measured like the rest, a host-name length
@@ -276,20 +277,21 @@ fn the_size_arithmetic_in_the_module_header_is_measured() {
     )
     .unwrap();
     let payload = session.qr_payload().unwrap();
-    assert_eq!(payload.len(), 289, "the open road plus the tailnet");
+    assert_eq!(payload.len(), 295, "the open road plus the tailnet");
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
-    assert_eq!(code.version().value(), 13, "289 bytes at level M");
+    assert_eq!(code.version().value(), 13, "295 bytes at level M");
 }
 
 #[test]
 fn the_worst_case_square_still_encodes_at_a_stated_version() {
-    // The longest host the desk will ever put in a square is one hundred
-    // characters — the cap the detection enforces — and it rides behind
-    // the node id, the square's other optional. Both together are the
-    // bound, and it must stay a version a phone camera resolves.
+    // The worst square the desk can emit: the longest host the detection
+    // allows (one hundred characters) behind the node id, and the OS's
+    // fallback port when the preferred one is taken — five digits, the
+    // widest a loopback port can print. Every optional is present, so the
+    // `m` capability flag comes last and is part of the bound too.
     let tailnet = format!("https://{}", "a".repeat(100));
     let session = Pairing::offer(
-        "http://127.0.0.1:8134",
+        "http://127.0.0.1:12345",
         Some(NODE),
         Some(&tailnet),
         SystemTime::now(),
@@ -297,12 +299,13 @@ fn the_worst_case_square_still_encodes_at_a_stated_version() {
     )
     .unwrap();
     let payload = session.qr_payload().unwrap();
-    assert_eq!(payload.len(), 355, "the worst case the desk can emit");
+    assert!(payload.ends_with(r#""m":1}"#), "the capability flag closes the square");
+    assert_eq!(payload.len(), 362, "the worst case the desk can emit");
     let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).unwrap();
     assert_eq!(
         code.version().value(),
         14,
-        "355 bytes at level M: the bound the header names"
+        "362 bytes at level M: the bound the header names"
     );
 }
 

@@ -6612,6 +6612,62 @@ const tests = {
     }
   },
 
+  // The phone's model name, drawn for a phone nobody has named. Two unnamed
+  // phones of one model carry their numbers; a named phone does not count
+  // against them; a lone model is drawn bare; a record with no model keeps the
+  // number the store gave it.
+  async phonemodels() {
+    const browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
+    try {
+      await seed(page, { settings: okSettings("Alibaba Qwen 3.6"), theme: "light" });
+      await page.addInitScript(() => {
+        localStorage.setItem("crescent-chat.language.v1", "it");
+      });
+      await page.addInitScript(() => {
+        const previous = window.__TAURI__;
+        // The house as Rust sends it: `model` is the phone's own marketing
+        // name, and an absent name is null.
+        const house = [
+          { id: 0, kind: "host", label: "This computer" },
+          { id: 1, label: "Paired phone 2", model: "iPhone 15 Pro Max", name: null, waiting: false },
+          { id: 2, label: "Paired phone 3", model: "iPhone 15 Pro Max", name: null, waiting: false },
+          { id: 3, label: "Paired phone 4", model: "Pixel 8", name: null, waiting: false },
+          { id: 4, label: "Paired phone 5", model: "Galaxy S23", name: "Anna", waiting: false },
+          { id: 5, label: "Paired phone 6", model: "Galaxy S23", name: null, waiting: false },
+          { id: 6, label: "Paired phone 7", name: null, waiting: false },
+        ];
+        window.__TAURI__ = {
+          ...previous,
+          core: {
+            invoke: async (command) => {
+              if (command === "brain_pairing") return { state: "paired", devices: house };
+              return previous.core.invoke(command);
+            },
+          },
+        };
+      });
+      await page.goto(APP);
+      await page.waitForSelector(".rail", { timeout: 20000 });
+      await page.locator('.rail-item[data-surface="devices"]').click();
+      const names = page.locator(".surface-device-name");
+      await names.first().waitFor({ timeout: 15000 });
+      const rows = await names.allTextContents();
+      const expected = [
+        "Questo computer",
+        "iPhone 15 Pro Max 2",
+        "iPhone 15 Pro Max 3",
+        "Pixel 8",
+        "Anna",
+        "Galaxy S23",
+        "telefono 7",
+      ];
+      check("phonemodels: each row is named by the rules", JSON.stringify(rows) === JSON.stringify(expected), rows.join(" | "));
+    } finally {
+      await browser.close();
+    }
+  },
+
   // A mail_show that draws nothing has failed, and its failure is told the same
   // way every other mail failure is — it is a mail tool, `mail_show` included.
   async mailshownothing() {

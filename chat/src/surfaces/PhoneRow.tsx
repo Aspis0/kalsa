@@ -44,6 +44,7 @@ function HeldButton({
     computer, its line, and the decision it is waiting for or its Remove. */
 export function PhoneRow({
   device,
+  house,
   request,
   connected,
   entering,
@@ -57,6 +58,8 @@ export function PhoneRow({
   onRename,
 }: {
   device: PairedDevice;
+  /** Every row the page draws, for naming two unnamed phones of one model. */
+  house: PairedDevice[];
   /** A pairing-again request riding this seat's row. */
   request: PairedDevice | undefined;
   /** The beat after Allow: the sentence and its checkmark hold the row for
@@ -91,7 +94,7 @@ export function PhoneRow({
   // The stored label is minted in English by Rust ("This computer", "Paired
   // phone 2"), so a row that showed it would be English in every language. The
   // app words it instead — the same words the Phones page's sentence uses.
-  const name = deviceName(t, device);
+  const name = deviceName(t, device, house);
   // A row waiting for the owner's decision carries the wash —
   // a standing tint that survives reduced motion, since "needs
   // you" is information — and, when motion is allowed, a waiting

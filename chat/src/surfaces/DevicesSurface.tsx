@@ -289,6 +289,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
               <PhoneRow
                 key={device.id}
                 device={device}
+                house={devices}
                 request={request}
                 connected={connected}
                 entering={!motionless && beats.enteringIds.has(device.id)}
