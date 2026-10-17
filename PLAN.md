@@ -151,8 +151,12 @@ noise (`41.30000305175781`). [scratchpad/agents/s23-search-gate-8b89c094/REPORT.
 
 **Learning governor:** M4 (app `647bee72`), M6 (replay, lab `0cd92b4c`) and M7 (learned store, app
 `e7684925`, no decision change) are done. M5, the logit-oracle check of NPU vs GPU prefill, comes before
-M9; its S23 port is in progress in `scratchpad/agents/s23-oracle-m5/`. The expected verdict, stated before
-the run: FAIL R2 with about 95% same-top, as on SM8850. The merged step plan is
+M9. **S23 result (2026-10-16):** GPU prefill vs NPU prefill = `oracle=FAIL rule=R2 steps=32
+max_dlogp=0.7041 max_dp1=0.1021 divergences=0` on all 4 pairs; top-1 agrees on 32/32 steps, R1 clean.
+Both prefills are bit-deterministic under greedy (identical probs across 5 captures). R4 met for the cool
+condition; the warm arm was never reached (the NPU passes 70 C only inside a turn, the gate reads it
+between turns), so heat dependence is untested. R5 still unmet. The verdict goes to the owner (R6).
+[scratchpad/agents/s23-oracle-m5/REPORT.md] The merged step plan is
 `scratchpad/agents/learning-governor/LEARNING-MERGE.md` (M5 at line 603, the oracle at section 4).
 
 ### Engine
