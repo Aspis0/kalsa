@@ -22,8 +22,8 @@ import type { ModelBarTone } from "../ui/shell/ModelBar";
 
 /**
  * `retryLabel` is present exactly on the rows whose sentence PROMISES a tap:
- * the bar draws that row as the control (48 dp, `ModelBar.tsx`), and the
- * label is the control's accessible name — a name, not the sentence.
+ * the bar draws that row as the control (48 dp, `ModelBar.tsx`). The control's
+ * accessible name is the sentence it shows; `retryLabel` is its action hint.
  */
 export type ModelBarStatus = {
   label: string;
@@ -116,6 +116,9 @@ export function modelBarStatus(args: {
           size: formatBytes(model.sizeBytes + (model.mmproj?.sizeBytes ?? 0)),
         }),
         tone: "accent",
+        // The sentence promises the download, so the row IS that control
+        // (`decideModelPress` answers a missing tap with "download").
+        ...(hung ? null : { retryLabel: t("common.download") }),
       };
     case "downloading":
       return { label: t("download.downloading", { percent }), tone: "accent" };
@@ -129,8 +132,8 @@ export function modelBarStatus(args: {
             ? t("download.loadFailedRetry")
             : t("download.failedRetry"),
         tone: "bad",
-        // Hung has no tap to name (recovery is a restart), so the control
-        // name appears exactly while `decideModelPress` would answer a tap.
+        // Hung has no tap (recovery is a restart), so the control hint appears
+        // exactly while `decideModelPress` would answer a tap.
         ...(hung ? null : { retryLabel: t("shell.action.retry") }),
       };
     case "ready":
@@ -139,7 +142,15 @@ export function modelBarStatus(args: {
         tone: "good",
       };
     case "reload":
-      return { label: t("chat.lazyReload"), tone: "accent" };
+      // Hung: no reload is possible, so the row says what the error row says.
+      if (hung) return { label: t("embedding.restartHint"), tone: "bad" };
+      // Ready but unloaded: the row is the control `decideModelPress` answers
+      // with "reload", named by the load action.
+      return {
+        label: t("chat.lazyReload"),
+        tone: "accent",
+        retryLabel: t("shell.action.loadModel"),
+      };
   }
 }
 

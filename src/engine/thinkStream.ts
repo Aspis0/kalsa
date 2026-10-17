@@ -118,6 +118,16 @@ export function arbitrateThinkTags(
   return arbitrateThink(raw, opts).text;
 }
 
+/**
+ * Did the full-round arbitration see think markup (or a template-opened
+ * block)? The reader for the fact `finalize` reconciles the buffer with, so
+ * telemetry describes the arbitration that actually ran — a second
+ * implementation here could disagree with the text it is reporting on.
+ */
+export function sawThinkTags(raw: string, opts?: ThinkStreamOptions): boolean {
+  return arbitrateThink(raw, opts).sawThink;
+}
+
 function arbitrateThink(
   raw: string,
   opts?: ThinkStreamOptions,

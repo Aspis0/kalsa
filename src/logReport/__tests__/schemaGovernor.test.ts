@@ -4,6 +4,7 @@ import {
   completionLogRow,
   type GovernorObservationStats,
 } from "../../engine/governorObservation";
+import { finalizeRecord } from "../normalize";
 import { formatRecord } from "../schema";
 
 function record(tag: string, json: string): Record<string, unknown> | null {
@@ -460,5 +461,36 @@ describe("KALSA_GOVERNOR_LEARNED (governorLearned.ts, Stage 1)", () => {
       '{"tps_cpu":13,"heat_gpu":"3.2 C/1k","heat_rows":7}',
     );
     expect(out).toEqual({ tps_cpu: 13, heat_rows: 7 });
+  });
+});
+
+describe("a maximal KALSA_GOVERNOR_PLAN survives the whole report path", () => {
+  // Every field at the widest value its rule allows: 17-digit doubles and the
+  // enum values that carry the most characters.
+  const maximal = {
+    gpu_fit: "NoFit",
+    decode_repack: true,
+    required_mib_with_repack: 4358.700000000001,
+    required_mib_without_repack: 2998.0600000000004,
+    available_mib: 3640.5000000000005,
+    bench_norepack_forced: false,
+    npu_device: "HTP0",
+    npu_fallback: null,
+    npu_lane: "auto",
+    npu_fit: "NoFit",
+    available_src: "cached",
+    pacing_start: 0.9876543210987654,
+    pacing_full: 0.9999999999999999,
+    npu_price: "with_gpu",
+    gpu_leg: true,
+  };
+
+  it("is past the free-text clip, and comes out whole and parseable", () => {
+    const record = formatRecord("KALSA_GOVERNOR_PLAN", maximal) as string;
+    expect(record.length).toBeGreaterThan(300);
+    expect(record.length).toBeLessThanOrEqual(1024);
+    const line = finalizeRecord(record) as string;
+    const payload = line.slice(line.indexOf(" ") + 1);
+    expect(JSON.parse(payload.slice(payload.indexOf(" ") + 1))).toEqual(maximal);
   });
 });

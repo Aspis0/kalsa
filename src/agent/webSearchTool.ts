@@ -70,19 +70,11 @@ function labelForPrimaryFailure(
 }
 
 /**
- * The one-time per-provider consent, injected by the host so this module stays
- * free of UI. searchWeb calls it for every recipient it is about to send a
- * query to — the active provider and, when that fails, the free Exa MCP
- * fallback — because only searchWeb knows who the recipients are. The turn's
- * signal travels with it, so a prompt still open when the turn ends stops
- * waiting instead of answering into a void.
+ * Builds the web_search executor. No dialog and no confirm hook: what a search
+ * leaves the phone is disclosed permanently in Settings, and the Web switch is
+ * the user's on/off for it, so nothing here can wait on an answer mid-turn.
  */
-type SearchConsentGate = NonNullable<Parameters<typeof searchWeb>[1]["consent"]>;
-
-export function makeWebSearchExecutor(
-  locale: Locale,
-  consent: SearchConsentGate,
-): (
+export function makeWebSearchExecutor(locale: Locale): (
   name: string,
   args: Record<string, unknown>,
   signal?: AbortSignal,
@@ -94,8 +86,7 @@ export function makeWebSearchExecutor(
       return { text: strings.errors.unknownTool.replace("{name}", name) };
     }
     const query = String(args.query ?? "").trim();
-    // Only a query that is really about to run is worth asking about, so the
-    // empty case is answered here before the gate ever runs. The rest of the
+    // A query that will not run is answered here, before anything else. The
     // privacy gate lives at executeTool (runToolGate / registry).
     if (!query) return { text: strings.errors.emptySearchQuery };
 
@@ -103,7 +94,7 @@ export function makeWebSearchExecutor(
     const numResults = normalizeNumResults(args.numResults ?? 4);
     let outcome: Awaited<ReturnType<typeof searchWeb>>;
     try {
-      outcome = await searchWeb(query, { locale, numResults, signal, consent });
+      outcome = await searchWeb(query, { locale, numResults, signal });
     } catch (error) {
       if (!(signal?.aborted)) {
         try {
@@ -127,10 +118,6 @@ export function makeWebSearchExecutor(
       }
       throw error;
     }
-
-    // A refused recipient made no request at all: relay the refusal instead of
-    // dressing an empty result set up as an answer.
-    if (outcome.refused) return { text: outcome.refused };
 
     const sources = outcome.results.map((result) => ({
       title: result.title,

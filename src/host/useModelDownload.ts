@@ -286,32 +286,38 @@ export function useModelDownload(deps: ModelDownloadDeps) {
   function confirmDownload(modelId: string): void {
     const model = MODEL_REGISTRY.find((m) => m.id === modelId);
     if (!model) return;
-    // Synchronous double-tap guard before any await (probes + Alert).
+    // Synchronous double-tap guard before the probe's await.
     if (downloadInFlightRef.current || confirmDownloadLockRef.current) return;
     confirmDownloadLockRef.current = true;
     void (async () => {
-      // One probe, volatile axis ON, priced as the load will price it; null
-      // means the probe failed, and a failed probe refuses nothing and warns
-      // nothing (`confirmDownloadGate.ts`).
-      const preview = await confirmDownloadGate(model, deviceBandwidth);
       let memoryWarning: string | null = null;
-      if (preview !== null) {
-        const { gate } = preview;
-        if (!gate.allowed && gate.reason !== "blocked_ram") {
-          // Tier / disk: hard refusal, the same sentence as before.
-          confirmDownloadLockRef.current = false;
-          Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
-          return;
+      try {
+        // One probe, volatile axis ON, priced as the load will price it; null
+        // means the probe failed, and a failed probe refuses nothing and warns
+        // nothing (`confirmDownloadGate.ts`).
+        const preview = await confirmDownloadGate(model, deviceBandwidth);
+        if (preview !== null) {
+          const { gate } = preview;
+          if (!gate.allowed && gate.reason !== "blocked_ram") {
+            // Tier / disk: hard refusal, the same sentence as before.
+            Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
+            return;
+          }
+          // blocked_ram does NOT block the transfer (memory is volatile and the
+          // user may free it): the same sheet carries the need-vs-have sentence
+          // instead, so nobody spends 1.6 GB reaching a refusal they could read.
+          memoryWarning = confirmGateWarning({
+            gate,
+            availableMemoryBytes: preview.profile.availableMemoryBytes,
+            modelName: model.name,
+            t,
+          });
         }
-        // blocked_ram does NOT block the transfer (memory is volatile and the
-        // user may free it): the same sheet carries the need-vs-have sentence
-        // instead, so nobody spends 1.6 GB reaching a refusal they could read.
-        memoryWarning = confirmGateWarning({
-          gate,
-          availableMemoryBytes: preview.profile.availableMemoryBytes,
-          modelName: model.name,
-          t,
-        });
+      } finally {
+        // Released before the confirm Alert is requested: an Alert that fails
+        // to present (iOS, over a dismissing Modal) gives no callback, and must
+        // not leave the lock stuck. The open Alert blocks the pill meanwhile.
+        confirmDownloadLockRef.current = false;
       }
       const total = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
       const confirmBody = t("download.confirmBody", { name: model.name, size: formatBytes(total) });
@@ -319,20 +325,8 @@ export function useModelDownload(deps: ModelDownloadDeps) {
         t("download.title"),
         memoryWarning === null ? confirmBody : `${confirmBody}\n\n${memoryWarning}`,
         [
-          {
-            text: t("common.cancel"),
-            style: "cancel",
-            onPress: () => {
-              confirmDownloadLockRef.current = false;
-            },
-          },
-          {
-            text: t("common.download"),
-            onPress: () => {
-              confirmDownloadLockRef.current = false;
-              void startDownload(modelId);
-            },
-          },
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("common.download"), onPress: () => void startDownload(modelId) },
         ],
       );
     })();

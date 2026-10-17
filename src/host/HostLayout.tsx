@@ -117,6 +117,7 @@ export function HostLayout({
           onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
           actions={actions}
           onMiniappOpen={onMiniappOpen}
+          inputBlocked={drawerOpen || activeOverlay !== null}
         />
         <MailReadSheet
           mode={mode}

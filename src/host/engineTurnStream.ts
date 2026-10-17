@@ -292,7 +292,6 @@ export async function streamEngineTurn(
                     deps.t,
                     (error as { contractCode?: boolean }).contractCode === true,
                   );
-                  callbacks.onDelta?.(`⚠️ ${shownError}`, `⚠️ ${shownError}`);
                   try {
                     // The engine's own sentence, or humanized remote reason.
                     callbacks.onFailedReason?.(shownError);
@@ -300,6 +299,10 @@ export async function streamEngineTurn(
                   } catch {
                     // ignore
                   }
+                  // After the report, for the same reason as engineTurn's fail():
+                  // the line that follows a failure report is chrome, not a
+                  // streamed answer.
+                  callbacks.onDelta?.(`⚠️ ${shownError}`, `⚠️ ${shownError}`);
                   finish();
                 },
               }),

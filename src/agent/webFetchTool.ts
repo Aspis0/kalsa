@@ -542,25 +542,7 @@ export type WebFetchExecutorDeps = {
    * pin clearNetworkTimer / both-aborted precedence with short windows.
    */
   resolveNetworkTimeoutMs?: (url: string) => number;
-  /**
-   * REQUIRED. The one-time notice before this install's first page fetch, asked
-   * after every refusal above and before the network call. A fetch's recipient
-   * is the page's own site, so unlike a search there is no provider the caller
-   * could have named instead — there is no ungated path, and an executor built
-   * without this answers "not opened" rather than opening anything.
-   *
-   * The turn's `signal` travels with it, so a prompt still open when the turn
-   * ends stops waiting instead of opening a page nobody is waiting for.
-   */
-  consent: (signal: AbortSignal | undefined) => Promise<FetchConsentVerdict>;
 };
-
-/**
- * Structurally identical to ConsentVerdict (src/search/oneTimeConsent.ts),
- * declared here so this module keeps no import into src/search: that file owns
- * the storage-bound gate, and this one stays free of the RN storage it uses.
- */
-export type FetchConsentVerdict = "allow" | "deny" | "unavailable";
 
 function reportWebFetchTelemetry(input: {
   code: "web.fetch";
@@ -591,6 +573,8 @@ function reportWebFetchTelemetry(input: {
 /**
  * Build a web_fetch executor bound to a per-turn allowlist.
  * Missing/empty args and policy refusals return i18n text (never throw).
+ * There is no per-fetch dialog: the Web switch in Settings is the user's
+ * on/off, and the disclosure sits permanently under it.
  */
 export function makeWebFetchExecutor(
   locale: Locale,
@@ -646,19 +630,11 @@ export function makeWebFetchExecutor(
       return { text: errors.webFetchPdfBusy };
     }
 
-    // Every refusal above is answered without a network call, so this is the
-    // first point at which a page would really be opened and the first point
-    // worth asking about. Nothing below may reach fetchImpl without "allow":
-    // a caller that cannot ask opens nothing.
-    const consent = deps?.consent;
-    const verdict: FetchConsentVerdict = typeof consent === "function"
-      ? await consent(signal)
-      : "unavailable";
-    if (verdict !== "allow") {
-      const notice = catalog(locale).fetchNotice;
-      return { text: verdict === "deny" ? notice.declined : notice.unavailable };
-    }
+    // A turn cancelled before the page is opened never reaches the network.
+    if (signal?.aborted) return { text: errors.webFetchAborted };
 
+    // Every refusal above is answered without a network call. Past this line a
+    // page is really opened.
     // Network timeout from the URL path, not from "extractor wired".
     // On RN the transport buffers the whole body before JS sees headers, so we
     // cannot peek at Content-Type and then extend the deadline. Using the long

@@ -14,15 +14,16 @@ const STRIP = read("ShellStrip.tsx");
 const SHEET = read("ModelPillSheet.tsx");
 
 describe("the failure sentence is a control a finger can find", () => {
-  test("a real box with a testID, a button role, and a name that is not the sentence", () => {
+  test("a real box with a testID, a button role, the sentence as its name, and the action as its hint", () => {
     expect(BAR).toContain('testID="shell.modelBar.retry"');
     expect(BAR).toContain('accessibilityRole="button"');
-    expect(BAR).toContain("accessibilityLabel={view.status.retryLabel}");
+    expect(BAR).toContain("accessibilityLabel={view.status.label}");
+    expect(BAR).toContain("accessibilityHint={view.status.retryLabel}");
     expect(BAR).toContain("MIN_TOUCH_TARGET");
     expect(BAR).not.toContain("hitSlop");
-    // The accessible name comes from the host's derivation (a control name),
-    // never from the visible sentence itself.
-    expect(BAR).not.toMatch(/accessibilityLabel=\{view\.status\.label\}/);
+    // The accessible name is the sentence the control shows, so a screen reader
+    // announces the same words as the sighted user sees (size included).
+    expect(BAR).not.toMatch(/accessibilityLabel=\{view\.status\.retryLabel\}/);
   });
 
   test("it keeps the sentence's tone and gains the underline as its affordance", () => {
@@ -36,10 +37,16 @@ describe("the failure sentence is a control a finger can find", () => {
     expect(BAR.match(/statusRowHeight\(view\)/g)).toHaveLength(3);
   });
 
-  test("the pill sheet hands retry to the same model action as the pill", () => {
+  test("the pill sheet hands retry to the same model action as the pill, after it closes", () => {
     expect(STRIP).toContain("onRetryPress={onModelAction}");
-    expect(SHEET).toContain("onRetryPress={onRetryPress}");
-    expect(SHEET).toContain("<ModelBar view={view} mode={mode} onRetryPress={onRetryPress} />");
+    expect(SHEET).toContain("onRetryPress={onRetryPress ? () => closeThen(onRetryPress) : undefined}");
+    // The download Alert must not be presented over the Modal still on screen.
+    expect(SHEET).toContain("onDismiss={onModalDismiss}");
+    // A stale queued action never fires on a re-open, a late dismissal while the
+    // sheet is up does nothing, and leaving the screen runs the pending action.
+    expect(SHEET).toContain("if (visible) afterDismiss.current = null;");
+    expect(SHEET).toContain("if (!shownRef.current) runPending();");
+    expect(SHEET).toContain("useEffect(() => () => runPending(), [runPending]);");
   });
 });
 

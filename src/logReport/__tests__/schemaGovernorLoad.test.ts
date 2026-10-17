@@ -1,11 +1,11 @@
 /**
  * KALSA_GOVERNOR_LOAD through the REAL emitter: the payload governorLoadLog
  * builds from one load's governorLoad, walked through formatRecord and
- * finalizeLine. What is asserted is what an uploaded report actually keeps —
- * every field surviving, inside normalize.ts's 300-char clip.
+ * finalizeRecord. What is asserted is what an uploaded report actually keeps —
+ * every field surviving, whole inside normalize.ts's record cap.
  */
 import { governorLoadLogLine, type GovernorLoadFacts } from "../../engine/governorLoadLog";
-import { finalizeLine } from "../normalize";
+import { finalizeRecord } from "../normalize";
 import { formatRecord } from "../schema";
 
 /** An S23 one-copy load, as cpp/rn-governor-params.cpp governor_load_json
@@ -32,14 +32,14 @@ function report(emitted: string): { line: string; fields: Record<string, unknown
   const split = emitted.indexOf(" ");
   const record = formatRecord(emitted.slice(0, split), JSON.parse(emitted.slice(split + 1)));
   if (record === null) return null;
-  const line = finalizeLine(record);
+  const line = finalizeRecord(record);
   if (line === null) return null;
   const payload = line.slice(line.indexOf(" ") + 1);
   return { line, fields: JSON.parse(payload.slice(payload.indexOf(" ") + 1)) };
 }
 
 describe("KALSA_GOVERNOR_LOAD keeps what one load built", () => {
-  it("survives the clip whole", () => {
+  it("survives the record cap whole", () => {
     const out = report(governorLoadLogLine(LOAD_FACTS));
     expect(out?.fields).toEqual({
       npu: true,

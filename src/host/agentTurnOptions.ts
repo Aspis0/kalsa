@@ -16,10 +16,6 @@ import { createDocumentChatExecutor } from "../documents/documentChatTool";
 import type { DocRetrieverIndex } from "../context/retrievalLoop";
 import type { LibraryDoc, LibraryState } from "../documents/DocumentLibrary";
 import { clipWebSearchArgs, makeWebSearchExecutor } from "../agent/webSearchTool";
-import { confirmSearchProvider } from "../search/firstSearchNotice";
-import { showFirstWebSearchNotice } from "./webSearchNotice";
-import { confirmFetchConsent } from "../search/firstFetchNotice";
-import { showFirstWebFetchNotice } from "./webFetchNotice";
 import { makeWriteNoteExecutor } from "../agent/writeNoteTool";
 import { makeCreateMiniappExecutor } from "../agent/createMiniappTool";
 import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
@@ -87,18 +83,9 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
     toolhelpRef,
     injectedFactsRef,
   } = deps;
-    // Before a phone web search sends its query: one notice per provider the
-    // query would reach, the first time this install reaches it. The active
-    // provider id resolves with searchWeb's own fallback rule, so the notice
-    // cannot name one provider while the search goes to another.
-    const searchExec = makeWebSearchExecutor(locale, async (providerId, cancelSignal) =>
-      confirmSearchProvider({
-        locale,
-        providerId,
-        signal: cancelSignal,
-        confirm: (providerName) => showFirstWebSearchNotice(providerName, locale),
-      }),
-    );
+    // No per-query gate on a phone web search: what it leaves the phone is
+    // disclosed in Settings, under the Web switch.
+    const searchExec = makeWebSearchExecutor(locale);
     const writeNoteExec = makeWriteNoteExecutor(locale);
     // create_miniapp is ungated and always on; opens the built miniapp inline
     // via the current turn's onMiniapp hook (threaded through a ref).
@@ -119,16 +106,6 @@ export function buildAgentOptions(deps: AgentOptionsDeps): EngineTurnOptions {
       noCacheDirMessage: getStrings(locale).errors.webFetchPdfNoCacheDir,
     });
     const fetchDeps = {
-      // Before this install's FIRST page: one notice, because the recipient of a
-      // fetch is the page's own site — not a provider the user could pick. Asked
-      // inside the fetch executor, after its refusals, so the gate covers both
-      // the structured tool call and the text-dialect fallback that reach
-      // executeTool, and covers neither one twice.
-      consent: (signal: AbortSignal | undefined) =>
-        confirmFetchConsent({
-          signal,
-          confirm: () => showFirstWebFetchNotice(locale),
-        }),
       extractPdfText: (
         fileUri: string,
         opts?: { sourceId?: string; title?: string | null; signal?: AbortSignal },

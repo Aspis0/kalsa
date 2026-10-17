@@ -225,10 +225,10 @@ export function learnedRecordFrom(
  *  on purpose — Build.FINGERPRINT is not a bounded identifier, and the line
  *  already comes from this one phone.
  *
- *  Values are rounded to three significant digits because finalizeLine clips
- *  any line past 300 characters, and an unrounded double (0.0828078...) spends
- *  the tail of the line on digits no one reads — a clipped report silently
- *  loses whole fields, which is worse than a value off its fourth digit. */
+ *  Values are rounded to three significant digits: an unrounded double
+ *  (0.0828078...) spends the tail of the record on digits no one reads. A
+ *  record past the report's 1024-char cap is dropped whole (finalizeRecord),
+ *  never clipped, so a rounded record keeps every field or none at all. */
 export function learnedLogFields(
   record: LearnedRecord,
   seeds: LearnedSeeds,

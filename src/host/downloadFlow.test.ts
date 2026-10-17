@@ -20,6 +20,9 @@ import { en, it as italian } from "../i18n";
 const HOST = (file: string) => readFileSync(join(__dirname, file), "utf8");
 const OVERLAYS = HOST("HostOverlays.tsx");
 const DOWNLOAD = HOST("useModelDownload.ts");
+/** Comments removed, so prose cannot satisfy or fail a source check. */
+const stripComments = (source: string): string =>
+  source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 const CONFIRM_GATE = HOST("confirmDownloadGate.ts");
 const WARNING = HOST("confirmGateWarning.ts");
 const SWITCH = HOST("modelSwitch.ts");
@@ -89,6 +92,34 @@ describe("the notice slot stays one slot (D2 row 17)", () => {
   test("the root's pinned one-slot line is untouched", () => {
     const root = HOST("HostRoot.tsx");
     expect(root).toContain("const { notice, showNotice, showNoticeKey } = useNotice();");
+  });
+});
+
+describe("the double-tap lock cannot outlive a confirm Alert that fails to present", () => {
+  // Scoped to confirmDownload's own body: the file has other try/finally blocks.
+  const code = stripComments(DOWNLOAD);
+  const body = code.slice(code.indexOf("function confirmDownload("), code.indexOf("\n  return {"));
+  const LOCK_TAKEN = "confirmDownloadLockRef.current = true;";
+  const LOCK_FREED = "confirmDownloadLockRef.current = false;";
+  const probeFinally = body.indexOf("} finally {");
+  const confirmAlert = body.indexOf("const confirmBody");
+
+  test("the lock is taken before the probe, and the probe has a finally to release it", () => {
+    expect(probeFinally).toBeGreaterThan(0);
+    const taken = body.indexOf(LOCK_TAKEN);
+    expect(taken).toBeGreaterThan(0);
+    expect(taken).toBeLessThan(probeFinally);
+  });
+
+  test("the probe's finally releases the lock, before the confirm Alert is requested", () => {
+    const released = body.indexOf(LOCK_FREED, probeFinally);
+    expect(released).toBeGreaterThan(probeFinally);
+    expect(released).toBeLessThan(confirmAlert);
+  });
+
+  test("the confirm Alert's callbacks never touch the lock", () => {
+    expect(confirmAlert).toBeGreaterThan(0);
+    expect(body.slice(confirmAlert)).not.toContain("confirmDownloadLockRef");
   });
 });
 

@@ -26,7 +26,8 @@ jest.mock("../deviceProfile", () => ({
 }));
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { finalizeLine } from "../../logReport/normalize";
+import { finalizeRecord } from "../../logReport/normalize";
+import { formatRecord } from "../../logReport/schema";
 import { getCachedDeviceProfile } from "../deviceProfile";
 import type { GovernorObservationRow } from "../governorObservation";
 import {
@@ -313,18 +314,18 @@ describe("the KALSA_GOVERNOR_LEARNED line", () => {
     expect(fields.heat_rejects).toBe(1);
   });
 
-  it("survives finalizeLine with every field intact", async () => {
-    // The report path clips any line past 300 chars, so this asserts the REAL
-    // payload (rounded doubles from a fitted record) survives the trip.
+  it("survives the record path with every field intact", async () => {
+    // The real report path: schema projection, then the record cap. This
+    // asserts the REAL payload (rounded doubles from a fitted record) survives.
     for (let i = 0; i < 15; i += 1) await recordLearnedObservation(row());
     const record = learnedRecordFrom(storedAt(learnedStoreKey(FP)), FP, SEEDS);
     const fields = learnedLogFields(record, SEEDS, { atMs: Date.now() - 60_000 }, Date.now());
-    const line = `KALSA_GOVERNOR_LEARNED ${JSON.stringify(fields)}`;
-    expect(line.length).toBeLessThanOrEqual(300);
-    const finalized = finalizeLine(line);
+    const projected = formatRecord("KALSA_GOVERNOR_LEARNED", fields);
+    expect(projected).not.toBeNull();
+    const finalized = finalizeRecord(projected as string);
     expect(finalized).not.toBeNull();
     const stamped = finalized as string;
-    // From the payload's first brace: a clip mid-object fails to parse, which
+    // From the payload's first brace: a cut mid-object fails to parse, which
     // is the failure this test exists to catch.
     const survived = JSON.parse(stamped.slice(stamped.indexOf("{"))) as Record<string, unknown>;
     expect(Object.keys(survived).sort()).toEqual(Object.keys(fields).sort());

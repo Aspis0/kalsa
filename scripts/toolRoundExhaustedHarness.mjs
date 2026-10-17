@@ -149,6 +149,9 @@ async function main() {
       streamedLen: 0,
       fallbackFired: true,
       fallbackOk: false,
+      rawLen: 812,
+      sawThink: true,
+      sawToolMarkup: false,
     };
     const line = formatToolRoundExhaustedLine("turn-123", tel);
     check("Telemetry: line starts with KALSA_TOOLROUND_EXHAUSTED", line.startsWith("KALSA_TOOLROUND_EXHAUSTED "));
@@ -159,10 +162,25 @@ async function main() {
     check("Telemetry: streamedLen is number", typeof json.streamedLen === "number");
     check("Telemetry: fallbackFired is boolean", typeof json.fallbackFired === "boolean");
     check("Telemetry: fallbackOk is boolean", typeof json.fallbackOk === "boolean");
+    check("Telemetry: rawLen is number", typeof json.rawLen === "number");
+    check("Telemetry: sawThink is boolean", typeof json.sawThink === "boolean");
+    check("Telemetry: sawToolMarkup is boolean", typeof json.sawToolMarkup === "boolean");
 
-    // Verify no extra fields
+    // Verify no extra fields. The literal above is the FULL payload on purpose:
+    // JSON.stringify drops an undefined property, so a harness that left the
+    // new counters out would compare a five-key line against a five-key
+    // expectation and pass while the real line carried eight.
     const keys = Object.keys(json).sort();
-    const expectedKeys = ["fallbackFired", "fallbackOk", "roundsUsed", "streamedLen", "turnId"].sort();
+    const expectedKeys = [
+      "fallbackFired",
+      "fallbackOk",
+      "rawLen",
+      "roundsUsed",
+      "sawThink",
+      "sawToolMarkup",
+      "streamedLen",
+      "turnId",
+    ].sort();
     check(
       "Telemetry: only expected fields",
       JSON.stringify(keys) === JSON.stringify(expectedKeys),

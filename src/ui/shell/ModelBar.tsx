@@ -31,7 +31,8 @@ export type ModelBarView = {
     label: string;
     tone: ModelBarTone;
     /** Present exactly on a sentence that promises a tap: the row then draws
-     *  as that control — its accessible name, never the sentence itself. */
+     *  as that control. Its accessible name is the sentence it shows; this
+     *  action word is the accessible hint. */
     retryLabel?: string;
   };
   /** 0-100 while downloading, null otherwise — the bar draws iff this is set. */
@@ -45,9 +46,8 @@ export type ModelBarView = {
 const ONE_LINE = SHELL_NOTICE_HEIGHT;
 /**
  * The status row's height: a real 48 dp finger box while the row IS the
- * retry control it names (`retryLabel`), the clipped one-line row otherwise.
- * The promise in "tap to retry" is a promise about a tap target — the only
- * one on the screen while the engine has refused this model.
+ * control it sentences (it carries `retryLabel`), the clipped one-line row
+ * otherwise. The promise in "tap to retry" is a promise about a tap target.
  */
 function statusRowHeight(view: ModelBarView): number {
   if (view.status.label === "") return 0;
@@ -114,7 +114,8 @@ export function ModelBar({
         <Pressable
           testID="shell.modelBar.retry"
           accessibilityRole="button"
-          accessibilityLabel={view.status.retryLabel}
+          accessibilityLabel={view.status.label}
+          accessibilityHint={view.status.retryLabel}
           onPress={onRetryPress}
           style={({ pressed }) => [
             ROW,

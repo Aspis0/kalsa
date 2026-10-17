@@ -1,5 +1,6 @@
-/** Final-pass tests: deny words, URL stripping, IP/home-path redaction, 300-char clip. */
-import { finalizeLine } from "../normalize";
+/** Final-pass tests: deny words, URL stripping, IP/home-path redaction, the
+ *  300-char clip for free text, and the whole-or-dropped record cap. */
+import { finalizeLine, finalizeRecord } from "../normalize";
 
 describe("deny words drop the line", () => {
   it.each([
@@ -83,5 +84,39 @@ describe("300-char clip", () => {
   it("leaves short lines untouched apart from the prefix", () => {
     const out = finalizeLine('KALSA_CTX_FLOOR {"nCtx":8192}');
     expect(out?.endsWith('KALSA_CTX_FLOOR {"nCtx":8192}')).toBe(true);
+  });
+});
+
+describe("records keep their JSON whole or are dropped, never clipped", () => {
+  const contentOf = (line: string) => line.slice(line.indexOf(" ") + 1);
+
+  it("a record past the free-text clip but under the record cap keeps every field", () => {
+    const record = `KALSA_X ${JSON.stringify({ text: "b".repeat(600) })}`;
+    const out = finalizeRecord(record);
+    expect(out).not.toBeNull();
+    const payload = contentOf(contentOf(out as string));
+    expect(JSON.parse(payload)).toEqual({ text: "b".repeat(600) });
+  });
+
+  it("a record over the record cap is dropped, not sliced into invalid JSON", () => {
+    expect(finalizeRecord(`KALSA_X ${JSON.stringify({ text: "b".repeat(1100) })}`)).toBeNull();
+  });
+
+  it("the redaction and URL passes still run on the longer record", () => {
+    const record = `KALSA_X ${JSON.stringify({
+      path: "/Users/marco/Projects/x",
+      ip: "10.0.0.5",
+      url: "https://example.com/a?token=1",
+      pad: "c".repeat(500),
+    })}`;
+    const out = finalizeRecord(record) as string;
+    expect(out).toContain("/Users/<user>/Projects/x");
+    expect(out).toContain("<ip>");
+    expect(out).toContain("https://example.com/a");
+    expect(out).not.toContain("token=1");
+  });
+
+  it("the deny words still drop a record of any length", () => {
+    expect(finalizeRecord('KALSA_X {"m":"got exception"}')).toBeNull();
   });
 });

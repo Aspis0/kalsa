@@ -6,7 +6,7 @@
  * for the step-2 sender, and one record function for errors React catches
  * before `ErrorUtils` ever sees them (the root error boundary).
  */
-import { finalizeLine } from "./normalize";
+import { finalizeLine, finalizeRecord } from "./normalize";
 import { appendLine, readReportText } from "./logStore";
 import { formatRecord } from "./schema";
 import { formatJsErrorLine } from "./jsErrorLine";
@@ -67,7 +67,7 @@ function captureConsoleLine(args: unknown[]): void {
   }
   const record = formatRecord(tag, payload);
   if (record === null) return;
-  const line = finalizeLine(record);
+  const line = finalizeRecord(record);
   if (line !== null) appendLine(line);
 }
 

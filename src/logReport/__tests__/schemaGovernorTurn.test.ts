@@ -1,9 +1,9 @@
 /**
  * The two per-turn report lines, KALSA_GOVERNOR_TURN and KALSA_GOVERNOR_COST,
  * projected through the REAL emitter: a payload built by governorTurnLog, never
- * a hand-written one, walked through formatRecord and finalizeLine. What is
+ * a hand-written one, walked through formatRecord and finalizeRecord. What is
  * asserted here is what an uploaded report actually keeps: every field
- * surviving, and every line inside normalize.ts's 300-char clip.
+ * surviving, and every record inside normalize.ts's record cap.
  */
 import {
   governorTurnLogLines,
@@ -13,7 +13,7 @@ import {
   type GovernorFallbackCode,
   type GovernorTurnStats,
 } from "../../engine/governorTurnLog";
-import { finalizeLine } from "../normalize";
+import { finalizeRecord } from "../normalize";
 import { formatRecord } from "../schema";
 
 /** The stats a real S23 turn answers, shaped as the JSI bridge emits them
@@ -56,7 +56,7 @@ function report(emitted: string): { line: string; fields: Record<string, unknown
   const split = emitted.indexOf(" ");
   const record = formatRecord(emitted.slice(0, split), JSON.parse(emitted.slice(split + 1)));
   if (record === null) return null;
-  const line = finalizeLine(record);
+  const line = finalizeRecord(record);
   if (line === null) return null;
   const payload = line.slice(line.indexOf(" ") + 1);
   return { line, fields: JSON.parse(payload.slice(payload.indexOf(" ") + 1)) };
@@ -176,9 +176,10 @@ describe("KALSA_GOVERNOR_TURN keeps every placement fact", () => {
 
   it("is inside normalize.ts's clip, payload and all", () => {
     const out = report(turnLines()[0]);
-    // The record itself must fit: finalizeLine prefixes the ISO timestamp and
-    // clips at 300, so a longer record would be truncated mid-JSON.
-    expect(out?.line.length).toBeLessThanOrEqual(300);
+    // The record itself must fit: finalizeRecord keeps a record whole up to
+    // 1024 chars and drops it past that, never clips it mid-JSON.
+    const content = out!.line.slice(out!.line.indexOf(" ") + 1);
+    expect(content.length).toBeLessThanOrEqual(1024);
     expect(out?.line).toContain('"dev":["CPU","HTP0","GPUOpenCL"]');
   });
 

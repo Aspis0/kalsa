@@ -106,9 +106,10 @@ describe("what a press does", () => {
     expect(FURNITURE).toContain("selectLocation={modelHost.selectLocation}");
   });
 
-  test("a choice dismisses the sheet: a refusal must not sit over its own notice", () => {
+  test("a choice runs after the sheet is gone: a refusal or an Alert must not sit over the Modal", () => {
     expect(SHEET).toContain("<SheetRow");
-    expect(SHEET).toMatch(/row\.onPress\(\);\s*\n\s*onClose\(\);/);
+    expect(SHEET).toContain("closeThen(row.onPress)");
+    expect(SHEET).toContain("onDismiss={onModalDismiss}");
   });
 });
 

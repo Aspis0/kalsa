@@ -95,11 +95,12 @@ describe("a ready model the engine does not hold (the idle unload) still sends",
     expect(view.composer.faceEnabled).toBe(true);
   });
 
-  it("a missing or error model still holds with the unloaded line", () => {
-    for (const modelState of ["missing", "error"] as const) {
-      const view = composerView(input({ modelState, draft: "ciao" }));
+  it("a missing, downloading or error model still holds, each with its own line", () => {
+    const holds = { missing: "shell.held.missing", downloading: "shell.held.downloading", error: "shell.held.unloaded" };
+    for (const [modelState, hold] of Object.entries(holds)) {
+      const view = composerView(input({ modelState: modelState as "missing" | "downloading" | "error", draft: "ciao" }));
       expect(view.sendEnabled).toBe(false);
-      expect(view.composer.hold).toBe("shell.held.unloaded");
+      expect(view.composer.hold).toBe(hold);
     }
   });
 
@@ -188,6 +189,8 @@ describe("the low-memory line, which belongs to the load", () => {
   it("never takes a hold that names something to act on", () => {
     for (const hold of [
       "shell.held.loading",
+      "shell.held.downloading",
+      "shell.held.missing",
       "shell.held.unloaded",
       "shell.held.converting",
       "shell.held.tooHot",

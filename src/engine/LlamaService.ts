@@ -140,12 +140,17 @@ import { resolveUseMlock } from "./mlockPolicy";
 import { resolveLoadPolicy } from "./loadPolicy";
 import {
   createToolCallDeltaStripper,
+  hasToolCallMarkup,
   LFM_TOOL_CALL_START,
   parseFallbackToolCalls,
   stripToolCallTagsFinal,
   TOOL_CALL_OPEN,
 } from "./toolCallParser";
-import { createThinkStreamCleaner, decideTemplateOpensThink } from "./thinkStream";
+import {
+  createThinkStreamCleaner,
+  decideTemplateOpensThink,
+  sawThinkTags,
+} from "./thinkStream";
 import { formatToolResultContent } from "./toolResultFormat";
 import { visibleTurnText } from "./truncatedTurnText";
 import { historyMessagePositions } from "./historyMessagePositions";
@@ -1290,6 +1295,13 @@ export async function queueStaticPrefixPrewarm(
     try {
       if (gen !== prewarmGeneration) {
         logPrewarm({ op: "skip", reason: "stale" });
+        return;
+      }
+      // A clear releases prewarmQueuedKey while this job may still be queued, so
+      // a second job for the same hash can exist. If an earlier one already
+      // warmed this prefix, this one has nothing to do.
+      if (shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash)) {
+        logPrewarm({ op: "skip", reason: "already_warm", hash: prefix.hash });
         return;
       }
       if (disposing || !context) {
@@ -3576,19 +3588,28 @@ export function markKvNonReproducible(
   kvReproState = nextKvReproState(kvReproState, event);
 }
 
+/**
+ * clearCache does not spare the static prefix: it is the same native cache.
+ * Leaving prewarmPrefixHash set would be a JS flag asserting a warmth the
+ * clear just destroyed — the exact class of desync this repo has hit three
+ * times — and it makes queueStaticPrefixPrewarm short-circuit
+ * (shouldSkipStaticPrefixPrewarm), logging `already_warm` and returning BEFORE
+ * the snapshot restore, so the saved 1989-token prefix goes unused and the
+ * next turn re-prefills it. prewarmQueuedKey goes with it: it is the same
+ * "this hash is warm / warming" claim. Not resetPrewarmState(): that bumps
+ * prewarmGeneration, which would cancel the prewarm we want to run next.
+ * Every site that empties the native cache must call this.
+ */
+function markStaticPrefixCacheGone(): void {
+  prewarmPrefixHash = null;
+  prewarmQueuedKey = null;
+}
+
 /** Native chat KV is gone — a later save must not overwrite a kept .kvs. */
 function markChatKvCleared(): void {
   dropChatKvHold(true);
   invalidateChatKvAlignment();
-  // clearCache does not spare the static prefix: it is the same native cache.
-  // Leaving prewarmPrefixHash set would be a JS flag asserting a warmth the
-  // clear just destroyed — the exact class of desync this repo has hit three
-  // times — and it makes queueStaticPrefixPrewarm short-circuit
-  // (shouldSkipStaticPrefixPrewarm), so nothing would ever re-warm after a
-  // window slide. Not resetPrewarmState(): that bumps prewarmGeneration,
-  // which would cancel the prewarm we want to run next.
-  prewarmPrefixHash = null;
-  prewarmQueuedKey = null;
+  markStaticPrefixCacheGone();
 }
 
 /**
@@ -3652,6 +3673,7 @@ async function dropHoldAfterOptionalNativeClear(
   dropChatKvHold(nativeEmpty);
   if (nativeEmpty) {
     invalidateChatKvAlignment();
+    markStaticPrefixCacheGone();
   }
   return nativeEmpty;
 }
@@ -4007,6 +4029,52 @@ export async function streamAssistantTurn(
     // Raw tokens for this turn (all rounds). On abort, emit before onDone so
     // the UI can persist modelEmittedText for the interrupted partial.
     let rawEmittedAccum = "";
+
+    // ── The turn's own stream state, declared HERE and not further down ──────
+    // `abort` below reads every one of these (joinThinking, the live think
+    // cleaner, the streamed length), and abort can run long before the old
+    // position: the pre-check at the `signal?.aborted` branch, and any abort
+    // landing inside the bench-knob awaits that follow it. With the `let`
+    // bindings that far below, those windows called abort against uninitialized
+    // state — the reported symptom was
+    // "⚠️ Cannot read property 'thinkingText' of undefined" (the cleaner's
+    // method on an undefined receiver) instead of a clean stop. Declarations
+    // only: every reassignment stays exactly where it was, so the per-round
+    // reset semantics are unchanged.
+    // Accumulo locale del testo: streaming garantito anche se il campo
+    // `accumulated_text` di llama.rn non fosse popolato dal binding.
+    let streamedText = "";
+    // Cleaned visible prose already streamed from PRIOR rounds (snapshot at
+    // each round start). Used by emitFinalText so the final full-replacement
+    // onDelta does not wipe round-1 prose from the bubble / history.
+    let streamedTextAtRoundStart = "";
+    // Reasoning spans from COMPLETED rounds (UI display only — prompt replay
+    // replays modelEmittedText). Flushed at round transitions; the live
+    // round's span joins at the emit points after its finalize reconciles.
+    let thinkingAccum = "";
+    // Flips once per round, on the first VISIBLE content token (think-block
+    // stripping yields no visible deltas, so thinking keeps the thinking
+    // label). Back to false with each fresh round below.
+    let roundWritingEmitted = false;
+    const joinThinking = (acc: string, next: string): string => {
+      if (next.trim().length === 0) return acc;
+      return acc.length > 0 ? `${acc}\n\n${next}` : next;
+    };
+
+    // Think-tag stripper: pure module (src/engine/thinkStream.ts). Stream is
+    // conservative (holds after mid-text <think>); finalize does full-round
+    // arbitration (single unclosed mid-text open kept verbatim; ≥2 → strip
+    // from first open; leading block always stripped incl. whitespace).
+    // Fresh instance per completion round (reset below).
+    let thinkCleaner = createThinkStreamCleaner();
+    // Fallback-dialect tool_call markup (see toolCallParser.ts): some model
+    // outputs leak a literal <tool_call>...</tool_call> block instead of a
+    // structured tool_calls entry. Stripped from the visible stream exactly
+    // like <think>, on top of think-tag removal. Fresh instance per round
+    // (reset alongside the think cleaner below).
+    let toolCallStrip = createToolCallDeltaStripper();
+    const cleanStreamDelta = (raw: string): string => toolCallStrip(thinkCleaner.cleanDelta(raw));
+
     const finishOnce = (fn: () => void) => {
       if (!finished) {
         finished = true;
@@ -4401,40 +4469,6 @@ export async function streamAssistantTurn(
         bakeUnprefixedHealed = true;
       }
     }
-
-    // Accumulo locale del testo: streaming garantito anche se il campo
-    // `accumulated_text` di llama.rn non fosse popolato dal binding.
-    let streamedText = "";
-    // Cleaned visible prose already streamed from PRIOR rounds (snapshot at
-    // each round start). Used by emitFinalText so the final full-replacement
-    // onDelta does not wipe round-1 prose from the bubble / history.
-    let streamedTextAtRoundStart = "";
-    // Reasoning spans from COMPLETED rounds (UI display only — prompt replay
-    // replays modelEmittedText). Flushed at round transitions; the live
-    // round's span joins at the emit points after its finalize reconciles.
-    let thinkingAccum = "";
-    // Flips once per round, on the first VISIBLE content token (think-block
-    // stripping yields no visible deltas, so thinking keeps the thinking
-    // label). Back to false with each fresh round below.
-    let roundWritingEmitted = false;
-    const joinThinking = (acc: string, next: string): string => {
-      if (next.trim().length === 0) return acc;
-      return acc.length > 0 ? `${acc}\n\n${next}` : next;
-    };
-
-    // Think-tag stripper: pure module (src/engine/thinkStream.ts). Stream is
-    // conservative (holds after mid-text <think>); finalize does full-round
-    // arbitration (single unclosed mid-text open kept verbatim; ≥2 → strip
-    // from first open; leading block always stripped incl. whitespace).
-    // Fresh instance per completion round (reset below).
-    let thinkCleaner = createThinkStreamCleaner();
-    // Fallback-dialect tool_call markup (see toolCallParser.ts): some model
-    // outputs leak a literal <tool_call>...</tool_call> block instead of a
-    // structured tool_calls entry. Stripped from the visible stream exactly
-    // like <think>, on top of think-tag removal. Fresh instance per round
-    // (reset alongside the think cleaner below).
-    let toolCallStrip = createToolCallDeltaStripper();
-    const cleanStreamDelta = (raw: string): string => toolCallStrip(thinkCleaner.cleanDelta(raw));
 
     /** Prefer `content` (post-filter) over `text` (original) — same choice as emitFinalText. */
     const extractRawResultText = (raw: { text: string; content?: string }): string =>
@@ -5332,6 +5366,9 @@ export async function streamAssistantTurn(
           streamedLen: streamedText.length,
           fallbackFired: false,
           fallbackOk: false,
+          rawLen: 0,
+          sawThink: false,
+          sawToolMarkup: false,
         };
         if (!bailIfStopped()) {
           exhaustedTel.fallbackFired = true;
@@ -5472,18 +5509,44 @@ export async function streamAssistantTurn(
               return;
             }
             // Strip tool_call/think markup from the fallback result. If text
-            // remains, emit it; otherwise fall through to the canned message.
+            // remains, emit it; if it reasoned but said nothing, the marker
+            // below stands in; only a round that did neither falls through to
+            // the canned message.
             const fallbackEmitted = extractRawResultText(fallbackResult);
+            // Why the fallback produced no answer, in numbers and booleans: a
+            // non-zero rawLen with sawThink and no sawToolMarkup is the
+            // reasoning-only round that the interrupted marker now closes.
+            exhaustedTel.rawLen = fallbackEmitted.length;
+            exhaustedTel.sawThink = sawThinkTags(fallbackEmitted, {
+              templateOpensThink: fallbackOpensThink,
+            });
+            exhaustedTel.sawToolMarkup = hasToolCallMarkup(fallbackEmitted);
             let fallbackText = stripToolCallTagsFinal(
               thinkCleaner.finalize(fallbackEmitted),
             ).trim();
             if (!fallbackStreamedTextAtStart) fallbackText = fallbackText.trimStart();
+            const fallbackThinking = joinThinking(
+              thinkingAccum,
+              thinkCleaner.thinkingText(),
+            );
+            // The same rescue the normal round gets (emitFinalText), for the
+            // same reason: with the template think block open, a fallback
+            // truncated inside it arbitrates to reasoning and ZERO visible
+            // text, so `fallbackText` stayed empty and the canned "I couldn't
+            // complete the search" was emitted directly under a Thinking
+            // bubble saying the opposite. visibleTurnText closes the turn with
+            // the interrupted marker instead; the canned message survives only
+            // when there is genuinely nothing to show.
+            fallbackText = visibleTurnText({
+              finalText: fallbackText,
+              streamedVisibleLength: streamedText.length,
+              thinking: fallbackThinking,
+              interruptedMarker: strings.chat.interrupted,
+            });
             // Symmetric with emitFinalText: thinking fires unconditionally
             // after the round's finalize reconciled the buffer — a pure-
             // reasoning fallback must not throw its reasoning away.
-            callbacks.onThinkingText?.(
-              joinThinking(thinkingAccum, thinkCleaner.thinkingText()),
-            );
+            callbacks.onThinkingText?.(fallbackThinking);
             if (fallbackText) {
               exhaustedTel.fallbackOk = true;
               toolFallbackOk = true;
@@ -5524,11 +5587,13 @@ export async function streamAssistantTurn(
         } catch {
           // Telemetry must never break a turn.
         }
-        // If fallback produced no text, emit the localized honest message so
-        // the bubble is never empty. The user can act on it (retry/rephrase).
-        // Use fallbackOk (authoritative) rather than re-checking streamedText,
-        // because the token callback may have streamed partial text that was
-        // later stripped by thinkCleaner.finalize.
+        // Only a fallback that neither answered nor reasoned reaches here — its
+        // visibleTurnText rescue left the text empty — so the localized honest
+        // message still closes the bubble and the user can act on it
+        // (retry/rephrase). Use fallbackOk (authoritative) rather than
+        // re-checking streamedText, because the token callback may have
+        // streamed partial text that was later stripped by
+        // thinkCleaner.finalize.
         if (!exhaustedTel.fallbackOk) {
           const fallbackMessage = strings.errors.toolRoundsExhausted;
           // The first visible text of this turn, so the label stops naming the
@@ -5870,6 +5935,12 @@ export async function extractMemory(
           // The extract completion now owns the native context, cleared or
           // not: the chat boundary fact and any reconcile attempt are stale.
           invalidateChatKvAlignment();
+          // Unlike the boundary fact, the static-prefix warmth flag only lies
+          // when the clear actually landed — the extract prompt overwrites the
+          // cache either way.
+          if (clearCacheSucceeded) {
+            markStaticPrefixCacheGone();
+          }
         } else {
           // Flag on but nothing to restore (kvHoldsChatSession already false).
           // Skip rather than run a naked extract over whatever is in context.
@@ -6058,6 +6129,7 @@ export async function translateText(
       if (aborted || signal?.aborted || engine !== context) {
         if (clearCacheSucceeded && engine === context) {
           invalidateChatKvAlignment();
+          markStaticPrefixCacheGone();
         }
         dropChatKvHold(
           nativeEmptyForHoldDrop({
@@ -6070,6 +6142,11 @@ export async function translateText(
       // The translate prompt now owns the native context: the chat boundary
       // fact and any reconcile attempt are stale regardless of hold flags.
       invalidateChatKvAlignment();
+      // The clear did not spare the static prefix: same native cache, so the
+      // warmth flag is dead whenever the clear landed.
+      if (clearCacheSucceeded) {
+        markStaticPrefixCacheGone();
+      }
 
       timer = setTimeout(() => {
         timedOut = true;
@@ -6259,7 +6336,7 @@ export async function completeOnce(
     } finally {
       if (timer) clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
-      if (chatPrefixGone) prewarmPrefixHash = null;
+      if (chatPrefixGone) markStaticPrefixCacheGone();
     }
   });
 }

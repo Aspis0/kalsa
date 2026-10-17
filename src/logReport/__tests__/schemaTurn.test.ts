@@ -1,4 +1,5 @@
 /** Schema tests for the per-turn tags: window, telemetry, thinking, truncation, ctx floor. */
+import { finalizeRecord } from "../normalize";
 import { formatRecord } from "../schema";
 
 function record(tag: string, json: string): Record<string, unknown> | null {
@@ -158,5 +159,39 @@ describe("KALSA_CTX_FLOOR (LlamaService.ts:2346)", () => {
   it("keeps nCtx and rejects a string", () => {
     expect(record("KALSA_CTX_FLOOR", '{"nCtx":16384}')).toEqual({ nCtx: 16384 });
     expect(record("KALSA_CTX_FLOOR", '{"nCtx":"16384"}')).toEqual({});
+  });
+});
+
+describe("a maximal KALSA_TELEMETRY survives the whole report path", () => {
+  // Every field at the widest value its rule allows: a 12-digit counter, the
+  // longest tool and strategy names, and 17-digit doubles.
+  const maximal = {
+    turnId: "999999999999",
+    attempt: 3,
+    round: 9,
+    tokensCached: 1234567.123456789,
+    tokensEvaluated: 7654321.987654321,
+    tokensPredicted: 4096.0000000001,
+    draftTokens: 512.12345678901234,
+    draftAccepted: 511.98765432109876,
+    promptMs: 12345.678901234567,
+    predictedMs: 98765.43210987654,
+    predictedPerSecond: 41.123456789012345,
+    contextFull: true,
+    interrupted: true,
+    truncated: true,
+    tool: "calendar_agenda",
+    strategy: "vision_fallback",
+    prompt_n: 7654321,
+    ciswireFlags: 3,
+  };
+
+  it("is past the free-text clip, and comes out whole and parseable", () => {
+    const record = formatRecord("KALSA_TELEMETRY", maximal) as string;
+    expect(record.length).toBeGreaterThan(300);
+    expect(record.length).toBeLessThanOrEqual(1024);
+    const line = finalizeRecord(record) as string;
+    const payload = line.slice(line.indexOf(" ") + 1);
+    expect(JSON.parse(payload.slice(payload.indexOf(" ") + 1))).toEqual(maximal);
   });
 });

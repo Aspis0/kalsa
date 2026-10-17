@@ -17,51 +17,50 @@ function stripComments(source: string): string {
 }
 
 const SURFACE = stripComments(read("HostChatSurface.tsx"));
-// BEFORE this slice the row's JSX lived INSIDE HostChatSurface; it moved to
-// its own component (a topic seam — one row, one file — cut so the attach
-// sheet could land under the surface's ratchet). The GATE, the latch and the
-// reset stayed in the surface; the DRAWING pins below moved with the drawing.
+// The latch, its memo and its reset moved to `useLongChatNudge.ts` (a topic
+// seam, cut so the surface stays under its ratchet). The surface keeps only the
+// gate it renders behind. The row's JSX lives in `LongChatNudgeRow.tsx`.
+const HOOK = stripComments(read("useLongChatNudge.ts"));
 const ROW = stripComments(read("LongChatNudgeRow.tsx"));
 const LAYOUT = stripComments(read("HostLayout.tsx"));
 
 describe("the estimate runs on the controller's own unit", () => {
   it("calls src/chat/longChatEstimate with the transcript and the resolved n_ctx", () => {
-    expect(SURFACE).toContain(
-      "shouldShowLongChatNudge(view.transcript, modelHost.chatEngineCtx)",
-    );
+    expect(HOOK).toContain("shouldShowLongChatNudge(transcript, chatEngineCtx)");
     // sample: a different helper or a hardcoded ctx must fail
-    expect(SURFACE.includes("shouldShowLongChatNudge(view.transcript, 4096)")).toBe(false);
+    expect(HOOK.includes("shouldShowLongChatNudge(transcript, 4096)")).toBe(false);
+    expect(SURFACE).toContain("useLongChatNudge(view.transcript, modelHost.chatEngineCtx, conversationId)");
   });
 
   it("recomputes on length, n_ctx and the last turn's finalize — never per token (Chat:1318-1322)", () => {
     for (const dep of [
-      "view.transcript.length,",
-      "modelHost.chatEngineCtx,",
-      "view.transcript[view.transcript.length - 1]?.caret,",
-      "view.transcript[view.transcript.length - 1]?.stop,",
+      "transcript.length,",
+      "chatEngineCtx,",
+      "transcript[transcript.length - 1]?.caret,",
+      "transcript[transcript.length - 1]?.stop,",
     ]) {
-      expect([dep, SURFACE.includes(dep)]).toEqual([dep, true]);
+      expect([dep, HOOK.includes(dep)]).toEqual([dep, true]);
     }
     // sample: the dep list is these four, not the mapped array identity
-    expect(SURFACE).not.toContain("[longChat, view.transcript]");
+    expect(HOOK).not.toContain("[longChat, transcript]");
   });
 });
 
 describe("once per conversation: latch, reset, gate (Chat:921-922, 1314-1327)", () => {
   it("the latch state exists and fires exactly the controller's way", () => {
-    expect(SURFACE).toContain("const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);");
-    expect(SURFACE).toContain("if (longChat && !longChatNudgeShown) setLongChatNudgeShown(true);");
+    expect(HOOK).toContain("const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);");
+    expect(HOOK).toContain("if (longChat && !longChatNudgeShown) setLongChatNudgeShown(true);");
     // sample
-    expect(SURFACE.includes("setLongChatNudgeShown(false);")).toBe(true);
+    expect(HOOK.includes("setLongChatNudgeShown(false);")).toBe(true);
   });
 
   it("the conversation change resets it — the controller's clearChat/load resets as one id change", () => {
-    const reset = SURFACE.indexOf("setLongChatNudgeShown(false);");
+    const reset = HOOK.indexOf("setLongChatNudgeShown(false);");
     expect(reset).toBeGreaterThan(0);
-    const effect = SURFACE.slice(reset, SURFACE.indexOf("}, [conversationId]);", reset));
+    const effect = HOOK.slice(reset, HOOK.indexOf("}, [conversationId]);", reset));
     expect(effect).toContain("setLongChatNudgeShown(false);");
     // The reset effect's ONLY dependency is the id:
-    expect(SURFACE).toContain("}, [conversationId]);");
+    expect(HOOK).toContain("}, [conversationId]);");
     // …and the id reaches the surface from the store this host already passes:
     expect(LAYOUT).toContain(
       "const conversationId = conv.conversationsReady ? conv.conversations.activeId : undefined;",
@@ -69,11 +68,11 @@ describe("once per conversation: latch, reset, gate (Chat:921-922, 1314-1327)", 
     expect(LAYOUT).toContain("conversationId={conversationId}");
     // sample: a reset keyed on messages would re-fire per append
     expect(SURFACE).toContain("}, [conversationId]);");
-    expect(SURFACE.includes("}, [view.transcript.length]);")).toBe(false);
+    expect(HOOK.includes("}, [transcript.length]);")).toBe(false);
   });
 
-  it("the row renders behind the gate (longChat && shown) with the controller's copy", () => {
-    expect(SURFACE).toContain("{longChat && longChatNudgeShown ? (");
+  it("the row renders behind the gate (the hook's shown flag) with the controller's copy", () => {
+    expect(SURFACE).toContain("{showLongChatNudge ? (");
     // The copy pins moved with the JSX to `LongChatNudgeRow.tsx` (see the
     // header): the gate decides WHEN, the component says WHAT.
     expect(ROW).toContain('{t("chat.longChatNudge")}');

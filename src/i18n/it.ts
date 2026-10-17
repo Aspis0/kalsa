@@ -80,7 +80,11 @@ export const it: typeof en = {
     themeLight: "Chiaro",
     themeDark: "Scuro",
     webToggle: "Web",
-    webWhenAsked: "Cerca sul web quando lo chiedi",
+    /** La divulgazione permanente sotto l'interruttore Web: sostituisce la
+     *  finestra di conferma a ogni ricerca, quindi deve nominare ogni
+     *  destinatario possibile e la riga la mostra per intero. */
+    webWhenAsked:
+      "Cerca sul web quando lo chiedi e apre le pagine da questo telefono. La ricerca va al servizio di ricerca, e a Exa se quello non risponde; i siti vedono il tuo indirizzo internet.",
     permissions: "Permessi",
     permissionsSummary: "Scegli quali strumenti possono accedere ai dati locali.",
     brandMark: "Marchio dell'app Kalsa",
@@ -954,7 +958,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     pdfInvalidType: "Questo file non è un PDF.",
     attachmentInvalidType: "Questo file non è un PDF o un documento Word.",
     pdfNoPages: "Impossibile leggere le pagine di questo PDF.",
-    searchCancelled: "Ricerca annullata",
     noResults: "Nessun risultato.",
     noResultsFound: "Nessun risultato trovato.",
     emptySearchQuery: "Query di ricerca vuota.",
@@ -1078,6 +1081,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "(es. p. 7) quando un passaggio è etichettato con quella pagina; " +
       "non usare altri numeri per questo documento.",
     searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
+    searchCancelled: "Ricerca annullata",
     searchDeadline: "Ricerca scaduta per timeout. Riprova.",
     searchInvalidResponse: "Risposta non valida da {provider}",
     searchStorageUnavailable: "Impossibile leggere le impostazioni di ricerca: {message}",
@@ -1168,40 +1172,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     quickCalculatorPrompt: "Risolvi questo calcolo e mostra il risultato.",
     readingQuizPrompt: "Ponimi un quiz con diverse domande su quanto letto.",
     checklistPrompt: "Trasforma questo in una checklist ordinata.",
-  },
-
-  /** Avviso una tantum, prima della prima ricerca. {provider} è il nome
-   *  visualizzato del provider attivo nel registro, mai un letterale qui. */
-  searchNotice: {
-    title: "Cercare sul web?",
-    body: "Kalsa manderà la ricerca a {provider}. {provider} vede le parole cercate e il tuo indirizzo internet. La conversazione resta su questo telefono.",
-    search: "Cerca",
-    notNow: "Non ora",
-    declined:
-      "La ricerca non è partita: l'utente ha scelto di non mandarla sul web questa volta. Rispondi con quello che sai già e di' che la ricerca non è partita.",
-    unavailable:
-      "La ricerca non è partita: non è stato possibile leggere il permesso di ricerca sul web su questo telefono. Di' che la ricerca non è partita e che si può riprovare.",
-    /** La richiesta al provider principale è già partita ed è fallita, quindi
-     *  "non è partita" sarebbe falso. {primary} e {fallback} sono i nomi dei
-     *  provider. Vale sia per il rifiuto sia per il caso chiuso: in entrambi
-     *  la ricerca non è mai arrivata al fallback. */
-    fallbackDeclined:
-      "La ricerca è arrivata a {primary} ma non è riuscita, e l'utente ha scelto di non mandarla a {fallback}. Di' che la ricerca non è riuscita e che si può riprovare.",
-  },
-
-  /** Avviso una tantum, prima della prima apertura di una pagina web. Qui non è
-   *  nominato alcun destinatario perché l'utente non ne sceglie uno: è il sito
-   *  della pagina, ed è per questo che serve un avviso tutto suo e non quello
-   *  della ricerca. */
-  fetchNotice: {
-    title: "Aprire pagine web?",
-    body: "Per leggere una pagina, Kalsa la apre direttamente da questo telefono. Il sito vede il tuo indirizzo internet. La conversazione resta su questo telefono.",
-    open: "Apri",
-    notNow: "Non ora",
-    declined:
-      "La pagina non è stata aperta: l'utente ha scelto di non aprire pagine web questa volta. Rispondi con quello che hai già e di' che la pagina non è stata aperta.",
-    unavailable:
-      "La pagina non è stata aperta: non è stato possibile leggere il permesso per le pagine web su questo telefono. Di' che la pagina non è stata aperta e che si può riprovare.",
   },
 
   wizard: {
@@ -1465,6 +1435,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     /** Shown whenever the composer refuses input. Never empty then. */
     held: {
       loading: "In attesa mentre carico il modello",
+      downloading: "In attesa mentre scarico il modello",
+      missing: "In attesa: prima scarica il modello",
       prefill: "In attesa che parta la risposta",
       thinking: "In attesa mentre pensa",
       writing: "In attesa mentre scrive",

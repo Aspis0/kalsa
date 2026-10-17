@@ -63,14 +63,18 @@ describe("hostComposerPhase", () => {
     expect(phase({ engineResident: false })).toBe("idle");
   });
 
-  test("missing and error are both 'not loaded' for the composer", () => {
-    expect(phase({ modelState: "missing" })).toBe("unloaded");
+  test("missing says the bundle was never downloaded; error stays 'not loaded'", () => {
+    expect(phase({ modelState: "missing" })).toBe("missing");
     expect(phase({ modelState: "error" })).toBe("unloaded");
   });
 
   test("checking / loading → loading", () => {
     expect(phase({ modelState: "checking" })).toBe("loading");
     expect(phase({ modelState: "loading" })).toBe("loading");
+  });
+
+  test("downloading says the download is running, not that the model loads", () => {
+    expect(phase({ modelState: "downloading" })).toBe("downloading");
   });
 
   test("sending outranks a not-yet-resident model (the run holds the engine)", () => {

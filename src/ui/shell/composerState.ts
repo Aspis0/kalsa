@@ -33,6 +33,8 @@ import type { TranslationKey } from "../../i18n";
 export type ComposerPhase =
   | "idle"
   | "loading"
+  | "downloading"
+  | "missing"
   | "prefill"
   | "thinking"
   | "writing"
@@ -109,6 +111,8 @@ type PhaseRule = {
 const PHASE_RULES: Readonly<Record<ComposerPhase, PhaseRule>> = Object.freeze({
   idle: { hold: null, editable: true, face: "send" },
   loading: { hold: "shell.held.loading", editable: true, face: "send" },
+  downloading: { hold: "shell.held.downloading", editable: true, face: "send" },
+  missing: { hold: "shell.held.missing", editable: true, face: "send" },
   prefill: { hold: "shell.held.prefill", editable: true, face: "stop" },
   thinking: { hold: "shell.held.thinking", editable: true, face: "stop" },
   writing: { hold: "shell.held.writing", editable: true, face: "stop" },

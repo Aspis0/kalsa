@@ -4,13 +4,13 @@
  * the emitters (chatKvSessionSave.ts, chatKvSessionLoad.ts,
  * chatKvSessionNative.ts, chatKvSessionShared.ts, sessionEvictMarker.ts).
  */
-import { finalizeLine } from "../normalize";
+import { finalizeRecord } from "../normalize";
 import { formatRecord } from "../schema";
 
 function report(payload: Record<string, unknown>): Record<string, unknown> | null {
   const record = formatRecord("KALSA_SESSION", payload);
   if (record === null) return null;
-  const line = finalizeLine(record);
+  const line = finalizeRecord(record);
   if (line === null) return null;
   const body = line.slice(line.indexOf(" ") + 1);
   return JSON.parse(body.slice(body.indexOf(" ") + 1));

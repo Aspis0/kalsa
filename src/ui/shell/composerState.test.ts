@@ -65,6 +65,8 @@ function assertHonest(state: ComposerState): void {
 const EXPECTED_HOLD: Readonly<Record<string, string | null>> = {
   idle: null,
   loading: "shell.held.loading",
+  downloading: "shell.held.downloading",
+  missing: "shell.held.missing",
   prefill: "shell.held.prefill",
   thinking: "shell.held.thinking",
   writing: "shell.held.writing",
@@ -79,7 +81,14 @@ const HELD_CASES = Object.entries(EXPECTED_HOLD).filter((entry): entry is [strin
 const GENERATING: readonly ComposerPhase[] = ["prefill", "thinking", "writing"];
 /** The not-ready phases where §2.7's first sentence matters most: sending
  *  is held and the wait is longest, so the field must still take typing. */
-const NOT_READY_HELD: readonly ComposerPhase[] = ["loading", "tooHot", "unloaded", "converting"];
+const NOT_READY_HELD: readonly ComposerPhase[] = [
+  "loading",
+  "downloading",
+  "missing",
+  "tooHot",
+  "unloaded",
+  "converting",
+];
 
 /** The design's four rows, paired with what the engine reports for each. */
 const STOP_CASES: ReadonlyArray<readonly [string, StopReport]> = [
@@ -262,7 +271,7 @@ describe("the module itself: every key, and no clock, no engine, no React", () =
     // pass every key check while proving nothing.
     // This is the exact live-key set after removing placeholder copy; the
     // rendered input and its accessible name are asserted separately.
-    expect(keys.size).toBe(22);
+    expect(keys.size).toBe(24);
     for (const key of keys) assertKeyInBoth(key);
   });
 

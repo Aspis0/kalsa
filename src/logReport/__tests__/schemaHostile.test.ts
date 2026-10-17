@@ -14,9 +14,6 @@ describe("excluded tags fail closed", () => {
     ["KALSA_BENCH_TOKENS", '{"n":120,"tokPerSec":30}'],
     ["KALSA_BENCH_PROBS", '{"top":[[1,0.9]]}'],
     ["KALSA_BENCH_ROUTE", '{"arm":"a"}'],
-    ["KALSA_TOOLCALL", '{"turnId":"1","round":1,"tool":"document_chat","argsRaw":{"query":"x"}}'],
-    ["KALSA_TOOLROUND_EXHAUSTED", '{"turnId":"1","roundsUsed":3}'],
-    ["KALSA_TOOL_CEILING", '{"turnId":"1"}'],
     ["KALSA_KVDIAG", '{"n":1}'],
     ["KALSA_KVPREFIX", '{"text_tokens":1832}'],
     ["KALSA_KVSHIFT", '{"shifted":1}'],
@@ -44,6 +41,58 @@ describe("excluded tags fail closed", () => {
     expect(formatRecord("console.error", { a: 1 })).toBeNull();
     expect(formatRecord("KALSA_CTX_FLOOR", "not json")).toBeNull();
     expect(formatRecord("KALSA_CTX_FLOOR", [1, 2])).toBeNull();
+  });
+});
+
+describe("registered tool tags still fail closed, field by field", () => {
+  // KALSA_TOOLCALL / KALSA_TOOLROUND_EXHAUSTED / KALSA_TOOL_CEILING are in
+  // tagSchemas.ts now (they used to be dropped as unknown tags), so they no
+  // longer fail as a LINE. The privacy boundary moved, it did not weaken: the
+  // unknown and wrong-kind fields drop exactly as before.
+  it("drops a free-text tool field and raw arguments, keeps the counters", () => {
+    const out = record(
+      "KALSA_TOOLCALL",
+      '{"turnId":"1","round":1,"tool":"document_chat","argsRaw":{"query":"x"}}',
+    );
+    expect(out).toEqual({ turnId: "1", round: 1 });
+  });
+
+  it("drops a planted prompt inside a closed-set array", () => {
+    const out = record(
+      "KALSA_TOOLCALL",
+      JSON.stringify({ turnId: "1", round: 1, toolNames: [PROMPT_LIKE] }),
+    );
+    expect(JSON.stringify(out)).not.toContain("ignore previous");
+    expect(out).toEqual({ turnId: "1", round: 1 });
+  });
+
+  it("keeps the exhausted and ceiling numbers, drops their unknown fields", () => {
+    expect(
+      record(
+        "KALSA_TOOLROUND_EXHAUSTED",
+        JSON.stringify({
+          turnId: "1",
+          roundsUsed: 3,
+          streamedLen: 0,
+          fallbackFired: true,
+          fallbackOk: false,
+          rawLen: 812,
+          sawThink: true,
+          sawToolMarkup: false,
+          note: PROMPT_LIKE,
+        }),
+      ),
+    ).toEqual({
+      turnId: "1",
+      roundsUsed: 3,
+      streamedLen: 0,
+      fallbackFired: true,
+      fallbackOk: false,
+      rawLen: 812,
+      sawThink: true,
+      sawToolMarkup: false,
+    });
+    expect(record("KALSA_TOOL_CEILING", '{"turnId":"1"}')).toEqual({ turnId: "1" });
   });
 });
 

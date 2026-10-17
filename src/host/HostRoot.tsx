@@ -38,6 +38,7 @@ import { shareConversationById } from "./shareConversation";
 import { createTurnFence } from "./turnGuards";
 import { HostLayout } from "./HostLayout";
 import { useMiniappOpen, type HostOverlay } from "./hostOverlay";
+import { useDrawer } from "./useDrawer";
 
 export function HostRoot() {
   const { t, locale } = useLocale();
@@ -49,10 +50,9 @@ export function HostRoot() {
   // so the Web switch, the composer arms and the welcome wiring could land
   // without the root growing past its ratchet (the root may only compose).
   const { thermalHardGated, touchedRef, refs: turnRefs } = useHostTurnRefs();
-
   const [streaming, setStreaming] = useState(false);
   const [sending, setSending] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { drawerOpen, setDrawerOpen, openMenu } = useDrawer();
   const [activeOverlay, setActiveOverlay] = useState<HostOverlay>(null);
   const [draft, setDraft] = useState("");
   // The volatile tool rows (D1 row 23) — state + handlers in `toolCapture.ts`,
@@ -216,7 +216,7 @@ export function HostRoot() {
       modelHost={modelHost}
       showNoticeKey={showNoticeKey}
       sendHost={sendHost}
-      onMenuPress={() => setDrawerOpen(true)}
+      onMenuPress={openMenu}
       onNewChatPress={() => actions.handleNewConversation()}
       flags={flags}
       arms={arms}

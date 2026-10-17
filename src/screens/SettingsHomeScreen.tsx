@@ -85,15 +85,18 @@ type RowProps = {
   checked?: boolean;
   disabled?: boolean;
   colors: DesignColors;
+  /** When true the subtitle wraps to its full length instead of truncating.
+   *  For copy that IS the disclosure, not a summary of one. */
+  wrapSubtitle?: boolean;
 };
 
-function Row({ testID, title, subtitle, value, icon, onPress, checked, disabled = false, colors }: RowProps) {
+function Row({ testID, title, subtitle, value, icon, onPress, checked, disabled = false, colors, wrapSubtitle = false }: RowProps) {
   const content = (
     <>
       <View style={{ width: 20, alignItems: "center" }}>{icon}</View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text numberOfLines={1} style={[type.bodyStrong, { color: colors.ink }]}>{title}</Text>
-        {subtitle ? <Text numberOfLines={2} style={[type.secondary, { color: colors.ink2, marginTop: 2 }]}>{subtitle}</Text> : null}
+        {subtitle ? <Text {...(wrapSubtitle ? {} : { numberOfLines: 2 })} style={[type.secondary, { color: colors.ink2, marginTop: 2 }]}>{subtitle}</Text> : null}
       </View>
       {checked === undefined ? (
         <>
@@ -359,7 +362,7 @@ export function SettingsHomeScreen({
         <Group title={t("settings.groupPrivacy")} colors={colors}>
           {webToggleProps ? (
             <>
-              <Row testID="settings.home.web" title={t("settings.webToggle")} subtitle={t("settings.webWhenAsked")} {...webToggleProps} icon={<Search size={20} color={colors.accent} strokeWidth={1.75} />} colors={colors} />
+              <Row testID="settings.home.web" title={t("settings.webToggle")} subtitle={t("settings.webWhenAsked")} wrapSubtitle {...webToggleProps} icon={<Search size={20} color={colors.accent} strokeWidth={1.75} />} colors={colors} />
               <Divider colors={colors} />
             </>
           ) : null}

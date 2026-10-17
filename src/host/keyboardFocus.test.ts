@@ -11,6 +11,10 @@ const MENU = read("../theme/components/Drawer.tsx");
 const SURFACE = read("HostChatSurface.tsx");
 const SHELL = read("../ui/shell/Shell.tsx");
 const COMPOSER = read("../ui/shell/ShellComposer.tsx");
+const HOST_ROOT = read("HostRoot.tsx");
+const LAYOUT = read("HostLayout.tsx");
+const DRAWER_HOOK = read("useDrawer.ts");
+const FIELD_BLUR = read("useFieldBlur.ts");
 const ATTACH_SHEET = read("HostAttachSheet.tsx");
 const OVERLAYS = read("HostChatSurfaceOverlays.tsx");
 
@@ -90,5 +94,27 @@ describe("the new host's template and composer focus paths", () => {
   it("the shell field and template selection both reach the host-owned focus handle", () => {
     expect(stripComments(SURFACE)).toContain("() => fieldRef.current?.focus()");
     expect(stripComments(COMPOSER)).toContain("fieldRef.current = node");
+  });
+});
+
+describe("the keyboard leaves before the chat is left", () => {
+  it("the root's menu press is the drawer hook's, which dismisses the keyboard before it opens", () => {
+    expect(stripComments(HOST_ROOT)).toContain("onMenuPress={openMenu}");
+    const code = stripComments(DRAWER_HOOK);
+    const dismiss = code.indexOf("Keyboard.dismiss();");
+    const open = code.indexOf("setDrawerOpen(true)");
+    expect(dismiss).toBeGreaterThanOrEqual(0);
+    expect(open).toBeGreaterThan(dismiss);
+  });
+
+  it("the layout tells the chat when a drawer or any overlay is over it", () => {
+    expect(stripComments(LAYOUT)).toContain("inputBlocked={drawerOpen || activeOverlay !== null}");
+  });
+
+  it("the chat blurs its field through one hook keyed on that state", () => {
+    expect(stripComments(SURFACE)).toContain("useFieldBlur(fieldRef, inputBlocked);");
+    const code = stripComments(FIELD_BLUR);
+    expect(code).toContain("fieldRef.current?.blur()");
+    expect(code).toContain("}, [blocked]);");
   });
 });

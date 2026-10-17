@@ -12,11 +12,6 @@ import {
   type SearchProviderId,
 } from "./registry";
 import type { SearchResult } from "./SearchProvider";
-import {
-  searchConsentRefusalText,
-  searchFallbackRefusalText,
-  type SearchConsentVerdict,
-} from "./firstSearchNotice";
 import { secretStore } from "./secretStore";
 
 export type { SearchResult, SearchOptions, SearchProvider } from "./SearchProvider";
@@ -33,7 +28,7 @@ export {
 export { secretStore, getSecret, setSecret, deleteSecret } from "./secretStore";
 // getProvider and exaSearch stay module-internal: nothing outside this file
 // needs the pieces of the search this façade owns, and a re-export is a second
-// way for a caller to reach a provider without the consent gate.
+// way for a caller to reach a provider directly.
 
 /** Hard ceiling for a full search (primary + optional fallback). */
 const TOTAL_DEADLINE_MS = 20_000;
@@ -42,23 +37,6 @@ export type WebSearchOptions = {
   locale: Locale;
   numResults?: number;
   signal?: AbortSignal;
-  /**
-   * The one-time per-provider consent, asked once per recipient BEFORE its
-   * query leaves the phone: the active provider, and again for the free Exa
-   * MCP fallback when the active provider fails — a user who agreed to send
-   * queries to Brave has not agreed to send them to Exa.
-   *
-   * REQUIRED. There is no ungated path: a caller that cannot ask must not
-   * reach a network call by leaving an option out.
-   *
-   * Takes the turn's `signal` so a prompt that is still open when the turn is
-   * cancelled — by the user, or by the tool timeout — can stop waiting instead
-   * of resuming later and sending a query nobody is waiting for.
-   */
-  consent: (
-    providerId: SearchProviderId,
-    signal: AbortSignal | undefined,
-  ) => Promise<SearchConsentVerdict>;
 };
 
 export type WebSearchOutcome = {
@@ -68,12 +46,6 @@ export type WebSearchOutcome = {
   fallbackUsed: boolean;
   /** Localized/primary error message when fallback kicked in. */
   primaryError?: string;
-  /**
-   * Set when a consent gate said no: NOTHING was sent, and this is the
-   * model-facing refusal. Never combined with results — a refused search
-   * returns no results because it made no request.
-   */
-  refused?: string;
 };
 
 /** Clamp requested result count for every provider (1..5). */
@@ -92,18 +64,13 @@ function errorMessage(err: unknown): string {
  * falls back to free Exa MCP unless that was already the active provider.
  * Does not throw when fallback succeeds.
  *
- * `opts.consent` is REQUIRED: every recipient is named to the user before its
- * query leaves the phone, the free Exa MCP fallback included. A caller that
- * cannot ask must not be able to reach this function by forgetting an option.
+ * There is no per-query gate here. What a search leaves the phone is disclosed
+ * permanently in Settings, under the Web switch, and the switch itself is the
+ * user's on/off for it.
  *
- * The network budget (TOTAL_DEADLINE_MS) covers the two requests only. The
- * user's time in a consent dialog is not the network's: both consent waits sit
- * outside every timer, and each request runs under its own timer with the
- * budget left after the previous one.
- *
- * A refusal at any gate returns `refused` with no results rather than an error,
- * because "the user said no" is an answer the model should relay, not a failure
- * it should retry around.
+ * The network budget (TOTAL_DEADLINE_MS) covers the primary request and the
+ * fallback, and each runs under its own timer with the budget left after the
+ * previous one.
  */
 export async function searchWeb(
   query: string,
@@ -121,33 +88,17 @@ export async function searchWeb(
     activeId = DEFAULT_PROVIDER_ID;
   }
 
-  /** A turn that was cancelled while the prompt was open must not go on to
-   *  send: the answer may be "allow" and the turn may still be over. Checked
-   *  after EVERY consent answer, before any provider call. */
-  const cancelled = (): Error => new Error(strings.errors.searchCancelled);
-  const askFor = async (
-    providerId: SearchProviderId,
-  ): Promise<SearchConsentVerdict> => {
-    const verdict = await opts.consent(providerId, opts.signal);
-    if (opts.signal?.aborted) throw cancelled();
-    return verdict;
-  };
-
-  // Before the budget starts: however long the user takes to answer is theirs.
-  const primaryVerdict = await askFor(activeId);
-  if (primaryVerdict !== "allow") {
-    return {
-      results: [],
-      provider: activeId,
-      fallbackUsed: false,
-      refused: searchConsentRefusalText(primaryVerdict, locale),
-    };
-  }
-
-  let deadlineAt = Date.now() + TOTAL_DEADLINE_MS;
+  const deadlineAt = Date.now() + TOTAL_DEADLINE_MS;
   const budgetLeft = (): number => Math.max(0, deadlineAt - Date.now());
   const spent = (): Error => new Error(strings.errors.searchDeadline);
+  // A turn cancelled before a request leaves never reaches a provider; the
+  // model gets the same cancelled text as any other cancelled tool.
+  const cancelled = (): Error => new Error(strings.errors.searchCancelled);
+  const throwIfCancelled = (): void => {
+    if (opts.signal?.aborted) throw cancelled();
+  };
 
+  throwIfCancelled();
   try {
     const results = await withTimeoutSignal(
       opts.signal,
@@ -159,31 +110,16 @@ export async function searchWeb(
     );
     return { results, provider: activeId, fallbackUsed: false };
   } catch (err) {
-    if (opts.signal?.aborted) throw err;
+    if (opts.signal?.aborted) throw cancelled();
     // Already on free fallback — surface the original error.
     if (activeId === DEFAULT_PROVIDER_ID) throw err;
     const primaryError = errorMessage(err);
     const primaryLabel = PROVIDERS[activeId]?.label ?? activeId;
 
-    // The fallback is a SECOND recipient the notice has never named. Ask for
-    // it now — again outside the timer — and a "no" skips the fallback instead
-    // of quietly handing the query to a provider the user did not agree to.
-    // Asking when the budget is already spent would put a question on screen
-    // whose answer we cannot act on, so the deadline wins first.
-    // The budget pauses while the dialog is open: the remainder resumes after.
-    const remaining = budgetLeft();
-    if (remaining <= 0) throw spent();
-    const fallbackVerdict = await askFor(DEFAULT_PROVIDER_ID);
-    deadlineAt = Date.now() + remaining;
-    if (fallbackVerdict !== "allow") {
-      return {
-        results: [],
-        provider: DEFAULT_PROVIDER_ID,
-        fallbackUsed: false,
-        primaryError,
-        refused: searchFallbackRefusalText(locale, activeId, DEFAULT_PROVIDER_ID),
-      };
-    }
+    // No budget left for a second request — say so instead of firing one that
+    // would be aborted before it leaves.
+    if (budgetLeft() <= 0) throw spent();
+    throwIfCancelled();
 
     try {
       const results = await withTimeoutSignal(
@@ -198,7 +134,7 @@ export async function searchWeb(
         primaryError,
       };
     } catch (fallbackErr) {
-      if (opts.signal?.aborted) throw fallbackErr;
+      if (opts.signal?.aborted) throw cancelled();
       if (budgetLeft() <= 0) throw spent();
       const fallbackError = errorMessage(fallbackErr);
       throw new Error(

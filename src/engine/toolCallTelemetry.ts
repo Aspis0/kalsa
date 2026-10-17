@@ -55,6 +55,15 @@ export type ToolRoundExhaustedTelemetry = {
   streamedLen: number;     // length of streamed text before fallback (should be 0)
   fallbackFired: boolean;  // did we try the extra text-only completion?
   fallbackOk: boolean;     // did the extra completion produce text?
+  /** Length of the fallback round's raw text. Zero when it never ran or threw
+   *  before producing one. A count, never the text. */
+  rawLen: number;
+  /** Did the fallback round's think arbitration see think markup (or a
+   *  template-opened block)? With `sawToolMarkup` false this is what
+   *  separates "answered" from "thought and got cut". */
+  sawThink: boolean;
+  /** Did the fallback round's raw text carry fallback-dialect tool markup? */
+  sawToolMarkup: boolean;
 };
 
 /**
@@ -68,6 +77,9 @@ export function formatToolRoundExhaustedLine(turnId: string, r: ToolRoundExhaust
     streamedLen: r.streamedLen,
     fallbackFired: r.fallbackFired,
     fallbackOk: r.fallbackOk,
+    rawLen: r.rawLen,
+    sawThink: r.sawThink,
+    sawToolMarkup: r.sawToolMarkup,
   })}`;
 }
 

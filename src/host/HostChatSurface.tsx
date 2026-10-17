@@ -21,7 +21,7 @@
  */
 import { PdfToImages } from "../components/PdfToImages";
 import type { LibraryDoc } from "../documents/DocumentLibrary";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type TextInput } from "react-native";
 import { useLocale, type TranslationKey } from "../i18n";
 import { modes, type ThemeMode } from "../theme/design";
@@ -39,10 +39,11 @@ import { LongChatNudgeRow } from "./LongChatNudgeRow";
 import type { useMessageActions } from "./messageActions";
 import type { SendHost } from "./sendHost";
 import type { AttachmentsHost } from "./useAttachments";
+import { useFieldBlur } from "./useFieldBlur";
 import { useHostEngine } from "./useHostEngine";
+import { useLongChatNudge } from "./useLongChatNudge";
 import { getRemoteVision, isGpuRefusedForMemory, refreshRemoteVision } from "../engine/engineBackend";
 import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
-import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 import { useModelBar } from "./useModelBar";
 import { WelcomeBlock } from "./welcomeBlock";
 import { welcomeVisible } from "./welcomeGate";
@@ -92,6 +93,9 @@ export interface ChatSurfaceProps {
   /** The mini-app card's open (D1 row 4/28): the host applies the
    *  controller's open policy and owns the overlay (`AppShell.tsx:7035-7046`). */
   onMiniappOpen: (miniapp: TranscriptMiniapp, messageId: string) => void;
+  /** A drawer or an overlay is over the chat: the field gives up focus (and
+   *  the keyboard) while it is up. */
+  inputBlocked: boolean;
 }
 
 export function HostChatSurface({
@@ -111,6 +115,7 @@ export function HostChatSurface({
   onOpenDocuments,
   actions,
   onMiniappOpen,
+  inputBlocked,
 }: ChatSurfaceProps) {
   const { t } = useLocale();
   const location = hostModelLocation({
@@ -131,6 +136,7 @@ export function HostChatSurface({
   // The field's handle: a chosen template fills the draft AND focuses the
   // field, exactly as the controller's `handleChooseTemplate` (Chat:3636-3637).
   const fieldRef = useRef<TextInput | null>(null);
+  useFieldBlur(fieldRef, inputBlocked);
 
   // Strip pill semantics and the rows beneath it (D1 rows 33-36): one hook
   // owns the decision table, the derived labels and the battery sampling —
@@ -148,30 +154,10 @@ export function HostChatSurface({
     bumpForegroundIdleRef.current();
   };
 
-  // ── The long-chat nudge (controller `Chat:921-922, 1314-1327`) ──
-  // One-shot per conversation (V4.2 §Fase 3.5): the latch fires the first
-  // time THIS conversation crosses the estimate; the conversation change IS
-  // the controller's two resets (clearChat and load both arrive as one id
-  // change here); the render gate keeps the previous conversation's row out
-  // while a switch's history load is still in flight.
-  const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
-  // Recompute on length, resolved n_ctx and the last turn's (de)finalize —
-  // NOT per token (`Chat:1318-1322`); the mapped band carries that flip as
-  // `caret`/`stop` instead of the raw `streaming` flag.
-  const longChat = useMemo(
-    () => shouldShowLongChatNudge(view.transcript, modelHost.chatEngineCtx),
-    [
-      view.transcript.length,
-      modelHost.chatEngineCtx,
-      view.transcript[view.transcript.length - 1]?.caret,
-      view.transcript[view.transcript.length - 1]?.stop,
-    ],
-  );
+  // The long-chat nudge (controller `Chat:921-922, 1314-1327`): the latch and
+  // its reset live in useLongChatNudge; the row is LongChatNudgeRow.tsx.
+  const showLongChatNudge = useLongChatNudge(view.transcript, modelHost.chatEngineCtx, conversationId);
   useEffect(() => {
-    if (longChat && !longChatNudgeShown) setLongChatNudgeShown(true);
-  }, [longChat, longChatNudgeShown]);
-  useEffect(() => {
-    setLongChatNudgeShown(false);
     setAttachSheetOpen(false);
     setDocPickOpen(false);
   }, [conversationId]);
@@ -293,7 +279,7 @@ export function HostChatSurface({
       {/* The long-chat nudge (controller `Chat:3987-4006`): the row is
           `LongChatNudgeRow.tsx` — cut out so the attach sheet could land
           under this file's ratchet; the latch stays here. */}
-      {longChat && longChatNudgeShown ? (
+      {showLongChatNudge ? (
         <LongChatNudgeRow colors={colors} onNewChatPress={onNewChatPress} />
       ) : null}
       <Transcript

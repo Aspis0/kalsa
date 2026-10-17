@@ -2,9 +2,8 @@
  * The three tool flags as state + ref mirrors (D2 row 14: the engine reads
  * the refs mid-run).
  *
- * `toggleWebTools` is lifted WITH the control it belongs to (D1 row 5): the
- * controller kept the Web toggle on the chat top bar and the new strip carries
- * it as `shell.strip.web`. The persisted key is the controller's own
+ * `toggleWebTools` is the Web switch Settings draws; the chat strip has no Web
+ * control. The persisted key is the controller's own
  * `WEB_TOOLS_ENABLED_KEY`, written as `"1"`/`"0"` exactly as before. The
  * notify-on-change-but-not-on-mount rule rides the existing wiring —
  * `useHostEffects` → `staticPrefixNotify.ts` (skip once at mount), tested in
@@ -33,7 +32,7 @@ export function useToolFlags(): {
   calendarToolsEnabled: boolean;
   flagRefs: ToolFlagRefs;
   refreshToolFlags: () => Promise<void>;
-  /** The strip's Web switch: flip state + ref, then persist under the
+  /** Settings' Web switch: flip state + ref, then persist under the
    *  controller's key. */
   toggleWebTools: () => void;
 } {

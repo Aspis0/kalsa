@@ -54,10 +54,13 @@ describe("the retry sentence names a control exactly while a tap would answer", 
     }
   });
 
-  it("never names a control on a non-failure bar", () => {
-    for (const modelState of ["checking", "missing", "downloading", "loading", "ready"] as const) {
+  it("names a control only where the sentence promises a tap: failure, missing, or unloaded", () => {
+    for (const modelState of ["checking", "downloading", "loading"] as const) {
       expect([modelState, status({ modelState }).retryLabel]).toEqual([modelState, undefined]);
     }
+    expect(status({ modelState: "ready", jsReady: true, activeMatches: true }).retryLabel).toBeUndefined();
+    expect(status({ modelState: "ready" }).retryLabel).toBe(en.shell.action.loadModel);
+    expect(status({ modelState: "missing" }).retryLabel).toBe(en.common.download);
   });
 
   it("draws the Italian catalogue's own control name", () => {

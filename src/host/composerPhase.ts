@@ -66,10 +66,11 @@ export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
   // hold a send that goes to the computer. The strip's reachability line
   // and the turn's own ensure own the computer's state instead.
   if (input.remoteActive) return "idle";
-  // "missing" and "error" are both "not loaded" for the composer — the strip
-  // pill's tap is the way out.
+  // Each held model state names its own wait: a download in flight, a bundle
+  // never downloaded, or a failure (all three hold until the strip pill's tap).
   if (input.modelState === "checking" || input.modelState === "loading") return "loading";
-  if (input.modelState === "downloading") return "loading";
+  if (input.modelState === "downloading") return "downloading";
+  if (input.modelState === "missing") return "missing";
   // Ready but not resident (idle unload) is NOT a hold: the send reloads
   // the model through the ensure path (`engineTurn.ts`), as the old flow did
   // — while the reload runs the composer is already `sending`, so the user
@@ -78,6 +79,6 @@ export function hostComposerPhase(input: ComposerPhaseInput): ComposerPhase {
   // catch-all (refused load, failed switch, busy embedder), never only a
   // dead bundle; the strip pill's tap is the way out.
   if (input.modelState === "ready" && !input.engineResident) return "idle";
-  if (input.modelState === "missing" || input.modelState === "error") return "unloaded";
+  if (input.modelState === "error") return "unloaded";
   return "idle";
 }

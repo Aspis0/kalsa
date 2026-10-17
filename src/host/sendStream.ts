@@ -96,14 +96,27 @@ export async function runSendStream(
   signal: AbortSignal,
 ): Promise<SendResult> {
   let terminal = false;
-  let anyTextStreamed = false;
+  // Deltas that carried MODEL text. A failure line — the "⚠️ …" the engine
+  // writes when a turn fails — is UI chrome: it reaches the bubble, but nobody
+  // was reading an answer they could have stopped. Every failure producer
+  // reports onFailed FIRST and writes that line after it, so the next delta
+  // following a report is that line, never an answer.
+  let modelDeltaCount = 0;
+  let nextDeltaIsFailureLine = false;
+  // The failure line reached the bubble: a rollback would delete it.
+  let failureLineStreamed = false;
   let namedKey: string | null = null;
   let thrown: Error | null = null;
 
   const emit: SendEngineEmit = {
     onDelta(delta, full) {
       if (terminal) return;
-      anyTextStreamed = true;
+      if (nextDeltaIsFailureLine) {
+        nextDeltaIsFailureLine = false;
+        failureLineStreamed = true;
+      } else {
+        modelDeltaCount += 1;
+      }
       ui.onToken(delta, full);
     },
     onTool(name) {
@@ -114,6 +127,7 @@ export async function runSendStream(
     },
     onFailed(reasonKey) {
       if (terminal) return;
+      nextDeltaIsFailureLine = true;
       if (namedKey === null && typeof reasonKey === "string" && reasonKey.trim()) {
         namedKey = reasonKey;
       }
@@ -131,8 +145,23 @@ export async function runSendStream(
   const save = result ? result.afterSessionSave : undefined;
   const failure = namedKey ?? (thrown ? DEFAULT_FAILURE_KEY : null);
   if (signal.aborted) {
-    if (anyTextStreamed) {
+    // "Stopped by you" is only true when the turn had streamed an answer. A
+    // turn whose only delta was the engine's own failure line streamed
+    // nothing the user could have stopped reading.
+    if (modelDeltaCount > 0) {
       return { kind: "interrupted", afterSessionSave: save };
+    }
+    // That line is already in the bubble, so the turn FAILED rather than
+    // stopping: `aborted` would filter the placeholder out (applySendOutcome)
+    // and take the failure line with it, and `interrupted` would claim the
+    // user stopped a turn they never saw answer — the exact device symptom.
+    // A stopped turn writes no session state, so the save hook is not adopted.
+    if (failureLineStreamed) {
+      return {
+        kind: "failed",
+        reasonKey: failure ?? DEFAULT_FAILURE_KEY,
+        ...(thrown ? { message: thrown.message } : {}),
+      };
     }
     // A named failure survives the abort default: only the default key is
     // ever overwritten.

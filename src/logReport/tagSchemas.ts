@@ -124,7 +124,7 @@ const SESSION_REASONS = [
 ] as const;
 
 /** Tool names: src/agent/toolNames.ts:13 plus the clamp placeholder (toolCallTelemetry.ts:43). */
-const TOOL_NAMES = enumOf(
+const TOOL_NAME_VALUES = [
   "web_search",
   "web_fetch",
   "document_chat",
@@ -134,7 +134,9 @@ const TOOL_NAMES = enumOf(
   "calendar_agenda",
   "create_miniapp",
   "other",
-);
+] as const;
+
+const TOOL_NAMES = enumOf(...TOOL_NAME_VALUES);
 
 export const TAG_SCHEMAS: Record<string, TagSchema> = {
   // LlamaService.ts:2436 via buildGovernorPlanLog (governorInputs.ts:228-243).
@@ -504,6 +506,53 @@ export const TAG_SCHEMAS: Record<string, TagSchema> = {
     ),
     prompt_n: NUM,
     ciswireFlags: NUM,
+  },
+  // toolCallTelemetry.ts:100-117 per round; toolChoice is CompletionToolChoice
+  // (benchConfig.ts:91 — the union is the whole set), fallbackDialect is the
+  // ToolRoundTelemetry literal. DROPPED: `tool`/`argsRaw` if ever added — a
+  // name is only safe through the clamped set, and arguments never pass.
+  // `toolNames` is the clamped list the round EXECUTED: at most the per-round
+  // slice (LlamaService.ts prepared.slice(0, 2)); 4 is a ceiling above that
+  // real bound, so raising the slice does not silently drop the whole field.
+  KALSA_TOOLCALL: {
+    turnId: { k: "counter" },
+    round: NUM,
+    toolChoice: enumOf("auto", "required", "none"),
+    structuredCalls: NUM,
+    fallbackCalls: NUM,
+    fallbackDialect: enumOf("qwen", "lfm", "openai", "none"),
+    executed: NUM,
+    skippedCap: NUM,
+    skippedDup: NUM,
+    skippedFailedRepeat: NUM,
+    failed: NUM,
+    blockedPrivacy: NUM,
+    namesValid: BOOL,
+    argsParsed: BOOL,
+    toolNames: { k: "enumArray", values: TOOL_NAME_VALUES, maxItems: 4 },
+  },
+  // toolCallTelemetry.ts:64-84. `rawLen` / `sawThink` / `sawToolMarkup` say
+  // why a fallback produced no answer without its text: a non-zero rawLen with
+  // sawThink and no sawToolMarkup is the reasoning-only round.
+  KALSA_TOOLROUND_EXHAUSTED: {
+    turnId: { k: "counter" },
+    roundsUsed: NUM,
+    streamedLen: NUM,
+    fallbackFired: BOOL,
+    fallbackOk: BOOL,
+    rawLen: NUM,
+    sawThink: BOOL,
+    sawToolMarkup: BOOL,
+  },
+  // LlamaService.ts tool-round ceiling break: the projected window at the
+  // moment it crossed n_ctx. Counts and char lengths only.
+  KALSA_TOOL_CEILING: {
+    turnId: { k: "counter" },
+    round: NUM,
+    promptChars: NUM,
+    toolsChars: NUM,
+    promptTokens: NUM,
+    ceiling: NUM,
   },
   // engineTurnStream.ts:130-149; historyDropped constant at compactor.ts:533;
   // rebuild budget source at engineTurnWindow.ts:65-67.

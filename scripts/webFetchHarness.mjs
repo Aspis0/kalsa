@@ -140,7 +140,7 @@ async function main() {
   const mod = await import(pathToFileURL(resolveBuilt("webFetchTool.js")).href);
   const {
     makeFetchAllowlist,
-    makeWebFetchExecutor: buildWebFetchExecutor,
+    makeWebFetchExecutor,
     normalizeFetchUrl,
     isPubliclyRoutableHttpUrl,
     sameHost,
@@ -150,18 +150,6 @@ async function main() {
     FETCH_TIMEOUT_MS,
     RETRIEVAL_BUDGET_CHARS,
   } = mod;
-
-  // The real executor requires the one-time page notice (src/search/firstFetchNotice.ts):
-  // there is no ungated path to the network. Every case here drives a fake
-  // fetchImpl that never leaves the machine, so HARNESS_CONSENT_ALLOW answers the
-  // gate up front; a case that wants a refusal passes its own `consent`, which
-  // deliberately wins over the default.
-  const HARNESS_CONSENT_ALLOW = async () => "allow";
-  const makeWebFetchExecutor = (locale, allowlist, deps = {}) =>
-    buildWebFetchExecutor(locale, allowlist, {
-      consent: HARNESS_CONSENT_ALLOW,
-      ...deps,
-    });
 
   check("tool def name", WEB_FETCH_TOOL?.function?.name === "web_fetch");
   check("exports BODY_HARD_CAP", typeof BODY_HARD_CAP === "number" && BODY_HARD_CAP === 1_500_000);
@@ -268,36 +256,6 @@ async function main() {
       "1 allowlist refusal no network",
       called === 0 && /refused|not in this turn|surfaced/i.test(out.text),
     );
-  }
-
-  // ── Consent gate ───────────────────────────────────────────────────────
-  // The user is asked once per install before the first page. Both refusals
-  // must close the turn with no network call at all — the whole point of the
-  // gate is the request that never leaves the phone.
-  {
-    const url = "https://allowed.example/a";
-    for (const [verdict, matcher, label] of [
-      ["deny", /user chose not to open web pages/i, "consent deny"],
-      ["unavailable", /web-page permission could not be read/i, "consent unavailable"],
-    ]) {
-      const allow = makeFetchAllowlist();
-      allow.add(url);
-      let called = 0;
-      let asked = 0;
-      const exec = makeWebFetchExecutor("en", allow, {
-        consent: async () => {
-          asked += 1;
-          return verdict;
-        },
-        fetchImpl: async () => {
-          called += 1;
-          return mockResponse();
-        },
-      });
-      const out = await exec("web_fetch", { url, query: "anything" });
-      check(`${label}: asked once, no network`, asked === 1 && called === 0);
-      check(`${label}: model told the page was not opened`, matcher.test(out.text));
-    }
   }
 
   // ── Normalization ──────────────────────────────────────────────────────

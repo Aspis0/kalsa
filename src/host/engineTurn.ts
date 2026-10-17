@@ -114,13 +114,18 @@ export function handleSendStream(
           onFinished: () => resolve(afterSessionSave ? { afterSessionSave } : {}),
         });
         const fail = (message: string, reasonKey?: string) => {
-          callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
           try {
             callbacks.onFailedReason?.(message); // §2.8: the engine's own words, no apology
             callbacks.onFailed?.(reasonKey || "chat.serviceUnreachable");
           } catch {
             // ignore
           }
+          // The warning line goes AFTER the failure report, not before:
+          // runSendStream reads the delta that follows a report as the
+          // engine's own chrome, so this one must not count as streamed model
+          // text — counting it is what turned a failed turn into "Stopped by
+          // you" whenever the abort landed after it.
+          callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
           finish();
         };
 
