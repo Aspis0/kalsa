@@ -617,6 +617,12 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     lowFreeMemoryStatus: "Poca memoria libera: la risposta sarà lenta.",
     reasoningLabel: "Ragionamento",
     interrupted: "Generazione interrotta.",
+    /**
+     * Lead line for the never-empty floor: the model would not answer in
+     * words, so the turn shows what it gathered. Kept plain and short — it is
+     * a heading over a source list, not an apology.
+     */
+    answerSourcesLead: "Ecco cosa ho trovato:",
     truncated: "Risposta fermata al limite di token.",
     searching: "Cerco sul web…",
     fetching: "Recupero pagina…",
@@ -1413,6 +1419,15 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
   toolResultsAnswerNote:
     "Basa la risposta sui risultati degli strumenti qui sopra; se non contengono la risposta, dillo. " +
     "Cita le fonti usate facendo riferimento ai titoli.",
+  /**
+   * The last text-only attempt's own user-side note. The system note above did
+   * not stop the model from writing tool markup (S23, LFM2.5 2.6B), and a
+   * second draw of the same prompt just re-rolls the same markup — so the final
+   * attempt asks, as the user's own last word, for words. Plain short copy: a
+   * paragraph of instruction here is more tokens to answer a one-line request.
+   */
+  toolResultsAnswerNowNote:
+    "Rispondi ora a parole con i risultati qui sopra; non chiamare strumenti.",
   // ── The rebuilt interface (2026-09). See docs/DESIGN.md ──────────────
   // Every word the new shell can put on screen lives here, so a missing
   // string is a type error rather than a blank control at the worst moment.

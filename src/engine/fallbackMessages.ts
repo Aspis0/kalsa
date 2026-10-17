@@ -7,8 +7,8 @@
  * exactly the questions the fallback is trying to close ("usalo SEMPRE ... notizie
  * recenti ... cerca online"), so a text-only round still comes back as LFM tool
  * markup and the user gets the canned error instead of an answer. S23, LFM2.5
- * 2.6B: round 2 was markup only, the fallback was markup only again
- * (KALSA_TOOLROUND_EXHAUSTED fallbackOk:false).
+ * 2.6B: round 2 was markup only, and so was the first rescue attempt
+ * (KALSA_TOOLROUND_EXHAUSTED fallbackAttempts:1, floor:"sources").
  *
  * So the fallback swaps the system message for the no-tools one plus the
  * results note, and changes nothing else. Only the tool instructions move: the

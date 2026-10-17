@@ -43,26 +43,39 @@ const KNOWN_TOOL_NAMES = new Set<string>(ALL_TOOL_NAMES);
 const UNKNOWN_TOOL_PLACEHOLDER = "other";
 
 /**
- * Telemetry for the "tool rounds done without text" fallback path. Fires when no
+ * Telemetry for the "tool rounds done without text" rescue path. Fires when no
  * tool round produced user-visible text: the loop used all MAX_TOOL_ROUNDS, or
  * it left early because a "none" round's only output was a tool call it was not
  * allowed to run (blank bubble case). Counters-only: no model or user text.
+ *
+ * The three ways a turn can close after that are reported separately, because
+ * they are three different bugs: a rescue that answered (fine), a rescue that
+ * did not and the floor spoke from the sources (the model stayed silent), and
+ * a rescue that did not with nothing gathered (nothing was found at all).
  */
 export type ToolRoundExhaustedTelemetry = {
   /** Rounds the turn actually ran: MAX_TOOL_ROUNDS, or fewer when it left
    *  early. Must stay the real count — this line is what bench reads. */
   roundsUsed: number;
   streamedLen: number;     // length of streamed text before fallback (should be 0)
-  fallbackFired: boolean;  // did we try the extra text-only completion?
-  fallbackOk: boolean;     // did the extra completion produce text?
-  /** Length of the fallback round's raw text. Zero when it never ran or threw
+  fallbackFired: boolean;  // did we try the text-only completion(s)?
+  /** Did a rescue attempt produce words in the model's own voice? */
+  fallbackAnswered: boolean;
+  /** Text-only attempts actually spent (0 when the round bailed, 1 or 2 when it
+   *  ran; MAX_TEXT_ONLY_ATTEMPTS is the bound). */
+  fallbackAttempts: number;
+  /** What closed the turn when no attempt answered: the never-empty floor over
+   *  the gathered sources, or the honest canned message when there were none.
+   *  "none" when the model answered (or when the rescue never ran). */
+  floor: "none" | "sources" | "canned";
+  /** Length of the LAST attempt's raw text. Zero when it never ran or threw
    *  before producing one. A count, never the text. */
   rawLen: number;
-  /** Did the fallback round's think arbitration see think markup (or a
-   *  template-opened block)? With `sawToolMarkup` false this is what
-   *  separates "answered" from "thought and got cut". */
+  /** Did the LAST attempt's think arbitration see think markup (or a
+   * template-opened block)? With `sawToolMarkup` false this is what
+   * separates "answered" from "thought and got cut". */
   sawThink: boolean;
-  /** Did the fallback round's raw text carry fallback-dialect tool markup? */
+  /** Did the LAST attempt's raw text carry fallback-dialect tool markup? */
   sawToolMarkup: boolean;
 };
 
@@ -76,7 +89,9 @@ export function formatToolRoundExhaustedLine(turnId: string, r: ToolRoundExhaust
     roundsUsed: r.roundsUsed,
     streamedLen: r.streamedLen,
     fallbackFired: r.fallbackFired,
-    fallbackOk: r.fallbackOk,
+    fallbackAnswered: r.fallbackAnswered,
+    fallbackAttempts: r.fallbackAttempts,
+    floor: r.floor,
     rawLen: r.rawLen,
     sawThink: r.sawThink,
     sawToolMarkup: r.sawToolMarkup,

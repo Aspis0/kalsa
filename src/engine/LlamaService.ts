@@ -169,6 +169,13 @@ import {
 } from "./toolCallTelemetry";
 import { shouldFireToolRoundFallback } from "./toolRoundFallback";
 import { buildFallbackMessages } from "./fallbackMessages";
+import { buildSourcesAnswer } from "./answerFloor";
+import {
+  MAX_TEXT_ONLY_ATTEMPTS,
+  TEXT_ONLY_TEMPERATURE,
+  usesLfmToolDialect,
+  withToolCallStop,
+} from "./textOnlySampling";
 import {
   countSuppressedFallbackCalls,
   shouldParseFallbackCalls,
@@ -4851,6 +4858,14 @@ export async function streamAssistantTurn(
         // gathered tool results instead of exiting the loop with no completion.
         const isFinalToolRound = round === MAX_TOOL_ROUNDS - 1;
         const textOnlyRound = isFinalToolRound || forceTextOnly;
+        // The temperature change below is scoped to the dialect that produced
+        // the failure: another model's text-only round keeps its 0.7, because
+        // there is no evidence for it there and a global answer-quality change
+        // is not this fix's business. The stop word needs no such gate — a stop
+        // string a model never emits costs nothing. (The rescue attempts keep
+        // 0.3 for every model: by then the round's only job is to avoid another
+        // markup roll before the floor closes the turn.)
+        const lfmToolDialect = usesLfmToolDialect(activeModelId);
         // isFinalToolRound / forceTextOnly win over bench "required" so a
         // turn can still emit a text answer (see resolveCompletionToolChoice).
         const toolChoice = resolveCompletionToolChoice({
@@ -4915,8 +4930,19 @@ export async function streamAssistantTurn(
                 // EOS/stop words; only the degenerate worst case doubles. Per-model overrides
                 // may raise the ceiling (e.g. 2B extended thinking).
                 n_predict: nPredict,
-                stop: STOP_WORDS,
-                temperature: 0.7,
+                // Text-only round (the last tool round, or a forced words-only
+                // one): generation ENDS at the tool-call token, so prose written
+                // before the markup survives as the answer instead of being
+                // stripped to nothing. Neither field renders into the prompt, so
+                // the KV prefix this round inherits from the one before it is
+                // untouched — the tools and tool_choice below stay exactly as
+                // they are, which is also why they stay: dropping them would
+                // re-render the template and throw that prefix away.
+                stop: textOnlyRound ? withToolCallStop(STOP_WORDS) : STOP_WORDS,
+                // Scoped to the LFM dialect; every other model's text-only round
+                // keeps 0.7 (see lfmToolDialect above).
+                temperature:
+                  textOnlyRound && lfmToolDialect ? TEXT_ONLY_TEMPERATURE : 0.7,
                 top_k: 40,
                 top_p: 0.95,
                 // Bench thinking axis: every mode keeps reasoning enabled;
@@ -5391,13 +5417,20 @@ export async function streamAssistantTurn(
       // the cap or — when a "none" round's only output was a call it was not
       // allowed to make — on the round that would have been its last. Without a
       // fallback, the user sees an empty bubble.
-      // Two-tier fallback:
-      //  1. One extra text-only completion (tool_choice: "none", no tools) so
-      //     the model can synthesize from the tool results already in context.
-      //     Cost: ~2-5s on device, but only fires on the blank path (~5% of
-      //     turns pre-gate-fix, much less after). Bounded, not a new steady state.
-      //  2. If that also produces no text, emit a localized honest message so
-      //     the bubble is never empty.
+      // Three tiers, none of which may end empty:
+      //  1. Up to MAX_TEXT_ONLY_ATTEMPTS text-only completions (no tools) so the
+      //     model can synthesize from the tool results already in context. The
+      //     first is today's single fallback; the second carries an explicit
+      //     user-side note to answer NOW in words, because a second draw of the
+      //     same prompt at the same temperature just re-rolls the same markup.
+      //     Cost: ~2-5s each on device, but only on the blank path (~5% of turns
+      //     pre-gate-fix, much less after). Bounded, not a new steady state.
+      //  2. The never-empty floor: the sources this turn gathered, under a
+      //     short localized lead. True, and it keeps what the turn paid for.
+      //  3. No sources at all — nothing was gathered — so the localized honest
+      //     canned message is the only true thing left to say.
+      // The interrupted marker is NOT one of these tiers: nothing here was
+      // interrupted. It stays for a turn that really was cut off mid-answer.
       const toolFallbackNeeded = shouldFireToolRoundFallback(streamedText);
       let toolFallbackOk = false;
       if (toolRoundCeilingReached) {
@@ -5414,43 +5447,79 @@ export async function streamAssistantTurn(
           roundsUsed,
           streamedLen: streamedText.length,
           fallbackFired: false,
-          fallbackOk: false,
+          fallbackAnswered: false,
+          fallbackAttempts: 0,
+          floor: "none",
           rawLen: 0,
           sawThink: false,
           sawToolMarkup: false,
         };
+        // What was already on screen when the rescue started. `streamedText` is
+        // turn-level and never rewinds, so an attempt that streamed prose and
+        // then had it stripped would otherwise leave that prose glued in front
+        // of the next attempt's answer — and in the persisted history, which is
+        // built from these exact calls. The rescue instead OWNS its visible
+        // text: every attempt's words are held until that attempt wins (the
+        // desktop's answer-hold, toolLoop.ts:117-133), so the bubble is always
+        // exactly this prefix plus the winning attempt's final text — or, on
+        // the floor, this prefix plus the floor. Declared out here because the
+        // floor closes the turn after the rescue block ends.
+        const visibleTextAtRescueStart = streamedText;
         if (!bailIfStopped()) {
           exhaustedTel.fallbackFired = true;
-          // Flush the outgoing round's reasoning span, then fresh cleaners for
-          // the fallback round (same as each loop round).
+          // Flush the outgoing round's reasoning span once, before the first
+          // attempt (each attempt gets fresh cleaners, same as each loop round).
           thinkingAccum = joinThinking(thinkingAccum, thinkCleaner.thinkingText());
-          const fallbackOpensThink = await probeTemplateOpensThink(
-            engine,
-            currentMessages as RNLlamaOAICompatibleMessage[],
-            {
-              enable_thinking: thinkingFields.enable_thinking,
-              reasoning_format: thinkingFields.reasoning_format,
-              chat_template_kwargs: thinkingFields.chat_template_kwargs,
-            },
-          );
-          thinkCleaner = createThinkStreamCleaner({
-            templateOpensThink: fallbackOpensThink,
-          });
-          toolCallStrip = createToolCallDeltaStripper();
-          roundWritingEmitted = false;
-          // Same suspension-point guard as the main loop: an abort landing
-          // during the probe must not be followed by a full completion.
-          if (bailIfStopped()) return;
-          const fallbackStreamedTextAtStart = streamedText;
-          // Tools-off round: the turn's system prompt orders a search on exactly
-          // the questions this round is trying to close from the results already
-          // in context, and S23 came back as tool markup again. Same transcript,
-          // no-tools system prompt plus the note that keeps "answer from the
-          // results, cite by title" — the turn's own array stays untouched.
-          const fallbackMessages = buildFallbackMessages(currentMessages, {
-            systemText: buildSystemPrompt(locale, false, options.memoryFacts),
-            resultsNote: strings.toolResultsAnswerNote,
-          }) as RNLlamaOAICompatibleMessage[];
+          // Up to MAX_TEXT_ONLY_ATTEMPTS. Each one is a full local completion,
+          // so the count is a constant and not "until it answers"; past it the
+          // floor closes the turn.
+          for (
+            let attempt = 1;
+            attempt <= MAX_TEXT_ONLY_ATTEMPTS && !toolFallbackOk;
+            attempt += 1
+          ) {
+            exhaustedTel.fallbackAttempts = attempt;
+            const fallbackOpensThink = await probeTemplateOpensThink(
+              engine,
+              currentMessages as RNLlamaOAICompatibleMessage[],
+              {
+                enable_thinking: thinkingFields.enable_thinking,
+                reasoning_format: thinkingFields.reasoning_format,
+                chat_template_kwargs: thinkingFields.chat_template_kwargs,
+              },
+            );
+            thinkCleaner = createThinkStreamCleaner({
+              templateOpensThink: fallbackOpensThink,
+            });
+            toolCallStrip = createToolCallDeltaStripper();
+            roundWritingEmitted = false;
+            // Same suspension-point guard as the main loop: an abort landing
+            // during the probe must not be followed by a full completion.
+            if (bailIfStopped()) return;
+            // Held, never streamed live: an attempt that fails must leave no
+            // residue in the bubble or in history. Released only by the winning
+            // attempt's final emit below.
+            let attemptStreamed = "";
+            // Tools-off round: the turn's system prompt orders a search on exactly
+            // the questions this round is trying to close from the results already
+            // in context, and S23 came back as tool markup again. Same transcript,
+            // no-tools system prompt plus the note that keeps "answer from the
+            // results, cite by title" — the turn's own array stays untouched.
+            // The LAST attempt also gets an explicit user-side note, because it
+            // is the one thing that makes it different from the first: a second
+            // draw of the same prompt at the same temperature re-rolls the same
+            // markup. Pure append onto a fresh array; currentMessages is still
+            // the turn's own.
+            const fallbackMessages = buildFallbackMessages(currentMessages, {
+              systemText: buildSystemPrompt(locale, false, options.memoryFacts),
+              resultsNote: strings.toolResultsAnswerNote,
+            }) as RNLlamaOAICompatibleMessage[];
+            if (attempt === MAX_TEXT_ONLY_ATTEMPTS) {
+              fallbackMessages.push({
+                role: "user",
+                content: strings.toolResultsAnswerNowNote,
+              });
+            }
           try {
             const fallbackThermo = await refreshGovernorBeforeCompletion(
               engine,
@@ -5460,14 +5529,23 @@ export async function streamAssistantTurn(
             stopStallWatchdog();
             noteCompletionPromptEnv();
             armPrefillDeadline();
-            const runFallbackRound = () => trackCompletion(
+            // A cooling retry re-runs THIS attempt from its start, so the hold
+            // resets with it — otherwise the re-attempt's text lands on top of
+            // the text the paused attempt had already given up.
+            const runFallbackRound = () => {
+              attemptStreamed = "";
+              return trackCompletion(
               engine.completion(
                 applyBenchSampling(
                   {
                     messages: fallbackMessages,
                     n_predict: nPredict,
-                    stop: STOP_WORDS,
-                    temperature: 0.7,
+                    // Same two text-only settings as the final tool round: end
+                    // generation at the tool-call token so prose written before
+                    // the markup survives, and roll at a temperature that is not
+                    // reaching for a tool this round cannot call.
+                    stop: withToolCallStop(STOP_WORDS),
+                    temperature: TEXT_ONLY_TEMPERATURE,
                     top_k: 40,
                     top_p: 0.95,
                     ...thinkingFields,
@@ -5499,17 +5577,24 @@ export async function streamAssistantTurn(
                     }
                   }
                   if (delta) {
-                    // Same first-visible-token flip as the main loop.
+                    // Same first-visible-token flip as the main loop: the label
+                    // turns to Writing on this attempt's first visible token, so
+                    // the wait is legible even though the words are held.
                     if (!roundWritingEmitted) {
                       roundWritingEmitted = true;
                       callbacks.onStatus?.({ label: strings.chat.writingStatus });
                     }
-                    streamedText += delta;
-                    callbacks.onDelta(delta, streamedText);
+                    // Held, not streamed: nothing reaches the bubble or history
+                    // until this attempt's final arbitration says these words
+                    // are the turn's answer (see the release below). streamedText
+                    // stays the pre-rescue text, so a later round, the floor and
+                    // the abort marker all read the same true buffer.
+                    attemptStreamed += delta;
                   }
                 },
               ),
-            );
+              );
+            };
             const fallbackResult = await resumeWhileCooling(
               coolingRound(roundsUsed, runFallbackRound),
             );
@@ -5565,14 +5650,15 @@ export async function streamAssistantTurn(
               emitEngineError(callbacks, finishOnce, err);
               return;
             }
-            // Strip tool_call/think markup from the fallback result. If text
-            // remains, emit it; if it reasoned but said nothing, the marker
-            // below stands in; only a round that did neither falls through to
-            // the canned message.
+            // Strip tool_call/think markup from the attempt's result. Text that
+            // survives is the answer this turn wanted; nothing surviving means
+            // the attempt failed and the next one runs.
             const fallbackEmitted = extractRawResultText(fallbackResult);
-            // Why the fallback produced no answer, in numbers and booleans: a
-            // non-zero rawLen with sawThink and no sawToolMarkup is the
-            // reasoning-only round that the interrupted marker now closes.
+            // What the LAST attempt did, in numbers and booleans: which of the
+            // ways a rescue can come back empty it was. A non-zero rawLen with
+            // sawThink and no sawToolMarkup is the round that reasoned and said
+            // nothing; sawToolMarkup is the one that reached for a tool it was
+            // not offered.
             exhaustedTel.rawLen = fallbackEmitted.length;
             exhaustedTel.sawThink = sawThinkTags(fallbackEmitted, {
               templateOpensThink: fallbackOpensThink,
@@ -5581,47 +5667,51 @@ export async function streamAssistantTurn(
             let fallbackText = stripToolCallTagsFinal(
               thinkCleaner.finalize(fallbackEmitted),
             ).trim();
-            if (!fallbackStreamedTextAtStart) fallbackText = fallbackText.trimStart();
+            if (!visibleTextAtRescueStart) fallbackText = fallbackText.trimStart();
             const fallbackThinking = joinThinking(
               thinkingAccum,
               thinkCleaner.thinkingText(),
             );
-            // The same rescue the normal round gets (emitFinalText), for the
-            // same reason: with the template think block open, a fallback
-            // truncated inside it arbitrates to reasoning and ZERO visible
-            // text, so `fallbackText` stayed empty and the canned "I couldn't
-            // complete the search" was emitted directly under a Thinking
-            // bubble saying the opposite. visibleTurnText closes the turn with
-            // the interrupted marker instead; the canned message survives only
-            // when there is genuinely nothing to show.
-            fallbackText = visibleTurnText({
-              finalText: fallbackText,
-              streamedVisibleLength: streamedText.length,
-              thinking: fallbackThinking,
-              interruptedMarker: strings.chat.interrupted,
-            });
+            // This attempt's reasoning joins the accumulator, so the NEXT
+            // attempt's span — and the one that finally persists — carries every
+            // attempt's reasoning, not just the winner's. A failed attempt's
+            // thinking is the user's to read: it is the reason the turn ended up
+            // in the rescue at all. The {final:true} emit below is therefore the
+            // same span that will be persisted, whichever attempt wins.
+            thinkingAccum = fallbackThinking;
             // Symmetric with emitFinalText: thinking fires unconditionally
             // after the round's finalize reconciled the buffer — a pure-
-            // reasoning fallback must not throw its reasoning away.
+            // reasoning attempt must not throw its reasoning away.
             thinkingCoalescer.cancel();
             callbacks.onThinkingText?.(fallbackThinking, { final: true });
             if (fallbackText) {
-              exhaustedTel.fallbackOk = true;
+              // Words. This attempt answered, the loop stops here, and no floor
+              // is built — `toolFallbackOk` is also the loop's exit condition.
+              exhaustedTel.fallbackAnswered = true;
               toolFallbackOk = true;
-              // Attach raw only when cleaned text survived (canned path keeps none).
+              // Attach raw only when cleaned text survived (floor path keeps none).
               const attachEmitted = modelEmittedTextForVisibleReply(
                 fallbackText,
                 fallbackEmitted,
               );
               if (attachEmitted) callbacks.onModelEmittedText?.(attachEmitted, "parsed");
-              callbacks.onDelta(fallbackText, fallbackStreamedTextAtStart + fallbackText);
+              // Release the hold. The bubble becomes exactly what was on screen
+              // when the rescue started plus this attempt's answer — the words it
+              // streamed live are in `fallbackText` already (finalize reconciles
+              // the buffer against the same result), so nothing is double-counted
+              // and no failed attempt's residue is in front of it.
+              streamedText = visibleTextAtRescueStart + fallbackText;
+              callbacks.onDelta(fallbackText, streamedText);
               kvReproState = nextKvReproState(kvReproState, "clean_completion");
             }
+            // Else: the attempt's held text is simply dropped. Its reasoning went
+            // out above; its words never reach the bubble or the history.
           } catch (fallbackError) {
             stopStallWatchdog();
             if (aborted) return;
             // A governor rejection must reach the outer catch for the runtime
-            // fallback decision; every other failure keeps the canned message.
+            // fallback decision; every other failure costs this attempt and
+            // lets the next one run — the floor is the backstop, not this.
             if (
               shouldRuntimeGovernorFallback({
                 error: fallbackError,
@@ -5632,34 +5722,55 @@ export async function streamAssistantTurn(
             ) {
               throw fallbackError;
             }
-            // Fallback completion failed (engine error, abort, etc.) — fall
-            // through to the canned message. emitEngineError will fire below
-            // only if we have no text at all; for now just log and continue.
-            console.warn("[toolRoundsExhausted] fallback completion failed", fallbackError);
+            console.warn("[toolRoundsExhausted] rescue attempt failed", fallbackError);
           }
+          // End of one text-only attempt. An attempt that produced words has
+          // already set toolFallbackOk, which is this loop's exit condition; an
+          // attempt that did not falls through to the next, up to the bound.
         }
-        // Emit telemetry regardless of outcome (bench needs to measure frequency).
+        }
+        // What closes the turn, decided BEFORE it is logged: a rescue that answered
+        // (no floor), or the never-empty floor over the sources the turn
+        // gathered, or the honest canned message when nothing was gathered. A
+        // turn that was stopped (abort, or already closed) is not this case: the
+        // abort path has already spoken for it, with a marker that is true, and
+        // nothing here may speak over that.
+        const floorCloses = !exhaustedTel.fallbackAnswered && !aborted && !finished;
+        let floorText = "";
+        if (floorCloses) {
+          const sourcesAnswer = buildSourcesAnswer(
+            accumulatedSources,
+            strings.chat.answerSourcesLead,
+          );
+          floorText = sourcesAnswer || strings.errors.toolRoundsExhausted;
+          exhaustedTel.floor = sourcesAnswer ? "sources" : "canned";
+        }
+        // Emit telemetry regardless of outcome (bench needs to measure frequency),
+        // and AFTER the floor is settled so the line reports what closed the
+        // turn rather than a stale "none".
         try {
           markStage("engine", "tool_call");
           console.log(formatToolRoundExhaustedLine(turnId, exhaustedTel));
         } catch {
           // Telemetry must never break a turn.
         }
-        // Only a fallback that neither answered nor reasoned reaches here — its
-        // visibleTurnText rescue left the text empty — so the localized honest
-        // message still closes the bubble and the user can act on it
-        // (retry/rephrase). Use fallbackOk (authoritative) rather than
-        // re-checking streamedText, because the token callback may have
-        // streamed partial text that was later stripped by
-        // thinkCleaner.finalize.
-        if (!exhaustedTel.fallbackOk) {
-          const fallbackMessage = strings.errors.toolRoundsExhausted;
+        // No attempt produced words. The turn still gathered things — so close
+        // with those, under a short localized lead, rather than with a marker
+        // for something that was never interrupted or with a canned message
+        // that hides work the turn already did. Nothing gathered (no sources at
+        // all) leaves the honest canned message as the only true thing to say.
+        // Use fallbackAnswered (authoritative) rather than re-checking
+        // streamedText, because an attempt's text is held until it wins.
+        if (floorCloses) {
           // The first visible text of this turn, so the label stops naming the
           // last tool (the UI keeps statusLabel while text streams and clears it
-          // only at finalize). The flip the fallback's token callback makes on
+          // only at finalize). The flip the rescue's token callback makes on
           // its first visible delta, reached here without one.
           callbacks.onStatus?.({ label: strings.chat.writingStatus });
-          callbacks.onDelta(fallbackMessage, fallbackMessage);
+          // Same rule as the winning attempt's release: what was on screen when
+          // the rescue started, plus this. `streamedText` is that buffer.
+          streamedText = visibleTextAtRescueStart + floorText;
+          callbacks.onDelta(floorText, streamedText);
         }
       }
       // Post-tool closure: commit only when the native adopted the prompt.

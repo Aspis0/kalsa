@@ -622,6 +622,12 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     lowFreeMemoryStatus: "Low on free memory: replies will be slow.",
     reasoningLabel: "Reasoning",
     interrupted: "Generation was interrupted.",
+    /**
+     * Lead line for the never-empty floor: the model would not answer in
+     * words, so the turn shows what it gathered. Kept plain and short — it is
+     * a heading over a source list, not an apology.
+     */
+    answerSourcesLead: "Here's what I found:",
     truncated: "Reply stopped at the token limit.",
     searching: "Searching the web…",
     fetching: "Fetching page…",
@@ -1462,6 +1468,14 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
   toolResultsAnswerNote:
     "Base your answer on the tool results above; if they don't contain the answer, say so. " +
     "Cite the sources you used by referencing their titles.",
+  /**
+   * The last text-only attempt's own user-side note. The system note above did
+   * not stop the model from writing tool markup (S23, LFM2.5 2.6B), and a
+   * second draw of the same prompt just re-rolls the same markup — so the final
+   * attempt asks, as the user's own last word, for words. Plain short copy: a
+   * paragraph of instruction here is more tokens to answer a one-line request.
+   */
+  toolResultsAnswerNowNote: "Answer now in words from the results above; do not call tools.",
   // ── The rebuilt interface (2026-09). See docs/DESIGN.md ──────────────
   // Every word the new shell can put on screen lives here, so a missing
   // string is a type error rather than a blank control at the worst moment.

@@ -44,11 +44,13 @@ const EXHAUSTED = {
   roundsUsed: 3,
   streamedLen: 0,
   fallbackFired: true,
-  fallbackOk: false,
+  fallbackAnswered: false,
+  fallbackAttempts: 2,
+  floor: "sources",
   rawLen: 812,
   sawThink: true,
   sawToolMarkup: false,
-};
+} as const;
 
 const TOOLCALL: ToolRoundTelemetry = {
   round: 2,
@@ -75,21 +77,40 @@ describe("KALSA_TOOLROUND_EXHAUSTED", () => {
     });
   });
 
-  it("keeps the facts that tell the two empty rounds apart", () => {
-    const reasoningOnly = roundTrip(formatToolRoundExhaustedLine("7", EXHAUSTED));
-    expect(reasoningOnly.fallbackOk).toBe(false);
-    // Non-zero rawLen + sawThink + no markup is the round that reasoned and
-    // got cut — the one the interrupted marker now closes instead of the
-    // canned message.
-    expect(reasoningOnly.rawLen).toBe(812);
-    expect(reasoningOnly.sawThink).toBe(true);
-    expect(reasoningOnly.sawToolMarkup).toBe(false);
+  it("keeps the facts that tell the three empty-turn outcomes apart", () => {
+    const rescued = roundTrip(formatToolRoundExhaustedLine("7", EXHAUSTED));
+    expect(rescued.fallbackAnswered).toBe(false);
+    // Both attempts spent, no words, so the floor spoke from the sources. The
+    // last attempt's raw facts say WHY it stayed silent: a non-zero rawLen with
+    // sawThink and no markup is the round that reasoned and got cut.
+    expect(rescued.fallbackAttempts).toBe(2);
+    expect(rescued.floor).toBe("sources");
+    expect(rescued.rawLen).toBe(812);
+    expect(rescued.sawThink).toBe(true);
+    expect(rescued.sawToolMarkup).toBe(false);
 
     const markupOnly = roundTrip(
       formatToolRoundExhaustedLine("7", { ...EXHAUSTED, rawLen: 64, sawThink: false, sawToolMarkup: true }),
     );
     expect(markupOnly.sawThink).toBe(false);
     expect(markupOnly.sawToolMarkup).toBe(true);
+
+    // Answered and silent-nothing-gathered are the other two floors, and the
+    // line must not flatten them into one "ok".
+    expect(
+      roundTrip(formatToolRoundExhaustedLine("7", { ...EXHAUSTED, fallbackAnswered: true, fallbackAttempts: 1, floor: "none" })),
+    ).toMatchObject({ fallbackAnswered: true, floor: "none" });
+    expect(
+      roundTrip(formatToolRoundExhaustedLine("7", { ...EXHAUSTED, fallbackAttempts: 1, floor: "canned" })),
+    ).toMatchObject({ fallbackAttempts: 1, floor: "canned" });
+  });
+
+  it("drops a floor the app never emits, keeping the rest of the line", () => {
+    const out = roundTrip(
+      formatToolRoundExhaustedLine("7", { ...EXHAUSTED, floor: "hallucinated" as never }),
+    );
+    expect(out.floor).toBeUndefined();
+    expect(out.fallbackAttempts).toBe(2);
   });
 
   it("drops a wrong-kind field instead of the line", () => {
@@ -98,7 +119,7 @@ describe("KALSA_TOOLROUND_EXHAUSTED", () => {
     );
     expect(out.turnId).toBeUndefined(); // not a counter literal
     expect(out.rawLen).toBeUndefined(); // string where a number is allowed
-    expect(out.fallbackOk).toBe(false); // the rest still counts the event
+    expect(out.fallbackAnswered).toBe(false); // the rest still counts the event
   });
 });
 

@@ -63,7 +63,7 @@ describe("blank-reply routing in LlamaService", () => {
     expect(source).toContain("const fallbackMessages = buildFallbackMessages(currentMessages, {");
     expect(source).toContain("buildSystemPrompt(locale, false, options.memoryFacts),");
     expect(source).toContain("resultsNote: strings.toolResultsAnswerNote,");
-    const call = source.indexOf("const runFallbackRound = () => trackCompletion(");
+    const call = source.indexOf("const runFallbackRound = () => {");
     expect(call).toBeGreaterThan(-1);
     const callBody = source.slice(call, call + 4000);
     expect(callBody).toContain("messages: fallbackMessages,");
@@ -72,16 +72,21 @@ describe("blank-reply routing in LlamaService", () => {
     expect((source.match(/messages: fallbackMessages,/g) ?? [])).toHaveLength(1);
   });
 
-  test("the canned fallback message stops naming the last tool", () => {
+  test("the floor message stops naming the last tool", () => {
     // The UI keeps statusLabel while text streams (sendHost.ts) and clears it
-    // only at finalize, so the canned text must flip the label the same way the
-    // fallback's own first visible delta does.
-    const canned = source.indexOf("const fallbackMessage = strings.errors.toolRoundsExhausted;");
-    expect(canned).toBeGreaterThan(-1);
-    const tail = source.slice(canned, canned + 600);
-    expect(tail).toContain("callbacks.onStatus?.({ label: strings.chat.writingStatus });");
-    expect(tail.indexOf("callbacks.onStatus?.({ label: strings.chat.writingStatus });")).toBeLessThan(
-      tail.indexOf("callbacks.onDelta(fallbackMessage, fallbackMessage);"),
+    // only at finalize, so the closing text must flip the label the same way the
+    // rescue attempt's own first visible delta does. That closing text is the
+    // never-empty floor when the turn gathered sources, and the canned message
+    // when it gathered none — one line, same flip.
+    const floorText = source.indexOf(
+      "floorText = sourcesAnswer || strings.errors.toolRoundsExhausted;",
     );
+    expect(floorText).toBeGreaterThan(-1);
+    // Absolute indices, not a window: the status flip must land between the two
+    // floor statements, whichever order the telemetry block around them takes.
+    const flip = source.indexOf("callbacks.onStatus?.({ label: strings.chat.writingStatus });", floorText);
+    const emit = source.indexOf("callbacks.onDelta(floorText, streamedText);", floorText);
+    expect(flip).toBeGreaterThan(floorText);
+    expect(emit).toBeGreaterThan(flip);
   });
 });
