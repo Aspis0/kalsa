@@ -1975,20 +1975,29 @@ fn the_vision_restart_stops_the_running_engine_before_starting_again() {
         std::process::id()
     ));
     let _ = std::fs::remove_file(&state_file);
-    let config = |port: u16| kalsa_supervisor::ServerConfig {
-        exe: exe.clone(),
-        argv: vec![
-            "--host".into(),
-            "127.0.0.1".into(),
-            "--port".into(),
-            port.to_string(),
-        ],
-        state_file: state_file.clone(),
-        port,
-        ready_timeout: Duration::from_secs(10),
-        stop_grace: Duration::from_secs(2),
+    let config = |port: u16| {
+        let api_key = kalsa_supervisor::EngineKey::mint().expect("the OS has randomness");
+        // The fake engine on this port answers a gated route only for the key
+        // it was started with, so the handshake can prove the identity.
+        FAKE_ENGINE_KEYS
+            .lock()
+            .expect("the fake engines' keys")
+            .insert(port, api_key.as_str().to_string());
+        kalsa_supervisor::ServerConfig {
+            exe: exe.clone(),
+            argv: vec![
+                "--host".into(),
+                "127.0.0.1".into(),
+                "--port".into(),
+                port.to_string(),
+            ],
+            state_file: state_file.clone(),
+            port,
+            ready_timeout: Duration::from_secs(10),
+            stop_grace: Duration::from_secs(2),
 
-        api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
+            api_key,
+        }
     };
     // The health listener binds only once the child's pid file exists, so
     // the supervisor's pre-spawn port check sees a free port — the same
@@ -2015,12 +2024,19 @@ fn the_vision_restart_stops_the_running_engine_before_starting_again() {
                 while !gate.load(Ordering::SeqCst) {
                     match listener.accept() {
                         Ok((mut socket, _)) => {
-                            let mut scratch = [0u8; 512];
-                            let _ = std::io::Read::read(&mut socket, &mut scratch);
-                            let _ = std::io::Write::write_all(
-                                &mut socket,
-                                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                            );
+                            // An accepted socket inherits the listener's
+                            // non-blocking flag on BSD, and this one serves a
+                            // conversation: a request that arrives split, or
+                            // a connection kept open past `Connection: close`,
+                            // must still be answered (module `health`).
+                            let _ = socket.set_nonblocking(false);
+                            let _ = socket.set_read_timeout(Some(Duration::from_secs(2)));
+                            while let Some(request) = read_request_head(&mut socket) {
+                                let _ = std::io::Write::write_all(
+                                    &mut socket,
+                                    fake_engine_answer(port, &request).as_bytes(),
+                                );
+                            }
                         }
                         Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                             std::thread::sleep(Duration::from_millis(2))
@@ -2032,7 +2048,7 @@ fn the_vision_restart_stops_the_running_engine_before_starting_again() {
         };
         (stop, handle)
     };
-    let (health_stop, _health) = health_on(&pid_file);
+    let (health_stop, health) = health_on(&pid_file);
 
     let up = |deadline_secs: u64, wanted: &str| {
         let deadline = Instant::now() + Duration::from_secs(deadline_secs);
@@ -2070,8 +2086,11 @@ fn the_vision_restart_stops_the_running_engine_before_starting_again() {
     // The old server's port goes away with it, and the new child writes a
     // fresh pid file for the new health listener to wait on.
     health_stop.store(true, Ordering::SeqCst);
+    // Joined, not dropped: a listener thread left running still holds this
+    // port, and the restart below needs the kernel to hand it back.
+    health.join().expect("the first health listener stops");
     let _ = std::fs::remove_file(&pid_file);
-    let (health_stop, _health) = health_on(&pid_file);
+    let (health_stop, restarted_health) = health_on(&pid_file);
     let stops_seen = brain.stops.load(Ordering::SeqCst);
     let second = queue_start(&brain, stops_seen, config(port), || ())
         .expect("the restart's start is queued");
@@ -2093,6 +2112,7 @@ fn the_vision_restart_stops_the_running_engine_before_starting_again() {
     // Clean up: stop the engine and the health listener.
     brain.supervisor.stop();
     health_stop.store(true, Ordering::SeqCst);
+    restarted_health.join().expect("the second health listener stops");
     let _ = std::fs::remove_file(&pid_file);
     let _ = std::fs::remove_file(&state_file);
 }
@@ -2317,8 +2337,63 @@ fn server_state_variants() -> Vec<String> {
 /// reconcile tests need the LIVE state and not a hand-built snapshot, because
 /// a raise that must stand is re-checked against the supervisor after it
 /// lands.
+/// The whole request head, however many reads it takes; `None` once the client
+/// closes the connection.
+fn read_request_head(socket: &mut std::net::TcpStream) -> Option<String> {
+    let mut head = Vec::new();
+    let mut scratch = [0u8; 512];
+    loop {
+        // Only a head that ends with its blank line: half a request is not one
+        // this fake may answer, and answering the fragment as the open route
+        // would make the handshake refuse a stranger for the wrong reason.
+        if let Some(end) = head
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .map(|start| start + 4)
+        {
+            return Some(String::from_utf8_lossy(&head[..end]).into_owned());
+        }
+        match std::io::Read::read(socket, &mut scratch) {
+            Ok(0) | Err(_) => return None,
+            Ok(read) => head.extend_from_slice(&scratch[..read]),
+        }
+    }
+}
+
+/// The key each fake engine was started with, by port: the handshake's
+/// negative control needs a listener that refuses a key it did not mint, and
+/// tests run side by side.
+static FAKE_ENGINE_KEYS: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<u16, String>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+/// The fake engine's answer, framed as the real one frames it: `/health` is
+/// open, a gated route answers `2xx` only for the bearer it was started with
+/// and refuses every other key, and a `HEAD` gets headers with no body. The
+/// handshake proves identity from exactly this, so a fake that answered
+/// everything would fail it — correctly.
+fn fake_engine_answer(port: u16, request: &str) -> String {
+    let keys = FAKE_ENGINE_KEYS.lock().expect("the fake engines' keys");
+    let bearer = request
+        .lines()
+        .find_map(|line| line.strip_prefix("Authorization: Bearer "))
+        .map(str::trim);
+    let accepted = request.contains("/health")
+        || keys.get(&port).is_some_and(|ours| Some(ours.as_str()) == bearer);
+    let (status, body) = match accepted {
+        true => ("HTTP/1.1 200 OK", "{\"status\":\"ok\"}"),
+        false => ("HTTP/1.1 401 Unauthorized", ""),
+    };
+    let head = format!("{status}\r\nContent-Length: {}\r\n\r\n", body.len());
+    match request.starts_with("HEAD ") {
+        true => head,
+        false => format!("{head}{body}"),
+    }
+}
+
 struct RunningEngine {
     health_stop: Arc<AtomicBool>,
+    health: std::thread::JoinHandle<()>,
     pid_file: PathBuf,
     state_file: PathBuf,
 }
@@ -2332,6 +2407,7 @@ impl RunningEngine {
         assert!(exe.is_file(), "the supervisor's fake server fixture is missing");
         Self::start_with(brain, name, exe)
     }
+
 
     /// `start` with the engine's executable given: the same fake behind
     /// another program, for a test that needs the engine to say something.
@@ -2351,7 +2427,7 @@ impl RunningEngine {
         // The health listener binds only once the child's pid file exists, so
         // the supervisor's pre-spawn port check sees a free port.
         let health_stop = Arc::new(AtomicBool::new(false));
-        let _health = {
+        let health = {
             let gate = Arc::clone(&health_stop);
             let pid_file = pid_file.clone();
             std::thread::spawn(move || {
@@ -2367,12 +2443,19 @@ impl RunningEngine {
                 while !gate.load(Ordering::SeqCst) {
                     match listener.accept() {
                         Ok((mut socket, _)) => {
-                            let mut scratch = [0u8; 512];
-                            let _ = std::io::Read::read(&mut socket, &mut scratch);
-                            let _ = std::io::Write::write_all(
-                                &mut socket,
-                                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                            );
+                            // An accepted socket inherits the listener's
+                            // non-blocking flag on BSD, and this one serves a
+                            // conversation: a request that arrives split, or
+                            // a connection kept open past `Connection: close`,
+                            // must still be answered (module `health`).
+                            let _ = socket.set_nonblocking(false);
+                            let _ = socket.set_read_timeout(Some(Duration::from_secs(2)));
+                            while let Some(request) = read_request_head(&mut socket) {
+                                let _ = std::io::Write::write_all(
+                                    &mut socket,
+                                    fake_engine_answer(port, &request).as_bytes(),
+                                );
+                            }
                         }
                         Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                             std::thread::sleep(Duration::from_millis(2))
@@ -2382,6 +2465,7 @@ impl RunningEngine {
                 }
             })
         };
+        let api_key = kalsa_supervisor::EngineKey::mint().expect("the OS has randomness");
         let config = kalsa_supervisor::ServerConfig {
             exe,
             argv: vec![
@@ -2395,8 +2479,12 @@ impl RunningEngine {
             ready_timeout: Duration::from_secs(10),
             stop_grace: Duration::from_secs(2),
 
-            api_key: kalsa_supervisor::EngineKey::mint().unwrap(),
+            api_key,
         };
+        FAKE_ENGINE_KEYS
+            .lock()
+            .expect("the fake engines' keys")
+            .insert(port, config.api_key.as_str().to_string());
         let accepted = brain.supervisor.start(config);
         assert_eq!(accepted.outcome(), StartOutcome::Accepted);
         let deadline = Instant::now() + Duration::from_secs(15);
@@ -2410,6 +2498,7 @@ impl RunningEngine {
         }
         RunningEngine {
             health_stop,
+            health,
             pid_file,
             state_file,
         }
@@ -2420,6 +2509,10 @@ impl RunningEngine {
     fn stop(self, brain: &Brain) {
         brain.supervisor.stop();
         self.health_stop.store(true, Ordering::SeqCst);
+        // Joined before the files go: a listener thread still running would
+        // answer a later start on this port, and the next test's engine is
+        // then somebody else's server.
+        let _ = self.health.join();
         let _ = std::fs::remove_file(&self.pid_file);
         let _ = std::fs::remove_file(&self.state_file);
     }
@@ -3832,6 +3925,21 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
                     kalsa_tune::Reply::from_rates(1000.0, 47.2).expect("two measurements"),
                 ),
             ),
+            // The processor is measured at every thread count, and the
+            // SLOWEST one is listed first: the rule compares against the best
+            // of them, so this 9.9 must not become the number the sample is
+            // measured against.
+            (
+                kalsa_tune::Candidate {
+                    backend: kalsa_runtime::ServerBackend::Cpu,
+                    threads: Some(8),
+                    offload: kalsa_launch::Offload::NoGpuBuild,
+                    draft: None,
+                },
+                kalsa_tune::record::Kept::Replied(
+                    kalsa_tune::Reply::from_rates(1000.0, 9.9).expect("two measurements"),
+                ),
+            ),
             (
                 kalsa_tune::Candidate {
                     backend: kalsa_runtime::ServerBackend::Cpu,
@@ -3840,7 +3948,7 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
                 draft: None,
                 },
                 kalsa_tune::record::Kept::Replied(
-                    kalsa_tune::Reply::from_rates(1000.0, 10.2).expect("two measurements"),
+                    kalsa_tune::Reply::from_rates(1000.0, 17.6).expect("two measurements"),
                 ),
             ),
         ],
@@ -3872,13 +3980,82 @@ fn graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> star
     }
 }
 
-/// The line's own rule: half the recorded best, not a hair less.
+/// The same graphics winner, on a record where the tune never measured a
+/// processor candidate: the comparison the check needs has no right-hand side.
+fn graphics_prepared_without_processor(
+    tag: &str,
+    graphics_port: u16,
+    processor_port: u16,
+) -> startup::PreparedStart {
+    let mut prepared = graphics_prepared(tag, graphics_port, processor_port);
+    if let Some(tune_step::Tune::Measured(record)) = prepared.info.tune.as_mut() {
+        record
+            .trials
+            .retain(|(candidate, _)| !matches!(candidate.offload, kalsa_launch::Offload::NoGpuBuild));
+    }
+    prepared
+}
+
+/// The same graphics winner on a Mac's record: there the processor is the
+/// Metal build with the offload forced off (`--n-gpu-layers 0` on the one
+/// archive), not the CPU build. Matching the backend found no processor rate
+/// on the platform this app is developed on, so the check could never fire.
+fn metal_graphics_prepared(tag: &str, graphics_port: u16, processor_port: u16) -> startup::PreparedStart {
+    let mut prepared = graphics_prepared(tag, graphics_port, processor_port);
+    if let Some(tune_step::Tune::Measured(record)) = prepared.info.tune.as_mut() {
+        for (candidate, _) in &mut record.trials {
+            if matches!(candidate.offload, kalsa_launch::Offload::NoGpuBuild) {
+                candidate.backend = kalsa_runtime::ServerBackend::Metal;
+                candidate.offload = kalsa_launch::Offload::ForcedOff;
+            } else {
+                candidate.backend = kalsa_runtime::ServerBackend::Metal;
+            }
+        }
+        if let Some(winner) = record.winner.as_mut() {
+            winner.candidate.backend = kalsa_runtime::ServerBackend::Metal;
+        }
+    }
+    if let Some((_, args)) = prepared.processor.as_mut() {
+        args.offload = kalsa_launch::Offload::ForcedOff;
+    }
+    prepared
+}
+
+/// A record whose only offloaded trial is the mixed iGPU shape — the Vulkan
+/// build with the offload forced off, which prefill-boosts on the integrated
+/// card and is NOT the processor candidate. Reading its rate as the
+/// processor's would demote the graphics launch against the wrong number.
+fn prepared_with_only_the_vulkan_mixed_shape(
+    tag: &str,
+    graphics_port: u16,
+    processor_port: u16,
+) -> startup::PreparedStart {
+    let mut prepared = graphics_prepared_without_processor(tag, graphics_port, processor_port);
+    if let Some(tune_step::Tune::Measured(record)) = prepared.info.tune.as_mut() {
+        record.trials.push((
+            kalsa_tune::Candidate {
+                backend: kalsa_runtime::ServerBackend::Vulkan,
+                threads: Some(16),
+                offload: kalsa_launch::Offload::ForcedOff,
+                draft: None,
+            },
+            kalsa_tune::record::Kept::Replied(
+                kalsa_tune::Reply::from_rates(1000.0, 9.9).expect("two measurements"),
+            ),
+        ));
+    }
+    prepared
+}
+
+/// The line's own rule: below the recorded PROCESSOR rate, not half the card's.
 #[test]
-fn worth_switching_draws_the_line_at_half() {
-    assert!(!worth_switching(23.6, 47.2), "exactly half still counts");
-    assert!(worth_switching(23.59, 47.2), "just under half is not the recorded launch");
-    assert!(worth_switching(0.0, 47.2));
-    assert!(!worth_switching(47.2, 47.2));
+fn worth_switching_draws_the_line_below_the_processor() {
+    // The card's own recorded best is not the line: a sample under half of it
+    // is still faster than the processor was, and the slot does not move.
+    assert!(!worth_switching(35.7, 17.6), "35.7 is well above the processor");
+    assert!(!worth_switching(17.6, 17.6), "exactly the processor is not below it");
+    assert!(worth_switching(17.59, 17.6), "just under the processor is below it");
+    assert!(worth_switching(0.0, 17.6), "a card answering nothing is below it");
 }
 
 /// A card answering under half its recorded best hands the slot to the
@@ -3890,7 +4067,7 @@ fn a_slow_card_hands_the_slot_to_the_processor() {
     let mut starts: Vec<u16> = Vec::new();
     let result = speed_check(
         &mut prepared,
-        |_| kalsa_tune::Answer::Rate(20.0),
+        |_| kalsa_tune::Answer::Rate(10.0),
         || stops += 1,
         |config| {
             starts.push(config.port);
@@ -3909,7 +4086,7 @@ fn a_slow_card_hands_the_slot_to_the_processor() {
     );
     let checked = prepared.info.checked.as_deref().expect("the check is shown");
     assert!(
-        checked.contains("checked 20.0 tokens/s against 47.2 recorded"),
+        checked.contains("checked 10.0 tokens/s against 47.2 recorded, 17.6 from the processor"),
         "{checked}"
     );
     assert!(checked.contains("running the processor candidate"), "{checked}");
@@ -3919,22 +4096,173 @@ fn a_slow_card_hands_the_slot_to_the_processor() {
     );
 }
 
-/// A check that never gets an answer is an answer: under ~1 tok/s, slow.
+/// A check that never comes back is NOT a measurement. The bound ran out on
+/// a moment — a busy server, a slot being built, a machine doing something
+/// else — and the rate it never produced says nothing about the card. A GPU
+/// winner demoted here runs on the processor for the rest of the session,
+/// which is the whole cost this rule exists to prevent: a demotion must be
+/// paid for by a number someone measured on this engine, or not at all.
 #[test]
-fn a_check_timeout_reads_as_slow() {
+fn a_check_timeout_keeps_the_graphics_launch() {
     let mut prepared = graphics_prepared("timeout", 8188, 8189);
     let mut stops = 0usize;
-    speed_check(&mut prepared, |_| kalsa_tune::Answer::Timeout, || stops += 1, |config| {
-        assert_eq!(config.port, 8189);
-        Some((StartOutcome::Accepted, Some(StartSettled::Up)))
-    });
-    assert_eq!(stops, 1, "a timeout is slow, and slow switches");
+    let result = speed_check(
+        &mut prepared,
+        |_| kalsa_tune::Answer::Timeout,
+        || stops += 1,
+        |_| panic!("a check that never answered starts nothing"),
+    );
+    assert_eq!(stops, 0, "a timeout is not a slow card and stops nothing");
+    assert_eq!(result, CheckResult::Kept);
+    assert_eq!(
+        prepared.server.port, 8188,
+        "the graphics launch is untouched"
+    );
     assert!(
         prepared
             .info
             .checked
             .as_deref()
-            .is_some_and(|line| line.contains("no rate in 30 s")),
+            .is_some_and(|line| line.contains("the check failed")),
+        "{:?}",
+        prepared.info.checked
+    );
+}
+
+/// A card answering well above its own recorded best — and far above the
+/// processor's — keeps the slot, and the line says every number it compared.
+#[test]
+fn a_rate_far_above_the_processor_keeps_the_graphics_launch_and_records_it() {
+    let mut prepared = graphics_prepared("fast", 8186, 8191);
+    let mut stops = 0usize;
+    let result = speed_check(
+        &mut prepared,
+        |_| kalsa_tune::Answer::Rate(47.2),
+        || stops += 1,
+        |_| panic!("a card at its recorded best starts nothing"),
+    );
+    assert_eq!(stops, 0, "a card at its best stops nothing");
+    assert_eq!(result, CheckResult::Kept);
+    assert_eq!(prepared.server.port, 8186);
+    assert!(
+        prepared
+            .info
+            .checked
+            .as_deref()
+            .is_some_and(|line| {
+                line.contains("checked 47.2 tokens/s against 47.2 recorded, 17.6 from the processor")
+            }),
+        "the measured rate is not in the line: {:?}",
+        prepared.info.checked
+    );
+}
+
+/// The case the rule exists for: 35.7 is UNDER half the card's recorded 71.4,
+/// and still faster than the 17.6 the processor managed on this model. The
+/// slot does not move, and nothing is stopped.
+#[test]
+fn a_sample_under_half_the_card_but_above_the_processor_keeps_the_launch() {
+    let mut prepared = graphics_prepared("half-card", 8182, 8183);
+    let mut stops = 0usize;
+    let result = speed_check(
+        &mut prepared,
+        |_| kalsa_tune::Answer::Rate(35.7),
+        || stops += 1,
+        |_| panic!("a card above the processor's own rate starts nothing"),
+    );
+    assert_eq!(stops, 0, "a slow moment is not a slower card");
+    assert_eq!(result, CheckResult::Kept);
+    assert_eq!(prepared.server.port, 8182, "the graphics launch still stands");
+}
+
+/// A record with no processor number has nothing to compare a sample against,
+/// and a rule that cannot be evaluated must not fire.
+#[test]
+fn a_record_without_a_processor_rate_never_demotes() {
+    let mut prepared = graphics_prepared_without_processor("no-processor", 8180, 8181);
+    let mut stops = 0usize;
+    let result = speed_check(
+        &mut prepared,
+        |_| kalsa_tune::Answer::Rate(1.0),
+        || stops += 1,
+        |_| panic!("nothing to compare against, so nothing starts"),
+    );
+    assert_eq!(stops, 0, "a missing comparison is not a reason to stop the card");
+    assert_eq!(result, CheckResult::Kept);
+    assert!(
+        prepared
+            .info
+            .checked
+            .as_deref()
+            .is_some_and(|line| line.contains("not measured from the processor")),
+        "{:?}",
+        prepared.info.checked
+    );
+}
+
+/// The processor candidate is a SHAPE, not a backend: on a Mac it is the
+/// Metal archive with `--n-gpu-layers 0`. A record that measured only that
+/// still has the number the check needs, and both sides of the line are
+/// reachable with it.
+#[test]
+fn a_metal_record_still_finds_the_processor_to_compare_against() {
+    let mut prepared = metal_graphics_prepared("metal", 8172, 8173);
+    let mut stops = 0usize;
+    let mut starts: Vec<u16> = Vec::new();
+    let result = speed_check(
+        &mut prepared,
+        |_| kalsa_tune::Answer::Rate(10.0),
+        || stops += 1,
+        |config| {
+            starts.push(config.port);
+            Some((StartOutcome::Accepted, Some(StartSettled::Up)))
+        },
+    );
+    assert_eq!(result, CheckResult::Launched(StartOutcome::Accepted));
+    assert_eq!(stops, 1);
+    assert_eq!(starts, vec![8173], "the processor config is what takes the slot");
+    let checked = prepared.info.checked.as_deref().expect("the check is shown");
+    assert!(
+        checked.contains("checked 10.0 tokens/s against 47.2 recorded, 17.6 from the processor"),
+        "{checked}"
+    );
+
+    // The same record, a sample above the processor: nothing moves.
+    let mut fast = metal_graphics_prepared("metal-fast", 8174, 8175);
+    let mut stops = 0usize;
+    let result = speed_check(
+        &mut fast,
+        |_| kalsa_tune::Answer::Rate(35.7),
+        || stops += 1,
+        |_| panic!("a sample above the processor starts nothing"),
+    );
+    assert_eq!(stops, 0);
+    assert_eq!(result, CheckResult::Kept);
+    assert_eq!(fast.server.port, 8174, "the graphics launch still stands");
+}
+
+/// A `ForcedOff` trial on Vulkan is the mixed iGPU shape, not the processor.
+/// Its 9.9 is a real number and the wrong one: against it, a 10-tokens/s card
+/// looks like it needs handing over.
+#[test]
+fn the_vulkan_mixed_shape_is_not_read_as_the_processor() {
+    let mut prepared = prepared_with_only_the_vulkan_mixed_shape("mixed", 8176, 8177);
+    let mut stops = 0usize;
+    let result = speed_check(
+        &mut prepared,
+        |_| kalsa_tune::Answer::Rate(10.0),
+        || stops += 1,
+        |_| panic!("a rate that is not the processor's starts nothing"),
+    );
+    assert_eq!(stops, 0);
+    assert_eq!(result, CheckResult::Kept);
+    assert_eq!(prepared.server.port, 8176);
+    assert!(
+        prepared
+            .info
+            .checked
+            .as_deref()
+            .is_some_and(|line| line.contains("not measured from the processor")),
         "{:?}",
         prepared.info.checked
     );
@@ -4020,7 +4348,7 @@ fn a_processor_start_that_fails_gets_the_graphics_launch_once() {
     let mut starts: Vec<u16> = Vec::new();
     let result = speed_check(
         &mut prepared,
-        |_| kalsa_tune::Answer::Rate(20.0),
+        |_| kalsa_tune::Answer::Rate(10.0),
         || {},
         |config| {
             starts.push(config.port);
@@ -4076,7 +4404,7 @@ fn a_card_at_its_recorded_speed_keeps_the_slot() {
     assert_eq!(prepared.server.port, 8191, "the graphics launch is untouched");
     let checked = prepared.info.checked.as_deref().expect("the check is shown");
     assert!(
-        checked.contains("checked 46.9 tokens/s against 47.2 recorded"),
+        checked.contains("checked 46.9 tokens/s against 47.2 recorded, 17.6 from the processor"),
         "{checked}"
     );
     assert!(!checked.contains("processor candidate"), "{checked}");
@@ -4092,7 +4420,7 @@ fn a_processor_and_graphics_failure_leaves_nothing_running() {
     let mut starts: Vec<u16> = Vec::new();
     let result = speed_check(
         &mut prepared,
-        |_| kalsa_tune::Answer::Rate(20.0),
+        |_| kalsa_tune::Answer::Rate(10.0),
         || {},
         |config| {
             starts.push(config.port);

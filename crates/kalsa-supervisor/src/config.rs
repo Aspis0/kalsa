@@ -48,7 +48,12 @@ impl ServerConfig {
     /// The identity of this exact command, as a state file records it: the
     /// same binary with different arguments is a different server, and an
     /// orphan of one must not be adopted as the other.
-    pub(crate) fn binding(&self) -> String {
+    ///
+    /// Public because it is also what a test plants as the record of an
+    /// earlier run: the walk will only close a pid whose record names the
+    /// engine it is about to launch, and a fixture has to be able to write a
+    /// record that passes that.
+    pub fn binding(&self) -> String {
         format!("{}\x1f{}", self.exe.display(), self.argv.join("\x1f"))
     }
 

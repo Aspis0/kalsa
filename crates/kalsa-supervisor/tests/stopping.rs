@@ -18,15 +18,21 @@
 
 mod common;
 
+#[cfg(unix)]
 use std::sync::Arc;
+#[cfg(unix)]
 use std::time::{Duration, Instant};
 
+#[cfg(unix)]
 use common::{clear_files, config, unique_port, wait_for};
-use kalsa_supervisor::{ServerState, StartOutcome, Supervisor};
+use kalsa_supervisor::{ServerState, Supervisor};
+#[cfg(unix)]
+use kalsa_supervisor::StartOutcome;
 
 /// A handshake that can never end on its own: nothing answers `/health` on
 /// this port (the fixtures only record their pid), so the worker stays inside
 /// `start_blocking` until the `ready_timeout` this returns.
+#[cfg(unix)]
 fn stuck_config(port: u16, ready_timeout: Duration) -> kalsa_supervisor::ServerConfig {
     let mut cfg = config("fake_server.sh", port);
     cfg.ready_timeout = ready_timeout;
@@ -121,6 +127,9 @@ fn shutdown_declares_the_drain_before_it_joins_the_worker() {
     );
 }
 
+// The stuck child is the shell-script fixture (tests/fixtures/*.sh), which
+// has no Windows counterpart.
+#[cfg(unix)]
 #[test]
 fn a_start_asked_after_the_drain_landed_is_a_normal_start() {
     let port = unique_port();

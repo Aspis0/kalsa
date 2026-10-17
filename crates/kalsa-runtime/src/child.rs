@@ -276,7 +276,11 @@ pub(crate) fn reap_orphan(state_file: &Path, grace: Duration) {
                  file stays so the next start can try again"
             ),
         },
-        Ok(Existing::Stale) => {
+        // Stale means nobody holds the lock, so the pid in the file is a name
+        // and nothing here can prove whose process it is: the file goes, the
+        // pid stays. (The supervisor's own walk is where a stale pid IS
+        // examined — it has the engine path to compare it against.)
+        Ok(Existing::Stale { .. }) => {
             let _ = std::fs::remove_file(state_file);
         }
         _ => {}

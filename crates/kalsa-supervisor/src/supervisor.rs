@@ -29,6 +29,11 @@ use crate::suspect::Suspect;
 const TICK: Duration = Duration::from_millis(200);
 /// Per-probe budget during the ready handshake.
 const PROBE_TIMEOUT: Duration = Duration::from_millis(500);
+/// How long a start waits for the port to be bindable after the walk that
+/// stopped an earlier run's engine. Short on purpose: the walk has already
+/// waited its own grace for the process to die, so what is left is a kernel
+/// that has not reaped yet — or a stranger that is never letting go.
+const PORT_FREE_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ServerState {
@@ -603,7 +608,7 @@ fn work(
                                 }
                             } else if !health::health_ok(
                                 run.config.address(),
-                                "/health",
+                                health::HEALTH_PATH,
                                 PROBE_TIMEOUT,
                             ) {
                                 owned = None;
@@ -876,7 +881,10 @@ fn start_blocking(
     let suspect = Suspect::of(&config.state_file);
     suspect.settle_before_start(presence::probe, config.address(), presence::PROBE_TIMEOUT);
     take_over(config)?;
-    preflight_port(config)?;
+    // The port is confirmed free before the child exists — see
+    // `await_port_free`: a launch that raced a dying engine bound beside it,
+    // or reported a stranger's engine as its own ready one.
+    await_port_free(config, PORT_FREE_TIMEOUT)?;
     let mut instance =
         InstanceFile::claim(&config.state_file).map_err(|e| Failure::InstanceUnwritable {
             detail: format!("could not write our state file: {e}"),
@@ -942,10 +950,40 @@ fn start_blocking(
             engine.clear();
             return Err(reason);
         }
-        if health::health_ok(config.address(), "/health", PROBE_TIMEOUT) {
-            log::info!("engine ready in {:.1}s", began.elapsed().as_secs_f64());
-            suspect.clear();
-            return Ok(Started::Spawned { child, instance });
+        match health::who_answers(config.address(), config.api_key.as_str(), PROBE_TIMEOUT) {
+            health::Who::Ready => {
+                // Ready takes BOTH halves as proof: the handshake has just
+                // shown that whoever holds the port is this run's engine, and
+                // `Ok(None)` is the only answer from the child that means
+                // alive. A reap is `Some` — the arm above reports it — and an
+                // error is not an answer at all. Neither is life, and this
+                // arm falls through to the deadline rather than looping on a
+                // child this can no longer read.
+                if matches!(child.try_wait(), Ok(None)) {
+                    log::info!("engine ready in {:.1}s", began.elapsed().as_secs_f64());
+                    suspect.clear();
+                    return Ok(Started::Spawned { child, instance });
+                }
+            }
+            // Something that is not our engine holds the port and is serving:
+            // it answered, and it refused the key this run minted for its own
+            // child. Adopting it would report a stale server — running
+            // yesterday's model under yesterday's key — as this start's
+            // engine, and every measurement after it would be that server's.
+            // Never signalled: it is not ours to signal.
+            health::Who::Stranger => {
+                let walked = child.terminate(config.stop_grace);
+                if matches!(walked, child::Termination::Gone { .. }) {
+                    engine.clear();
+                }
+                log::warn!(
+                    "127.0.0.1:{} answers with another engine's key: a server that is not ours holds the port, and this start will not adopt it",
+                    config.port
+                );
+                log_stderr_tail(&child);
+                return Err(Failure::PortTaken);
+            }
+            health::Who::Loading => {}
         }
         if Instant::now() >= deadline {
             let seconds = config.ready_timeout.as_secs();
@@ -1043,21 +1081,55 @@ fn log_stderr_tail(child: &ChildHandle) {
 /// Nothing of an earlier run is adopted: its engine key died with that run, so
 /// it would answer every authenticated request with 401.
 ///
-/// The lock decides what may be trusted: while it is held, the process it names
-/// is the server we started, so we may close it. Without the lock the pid means
-/// nothing (it may have been recycled) and is never signalled.
+/// The lock decides what may be trusted, and the executable decides what may
+/// be SIGNALLED — a pid from a file is a name, and a name can be recycled.
+/// While the lock is held the process it names is the server the writer
+/// started; without it, that pid may be anything, and the only engine this
+/// start may close is one whose executable it can prove.
 fn take_over(config: &ServerConfig) -> Result<(), Failure> {
     match InstanceFile::inspect(&config.state_file) {
         Ok(Existing::None) => Ok(()),
-        Ok(Existing::Stale) => {
+        // The lock is free: the writer is gone. Its engine may not be. On
+        // unix the child inherited the locked descriptor, so an orphan
+        // cannot outlive its own state file; on Windows nothing is
+        // inherited and the engine keeps serving the port, which is how a
+        // crashed app became `PortTaken` on every launch afterwards. So the
+        // pid is examined here exactly as the locked branch examines it —
+        // proved by executable, then walked — and a pid that fails the proof
+        // is reported and left running.
+        Ok(Existing::Stale { pid, binding }) => {
+            if let Some(pid) = pid {
+                if child::pid_alive(pid) {
+                    if ours_to_stop(pid, binding.as_deref(), config) {
+                        let walked = child::terminate_pid(pid, config.stop_grace);
+                        log_termination(walked, &format!("the orphaned engine (pid {pid})"));
+                    } else {
+                        log::warn!(
+                            "the stale state file names pid {pid}, which is not our engine; removing the file without signalling it"
+                        );
+                    }
+                }
+            }
             let _ = std::fs::remove_file(&config.state_file);
             Ok(())
         }
-        Ok(Existing::Live { pid, .. }) => {
+        Ok(Existing::Live { pid, binding, .. }) => {
             // Ours, but it holds the previous run's key. Closing it frees the
-            // port; if it survives, the port check that follows refuses.
+            // port; if it survives, the port wait that follows refuses — and
+            // so does one this run may not signal at all.
+            // Not proved to be our engine: leave it running and let the port
+            // wait below decide. A stranger may hold no port at all, and a
+            // start that refused on a file's say-so would refuse for a
+            // process that was never in the way.
+            if child::pid_alive(pid) && !ours_to_stop(pid, binding.as_deref(), config) {
+                let _ = std::fs::remove_file(&config.state_file);
+                return Ok(());
+            }
             if child::pid_alive(pid) {
-                let _ = child::terminate_pid(pid, config.stop_grace);
+                // The verdict is the record: `let _ =` here is what made a
+                // start that raced a still-dying engine look like a clean one.
+                let walked = child::terminate_pid(pid, config.stop_grace);
+                log_termination(walked, &format!("the earlier run's engine (pid {pid})"));
             }
             let _ = std::fs::remove_file(&config.state_file);
             Ok(())
@@ -1072,12 +1144,215 @@ fn take_over(config: &ServerConfig) -> Result<(), Failure> {
     }
 }
 
-/// A courtesy pre-check, not a guarantee: binding the port proves it was
-/// free at the moment of the bind, and the very next moment belongs to
-/// anyone — the bind is dropped so the child can take it for real, and
-/// between the drop and the child's own bind any process on the machine may
-/// step in. No retry loop or sleep can close that window; only the kernel's
-/// own bind is atomic, and the child performs it when it starts.
+/// One walk's outcome, in the log — the record the verdict is kept in, so a
+/// start that raced a still-dying engine cannot look like a clean one.
+fn log_termination(walked: child::Termination, what: &str) {
+    match walked {
+        child::Termination::Gone { .. } => log::info!("stopped {what}"),
+        child::Termination::Survived { detail, .. } => {
+            log::warn!("{what} survived the walk: {detail}")
+        }
+        child::Termination::Unknown { detail } => {
+            log::warn!("{what} could not be walked: {detail}")
+        }
+    }
+}
+
+/// Whether a pid the state file names may be stopped as OUR engine.
+///
+/// Two proofs, and either is enough; a pid that fails both is never signalled,
+/// because a state file names a pid rather than owning it, and a recycled pid
+/// belongs to whoever holds it now. What we check is that the process is
+/// running the very binary this start is about to launch — `kalsa-server` out
+/// of our runtime builds — not merely that something holds our state file.
+fn ours_to_stop(pid: u32, recorded_binding: Option<&str>, config: &ServerConfig) -> bool {
+    // The binding a previous run recorded starts with the executable it ran.
+    // A state file that names another binary is not describing an engine of
+    // ours, whatever else it says.
+    if let Some(recorded_exe) = recorded_binding
+        .and_then(|binding| binding.split('\u{1f}').next())
+        .filter(|exe| !exe.is_empty())
+    {
+        if !is_our_engine(Path::new(recorded_exe), &config.exe) {
+            log::warn!(
+                "pid {pid} was recorded running {recorded_exe}, not our engine {}; not signalling it",
+                config.exe.display()
+            );
+            return false;
+        }
+    }
+    match child::pid_executable(pid) {
+        // The pid must be running the very binary the record names. The OS
+        // may report a different SPELLING of the same file — a hard-linked
+        // `/bin/sh`, a runtime directory reached through a symlink — and a
+        // start that refused our own engine over that would wedge the app.
+        Some(running) if !matches_record(recorded_binding, &running) => {
+            // A process that has not exec'd yet is still a fork of this app,
+            // and it is about to become the very engine the state file names:
+            // the window between the spawn and the exec is microseconds wide,
+            // and reading it as a stranger would fail our own start. Anything
+            // else running under this pid is somebody else's.
+            let ours_before_exec = std::env::current_exe().is_ok_and(|app| app == running);
+            if !ours_before_exec {
+                log::warn!(
+                    "pid {pid} is running {}, not our engine {}; not signalling it",
+                    running.display(),
+                    config.exe.display()
+                );
+            }
+            ours_before_exec
+        }
+        Some(_) => true,
+        // The OS would not say — no permission, no /proc, a platform without
+        // the call. The recorded binding above is all there is, so say so
+        // rather than pretend the check ran.
+        None => {
+            log::info!(
+                "the OS would not name the executable of pid {pid}; the recorded binding is the only proof this start has"
+            );
+            recorded_binding
+                .and_then(|binding| binding.split('\u{1f}').next())
+                .is_some_and(|exe| is_our_engine(Path::new(exe), &config.exe))
+        }
+    }
+}
+
+/// Whether an executable is an engine of ours, out of this app's own runtime:
+/// `<runtime>/builds/<backend>/kalsa-server-<version>/kalsa-server`, the layout
+/// `kalsa-runtime` publishes and extracts into.
+///
+/// The version AND the backend may both differ from this start's — a build
+/// upgrade moves the version in the directory's name, and a CPU→Vulkan switch
+/// moves the directory between them — and an engine either of them left behind
+/// is still ours to close. So the question is not "the same file as this
+/// start's" but "out of the same builds root, and named as one engine".
+///
+/// Nothing else is ours: another server, a shell, a process that inherited our
+/// state file, a `kalsa-server` some other product shipped under the same name
+/// — a different builds root is a different product's engine, and signalling it
+/// stops the user's other app.
+fn is_our_engine(running: &Path, ours: &Path) -> bool {
+    if same_file(running, ours) {
+        return true;
+    }
+    match (our_builds_root(running), our_builds_root(ours)) {
+        (Some(running_root), Some(ours_root)) => running_root == ours_root,
+        _ => false,
+    }
+}
+
+/// The `<runtime>/builds` root an engine belongs to, when the path is an engine
+/// in our own layout. `None` for anything else, which is never ours.
+fn our_builds_root(exe: &Path) -> Option<&Path> {
+    let archive = exe.parent()?; // …/builds/<backend>/kalsa-server-<version>
+    if !archive
+        .file_name()?
+        .to_string_lossy()
+        .starts_with("kalsa-server-")
+    {
+        return None;
+    }
+    let builds = archive.parent()?.parent()?; // …/builds
+    if builds.file_name()? != "builds" {
+        return None;
+    }
+    // The engine inside the archive, not a library shipped beside it.
+    let name = exe.file_name()?.to_string_lossy();
+    let stem = name.strip_suffix(".exe").unwrap_or(&name);
+    matches!(stem, "kalsa-server" | "llama-server").then_some(builds)
+}
+
+/// Whether the record's executable and the running one are the same binary.
+///
+/// Paths are spellings; a process is a file. `same_file` compares what the
+/// filesystem says — the same inode on unix — so a hard link or a symlinked
+/// directory is recognised as the engine we already named, and a pid that has
+/// since been recycled onto a different file is not.
+fn matches_record(recorded_binding: Option<&str>, running: &Path) -> bool {
+    let Some(recorded) = recorded_binding
+        .and_then(|binding| binding.split('\u{1f}').next())
+        .filter(|exe| !exe.is_empty())
+    else {
+        // A record that names no executable has nothing to check a pid
+        // against, and nothing may be signalled on its say-so alone.
+        return false;
+    };
+    same_file(Path::new(recorded), running)
+}
+
+/// Whether two paths are the same file.
+///
+/// The filesystem's own answer decides whenever it can — the device and inode
+/// on unix, the volume serial and file index on Windows — because paths are
+/// spellings and a pid is a file: a hard link, a symlinked runtime directory,
+/// or a path that has been written over since the record named it are all
+/// things only the file's identity sees. Spelling is the last resort, for the
+/// paths the OS will not describe (a binary that is not there yet, a pid that
+/// has exited).
+fn same_file(a: &Path, b: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        return match (std::fs::metadata(a), std::fs::metadata(b)) {
+            (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+            _ => a == b,
+        };
+    }
+    #[cfg(windows)]
+    {
+        return match (file_id(a), file_id(b)) {
+            (Some(left), Some(right)) => left == right,
+            _ => a == b,
+        };
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        a == b
+    }
+}
+
+/// What the filesystem calls this file on Windows: the volume it lives on and
+/// its index there, which together are what two spellings of one file share.
+/// std has no stable accessor for either, so the handle it opened is asked
+/// directly — the file is already open, the handle belongs to that `File`, and
+/// nothing here has to close it.
+#[cfg(windows)]
+fn file_id(path: &Path) -> Option<(u32, u64)> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Foundation::HANDLE;
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
+    };
+    let file = std::fs::File::open(path).ok()?;
+    let mut information: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    let read =
+        unsafe { GetFileInformationByHandle(file.as_raw_handle() as HANDLE, &mut information) };
+    if read == 0 {
+        return None;
+    }
+    let index = ((information.nFileIndexHigh as u64) << 32) | information.nFileIndexLow as u64;
+    Some((information.dwVolumeSerialNumber, index))
+}
+
+/// The port, confirmed free before the child exists.
+///
+/// An earlier run's engine that did not exit cleanly is still bound here, and
+/// the walk in `take_over` may only just have asked it to go: `SIGTERM` is a
+/// request, and the socket of a dying engine holding a 14.5 GB model is
+/// released by the kernel only once the process is really gone. Launching
+/// into that gap gives the child a bind that cannot succeed, and hands the
+/// readiness handshake a stranger's `/health` to answer with (module
+/// `health`). So this is a WAIT, bounded: the port is polled until this
+/// process may bind it, and a port that stays held is a start that fails
+/// loudly rather than one that adopts whoever is holding it. The bound is
+/// short because the walk has already spent its own grace — what is left to
+/// wait for is a kernel that has not yet reaped, or a stranger who never
+/// lets go at all.
+///
+/// Still not a guarantee: the listener is dropped at once, and between the
+/// drop and the child's own bind any process on the machine may step in. No
+/// retry loop or sleep can close that window; only the kernel's own bind is
+/// atomic, and the child performs it when it starts.
 ///
 /// Kept because the report is worth more than the race costs: a stranger
 /// already on the port is the common case, and `PortTaken` names it plainly
@@ -1086,20 +1361,39 @@ fn take_over(config: &ServerConfig) -> Result<(), Failure> {
 /// non-loopback or wrong-port argv before any process exists; the child's
 /// own bind fails loudly when the port is taken (surfaced as `ServerExited`
 /// with the server's stderr); and the readiness handshake reports `Running`
-/// only while the child it spawned is both alive and answering. A stranger
-/// found here is reported (`PortTaken`) and never signalled.
-fn preflight_port(config: &ServerConfig) -> Result<(), Failure> {
-    match TcpListener::bind(config.address()) {
-        Ok(listener) => {
-            // Freed at once: the child binds it for real — if nobody takes
-            // it first, which this check cannot promise.
-            drop(listener);
-            Ok(())
+/// only while the child it spawned is both alive and answering a route behind
+/// this run's own key. A stranger found here is reported (`PortTaken`) and
+/// never signalled.
+fn await_port_free(config: &ServerConfig, timeout: Duration) -> Result<(), Failure> {
+    let deadline = Instant::now() + timeout;
+    let mut waited = false;
+    loop {
+        match TcpListener::bind(config.address()) {
+            Ok(listener) => {
+                // Freed at once: the child binds it for real — if nobody
+                // takes it first, which this check cannot promise.
+                drop(listener);
+                if waited {
+                    log::info!("the port came free while this start waited for it");
+                }
+                return Ok(());
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                if Instant::now() >= deadline {
+                    log::warn!(
+                        "127.0.0.1:{} is still held {} s after the walk that freed it; this start will not launch into it",
+                        config.port,
+                        timeout.as_secs()
+                    );
+                    return Err(Failure::PortTaken);
+                }
+                waited = true;
+                std::thread::sleep(TICK);
+            }
+            // Any other bind failure is not about a foreign listener: let the
+            // server report it in its own words.
+            Err(_) => return Ok(()),
         }
-        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => Err(Failure::PortTaken),
-        // Any other bind failure is not about a foreign listener: let the
-        // server report it in its own words.
-        Err(_) => Ok(()),
     }
 }
 
@@ -1159,7 +1453,13 @@ fn set(state: &Arc<Mutex<ServerState>>, next: ServerState) {
 mod tests {
     use super::*;
     use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+    use std::sync::atomic::{AtomicU8, Ordering};
+    use std::sync::Mutex;
+    // The stranger stand-in and the blocking head it reads are unix fixtures.
+    #[cfg(unix)]
+    use std::sync::atomic::AtomicBool;
+    #[cfg(unix)]
+    use std::sync::Condvar;
 
     #[test]
     fn the_awaiting_trigger_line_is_withheld() {
@@ -1434,12 +1734,25 @@ mod tests {
     /// anywhere — cannot put it in the log.
     #[test]
     fn the_logged_argv_line_carries_no_key() {
-        let config = config(8123);
+        let config = config(unique_port());
         let line = argv_line(&config.argv);
         assert!(
             !line.contains(config.api_key.as_str()),
             "the engine key reached the argv log line: {line}"
         );
+    }
+
+    /// A port and a state file no other test in this binary holds.
+    ///
+    /// The state file is named after the port, so a port two tests share is a
+    /// state file two tests share: one test's start writes the instance record
+    /// the next one reads, and a test that leaves one behind turns the next
+    /// into an `InstanceUnreadable`. The range is this crate's own integration
+    /// range shifted up, so a unit run and an integration run cannot collide
+    /// either.
+    fn unique_port() -> u16 {
+        static NEXT: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(43000);
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
     fn config(port: u16) -> ServerConfig {
@@ -1461,12 +1774,13 @@ mod tests {
 
     #[test]
     fn an_argv_that_leaves_loopback_is_refused_before_any_process_exists() {
-        let mut config = config(8290);
+        let port = unique_port();
+        let mut config = config(port);
         config.argv = vec![
             "--host".into(),
             "0.0.0.0".into(),
             "--port".into(),
-            "8290".into(),
+            port.to_string(),
         ];
         let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new(), None)
             .err()
@@ -1481,7 +1795,8 @@ mod tests {
     fn an_argv_on_another_port_is_refused_before_any_process_exists() {
         // The health handshake and the port guard read config.port; an argv
         // that binds elsewhere would start a server this one can never find.
-        let mut config = config(8291);
+        let port = unique_port();
+        let mut config = config(port);
         config.argv = vec![
             "--host".into(),
             "127.0.0.1".into(),
@@ -1501,7 +1816,7 @@ mod tests {
     fn a_well_bound_argv_passes_the_gate_and_fails_later_at_the_spawn() {
         // The exe does not exist: getting as far as ServerNotStarted proves
         // the binding gate let a correct argv through.
-        let config = config(8292);
+        let config = config(unique_port());
         let err = start_blocking(&config, Arc::new(AtomicU64::new(0)), Residency::new(), 1, &EngineId::new(), None)
             .err()
             .expect("the spawn had to fail on a nonexistent exe");
@@ -1550,10 +1865,34 @@ mod tests {
             .trim()
             .parse()
             .expect("the shell prints the orphan's pid");
-        let config = config(port);
+        // The walk may only signal a pid it has shown to be running our
+        // engine, so this orphan must BE one: the config names the very
+        // binary the stand-in process runs, and the state file records that
+        // binding the way a real earlier run's would.
+        let mut config = config(port);
+        config.exe = {
+            // The shell forks the orphan and only then execs `sleep`, so for
+            // an instant its pid names the shell. Wait for the exec this
+            // fixture's proof depends on — by condition, not by a guess.
+            let deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                let exe = child::pid_executable(orphan_pid).expect("the orphan's own pid");
+                if exe.file_name().is_some_and(|name| name == "sleep") {
+                    break exe;
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "the stand-in never became /bin/sleep (still {exe:?})"
+                );
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        };
         std::fs::write(
             &config.state_file,
-            format!("kalsa-brain v1\npid={orphan_pid}\nport={port}\n"),
+            format!(
+                "kalsa-brain v1\npid={orphan_pid}\nport={port}\nbinding={}\n",
+                config.binding()
+            ),
         )
         .expect("write the earlier run's state file");
         let lock = std::fs::File::open(&config.state_file).expect("open the state file");
@@ -1576,6 +1915,258 @@ mod tests {
             .err()
             .expect("the stand-in still holds the port, so the start must be refused, not adopted");
         assert!(matches!(refused, Failure::PortTaken), "{refused:?}");
+    }
+
+    /// The whole request head, however many reads it takes: a head cut in
+    /// half reads as a request for no path at all, and the stand-in would
+    /// answer the open route to a probe that asked a gated one.
+    #[cfg(unix)]
+    fn read_head(stream: &mut std::net::TcpStream) -> String {
+        let mut head = Vec::new();
+        let mut scratch = [0u8; 512];
+        loop {
+            match std::io::Read::read(stream, &mut scratch) {
+                Ok(0) => break,
+                Ok(read) => {
+                    head.extend_from_slice(&scratch[..read]);
+                    if String::from_utf8_lossy(&head).contains("\r\n\r\n") {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+        String::from_utf8_lossy(&head).into_owned()
+    }
+
+    /// A port this test owns and nobody else can be handed: bound, then
+    /// released. A port picked with `bind(:0)` and KEPT would be the only way
+    /// to be sure of that, but the start under test must find the port free.
+    #[cfg(unix)]
+    fn free_port() -> u16 {
+        let probe = TcpListener::bind("127.0.0.1:0").expect("pick a port");
+        let port = probe.local_addr().expect("its own address").port();
+        drop(probe);
+        port
+    }
+
+    /// A stand-in for yesterday's engine: it answers the open route the way a
+    /// loaded engine does, and refuses every key on the gated one the way a
+    /// loaded engine does too. It takes over the port when `go` says so, which
+    /// is how a start is caught between confirming the port free and asking
+    /// whether anyone is on it — no sleep decides that.
+    #[cfg(unix)]
+    fn stale_engine(
+        port: u16,
+        go: Arc<(Mutex<bool>, Condvar)>,
+    ) -> (Arc<AtomicBool>, std::thread::JoinHandle<()>) {
+        let stop = Arc::new(AtomicBool::new(false));
+        let serving = Arc::new(AtomicBool::new(false));
+        let thread = {
+            let stop = Arc::clone(&stop);
+            let serving = Arc::clone(&serving);
+            std::thread::spawn(move || {
+                let (lock, go) = &*go;
+                let mut ready = lock.lock().expect("the gate lock");
+                while !*ready {
+                    ready = go.wait(ready).expect("the gate condvar");
+                }
+                drop(ready);
+                let Ok(listener) = TcpListener::bind(("127.0.0.1", port)) else {
+                    // Somebody took the port between the two tests agreeing
+                    // it was free; there is nothing to stand in for.
+                    return;
+                };
+                serving.store(true, Ordering::SeqCst);
+                let _ = listener.set_nonblocking(true);
+                while !stop.load(Ordering::Relaxed) {
+                    match listener.accept() {
+                        Ok((mut stream, _)) => {
+                            let _ = stream.set_nonblocking(false);
+                            let _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
+                            let request = read_head(&mut stream);
+                            // A request this stand-in did not read is not one
+                            // it may answer: the open route would answer a
+                            // probe that asked a gated one.
+                            if request.is_empty() {
+                                continue;
+                            }
+                            let answer: &[u8] = if request.contains("/props") {
+                                b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n"
+                            } else {
+                                b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\n\r\n{\"status\":\"ok\"}"
+                            };
+                            let _ = std::io::Write::write_all(&mut stream, answer);
+                        }
+                        Err(_) => std::thread::sleep(Duration::from_millis(5)),
+                    }
+                }
+            })
+        };
+        (stop, thread)
+    }
+
+    /// The bug that cost an evening of CPU-only decoding: a stale engine from
+    /// an earlier run takes the port and answers the open route — `/health`,
+    /// which the fork serves without a key — with a plain `200`, so a
+    /// readiness handshake built on that route alone reports it as the engine
+    /// this run just started.
+    ///
+    /// The stranger here takes the port AFTER this start has confirmed it
+    /// free: that is the shape of the race, because a stranger present before
+    /// the wait is caught by the wait. The child spawned below is still
+    /// loading — it cannot bind, the stranger holds the port — and has served
+    /// nothing, so the start must refuse the stranger rather than adopt it.
+    #[cfg(unix)]
+    #[test]
+    fn an_engine_that_is_not_ours_is_never_adopted() {
+        let port = free_port();
+        let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let (stop, engine_thread) = stale_engine(port, Arc::clone(&gate));
+        let mut config = config(port);
+        config.exe = PathBuf::from("/bin/sh");
+        // The flags come after the command string: `sh -c 'sleep 30'` runs it
+        // with them as positional parameters, so the binding gate sees the
+        // pair it requires and the process sleeps.
+        config.argv = vec![
+            "-c".into(),
+            "sleep 30".into(),
+            "--host".into(),
+            "127.0.0.1".into(),
+            "--port".into(),
+            port.to_string(),
+        ];
+        config.ready_timeout = Duration::from_secs(10);
+        config.state_file =
+            std::env::temp_dir().join(format!("kalsa-supervisor-unit-stranger-{port}.state"));
+
+        let _ = std::fs::remove_file(&config.state_file);
+        // The start runs on this thread, so the stranger is let in from
+        // another one — as soon as the state file says the port check is
+        // behind us, which is the moment it is written.
+        let release = {
+            let state_file = config.state_file.clone();
+            let gate = Arc::clone(&gate);
+            std::thread::spawn(move || {
+                while !state_file.exists() {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                let (lock, condvar) = &*gate;
+                *lock.lock().expect("the gate lock") = true;
+                condvar.notify_all();
+            })
+        };
+        let started = start_blocking(
+            &config,
+            Arc::new(AtomicU64::new(0)),
+            Residency::new(),
+            1,
+            &EngineId::new(),
+            None,
+        );
+        release.join().expect("the releasing thread");
+        stop.store(true, Ordering::SeqCst);
+        let _ = engine_thread.join();
+
+        let _ = std::fs::remove_file(&config.state_file);
+        match started.err().expect("a stranger on the port must not be adopted") {
+            Failure::PortTaken => {}
+            other => panic!("the stale engine was taken for ours: {other:?}"),
+        }
+    }
+
+    /// The port is CONFIRMED free, not merely probed once: the walk that
+    /// stopped an earlier run's engine asks it to go, and the socket is only
+    /// released when the process is really gone. A start that launches into
+    /// that gap binds nothing and then answers `/health` with the stranger's
+    /// `200`, so the wait is the whole difference.
+    ///
+    /// Two halves, both decided by what the port does rather than by how long
+    /// anything takes: a port somebody still holds is never taken as free, and
+    /// the same port is accepted the moment it is released.
+    #[test]
+    fn a_held_port_is_never_taken_as_free_and_a_released_one_is() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind a port a dying engine holds");
+        let port = listener.local_addr().expect("its own address").port();
+        let config = config(port);
+
+        let held = await_port_free(&config, Duration::from_millis(300));
+        assert!(
+            matches!(held, Err(Failure::PortTaken)),
+            "a port still held was taken as free: {held:?}"
+        );
+
+        // The engine lets go: the same port is accepted straight away, with no
+        // state carried between the two calls.
+        drop(listener);
+        assert!(
+            await_port_free(&config, Duration::from_secs(1)).is_ok(),
+            "a port that came free was still refused"
+        );
+    }
+
+    /// A port nobody frees is a start that fails loudly, before any child is
+    /// made — never one that adopts the holder.
+    #[test]
+    fn a_port_that_stays_held_fails_the_start_instead_of_launching() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind a port a stranger holds");
+        let port = listener.local_addr().expect("its own address").port();
+        let config = config(port);
+        let outcome = await_port_free(&config, Duration::from_millis(300));
+        drop(listener);
+        assert!(
+            matches!(outcome, Err(Failure::PortTaken)),
+            "a port still held after the wait launched anyway: {outcome:?}"
+        );
+    }
+
+    /// A pid the state file names is a pid, not a handle: the walk may only
+    /// signal it once the process is shown to be running OUR engine.
+    #[cfg(unix)]
+    #[test]
+    fn a_pid_running_something_else_is_never_signalled() {
+        let mut config = config(unique_port());
+        config.exe = PathBuf::from("/bin/sh");
+        let mut other = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("a process that is not our engine");
+        let pid = other.id();
+
+        let ours = ours_to_stop(pid, Some(&config.binding()), &config);
+        // And what the recorded binding alone says: a state file that names
+        // another binary is not describing an engine of ours.
+        let foreign_binding = format!("/usr/bin/sleep{}", "\u{1f}--host");
+        let recorded_foreign = ours_to_stop(pid, Some(&foreign_binding), &config);
+
+        let _ = other.kill();
+        let _ = other.wait();
+
+        assert!(!ours, "a /bin/sleep was accepted as our kalsa-server");
+        assert!(
+            !recorded_foreign,
+            "a state file naming another binary was accepted as ours"
+        );
+    }
+
+    /// Our own engine, named by both proofs, may be stopped.
+    #[cfg(unix)]
+    #[test]
+    fn our_own_engine_may_be_stopped() {
+        let port = unique_port();
+        let mut config = config(port);
+        config.exe = PathBuf::from("/bin/sleep");
+        config.argv = vec!["30".into(), "--host".into(), "127.0.0.1".into(), "--port".into(), port.to_string()];
+        let mut engine = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("stand in for our engine");
+
+        let ours = ours_to_stop(engine.id(), Some(&config.binding()), &config);
+
+        let _ = engine.kill();
+        let _ = engine.wait();
+        assert!(ours, "our own engine was refused by the walk's own proof");
     }
 
     #[cfg(unix)]
@@ -1625,7 +2216,7 @@ mod tests {
             let residency = residency.clone();
             move || work(inbox, state, releases, residency, Arc::new(EngineId::new()), presence::probe, Arc::new(Mutex::new(None)))
         });
-        let config = config(8294);
+        let config = config(unique_port());
         let state_file = config.state_file.clone();
         let _ = std::fs::remove_file(&state_file);
         let (outcome, _verdict) = mpsc::channel();
@@ -1658,7 +2249,7 @@ mod tests {
         // The orphan died and its pid was recycled onto this innocent sleeper:
         // the state file says Live but nobody holds the lock, so the pid must
         // not be signalled.
-        let port = 8293;
+        let port = unique_port();
         let stand_in_path = std::env::temp_dir().join(format!("kalsa-recycle-{port}.bin"));
         // A live foreign process the stop must not signal. `ping -n` is the
         // Windows sleep: it stays alive across the whole test either way.
@@ -1709,7 +2300,7 @@ mod tests {
         // the proof: the state must say the stop is unconfirmed, carrying
         // the measures (pid, port, what was tried, that the port answered),
         // instead of `Stopped`.
-        let port = 8295;
+        let port = unique_port();
         let state_file = config(port).state_file;
         let _ = std::fs::remove_file(&state_file);
         // A live foreign process again; `ping -n` stands in for sleep on
@@ -1788,7 +2379,7 @@ mod tests {
         // read a ghost `There{Silent}` under concurrent socket activity (the
         // flake this seam retires: three live reproductions, no listener
         // visible at capture time). The answering twin is the next test.
-        let port = 8296;
+        let port = unique_port();
         let state_file = config(port).state_file;
         let _ = std::fs::remove_file(&state_file);
         let suspect_path = format!("{}.orphan", state_file.display());
@@ -1823,7 +2414,7 @@ mod tests {
         // The answering twin of the silent case above: the port answers, so the
         // stop is unconfirmed, carries its measures, and leaves the record for
         // the next start. SCRIPTED probe, no socket.
-        let port = 8320;
+        let port = unique_port();
         let state_file = config(port).state_file;
         let _ = std::fs::remove_file(&state_file);
         let suspect_path = format!("{}.orphan", state_file.display());
@@ -1884,7 +2475,7 @@ mod tests {
         // listener. The decoy pid is spawned and REAPED first, so it names
         // nothing (pids are handed out of a forward-moving counter, so a
         // just-reaped one is not the next one given away).
-        let port = 8297;
+        let port = unique_port();
         let state_file = config(port).state_file;
         let _ = std::fs::remove_file(&state_file);
         let suspect_path = format!("{}.orphan", state_file.display());
@@ -1968,7 +2559,7 @@ mod tests {
         // the reap could not explain. Integration covers this with a real
         // stand-in listener (`suspect_record.rs`); this version drives the
         // policy with a script, which is what makes it churn-proof.
-        let port = 8298;
+        let port = unique_port();
         let state_file = config(port).state_file;
         let suspect_path = format!("{}.orphan", state_file.display());
         let _ = std::fs::remove_file(&state_file);
@@ -1995,6 +2586,7 @@ mod tests {
             Arc::new(AtomicU64::new(0)),
             residency,
             None,
+            &crate::engine_key::EngineKey::mint().unwrap(),
         )
         .expect("spawn the child that is already on its way out");
         let answering: presence::Probe = |_, _| presence::Presence::There {
@@ -2031,7 +2623,7 @@ mod tests {
     /// state stays `StopUnconfirmed` with fresh measures.
     #[test]
     fn a_second_stop_with_the_port_still_answering_stays_unconfirmed() {
-        let port = 8297;
+        let port = unique_port();
         let config = config(port);
         let answering: presence::Probe = |_, _| presence::Presence::There {
             evidence: presence::Evidence::Answered {
@@ -2080,7 +2672,7 @@ mod tests {
     /// proves absence the way the blind rule does and may say `Stopped`.
     #[test]
     fn a_second_stop_with_the_port_refusing_proves_gone() {
-        let port = 8299;
+        let port = unique_port();
         let config = config(port);
         let answering: presence::Probe = |_, _| presence::Presence::There {
             evidence: presence::Evidence::Answered {
@@ -2175,7 +2767,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn an_unconfirmed_stop_retains_no_adopted_pid() {
-        let port = 8315;
+        let port = unique_port();
         let mut stand_in = std::process::Command::new("/bin/sleep")
             .arg("30")
             .spawn()
@@ -2244,7 +2836,7 @@ mod tests {
                 child: Some(child),
                 adopted_pid: None,
                 instance: None,
-                config: config(8317),
+                config: config(unique_port()),
             },
             gone,
         );
@@ -2363,7 +2955,7 @@ mod tests {
                 child: Some(child),
                 adopted_pid: None,
                 instance: None,
-                config: config(8316),
+                config: config(unique_port()),
             },
             gone,
         );
@@ -2423,7 +3015,7 @@ mod tests {
     /// Two stops through the real API; the port answers both times.
     #[test]
     fn a_second_stop_through_the_api_keeps_an_unconfirmed_state_while_the_port_answers() {
-        let port = 8311;
+        let port = unique_port();
         // A live foreign process the walk must not signal (no state file
         // vouches for it). `ping -n` is the Windows sleep.
         #[cfg(unix)]
@@ -2485,7 +3077,7 @@ mod tests {
     /// `Stopped` is honest.
     #[test]
     fn a_second_stop_through_the_api_proves_gone_when_the_port_refuses() {
-        let port = 8313;
+        let port = unique_port();
         #[cfg(unix)]
         let mut stand_in = std::process::Command::new("/bin/sleep")
             .arg("30")

@@ -2070,10 +2070,61 @@ fn adopt_relaunch(
     (outcome, settled)
 }
 
-/// Half the recorded best: below it this start is not the launch the record
-/// measured, and the processor candidate deserves the slot.
-fn worth_switching(checked: f64, recorded: f64) -> bool {
-    checked < recorded * 0.5
+/// The rule that moves the slot, and the only rule that may: the rate this
+/// start measured is below what the tune RECORDED for the processor
+/// candidate on this model.
+///
+/// It does not measure the processor right now — nothing does, without a
+/// second launch — and it does not claim the processor is faster at this
+/// moment. It compares one sample against the BEST sample the tune took for
+/// that candidate, which is the conservative direction: the card has to fall
+/// under a number the processor once hit on its best run, so an ordinary
+/// slow morning leaves it alone.
+///
+/// The rule it replaced was half the card's own recorded best, and that is a
+/// number the card crosses on any such morning — one low sample says a
+/// launch met a busy moment (a slot being built, a neighbour, a thermal
+/// wobble), and demoting on it hands the whole session to the processor for a
+/// transient, which is exactly the failure this check exists to prevent.
+/// Switching costs a restart, so the mistake worth avoiding is the one that
+/// leaves the session on the wrong machine.
+fn worth_switching(checked: f64, processor_recorded: f64) -> bool {
+    checked < processor_recorded
+}
+
+/// What the tune recorded for the processor candidate on this model, if it
+/// measured one at all.
+///
+/// The processor candidate is a SHAPE, not a backend: the CPU build with no
+/// GPU flag anywhere off Metal
+/// (`crates/kalsa-tune/src/candidates.rs`), and the one macOS archive with
+/// `--n-gpu-layers 0` on Metal. Matching the backend alone found the CPU
+/// build and missed the Metal one — so on a Mac, where the processor number
+/// lives, there was nothing to compare against and the check could never
+/// fire. The Vulkan `ForcedOff` candidate is the mixed iGPU shape beside the
+/// graphics launch, not the processor, and is deliberately not matched here.
+///
+/// With no such number there is nothing to compare against, so the start
+/// keeps its launch: a rule that cannot be evaluated must not fire.
+fn recorded_processor_rate(record: &kalsa_tune::record::Record) -> Option<f64> {
+    record
+        .trials
+        .iter()
+        .filter(|(candidate, _)| {
+            matches!(candidate.offload, kalsa_launch::Offload::NoGpuBuild)
+                || (candidate.offload == kalsa_launch::Offload::ForcedOff
+                    && candidate.backend == kalsa_runtime::ServerBackend::Metal)
+        })
+        .filter_map(|(_, kept)| match kept {
+            kalsa_tune::record::Kept::Replied(reply) => Some(reply.decode_rate),
+            _ => None,
+        })
+        .filter(|rate| rate.is_finite() && *rate > 0.0)
+        // The tune measures the processor at several thread counts and the
+        // record keeps every one of them, so the number this rule is about is
+        // the BEST of them: the card has to fall under the processor's best
+        // run, not under whichever count happened to be measured first.
+        .max_by(f64::total_cmp)
 }
 
 /// A restart the check makes: the same gate as the walk's own start, so a
@@ -2099,9 +2150,18 @@ pub(crate) enum CheckResult {
 
 /// The per-start speed check: a graphics winner — record hit or fresh
 /// tune, both end in `Tune::Measured` — answers one short request, and
-/// under half its recorded best it hands the slot to the processor
-/// candidate. The record is never invalidated: the pressure is transient
-/// and the next start checks again.
+/// below the rate the tune recorded for the processor candidate on this
+/// model it hands the slot to that candidate. The record is never
+/// invalidated: the pressure is transient and the next start checks again.
+///
+/// Only a MEASURED rate moves the slot. A check that timed out, or that
+/// came back unauthorized or unusable, says nothing about the card — it
+/// says something about the moment — and a launch that is demoted to the
+/// processor because its own probe did not answer runs CPU-only from then
+/// on, for a reason no log line can explain later. What this measures is
+/// this run's own engine: the start's readiness handshake only reports up
+/// once the port answers a route behind this run's own key, so a stale
+/// engine left on that port cannot be what answers here.
 pub(crate) fn speed_check(
     prepared: &mut startup::PreparedStart,
     rate: impl FnOnce(SocketAddr) -> kalsa_tune::Answer,
@@ -2121,34 +2181,81 @@ pub(crate) fn speed_check(
         return CheckResult::Kept;
     }
     let recorded = winner.reply.decode_rate;
+    // The other side of the question: what the processor candidate measured on
+    // this model. Without it there is no comparison to make and the launch
+    // stands.
+    let processor_recorded = recorded_processor_rate(record);
+    let vs_processor = match processor_recorded {
+        Some(processor) => format!("{processor:.1}"),
+        None => "not measured".to_string(),
+    };
     let checked = match rate(SocketAddr::from(([127, 0, 0, 1], prepared.server.port))) {
-        kalsa_tune::Answer::Rate(rate) => Some(rate),
-        // Under ~1 tok/s: the check never came back.
-        kalsa_tune::Answer::Timeout => None,
+        kalsa_tune::Answer::Rate(rate) => rate,
+        // The bound ran out. A server that was busy, waking, or mid-slot
+        // is not a starved card, and demoting this launch to the processor
+        // for it is how a GPU winner ends up decoding on the CPU for the
+        // rest of the evening. This launch stands.
+        kalsa_tune::Answer::Timeout => {
+            log::warn!(
+                "per-start check: no answer within {} s against {recorded:.1} recorded; this says nothing about the card, so the graphics launch stands",
+                kalsa_tune::CHECK_TIMEOUT.as_secs() * 2
+            );
+            prepared.info.checked = Some(tune_step::checked_line(
+                None,
+                recorded,
+                vs_processor.clone(),
+                tune_step::Checked::Failed,
+            ));
+            return CheckResult::Kept;
+        }
         kalsa_tune::Answer::Failed => {
             // An HTTP error, an unusable body or a rejected timing says
             // nothing about speed: this launch stands, and the line says
             // the check itself failed.
+            log::warn!(
+                "per-start check: the probe failed against {recorded:.1} recorded; this says nothing about the card, so the graphics launch stands"
+            );
             prepared.info.checked = Some(tune_step::checked_line(
                 None,
                 recorded,
+                vs_processor.clone(),
                 tune_step::Checked::Failed,
             ));
             return CheckResult::Kept;
         }
     };
-    if !checked.is_none_or(|rate| worth_switching(rate, recorded)) {
+    let Some(processor_recorded) = processor_recorded else {
+        log::info!(
+            "per-start check: {checked:.1} tokens/s measured, and the tune recorded no processor rate for this model to compare it against; the graphics launch stands"
+        );
         prepared.info.checked = Some(tune_step::checked_line(
-            checked,
+            Some(checked),
             recorded,
+            vs_processor.clone(),
+            tune_step::Checked::Kept,
+        ));
+        return CheckResult::Kept;
+    };
+    if !worth_switching(checked, processor_recorded) {
+        log::info!(
+            "per-start check: {checked:.1} tokens/s, above the {processor_recorded:.1} the processor measured on this model; the graphics launch stands"
+        );
+        prepared.info.checked = Some(tune_step::checked_line(
+            Some(checked),
+            recorded,
+            vs_processor.clone(),
             tune_step::Checked::Kept,
         ));
         return CheckResult::Kept;
     }
+    log::warn!(
+        "per-start check: {checked:.1} tokens/s, below the {processor_recorded:.1} the processor measured on this model — the processor candidate takes the slot"
+    );
     let Some((processor_config, processor_args)) = prepared.processor.clone() else {
         prepared.info.checked = Some(tune_step::checked_line(
-            checked,
+            Some(checked),
             recorded,
+            vs_processor,
             tune_step::Checked::NoProcessor,
         ));
         return CheckResult::Kept;
@@ -2165,8 +2272,9 @@ pub(crate) fn speed_check(
             // processor's own threads and offload.
             prepared.info.args = processor_args;
             prepared.info.checked = Some(tune_step::checked_line(
-                checked,
+                Some(checked),
                 recorded,
+                vs_processor.clone(),
                 tune_step::Checked::Switched,
             ));
             CheckResult::Launched(outcome)
@@ -2177,8 +2285,9 @@ pub(crate) fn speed_check(
             Some((outcome, Some(StartSettled::Up))) => {
                 prepared.server = graphics;
                 prepared.info.checked = Some(tune_step::checked_line(
-                    checked,
+                    Some(checked),
                     recorded,
+                    vs_processor.clone(),
                     tune_step::Checked::StillGraphics,
                 ));
                 CheckResult::Launched(outcome)
@@ -2186,8 +2295,9 @@ pub(crate) fn speed_check(
             // Both down: the line must not claim either launch stands.
             Some(_) => {
                 prepared.info.checked = Some(tune_step::checked_line(
-                    checked,
+                    Some(checked),
                     recorded,
+                    vs_processor.clone(),
                     tune_step::Checked::Down,
                 ));
                 CheckResult::Down

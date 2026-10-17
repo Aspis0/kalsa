@@ -19,10 +19,13 @@ mod common;
 use std::net::TcpListener;
 use std::time::{Duration, Instant};
 
-use common::{
-    clear_files, config, recorded_pid, suspect_file, unique_port, wait_for, FakeHealth, When,
-};
-use kalsa_supervisor::{Failure, InstanceFile, ServerState, Supervisor};
+use common::{clear_files, config, suspect_file, unique_port, wait_for};
+// The orphan stand-ins and the shell that runs them are unix-only fixtures.
+#[cfg(unix)]
+use common::{recorded_pid, reparented_shell, shell_config, FakeHealth, When};
+#[cfg(unix)]
+use kalsa_supervisor::InstanceFile;
+use kalsa_supervisor::{Failure, ServerState, Supervisor};
 
 #[test]
 fn a_silent_port_recovers_the_record_before_the_next_start() {
@@ -73,13 +76,18 @@ fn an_answering_port_stops_our_orphan_and_keeps_the_record() {
         "walk: adopted blind; process Unwatched; port — There\n",
     )
     .expect("plant the record");
-    let orphan_pid = common::reparented_sleeper();
+    // The walk may only close a pid it has shown to be running our engine, so
+    // this orphan is one: the record and the config both name the very binary
+    // the stand-in process runs.
+    let orphan_pid = reparented_shell(port, "suspect-answered");
     let _health = FakeHealth::start(port, When::Now);
+    let mut cfg = shell_config("fake_server.sh", port, "suspect-answered");
     let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
+    claim.announce(port, &cfg.binding()).expect("announce");
     claim.describe(orphan_pid, port).expect("describe");
 
     let supervisor = Supervisor::new();
-    let _ = supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(cfg);
     let ended = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     match ended {
         ServerState::Failed {

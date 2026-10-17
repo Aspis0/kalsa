@@ -777,7 +777,12 @@ pub(crate) enum Checked {
 
 /// The check's line: this start's own speed against the recorded best,
 /// then what the launch did about it.
-pub(crate) fn checked_line(checked: Option<f64>, recorded: f64, outcome: Checked) -> String {
+pub(crate) fn checked_line(
+    checked: Option<f64>,
+    recorded: f64,
+    processor: String,
+    outcome: Checked,
+) -> String {
     let speed = match checked {
         Some(rate) => format!("{rate:.1} tokens/s"),
         // The number counts asks, not wall clock: ureq's request
@@ -786,7 +791,12 @@ pub(crate) fn checked_line(checked: Option<f64>, recorded: f64, outcome: Checked
         // two asks, one bound each.
         None => format!("no rate in {} s", kalsa_tune::CHECK_TIMEOUT.as_secs() * 2),
     };
-    let head = format!("checked {speed} against {recorded:.1} recorded");
+    // Both numbers the decision rests on: what this start measured, what the
+    // card recorded, and what the processor recorded on the same model — the
+    // last is the one the switch is measured against.
+    let head = format!(
+        "checked {speed} against {recorded:.1} recorded, {processor} from the processor"
+    );
     match outcome {
         // The check itself failed: it says nothing about speed.
         Checked::Failed => "the check failed; the graphics launch stays".to_string(),

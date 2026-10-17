@@ -6,8 +6,14 @@
 //! as long as our server runs:
 //!
 //! * lock held → the writer is alive, so the pid and port inside are ours;
-//! * lock free → the writer is gone, whatever the file still says. Stale, and
-//!   the pid inside must not be touched.
+//! * lock free → the writer is gone, whatever the file still says. Stale: the
+//!   pid inside names nothing that may be believed — but it is still REPORTED,
+//!   because "the writer died" and "the engine died with it" are different
+//!   claims. On unix the child inherited the locked descriptor, so an unlocked
+//!   file has no heir; on Windows nothing is inherited, so an engine outlives
+//!   the file that named it. A caller that can PROVE whose process a pid is
+//!   (see `crate::child::pid_executable`) may still close that orphan, and one
+//!   that cannot must not.
 //!
 //! The OS releases the lock when the process dies, including when nothing runs:
 //! that is what makes "the lock is free" stronger evidence than "the pid looks
@@ -129,8 +135,10 @@ pub enum Existing {
     /// No state file at all.
     None,
     /// A file is there but nobody holds it: a crashed run, or a pid that has
-    /// since been recycled. Nothing in it may be trusted.
-    Stale,
+    /// since been recycled. `pid` and `binding` are what the file CLAIMS —
+    /// nothing in it may be believed, and a caller that acts on the pid has
+    /// proved that process is our engine first.
+    Stale { pid: Option<u32>, binding: Option<String> },
     /// Somebody holds the lock: an instance of ours is alive. `binding` is
     /// the exact command it was started with, when the file records one.
     Live {
@@ -243,12 +251,14 @@ impl InstanceFile {
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Existing::None),
             Err(e) => return Err(e),
         };
-        match try_lock_state(&file) {
-            // We got the lock, so the writer is gone: stale, whatever it says.
-            Ok(()) => return Ok(Existing::Stale),
-            Err(std::fs::TryLockError::WouldBlock) => {}
+        // The lock decides what may be BELIEVED, not what may be read: a free
+        // lock is a crashed writer, and the file it left still says which pid
+        // its engine had — which the caller may prove and close, or refuse.
+        let locked = match try_lock_state(&file) {
+            Ok(()) => false,
+            Err(std::fs::TryLockError::WouldBlock) => true,
             Err(std::fs::TryLockError::Error(e)) => return Err(e),
-        }
+        };
         let mut body = String::new();
         file.read_to_string(&mut body)?;
         let mut pid = None;
@@ -262,8 +272,8 @@ impl InstanceFile {
                 _ => {}
             }
         }
-        match (pid, port) {
-            (Some(pid), Some(port)) if body.starts_with(MAGIC) => {
+        match (locked, pid, port) {
+            (true, Some(pid), Some(port)) if body.starts_with(MAGIC) => {
                 Ok(Existing::Live { pid, port, binding })
             }
             // Locked, ours, but the pid never arrived: the writer died
@@ -271,12 +281,19 @@ impl InstanceFile {
             // known — they were recorded before the child existed — and are
             // enough to reuse by health; no pid here may be trusted, so this
             // is never a target.
-            (None, Some(port)) if body.starts_with(MAGIC) => {
+            (true, None, Some(port)) if body.starts_with(MAGIC) => {
                 Ok(Existing::Unidentified { port, binding })
             }
+            // Nothing holds the lock. The file says what it said, and it says
+            // it unproved: the writer may have died with its engine (unix, the
+            // child inherited the lock) or without it (Windows, where the
+            // engine outlives the file that named it). The pid is passed along
+            // so a caller holding a proof may close that orphan; nothing here
+            // claims it is ours.
+            (false, _, _) => Ok(Existing::Stale { pid, binding }),
             // Locked by someone who is not us, or written by a version we do
             // not understand. Either way: do not touch it.
-            _ => Err(io::Error::new(
+            (true, _, _) => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "the state file is locked but does not describe an instance",
             )),
@@ -377,11 +394,17 @@ mod tests {
     fn a_file_left_behind_by_a_dead_writer_is_stale() {
         let path = temp_path("leftover");
         let _ = std::fs::remove_file(&path);
-        // Written by hand: no lock is held, exactly like a crashed run.
+        // Written by hand: no lock is held, exactly like a crashed run. The
+        // pid it names is passed on, because on Windows the engine that ran
+        // under it outlived this file — the caller may PROVE it and close the
+        // orphan, which is what removing the file alone left undone.
         std::fs::write(&path, "kalsa-brain v1\npid=1\nport=8130\n").expect("write");
         assert_eq!(
             InstanceFile::inspect(&path).expect("inspect"),
-            Existing::Stale
+            Existing::Stale {
+                pid: Some(1),
+                binding: None
+            }
         );
     }
 

@@ -20,7 +20,7 @@
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
@@ -433,6 +433,75 @@ pub fn pid_alive(pid: u32) -> bool {
     }
 }
 
+/// The executable a pid is running, when the OS will say.
+///
+/// `pid_alive` answers "is there a process"; this answers "WHICH one", which
+/// is the question before a signal to a pid that a file named rather than a
+/// handle we hold: a state file can name a pid that has since been recycled,
+/// and signalling that would stop a stranger.
+///
+/// `None` means the OS would not say — not permission, not a process this
+/// user may inspect, not a platform with the call. Callers treat `None` as
+/// "unproven", never as "ours".
+#[cfg(target_os = "macos")]
+pub fn pid_executable(pid: u32) -> Option<PathBuf> {
+    // `PATH_MAX` is what `proc_pidpath` documents as its ceiling.
+    let mut buffer = [0u8; 4096];
+    let written = unsafe {
+        libc::proc_pidpath(
+            pid as i32,
+            buffer.as_mut_ptr().cast(),
+            buffer.len() as u32,
+        )
+    };
+    if written <= 0 {
+        return None;
+    }
+    let path = buffer.get(..written as usize)?;
+    Some(PathBuf::from(String::from_utf8_lossy(path).into_owned()))
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+pub fn pid_executable(pid: u32) -> Option<PathBuf> {
+    std::fs::read_link(format!("/proc/{pid}/exe")).ok()
+}
+
+/// Windows names it too: `QueryFullProcessImageNameW` is the documented
+/// answer to the same question, behind the same limited query right
+/// `pid_alive` opens with. The job object reaps OUR engine with the writer,
+/// so a pid this crate can signal is one it opened a handle to at the spawn
+/// (see [`crate::engine_id`]) — but a state file may name a pid from a run
+/// that died, and on Windows the child outlived that run's file (handles are
+/// not inherited), so the orphan it leaves behind has to be NAMED and proved
+/// before it is closed, exactly as on unix.
+#[cfg(windows)]
+pub fn pid_executable(pid: u32) -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if handle.is_null() {
+        return None;
+    }
+    // `MAX_PATH` is the documented ceiling, and the call rewrites the length
+    // with what it wrote (excluding the terminator) or leaves it untouched.
+    let mut buffer = [0u16; 32768];
+    let mut written = buffer.len() as u32;
+    let named = unsafe {
+        QueryFullProcessImageNameW(handle, 0, buffer.as_mut_ptr(), &mut written)
+    };
+    // The handle is closed on every road out: this function answers a
+    // question, it does not keep the process.
+    unsafe { CloseHandle(handle) };
+    if named == 0 {
+        return None;
+    }
+    let path = buffer.get(..written as usize)?;
+    Some(PathBuf::from(std::ffi::OsString::from_wide(path)))
+}
+
 /// Stops a process we identified as ours through the state file, by pid: there
 /// is no handle to it, it belongs to a previous run of this app. Callers must
 /// have proven ownership first — this function cannot tell whose process it is.
@@ -703,6 +772,32 @@ mod tests {
 
     fn a_key() -> crate::engine_key::EngineKey {
         crate::engine_key::EngineKey::mint().expect("the OS has randomness")
+    }
+
+    /// `pid_alive` says there is a process; this says WHICH, which is the
+    /// question before a signal to a pid a state file named rather than a
+    /// handle we hold. A pid that is not there has no executable to name.
+    #[cfg(unix)]
+    #[test]
+    fn a_pid_is_named_by_the_executable_it_is_running() {
+        let mut child = std::process::Command::new("/bin/sleep")
+            .arg("30")
+            .spawn()
+            .expect("start a process to name");
+        let pid = child.id();
+        let named = pid_executable(pid);
+
+        let _ = child.kill();
+        let _ = child.wait();
+
+        assert_eq!(
+            named.as_deref(),
+            Some(std::path::Path::new("/bin/sleep")),
+            "the OS named a different executable for a live pid"
+        );
+        // A pid that has just been reaped is not a process to name, and
+        // `None` here must never be read as "therefore ours".
+        assert_eq!(pid_executable(pid), None, "a dead pid was named");
     }
 
     /// The whole access control of the port: the key reaches the child in its

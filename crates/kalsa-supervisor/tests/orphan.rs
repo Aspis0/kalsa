@@ -7,9 +7,12 @@ mod common;
 use std::net::TcpListener;
 use std::time::Duration;
 
+use common::{clear_files, config, unique_port, wait_for, FakeHealth, When};
+// The stand-ins are reparented processes named by their executable, which on
+// this platform means a shell — so the fixtures that build one are unix-only.
+#[cfg(unix)]
 use common::{
-    clear_files, config, is_dead, recorded_pid, reparented_sleeper, unique_port, wait_dead,
-    wait_for, FakeHealth, When,
+    is_dead, recorded_pid, reparented_shell, reparented_sleeper, shell_config, wait_dead,
 };
 use kalsa_supervisor::{Failure, InstanceFile, ServerState, Supervisor};
 
@@ -51,19 +54,70 @@ fn a_stale_state_file_naming_a_live_stranger_kills_nothing() {
 
 // The fake child here is a shell-script fixture (tests/fixtures/*.sh);
 // porting it to Windows is out of scope.
+/// The crash this exists for: the writer died, so nobody holds the state file,
+/// and the engine it started is still serving the port. On unix the child
+/// inherited the lock and died with it, so nothing is left; on Windows nothing
+/// is inherited, so this exact file is what every launch afterwards finds — and
+/// without examining that pid, each one is `PortTaken` until the machine is
+/// rebooted. So the stale pid is proved and closed exactly as a locked one is.
+#[cfg(unix)]
+#[test]
+fn a_stale_state_file_naming_our_own_orphan_is_closed() {
+    let port = unique_port();
+    clear_files(port);
+    let orphan_pid = reparented_shell(port, "stale-ours");
+    let cfg = shell_config("fake_server.sh", port, "stale-ours");
+    // Written, not claimed: no lock is held, which is the whole difference.
+    std::fs::write(
+        common::state_file(port),
+        format!(
+            "kalsa-brain v1\npid={orphan_pid}\nport={port}\nbinding={}\n",
+            cfg.binding()
+        ),
+    )
+    .expect("write the state file the crash left");
+    let _health = FakeHealth::start(port, When::Now);
+
+    let supervisor = Supervisor::new();
+    let _ = supervisor.start(cfg);
+
+    // The fresh start is refused — the fake health holds the port — but the
+    // orphan is closed first, which is what the next launch after this one
+    // depends on.
+    wait_for(&supervisor, |s| {
+        matches!(s, ServerState::Running { .. } | ServerState::Failed { .. })
+    });
+    assert!(
+        wait_dead(orphan_pid),
+        "an orphan of ours, named by a file nobody holds, was left running"
+    );
+    assert!(
+        !std::path::Path::new(&common::state_file(port)).exists(),
+        "the file was walked and left behind"
+    );
+    supervisor.shutdown();
+}
+
+// The fake child here is a shell-script fixture (tests/fixtures/*.sh);
+// porting it to Windows is out of scope.
 #[cfg(unix)]
 #[test]
 fn a_live_instance_of_ours_is_stopped_and_never_reused() {
     let port = unique_port();
     clear_files(port);
     // The orphan: a process still holding the state file's lock, and answering.
-    let orphan_pid = reparented_sleeper();
+    let orphan_pid = reparented_shell(port, "ours-closed");
     let _health = FakeHealth::start(port, When::Now);
+    // The walk may only close a pid it has shown to be running our engine, so
+    // this orphan is one: the record and the config both name the very binary
+    // the stand-in process runs.
+    let cfg = shell_config("fake_server.sh", port, "ours-closed");
     let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
+    claim.announce(port, &cfg.binding()).expect("announce");
     claim.describe(orphan_pid, port).expect("describe");
 
     let supervisor = Supervisor::new();
-    let _ = supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(cfg);
 
     // The orphan is closed, not reused. The fake health still holds the port,
     // so the fresh start is refused there, and nothing reports Running.
@@ -91,13 +145,15 @@ fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
     let port = unique_port();
     clear_files(port);
     // Ours (it holds the lock) but wedged: nothing answers on the port.
-    let wedged_pid = reparented_sleeper();
+    let wedged_pid = reparented_shell(port, "ours-wedged");
+    let cfg = shell_config("fake_server.sh", port, "ours-wedged");
     let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
+    claim.announce(port, &cfg.binding()).expect("announce");
     claim.describe(wedged_pid, port).expect("describe");
     let _health = FakeHealth::start(port, When::OnceChildIsUp);
 
     let supervisor = Supervisor::new();
-    let _ = supervisor.start(config("fake_server.sh", port));
+    let _ = supervisor.start(cfg);
 
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Running { .. }));
     match state {
@@ -114,12 +170,12 @@ fn an_instance_of_ours_that_stopped_answering_is_closed_and_replaced() {
 // porting it to Windows is out of scope.
 #[cfg(unix)]
 #[test]
-fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
+fn an_orphan_of_a_different_command_is_left_alone_and_not_adopted() {
     let port = unique_port();
     clear_files(port);
     // Ours, alive, answering now, and a different server than the one asked
     // for. It is closed whatever its command, never adopted.
-    let orphan_pid = reparented_sleeper();
+    let orphan_pid = reparented_sleeper(port);
     let _health = FakeHealth::start(port, When::Now);
     let mut claim = InstanceFile::claim(&common::state_file(port)).expect("claim");
     // The record in start order: port and command before the pid, so a
@@ -132,8 +188,9 @@ fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
     let supervisor = Supervisor::new();
     let _ = supervisor.start(config("fake_server.sh", port));
 
-    // The orphan is closed, and the start then reports the port the fake
-    // health still holds — never adopted.
+    // Nothing here may be signalled: the file names a server that is not ours,
+    // and a pid a file names is a pid that may have been recycled. The start
+    // reports the port the fake health still holds — never adopted.
     let state = wait_for(&supervisor, |s| {
         matches!(s, ServerState::Running { .. } | ServerState::Failed { .. })
     });
@@ -147,8 +204,8 @@ fn an_orphan_of_a_different_command_is_replaced_not_adopted() {
         other => panic!("unexpected state {other:?}"),
     }
     assert!(
-        wait_dead(orphan_pid),
-        "the different-command orphan was left alive"
+        !is_dead(orphan_pid),
+        "a server that is not our engine was signalled: the walk may only close a pid it has shown to be ours"
     );
     supervisor.shutdown();
 }
