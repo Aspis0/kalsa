@@ -1218,89 +1218,21 @@ pub const DOWNLOADABLE: &[DownloadableEntry] = &[
         drafter: None,
         q8: None,
     },
-    // ── LiquidAI LFM2.5-24B-A2B, Q4_K_M, verified against the Hugging Face API on 2026-10-14 ──
-    // Pinned at commit `f97fc8a443da86c71818adf91baecde5b7ef4c50`, the commit
-    // that last touched this file (the repo's HEAD is 0912d331). The tree API
-    // returned `lfs.size` 14_526_258_464 and `lfs.oid` d3334405…64e7d, and
-    // `curl -sIL` on the resolve URL at that commit returned the same
-    // `x-linked-size` and `x-linked-etag`.
+    // LFM2.5-24B-A2B, Q4_K_M, stood here until 2026-10-17 and is gone for
+    // good rather than marked stale: one web turn in three ended with raw
+    // `<|tool_call_start|>` markup as its answer, and it ran about twice as
+    // slow as Qwen 3.6-35B-A3B with thinking off — the slowness being long
+    // reasoning the app never asked for.
     //
-    // TEXT ONLY. The repo ships no vision projector, so `mmproj` is `None` and
-    // the row never reads images. `choice.rs` keeps it off a card unless the
-    // other card is a row that reads them.
-    //
-    // The header, read by range request (first 16 MiB, all 33 keys parsed):
-    // `general.architecture` `lfm2moe`, found in llama-arch.cpp at b10950
-    // (`{ LLM_ARCH_LFM2MOE, "lfm2moe" }`, line 128). It loads in
-    // src/models/lfm2moe.cpp, which makes a block recurrent exactly when
-    // `head_count_kv` is 0 (`is_recr_impl`). The array has 40 entries:
-    // 10 attention layers at 8 KV heads and 30 shortconv layers. There is no
-    // `attention.key_length` or `value_length`, so the head dim defaults to
-    // 2048 / 32 = 64 (llama-model.cpp:1344-1345). Per token: 10 x 8 x (64 + 64)
-    // = 10_240 elements, which at the q8_0 cache the launcher pins (34 bytes
-    // per 32) is 10_880 bytes.
-    //
-    // The per-slot state is the 30 shortconv layers' F32 conv state,
-    // `n_embd * (l_cache - 1) * 4` each (llama-hparams.cpp:216): 30 x 2_048 x
-    // 2 x 4 = 491_520 bytes per slot, at every context.
-    //
-    // MoE: 64 experts, 4 used, the first 2 blocks dense
-    // (`leading_dense_block_count 2`). `general.size_label` is `64x1.4B`.
-    // Total parameters are 23_971_587_712 (HF's own GGUF summary, `gguf.total`).
-    // Active is 2B, read from the name "A2B", not from a per-tensor sum: the
-    // figure is rounded, which is what the other MoE rows carry as well.
-    //
-    // Licence `lfm1.0`. The LICENSE file's SHA-256 matches the LFM2.5-VL-3B
-    // row's file exactly (30adf9d6…e94b), so the same terms and threshold apply.
-    //
-    // Sampling from the card's own command line, `--temp 0.1 --top-k 50
-    // --repeat-penalty 1.05`, which the header's `general.sampling` repeats.
-    // No top_p is published.
-    //
-    // No drafter. The repo has none and a search for the name with `mtp` finds
-    // no drafter GGUF, so `drafter` is `None`.
-    //
-    // No measured decode: the bandwidth floor and the MoE traffic model decide
-    // its speed until someone measures it.
-    DownloadableEntry {
-        model: ModelEntry {
-            repo: "LiquidAI/LFM2.5-24B-A2B",
-            display_name: "Liquid LFM 2.5 24B",
-            last_modified: "2026-10-13T16:59:33.000Z",
-            licence: Licence::Conditional {
-                id: "lfm1.0",
-                condition: "commercial use only for entities under $10M annual revenue",
-            },
-            parameters: Parameters::mixture(23_971_587_712, 2_000_000_000),
-            quant: "Q4_K_M",
-            weights_bytes: 14_526_258_464,
-            kv_bytes_per_token: Some(10_880),
-            slot_cache: SlotCache::Recurrent {
-                bytes_per_slot: 491_520,
-            },
-            dense_equivalent: None,
-            kv_assumption_undercounts: false,
-            measured_decode: None,
-            trained_context_tokens: Some(131_072),
-            stale: None,
-            sampling: Sampling {
-                temperature: Some(0.1),
-                top_p: None,
-                top_k: Some(50),
-                repeat_penalty: Some(1.05),
-            },
-        },
-        source: GgufSource {
-            repo: "LiquidAI/LFM2.5-24B-A2B-GGUF",
-            commit: "f97fc8a443da86c71818adf91baecde5b7ef4c50",
-            file: "LFM2.5-24B-A2B-Q4_K_M.gguf",
-            bytes: 14_526_258_464,
-            sha256: "d3334405b96228eb9908cdebb5c6194908f2da64282bda852afc3a3910c64e7d",
-        },
-        mmproj: None,
-        drafter: None,
-        q8: None,
-    },
+    // An install that stored this row needs nothing migrating. Its token
+    // resolves to nothing now, and the first thing a turn-on does is
+    // `first_run::require_choice` (`src-tauri/src/main.rs:1663`), which reads
+    // a token nothing answers to as no choice at all (`first_run.rs:72`): the
+    // walk stops there, before the model step, so Home offers the first-run
+    // pick. `forget_choice` is never reached on that path — the walk's own
+    // recovery (`src-tauri/src/startup.rs:415`) is downstream of the gate — so
+    // the dead token simply sits in the options file until the owner picks
+    // something, which overwrites it.
 ];
 
 /// The rows the chooser may see: every downloadable row that passed the

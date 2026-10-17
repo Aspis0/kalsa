@@ -671,8 +671,10 @@ fn ranked_first_card<'a>(
 }
 
 /// The byte leader's class, ranked by family before size. Bytes alone would
-/// hand the card to LFM2.5-24B-A2B, whose file is 87 MB bigger than Gemma 4
-/// 26B's, and the owner ranks every other family ahead of LFM.
+/// hand the card to the largest LiquidAI row in the class — the one the
+/// catalog carried until 2026-10-17 beat Gemma 4 26B's file by 87 MB, and a
+/// future LFM row can again — and the owner ranks every other family ahead of
+/// LFM.
 fn same_class_leader<'a>(pool: &[&'a Candidate<'static>]) -> Option<&'a Candidate<'static>> {
     let leader = pool
         .iter()
@@ -1326,11 +1328,64 @@ mod tests {
         .is_none());
     }
 
+    /// The repo [`lfm_fixture`] claims, so a test can name the fixture without
+    /// repeating it. No manifest row carries it.
+    const FIXTURE_REPO: &str = "LiquidAI/LFM-fixture";
+
+    /// The fixture as the chooser's own candidate construction builds it.
+    fn fixture_candidate(weights_bytes: u64, input: &ChoiceInput) -> Candidate<'static> {
+        crate::candidate::candidate(
+            crate::manifest::UsableEntry::for_test(lfm_fixture(weights_bytes)),
+            input,
+        )
+    }
+
+    /// A LiquidAI row the catalog does not carry, for the two rules a future
+    /// LFM row meets: the family demotion, and a text-only file beside no
+    /// projector. Its parameters, per-token cache and per-slot state are those
+    /// of the LFM 24B row removed on 2026-10-17 — the shape that actually sat
+    /// on these cards — at whatever file size the caller needs, under a name
+    /// that says it is a fixture. Leaked so the candidate borrows it for
+    /// `'static`, exactly as a manifest row does.
+    fn lfm_fixture(weights_bytes: u64) -> &'static ModelEntry {
+        use crate::manifest::{Sampling, SlotCache};
+        Box::leak(Box::new(ModelEntry {
+            repo: FIXTURE_REPO,
+            display_name: "Liquid LFM fixture",
+            last_modified: "2026-10-17T00:00:00.000Z",
+            licence: Licence::Conditional {
+                id: "lfm1.0",
+                condition: "commercial use only for entities under $10M annual revenue",
+            },
+            parameters: Parameters::mixture(23_971_587_712, 2_000_000_000),
+            quant: "Q4_K_M",
+            weights_bytes,
+            kv_bytes_per_token: Some(10_880),
+            slot_cache: SlotCache::Recurrent {
+                bytes_per_slot: 491_520,
+            },
+            dense_equivalent: None,
+            kv_assumption_undercounts: false,
+            measured_decode: None,
+            trained_context_tokens: Some(131_072),
+            stale: None,
+            sampling: Sampling {
+                temperature: Some(0.1),
+                top_p: None,
+                top_k: Some(50),
+                repeat_penalty: Some(1.05),
+            },
+        }))
+    }
+
     #[test]
     fn a_text_only_row_holds_no_card_without_a_vision_row_beside_it() {
-        // 24 GiB at 400 GB/s: LFM2.5-24B-A2B runs, but nothing else clears
-        // 1.5 times its floor, so no row can take the second card beside it.
-        // Gemma 4 26B has a projector and may lead on its own.
+        // No catalog row is text-only today: LFM 24B was the last one and was
+        // removed on 2026-10-17. The rule stays for the next row that ships
+        // without a projector, so it runs on a fixture here. At 24 GiB and
+        // 400 GB/s that row runs, but nothing else clears 1.5 times its
+        // floor, so no row can take the second card beside it. Gemma 4 26B
+        // has a projector and may lead on its own.
         let input = ChoiceInput {
             backend: Backend::Cpu,
             ram_bytes: 24 * crate::footprint::GIB,
@@ -1341,24 +1396,27 @@ mod tests {
             phone: None,
         };
         let answer = runnable_on(&input).expect("the machine runs something");
-        let text_only = answer
-            .remaining
-            .iter()
-            .find(|candidate| candidate.entry.repo == "LiquidAI/LFM2.5-24B-A2B")
-            .expect("LFM 24B fits and clears the reading floor here");
+        let text_only = fixture_candidate(14_000_000_000, &input);
+        assert!(
+            text_only.mmproj.is_none(),
+            "the premise: the fixture reads text alone, as the removed row did"
+        );
         let gemma = answer
             .remaining
             .iter()
             .find(|candidate| candidate.entry.repo == "google/gemma-4-26B-A4B-it")
             .expect("Gemma 4 26B fits here");
-        assert!(!may_hold_first_card(&input, &answer, text_only));
+        assert!(!may_hold_first_card(&input, &answer, &text_only));
         assert!(may_hold_first_card(&input, &answer, gemma));
     }
 
     #[test]
     fn the_byte_leader_class_ranks_family_before_bytes() {
-        // LFM 24B's file is 87 MB bigger than Gemma 26B's, and both sit in one
-        // class. Bytes alone would crown LFM; the family rule crowns Gemma.
+        // A LiquidAI row whose file beats Gemma 26B's would be crowned by
+        // bytes alone; the family rule crowns Gemma. No LFM row in the
+        // catalog is that big — the last one was removed on 2026-10-17 — so
+        // the LiquidAI side is the fixture, at 87 MB over Gemma's file, the
+        // margin the real row had.
         let input = ChoiceInput {
             backend: Backend::Cpu,
             ram_bytes: 24 * crate::footprint::GIB,
@@ -1376,10 +1434,83 @@ mod tests {
                 .find(|candidate| candidate.entry.repo == repo)
                 .expect("the row fits and clears the reading floor here")
         };
-        let lfm = find("LiquidAI/LFM2.5-24B-A2B");
+        let lfm = fixture_candidate(14_526_258_464, &input);
         let gemma = find("google/gemma-4-26B-A4B-it");
         assert!(lfm.entry.weights_bytes > gemma.entry.weights_bytes);
-        let leader = same_class_leader(&[lfm, gemma]).expect("a pool with rows has a leader");
+        let leader = same_class_leader(&[&lfm, gemma]).expect("a pool with rows has a leader");
         assert!(std::ptr::eq(leader, gemma));
+    }
+
+    #[test]
+    fn the_second_card_demotes_a_bigger_lfm_row_behind_a_smaller_rival() {
+        // The same rule on the second card, where it decides rather than
+        // confirms: a LiquidAI row that clears the bar with the biggest file
+        // in the pool still loses it to a smaller row of another family. No
+        // LiquidAI row on the menu is that big — the last one was removed on
+        // 2026-10-17 and took the rule's only real exercise with it — so the
+        // pool is the machine's own rows plus the fixture, and the fixture is
+        // the one the rule is about.
+        let input = ChoiceInput {
+            backend: Backend::Cpu,
+            ram_bytes: 64 * crate::footprint::GIB,
+            bandwidth_bytes_per_second: 800.0e9,
+            bandwidth_is_lower_bound: false,
+            compute_flops_per_second: 100.0e9,
+            context_tokens: chooser_context_tokens(64 * crate::footprint::GIB),
+            phone: None,
+        };
+        let answer = runnable_on(&input).expect("the machine runs something");
+        assert!(
+            !answer.dense_lines_stand_down,
+            "the premise: the dense lines hold, so the speed bar — not the \
+             stand-down's fastest row — is what the second card is drawn from"
+        );
+        // The row on the page, chosen from the catalog pool exactly as the
+        // chooser chooses it. Its decode is the bar the second card is held
+        // to; the pool it came from does not matter afterwards.
+        let than = {
+            let real_pool: Vec<&Candidate> = answer.remaining.iter().collect();
+            leading_candidate(&input, &answer, &real_pool)
+                .expect("the machine has a first card")
+                .decode
+        };
+        let budget = answer.budget;
+        let too_slow = answer.too_slow;
+        let mut remaining = answer.remaining;
+        // Big enough to be the pool's byte leader and still clear the bar at
+        // this bandwidth: a 30 GB file of this shape decodes here at about
+        // 83 tok/s against a bar of 43.
+        remaining.push(fixture_candidate(30_000_000_000, &input));
+        let pool = Runnable {
+            budget,
+            too_slow,
+            remaining,
+            dense_lines_stand_down: false,
+        };
+        let wanted = than.floor() * QUICK_SPEED_ADVANTAGE;
+        let fixture = pool.remaining.last().expect("the fixture is the last row");
+        assert_eq!(fixture.entry.repo, FIXTURE_REPO);
+        assert!(
+            fixture.decode.floor() >= wanted,
+            "the premise: the fixture clears the bar, {:?} against {wanted:.1}",
+            fixture.decode.floor()
+        );
+        assert!(
+            pool.remaining
+                .iter()
+                .all(|row| row.entry.weights_bytes <= fixture.entry.weights_bytes),
+            "the premise: the fixture is the pool's byte leader, so bytes alone \
+             would hand it the card and only the family rule can keep it off"
+        );
+        let second = second_after(&input, &pool, None, &than).expect("a second card");
+        assert!(
+            !lfm_row(second.entry),
+            "an LFM row takes the second card only when no other family clears the bar"
+        );
+        assert!(
+            !std::ptr::eq(second, fixture),
+            "the fixture cleared the bar with the biggest file in the pool: the \
+             family rule is what kept it off the card, not its missing the bar"
+        );
     }
 }

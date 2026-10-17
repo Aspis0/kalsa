@@ -1142,15 +1142,19 @@ fn the_second_option_is_the_largest_fast_row_not_the_smallest_row() {
 }
 
 #[test]
-fn a_gemma_row_wins_the_bar_against_a_bigger_lfm_row() {
-    // The owner's rule: Gemma prima solo contro LFM — every family beats
-    // LFM among the rows that clear the bar, and size only ranks a family
-    // against itself. 64 GiB of RAM behind a 15 GiB card at 400 GB/s: the
-    // card fits the dense Gemma 12B — served as its Q8 file, the pick —
-    // Gemma E4B and both LFM files, but neither Qwen nor Gemma 26B. The
-    // bar is 1.5 x the pick's floor; E4B (4.6 GiB) and LFM 24B (13.5 GiB)
-    // both clear it, the LFM file is the bigger of the two, and the card
-    // still goes to Gemma.
+fn gemma_e4b_takes_the_bar_on_a_fifteen_gig_card_and_lfm_is_not_its_rival() {
+    // This band used to be the demotion's own test: the LFM 24B row cleared
+    // the bar with the bigger file and still lost it to Gemma. That row was
+    // removed on 2026-10-17, and the LFM rows left are the VL-3B's two
+    // files — the smallest on the menu — so here nothing but size decides.
+    // Where LFM can still win the bar, `when_only_lfm_clears_the_bar_...`
+    // covers it; where the family rule orders the first card, the fixture in
+    // `choice.rs` covers it.
+    // 64 GiB of RAM behind a 15 GiB card at 400 GB/s: the card fits the dense
+    // Gemma 12B — served as its Q8 file, the pick — Gemma E4B and both LFM
+    // files, but neither Qwen nor Gemma 26B. The bar is 1.5 x the pick's
+    // floor; E4B (4.6 GiB) and the LFM file clear it, E4B is the bigger of
+    // the two, and the card goes to Gemma.
     let machine = ChoiceInput {
         backend: Backend::DiscreteGpu {
             vram_bytes: Some(15 * GIB),
@@ -1167,12 +1171,12 @@ fn a_gemma_row_wins_the_bar_against_a_bigger_lfm_row() {
             .expect("the row is on the menu")
     };
     let gemma = row_of("google/gemma-4-E4B-it", "Q4_K_M");
-    let lfm = row_of("LiquidAI/LFM2.5-24B-A2B", "Q4_K_M");
+    let lfm = row_of("LiquidAI/LFM2.5-VL-3B", "Q8_0");
     let big_gemma = row_of("google/gemma-4-26B-A4B-it", "Q4_0");
     let budget = kalsa_catalog::memory_budget(machine.backend, machine.ram_bytes).usable_bytes;
     assert!(
         footprint_bytes(big_gemma.entry(), CHOOSER_CONTEXT_TOKENS).total_bytes() > budget,
-        "the premise: Gemma 26B does not fit this card, or its size decides before the rule does"
+        "the premise: Gemma 26B does not fit this card, or its size decides before the bar does"
     );
     assert!(
         decode_prediction(gemma, &machine).floor() >= wanted,
@@ -1185,14 +1189,15 @@ fn a_gemma_row_wins_the_bar_against_a_bigger_lfm_row() {
         decode_prediction(lfm, &machine).floor()
     );
     assert!(
-        lfm.entry().weights_bytes > gemma.entry().weights_bytes,
-        "the premise: the LFM row clearing the bar is the bigger one"
+        gemma.entry().weights_bytes > lfm.entry().weights_bytes,
+        "the premise: the LFM row clearing the bar is the smaller one, so size alone \
+         hands the card to Gemma and the family demotion decides nothing here"
     );
     let quick = quicker_alternative(&machine, &first.decode).expect("a second card");
     assert_eq!(
         quick.entry.repo,
         "google/gemma-4-E4B-it",
-        "Gemma must win the bar against the bigger LFM"
+        "Gemma takes the bar, and LFM is no rival on this band any more"
     );
 }
 
@@ -1231,18 +1236,20 @@ fn the_bigger_row_wins_the_bar_when_lfm_is_not_the_rival() {
         qwen.entry().weights_bytes > gemma.entry().weights_bytes,
         "the premise: the Qwen is the bigger of the two"
     );
-    // The LFM files clear it too — the comment's claim, asserted: the
-    // demotion is what keeps them off the card, not their missing the bar.
-    for (repo, quant) in [("LiquidAI/LFM2.5-VL-3B", "Q8_0"), ("LiquidAI/LFM2.5-24B-A2B", "Q4_K_M")] {
-        let lfm = kalsa_catalog::usable()
-            .find(|row| row.entry().repo == repo && row.entry().quant == quant)
-            .expect("the LFM file is on the menu");
-        assert!(
-            decode_prediction(lfm, &machine).floor() >= wanted,
-            "the premise: the LFM {quant} file clears the bar, {:?}",
-            decode_prediction(lfm, &machine).floor()
-        );
-    }
+    // The LFM file this machine serves clears it too — the comment's claim,
+//    asserted: the demotion is what keeps it off the card, not its missing the
+    // bar. The file is pinned by quant, because both of the VL-3B's files are
+    // on the menu under that one repo and only one of them is served here.
+    let lfm = kalsa_catalog::usable()
+        .find(|row| {
+            row.entry().repo == "LiquidAI/LFM2.5-VL-3B" && row.entry().quant == "Q8_0"
+        })
+        .expect("the served LFM file is on the menu");
+    assert!(
+        decode_prediction(lfm, &machine).floor() >= wanted,
+        "the premise: the LFM Q8_0 file clears the bar, {:?}",
+        decode_prediction(lfm, &machine).floor()
+    );
     let quick = quicker_alternative(&machine, &first.decode).expect("a second card");
     assert_eq!(
         quick.entry.repo,
@@ -1255,9 +1262,11 @@ fn the_bigger_row_wins_the_bar_when_lfm_is_not_the_rival() {
 fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     // The demotion changes nothing where no other family clears the bar.
     // At 64/197 the bar is 1.5 x the Qwen 3.6 pick and every non-LFM floor
-    // sits under it, so the bar finds an LFM row. The biggest one is LFM 24B,
-    // and it is the second card. At 16/200 the same premise, with LFM 24B
-    // too big to fit, leaves the VL-3B Q8 card where it is.
+    // sits under it, so the bar finds an LFM row and LFM takes the card. The
+    // row it finds is the VL-3B's Q8 file: the only LiquidAI row the catalog
+    // still carries, since the 24B row was removed on 2026-10-17 and used to
+    // be the big one answering here. At 16/200 the same premise reaches the
+    // same file.
     let roomy = metal(64, 197.0e9);
     let first = largest_that_runs_well(&roomy).expect("a 64 GiB machine runs something");
     assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
@@ -1281,8 +1290,8 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     let wanted = first.decode.floor() * QUICK_SPEED_ADVANTAGE;
     only_lfm_clears(&roomy, wanted);
     let quick = quicker_alternative(&roomy, &first.decode).expect("a second card");
-    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-24B-A2B");
-    assert_eq!(quick.entry.quant, "Q4_K_M", "the bar's LFM answer is 24B, not the VL-3B the exception covers");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
+    assert_eq!(quick.entry.quant, "Q8_0", "the bar's LFM answer is the VL-3B's Q8 file, the only LiquidAI row left on the menu");
 
     let small = metal(16, 200.0e9);
     let first = largest_that_runs_well(&small).expect("a 16 GiB machine runs something");
@@ -1290,7 +1299,7 @@ fn when_only_lfm_clears_the_bar_the_second_card_is_today_s_answer() {
     only_lfm_clears(&small, wanted);
     let quick = quicker_alternative(&small, &first.decode).expect("a second card");
     assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
-    assert_eq!(quick.entry.quant, "Q8_0", "without LFM 24B to fit, the Q8 file is the card");
+    assert_eq!(quick.entry.quant, "Q8_0", "the same file answers here too");
 }
 
 #[test]
@@ -1767,8 +1776,9 @@ fn sixteen_gigabytes_at_forty_five_is_the_same_two_cards() {
 
 #[test]
 fn the_bar_keeps_its_answer_on_a_big_machine() {
-    // At 32/400 the bar's answer is LFM 24B, and the second card is its
-    // Q4_K_M file. At 64/800 the bar's answer is the Qwen 3.6, and it stays.
+    // At 32/400 the bar's answer is the VL-3B's Q8 file, the only LiquidAI
+    // row left since the 24B row was removed on 2026-10-17, and the second
+    // card is it. At 64/800 the bar's answer is the Qwen 3.6, and it stays.
     let roomy = ChoiceInput {
         bandwidth_bytes_per_second: 400.0e9,
         ..input(32, false)
@@ -1776,8 +1786,8 @@ fn the_bar_keeps_its_answer_on_a_big_machine() {
     let first = largest_that_runs_well(&roomy).expect("a 32 GiB machine runs something");
     assert_eq!(first.entry.repo, "Qwen/Qwen3.6-35B-A3B");
     let quick = quicker_alternative(&roomy, &first.decode).expect("a second card");
-    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-24B-A2B");
-    assert_eq!(quick.entry.quant, "Q4_K_M");
+    assert_eq!(quick.entry.repo, "LiquidAI/LFM2.5-VL-3B");
+    assert_eq!(quick.entry.quant, "Q8_0");
     assert!(quick.decode.floor() > first.decode.floor(), "faster than the pick");
 
     // At 64/800 the bar clears for the 35B MoE, and it keeps the second card.

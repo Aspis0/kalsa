@@ -204,7 +204,7 @@ The owner decided on 2026-10-14 that LFM 2.5 2.6B (and LFM VL 3B) is too weak fo
 Status after the lab:
 - **Qwen 3.6:** allowed. It is the best of the four.
 - **Gemma 4 12B:** allowed. The precision is acceptable, but triage is slow until thinking is off.
-- **LFM2.5-24B-A2B:** a candidate. The mail numbers are good. It is not in the catalog yet; that waits for the Lenovo speed bench.
+- **LFM2.5-24B-A2B:** a candidate, and no longer one. The row left the catalog on 2026-10-17 — removed rather than marked stale — because one web turn in three ended with raw `<|tool_call_start|>` markup as its answer, and it ran about twice as slow as Qwen 3.6-35B-A3B with thinking off. The mail numbers below are what it was measured at, kept as the record it is.
 - **Gemma E4B:** must be measured before phase 2. It is the model most Windows users will have.
 
 ## Setup

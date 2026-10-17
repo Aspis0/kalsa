@@ -376,14 +376,13 @@ equal("its neighbour sent nothing", app.sentToFor(sent, FERMARO), null);
 /* --------------------------------------------------- who may open the mailbox */
 
 /* The strings are the catalog display names, the one the running state
-   carries. Five are approved; the small LFM 2.5 stack, its VL 3B and Gemma 4
+   carries. Four are approved; the small LFM 2.5 stack, its VL 3B and Gemma 4
    E2B are not, and neither is anything this build does not know. */
 const ALLOWED_MODELS = [
   "Alibaba Qwen 3.6",
   "Google Gemma 4 E4B",
   "Google Gemma 4 12B",
   "Google Gemma 4 26B",
-  "Liquid LFM 2.5 24B",
 ];
 for (const model of ALLOWED_MODELS) {
   check(`${model} may read mail`, app.mailAllowed(model));
@@ -392,6 +391,9 @@ const REFUSED_MODELS = [
   "Liquid LFM 2.5",
   "Liquid LFM 2.5 2.6B",
   "Liquid LFM 2.5 VL 3B",
+  /* The catalog row came out on 2026-10-17, so its name is no longer on the
+     list: a name this build does not approve cannot open the mailbox. */
+  "Liquid LFM 2.5 24B",
   "Google Gemma 4 E2B",
   "Alibaba Qwen 3.5",
   "Alibaba Qwen 3.8",
@@ -422,13 +424,13 @@ globalThis.window.__TAURI__.core.invoke = async (command) => {
   if (command === "brain_mail_list") return { for_model: ["mail"], for_ui: LIST, is_error: false };
   throw new Error(`mail-cards: no fixture declares ${command}`);
 };
-for (const model of ["Liquid LFM 2.5", "Google Gemma 4 E2B"]) {
+for (const model of ["Liquid LFM 2.5", "Liquid LFM 2.5 24B", "Google Gemma 4 E2B"]) {
   const before = doorCalls;
   const refused = await app.executeToolCall("mail_list", { days: 1 }, undefined, null, [], model);
   check(`${model} cannot list mail`, refused.ok === false && refused.text.includes("approved"), refused.text);
   equal(`and ${model} never reached the mailbox`, doorCalls, before);
 }
-const allowed = await app.executeToolCall("mail_list", { days: 1 }, undefined, null, [], "Liquid LFM 2.5 24B");
+const allowed = await app.executeToolCall("mail_list", { days: 1 }, undefined, null, [], "Google Gemma 4 26B");
 check("an approved model does reach the mailbox", allowed.ok === true, allowed.text);
 
 /* ------------------------------------------------------------------ the send */

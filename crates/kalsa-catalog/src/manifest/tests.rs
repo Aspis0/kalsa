@@ -265,7 +265,6 @@ fn every_row_has_a_name_a_person_can_say() {
             ("LiquidAI/LFM2.5-VL-3B", "Liquid LFM 2.5"),
             ("LiquidAI/LFM2.5-VL-3B", "Liquid LFM 2.5"),
             ("Qwen/Qwen3.8-27B", "Alibaba Qwen 3.8"),
-            ("LiquidAI/LFM2.5-24B-A2B", "Liquid LFM 2.5 24B"),
         ]
     );
 }
@@ -314,7 +313,6 @@ fn only_the_download_rows_know_where_their_files_live() {
             "LiquidAI/LFM2.5-VL-3B-GGUF",
             "LiquidAI/LFM2.5-VL-3B-GGUF",
             "unsloth/Qwen3.8-27B-GGUF",
-            "LiquidAI/LFM2.5-24B-A2B-GGUF",
         ]
     );
 }
@@ -440,7 +438,6 @@ fn the_download_rows_carry_their_exact_bytes() {
             ("LiquidAI/LFM2.5-VL-3B", 2_874_779_680),
             ("LiquidAI/LFM2.5-VL-3B", 1_674_455_072),
             ("Qwen/Qwen3.8-27B", 16_464_440_224),
-            ("LiquidAI/LFM2.5-24B-A2B", 14_526_258_464),
         ]
     );
 }
@@ -562,7 +559,6 @@ fn every_usable_file_stem_is_distinct() {
     assert_eq!(
         stems,
         vec![
-            "LFM2.5-24B-A2B-Q4_K_M",
             "LFM2.5-VL-3B-Q4_K_M",
             "LFM2.5-VL-3B-Q8_0",
             "Qwen3.6-35B-A3B-UD-Q4_K_M",
