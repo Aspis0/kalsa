@@ -803,3 +803,163 @@ a5c535de2471955c0c52f2b098824e1b2f13dc85491db5325e86a4e5fcdd9eef  l1a2-probs.jso
 - **The long-prompt step-33 divergence is unexplained.** It is outside the oracle's 32-step window and
   outside this section's scope, but it means long-prompt generations are not reproducible on this
   build.
+
+## 11. Localising the NPU collapse: onset sweep and knob arms
+
+Run 2026-10-17 00:48–01:45, build `634e3da4`, unplugged, cold. §10 established that NPU prefill
+departs from CPU on the 10-chunk long prompt. This section asks *where* it starts and whether any
+runtime knob moves it.
+
+Backup before any write: `raw/RKStorage-pre-knob-backup.sqlite`, sha256
+`6e2395b644fb7ef1395250e3b9712ab5952cb5472c984835b8483832c8ba3208`, 131 rows, integrity `ok`.
+
+### 11.1 Knob inventory (read-only)
+
+The complete bench key surface on this build, from `src/bench/benchConfig.ts:36-43` and
+`src/engine/governorInputs.ts:17-31`:
+
+```
+kalsa.bench.sampling  probs  toolchoice  toolgate  force_ids  governor_force  npu_lane  route
+kalsa.bench.thermo  engine  nctx  winbudget  legacywindow  norepack  devmodels  speculative
+kalsa.bench.decode_hop  guard_headroom  ranking  digestcadence  thinking  format  nativelog
+kalsa.bench.eager_delay_ms  energy_trace  zone_probe
+```
+
+- **`kalsa.bench.engine`** is the one that reaches llama.cpp parameters —
+  `benchConfig.ts:37`: `JSON { nGpuLayers?, nThreads?, nThreadsPrefill?, nUbatch?, flashAttn?, moeStream? }`,
+  `benchConfig.ts:815`: *"Applies at ENGINE INIT — force-stop + relaunch after writing"*. `turn.sh`
+  already force-stops and cold-launches, so a key set before a turn takes effect for it.
+- **`n_ubatch`** is clamped at `engineParams.ts:117-119`: `params.n_ubatch = Math.min(override.nUbatch, batch)`
+  with `n_batch = 512` (`LlamaService.ts:2829`), default `DEFAULT_UBATCH = 256`
+  (`deviceTuning.ts:245`).
+- **KV cache type is NOT runtime-switchable.** `LlamaService.ts:2609`: *"cache_type_k/v stay
+  catalog/caller-owned"*, and `llama-governor.cpp:412-414`: *"the binding forces matching q8_0 KV on
+  both contexts"* — which is exactly why every arm here logged `"ck":"q8_0","cv":"q8_0"`. This was
+  the task's first-priority knob and it does not exist at runtime.
+- **`prefill_chunks`** is a `+`-joined run of per-chunk token counts
+  (`governorTurnLog.ts:125-138`, accumulator at `llama-governor.cpp:284-289`), one cell per chunk.
+
+**Prior lab findings: there are none.** `docs/ALIVE.md` records prefill/decode *performance* and heat
+for the S23/Xiaomi/8 Elite but no NPU prefill *correctness*; `PLAN.md:155` records this cell's own
+oracle result. `KVDIVERGE` appears only inside raw logcat captures under
+`scratchpad/agents/qdc-governor-s5/raw/` with no report analysing it. This cell is the first place
+NPU-vs-CPU prefill correctness is measured on a phone.
+
+### 11.2 What the chunk counter actually measures — the sweep's real axis
+
+The task asked for a sweep over 5–9 chunks. Building prompts from `enc-long` and reading the
+governor line produced a **non-monotonic** chunk count, so the axis had to be corrected first. The
+`prefill_chunks` strings show why: the first three cells are always `512+128+40` (a cached static
+prefix plus the template), and the prompt proper is chunked afterwards, sometimes at 128 and
+sometimes at 512 depending on alignment. Total tokens rise monotonically with prompt length; the
+chunk *count* does not.
+
+Ordered by prefilled tokens — the axis that is actually controlled:
+
+| prompt | NPU arm | CPU ref | prefill_chunks | tokens | top-1 disagreements /32 | max \|Δlogp\| | R1 steps |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| short (310 ch) | `s2a` | `cpu5` | `512+128+40+82+3` | 765 | **0** | 0.9307 | 0 |
+| s6 (1830 ch) | `npu6` | `cpu7` | `512+128+40+128+128+110+3` | 1049 | **1** | 0.9278 | 1 |
+| s7 (3363 ch) | `npu7` | `cpu6` | `512+128+40+512+129+3` | 1324 | **13** | 6.7815 | 12 |
+| s8 (4888 ch) | `npu8` | `cpu9` | `512+128+40+512+128+128+128+27+3` | 1606 | **9** | 7.1806 | 9 |
+| s9 (6410 ch) | `npu9` | `cpu8` | `512+128+40+512+512+128+53+3` | 1888 | **17** | 5.8093 | 16 |
+| long (7948 ch) | `l1a` | `l1c` | `512+128+40+512+512+128+128+128+84+3` | 2175 | **21** | 6.6642 | 21 |
+
+**First R1 break: 1324 tokens** (13/32). Below it the NPU tracks CPU — exactly at 765 tokens, and to
+within one step at 1049.
+
+Read against the cells, the correspondence is exact:
+
+| largest cell inside the prompt region | disagreements |
+| --- | --- |
+| 82, 128 (short, s6) | 0, 1 |
+| **512** (s7, s8, s9, long) | 13, 9, 17, 21 |
+
+The NPU agrees with CPU while every prompt-region cell is ≤128 tokens, and breaks R1 in every arm
+where a **512-token cell** appears in the prompt region.
+
+### 11.3 Knob arms at 10 chunks (enc-long, vs the existing `l1c` CPU reference)
+
+| arm | knob | verified | prefill_chunks | disagreements /32 | max \|Δlogp\| | R1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| baseline `l1a` | — | — | `512+128+40+512+512+128+128+128+84+3` | 21 | 6.6642 | 21 |
+| `k1` | `engine={"nUbatch":512}` | `SET kalsa.bench.engine={"nUbatch":512}` | **unchanged** | 21 | 6.7326 | 20 |
+| `k3` | `engine={"nUbatch":128}` | `SET kalsa.bench.engine={"nUbatch":128}` | **unchanged** | 21 | 6.6642 | 21 |
+| `k2` | `engine={"flashAttn":"off"}` | `SET kalsa.bench.engine={"flashAttn":"off"}` | unchanged | **29** | **8.2193** | 29 |
+
+No knob reached the ≤2/32 target, so the stopping rule never fired and the arms ran to the end of the
+available list. The negative result is sharp: **`nUbatch` does not control the prefill cells.** At
+512 and at 128 the `prefill_chunks` string is byte-identical to baseline and `k3` reproduces the
+baseline numbers exactly (21 / 6.6642 / 21), so the bench knob is accepted and read back but is not
+wired to the HTP chunker on this build. `flashAttn: off` makes the divergence *worse* (29/32), so
+flash attention is helping and is not the culprit. KV type is not switchable at all (§11.1).
+
+### 11.4 The lead
+
+**The NPU collapse tracks the 512-token prefill cell, not the cell count or the prompt length: it is absent while every prompt-region cell is ≤128 tokens, appears at the first 512-token cell (1324 tokens, 13/32), and worsens with the number of 512 cells (1 → 2 cells gives 17/32 and 21/32).**
+
+The actionable consequence is negative and worth stating plainly: the knob that would test this —
+the prefill chunk/ubatch cell size on the HTP path — is **not reachable from `kalsa.bench`**. The
+512-token cells are produced inside the native chunker, `kalsa.bench.engine.nUbatch` does not reach
+them, and KV type is pinned to q8_0 by the binding. Localising further needs a binding or engine
+change (surface the chunker size as an override, or run the ≤128-cell path at >1049 tokens), not
+another bench key.
+
+### 11.5 Two mistakes of mine, both recorded
+
+- **Wrong prompt labels.** The first CPU-reference loop passed `PROMPT=6/7/8/9` where `turn.sh` wants
+  `s6/s7/s8/s9`; `enc-6.txt` does not exist and `set -u` aborted `frag`. Four CPU arms produced 0 rows
+  and were re-run with correct labels. No data from that first attempt is used here.
+- **Editing `arm.sh` while it was executing.** Adding the `EXTRA` hook mid-loop made bash re-read a
+  changed file at the old byte offset (`arm.sh: line 36: unexpected EOF while looking for matching
+  ''`), which killed `cpu7` after its turn had completed. Its 33 probs rows survived in the collected
+  logcat and were recovered by re-running `oparse.sh cpu7` — the turn was not repeated, so no
+  device time was spent re-measuring it, but the arm did not exit cleanly.
+
+### 11.6 State left on the device
+
+`restore.sh` exit 0, now including `kalsa.bench.engine` (absent before this task) and
+`kalsa.governor.enabled=1`:
+
+```
+ABSENT kalsa.bench.sampling / probs / toolchoice / governor_force / force_ids / npu_lane / route / thermo / engine
+SET kalsa.governor.enabled=1
+SET kalsa.web.enabled=1
+SET kalsa.tools.device=0
+SET kalsa.tools.calendar=0
+```
+
+Independent pull off the device: `integrity: ok`, `rows: 156`, `governor.enabled=1`, **0** of the nine
+bench keys present. Conversation ids 37 → 48, and **0** pre-existing ids missing — nothing deleted.
+No stop rule fired in this section (peak battery 40.1 C, thermal status ≤2, level ended 72 %).
+App left on a fresh `Nuova chat` screen, empty composer — `raw/final-screen-knobs.png`,
+`mCurrentFocus=com.kalsa.app/.MainActivity` checked before each tap.
+
+### 11.7 What this does not settle
+
+- **n=1 per length.** Each row of the sweep is one NPU turn and one CPU turn on one prompt. The
+  ≤128-cell correlation is clean across all six points but a single repeat per cell-size would
+  strengthen it, particularly at 1049 tokens (1 disagreement) where "clean" is one step from broken.
+- **512 cells versus 512 tokens is not separated.** Every broken arm has both a 512 cell and >1300
+  tokens. An arm that forces 128-token cells at 2000+ tokens is the missing cell — it cannot be built
+  from the bench surface found in §11.1.
+- **The knob list is what this build exposes.** A knob absent from `benchConfig.ts` cannot be swept
+  here; if the chunker is reachable only through a rebuild, that is the next step, not another run.
+
+## 12. Correction to section 11, and the length threshold (2026-10-17, checked by the orchestrator)
+
+**Section 11's lead is wrong.** warm1, warm3, warm4, warm5 and warm8 are NPU runs of the same 2175-position prompt. warm3/4/5/8 prefilled it with 128-token cells only (`"prefill_chunks":"128+128+128+128+128+40+128+...+84+3"`), the others with 512 cells. All of them generate l1a's tokens for steps 0-31, and all disagree with the CPU reference l1c on top-1 at 21/32 steps. Cell size does not matter.
+
+**Threshold sweep, NPU (default) vs CPU (`kalsa.governor.enabled=0`), TF, steps 0-31** (positions = `prompt_n`, the full prefilled context):
+
+| positions | prefill_chunks | top-1 disagree | max abs dlogp of CPU top-1 |
+|---|---|---|---|
+| 960 | 512+128+40+128+128+21+3 | 0 | 0.346 |
+| 997 | 512+128+40+128+128+58+3 | 0 | 0.255 |
+| 1018 | 512+128+40+128+128+79+3 | 0 | 0.165 |
+| 1028 | 512+128+40+128+128+89+3 | 0 | 0.18 |
+| 1049 (s6) | 512+128+40+128+128+110+3 | 1 | 0.93 |
+| 1324 (s7) | 512+128+40+512+129+3 | 13 | 6.78 |
+| 2175 | (either layout) | 21 | 6.66 |
+
+At 1018 and 1028 the 32 decode steps cross 1024 positions and stay clean, and decode runs on CPU on this arm (`{"prefill":99,"decode":0}`), so the drift is tied to what the NPU prefill writes or reads past roughly 1030 positions. The 1060-1200 points were not run (the MiniMax agent hit its token limit, error 2067, during the batch; the batch finished on its own and `restore.sh` was run afterwards: exit 0, governor back to 1, no bench keys). Raw: `raw/tn{960,1000,1020,1030}-*`, `raw/tc{960,1000,1020,1030}-*`.

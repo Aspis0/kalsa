@@ -3,13 +3,15 @@
 # Every value here was read off the device before this cell's first write: the bench keys and
 # toolchoice were ABSENT, kalsa.web.enabled was 1, tools were 0, kalsa.governor.enabled was 1.
 # The CPU arm (kind C) turns the governor OFF, so it is restored with the rest — leaving it at 0
-# would silently change the owner's phone. kalsa.bench.energy_trace / kvtranscript / nativelog were
-# already 1 and are never touched.
+# would silently change the owner's phone. The knob arms write kalsa.bench.engine (nUbatch,
+# flashAttn), which is deleted because it was absent before. kalsa.bench.energy_trace /
+# kvtranscript / nativelog were already 1 and are never touched.
 set -u; . "$(dirname "$0")/env.sh"
 bash "$(dirname "$0")/kset.sh" \
   kalsa.bench.sampling=--del kalsa.bench.probs=--del kalsa.bench.toolchoice=--del \
   kalsa.bench.governor_force=--del kalsa.bench.force_ids=--del \
   kalsa.bench.npu_lane=--del kalsa.bench.route=--del kalsa.bench.thermo=--del \
+  kalsa.bench.engine=--del \
   kalsa.governor.enabled=1 \
   kalsa.web.enabled=1 kalsa.tools.device=0 kalsa.tools.calendar=0
 rc=$?

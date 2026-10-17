@@ -62,7 +62,11 @@ cxy=$(tr '>' '\n' < $P-ui-newchat.txt | grep -E 'class="android.widget.EditText"
 [ -n "$cxy" ] && { ad shell input tap $cxy; sleep 2; ad shell input keyevent 67; sleep 1; ad shell input keyevent 4; sleep 1; }
 
 # --- stage the prompt by deep link, re-fire on retry
-case $PROMPT in short) frag="battery percentage reading";; long) frag="Modern smartphones run";; esac
+case $PROMPT in short) frag="battery percentage reading";; long) frag="Modern smartphones run";;
+  # sweep prompts: enc-sN.txt are enc-long truncated to N-chunk targets; all share its opening line
+  s6|s7|s8|s9) frag="Modern smartphones run";;
+  # threshold prompts: enc-tN.txt target a total prefilled position count around N
+  t960|t1000|t1020|t1030|t1060|t1100|t1200) frag="Modern smartphones run";; esac
 link() { ad shell "am start -a android.intent.action.VIEW -d 'kalsa://share?text=$(cat enc-$PROMPT.txt)#n=$LABEL'" 2>&1; }
 link > $P-amstart.txt; staged=0
 for attempt in 1 2 3; do

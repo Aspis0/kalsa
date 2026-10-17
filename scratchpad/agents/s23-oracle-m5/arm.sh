@@ -22,6 +22,10 @@ case $KIND in
      KV=("${COMMON[@]}" kalsa.governor.enabled=0 "kalsa.bench.force_ids=[$IDS]" kalsa.bench.governor_force=--del "${OFF[@]}") ;;
   *) echo "unknown KIND $KIND"; exit 2 ;;
 esac
+# EXTRA='kalsa.bench.engine={"nUbatch":512}' appends one extra bench key this arm doesn't model.
+# kalsa.bench.engine is read at ENGINE INIT, and turn.sh force-stops + cold-launches, so a key set
+# here takes effect for the turn it arms.
+[ -n "${EXTRA:-}" ] && KV+=($EXTRA)
 echo "$KIND" > $P-kind.txt
 bash "$(dirname "$0")/kset.sh" "${KV[@]}" > $P-arm.txt 2>&1; rc=$?; cat $P-arm.txt
 [ "$rc" = 0 ] || { echo "ARM FAILED rc=$rc"; exit 4; }
