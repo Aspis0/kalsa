@@ -963,3 +963,54 @@ App left on a fresh `Nuova chat` screen, empty composer — `raw/final-screen-kn
 | 2175 | (either layout) | 21 | 6.66 |
 
 At 1018 and 1028 the 32 decode steps cross 1024 positions and stay clean, and decode runs on CPU on this arm (`{"prefill":99,"decode":0}`), so the drift is tied to what the NPU prefill writes or reads past roughly 1030 positions. The 1060-1200 points were not run (the MiniMax agent hit its token limit, error 2067, during the batch; the batch finished on its own and `restore.sh` was run afterwards: exit 0, governor back to 1, no bench keys). Raw: `raw/tn{960,1000,1020,1030}-*`, `raw/tc{960,1000,1020,1030}-*`.
+
+## 13. Which NPU op breaks the long prompt: hexagon-env switches (2026-10-17)
+
+Build `app-release.apk` from `/tmp/apk-hexenv.795V/...64711d64…` (debuggable, binding `3fbcbfd0`), installed with `-r`, data kept. The debug-only file `files/hexagon-env` was read once per process at native load; it was written, verified, and removed for each arm, and is verified absent at the end. Prompt `enc-long` (2175 positions, `prefill_chunks` 10), teacher-forced to `l1a`'s 32 ids in every arm. Oracle: unmodified `oracle_logit.py`, TF, thresholds 0.03 / 0.02 / 0.10; reference `hC` vs each arm, steps 0–31.
+
+`arm.sh` gained kind `H` (governor on, `force_ids` = l1a's ids, `governor_force` absent): NPU prefill exactly like kind A, teacher-forced like kind B, without the GPU route. Nothing else in the cell changed.
+
+### 13.1 Arms
+
+| arm | hexagon-env | applied line (RNLlama) | prefill (governor line) | comparable steps | top-1 disagree vs hC | max abs dlogp (CPU top-1) | max dp1 | oracle verdict (verbatim) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `hC` | absent | none (no file) | CPU, kind C, no governor line | 32 | — (reference) | — | — | `oracle=PASS rule=none steps=32 max_dlogp=0.0000 max_dp1=0.0000 divergences=0 first_div=-1` (`hC` vs `l1c`: bit-identical) |
+| `h0` | absent | none (no file) | `ep NPU`, `ed GPU`, `dev HTP0`, `chunks 10` | 32 | **21 / 32** (steps 2 3 5 6 8 9 11 12 13 15 16 17 18 19 20 21 22 23 24 25 26) | 6.6642 | 0.7835 | `oracle=FAIL rule=R2 steps=32 max_dlogp=6.6642 max_dp1=0.7835 divergences=0 first_div=-1` |
+| `h1` | `GGML_HEXAGON_FA_SELECT=1` | `applied 1, skipped 0` | `ep NPU`, `ed NPU`, `dev HTP0`, `chunks 10` | 32 | **2 / 32** (steps 9, 14) | 0.8142 | 0.0698 | `oracle=FAIL rule=R2 steps=32 max_dlogp=0.8142 max_dp1=0.0698 divergences=0 first_div=-1` |
+| `h2` | `GGML_HEXAGON_OPFILTER=flash_attn_ext` | `applied 1, skipped 0` | `ep NPU`, `ed NPU`, `dev HTP0`, `chunks 10` | 32 | **2 / 32** (steps 14, 20) | 1.1171 | 0.0516 | `oracle=FAIL rule=R2 steps=32 max_dlogp=1.1171 max_dp1=0.0516 divergences=0 first_div=-1` |
+| `h3` | `GGML_HEXAGON_OPFILTER=set_rows` | `applied 1, skipped 0`, then **SIGABRT at load** | — no turn | 0 | — | — | — | — (see 13.2) |
+
+- All four NPU arms and the reference have 33/33 `forced:true` probs rows; the 32 generated ids of every arm equal `l1a`'s ids (identical token sequence, checked by md5).
+- `h0` reproduces §10 exactly (21/32, 6.6642, 0.7835), so the new build and the new harness path do not move the NPU result.
+- Logcat check: `hexagon-env: applied` is printed only when the file exists; `hC` and `h0` have no file and no such line, which is the expected absence, not a missing line.
+- Probs files: `raw/hC-probs.jsonl`, `raw/h0-probs.jsonl`, `raw/h1-probs.jsonl`, `raw/h2-probs.jsonl`; steps: `raw/steps-hC-vs-{h0,h1,h2}.txt`.
+
+### 13.2 h3 (`set_rows`): crash, not a measurement
+
+With `GGML_HEXAGON_OPFILTER=set_rows` the app aborts while loading the KV cache, before the first token:
+
+```
+E RNLlama : ggml_abort:0 .../ggml/src/ggml-backend.cpp:1107: pre-allocated tensor (cache_k_l2 (view)) in a buffer (HTP0) that cannot run the operation (SET_ROWS)
+F libc    : Fatal signal 6 (SIGABRT) ... (com.kalsa.app)
+```
+
+So moving `set_rows` off HTP while the KV buffers stay on HTP0 is not a valid configuration; the arm yields 0 comparable steps. The crash dialog was dismissed (`Non ora`). The crash also wrote `kalsa.load.dead.lfm2.5-2.6b` = `{"at":1792223148569,"confirmed":true}`, which makes the app treat the model as dead on load. That key was absent before the run; it was removed with `kset.sh` (`ABSENT`) and is gone in the read-back.
+
+### 13.3 Answer
+
+**`GGML_HEXAGON_FA_SELECT=1` (flash attention kept on HTP's HVX, moved off its HMX unit) is the switch that makes the NPU track the CPU: 2/32 disagreements, max dlogp 0.81. The culprit is the HMX flash-attention kernel (`flash_attn_ext` on HTP), not `set_rows`, not the KV layout, and not the chunk size.** `flash_attn_ext` moved to CPU (`h2`) gives the same 2/32 result, so the two switches agree on the op.
+
+### 13.4 What this does not settle
+
+- **n=1 per arm.** One run per switch. The control `h0` reproduced `l1a`'s numbers exactly, which shows the harness is repeatable, but h1/h2 are single runs. The 2/32 results sit at the ≤2/32 limit, and their max dlogp (0.81 and 1.12) is larger than GPU's 0.77 against CPU in §10, so "tracks the CPU" holds on top-1 but not on logit size.
+- **Conflict with §11.3.** `kalsa.bench.engine={"flashAttn":"off"}` made the divergence *worse* (29/32). That knob is not the same as `FA_SELECT=1` or an FA op moved to CPU: it changes the flash-attention graph itself, not the backend that runs it. This is not reconciled here; the bench knob should not be read as "flash attention is not the culprit".
+- **Long prompt only** (2175 positions, one prompt). The ≤1030-position arms of §12 were not re-run on the new build.
+- **Not fixed in the app.** The switches are debug-only, read from a file in the app's data dir. Choosing an FA path for shipping is a product decision.
+
+### 13.5 State left on the device
+
+- `files/hexagon-env` deleted and verified absent (`No such file or directory`).
+- `restore.sh` exit 0 (`kalsa.governor.enabled=1`, bench keys absent, web/tools 1/0/0).
+- DB: backup `raw/RKStorage-pre-hexenv-backup.sqlite` (sha256 `c2fbce32…30f8`, 178 rows, integrity `ok`); read-back after the run: integrity `ok`, 189 rows, **no key removed**; additions are the 4 new chats (`kalsa.chat.compactor.*`, `kalsa.messages.*`, `kalsa.session.meta.*`), a new `kalsa.governor.learned.v1` entry for the new binding (`3fbcbfd0`), and the dead marker (removed, see 13.2).
+- App left on an empty new chat, `raw/final-screen-hexenv.png`, `mCurrentFocus=com.kalsa.app/.MainActivity`.
+- Device time: about 40 minutes of arms plus setup (within the ~90 min budget). Battery 58 % → 55 % unplugged; monitor peaks over hC/h0/h1/h2: skin 34.4 °C, battery 32.8 °C, thermal status 0 in all 16 samples; no stop rule fired. (h3 aborted before its monitor started, so it has no samples.)

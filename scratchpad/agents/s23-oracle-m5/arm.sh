@@ -2,6 +2,8 @@
 # usage: arm.sh LABEL A|B|C [A_LABEL] — arm one turn's bench keys, read back, then run the turn.
 # A  production NPU prefill (shipped governor, no bench prefill override), greedy, probs on.
 # B  the same plus kalsa.bench.governor_force=1 and A's 32 ids as a literal grammar.
+# H  NPU prefill like A, teacher-forced to A_LABEL's ids by force_ids alone (no governor_force, so
+#    the governor keeps the NPU route). Used for the hexagon-env op-switch arms (§13).
 # C  the reference: governor OFF (kalsa.governor.enabled=0, the switch the QDC R5 cell's CPU and
 #    CTRL arms use) so prefill and decode both run on CPU, teacher-forced to A_LABEL's 32 ids.
 # Deliberate deviations from the QDC cell: no kalsa.bench.thermo fake (real thermistor, real numbers),
@@ -20,6 +22,8 @@ case $KIND in
      KV=("${COMMON[@]}" kalsa.governor.enabled=1 "kalsa.bench.force_ids=[$IDS]" kalsa.bench.governor_force=1 "${OFF[@]}") ;;
   C) IDS=$(ids_of) || exit 3
      KV=("${COMMON[@]}" kalsa.governor.enabled=0 "kalsa.bench.force_ids=[$IDS]" kalsa.bench.governor_force=--del "${OFF[@]}") ;;
+  H) IDS=$(ids_of) || exit 3   # NPU prefill (governor on, no governor_force) + teacher-forced ids
+     KV=("${COMMON[@]}" kalsa.governor.enabled=1 "kalsa.bench.force_ids=[$IDS]" kalsa.bench.governor_force=--del "${OFF[@]}") ;;
   *) echo "unknown KIND $KIND"; exit 2 ;;
 esac
 # EXTRA='kalsa.bench.engine={"nUbatch":512}' appends one extra bench key this arm doesn't model.
