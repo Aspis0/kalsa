@@ -148,7 +148,9 @@ async function main() {
       roundsUsed: 3,
       streamedLen: 0,
       fallbackFired: true,
-      fallbackOk: false,
+      fallbackAnswered: false,
+      fallbackAttempts: 2,
+      floor: "sources",
       rawLen: 812,
       sawThink: true,
       sawToolMarkup: false,
@@ -161,19 +163,32 @@ async function main() {
     check("Telemetry: roundsUsed is number", typeof json.roundsUsed === "number");
     check("Telemetry: streamedLen is number", typeof json.streamedLen === "number");
     check("Telemetry: fallbackFired is boolean", typeof json.fallbackFired === "boolean");
-    check("Telemetry: fallbackOk is boolean", typeof json.fallbackOk === "boolean");
+    check("Telemetry: fallbackAnswered is boolean", typeof json.fallbackAnswered === "boolean");
+    check("Telemetry: fallbackAttempts is number", typeof json.fallbackAttempts === "number");
+    check(
+      "Telemetry: floor is one of the three outcomes",
+      ["none", "sources", "canned"].includes(json.floor),
+      `got ${JSON.stringify(json.floor)}`,
+    );
     check("Telemetry: rawLen is number", typeof json.rawLen === "number");
     check("Telemetry: sawThink is boolean", typeof json.sawThink === "boolean");
     check("Telemetry: sawToolMarkup is boolean", typeof json.sawToolMarkup === "boolean");
 
+    // The single fallbackOk boolean is gone: it could not say WHETHER the model
+    // answered, how many attempts it spent, or what closed the turn instead.
+    check("Telemetry: fallbackOk is gone", !("fallbackOk" in json));
+
     // Verify no extra fields. The literal above is the FULL payload on purpose:
     // JSON.stringify drops an undefined property, so a harness that left the
     // new counters out would compare a five-key line against a five-key
-    // expectation and pass while the real line carried eight.
+    // expectation and pass while the real line carried ten. That is exactly how
+    // a renamed field goes unnoticed here.
     const keys = Object.keys(json).sort();
     const expectedKeys = [
+      "fallbackAnswered",
+      "fallbackAttempts",
       "fallbackFired",
-      "fallbackOk",
+      "floor",
       "rawLen",
       "roundsUsed",
       "sawThink",
@@ -186,6 +201,17 @@ async function main() {
       JSON.stringify(keys) === JSON.stringify(expectedKeys),
       `Expected ${expectedKeys.join(",")}, got ${keys.join(",")}`,
     );
+
+    // Every floor value the service can settle must survive the formatter, or
+    // the field is decorative and CI cannot tell the three outcomes apart.
+    for (const floor of ["none", "sources", "canned"]) {
+      const emitted = JSON.parse(
+        formatToolRoundExhaustedLine("turn-123", { ...tel, floor }).slice(
+          "KALSA_TOOLROUND_EXHAUSTED ".length,
+        ),
+      );
+      check(`Telemetry: floor "${floor}" survives`, emitted.floor === floor);
+    }
 
     // Verify no user text or model output in telemetry
     const lineStr = JSON.stringify(json);
