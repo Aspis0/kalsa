@@ -656,3 +656,150 @@ Conversations went 29 → 32 ids; **none were deleted**.
 Left running on a fresh `Nuova chat` screen with an empty composer — `raw/final-screen-634e3da4.png`,
 model `LFM2.5 2.6B`, `Su questo telefono`, `mCurrentFocus` = `com.kalsa.app/.MainActivity` before every
 tap. Never disconnected, never uninstalled, data never cleared, no battery or thermal fake.
+
+## 10. Which backend is wrong: CPU as the reference
+
+Run 2026-10-17 00:29–00:52, same device, same build `634e3da4`, unplugged throughout, cold. §9 found
+NPU-vs-GPU disagreeing on the argmax at 22 of 32 steps on enc-long, but that comparison cannot say
+*which* side moved. This section adds the CPU reference and separates prompt length from build.
+
+Backup before any write: `raw/RKStorage-pre-cpu-backup.sqlite`, sha256
+`ba5ccba74204c84a92feb3c40f3444f7287b94ce4a76d893340f6cb705e19294`, 121 rows, integrity `ok`.
+
+### 10.1 The CPU switch
+
+From the QDC R5 cell's `arm.sh` (`CPU` and `CTRL` arms): the CPU arm is **`kalsa.governor.enabled=0`**
+— the shipped governor is switched off, so nothing routes and prefill *and* decode both run on CPU.
+Their other keys (`thermo` fake, `npu_lane=off`, `route=gpu`, chat wipe) were **not** ported: the first
+would void the heat numbers, the second two belong to the GPU arm, and the wipe would delete the
+owner's chats.
+
+This cell's `arm.sh` gained kind `C` (governor off + `force_ids` = `l1a`'s 32 ids) and now asserts
+the governor equals the kind's requirement instead of always requiring 1. Two consequences were
+handled rather than left to chance: A and B now **set** `kalsa.governor.enabled=1` explicitly instead of
+trusting what the previous arm left behind, and `restore.sh` now restores the governor to 1 alongside
+the other keys — the CPU arm turns the owner's governor off, and leaving it off would silently change
+their phone.
+
+### 10.2 The turns
+
+| arm | role | prompt | NPU / GPU / batt at send (C) | plug | wall | rows | backend evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `l1c` | **C — CPU reference** | long | 38.2 / 38.0 / 34.2 | none | 78 s | 33 | `KALSA_NATIVE_VARIANT {"…hexagon_opencl","nGpuLayers":0}`, **no `KALSA_GOVERNOR_TURN` at all**, 33/33 `forced:true` |
+| `l1a2` | A′ — NPU default | long | 39.4 / 39.2 / 35.2 | none | 84 s | 686 | `{"ep":"NPU","chunks":10,"dev":["HTP0"],"forced":false}` |
+| `s2a` | short NPU | short | 39.4 / 39.2 / 35.7 | none | 56 s | 508 | `{"ep":"NPU","chunks":5,"dev":["HTP0"],"forced":false}` |
+| `s2b` | short GPU forced | short | 50.9 / 52.7 / 36.9 | none | 185 s | 33 | `{"ep":"GPU","chunks":5,"dev":["GPUOpenCL"],"forced":true}`, 33/33 forced |
+
+**The C arm really is CPU.** The decisive field is `nGpuLayers`: `0` for `l1c` against
+`{"prefill":99,"decode":0}` for `l1a`. `KALSA_GOVERNOR_TURN` is absent entirely, exactly as the QDC
+cell reports for its governor-off arms. HTP is *probed* but never used:
+`ggml-hex: device 0: HTP0 (phys=0, virt=0, domain=cdsp:3)` then
+`HTP0 failed to get URI … error 0x14. Falling back to single session`, with **no**
+`llama_prepare_model_devices: using device HTP0` and **no** `load_tensors: HTP0-*` buffer lines — both
+of which appear in abundance in the A arms.
+
+No stop rule fired and every sample was `Awake` (`l1c` 5/5, `l1a2` 6/6, `s2a` 4/4, `s2b` 14/14). Peak
+battery 39.7 C against the 42.0 limit, peak thermal status 1, level ended at 86 % so the
+`< 30 % unplugged` rule never applied.
+
+### 10.3 Verdicts (verbatim)
+
+TF mode, PREREG thresholds 0.03 / 0.02 / 0.10, unmodified `oracle_logit.py`
+(`sha256 685c7a0878cceda2d2712397ee2ac5d6d61ea3e77e9ae3c77fc39adaddcd8909`, identical to both
+source-cell copies):
+
+```
+oracle=FAIL rule=R2 steps=32 max_dlogp=6.6347 max_dp1=0.7710 divergences=0 first_div=-1   (l1a vs l1b, long NPU vs GPU)
+oracle=FAIL rule=R2 steps=32 max_dlogp=6.6642 max_dp1=0.7835 divergences=0 first_div=-1   (l1a vs l1c, long NPU vs CPU)
+oracle=FAIL rule=R2 steps=32 max_dlogp=0.7731 max_dp1=0.0534 divergences=0 first_div=-1   (l1b vs l1c, long GPU vs CPU)
+oracle=FAIL rule=R2 steps=32 max_dlogp=0.5142 max_dp1=0.0463 divergences=0 first_div=-1   (s2a vs s2b, short NPU vs GPU)
+oracle=DESCRIPTIVE rule=R4 steps=1 max_dlogp=0.2039 max_dp1=0.0000 divergences=0 first_div=-1   (l1a vs A′)
+oracle=DESCRIPTIVE rule=R4 steps=1 max_dlogp=0.0000 max_dp1=0.0000 divergences=0 first_div=-1   (l1c vs l1a)
+```
+
+Two invocations are structurally unable to compare and are recorded as such rather than quoted as
+verdicts. `oracle.sh l1c l1a` (CPU first) returns `DESCRIPTIVE … steps=1` because TF mode requires the
+**second** file to be the teacher-forced one (`oracle_logit.py:89`): `l1a` is a free generation, so the
+loop stops after step 0. The same applies to `l1a vs l1a2`, where neither file is forced. The
+`l1b vs l1c` and `l1c vs l1b` orders both cover 32 steps (both sides forced), and agree on
+`max_dlogp 0.7731`; only which side's margins drive R1 differs, and neither order produces an R1.
+
+### 10.4 Per-pair comparison, steps 0–31
+
+| pair | top-1 disagreements | max \|Δlogp\| | max \|Δp₁\| | R1 steps |
+| --- | --- | --- | --- | --- |
+| long **NPU vs CPU** | **21 / 32** | **6.6642** | 0.7835 | 21 steps |
+| long **GPU vs CPU** | **2 / 32** | **0.7731** | 0.0534 | none |
+| long NPU vs GPU | 22 / 32 | 6.6347 | 0.7710 | 22 steps |
+| short NPU vs GPU | 0 / 32 | 0.5142 | 0.0463 | none |
+| long NPU vs NPU′ | 0 / 32 | 0.0000 | 0.0000 | none |
+
+Where they disagree, GPU is on CPU's side and NPU is alone:
+
+```
+step  NPU_top1  GPU_top1  CPU_top1
+   2       677     10966     10966     <- NPU is the odd one out
+   3      3066      4116      4116
+   5      5781      1286      1286
+  14       440     34689       440     <- the only step GPU also departs
+  20       355       358     20678     <- the other
+A vs B agreement: 10 /32      B vs C agreement: 30 /32      A vs C agreement: 11 /32
+```
+
+**Which backend departs from CPU on the long prompt: the NPU.** GPU prefill tracks the CPU reference
+closely (30/32 same argmax, 0.77 nats, no R1), while NPU prefill disagrees with CPU on 21 of 32 steps
+by up to 6.66 nats — 8.6× further from CPU than GPU is. §9's "NPU vs GPU disagree 22/32" is therefore
+not a two-sided conflict: it is almost entirely the NPU moving away from an agreed GPU+CPU answer.
+
+### 10.5 Length vs build, separated
+
+- **Short prompt, this build, two captures byte-identical**: `s2a` = `0a8e25d89de56add…` = `smoke`.
+  Short-prompt determinism survives the build change, as §9.4 found.
+- **Long prompt is NOT deterministic**: `l1a` `83a4f296f144…` (711 rows) vs `l1a2` `a5c535de2471…`
+  (686 rows). Same build, same arm, same prompt, both 84 s.
+- **But the divergence is outside the oracle window.** Steps 0–32 are **bit-identical** (first logit
+  difference at step 33, first token difference at step 34, then 644 of 686 steps cascade). So
+  `l1a vs l1a2` over steps 0–31 is 0 disagreements / 0.0000, and the determinism question the oracle
+  actually asks is answered *yes* for the 32-step window — while the long-prompt generation as a whole
+  is not reproducible. Neither turn has an extra tool round or a `turnId` change (one `KALSA_TOOLCALL`
+  at `round 0, executed 0`, `turnId 1` throughout in both), so this is not a harness-visible event.
+- **Build vs length, now separated.** The short prompt on the new build still gives
+  `max_dlogp 0.5142, max_dp1 0.0463, 0/32` — the same shape as the old build's short result
+  (0.7041 / 0.1021 / 0/32), slightly smaller. So the large long-prompt divergence is **not** a build
+  artifact: it tracks prompt length (5 chunks → benign R2 drift; 10 chunks → NPU argmax collapses).
+
+### 10.6 State left on the device
+
+`restore.sh` exit 0. Read-back straight off the device: `integrity: ok`, `rows: 131`,
+**`kalsa.governor.enabled=1`**, and **0** of the eight bench keys this cell sets present. Diffing
+against this task's pre-run backup shows only rows for the four new chats
+(`kalsa.chat.compactor.conv-*`, `kalsa.messages.conv-*`, `kalsa.session.meta.*`), plus
+`kalsa.conversations.v1` with a new `activeId` and a `kalsa.logReport.consumedExitAt.v1` timestamp —
+no pre-existing row removed or rewritten, conversation ids 33 → 36, none deleted. No shell redirect
+touched app data at any point; every write went through `kset.sh`.
+
+Left running on a fresh `Nuova chat` screen, empty composer — `raw/final-screen-cpu.png`,
+`mCurrentFocus=com.kalsa.app/.MainActivity` re-checked before each of the two taps. The governor is
+back on, so the phone behaves as the owner left it.
+
+New probs shas:
+
+```
+3739e9c31df9f04a34f3b9c06631af1ebd8c14f5919ee83c015643b80d96bb76  l1c-probs.jsonl   (CPU, long)
+a5c535de2471955c0c52f2b098824e1b2f13dc85491db5325e86a4e5fcdd9eef  l1a2-probs.jsonl  (NPU, long, 2nd capture)
+0a8e25d89de56add12ab1ac1615e97fb684dd8ed69fdbf7c858caf35d7096f90  s2a-probs.jsonl   (NPU, short, this build)
+0ef048f3939f55465732d8c8e8656d3bbbf45602b240de0b6c3cb1ace920e574  s2b-probs.jsonl   (GPU, short, this build)
+```
+
+### 10.7 What this does not settle
+
+- **One prompt per length, one pair each.** "Long = NPU collapses" rests on one long prompt at one
+  length. A length sweep (chunk counts between 5 and 10) is what would turn this into a threshold.
+- **The NPU collapse's cause is not identified.** The evidence is behavioural: the NPU argmax moves
+  away from an agreed CPU+GPU answer at 10 chunks. Which of chunked prefill, the q4_0 V-cache packing,
+  or a device-level scheduling effect is responsible is not measured here.
+- **GPU is not proven correct.** It tracks CPU closely on 32 steps of one prompt; 2 disagreements and a
+  0.77-nat gap remain, and the sign of that residual is not analysed.
+- **The long-prompt step-33 divergence is unexplained.** It is outside the oracle's 32-step window and
+  outside this section's scope, but it means long-prompt generations are not reproducible on this
+  build.

@@ -12,7 +12,9 @@ MODEL_SIZE=1593894944; MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gg
 # Stop rules from the task frame: thermal status and level are live reads, never faked.
 STOP_BATT_C=${STOP_BATT_C:-42.0}; STOP_TSTAT=${STOP_TSTAT:-3}; STOP_LEVEL=${STOP_LEVEL:-30}
 
-adb get-state -s "$SER" >/dev/null 2>&1 || { echo "S23 NOT ATTACHED ($SER): STOP"; return 2 2>/dev/null || exit 2; }
+# -s must precede the subcommand: `adb get-state -s SER` ignores -s and fails outright with
+# "more than one device" as soon as a second phone is attached, which reads as a false disconnect.
+adb -s "$SER" get-state >/dev/null 2>&1 || { echo "S23 NOT ATTACHED ($SER): STOP"; return 2 2>/dev/null || exit 2; }
 adb -s "$SER" shell getprop ro.product.model 2>/dev/null | tr -d '\r' | grep -qx SM-S911U || {
   echo "wrong device on $SER: STOP"; return 2 2>/dev/null || exit 2; }
 ad() { perl -e 'alarm shift; exec @ARGV or exit 127' "${ADT:-90}" adb -s "$SER" "$@"; }
