@@ -693,6 +693,9 @@ function answerFrames(text) {
  *
  * - `tools-demo`   one search, its argument JSON torn across three chunks;
  * - `toolsfetch-demo`  a page fetch;
+ * - `toolspages-demo`  one search and then an answer in words, with no fetch
+ *   of its own: the pages the app read underneath the search are the model's
+ *   only source, so a result without them is refused here;
  * - `toolstwo-demo`   two calls in one round, then a third in a second round;
  * - `toolsbad-demo`   arguments that are not JSON, and the turn must survive;
  * - `toolsloop-demo`  a call every round, until the client asks for words;
@@ -747,6 +750,21 @@ function streamTools(res, bodyText, model) {
     } else {
       frames = callFrames([{ id: `burn${rounds}`, name: "web_search", arguments: `{"query":"burn ${rounds}"}` }], false);
       frames[frames.length - 1] = { choices: [{ delta: {}, finish_reason: "length" }] };
+    }
+  } else if (model.includes("toolspages-demo")) {
+    // One search, then an answer in words: this model never calls web_fetch.
+    // The pages the app read underneath the search are therefore the only
+    // source it has, and a result that does not carry them is refused here —
+    // the same way a malformed round trip is — so the case cannot pass on
+    // snippets the way the real model did.
+    if (rounds === 0) {
+      frames = callFrames([{ id: "pages1", name: "web_search", arguments: '{"query":"what is on this weekend"}' }], false);
+    } else {
+      const answered = messages.find((message) => message.role === "tool")?.content ?? "";
+      if (!answered.includes("Page 1 (") || !answered.includes("Page 2 (")) {
+        return refuseWire(res, "the search result carried no page blocks");
+      }
+      frames = answerFrames("The concert is on Saturday at 8 pm, and the market on Sunday.");
     }
   } else if (model.includes("toolsloop-demo")) {
     // Answers only when the client asks for words with tool_choice: "none".

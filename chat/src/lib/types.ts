@@ -38,6 +38,9 @@ export interface ToolRun {
   /** How many mail cards that turn drew, and the only part of them that is
       kept: a reloaded chat has the count and not the cards. */
   mailShown?: number;
+  /** How many pages a search read before it answered, so the card can say so
+      honestly instead of claiming the model did. Nothing when it read none. */
+  pagesRead?: number;
   /**
    * `refused` is a call this app would not run: one the stream never named,
    * one whose tool the request did not offer (a model can ask for

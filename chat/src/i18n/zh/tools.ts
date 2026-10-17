@@ -17,6 +17,7 @@ export const TOOLS = {
     "searchedWeb": "搜索了网络",
     "searchedForLabel": "搜索了：",
     "askedForLabel": "请求了：",
+    "pagesReadLabel": "已读页面：",
     "searchWaitingTitle": "Kalsa 想搜索网络。允许它吗？",
     "pageWaitingTitle": "Kalsa 想打开一个网页。允许它吗？",
     "gateWhy": (docs: string) => `${docs}，因此 Kalsa 在发送前先给你看它会发到网上的内容。`,

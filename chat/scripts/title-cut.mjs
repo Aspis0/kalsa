@@ -30,9 +30,9 @@ function hasLoneSurrogate(text) {
 
 const dir = await mkdtemp(join(tmpdir(), "kalsa-title-"));
 try {
-  const outfile = join(dir, "store.mjs");
+  const outfile = join(dir, "text.mjs");
   await build({
-    entryPoints: [fileURLToPath(new URL("../src/lib/store.ts", import.meta.url))],
+    entryPoints: [fileURLToPath(new URL("../src/lib/text.ts", import.meta.url))],
     bundle: true,
     format: "esm",
     platform: "node",

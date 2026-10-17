@@ -17,6 +17,7 @@ export const TOOLS = {
     "searchedWeb": "Ha cercato sul web",
     "searchedForLabel": "Cercato:",
     "askedForLabel": "Chiesto:",
+    "pagesReadLabel": "Pagine lette:",
     "searchWaitingTitle": "Kalsa vuole cercare sul web. Consenti?",
     "pageWaitingTitle": "Kalsa vuole aprire una pagina web. Consenti?",
     "gateWhy": (docs: string) => `${docs}, quindi Kalsa ti mostra in anticipo cosa invierebbe in rete.`,

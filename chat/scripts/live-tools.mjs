@@ -242,14 +242,18 @@ const scenarios = {
       "Search the web for the page announcing the latest stable Rust release, then open that page and tell me one concrete thing it says changed. Search first, then fetch, then answer in two sentences.",
     );
     show("C. two rounds: a search, then a fetch of a result", result);
+    // A search reads its own best page underneath itself, so the door sees
+    // search,fetch,fetch here — and the last fetch is the model's own.
+    // Exactly the sequence the case is about: one search, then pages, and
+    // nothing but pages after it — the app's reads and the model's own.
     const kinds = result.calls.map((call) => call.tool).join(",");
-    expect("the model searched and then opened a page, in that order", kinds === "search,fetch", kinds || "(none)");
+    expect("one search first, then pages, and no second search", /^search(,fetch)+$/.test(kinds), kinds || "(none)");
     const searched = result.calls.find((call) => call.tool === "search");
-    const opened = result.calls.find((call) => call.tool === "fetch");
+    const opened = result.calls.at(-1);
     expect(
       "the page it opened was one the search returned",
-      opened !== undefined && String(searched?.result ?? "").includes(String(opened.argument)),
-      `${opened?.argument}`,
+      opened?.tool === "fetch" && String(searched?.result ?? "").includes(String(opened.argument)),
+      `${opened?.tool}:${opened?.argument}`,
     );
     expect("the turn ended with words", result.answer.trim().length > 0);
   },
@@ -314,7 +318,17 @@ const scenarios = {
       { maxTokens: 1500 },
     );
     show("G. trying to reach the round cap", result);
-    expect("the cap stopped the searching at four", result.calls.length === 4, String(result.calls.length));
+    // `calls` records every call the door saw, and a search now reads its own
+    // result's page underneath itself — so the cap is about the searches, named
+    // as such, not about every web call in the run.
+    const searches = result.calls.filter((call) => call.tool === "search");
+    expect("the cap stopped the searching at four", searches.length === 4, String(searches.length));
+    // Not a count: how many pages a search reads is up to what each query found,
+    // which is the model's choosing and says nothing about the app. What the app
+    // guarantees is that it only ever read an address some search result listed.
+    const listed = new Set(searches.flatMap((call) => String(call.result ?? "").match(/https?:\/\/\S+/g) ?? []));
+    const strays = result.calls.filter((call) => call.tool === "fetch" && !listed.has(String(call.argument ?? "").split("#")[0]));
+    expect("every page read under a search was an address a result listed", strays.length === 0, JSON.stringify(strays.map((c) => c.argument)));
     expect("no tool-call markup was shown to the reader", !/<tool_call|<function=|parameter=/.test(result.answer), result.answer.slice(0, 120));
   },
 };

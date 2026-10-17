@@ -75,7 +75,7 @@ export const WEB_TOOLS: ToolDefinition[] = [
     function: {
       name: "web_search",
       description:
-        "Search the web for current information: news, facts, prices, events, people — anything the model may not know. Returns the top results with their titles, URLs and a short excerpt. Use web_fetch to actually read a result.",
+        "Search the web for current information: news, facts, prices, events, people — anything the model may not know. Returns the top results with their titles, URLs and a short excerpt, and the answer may also carry the text of the top pages Kalsa read under it. Use web_fetch for any result or link whose text is not already in the answer.",
       parameters: {
         type: "object",
         properties: {

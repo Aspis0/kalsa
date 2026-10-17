@@ -6,7 +6,8 @@
 // because the state lives in any particular file.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { createStore, firstCharacters, titleFor, uid } from "../lib/store";
+import { createStore, uid } from "../lib/store";
+import { firstCharacters, titleFor } from "../lib/text";
 import { activateChat, eraseChat, fetchContextSize, serverBase } from "../lib/chat";
 import { ensureContextSize, hasContextSize } from "../lib/contextSize";
 import { createSlotGate } from "../lib/slotGate";

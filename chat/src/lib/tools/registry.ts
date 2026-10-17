@@ -1,5 +1,5 @@
 import type { ToolOutcome, WireMessage } from "../chat";
-import { available, invoke } from "../tauri";
+import { available } from "../tauri";
 import { findCopied } from "../webgate/copied";
 import type { PinnedDoc } from "../webgate/copied";
 import type { GateFinding } from "../webgate/finding";
@@ -7,7 +7,9 @@ import { findSensitive } from "../webgate/sensitive";
 import { TOOL_DEFINITIONS, CREATE_MINIAPP_TOOL, MAIL_TOOLS, mailShowTool } from "./definitions";
 import type { ToolDefinition } from "./definitions";
 import { runCreateMiniapp } from "./createMiniapp";
+import { through } from "./door";
 import { fetchProvenanceRefusal, searchQueryRefusal } from "./fetchProvenance";
+import { readSearchPages } from "./searchPages";
 import { runMailDraft, runMailList, runMailRead } from "./mailCall";
 import { runMailShow } from "./mailShow";
 import { mailAllowed } from "../mail/allowlist";
@@ -63,15 +65,6 @@ export function offeredTools(enabled: boolean, language: Language, model: string
   const mail = mailAllowed(model) ? [...MAIL_TOOLS, mailShowTool(language)] : [];
   return enabled ? [...TOOL_DEFINITIONS, ...mail] : [CREATE_MINIAPP_TOOL, ...mail];
 }
-
-/**
- * Names for the web calls, so Stop can say which one it is stopping. The Rust
- * side keys its running calls by this number, and a counter starting at one
- * would collide across a reload and between two windows — one window's Stop
- * could then name the other window's call. A page prefix from the operating
- * system's random source, under 2^53 so it survives being a JSON number.
- */
-let nextCallId = (crypto.getRandomValues(new Uint32Array(1))[0] % 0x100000) * 2 ** 32 + 1;
 
 /**
  * Run one call the model asked for and answer with the text it will read next
@@ -146,12 +139,23 @@ export async function executeToolCall(
       // of it would run.
       const refusal = searchQueryRefusal(query, conversation);
       if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
+      // Read once, before the query leaves: the documents getter is live, and a
+      // decision taken from two reads of it is not a decision but a race.
+      const gateArmed = armed(gate, conversation);
       // The notice comes after the refusal because nothing is sent there, and
       // before the gate because the owner has to know who receives a search
       // before deciding whether this one may go.
       if (!(await notified(gate, signal))) return heldBack(query, signal, stoppedText);
-      if (!(await admitted(gate, "web_search", query, conversation, signal))) return heldBack(query, signal, stoppedText);
-      return { text: await through("brain_web_search", { query }, signal), ok: true };
+      if (!(await admitted(gate, "web_search", query, gateArmed, conversation, signal))) return heldBack(query, signal, stoppedText);
+      const found = await through("brain_web_search", { query }, signal);
+      // Where this turn is armed, the search answers as it always did. Reading
+      // pages under it would be the app spending an allowance it was only given
+      // for the query — so there, the model's own web_fetch is the only road to
+      // a page, and it gets its own ask.
+      if (gateArmed) return { text: found, ok: true };
+      const pages = await readSearchPages(found, conversation, signal);
+      if (pages === null) return stopped(stoppedText);
+      return { text: pages.text, ok: true, ...(pages.count > 0 ? { pagesRead: pages.count } : {}) };
     }
     if (name === "web_fetch") {
       let url = typeof record.url === "string" ? record.url.trim() : "";
@@ -166,7 +170,7 @@ export async function executeToolCall(
       if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
       // The address is checked whole: a URL carries a payload as well as any
       // query does (`...?q=<IBAN>` leaves exactly as much).
-      if (!(await admitted(gate, "web_fetch", url, conversation, signal))) return heldBack(url, signal, stoppedText);
+      if (!(await admitted(gate, "web_fetch", url, armed(gate, conversation), conversation, signal))) return heldBack(url, signal, stoppedText);
       return { text: await through("brain_web_fetch", { url }, signal), ok: true };
     }
     return { text: `There is no tool called “${name}”.`, ok: false };
@@ -218,17 +222,22 @@ async function admitted(
   gate: WebGate | null,
   tool: GateCheck["tool"],
   outgoing: string,
+  gateArmed: boolean,
   conversation: WireMessage[],
   signal?: AbortSignal,
 ): Promise<boolean> {
-  if (gate === null) return true;
+  if (gate === null || !gateArmed) return true;
   const docs = gate.documents();
-  const mail = mailIn(conversation);
-  if (docs.length === 0 && !mail) return true;
   const findings = [...findSensitive(outgoing), ...findCopied(outgoing, docs)];
   let allowed: boolean;
   try {
-    allowed = await gate.confirm({ tool, outgoing, findings, documentIds: docs.map((d) => d.id), mail });
+    allowed = await gate.confirm({
+      tool,
+      outgoing,
+      findings,
+      documentIds: docs.map((d) => d.id),
+      mail: mailIn(conversation),
+    });
   } catch {
     // A gate that throws must not fail open: the string stays inside.
     return false;
@@ -236,6 +245,21 @@ async function admitted(
   // Stop while the ask was up ends the wait with a refusal, and the aborted
   // check below turns it into the turn's own stopped sentence.
   return allowed && !Boolean(signal?.aborted);
+}
+
+/**
+ * Whether this turn's gate would ask the owner anything: a document is pinned,
+ * or mail text is in the conversation.
+ *
+ * A turn with no gate at all — a phone — is not armed, and does its page reads:
+ * there the model's own web_fetch runs without an ask either, so skipping them
+ * would protect nothing the model could not already do. On the desktop the
+ * gate's fetches are confirmed by the owner, and the reads under a search
+ * stay behind that allowance rather than spending it.
+ */
+function armed(gate: WebGate | null, conversation: WireMessage[]): boolean {
+  if (gate === null) return false;
+  return gate.documents().length > 0 || mailIn(conversation);
 }
 
 /** Whether mail text is in the conversation the model is reading: a mail call
@@ -271,28 +295,4 @@ function heldBack(outgoing: string, signal: AbortSignal | undefined, stoppedText
 
 function stopped(text: string): ToolOutcome {
   return { text, ok: false };
-}
-
-/**
- * One call through the door, named so the page can stop it. The door is
- * untyped: a command answering with nothing would otherwise put a `null` into
- * the transcript, where it reaches the token count and takes the whole page
- * down, so whatever comes back leaves here as text.
- */
-async function through(
-  command: string,
-  args: Record<string, unknown>,
-  signal?: AbortSignal,
-): Promise<string> {
-  const id = nextCallId++;
-  const stop = () => {
-    void invoke("brain_web_stop", { id }).catch(() => {});
-  };
-  signal?.addEventListener("abort", stop, { once: true });
-  try {
-    const answer: unknown = await invoke(command, { id, ...args });
-    return typeof answer === "string" ? answer : String(answer ?? "");
-  } finally {
-    signal?.removeEventListener("abort", stop);
-  }
 }

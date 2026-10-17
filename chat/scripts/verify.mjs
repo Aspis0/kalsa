@@ -266,9 +266,9 @@ async function resetMock(page) {
  * `noticeFailsOnce` rejects only the first call, for the window that has to
  * recover from it.
  */
-async function stubDoor(page, { search = null, fetch = null, hang = false, notice = { provider: "Exa", answered: true }, noticeBroken = false, noticeFailsOnce = false } = {}) {
+async function stubDoor(page, { search = null, fetch = null, hang = false, slowPage = false, notice = { provider: "Exa", answered: true }, noticeBroken = false, noticeFailsOnce = false } = {}) {
   await page.addInitScript(
-    ({ search, fetchResult, hang, notice, noticeBroken, noticeFailsOnce }) => {
+    ({ search, fetchResult, hang, slowPage, notice, noticeBroken, noticeFailsOnce }) => {
       window.__TOOL_CALLS__ = [];
       window.__NOTICE_ANSWERS__ = 0;
       window.__NOTICE_FAILS__ = 0;
@@ -309,6 +309,9 @@ async function stubDoor(page, { search = null, fetch = null, hang = false, notic
               window.__TOOL_CALLS__.push({ command, args });
               if (hang) return new Promise(() => {});
               if (command === "brain_web_search") return search;
+              // A search that answered, and a page that never does: the shape
+              // a search's own page read is in when the site is down.
+              if (slowPage) return new Promise(() => {});
               return fetchResult;
             }
             // The start-up reads answer as the brain stub does (brain-stub.mjs);
@@ -325,7 +328,7 @@ async function stubDoor(page, { search = null, fetch = null, hang = false, notic
         event: { listen: () => Promise.resolve(() => {}) },
       };
     },
-    { search, fetchResult: fetch, hang, notice, noticeBroken, noticeFailsOnce },
+    { search, fetchResult: fetch, hang, slowPage, notice, noticeBroken, noticeFailsOnce },
   );
 }
 
@@ -417,6 +420,17 @@ const toolSettings = (model, webTools = true) => ({
 });
 
 const LISBON = "1. Lisbon weekend forecast\n   URL: https://example.com/lisbon\n   Mild, rain on Sunday evening.";
+
+// Two results, so a search has two pages of its own under it to read.
+const TWO_RESULTS = [
+  "1. Brooklyn this weekend",
+  "   URL: https://events.example/brooklyn-weekend",
+  "   A concert on Saturday and a market on Sunday.",
+  "",
+  "2. What to do in Brooklyn",
+  "   URL: https://city.example/guide",
+  "   A guide to the weekend, listing the same two.",
+].join("\n");
 
 const tests = {
   // v1 -> v2 migration: nothing lost, never repeats, old key removed.
@@ -2519,7 +2533,14 @@ const tests = {
     const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) =>
       String(c.command).startsWith("brain_web_"),
     );
-    check("tools: the search ran through the desktop door", calls.length === 1 && calls[0].command === "brain_web_search", JSON.stringify(calls));
+    // The search, then the page its own result names: a search reads its best
+    // page before it answers (searchPages.ts), which is one more door call
+    // than this case used to expect.
+    check(
+      "tools: the search ran, then the page it found",
+      calls.map((c) => c.command).join(",") === "brain_web_search,brain_web_fetch",
+      JSON.stringify(calls.map((c) => `${c.command}:${c.args.url ?? c.args.query}`)),
+    );
     check("tools: the call carried an id Stop could name", typeof calls[0]?.args?.id === "number", JSON.stringify(calls[0]?.args));
     check("tools: the query was reassembled from split chunks", calls[0]?.args?.query === "weather in Lisbon", JSON.stringify(calls[0]?.args));
 
@@ -2636,6 +2657,156 @@ const tests = {
     await browser.close();
   },
 
+  // A search the model never follows up on. Measured with the real model on
+  // 2026-10-17: asked what was on this weekend, it called web_search once and
+  // answered out of four snippets — two runs in three — and the run that opened
+  // a page gave the best answer. So the app reads the pages underneath the
+  // search (searchPages.ts), and what the second round's wire carries is the
+  // thing this case is about. The mock refuses a result without them, so this
+  // cannot pass on snippets.
+  async toolspages() {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    const page = await browser.newPage();
+    await stubDoor(page, { search: TWO_RESULTS, fetch: "The concert is on Saturday at 8 pm." });
+    await seedOnce(page, toolSettings("toolspages-demo"));
+    await page.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await openChat(page);
+    await page.waitForTimeout(1200);
+    await resetMock(page);
+    await sendAndWait(page, "What is on this weekend?", "concert");
+
+    const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) =>
+      String(c.command).startsWith("brain_web_"),
+    );
+    check(
+      "pages: the search ran, then the two pages its result names",
+      calls.map((c) => c.command).join(",") === "brain_web_search,brain_web_fetch,brain_web_fetch",
+      JSON.stringify(calls.map((c) => `${c.command}:${c.args.url ?? c.args.query}`)),
+    );
+    check(
+      "pages: both reads are the result's own first two addresses, in order",
+      calls.slice(1).map((c) => c.args?.url).join(",") ===
+        "https://events.example/brooklyn-weekend,https://city.example/guide",
+      JSON.stringify(calls.map((c) => c.args?.url)),
+    );
+    // Each read is its own call with its own id, so a Stop names the one it
+    // means rather than a number three calls share.
+    check(
+      "pages: every call carries its own id Stop could name",
+      new Set(calls.map((c) => c.args?.id)).size === calls.length,
+      JSON.stringify(calls.map((c) => c.args?.id)),
+    );
+
+    const bodies = await allBodies(page);
+    check("pages: the model was asked again once, and then answered", bodies.length === 2, String(bodies.length));
+    const result = (bodies.at(-1)?.messages ?? []).find((m) => m.role === "tool")?.content ?? "";
+    check(
+      "pages: the wire the model reads carries both pages",
+      result.includes("Page 1 (https://events.example/brooklyn-weekend):") &&
+        result.includes("Page 2 (https://city.example/guide):"),
+      result.slice(0, 400),
+    );
+    check(
+      "pages: what is in the answer is the page's own text",
+      result.includes("The concert is on Saturday at 8 pm."),
+      result.slice(-300),
+    );
+    // The search's own `URL:` lines stay exactly as they were: they are what
+    // arms provenance for a fetch the model asks for itself afterwards.
+    check(
+      "pages: the search's URL lines are untouched",
+      result.includes("   URL: https://events.example/brooklyn-weekend\n") &&
+        result.includes("   URL: https://city.example/guide\n"),
+      result.slice(0, 300),
+    );
+
+    const thread = (await page.locator(".thread").textContent()) ?? "";
+    check("pages: the card says how many pages were read", thread.includes("Pages read: 2"), thread.slice(0, 300));
+    // The reads are the search's own work: one row, not three.
+    check("pages: the reads belong to the search's own row", (await page.locator(".tool-run").count()) === 1, String(await page.locator(".tool-run").count()));
+
+    // The kept result is a prefix of a longer one, so the count has to survive
+    // on its own for the card to still be honest after a reload.
+    await page
+      .waitForFunction(
+        () =>
+          Object.keys(localStorage).some(
+            (k) =>
+              k.startsWith("crescent-chat.msgs.") &&
+              (JSON.parse(localStorage.getItem(k) ?? "[]") ?? []).some((m) =>
+                (m.toolRuns ?? []).some((run) => typeof run.pagesRead === "number"),
+              ),
+          ),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => check("pages: the run reached the disk", false, "never written"));
+    const stored = await page.evaluate(() => ({ ...localStorage }));
+    const key = Object.keys(stored).find((k) => k.startsWith("crescent-chat.msgs."));
+    const run = JSON.parse(stored[key] ?? "[]").find((m) => (m.toolRuns ?? []).length > 0)?.toolRuns[0];
+    check("pages: the count is on the disk with the run", run?.pagesRead === 2, `pagesRead ${run?.pagesRead}`);
+
+    // …and a reloaded chat still says it, which is what the count is for: the
+    // kept result is a prefix of a longer one.
+    await page.reload();
+    await page.waitForTimeout(1500);
+    await page.locator('.rail-item[data-surface="chat"]').click();
+    await page.waitForTimeout(800);
+    await openSidebar(page, "weekend");
+    await page.waitForTimeout(600);
+    await page
+      .locator(".tool-run > summary")
+      .first()
+      .click({ timeout: 5000 })
+      .catch(() => check("pages: the run came back after a reload", false, "no tool block"));
+    const reloaded = (await page.locator(".tool-run").first().textContent()) ?? "";
+    check("pages: after a reload the card still says how many were read", reloaded.includes("Pages read: 2"), reloaded.slice(0, 200));
+
+    // The other half of the same promise: a page that never answers must not
+    // hold the turn. The search came back, the read underneath it is still
+    // waiting on a site that is down, and Stop ends the turn at once — naming
+    // that read's own call, which is a different number from the search's.
+    const slow = await browser.newPage();
+    await stubDoor(slow, { search: TWO_RESULTS, slowPage: true });
+    await seedOnce(slow, toolSettings("toolspages-demo"));
+    await slow.addInitScript(answerCapabilityInit, HOME_CAPABILITY);
+    await openChat(slow);
+    await slow.waitForTimeout(1200);
+    await resetMock(slow);
+    await slow.getByRole("textbox", { name: "Message" }).fill("What is on this weekend?");
+    await slow.getByRole("textbox", { name: "Message" }).press("Enter");
+    await slow
+      .locator(".tool-activity .tool-spin")
+      .first()
+      .waitFor({ timeout: 10000 })
+      .catch(() => check("pages: the search started", false, "never showed as running"));
+    await slow.waitForTimeout(400);
+    await slow.getByRole("button", { name: "Stop", exact: true }).click();
+    await slow.waitForTimeout(1200);
+
+    const slowCalls = await slow.evaluate(() => window.__TOOL_CALLS__ ?? []);
+    const read = slowCalls.find((c) => c.command === "brain_web_fetch");
+    const stop = slowCalls.find((c) => c.command === "brain_web_stop");
+    check(
+      "pages: the page read is a call of its own, under the search",
+      read !== undefined && read.args?.url === "https://events.example/brooklyn-weekend",
+      JSON.stringify(slowCalls),
+    );
+    check(
+      "pages: Stop named that page's call, not the search's",
+      stop !== undefined && stop.args?.id === read?.args?.id && stop.args?.id !== slowCalls[0]?.args?.id,
+      JSON.stringify({ stop: stop?.args, read: read?.args, search: slowCalls[0]?.args }),
+    );
+    const stuck = (await slow.locator(".thread").textContent()) ?? "";
+    check(
+      "pages: a page that never answers does not hold the turn",
+      stuck.includes("Reply stopped.") && (await slow.locator(".composer-stop").count()) === 0,
+      stuck.slice(0, 200),
+    );
+
+    await browser.close();
+  },
+
   // What a tool result costs the transcript. The turn that ran the tool reads
   // all of it; what stays on disk — and what every later turn sends — is the
   // beginning, so one page cannot sit in browser storage for the life of the
@@ -2713,9 +2884,15 @@ const tests = {
     await sendAndWait(page, "Search twice and read https://example.com/one.", "Both searches");
 
     const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
+    // The three calls the model made, in order, plus the one page its first
+    // search read underneath it. The second search found the same result and
+    // did not read it again.
     check(
-      "rounds: three calls ran, in the order the model asked",
-      calls.map((c) => c.command).join(",") === "brain_web_search,brain_web_fetch,brain_web_search",
+      "rounds: the three calls ran, in the order the model asked, with the search's own read",
+      calls.map((c) => `${c.command}:${c.args.url ?? c.args.query}`).join(",") ===
+        "brain_web_search:first search,brain_web_fetch:https://example.com/lisbon," +
+          "brain_web_fetch:https://example.com/one," +
+          "brain_web_search:second search",
       JSON.stringify(calls.map((c) => `${c.command}:${c.args.query ?? c.args.url}`)),
     );
     const bodies = await allBodies(page);
@@ -2788,7 +2965,22 @@ const tests = {
     await sendAndWait(page, "Keep looking until you know.", "looked enough", 40000);
 
     const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
-    check("loop: the cap stopped the searching at four", calls.length === 4, String(calls.length));
+    // The searches are what the cap is about: each one also reads its result's
+    // own page, and those reads are the search's work, not another round.
+    const searches = calls.filter((c) => c.command === "brain_web_search");
+    const fetches = calls.filter((c) => c.command === "brain_web_fetch");
+    check("loop: the cap stopped the searching at four", searches.length === 4, String(searches.length));
+    // Every round searched the same thing, and this stub gives no page text, so
+    // there is no block header for the next round to remember: four searches,
+    // four tries at the same address, and still only the four searches the cap
+    // allows. (Where a page does come back with text — `rounds`, `pages` — the
+    // second search of the same result reads nothing, which is the same rule
+    // from the other side.)
+    check(
+      "loop: the same address was tried under all four searches, and no search was added",
+      fetches.length === 4 && searches.length === 4 && new Set(fetches.map((c) => c.args.url)).size === 1,
+      `${fetches.length} reads for ${searches.length} searches: ${JSON.stringify(calls.map((c) => `${c.command}:${c.args.url ?? c.args.query}`))}`,
+    );
     const bodies = await allBodies(page);
     check("loop: four rounds of tools, then one round of words", bodies.length === 5, String(bodies.length));
     check(
@@ -3143,7 +3335,21 @@ const tests = {
     await sendAndWait(page, "Search twice.", "answer is 42", 40000);
 
     const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => String(c.command).startsWith("brain_web_"));
-    check("repeat: both rounds ran their search", calls.length === 2, JSON.stringify(calls.map((c) => c.args.query)));
+    // Two searches, and the page one of them read underneath it. Reusing a call
+    // id is what this case is about, so the count has to name its own calls:
+    // every door call would otherwise be counted, the app's page reads among
+    // them.
+    const searches = calls.filter((c) => c.command === "brain_web_search");
+    const fetches = calls.filter((c) => c.command === "brain_web_fetch");
+    check("repeat: both rounds ran their search", searches.length === 2, JSON.stringify(searches.map((c) => c.args.query)));
+    // One read for each search, and only those. This stub gives no page text at
+    // all, so there is no block header to remember and nothing to skip: the
+    // reads are still the searches' own work, not rounds of their own.
+    check(
+      "repeat: each search tried its result's page, and nothing else did",
+      fetches.length === searches.length,
+      `${fetches.length} reads for ${searches.length} searches: ${JSON.stringify(calls.map((c) => `${c.command}:${c.args.url ?? c.args.query}`))}`,
+    );
     const bodies = await allBodies(page);
     const wired = bodies.at(-1)?.messages ?? [];
     const exchanges = wired.filter((m) => m.role === "assistant" && Array.isArray(m.tool_calls));
@@ -3451,6 +3657,12 @@ const tests = {
     ).catch(() => check("gate harmless: the answer arrived", false, "wait timed out"));
     const calls = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_search");
     check("gate harmless: allowing it sends the search", calls.length === 1 && calls[0].args?.query === "weather in Lisbon", String(calls.length));
+    // A gate that had to be asked is a gate that has an allowance to spend, and
+    // the allowance was for the query. The app does not read the pages under a
+    // search behind it, and it does not go back to the owner a second time.
+    const reads = (await page.evaluate(() => window.__TOOL_CALLS__ ?? [])).filter((c) => c.command === "brain_web_fetch");
+    check("gate harmless: no page was read under a consent it was not given", reads.length === 0, JSON.stringify(reads));
+    check("gate harmless: and the owner was not asked again", (await page.locator(".webgate").count()) === 0);
     await browser.close();
   },
 

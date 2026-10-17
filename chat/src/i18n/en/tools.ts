@@ -20,6 +20,9 @@ export const TOOLS = {
   searchedWeb: "Searched the web",
   searchedForLabel: "Searched for:",
   askedForLabel: "Asked for:",
+  // A search reads its own best pages before it answers (searchPages.ts), so
+  // the card says how many rather than letting the reader assume it did.
+  pagesReadLabel: "Pages read:",
   // The gate's ask.
   searchWaitingTitle: "Kalsa wants to search the web. Allow it?",
   pageWaitingTitle: "Kalsa wants to open a web page. Allow it?",

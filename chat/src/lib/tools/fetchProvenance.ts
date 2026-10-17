@@ -1,6 +1,12 @@
 import type { WireMessage } from "../chat";
 import { PINNED_DOCS_MARK } from "../attachments";
 import { findSensitive } from "../webgate/sensitive";
+import { addressesIn, canonical, rememberAddresses } from "./addresses";
+import { URL_LINE, pageTexts, providerText } from "./resultFormat";
+
+// One shape for an address wherever it is compared: the page reads under a
+// search fold theirs the same way this rule folds one to arm.
+export { canonical };
 
 /**
  * Where a web_fetch address may come from, and what a web_search query may
@@ -12,10 +18,12 @@ import { findSensitive } from "../webgate/sensitive";
  * its user message), the pinned documents' block of the system message, or
  * the result of a web_search or web_fetch call. Everything the assistant
  * writes — its answers, its own tool-call arguments, every other tool's
- * results — counts for nothing, and a search's result arms only the
- * addresses on its own `URL:` lines (exa.rs), never the prose a query
- * steered. A query that itself carries an address with a path or a query is
- * a fetch that never asked, and follows the same rule.
+ * results — counts for nothing, and a search's result arms its own `URL:`
+ * lines (exa.rs) and nothing of its prose, which the query steered. A page
+ * the app read under a search is one tier up: it is a page the model could
+ * have opened itself, so it arms exactly what opening it would have armed.
+ * A query that itself carries an address with a path or a query is a fetch
+ * that never asked, and follows the same rule.
  */
 
 export interface FetchRefusal {
@@ -45,6 +53,14 @@ const QUERY_UNSEEN: FetchRefusal = {
     the quote — so they are never provenance. */
 const NEVER_PROVENANCE = ["Not run:", "No search was made:", "No page was opened:"];
 
+/** Whether this answer is the refusal of a call that never ran. Such a call
+ * opened nothing, so its address is not one this conversation has read —
+ * both here, where it arms nothing, and where the app's own page reads decide
+ * what a turn has already read (searchPages.ts). */
+export function neverRan(name: string, result: string): boolean {
+  return NEVER_PROVENANCE.some((prefix) => result.startsWith(prefix)) || result.startsWith(`${name} could not run:`);
+}
+
 /** The detectors' kinds that are not credentials: an address may carry an
     email, an IBAN, a phone, a card or a high-entropy document id and still
     be an address the user meant to open. The rules' kinds (keys and tokens)
@@ -57,22 +73,32 @@ const CREDENTIAL_PARAMS = new Set([
   "api_key", "apikey", "key", "auth", "session", "sid",
 ]);
 
-/** How exa.rs writes one result's own address line: three spaces, `URL: `,
-    the address. A search's prose is text the query steered, so only these
-    lines' addresses are provenance. */
-const URL_LINE = "   URL: ";
-
 /** The refusal for this address, or null when the rule lets it through to
     the gate. */
 export function fetchProvenanceRefusal(url: string, conversation: WireMessage[]): FetchRefusal | null {
   const { seen, userTexts } = seenCorpus(conversation);
   // Opening the address would send the credential to its host, so only the
   // user's own words excuse one; a page or a result quoting it does not.
-  const credentials = credentialTexts(url);
-  if (!credentials.every((credential) => userTexts.some((text) => text.includes(credential)))) return CREDENTIAL;
+  if (!credentialExcused(url, userTexts)) return CREDENTIAL;
   const key = canonical(url);
   if (key === null || !seen.has(key)) return UNSEEN;
   return null;
+}
+
+/**
+ * The credential layer on its own, for an address the app reads itself rather
+ * than one the model asked for. Such an address comes from the provider's own
+ * `URL:` lines, so it needs no arming — but a credential in it is still a
+ * secret the user did not type, and opening it would send that secret to its
+ * host. The rule is this file's, not a second copy of it.
+ */
+export function credentialRefusal(url: string, conversation: WireMessage[]): FetchRefusal | null {
+  const { userTexts } = seenCorpus(conversation);
+  return credentialExcused(url, userTexts) ? null : CREDENTIAL;
+}
+
+function credentialExcused(url: string, userTexts: string[]): boolean {
+  return credentialTexts(url).every((credential) => userTexts.some((text) => text.includes(credential)));
 }
 
 /** The egress rule for a search query: the words go to the engine as they
@@ -82,9 +108,7 @@ export function fetchProvenanceRefusal(url: string, conversation: WireMessage[])
     cannot be policed. */
 export function searchQueryRefusal(query: string, conversation: WireMessage[]): FetchRefusal | null {
   const { seen } = seenCorpus(conversation);
-  for (const match of query.matchAll(URL_LIKE)) {
-    const key = canonical(match[0].replace(/[.,;:!?…*_]+$/, ""));
-    if (key === null) continue;
+  for (const key of addressesIn(query)) {
     let parsed: URL;
     try {
       parsed = new URL(key);
@@ -107,13 +131,13 @@ function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts
       const text = userWords(message.content);
       if (text !== "") {
         userTexts.push(text);
-        remember(text, seen);
+        rememberAddresses(text, seen);
       }
     } else if (message.role === "system" && typeof message.content === "string") {
       // The pinned documents ride the system message; the fixed prompt above
       // them is the app's own text and arms nothing.
       const at = message.content.indexOf(PINNED_DOCS_MARK);
-      if (at >= 0) remember(message.content.slice(at), seen);
+      if (at >= 0) rememberAddresses(message.content.slice(at), seen);
     }
   }
   // Tool results, the web tools' only: any other tool's result is text the
@@ -134,20 +158,25 @@ function seenCorpus(conversation: WireMessage[]): { seen: Set<string>; userTexts
     // Arguments that cannot be read cannot be scrubbed out of the echo, so
     // the whole result stays out of the corpus.
     if (call.own === null) continue;
-    if (NEVER_PROVENANCE.some((prefix) => text.startsWith(prefix))) continue;
-    if (text.startsWith(`${call.name} could not run:`)) continue;
+    if (neverRan(call.name, text)) continue;
     let scrubbed = text;
     for (const value of call.own) {
       for (const form of echoForms(value)) scrubbed = scrubbed.split(form).join(" ");
     }
     if (call.name === "web_search") {
-      for (const line of scrubbed.split("\n")) {
-        if (line.startsWith(URL_LINE)) remember(line.slice(URL_LINE.length), seen);
+      // The provider's own lines arm their addresses and nothing else; each
+      // page block underneath arms as the page it is, because it is one the
+      // model could have opened itself (resultFormat.ts has the rule: a
+      // boundary mistake moves text between these two tiers, never above the
+      // one `web_fetch` already gives).
+      for (const line of providerText(scrubbed).split("\n")) {
+        if (line.startsWith(URL_LINE)) rememberAddresses(line.slice(URL_LINE.length), seen);
       }
+      for (const text of pageTexts(scrubbed)) rememberAddresses(text, seen);
     } else {
       // A page fetched from an address the conversation carried: its text is
       // outside content, not the model's.
-      remember(scrubbed, seen);
+      rememberAddresses(scrubbed, seen);
     }
   }
   return { seen, userTexts };
@@ -193,39 +222,6 @@ function echoForms(value: string): string[] {
   const trimmed = value.trim();
   const forms = new Set([value, trimmed, trimmed.split("#")[0]]);
   return [...forms].filter((form) => form !== "");
-}
-
-/** Full addresses and bare `host.tld/…` shapes. The stop class ends a match
-    at the quotes and brackets a PDF, a word processor, a chat app or CJK
-    prose wraps an address in; sentence punctuation and markdown emphasis
-    stuck to the end are trimmed after, so `**…**`, `“…”` and `（…）` give up
-    their wrapper. A leading mark can never enter the match: both
-    alternatives start at a scheme or a host character. */
-const URL_LIKE = /https?:\/\/[^\s<>"'`)\]“”‘’«»（）【】「」]+|\b(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}(?::\d{1,5})?(?:\/[^\s<>"'`)\]“”‘’«»（）【】「」]*)?/gi;
-
-function remember(text: string, seen: Set<string>): void {
-  for (const match of text.matchAll(URL_LIKE)) {
-    const key = canonical(match[0].replace(/[.,;:!?…*_]+$/, ""));
-    if (key !== null) seen.add(key);
-  }
-}
-
-/** One comparable shape, mirroring the parsers the request itself goes
-    through: scheme and host fold to lower case (the WHATWG parser both sides
-    use does that), the fragment falls away (no HTTP request carries it),
-    and the path and query stay byte-exact — slash included, because the door
-    asks `/private` and `/private/` as two different routes. A bare host
-    reads as https. */
-function canonical(raw: string): string | null {
-  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
-  let parsed: URL;
-  try {
-    parsed = new URL(withScheme);
-  } catch {
-    return null;
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-  return `${parsed.protocol}//${parsed.host}${parsed.pathname}${parsed.search}`;
 }
 
 function userWords(content: WireMessage["content"]): string {

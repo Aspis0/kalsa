@@ -271,6 +271,9 @@ function cleanToolRuns(value: unknown[]): { toolRuns?: ToolRun[] } {
       ...(miniapp ? { miniapp } : {}),
       ...(mail ? { mail } : {}),
       ...(typeof r.mailShown === "number" && r.mailShown >= 0 ? { mailShown: Math.round(r.mailShown) } : {}),
+      // How many pages a search read is a fact about the turn, not its text: the
+      // kept result is a prefix, and the card must still say what was read.
+      ...(typeof r.pagesRead === "number" && r.pagesRead > 0 ? { pagesRead: Math.round(r.pagesRead) } : {}),
       // The refusal's code is how the screen words a failure; dropping it here
       // would make a notice vanish on the next store write.
       ...(typeof r.resultCode === "string" && r.resultCode !== "" ? { resultCode: r.resultCode } : {}),
@@ -371,38 +374,6 @@ function metaFor(conversation: Conversation): ConversationMeta {
     search: searchBase,
     hasMessages: described.hasMessages,
   };
-}
-
-let cachedSegmenter: Intl.Segmenter | null | undefined;
-
-function segmenterFor(): Intl.Segmenter {
-  cachedSegmenter ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
-  return cachedSegmenter;
-}
-
-/** The characters a reader counts, not UTF-16 units: graphemes where the
-    platform segments them (an emoji family is one), code points elsewhere. */
-function graphemes(text: string): string[] {
-  const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl ? segmenterFor() : null;
-  if (segmenter === null) return Array.from(text);
-  const out: string[] = [];
-  for (const { segment } of segmenter.segment(text)) out.push(segment);
-  return out;
-}
-
-/** The first `count` characters of `text`, where a character is a grapheme
-    when the platform segments them and a code point otherwise — never half a
-    surrogate pair. */
-export function firstCharacters(text: string, count: number): string {
-  const characters = graphemes(text);
-  return characters.length <= count ? text : characters.slice(0, count).join("");
-}
-
-export function titleFor(firstText: string, fallback = "New conversation"): string {
-  const oneLine = firstText.replace(/\s+/g, " ").trim();
-  if (!oneLine) return fallback;
-  const cut = firstCharacters(oneLine, 46);
-  return cut === oneLine ? oneLine : `${cut.trimEnd()}…`;
 }
 
 export function createStore(): ConversationStore {

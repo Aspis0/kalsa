@@ -153,6 +153,10 @@ export interface ToolOutcome {
   miniapp?: Miniapp;
   /** Cards or a draft this call drew. The wire only ever carries `text`. */
   mail?: Mail;
+  /** Pages this call read on the model's behalf — a search's own results, the
+      ones the model was asked about but did not ask to open. For the screen;
+      the wire carries them inside `text`. */
+  pagesRead?: number;
 }
 
 /** No new words for this long means the server is gone, not slow. */

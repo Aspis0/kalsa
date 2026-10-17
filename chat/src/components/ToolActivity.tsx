@@ -2,6 +2,7 @@ import { useLanguage } from "../i18n/useLanguage";
 import type { English } from "../i18n/en/all";
 import { readArguments } from "../lib/toolCalls";
 import { publicHttpUrl } from "../lib/publicUrl";
+import { URL_LINE, providerText } from "../lib/tools/resultFormat";
 import { Openable } from "./Openable";
 import { Icon } from "./Icon";
 import { MiniappView } from "./miniapp/MiniappView";
@@ -109,8 +110,14 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
   // trusted: `javascript:`, `data:`, `file:` and this machine's own server all
   // stay text.
   const url = publicHttpUrl(asked);
-  const sources = run.name === "web_fetch" ? (url ? [url] : []) : linksIn(run.result);
+  const sources = run.name === "web_fetch" ? (url ? [url] : []) : sourcesIn(run.result);
   const failed = run.state === "failed" || run.state === "refused";
+  // A search that ran and was stopped while its pages were being read is a
+  // stopped turn, not a search that did not run: the results it found are on
+  // the card, and the reader is the one who stopped it. The code is the fact;
+  // the sentence is the fallback for a run stored before it was one, which is
+  // the only way to recognise it now.
+  const stopped = failed && (run.result === TOOL_STOPPED || run.result === t.stopped);
   // The one line the row says: the two plain web outcomes, the failure
   // sentences, and nothing for a finished check that needs no words — an
   // internal name is never shown.
@@ -123,7 +130,9 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
         ? run.name === "web_fetch"
           ? t.pageNotOpened
           : run.name === "web_search"
-            ? t.searchDidNotRun
+            ? stopped
+              ? t.stopped
+              : t.searchDidNotRun
             : t.couldNotFinish
         : run.name === "web_fetch"
           ? t.read(url ? hostOf(url) : t.aPage)
@@ -147,6 +156,7 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
       </summary>
       <div className="tool-detail">
         {query ? <p className="tool-query">{t.searchedForLabel} {query}</p> : null}
+        {run.pagesRead ? <p className="tool-query">{t.pagesReadLabel} {run.pagesRead}</p> : null}
         {asked ? (
           <p className="tool-query">
             {t.askedForLabel} {url ? <Openable url={url}>{hostOf(url)}</Openable> : asked}
@@ -222,14 +232,17 @@ function hostOf(url: string): string {
 }
 
 /**
- * The addresses in a search result, which the reader can open. Only public web
- * addresses, deduplicated and capped: this is a list of sources, not a second
- * search.
+ * The addresses the provider itself listed under a search, which the reader
+ * can open: its own `URL:` lines only, deduplicated and capped. The pages the
+ * app read underneath the search are in the same text, and their links are a
+ * stranger's own — a source list is what the engine returned, not what a page
+ * the engine returned happened to mention.
  */
-function linksIn(text: string): string[] {
+function sourcesIn(result: string): string[] {
   const found: string[] = [];
-  for (const match of text.matchAll(/https?:\/\/[^\s<>"')]+/g)) {
-    const url = publicHttpUrl(match[0].replace(/[.,;:]+$/, ""));
+  for (const line of providerText(result).split("\n")) {
+    if (!line.startsWith(URL_LINE)) continue;
+    const url = publicHttpUrl(line.slice(URL_LINE.length).split("#")[0]);
     if (url && !found.includes(url)) found.push(url);
   }
   return found.slice(0, 5);

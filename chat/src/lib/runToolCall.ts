@@ -1,10 +1,12 @@
 import { ChatRequestError } from "./chat";
 import type { ToolOutcome, ToolPhrases, WireMessage } from "./chat";
 import { readArguments, wireArguments } from "./toolCalls";
+import { exceedsCodePoints, firstCodePoints } from "./text";
 import type { ToolCall } from "./toolCalls";
 import { repairToolCall } from "./repairToolCall";
 import { guideCut, guideNotValidJson, guideProblem } from "./guideRetry";
 import type { ToolDefinition } from "./tools/definitions";
+import { TOOL_STOPPED } from "./types";
 import type { ToolRun } from "./types";
 import type { Miniapp } from "./miniapp/types";
 import type { Mail } from "./mail/types";
@@ -96,16 +98,20 @@ export async function runToolCall(
   let resultCode: string | undefined;
   let miniapp: Miniapp | undefined;
   let mail: Mail | undefined;
+  let pagesRead: number | undefined;
   if (guide === null) {
     const answered = await untilStopped(() => ctx.runTool(name, repaired!.args, ctx.signal, ctx.conversation), ctx.signal);
     if (answered === null) {
-      ctx.onToolRun?.({ ...started, result: ctx.say.stopped, state: "failed" });
+      // The code, not the sentence: a run is stored, and a run read back in
+      // another language has to still read as stopped.
+      ctx.onToolRun?.({ ...started, result: TOOL_STOPPED, state: "failed" });
       throw new ChatRequestError("aborted", "Stopped", undefined, ctx.url);
     }
     result = answered.text;
     resultCode = answered.resultCode;
     miniapp = answered.miniapp;
     mail = answered.mail;
+    pagesRead = answered.pagesRead;
     state = answered.ok ? "ok" : "failed";
   }
   ctx.onToolRun?.({
@@ -115,6 +121,7 @@ export async function runToolCall(
     state,
     ...(miniapp ? { miniapp } : {}),
     ...(mail ? { mail } : {}),
+    ...(pagesRead ? { pagesRead } : {}),
   });
   return {
     result,
@@ -132,8 +139,11 @@ const KEPT_RESULT_CHARS = 1_200;
  * later turn either.
  */
 function kept(result: string): string {
-  if (result.length <= KEPT_RESULT_CHARS) return result;
-  return `${result.slice(0, KEPT_RESULT_CHARS)}\n\n[The rest of this result was not kept after the turn.]`;
+  if (!exceedsCodePoints(result, KEPT_RESULT_CHARS)) return result;
+  // By code points, not by UTF-16 units: this text is replayed to the engine on
+  // every later turn, and a slice that ends mid-character would send a lone
+  // surrogate in every one of them.
+  return `${firstCodePoints(result, KEPT_RESULT_CHARS)}\n\n[The rest of this result was not kept after the turn.]`;
 }
 
 /**
