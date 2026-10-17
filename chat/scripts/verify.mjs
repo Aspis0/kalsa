@@ -6615,7 +6615,10 @@ const tests = {
   // The phone's model name, drawn for a phone nobody has named. Two unnamed
   // phones of one model carry their numbers; a named phone does not count
   // against them; a lone model is drawn bare; a record with no model keeps the
-  // number the store gave it.
+  // number the store gave it. A phone still awaiting Allow, or a seat with a
+  // pairing-again request, shows its number whatever model it declared, and a
+  // model that spells another row's name or this computer's label shows its
+  // number too.
   async phonemodels() {
     const browser = await chromium.launch();
     const page = await browser.newPage({ viewport: { width: 1280, height: 1040 } });
@@ -6636,6 +6639,17 @@ const tests = {
           { id: 4, label: "Paired phone 5", model: "Galaxy S23", name: "Anna", waiting: false },
           { id: 5, label: "Paired phone 6", model: "Galaxy S23", name: null, waiting: false },
           { id: 6, label: "Paired phone 7", name: null, waiting: false },
+          // A phone still waiting for Allow declares a model: the owner decides
+          // on the numbered label, never on the phone's own words.
+          { id: 7, label: "Paired phone 8", model: "Samsung Galaxy Z", name: null, waiting: true },
+          // An allowed phone whose model spells another row's name, and one
+          // whose model spells this computer's label with other case and spaces.
+          { id: 8, label: "Paired phone 9", model: "Anna", name: null, waiting: false },
+          { id: 9, label: "Paired phone 10", model: " questo COMPUTER ", name: null, waiting: false },
+          // A seat a pairing-again request rides on: the seat is awaiting its
+          // owner, so it carries its number; the request is drawn on the seat.
+          { id: 10, label: "Paired phone 11", model: "Fairphone 5", name: null, waiting: false },
+          { id: 11, label: "Paired phone 12", model: "Fake Model", name: null, waiting: true, pairing_again: 10 },
         ];
         window.__TAURI__ = {
           ...previous,
@@ -6661,6 +6675,10 @@ const tests = {
         "Anna",
         "Galaxy S23",
         "telefono 7",
+        "telefono 8",
+        "telefono 9",
+        "telefono 10",
+        "telefono 11",
       ];
       check("phonemodels: each row is named by the rules", JSON.stringify(rows) === JSON.stringify(expected), rows.join(" | "));
     } finally {

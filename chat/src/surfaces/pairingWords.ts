@@ -93,11 +93,14 @@ export function hidesOnSeat(device: PairedDevice, devices: PairedDevice[]): bool
     store did the trimming, once, on the way in. This computer's own record is
     never renamed, so the host's branch is checked first and stays true.
 
-    Then the phone's model, when it declared one. Two unnamed phones of the
-    same model would read alike, so each of them carries its number ("iPhone
-    15 Pro Max 5"); a named phone is not counted, since its name already tells
-    it apart. `house` is the whole list the page draws, the rows it is drawn
-    from. Both checks are `typeof`: Rust writes an absent name as null. */
+    Then the phone's model, when it declared one, and only once the owner has
+    allowed the phone. The model is the phone's own claim, and a row the owner
+    still has to decide on must not show a claim as its name: it carries the
+    numbered label. A model that spells another row's name, or this computer's
+    label, is the same kind of claim, so it falls back too. Two unnamed phones
+    of one model each carry their number ("iPhone 15 Pro Max 5"); a named phone
+    is not counted. `house` is the whole list the page draws. Both checks are
+    `typeof`: Rust writes an absent name as null. */
 export function deviceName(
   t: English["devices"],
   device: PairedDevice,
@@ -105,8 +108,11 @@ export function deviceName(
 ): string {
   if (device.kind === "host") return t.thisComputerLabel;
   if (typeof device.name === "string") return device.name;
-  if (typeof device.model !== "string") return t.deviceLabel(device.id + 1);
+  if (typeof device.model !== "string" || awaitsOwner(device, house)) {
+    return t.deviceLabel(device.id + 1);
+  }
   const model = device.model;
+  if (claimsAnotherName(model, device, house, t)) return t.deviceLabel(device.id + 1);
   const twins = house.filter(
     (row) =>
       row.kind !== "host" &&
@@ -115,6 +121,30 @@ export function deviceName(
       !hidesOnSeat(row, house),
   );
   return twins.length > 1 ? `${model} ${device.id + 1}` : model;
+}
+
+/** Whether the owner still has to decide on this row: a phone waiting for
+    Allow, or a seat that a pairing-again request rides on. */
+function awaitsOwner(device: PairedDevice, house: PairedDevice[]): boolean {
+  return device.waiting === true || house.some((row) => row.pairing_again === device.id);
+}
+
+/** Whether a declared model reads as another row's owner name, or as this
+    computer's label, once case and the spaces at the edges are ignored. */
+function claimsAnotherName(
+  model: string,
+  device: PairedDevice,
+  house: PairedDevice[],
+  t: English["devices"],
+): boolean {
+  const said = model.trim().toLowerCase();
+  if (t.thisComputerLabel.trim().toLowerCase() === said) return true;
+  return house.some(
+    (row) =>
+      row.id !== device.id &&
+      typeof row.name === "string" &&
+      row.name.trim().toLowerCase() === said,
+  );
 }
 
 export function pairedSentence(t: English["devices"], dto: PairingState): string {
