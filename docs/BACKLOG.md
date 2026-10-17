@@ -571,8 +571,9 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 - In-app decode on the NPU lane runs at about half the bench speed: S23 12.2 tok/s vs ~22, Xiaomi 7.4 vs ~23.
 
 ## Phone log report, web-search notice, report Worker (app 772ee31a, workers 556e6768, 2026-10-16, leftovers)
-- Phone `echo-of-context` gate (`src/rules/toolGate.ts`): a message not ending in `?` needs query similarity ≥ 0.40, so ordinary requests ("Cerca sul web le notizie di oggi su Samsung", "… Controlla online") are blocked; the refusal text says the query "restates information the user provided about themselves", which is not what the rule tests. S23: 3 of 3 such searches blocked, the user saw "Non ho potuto completare la ricerca".
+- ~~Phone `echo-of-context` gate blocks ordinary searches~~ **Fixed** in app 90d541f3/8b89c094/85a3f6fc; S23 on 8b89c094 (2026-10-16): "Cerca sul web le notizie di oggi su Samsung" searched, `blockedPrivacy:0` (lab `scratchpad/agents/s23-search-gate-8b89c094/REPORT.md`).
 - Phone `web_fetch` reaches the network without the provider notice: after a blocked search the model fetched a page on its own. Same for a user-typed URL.
+- Phone: a forced text-only round still executes a tool. When the app forces `toolChoice:"none"` (here after one search and one fetch), `parseFallbackToolCalls` (`src/engine/LlamaService.ts:5003`) ignores it: S23 round 2 logged `"toolChoice":"none",...,"fallbackDialect":"lfm","executed":1,...,"toolNames":["web_fetch"]`.
 - Phone-originated desk-mode searches bypass the desktop first-search notice.
 - `KALSA_GOVERNOR_TURN` `hn`/`hg` carry float noise (`38.10000228881836`); round to 0.1.
 - Consent prompt P2s (luna round 4): a queued prompt answers a stop late; a stopped turn's Alert stays on screen; `AbortSignal.any` keeps one listener per call until the turn signal aborts; a throwing `onTimeout` does not cancel.
