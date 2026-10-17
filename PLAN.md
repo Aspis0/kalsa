@@ -155,8 +155,18 @@ M9. **S23 result (2026-10-16):** GPU prefill vs NPU prefill = `oracle=FAIL rule=
 max_dlogp=0.7041 max_dp1=0.1021 divergences=0` on all 4 pairs; top-1 agrees on 32/32 steps, R1 clean.
 Both prefills are bit-deterministic under greedy (identical probs across 5 captures). The 4 pairs are byte-identical
 replicas of one prompt, so they count as ONE independent pair: R4 is not met (needs a second prompt); the warm arm was never reached (the NPU passes 70 C only inside a turn, the gate reads it
-between turns), so heat dependence is untested. R5 still unmet. The verdict goes to the owner (R6).
-[scratchpad/agents/s23-oracle-m5/REPORT.md] The merged step plan is
+between turns), so heat dependence is untested. The verdict goes to the owner (R6).
+[scratchpad/agents/s23-oracle-m5/REPORT.md] **Second prompt (2026-10-17, app `634e3da4`):** enc-long
+(2175 prompt tokens, 10 chunks), NPU vs GPU = `oracle=FAIL rule=R2 steps=32 max_dlogp=6.6347
+max_dp1=0.7710`; top-1 disagrees on 22/32 steps (the label says R2 because the oracle reports the earliest
+violating step). R4 is met in the two-prompts sense, n=1 per prompt. Confound: the build changed between the
+two prompts (the enc-short smoke on `634e3da4` no longer matches the old captures), so length vs build is not
+separated. **R5 (QDC 8 Elite, QRD8750, APK `8b89c094`):** CPU vs GPU prefill FAILs R2 on both prompts
+(`max_dp1` 0.0656 short, 0.0708 long; top-1 never breaks R1), CPU vs CPU control PASSes at 0.0000. The PASS
+half is not met, and no fault-injection switch exists in the shipped APK, so the FAIL half is open. Read
+plainly: with the PREREG thresholds, GPU prefill fails R2 even on the reference board, so R2 at 0.02 does
+not separate a good board from a bad one; only the S23 long prompt breaks R1.
+[scratchpad/agents/qdc-oracle-r5-8750/REPORT.md] The merged step plan is
 `scratchpad/agents/learning-governor/LEARNING-MERGE.md` (M5 at line 603, the oracle at section 4).
 
 ### Engine
