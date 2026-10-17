@@ -1,0 +1,4 @@
+1792248368	gap-t1	wake=Awake skin=32.2 npu=35.4 gpu=35.2 batt=31.3 batt_sys=31.3 lvl=100 tstat=0 plug=none focus=1 kg=0 scr=1
+1792248434	turn-t1	wake=Awake skin=33.0 npu=50.9 gpu=46.7 batt=31.2 batt_sys=31.2 lvl=100 tstat=0 plug=none focus=1 kg=0 scr=1
+1792248468	turn-t1	wake=Awake skin=33.9 npu=38.2 gpu=38.4 batt=32.5 batt_sys=32.5 lvl=99 tstat=0 plug=none focus=1 kg=0 scr=1
+1792248491	post-t1	wake=Awake skin=33.3 npu=36.6 gpu=36.8 batt=32.7 batt_sys=32.7 lvl=99 tstat=0 plug=none focus=1 kg=0 scr=1
