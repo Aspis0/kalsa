@@ -12,8 +12,8 @@ import {
   providerDisplayName,
   searchConsentRefusalText,
   SEARCH_CONSENT_KEY,
-  type SearchConsentStorage,
 } from "./firstSearchNotice";
+import type { ConsentStorage } from "./oneTimeConsent";
 import type { SearchProviderId } from "./registry";
 
 // Async, like the real thing: a bare jest.fn() returns undefined, which the
@@ -34,7 +34,7 @@ const getItem = AsyncStorage.getItem as unknown as jest.Mock;
 const setItem = AsyncStorage.setItem as unknown as jest.Mock;
 
 /** A storage whose reads and writes behave, or whose reads throw. */
-function fakeStorage(overrides: Partial<SearchConsentStorage> = {}): SearchConsentStorage {
+function fakeStorage(overrides: Partial<ConsentStorage> = {}): ConsentStorage {
   return {
     getItem: jest.fn(async () => null),
     setItem: jest.fn(async () => undefined),
@@ -43,7 +43,7 @@ function fakeStorage(overrides: Partial<SearchConsentStorage> = {}): SearchConse
 }
 
 /** A storage holding one already-accepted list, the way an answered install looks. */
-function consented(...ids: SearchProviderId[]): SearchConsentStorage {
+function consented(...ids: SearchProviderId[]): ConsentStorage {
   const value = `v1:${ids.join(",")}`;
   return {
     getItem: jest.fn(async () => value),
@@ -52,7 +52,7 @@ function consented(...ids: SearchProviderId[]): SearchConsentStorage {
 }
 
 const gate = (args: {
-  storage?: SearchConsentStorage;
+  storage?: ConsentStorage;
   confirm?: (name: string) => Promise<boolean>;
   providerId?: SearchProviderId;
   signal?: AbortSignal;
@@ -244,7 +244,7 @@ describe("confirmSearchProvider", () => {
     // which is what putting the read-modify-write on the same chain as the
     // dialog buys.
     let written: string | null = null;
-    const store: SearchConsentStorage = {
+    const store: ConsentStorage = {
       getItem: jest.fn(async () => written),
       setItem: jest.fn(async (_key, value) => {
         written = value;

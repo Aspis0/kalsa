@@ -86,8 +86,8 @@ describe("governorTurnPayloads — placement", () => {
       ed: "NPU",
       rr: 10,
       th: true,
-      hn: 1.75,
-      hg: 6.25,
+      hn: 1.8,
+      hg: 6.3,
       npu: "HTP0",
       npuf: null,
       ck: "q8_0",
@@ -98,6 +98,16 @@ describe("governorTurnPayloads — placement", () => {
       therm: "WARM",
       forced: false,
     });
+  });
+
+  it("rounds the f32 headroom noise to one decimal", () => {
+    const turnLine = turn({
+      ...TURN_ONE,
+      prefill_npu_headroom_c: 41.30000305175781,
+      prefill_gpu_headroom_c: -12.75,
+    }).turn;
+    expect(turnLine.hn).toBe(41.3);
+    expect(turnLine.hg).toBe(-12.7);
   });
 
   it("omits the stats fields an older binding does not answer", () => {

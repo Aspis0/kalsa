@@ -163,6 +163,11 @@ import {
   type ToolRoundTelemetry,
 } from "./toolCallTelemetry";
 import { shouldFireToolRoundFallback } from "./toolRoundFallback";
+import {
+  countSuppressedFallbackCalls,
+  shouldParseFallbackCalls,
+  shouldRunBlankReplyFallback,
+} from "./fallbackToolCallGate";
 import { toolRoundCrossesCeiling } from "./toolRoundCeiling";
 import {
   parseToolArguments,
@@ -4677,6 +4682,11 @@ export async function streamAssistantTurn(
       // and the turn closes with what it has, visibly, instead of handing the
       // native a prompt it could only answer with ctx_shift.
       let toolRoundCeilingReached = false;
+      // How many rounds this turn really ran, for the fallback's own telemetry
+      // and round label. Defaults to the cap because the loop normally runs it
+      // out; a round that breaks early for a blank reply sets the true count,
+      // so KALSA_ToolRoundExhausted never claims rounds that did not happen.
+      let roundsUsed = MAX_TOOL_ROUNDS;
       // Tool schemas travel OUTSIDE the messages (tools: on the completion,
       // see below) but inside the prompt: price them, or the round guard
       // undercounts by ~500 tokens on the default 7-tool set (audit FAIL
@@ -4995,27 +5005,45 @@ export async function streamAssistantTurn(
         let toolCalls = toolCallingEnabled ? result.tool_calls ?? [] : [];
         let fallbackCalls = 0;
         let fallbackDialect: ToolRoundTelemetry["fallbackDialect"] = "none";
+        const rawText = extractRawResultText(result);
         // Fallback dialect: the binding found no structured tool_calls, but the
         // raw text may still contain a literal <tool_call>...</tool_call> block
         // (see toolCallParser.ts). Parse it and feed it through the SAME
         // execution path below (round cap, skipped-call bookkeeping, tool-result
         // rule all still apply) instead of showing the markup / an empty reply.
-        if (toolCallingEnabled && !toolCalls.length && options?.executeTool) {
-          const rawText = extractRawResultText(result);
-          const fallbacks = parseFallbackToolCalls(rawText);
-          fallbackCalls = fallbacks.length;
-          if (fallbacks.length) {
-            // Same precedence as parseFallbackToolCalls: LFM marker wins.
-            fallbackDialect = rawText.includes(LFM_TOOL_CALL_START)
-              ? "lfm"
-              : rawText.includes(TOOL_CALL_OPEN)
-                ? "qwen"
-                : "openai";
-            toolCalls = fallbacks.map((fallback) => ({
-              type: "function" as const,
-              function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
-            }));
-          }
+        // NOT on a "none" round: parsing there would run a tool the completion
+        // was told not to call (fallbackToolCallGate.ts). Suppressed calls are
+        // still COUNTED, for the round's own telemetry line.
+        const parseFallbackCalls = shouldParseFallbackCalls({
+          toolCallingEnabled,
+          structuredCount: structuredCalls,
+          toolChoice,
+          hasExecutor: Boolean(options?.executeTool),
+        });
+        const suppressedCalls = countSuppressedFallbackCalls({
+          gateAllowedParse: parseFallbackCalls,
+          toolCallingEnabled,
+          toolChoice,
+          rawText,
+        });
+        const fallbacks = parseFallbackCalls ? parseFallbackToolCalls(rawText) : [];
+        // A refused round still reports what it asked for: the count is
+        // telemetry, never an execution list.
+        fallbackCalls = parseFallbackCalls ? fallbacks.length : suppressedCalls;
+        if (fallbacks.length > 0 || suppressedCalls > 0) {
+          // Same precedence as parseFallbackToolCalls: LFM marker wins.
+          fallbackDialect = rawText.includes(LFM_TOOL_CALL_START)
+            ? "lfm"
+            : rawText.includes(TOOL_CALL_OPEN)
+              ? "qwen"
+              : "openai";
+        }
+        // Only a round the gate allowed runs what it found.
+        if (parseFallbackCalls && fallbacks.length > 0) {
+          toolCalls = fallbacks.map((fallback) => ({
+            type: "function" as const,
+            function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
+          }));
         }
         const shape = emittedCallShape(toolCalls, options?.tools);
         const toolTel: ToolRoundTelemetry = {
@@ -5036,6 +5064,20 @@ export async function streamAssistantTurn(
         };
         if (!toolCallingEnabled || !toolCalls.length || !options?.executeTool) {
           emitToolCallTelemetry(turnId, toolTel);
+          // A "none" round whose whole output was a tool call the gate refused
+          // to run has nothing left to show once the markup is stripped. Break
+          // to the text-only fallback below instead of returning an empty
+          // bubble; a round that said anything keeps today's early return.
+          if (shouldRunBlankReplyFallback({ suppressedCalls, streamedText, rawText })) {
+            // That markup sat in the KV and will not be persisted, so the turn
+            // diverges from history like a tool turn does. Marked BEFORE the
+            // break: the fallback's clean_completion returns early while
+            // turnInjected is true (kvReproducibility.ts:77), so reproducible is
+            // never re-armed over a KV holding stripped markup.
+            kvReproState = nextKvReproState(kvReproState, "tool_calls_detected");
+            roundsUsed = round + 1;
+            break;
+          }
           emitFinalText(result);
           await emitGovernorTelemetry(engine, governorThermoSource, turnId, turnAttempt, lastCompletionResult);
           if (benchSampling === "greedy") {
@@ -5260,9 +5302,11 @@ export async function streamAssistantTurn(
         callbacks.onStatus?.({ label: statusLabel });
       }
 
-      // Tool rounds exhausted without user-visible text: the model spent all
-      // MAX_TOOL_ROUNDS producing tool calls (or think/tool_call markup stripped
-      // to nothing). Without a fallback, the user sees an empty bubble.
+      // Tool rounds done without user-visible text: the model spent them producing
+      // tool calls (or think/tool_call markup stripped to nothing), either up to
+      // the cap or — when a "none" round's only output was a call it was not
+      // allowed to make — on the round that would have been its last. Without a
+      // fallback, the user sees an empty bubble.
       // Two-tier fallback:
       //  1. One extra text-only completion (tool_choice: "none", no tools) so
       //     the model can synthesize from the tool results already in context.
@@ -5283,7 +5327,7 @@ export async function streamAssistantTurn(
         }
       } else if (toolFallbackNeeded) {
         const exhaustedTel: ToolRoundExhaustedTelemetry = {
-          roundsUsed: MAX_TOOL_ROUNDS,
+          roundsUsed,
           streamedLen: streamedText.length,
           fallbackFired: false,
           fallbackOk: false,
@@ -5363,7 +5407,7 @@ export async function streamAssistantTurn(
               ),
             );
             const fallbackResult = await resumeWhileCooling(
-              coolingRound(MAX_TOOL_ROUNDS, runFallbackRound),
+              coolingRound(roundsUsed, runFallbackRound),
             );
             lastCompletionResult = fallbackResult;
             stopStallWatchdog();
@@ -5384,7 +5428,7 @@ export async function streamAssistantTurn(
               endOnGovernorPause(
                 fallbackResult,
                 turnId,
-                MAX_TOOL_ROUNDS,
+                roundsUsed,
                 callbacks,
                 finishOnce,
                 strings,
@@ -5395,7 +5439,7 @@ export async function streamAssistantTurn(
             recordBenchCompletion(fallbackResult);
             emitTurnTelemetry(
               turnId,
-              MAX_TOOL_ROUNDS,
+              roundsUsed,
               fallbackResult,
               toolAttribution.snapshot(),
               activeModel,

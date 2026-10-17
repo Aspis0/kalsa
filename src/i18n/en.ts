@@ -1225,6 +1225,25 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "The search reached {primary} but failed, and the user chose not to send it to {fallback}. Say the search failed and that they can try again.",
   },
 
+  /** The one-time, before-the-first-page-fetch privacy notice. No recipient is
+   *  named here because the user cannot choose one: it is whichever site the
+   *  page is on, which is why it needs its own notice rather than riding on the
+   *  search one. */
+  fetchNotice: {
+    title: "Open web pages?",
+    body: "To read a page, Kalsa opens it directly from this phone. The site sees your internet address. Your conversation stays on this phone.",
+    open: "Open",
+    notNow: "Not now",
+    /** The model-facing text when the user said "Not now": this page is not
+     *  opened and the notice comes back next time. */
+    declined:
+      "The page was not opened: the user chose not to open web pages this time. Answer from what you already have, and say the page was not opened.",
+    /** Fail-closed text: the stored answer could not be read, so the page was
+     *  not opened. */
+    unavailable:
+      "The page was not opened: the web-page permission could not be read on this phone. Say the page was not opened and that they can try again.",
+  },
+
   wizard: {
     back: "Back",
     next: "Next",

@@ -407,6 +407,15 @@ function escapeRegExp(s: string): string {
 }
 
 /**
+ * True when the text carries any known dialect's opening marker. The cheap test
+ * for "this round emitted tool-call markup", for callers that must know whether
+ * a call was there WITHOUT parsing one out of it.
+ */
+export function hasToolCallMarkup(text: string): boolean {
+  return TOOL_CALL_TAG_PAIRS.some(([open]) => text.includes(open));
+}
+
+/**
  * Strip one dialect's tool-call span(s) from final text: closed pairs
  * anywhere, plus a trailing open-never-closed block (truncated generation).
  */

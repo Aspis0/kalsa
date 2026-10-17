@@ -43,12 +43,15 @@ const KNOWN_TOOL_NAMES = new Set<string>(ALL_TOOL_NAMES);
 const UNKNOWN_TOOL_PLACEHOLDER = "other";
 
 /**
- * Telemetry for the "tool rounds exhausted without text" fallback path.
- * Fires when the tool loop uses all MAX_TOOL_ROUNDS but no round produced
- * user-visible text (blank bubble case). Counters-only: no model or user text.
+ * Telemetry for the "tool rounds done without text" fallback path. Fires when no
+ * tool round produced user-visible text: the loop used all MAX_TOOL_ROUNDS, or
+ * it left early because a "none" round's only output was a tool call it was not
+ * allowed to run (blank bubble case). Counters-only: no model or user text.
  */
 export type ToolRoundExhaustedTelemetry = {
-  roundsUsed: number;      // MAX_TOOL_ROUNDS (should be 3)
+  /** Rounds the turn actually ran: MAX_TOOL_ROUNDS, or fewer when it left
+   *  early. Must stay the real count — this line is what bench reads. */
+  roundsUsed: number;
   streamedLen: number;     // length of streamed text before fallback (should be 0)
   fallbackFired: boolean;  // did we try the extra text-only completion?
   fallbackOk: boolean;     // did the extra completion produce text?

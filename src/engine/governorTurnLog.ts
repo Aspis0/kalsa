@@ -17,6 +17,21 @@
 import { prefillDevices } from "./governorObservation";
 
 /**
+ * One decimal of headroom, at emit. The native stat arrives as a f32 sum, so
+ * 41.3 comes back as 41.30000305175781 and every log line spells the noise out
+ * — for a value whose whole scale is tenths of a degree.
+ *
+ * Only a number is touched: null stays the explicit absence it is, an absent
+ * field stays absent (no key is invented for it), and a non-finite sample stays
+ * non-finite, because Math.round carries it through and a broken reading is not
+ * noise to tidy.
+ */
+function headroomC(value: unknown): unknown {
+  if (typeof value !== "number") return value;
+  return Math.round(value * 10) / 10;
+}
+
+/**
  * Why this turn ran without the governor, as the report reads it. A closed
  * enum, because the app's own reason is one of its two literals and the
  * native refusal is prose — see governorFallbackCodeFromNative, which names
@@ -233,8 +248,8 @@ export function governorTurnPayloads(args: {
       ed: stats.engine_decode,
       rr: stats.prefill_router_rule,
       th: stats.prefill_thermal_handoff,
-      hn: stats.prefill_npu_headroom_c,
-      hg: stats.prefill_gpu_headroom_c,
+      hn: headroomC(stats.prefill_npu_headroom_c),
+      hg: headroomC(stats.prefill_gpu_headroom_c),
       npu: stats.npu_device,
       npuf: stats.npu_fallback,
       ck: stats.cache_type_k,

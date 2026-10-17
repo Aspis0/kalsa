@@ -1189,6 +1189,21 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "La ricerca è arrivata a {primary} ma non è riuscita, e l'utente ha scelto di non mandarla a {fallback}. Di' che la ricerca non è riuscita e che si può riprovare.",
   },
 
+  /** Avviso una tantum, prima della prima apertura di una pagina web. Qui non è
+   *  nominato alcun destinatario perché l'utente non ne sceglie uno: è il sito
+   *  della pagina, ed è per questo che serve un avviso tutto suo e non quello
+   *  della ricerca. */
+  fetchNotice: {
+    title: "Aprire pagine web?",
+    body: "Per leggere una pagina, Kalsa la apre direttamente da questo telefono. Il sito vede il tuo indirizzo internet. La conversazione resta su questo telefono.",
+    open: "Apri",
+    notNow: "Non ora",
+    declined:
+      "La pagina non è stata aperta: l'utente ha scelto di non aprire pagine web questa volta. Rispondi con quello che hai già e di' che la pagina non è stata aperta.",
+    unavailable:
+      "La pagina non è stata aperta: non è stato possibile leggere il permesso per le pagine web su questo telefono. Di' che la pagina non è stata aperta e che si può riprovare.",
+  },
+
   wizard: {
     back: "Indietro",
     next: "Avanti",
