@@ -98,6 +98,8 @@ try {
     target: "node20",
     outfile,
     logLevel: "silent",
+    // The dev flag `chat.ts` gates its test-only hooks on — see lib/app-bundle.mjs.
+    define: { "import.meta.env.DEV": "true" },
     plugins: [
       {
         // attachments.ts imports the pdf.js worker as a vite `?url` asset; the

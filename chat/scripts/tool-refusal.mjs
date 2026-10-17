@@ -132,6 +132,8 @@ try {
     target: "node20",
     outfile,
     logLevel: "silent",
+    // The dev flag `chat.ts` gates its test-only hooks on — see lib/app-bundle.mjs.
+    define: { "import.meta.env.DEV": "true" },
   });
   // The loop reads `window` for its timers and the desktop bridge; in Node the global object plays that part.
   globalThis.window = globalThis;

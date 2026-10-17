@@ -106,6 +106,8 @@ async function compile(dir) {
     nodePaths: [join(CHAT_DIR, "node_modules")],
     loader: { ".css": "empty" },
     logLevel: "silent",
+    // The dev flag `chat.ts` gates its test-only hooks on — see lib/app-bundle.mjs.
+    define: { "import.meta.env.DEV": "true" },
     plugins: [
       {
         // attachments.ts imports the pdf.js worker as a `?url` asset; no PDF is read here.

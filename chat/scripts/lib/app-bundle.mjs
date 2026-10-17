@@ -73,9 +73,9 @@ export async function loadApp() {
         export { sendReply } from "../src/lib/mail/send.ts";
         export { accountEmail, rememberAccount } from "../src/lib/mail/account.ts";
         export { mailFailure, UNKNOWN_FAILURE } from "../src/lib/mail/failure.ts";
-export { fencedField } from "../src/lib/mail/fence.ts";
-export { cardsFrom, cardIds } from "../src/lib/mail/cards.ts";
-export { mailId } from "../src/lib/mail/mailId.ts";
+        export { fencedField } from "../src/lib/mail/fence.ts";
+        export { cardsFrom, cardIds } from "../src/lib/mail/cards.ts";
+        export { mailId } from "../src/lib/mail/mailId.ts";
         export { runMailList, runMailRead, runMailDraft } from "../src/lib/tools/mailCall.ts";
         export { draftFor, withDraft, sentToFor, withSent } from "../src/lib/mail/drafts.ts";
         export { pendingFor, withBody } from "../src/lib/mail/drafts.ts";
@@ -97,6 +97,12 @@ export { mailId } from "../src/lib/mail/mailId.ts";
     nodePaths: [join(CHAT_DIR, "node_modules")],
     loader: { ".css": "empty" },
     logLevel: "silent",
+    // `chat.ts` decides whether a test may reach `window.__kalsaTimings__` by
+    // reading `import.meta.env.DEV`. Vite folds that to a literal at build time;
+    // Node has no `import.meta.env` at all, so the property read throws the
+    // moment a turn starts. These scripts are dev harnesses, so the flag is
+    // supplied here exactly as a dev server would supply it.
+    define: { "import.meta.env.DEV": "true" },
     plugins: [
       {
         // attachments.ts imports the pdf.js worker as a vite `?url` asset; the
