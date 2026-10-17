@@ -1065,3 +1065,50 @@ For comparison, the §13 switches cost more: `FA_SELECT=1` took 62.9 s of prefil
 - DB: backup `raw/RKStorage-pre-geom-backup.sqlite` (188 rows, integrity `ok`, no `kalsa.load.*`); read-back after restore: integrity `ok`, 202 rows, **no key removed**; additions are 6 new chats (`kalsa.chat.compactor.*`, `kalsa.messages.*`, `kalsa.session.meta.*`) and new `kalsa.governor.learned.v1` entries for binding `47197d3e`.
 - App left on an empty new chat, `raw/final-screen-geom.png`, `mCurrentFocus=com.kalsa.app/.MainActivity`.
 - Monitor peaks over hC2/g0–g4: skin 33.2 °C, battery 32.3 °C, thermal status 0, 15 Awake samples, no stop rule fired. Battery 50 % → 46 % unplugged.
+
+## 15. Shipped fix verification on the S23 (binding df912b0e, 2026-10-17)
+
+Build `app-release.apk` from `/tmp/apk-v73.wS32/…e32aa433…` (debuggable, binding `df912b0e`), installed with `-r`, data kept. The fix (on Hexagon <75 the HMX flash-attention runs single-threaded without pipeline, and the chunk search assumes 1 thread) needs no debug file. `files/hexagon-env` verified absent before and after. Oracle: unmodified `oracle_logit.py`, TF, thresholds 0.03 / 0.02 / 0.10, steps 0–31.
+
+### 15.1 Table
+
+| arm | what | top-1 disagree vs CPU ref | max abs dlogp (CPU top-1) | prefill_ms | engine_prefill / prefill_dev | oracle line (verbatim) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `vC` | CPU reference, enc-long, kind C | — (reference) | — | not logged (governor off) | CPU | `vC` vs `hC2`: `oracle=PASS rule=none steps=32 max_dlogp=0.0000 max_dp1=0.0000 divergences=0 first_div=-1`, 0/32 |
+| `v1` | NPU fixed, enc-long, kind H, vs `vC` | **1 / 32** (step 14) | 0.8131 | 4007.573 | NPU / HTP0 | `oracle=FAIL rule=R2 steps=32 max_dlogp=0.8131 max_dp1=0.0490 divergences=0 first_div=-1` |
+| `v2` | repeat of `v1` | **1 / 32** (step 14) | 0.8131 | 4006.792 | NPU / HTP0 | `oracle=FAIL rule=R2 steps=32 max_dlogp=0.8131 max_dp1=0.0490 divergences=0 first_div=-1` |
+| `vSA` | NPU free, enc-short, kind A (ids source) | — (not compared, free run) | — | 1288.227 | NPU / HTP0 | — |
+| `vS` | NPU fixed, enc-short, kind H, teacher-forced to `vSA` ids, vs `vSC` | **0 / 32** | 0.8257 | 1286.727 | NPU / HTP0 | `oracle=FAIL rule=R2 steps=32 max_dlogp=0.8257 max_dp1=0.0786 divergences=0 first_div=-1` |
+| `vSC` | CPU reference, enc-short, kind C teacher-forced to `vSA` ids | — (reference) | — | not logged | CPU | — |
+| `sU` | NPU **unfixed** (fageom APK, binding `47197d3e`), enc-short, kind A — cost control | — | — | 1151.295 | NPU / HTP0 | — |
+| `g0` / `g1` | earlier: unfixed long, and lab override NOPIPE, same prompt | 21/32 / 1/32 | 6.6642 / 0.8948 | 3072.149 / 4015.107 | NPU / HTP0 | §14 |
+
+Determinism: `v1` vs `v2` is `oracle=PASS rule=none steps=32 max_dlogp=0.0000 max_dp1=0.0000 divergences=0 first_div=-1`, 0/32, bit-identical over steps 0–31.
+
+Prefill chunks: `512+128+40+512+512+128+128+128+84+3` for `g0`, `g1`, `v1`, `v2` (identical), so the fix changes threading and pipeline on each chunk, not the chunk layout. The short prompt uses `512+128+40+82+3` in every arm.
+
+Hardware check: `using device HTP0 (Hexagon v73)` in every NPU arm, the case the fix targets. The v73 APK logs no `FA-geom` lines, so the single-thread path is not logged directly. The evidence that it engaged is the timing (4007 ms, the same as the lab override `g1` at 4015 ms) and the 1/32 result (the same as `g1`/`g4`). Raw: `raw/v1-geom.txt`, `raw/v2-geom.txt` (device line, turn line, completion line).
+
+### 15.2 Costs
+
+- **Long prompt (2175 positions):** prefill 4007 ms (`v1`) against 3072 ms unfixed (`g0`), **+30 %**, the same as the lab override (`g1` 4015 ms, `g4` 4021 ms).
+- **Short prompt (765 positions):** prefill 1287 ms (`vS`, `vSA`) against 1151 ms unfixed (`sU`, same prompt, same chunks, fageom build), **+12 %**. The earlier short arm `s2a` measured 1152 ms on the older build 634e3da4, consistent with `sU`.
+
+### 15.3 Caveats
+
+- **The logit gap is unchanged, so the oracle still FAILs.** Top-1 is at the ≤2/32 bar on long (1/32) and clean on short (0/32), but max dlogp is 0.81 (long) and 0.83 (short), above the 0.10 limit. The short result has the same shape as §11's `s2a` vs CPU (0 disagreements, max 0.9307), so it is not a new regression. The same numbers appear in the oracle lines above.
+- **Unfixed short correctness was not measured.** `sU` is a cost control (free run); the short clean result is the fixed build's only.
+- **Geometry not logged on the fix APK,** see 15.1.
+- **One prompt per length**; `v1`/`v2` are one prompt at one length, repeated once. The short prompt was run once.
+
+### 15.4 Verdict
+
+**The fix holds on the S23: on long prompts the NPU is at 1/32 top-1 against the CPU and reproduces run to run, at +30 % prefill (4007 vs 3072 ms); on short prompts it stays at 0/32 at +12 % (1287 vs 1151 ms), with max dlogp still ~0.8 on both, so the oracle still FAILs and this is not a logit-level pass.**
+
+### 15.5 State left on the device
+
+- Fix APK (`df912b0e`) left installed; `files/hexagon-env` absent (verified twice).
+- `restore.sh` exit 0 (governor 1, bench keys absent, web 1, tools 0/0).
+- DB: backup `raw/RKStorage-pre-v73-backup.sqlite` (202 rows, integrity `ok`); read-back after restore: integrity `ok`, 219 rows, 0 keys removed, 17 added (new chats and governor entries for bindings `47197d3e` and `df912b0e`).
+- App on an empty new chat, `raw/final-screen-v73.png`, `mCurrentFocus=com.kalsa.app/.MainActivity`.
+- Monitor peaks over the round: skin 35.2 °C, battery 34.5 °C, thermal status 0, 20 Awake samples, no NOT_AWAKE, no stop rule fired. Battery 42 % → 38 % unplugged.
