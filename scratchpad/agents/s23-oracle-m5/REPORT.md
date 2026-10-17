@@ -471,10 +471,7 @@ set it, matching §6 and the source cell.
   been measured. Making a real hot arm needs the heat to be held *through* the start of the measured
   turn — e.g. a sustained load running up to the send — not a gate that idles.
 - **R5 sanity** (8 Elite PASS + fault-injected FAIL) is still unmet; inherited unchanged.
-- **Long-prompt determinism is untested.** The measured turns are short-prompt; §7.5 shows free-running
-  long generations stop at different step counts, so their first-32 comparability is unexamined.
 - **Only one board.** R4 is met for the S23 only; the Elite half of R4/R5 is not run.
-- **Unplugged behaviour untested**: every turn of this run was on AC.
 - **The kill path is only half-exercised.** A stop rule fired correctly once (`c2b` attempt 1,
   battery 42.0 C) and attempt 2 passed, but that was a harness kill of the campaign *between* turns,
   not a mid-turn stop-rule kill.
@@ -485,3 +482,177 @@ set it, matching §6 and the source cell.
 - The `Failed to write while dumping service activity: Broken pipe` lines during each cold launch are
   adb noise from the foreground check; `fg()` retried and the app did reach foreground (each turn
   logged its full governor line). Cosmetic, not investigated.
+## 9. Second prompt (enc-long), one pair, build 634e3da4
+
+Run 2026-10-17 00:05–00:24, cold only, warm arm skipped. The S23 now carries app build `634e3da4`
+(`versionName=0.1.0`, `lastUpdateTime=2026-10-16 23:57:31`, `flags=[ DEBUGGABLE HAS_CODE
+ALLOW_CLEAR_USER_DATA ]`, installed with `-r`, data kept). The ship model is untouched under the new
+build: `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`.
+
+Device state at the start: **unplugged**, `level 97 %`, `battery 30.9 C`, `Thermal Status: 0`,
+`AC powered: false`. Stop rules were live all through: peak battery **39.9 C** (limit 42.0), peak
+thermal status **2** (limit 3), level ended at 91 % so the `< 30 % unplugged` rule never applied. No
+turn was killed and every monitor sample was `Awake` (`l1a` 6/6, `l1b` 33/33), so no turn is INVALID.
+
+### 9.1 Gate: the bench keys still take effect under 634e3da4
+
+Checked before the pair, with a short-prompt smoke turn (`raw/smoke-*`), because everything downstream
+depends on it:
+
+```
+smoke dur=56s probs_rows=508 monitor_samples=4
+KALSA_BENCH_TOKENS {"turnId":"1","n":506,"ids":[597,4695,10966,622,310,5141,296,8043,1703,2789,…
+KALSA_GOVERNOR_TURN {"ep":"NPU",…,"chunks":5,"dev":["HTP0"],…,"forced":false}
+smoke ids=32 from=tokens-line probs=508 steps0_31=contiguous tokens_lines=1
+```
+
+`sampling=greedy`, `probs=1` (508 probs rows), the NPU default backend, and 32 extractable ids all
+behave as before. The B-side keys were then verified on the real turn, not assumed: `raw/l1b-arm.txt`
+shows `SET kalsa.bench.governor_force=1` and `SET kalsa.bench.force_ids=[597,4695,677,3066,267,5781,…]`
+with every other key read back `SET`/`ABSENT` and `kalsa.governor.enabled=1`. `raw/l1b-probs.jsonl` has
+**33/33 rows `forced:true`, 0 `forced:false`**. The gate passes.
+
+### 9.2 The pair
+
+Both arms staged the same prompt (`Modern smartphones run` present in both UI dumps; `enc-long.txt`
+decodes to 7 948 characters) and used the **same prefill chunking**, `chunks: 10`, so the comparison is
+not confounded by chunk count:
+
+| arm | role | NPU / GPU / batt at send (C) | plug | level | wall from send | probs rows | backend (governor line) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `l1a` | A — NPU prefill (production default) | 36.2 / 36.0 / 31.7 | none | 96 % | 84 s | 711 | `{"ep":"NPU",…,"chunks":10,"dev":["HTP0"],…,"forced":false}` |
+| `l1b` | B — GPU prefill forced | 49.7 / 52.3 / 34.5 | none | 95 % | 419 s | 33 | `{"ep":"GPU",…,"chunks":10,"dev":["GPUOpenCL"],…,"forced":true}` |
+
+`l1a` is a free greedy answer (711 rows); `l1b` is cut to `l1a`'s first 32 ids. The compared range is
+exactly steps 0–31: on all 32, `forced=true` **and** `B.tok == A.tok`; at step 32 `B.tok = -1` because
+`force_ids` is exhausted, which is where the oracle stops. That is the oracle's own coverage contract
+(`oracle_logit.py:89`), not a manual trim.
+
+The two prompts are genuinely different generations, not a re-run: `l1a-ids.txt` starts
+`597 4695 677 3066 267` against the short prompt's `597 4695 10966 622 310`.
+
+### 9.3 Oracle verdict (verbatim)
+
+```
+oracle=FAIL rule=R2 steps=32 max_dlogp=6.6347 max_dp1=0.7710 divergences=0 first_div=-1
+oracle_exit=0
+steps_exit=0
+```
+
+**`rule=R2` here does not mean R1 is absent, and this pair is far worse than the short-prompt pairs.**
+`oracle_logit.py:116` reports `min(violations)[2]`, i.e. the rule of the **earliest** violating step;
+step 1 is an R2 step, so R2 wins the headline while the R1 violations at later steps stay in the body.
+From `raw/steps-l1a-vs-l1b.txt`, recounted from the 32 step rows:
+
+```
+top-1 disagreements: 22  -> [2, 3, 5, 6, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
+R1 steps:            22  -> same set
+R2 steps:             9  -> [1, 4, 7, 10, 27, 28, 29, 30, 31]
+no-violation steps:    1  -> [0]
+min margin overall: 0.055
+```
+
+Head and tail of the table:
+
+```
+step  0 A1=597 B1=597 margin=0.998 max_dlogp=0.370 dp1=0.000
+step  1 A1=4695 B1=4695 margin=0.831 max_dlogp=0.127 dp1=0.119 R2
+step  2 A1=677 B1=10966 margin=0.572 max_dlogp=5.070 dp1=0.222 R1
+step  3 A1=3066 B1=4116 margin=0.055 max_dlogp=0.649 dp1=0.268 R1
+…
+step 31 A1=395 B1=395 margin=0.995 max_dlogp=4.926 dp1=0.355 R2
+```
+
+Side by side with the enc-short pairs, same oracle, same thresholds:
+
+| prompt | pairs | verdict | max_dlogp | max_dp1 | steps with top-1 disagreement |
+| --- | --- | --- | --- | --- | --- |
+| enc-short (5 chunks) | c1, c2, w1, w2 + rehearsal | `FAIL rule=R2 … max_dlogp=0.7041 max_dp1=0.1021` | 0.7041 | 0.1021 | **0 / 32** |
+| enc-long (10 chunks) | l1 | `FAIL rule=R2 … max_dlogp=6.6347 max_dp1=0.7710` | 6.6347 | 0.7710 | **22 / 32** |
+
+So the S23's NPU-vs-GPU prefill divergence is **not** the small, top-1-preserving number the short
+prompt showed. At 10 prefill chunks the two backends disagree on the argmax at 22 of 32 steps and by
+up to **6.63 nats** (66× the 0.10 limit) and **0.77** in top-1 probability (38× the 0.02 limit). Every
+disagreement was R1-eligible (smallest margin seen 0.055, above the 0.03 gate), so the R1 count equals
+the disagreement count. The short-prompt verdict was measured at 5 chunks and **understates** the
+divergence at realistic context length. Caveat before generalising: one prompt, one pair, and the two
+prompts differ in length, chunk count and build (below) — this shows the short-prompt result is not
+safe to extrapolate, not that "long = 6.6 nats" is a constant.
+
+`divergences=0 first_div=-1` is expected in TF mode, not a claim of agreement: that counter is only
+appended in the `G` branch (`oracle_logit.py:103`).
+
+### 9.4 sha256 of every probs file, and short-vs-long
+
+```
+83a4f296f14436a3de02ba37109dfd08c5b094636973e3621f1d707191a1f4a1  l1a-probs.jsonl     (enc-long, A)
+f4d7b6382b64ce1a3c0d28e98d83cd5faa62d98eb68eea7241cd305f25e267c7  l1b-probs.jsonl     (enc-long, B)
+0a8e25d89de56add12ab1ac1615e97fb684dd8ed69fdbf7c858caf35d7096f90  smoke-probs.jsonl   (enc-short, A, new build)
+2e7e0b747fa8fc4c3f21db9ae632fb5c415d87f21435791c4f0580e43bc2b21c  c1a-probs.jsonl    (enc-short, A, old build)
+2e7e0b747fa8fc4c3f21db9ae632fb5c415d87f21435791c4f0580e43bc2b21c  c2a-probs.jsonl    (enc-short, A, old build)
+2e7e0b747fa8fc4c3f21db9ae632fb5c415d87f21435791c4f0580e43bc2b21c  s23A-probs.jsonl   (enc-short, A, old build)
+2e7e0b747fa8fc4c3f21db9ae632fb5c415d87f21435791c4f0580e43bc2b21c  w1a-probs.jsonl   (enc-short, A, old build)
+2e7e0b747fa8fc4c3f21db9ae632fb5c415d87f21435791c4f0580e43bc2b21c  w2a-probs.jsonl   (enc-short, A, old build)
+5849af493441f421dd5ed5353053d083d5fc93bbeafbe896673be72a9e8211ea  c1b/c2b/s23B/w1b/w2b-probs.jsonl (enc-short, B, old build)
+```
+
+- **A vs B on the long prompt: different** (`83a4f296…` vs `f4d7b638…`), as they must be — they are
+  different backends and different row counts (711 vs 33).
+- **Long A vs every enc-short A: different** — expected, different prompt.
+- **⚠ The build change alone moved the short-prompt output.** `smoke-probs.jsonl` (enc-short, build
+  634e3da4) is `0a8e25d8…`, **not** the `2e7e0b74…` shared by all five old-build enc-short captures, and
+  it is 508 rows against 563. The first row differs numerically too (`[597,-0.0008]`/`[52,-7.8262]`
+  against `[597,-0.0007]`/`[52,-7.9498]`). So `634e3da4` changes the logits and the generated length on
+  the *same* prompt. Consequence: **enc-long vs enc-short is confounded** — prompt length and build
+  changed together, and §9.3's long-vs-short gap cannot be attributed to length alone. Isolating it
+  needs the long prompt on the old build, or both prompts on the new build. The `l1` pair itself is
+  unaffected: both arms ran the same build, same prompt, same chunking.
+- The ids files: `l1a-ids.txt` and `l1b-ids.txt` are identical to each other
+  (`8468155b5defe208…`) and different from the short-prompt ids (`f39d0305dba15174…`).
+
+### 9.5 Status after this run
+
+- **R4, in the "independent pair" sense, is now satisfied for the S23**: the five enc-short pairs were
+  byte-identical replicas of a single prompt (§7.5), and `l1` adds a genuinely different prompt and a
+  different generated token sequence. Two independent prompt-level pairs, both `steps=32`, both FAIL.
+  Within the long prompt it is still n=1.
+- **R5 is still unmet**, inherited unchanged; nothing here runs the 8-Elite PASS or the fault-injected
+  FAIL control.
+- **Long-prompt determinism is still unmeasured** — one capture per arm, so `l1a`/`l1b` shas cannot
+  support any determinism claim either way. §7.5's determinism result stands for the short prompt only.
+- Nothing about temperature is claimed: this run was cold, and §7.3's warm arm never reached its start
+  condition.
+
+### 9.6 State left on the device
+
+Backup taken before the first write this run: `raw/RKStorage-pre634e3da4-backup.sqlite`, sha256
+`52d1560eeea2a635edb5675bf09edd99d92b240dcd0a4554b0eeb4e7052bc1f2`, 115 rows,
+`PRAGMA integrity_check` = `ok`. No shell redirect was used to write app data at any point: every write
+went through `kset.sh` (`adb push` + `run-as cp`), which verifies each key by read-back and refuses a
+size mismatch, restoring its own copy on failure.
+
+`restore.sh` exited 0 and the read-back proves every key is back to its pre-run value:
+
+```
+ABSENT kalsa.bench.sampling / probs / toolchoice / governor_force / force_ids / npu_lane / route / thermo
+SET kalsa.web.enabled=1
+SET kalsa.tools.device=0
+SET kalsa.tools.calendar=0
+--- final state of every kalsa.bench.* / web / tools key
+kalsa.bench.energy_trace=1
+kalsa.bench.kvtranscript=1
+kalsa.bench.nativelog=1
+kalsa.tools.calendar=0
+kalsa.tools.device=0
+kalsa.web.enabled=1
+```
+
+Re-pulled straight off the device afterwards: `integrity: ok`, `rows: 121`, and **0** of the eight bench
+keys this cell sets still present. Diffing the key/value set against the pre-run backup shows only
+three new `kalsa.chat.compactor.conv-*` rows (one per new chat), `kalsa.conversations.v1` with a new
+`activeId`, and `kalsa.logReport.consumedExitAt.v1` — no pre-existing row removed or rewritten.
+Conversations went 29 → 32 ids; **none were deleted**.
+
+Left running on a fresh `Nuova chat` screen with an empty composer — `raw/final-screen-634e3da4.png`,
+model `LFM2.5 2.6B`, `Su questo telefono`, `mCurrentFocus` = `com.kalsa.app/.MainActivity` before every
+tap. Never disconnected, never uninstalled, data never cleared, no battery or thermal fake.
