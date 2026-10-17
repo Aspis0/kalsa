@@ -572,11 +572,13 @@ Report: 0 P0, 2 P1, 8 P2. The engine-key P1 (llama-server answered any Origin, n
 
 ## Phone log report, web-search notice, report Worker (app 772ee31a, workers 556e6768, 2026-10-16, leftovers)
 - ~~Phone `echo-of-context` gate blocks ordinary searches~~ **Fixed** in app 90d541f3/8b89c094/85a3f6fc; S23 on 8b89c094 (2026-10-16): "Cerca sul web le notizie di oggi su Samsung" searched, `blockedPrivacy:0` (lab `scratchpad/agents/s23-search-gate-8b89c094/REPORT.md`).
-- Phone `web_fetch` reaches the network without the provider notice: after a blocked search the model fetched a page on its own. Same for a user-typed URL.
-- Phone: a forced text-only round still executes a tool. When the app forces `toolChoice:"none"` (here after one search and one fetch), `parseFallbackToolCalls` (`src/engine/LlamaService.ts:5003`) ignores it: S23 round 2 logged `"toolChoice":"none",...,"fallbackDialect":"lfm","executed":1,...,"toolNames":["web_fetch"]`.
+- ~~Phone `web_fetch` reaches the network without the provider notice~~ **Fixed** in app 634e3da4 (one-time notice, `kalsa.fetch.consent.v1`; not yet pushed or device-tested). Was: after a blocked search the model fetched a page on its own. Same for a user-typed URL.
+- ~~Phone: a forced text-only round still executes a tool~~ **Fixed** in app 634e3da4 (calls counted, never run; blank round closes through the text-only fallback). Was: When the app forces `toolChoice:"none"` (here after one search and one fetch), `parseFallbackToolCalls` (`src/engine/LlamaService.ts:5003`) ignores it: S23 round 2 logged `"toolChoice":"none",...,"fallbackDialect":"lfm","executed":1,...,"toolNames":["web_fetch"]`.
 - Phone-originated desk-mode searches bypass the desktop first-search notice.
-- `KALSA_GOVERNOR_TURN` `hn`/`hg` carry float noise (`38.10000228881836`); round to 0.1.
-- Consent prompt P2s (luna round 4): a queued prompt answers a stop late; a stopped turn's Alert stays on screen; `AbortSignal.any` keeps one listener per call until the turn signal aborts; a throwing `onTimeout` does not cancel.
+- ~~`KALSA_GOVERNOR_TURN` `hn`/`hg` carry float noise~~ **Fixed** in app 634e3da4. Was: (`38.10000228881836`); round to 0.1.
+- Consent prompt P2s (luna round 4): ~~a queued prompt answers a stop late~~ (fixed in 772ee31a, `firstSearchNotice.ts:154-156`); a stopped turn's Alert stays on screen; `AbortSignal.any` keeps one listener per call until the turn signal aborts; a throwing `onTimeout` does not cancel.
 - Report Worker accepted limits: space or `?` inside a userinfo password, `peer>10.0.0.1`, HTML entities / fullwidth `＠`, invisible characters splitting an address on desktop lines, a token split by an invisible whose tail the first scan already took keeps its head (`ma<NUL><email>`), double encoding (`%2540`), numbers JSON cannot round-trip, an address written as a number, BOM / lone-CR bodies.
+- Phone consent dialogs (search and fetch): the 5-min tool timeout (`TOOL_EXEC_TIMEOUT_MS`, LlamaService.ts) aborts a dialog the user is still reading; the model is then told "the user chose not to", which is untrue (deepseek F5, 634e3da4 audit).
+- Phone `web_fetch` redirects: a cross-host redirect is refused only after the native client has already contacted the new host (`redirect: "follow"`, webFetchTool.ts); the notice says "the site" (deepseek F6, pre-existing).
 - Report Worker: an automated commit review flagged redaction bypasses with no detail; not reproduced.
 - Learning governor M7: the wall-minute columns deflate the background heat estimate.
