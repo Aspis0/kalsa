@@ -417,8 +417,9 @@ R5 sanity (8 Elite known-good PASS + fault-injected FAIL): STILL UNMET — inher
   violation anywhere (top-1 agrees 32/32 in every pair). Because the warm arm was never actually warm
   (§7.3), this shows the step set is stable across ~1 h of thermal drift but says **nothing** about
   temperature dependence — that question is still open, not answered.
-- **R4 is now MET for the S23 board**: `steps=32` on ≥2 same-turn pairs per condition. The n=1
-  caveat of §4 is discharged for the cool condition.
+- **R4 is NOT met (orchestrator correction).** The `verdict.sh` lines at 400/406 count pairs, but every
+  pair is a byte-identical replica of the same prompt (§7 determinism), so this is ONE independent pair.
+  The source cell drew the same conclusion for its SM8850 replicas. A second prompt (enc-long) is needed.
 - **R5 is still unmet**, inherited unchanged from the source cell and the registry: 8 Elite
   known-good must PASS and a fault-injected build must FAIL. Nothing in this cell runs either.
 - **The headline result is unchanged and now better supported:** on the S23's own kernel, NPU vs GPU

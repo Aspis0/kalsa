@@ -153,8 +153,8 @@ noise (`41.30000305175781`). [scratchpad/agents/s23-search-gate-8b89c094/REPORT.
 `e7684925`, no decision change) are done. M5, the logit-oracle check of NPU vs GPU prefill, comes before
 M9. **S23 result (2026-10-16):** GPU prefill vs NPU prefill = `oracle=FAIL rule=R2 steps=32
 max_dlogp=0.7041 max_dp1=0.1021 divergences=0` on all 4 pairs; top-1 agrees on 32/32 steps, R1 clean.
-Both prefills are bit-deterministic under greedy (identical probs across 5 captures). R4 met for the cool
-condition; the warm arm was never reached (the NPU passes 70 C only inside a turn, the gate reads it
+Both prefills are bit-deterministic under greedy (identical probs across 5 captures). The 4 pairs are byte-identical
+replicas of one prompt, so they count as ONE independent pair: R4 is not met (needs a second prompt); the warm arm was never reached (the NPU passes 70 C only inside a turn, the gate reads it
 between turns), so heat dependence is untested. R5 still unmet. The verdict goes to the owner (R6).
 [scratchpad/agents/s23-oracle-m5/REPORT.md] The merged step plan is
 `scratchpad/agents/learning-governor/LEARNING-MERGE.md` (M5 at line 603, the oracle at section 4).
