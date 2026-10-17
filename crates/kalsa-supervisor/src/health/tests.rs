@@ -51,10 +51,11 @@ fn the_control_key_is_never_the_key_it_corrects() {
 }
 
 #[test]
-fn the_key_goes_on_the_wire_only_where_one_is_asked_for() {
+fn the_questions_come_in_that_order_and_our_key_is_the_last_one() {
     // `stand_in` reads the request as the engine would, so this reads the
-    // bytes on the port: the gated request carries the bearer, the health
-    // request behind it carries nothing.
+    // bytes on the port: the key this run did NOT mint goes out first, the
+    // open route goes out without one, and ours goes out only after both have
+    // been answered.
     let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let (addr, stop) = stand_in(Arc::clone(&seen), |request| {
         if request.contains(IDENTITY_PATH) {
@@ -72,8 +73,9 @@ fn the_key_goes_on_the_wire_only_where_one_is_asked_for() {
     let seen = seen.lock().expect("the requests the stand-in read");
     assert_eq!(seen.len(), 3, "the proof is three requests: {seen:?}");
     assert!(
-        seen[0].contains(&format!("GET {IDENTITY_PATH} ")) && seen[0].contains("Authorization: Bearer"),
-        "the gated request went out without a key: {}",
+        seen[0].contains(&format!("GET {IDENTITY_PATH} "))
+            && seen[0].contains(&format!("Bearer {}", wrong_key(OUR_KEY))),
+        "the first question did not go out with the key this run never minted: {}",
         seen[0]
     );
     assert!(
@@ -82,9 +84,40 @@ fn the_key_goes_on_the_wire_only_where_one_is_asked_for() {
         seen[1]
     );
     assert!(
-        seen[2].contains("Authorization: Bearer") && seen[2].contains(&wrong_key(OUR_KEY)),
-        "the control did not carry the key it is meant to be refused: {}",
+        seen[2].contains(&format!("GET {IDENTITY_PATH} "))
+            && seen[2].contains(&format!("Bearer {OUR_KEY}")),
+        "our key did not go out last: {}",
         seen[2]
+    );
+}
+
+/// The order's whole point: a listener that answers `2xx` to ANY key is
+/// named by the very first question, and it is never asked ours. Nothing is
+/// adopted from it either — a key-ignoring listener is somebody else's server
+/// whatever it serves.
+#[test]
+fn a_stranger_that_accepts_any_key_never_sees_ours() {
+    let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let (addr, stop) = stand_in(Arc::clone(&seen), |_| status(200, "{}"));
+    let who = who_answers(addr, OUR_KEY, Duration::from_secs(2));
+    stop();
+    let seen = seen.lock().expect("the requests the stand-in read");
+
+    assert_eq!(
+        who,
+        Who::Stranger,
+        "a listener that took the wrong key too was taken for our own engine"
+    );
+    assert_eq!(seen.len(), 1, "it was asked again after it answered: {seen:?}");
+    assert!(
+        seen[0].contains(&format!("Bearer {}", wrong_key(OUR_KEY))),
+        "the first question did not carry the key it is meant to be refused: {}",
+        seen[0]
+    );
+    assert!(
+        !seen[0].contains(&format!("Bearer {OUR_KEY}")),
+        "our engine key went to a listener that answers 2xx to anything: {}",
+        seen[0]
     );
 }
 
@@ -134,20 +167,6 @@ fn a_stale_engine_that_refuses_our_key_is_a_stranger_however_healthy_it_looks() 
     );
 }
 
-/// The other half of the hole: a `200` from a listener that never checks
-/// `Authorization` proves nothing about anybody's key. It must not pass.
-#[test]
-fn a_listener_that_answers_every_key_is_a_stranger() {
-    let (addr, stop) = stand_in(Arc::new(Mutex::new(Vec::new())), |_| status(200, "{}"));
-    let who = who_answers(addr, OUR_KEY, Duration::from_secs(2));
-    stop();
-    assert_eq!(
-        who,
-        Who::Stranger,
-        "a listener that took the wrong key too was taken for our own engine"
-    );
-}
-
 #[test]
 fn our_own_loaded_engine_is_ready() {
     let (addr, stop) = stand_in(Arc::new(Mutex::new(Vec::new())), |request| {
@@ -165,10 +184,13 @@ fn our_own_loaded_engine_is_ready() {
 }
 
 /// Ours, but still loading: the fork's `503` on the open route is the start
-/// still happening, not a failure to report.
+/// still happening, not a failure to report. The key is never sent either —
+/// `/health` settles "is it loaded", and a start that is loading has told us
+/// everything there is to know.
 #[test]
-fn an_engine_still_loading_is_not_ready_yet() {
-    let (addr, stop) = stand_in(Arc::new(Mutex::new(Vec::new())), |request| {
+fn an_engine_still_loading_is_not_ready_yet_and_never_gets_the_key() {
+    let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let (addr, stop) = stand_in(Arc::clone(&seen), |request| {
         if request.contains(HEALTH_PATH) {
             status(503, "loading")
         } else if request.contains(&format!("Bearer {OUR_KEY}")) {
@@ -179,7 +201,13 @@ fn an_engine_still_loading_is_not_ready_yet() {
     });
     let who = who_answers(addr, OUR_KEY, Duration::from_secs(2));
     stop();
+    let seen = seen.lock().expect("the requests");
     assert_eq!(who, Who::Loading);
+    assert!(
+        seen.iter()
+            .all(|request| !request.contains(&format!("Bearer {OUR_KEY}"))),
+        "a loading engine was handed our key before it was asked anything worth knowing: {seen:?}"
+    );
 }
 
 #[test]
@@ -193,22 +221,44 @@ fn a_port_nobody_listens_on_is_loading_not_a_stranger() {
     );
 }
 
-/// A control the engine could not answer proves nothing, so nothing is adopted.
+/// A question this handshake could not read is not a question it may answer, so
+/// neither half of an unreadable proof is adopted: the first question unread,
+/// and the last one unread, are both `Loading` — and neither sends our key.
 #[test]
-fn a_listener_that_cannot_answer_the_whole_proof_is_not_ready() {
-    let (addr, stop) = stand_in(Arc::new(Mutex::new(Vec::new())), |request| {
+fn a_proof_it_cannot_read_whole_is_loading_and_sends_no_key() {
+    let first_unread: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let (addr, stop) = stand_in(Arc::clone(&first_unread), |_| "\r\n".to_string());
+    let who = who_answers(addr, OUR_KEY, Duration::from_secs(2));
+    stop();
+    let first_unread = first_unread.lock().expect("the requests");
+    assert_eq!(who, Who::Loading, "an unreadable first question was a verdict");
+    assert!(
+        first_unread
+            .iter()
+            .all(|request| !request.contains(&format!("Bearer {OUR_KEY}"))),
+        "our key went out to a listener whose first answer was unreadable: {first_unread:?}"
+    );
+
+    let last_unread: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let (addr, stop) = stand_in(Arc::clone(&last_unread), |request| {
         if request.contains(HEALTH_PATH) {
             status(200, "ok")
         } else if request.contains(&format!("Bearer {OUR_KEY}")) {
-            status(200, "{}")
-        } else {
-            // The control cannot be answered at all: a reset, not a refusal.
+            // A reset, not a refusal: nothing is known about this listener.
             "\r\n".to_string()
+        } else {
+            status(401, "unauthorized")
         }
     });
     let who = who_answers(addr, OUR_KEY, Duration::from_secs(2));
     stop();
+    let last_unread = last_unread.lock().expect("the requests");
     assert_eq!(who, Who::Loading, "a half-proved identity was called ready");
+    assert_eq!(
+        last_unread.len(),
+        3,
+        "the proof is three requests: {last_unread:?}"
+    );
 }
 
 #[test]

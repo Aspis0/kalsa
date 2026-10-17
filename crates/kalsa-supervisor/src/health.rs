@@ -13,21 +13,35 @@
 //! it loaded last night — answers `/health` with `200`, so a handshake built on
 //! that route alone reports somebody else's server as ours.
 //!
-//! So identity is PROVED, not assumed, in three plain requests:
+//! So identity is PROVED, not assumed, in three plain requests — and OUR key is
+//! the LAST of them, because every earlier question can be asked without it and
+//! a key that never leaves the machine is a key nobody can read off the wire:
 //!
-//! 1. a key-gated route with OUR key answers `2xx` — only a process this run
-//!    handed the key to can accept it;
-//! 2. the same route with a key this run did NOT mint is refused (`401`/
-//!    `403`) — a `2xx` there means the listener ignores `Authorization`
-//!    altogether, and a `200` from a listener that ignores it proves nothing
-//!    about anybody's key;
-//! 3. `/health`, the open route, answers `200`: that engine is loaded.
+//! 1. a key-gated route with a key this run did NOT mint is refused (`401`/
+//!    `403`). That refusal is the first thing worth knowing: it says the
+//!    listener READS `Authorization`, which is what makes step 3 a question
+//!    about a key rather than about a route. A `2xx` here means the listener
+//!    ignores `Authorization` altogether — the one listener that must never
+//!    see ours — and the handshake ends as a `Stranger` without sending it;
+//! 2. `/health`, the open route, answers `200`: that engine is loaded;
+//! 3. a key-gated route with OUR key answers `2xx` — only a process this run
+//!    handed the key to can accept it.
 //!
 //! Anything short of all three is `Loading`: an engine that has not bound yet
 //! refuses the connection, one still loading answers `503`, and a question
-//! this handshake could not read is not a question it may answer. A refused
-//! key at (1), or a key accepted at (2), is a `Stranger` — reported, never
+//! this handshake could not read is not a question it may answer. A key
+//! accepted at (1), or refused at (3), is a `Stranger` — reported, never
 //! signalled.
+//!
+//! WHAT IS STILL LEFT, and cannot be closed from here: a local process that
+//! REFUSES every key passes (1) and (2) and is handed ours at (3), because
+//! telling a stranger's key from ours requires the stranger to state which key
+//! it holds, and the one way to ask that — send a key and see — is the thing
+//! being avoided. The engine key guards this engine's own routes on this port
+//! against clients that have it; it is not a machine secret, and nothing here
+//! should pretend the handshake makes it one. What the ordering does buy is
+//! concrete: a listener that ignores keys — a plain HTTP server, a proxy, a
+//! decoy — is identified and dropped without ever seeing it.
 //!
 //! Each request is its own `GET` on its own connection, ended by the server
 //! with `Connection: close`. That is deliberate: keep-alive and pipelining are
@@ -88,26 +102,29 @@ enum Answer {
 
 /// The handshake: our engine, our key, loaded.
 ///
-/// Three connections, and the first one that proves anything else ends it:
-/// there is no reason to ask a stranger a third question.
+/// Three connections, in the order that keeps our key off the wire as long as
+/// possible, and the first one that proves anything else ends it: there is no
+/// reason to ask a stranger a third question, and none to hand it the last one.
 pub fn who_answers(addr: SocketAddr, key: &str, timeout: Duration) -> Who {
-    // 1. Our key, on the gated route.
-    match ask(addr, IDENTITY_PATH, Some(key), timeout) {
-        Answer::Accepted => {}
-        Answer::RefusedKey => return Who::Stranger,
+    // 1. A key this run did not mint. The refusal is what makes step 3 a
+    // question about keys: a listener that takes this one takes anything, and
+    // it is reported without our key ever being written to it.
+    match ask(addr, IDENTITY_PATH, Some(&wrong_key(key)), timeout) {
+        Answer::RefusedKey => {}
+        Answer::Accepted => return Who::Stranger,
         Answer::Silent => return Who::Loading,
     }
     // 2. Loaded.
     if ask(addr, HEALTH_PATH, None, timeout) != Answer::Accepted {
         return Who::Loading;
     }
-    // 3. The negative control: it must refuse a key this run never minted. A
-    // `2xx` here is a listener that ignores `Authorization`, so the `2xx` at
-    // (1) proved nothing; a control it could not answer proves nothing either,
-    // and nothing is adopted either way.
-    match ask(addr, IDENTITY_PATH, Some(&wrong_key(key)), timeout) {
-        Answer::RefusedKey => Who::Ready,
-        Answer::Accepted => Who::Stranger,
+    // 3. Our key, last: everything that could be settled without it is
+    // settled. A refusal here is not a loading engine — loading speaks on
+    // `/health`, which just answered — but a listener holding somebody else's
+    // key.
+    match ask(addr, IDENTITY_PATH, Some(key), timeout) {
+        Answer::Accepted => Who::Ready,
+        Answer::RefusedKey => Who::Stranger,
         Answer::Silent => Who::Loading,
     }
 }
@@ -155,7 +172,9 @@ fn ask(addr: SocketAddr, path: &str, key: Option<&str>, timeout: Duration) -> An
 
 /// A key this run did not mint: the real one with its first hex digit flipped.
 /// A key that cannot be flipped is returned unchanged, and it is still not the
-/// key this run handed to its child.
+/// key this run handed to its child — it is the question sent FIRST, precisely
+/// so that a listener which answers `2xx` to anything is named without ours
+/// ever being written to it.
 fn wrong_key(key: &str) -> String {
     let mut bytes = key.as_bytes().to_vec();
     if let Some(first) = bytes.first_mut() {
