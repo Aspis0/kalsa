@@ -160,6 +160,19 @@ pub(crate) struct PairedDeviceDto {
     /// install id the match was made on never leaves this process — this
     /// is the whole of what crosses to the page.
     pairing_again: Option<u32>,
+    /// Whether this phone may read this computer's mail, which the owner
+    /// switches one phone at a time in Settings → Mail. A phone paired
+    /// before the switch existed reads back true — the state it had all
+    /// along — and a phone paired since reads back false until the owner
+    /// says otherwise. Nothing but this one bit crosses: no credential, no
+    /// address, no mail.
+    mail: bool,
+    /// The name the owner gave this phone, in their own words, or `None` for
+    /// the phone nobody has named — which the page draws as the number the
+    /// store gave it, in the reader's language. The text crosses as typed:
+    /// this is a name for one person to recognise a device, not a sentence
+    /// the app owns, so nothing here translates or tidies it.
+    name: Option<String>,
 }
 
 impl PairingDto {
@@ -310,7 +323,7 @@ impl Desk {
         // is swallowed — the next tick, and the next real write, try again.
         self.invites.expire_if_due(now);
         if self.listener_failed.load(Ordering::SeqCst) {
-            let (devices, owed) = self.house(now);
+            let (devices, owed) = self.house(now).unwrap_or_default();
             return dto(&State::ServiceUnavailable, devices, owed);
         }
         if serving {
@@ -338,7 +351,10 @@ impl Desk {
             State::Idle => *state = Self::fresh(reachable, node, tailnet, now, None, None),
             State::Live { .. } => {}
         }
-        let (devices, owed) = self.house(now);
+        // The Pairing page's own poll is never refused by a store it cannot
+        // read: it answers no rows, as it always has, and the page has its own
+        // words for a house it could not ask about.
+        let (devices, owed) = self.house(now).unwrap_or_default();
         dto(&state, devices, owed)
     }
 
@@ -350,8 +366,14 @@ impl Desk {
     /// response, and a restart shows exactly what the disk holds. Empty when
     /// the store cannot be read — the failed state says that in its own
     /// words, and nothing is owed that cannot be read.
-    fn house(&self, now: SystemTime) -> (Vec<PairedDeviceDto>, bool) {
-        let devices = kalsa_pairing::store::load_devices(&self.file).unwrap_or_default();
+    /// The rows and whether a delivery is owed, or the store's own refusal.
+    /// `read` below swallows that refusal — the Pairing page has always been
+    /// answered with no rows rather than an error — and [`Self::devices`]
+    /// does not, because "the store could not be read" and "no phone is
+    /// paired" are different sentences, and a page about whose phone may read
+    /// the owner's mail must never draw the second for the first.
+    fn house(&self, now: SystemTime) -> Result<(Vec<PairedDeviceDto>, bool), StoreError> {
+        let devices = kalsa_pairing::store::load_devices(&self.file)?;
         // A waiting record whose phone already has an allowed seat is not a
         // second phone: the page draws its request on THAT seat's row, so
         // only the seat's id crosses to it — matched here, from the install
@@ -402,10 +424,12 @@ impl Desk {
                         .map(|model| phone_label_code(model).1),
                     waiting: device.waiting,
                     pairing_again,
+                    mail: device.mail,
+                    name: device.name,
                 }
             })
             .collect();
-        (rows, owed)
+        Ok((rows, owed))
     }
 
     /// The store this desk reads and writes. The shell needs the path to put
@@ -465,6 +489,36 @@ impl Desk {
     pub(crate) fn allow_device(&self, id: u32) -> Result<(), StoreError> {
         let _state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         kalsa_pairing::store::allow_device(&self.file, id)
+    }
+
+    /// The owner moved one phone's mail switch, and the store reports whether
+    /// this id was a phone at all: a host's own id and an id nobody holds both
+    /// answer `false`, so the shell can leave every copy of the answer it
+    /// holds alone rather than writing a phone's switch over the desktop's own
+    /// mailbox. The state lock is `allow_device`'s, for the same reason: the
+    /// catalog's observation must not cross the owner's decision.
+    pub(crate) fn set_phone_mail(&self, id: u32, allowed: bool) -> Result<bool, StoreError> {
+        let _state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        kalsa_pairing::store::set_phone_mail(&self.file, id, allowed)
+    }
+
+    /// The owner named one phone, or cleared the name. `true` when the id was
+    /// a phone at all — the same answer, and the same reason, as
+    /// [`Self::set_phone_mail`]: this computer's own record is not something
+    /// the owner renames, and a shell told otherwise would carry a name it can
+    /// never store.
+    pub(crate) fn set_device_name(&self, id: u32, name: Option<String>) -> Result<bool, StoreError> {
+        let _state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        kalsa_pairing::store::set_device_name(&self.file, id, name)
+    }
+
+    /// The stored devices as the page reads them, and nothing else. Pure: no
+    /// square refreshed or minted, no invitation expired, no tailnet
+    /// detected, no state machine stepped. A page that wants the house and
+    /// nothing but the house reads it here rather than through [`Self::read`],
+    /// whose poll carries a ceremony with it.
+    pub(crate) fn devices(&self, now: SystemTime) -> Result<Vec<PairedDeviceDto>, StoreError> {
+        Ok(self.house(now)?.0)
     }
 
     /// The owner asked for another square. Anything in flight is abandoned:

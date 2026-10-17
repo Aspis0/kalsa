@@ -57,6 +57,14 @@
   line-height: 22px;
 }
 
+/* A refusal under the rows: said once, kept until the next press. */
+.phones-note.is-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--warn-ink);
+}
+
 /* A status or a choice that needs the owner, drawn as one banner. */
 .surface-page.phones-page .phones-banner {
   display: flex;
@@ -374,6 +382,35 @@
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The rename field, where the name was: the same cell, the same weight, so
+   the row does not jump when the field closes over the name. */
+.surface-page.phones-page .surface-devices .surface-device-rename {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 8px 4px;
+  color: var(--tx);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.surface-page.phones-page .surface-devices .surface-device-rename:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* A row's own two decisions sit together, the pencil first. */
+.surface-page.phones-page .surface-devices .btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
 }
 
 /* An invite has no detail line: its one line sits across both rows. */

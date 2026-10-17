@@ -6520,29 +6520,37 @@ const tests = {
       });
       await page.addInitScript(() => {
         const previous = window.__TAURI__;
+        // The house, kept as one array the way a store keeps one file: a
+        // rename has to land in it, or the next poll would read back the name
+        // the row just replaced and undo it.
+        const house = [
+          { id: 0, kind: "host", label: "This computer" },
+          // The shape Rust really sends: `phone` is an English capability
+          // sentence, and it always arrives with the code and the figure the
+          // page renders it from.
+          {
+            id: 1,
+            label: "Paired phone 2",
+            phone: "phone with 3 GB of model weights",
+            phone_code: "pairing.phone_with_ai",
+            phone_params: { gb: 3 },
+            waiting: false,
+            pairing_again: false,
+          },
+          // A phone the owner has named. The name is theirs: the row shows it
+          // as typed, on a page in Italian.
+          { id: 2, label: "Paired phone 3", name: "Il telefono di Anna", waiting: false },
+        ];
         window.__TAURI__ = {
           ...previous,
           core: {
-            invoke: async (command) => {
-              if (command === "brain_pairing") {
-                return {
-                  state: "paired",
-                  devices: [
-                    { id: 0, kind: "host", label: "This computer" },
-                    // The shape Rust really sends: `phone` is an English
-                    // capability sentence, and it always arrives with the code
-                    // and the figure the page renders it from.
-                    {
-                      id: 1,
-                      label: "Paired phone 2",
-                      phone: "phone with 3 GB of model weights",
-                      phone_code: "pairing.phone_with_ai",
-                      phone_params: { gb: 3 },
-                      waiting: false,
-                      pairing_again: false,
-                    },
-                  ],
-                };
+            invoke: async (command, args) => {
+              if (command === "brain_pairing") return { state: "paired", devices: house };
+              if (command === "brain_pairing_set_device_name") {
+                const said = args?.name;
+                const row = house.find((device) => device.id === args?.id);
+                if (row) row.name = said ? said : undefined;
+                return null;
               }
               return previous.core.invoke(command);
             },
@@ -6561,11 +6569,43 @@ const tests = {
       // says the same 2 in the reader's words.
       check("phones: the phone is named in the language, with Rust's own number", rows.includes("telefono 2"), rows.join(" | "));
       check("phones: and not with the English label Rust minted", !rows.some((name) => /This computer|Paired phone/.test(name)), rows.join(" | "));
-      // The sentence that names the one phone the house works with reads the
-      // same name; it used to read `device.label` or `device.phone`, which are
-      // English words Rust wrote and never empty.
+      // The owner's own name crosses as typed: a row shows it verbatim, and the
+      // phone nobody named is still the number the store gave it.
+      check("phones: a named phone is shown under the owner's own name", rows.includes("Il telefono di Anna"), rows.join(" | "));
+      check("phones: a phone nobody named keeps the number", rows.includes("telefono 2"), rows.join(" | "));
+      // The rename is the owner's, on the row and nowhere else: this computer
+      // has no button to press, and the row that owns one names the phone in
+      // the sentence too.
+      const renames = page.locator(".surface-devices .surface-device button", { hasText: "Rinomina" });
+      check("phones: only a phone of the owner's can be renamed", (await renames.count()) === 2, `buttons: ${await renames.count()}`);
+      await renames.last().click();
+      const field = page.locator(".surface-device-rename");
+      await field.waitFor({ timeout: 5000 });
+      check("phones: the rename opens on the name as it stands", (await field.inputValue()) === "Il telefono di Anna", await field.inputValue());
+      await field.fill("Anna");
+      await field.press("Enter");
+      // The row redraws from the page's own poll, not from the write: what the
+      // store answered is the truth, and this page reads it on its next tick.
+      await page.waitForFunction(
+        () => [...document.querySelectorAll(".surface-device-name")].some((row) => row.textContent === "Anna"),
+        null,
+        { timeout: 8000 },
+      );
+      const renamed = await page.locator(".surface-device-name").allTextContents();
+      check("phones: and what the owner typed is what the row says", renamed.includes("Anna"), renamed.join(" | "));
+      // Escape leaves without changing anything.
+      await renames.last().click();
+      await page.locator(".surface-device-rename").waitFor({ timeout: 5000 });
+      await page.locator(".surface-device-rename").fill("Cambiata");
+      await page.locator(".surface-device-rename").press("Escape");
+      await page.waitForTimeout(500);
+      const kept = await page.locator(".surface-device-name").allTextContents();
+      check("phones: an abandoned rename changes nothing", kept.includes("Anna") && !kept.some((name) => name === "Cambiata"), kept.join(" | "));
+      // The lead sentence is the page's voice about the house. With one phone
+      // it NAMES it; with two it counts them, so what it must never do is fall
+      // back on the English words Rust wrote.
       const sentence = (await page.locator(".phones-lead").first().innerText()).trim();
-      check("phones: the sentence names it in the language too", sentence.includes("telefono 2"), sentence);
+      check("phones: the sentence speaks the house in the language too", sentence.includes("2 telefoni"), sentence);
       check("phones: and no English Rust wrote is in any sentence", !/Paired phone|This computer|GB of model weights/.test(await page.locator(".surface-page").innerText()), sentence);
     } finally {
       await browser.close();

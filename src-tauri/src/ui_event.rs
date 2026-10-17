@@ -10,7 +10,11 @@
 //!
 //! The code is the app's own vocabulary (`chat.slot_hold_expired`,
 //! `chat.attach_failed`, `chat.turn_network`), minted where the sentence is
-//! chosen in `chat/src`, so one grep finds both ends of a report line.
+//! chosen in `chat/src`, so one grep finds both ends of a report line. A few
+//! are minted at a call site instead of a sentence — `chat.tool.<name>` and
+//! `phone.tool.<name>`, which say which tool a round called and never what it
+//! was given — and they keep the same shape, so the same grep still finds
+//! them.
 
 /// The longest code the log writes. Long enough for a dotted path, short
 /// enough that no runaway string can spend the log's cap on one line.

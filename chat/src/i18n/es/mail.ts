@@ -114,6 +114,10 @@ export const MAIL = {
     permRead: "Lee tu correo para ayudarte",
     permSend: "Siempre te pide confirmación antes de enviar",
     permDelete: "No puede borrar nada",
+    "phonesTitle": "Teléfonos que pueden leer tu correo",
+    "phonesHint": "Los teléfonos vinculados antes del 17 de octubre siguen leyendo tu correo hasta que los desactives. Un teléfono vinculado desde ahora empieza desactivado.",
+    "phonesUnreadable": "Kalsa no pudo leer los teléfonos vinculados.",
+    "phonesEmpty": "No hay ningún teléfono vinculado.",
     "reasons": {
       "auth_fail": "El dominio del remitente no valida",
       "reply_to_mismatch": "Las respuestas irían a otro sitio",

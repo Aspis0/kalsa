@@ -107,6 +107,11 @@ export interface StreamOptions {
       phone, whose frames are one way; a chat that can withdraw it says nothing
       and keeps streaming. */
   holdReasoning?: boolean;
+  /** This request is a paired phone's turn, run by this window on the phone's
+      behalf. It changes what the log may say about the round — the tools a
+      phone calls are the desktop's, so without this a phone's mail call and
+      the owner's own are one undifferentiated line. */
+  phone?: boolean;
   /** The reader's thinking choice for this model: `false` asks the model's own
       template not to think. `undefined` leaves it to the template. */
   thinking?: boolean;

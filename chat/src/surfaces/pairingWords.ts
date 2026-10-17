@@ -18,6 +18,13 @@ export interface PairedDevice {
   // door's 401 until Allow. Absent reads as allowed, the state every
   // stored device had before approval existed.
   waiting?: boolean;
+  // Whether this phone may read this computer's mail, which the owner
+  // switches one phone at a time in Settings → Mail. Absent reads as
+  // allowed, the state every phone had before the switch existed.
+  mail?: boolean;
+  // The name the owner gave this phone, in their own words. Absent for the
+  // phone nobody has named, which is every phone until they name one.
+  name?: string;
   // Present only on a waiting record whose phone already holds an allowed
   // seat: that seat's id. The request is drawn on the seat's row, and this
   // record never gets one of its own.
@@ -70,14 +77,20 @@ export function hidesOnSeat(device: PairedDevice, devices: PairedDevice[]): bool
   return device.pairing_again != null && devices.some((row) => row.id === device.pairing_again);
 }
 
-/** The name the app gives a device, in the reader's language. Two fields of a
-    device are English words nobody chose and so are never shown: the label Rust
-    mints ("This computer", "Paired phone 2"), and `phone`, which is the
-    capability sentence Rust writes for a phone's model ("phone with 3 GB of
-    model weights", or empty for a phone that has none). Rust numbers a phone
-    one above the id it will mint (pairing.rs), which is the number here. */
+/** The name the app shows a device under. Two fields of a device are English
+    words nobody chose and so are never shown: the label Rust mints ("This
+    computer", "Paired phone 2"), and `phone`, which is the capability sentence
+    Rust writes for a phone's model ("phone with 3 GB of model weights", or
+    empty for a phone that has none). Rust numbers a phone one above the id it
+    will mint (pairing.rs), which is the number here.
+
+    The owner's own name comes first, rendered as typed: it is theirs, not the
+    app's sentence, so nothing translates it, folds its case or trims it — the
+    store did the trimming, once, on the way in. This computer's own record is
+    never renamed, so the host's branch is checked first and stays true. */
 export function deviceName(t: English["devices"], device: PairedDevice): string {
-  return device.kind === "host" ? t.thisComputerLabel : t.deviceLabel(device.id + 1);
+  if (device.kind === "host") return t.thisComputerLabel;
+  return device.name ?? t.deviceLabel(device.id + 1);
 }
 
 export function pairedSentence(t: English["devices"], dto: PairingState): string {

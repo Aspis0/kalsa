@@ -30,15 +30,22 @@ export function startPhoneChatRunner(): () => void {
     const envelope = readPhoneRequest(payload);
     // A request id already running is not a second request: its answers belong to the first.
     if (envelope === null || live.has(envelope.request)) return;
-    const { request, body } = envelope;
+    const { request, body, mail } = envelope;
     const sink = phoneSink((event, data) => sendPhoneEvent(request, event, data));
     if (body === null) return sink.fail("bad_request");
+    // The door refuses a mail route before it ever reaches the page, so this
+    // is the second door and not the first: a page that answered a read for a
+    // phone whose switch is off would read the owner's mailbox behind a
+    // refusal the phone has already seen. Same code either way. A TURN is
+    // untouched — a phone that may not read mail still talks to Kalsa, with no
+    // mail tool offered (§2).
+    if (body.kind === "read" && !mail) return sink.fail("phone_mail_off");
     sendPhoneEvent(request, "accepted", {});
     const controller = new AbortController();
     live.set(request, controller);
     const work =
       body.kind === "turn"
-        ? runPhoneTurn(body.turn, currentSettings(), sink, controller.signal)
+        ? runPhoneTurn(body.turn, currentSettings(), sink, controller.signal, mail)
         : runPhoneRead(body.id, sink, controller.signal);
     void work.catch(() => sink.fail("engine")).finally(() => live.delete(request));
   }

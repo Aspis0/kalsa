@@ -23,6 +23,12 @@ pub(super) enum Call {
     },
 }
 
+/// The answer a phone gets while its owner has it switched off this
+/// computer's mail. A code, like every other refusal here: the phone's own
+/// words for it live in the phone app, and this build never has to learn
+/// them.
+const MAIL_OFF: &str = "phone_mail_off";
+
 pub(super) fn start(
     mut client: TcpStream,
     chat: &Arc<Chat>,
@@ -54,6 +60,14 @@ fn run(chat: &Chat, shared: &Shared, device: DeviceId, call: Call, client: &TcpS
     let cut = || withdrawn(shared, device) || proxy::client_gone(client);
     if cut() {
         return json!({"error": "cancelled"});
+    }
+    // The owner's per-phone switch, asked per request so a phone switched off
+    // a moment ago is refused by this one. Both mail routes are here and only
+    // here: the read never reaches the page, and no send ever took a draft.
+    // The code is the app's own vocabulary, handed back the way every other
+    // refusal on this route is, so the phone says its own sentence about it.
+    if !chat.hook.mail_allowed(device) {
+        return json!({"error": MAIL_OFF});
     }
     match call {
         Call::Read(id) => read(chat, device, id, shared, &cut),

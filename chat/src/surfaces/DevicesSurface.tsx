@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { SurfaceKey } from "../app/surfaces";
+import { rustSentence } from "../lib/rustText";
 import { lastKnown } from "../lib/slotGate";
 import { InvitePanel } from "./InvitePanel";
 import { PhoneRow } from "./PhoneRow";
@@ -40,8 +42,12 @@ interface DevicesSurfaceProps {
 // generated on this machine, so the page may inject it as markup; it is a
 // credential on screen and is never logged anywhere.
 export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const t = table.devices;
+  // A refused rename, said once under the rows and kept until the next press:
+  // the row redraws from the store either way, and a reason that vanished on
+  // its own would be one the owner could not act on.
+  const [renameError, setRenameError] = useState<string | null>(null);
   // The fold is the hook's business: this page only asks for it and reads
   // whether one is running.
   const fold = useRowFold();
@@ -115,6 +121,17 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
     beats.expect(actedId, rowId);
     void invoke("brain_pairing_allow_device", { id: actedId })
       .catch(() => beats.revoke(actedId));
+  }
+
+  /** The owner's own name for a phone, or null to give it back its number. The
+   * row's field holds what was typed; this writes it, and a refusal is said
+   * once under the rows — the next poll redraws the row from the store, which
+   * is the truth whatever this call did. */
+  function renameDevice(id: number, name: string | null): void {
+    setRenameError(null);
+    void invoke("brain_pairing_set_device_name", { id, name }).catch((error: unknown) => {
+      if (mounted()) setRenameError(rustSentence(table.rust, error, tag));
+    });
   }
 
   function forgetAndRefresh(): void {
@@ -282,6 +299,7 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
                 onAllow={allowDevice}
                 onForget={forgetDevice}
                 onDeny={denyRequest}
+                onRename={renameDevice}
               />
             );
           })}
@@ -290,6 +308,12 @@ export function DevicesSurface({ onNavigate }: DevicesSurfaceProps) {
       {!squareOpen && !card ? (
         <>
           {note ? <p className={noteClass}>{note}</p> : null}
+          {renameError ? (
+            <p className="phones-note is-warn" role="alert">
+              <Icon name="alert" size={15} />
+              {renameError}
+            </p>
+          ) : null}
           {tailscale ? <p className="surface-quiet">{tailscale}</p> : null}
         </>
       ) : null}

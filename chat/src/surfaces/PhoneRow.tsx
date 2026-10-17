@@ -1,9 +1,14 @@
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import { Icon } from "../components/Icon";
 import { useLanguage } from "../i18n/useLanguage";
 import { codeSentence } from "../lib/rustText";
 import type { PairedDevice } from "./pairingWords";
 import { deviceName } from "./pairingWords";
+
+/** How long an owner's name may be. The store cuts the same number of
+    characters; this keeps the field from asking for more than can be kept. */
+const NAME_LIMIT = 40;
 
 // A button the row holds after one press. It is aria-disabled, not
 // disabled: disabling it would drag the owner's focus to <body> the moment
@@ -49,6 +54,7 @@ export function PhoneRow({
   onAllow,
   onForget,
   onDeny,
+  onRename,
 }: {
   device: PairedDevice;
   /** A pairing-again request riding this seat's row. */
@@ -65,9 +71,16 @@ export function PhoneRow({
   onAllow: (actedId: number, rowId: number) => void;
   onForget: (id: number) => void;
   onDeny: (id: number) => void;
+  /** The owner's name for this phone, or null to give it back its number. */
+  onRename: (id: number, name: string | null) => void;
 }) {
   const { table, tag } = useLanguage();
   const t = table.devices;
+  // The row's own rename, held here so it survives this page's poll: the
+  // rows are redrawn from the store every two seconds, and a field that
+  // closed itself on the next redraw would be a field nobody could type in.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
   // This computer's own record: named as it names itself, and with
   // no Forget. The button would take the app's own key to its own
   // door out of the store while the running door still holds it, so
@@ -86,6 +99,28 @@ export function PhoneRow({
   // on the fold's own number, and pure motion, so reduced motion
   // draws no entrance and no beat.
   const needsOwner = !connected && (device.waiting === true || request !== undefined);
+  /** Only a phone that has reached the house can be named: this computer's
+      own record is not the owner's to rename (the store refuses it), and a
+      row still waiting on Allow has not shown up in the house yet. */
+  const canRename = !host && !needsOwner && request === undefined;
+
+  /** What the field says, saved: empty takes the name back rather than
+      storing a blank one, which is what the store would do with it anyway.
+      Enter and a blur both commit — losing focus is leaving the field — and
+      Escape leaves without changing anything, from the field and not from
+      the page. */
+  function commitRename(): void {
+    if (!editing) return;
+    const said = draft.trim();
+    setEditing(false);
+    if (said) {
+      if (said !== name) onRename(device.id, said);
+      return;
+    }
+    // Nothing typed where there was a name, nothing typed where there was
+    // none: the first takes the name back, the second is not a rename.
+    if (device.name) onRename(device.id, null);
+  }
   const classes =
     "surface-device" +
     (needsOwner ? " is-waiting" : "") +
@@ -98,7 +133,28 @@ export function PhoneRow({
       {active ? (
         <span className="surface-device-live" aria-hidden="true" />
       ) : null}
-      <span className="surface-device-name">{name}</span>
+      {editing ? (
+        <input
+          className="surface-device-rename"
+          autoFocus
+          defaultValue={device.name ?? ""}
+          placeholder={t.phoneNamePlaceholder}
+          aria-label={t.renamePhone}
+          maxLength={NAME_LIMIT}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commitRename();
+            if (event.key === "Escape") {
+              // Leaves the rename, not the page.
+              event.preventDefault();
+              setEditing(false);
+            }
+          }}
+          onBlur={commitRename}
+        />
+      ) : (
+        <span className="surface-device-name">{name}</span>
+      )}
       {/* The detail is the row's voice: the beat a screen reader
           hears land is the same sentence the owner reads. */}
       <span className="surface-device-detail" aria-live="polite">
@@ -169,11 +225,26 @@ export function PhoneRow({
             {t.allow}
           </HeldButton>
         </>
-      ) : (
-        <button type="button" className="btn-quiet" onClick={() => onForget(device.id)}>
-          {t.forget}
-        </button>
-      )}
+      ) : canRename ? (
+        // The owner's own name for this phone, beside the Remove it already
+        // offers: the two decisions that are the owner's and not the app's.
+        <>
+          <button
+            type="button"
+            className="btn-quiet"
+            onClick={() => {
+              setDraft(device.name ?? "");
+              setEditing(true);
+            }}
+          >
+            <Icon name="pencil" size={14} />
+            {t.renamePhone}
+          </button>
+          <button type="button" className="btn-quiet" onClick={() => onForget(device.id)}>
+            {t.forget}
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }

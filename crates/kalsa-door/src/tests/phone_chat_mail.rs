@@ -9,7 +9,7 @@ use serde_json::json;
 
 use super::paging_support::status_of;
 use super::phone_chat_support::{
-    answer, answer_as, chat_door, chat_door_for, event, open_as, token_of, Page, DRAFT,
+    answer, answer_as, chat_door, chat_door_for, event, open_as, token_of, Page, DRAFT, TURN,
 };
 use super::room_support::{body_json, devices_labeled, Reader};
 use super::support::bounded;
@@ -237,6 +237,51 @@ fn a_mail_read_does_not_refuse_a_turn_of_the_same_device() {
         page.page(0).send(event("error", json!({"code": "mail.failed"}))).unwrap();
         reading.join().unwrap();
         page.page(1).send(event("done", json!({}))).unwrap();
+        drop(door);
+    });
+}
+
+/// The owner's switch, per phone: device 1 is off this computer's mail and
+/// device 2 is not, and neither route reaches the page or the app for the one
+/// that is. A turn is never asked, so a phone that may not read mail still
+/// talks to Kalsa.
+#[test]
+fn a_phone_the_owner_switched_off_the_mailbox_is_refused_both_ways() {
+    bounded(Duration::from_secs(20), || {
+        let page = Arc::new(Page {
+            mail_off: vec![1],
+            ..Page::default()
+        });
+        let (door, address) = chat_door_for(Some(Arc::clone(&page)), Clocks::default(), 2);
+
+        let reading = answer_as(address, &token_of(1), "/kalsa/chat/mail/read", r#"{"id":"105"}"#);
+        assert_eq!(status_of(&reading), 200);
+        assert_eq!(body_json(&reading), json!({"error": "phone_mail_off"}));
+        let sending = answer_as(
+            address,
+            &token_of(1),
+            "/kalsa/chat/mail/send",
+            &format!(r#"{{"draft_id":"{DRAFT}"}}"#),
+        );
+        assert_eq!(body_json(&sending), json!({"error": "phone_mail_off"}));
+        assert!(page.opened().is_empty(), "a refused read still reached the page");
+        assert!(page.sends.lock().unwrap().is_empty(), "a refused send still reached the app");
+
+        // The other phone is a phone of its own, and the switch is this one's.
+        let other = answer_as(address, &token_of(2), "/kalsa/chat/mail/send", &format!(r#"{{"draft_id":"{DRAFT}"}}"#));
+        assert_eq!(body_json(&other), json!({"sent_to": "segreteria@studio.example.it"}));
+
+        let mut turn = open_as(
+            address,
+            &token_of(1),
+            "POST",
+            "/kalsa/chat/turn",
+            TURN,
+        );
+        page.page(0).send(event("accepted", json!({}))).unwrap();
+        let started = Reader::until(&mut turn, b"event: turn", Duration::from_secs(5));
+        assert!(started.contains("event: turn"), "{started}");
+        page.page(0).send(event("done", json!({}))).unwrap();
         drop(door);
     });
 }

@@ -8,7 +8,11 @@ import { accountErrorKey } from "../../lib/mail/accountError";
 import { guessServer } from "../../lib/mail/providers";
 import { appPasswordProvider } from "../../lib/mail/appPassword";
 import { mailAllowed } from "../../lib/mail/allowlist";
+import { rustSentence } from "../../lib/rustText";
 import { useBrain } from "../../surfaces/useBrain";
+import { usePairedDevices } from "../../surfaces/usePairedDevices";
+import { deviceName, hidesOnSeat } from "../../surfaces/pairingWords";
+import type { PairedDevice } from "../../surfaces/pairingWords";
 import { Icon } from "../Icon";
 import { AppPasswordBox } from "./AppPasswordBox";
 import "../Settings.css";
@@ -18,7 +22,9 @@ import "./settingsMail.css";
  * Mail's own page, reached from Settings by its row. It holds the account, the
  * Prova that lists three subjects, and the permissions in For experts — the
  * values are shown, not asked for: reading is automatic, sending asks, and
- * deleting is blocked whatever the person would prefer.
+ * deleting is blocked whatever the person would prefer. Below them, which of
+ * the paired phones may read this mailbox: a switch per phone, because a
+ * phone that belongs to somebody else is not this person's to spend.
  */
 
 /** The words for a refused command. Tauri rejects a refusal with its `{ code }`
@@ -30,9 +36,15 @@ function refusalCode(error: unknown): string {
 }
 
 export function MailSettingsPage({ onBack }: { onBack: () => void }) {
-  const { table } = useLanguage();
+  const { table, tag } = useLanguage();
   const t = table.mail;
   const { state } = useBrain();
+  // The paired phones come from the read-only list, not from the Pairing
+  // page's reader: that read expires what is due, mints or retires a square
+  // and detects a tailnet, and this page wants a list — on a page whose whole
+  // subject is somebody else's phone, a square the owner never asked to see
+  // is not a side worth paying for.
+  const { devices: house, unreadable, applyMail } = usePairedDevices();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [server, setServer] = useState("");
@@ -69,6 +81,51 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
       because which one it will be is what the person has not said yet. */
   const helpProviders = appPassword === null ? [] : [appPassword];
   const helpShown = helpOpen || appPassword !== null;
+
+  /**
+   * The phones that could read this mailbox, one row each. The same reading
+   * the Phones page draws its own rows from: this computer's record is not a
+   * phone, a record sitting on its seat's row is that seat, and a phone the
+   * owner has not allowed yet cannot reach the door at all — a switch for it
+   * would be a switch for nothing.
+   *
+   * `house` is null until the first read answers, which is the third answer
+   * this section has: not "no phone", but "not known yet".
+   */
+  const known = house !== null;
+  const phones = (house ?? []).filter(
+    (device) => device.kind !== "host" && !hidesOnSeat(device, house ?? []) && device.waiting !== true,
+  );
+  /** The phone whose switch is being written, so a second press waits. */
+  const [switching, setSwitching] = useState<number | null>(null);
+  /** A refused switch, kept until the next press: a reason that disappears on
+      its own is not something the owner can act on. */
+  const [switchError, setSwitchError] = useState<string | null>(null);
+
+  /** One phone's switch, as the owner left it: the store's answer, and a
+      phone whose record predates the switch reads as the mail it had. */
+  function phoneMail(device: PairedDevice): boolean {
+    return device.mail !== false;
+  }
+
+  /**
+   * The switch moves under the finger and the store catches up: a poll is
+   * seconds away, and a control that waits for it reads as broken. A save the
+   * store refuses puts the switch back where it was rather than leaving a lie
+   * on screen, and says so in the app's own words for the refusal. Nothing
+   * else is touched — a turn already running keeps the tools it started with.
+   */
+  function setPhoneMail(id: number, allowed: boolean): void {
+    setSwitching(id);
+    setSwitchError(null);
+    applyMail(id, allowed);
+    void invoke("brain_pairing_set_phone_mail", { id, allowed })
+      .catch((error: unknown) => {
+        applyMail(id, !allowed);
+        setSwitchError(rustSentence(table.rust, error, tag));
+      })
+      .finally(() => setSwitching((busy) => (busy === id ? null : busy)));
+  }
 
   useEffect(() => {
     // The answer lands after the page is up, so it fills what is still empty:
@@ -291,6 +348,54 @@ export function MailSettingsPage({ onBack }: { onBack: () => void }) {
           <span className="mail-perm is-ask">{t.permSend}</span>
           <span className="mail-perm is-deny">{t.permDelete}</span>
         </div>
+      </div>
+
+      {/* Whose phones may read this mailbox. Outside the block above's
+          conditional: an AI that cannot read mail is not a reason to leave
+          the owner without a switch over who can. */}
+      <div className="settings-group">
+        <div className="settings-row">
+          <div className="settings-row-text">
+            <span className="settings-row-title">{t.phonesTitle}</span>
+            <span className="settings-row-hint">{t.phonesHint}</span>
+          </div>
+        </div>
+        {unreadable ? (
+          <p className="mail-note is-warn" role="alert">
+            <Icon name="alert" size={15} />
+            {t.phonesUnreadable}
+          </p>
+        ) : null}
+        {/* Nothing at all while the first read is in flight: a line saying no
+            phone is paired would be a guess the page cannot stand behind, and
+            a line saying it could not read would be a failure it has not had
+            yet. */}
+        {!known ? null : phones.length === 0 ? (
+          <p className="mail-note">{t.phonesEmpty}</p>
+        ) : (
+          <ul className="mail-phones">
+            {phones.map((device) => (
+              <li key={device.id} className="mail-phone">
+                <span className="mail-phone-name">{deviceName(table.devices, device)}</span>
+                <input
+                  className="mail-phone-switch"
+                  type="checkbox"
+                  role="switch"
+                  checked={phoneMail(device)}
+                  disabled={switching === device.id}
+                  aria-label={deviceName(table.devices, device)}
+                  onChange={(event) => setPhoneMail(device.id, event.currentTarget.checked)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        {switchError !== null ? (
+          <p className="mail-note is-warn" role="alert">
+            <Icon name="alert" size={15} />
+            {switchError}
+          </p>
+        ) : null}
       </div>
     </div>
   );

@@ -36,6 +36,8 @@ pub(super) struct Page {
     pub(super) sends: Mutex<Vec<(String, Option<String>)>>,
     pub(super) send_answer: Option<Result<String, String>>,
     pub(super) refuse_opens: bool,
+    /// The devices the app holds switched off this computer's mail, by id.
+    pub(super) mail_off: Vec<u32>,
 }
 
 impl PhoneChat for Page {
@@ -62,6 +64,10 @@ impl PhoneChat for Page {
         self.send_answer
             .clone()
             .unwrap_or_else(|| Ok("segreteria@studio.example.it".to_string()))
+    }
+
+    fn mail_allowed(&self, device: DeviceId) -> bool {
+        !self.mail_off.contains(&device.value())
     }
 }
 

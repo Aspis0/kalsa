@@ -57,6 +57,8 @@ export const DEVICES = {
   allow: "Allow",
   refuse: "Refuse",
   forget: "Remove",
+  renamePhone: "Rename",
+  phoneNamePlaceholder: "Name this phone",
   // The Tailscale note: each road named only when its command is.
   runForTailscale: (commands: string) => `Run for Tailscale: ${commands}.`,
   chatsAt: "Phone chat uses this computer's name in Tailscale.",

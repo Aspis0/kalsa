@@ -168,6 +168,30 @@ try {
     check("normal answer: one request", r.requests.length === 1);
   }
 
+  // 2b. A round that is over before its calls ran is still a tool this round
+  // asked for, and the log says so in the same shape the run logs in.
+  {
+    const ended = () => sse([{ tool_calls: [{ index: 0, id: "c0", type: "function", function: { name: "web_search", arguments: "{}" } }] }], "stop");
+    const r = await turn({ answers: ended });
+    check("calls under a round that ended: one refused_end line per round, in the code shape", r.events.filter((code) => code === "chat.tool.refused_end").length === r.requests.length && r.events.every((code) => /^[a-z0-9_.]+$/.test(code)), JSON.stringify(r.events));
+  }
+
+  // 2c. A call the stream never named has no name to log, and says which of
+  // the two reasons it was refused instead.
+  {
+    const nameless = () => sse([{ tool_calls: [{ index: 0, id: "c0", type: "function", function: { name: "", arguments: "{}" } }] }], "tool_calls");
+    const r = await turn({ answers: nameless });
+    check("a nameless call: one unnamed line, in the code shape", r.events.filter((code) => code === "chat.tool.unnamed").length === 1 && r.events.every((code) => /^[a-z0-9_.]+$/.test(code)), JSON.stringify(r.events));
+  }
+
+  // 2d. A phone's turn says so on the same lines: these tools are this
+  // computer's, run for a phone.
+  {
+    const ended = () => sse([{ tool_calls: [{ index: 0, id: "c0", type: "function", function: { name: "mail_list", arguments: "{}" } }] }], "stop");
+    const r = await turn({ answers: ended, options: () => ({ phone: true }) });
+    check("a phone's refused call: marked as the phone's", r.events.includes("phone.tool.refused_end") && !r.events.some((code) => code.startsWith("chat.tool")), JSON.stringify(r.events));
+  }
+
   // 4. An opening too long to be a refusal is shown without waiting for a sentence end.
   {
     const long = Array.from({ length: 85 }, (_, i) => `word${i}`).join(" ");

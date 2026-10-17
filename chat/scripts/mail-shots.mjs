@@ -32,6 +32,16 @@ const APP = `http://localhost:${VITE_PORT}`;
 const ENDPOINT = `http://127.0.0.1:${MOCK_PORT}/mail`;
 const WINDOW = { width: 1280, height: 1040 };
 
+/** The house as the store holds it: this computer's own record on seat 0,
+ * a phone paired before the per-phone switch existed that still reads the
+ * mailbox, and one paired today that starts off. The page names each from its
+ * id, so a picture of the section shows the two states side by side. */
+const PHONES = [
+  { id: 0, label: "This computer", kind: "host", phone: "", phone_code: null, phone_params: null, waiting: false, pairing_again: null, mail: true },
+  { id: 1, label: "Paired phone", kind: "phone", name: "Il telefono di Anna", phone: "", phone_code: null, phone_params: null, waiting: false, pairing_again: null, mail: true },
+  { id: 2, label: "Paired phone 2", kind: "phone", phone: "", phone_code: null, phone_params: null, waiting: false, pairing_again: null, mail: false },
+];
+
 let failures = 0;
 function check(label, ok, detail = "") {
   console.log(`${ok ? "ok  " : "FAIL"} ${label}${ok || !detail ? "" : `\n     ${detail}`}`);
@@ -312,6 +322,14 @@ function installMailStub(config) {
           mail.account = null;
           return null;
         }
+        // The stored devices, for the page's phones section: this computer, a
+        // phone paired long ago that still reads the mailbox, and one paired
+        // today that starts off. The read is the side-effect-free one — the
+        // Pairing page's own read would mint a square behind a screenshot's
+        // back, which is exactly what this page is not asking for.
+        if (command === "brain_pairing_devices") return PHONES;
+        if (command === "brain_pairing_set_phone_mail") return null;
+        if (command === "brain_pairing_set_device_name") return null;
         throw new Error(`mail-shots: no fixture declares ${command}`);
       },
     },

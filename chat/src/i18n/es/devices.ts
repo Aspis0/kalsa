@@ -54,6 +54,8 @@ export const DEVICES = {
     "allow": "Permitir",
     "refuse": "Rechazar",
     "forget": "Quitar",
+    "renamePhone": "Cambiar nombre",
+    "phoneNamePlaceholder": "Ponle nombre a este teléfono",
     "runForTailscale": (commands: string) => `Ejecutar para Tailscale: ${commands}.`,
     "chatsAt": "El chat del teléfono usa el nombre de este equipo en Tailscale.",
     "pairsAt": "El emparejamiento del teléfono usa el nombre de este equipo en Tailscale, con :8443.",

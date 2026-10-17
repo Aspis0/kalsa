@@ -441,6 +441,7 @@ function promptBytes(vision: boolean, think: boolean, phone: boolean): string {
     "Attached files reach you as plain text in a message; if no text is there, " +
     "no file reached you. " +
     "Use a tool only when a task needs one, and only the tools you are given. " +
+    "A greeting, a thank-you or a short acknowledgement such as \"ok\" is answered in words, with no tool. " +
     (phone
       ? ""
       : "Use create_miniapp only when the person asks for a comparison table, calculator, quiz or checklist. ") +

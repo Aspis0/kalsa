@@ -54,6 +54,18 @@
 //! deletes nothing, and pairing returns when this build runs again, exactly
 //! the behaviour the v1/v2 probe already has.
 //!
+//! One record also carries whether that phone may read this computer's mail,
+//! and this is the one field whose migration runs the OTHER way. Every field
+//! above defaults toward what an old file's device had; `mail` is an
+//! `Option<bool>` whose absent answer is ALLOWED, because `#[serde(default)]`
+//! on a `bool` would hand every phone of an upgraded install `false` — the
+//! exact opposite of the state it was in — silently, on the first read. A
+//! phone paired from here on is written `Some(false)` instead: off until the
+//! owner says otherwise, one phone at a time. The key is skipped when
+//! absent, so a file this build did not add a field to stays byte for byte
+//! what it was, and the v1 lift writes the same `Some(true)` its missing key
+//! would have read as.
+//!
 //! What an older build does with a v2 file is measured, not guessed. The
 //! old build deserializes its whole single-device record BEFORE it ever
 //! reaches its version check, and a set file has no top-level
@@ -240,6 +252,21 @@ struct StoredDeviceRecord {
     /// logged, never handed to the page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     install_id: Option<String>,
+    /// Whether this phone may read this computer's mail. Absent in every file
+    /// written before the switch existed, and `None` reads as ALLOWED — the
+    /// state every already-paired phone had, which is why this is an
+    /// `Option<bool>` and not a `bool`: `#[serde(default)]` on a bool would
+    /// hand every phone of an upgraded install the opposite answer, silently,
+    /// on the first read. A phone paired from now on carries `Some(false)`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    mail: Option<bool>,
+    /// The name the owner gave this phone, in their own words. Absent is the
+    /// long-standing answer, and the page's own: a phone nobody has named is
+    /// drawn as the number the store gave it, in the reader's language. Never
+    /// a label — that one is minted in English and is never shown — and never
+    /// translated here: the owner's words cross as typed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
 }
 
 /// The version-1 shell, kept for reading: every installed copy has one of
@@ -272,6 +299,14 @@ pub struct StoredDevice {
     /// that pairs again from a second phone; it never leaves this process —
     /// no DTO, no event, no log carries it.
     pub install_id: Option<String>,
+    /// Whether this device may read this computer's mail. The owner's switch,
+    /// one phone at a time: a phone paired from now on is off, and a phone
+    /// paired before this field existed is on — the state it had all along.
+    /// Never false for the host, which is this computer's own record.
+    pub mail: bool,
+    /// The owner's name for this phone, if they gave it one. `None` is the
+    /// ordinary answer and the one every already-paired phone reads back.
+    pub name: Option<String>,
 }
 
 /// Write the handshake result as the store's first device. The parent
@@ -367,8 +402,11 @@ fn replace_record(
     match records.first_mut() {
         // The single-device API has always meant "the" device, which is the
         // first record; its id and label survive the replacement, because
-        // the seat does. How a many-device desk scopes a replacement is
-        // that job's decision, not this function's.
+        // the seat does. Its mail switch survives it too, and that is the
+        // point: a replacement re-seats a phone that already has an answer,
+        // and the owner's answer is not something a handshake may overwrite.
+        // How a many-device desk scopes a replacement is that job's decision,
+        // not this function's.
         Some(record) => {
             record.kind = kind_of(handshake);
             record.credential_hex = handshake.credential_hex();
@@ -397,6 +435,15 @@ fn record_from(
         // Filled in by the caller that knows it, the way `approval` is: a
         // handshake carried here has no phone-side identity of its own.
         install_id: None,
+        // The new-pairing default, in the one place a record is minted from a
+        // handshake: a phone that arrives today may not read this computer's
+        // mail until the owner says so in Settings → Mail. Conditioned on the
+        // kind because this helper also mints the host's own record, and a
+        // blanket "off" would put a mail switch on this computer.
+        mail: Some(kind_of(handshake) != DeviceKind::Phone),
+        // A phone arrives with no name: the owner gives it one, on this
+        // computer, in the page. Nothing about a handshake can know it.
+        name: None,
     }
 }
 
@@ -470,6 +517,12 @@ fn add_device_record(
         Approval::Allowed
     };
     record.install_id = install_id.map(str::to_string);
+    // The record carries the mail answer already: `record_from` mints one and
+    // it is the one place that decides — a phone off, a host on. The answer
+    // is read back rather than re-derived, so what this hands the caller and
+    // what the file says cannot come to disagree.
+    let mail = record.mail.unwrap_or(true);
+    let name = record.name.clone();
     records.push(record);
     write_records(&records, path)?;
     Ok(StoredDevice {
@@ -480,6 +533,8 @@ fn add_device_record(
         delivery,
         waiting,
         install_id: install_id.map(str::to_string),
+        mail,
+        name,
     })
 }
 
@@ -572,6 +627,10 @@ pub fn enrol_host(path: &Path) -> Result<StoredDevice, StoreError> {
         handshake,
         delivery: None,
         install_id: None,
+        // This computer's own record, so there is nothing to switch off: its
+        // mail is the owner's own mail, and no page offers to name it.
+        mail: true,
+        name: None,
         // The host record is never waiting: self-enrolment mints it
         // allowed, on every launch, and realize() refuses a hand edit
         // that says otherwise.
@@ -636,9 +695,11 @@ pub fn allow_device(path: &Path, id: u32) -> Result<(), StoreError> {
         return write_records(&records, path);
     };
     // The seat takes the ceremony's parts and the waiting record goes: one
-    // phone, one row, one write. `seat` and `index` are different records
-    // by construction, and removing `index` first only shifts a seat that
-    // sits behind it.
+    // phone, one row, one write. What the seat KEEPS is the owner's: its mail
+    // switch and its name, both of which a second ceremony from the same
+    // install has no standing to decide. `seat` and `index` are different
+    // records by construction, and removing `index` first only shifts a seat
+    // that sits behind it.
     let ceremony = records.remove(index);
     let seat = if seat > index { seat - 1 } else { seat };
     let seat = &mut records[seat];
@@ -647,6 +708,104 @@ pub fn allow_device(path: &Path, id: u32) -> Result<(), StoreError> {
     seat.phone = ceremony.phone;
     seat.delivery = ceremony.delivery;
     write_records(&records, path)
+}
+
+/// The owner's switch: may the phone with this id read this computer's mail.
+/// One record changes, one atomic publication, exactly as [`allow_device`]
+/// writes — and the write is skipped entirely when the record already says
+/// this, so a switch pressed twice does not churn the file.
+///
+/// `true` when this id is a phone in the store, which is the only case where
+/// the answer may have moved: the caller's own copy of the answer has to be
+/// told when it may be believed. The host's own id is not a phone and
+/// changes nothing — its mail is the owner's, and a switch that could turn it
+/// off would turn the desktop's own mailbox off with it. An id nobody holds is
+/// the same answer [`allow_device`] gives an unknown id: nothing to change is
+/// not a failure, but it is also nothing to report.
+pub fn set_phone_mail(path: &Path, id: u32, allowed: bool) -> Result<bool, StoreError> {
+    let mut records = read_records_or_empty(path)?;
+    let Some(record) = records
+        .iter_mut()
+        .find(|record| record.id == id && record.kind == DeviceKind::Phone)
+    else {
+        return Ok(false);
+    };
+    if record.mail == Some(allowed) {
+        return Ok(true);
+    }
+    record.mail = Some(allowed);
+    write_records(&records, path)?;
+    Ok(true)
+}
+
+/// The owner's name for the phone with this id, in their own words. `None`
+/// clears it and the phone goes back to being drawn as the number the store
+/// gave it; a name of only spaces, or of nothing a person could see, is that
+/// same clear.
+///
+/// Characters nobody can see are dropped first — the zero-width family, the
+/// byte-order marks, the bidi overrides, and every Cc control — because a
+/// name is drawn verbatim and read by a person looking for their own phone.
+/// What survives is then trimmed at both ends and cut to [`NAME_LIMIT`]
+/// CHARACTERS, not bytes: a name is read by a person, and half a `ß` or a
+/// cut-off emoji is not a name. The page caps the field to the same number, so
+/// the cut here is the backstop rather than the everyday path.
+///
+/// As with [`set_phone_mail`]: phones only, the host's own record changes
+/// nothing, the file is not rewritten when the answer is already there, and
+/// `true` means this id was a phone at all — so a caller that keeps its own
+/// copy of the name knows whether it may be believed.
+pub fn set_device_name(path: &Path, id: u32, name: Option<String>) -> Result<bool, StoreError> {
+    let wanted = name.and_then(|said| {
+        let short: String = said
+            .trim()
+            .chars()
+            .filter(|c| !invisible(*c))
+            .take(NAME_LIMIT)
+            .collect();
+        if short.is_empty() { None } else { Some(short) }
+    });
+    let mut records = read_records_or_empty(path)?;
+    let Some(record) = records
+        .iter_mut()
+        .find(|record| record.id == id && record.kind == DeviceKind::Phone)
+    else {
+        return Ok(false);
+    };
+    if record.name == wanted {
+        return Ok(true);
+    }
+    record.name = wanted;
+    write_records(&records, path)?;
+    Ok(true)
+}
+
+/// How long an owner's name may be. A phone a person can name in one breath,
+/// and short enough to stay on one row beside its detail.
+const NAME_LIMIT: usize = 40;
+
+/// Whether a character is dropped from a name because nobody can see it, or
+/// because it changes the order of what follows it.
+///
+/// `char::is_control` is the Cc category — a newline, a tab — which has no
+/// place in a name that is drawn on one line. The ranges below are the Cf
+/// characters that matter to a name: the zero-width family, the byte-order
+/// marks and the bidi overrides, which reorder the text around them without
+/// adding a pixel. A name is drawn verbatim and read by a person looking for
+/// their phone, so what it contains has to be what it appears to be.
+fn invisible(c: char) -> bool {
+    c.is_control()
+        || matches!(c as u32,
+            0x00AD            // SOFT HYPHEN
+            | 0x061C          // ARABIC LETTER MARK
+            | 0x180E          // MONGOLIAN VOWEL SEPARATOR
+            | 0x200B..=0x200F // ZERO WIDTH SPACE .. RIGHT-TO-LEFT MARK
+            | 0x202A..=0x202E // bidi embedding and override
+            | 0x2060..=0x2064 // word joiner, invisible operators, invisible plus
+            | 0x2066..=0x206F // bidi isolates and deprecated formats
+            | 0xFEFF          // ZERO WIDTH NO-BREAK SPACE (BOM)
+            | 0xFFF9..=0xFFFB // interlinear annotation marks
+        )
 }
 
 fn write_temp(stored: &impl Serialize, path: &Path) -> Result<(), StoreError> {
@@ -1067,6 +1226,14 @@ fn realize(record: StoredDeviceRecord) -> Result<(StoredDevice, Option<Delivery>
             delivery: record.delivery.clone(),
             waiting: matches!(record.approval, Approval::Waiting),
             install_id: record.install_id,
+            // The migration direction, read once: a file written before this
+            // field existed has no answer, and the answer it had all along
+            // is yes.
+            mail: record.mail.unwrap_or(true),
+            // And a file written before names existed names nobody: absent
+            // crosses as absent, which the page draws as the number it has
+            // always drawn.
+            name: record.name,
         },
         record.delivery,
     ))
@@ -1099,6 +1266,10 @@ fn read_records(path: &Path) -> Result<Vec<StoredDeviceRecord>, StoreError> {
                 phone: Some(stored.phone),
                 delivery: stored.delivery,
                 install_id: None,
+                // The other fields a v1 record predates, and they read back
+                // the same way: allowed mail, and no name.
+                mail: Some(true),
+                name: None,
             }]
         }
         _ => return Err(StoreError::Corrupt("unsupported stored version")),

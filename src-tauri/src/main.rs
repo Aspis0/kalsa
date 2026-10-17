@@ -840,7 +840,9 @@ impl Brain {
             .find(|device| device.kind == DeviceKind::Host)
             .map(|device| device.handshake.credential_hex());
         // The paired phones by id and credential, for the phone chat's drafts:
-        // handed to the bridge before the door takes the same set.
+        // handed to the bridge before the door takes the same set. Their mail
+        // switch is NOT in this set: the bridge reads that from the store
+        // when a request asks, so no snapshot of it can go stale.
         let phones: Vec<(kalsa_door::DeviceId, String)> = stored_devices
             .iter()
             .filter(|device| !device.waiting)
@@ -2319,6 +2321,28 @@ async fn pairing_dto(brain: &Brain, desk: &Desk) -> pairing::PairingDto {
         )))
 }
 
+/// The stored devices and nothing else, for a page that draws the house and
+/// does not need the ceremony. [`brain_pairing`] is the Pairing page's read,
+/// and it is not free: every tick expires what is due, mints or retires a
+/// square, and detects a tailnet. Settings → Mail wants a list, so it asks for
+/// a list and gets no square, no invitation write and no detection behind it.
+///
+/// It is also the one read that refuses rather than answers empty: a store it
+/// cannot read is reported, because "no phone is paired" and "Kalsa could not
+/// ask" are different sentences and only one of them is true. The code names
+/// the store's refusal rather than a save — nothing was saved — and the page
+/// shows this refusal in its own words, which is the sentence that belongs to
+/// the reader rather than to the log.
+#[tauri::command]
+fn brain_pairing_devices(desk: State<Desk>) -> Result<Vec<pairing::PairedDeviceDto>, CommandError> {
+    desk.desk.devices(SystemTime::now()).map_err(|_| {
+        CommandError::new(
+            "pairing.store_unreadable",
+            "Kalsa couldn't read the paired phones from this computer.",
+        )
+    })
+}
+
 /// The owner asked for another square. Whatever was in flight is abandoned.
 #[tauri::command]
 async fn brain_pairing_retry(
@@ -2389,6 +2413,77 @@ fn brain_pairing_allow_device(desk: State<Desk>, id: u32) -> Result<(), CommandE
     })?;
     log::info!("{}", pairing::device_line("allowed", id));
     Ok(())
+}
+
+/// The owner says whether one phone may read this computer's mail. It is a
+/// switch per phone, never per account and never per person: a phone paired
+/// from now on starts off, and the owner turns on the ones they mean.
+///
+/// The store is the whole of it, and it says whether this id was a phone at
+/// all: an id nobody holds, or this computer's own record, has no switch to
+/// move. Nothing is copied into the phone chat — that side asks the store
+/// itself when a request arrives, so there is no second answer here to fall
+/// behind this one. A turn in flight is left alone: it keeps the tool list it
+/// started with, and nothing is cancelled.
+#[tauri::command]
+fn brain_pairing_set_phone_mail(
+    desk: State<Desk>,
+    id: u32,
+    allowed: bool,
+) -> Result<(), CommandError> {
+    let a_phone = desk
+        .desk
+        .set_phone_mail(id, allowed)
+        .map_err(|_| {
+            CommandError::new(
+                "pairing.save_failed",
+                "Kalsa couldn't save this change. Try again.",
+            )
+        })?;
+    if !a_phone {
+        return Ok(());
+    }
+    log::info!("{}", pairing::device_line(mail_switch_line(allowed), id));
+    Ok(())
+}
+
+/// The owner named one phone, or cleared that name. `name` of `null` — or of
+/// nothing but spaces — takes it back to the number the store gave the phone,
+/// which is where every phone that predates this field already sits.
+///
+/// The store reports whether this id was a phone at all, and this computer's
+/// own record is not one: it keeps the words the app has always shown for it.
+/// Nothing is copied anywhere and nothing is cancelled — the door has no use
+/// for what a device is called, and the page's next poll draws the new name.
+#[tauri::command]
+fn brain_pairing_set_device_name(
+    desk: State<Desk>,
+    id: u32,
+    name: Option<String>,
+) -> Result<(), CommandError> {
+    let a_phone = desk.desk.set_device_name(id, name.clone()).map_err(|_| {
+        CommandError::new(
+            "pairing.save_failed",
+            "Kalsa couldn't save this change. Try again.",
+        )
+    })?;
+    if !a_phone {
+        return Ok(());
+    }
+    // The id and the fact only, like every device line: the owner's own words
+    // stay out of the log, as a conversation's words stay out of it.
+    log::info!("{}", pairing::device_line(if name.is_some() { "named" } else { "name cleared" }, id));
+    Ok(())
+}
+
+/// What the log says the switch became. The line itself carries the id and
+/// nothing else, like every device line.
+fn mail_switch_line(allowed: bool) -> &'static str {
+    if allowed {
+        "mail on"
+    } else {
+        "mail off"
+    }
 }
 
 /// This computer's own credential, for the page's own chat to present at the
@@ -2520,6 +2615,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             brain_pairing_retry,
             brain_pairing_forget_device,
             brain_pairing_allow_device,
+            brain_pairing_set_phone_mail,
+            brain_pairing_set_device_name,
+            brain_pairing_devices,
             brain_pairing_forget,
             brain_host_credential,
             vision::brain_vision_enable,
@@ -2755,6 +2853,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // turns that into a loud panic on the event loop rather than a
             // QR that cannot work.
             let desk = pairing_desk(file)?;
+            // The phone chat reads one owner's decision — a phone's mail
+            // switch — out of that store when a request asks, so it needs to
+            // know where the store is. Asked before the first request can
+            // arrive, and an unready bridge answers NO rather than guess.
+            app.state::<Arc<Brain>>()
+                .phone_chat
+                .use_store(desk.pairing_file.clone());
             // The road takes the desk's bound port — it may have fallen
             // back to a random one — so its desk lane lands on the socket
             // that actually serves.

@@ -1,13 +1,14 @@
 # The phone chat protocol — v1
 
 The contract between a paired phone and the computer for the phone's **chat** with the
-computer's AI (not the Room). The computer answers a phone turn with the same tools and the
+computer's AI (not the Room). The computer answers a phone turn with its own tools and the
 same app-drawn cards as its own chat: the desktop WebView runs its own tool loop for the
 phone's turn and streams the result back.
 
-Owner decisions (2026-10-15): the computer's WebView runs the loop; every paired phone may
-use the computer's mail; a reply is sent from the phone after the phone's own confirm, and
-the computer sends only a draft it built itself.
+Owner decisions: the computer's WebView runs the loop (2026-10-15); a reply is sent from the
+phone after the phone's own confirm, and the computer sends only a draft it built itself
+(2026-10-15); the computer's mail is per phone, set by the owner in Settings → Mail, off for
+a phone paired from 2026-10-17 and on for a phone paired before it (2026-10-17).
 
 ## 1. Transport and auth
 
@@ -51,6 +52,14 @@ silent: an older computer is not an error.
 One turn per device at a time: a second turn while the first runs is refused with
 `error {code:"busy"}` and the first keeps going.
 
+### Whose mail a turn may use
+
+A turn is offered the tools the asking phone is allowed: no mini app, and no mail at all —
+`mail_list`, `mail_read`, `mail_draft` and `mail_show` together — unless the owner has that
+phone's mail switch on in Settings → Mail. A phone switched off still chats: it is offered no
+mail tool, so a turn that asks for one gets a refusal from the model, not the mailbox. The
+computer decides per request, so a switch takes effect on the next turn, never mid-turn.
+
 ## 3. The turn stream
 
 Frames are `event: <name>\ndata: <json>\n\n`. A `: ping` comment comes at least every 15 s, so
@@ -74,6 +83,10 @@ Error codes: `busy`, `bad_request`, `no_runner` (the computer's window did not t
 within 10 s), `engine` (the model failed), `cancelled`, and the mail codes the desktop chat
 shows (`mail.invalid_account`, `mail.keychain`, `mail.storage`, …). The phone shows its own
 sentence per code and a generic one for an unknown code; the computer's words are not shown.
+A turn is never refused for the mail switch. A phone that may not read mail is offered no mail
+tool, so a model that still calls one has that call refused as `tool_run` `state:"refused"` —
+the mailbox is not consulted. A switch flipped while a turn runs takes effect on the next turn;
+closing the stream is the only lever on the one in flight.
 
 `gist` and the answer text are the model's; `from`, `subject` and `reasons` are the mail's.
 The mail's fields and the gist are plain text, never markup. The answer text may be markdown
@@ -84,7 +97,9 @@ tap: a mail the model read can put a link into the answer.
 
 `POST /kalsa/chat/mail/read` with `{"id":"105"}` → `200 {"record": <MailRecord>, "body": "…"}`,
 the same record and fence-free body the desktop's Mail tab shows. A failure is
-`200 {"error":"<code>"}`. The id must be digits.
+`200 {"error":"<code>"}`. The id must be digits. A read is scoped to the phone, like a draft:
+a phone whose mail switch is off is refused `200 {"error":"phone_mail_off"}` before the
+computer reads anything, and so is a send in §5.
 
 ## 5. Send a draft
 
@@ -99,7 +114,8 @@ the same record and fence-free body the desktop's Mail tab shows. A failure is
 - A `draft_id` belongs to the device whose turn produced it, lives 30 minutes, and is spent by
   a successful send. A second send of the same id, an id of another device, or an expired one
   is `{"error":"draft_unknown"}`. A send while the same id is already sending is
-  `{"error":"busy"}`.
+  `{"error":"busy"}`. A send from a phone whose mail switch is off is
+  `{"error":"phone_mail_off"}`, and nothing is spent.
 
 ## 6. On the phone's disk
 

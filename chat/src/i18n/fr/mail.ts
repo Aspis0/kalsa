@@ -114,6 +114,10 @@ export const MAIL = {
     permRead: "Il lit ton courrier pour t'aider",
     permSend: "Il demande toujours avant d'envoyer",
     permDelete: "Il ne peut rien supprimer",
+    "phonesTitle": "Téléphones qui peuvent lire vos e-mails",
+    "phonesHint": "Les téléphones associés avant le 17 octobre continuent de lire vos e-mails jusqu'à ce que vous les désactiviez. Un téléphone associé à partir de maintenant commence désactivé.",
+    "phonesUnreadable": "Kalsa n'a pas pu lire les téléphones associés.",
+    "phonesEmpty": "Aucun téléphone associé.",
     "reasons": {
       "auth_fail": "Le domaine de l'expéditeur est invalide",
       "reply_to_mismatch": "Les réponses iraient ailleurs",

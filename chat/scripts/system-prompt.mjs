@@ -17,9 +17,9 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "../node_modules/esbuild/lib/main.js";
 
-// The largest variant (seeing, Think) is 288 tokens today; the ceiling is that
+// The largest variant (seeing, Think) is 313 tokens today; the ceiling is that
 // plus a little slack, so the next sentence moves it on purpose.
-const PROMPT_CEILING_TOKENS = 300;
+const PROMPT_CEILING_TOKENS = 325;
 
 const VARIANTS = [
   { name: "blind, no Think", vision: false, think: false },
@@ -36,6 +36,7 @@ const SENTENCES = [
   { label: "Think button", text: "A Think button sits in the message box", when: (v) => v.think },
   { label: "writing needs no tool", text: "You can write, explain, translate, summarise and answer from your own knowledge; that needs no tool.", when: () => true },
   { label: "paperclip", text: "A paperclip in the message box attaches files.", when: () => true },
+  { label: "a greeting needs no tool", text: "A greeting, a thank-you or a short acknowledgement such as \"ok\" is answered in words, with no tool.", when: () => true },
   { label: "miniapps", text: "Miniapps (a table, calculator, quiz or checklist) open inline in the chat.", when: () => true },
   { label: "phones", text: "Phones paired to this computer can get answers from you too.", when: () => true },
   { label: "Room", text: "The Room is a group chat on this computer where people call you by writing @Kalsa", when: () => true },
@@ -66,6 +67,7 @@ const DESKTOP_BLIND =
   "You cannot see images, audio or video. " +
   "Attached files reach you as plain text in a message; if no text is there, no file reached you. " +
   "Use a tool only when a task needs one, and only the tools you are given. " +
+  "A greeting, a thank-you or a short acknowledgement such as \"ok\" is answered in words, with no tool. " +
   "Use create_miniapp only when the person asks for a comparison table, calculator, quiz or checklist. " +
   "Reply in the language the user writes in. " +
   "The app around you: " +

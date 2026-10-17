@@ -121,6 +121,10 @@ email: "Email address",
   permRead: "It reads your mail to help you",
   permSend: "It always asks before sending",
   permDelete: "It cannot delete anything",
+  phonesTitle: "Phones that can read your mail",
+  phonesHint: "Phones paired before October 17 keep reading your mail until you turn them off. A newly paired phone starts off.",
+  phonesUnreadable: "Kalsa could not read the paired phones.",
+  phonesEmpty: "No phone is paired.",
   // The words a reason code is shown as, one short item each. A code with no
   // words here is never put on a card.
   reasons: {

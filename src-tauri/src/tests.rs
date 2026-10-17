@@ -4673,3 +4673,227 @@ fn the_room_commands_are_reachable_and_registered() {
         );
     }
 }
+
+/// The switch is a phone's own, and the desk says which ids those are: the
+/// command copies the answer into the bridge only for a phone, because a host
+/// row or an id nobody holds must never put this computer's own mailbox behind
+/// a phone's switch. This is the gate the command reads.
+#[test]
+fn the_mail_switch_reports_a_phone_and_nothing_else() {
+    let root = std::env::temp_dir().join(format!("kalsa-brain-mail-switch-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    // The directory removes itself when this test ends, assertion or no
+    // assertion: the guard the other pairing tests here use.
+    let _scratch = ScratchDir(root.clone());
+    let file = root.join(PAIRING_FILE);
+    let desk = pairing::Desk::new(file.clone());
+    let host = kalsa_pairing::store::enrol_host(&file).expect("this computer is a device");
+
+    // A real paired phone beside it, the way the desk's completion leaves one.
+    let phone_file = root.join("phone.json");
+    persist_pairing(&phone_file);
+    let handshake = kalsa_pairing::store::load(&phone_file).expect("the phone reloads");
+    let phone =
+        kalsa_pairing::store::add_device(&file, "Paired phone", &handshake).expect("it pairs");
+
+    assert!(
+        desk.set_phone_mail(phone.id, true).expect("a phone's switch saves"),
+        "a phone's switch moves, and the shell is told to copy it"
+    );
+    assert!(
+        !desk.set_phone_mail(host.id, false).expect("the host's own row is not a failure"),
+        "this computer's own record has no switch, so there is nothing to copy"
+    );
+    assert!(
+        !desk.set_phone_mail(phone.id + 99, true).expect("an id nobody holds is not a failure"),
+        "an id nobody holds is not a phone either"
+    );
+
+    let stored = kalsa_pairing::store::load_devices(&file).expect("the store reloads");
+    assert!(
+        stored.iter().any(|device| device.id == host.id && device.mail),
+        "and this computer's own mail was never switched off"
+    );
+}
+
+/// The owner's name for a phone, through the desk the command writes with: the
+/// store refuses this computer's own record and an id nobody holds, and says
+/// so, so nothing downstream is ever told a host took a name.
+#[test]
+fn the_name_switch_reports_a_phone_and_nothing_else() {
+    let root = std::env::temp_dir().join(format!("kalsa-brain-device-name-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    // The directory removes itself when this test ends, assertion or no
+    // assertion: the guard the other pairing tests here use.
+    let _scratch = ScratchDir(root.clone());
+    let file = root.join(PAIRING_FILE);
+    let desk = pairing::Desk::new(file.clone());
+    let host = kalsa_pairing::store::enrol_host(&file).expect("this computer is a device");
+
+    let phone_file = root.join("phone.json");
+    persist_pairing(&phone_file);
+    let handshake = kalsa_pairing::store::load(&phone_file).expect("the phone reloads");
+    let phone =
+        kalsa_pairing::store::add_device(&file, "Paired phone", &handshake).expect("it pairs");
+
+    assert!(
+        desk.set_device_name(phone.id, Some("  Anna's phone ".to_string()))
+            .expect("a name saves"),
+        "a phone's name is worth reporting: the page copies it"
+    );
+    let named = kalsa_pairing::store::load_devices(&file).expect("the store reloads");
+    let row = named.iter().find(|device| device.id == phone.id).expect("the phone");
+    assert_eq!(row.name.as_deref(), Some("Anna's phone"), "the store trimmed it");
+    assert_eq!(row.label, "Paired phone", "and left the minted label alone");
+    assert!(
+        !desk.set_device_name(host.id, Some("The study".to_string()))
+            .expect("the host's own row is not a failure"),
+        "this computer's own record takes no name"
+    );
+    assert!(
+        !desk.set_device_name(phone.id + 99, Some("Nobody".to_string()))
+            .expect("an id nobody holds is not a failure"),
+        "an id nobody holds is not a phone"
+    );
+    let stored = kalsa_pairing::store::load_devices(&file).expect("the store reloads");
+    assert!(
+        stored.iter().any(|device| device.id == host.id && device.name.is_none()),
+        "and this computer keeps the words the app has always shown"
+    );
+}
+
+/// The answer the door gets for one phone's mail, asked through the trait
+/// exactly as the door asks it: no test-only seam on the bridge itself.
+fn mail_allowed_for(bridge: &phone_chat::Bridge, id: u32) -> bool {
+    <phone_chat::Bridge as kalsa_door::PhoneChat>::mail_allowed(&bridge, kalsa_door::DeviceId::new(id))
+}
+
+/// The owner's per-phone mail switch, as the phone chat asks for it — and the
+/// race this used to lose. A reconcile reads the store, the owner flips the
+/// switch, and that reconcile's older snapshot reaches the bridge afterwards.
+/// With the answer cached there, the snapshot won and the phone's mail came
+/// back, and nothing corrected it: the reconcile's equality check is blind to
+/// mail, so every later pass took the fast path and never re-paired. Read at
+/// the store, there is no snapshot to be stale.
+#[test]
+fn a_stale_reconcile_cannot_give_a_phone_its_mail_back() {
+    let directory = std::env::temp_dir().join(format!(
+        "kalsa-brain-stale-mail-{}-{}",
+        std::process::id(),
+        line!()
+    ));
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).unwrap();
+    let _scratch = ScratchDir(directory.clone());
+    let file = directory.join(PAIRING_FILE);
+    let bridge = phone_chat::Bridge::default();
+    bridge.use_store(file.clone());
+
+    let ceremony = directory.join("ceremony.json");
+    persist_pairing(&ceremony);
+    let handshake = kalsa_pairing::store::load(&ceremony).expect("the phone reloads");
+    let phone =
+        kalsa_pairing::store::add_device(&file, "Paired phone", &handshake).expect("it pairs");
+    kalsa_pairing::store::set_phone_mail(&file, phone.id, false).expect("the owner says no");
+
+    // The interleaving: the phone list as a reconcile read it BEFORE the
+    // switch was written, handed over afterwards. The bridge is told no mail
+    // with it at all — that is what makes a stale snapshot harmless.
+    bridge.pair(&[(kalsa_door::DeviceId::new(phone.id), handshake.credential_hex())]);
+    assert!(
+        !mail_allowed_for(&bridge, phone.id),
+        "the store says off, so the phone reads no mail whatever a snapshot said"
+    );
+
+    // And the direction a cache could only serve by luck: the owner turns it
+    // on and the very next request sees it, with no pair call and no relaunch
+    // between the write and the question.
+    kalsa_pairing::store::set_phone_mail(&file, phone.id, true).expect("and now yes");
+    assert!(
+        mail_allowed_for(&bridge, phone.id),
+        "a switch takes effect on the next request, not the next reconcile"
+    );
+    kalsa_pairing::store::set_phone_mail(&file, phone.id, false).expect("and back again");
+    assert!(!mail_allowed_for(&bridge, phone.id));
+}
+
+/// Three ways this answer is no, and none of them is "assume yes": a store
+/// this bridge was never told about, a store that cannot be read, and a
+/// device the store does not hold — which is the Room's own guest seat.
+#[test]
+fn mail_is_refused_wherever_the_store_does_not_say_yes() {
+    let directory = std::env::temp_dir().join(format!(
+        "kalsa-brain-mail-refused-{}-{}",
+        std::process::id(),
+        line!()
+    ));
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).unwrap();
+    let _scratch = ScratchDir(directory.clone());
+    let file = directory.join(PAIRING_FILE);
+
+    let bridge = phone_chat::Bridge::default();
+    let ceremony = directory.join("ceremony.json");
+    persist_pairing(&ceremony);
+    let handshake = kalsa_pairing::store::load(&ceremony).expect("the phone reloads");
+    let phone =
+        kalsa_pairing::store::add_device(&file, "Paired phone", &handshake).expect("it pairs");
+    kalsa_pairing::store::set_phone_mail(&file, phone.id, true).expect("the owner says yes");
+
+    assert!(
+        !mail_allowed_for(&bridge, phone.id),
+        "a bridge that was never told where the store is answers no"
+    );
+    bridge.use_store(file.clone());
+    assert!(
+        mail_allowed_for(&bridge, phone.id),
+        "and the store's yes is the answer"
+    );
+    assert!(
+        !mail_allowed_for(&bridge, phone.id + 99),
+        "a device the store does not hold is not a phone with mail"
+    );
+
+    let broken = phone_chat::Bridge::default();
+    broken.use_store(directory.join("gone.json"));
+    assert!(
+        !mail_allowed_for(&broken, phone.id),
+        "a store that cannot be read keeps the mailbox shut"
+    );
+}
+
+/// The read-only list refuses a store it cannot read, where the Pairing
+/// page's own read answers no rows. "No phone is paired" and "Kalsa could not
+/// ask" are different sentences, and a page about whose phone may read the
+/// owner's mail must not draw the first for the second.
+#[test]
+fn the_read_only_device_list_refuses_a_store_it_cannot_read() {
+    let directory = std::env::temp_dir().join(format!(
+        "kalsa-brain-devices-unreadable-{}-{}",
+        std::process::id(),
+        line!()
+    ));
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).unwrap();
+    let _scratch = ScratchDir(directory.clone());
+    let file = directory.join(PAIRING_FILE);
+    let desk = pairing::Desk::new(file.clone());
+    // Bytes that are neither json nor ours: what the hatch is for, and the
+    // shape a half-written file takes.
+    std::fs::write(&file, b"\x00\x01 neither json nor ours").unwrap();
+    assert!(
+        desk.devices(std::time::SystemTime::now()).is_err(),
+        "the list says it could not read, rather than that the house is empty"
+    );
+    // The Pairing page's own read keeps answering, as it always has: it never
+    // refused a store, and a page that has worked for a year does not start.
+    let page = serde_json::to_value(desk.read(false, "", None, None, std::time::SystemTime::now()))
+        .expect("the pairing page's read still answers");
+    assert_eq!(
+        page["devices"].as_array().map(Vec::len),
+        Some(0),
+        "the page that has always answered no rows still does"
+    );
+}

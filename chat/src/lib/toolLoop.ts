@@ -11,7 +11,7 @@ import { canonicalToolName } from "./repairToolCall";
 import { recoverToolCall } from "./recoverToolCall";
 import { runToolCall } from "./runToolCall";
 import { logUiEvent } from "./uiLog";
-import { MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
+import { MAIL_NAMES, MAIL_TOOLS, WEB_TOOLS } from "./tools/definitions";
 import type { ToolDefinition } from "./tools/definitions";
 
 /**
@@ -231,6 +231,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
         forTools(answered.finishReason)
           ? say.noRoundLeft
           : say.turnEnded,
+        "refused_end",
       );
       if (askForWords) {
         forceWords = true;
@@ -243,7 +244,7 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     // wire: `function.name: ""` is a malformed request. It is still recorded,
     // so the thread says what happened rather than showing nothing.
     const named = calls.filter((call) => call.name !== "");
-    refuse(options, calls.filter((call) => call.name === ""), say.nameNeverArrived);
+    refuse(options, calls.filter((call) => call.name === ""), say.nameNeverArrived, "unnamed");
     if (named.length === 0) return;
 
     // Serial on purpose, like the phone (LlamaService.ts:5030): two searches at
@@ -259,6 +260,10 @@ export async function streamChatCompletion(options: StreamOptions): Promise<void
     for (const call of named) {
       const canonical = canonicalToolName(call.name, offeredNames);
       canonicalNames.push(canonical ?? call.name);
+      // What was asked for, and nothing else: the name, never the arguments.
+      // A name this request never offered was refused rather than run, and
+      // says so here rather than borrowing a tool's code for it.
+      logUiEvent(`${surface(options)}tool.${canonical ?? "not_offered"}`);
       const answer = await runToolCall(
         call,
         canonical === null ? null : definitions.get(canonical)!,
@@ -314,9 +319,13 @@ function webResultIn(conversation: WireMessage[]): boolean {
     can speak into — the same reason a page is. */
 const WEB_NAMES = new Set([...WEB_TOOLS, ...MAIL_TOOLS].map((tool) => tool.function.name));
 
-/** Every name the mailbox answers under, `mail_show` among them: the app's own
-    drawing can come from any of them, and only a run that drew is proof. */
-const MAIL_NAMES = new Set([...MAIL_TOOLS.map((tool) => tool.function.name), "mail_show"]);
+/** The surface a round's tool lines are prefixed with. A phone's turn is
+    marked as one: the tools a phone calls are this computer's, and without the
+    mark a stranger's phone asking for the owner's mail and the owner's own ask
+    are the same log line. */
+function surface(options: StreamOptions): string {
+  return options.phone === true ? "phone." : "chat.";
+}
 
 /**
  * The working conversation shrinks when the engine refuses the prompt as too
@@ -354,8 +363,13 @@ function shedOlderHalf(conversation: WireMessage[]): boolean {
  * Record calls that will not run, so the thread says why rather than showing a
  * call that quietly did nothing.
  */
-function refuse(options: StreamOptions, calls: ToolCall[], reason: string): void {
+function refuse(options: StreamOptions, calls: ToolCall[], reason: string, code: string): void {
   for (const call of calls) {
+    // A call that never ran is still a tool this round asked for, so it is
+    // logged in the same shape the run logs in — with the reason rather than
+    // a name: a round that ended under the calls has names but ran nothing,
+    // and a nameless call has no name to log at all.
+    logUiEvent(`${surface(options)}tool.${code}`);
     options.onToolRun?.({
       id: call.id,
       name: call.name,

@@ -54,6 +54,8 @@ export const DEVICES = {
     "allow": "允许",
     "refuse": "拒绝",
     "forget": "移除",
+    "renamePhone": "重命名",
+    "phoneNamePlaceholder": "为这台手机命名",
     "runForTailscale": (commands: string) => `为 Tailscale 运行：${commands}。`,
     "chatsAt": "手机聊天使用这台电脑在 Tailscale 中的名称。",
     "pairsAt": "手机配对使用这台电脑在 Tailscale 中的名称，加 :8443。",

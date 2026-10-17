@@ -6,6 +6,7 @@ import { ChatRequestError, fetchSamplingDefaultsWithStatus, serverBase } from ".
 import { streamChatCompletion } from "../toolLoop";
 import { executeToolCall, offeredTools } from "../tools/registry";
 import type { ToolDefinition } from "../tools/definitions";
+import { MAIL_NAMES } from "../tools/definitions";
 import { CONTEXT_RESERVE_TOKENS, wireSize } from "../attachments";
 import { loadSampling, samplingWire } from "../sampling";
 import { loadThinking, thinkingSupport } from "../thinking";
@@ -18,10 +19,19 @@ import { phoneWire } from "./phoneWire";
 
 const FACTS_TIMEOUT_MS = 8000;
 
-/** The desktop's tool list without `create_miniapp`: the phone cannot draw a
-    mini app yet. */
-function phoneTools(webTools: boolean, language: Language, model: string): ToolDefinition[] {
-  return offeredTools(webTools, language, model).filter((tool) => tool.function.name !== "create_miniapp");
+/**
+ * The desktop's tool list, less what this phone may not have: no mini app it
+ * cannot draw, and no mail at all unless the owner has that phone switched on
+ * in Settings → Mail. The whole mailbox goes, `mail_show` with it — that one
+ * draws the cards itself, so a phone that keeps it would still put the
+ * owner's mail in front of the person.
+ */
+function phoneTools(webTools: boolean, language: Language, model: string, mail: boolean): ToolDefinition[] {
+  return offeredTools(webTools, language, model).filter(
+    (tool) =>
+      tool.function.name !== "create_miniapp" &&
+      (mail || !MAIL_NAMES.has(tool.function.name)),
+  );
 }
 
 export async function runPhoneTurn(
@@ -29,6 +39,7 @@ export async function runPhoneTurn(
   settings: LiveSettings,
   sink: PhoneSink,
   signal: AbortSignal,
+  mail: boolean,
   deps = { loop: streamChatCompletion, facts: fetchSamplingDefaultsWithStatus },
 ): Promise<void> {
   if (!settings.endpoint) return sink.fail("engine");
@@ -58,7 +69,7 @@ export async function runPhoneTurn(
           : { budget: Math.max(0, facts.nctx - CONTEXT_RESERVE_TOKENS), size: wireSize },
       sampling: samplingWire(loadSampling()),
       signal,
-      tools: phoneTools(settings.webTools, turn.language, settings.model),
+      tools: phoneTools(settings.webTools, turn.language, settings.model, mail),
       // The phone cannot ask, so its web calls never wait on the gate. What still
       // applies: a search or page whose address the conversation never showed is
       // refused (fetchProvenanceRefusal, searchQueryRefusal). No sensitive-data
@@ -73,6 +84,10 @@ export async function runPhoneTurn(
       holdReasoning: true,
       onReasoning: sink.reasoning,
       onToken: sink.delta,
+      // This turn runs for a phone: the log says `phone.tool.<name>`, so a
+      // stranger's phone asking for the owner's mail is not this computer's
+      // own turn wearing the same line.
+      phone: true,
     });
   } catch (error) {
     return sink.fail(failureCode(error, signal));

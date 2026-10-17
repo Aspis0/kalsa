@@ -28,6 +28,16 @@ export function installBrainStub(brain) {
     brain_app_version: brain.appVersion,
     brain_telemetry_status: { enabled: false, noticeSeen: true },
     brain_capability: { kind: "unmeasured", chosen: true, chosen_model: "Liquid LFM 2.5" },
+    // The stored devices, as a page that wants the house and no ceremony with
+    // it reads them. Empty by default: a scenario that renders a phone row
+    // declares its own under `answers`, and a stub that answered the Pairing
+    // page's full read instead would mint a square behind its back.
+    brain_pairing_devices: [],
+    // The owner's name for a phone. A scenario that renames declares the
+    // devices it wants in `answers`; here the write is accepted and dropped,
+    // which is enough for a harness that only presses the button and watches
+    // the refusal path.
+    brain_pairing_set_device_name: null,
   };
   // A tool stub installed earlier answers the start-up reads from here.
   window.__STUB_START_UP__ = startUpAnswers;

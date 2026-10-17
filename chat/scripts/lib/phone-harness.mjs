@@ -132,6 +132,10 @@ export async function withPhone(run) {
 }
 
 export const SETTINGS = { endpoint: "http://127.0.0.1:8131", token: "test-token", model: "Gemma 4 E4B", webTools: true };
+// What the app decided about this phone's mail when it opened the request:
+// the owner has that phone switched on in Settings → Mail, or has not.
+export const MAIL_ON = true;
+export const MAIL_OFF = false;
 export const NOW = new Date(2026, 9, 15, 12);
 export const USER = (content) => ({ role: "user", content });
 export const turnOf = (messages, extra = {}) => ({ messages, replyFor: null, language: "en", ...extra });

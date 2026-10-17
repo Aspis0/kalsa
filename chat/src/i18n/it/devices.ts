@@ -54,6 +54,8 @@ export const DEVICES = {
     "allow": "Consenti",
     "refuse": "Rifiuta",
     "forget": "Rimuovi",
+    "renamePhone": "Rinomina",
+    "phoneNamePlaceholder": "Dai un nome a questo telefono",
     "runForTailscale": (commands: string) => `Da eseguire per Tailscale: ${commands}.`,
     "chatsAt": "La chat del telefono usa il nome di questo computer in Tailscale.",
     "pairsAt": "L'abbinamento del telefono usa il nome di questo computer in Tailscale, con :8443.",

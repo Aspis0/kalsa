@@ -166,6 +166,15 @@ export const MAIL_TOOLS: ToolDefinition[] = [
   },
 ];
 
+/** Every name the mailbox answers under, `mail_show` among them. It is this
+ * app's own drawing rather than an MCP call, so a set built from
+ * `MAIL_TOOLS` alone leaves the one tool that puts cards in front of the
+ * person still offered. */
+export const MAIL_NAMES: ReadonlySet<string> = new Set([
+  ...MAIL_TOOLS.map((tool) => tool.function.name),
+  "mail_show",
+]);
+
 /** A gist is read in the interface's language, which is the mailbox's. */
 const GIST_LANGUAGE: Record<Language, string> = {
   en: "English",

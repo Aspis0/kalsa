@@ -23,6 +23,15 @@ pub trait PhoneChat: Send + Sync {
     /// Sends the draft `draft_id` of `device`: its recipient on success, or
     /// the refusal's code.
     fn send(&self, device: DeviceId, draft_id: &str, body: Option<String>) -> Result<String, String>;
+
+    /// Whether `device` may reach this computer's mail. Asked once per mail
+    /// route request, so the owner's switch takes effect on the next one
+    /// rather than at the next reconcile.
+    ///
+    /// No default: a hook that does not answer has not said yes, and a door
+    /// that answered for it would send every phone that can authenticate
+    /// through to the owner's mailbox. A turn is never asked.
+    fn mail_allowed(&self, device: DeviceId) -> bool;
 }
 
 /// A request the page took: its id, and the page's events for it, in order.

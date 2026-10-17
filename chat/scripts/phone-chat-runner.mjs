@@ -30,8 +30,9 @@ const RECORD = {
 
 async function reads(app) {
   console.log("\n# the mail read");
-  equal("a read parses", app.readPhoneRequest({ request: "r3", kind: "read", read: { id: "105" } }), {
+  equal("a read parses", app.readPhoneRequest({ request: "r3", kind: "read", mail: true, read: { id: "105" } }), {
     request: "r3",
+    mail: true,
     body: { kind: "read", id: "105" },
   });
   check("a read id that is not digits is answered, not parsed", app.readPhoneRequest({ request: "r4", kind: "read", read: { id: "1x" } }).body === null);
@@ -105,12 +106,30 @@ async function runner(app) {
   emit("phone-chat-request", { request: "e1", kind: "turn", turn: { messages: [] } });
   equal("a request with a bad body is answered bad_request, not accepted", phoneEvents(), [["error", { code: "bad_request" }]]);
   bridge.calls.length = 0;
-  emit("phone-chat-request", { request: "e2", kind: "turn", turn: { messages: [USER("ciao")] } });
+  emit("phone-chat-request", { request: "e2", kind: "turn", mail: true, turn: { messages: [USER("ciao")] } });
   await tick();
   equal("a turn is accepted, then fails at once with no door", phoneEvents(), [
     ["accepted", {}],
     ["error", { code: "engine" }],
   ]);
+  bridge.calls.length = 0;
+  emit("phone-chat-request", { request: "e5", kind: "read", read: { id: "105" } });
+  await tick();
+  equal("a read for a phone switched off the mailbox is refused, not read", phoneEvents(), [
+    ["error", { code: "phone_mail_off" }],
+  ]);
+  check(
+    "and no mail was read for it",
+    bridge.calls.every((call) => call.command !== "brain_mail_read"),
+    JSON.stringify(bridge.calls),
+  );
+  emit("phone-chat-request", { request: "e6", kind: "turn", turn: { messages: [USER("ciao")] } });
+  await tick();
+  check(
+    "a turn from that phone is still answered: no mail is not no talk",
+    phoneEvents().slice(-2)[0][0] === "accepted",
+    JSON.stringify(phoneEvents()),
+  );
   bridge.calls.length = 0;
   emit("phone-chat-stop", { request: "nobody" });
   emit("phone-chat-request", { kind: "turn" });
@@ -118,7 +137,7 @@ async function runner(app) {
   bridge.answer = async () => {
     throw { code: "mail.keychain" };
   };
-  emit("phone-chat-request", { request: "e3", kind: "read", read: { id: "105" } });
+  emit("phone-chat-request", { request: "e3", kind: "read", mail: true, read: { id: "105" } });
   await tick();
   equal("a read is accepted, then answered with its code", phoneEvents().slice(-2), [
     ["accepted", {}],
@@ -127,7 +146,7 @@ async function runner(app) {
   let release;
   bridge.answer = (command) => (command === "brain_mail_read" ? new Promise((resolve) => (release = resolve)) : undefined);
   bridge.calls.length = 0;
-  emit("phone-chat-request", { request: "e4", kind: "read", read: { id: "105" } });
+  emit("phone-chat-request", { request: "e4", kind: "read", mail: true, read: { id: "105" } });
   await tick();
   emit("phone-chat-stop", { request: "e4" });
   await tick();

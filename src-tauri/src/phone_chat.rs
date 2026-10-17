@@ -10,6 +10,7 @@ mod events;
 mod tests;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{mpsc, Mutex, MutexGuard, OnceLock};
 use std::time::Instant;
 
@@ -63,6 +64,16 @@ pub(crate) struct Bridge {
     app: OnceLock<AppHandle>,
     live: Mutex<HashMap<String, Live>>,
     paired: Mutex<Vec<Owner>>,
+    /// The store this bridge asks about one phone's mail, set once the app
+    /// knows where the store is. NOT a cache of the answer, and the reason is
+    /// a race this file once lost: a reconcile that read the store before the
+    /// owner's switch was written could hand its older answer to `pair` after
+    /// the command had written the newer one, and nothing would correct it —
+    /// the reconcile's own equality check is blind to mail, so every later
+    /// pass takes the fast path and never re-pairs. A decision that may not be
+    /// cached is read where it is asked for. The store is small and a phone
+    /// request is a person's action, not a loop.
+    store: OnceLock<PathBuf>,
     drafts: Mutex<Drafts>,
 }
 
@@ -71,10 +82,17 @@ impl Bridge {
         let _ = self.app.set(app);
     }
 
+    /// Where the owner's decisions live. Asked of the shell once, when it
+    /// knows: before this, a mail question is answered NO, which is the
+    /// direction an unready app fails in.
+    pub(crate) fn use_store(&self, file: PathBuf) {
+        let _ = self.store.set(file);
+    }
+
     /// The paired phones, by id and credential. Called wherever the door is
     /// given a new set, before the door takes it: a draft whose phone is no
-    /// longer paired under its credential is dropped first, so a reused id can
-    /// never spend a forgotten phone's draft.
+    /// longer paired under its credential is dropped first, so a reused id
+    /// can never spend a forgotten phone's draft.
     pub(crate) fn pair(&self, phones: &[(DeviceId, String)]) {
         let owners: Vec<Owner> = phones
             .iter()
@@ -82,6 +100,23 @@ impl Bridge {
             .collect();
         lock(&self.drafts).keep_paired(&owners, Instant::now());
         *lock(&self.paired) = owners;
+    }
+
+    /// Whether this phone may read this computer's mail, as of this question.
+    ///
+    /// Asked of the store, which is the one place the owner's decision is
+    /// written, so no answer here can be older than the file. Anything that is
+    /// not a clear yes is a no: no store yet, a store that cannot be read, a
+    /// device the store does not hold — each is a mailbox that stays shut
+    /// rather than one that opens on a guess.
+    fn mail_allowed(&self, device: DeviceId) -> bool {
+        let Some(file) = self.store.get() else {
+            return false;
+        };
+        kalsa_pairing::store::load_devices(file)
+            .ok()
+            .and_then(|devices| devices.into_iter().find(|stored| stored.id == device.value()))
+            .is_some_and(|stored| stored.mail)
     }
 
     /// One page event for one request. A name the request's kind does not take,
@@ -273,6 +308,11 @@ impl PhoneChat for Bridge {
         let mut payload = json!({"request": request});
         payload[kind] = body;
         payload["kind"] = json!(kind);
+        // What that phone may reach on this computer, asked of the store as
+        // this request arrives. The page offers no mail tool to a phone whose
+        // switch is off, and a turn is still answered either way — a phone may
+        // talk to Kalsa without reading the owner's mail.
+        payload["mail"] = json!(self.mail_allowed(device));
         if app.emit(REQUEST_EVENT, payload).is_err() {
             lock(&self.live).remove(&request);
             return None;
@@ -295,6 +335,10 @@ impl PhoneChat for Bridge {
         body: Option<String>,
     ) -> Result<String, String> {
         self.send_draft(device, draft_id, body)
+    }
+
+    fn mail_allowed(&self, device: DeviceId) -> bool {
+        self.mail_allowed(device)
     }
 }
 

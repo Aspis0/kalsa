@@ -1,13 +1,13 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use kalsa_catalog::{Parameters, PhoneModel};
 
 use super::{
     add_device, add_device_with_delivery, allow_device, clear_delivery, enrol_host, forget,
     forget_device, load, load_devices, load_with_delivery, persist, persist_with_delivery,
-    add_device_with_install, publish_json, replace, temp_path, write_owner_only, Delivery,
-    DeviceKind, StoreError, HOST_LABEL,
+    add_device_with_install, publish_json, replace, set_device_name, set_phone_mail, temp_path,
+    write_owner_only, Delivery, DeviceKind, StoreError, HOST_LABEL, NAME_LIMIT,
 };
 use crate::handshake::{Credential, Handshake};
 use crate::messages::seal_computer;
@@ -1387,6 +1387,360 @@ fn a_second_install_never_touches_the_allowed_seat() {
         devices[1].handshake.credential_hex(),
         third.credential_hex(),
         "and holds the newest ceremony"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_record_written_before_the_mail_switch_reads_back_allowed() {
+    let dir = scratch("mail-default");
+    let credential = "12".repeat(32);
+
+    // Version 2 with no `mail` key: the previous build's shape, byte for byte.
+    // The answer it had all along is yes, and an upgrade must not take it.
+    let v2 = dir.join("v2.json");
+    fs::write(
+        &v2,
+        format!(
+            r#"{{"v":2,"devices":[{{"id":0,"label":"Paired phone","credential_hex":"{credential}","phone":{{"weights_bytes":2200000000,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+        ),
+    )
+    .unwrap();
+    let devices = load_devices(&v2).unwrap();
+    assert_eq!(devices[0].kind, DeviceKind::Phone);
+    assert!(
+        devices[0].mail,
+        "a phone that predates the switch keeps the mail it had"
+    );
+
+    // Version 1, the single-device file, lifted by the same reader.
+    let v1 = dir.join("v1.json");
+    write_v1_file(&v1, &credential);
+    assert!(load_devices(&v1).unwrap()[0].mail);
+
+    // Reading is not writing: the key this build would add stays absent.
+    assert!(!fs::read_to_string(&v2).unwrap().contains("mail"));
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_phone_paired_now_starts_with_the_mail_switch_off() {
+    let dir = scratch("mail-new-phone");
+    let path = dir.join("pairing.json");
+    let paired = add_device(&path, "Paired phone", &sample_handshake()).unwrap();
+
+    assert!(
+        !paired.mail,
+        "a phone paired from now on cannot read this computer's mail yet"
+    );
+    assert!(
+        !load_devices(&path).unwrap()[0].mail,
+        "and the file says so, not just the answer handed back"
+    );
+    assert!(
+        fs::read_to_string(&path).unwrap().contains("\"mail\":false"),
+        "the switch is written explicitly, so the file always says which is which"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_hosts_own_record_keeps_its_mail() {
+    let dir = scratch("mail-host");
+    let path = dir.join("pairing.json");
+    let host = enrol_host(&path).unwrap();
+    assert!(host.mail, "this computer's own record has no switch");
+
+    // The owner pressing a switch on the host's row changes nothing: its
+    // mail is the owner's own, and no page draws the switch anyway.
+    assert!(
+        !set_phone_mail(&path, host.id, false).unwrap(),
+        "this computer's own record is not a phone, and must not be reported as one"
+    );
+    assert!(load_devices(&path).unwrap()[0].mail);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_mail_switch_is_the_owners_and_it_persists() {
+    let dir = scratch("mail-toggle");
+    let path = dir.join("pairing.json");
+    let host = enrol_host(&path).unwrap();
+    let phone = add_device(&path, "Paired phone", &sample_handshake()).unwrap();
+
+    assert!(
+        set_phone_mail(&path, phone.id, true).unwrap(),
+        "a phone's own switch is worth reporting: the shell copies it"
+    );
+    assert!(
+        load_devices(&path).unwrap()
+            .iter()
+            .find(|device| device.id == phone.id)
+            .unwrap()
+            .mail,
+        "the switch reaches the next read"
+    );
+
+    set_phone_mail(&path, phone.id, false).unwrap();
+    let devices = load_devices(&path).unwrap();
+    assert!(
+        !devices
+            .iter()
+            .find(|device| device.id == phone.id)
+            .unwrap()
+            .mail,
+        "and so does switching it back off"
+    );
+    assert!(
+        devices.iter().any(|device| device.id == host.id && device.mail),
+        "the host's own record is not a bystander in another phone's switch"
+    );
+
+    // An id nobody holds has nothing to change, exactly as allow_device's
+    // unknown id is not a failure — and it says so, so the shell's copy of
+    // the answer is left alone rather than told a phone switched off.
+    assert!(
+        !set_phone_mail(&path, phone.id + 99, true).unwrap(),
+        "an id nobody holds is not a phone, and must not be reported as one"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The path production actually takes: the desk's completed ceremony calls
+/// `add_device_with_install`, the owner presses Allow, and `allow_device`
+/// folds the record into the seat. A phone that arrives that way cannot read
+/// this computer's mail, and Allow does not turn that on by accident.
+#[test]
+fn the_pairing_path_the_desk_takes_leaves_a_phone_switched_off() {
+    let dir = scratch("mail-desk-path");
+    let path = dir.join("pairing.json");
+    let handshake = sample_handshake();
+    let install = Some("a1".repeat(16));
+
+    add_device_with_install(
+        &path,
+        "Paired phone",
+        &handshake,
+        a_delivery(&"44".repeat(16)),
+        install.as_deref(),
+    )
+    .unwrap();
+    let waiting = load_devices(&path).unwrap();
+    assert_eq!(waiting.len(), 1);
+    assert!(waiting[0].waiting, "the owner's decision is still the ceremony's");
+    assert!(
+        !waiting[0].mail,
+        "a request the owner has not allowed yet reaches no mail either"
+    );
+
+    allow_device(&path, waiting[0].id).unwrap();
+    let approved = load_devices(&path).unwrap();
+    assert_eq!(approved.len(), 1, "the record folds into its seat, not beside it");
+    assert!(!approved[0].waiting, "the phone is allowed now");
+    assert!(
+        !approved[0].mail,
+        "and Allow decides the door, never the mailbox"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Every public way a record is minted from a handshake mints a PHONE off,
+/// not only the one the desk takes: `persist` is the same `record_from`.
+#[test]
+fn a_phone_persisted_as_the_first_device_starts_off_too() {
+    let dir = scratch("mail-persist");
+    let first = dir.join("first.json");
+    persist(&sample_handshake(), &first).unwrap();
+    assert!(
+        !load_devices(&first).unwrap()[0].mail,
+        "a phone that landed here cannot read this computer's mail"
+    );
+
+    // And a host, the same way round, is not switched off by the same rule.
+    let host_file = dir.join("host.json");
+    enrol_host(&host_file).unwrap();
+    assert!(load_devices(&host_file).unwrap()[0].mail);
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The name one stored device reads back with. By id rather than by position,
+/// so a test that pairs a host first and a test that does not both work.
+fn name_of(path: &Path, id: u32) -> Option<String> {
+    load_devices(path)
+        .unwrap()
+        .into_iter()
+        .find(|device| device.id == id)
+        .and_then(|device| device.name)
+}
+
+/// The owner's name for a phone, in their own words: set, trimmed, capped by
+/// CHARACTERS, cleared by nothing at all, and never this computer's own
+/// record. Every already-paired phone reads back unnamed, which is the page's
+/// long-standing answer and the only one an older file can carry.
+#[test]
+fn a_phone_takes_the_owners_name_and_gives_it_back() {
+    let dir = scratch("name-toggle");
+    let path = dir.join("pairing.json");
+    let host = enrol_host(&path).unwrap();
+    let phone = add_device(&path, "Paired phone", &sample_handshake()).unwrap();
+
+    assert!(load_devices(&path).unwrap()[1].name.is_none(), "a new phone is unnamed");
+    assert!(
+        set_device_name(&path, phone.id, Some("  Anna's phone  ".to_string())).unwrap(),
+        "a phone's name is worth reporting"
+    );
+    let named = load_devices(&path).unwrap();
+    assert_eq!(
+        named.iter().find(|d| d.id == phone.id).unwrap().name.as_deref(),
+        Some("Anna's phone"),
+        "the spaces the owner typed around it are not part of the name"
+    );
+    // The label is a separate thing entirely, and is left exactly as Rust
+    // minted it: the app never shows it, so it is never the owner's to edit.
+    assert_eq!(named[1].label, "Paired phone", "the minted label is not the name");
+
+    // Nothing typed is the clear, spaces and all — and clearing twice writes
+    // nothing the second time.
+    assert!(set_device_name(&path, phone.id, Some("   ".to_string())).unwrap());
+    assert!(
+        load_devices(&path)
+            .unwrap()
+            .iter()
+            .find(|d| d.id == phone.id)
+            .unwrap()
+            .name
+            .is_none()
+    );
+    assert!(set_device_name(&path, phone.id, None).unwrap(), "clearing an unnamed phone is still a phone");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Forty characters, counted as characters: the cap is what a person reads on
+/// one row, so half an emoji or a cut `ß` would be a name nobody chose.
+#[test]
+fn a_name_is_capped_at_forty_characters_and_by_nothing_else() {
+    let dir = scratch("name-limit");
+    let path = dir.join("pairing.json");
+    let phone = add_device(&path, "Paired phone", &sample_handshake()).unwrap();
+
+    let long = "à".repeat(NAME_LIMIT + 10);
+    set_device_name(&path, phone.id, Some(long)).unwrap();
+    let kept = name_of(&path, phone.id).expect("the long name was kept");
+    assert_eq!(kept.chars().count(), NAME_LIMIT, "the cap counts characters, not bytes");
+    assert!(kept.len() > NAME_LIMIT, "so a multi-byte name is not cut short of the limit");
+
+    // Four bytes per character is the worst of it: the emoji are each one
+    // character and four bytes, and forty of them still come back whole.
+    let emoji = "🎈".repeat(NAME_LIMIT);
+    set_device_name(&path, phone.id, Some(emoji.clone())).unwrap();
+    assert_eq!(
+        name_of(&path, phone.id),
+        Some(emoji.clone()),
+        "a name made of four-byte characters is not cut in half"
+    );
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// This computer's own record is not the owner's to rename, and an id nobody
+/// holds is not a phone: both report the same answer the mail switch gives.
+#[test]
+fn naming_refuses_this_computer_and_an_id_nobody_holds() {
+    let dir = scratch("name-refused");
+    let path = dir.join("pairing.json");
+    let host = enrol_host(&path).unwrap();
+    let phone = add_device(&path, "Paired phone", &sample_handshake()).unwrap();
+
+    assert!(
+        !set_device_name(&path, host.id, Some("The study".to_string())).unwrap(),
+        "the host's own record changes nothing and is not reported"
+    );
+    assert!(
+        !set_device_name(&path, phone.id + 99, Some("Nobody".to_string())).unwrap(),
+        "an id nobody holds is not a phone either"
+    );
+    let stored = load_devices(&path).unwrap();
+    assert!(stored[0].name.is_none(), "this computer keeps the words the app has always shown");
+    assert!(stored[1].name.is_none(), "and the phone was never named at all");
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A v2 file written before names existed loads, and the record reads back with
+/// no name — the answer its missing key would have given.
+#[test]
+fn a_file_written_before_names_existed_reads_back_unnamed() {
+    let dir = scratch("name-old-file");
+    let credential = "12".repeat(32);
+    let path = dir.join("pairing.json");
+    fs::write(
+        &path,
+        format!(
+            r#"{{"v":2,"devices":[{{"id":0,"label":"Paired phone","credential_hex":"{credential}","phone":{{"weights_bytes":2200000000,"parameters":null,"measured_tokens_per_second":null,"battery_powered":null}}}}]}}"#
+        ),
+    )
+    .unwrap();
+    let devices = load_devices(&path).unwrap();
+    assert_eq!(devices.len(), 1);
+    assert!(devices[0].name.is_none(), "a phone nobody has named stays unnamed");
+    assert!(
+        !fs::read_to_string(&path).unwrap().contains("name"),
+        "and reading it adds no key: the file stays as it was"
+    );
+    // Naming it afterwards works, and writes the key then.
+    assert!(set_device_name(&path, 0, Some("Anna's phone".to_string())).unwrap());
+    assert_eq!(load_devices(&path).unwrap()[0].name.as_deref(), Some("Anna's phone"));
+    fs::remove_dir_all(&dir).unwrap();
+}
+
+/// A name is drawn verbatim and read by a person looking for their own phone,
+/// so what it contains has to be what it appears to be. The characters nobody
+/// can see are dropped on the way in — the zero-width family, the BOM, the
+/// bidi overrides that reorder what surrounds them, and every control — and a
+/// name made only of them is the clear, not a name.
+#[test]
+fn a_name_drops_what_nobody_can_see() {
+    let dir = scratch("name-invisible");
+    let path = dir.join("pairing.json");
+    let phone = add_device(&path, "Paired phone", &sample_handshake()).unwrap();
+
+    // Each of these: a zero-width space, a joiner, a non-joiner, a BOM, and a
+    // RIGHT-TO-LEFT OVERRIDE that would show the rest of the name backwards.
+    set_device_name(
+        &path,
+        phone.id,
+        Some("An\u{200B}na\u{200C}'s\u{200D} pho\u{FEFF}ne\u{202E}".to_string()),
+    )
+    .unwrap();
+    assert_eq!(
+        name_of(&path, phone.id).as_deref(),
+        Some("Anna's phone"),
+        "what the owner cannot see is not part of the name they gave"
+    );
+
+    // A newline and a tab go too: this is drawn on one row.
+    set_device_name(&path, phone.id, Some("Anna\n\tphone".to_string())).unwrap();
+    assert_eq!(
+        name_of(&path, phone.id).as_deref(),
+        Some("Annaphone"),
+        "a newline and a tab are controls: this name is drawn on one row"
+    );
+
+    // And a name made of nothing but those characters is the clear, the same
+    // as one made of spaces.
+    set_device_name(&path, phone.id, Some("\u{200B}\u{FEFF}\u{202E}".to_string())).unwrap();
+    assert!(
+        name_of(&path, phone.id).is_none(),
+        "a name nobody could read is not a name"
+    );
+
+    // The cap counts what SURVIVED: forty zero-width spaces in front of forty
+    // visible characters leave all forty of them, because the cap is applied
+    // to the name as it is drawn and not to what was typed.
+    let padded = "\u{200B}".repeat(NAME_LIMIT) + &"x".repeat(NAME_LIMIT);
+    set_device_name(&path, phone.id, Some(padded)).unwrap();
+    assert_eq!(
+        name_of(&path, phone.id),
+        Some("x".repeat(NAME_LIMIT)),
+        "the cap counts the characters the owner will actually see"
     );
     fs::remove_dir_all(&dir).unwrap();
 }

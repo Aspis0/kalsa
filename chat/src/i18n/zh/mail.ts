@@ -113,6 +113,10 @@ export const MAIL = {
     permRead: "读取邮件来帮你",
     permSend: "发送前一定会先问你",
     permDelete: "不能删除任何东西",
+    "phonesTitle": "可以读取邮件的手机",
+    "phonesHint": "10 月 17 日之前配对的手机会继续读取你的邮件，直到你将其关闭。从现在起新配对的手机默认关闭。",
+    "phonesUnreadable": "Kalsa 无法读取已配对的手机。",
+    "phonesEmpty": "没有已配对的手机。",
     "reasons": {
       "auth_fail": "发件人的域名不对",
       "reply_to_mismatch": "回复会被寄去别处",

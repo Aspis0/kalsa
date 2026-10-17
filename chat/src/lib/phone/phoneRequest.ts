@@ -21,6 +21,11 @@ type PhoneBody = { kind: "turn"; turn: PhoneTurn } | { kind: "read"; id: string 
 
 interface PhoneEnvelope {
   request: string;
+  /** Whether that device may read this computer's mail, as the app decided
+      when it opened the request. Absent is NO: a payload that never says is
+      a payload from a build that does not ask, and the safe reading of that
+      is the mailbox closed. */
+  mail: boolean;
   /** Null when the body does not fit the protocol. */
   body: PhoneBody | null;
 }
@@ -37,7 +42,12 @@ export function requestIdOf(payload: unknown): string | null {
 export function readPhoneRequest(payload: unknown): PhoneEnvelope | null {
   const request = requestIdOf(payload);
   if (request === null) return null;
-  return { request, body: bodyOf(payload) };
+  return { request, mail: mailOf(payload), body: bodyOf(payload) };
+}
+
+function mailOf(payload: unknown): boolean {
+  if (!isRecord(payload)) return false;
+  return payload.mail === true;
 }
 
 function bodyOf(payload: unknown): PhoneBody | null {
