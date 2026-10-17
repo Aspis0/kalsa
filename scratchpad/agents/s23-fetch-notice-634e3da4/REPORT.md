@@ -25,7 +25,7 @@ Why, from the lines: round 2 was markup only, so the blank-reply fallback fired 
 
 On 8b89c094 the same prompt answered with citations because the round-2 fallback fetch was executed. 634e3da4 closes that privacy hole but, on this model, turns the answer into an error. The fix belongs in the fallback, not the gate: LFM keeps emitting its text tool dialect even with tools off.
 
-## Re-test on app a68ca93b (2026-10-17 ~09:08 local, S23 unplugged 65%, 37.9 C, thermal 1)
+## Re-test on app a68ca93b (2026-10-17, S23 unplugged 65%, 37.9 C, thermal 1)
 
 APK run 39002375129, debuggable, sha256 `12fc3b971c7a4ff98d79c7df7c9e70b1f3e7fc77e6faa3c605802ba3eb141a58`. Same prompt, new chat.
 Rounds as before (search, one fetch, round 2 `"toolChoice":"none",...,"fallbackDialect":"lfm","executed":0`), then the fallback with the no-tools system prompt answered:
