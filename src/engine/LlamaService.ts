@@ -163,6 +163,7 @@ import {
   type ToolRoundTelemetry,
 } from "./toolCallTelemetry";
 import { shouldFireToolRoundFallback } from "./toolRoundFallback";
+import { buildFallbackMessages } from "./fallbackMessages";
 import {
   countSuppressedFallbackCalls,
   shouldParseFallbackCalls,
@@ -5355,6 +5356,15 @@ export async function streamAssistantTurn(
           // during the probe must not be followed by a full completion.
           if (bailIfStopped()) return;
           const fallbackStreamedTextAtStart = streamedText;
+          // Tools-off round: the turn's system prompt orders a search on exactly
+          // the questions this round is trying to close from the results already
+          // in context, and S23 came back as tool markup again. Same transcript,
+          // no-tools system prompt plus the note that keeps "answer from the
+          // results, cite by title" — the turn's own array stays untouched.
+          const fallbackMessages = buildFallbackMessages(currentMessages, {
+            systemText: buildSystemPrompt(locale, false, options.memoryFacts),
+            resultsNote: strings.toolResultsAnswerNote,
+          }) as RNLlamaOAICompatibleMessage[];
           try {
             const fallbackThermo = await refreshGovernorBeforeCompletion(
               engine,
@@ -5368,7 +5378,7 @@ export async function streamAssistantTurn(
               engine.completion(
                 applyBenchSampling(
                   {
-                    messages: currentMessages as RNLlamaOAICompatibleMessage[],
+                    messages: fallbackMessages,
                     n_predict: nPredict,
                     stop: STOP_WORDS,
                     temperature: 0.7,
@@ -5521,6 +5531,11 @@ export async function streamAssistantTurn(
         // later stripped by thinkCleaner.finalize.
         if (!exhaustedTel.fallbackOk) {
           const fallbackMessage = strings.errors.toolRoundsExhausted;
+          // The first visible text of this turn, so the label stops naming the
+          // last tool (the UI keeps statusLabel while text streams and clears it
+          // only at finalize). The flip the fallback's token callback makes on
+          // its first visible delta, reached here without one.
+          callbacks.onStatus?.({ label: strings.chat.writingStatus });
           callbacks.onDelta(fallbackMessage, fallbackMessage);
         }
       }

@@ -1489,6 +1489,16 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     "Keep answers short (under 200 words unless asked for more). " +
     "If a task is too long or complex, break it down or suggest how to proceed. " +
     "If asked for harmful content (violence, illegal acts, hate, personal data of others), decline briefly and offer a safe alternative.",
+  /**
+   * Model-facing, appended to the NO-tools prompt for the tool-round fallback:
+   * the two rules that prompt otherwise loses ("base your answer on the
+   * results", "cite the sources you used") are the whole job of that round, and
+   * it is the one place that asks for an answer from results already in context.
+   * Names no tool on purpose — a tool name here is an invitation to call one.
+   */
+  toolResultsAnswerNote:
+    "Base your answer on the tool results above; if they don't contain the answer, say so. " +
+    "Cite the sources you used by referencing their titles.",
   // ── The rebuilt interface (2026-09). See docs/DESIGN.md ──────────────
   // Every word the new shell can put on screen lives here, so a missing
   // string is a type error rather than a blank control at the worst moment.

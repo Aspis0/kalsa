@@ -1434,6 +1434,15 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Tieni le risposte brevi (sotto le 200 parole, salvo richiesta esplicita di più). " +
     "Se un compito è troppo lungo o complesso, suddividilo o suggerisci come procedere. " +
     "Se ti chiedono contenuti dannosi (violenza, atti illegali, odio, dati personali di terzi), rifiuta in breve e offri un'alternativa sicura.",
+  /**
+   * Solo per il modello, aggiunto al prompt SENZA strumenti del fallback tool:
+   * le due regole che quel prompt perde ("basa la risposta sui risultati",
+   * "cita le fonti usate") sono esattamente il suo compito. Non nomina nessuno
+   * strumento di proposito: qui un nome di tool è un invito a chiamarlo.
+   */
+  toolResultsAnswerNote:
+    "Basa la risposta sui risultati degli strumenti qui sopra; se non contengono la risposta, dillo. " +
+    "Cita le fonti usate facendo riferimento ai titoli.",
   // ── The rebuilt interface (2026-09). See docs/DESIGN.md ──────────────
   // Every word the new shell can put on screen lives here, so a missing
   // string is a type error rather than a blank control at the worst moment.
