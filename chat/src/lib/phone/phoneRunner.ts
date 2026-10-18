@@ -16,12 +16,14 @@ import { phoneSink, sendPhoneEvent } from "./phoneEvents";
 import { readPhoneRequest, requestIdOf } from "./phoneRequest";
 import { runPhoneRead } from "./phoneRead";
 import { runPhoneTurn } from "./phoneTurn";
+import { forgetArmedChat } from "./phoneTurn";
 import type { PhoneBody, PhoneTurn } from "./phoneRequest";
 
 type TurnBody = Extract<PhoneBody, { kind: "turn" }>;
 
 const REQUEST_EVENT = "phone-chat-request";
 const STOP_EVENT = "phone-chat-stop";
+const UNPAIRED_EVENT = "phone-chat-unpaired";
 
 /**
  * The turn a request is run as.
@@ -48,6 +50,13 @@ export function startPhoneChatRunner(): () => void {
   const unlisten = Promise.all([
     listen(REQUEST_EVENT, (payload) => accept(payload)),
     listen(STOP_EVENT, (payload) => halt(payload)),
+    // **A phone that is no longer paired takes this window's memory of it with
+    // it**: what its chat was refused for is a thing this computer remembered
+    // about a phone that no longer exists, and a phone paired again later must
+    // not inherit another phone's caution.
+    listen(UNPAIRED_EVENT, (payload) => {
+      for (const conversation of Array.isArray(payload) ? payload : []) forgetArmedChat(String(conversation));
+    }),
   ]);
 
   function accept(payload: unknown): void {

@@ -201,12 +201,13 @@ async function runner(app) {
 
   bridge.answer = async () => undefined;
   await stop();
-  // Both listeners and no more: a card and an outcome are the phone's own
+  // Every listener and no more: the request, the stop, and the one that tells
+  // this window a phone is gone. A card and an outcome are the phone's own
   // stream's business, and a listener left behind would keep answering a window
   // nobody is running.
   check(
     "stopping removes every listener",
-    bridge.unlistened === 2 && bridge.handlers.size === 0,
+    bridge.unlistened === 3 && bridge.handlers.size === 0,
     `unlistened=${bridge.unlistened} handlers=${bridge.handlers.size}`,
   );
 }

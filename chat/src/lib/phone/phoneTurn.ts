@@ -97,6 +97,60 @@ export function phoneArmed(conversation: WireMessage[] | undefined): boolean {
 const BROWSER_WRITES = new Set(["browser_click", "browser_type"]);
 
 /**
+ * **Which phone chats are holding their owner's mail.** One map, on this
+ * computer, keyed by the phone's own conversation.
+ *
+ * **The wire is not a safe place to keep it, and that is the whole reason this
+ * is here.** Asking the turn's messages only reads what the phone chose to send:
+ * a phone that strips mail from its history — which is sensible of it, and is
+ * exactly what it does — arrives on turn N+1 with a conversation that no longer
+ * contains the mail read on turn N, and a chat that has read the owner's mail
+ * would quietly be offered the browser's writes again. The latch inside one turn
+ * fixed the same hole for the turns of one request; this is the same fact kept
+ * for as long as the chat lasts.
+ *
+ * **A new chat starts unarmed**, because that is the only thing a person does to
+ * put it behind them, and **a reply to a mail is armed from its first word** —
+ * the person pressed "draft a reply", so the mail is in the turn whatever the
+ * phone's wire says about it.
+ */
+const armedChats = new Map<string, boolean>();
+
+/** Whether this turn is the start of a new chat: nothing in it is an earlier
+ * assistant turn, so there is nothing behind it to still be holding mail. */
+function is_a_new_chat(turn: PhoneTurn): boolean {
+  return !turn.messages.some((message) => message.role === "assistant");
+}
+
+/**
+ * What this turn does to its chat's armed state, and what it finds.
+ *
+ * **Called once, at the start of a turn** — it has side effects, and a reader
+ * that cleared the very thing it was asked about would be no reader at all. A
+ * turn that starts a new chat puts the old one behind them; a turn that answers a
+ * mail arms its chat, because the person pressed "draft a reply" and the mail is
+ * in the turn whatever the phone's wire says about it.
+ */
+export function phoneChatArmed(conversation: string, turn: PhoneTurn): boolean {
+  if (is_a_new_chat(turn)) armedChats.delete(conversation);
+  if (turn.replyFor !== null && turn.replyFor !== undefined) armedChats.set(conversation, true);
+  return phoneChatArmedHere(conversation);
+}
+
+/** Whether this phone's conversation is armed, and nothing else. The reader the
+ * proofs use, and the one a caller that only wants to know should use. */
+export function phoneChatArmedHere(conversation: string): boolean {
+  return armedChats.get(conversation) === true;
+}
+
+/** Forgets a phone's armed state — the computer's half of an unpair. Nothing else
+ * clears it: a new chat and a mail reply both do, and those are the only two
+ * things a person can do from a phone. */
+export function forgetArmedChat(conversation: string): void {
+  armedChats.delete(conversation);
+}
+
+/**
  * The conversation one phone's browser calls are stamped with.
  *
  * **One per device, and the same rule the Rust side uses**, because both halves
@@ -146,7 +200,7 @@ export async function runPhoneTurn(
   // model is about to be given — so the *offer* is right for a phone that starts
   // the turn holding it.
   //
-  // **And it latches.** Asking the conversation again at each call catches the
+  // **And it latches for the rest of the turn, and for the chat.** Asking the conversation again at each call catches the
   // usual way a chat becomes armed, but only while the conversation still says
   // so: a wire trimmed to fit, a mail result cut by the context budget, an answer
   // that arrives as an error instead of fenced mail. None of those un-reads
@@ -154,7 +208,7 @@ export async function runPhoneTurn(
   // round it is answering from. So the moment **any** mail tool runs in this turn
   // the flag is set and stays set for the rest of the turn, and a write into a
   // chat that has read the owner's mail is refused whatever the wire now says.
-  let armed = phoneArmed(said);
+  let armed = phoneChatArmed(conversation, turn) || phoneArmed(said) || turn.replyFor !== null;
   try {
     await deps.loop({
       endpoint: settings.endpoint,
@@ -176,7 +230,10 @@ export async function runPhoneTurn(
         // **The latch, first**: a mail tool that runs at all has read the owner's
         // mail, whatever its answer turned out to be. Set before anything else
         // looks at the name, so a mail tool cannot be the call that slips through.
-        if (MAIL_NAMES.has(name)) armed = true;
+        if (MAIL_NAMES.has(name)) {
+          armed = true;
+          if (conversation) armedChats.set(conversation, true);
+        }
         // **Then the question, of the conversation the loop is reading** — and
         // the latch, so the answer is yes even if the wire no longer shows why.
         //

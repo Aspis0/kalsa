@@ -85,7 +85,7 @@ async function compile(dir) {
         export { readPhoneRequest, requestIdOf } from "../src/lib/phone/phoneRequest.ts";
         export { phoneWire } from "../src/lib/phone/phoneWire.ts";
         export { phoneSink } from "../src/lib/phone/phoneEvents.ts";
-        export { phoneArmed, runPhoneTurn } from "../src/lib/phone/phoneTurn.ts";
+        export { forgetArmedChat, phoneArmed, phoneChatArmed, phoneChatArmedHere, runPhoneTurn } from "../src/lib/phone/phoneTurn.ts";
         export { runPhoneRead } from "../src/lib/phone/phoneRead.ts";
         export { startPhoneChatRunner, turnFor } from "../src/lib/phone/phoneRunner.ts";
         export { ChatRequestError } from "../src/lib/chat.ts";

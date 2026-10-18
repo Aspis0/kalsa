@@ -31,6 +31,9 @@ use drafts::{Drafts, Owner, Ticket};
 
 const REQUEST_EVENT: &str = "phone-chat-request";
 const STOP_EVENT: &str = "phone-chat-stop";
+/// **The conversations of the phones that are no longer paired.** What the page
+/// forgets its own memory for when a phone is removed.
+const UNPAIRED_EVENT: &str = "phone-chat-unpaired";
 
 /// The page's event names. Anything else is refused.
 const EVENTS: &[&str] = &[
@@ -209,6 +212,18 @@ impl Bridge {
         for ((owner, _), mark) in lock(&self.answering).iter() {
             if forgotten.contains(owner) {
                 mark.store(true, Ordering::SeqCst);
+            }
+        }
+        // **Told what is gone**, so the page can forget what it remembered for
+        // those phones: the browser's writes it refused for a chat that has read
+        // the owner's mail, which is this computer's memory and not the phone's,
+        // and a phone that is unpaired and later paired again must not inherit
+        // the other's chat's caution. The page is the only thing holding that
+        // state, so it is the only thing that can be told.
+        if !forgotten.is_empty() {
+            if let Some(app) = self.app.get() {
+                let gone: Vec<String> = forgotten.iter().map(|(device, _)| conversation_of(*device)).collect();
+                let _ = app.emit(UNPAIRED_EVENT, gone);
             }
         }
         // **The table is set before a single card is let go.** Every lock this

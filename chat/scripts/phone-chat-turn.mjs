@@ -628,6 +628,87 @@ async function phoneBrowser(app) {
     "the type that went out before the latch test is all of them",
   );
 
+  // **And it is remembered for the chat, not only for the turn.** The phone
+  // rebuilds the wire it sends, and it strips mail from its history — so a turn
+  // that arrives with nothing in it is a normal turn, not a chat that has never
+  // seen mail. Asking the wire would un-read the mail and offer the writes back.
+  const chat = app.phoneConversation(PHONE);
+  app.forgetArmedChat(chat);
+  check("a chat that has read no mail is unarmed", app.phoneChatArmedHere(chat) === false);
+  const read_mail = turnOf([USER("read it")], { device: PHONE });
+  await app.runPhoneTurn(read_mail, SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: fakeLoop(async (o) => {
+      await o.runTool("mail_read", { id: "105" }, new AbortController().signal, trimmed);
+    }).loop,
+    facts: facts(),
+  });
+  check("and it is armed afterwards", app.phoneChatArmedHere(chat) === true, "the computer remembers it, not the phone's wire");
+  let on_the_next_turn = null;
+  // **A turn that continues the chat**, so it carries an assistant turn behind it
+  // — which is what a phone sends when the person is still in the same chat, and
+  // the only thing that tells a new chat from an old one.
+  const continuing = turnOf([USER("and now?"), { role: "assistant", content: "here it is" }], { device: PHONE });
+  await app.runPhoneTurn(continuing, SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: fakeLoop(async (o) => {
+      on_the_next_turn = await o.runTool(
+        "browser_type",
+        { ref: "e4", text: "482913" },
+        new AbortController().signal,
+        // **The wire the phone actually sends this time: no mail in it at all.**
+        [{ role: "user", content: "and now?" }],
+      );
+    }).loop,
+    facts: facts(),
+  });
+  check(
+    "a chat that read mail is still armed on the next turn, with nothing in the wire saying so",
+    on_the_next_turn !== null && on_the_next_turn.ok === false && on_the_next_turn.text.includes("won't type into a website"),
+    JSON.stringify(on_the_next_turn),
+  );
+
+  // **A reply to a mail is armed from its first word**: the person pressed "draft
+  // a reply", so the mail is in the turn whatever the phone's wire says.
+  app.forgetArmedChat(chat);
+  check(
+    "a turn replying to a mail is armed before it reads anything",
+    app.phoneChatArmed(chat, turnOf([USER("reply to that")], { device: PHONE, replyFor: "105" })) === true,
+  );
+
+  // **A new chat starts unarmed** — the only thing a person does from a phone to
+  // put the old one behind them.
+  app.forgetArmedChat(chat);
+  check("cleared, a chat that has read no mail is unarmed again", app.phoneChatArmed(chat, turnOf([USER("fresh")], { device: PHONE })) === false);
+  await app.runPhoneTurn(turnOf([USER("read it")], { device: PHONE }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: fakeLoop(async (o) => {
+      await o.runTool("mail_read", { id: "105" }, new AbortController().signal, trimmed);
+    }).loop,
+    facts: facts(),
+  });
+  check(
+    "and a chat that reads mail in it is armed again",
+    app.phoneChatArmed(chat, turnOf([USER("hi"), { role: "assistant", content: "yes" }], { device: PHONE })) === true,
+    "an earlier assistant turn is what makes it the same chat",
+  );
+  check(
+    "while a turn with no assistant turn behind it starts a new chat, and is unarmed",
+    app.phoneChatArmed(chat, turnOf([USER("something else entirely")], { device: PHONE })) === false,
+  );
+
+  // **A phone that is unpaired takes the memory with it** — the computer's half,
+  // which is what the unpair event clears.
+  await app.runPhoneTurn(turnOf([USER("read it")], { device: PHONE }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: fakeLoop(async (o) => {
+      await o.runTool("mail_read", { id: "105" }, new AbortController().signal, trimmed);
+    }).loop,
+    facts: facts(),
+  });
+  check("armed once more", app.phoneChatArmedHere(chat) === true);
+  app.forgetArmedChat(chat);
+  check(
+    "and an unpair leaves nothing behind for a phone that is paired again later",
+    app.phoneChatArmedHere(chat) === false,
+  );
+
   // The same call in a chat holding no mail still goes through: the rule is about
   // what the conversation holds, not about phones.
   const { loop: freeLoop } = fakeLoop(async (o) => {
