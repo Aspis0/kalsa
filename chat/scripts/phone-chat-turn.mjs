@@ -531,6 +531,117 @@ async function phoneBrowser(app) {
     facts: facts(),
   });
   check("and only once", wire3[wire3.length - 1].browserNote === undefined, JSON.stringify(wire3[wire3.length - 1].browserNote));
+
+  // **A phone holding its owner's mail does not type into a website.** Not the
+  // card — a card is a request the person is asked about, and a page navigation
+  // needs none: a click that goes somewhere, or a search box the model fills and
+  // presses Enter on, leaves the computer with nothing on a screen for the owner
+  // to say yes to. On the desktop the answer is a gate and an ask; a phone has
+  // nobody to ask, so the answer is one plain line.
+  // A conversation that has read mail, in the shape the loop's own answers have:
+  // a mail tool's answer, and a tool answer carrying the sidecar's fence — which
+  // is what the rule reads, on the desktop as much as here.
+  const NONCE = "0123456789abcdef";
+  const MAIL_TURN = [
+    { role: "assistant", content: "", tool_calls: [{ id: "m1", type: "function", function: { name: "mail_list", arguments: "{}" } }] },
+    {
+      role: "tool",
+      tool_call_id: "m1",
+      content: `<<<mail\nsubject:\nkalsa-mail-${NONCE} Your statement\n<<<`,
+    },
+  ];
+  check("a turn whose conversation holds mail is armed", app.phoneArmed(MAIL_TURN) === true);
+  check(
+    "and a turn that reads no mail is not",
+    app.phoneArmed([{ role: "user", content: "buy it" }]) === false,
+    "the same conversation with no mail in it",
+  );
+
+  const armedTools = app
+    .phoneTools(SETTINGS.webTools, "en", SETTINGS.model, MAIL_ON, PHONE, true)
+    .map((tool) => tool.function.name);
+  check(
+    "so an armed phone is offered the browser's reads and neither of its writes",
+    ["browser_open", "browser_read"].every((name) => armedTools.includes(name)) &&
+      !["browser_click", "browser_type"].some((name) => armedTools.includes(name)),
+    JSON.stringify(armedTools.filter(browser)),
+  );
+
+  // **And refused when it calls one anyway.** An offer is something the model can
+  // write past: the tool list is chosen before the first mail arrives, and a turn
+  // can name a tool it was never offered.
+  let refused = null;
+  const { loop: refusingLoop } = fakeLoop(async (o) => {
+    const signal = new AbortController().signal;
+    refused = await o.runTool("browser_type", { ref: "e4", text: "482913" }, signal, MAIL_TURN);
+  });
+  const { sink: armedSink } = recorder(app);
+  await app.runPhoneTurn(
+    turnOf([USER("search for 482913")], { device: PHONE }),
+    SETTINGS,
+    armedSink,
+    new AbortController().signal,
+    MAIL_ON,
+    { loop: refusingLoop, facts: facts() },
+  );
+  check(
+    "a write in an armed chat is refused in one plain line, and nothing was sent",
+    refused !== null &&
+      refused.ok === false &&
+      refused.text.includes("won't type into a website") &&
+      refused.text.includes("mail or documents"),
+    JSON.stringify(refused),
+  );
+  check(
+    "and the sidecar was never asked",
+    !bridge.calls.some((c) => c.command === "brain_browser_type"),
+    JSON.stringify(bridge.calls.map((c) => c.command)),
+  );
+
+  // **And the latch: once a mail tool has run in a turn, the turn stays armed.**
+  // The conversation predicate reads the wire the loop is given, and a wire can
+  // stop saying so — trimmed to fit, a mail result cut by the context budget, an
+  // answer that came back as an error rather than fenced mail. None of those
+  // un-reads the mail: the model has it, and may have it in the very round it is
+  // answering from. So the mail tool is run first and the write is refused
+  // anyway, on a conversation that shows nothing.
+  const trimmed = [{ role: "user", content: "find it" }];
+  let after_mail = null;
+  const { loop: latchingLoop } = fakeLoop(async (o) => {
+    const signal = new AbortController().signal;
+    await o.runTool("mail_read", { id: "105" }, signal, trimmed);
+    after_mail = await o.runTool("browser_type", { ref: "e4", text: "482913" }, signal, trimmed);
+  });
+  const sent_before = bridge.calls.filter((c) => c.command === "brain_browser_type").length;
+  await app.runPhoneTurn(turnOf([USER("read it, then search")], { device: PHONE }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: latchingLoop,
+    facts: facts(),
+  });
+  check(
+    "a write after a mail tool in the same turn is refused, on a wire that shows no mail",
+    after_mail !== null && after_mail.ok === false && after_mail.text.includes("won't type into a website"),
+    JSON.stringify(after_mail),
+  );
+  check(
+    "and the sidecar is still never asked",
+    bridge.calls.filter((c) => c.command === "brain_browser_type").length === sent_before,
+    "the type that went out before the latch test is all of them",
+  );
+
+  // The same call in a chat holding no mail still goes through: the rule is about
+  // what the conversation holds, not about phones.
+  const { loop: freeLoop } = fakeLoop(async (o) => {
+    await o.runTool("browser_type", { ref: "e4", text: "482913" }, new AbortController().signal, [{ role: "user", content: "hi" }]);
+  });
+  await app.runPhoneTurn(turnOf([USER("search for 482913")], { device: PHONE }), SETTINGS, recorder(app).sink, new AbortController().signal, MAIL_ON, {
+    loop: freeLoop,
+    facts: facts(),
+  });
+  check(
+    "while an unarmed one is not, because a browser is a place things go out to",
+    bridge.calls.some((c) => c.command === "brain_browser_type"),
+    JSON.stringify(bridge.calls.map((c) => c.command)),
+  );
 }
 
 await withPhone(async (app) => {

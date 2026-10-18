@@ -129,14 +129,6 @@ pub fn holds(value: &str, typed: &[String]) -> bool {
 }
 
 pub fn carries(url: &str, typed: &[String]) -> bool {
-    // **A secret too short to mean anything is not one.** A one- or two-character
-    // value appears inside almost every address on this computer, and a check
-    // that fires on all of them is a check nobody reads — so it is refused at the
-    // start rather than after it has held every request the page made.
-    let secrets: Vec<&String> = typed.iter().filter(|secret| secret.chars().count() >= MIN_SECRET).collect();
-    if secrets.is_empty() {
-        return false;
-    }
     let Ok(parsed) = url::Url::parse(url) else {
         return false;
     };
@@ -153,16 +145,35 @@ pub fn carries(url: &str, typed: &[String]) -> bool {
         parts.push(percent_decode(&name));
         parts.push(percent_decode(&value));
     }
-    // **Containment, not equality.** A secret does not travel as one whole piece:
-    // it is a value inside a bigger one, a base64 blob with a prefix, a path
-    // segment with the value welded to an id. Equality with the whole part would
-    // pass all three, and all three are the same mail to a stranger's server.
-    parts.iter().any(|part| secrets.iter().any(|secret| part.contains(secret.as_str())))
+    // **Two questions, and they have different bars.** A part that *is* the value
+    // — the whole of a query value, the whole of a path segment — is the person's
+    // own thing going out, whatever it is spelled with: a bank code is three
+    // digits and leaving it in an address is the same mail as leaving a password.
+    // So equality asks about **every** value the person typed, however short.
+    //
+    // A value *inside* a part is the other question, and it needs a length: a
+    // one- or two-character value appears inside almost every address on this
+    // computer, and a check that fires on all of them is a check nobody reads —
+    // it would hold every request the page made. Containment therefore asks only
+    // about [`MIN_SECRET`] and up.
+    parts.iter().any(|part| {
+        typed
+            .iter()
+            .filter(|secret| !secret.is_empty())
+            .any(|secret| part == secret || (secret.chars().count() >= MIN_SECRET && part.contains(secret.as_str())))
+    })
 }
 
-/// How long a typed value has to be before it can be looked for in an address.
-/// Four is short enough for the shortest thing anybody keeps a secret for and
-/// long enough that a search for it means something.
+/// How long a typed value has to be before it can be **looked for inside** a
+/// part of an address. Four is short enough for the shortest thing anybody keeps
+/// a secret for and long enough that a search for it means something.
+///
+/// **This is about containment alone.** A value that *is* a whole part of an
+/// address — the whole of a query value, the whole of a path segment — is the
+/// person's own thing leaving, and is asked about at any length; see
+/// [`carries`]. A three-digit bank code is short enough to sit inside every
+/// address on this computer and still exactly what it is when it is the whole of
+/// one.
 pub const MIN_SECRET: usize = 4;
 
 /// What a server sees of one `%`-escaped piece of an address.
@@ -238,12 +249,32 @@ mod tests {
     /// or two characters is inside nearly every address on this computer, and a
     /// check that fires on all of them is a check nobody reads.
     #[test]
-    fn a_secret_shorter_than_four_characters_is_not_looked_for() {
-        let short = vec!["ab".to_owned()];
-        assert!(!carries("https://shop.example/go?password=ab", &short));
-        assert!(!carries("https://ab.example/", &short));
-        // The same value at four is, because at four it means something.
+    fn a_short_secret_is_a_whole_part_and_is_never_looked_for_inside_one() {
+        // **Whole, it is the person's own thing leaving.** A three-digit bank code
+        // is short and it is still exactly what it is when it is the whole of a
+        // value: a page that puts it in a query is putting it in a stranger's log
+        // for no reason a card would ever have to cover.
+        let short = vec!["482".to_owned()];
+        for carrying in [
+            "https://shop.example/go?code=482",
+            "https://shop.example/verify/482",
+            "https://shop.example/go?code=482&next=cart",
+            "https://shop.example/go?code=%34%38%32",
+        ] {
+            assert!(carries(carrying, &short), "the whole of a part is the value: {carrying}");
+        }
+
+        // **Inside another value, a short one is not looked for.** "ab" sits inside
+        // almost every address on this computer, and a check that fires on all of
+        // them holds every request the page makes — which is a check nobody reads.
+        let two = vec!["ab".to_owned()];
+        assert!(!carries("https://shop.example/go?password=abcde", &two));
+        assert!(!carries("https://shop.example/go?password=xaby", &two));
+        assert!(!carries("https://ab.example/", &two));
+        // And the same value at four is found either way, because at four it means
+        // something.
         assert!(carries("https://shop.example/go?password=abcd", &["abcd".to_owned()]));
+        assert!(carries("https://shop.example/go?password=xxabcdxx", &["abcd".to_owned()]));
     }
 
     /// **What the page may say about the typed values, and what it may not.**

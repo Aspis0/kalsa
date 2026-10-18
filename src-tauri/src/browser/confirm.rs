@@ -220,7 +220,12 @@ pub(crate) async fn decline_one(
     let mut args = two(id, conversation);
     args.insert("why".to_owned(), Value::from(why));
     let _ = state.inner().browser().call(&app_data, "browser_decline", args).await;
-    refresh(app, state).await;
+    // **No refresh here, on purpose.** The card is already spent in this app's
+    // store, so the window and the phone stop showing it whatever the sidecar
+    // says. A refresh would re-read the whole list and call back into
+    // `phone_chat::route_cards`, which decides on declines of its own — the two
+    // are callers of each other, and a refresh inside a decline is how that
+    // becomes a loop rather than a pass.
 }
 
 /// **How a dispatch ended, or that nobody ever said.**

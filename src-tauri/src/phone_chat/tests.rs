@@ -921,3 +921,63 @@ fn a_phone_unpaired_between_its_check_and_the_browser_sends_nothing() {
     );
     assert!(lock(&bridge.answering).is_empty(), "an answer that has ended is still marked in flight");
 }
+
+/// **Refusing a write must not block the thread that found it.**
+///
+/// `route_cards` is called from a tauri command and `pair` from the reconcile
+/// timer, and both run inside an async runtime; asking the sidecar is a call
+/// across a pipe to another process. Blocking on that future from inside a
+/// runtime is a deadlock at best and a panic at worst — and it was being done
+/// exactly there, once per card over the cap. So the declines are **collected**
+/// under the locks, every lock is released, and the work is spawned onto the app's
+/// runtime.
+///
+/// **Both branches are run inside a runtime here**, the over-cap refusal below
+/// and the unpair above, because a call that waits inside a runtime does not
+/// return and the test would rather say so than hang. What it cannot do is make
+/// the sidecar slow: sending a decline needs an app, and there is none in a unit
+/// test — so what is proved is that the decision is complete and the call
+/// returns, and the guarantee itself is structural: the only await in either
+/// function is the spawn.
+#[tokio::test]
+async fn refusing_a_write_from_inside_a_runtime_does_not_block() {
+    let bridge = bridge_with_two_phones();
+    let events = open_for(&bridge, DeviceId::new(1), "req", "turn");
+
+    // Nine cards into a screen that holds eight: the ninth is refused, which is
+    // the branch that asks the sidecar.
+    let over: Vec<pending::Card> = (0..9).map(|at| routed(1, "req", &format!("{at:032x}"))).collect();
+    let before = std::time::Instant::now();
+    bridge.route_cards(over);
+    let took = before.elapsed();
+
+    assert!(took < std::time::Duration::from_millis(500), "routing blocked for {took:?} waiting on the sidecar");
+    // And it still did the work: the eighth is on the phone's stream and the
+    // ninth is not, without anything having been waited for.
+    let mut sent: Vec<ChatEvent> = events.try_iter().collect();
+    assert_eq!(sent.len(), 8, "every card up to the cap is shown");
+    sent.clear();
+    assert!(sent.is_empty());
+    assert_eq!(lock(&bridge.cards).held_in(&cards::conversation_of(DeviceId::new(1))), 8);
+
+    // **And the other branch: a phone that is unpaired under its card.** The card
+    // is held, the phone is paired, and the pairing changes — the decline that
+    // asks the sidecar to let it go is decided here and sent after the table is
+    // set, from inside this same runtime.
+    let bridge = bridge_with_two_phones();
+    lock(&bridge.cards).note(held(1, "cred-a", "", ID), Instant::now());
+    let before = std::time::Instant::now();
+    bridge.pair(&[(DeviceId::new(2), "cred-b".to_string())]);
+    let took = before.elapsed();
+    assert!(took < std::time::Duration::from_millis(500), "unpairing blocked for {took:?} waiting on the sidecar");
+    // The card is gone from the bridge and the pairing is already the new one,
+    // which is the order the declines are sent in.
+    assert!(!lock(&bridge.cards).shows("", &(DeviceId::new(1), digest("cred-a")), ID), "a forgotten phone kept its card");
+    // The table is whole when this returns. **What it cannot show** is the order
+    // against the decline itself: sending one needs an app, so here the decline is
+    // never dispatched and an ordering that put it first would look the same. The
+    // order is in the code — `*lock(&self.paired) = owners;` then
+    // `self.send_declines(…)` — and the answer path's own re-check, which does
+    // read the table, is held by the proof above.
+    assert_eq!(lock(&bridge.paired).as_slice(), &[(DeviceId::new(2), digest("cred-b"))], "the pairing is whole when this returns");
+}

@@ -394,7 +394,26 @@ async function admitted(
  */
 function armed(gate: WebGate | null, conversation: WireMessage[]): boolean {
   if (gate === null) return false;
-  return gate.documents().length > 0 || mailIn(conversation);
+  return armedConversation(conversation, gate.documents().map((doc) => doc.id));
+}
+
+/**
+ * Whether this conversation holds something its owner would not want typed into
+ * a website: mail the model has read, or a document pinned in this chat.
+ *
+ * **One rule, asked two ways.** The desktop's own gate asks its store, because a
+ * desktop chat can pin a document. A phone's turn runs the same loop with no gate
+ * and no store — a phone has no Settings → Documents and pins nothing — so it has
+ * no documents and can only be armed by mail, which the conversation carries.
+ * The mail half is the same function either way, and a conversation that is
+ * armed is armed for the same reason in both: **the model is holding something
+ * the owner's, and a browser is a place things go out to.**
+ *
+ * Exported because the phone's rule is this rule: it is the same question, asked
+ * about the same conversation, and it must not be answered twice in two places.
+ */
+export function armedConversation(conversation: WireMessage[], documents: readonly string[] = []): boolean {
+  return documents.length > 0 || mailIn(conversation);
 }
 
 /** Whether mail text is in the conversation the model is reading: a mail call

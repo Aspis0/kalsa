@@ -149,7 +149,18 @@ impl Arrived {
 /// Serve these files on loopback, and return the address and the record. Bound
 /// to a port the operating system picked, so two tests never collide.
 pub async fn serve(files: &[File]) -> (String, Arrived) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("a loopback port");
+    serve_on("127.0.0.1", files).await
+}
+
+/// **The same fixture, reachable under another name.** Bound to every local
+/// address rather than to `127.0.0.1`, so the one server answers on the whole of
+/// `127.0.0.0/8` — which is what makes it the honest way to serve a **second
+/// site**: same machine, same process, a different host name, and therefore a
+/// different site to anything that decides by registrable domain. (Binding
+/// `127.0.0.2` outright is refused on this platform; the whole range is only
+/// reachable through a wildcard bind.)
+pub async fn serve_on(address: &str, files: &[File]) -> (String, Arrived) {
+    let listener = TcpListener::bind(format!("{address}:0")).await.expect("a loopback port");
     let port = listener.local_addr().expect("an address").port();
     let owned: Vec<(String, String, String, String, Duration)> = files
         .iter()
@@ -239,7 +250,7 @@ pub async fn serve(files: &[File]) -> (String, Arrived) {
             });
         }
     });
-    (format!("http://127.0.0.1:{port}"), arrived)
+    (format!("http://{address}:{port}"), arrived)
 }
 
 /// A real `Sessions` with the fixture's address opened.
@@ -305,32 +316,56 @@ pub fn the_fixture(
 pub const CHAT: &str = "chat-a";
 
 pub async fn confirming_window(name: &str, base: &str) -> (kalsa_browser::session::Sessions, Page, kalsa_browser::hold::Holds) {
+    confirming_window_for(name, base, None).await
+}
+
+/// **The same window, answering for a second site.** Two origins, one route, and
+/// the same bargain as [`confirming_window`]: the fixture stands in for the
+/// address decision — this computer's own network is refused by the guard before
+/// a hold is ever reached — and for nothing else, so a pause, a secret and a
+/// write are all decided by the product's own predicates.
+///
+/// This is what a proof about **two sites** needs. There is no address a browser
+/// can reach from a test that the guard would allow and that is not this
+/// computer's own network, and a name is refused before DNS is even asked.
+pub async fn confirming_window_for(
+    name: &str,
+    base: &str,
+    second: Option<&str>,
+) -> (kalsa_browser::session::Sessions, Page, kalsa_browser::hold::Holds) {
     let sessions = kalsa_browser::session::Sessions::new(profile(name));
     let (page, _landings, holds) = sessions.page().await.expect("the installed browser starts");
     // A window is bound to the chat driving it, and every card it raises carries
     // that: these tests answer in the same conversation they drove from.
     holds.navigated_by(CHAT).await;
-    let here = base.to_string();
+    let served = base.to_string();
+    let also = second.unwrap_or_default().to_string();
     let holding = holds.clone();
-    let served = here.clone();
     page.route("**/*", move |route| {
-        let (base, holding) = (served.clone(), holding.clone());
+        let (base, holding, also) = (served.clone(), holding.clone(), also.clone());
         async move {
-            if !route.request().url().starts_with(&base) {
+            let request = route.request();
+            let url = request.url();
+            // **Which of this window's sites is asking.** There is one, or two
+            // for the proofs that need a second one; anything else belongs to the
+            // guard's own route, and this route steps aside for it.
+            let one_of_ours = url.starts_with(&base) || (!also.is_empty() && url.starts_with(&also));
+            if !one_of_ours {
                 return route.fallback(None).await;
             }
-            let request = route.request();
             // **The product's own decisions, all of them except the address one.**
             // A stand-in that reads is-read-and-therefore-fine would pass a proof
             // the product fails: a GET carrying a secret is held, and a paused
             // window holds the page's own writes. The pause is asked with the
             // product's own predicate, not a copy of it.
-            if holding.takes_pass(&request).await
-                || (holding.paused() && guard::is_the_person_navigating(&request))
+            let typed = holding.typed().await.values();
+            // **The pause is asked with the product's own predicate**, not a copy
+            // of it: a fixture that answered "yes while paused" would let every
+            // paused proof pass against a rule the route no longer keeps.
+            if holding.takes_pass(&request).await || guard::the_persons_paused_navigation(holding.paused(), &request, &typed)
             {
                 return route.continue_(None).await;
             }
-            let typed = holding.typed().await.values();
             if kalsa_browser::hold::is_read(request.method())
                 && !kalsa_browser::secret::carries(request.url(), &typed)
             {
@@ -341,7 +376,7 @@ pub async fn confirming_window(name: &str, base: &str) -> (kalsa_browser::sessio
     })
     .await
     .expect("the test route is installed");
-    page.goto(&here, None).await.expect("the fixture loads");
+    page.goto(base, None).await.expect("the fixture loads");
     (sessions, page, holds)
 }
 

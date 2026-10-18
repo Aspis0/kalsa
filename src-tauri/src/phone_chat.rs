@@ -51,6 +51,14 @@ const EVENTS: &[&str] = &[
 /// later event for it is dropped.
 const ENDING: &[&str] = &["read", "error", "done"];
 
+/// One held request to let go, and why nobody was asked. **Collected by the
+/// caller, sent by [`Bridge::send_declines`]** — see there for why nothing here
+/// waits.
+struct Decline {
+    card: Held,
+    why: &'static str,
+}
+
 /// One event's data once serialized. A larger one ends its turn as an engine failure.
 const MAX_EVENT_BYTES: usize = 1024 * 1024;
 
@@ -176,17 +184,17 @@ impl Bridge {
             .copied()
             .collect();
         let dropped = lock(&self.cards).keep_paired(&owners, now);
-        for card in dropped {
-            // **The sidecar is told, not just the phone.** The hold lives there,
-            // and it is the only thing that can let the request go: without this
-            // a forgotten phone's card sits in the sidecar for the rest of its
-            // five minutes with nobody left to press it, and the model's own
-            // outcome list never learns that it was declined. So the decline goes
-            // down the sidecar's own path — which drops the hold and settles the
-            // model-facing outcome in the conversation that raised it — and the
-            // phone is told as well.
-            self.decline_at_the_sidecar(&card, UNPAIRED);
-        }
+        // **The sidecar is told, not just the phone.** The hold lives there, and it
+        // is the only thing that can let the request go: without this a forgotten
+        // phone's card sits in the sidecar for the rest of its five minutes with
+        // nobody left to press it, and the model's own outcome list never learns
+        // that it was declined. So the decline goes down the sidecar's own path —
+        // which drops the hold and settles the model-facing outcome in the
+        // conversation that raised it — **but it is collected here and sent after
+        // the table has been set**, because asking the sidecar is an async call and
+        // this function is called from inside async contexts.
+        let declining: Vec<Decline> =
+            dropped.into_iter().map(|card| Decline { card, why: UNPAIRED }).collect();
         // What was queued for a phone that is no longer paired goes with it.
         lock(&self.waiting).retain(|device, _| !forgotten.iter().any(|(paired, _)| paired == device));
         // **And so does anything that phone is answering this instant.** The card
@@ -203,7 +211,13 @@ impl Bridge {
                 mark.store(true, Ordering::SeqCst);
             }
         }
+        // **The table is set before a single card is let go.** Every lock this
+        // function holds is released by this line: a decline asks the sidecar for
+        // the state of a phone, and that phone must already be the one this
+        // pairing says it is — not the one it was a moment ago, and never a state
+        // where the table has been half-written.
         *lock(&self.paired) = owners;
+        self.send_declines(declining);
     }
 
     /// **Asks the sidecar to let one of a phone's held requests go.**
@@ -221,15 +235,38 @@ impl Bridge {
     /// Best-effort: a sidecar that is gone cannot be asked, and the card was
     /// held and nothing was let through either way, which is the truth.
     fn decline_at_the_sidecar(&self, card: &Held, why: &'static str) {
-        if let Some(app) = self.app.get() {
-            let state = app.state::<BrowserState>();
-            // Blocked on, not awaited: this runs from the reconcile thread, which
-            // is not one of ours, exactly as an answer is dispatched.
-            tauri::async_runtime::block_on(async {
-                crate::browser::confirm::decline_one(app, &state, &card.id, &card.conversation, why).await
+        self.send_declines(vec![Decline { card: card.clone(), why }]);
+    }
+
+    /// **Sends the declines, without waiting for any of them.**
+    ///
+    /// **Nothing here blocks.** Asking the sidecar is a call across a pipe, and
+    /// every caller of this — `route_cards` from a tauri command, `pair` from the
+    /// reconcile timer, the answer path from a door thread — can be running inside
+    /// an async context, where blocking on a future is a deadlock at best and a
+    /// panic at worst. So the work is collected by the caller, every lock is
+    /// released, and the decline is spawned onto the app's runtime to go out on
+    /// its own.
+    ///
+    /// **Spawned, not awaited, and not refreshed.** `decline_one` spends the card
+    /// in this app's own store before it asks anything, so the window and the phone
+    /// already stop showing it; a refresh here would re-read the whole list and
+    /// call back into `route_cards`, which could decline again — the two are
+    /// callers of each other, and a refresh inside a decline is how that becomes a
+    /// loop.
+    fn send_declines(&self, declining: Vec<Decline>) {
+        let Some(app) = self.app.get() else {
+            return;
+        };
+        for decline in declining {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let state = app.state::<BrowserState>();
+                crate::browser::confirm::decline_one(&app, &state, &decline.card.id, &decline.card.conversation, decline.why).await
             });
         }
     }
+
 
     /// Whether this phone may read this computer's mail, as of this question.
     ///
@@ -447,6 +484,10 @@ impl Bridge {
             self.report(&card, EXPIRED_OUTCOME, None);
             self.tell_model(&card, EXPIRED_OUTCOME);
         }
+        // **Every decline this call decides on leaves with it**, rather than being
+        // asked for under the locks it was found under. See
+        // [`Bridge::send_declines`].
+        let mut declining: Vec<Decline> = Vec::new();
         for card in cards {
             let Some(device) = device_of(&card.conversation) else {
                 continue;
@@ -480,7 +521,12 @@ impl Bridge {
                     fields: card.fields,
                     created: now,
                 };
-                self.decline_at_the_sidecar(&held, TOO_MANY);
+                // **Collected, not sent here**: `route_cards` runs inside a tauri
+                // command, which is an async context, and the sidecar is a pipe
+                // across a process. The decline goes out after every lock is let
+                // go, so nothing here blocks and nothing is asked while a table is
+                // half-read.
+                declining.push(Decline { card: held, why: TOO_MANY });
                 continue;
             }
             let held = Held {
@@ -497,6 +543,7 @@ impl Bridge {
                 self.send_card(&held);
             }
         }
+        self.send_declines(declining);
     }
 
     /// The live turn a phone is running, if any. **Device plus credential**: the
