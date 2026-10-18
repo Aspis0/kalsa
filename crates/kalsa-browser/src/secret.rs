@@ -92,38 +92,35 @@ impl Typed {
 
     /// Records what is in one field now.
     ///
-    /// **The latest value of a field replaces the one before it, and only for
-    /// that field.** This used to keep every keystroke, and that is a trap: a
-    /// password of `hunter2` typed one character at a time leaves `h`, `hu`,
-    /// `hun`, ... behind, and every one of those is a needle short enough to sit
-    /// inside ordinary addresses -- `h` is in `shop`, `hu` is in `?hub=1`. A held
-    /// read is a page that does not load, so a person typing a password would take
-    /// the site down with them. What the field holds now is the only thing worth
-    /// looking for.
+    /// **Add-only, and that is not a preference.** The catcher sends values over
+    /// `window.__kalsaTyped`, which is on the page and which the page can call.
+    /// So **a page-callable path must never remove or replace what a person
+    /// typed**: the attack is one call carrying the handle of the field the person
+    /// used and an innocent value, and the real password then leaves in the next
+    /// request with nothing on this list to stop it. One value per field, the
+    /// latest replacing the last, was tried here, and it is exactly that hole.
     ///
-    /// **What a page can still do, said plainly.** It may replace the value of
-    /// one handle it was given: a page can lie about what is in its own field,
-    /// and the replacement is still a value that arrived through a secret field
-    /// on this side of the wire. It cannot reach another field, cannot remove
-    /// what is held, and cannot get anything *sent* -- the whole list only ever
-    /// holds a request for a person to answer, so a page moving a needle here
-    /// denies itself a page and hands itself nothing.
+    /// What it costs is the keystrokes: typing a password leaves its prefixes
+    /// beside it, and a prefix of four characters or more is inside ordinary
+    /// addresses, so a paused window can hold a request it did not need to.
+    /// **That is cheap, and only there**: this list is asked about while the
+    /// window is paused, and a paused navigation carrying what the person typed
+    /// goes out only where the person already is -- so the failure is a question
+    /// to the person, never a request a page gets sent. Trimming the prefixes is
+    /// not available: every value here arrives by a path the page drives, so
+    /// anything dropped here would be something a page could drop too.
     ///
-    /// An empty value is a field that was cleared, which is not a secret with
-    /// nothing in it: it adds nothing, and it takes nothing away -- so the last
-    /// real value stays held rather than being erased by a page that empties the
-    /// field to cover its tracks.
+    /// The same value again is a keystroke, not a second secret, and skipping it
+    /// removes nothing.
     pub fn record(&self, field: u64, value: String) {
         if value.is_empty() {
             return;
         }
         let mut typed = self.0.lock().expect("the typed values are not poisoned");
-        // The slot keeps its place, so the order fields were typed in is still the
-        // order they are reported in.
-        match typed.iter_mut().find(|(held, _)| *held == field) {
-            Some(slot) => slot.1 = value,
-            None => typed.push((field, value)),
+        if typed.iter().any(|(held, already)| *held == field && *already == value) {
+            return;
         }
+        typed.push((field, value));
     }
 
     /// Forgets everything, for a window that has opened somewhere else.
@@ -201,10 +198,19 @@ pub fn carries(url: &str, typed: &[String]) -> bool {
 /// A value *inside* a part is the other question, and it needs a length: a
 /// one- or two-character value appears inside almost every address on this
 /// computer, and a check that fires on all of them is a check nobody reads —
-/// it would hold every request the page made. Containment therefore asks only
-/// about [`MIN_SECRET`] and up, and past [`PLAIN_CONTAINMENT`] it stops asking
-/// where the value stands at all — see that constant for why the bar drops
-/// with the length rather than rising with it.
+/// it would hold every request the page made. So containment asks about
+/// [`MIN_SECRET`] and up.
+///
+/// **And it asks nothing about where the value stands.** There used to be a
+/// boundary rule above four characters — the characters either side had to be
+/// punctuation — and it was the wrong answer, because of the seam it leaves: a
+/// letter on either side *is* a boundary, so `x` + secret + `x` has one on both
+/// sides and beats the rule completely. While a window is paused it is the page's
+/// own script that writes the request, and it picks what the secret is written
+/// next to, so a boundary rule was a rule the page chooses to obey. Plain
+/// containment has no such seam, and a false positive here only holds a request
+/// for the person to answer, while a false negative is the secret on its way to
+/// somebody else's server.
 ///
 /// **A field's name is asked about as well as its value.** A page that puts the
 /// password where the server reads it as the key — `hunter2=1`, a value welded
@@ -217,65 +223,11 @@ pub fn part_carries(part: &str, typed: &[String]) -> bool {
         if part == secret {
             return true;
         }
-        if !part.contains(secret.as_str()) {
-            return false;
-        }
-        // **And how hard it is looked for depends on how long it is**, because who
-        // controls the surroundings is the question.
-        //
-        // Past [`PLAIN_CONTAINMENT`] the secret is looked for anywhere at all.
-        // While a window is paused the one writing the request is the page's own
-        // script, and it decides what the secret is written next to: a letter on
-        // each side is a boundary on both sides and defeats a boundary rule
-        // entirely, so one would be a rule a page chooses to obey.
-        //
-        // A false positive here only holds a request for the person to answer. A
-        // false negative is the secret on its way to somebody else's server. That
-        // is not a close call, and the length threshold is where the trade stops
-        // being close: eight characters is past the point where a secret is
-        // something a page would type by accident.
-        if secret.chars().count() >= PLAIN_CONTAINMENT {
-            return true;
-        }
-        // **Below it, on a boundary**, because a short value is inside almost every
-        // address on this computer and a check that fires on all of them holds every
-        // request the page makes — which is a check nobody reads.
-        secret.chars().count() >= MIN_SECRET && holds_at_a_boundary(part, secret)
-    })
-}
-
-/// How long a typed value has to be before it is looked for **inside** a part
-/// anywhere, without asking whether it stands on a boundary.
-///
-/// Eight is not a guess about secrets; it is the point where "the page is
-/// choosing the surroundings around it" stops being a plausible accident. Under
-/// it the boundary rule stands and its gap — a short value glued straight to
-/// letters — is written down at [`holds_at_a_boundary`].
-const PLAIN_CONTAINMENT: usize = 8;
-
-/// Whether `part` holds `secret` **on a boundary**: the characters on either
-/// side of it, where there are any, are not letters or figures.
-///
-/// **This is what stops a typed `test` from being found in `latest`.** Containment
-/// with no boundary at all fires on every ordinary address on this computer the
-/// moment anybody types four ordinary letters into a password field, and the cost
-/// is not a line in a report: a held read is a page that does not load, so a
-/// secret nobody guessed the meaning of takes the site down with it. A real
-/// secret travels welded to punctuation (`token=hunter2-9f3a`,
-/// `/api/v2/hunter2/session`) or to nothing at all, which a boundary still finds.
-///
-/// **What it gives up, stated because it is a real gap:** a **short** secret
-/// welded directly to letters — `hunter2x`, `xhunter2` — is not found by
-/// containment. A secret of [`PLAIN_CONTAINMENT`] or more never comes here, so
-/// the gap is only as wide as a short value. Either way it is still found whole,
-/// and equality was never affected.
-fn holds_at_a_boundary(part: &str, secret: &str) -> bool {
-    let bytes = secret.as_bytes();
-    part.match_indices(secret).any(|(at, _)| {
-        let before = part[..at].chars().next_back();
-        let after = part[at + bytes.len()..].chars().next();
-        let edge = |character: Option<char>| character.is_none_or(|one| !one.is_alphanumeric());
-        edge(before) && edge(after)
+        // **Inside, from [`MIN_SECRET`] up, anywhere at all.** Four characters is
+        // the only bar left: below it a value sits inside nearly every address on
+        // this computer, and above it the page would have to write the secret in
+        // the open to make the search miss.
+        part.contains(secret.as_str()) && secret.chars().count() >= MIN_SECRET
     })
 }
 
@@ -283,12 +235,13 @@ fn holds_at_a_boundary(part: &str, secret: &str) -> bool {
 /// part of a message. Four is short enough for the shortest thing anybody keeps
 /// a secret for and long enough that a search for it means something.
 ///
-/// **This is about containment alone.** A value that *is* a whole part of an
-/// address — the whole of a query value, the whole of a path segment — is the
-/// person's own thing leaving, and is asked about at any length; see
-/// [`part_carries`]. A three-digit bank code is short enough to sit inside every
-/// address on this computer and still exactly what it is when it is the whole of
-/// one.
+/// **This is about containment alone**, and it is the only bar: a value that *is*
+/// a whole part of an address — the whole of a query value, the whole of a path
+/// segment — is the person's own thing leaving, and is asked about at any length.
+/// A three-digit bank code is short enough to sit inside every address on this
+/// computer and still exactly what it is when it is the whole of one; inside one,
+/// four characters is where looking becomes worth the false holds. See
+/// [`part_carries`].
 pub const MIN_SECRET: usize = 4;
 
 /// What a server sees of one `%`-escaped **path** segment. A path has no rule
@@ -299,7 +252,7 @@ fn percent_decode(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{carries, classifier, classifier_declaration, part_carries, Typed, PLAIN_CONTAINMENT, SECRET_AUTOCOMPLETE, SECRET_TYPES};
+    use super::{carries, classifier, classifier_declaration, part_carries, Typed, MIN_SECRET, SECRET_AUTOCOMPLETE, SECRET_TYPES};
 
     /// **A GET carrying what the person typed is not a read**, whether the secret
     /// is in the query or the path, spelled the way a server would decode it.
@@ -360,15 +313,13 @@ mod tests {
         assert!(!carries("https://shop.example/go?a=1#hunter2", &typed));
     }
 
-    /// **A secret too short to mean anything is not looked for.** A value of one
-    /// or two characters is inside nearly every address on this computer, and a
-    /// check that fires on all of them is a check nobody reads.
+    /// **A value too short to mean anything inside a part is the whole of a part,
+    /// and nothing else.** Two or three characters sits inside nearly every
+    /// address on this computer, so looking for it inside one would fire on all of
+    /// them -- but a value *being* a whole query value or path segment is still the
+    /// person's own thing leaving, and is asked about at any length.
     #[test]
-    fn a_short_secret_is_a_whole_part_and_is_never_looked_for_inside_one() {
-        // **Whole, it is the person's own thing leaving.** A three-digit bank code
-        // is short and it is still exactly what it is when it is the whole of a
-        // value: a page that puts it in a query is putting it in a stranger's log
-        // for no reason a card would ever have to cover.
+    fn a_value_too_short_to_mean_anything_inside_a_part_is_the_whole_of_one_and_nothing_else() {
         let short = vec!["482".to_owned()];
         for carrying in [
             "https://shop.example/go?code=482",
@@ -379,30 +330,25 @@ mod tests {
             assert!(carries(carrying, &short), "the whole of a part is the value: {carrying}");
         }
 
-        // **Inside another value, a short one is not looked for.** "ab" sits inside
-        // almost every address on this computer, and a check that fires on all of
-        // them holds every request the page makes — which is a check nobody reads.
+        // **Inside another value, three characters is not looked for at all.**
         let two = vec!["ab".to_owned()];
         assert!(!carries("https://shop.example/go?password=abcde", &two));
         assert!(!carries("https://shop.example/go?password=xaby", &two));
         assert!(!carries("https://ab.example/", &two));
-        // And the same value at four is found when it stands on its own, because
-        // at four it means something.
+
+        // **And the bar is the length and nothing else.** Four is looked for
+        // anywhere inside a part, welded on both sides like any other value --
+        // there is no shape it has to take.
+        assert_eq!(MIN_SECRET, 4, "four characters is where containment starts");
         assert!(carries("https://shop.example/go?password=abcd", &["abcd".to_owned()]));
-        // **But not welded directly to letters**, which is the cost of the
-        // boundary rule for a value this short and is written here rather than
-        // left to be discovered: `xxabcdxx` is the one shape containment walks
-        // past below eight characters. See `holds_at_a_boundary` and
-        // `a_short_secret_glued_straight_to_letters_is_the_gap_the_boundary_rule_leaves`.
-        assert!(!carries("https://shop.example/go?password=xxabcdxx", &["abcd".to_owned()]));
+        assert!(carries("https://shop.example/go?password=xxabcdxx", &["abcd".to_owned()]), "welded to letters on both sides");
     }
 
     /// **One rule, asked about one piece at a time** — which is how the guard
     /// asks about a form field's name and about a body's own bytes, and how
     /// every piece of an address is asked about. Equality at any length,
-    /// containment from [`super::MIN_SECRET`] up — and from [`PLAIN_CONTAINMENT`]
-    /// up without asking where it stands — and a value the person never typed is
-    /// not a secret that matches everything.
+    /// containment from [`super::MIN_SECRET`] up and nowhere else, and a value
+    /// the person never typed is not a secret that matches everything.
     #[test]
     fn one_part_carries_a_typed_secret_by_being_it_or_by_holding_it() {
         let typed = vec!["hunter2".to_owned(), "482".to_owned()];
@@ -419,91 +365,44 @@ mod tests {
         assert!(!part_carries("", &["".to_owned()]), "and an empty value is not a secret that is everywhere");
     }
 
-    /// **A *short* secret has to stand on a boundary to be found inside a part**,
-    /// so a typed `test` is not inside `latest`. Without that, four ordinary
-    /// letters typed into a password field make every ordinary address on this
-    /// computer look like a leak — and a held read is a page that does not load.
-    /// This is the short side of [`PLAIN_CONTAINMENT`]; the long side is
-    /// `a_secret_of_eight_characters_or_more_is_looked_for_anywhere_inside_a_part`.
+    /// **Containment asks nothing about where the value stands.** A typed `test`
+    /// is found in `latest` and in `attestation.pdf`, and that is the trade.
+    ///
+    /// A boundary rule looked like the careful answer and was the wrong one,
+    /// because of the seam it leaves: a letter on either side *is* a boundary, so
+    /// `x` + secret + `x` has one on both sides and beats it completely. While a
+    /// window is paused it is the page's own script that writes the request, and
+    /// it picks what the secret is written next to -- so a boundary rule was a
+    /// rule the page chooses to obey, and it protected nobody.
+    ///
+    /// **What the false positives cost is bounded by where this is asked.** It
+    /// decides whether a request is *held*; it runs only while the window is
+    /// paused; and a paused navigation carrying what the person typed goes out only
+    /// where the person already is. So the price of `latest` being held is a
+    /// question to the person, and never a request a page gets sent.
     #[test]
-    fn a_short_secret_is_only_looked_for_inside_a_part_where_it_stands_on_a_boundary() {
+    fn a_secret_is_looked_for_anywhere_inside_a_part_from_four_characters_on() {
         let typed = vec!["test".to_owned()];
-        for ordinary in [
+        for found in [
+            // **The welded shapes, which the boundary rule walked past.**
             "https://shop.example/latest",
-            "https://shop.example/go?protest=1",
-            "https://shop.example/attestation.pdf",
             "https://shop.example/go?x=testing",
-        ] {
-            assert!(!carries(ordinary, &typed), "an ordinary address is not a leak: {ordinary}");
-        }
-        // **And the welded shapes a real secret actually travels in are still
-        // found**, which is what the rule is for.
-        for welded in [
+            "https://shop.example/go?password=x2testx",
+            "https://shop.example/go?t=1test2",
+            // And the shapes a real secret travels in.
             "https://shop.example/go?token=test-9f3a",
-            "https://shop.example/go?next=cart&t=test",
             "https://shop.example/api/v2/test/session",
             "https://test.shop.example/",
             "https://shop.example/go?password=test%21",
+            "https://shop.example/go?code=test",
         ] {
-            assert!(carries(welded, &typed), "a secret welded to punctuation is still a secret: {welded}");
+            assert!(carries(found, &typed), "{found} carries what the person typed");
         }
-        // Whole, at any length, boundary or not.
-        assert!(carries("https://shop.example/go?code=test", &typed));
+        // **And the bar below it is the length**: two characters is still equality.
+        assert!(!carries("https://shop.example/go?password=xaby", &["ab".to_owned()]));
     }
 
-    /// **Past eight characters the secret is looked for anywhere at all**, because
-    /// while a window is paused it is the page's own script that writes the
-    /// request — and it decides what the secret is written next to. A rule that
-    /// asks whether the secret stands on a boundary is a rule the page chooses to
-    /// obey: a letter on either side *is* a boundary, and one on each side defeats
-    /// it completely. A false positive here holds a request for the person to
-    /// answer; a false negative is the secret on its way to somebody else.
-    #[test]
-    fn a_secret_of_eight_characters_or_more_is_looked_for_anywhere_inside_a_part() {
-        // **Fourteen characters, glued straight to letters or figures on both
-        // sides** — every one of these is the shape the boundary rule walked
-        // past, and the whole reason it does not apply at this length.
-        let typed = vec!["passphrase9f3a".to_owned()];
-        for glued in [
-            "https://shop.example/go?password=xxpassphrase9f3axx",
-            "https://shop.example/go?password=apassphrase9f3ab",
-            "https://shop.example/go?password=1passphrase9f3a2",
-            "https://shop.example/a/b/passphrase9f3ac/d",
-        ] {
-            assert!(carries(glued, &typed), "{glued} carries the value that was typed");
-        }
-        // **A long bar is not a licence to match anything.** A value is one
-        // character or it is not; `?password=xpassphrase9f3a` is not a near miss,
-        // it is the secret with a letter on the front, and it is in the list
-        // above because that is the whole point.
-        for clean in [
-            "https://shop.example/go?password=passphrase9f3b",
-            "https://shop.example/go?password=passphrase",
-            "https://shop.example/go?password=passphrase9f3",
-        ] {
-            assert!(!carries(clean, &typed), "{clean} is not the value");
-        }
-        // **And the threshold is the length, not a shape**: the same welded part
-        // is missed at seven characters and found at eight.
-        assert_eq!(PLAIN_CONTAINMENT, 8, "eight characters is where the bar drops");
-        assert!(!carries("https://shop.example/go?t=xx1234567x", &["1234567".to_owned()]), "seven is welded over");
-        assert!(carries("https://shop.example/go?t=xx12345678x", &["12345678".to_owned()]), "eight is not");
-    }
 
-    /// **The gap the boundary rule leaves, on the short side**, stated because it
-    /// is a real one rather than an accident: a value under [`PLAIN_CONTAINMENT`]
-    /// that is glued straight onto letters or figures is not found inside a part.
-    /// It is still found whole, and still found punctuated — which is where a
-    /// value that short actually travels.
-    #[test]
-    fn a_short_secret_glued_straight_to_letters_is_the_gap_the_boundary_rule_leaves() {
-        let typed = vec!["hunter2".to_owned()];
-        assert!("hunter2".len() < PLAIN_CONTAINMENT, "this is the short side of the threshold");
-        assert!(!carries("https://shop.example/go?password=xxhunter2xx", &typed), "no boundary, no containment");
-        assert!(!carries("https://shop.example/go?password=1hunter22", &typed), "and welded to figures too");
-        assert!(carries("https://shop.example/go?password=hunter2", &typed), "whole, it is still found");
-        assert!(carries("https://shop.example/go?token=hunter2-9f3a", &typed), "punctuated, it is still found");
-    }
 
     /// **A `+` is a space in a query and a plus sign everywhere else, and an
     /// address is decoded once.** Two copies of the wrong rule: a path segment
@@ -529,67 +428,87 @@ mod tests {
         assert!(!carries("https://shop.example/go?password=a%252Bb", &["a b".to_owned()]), "one decode, not two");
     }
 
-    /// **What the page may say about the typed values, and what it may not.**
+    /// **A page can add a typed value, and it can do nothing else.**
     ///
-    /// One value per field, and the latest of them: a value replaces the one
-    /// before it for that field alone. What a page still cannot do is reach
-    /// another field, or take one away — and what it cannot do with any of this is
-    /// *send* anything, which is the only direction that would matter.
+    /// Add-only, and that is the whole point of it: the binding the catcher sends
+    /// values over is on the page, so the page can call it. The attack is one call
+    /// carrying the handle of the field the person used and an innocent value -- and
+    /// the real password then leaves in the next request with nothing on the list
+    /// to stop it. One value per field, the latest replacing the last, was tried
+    /// here, and **that is the attack**, so it is not what this does.
     #[test]
-    fn a_field_keeps_one_value_and_the_page_cannot_take_it_away() {
+    fn a_later_call_for_the_same_field_cannot_remove_an_earlier_value() {
         let typed = Typed::default();
-        typed.record(1, "first".to_owned());
+        typed.record(1, "the-password".to_owned());
         typed.record(2, "second".to_owned());
-        assert_eq!(typed.values(), vec!["first".to_string(), "second".to_string()]);
+        assert_eq!(typed.values(), vec!["the-password".to_string(), "second".to_string()]);
 
-        // **The same field again is the same field, not a second one.** Three
-        // fields typed in turn are three values; one field typed in turn is the
-        // last thing in it.
-        typed.record(1, "third".to_owned());
-        assert_eq!(typed.values(), vec!["third".to_string(), "second".to_string()]);
+        // The same value again is a keystroke, not a second secret.
+        typed.record(1, "the-password".to_owned());
+        assert_eq!(typed.values().len(), 2, "the same value adds nothing and removes nothing");
 
-        // An empty field adds nothing and takes nothing away, so a page cannot
-        // empty a password field to make its contents forgettable.
+        // **The page's version of the attack**: the handle of the field the person
+        // used, with an innocent value.
+        typed.record(1, "not-the-password".to_owned());
+        assert!(
+            typed.values().contains(&"the-password".to_string()),
+            "the real value is still here after a page called the binding: {:?}",
+            typed.values()
+        );
+
+        // A cleared field adds nothing and takes nothing away.
         typed.record(1, String::new());
-        assert_eq!(typed.values(), vec!["third".to_string(), "second".to_string()]);
+        assert!(typed.values().contains(&"the-password".to_string()), "and cannot erase it either");
 
-        // And only this side forgets.
+        // Only this side forgets, and that is opening somewhere else.
         typed.forget();
         assert!(typed.values().is_empty());
     }
 
-    /// **A prefix of a password is not a password, and holding requests for one
-    /// takes the site down.** `record` used to keep every keystroke, so typing
-    /// `hunter2` left `h`, `hu`, `hun`, `hunt`, … on the list — and `h` is inside
-    /// `shop`, `hu` inside `?hub=1`. Those are ordinary addresses on this
-    /// computer, and a held read is a page that does not load.
+    /// **Every prefix stays, and the cost is a held request.** A password typed one
+    /// character at a time leaves its prefixes on the list, and from four characters
+    /// on they are looked for inside ordinary addresses -- `pass` is in
+    /// `passenger`, `hunt` in `hunting`.
+    ///
+    /// That was tried the other way round: one value per field, the latest
+    /// replacing the last, and the prefixes gone. **It cannot be done** -- every
+    /// value on this list arrives over a binding the page can call, so anything
+    /// dropped here is something a page could drop too, and the price of dropping
+    /// is the person's password leaving unseen. So the prefixes stay and the false
+    /// holds are paid for where they are cheap: only while the window is paused,
+    /// and only for a request held rather than sent.
     #[test]
-    fn a_prefix_of_what_was_typed_does_not_hold_an_ordinary_address() {
+    fn a_prefix_of_what_was_typed_is_held_too_and_nothing_a_page_says_removes_it() {
         let typed = Typed::default();
-        // **One field, typed one character at a time** -- which is what the page
-        // sends: the same handle with a longer value each keystroke.
-        for value in ["h", "hu", "hun", "hunt", "hunte", "hunter", "hunter2"] {
-            typed.record(1, value.to_owned());
+        let whole = "passphrase9f3a";
+        // One field, typed one character at a time, which is what the page sends.
+        for at in 1..=whole.len() {
+            typed.record(1, whole[..at].to_owned());
         }
-        assert_eq!(typed.values(), vec!["hunter2".to_string()], "one field, one value, the last one");
+        assert_eq!(typed.values().len(), whole.len(), "every keystroke the person made is still here");
 
-        // **The whole password is still found**, welded or not: nothing was given
-        // up to stop the real thing being found.
-        assert!(carries("https://shop.example/go?password=hunter2", &typed.values()));
-        assert!(carries("https://shop.example/go?token=hunter2-9f3a", &typed.values()), "punctuated, found");
+        // **The finished password is found, welded or not** -- nothing was given up
+        // to stop the real thing being found.
+        assert!(carries("https://shop.example/go?password=passphrase9f3a", &typed.values()));
+        assert!(carries("https://shop.example/go?t=xxpassphrase9f3axx", &typed.values()));
 
-        // **And every prefix is gone from the addresses it would have held.**
-        for ordinary in [
-            "https://shop.example/",
-            "https://shop.example/hub?a=1",
-            "https://shop.example/go?hub=1",
-            "https://hun.example/",
-            "https://shop.example/hunt/index.html",
-            "https://shop.example/go?hunter=1",
-            "https://shop.example/go?hunter0=1",
-        ] {
-            assert!(!carries(ordinary, &typed.values()), "a prefix of the password held an ordinary address: {ordinary}");
-        }
+        // **And a prefix holds an ordinary address**, which is the cost, stated here
+        // rather than discovered later.
+        assert!(carries("https://shop.example/passenger/list", &typed.values()), "a four-letter prefix holds an ordinary page");
+        assert!(carries("https://shop.example/go?passenger=1", &typed.values()));
+        // **Below four characters nothing is looked for at all**, so the cost is set
+        // by the length of the password, not by how many keystrokes it took.
+        assert!(!carries("https://shop.example/pastry", &typed.values()), "three characters is equality only");
+
+        // **Which is exactly why nothing may shrink the list.**
+        typed.record(1, "p".to_owned());
+        assert_eq!(typed.values().len(), whole.len(), "the same value again is a keystroke, not a second secret");
+        typed.record(1, "quiet".to_owned());
+        assert!(
+            typed.values().contains(&whole.to_owned()),
+            "and a page cannot take the password off the list: {:?}",
+            typed.values()
+        );
     }
 
     /// **A host is compared folded; nothing else is.** The URL parser lower-cases
@@ -637,29 +556,32 @@ mod tests {
         assert!(declared.trim_end().ends_with(";"), "{declared}");
     }
 
-    /// What the person typed is recorded once per field, an empty field records
-    /// nothing, and forgetting it is what opening somewhere else does.
+    /// What the person typed is recorded once, an empty field records nothing,
+    /// and forgetting it is what opening somewhere else does.
     #[test]
     fn what_a_field_is_held_now_survives_a_later_keystroke_and_a_cleared_field() {
         let typed = Typed::default();
         assert!(typed.values().is_empty(), "nothing has been typed yet");
-        // **One field, one value, and it is the last thing typed into it.** This
-        // used to keep every edit as well -- "h" and "hu" sat beside "hunter2" --
-        // and every prefix is a needle short enough to sit inside an ordinary
-        // address on this computer.
-        // `a_prefix_of_what_was_typed_does_not_hold_an_ordinary_address` is that
-        // failure, written down.
+        // **Both halves stay.** This used to keep only the last value per field,
+        // and that is what a page-callable binding must not be able to do: one
+        // call with the field's handle and an innocent value would erase the
+        // password from the list and the next request would carry it out unseen.
+        // The finished value and the halves of it are all still here.
         typed.record(0, "hunter2".to_owned());
         typed.record(0, "hunter2".to_owned());
         typed.record(0, "h".to_owned());
         typed.record(0, "hu".to_owned());
-        assert_eq!(typed.values(), vec!["hu".to_owned()], "the last thing in the field, and nothing before it");
+        assert_eq!(
+            typed.values(),
+            vec!["hunter2".to_owned(), "h".to_owned(), "hu".to_owned()],
+            "the finished value and both halves of it are all still here"
+        );
 
         typed.record(1, "123456".to_owned());
-        assert_eq!(typed.values().len(), 2, "two fields, two values, none lost");
+        assert_eq!(typed.values().len(), 4, "two fields, four values, none lost");
 
         typed.record(1, String::new());
-        assert_eq!(typed.values().len(), 2, "a cleared field takes nothing away either");
+        assert_eq!(typed.values().len(), 4, "a cleared field takes nothing away either");
 
         let shared = typed.clone();
         typed.record(2, "later".to_owned());

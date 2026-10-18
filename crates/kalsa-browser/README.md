@@ -296,26 +296,40 @@ code and believes otherwise.
   a page hands the address to the person's mail client the moment a proof goes
   wrong, which is exactly what happened, and `tests/common/mod.rs` fails the
   build if one comes back.
-- **How hard a secret is looked for depends on how long it is.** Whole-part
-  equality asks about **every** value the person typed, at any length: a
-  three-digit bank code is short and it is still exactly what it is when it is
-  the whole of a query value. Containment inside a part asks only from
-  `MIN_SECRET` (4) up, and from `PLAIN_CONTAINMENT` (8) up it stops asking
-  where the value stands at all — **while a window is paused it is the page's own
-  script that writes the request, and it decides what the secret is written next
-  to**, so a rule that asks whether the secret stands on a boundary is a rule
-  the page chooses to obey (`x` + secret + `x` is a boundary on both sides). A
-  false positive only holds a request for the person to answer; a false negative
-  is the secret on its way to somebody else's server.
-- **Below eight characters, containment is on a boundary, and that is a trade.**
-  A typed `test` is found in `token=test-9f3a` and in `/api/v2/test/session`, and
-  not in `latest` or `attestation.pdf`. Without that, four ordinary letters typed
-  into a password field make every ordinary address on this computer look like a
-  leak — and a held read is a page that does not load, so a secret nobody guessed
-  the meaning of takes the site down with it. The gap the rule opens is deliberate
-  and stated where it is written: a secret **under eight characters** welded
-  straight to letters or figures (`hunter2x`) is not found by containment. It is
-  still found whole, and still found punctuated.
+- **How hard a secret is looked for depends on how long it is, and after four
+  characters it is looked for everywhere.** Whole-part equality asks about
+  **every** value the person typed, at any length: a three-digit bank code is
+  short and it is still exactly what it is when it is the whole of a query value.
+  Containment inside a part asks from `MIN_SECRET` (4) up — and it asks nothing
+  about where the value stands. **There was a boundary rule and it was wrong, not
+  merely blunt:** the characters either side had to be punctuation, and a letter
+  on either side *is* a boundary, so `x` + secret + `x` has one on both sides and
+  beats it completely. While a window is paused it is the page's own script that
+  writes the request and it decides what the secret is written next to, so a
+  boundary rule was a rule the page chooses to obey.
+- **What plain containment costs, and where that cost lands.** A typed `test` is
+  found in `latest` and in `attestation.pdf`, not only in
+  `token=test-9f3a` and `/api/v2/test/session`. That is bounded by **where the
+  question is asked**: `secret::carries` decides whether a request is *held*, it
+  runs only while the window is paused, and a paused navigation carrying what the
+  person typed goes out only where the person already is — same-site navigations
+  are not held on this ground at all. So the price of `latest` being held is a
+  question to the person, and never a request a page gets sent. Below four
+  characters nothing is looked for inside a part, because two letters are inside
+  every address on this computer; equality is still asked about them at any
+  length.
+- **The typed list is add-only, because a page can call the binding that fills
+  it.** Every keystroke a person makes is recorded, and nothing ever removes
+  one. That is not tidiness: the catcher sends values over a binding on the page,
+  so a page could call it once with the handle of the field the person used and an
+  innocent value, and the real password would leave in the next request with
+  nothing on the list to stop it. One value per field — the latest replacing the
+  last — was implemented here and removed for exactly that reason. **The cost is
+  the prefixes**: typing a password leaves its prefixes beside it, and one of four
+  characters or more is inside ordinary addresses, so a paused window can hold a
+  request it did not need to. Trimming them is not available, because every value
+  on that list arrives over a path the page drives — anything dropped here would
+  be something a page could drop too.
 - **A secret that is re-encoded before it is sent is a secret this crate cannot
   follow.** `secret::carries` looks for what the person typed **inside** the
   address — in a host label, a path segment, a query name or value, anywhere a
@@ -333,8 +347,8 @@ code and believes otherwise.
   believes otherwise.
 - **A body is read by the same rule, and a body nobody could read is read as
   carrying one.** `secret::part_carries` is that one rule: whole-part equality at
-  any length, containment from `MIN_SECRET` up — and from `PLAIN_CONTAINMENT` up
-  wherever it stands — asked about a field's **name** as well as its value and
+  any length, containment from `MIN_SECRET` up and wherever it stands, asked about
+  a field's **name** as well as its value and
   about the bytes of the body as a net underneath them — because a secret welded
   to a suffix, put where the server reads it as the key, or hidden in a multipart
   part the parser dropped is the same mail either way.
