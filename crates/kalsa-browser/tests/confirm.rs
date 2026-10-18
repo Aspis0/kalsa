@@ -1534,6 +1534,91 @@ async fn off_site_a_paused_navigation_is_refused_when_its_body_cannot_be_read_an
     );
 }
 
+/// **The query of a write is on its card, after the fields the page wrote.**
+///
+/// A write carries data in two halves. The address is shown as a host and its
+/// path is not, which is the owner's decision and stays it — but a value in the
+/// query **is data**: it leaves with the request, and a card that named only
+/// `POST /api` was asking the person about half of what their computer was about
+/// to send. The name is the key and there is no label beside it, because a query
+/// parameter is written by whoever built the address and not beside an element on
+/// a page.
+#[tokio::test]
+async fn a_write_carries_what_its_query_holds_on_the_card_after_its_body() {
+    let (base, _arrived) = common::serve(&[common::page(SHOP)]).await;
+    let (_sessions, page, holds) = common::confirming_window("confirm-query", &base).await;
+    page.goto(&base, None).await.expect("the shop loads");
+    holds.typed_in(1, "hunter2-the-passphrase").await;
+
+    posting(
+        &page,
+        &base,
+        "application/x-www-form-urlencoded",
+        "/api?msg=Ciao+Giulia&token=hunter2-the-passphrase",
+        r#"<input name="colour" value="blue">"#,
+    )
+    .await;
+    let id = wait_for_card(&holds, 30).await.expect("the write is held for the person");
+    let card = holds.card(&id).await.expect("the card is there to be read");
+
+    // **The query, decoded and shown, after the body's own field.**
+    assert_eq!(
+        card.fields.iter().map(|field| field.name.as_str()).collect::<Vec<_>>(),
+        vec!["colour", "msg", "token"],
+        "the body's field first, then every pair of the query, in the order they were written"
+    );
+    assert_eq!(named(&card.fields, "msg"), Some("Ciao Giulia"), "the value is decoded and shown: {:?}", card.fields);
+    assert_eq!(named(&card.fields, "token"), Some("hunter2-the-passphrase"), "a value the person typed is shown in full");
+
+    // **And it is marked, whichever half of the request it is in.** The person can
+    // read it with Show — a card that hid a value would be a card they cannot
+    // check — but it is dots by default, as a body field of the same name is.
+    let token = card.fields.iter().find(|field| field.name == "token").expect("the token is on the card");
+    assert!(token.secret, "a value the person typed is marked wherever it is: {token:?}");
+    assert_eq!(token.label, None, "a query pair has no words beside it: there is no element to read them from");
+    assert!(!card.fields.iter().find(|field| field.name == "msg").expect("the message").secret);
+    assert!(!card.fields.iter().find(|field| field.name == "colour").expect("the colour").secret);
+}
+
+/// **A value in the query that is not text is a write there is no card for**,
+/// refused with the same line as a body carrying bytes that are not text. A card
+/// showing `%FF` as a replacement character would be showing a value nobody sent
+/// — and this is a *write*, so nothing goes out on the strength of a card the
+/// person cannot check.
+#[tokio::test]
+async fn a_query_value_that_is_not_text_refuses_the_write_instead_of_holding_it() {
+    let (base, _arrived) = common::serve(&[common::page(SHOP)]).await;
+    let (_sessions, page, holds) = common::confirming_window("confirm-query-bytes", &base).await;
+    page.goto(&base, None).await.expect("the shop loads");
+
+    posting(&page, &base, "application/x-www-form-urlencoded", "/api?msg=%FF", r#"<input name="colour" value="blue">"#).await;
+    let outcomes = refused_after(&holds, 30).await;
+    assert_eq!(
+        outcomes,
+        vec![hold::Outcome::Unrenderable("the request carries bytes that are not text, so it cannot be shown".to_owned())],
+        "refused with the same line, and the same rule, as a body carrying bytes that are not text"
+    );
+    assert!(
+        holds.ids().await.is_empty(),
+        "and nothing is held for the person: there is no card to ask about, so there is nothing to send on"
+    );
+}
+
+/// **Waits for the route to have answered.** `take_outcomes` drains, so the poll
+/// keeps what it takes rather than looking and throwing away — the first call
+/// that finds the answer has it, and nothing is lost by looking early.
+async fn refused_after(holds: &hold::Holds, tries: usize) -> Vec<hold::Outcome> {
+    let mut taken: Vec<hold::Outcome> = Vec::new();
+    for _ in 0..tries {
+        taken.extend(holds.take_outcomes(common::CHAT).await);
+        if !taken.is_empty() {
+            return taken;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    taken
+}
+
 /// What the store says about everything the route has been offered in this
 /// conversation: the requests parked as cards, and the refusals said in one
 /// line. Both are the product's own answers — the first is what the person would

@@ -846,7 +846,47 @@ pub async fn hold_write(
     };
     let page_url = request.frame().map(|frame| frame.url()).unwrap_or_default();
     label::apply(&mut fields, &holds.labels_for(&page_url).await, &typed);
+    // **And the query, after the body.** A write's data is in two halves and the
+    // card has to show both: the person is asked about `POST /api` while the
+    // bytes that leave carry `?msg=…`. They come after the fields the page wrote
+    // into its form, which is the order they were written in, and they are read
+    // strictly — a value in the query that is not text refuses the write, as an
+    // unreadable body does.
+    match query_fields(request.url(), &typed) {
+        Ok(query) => fields.extend(query),
+        Err(why) => {
+            holds.refuse(why).await;
+            route.abort(Some("blockedbyclient")).await?;
+            return Ok(());
+        }
+    }
     park(holds, Card { id: String::new(), method: request.method().to_ascii_uppercase(), url: request.url().to_owned(), fields, conversation: String::new() }, route).await
+}
+
+/// **The fields a held write's query carries.**
+///
+/// `Ok` is the fields, empty when the address has no query or does not parse —
+/// the same answer the read path gives, since there is nothing to read then.
+/// `Err` is why there is no card: a value in the query is not text, which is a
+/// request a person cannot check and therefore cannot be asked about.
+///
+/// **The query is marked exactly as a body field is** — by its own name, or
+/// because it carries a value the *person* typed. A page can make its own fields
+/// dotty and nothing else, whichever half of the request they are in.
+pub(crate) fn query_fields(url: &str, typed: &[String]) -> Result<Vec<Field>, &'static str> {
+    let Ok(parsed) = url::Url::parse(url) else {
+        return Ok(Vec::new());
+    };
+    let Some(query) = parsed.query() else {
+        return Ok(Vec::new());
+    };
+    let Some(fields) = body::query_fields(query) else {
+        return Err(body::NOT_TEXT);
+    };
+    Ok(fields
+        .into_iter()
+        .map(|one| body::Field { secret: one.secret || crate::secret::holds(&one.value, typed), ..one })
+        .collect())
 }
 
 /// **Parks the route with a card.** Resuming **this** route sends the bytes the
@@ -934,7 +974,7 @@ pub fn awaiting(id: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{address_of, Answer, Card, Holds, Outcome, Ticket, EXPIRY, FULL, MAX_HELD};
+    use super::{address_of, query_fields, Answer, Card, Holds, Outcome, Ticket, EXPIRY, FULL, MAX_HELD};
     use crate::body::Field;
     use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -991,6 +1031,44 @@ mod tests {
             // Stamped by `hold`, which is the point: whatever is here is replaced.
             conversation: "chat-asked-for-it".to_owned(),
         }
+    }
+
+    /// **The query is on the card, after the body.** A write carries data in two
+    /// halves and the person is asked about both: the card shows what the page
+    /// wrote into the form, and then what the address carries with it — in that
+    /// order, which is the order they were written in.
+    #[test]
+    fn a_write_carries_its_query_on_the_card_after_the_fields_it_wrote() {
+        let typed = vec!["hunter2".to_owned()];
+        let fields = query_fields("https://shop.example/order?msg=Ciao+Giulia&token=hunter2", &typed)
+            .expect("a query of text is shown");
+        assert_eq!(
+            fields,
+            vec![
+                Field { name: "msg".to_owned(), value: "Ciao Giulia".to_owned(), secret: false, label: None },
+                // The value the person typed is theirs whatever it is called.
+                Field { name: "token".to_owned(), value: "hunter2".to_owned(), secret: true, label: None },
+            ],
+            "the value the person typed is marked, and it is still there in full"
+        );
+    }
+
+    /// **An address with no query is not a refusal, and neither is one that does
+    /// not parse** — there is nothing in it to show, which is a card without
+    /// those fields rather than a write nobody can be asked about.
+    #[test]
+    fn a_write_with_no_query_carries_no_query_fields() {
+        assert_eq!(query_fields("https://shop.example/order", &[]).expect("nothing to refuse"), Vec::<Field>::new());
+        assert_eq!(query_fields("not an address", &[]).expect("nothing to refuse"), Vec::<Field>::new());
+    }
+
+    /// **A value in the query that is not text is a write there is no card for.**
+    /// A card with a replacement character in it would show a value nobody sent,
+    /// so the write is refused — the same reason, and the same line, as a body
+    /// carrying bytes that are not text.
+    #[test]
+    fn a_query_value_that_is_not_text_refuses_the_write() {
+        assert_eq!(query_fields("https://shop.example/order?msg=%FF", &[]), Err(crate::body::NOT_TEXT));
     }
 
     /// What a held request did when it was answered, so a test can say it was

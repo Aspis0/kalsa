@@ -98,6 +98,23 @@ const CARD = {
   ],
 };
 
+// **A write whose address carries the data.** The card shows the host and not
+// the path, which is the owner's decision; but a value in the query is data —
+// it leaves with the request — so it comes as a field of its own, after the
+// fields the page wrote. This is the shape the crate hands over.
+const QUERY_CARD = {
+  id: "q1",
+  method: "POST",
+  url: "https://shop.example/api",
+  conversation: CHAT,
+  fields: [
+    { name: "colour", value: "blue", secret: false, label: "Il colore" },
+    { name: "msg", value: "Ciao Giulia", secret: false },
+    { name: "token", value: "the-real-password", secret: true },
+    { name: "flag", value: "", secret: false },
+  ],
+};
+
 class MemoryStorage {
   #map = new Map();
   get length() {
@@ -597,6 +614,40 @@ try {
       JSON.stringify(exfiltrated),
     );
     check("and it is only drawn as dots, with the value behind the toggle", exfiltrated.secret === true, JSON.stringify(exfiltrated));
+
+    // **What the window draws, for a query that carries the request's data.** The
+    // crate has already decided the pairs and the marks; this is that the desktop
+    // reads them the way the phone does, with no step of its own between.
+    noteBrowserCards([QUERY_CARD]);
+    const drawn = currentBrowserCards().find((one) => one.id === "q1");
+    equal(
+      "the query comes as fields, after the ones the page wrote, in the order they were sent",
+      drawn.fields.map((one) => one.name),
+      ["colour", "msg", "token", "flag"],
+    );
+    check("and the value is on the card in full", drawn.fields[1].value === "Ciao Giulia", JSON.stringify(drawn.fields[1]));
+    check(
+      "a secret in the query is marked, as one in the body is",
+      drawn.fields[2].secret === true,
+      JSON.stringify(drawn.fields[2]),
+    );
+    check(
+      "and the person can still read it, because that is what goes",
+      drawn.fields[2].value === "the-real-password",
+      JSON.stringify(drawn.fields[2]),
+    );
+    check(
+      "a query pair has no words beside it, because there is no element to read them from",
+      drawn.fields[1].label === null,
+      JSON.stringify(drawn.fields[1]),
+    );
+    equal(
+      "an empty value is a field the window does not draw, in the body or in the query",
+      drawn.fields.filter((one) => one.value !== "").map((one) => one.name),
+      ["colour", "msg", "token"],
+    );
+    noteBrowserCards([]);
+
     check(
       "what is not a secret is untouched by any of this",
       card.fields.find((f) => f.name === "harmless").value === "a-normal-field",

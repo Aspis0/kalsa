@@ -822,7 +822,20 @@ pub async fn held_submission(
         holds.refuse("the request carries a body too large to be shown").await;
         return None;
     };
-    label::apply(&mut fields, &caught.labels, &holds.typed().await.values());
+    // **Read once**: the labels and the query are both judged against the values
+    // the person typed, and a decision taken from two reads of a live store is a
+    // race rather than a decision.
+    let typed = holds.typed().await.values();
+    label::apply(&mut fields, &caught.labels, &typed);
+    // **The query after the body**, and for the same reason as on the route: the
+    // write carries data in two halves and the card has to show both of them.
+    match hold::query_fields(&caught.url, &typed) {
+        Ok(query) => fields.extend(query),
+        Err(why) => {
+            holds.refuse(why).await;
+            return None;
+        }
+    }
     let ticket = hold::Ticket::of_parts(&caught.method, &caught.url, &submit::content_type_of(&caught), body);
     let card = hold::Card {
         id: String::new(),

@@ -38,7 +38,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 /// Why a body is refused when its text is not UTF-8. One line, and it names the kind.
-const NOT_TEXT: &str = "the request carries bytes that are not text, so it cannot be shown";
+pub(crate) const NOT_TEXT: &str = "the request carries bytes that are not text, so it cannot be shown";
 
 /// The most of a body a card may carry. Sixteen kilobytes is a card, not a
 /// scroll: past this the person is being asked to approve something they cannot
@@ -169,6 +169,32 @@ pub(crate) fn fields_of(pairs: &[(String, String)], secrets: &[String]) -> Shown
             .map(|(name, value)| field(name, value, secrets.contains(name) || secret_name(name)))
             .collect(),
     )
+}
+
+/// **The query of a write, as the fields it carries** — `None` when a value in
+/// it is not text, which refuses the write for the same reason a body does.
+///
+/// A write carries its data in two halves, and a card that shows one of them
+/// shows half a request: the person is asked about `POST /api`, and the bytes
+/// that actually leave carry `?msg=…&token=…`. Those bytes are sent, so they are
+/// shown.
+///
+/// **The same decoder as a form body, by the same call.** A query is written
+/// form-urlencoded and a body of that kind is, so `+` is a space, `%XX` is the
+/// byte it names, a `%` naming no byte is kept as written, and **a byte that is
+/// not UTF-8 has no text to show** — a card with replacement characters in it
+/// would be showing a value nobody sent.
+///
+/// **The name is the key and there is no label.** A query parameter is written
+/// by whoever built the address rather than beside an element on a page, so no
+/// words stand next to it to show.
+///
+/// An empty value is left where it is: the window hides an empty field whatever
+/// it is called, and the card is the same card in the same order either way.
+/// Nothing is capped here — an address over [`MAX_URL`] is refused before this
+/// is reached, and that is smaller than any body a card may carry.
+pub(crate) fn query_fields(query: &str) -> Option<Vec<Field>> {
+    urlencoded(query.as_bytes())
 }
 
 /// One field, as it was sent. The value is carried whatever it is; `secret` says
@@ -334,7 +360,7 @@ fn split_on<'a>(haystack: &'a [u8], needle: &[u8]) -> Vec<&'a [u8]> {
 
 #[cfg(test)]
 mod tests {
-    use super::{field, fields_of, secret_name, show, Field, Shown, DOTS, MAX_BODY};
+    use super::{field, fields_of, query_fields, secret_name, show, Field, Shown, DOTS, MAX_BODY};
 
     fn fields(shown: Shown) -> Vec<Field> {
         match shown {
@@ -348,6 +374,61 @@ mod tests {
             Shown::Refused(why) => why,
             Shown::Fields(_) => panic!("was shown"),
         }
+    }
+
+    /// **The query of a write is read as the fields it carries, by the decoder a
+    /// form body is read by.** It is the same data in the other half of the
+    /// request, and a card that showed the body alone would be showing half of it.
+    #[test]
+    fn a_query_is_shown_as_the_pairs_it_carries() {
+        let shown = query_fields("msg=Ciao+Giulia&city=Bologna").expect("a query of text is shown");
+        assert_eq!(
+            shown,
+            vec![
+                field("msg", "Ciao Giulia", false),
+                field("city", "Bologna", false),
+            ],
+            "decoded the way a form body is decoded, in the order they were written"
+        );
+    }
+
+    /// **A query key is never given a label**: it is written by whoever built the
+    /// address, not beside an element on a page, so there are no words next to it.
+    #[test]
+    fn a_query_pair_has_a_name_and_no_label() {
+        let shown = query_fields("city=Bologna").expect("shown");
+        assert_eq!(shown[0].label, None);
+        assert_eq!(shown[0].name, "city");
+    }
+
+    /// **A name in the query that reads as a secret is marked**, exactly as a form
+    /// field of the same name is. The value is still on the card in full: the flag
+    /// decides how the window draws it and nothing else.
+    #[test]
+    fn a_query_pair_whose_name_reads_as_a_secret_is_marked() {
+        let shown = query_fields("passphrase_2=hunter2&city=Bologna").expect("shown");
+        assert!(shown[0].secret, "the passphrase in the query is flagged: {:?}", shown[0]);
+        assert_eq!(shown[0].value, "hunter2", "and the person can read it, because that is what goes");
+        assert!(!shown[1].secret, "and what is not a secret is not flagged");
+    }
+
+    /// **A value in the query that is not text refuses the whole query.** A card
+    /// showing `%FF` as a replacement character would be showing a value nobody
+    /// sent, which is the one thing this module exists to prevent — so the write
+    /// is refused for it, exactly as a body with such a byte is.
+    #[test]
+    fn a_query_value_that_is_not_text_is_refused_rather_than_shown() {
+        assert_eq!(query_fields("city=%FF"), None);
+        assert_eq!(query_fields("name=Bologna&city=%C3"), None);
+    }
+
+    /// An empty value is left where it is: the window hides an empty field
+    /// whatever it is called, and a card is one card in one order either way.
+    #[test]
+    fn a_query_pair_with_nothing_in_it_is_a_field_the_window_hides() {
+        let shown = query_fields("flag=&city=Bologna").expect("shown");
+        assert_eq!(shown.len(), 2);
+        assert_eq!(shown[0].value, "");
     }
 
     /// A form post is shown exactly as it was written, in order — the card is
