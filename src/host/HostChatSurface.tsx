@@ -29,6 +29,7 @@ import { useLabTheme } from "../ui/labTheme";
 import { bottomInsetFor } from "../ui/shell/shellGeometry";
 import { Shell } from "../ui/shell/Shell";
 import { Transcript } from "../ui/shell/Transcript";
+import { useBrowserActions } from "./useBrowserActions";
 import { BrowserActionsContext } from "../ui/shell/browserActions";
 import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
 import type { TranscriptMiniapp } from "../ui/shell/transcriptTypes";
@@ -121,7 +122,7 @@ export function HostChatSurface({
   const { t } = useLocale();
   // The one host port a browser card needs, and all of it: a card that stops
   // being answerable gives its values back.
-  const browserActions = { spentBrowserCard: actions.spentBrowserCard };
+  const browserActions = useBrowserActions(actions.spentBrowserCard);
   const location = hostModelLocation({
     remote: modelHost.remoteActive,
     modelState: modelHost.modelState,

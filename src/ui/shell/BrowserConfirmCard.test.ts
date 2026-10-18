@@ -10,13 +10,13 @@
 const mockAnswer = jest.fn();
 const mockSpent = jest.fn();
 
-jest.mock("../../engine/remote/browserApi", () => ({
-  answerBrowserCard: (...args: unknown[]) => mockAnswer(...args),
-}));
-
-// The strip is the card's only host port: a spent card gives its values back.
+// The card asks through the context, so this suite mocks the CONTEXT: the card
+// itself must never be able to reach the network client (see browserActions).
 jest.mock("./browserActions", () => ({
-  useBrowserActions: () => ({ spentBrowserCard: mockSpent }),
+  useBrowserActions: () => ({
+    answerCard: (...args: unknown[]) => mockAnswer(...args),
+    spentBrowserCard: mockSpent,
+  }),
 }));
 
 jest.mock("react-native", () => {
@@ -71,6 +71,9 @@ function entry(over: Partial<BrowserCardEntry> = {}): BrowserCardEntry {
   };
 }
 
+/** One renderer at a time, always unmounted: a card left mounted keeps its
+ *  one-second budget tick alive past the suite, and a jest run that logs after
+ *  its tests are done exits non-zero on suites that all passed. */
 let mounted: ReactTestRenderer | null = null;
 
 async function render(value: BrowserCardEntry): Promise<ReactTestRenderer> {
@@ -267,8 +270,8 @@ describe("a request held for the person", () => {
   });
 
   it("answering tells the message to give the value back", async () => {
-    await render(entry());
-    await press(await render(entry()), "transcript.browserCard.send");
+    const renderer = await render(entry());
+    await press(renderer, "transcript.browserCard.send");
     expect(mockSpent).toHaveBeenCalledWith(CARD_ID);
   });
 

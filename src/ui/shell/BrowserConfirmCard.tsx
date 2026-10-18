@@ -24,10 +24,11 @@ import {
   monotonicNowMs,
   secretFieldNames,
   SECRET_DOTS,
+  type BrowserAnswer,
   type BrowserCard,
   type BrowserCardEntry,
 } from "../../domain/browserCardPayload";
-import { answerBrowserCard, type BrowserAnswerVerb } from "../../engine/remote/browserApi";
+import type { BrowserAnswerVerb } from "../../engine/remote/browserApi";
 import {
   answerLeftNothingSent,
   humanBrowserAnswerFailure,
@@ -53,7 +54,7 @@ export function BrowserConfirmCard({
   const { card, outcome } = entry;
   const [now, setNow] = useState(monotonicNowMs);
   const [pressed, setPressed] = useState(false);
-  const [answer, setAnswer] = useState<Awaited<ReturnType<typeof answerBrowserCard>> | null>(null);
+  const [answer, setAnswer] = useState<BrowserAnswer | null>(null);
   /** One flag per secret field, and one for the address: what the person has
    *  chosen to look at, held here and nowhere else. */
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set());
@@ -110,14 +111,15 @@ export function BrowserConfirmCard({
     async (verb: BrowserAnswerVerb) => {
       // Re-checked at the press and not only on the tick: a card that expired
       // between two renders must not put a request on the road.
-      if (pressed || isBrowserCardExpired(card, monotonicNowMs())) return;
+      // No host, no press: the buttons are not drawn at all (see browserActions).
+      if (browser === null || pressed || isBrowserCardExpired(card, monotonicNowMs())) return;
       setPressed(true);
       // Spent before the answer is even asked: the card is the one thing that
       // knows nobody may answer this any more.
       spend();
-      setAnswer(await answerBrowserCard(card.cardId, verb));
+      setAnswer(await browser.answerCard(card.cardId, verb));
     },
-    [card, pressed, spend],
+    [browser, card, pressed, spend],
   );
 
   const secrets = secretFieldNames(card);
@@ -184,7 +186,7 @@ export function BrowserConfirmCard({
           {t("chat.browser.answerWithin", { time: remaining(card, now) })}
         </Text>
       )}
-      {live ? (
+      {live && browser !== null ? (
         <View style={styles.buttons}>
           <Pressable
             testID="transcript.browserCard.send"
