@@ -8,7 +8,10 @@ use crate::context;
 use crate::driver_env;
 use crate::find_browser;
 use crate::guard;
+use crate::hold::Holds;
 use crate::landing::Landings;
+use crate::submit;
+use std::sync::Arc;
 
 /// Why there is no browser to answer a call. Every variant is one plain line,
 /// and none of them names a path on the person's disk.
@@ -35,7 +38,10 @@ impl Unavailable {
 ///
 /// The rules are installed before any page exists, so there is no window in
 /// which a request could be made without meeting them.
-pub async fn start(profile_dir: &str) -> Result<(Playwright, BrowserContext, Page, Landings), Unavailable> {
+pub async fn start(
+    profile_dir: &str,
+    paused: Arc<std::sync::atomic::AtomicBool>,
+) -> Result<(Playwright, BrowserContext, Page, Landings, Holds), Unavailable> {
     driver_env::apply().map_err(Unavailable::Driver)?;
     let executable = find_browser::installed().await.map_err(Unavailable::Browser)?;
 
@@ -50,11 +56,16 @@ pub async fn start(profile_dir: &str) -> Result<(Playwright, BrowserContext, Pag
     // Order matters: the guard first, so a socket refused for a private address
     // is closed by a rule that is already in place.
     let landings = Landings::new();
-    guard::install(&browser, &landings).await.map_err(|_| Unavailable::WouldNotStart)?;
+    let holds = Holds::bound_to(paused);
+    guard::install(&browser, &landings, &holds).await.map_err(|_| Unavailable::WouldNotStart)?;
     context::close_what_a_route_cannot(&browser).await.map_err(|_| Unavailable::WouldNotStart)?;
 
     let page = browser.new_page().await.map_err(|_| Unavailable::WouldNotStart)?;
-    Ok((playwright, browser, page, landings))
+    // A submission is caught in the page rather than in the route, so this has
+    // to be in place before anything can navigate. It is an init script, so it
+    // survives every navigation the window makes afterwards.
+    submit::install(&page).await.map_err(|_| Unavailable::WouldNotStart)?;
+    Ok((playwright, browser, page, landings, holds))
 }
 
 #[cfg(test)]

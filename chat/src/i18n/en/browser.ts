@@ -20,3 +20,37 @@ export const BROWSER = {
   readingFolders: "Reading this computer’s folders…",
   folder: "folder",
 };
+
+/**
+ * The card a person is asked about, and the Pausa control.
+ *
+ * **The two answers are the whole of it.** Everything else here is telling a
+ * person what a stranger's site is about to receive, so the wording is about
+ * what is being sent rather than about Kalsa: the button says what it does to
+ * the request, not what it does to the model.
+ */
+export const CONFIRM = {
+  title: "Kalsa wants to send this",
+  waiting: "Nothing has been sent yet.",
+  /** The method is the site's own word, so it is shown as it stands. */
+  allow: "Send it",
+  decline: "Don't send it",
+  asking: "Sending…",
+  fields: "What it would send",
+  none: "No fields — just the request.",
+  paused: "Paused",
+  resume: "Resume",
+  pauseHint: "Pausing stops the next action. What has already been sent cannot be recalled.",
+  runningHint: "Paused. Kalsa is not acting in the browser.",
+
+  /** What became of the request a person just answered, in their own words:
+   *  the one thing they are told about it after the card goes. */
+  sentTo: (host: string) => `Sent to ${host}`,
+  show: "Show",
+  hide: "Hide",
+  notSentNo: "Not sent — it was not allowed",
+  notSentLate: "Not sent — nobody answered in time",
+  notSentGone: "Not sent — the browser window closed",
+  notSentHidden: "Not sent — it could not be shown to you",
+  unclear: "Unclear — it may have been sent",
+};

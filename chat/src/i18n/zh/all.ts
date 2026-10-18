@@ -27,7 +27,7 @@ import { INVITE } from "./invite";
 import { SHELL } from "./shell";
 import { KNOBS } from "./knobs";
 import { SAMPLING } from "./sampling";
-import { BROWSER } from "./browser";
+import { BROWSER, CONFIRM } from "./browser";
 import { MARKDOWN } from "./markdown";
 import { VISION } from "./vision";
 import { RUST } from "./rust";
@@ -64,6 +64,7 @@ export const CHINESE: English = {
   knobs: KNOBS,
   sampling: SAMPLING,
   browser: BROWSER,
+  confirm: CONFIRM,
   markdown: MARKDOWN,
   vision: VISION,
   rust: RUST,

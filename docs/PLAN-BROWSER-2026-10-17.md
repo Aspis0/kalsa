@@ -42,13 +42,25 @@ Proved by unit tests over these shapes **and** over a real browser in `tests/inp
 
 ## Submission is a held request, not a cancelled event
 
-A `preventDefault` on the submit event is not enough, for two separate reasons. It loses the payload — the card would be guessing what the site was about to receive. And it only ever sees *form* submits, including a scripted `requestSubmit()`, which does fire the submit event; `fetch()`, XHR and `sendBeacon()` never go through that event at all. So **every non-GET request the page makes is intercepted at the route** — POST, PUT, PATCH, DELETE, form posts, `fetch`/XHR, `sendBeacon`, all of them.
+A `preventDefault` on the submit event is not enough, for two separate reasons. It loses the payload — the card would be guessing what the site was about to receive. And it only ever sees *form* submits, including a scripted `requestSubmit()`, which does fire the submit event; `fetch()`, XHR and `sendBeacon()` never go through that event at all. So **every non-GET request the page makes is intercepted** — POST, PUT, PATCH, DELETE, form posts, `fetch`/XHR, `sendBeacon`, all of them.
 
-1. The route **holds** the request. Nothing is sent.
-2. The confirm card shows **the actual held request**: URL, method, and the serialized body field names with values **exactly as sent**, hidden fields included.
-3. On confirm, **that same held request continues**. On decline it is aborted and the model is told plainly.
+**Where it is intercepted is not one place, and step 4 found that out by measurement.** Both routes were built; the first one was thrown away.
 
-This binds the card to the payload the site would really have received, and it covers script-initiated submits because a script's request is a route like any other. The Enter rule above stands unchanged by this: a JS app that commits on Enter issues no request, so there is nothing to hold, and a form that submits on Enter issues a non-GET, which is held like any other write.
+- **A write that would navigate is caught in the page**, before the request exists: the submit event is prevented, the fields are read out of the `FormData` the browser itself built — the site's own encoding, hidden fields included — and the form is kept. Nothing is on the wire, so nothing can be recalled, and a decline is a request that never happened.
+- **A write the page makes by itself** never navigates and cannot be prevented from the page, so it is caught **at the route** and parked there with the route that would have dispatched it.
+
+Parking a *navigation* at the route was the first design and it does not work. Both failures were measured on this machine's browser, not reasoned about:
+
+- **A parked navigation freezes the page.** While the main frame's request is held, `Runtime.evaluate` on it never answers: a read times out after thirty seconds, and so does the re-check a fill does before pressing Enter. The person would look at a window that cannot be read for as long as the card is on screen, and the model could not read the page it is working on.
+- **Aborting one leaves Chrome's own error page behind** — `chrome-error://chromewebdata/`, "This page has been blocked by Chrome", `ERR_BLOCKED_BY_CLIENT` — the opposite of leaving the page as it was.
+
+A `fetch` held the same way does neither, which is why the split is exactly where it is. `src/submit.rs`, and `tests/confirm.rs`.
+
+1. The write is **held**. Nothing is sent.
+2. The confirm card shows **what the site would really receive**: URL, method, and the field names with values **exactly as sent**, hidden fields included.
+3. On confirm it is sent; on decline it is dropped and the model is told plainly. **A confirmed submission is sent as a form of its own**, rebuilt from the held fields — asking the page to `requestSubmit` again was measured firing the event, putting the request on the wire, and leaving the page where it was, so the card would have described a page that never existed. The landing is proved, not only the arrival.
+
+The write just answered goes past the route on a one-shot ticket for that method and address, spent on first use, so nothing else rides out on it.
 
 GET navigations — form submits with `method=get`, and link clicks — are **reads**. That is stated in Risks, not buried.
 
@@ -184,8 +196,16 @@ Proof, all with `open` alone — no click and no type in this step: a page carry
 - `i18n/` — five languages
 
 Click and type are offered from here and not before. A password field refuses the type and asks for takeover instead.
+
+**What step 4 actually became, after it was built and audited.** The four decisions below are the ones the first version got wrong, and each is now a rule rather than a habit:
+
+- **The bytes go, not a description of them.** When a write is caught, Rust keeps the *whole* request — method, resolved URL after `formaction`/`formmethod`, content type, body bytes, the submitter's own entry, the person's real password — and **deletes the page's copy in the same step**. Nothing page-visible is trusted at dispatch: the fire is one synchronous `evaluate` built from Rust's payload, calling a `submit` **captured before the page's own scripts ran**, so a page that replaces it is a no-op rather than a silent cancellation. What leaves the route is checked against a [`Ticket`](crates/kalsa-browser/src/hold.rs): the same method, address, content type and body, **and it must be a navigation of the main frame** — which is what stops a request that matches on every byte and means something else server-side (a `fetch` with `X-HTTP-Method-Override`), since headers cannot be compared and the browser varies them. A page that rewrites the field, the action or the body after the card gets that request held; a **probe does not spend the ticket**; and what the model is told is **the route's word**: the answer is spent by the request actually arriving, and a dispatch that could not be carried out is `unclear` with the answer revoked, never "sent".
+- **An outcome is a code and a host, and the words are ours.** `browser_answered` carries `{code, host}` — one of `sent | declined | expired | gone | unsendable | unclear`, and a host *parsed* out of the address, never cut out of it. The chat builds the sentence from its own copy (`chat/src/lib/browser/confirm.ts`), and the store drops any note carrying a path or a query, so a stranger's session token has no route to a model or to a disk. A sidecar error **after** the card is spent is `unclear`, emitted and shown: swallowed there, both the person and the model go on believing nothing happened while that server may already have it.
+- **A card belongs to the chat that raised it.** Ids are 128 bits of OS entropy, every write is stamped with the conversation driving it, an answer from another conversation finds nothing (and the card is *put back*, not dropped — a timing race must not deny the person their own button), and the note is queued for that conversation only. The window is shared; consent is not.
+- **A card hides nothing.** This is the rule that replaces the first one this step had, and the reason is the binding the previous one depended on: `__kalsaTyped` is page-visible, so a page could register the value it was exfiltrating as "typed by the person in a password field" and have the card **say so instead of showing what was going**. A card a page can edit is not a card. So every field is drawn **as it will be sent, in full**, and a password-class field is drawn as **dots with a Show button** — a flag on the drawing and never on the data. The binding is now only a reading of *whether to hold* a GET: a page that abuses it can get its own GETs held, which is a nuisance to itself and no longer a leak.
+- **The value lives in the card and nowhere else.** Not in a message, not in the store, not in a log, not on disk — which is enforced where each one of those is written, and the sidecar's own `Debug` for a field and for a whole card prints dots, so no log line, panic or failing assertion can carry a password either. `Serialize` is the one path the real value takes, and it goes to the window.
 Proof: a held POST from Enter, from click-on-submit and from scripted `requestSubmit()`, each stopped before dispatch and each showing the payload as sent, hidden fields included; a body in a content type we cannot render honestly, and a multipart part carrying a file, are each refused with one line; **the tool call returns `awaiting confirm <id>` well inside the 60 s deadline while the request is still held, and a second browser call still runs while that confirm is pending** — that is the test that proves no mutex is held across it; the id is consumed before dispatch and a second press is refused; a declined submit changes nothing on the page and the model is told; a password field is never typed into; **an unanswered confirm auto-declines at 5 minutes and, closing the window, releases the held route without dispatching it**; **pause leaves the just-dispatched click in place and stops the next action**; **window-closed-mid-call and driver-crash tests at the UI boundary** too.
-**Does not:** reach the phone.
+**Does not:** reach the phone. **Multipart is refused in this slice, by decision, not by omission**: the browser picks the boundary at submit time, so the bytes cannot be written out in advance and there is no way to promise that what goes is what the card showed. Sending something close to what was approved is the one thing this mechanism exists to prevent. Known limits: `crates/kalsa-browser/README.md`.
 
 ### 5. Phone confirm round-trip (both repos)
 

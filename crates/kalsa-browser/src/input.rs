@@ -191,14 +191,10 @@ const FILL_BODY: &str = r"
 
   const isInput = el instanceof HTMLInputElement;
   const kind = isInput ? String(el.type).toLowerCase() : '';
-  const auto = String(el.getAttribute('autocomplete') || '').toLowerCase();
-  // A one-time code is a password for one use, and it is the one a page is most
-  // likely to talk a model into handing over.
-  const secret = kind === 'password'
-    || auto.includes('current-password')
-    || auto.includes('new-password')
-    || auto.includes('one-time-code');
-  if (secret) return answer('secret');
+  // The same predicate the catcher uses to know what the *person* typed into a
+  // secret field, generated from one Rust list. Two copies is how a field came
+  // to be refused here and tracked by nobody there.
+  if (window.__kalsaPasswords(el)) return answer('secret');
 
   const here = { isInput, kind };
   if (badDestination(el)) return answer('destination', here);
@@ -299,6 +295,10 @@ pub async fn click(page: &Page, id: &str) -> Result<(), Refused> {
 /// between a fill and a page that acts on it, and it stands because Enter can
 /// now follow a field with no form around it — see `presses_enter`.
 pub async fn fill(page: &Page, id: &str, text: &str) -> Result<bool, Refused> {
+    // The refusal below asks the page the same question the catcher asks, so the
+    // predicate is put on this document first — it is normally already there from
+    // the init script, and putting it again costs one call and cannot drift.
+    let _ = page.evaluate::<(), ()>(&crate::secret::classifier_script(), None).await;
     let element = refs::at(page, id);
     let filled: Answer = element.evaluate::<Answer, &str>(&fill_expression(), Some(text)).await.map_err(|_| Refused::Gone)?;
     if let Some(refused) = refused_by(&filled) {

@@ -155,8 +155,22 @@ function isValidMessage(value: unknown): value is ChatMessage {
   );
 }
 
+/** What is kept of a browser note read back off disk.
+ *
+ * **A note is only ever a code and a host, in this app's own sentences** — see
+ * `browser/confirm.ts`. Anything carrying a path, a query or a fragment is
+ * therefore not one of ours, and dropping it here means a stranger's site cannot
+ * get a token out of a URL and onto a disk through an outcome, whatever wrote it
+ * and however old the write was.
+ */
+function cleanNote(value: unknown): string {
+  if (typeof value !== "string" || value === "") return "";
+  return /[/?#]/.test(value) ? "" : value;
+}
+
 function cleanMessage(value: unknown): ChatMessage | null {
   if (!isValidMessage(value)) return null;
+  const browserNote = cleanNote(value.browserNote);
   return {
     id: value.id,
     role: value.role,
@@ -169,6 +183,7 @@ function cleanMessage(value: unknown): ChatMessage | null {
     ...(typeof value.reasoningMs === "number" ? { reasoningMs: value.reasoningMs } : {}),
     ...(typeof value.sentOn === "string" && value.sentOn ? { sentOn: value.sentOn } : {}),
     ...(typeof value.mailNote === "string" && value.mailNote ? { mailNote: value.mailNote } : {}),
+    ...(browserNote ? { browserNote } : {}),
     ...(typeof value.mailId === "string" && value.mailId ? { mailId: value.mailId } : {}),
     ...(typeof value.mailSubject === "string" && value.mailSubject
       ? { mailSubject: value.mailSubject.slice(0, 500) }

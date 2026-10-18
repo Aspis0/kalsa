@@ -44,13 +44,22 @@ fn ending_the_session_leaves_no_driver_and_no_browser_running() {
     sidecar.call(2, "browser_read", "{}");
 
     let profile = format!("kalsa-browser-profile-{}-", sidecar.pid());
-    let running = running(&profile, sidecar.pid());
+    // **Waited for, not sampled once.** The teardown below already polls for
+    // these processes to go; asking instead for them to appear is the same
+    // question asked once. Sampling once was the whole of the flake: the read
+    // answers as soon as the page is read, and the driver and Chrome are a
+    // moment behind it in the process table — on an idle machine never, and
+    // with a dozen browser tests running beside it often enough to matter. A
+    // proof that cannot be the victim of when it is taken is worth more than one
+    // that fails for the machine it ran on.
+    let (running, took) = wait_for_start(&profile, sidecar.pid());
     assert!(
         running.driver.is_some() && !running.browser.is_empty(),
         "nothing was started, so nothing was proved: driver {:?}, browser {:?}",
         running.driver,
         running.browser
     );
+    assert!(took < PATIENCE, "they took {took:?} to appear, which is a start-up claim of its own");
 
     sidecar.kill();
     let waited = wait_for_all(&running);
@@ -108,6 +117,26 @@ fn running(profile: &str, sidecar: u32) -> Running {
         .map(|row| row.pid)
         .collect();
     found
+}
+
+/// The processes a live session is holding, and how long they took to appear.
+///
+/// Polls until the driver and a browser are both in the table, so the finding
+/// is about the sidecar's children and not about when the test happened to
+/// look. Bounded by [`PATIENCE`] for the same reason the teardown is: a start
+/// that never appears is a finding, and a wait that never ends is not.
+fn wait_for_start(profile: &str, sidecar: u32) -> (Running, Duration) {
+    let started = Instant::now();
+    loop {
+        let found = running(profile, sidecar);
+        if found.driver.is_some() && !found.browser.is_empty() {
+            return (found, started.elapsed());
+        }
+        if started.elapsed() >= PATIENCE {
+            return (found, started.elapsed());
+        }
+        std::thread::sleep(LOOK);
+    }
 }
 
 /// How long it took for every one of them to go, given a deadline.

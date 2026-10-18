@@ -53,7 +53,7 @@ const repeated = (calls, n) => {
 
 /** One task, one run. `askOnce` is the whole seam the fake model plugs into:
  *  given the conversation so far, it returns what an engine turn looks like. */
-export async function runTask({ task, browser, askOnce, model, think, step = STEP_CAP, wallMs = WALL_CAP_MS }) {
+export async function runTask({ task, browser, askOnce, model, think, autoConfirm = false, step = STEP_CAP, wallMs = WALL_CAP_MS }) {
   const began = Date.now();
   // The run starts on the task's own page, already open, with that page already
   // in front of the model. Opening it is not a model step, so a model is never
@@ -123,7 +123,17 @@ export async function runTask({ task, browser, askOnce, model, think, step = STE
         endedBy = "finish";
         messages.push(toolMessage(call, "done"));
       } else {
-        const result = await browser.run(call.name, call.args ?? {});
+        let result = await browser.run(call.name, call.args ?? {});
+        // **Auto-confirm, and only under --fake.** A write comes back as
+        // `awaiting confirm <id>` instead of a page: it is held, and a person has
+        // to decide. The harness plays that person only when there is no model in
+        // the loop and the run exists to prove the harness — with a real model,
+        // the card is the product's and nothing answers it, exactly as in the app.
+        const waiting = autoConfirm ? /^awaiting confirm (\S+):/.exec(result) : null;
+        if (waiting !== null) {
+          calls.push({ step: n, name: "browser_confirm", args: { id: waiting[1] } });
+          result = `${result}\n\n${await browser.run("browser_confirm", { id: waiting[1] })}`;
+        }
         shown.push(result);
         messages.push(toolMessage(call, result));
       }

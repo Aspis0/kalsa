@@ -6,6 +6,7 @@
 // because the state lives in any particular file.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { browserOutcomesNote, takeOutcomes } from "../lib/browser/confirm";
 import { createStore, uid } from "../lib/store";
 import { firstCharacters, titleFor } from "../lib/text";
 import { activateChat, eraseChat, fetchContextSize, serverBase } from "../lib/chat";
@@ -886,6 +887,10 @@ export function useChat(shell: ChatShell) {
     // history without re-reading the attachments on every turn.
     const bindable = store.getAttachments(conv.id).filter((a) => a.active && !(a.pinned ?? true));
     const boundBlock = turnDocBlock(bindable);
+    // Drained for **this** conversation only: an outcome belongs to the chat
+    // whose turn caused the request, and a turn in another chat is not where it
+    // gets read.
+    const browserNote = browserOutcomesNote(takeOutcomes(conv.id));
     // Blocked words never reach the model: the decline is the answer instead.
     const decline = contentDecline(text, table.contentFilter);
     const sentAt = new Date();
@@ -902,6 +907,10 @@ export function useChat(shell: ChatShell) {
             ? { docs: bindable.map((a) => a.id), docTokens: estTokens(boundBlock) }
             : {}),
           ...(wireNote === "" ? {} : { mailNote: wireNote }),
+          // What became of a request the person was asked about since they last
+          // spoke, carried here and read by the model alone. Drained once: an
+          // outcome is told once, not every turn afterwards.
+          ...(browserNote === "" ? {} : { browserNote }),
           ...(subject === "" ? {} : { mailSubject: subject }),
           ...(mailId === "" ? {} : { mailId }),
         }),

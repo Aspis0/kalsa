@@ -19,3 +19,35 @@ export const BROWSER = {
   readingFolders: "Lecture des dossiers de cet ordinateur…",
   folder: "dossier",
 };
+
+/**
+ * La carte qu'une personne doit trancher, et la commande Pause.
+ *
+ * **Les deux réponses sont tout le sujet.** Le reste dit à une personne ce qu'un
+ * site inconnu s'apprête à recevoir, donc on parle de la requête et pas du
+ * modèle : le bouton dit ce qu'il fait à la requête.
+ */
+export const CONFIRM = {
+  title: "Kalsa veut envoyer ceci",
+  waiting: "Rien n'a encore été envoyé.",
+  allow: "L'envoyer",
+  decline: "Ne pas l'envoyer",
+  asking: "Envoi…",
+  fields: "Ce qu'il enverrait",
+  none: "Aucun champ : juste la requête.",
+  paused: "En pause",
+  resume: "Reprendre",
+  pauseHint: "Mettre en pause arrête la prochaine action. Ce qui est déjà envoyé ne se rappelle pas.",
+  runningHint: "En pause. Kalsa n'agit pas dans le navigateur.",
+
+  /** What became of the request a person just answered, in their own words:
+   *  the one thing they are told about it after the card goes. */
+  sentTo: (host: string) => `Envoyé à ${host}`,
+  show: "Afficher",
+  hide: "Masquer",
+  notSentNo: "Non envoyé — il n’a pas été autorisé",
+  notSentLate: "Non envoyé — personne n’a répondu à temps",
+  notSentGone: "Non envoyé — la fenêtre du navigateur a été fermée",
+  notSentHidden: "Non envoyé — elle ne pouvait pas vous être montrée",
+  unclear: "Incertain — cela a peut-être été envoyé",
+};

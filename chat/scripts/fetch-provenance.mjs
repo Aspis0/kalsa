@@ -730,7 +730,14 @@ try {
       onToken() {},
       onReasoning() {},
       tools,
-      runTool: (name, args, signal, conversation) => executeToolCall(name, args, signal, null, conversation),
+      // The owner's web switch is **on** in this harness. It has to be said: the
+      // executor defaults it off so that a caller who forgets fails closed, and
+      // without it every browser call here is refused for the switch rather than
+      // for the thing under test, and the proof below passes for the wrong
+      // reason. The switch off is proved in browser-tools.mjs, where it is the
+      // subject.
+      runTool: (name, args, signal, conversation) =>
+        executeToolCall(name, args, signal, null, conversation, "m", undefined, undefined, true),
       onToolRun: (run) => runs.push(run),
     });
     return { requests, runs };

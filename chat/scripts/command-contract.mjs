@@ -45,12 +45,15 @@ const MAIN = `${REPO_DIR}/src-tauri/src/main.rs`;
 // by name so no other non-brain command passes unchecked.
 const NAME = "(?:brain_[a-z0-9_]+|window_hidden)";
 // invoke may carry a type argument before its parenthesis, array types
-// included (invoke<RoomEntry[]>(…)); `through` is the forwarding wrapper
-// named in the header. The type argument admits anything but parentheses,
-// which cannot appear in a type the app writes and would otherwise span
-// past the call.
+// included (invoke<RoomEntry[]>(…)); the forwarding wrappers are named after
+// the header — `through`, and the browser's own `throughBrowser`. They are
+// listed by name rather than matched by shape, because "any function whose
+// first argument is a string" is a rule that passes on a wrapper that quietly
+// drops its argument, which is the failure this check exists to catch. The type
+// argument admits anything but parentheses, which cannot appear in a type the
+// app writes and would otherwise span past the call.
 const COMMAND_CALL = new RegExp(
-  "\\b(?:invoke|through)\\s*(?:<[^()]*>)?\\s*\\(\\s*[\"'`](" + NAME + ")[\"'`]",
+  "\\b(?:invoke|through|throughBrowser|call)\\s*(?:<[^()]*>)?\\s*\\(\\s*[\"'`](" + NAME + ")[\"'`]",
   "g",
 );
 const EVENT_CALL = new RegExp(

@@ -125,7 +125,15 @@ function ToolRow({ run, awaitingOk }: { run: ToolRun; awaitingOk: boolean }) {
               ? t.browserOpened
               : run.name === "browser_find"
                 ? t.browserFound
-                : t.browserRead}
+                // What Kalsa did, in the past tense, and never what it was for:
+                // a click that sent something is drawn here while a person is
+                // being asked about it on the card above, and the two together
+                // must not read as if the request had already gone.
+                : run.name === "browser_click"
+                  ? t.browserClicking
+                  : run.name === "browser_type"
+                    ? t.browserTyped
+                    : t.browserRead}
         </span>
       </p>
     );

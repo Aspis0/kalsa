@@ -19,3 +19,35 @@ export const BROWSER = {
   readingFolders: "Leyendo las carpetas de este equipo…",
   folder: "carpeta",
 };
+
+/**
+ * La tarjeta que una persona debe decidir, y el control Pausa.
+ *
+ * **Las dos respuestas son todo.** Lo demás cuenta a una persona qué está a
+ * punto de recibir el sitio de un desconocido, así que se habla de la petición
+ * y no del modelo: el botón dice qué le hace a la petición.
+ */
+export const CONFIRM = {
+  title: "Kalsa quiere enviar esto",
+  waiting: "Todavía no se ha enviado nada.",
+  allow: "Enviarlo",
+  decline: "No enviarlo",
+  asking: "Enviando…",
+  fields: "Qué enviaría",
+  none: "Sin campos: solo la petición.",
+  paused: "En pausa",
+  resume: "Reanudar",
+  pauseHint: "Pausar detiene la próxima acción. Lo ya enviado no se puede retirar.",
+  runningHint: "En pausa. Kalsa no está actuando en el navegador.",
+
+  /** What became of the request a person just answered, in their own words:
+   *  the one thing they are told about it after the card goes. */
+  sentTo: (host: string) => `Enviado a ${host}`,
+  show: "Mostrar",
+  hide: "Ocultar",
+  notSentNo: "No enviado — no se autorizó",
+  notSentLate: "No enviado — nadie respondió a tiempo",
+  notSentGone: "No enviado — se cerró la ventana del navegador",
+  notSentHidden: "No enviado — no se podía mostrarte",
+  unclear: "No está claro — puede que se haya enviado",
+};

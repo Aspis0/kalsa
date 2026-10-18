@@ -19,3 +19,34 @@ export const BROWSER = {
   readingFolders: "正在读取这台电脑的文件夹…",
   folder: "文件夹",
 };
+
+/**
+ * 需要人来决定的那张卡片，以及“暂停”按钮。
+ *
+ * **两个回答就是全部。** 其余文字是在告诉别人一个陌生网站即将收到什么，因此讲的是
+ * 请求本身，而不是模型：按钮说明的是它对这个请求做了什么。
+ */
+export const CONFIRM = {
+  title: "Kalsa 想发送这个请求",
+  waiting: "还没有发送任何内容。",
+  allow: "发送",
+  decline: "不发送",
+  asking: "发送中…",
+  fields: "它会发送的内容",
+  none: "没有字段：只有这个请求。",
+  paused: "已暂停",
+  resume: "继续",
+  pauseHint: "暂停会停下下一步动作。已经发送出去的内容无法收回。",
+  runningHint: "已暂停。Kalsa 没有在浏览器里做任何事。",
+
+  /** What became of the request a person just answered, in their own words:
+   *  the one thing they are told about it after the card goes. */
+  sentTo: (host: string) => `已发送到 ${host}`,
+  show: "显示",
+  hide: "隐藏",
+  notSentNo: "未发送 —— 未获允许",
+  notSentLate: "未发送 —— 没有人及时回应",
+  notSentGone: "未发送 —— 浏览器窗口已关闭",
+  notSentHidden: "未发送 —— 无法向你展示",
+  unclear: "不清楚 —— 可能已经发送",
+};

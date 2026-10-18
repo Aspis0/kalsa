@@ -8,20 +8,23 @@
 //! `tool_pins.json`, so both depend on this crate rather than carrying a
 //! second copy. The rest is inside the server.
 
+mod body;
 pub mod env;
 pub mod find_browser;
 pub mod guard;
+pub mod hold;
 pub mod input;
 pub mod launch;
 pub mod landing;
 pub mod mcp;
 pub mod session;
 pub mod snapshot;
+pub mod submit;
 pub mod tools;
 
 mod context;
 mod driver_env;
-mod hold;
 mod refs;
+pub mod secret;
 mod tree;
 mod view;

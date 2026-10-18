@@ -110,6 +110,15 @@ export interface ChatMessage {
       never rendered and never shown as the person's: an internal id means
       nothing to a reader, so only the model is told it. */
   mailNote?: string;
+  /** What became of a request the person was asked about, riding before this
+   *  turn's words and read by the model alone. **It is here because a turn must
+   *  not wait for a person**: they are slower than any tool deadline, so a turn
+   *  that blocked on the card would hang the chat for minutes and Stop would
+   *  have to interrupt it. The sentence rides the next thing the person says
+   *  instead — a moment the model is certainly reading something — and is the
+   *  sidecar's own words, never a payload. Drained once it is carried, so it is
+   *  not told again on a later turn. */
+  browserNote?: string;
   /** Documents bound to this user turn, by attachment id: their text rides
       the wire as a block before this message's words, and drops with the
       turn when the fit sheds it. */

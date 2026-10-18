@@ -76,7 +76,14 @@ pub(crate) fn on_window_event(window: &Window<Wry>, event: &WindowEvent) {
     // A browser that outlives its window is a window nobody can see and nothing
     // can stop. The app quitting closes the window, so this covers both.
     if matches!(event, WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed) {
-        window.app_handle().state::<crate::browser::state::BrowserState>().inner().end();
+        // **The same close the button does, cards and all.** A window that closes
+        // with a card on it takes the card with it, and every request it was
+        // holding is declined and said — otherwise the person closes the window
+        // and the model is never told those requests are not going to be sent.
+        let app = window.app_handle().clone();
+        let state = app.state::<crate::browser::state::BrowserState>();
+        crate::browser::confirm::declined_by_the_window_going(&app, &state);
+        state.inner().end();
         return;
     }
     if !matches!(

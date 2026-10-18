@@ -48,7 +48,7 @@ async fn a_driver_killed_outright_is_one_clean_line_and_the_session_recovers() {
             &page,
         )
         .await;
-    let (fresh, _landings) = sessions.page().await.expect("the session comes back with a new driver");
+    let (fresh, _landings, _holds) = sessions.page().await.expect("the session comes back with a new driver");
     let origin = base.clone();
     fresh
         .route("**/*", move |route| {

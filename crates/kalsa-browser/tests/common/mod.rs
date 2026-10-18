@@ -33,6 +33,12 @@ pub fn page(body: &str) -> File {
     file("/", "text/html; charset=utf-8", body)
 }
 
+/// A page at a path of its own, for a proof that a navigation lands **there**
+/// rather than merely leaving.
+pub fn page_at(path: &'static str, body: &str) -> File {
+    file(path, "text/html; charset=utf-8", body)
+}
+
 pub fn script(body: &str) -> File {
     file("/worker.js", "text/javascript; charset=utf-8", body)
 }
@@ -79,13 +85,38 @@ impl File {
 #[derive(Clone, Default)]
 pub struct Arrived {
     lines: Arc<Mutex<Vec<String>>>,
+    bodies: Arc<Mutex<Vec<String>>>,
     handshakes: Arc<Mutex<usize>>,
+}
+
+/// One request as the server saw it: the request line, and what came with it.
+///
+/// **The body is recorded because a request line is not a request.** "POST
+/// /login arrived" and "POST /login arrived with this person's actual password"
+/// are different claims, and the whole invariant under test is about the second
+/// one.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Received {
+    pub line: String,
+    pub body: String,
 }
 
 impl Arrived {
     /// The first line of every request, which is the method and the path.
     pub fn requests(&self) -> Vec<String> {
         self.lines.lock().expect("not poisoned").clone()
+    }
+
+    /// Every request with its body, in the order it arrived.
+    pub fn received(&self) -> Vec<Received> {
+        let lines = self.lines.lock().expect("not poisoned").clone();
+        let bodies = self.bodies.lock().expect("not poisoned").clone();
+        lines.into_iter().zip(bodies).map(|(line, body)| Received { line, body }).collect()
+    }
+
+    /// What the server received at one path, body and all.
+    pub fn body_of(&self, path: &str) -> Option<String> {
+        self.received().into_iter().find(|one| one.line.split_whitespace().nth(1) == Some(path)).map(|one| one.body)
     }
 
     /// Whether a request line names this path. The line is `METHOD PATH VERSION`,
@@ -125,15 +156,38 @@ pub async fn serve(files: &[File]) -> (String, Arrived) {
             tokio::spawn(async move {
                 let mut head = Vec::new();
                 let mut chunk = [0_u8; 1024];
+                // **Read the body, not just the headers.** A POST arrives in two
+                // pieces and stopping at the blank line threw the second away, so
+                // every record here was a request line and nothing about what was
+                // sent. That was invisible while the proofs only asked "did a
+                // request arrive"; the moment one asks what it carried, the
+                // fixture has to be the one that answers.
+                let mut header_end = 0_usize;
+                let mut wanted = 0_usize;
                 loop {
-                    match socket.read(&mut chunk).await {
-                        Ok(0) | Err(_) => return,
-                        Ok(read) => {
-                            head.extend_from_slice(&chunk[..read]);
-                            if head.windows(4).any(|w| w == b"\r\n\r\n") || head.len() > 16 * 1024 {
-                                break;
-                            }
+                    if header_end == 0 {
+                        if let Some(at) = head.windows(4).position(|w| w == b"\r\n\r\n") {
+                            header_end = at + 4;
+                            let ask = String::from_utf8_lossy(&head[..header_end]).into_owned();
+                            wanted = ask
+                                .split("\r\n")
+                                .find_map(|line| {
+                                    let (name, value) = line.split_once(':')?;
+                                    let count = value.trim().parse::<usize>().ok()?;
+                                    name.trim().eq_ignore_ascii_case("content-length").then_some(count)
+                                })
+                                .unwrap_or(0);
                         }
+                    }
+                    if header_end > 0 && head.len() >= header_end + wanted {
+                        break;
+                    }
+                    match socket.read(&mut chunk).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(read) => head.extend_from_slice(&chunk[..read]),
+                    }
+                    if head.len() > 64 * 1024 {
+                        break;
                     }
                 }
                 let ask = String::from_utf8_lossy(&head).into_owned();
@@ -141,6 +195,12 @@ pub async fn serve(files: &[File]) -> (String, Arrived) {
                     *seen.handshakes.lock().expect("not poisoned") += 1;
                 }
                 seen.lines.lock().expect("not poisoned").push(ask.lines().next().unwrap_or_default().to_string());
+                let body = if header_end > 0 && head.len() >= header_end + wanted {
+                    String::from_utf8_lossy(&head[header_end..header_end + wanted]).into_owned()
+                } else {
+                    String::new()
+                };
+                seen.bodies.lock().expect("not poisoned").push(body);
                 let path = ask.split_whitespace().nth(1).unwrap_or("/").to_string();
                 let hit = owned.iter().find(|one| one.0 == path).cloned();
                 let response = match hit {
@@ -154,6 +214,12 @@ pub async fn serve(files: &[File]) -> (String, Arrived) {
                 };
                 let _ = socket.write_all(response.as_bytes()).await;
                 let _ = socket.flush().await;
+                // The socket is closed when this task ends, and a browser reads a
+                // connection closing mid-response as a truncated one: it commits
+                // `chrome-error://chromewebdata/` for the navigation and the test
+                // would be blaming the sidecar for the fixture's manners. Saying
+                // `Connection: close` makes the close the thing we meant.
+                let _ = socket.shutdown().await;
             });
         }
     });
@@ -179,7 +245,7 @@ pub async fn sessions_watching(
     base: &str,
 ) -> (kalsa_browser::session::Sessions, Page, kalsa_browser::landing::Landings) {
     let sessions = kalsa_browser::session::Sessions::new(profile(name));
-    let (page, landings) = sessions.page().await.expect("the installed browser starts");
+    let (page, landings, _holds) = sessions.page().await.expect("the installed browser starts");
     let base = base.to_string();
     page.route("**/*", move |route| {
         let base = base.clone();
@@ -194,6 +260,70 @@ pub async fn sessions_watching(
     .await
     .expect("the test route is installed");
     (sessions, page, landings)
+}
+
+/// A window for the proofs about a write: the fixture is served, and a write to
+/// it is held by **the product's own hold**.
+///
+/// The fixture is on this computer's own network, which the guard refuses by
+/// address before it ever reaches a hold, so this route stands in for the
+/// address decision and for nothing else — the same bargain
+/// `browser_allowing` makes. Everything about what a held request *is* is the
+/// product's: the submission catcher is installed by `launch::start` itself, and
+/// the route below holds a write the page made by itself exactly as the guard
+/// does, including the one-shot ticket for the write the person just answered.
+/// **The one address decision a test stands in for.** The fixture is on this
+/// computer's own network, which the guard refuses before a write is ever held,
+/// so the rules themselves are exercised everywhere else and this is the only
+/// thing a test replaces — the same bargain `browser_allowing` makes for the
+/// route.
+pub fn the_fixture(
+    _url: &str,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = kalsa_browser::guard::Verdict> + Send + '_>> {
+    Box::pin(async { kalsa_browser::guard::Verdict::Allow })
+}
+
+/// The chat every test drives its window from, and answers in. **A window is
+/// bound to one conversation**, and a card raised by another is not this one's
+/// to press, so a test that answered in another would be testing nothing.
+pub const CHAT: &str = "chat-a";
+
+pub async fn confirming_window(name: &str, base: &str) -> (kalsa_browser::session::Sessions, Page, kalsa_browser::hold::Holds) {
+    let sessions = kalsa_browser::session::Sessions::new(profile(name));
+    let (page, _landings, holds) = sessions.page().await.expect("the installed browser starts");
+    // A window is bound to the chat driving it, and every card it raises carries
+    // that: these tests answer in the same conversation they drove from.
+    holds.navigated_by(CHAT).await;
+    let here = base.to_string();
+    let holding = holds.clone();
+    let served = here.clone();
+    page.route("**/*", move |route| {
+        let (base, holding) = (served.clone(), holding.clone());
+        async move {
+            if !route.request().url().starts_with(&base) {
+                return route.fallback(None).await;
+            }
+            let request = route.request();
+            // **The product's own decisions, all of them except the address one.**
+            // A stand-in that reads is-read-and-therefore-fine would pass a proof
+            // the product fails: a GET carrying a secret is held, and a paused
+            // window holds nothing at all.
+            if holding.takes_pass(&request).await || holding.paused() {
+                return route.continue_(None).await;
+            }
+            let typed = holding.typed().await.values();
+            if kalsa_browser::hold::is_read(request.method())
+                && !kalsa_browser::secret::carries(request.url(), &typed)
+            {
+                return route.continue_(None).await;
+            }
+            kalsa_browser::hold::hold_write(&holding, &request, route).await
+        }
+    })
+    .await
+    .expect("the test route is installed");
+    page.goto(&here, None).await.expect("the fixture loads");
+    (sessions, page, holds)
 }
 
 /// A profile directory of our own, thrown away at the end of the test.
@@ -234,13 +364,14 @@ pub async fn browser_on(name: &str, base: &str) -> (Playwright, BrowserContext, 
 /// late to stop anything. The tests that prove the guard's own route is wired in
 /// are the ones with no test route on top of it at all.
 pub async fn browser_allowing(name: &str, base: &str, allowed: &str) -> (Playwright, BrowserContext, Page) {
-    let (playwright, context, page, _landings) =
-        launch::start(&profile(name)).await.expect("the installed browser starts");
+    let (playwright, context, page, _landings, holds) =
+        launch::start(&profile(name), std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false))).await
+            .expect("the installed browser starts");
     let base = base.to_string();
     let allowed = allowed.to_string();
     context
         .route("**/*", move |route| {
-            let (base, allowed) = (base.clone(), allowed.clone());
+            let (base, allowed, holds) = (base.clone(), allowed.clone(), holds.clone());
             async move {
                 let request = route.request();
                 let url = request.url();
@@ -250,11 +381,21 @@ pub async fn browser_allowing(name: &str, base: &str, allowed: &str) -> (Playwri
                 } else {
                     matches!(guard::decide(url).await, guard::Verdict::Allow)
                 };
-                if permitted {
-                    route.continue_(None).await
-                } else {
-                    route.abort(Some("blockedbyclient")).await
+                if !permitted {
+                    return route.abort(Some("blockedbyclient")).await;
                 }
+                // A write to the fixture is held by **the product's own hold**,
+                // not by a second copy of it: the test route stands in for the
+                // address decision, which is the only thing it may stand in for.
+                // The fixture is on this computer's own network, so the guard's
+                // own route would refuse it before ever reaching a hold.
+                if opened_by_the_test && !kalsa_browser::hold::is_read(request.method()) {
+                    let holding = holds.clone();
+                    if !holding.takes_pass(&request).await {
+                        return kalsa_browser::hold::hold_write(&holding, &request, route).await;
+                    }
+                }
+                route.continue_(None).await
             }
         })
         .await

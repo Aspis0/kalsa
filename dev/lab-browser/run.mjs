@@ -88,6 +88,18 @@ async function main() {
   const runs = Number(argValue("runs") ?? 1);
   const tasks = tasksFor(argValue("tasks"));
   if (!Number.isInteger(runs) || runs < 1) throw new Error("--runs must be a whole number of at least 1");
+  // **Task 4 needs a backend that holds a submission the way the product does.**
+  // The rust backend is the product's own hold and answers a confirm for real;
+  // the node backend is a reading stand-in and its confirm path is not
+  // equivalent, so it is refused here — by name, and before anything starts —
+  // rather than left to stall on a button.
+  if (backend === "node" && tasks.some((task) => task.id === 4)) {
+    throw new Error(
+      "task 4 (a form that sends) runs through a confirm, and --backend node does not implement \
+one: use --backend rs, which is the product's own hold.",
+    );
+  }
+
   if (fake) {
     const missing = tasks.map((t) => t.id).filter((id) => !fakeTasks().includes(id));
     if (missing.length > 0) {
@@ -117,7 +129,17 @@ async function main() {
         const askOnce = fake
           ? fakeModel(withTask, { prose })
           : ({ messages }) => ask({ endpoint, model, messages, tools: TOOLS, think });
-        record = await runTask({ task: withTask, browser, askOnce, model: fake ? fakeName : model, think });
+        // Only the fake run plays the person. A model run has no card and no
+        // answer, which is the product as it ships: a held request waits for
+        // somebody who is not in a lab loop.
+        record = await runTask({
+          task: withTask,
+          browser,
+          askOnce,
+          model: fake ? fakeName : model,
+          think,
+          autoConfirm: fake,
+        });
       } catch (error) {
         record = {
           task: task.id, name: task.name, steps: 0, seconds: 0, ok: false,

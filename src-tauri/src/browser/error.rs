@@ -29,6 +29,15 @@ pub(crate) enum BrowserError {
     /// The sidecar answered that it will not do it. Its own words are for the
     /// model; what the page gets is one plain line saying so.
     Refused,
+    /// Nobody pressed this twice: the id was already answered, it had expired,
+    /// or there was never a card. A person pressing "send" on a request that is
+    /// not waiting is owed a sentence, not an error to guess at.
+    NoCard,
+    /// The person pressed Stop while this was running. The call came back at
+    /// once, the sidecar went with it, and **nothing that call was doing is
+    /// retried**: a browser half-way through somebody's page is not something to
+    /// pick up again on their behalf.
+    Stopped,
 }
 
 impl BrowserError {
@@ -44,6 +53,8 @@ impl BrowserError {
             Self::Storage => "browser.storage",
             Self::Failed => "browser.failed",
             Self::Refused => "browser.refused",
+            Self::NoCard => "browser.no_pending_request",
+            Self::Stopped => "browser.stopped",
         }
     }
 }
@@ -77,6 +88,8 @@ fn fallback(error: BrowserError) -> &'static str {
         BrowserError::Unpack => "The browser driver Kalsa downloaded could not be unpacked, so it was not installed.",
         BrowserError::Storage => "Kalsa could not write to its data folder.",
         BrowserError::Refused => "the browser would not open that.",
+        BrowserError::NoCard => "that request is not waiting for an answer any more.",
+        BrowserError::Stopped => "Kalsa stopped that. Nothing it was doing was carried on.",
         BrowserError::Failed => "Something went wrong with Kalsa's browser. Try again.",
     }
 }
@@ -98,6 +111,7 @@ mod tests {
             BrowserError::Storage,
             BrowserError::Failed,
             BrowserError::Refused,
+            BrowserError::NoCard,
         ];
         let mut codes: Vec<&str> = all.iter().map(|error| error.code()).collect();
         codes.sort_unstable();

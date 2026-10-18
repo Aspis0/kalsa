@@ -22,6 +22,7 @@
 
 use std::path::Path;
 use std::sync::Mutex;
+use tokio::sync::watch;
 
 use kalsa_mcp::host::Host;
 use kalsa_mcp::launch::SealedStdioLauncher;
@@ -149,11 +150,20 @@ impl<H> Slot<H> {
 
 pub(crate) struct Browser {
     slot: Mutex<Slot<Host<SealedStdioLauncher>>>,
+    /// **The kill handle for the call that is running.** A generation counter,
+    /// raised by `end` and watched by every call in flight: a Stop on a window
+    /// with a slow page in it comes back at once, and the lease that call is
+    /// holding is dropped on the way out — which is what kills the sidecar child,
+    /// because the launcher kills on drop.
+    ///
+    /// A counter rather than a flag, because the slot comes back into use: a Stop
+    /// that ended the window must not cancel the next browser the person opens.
+    stop: watch::Sender<u64>,
 }
 
 impl Default for Browser {
     fn default() -> Self {
-        Self { slot: Mutex::new(Slot::idle()) }
+        Self { slot: Mutex::new(Slot::idle()), stop: watch::Sender::new(0) }
     }
 }
 
@@ -166,14 +176,32 @@ impl Browser {
         tool: &str,
         args: Map<String, Value>,
     ) -> Result<String, BrowserError> {
+        // **The generation is read before the lease is taken.** Taking the lease
+        // first leaves a window in which a Stop lands and this call has already
+        // decided it is not the one being stopped — it reads a generation that
+        // includes the Stop and carries on to wait for a later one that will
+        // never come. Subscribing first means a Stop between here and the lease
+        // is simply a generation this call has already seen.
+        let mut stopped = self.stop.subscribe();
+        let seen = *stopped.borrow_and_update();
         let mut lease = self.locked().take(|| start(app_data))?;
-        let outcome = lease.host.call(CONVERSATION, tool, args).await;
+        let ran = tokio::select! {
+            biased;
+            _ = wait_for_stop(&mut stopped, seen) => None,
+            outcome = lease.host.call(CONVERSATION, tool, args) => Some(outcome),
+        };
         // Put it back whatever came out, so one refused page does not cost the
         // person their whole session — unless the session was ended meanwhile,
-        // in which case it is dropped and the child dies with it.
+        // in which case it is dropped and the child dies with it. The Stop path
+        // is exactly that case: the lease goes, the child with it, and the next
+        // call opens a fresh browser.
         if !self.locked().give_back(lease) {
             log::info!("browser sidecar: dropped, the session was ended during the call");
         }
+        let Some(outcome) = ran else {
+            log::info!("browser sidecar: the call was cut short by a Stop");
+            return Err(BrowserError::Stopped);
+        };
         match outcome.map_err(|error| {
             log::warn!("browser sidecar: {error:?}");
             BrowserError::Failed
@@ -193,6 +221,11 @@ impl Browser {
     /// whichever gets there first ends the same browser, and a second call is
     /// not an error.
     pub(crate) fn end(&self) {
+        // **Raise the kill handle first, and without waiting for the slot.** A
+        // call in flight holds its lease and cannot be reached from here, so
+        // this is the only thing that can interrupt it; the slot is taken after,
+        // and a call that was already on its way out finds the slot not there.
+        self.stop.send_modify(|generation| *generation += 1);
         drop(self.locked().end());
     }
 
@@ -202,9 +235,38 @@ impl Browser {
         self.locked().is_open()
     }
 
+    /// **Interrupts the call in flight without ending the session.**
+    ///
+    /// A Pausa pressed while a call is running means "stop what Kalsa is doing",
+    /// and the call is what it is doing. Raising the same handle a Stop raises
+    /// cuts that call short and gives the slot back; the session stays open, the
+    /// person has the window, and the pause that follows has a free slot to be
+    /// applied in. Refusing it as "busy" instead would leave the control doing
+    /// nothing, which is the one thing a pause must never be.
+    pub(crate) fn interrupt(&self) {
+        self.stop.send_modify(|generation| *generation += 1);
+    }
+
     /// The slot, for the length of one move and no longer.
     fn locked(&self) -> std::sync::MutexGuard<'_, Slot<Host<SealedStdioLauncher>>> {
         self.slot.lock().expect("the session slot is not poisoned")
+    }
+}
+
+/// Whether the Stop that raised the generation is this call's to answer.
+///
+/// The notification is created before the generation is read, so a Stop landing
+/// between the two wakes this rather than being waited for by a call that has
+/// already started.
+async fn wait_for_stop(stopped: &mut watch::Receiver<u64>, seen: u64) {
+    loop {
+        if *stopped.borrow_and_update() != seen {
+            return;
+        }
+        // A sender gone with the browser is itself an ending.
+        if stopped.changed().await.is_err() {
+            return;
+        }
     }
 }
 
@@ -226,7 +288,9 @@ fn start(app_data: &Path) -> Result<Host<SealedStdioLauncher>, BrowserError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BrowserError, Slot, State};
+    use super::{wait_for_stop, BrowserError, Slot, State};
+    use std::time::{Duration, Instant};
+    use tokio::sync::watch;
 
     fn open() -> Slot<String> {
         Slot { state: State::Open, taken: 0, host: Some("session".to_owned()) }
@@ -349,5 +413,75 @@ mod tests {
             let slot = Slot::<()> { state: one, taken: 0, host: None };
             assert!(slot.is_open(), "{one:?} is a browser");
         }
+    }
+
+    /// **A Stop cuts a call short, and the call that was running is the one that
+    /// hears it.** This is the whole of the kill handle: the generation is read
+    /// when the lease is taken, so a Stop landing after that is seen, and one
+    /// landing before it belongs to a call that had not started — which is the
+    /// call the lease refusal already covers.
+    #[tokio::test]
+    async fn a_stop_ends_the_wait_for_a_call_that_is_running() {
+        let (stop, mut stopped) = watch::channel(0_u64);
+        let seen = *stopped.borrow_and_update();
+        stop.send_modify(|generation| *generation += 1);
+
+        let began = Instant::now();
+        tokio::time::timeout(Duration::from_secs(2), wait_for_stop(&mut stopped, seen))
+            .await
+            .expect("the call is not left waiting on a Stop that has already happened");
+        assert!(began.elapsed() < Duration::from_millis(500), "and it is not left waiting at all: {:?}", began.elapsed());
+    }
+
+    /// **A Pausa pressed while a call is running is not a refusal.** It raises the
+    /// same handle a Stop raises, so the call in flight comes back at once and the
+    /// slot is free for the pause to be applied in — the session itself is
+    /// untouched, because the person wants the window and not the end of it.
+    #[tokio::test]
+    async fn a_pause_interrupts_a_running_call_and_leaves_the_session_open() {
+        let (stop, mut stopped) = watch::channel(0_u64);
+        let seen = *stopped.borrow_and_update();
+        // What `brain_browser_pause` does: interrupt, then take the slot.
+        stop.send_modify(|generation| *generation += 1);
+        tokio::time::timeout(Duration::from_secs(2), wait_for_stop(&mut stopped, seen))
+            .await
+            .expect("the call is cut short");
+        assert!(Slot::<String>::idle().take(|| Ok("session".to_owned())).is_ok(), "and the next thing can have the browser");
+    }
+
+    /// **A Stop that has not happened leaves the call alone**, and a Stop that
+    /// comes later is the one that ends it: a generation from before this call
+    /// is not this call's to answer.
+    #[tokio::test]
+    async fn a_stop_before_the_call_does_not_end_it_and_a_later_one_does() {
+        let (stop, mut stopped) = watch::channel(1_u64);
+        let seen = *stopped.borrow_and_update();
+
+        let mut waiting = Box::pin(wait_for_stop(&mut stopped, seen));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(150), &mut waiting).await.is_err(),
+            "nothing has been stopped, so the call carries on"
+        );
+        stop.send_modify(|generation| *generation += 1);
+        tokio::time::timeout(Duration::from_secs(2), waiting).await.expect("and the Stop that came later ends it");
+    }
+
+    /// **The counter, not a flag.** The slot comes back into use after an end, so
+    /// a Stop that ended one window must not cancel the next browser's call —
+    /// which is what a single boolean would do.
+    #[tokio::test]
+    async fn a_stop_from_the_window_before_does_not_cancel_the_next_one() {
+        let (stop, mut stopped) = watch::channel(0_u64);
+        stop.send_modify(|generation| *generation += 1);
+
+        // The next call reads the generation **after** the Stop, so it is not
+        // waiting on one it never saw.
+        let mut stopped = stopped;
+        let seen = *stopped.borrow_and_update();
+        assert_eq!(seen, 1, "the new call reads where the counter is now");
+        assert!(
+            tokio::time::timeout(Duration::from_millis(150), wait_for_stop(&mut stopped, seen)).await.is_err(),
+            "and nothing ends it"
+        );
     }
 }

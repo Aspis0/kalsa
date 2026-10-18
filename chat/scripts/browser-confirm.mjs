@@ -1,0 +1,472 @@
+// The step-4 confirms, end to end against the registry and the store the app
+// uses: what is offered, what a write does while nobody has answered it, what a
+// card shows, and what the model is told.
+//
+// The proofs are the plan's step-4 list. The two writing tools are offered on a
+// desktop and on no phone, and a paused browser acts no further. A click that
+// sends something comes back as `awaiting confirm <id>` — an answer, not a wait,
+// because a person is slower than any tool deadline. What the window draws is the
+// sidecar's own card, with a secret already masked, and it carries nothing else.
+// The model is told an outcome on the next thing the person says, and never by a
+// turn that waits for a button.
+//
+// **An outcome is a code and a host, and the words about it are written here.**
+// The sidecar's own sentence used to be carried through verbatim, and that is how
+// a stranger's path — and whatever their site wrote in the query — got onto a
+// disk. Every check below about what the model is told is a check that no address
+// survives, and the store is asked to drop a note that carries one.
+//
+// Pure: no server, no browser, no network.
+//
+// Run: node scripts/browser-confirm.mjs   (from chat/)
+
+import { rm } from "node:fs/promises";
+import { loadApp } from "./lib/app-bundle.mjs";
+
+const { dir, app } = await loadApp();
+const {
+  createStore,
+  executeToolCall,
+  offeredTools,
+  phoneTools,
+  noteBrowserStatus,
+  browserAnswerNow,
+  browserOutcomesNote,
+  browserPressPause,
+  browserDots,
+  currentBrowserCards,
+  isBrowserPaused,
+  noteBrowserCards,
+  noteBrowserAnswered,
+  setBrowserPaused,
+  takeBrowserOutcomes,
+} = app;
+
+let fail = 0;
+function check(label, ok, detail) {
+  if (!ok) fail++;
+  console.log(`${ok ? "ok  " : "FAIL"} ${label}${ok || detail === undefined ? "" : `\n     ${detail}`}`);
+}
+function equal(label, actual, expected) {
+  check(label, JSON.stringify(actual) === JSON.stringify(expected), `got ${JSON.stringify(actual)}\n     want ${JSON.stringify(expected)}`);
+}
+
+const OFFERED = ["browser_open", "browser_read", "browser_find", "browser_click", "browser_type"];
+
+/** The chat the browser is driving, and another one it is not. */
+const CHAT = "chat-a";
+const OTHER = "chat-b";
+
+/** What each command was asked for, so a proof can say nothing left. */
+const CLICKS = [];
+const TYPES = [];
+const ANSWERS = [];
+
+/** What the sidecar said a click sent, so the card the window draws is its own. */
+let awaiting = "awaiting confirm c1";
+/** The pause and resume calls the window's control makes. */
+const PAUSES = [];
+/** Every browser command that actually reached the app, in order, so a proof
+ * can say what did not leave this file while Pausa was on. */
+const REACHED = [];
+/** What the sidecar says when an id is answered: a code and a host. */
+let outcome = JSON.stringify({ code: "sent", host: "shop.example" });
+/** A press that never reaches Rust: the card is spent and nothing came back. */
+let answeringFails = false;
+
+const CARD = {
+  id: "c1",
+  method: "POST",
+  url: "https://shop.example/order",
+  conversation: CHAT,
+  fields: [
+    { name: "city", value: "Bologna", secret: false },
+    { name: "passphrase_2", value: "the-real-password", secret: true },
+  ],
+};
+
+class MemoryStorage {
+  #map = new Map();
+  get length() {
+    return this.#map.size;
+  }
+  getItem(key) {
+    return this.#map.has(key) ? this.#map.get(key) : null;
+  }
+  setItem(key, value) {
+    this.#map.set(key, String(value));
+  }
+  removeItem(key) {
+    this.#map.delete(key);
+  }
+}
+globalThis.localStorage = new MemoryStorage();
+
+globalThis.window = {
+  setTimeout,
+  clearTimeout,
+  addEventListener: () => {},
+  __TAURI__: {
+    core: {
+      invoke: async (command, args) => {
+        if (command.startsWith("brain_browser_")) {
+          if (!command.endsWith("_pause") && !command.endsWith("_resume")) REACHED.push(command);
+        }
+        if (command === "brain_browser_click") {
+          CLICKS.push([args.ref, args.conversation]);
+          return awaiting;
+        }
+        if (command === "brain_browser_type") {
+          TYPES.push([args.ref, args.text, args.conversation]);
+          return awaiting;
+        }
+        if (command === "brain_browser_pause" || command === "brain_browser_resume") {
+          PAUSES.push(command.endsWith("pause") ? "pause" : "resume");
+          return null;
+        }
+        if (command === "brain_browser_confirm" || command === "brain_browser_decline") {
+          ANSWERS.push([command.endsWith("confirm") ? "allow" : "decline", args.id, args.conversation]);
+          if (answeringFails) throw new Error("the sidecar went away");
+          return outcome;
+        }
+        return null;
+      },
+    },
+    event: { listen: async () => () => {} },
+  },
+};
+
+/** One call through the real registry, with the owner's web switch on: these
+ * proofs are about what a write does, and the switch off is proved in
+ * browser-tools.mjs. */
+async function attempt(name, args, conversation = CHAT) {
+  return executeToolCall(name, args, undefined, null, [], "any-model", undefined, undefined, true, conversation);
+}
+
+try {
+  // --- what is offered --------------------------------------------------------
+  {
+    noteBrowserStatus({ supported: true, installed: true, size: 42 });
+    const names = offeredTools(true, "en", "any-model").map((tool) => tool.function.name);
+    equal("a driver offers the three reads and the two writes", names.filter((name) => OFFERED.includes(name)), OFFERED);
+
+    const phone = phoneTools(true, "en", "any-model", true).map((tool) => tool.function.name);
+    check(
+      "a phone turn is offered no browser tool at all, so a phone can never send a write",
+      !phone.some((name) => OFFERED.includes(name)),
+      phone.join(","),
+    );
+  }
+
+  // --- a write is an answer, not a wait --------------------------------------
+  {
+    const began = Date.now();
+    const clicked = await attempt("browser_click", { ref: "e5" });
+    check("a click that sends something answers with the id and not the page", clicked.ok === true && clicked.text.includes("c1"), clicked.text);
+    check("and it answers at once rather than waiting for the person", Date.now() - began < 2000, `${Date.now() - began}ms`);
+    equal("the click went through with the ref it was given, and the chat driving it", CLICKS[0], ["e5", CHAT]);
+
+    // A space is something a person typed, and a form that submits on a space is
+    // a real thing: the text is not trimmed on the way out.
+    await attempt("browser_type", { ref: "e4", text: "  Bologna " });
+    equal("a typed space is not a typed space", TYPES[0], ["e4", "  Bologna ", CHAT]);
+  }
+
+  // --- and a missing argument is a sentence, not a broken call ---------------
+  {
+    const noRef = await attempt("browser_click", {});
+    check("a click with no element says so", noRef.ok === false && /no element/i.test(noRef.text), noRef.text);
+    const noText = await attempt("browser_type", { ref: "e4" });
+    check("a type with no words says so", noText.ok === false && /no words/i.test(noText.text), noText.text);
+  }
+
+  // --- Pausa stops the next action, and only the next ------------------------
+  {
+    const before = CLICKS.length;
+    const paused = await isBrowserPaused();
+    equal("the browser is running to begin with", paused, false);
+
+    setBrowserPaused(true);
+    const stopped = await attempt("browser_click", { ref: "e5" });
+    check(
+      "a paused browser acts no further, and says what it did not do",
+      stopped.ok === false && /paused/i.test(stopped.text) && /nothing was sent/i.test(stopped.text),
+      stopped.text,
+    );
+    equal("and nothing was sent", CLICKS.length, before);
+
+    // A card is still answerable while paused: pausing is not declining.
+    check("a card stays on the window while paused", currentBrowserCards().length === 0, "nothing has been held here");
+    setBrowserPaused(false);
+    const again = await attempt("browser_click", { ref: "e5" });
+    check("and a resumed browser acts again", again.ok === true, again.text);
+  }
+
+  // --- the card, and the answer ------------------------------------------------
+  {
+    noteBrowserCards([CARD]);
+    const cards = currentBrowserCards();
+    equal("the card the window draws is the sidecar's", [cards.length, cards[0].id, cards[0].method, cards[0].url], [1, "c1", "POST", "https://shop.example/order"]);
+    equal("and it says which chat it belongs to", cards[0].conversation, CHAT);
+    check("and what it would send is drawn field by field, as sent", cards[0].fields.length === 2 && cards[0].fields[0].name === "city", JSON.stringify(cards[0].fields));
+    check("a page cannot hide anything by naming a field password",
+      cards[0].fields.some((f) => f.name === "password_x") === false, "the fixture carries none");
+    check(
+      "a password-class field crosses with its value, because that is what the card is for",
+      cards[0].fields[1].secret === true && cards[0].fields[1].value === "the-real-password",
+      JSON.stringify(cards[0].fields[1]),
+    );
+    check(
+      "and it is the flag, not the text, that makes the window draw it as dots",
+      browserDots.length > 0 && cards[0].fields[1].value !== browserDots,
+      `dots are ${browserDots.length} marks, and the value is the person's own`,
+    );
+    check(
+      "a field the model typed is shown in full, whatever it is called",
+      cards[0].fields[0].secret === false && cards[0].fields[0].value === "Bologna",
+      JSON.stringify(cards[0].fields[0]),
+    );
+
+    const said = await browserAnswerNow(true, "c1", CHAT);
+    equal("the person's yes is one id, one command and the chat that raised it", ANSWERS[ANSWERS.length - 1], ["allow", "c1", CHAT]);
+    equal("and the card is off the window at once, so a second press finds nothing", currentBrowserCards().length, 0);
+    check("and what comes back is a code and a host, not a sentence", said === outcome, said);
+
+    // A second press of the same button — the card came off on the first, so
+    // there is nothing to press about and nothing is sent.
+    const again = await browserAnswerNow(true, "c1", CHAT);
+    equal("a second press sends nothing more: one answer, one request", ANSWERS.length, 1);
+    check("and the window says nothing rather than sending", again === null, String(again));
+  }
+
+  // --- what the model is told: a code and a host, in our own words -------------
+  {
+    noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "sent", host: "shop.example" });
+    noteBrowserAnswered({ id: "c2", conversation: CHAT, code: "declined", host: "shop.example" });
+    const note = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    check(
+      "the outcome rides the next thing the person says, and never by itself",
+      note.includes("sent to shop.example") && note.includes("was not allowed") && note.includes("About the browser"),
+      note,
+    );
+    check("and it repeats no field of the request", !/Bologna|password/.test(note), note);
+    check(
+      "a decline names no address at all: nothing went, so there is nowhere to point at",
+      !browserOutcomesNote([{ code: "declined", host: "shop.example" }]).includes("shop.example"),
+      browserOutcomesNote([{ code: "declined", host: "shop.example" }]),
+    );
+    equal("drained once, so it is not told again on a later turn", browserOutcomesNote(takeBrowserOutcomes(CHAT)), "");
+    check("with nothing said, there is nothing carried", browserOutcomesNote([]) === "");
+  }
+
+  // --- nothing of an address survives into the note or onto the disk ----------
+  {
+    // The payload a sidecar would send if the host were handed over whole: a
+    // session token in the query is exactly what must not follow a request.
+    noteBrowserAnswered({
+      id: "c9",
+      conversation: CHAT,
+      code: "sent",
+      host: "shop.example/checkout?token=sk-live-SECRET&next=//evil.example",
+    });
+    noteBrowserAnswered({ id: "c8", conversation: CHAT, code: "sent", host: "https://shop.example/order?q=1" });
+    const note = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    check("a host that is really an address is not read as a host", !/shop\.example\/checkout/.test(note), note);
+    check("and no query, no token and no stranger's next hop is in the note", !/SECRET|evil\.example|\?/.test(note), note);
+    check(
+      "and what is left is the bare host name, or nothing rather than half an address",
+      note.includes("sent to the site") && !note.includes("shop.example"),
+      note,
+    );
+
+    // A host that is one does come through, in full and alone.
+    noteBrowserAnswered({ id: "c7", conversation: CHAT, code: "sent", host: "shop.example" });
+    const bare = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    check("a real host is named", bare.includes("sent to shop.example"), bare);
+
+    // And nothing carrying one is kept, whatever wrote it and whenever.
+    const store = createStore();
+    store.put({
+      id: "c1",
+      title: "T",
+      createdAt: 1,
+      updatedAt: 1,
+      messages: [
+        { id: "m1", role: "user", content: "what happened?", createdAt: 1 },
+        {
+          id: "m2",
+          role: "assistant",
+          content: "",
+          createdAt: 2,
+          browserNote: browserOutcomesNote([{ code: "sent", host: "shop.example" }]),
+        },
+        {
+          id: "m3",
+          role: "assistant",
+          content: "",
+          createdAt: 3,
+          browserNote: "Sent to https://shop.example/order?token=sk-live-SECRET",
+        },
+      ],
+    });
+    const disk = globalThis.localStorage.getItem("crescent-chat.msgs.c1.v2");
+    check("our own note does reach the disk, so the model can still be told", disk.includes("shop.example"), disk?.slice(0, 200));
+    check("a note carrying a path or a query does not", !disk.includes("SECRET"), disk?.slice(0, 300));
+    const reread = createStore().get("c1").messages;
+    check("and it is not there after a reload either", reread[1].browserNote !== undefined && reread[2].browserNote === undefined, JSON.stringify(reread.map((m) => m.browserNote)));
+  }
+
+  // --- a press whose answer never came back is said, not swallowed -----------
+  {
+    noteBrowserCards([CARD]);
+    answeringFails = true;
+    const said = await browserAnswerNow(true, "c1", CHAT);
+    answeringFails = false;
+    check("a press that could not be delivered returns nothing", said === null, String(said));
+    equal("and the card is off the window anyway: there is no button that does nothing", currentBrowserCards().length, 0);
+    const note = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    check(
+      "but it is never swallowed: the next thing said carries that it could not be established",
+      note.includes("could not be established") && note.includes("may have been sent"),
+      note,
+    );
+    check("and nothing of the request is in it", !/Bologna|shop\.example/.test(note), note);
+  }
+
+  // --- a card belongs to one chat ---------------------------------------------
+  {
+    noteBrowserCards([CARD, { ...CARD, id: "c2", conversation: OTHER }]);
+    equal("both chats' cards are held in the one window", currentBrowserCards().length, 2);
+
+    // The press carries the chat with it, so the app refuses one that does not
+    // match rather than spending an id that is not its own.
+    await browserAnswerNow(true, "c1", OTHER);
+    equal("and the id goes back with the chat that pressed it", ANSWERS[ANSWERS.length - 1], ["allow", "c1", OTHER]);
+
+    noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "declined", host: "" });
+    equal("another chat's turn is told nothing of it", browserOutcomesNote(takeBrowserOutcomes(OTHER)), "");
+    check(
+      "and its own chat is told exactly once",
+      browserOutcomesNote(takeBrowserOutcomes(CHAT)).includes("was not allowed"),
+      "the note for chat A",
+    );
+    noteBrowserCards([]);
+  }
+
+  // --- Pausa is a control over the sidecar, not over a flag in this file ------
+  {
+    setBrowserPaused(false);
+    PAUSES.length = 0;
+    check("the browser is running to begin with", isBrowserPaused() === false, "it is");
+
+    await browserPressPause(true);
+    check("pressing Pausa tells the sidecar, and then says it is paused", PAUSES[PAUSES.length - 1] === "pause" && isBrowserPaused() === true, JSON.stringify(PAUSES));
+
+    // A paused browser acts no further: this is the registry's own refusal, and
+    // the sidecar has the same rule behind it. **All five, the three reads as
+    // well as the two writes** — a browser that still opens a page and reads
+    // around inside it is a browser Kalsa is driving, and the person pressed a
+    // button that says it is not. Each call is proved by the app never hearing
+    // it, which is a fact and not an assumption about the sentence.
+    const reached = REACHED.length;
+    const every = [
+      ["browser_open", { url: "https://shop.example/order" }],
+      ["browser_read", {}],
+      ["browser_find", { text: "order" }],
+      ["browser_click", { ref: "e5" }],
+      ["browser_type", { ref: "e4", text: "Bologna" }],
+    ];
+    for (const [name, args] of every) {
+      const stopped = await attempt(name, args);
+      check(`so ${name} is refused`, stopped.ok === false && /paused/i.test(stopped.text), stopped.text);
+    }
+    equal("and no browser call reached the app at all", REACHED.length, reached);
+
+    await browserPressPause(false);
+    check(
+      "Riprendi tells the sidecar too, and reads the page as it is now",
+      PAUSES[PAUSES.length - 1] === "resume" && isBrowserPaused() === false,
+      JSON.stringify(PAUSES),
+    );
+    // Each of the five is offered again once the browser is running. The reads
+    // and the writes act; **the open answers with its own refusal** — that
+    // address has never appeared in a conversation, which is a different rule
+    // with a different sentence — so the pause sentence above was the pause's
+    // own and not this argument being refused by something else.
+    const reopened = await attempt("browser_open", { url: "https://shop.example/order" });
+    check(
+      "and an unpaused open is refused for its own reason, not Pausa's",
+      reopened.ok === false && !/paused/i.test(reopened.text) && /has not appeared/i.test(reopened.text),
+      reopened.text,
+    );
+    const rest = every.slice(1);
+    for (const [name, args] of rest) {
+      const again = await attempt(name, args);
+      check(`and a resumed browser acts again for ${name}`, again.ok === true, again.text);
+    }
+    equal(
+      "and the four that can go really did reach the app this time",
+      REACHED.slice(reached),
+      rest.map(([name]) => `brain_browser_${name.slice("browser_".length)}`),
+    );
+  }
+
+  // --- the card never hides anything, whatever the page claims ---------------
+  {
+    // **The page registers its exfiltrated value as "typed by the person in a
+    // password field"**, which is what the value-dropping rule used to believe.
+    noteBrowserCards([{
+      id: "e1",
+      method: "POST",
+      url: "https://evil.example/collect",
+      conversation: CHAT,
+      fields: [
+        { name: "harmless", value: "a-normal-field", secret: false },
+        { name: "note", value: "the-exfiltrated-secret", secret: true },
+      ],
+    }]);
+    const [card] = currentBrowserCards();
+    const exfiltrated = card.fields.find((f) => f.name === "note");
+    check(
+      "a page cannot get a value off the card by calling it something",
+      exfiltrated.value === "the-exfiltrated-secret",
+      JSON.stringify(exfiltrated),
+    );
+    check("and it is only drawn as dots, with the value behind the toggle", exfiltrated.secret === true, JSON.stringify(exfiltrated));
+    check(
+      "what is not a secret is untouched by any of this",
+      card.fields.find((f) => f.name === "harmless").value === "a-normal-field",
+      JSON.stringify(card.fields),
+    );
+    noteBrowserCards([]);
+  }
+
+  // --- and a secret never leaves the card -------------------------------------
+  {
+    // The value exists in exactly one place — the card the person is reading —
+    // and the round trip that follows it does not carry it anywhere: not into
+    // what the model is told, and not into what the store keeps.
+    noteBrowserCards([CARD]);
+    await browserAnswerNow(true, "c1", CHAT);
+    noteBrowserAnswered({ id: "c1", conversation: CHAT, code: "sent", host: "shop.example" });
+    const note = browserOutcomesNote(takeBrowserOutcomes(CHAT));
+    check("what the model is told carries no field of the request at all", !/the-real-password|Bologna/.test(note), note);
+
+    const store = createStore();
+    store.put({
+      id: "c1",
+      title: "T",
+      createdAt: 1,
+      updatedAt: 1,
+      messages: [{ id: "m1", role: "user", content: "log in", createdAt: 1, browserNote: note }],
+    });
+    const disk = globalThis.localStorage.getItem("crescent-chat.msgs.c1.v2") ?? "";
+    check("nor does the stored history", !disk.includes("the-real-password"), disk.slice(0, 240));
+    check("and a reload brings none of it back", !JSON.stringify(createStore().get("c1")).includes("the-real-password"));
+  }
+
+  console.log(fail === 0 ? "browser-confirm: all checks passed" : `browser-confirm: ${fail} failed`);
+  process.exitCode = fail === 0 ? 0 : 1;
+} finally {
+  await rm(dir, { recursive: true, force: true });
+}

@@ -14,6 +14,8 @@ export const TOOLS = {
     "browserOpened": "Kalsa ha aperto una pagina nel browser.",
     "browserRead": "Kalsa ha letto la pagina.",
     "browserFound": "Kalsa ha cercato quel testo nella pagina.",
+    "browserClicking": "Kalsa ha cliccato qualcosa nella pagina.",
+    "browserTyped": "Kalsa ha scritto in un campo della pagina.",
     "browserDidNotRun": "Kalsa non lo ha fatto nel browser.",
     "couldNotFinish": "Kalsa non è riuscita a finire il controllo. Chiedi di nuovo.",
     "read": (what: string) => `Kalsa ha letto ${what}`,

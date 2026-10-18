@@ -7,8 +7,10 @@
 //! session outright rather than leaving a half-dead one behind.
 
 use playwright_rs::protocol::{BrowserContext, Page, Playwright};
+use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard};
 
+use crate::hold::Holds;
 use crate::landing::Landings;
 use crate::launch::{self, Unavailable};
 use crate::refs;
@@ -63,6 +65,12 @@ pub struct Sessions {
     started: Mutex<Option<Started>>,
     printed: Mutex<refs::Refs>,
     busy: Mutex<()>,
+    /// **Pausa is about the window, so it lives on the window.** A person can
+    /// press it before the browser has opened anything, and the page that opens
+    /// afterwards has to find the window already paused. One cell, handed to
+    /// every [`Holds`] this window ever makes, so the tools and the route cannot
+    /// disagree about whether the person has it.
+    paused: Arc<std::sync::atomic::AtomicBool>,
 }
 
 struct Started {
@@ -73,6 +81,9 @@ struct Started {
     page: Page,
     /// Where this window has landed, judged before any of its text is read.
     landings: Landings,
+    /// The writes waiting for a person. A window that goes takes them with it:
+    /// a request with nobody left to answer it is not dispatched.
+    holds: Holds,
 }
 
 /// The one call allowed on this session at a time. Dropping it lets the next in.
@@ -90,7 +101,28 @@ impl Sessions {
             started: Mutex::new(None),
             printed: Mutex::new(refs::Refs::default()),
             busy: Mutex::new(()),
+            paused: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
+    }
+
+    /// Whether the person has this window. A window that has not started is
+    /// still a window, and pressing Pausa on it is the press that counts.
+    pub fn paused(&self) -> bool {
+        self.paused.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// The same cell `holds()` binds every page's store to, so a press here is a
+    /// press on the page that opens next.
+    pub fn set_paused(&self, paused: bool) {
+        self.paused.store(paused, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// The writes waiting for a person in this window.
+    ///
+    /// A window that has not started yet has nothing waiting, and an empty store
+    /// is the honest answer to that: there is no request to confirm or decline.
+    pub async fn holds(&self) -> Holds {
+        self.started.lock().await.as_ref().map(|started| started.holds.clone()).unwrap_or_default()
     }
 
     /// Take the session for one call. A second call is refused rather than
@@ -100,28 +132,37 @@ impl Sessions {
         self.busy.try_lock().map(Busy).map_err(|_| BUSY)
     }
 
-    /// The page and where it has landed, starting the browser the first time it
-    /// is asked for. The lock is held only across the start: a tool call never
-    /// waits behind another tool call.
-    pub async fn page(&self) -> Result<(Page, Landings), Unavailable> {
+    /// The page, where it has landed, and what is waiting for a person,
+    /// starting the browser the first time it is asked for. The lock is held
+    /// only across the start: a tool call never waits behind another tool call.
+    pub async fn page(&self) -> Result<(Page, Landings, Holds), Unavailable> {
         let mut guard = self.started.lock().await;
         if guard.is_none() {
-            let (playwright, context, page, landings) = launch::start(&self.profile).await?;
+            let (playwright, context, page, landings, holds) = launch::start(&self.profile, self.paused.clone()).await?;
             *guard = Some(Started {
                 _playwright: playwright,
                 _context: context,
                 page: page.clone(),
                 landings,
+                holds,
             });
         }
         let started = guard.as_ref().expect("just started");
-        Ok((started.page.clone(), started.landings.clone()))
+        Ok((started.page.clone(), started.landings.clone(), started.holds.clone()))
     }
 
     /// Forget a window that has gone, so the next call opens a fresh one instead
     /// of asking a dead page.
+    ///
+    /// **Everything it was holding is declined first.** The window is the only
+    /// thing the person could have answered on, so a request still waiting when
+    /// it closes has nobody left to say yes, and a request nobody answered is
+    /// never dispatched.
     pub async fn reset(&self) {
-        *self.started.lock().await = None;
+        let gone = self.started.lock().await.take().map(|started| started.holds);
+        if let Some(holds) = gone {
+            holds.decline_all(crate::hold::Outcome::Gone).await;
+        }
         *self.printed.lock().await = refs::Refs::default();
     }
 

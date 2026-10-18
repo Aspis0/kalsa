@@ -45,6 +45,19 @@ export async function loadApp() {
         export { guideCut, guideNotValidJson, guideProblem } from "../src/lib/guideRetry.ts";
         export { TOOL_DEFINITIONS, WEB_TOOLS } from "../src/lib/tools/definitions.ts";
         export { BROWSER_TOOLS } from "../src/lib/tools/browserTools.ts";
+        export { browserAnswer } from "../src/lib/tools/browserCall.ts";
+        export {
+          answer as browserAnswerNow,
+          browserOutcomesNote,
+          DOTS as browserDots,
+          pressPause as browserPressPause,
+          currentCards as currentBrowserCards,
+          isPaused as isBrowserPaused,
+          noteAnswered as noteBrowserAnswered,
+          noteCards as noteBrowserCards,
+          setPaused as setBrowserPaused,
+          takeOutcomes as takeBrowserOutcomes,
+        } from "../src/lib/browser/confirm.ts";
         export { publicHttpUrl } from "../src/lib/publicUrl.ts";
         export { streamChatCompletion } from "../src/lib/toolLoop.ts";
         export { offeredTools, executeToolCall } from "../src/lib/tools/registry.ts";

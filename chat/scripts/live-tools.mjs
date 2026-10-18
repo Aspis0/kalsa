@@ -122,8 +122,11 @@ async function turn(question, { maxTokens = null, stopAfterMs = null, abortAfter
       // required so that saying so is a decision, not a forgotten argument.
       // The conversation arrives from the loop, so the web_fetch provenance
       // rule reads the same turn the model reads.
+      // The owner's web switch is on here, and is said rather than assumed: the
+      // executor defaults it off so a caller who forgets fails closed, and a
+      // browser call refused for the switch would look like a tool that ran.
       runTool: (name, args, signal, conversation) =>
-        app.executeToolCall(name, args, signal, null, conversation),
+        app.executeToolCall(name, args, signal, null, conversation, "m", undefined, undefined, true),
       onToolRun: (entry) => {
         const at = runs.findIndex((existing) => existing.id === entry.id);
         if (at >= 0) runs[at] = entry;

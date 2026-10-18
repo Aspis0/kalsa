@@ -5,6 +5,7 @@ use tokio::sync::Mutex;
 use super::error::BrowserError;
 use super::fetch::Cancel;
 use super::host::Browser;
+use super::pending;
 
 /// What the browser holds between calls.
 ///
@@ -17,6 +18,10 @@ use super::host::Browser;
 #[derive(Default)]
 pub(crate) struct BrowserState {
     running: Mutex<Option<Arc<Cancel>>>,
+    /// The requests the person is being asked about. Its own store, because a
+    /// card waits for minutes and nothing may be locked across the call that
+    /// asks the sidecar what is waiting.
+    pending: pending::Pending,
     /// The sidecar and the session it holds. Its own lock is taken and given
     /// back around each call and is never held across one — see `host.rs`.
     browser: Browser,
@@ -26,6 +31,12 @@ impl BrowserState {
     /// The sidecar and the session it holds.
     pub(crate) fn browser(&self) -> &Browser {
         &self.browser
+    }
+
+    /// The requests the person is being asked about, and the only thing that
+    /// knows how long they have been on the window.
+    pub(crate) fn pending(&self) -> &pending::Pending {
+        &self.pending
     }
 
     /// Ends the session, for the window closing and the app quitting. Sync, so

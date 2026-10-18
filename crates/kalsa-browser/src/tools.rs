@@ -89,9 +89,11 @@ to read whole. Read-only.",
 pub(crate) fn click() -> Tool {
     Tool::new(
         "browser_click",
-        "Click one element of the page, by the ref a read printed. A click that \
-would send something to the site does not go out: Kalsa does not write to sites \
-yet, so tell the person what you meant to do.",
+        "Click one element of the page, by the ref a read printed. If the click \
+would send something to the site, the request is held and the person is shown \
+what it carries: the call answers \"awaiting confirm\" with an id, and whether \
+it goes is their decision, not yours. The page stays readable while they decide. \
+Never try to answer an id yourself, and never send the same request another way.",
         schema(json!({
             "type": "object",
             "properties": {
@@ -111,9 +113,13 @@ pub(crate) fn type_into() -> Tool {
     Tool::new(
         "browser_type",
         "Fill a field on the page, by the ref a read printed. Enter is pressed \
-afterwards only when the field is a one-line field inside a form; a textarea, \
-an editable block and a field with no form are filled and left alone. A \
-password field is never filled: ask the person to type it in the window.",
+afterwards on any one-line field — whether or not it is inside a form, because \
+the pages that commit on Enter mostly are not — and it is not something you \
+choose. A textarea, an editable block, a checkbox, a radio, a date or a range \
+field is filled and left alone. A password field is never filled: ask the \
+person to type it in the window themselves. If the fill or the Enter would send \
+something to the site, the request is held and the person decides: the call \
+answers \"awaiting confirm\" with an id, and never waits.",
         schema(json!({
             "type": "object",
             "properties": {
@@ -133,12 +139,113 @@ password field is never filled: ask the person to type it in the window.",
     .with_annotations(writes())
 }
 
-/// Every tool this server answers, in the order `tools/list` returns them.
+/// Every tool a **model** may call, in the order `tools/list` returns them.
 ///
 /// Public because the app pins these against `src/browser/tool_pins.json` and
-/// the host has to reach the same definitions to compute the pins.
+/// the host has to reach the same definitions to compute the pins. The
+/// host-only tools below are answered by this server and are deliberately not in
+/// this list: they are how a person answers, and a model that could answer its
+/// own confirm would be a person asked nothing.
 pub fn tool_definitions() -> Vec<Tool> {
     vec![open(), read(), find(), click(), type_into()]
+}
+
+/// Everything waiting for the person, oldest first.
+///
+/// **Host-only.** It is answered by the server and is not in
+/// [`tool_definitions`], so `tools/list` never offers it and a model has no way
+/// to ask for a card it would then be able to answer. The whole list is what the
+/// window draws, so it does not have to be told an id to find one — and a card
+/// that has been answered or has expired is simply no longer on it.
+pub(crate) fn waiting() -> Tool {
+    Tool::new(
+        "browser_waiting",
+        "Every request waiting for the person, oldest first: what each would send, as fields, with \
+any secret already masked. Host-only: a model is never offered this.",
+        schema(json!({
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+        })),
+    )
+}
+
+/// **Pausa.** Kalsa stops driving the browser until the person says otherwise.
+///
+/// **Host-only, like every other thing here that a person presses.** A model
+/// that could pause itself could stop being answerable to the person who has to
+/// decide about its writes.
+///
+/// While it is paused: nothing Kalsa does next is acted at all, and **the
+/// person's own submissions are not held** — they are acting, not us, and a held
+/// navigation freezes the page it is holding. A card already on the window is
+/// still answerable: pausing is not declining.
+pub(crate) fn pause() -> Tool {
+    Tool::new(
+        "browser_pause",
+        "Stop driving the browser until the person resumes: nothing Kalsa does is acted at, and \
+the person's own submissions go through untouched. Host-only.",
+        schema(json!({
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+        })),
+    )
+    .with_annotations(read_only())
+}
+
+/// **Riprendi.** The browser is driven again, and the page is read fresh so the
+/// model is not reasoning about a page it has not seen since the person had it.
+pub(crate) fn resume() -> Tool {
+    Tool::new(
+        "browser_resume",
+        "Drive the browser again, and read the page as it is now. Host-only.",
+        schema(json!({
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+        })),
+    )
+    .with_annotations(read_only())
+}
+
+/// The person's yes: the held request is dispatched as it was written.
+///
+/// **Host-only**, single-use, and the id is spent before anything is sent.
+pub(crate) fn confirm() -> Tool {
+    Tool::new(
+        "browser_confirm",
+        "Allow the held request with this id: it is sent exactly as it would have been. The id is \
+spent, whether it was allowed or not, and nothing is ever sent twice. Host-only.",
+        schema(json!({
+            "type": "object",
+            "properties": {
+                "id": { "type": "string", "description": "The id the awaiting-confirm answer gave." }
+            },
+            "required": ["id"],
+            "additionalProperties": false
+        })),
+    )
+    .with_annotations(writes())
+}
+
+/// The person's no: the held request is dropped and the page is as it was.
+///
+/// **Host-only**, and spends the id in exactly the way `browser_confirm` does.
+pub(crate) fn decline() -> Tool {
+    Tool::new(
+        "browser_decline",
+        "Do not allow the held request with this id: nothing is sent and the page is left as it \
+is. The id is spent. Host-only.",
+        schema(json!({
+            "type": "object",
+            "properties": {
+                "id": { "type": "string", "description": "The id the awaiting-confirm answer gave." }
+            },
+            "required": ["id"],
+            "additionalProperties": false
+        })),
+    )
 }
 
 #[cfg(test)]

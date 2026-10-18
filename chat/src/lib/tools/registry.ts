@@ -12,9 +12,10 @@ import { fetchProvenanceRefusal, searchQueryRefusal } from "./fetchProvenance";
 import { readSearchPages } from "./searchPages";
 import { runMailDraft, runMailList, runMailRead } from "./mailCall";
 import { runMailShow } from "./mailShow";
-import { BROWSER_NAMES, BROWSER_TOOLS, withheld } from "./browserTools";
+import { BROWSER_NAMES, BROWSER_TOOLS } from "./browserTools";
+import { isPaused } from "../browser/confirm";
 import { browserUsable } from "../browser/usable";
-import { browserFind, browserOpen, browserRead } from "./browserCall";
+import { browserClick, browserFind, browserOpen, browserRead, browserType } from "./browserCall";
 import { mailAllowed } from "../mail/allowlist";
 import { isMailRun } from "../mail/runs";
 import { carriesMail } from "../mail/fence";
@@ -63,15 +64,29 @@ export interface WebGate {
  * and the mail tools read it: it is what `mail_show` tells the model to write
  * its one lines in.
  */
+/** What a paused browser says for itself: a plain sentence, because the model
+ * reads it and not a person, and it names what did not happen. */
+const PAUSED =
+  "The browser is paused: the person has asked that nothing more be done in it. Nothing was sent. \
+Say what you would have done, and wait.";
+
+/** What a browser call says when the owner has turned the web off. */
+const WEB_OFF =
+  "Not run: web access is switched off in Settings, so Kalsa is not opening or driving a \
+browser. Nothing was sent. Answer from the conversation, or ask the person to turn it on.";
+
 export function offeredTools(enabled: boolean, language: Language, model: string): ToolDefinition[] {
   if (!available()) return [];
   const mail = mailAllowed(model) ? [...MAIL_TOOLS, mailShowTool(language)] : [];
   const web = enabled ? TOOL_DEFINITIONS : [CREATE_MINIAPP_TOOL];
-  // The browser is offered on its own terms, behind the owner's web switch or
-  // not: what it reads is a page this computer fetched and checked, not a
-  // request the engine sends. So it sits behind the driver being installed and
-  // a browser existing, and behind nothing else.
-  return browserUsable() ? [...web, ...mail, ...BROWSER_TOOLS] : [...web, ...mail];
+  // **The browser is behind the owner's web switch, like everything else that
+  // reaches the web.** Step 4 made these tools able to *send*, and an owner who
+  // turned the web off did so because this computer should not be reaching out
+  // — a window opening a stranger's page is that, whatever runs the fetch. So
+  // the switch is checked here, where it is an offer, and again at the call,
+  // where an offer cannot be the only thing standing between a model and the
+  // network: a name in a tool list is something the model wrote, not a promise.
+  return browserUsable() && enabled ? [...web, ...mail, ...BROWSER_TOOLS] : [...web, ...mail];
 }
 
 /**
@@ -97,6 +112,17 @@ export async function executeToolCall(
   /** The sentence a stopped call answers with, in the owner's language;
       absent is English. */
   stoppedText = "Stopped before this finished.",
+  /** Whether the owner has left web access on. **Read at the call and not only
+   *  at the offer**: a name in a tool list is something the model wrote, so a
+   *  browser call is refused here as well as being withheld from the list.
+   *  Absent is off — a caller that forgot is exactly the case this closes. */
+  webOn = false,
+  /** The chat this turn belongs to, which every write it causes is stamped with:
+   *  a card is drawn and answered in its own conversation, and its outcome
+   *  rides that chat's next turn and no other. Empty is a conversation nobody
+   *  can be in, so a caller that forgot raises cards it cannot itself answer —
+   *  refused here and in the UI, rather than sent to the wrong chat. */
+  conversationId = "",
 ): Promise<ToolOutcome> {
   // The turn can be stopped while the arguments are being read; starting a
   // request nobody is waiting for would be work and traffic for nothing.
@@ -194,27 +220,75 @@ export async function executeToolCall(
       // of this. What does apply is provenance: an address the conversation has
       // never carried is refused here exactly as web_fetch refuses it, and
       // never reaches the sidecar.
+      // The switch, checked at the call as well as at the offer. See
+      // `offeredTools`: an offer is something the model can write past.
+      if (name.startsWith("browser_") && !webOn) {
+        return { text: WEB_OFF, ok: false, resultCode: "web.switch_off" };
+      }
+      // Pausa is checked here, before anything is asked of the sidecar and
+      // before a single argument is read: a paused browser acts no further, and
+      // a card already on screen is still answered — pausing is not declining.
+      // **Every browser tool, not only the two that write, and before the reads
+      // and the find.** A paused browser that still opens a page and reads
+      // around inside it is a browser Kalsa is driving, and the person pressed
+      // a button that says it is not. It sits after the switch above so a
+      // browser that is off is told the truth about why; the sidecar refuses
+      // the same five the same way, so a caller that skipped this gate still
+      // stops.
+      if (isPaused() && BROWSER_NAMES.has(name)) {
+        return { text: PAUSED, ok: false, resultCode: "browser.paused" };
+      }
       if (name === "browser_open") {
         const url = typeof record.url === "string" ? record.url.trim() : "";
         if (!url) return { text: "No page was opened: the address was empty.", ok: false };
         const bare = url.split("#")[0];
         const refusal = fetchProvenanceRefusal(bare, conversation);
         if (refusal !== null) return { text: refusal.text, ok: false, resultCode: refusal.code };
-        return { text: await browserOpen(bare, signal), ok: true };
+        // **The gate `web_fetch` goes through, because opening an address is
+        // exactly what web_fetch does.** Step 3 reasoned that the browser "reads
+        // a page this computer fetched and checked, not a request the engine
+        // sends" — true, and beside the point: the owner being asked about text
+        // leaving the app is asked about the address leaving the app, whoever
+        // types it. A turn armed by a pinned document or by mail has to ask
+        // about this one too, or the ask is a thing a model chooses by using
+        // the other tool.
+        const allowed = await admitted(gate, "web_fetch", bare, armed(gate, conversation), conversation, signal);
+        if (!allowed) return heldBack(bare, signal, stoppedText);
+        // A Stop that landed while the owner was being asked. **Nothing has run
+        // and no session was started**, so this must not end one: the session is
+        // shared, and closing it would tear a page out from under the calls
+        // already in flight over the same Stop. See the note at the top of this
+        // function — asking first is what made this window exist, and it is why
+        // the abort is read here rather than left to `throughBrowser`.
+        if (signal?.aborted) return stopped(stoppedText);
+        return { text: await browserOpen(bare, conversationId, signal), ok: true };
       }
       if (name === "browser_read") {
         // No page number is the first page, which is what the model means by
         // leaving it out; a number that is not a whole one is a different thing.
         const page = record.page === undefined ? 1 : wholePage(record.page);
         if (page === null) return { text: "No page was read: the page number was not a whole number.", ok: false };
-        return { text: await browserRead(page === 1 ? undefined : page, signal), ok: true };
+        return { text: await browserRead(page === 1 ? undefined : page, conversationId, signal), ok: true };
+      }
+      if (name === "browser_click") {
+        const ref = typeof record.ref === "string" ? record.ref.trim() : "";
+        if (!ref) return { text: "Nothing was clicked: there was no element to click.", ok: false };
+        return { text: await browserClick(ref, conversationId, signal), ok: true };
+      }
+      if (name === "browser_type") {
+        // The text is not trimmed: a space is something a person typed into a
+        // field, and a form that submits on a space is a real thing.
+        const ref = typeof record.ref === "string" ? record.ref.trim() : "";
+        if (!ref) return { text: "Nothing was typed: there was no field to type into.", ok: false };
+        if (typeof record.text !== "string") {
+          return { text: "Nothing was typed: there were no words to type.", ok: false };
+        }
+        return { text: await browserType(ref, record.text, conversationId, signal), ok: true };
       }
       const text = typeof record.text === "string" ? record.text.trim() : "";
       if (!text) return { text: "Nothing was searched for: there were no words to look for.", ok: false };
-      return { text: await browserFind(text, signal), ok: true };
+      return { text: await browserFind(text, conversationId, signal), ok: true };
     }
-    const notYet = withheld(name);
-    if (notYet !== null) return { text: notYet, ok: false, resultCode: "web.not_offered_yet" };
     return { text: `There is no tool called “${name}”.`, ok: false };
   } catch (error) {
     // A coded refusal from Rust: the wire keeps the English the model

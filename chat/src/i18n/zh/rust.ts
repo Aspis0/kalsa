@@ -111,5 +111,6 @@ export const RUST: {
     storage: () => "Kalsa 无法读取或写入自己的文件夹。",
     failed: () => "Kalsa 无法连接到浏览器。请重试。",
     refused: () => "Kalsa 没有打开那个内容。",
+    no_pending_request: () => "那个请求已经不再等待回答。",
   },
 };

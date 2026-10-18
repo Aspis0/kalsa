@@ -6,6 +6,7 @@
 // unmounts.
 
 import { useEffect, useState } from "react";
+import { startConfirmBus } from "./lib/browser/confirm";
 import { useBrowserStatus } from "./lib/browser/useStatus";
 import { loadSettings, loadTheme, saveSettings, saveTheme, themeChoiceMade } from "./lib/settings";
 import type { Theme } from "./lib/settings";
@@ -29,6 +30,8 @@ import { ModelsSurface } from "./surfaces/ModelsSurface";
 import { ExpertsSurface } from "./surfaces/ExpertsSurface";
 import { DevicesSurface } from "./surfaces/DevicesSurface";
 import { WebGateDialog } from "./components/WebGateDialog";
+import { BrowserConfirm } from "./components/browser/BrowserConfirm";
+import { BrowserPause } from "./components/browser/BrowserPause";
 import { WebSearchNotice } from "./components/WebSearchNotice";
 import { RecoveredNotice } from "./components/RecoveredNotice";
 import { useEngineRecovery } from "./surfaces/useEngineRecovery";
@@ -89,6 +92,11 @@ export function App() {
   // What the chat offers the browser tools behind, read once the app is up
   // rather than when Settings happens to be opened.
   useBrowserStatus();
+  // The card a person is asked about belongs to the window, not to a surface, so
+  // its one subscription starts here and is never torn down.
+  useEffect(() => {
+    void startConfirmBus();
+  }, []);
 
   // One hop along the surfaces. Hops between settings surfaces extend the
   // walk so back can retrace it one step at a time; the chat is not on the
@@ -227,6 +235,8 @@ export function App() {
               />
             )
           ) : null}
+          <BrowserConfirm conversation={chat.activeId ?? ""} />
+          <BrowserPause />
           <div className="stage-notices">
             {engine.recovered ? (
               <RecoveredNotice onSendLog={() => openSurface("help")} onDismiss={engine.dismiss} />

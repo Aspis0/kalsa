@@ -27,7 +27,7 @@ import { INVITE } from "./invite";
 import { SHELL } from "./shell";
 import { KNOBS } from "./knobs";
 import { SAMPLING } from "./sampling";
-import { BROWSER } from "./browser";
+import { BROWSER, CONFIRM } from "./browser";
 import { MARKDOWN } from "./markdown";
 import { VISION } from "./vision";
 import { RUST } from "./rust";
@@ -63,6 +63,7 @@ export interface English {
   knobs: typeof KNOBS;
   sampling: typeof SAMPLING;
   browser: typeof BROWSER;
+  confirm: typeof CONFIRM;
   markdown: typeof MARKDOWN;
   vision: typeof VISION;
   rust: {
@@ -110,6 +111,7 @@ export const ENGLISH: English = {
   knobs: KNOBS,
   sampling: SAMPLING,
   browser: BROWSER,
+  confirm: CONFIRM,
   markdown: MARKDOWN,
   vision: VISION,
   rust: RUST,

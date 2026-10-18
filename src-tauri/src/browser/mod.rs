@@ -5,7 +5,9 @@
 //! first call to the window closing.
 
 pub(crate) mod commands;
+pub(crate) mod confirm;
 pub(crate) mod host;
+pub(crate) mod pending;
 pub(crate) mod session;
 pub(crate) mod state;
 

@@ -111,5 +111,6 @@ export const RUST: {
     storage: () => "Kalsa non è riuscita a leggere o scrivere la propria cartella.",
     failed: () => "Kalsa non è riuscita a raggiungere il browser. Riprova.",
     refused: () => "Kalsa non ha voluto aprire quella cosa.",
+    no_pending_request: () => "Quella richiesta non sta piu aspettando una risposta.",
   },
 };

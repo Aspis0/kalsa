@@ -34,12 +34,134 @@ const nodeBackend = async () => {
   page.setDefaultTimeout(15000);
   let url = null;
 
+  // The held writes, held the way the product holds them: a submission is caught
+  // in the page before the request exists, and anything else the page sends by
+  // itself is caught by a route. **The node backend has to hold too**, or the two
+  // backends would be measuring different products — the rs one holds, and a
+  // task that fills a form would sit unanswered there and sail through here.
+  const held = new Map();
+  let heldSerial = 0;
+
+  // Installed as an init script so it is there again after every navigation: a
+  // listener on one document dies with that document.
+  await page.addInitScript(() => {
+    if (window.__kalsa) return;
+    const catcher = { armed: false, mark: 0, caught: [] };
+    window.__kalsa = catcher;
+    addEventListener("submit", (event) => {
+      const form = event.target;
+      if (!catcher.armed || !form) return;
+      catcher.armed = false;
+      const submitter = event.submitter;
+      const method = String((submitter?.getAttribute?.("formmethod")) || form.getAttribute("method") || "").toUpperCase() || "GET";
+      if (method === "GET" || method === "DIALOG") return;
+      event.preventDefault();
+      let pairs = [];
+      let hasFile = false;
+      try {
+        for (const [name, value] of new FormData(form, submitter)) {
+          if (typeof value === "string") pairs.push([name, value]);
+          else hasFile = true;
+        }
+      } catch {
+        hasFile = true;
+      }
+      let where = location.href;
+      try {
+        where = new URL(form.getAttribute("action") || location.href, location.href).href;
+      } catch {}
+      catcher.caught.push({ method, url: where, pairs, hasFile, form, submitter: submitter || null });
+    }, true);
+  });
+
+  const arm = () => page.evaluate(() => {
+    const catcher = window.__kalsa;
+    catcher.armed = true;
+    catcher.mark = catcher.caught.length;
+  });
+  const caught = () => page.evaluate(() => {
+    const catcher = window.__kalsa;
+    catcher.armed = false;
+    const one = catcher.caught[catcher.mark];
+    return one ? { at: catcher.mark, method: one.method, url: one.url, pairs: one.pairs, hasFile: one.hasFile } : null;
+  });
+
+  /** Puts a caught submission on the window, with a card a person can read. */
+  async function holdSubmission(where, method, pairs, hasFile) {
+    if (hasFile) return "the request carries a file, and a card cannot show a file";
+    if (pairs.map(([n, v]) => n.length + v.length + 1).reduce((a, b) => a + b, 0) > 16 * 1024) {
+      return "the request carries a body too large to be shown";
+    }
+    const id = `c${++heldSerial}`;
+    held.set(id, { method, url: where, pairs, at: held.size });
+    return `awaiting confirm ${id}: this request is held and nothing has been sent. The person is shown what it carries and will decide. Nothing else is needed; the next call says what became of it.`;
+  }
+
+  /** The person's yes, and the request going for real. */
+  async function answerOne(id, allow) {
+    const one = held.get(String(id ?? "").trim());
+    if (!one) return "there is no request waiting with that id";
+    // The id is spent before anything is dispatched, so a second press finds
+    // nothing and nothing is ever attempted twice.
+    held.delete(String(id).trim());
+    if (!allow) return "The person declined it. Nothing was sent and the page was left as it was.";
+    // The ticket lets this one write past the route below, spent on first use.
+    passNext.value = `${one.method} ${one.url}`;
+    const fired = page
+      .evaluate((at) => {
+      const catcher = window.__kalsa;
+      const record = catcher.caught[at];
+      if (!record) return false;
+      catcher.caught.splice(at, 1);
+      if (!record.form?.isConnected) return false;
+      try {
+        if (record.submitter?.isConnected) record.form.requestSubmit(record.submitter);
+        else record.form.requestSubmit();
+        return true;
+      } catch {
+        return false;
+      }
+    }, one.at).catch(() => false);
+    if (!sent) return "It was answered yes and could not be sent: the page had moved on. It is not retried.";
+    await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => {});
+    url = page.url();
+    return "The person allowed it. It was sent as the card showed it.";
+  }
+
   const locator = (ref) => {
     const id = String(ref ?? "").trim().replace(/^\[|\]$/g, "");
     if (!id) throw new Error("that is not an element ref — snapshot to get the refs on this page");
     return page.locator(`aria-ref=${id}`).first();
   };
   const read = (opts) => snapshot(page, opts);
+
+  // One write the person just answered is let past the route, matched on its
+  // method and address and spent on first use.
+  const passNext = { value: null };
+  await context.route("**/*", async (route) => {
+    const request = route.request();
+    const key = `${request.method().toUpperCase()} ${request.url()}`;
+    if (passNext.value === key) {
+      passNext.value = null;
+      await route.continue();
+      return;
+    }
+    if (["GET", "HEAD", "OPTIONS"].includes(request.method().toUpperCase())) {
+      await route.continue();
+      return;
+    }
+    const raw = request.postDataBuffer();
+    const type = request.headers()["content-type"] ?? "";
+    if (!raw || (!String(type).startsWith("application/x-www-form-urlencoded") && !String(type).startsWith("multipart/form-data"))) {
+      await route.abort();
+      return;
+    }
+    // A write the page made by itself: nothing navigates, so parking it does not
+    // freeze the page, and the page's own id is what a card is drawn from.
+    const id = `c${++heldSerial}`;
+    held.set(id, { method: request.method(), url: request.url(), pairs: [], at: -1 });
+    await new Promise(() => {});
+  });
 
   const run = async (name, args = {}) => {
     try {
@@ -54,7 +176,13 @@ const nodeBackend = async () => {
         }
         case "browser_snapshot": return await read({ part: args.page });
         case "browser_click": {
+          await arm();
           await locator(args.ref).click({ timeout: 10000 });
+          const taken = await caught();
+          if (taken) {
+            const sentence = await holdSubmission(taken.url, taken.method, taken.pairs, taken.hasFile);
+            if (sentence.startsWith("awaiting")) return sentence;
+          }
           await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => {});
           url = page.url();
           return await read();
@@ -77,11 +205,29 @@ const nodeBackend = async () => {
               return el instanceof HTMLInputElement && one.includes(String(el.type).toLowerCase());
             })
             .catch(() => false);
-          if (oneLine) await box.press("Enter");
+          // A key that submits is a navigation the page has been told not to
+          // make, and Playwright waits on one anyway until it times out. The key
+          // went in either way; losing the submission to that wait would lose
+          // the write the person was about to be asked about.
+          // `noWaitAfter` because Enter submits, and a submission is a
+          // navigation this page has been told not to make: Playwright waits on
+          // one that is never coming and the wait would eat the whole budget.
+          // The key went in either way, and the write is read on the next line.
+          if (oneLine) await box.press("Enter", { noWaitAfter: true }).catch(() => {});
+          const taken = await caught();
+          if (taken) {
+            const sentence = await holdSubmission(taken.url, taken.method, taken.pairs, taken.hasFile);
+            if (sentence.startsWith("awaiting")) return sentence;
+          }
           await page.waitForLoadState("domcontentloaded", { timeout: 8000 }).catch(() => {});
           url = page.url();
           return await read();
         }
+        case "browser_confirm":
+        case "browser_decline":
+          return await answerOne(args.id, name === "browser_confirm");
+        case "browser_waiting":
+          return JSON.stringify([...held].map(([id, one]) => ({ id, method: one.method, url: one.url })));
         default: return `error: there is no tool called ${name}`;
       }
     } catch (error) {

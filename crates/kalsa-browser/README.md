@@ -68,10 +68,133 @@ Kalsa presses the key at all. What it cannot protect on its own is the window
 between the destination check and the keypress, which is re-read immediately
 before Enter (`RECHECK_BODY`) and written up under *Known limits*.
 
+## Holding a write
+
+A write is not sent and not refused. It is **held**, and a person decides. The
+store is `src/hold.rs`: cards in the order they were held, five minutes before
+one is given up on (`EXPIRY`, a clock that can be injected for tests), and an
+id that is **spent before anything is dispatched**, so a second press finds
+nothing and nothing is ever attempted twice.
+
+There are **two** ways a write is caught, and the difference is not a matter of
+taste — the first one was built, measured, and thrown away.
+
+**A write that would navigate is caught in the page** (`src/submit.rs`), before
+the request exists. The submit event is prevented, the fields are read out of the
+`FormData` the browser itself built — the site's own encoding, hidden fields
+included — and the form is kept. Nothing is on the wire, so nothing can be
+recalled: a decline is a request that never happened, and the page is as it was.
+
+**A write the page makes by itself** — a `fetch`, an XHR, a `sendBeacon`, a
+scripted `requestSubmit()` that got as far as the network — never navigates and
+cannot be prevented from the page, so it is caught by the route and parked there
+(`hold::hold_write`), with the route that would have dispatched it.
+
+Parking a *navigation* at the route was the first shape and it does not work,
+for two reasons that were both measured on this machine's browser:
+
+- **A parked navigation freezes the page.** While the main frame's request is
+  held, `Runtime.evaluate` on it never answers: a read times out after thirty
+  seconds, and so does the re-check a fill does before pressing Enter. The
+  person would look at a window that cannot be read for as long as the card is
+  on screen, and the model could not read the page it is working on.
+- **Aborting one leaves Chrome's own error page behind** —
+  `chrome-error://chromewebdata/`, "This page has been blocked by Chrome",
+  `ERR_BLOCKED_BY_CLIENT` — which is the opposite of leaving the page as it was.
+
+A `fetch` held the same way does neither. Proved in `tests/confirm.rs`.
+
+**A confirmed submission is sent as a form of its own**, rebuilt from the fields
+that were held. Not `requestSubmit` on the form it came from: that was measured
+failing, and quietly — the submit event fires, it is not prevented, the request
+reaches the server, and the page never moves. The stranger has the order, the
+person is still looking at the shop, and the model is about to be told a page
+that does not exist. `tests/confirm.rs` proves the landing, not just the arrival,
+because those are different claims.
+
+A body the card cannot show is **refused, not held**: no readable card means no
+question to ask. That is a file part, and a body in a form nobody can read. A
+body over 16 KB (`MAX_BODY`) is refused for the same reason.
+
+**What is hidden is decided on the value, never on the name.** The rule this
+replaces matched names — `password`, `pin`, `cvv` — and a page chooses its own
+names: it could call a password `password_x` and have a card print it in full,
+or call a harmless note `pin` and have it blanked for nobody's reason. What is
+hidden now is **a value the person typed into a password field while they had
+the browser** — recorded in the page, by element, never as a name — and the card
+says `hidden: typed by you in a password field` in its place, with no value
+behind it to recover. The model is refused password fields (`input.rs`) and so
+never types one: everything it typed is shown in full, however much the field is
+called. `body::hide` matches on the value, so a page cannot invent a person's
+password to get it hidden either.
+
+The write a person just answered goes past the route on a **one-shot ticket for
+that method and that address**, spent on first use
+(`Holds::pass_next`/`takes_pass`) — so the re-submission is let through and any
+other write the page makes in the meantime is held like any other.
+
+## What the card shows, and what it does not
+
+**Nothing is ever taken out of a card.** A field a person typed into a password
+box is on the card in full, with a flag saying the window should draw it as dots
+behind a Show button. The rule this replaces dropped those values where the
+request was read, and it was dropped because the list of "what the person typed"
+comes over `__kalsaTyped` — a binding the **page** can call. A page that called it
+with the value it was sending somewhere else got a card that said "hidden: typed
+by you in a password field" instead of showing what was going, which is a card a
+stranger can write. That binding is now used for one thing only: deciding whether
+a **GET** is held because it carries a secret. The worst a page can buy is that
+its own GETs get held — a nuisance to itself.
+
+The flag can only add dots. It comes from the element where there is one (the
+catcher asks the browser's own predicate, so `autocomplete="current-password"` on
+a field called `field1` is still found) and from the field's name where there is
+not, and neither can remove a value.
+
+**Where a value must not go, and what enforces it.** Not into a model message —
+an outcome is a code and a host — not into the store (`store.ts` drops any note
+carrying a path or a query), not onto disk, and not into a log: `Field`'s `Debug`
+and `Card`'s `Debug` both print dots for a secret, so the one path into a log
+line, a panic or a failing test cannot carry a password. `Serialize` is how a
+value reaches the card, and it is the only place it is allowed to.
+
+## The bytes that go
+
+When a write is caught, **Rust keeps the whole request**: the method, the
+absolute URL after `formaction` and `formmethod` are resolved, the content type,
+the submitter's own name and value, and the body bytes — including the password
+the *person* typed, which is held here and never on a card, a model message or a
+log line. The page's copy is deleted in the same step (`submit::TAKE`), so
+nothing page-visible is left for the dispatch to trust: the fire is one
+synchronous `evaluate` built from Rust's payload, and no script of the page runs
+between the card and the request.
+
+What is allowed past the route afterwards is checked against a `Ticket` — the
+same method, address, content type and body, the content type compared without
+its parameters — **and it has to be a navigation of the main frame**. That last
+part is deliberate rather than fussy: request headers are *not* compared, because
+the browser varies them, so anything a header can change is closed by something
+that cannot be varied. A `fetch` that matches on every byte and carries
+`X-HTTP-Method-Override` is never a navigation, so it is held like any other
+write and the answer is still there for the navigation the dispatch starts. A page
+that rewrites the field or the action after the card is held the same way, and **a
+request that does not match does not spend the ticket**: burning the answer on a
+probe would send nothing at all while the person was told the request had gone.
+
+**"Sent" is the route's word.** The fire calls a `submit` captured before the
+page's scripts ran — a page that replaces it is a no-op, not a silent
+cancellation — and then waits, briefly, for the ticket to be claimed. Only that
+is reported as sent; anything else revokes the answer and reports **unclear**,
+which is never retried.
+
+Two encodings can be written out in advance and therefore confirmed:
+`application/x-www-form-urlencoded` and `text/plain`.
+
 ## What step 1 does not do
 
-Click and type are refused on a page whose request is not a GET, because the
-held request and its confirm card arrive in step 4 (`src/hold.rs`).
+Nothing about the hold: step 1 refused every non-GET. That refusal was replaced
+by the hold above, and the address rules are the only thing here that has not
+moved.
 ## Known limits
 
 These are the things this crate does not stop. They are here so nobody reads the
@@ -92,6 +215,14 @@ code and believes otherwise.
   submitter is computed the way the browser computes it and why the destination
   is re-read immediately before Enter. Closing this properly needs something in
   front of the browser, like the redirect case below.
+- **A multipart form is refused, not approximated.** The browser chooses the
+  boundary when it builds the request, so the bytes cannot be written out before
+  the card exists, and there is then no way to promise that what goes is what the
+  person was shown. A request in `multipart/form-data`, or carrying a file part,
+  is refused with one line saying why, and nothing is sent. This is a decision of
+  this slice, not an oversight: sending something close to what was approved is
+  the one thing the hold exists to prevent. Closing it means building the body
+  ourselves and proving the browser would have encoded it identically.
 - **A GET is not free of effect.** The route refuses what would write to a site,
   but a GET can log someone in, count a click, or start a payment at the far end.
   Opening is a thing a person does on purpose.

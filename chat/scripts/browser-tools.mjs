@@ -1,4 +1,4 @@
-// The three browser read tools, end to end against the registry the app uses:
+// The browser read tools, end to end against the registry the app uses:
 // what is offered, what a page arms, what it cannot, and what a reload keeps.
 //
 // The proofs are the plan's step-3 list. A page the app read arms the addresses
@@ -42,6 +42,9 @@ const LIT_UNSEEN =
   "Not run: this link has not appeared in the conversation, so it was not opened. Use web_search to find the page, or ask the user for the link.";
 
 const OFFERED = ["browser_open", "browser_read", "browser_find"];
+/** The two writing tools, which the confirm script proves and this one only
+ * watches stay off a phone. */
+const WRITES = ["browser_click", "browser_type"];
 /** What each command was asked for, so a refusal can prove nothing left. */
 const OPENED = [];
 const READS = [];
@@ -50,6 +53,12 @@ const CLOSED = [];
 
 /** A page carrying an address the next call will try to open. */
 let pageBody = "PAGE TEXT";
+/** Whether the next read is a slow one, for the Stop proofs only. */
+let SLOW = false;
+/** How a slow read is answered: **by the session ending**, which is what killing
+ * the sidecar does to a call that is waiting on it. A harness that let the read
+ * finish on its own would be testing a sidecar nobody can end. */
+let answerSlowRead = null;
 globalThis.window = {
   setTimeout,
   clearTimeout,
@@ -62,6 +71,14 @@ globalThis.window = {
         }
         if (command === "brain_browser_read") {
           READS.push(args.page ?? 1);
+          if (SLOW) {
+            // **A slow call**: a page that has not answered yet, and it answers
+            // only when the session ends. That is what makes "the Stop cut it
+            // short" mean something rather than "the page was quick".
+            await new Promise((settle) => {
+              answerSlowRead = settle;
+            });
+          }
           return pageBody;
         }
         if (command === "brain_browser_find") {
@@ -73,7 +90,15 @@ globalThis.window = {
           return "FETCHED PAGE";
         }
         if (command === "brain_browser_close") {
+          // **Ending a session takes a moment** — it kills the sidecar. A Stop
+          // that answered before this lands would be reporting a stop that had
+          // not happened yet, with the browser still loading a page.
+          await new Promise((settle) => setTimeout(settle, 50));
           CLOSED.push(true);
+          // Killing the sidecar is what answers whatever was waiting on it.
+          const answer = answerSlowRead;
+          answerSlowRead = null;
+          answer?.();
           return null;
         }
         return null;
@@ -82,10 +107,18 @@ globalThis.window = {
   },
 };
 
-/** One call through the real registry, against this conversation. */
-function attempt(name, args, conversation) {
-  return executeToolCall(name, args, undefined, null, conversation, "any-model", undefined);
+/**
+ * One call through the real registry, against this conversation, with the
+ * owner's web switch **on** — the state these proofs are about. The switch off
+ * is proved separately, in its own block, because a default that hides it would
+ * make every other check here pass for the wrong reason.
+ */
+function attempt(name, args, conversation, web = true) {
+  return executeToolCall(name, args, undefined, null, conversation, "any-model", undefined, undefined, web);
 }
+
+/** Whether a refusal was the owner's web switch rather than the tool. */
+const refusedForTheSwitch = (text) => /switched off/i.test(text);
 
 /** A wire turn for one tool call, as the loop builds it. */
 function exchange(id, name, argsText, result) {
@@ -107,21 +140,92 @@ try {
     noteBrowserStatus({ supported: true, installed: true, size: 42 });
     const names = offeredTools(true, "en", "any-model").map((tool) => tool.function.name);
     equal("a driver offers exactly open, read and find", names.filter((name) => OFFERED.includes(name)), OFFERED);
-    // The other two exist on the sidecar and are not offered: a call to one is
-    // a refusal with a sentence, not a silent gap.
-    check(
-      "click and type are not offered",
-      !names.includes("browser_click") && !names.includes("browser_type"),
-    );
-    const withheld = await attempt("browser_click", { ref: "e1" }, []);
-    check("a click is refused with a sentence, not 'no such tool'", withheld.ok === false && withheld.text.startsWith("Not run:"), withheld.text);
+    // Click and type arrived with step 4 and are proved in browser-confirm.mjs.
+    // What matters here is that adding them did not widen the phone: see below.
 
     const phone = phoneTools(true, "en", "any-model", true).map((tool) => tool.function.name);
     check(
-      "a phone turn is offered no browser tool at all",
-      !phone.some((name) => OFFERED.includes(name)),
+      "a phone turn is offered no browser tool at all, reads or writes",
+      !phone.some((name) => OFFERED.includes(name) || WRITES.includes(name)),
       phone.join(","),
     );
+  }
+
+  // --- the web switch, at the offer and at the call ---------------------------
+  {
+    noteBrowserStatus({ supported: true, installed: true, size: 42 });
+    const withWeb = offeredTools(true, "en", "any-model").map((tool) => tool.function.name);
+    const withoutWeb = offeredTools(false, "en", "any-model").map((tool) => tool.function.name);
+    check(
+      "web on offers the browser",
+      withWeb.some((name) => name === "browser_open"),
+      withWeb.join(","),
+    );
+    check(
+      "web off is offered no browser tool at all, reads or writes",
+      !withoutWeb.some((name) => name.startsWith("browser_")),
+      withoutWeb.join(","),
+    );
+
+    // And at the call, because a name in a tool list is something the model
+    // wrote. OPENED is still empty from the block above.
+    const refused = await executeToolCall("browser_open", { url: "https://news.example/story" }, undefined, null, [{ role: "user", content: "Read https://news.example/story" }], "any-model", undefined, undefined, false);
+    check("a call with the switch off is refused with a sentence", refused.ok === false && /switched off/i.test(refused.text), refused.text);
+    check("and it opened nothing", OPENED.length === 0, OPENED.join(","));
+
+    const allowed = await executeToolCall("browser_open", { url: "https://news.example/story" }, undefined, null, [{ role: "user", content: "Read https://news.example/story" }], "any-model", undefined, undefined, true);
+    check("and with the switch on it runs", allowed.ok === true, allowed.text);
+    check("which opened exactly that page", OPENED.length === 1, OPENED.join(","));
+    OPENED.length = 0;
+  }
+
+  // --- the gate asks about a page the browser opens, as it asks about a fetch --
+  {
+    OPENED.length = 0;
+    const asked = [];
+    const gate = {
+      documents: () => [{ id: "doc-1", name: "the lease" }],
+      confirm: async (check) => {
+        asked.push(check);
+        return false;
+      },
+      firstSearch: () => null,
+    };
+    // Pinned document => the turn is armed => the owner is asked about an address
+    // leaving the app, whoever fetches it.
+    const refused = await executeToolCall("browser_open", { url: "https://news.example/story" }, undefined, gate, [{ role: "user", content: "Read https://news.example/story" }], "any-model", undefined, undefined, true);
+    check("a page the browser opens is asked about, like a fetch", refused.ok === false && /did not allow/i.test(refused.text), refused.text);
+    check("and the ask carried the address", asked.length === 1 && asked[0].tool === "web_fetch", JSON.stringify(asked));
+    check("and nothing was opened", OPENED.length === 0, OPENED.join(","));
+
+    // The owner says yes this time.
+    const allowed = await executeToolCall("browser_open", { url: "https://news.example/story" }, undefined, { ...gate, confirm: async () => true }, [{ role: "user", content: "Read https://news.example/story" }], "any-model", undefined, undefined, true);
+    check("an allowed ask opens the page", allowed.ok === true && OPENED.length === 1, allowed.text);
+    OPENED.length = 0;
+  }
+
+  // --- what is offered is what runs, in both positions of the switch ----------
+  //
+  // The harness bug this guards against was exactly this: a list was built with
+  // the switch on and the calls were made with it off, so every call was refused
+  // for the switch and every proof about what a call *did* still held. Offer and
+  // run have to agree, or a green check means nothing.
+  {
+    noteBrowserStatus({ supported: true, installed: true, size: 42 });
+    for (const web of [true, false]) {
+      const offered = new Set(offeredTools(web, "en", "any-model").map((tool) => tool.function.name));
+      const conversation = [{ role: "user", content: "Read https://news.example/story" }];
+      for (const name of ["browser_open", "browser_read", "browser_find", "browser_click", "browser_type"]) {
+        OPENED.length = 0;
+        const said = await attempt(name, { ref: "e1", url: "https://news.example/story", text: "hello" }, conversation, web);
+        const forTheSwitch = refusedForTheSwitch(said.text);
+        check(`with the switch ${web ? "on" : "off"}, ${name} is ${offered.has(name) ? "offered" : "withheld"} and ${forTheSwitch ? "refused for it" : "allowed to run"}`,
+          offered.has(name) !== forTheSwitch,
+          `offered=${offered.has(name)} refusedForSwitch=${forTheSwitch} text=${said.text.slice(0, 70)}`,
+        );
+      }
+    }
+    OPENED.length = 0;
   }
 
   // --- a page arms its addresses ---------------------------------------------
@@ -245,8 +349,12 @@ try {
     // ends a session.
     const already = new AbortController();
     already.abort();
-    const early = await executeToolCall("browser_open", { url: "https://news.example/story" }, already.signal, null, [{ role: "user", content: "https://news.example/story" }], "any-model", undefined);
+    // The switch is on, so this is refused for the abort and not for the switch:
+    // with it off the call would never reach the abort check and the two proofs
+    // below would pass for the wrong reason.
+    const early = await executeToolCall("browser_open", { url: "https://news.example/story" }, already.signal, null, [{ role: "user", content: "https://news.example/story" }], "any-model", undefined, undefined, true);
     check("a call stopped before it started opens nothing", OPENED.length === 0, early.text);
+    check("and it was the Stop that stopped it, not the switch", !/switched off/i.test(early.text), early.text);
     equal("and ends no session it never used", CLOSED, []);
 
     // The same signal one layer in, where the call has already been committed:
@@ -257,7 +365,7 @@ try {
     CLOSED.length = 0;
     let thrown = null;
     try {
-      await browserOpen("https://news.example/story", already.signal);
+      await browserOpen("https://news.example/story", "chat-a", already.signal);
     } catch (error) {
       thrown = error;
     }
@@ -265,19 +373,51 @@ try {
     equal("and opens nothing", OPENED, []);
     equal("and does end the session it belonged to", CLOSED, [true]);
 
-    // A Stop that arrives while the call is running: the listener is on the
-    // signal, and it ends the session rather than only dropping the promise.
+    // A Stop that lands while the owner is being asked about a page. **Nothing
+    // has run**: no page opened, and no session was ever started to end — the
+    // session is shared, and closing one that never began would tear a page out
+    // from under the calls already in flight over the same Stop.
     OPENED.length = 0;
     CLOSED.length = 0;
+    const asking = new AbortController();
+    const while_asking = executeToolCall(
+      "browser_open",
+      { url: "https://news.example/story" },
+      asking.signal,
+      { documents: () => [{ id: "d", name: "the lease" }], confirm: () => new Promise(() => {}), firstSearch: () => null },
+      [{ role: "user", content: "https://news.example/story" }],
+      "any-model",
+      undefined,
+      undefined,
+      true,
+    );
+    asking.abort();
+    while_asking.catch(() => {});
+    await new Promise((settle) => setTimeout(settle, 5));
+    check("a Stop while the owner is being asked opened no page", OPENED.length === 0, `${OPENED.length} opened`);
+    equal("and ended no session it never started", CLOSED.length, 0);
+
+    // A Stop that arrives while a call that *does* run is in flight: the
+    // listener is on the signal, and it ends the session rather than only
+    // dropping the promise.
+    OPENED.length = 0;
+    CLOSED.length = 0;
+    SLOW = true;
     const running = new AbortController();
-    const pending = executeToolCall("browser_open", { url: "https://news.example/story" }, running.signal, null, [{ role: "user", content: "https://news.example/story" }], "any-model", undefined);
+    let stillRunning = true;
+    const pending = executeToolCall("browser_read", {}, running.signal, null, [], "any-model", undefined, undefined, true)
+      .finally(() => {
+        stillRunning = false;
+      });
+    // The read is held open on purpose: a Stop that has to wait for a slow call
+    // to finish is a Stop the person pressed and nothing happened to.
+    await new Promise((settle) => setTimeout(settle, 5));
+    const began = Date.now();
     running.abort();
-    await pending;
-    // The Stop ends the session with its own invoke, which the call's own
-    // promise does not wait for; a macrotask is enough for it to land.
-    await new Promise((settle) => setTimeout(settle, 0));
-    check("a Stop during the call opened the page", OPENED.length === 1, `${OPENED.length} opened`);
-    equal("and ended the session", CLOSED.length, 1);
+    await pending.catch(() => {});
+    check("a Stop answers the call instead of leaving it hanging", !stillRunning && Date.now() - began < 2000, `${Date.now() - began}ms`);
+    equal("and only once the session it belonged to is really ended", CLOSED.length, 1);
+    SLOW = false;
   }
 
   // --- a URL that names a user or a password is never opened ----------------

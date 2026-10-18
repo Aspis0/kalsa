@@ -37,8 +37,13 @@ const WARNING =
  * so that a running call's session can be closed out from under it.
  */
 async function throughBrowser(command: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<string> {
+  // **The Stop is awaited before this call answers.** Ending the session kills
+  // the sidecar, which is what actually cuts the call short on the other side —
+  // fire-and-forget left the turn free to report "stopped" while the browser it
+  // was still driving kept loading a page nobody was waiting for.
+  let ending: Promise<void> | null = null;
   const stop = () => {
-    void browserClose().catch(() => {});
+    ending ??= browserClose().catch(() => {});
   };
   // A signal that arrived before this call is one that will never fire its
   // listeners again, so the session is ended here rather than on an event that
@@ -48,6 +53,10 @@ async function throughBrowser(command: string, args: Record<string, unknown>, si
   // session it belongs to has just been ended.
   if (signal?.aborted) {
     stop();
+    // **The same wait, on the same promise.** A Stop that had already arrived
+    // ends the session just as one that arrives later does, and a turn that
+    // reports "stopped" before the browser has been told is reporting it early.
+    await ending;
     throw signal.reason ?? new DOMException("Aborted", "AbortError");
   }
   signal?.addEventListener("abort", stop, { once: true });
@@ -55,27 +64,91 @@ async function throughBrowser(command: string, args: Record<string, unknown>, si
     return fence(await invoke(command, { ...args, signal }));
   } finally {
     signal?.removeEventListener("abort", stop);
+    if (ending !== null) await ending;
   }
 }
 
+/**
+ * The conversation a browser call belongs to.
+ *
+ * **It rides every call, and the sidecar stamps every write it causes with it.**
+ * A card belongs to the chat whose turn raised it: it is drawn and answered
+ * there, and its outcome lands on that chat's next turn and no other. Without
+ * this, one chat's turn could press another's button and be told the answer —
+ * the window is shared, and a shared window is not a shared consent.
+ */
+export type ConversationId = string;
+
 /// Opens an address.
-export function browserOpen(url: string, signal?: AbortSignal): Promise<string> {
-  return throughBrowser("brain_browser_open", { url }, signal);
+export function browserOpen(url: string, conversation: ConversationId, signal?: AbortSignal): Promise<string> {
+  return throughBrowser("brain_browser_open", { url, conversation }, signal);
 }
 
 /// Reads the open page. `page` omitted is the first page.
-export function browserRead(page: number | undefined, signal?: AbortSignal): Promise<string> {
-  return throughBrowser("brain_browser_read", page === undefined ? {} : { page }, signal);
+export function browserRead(page: number | undefined, conversation: ConversationId, signal?: AbortSignal): Promise<string> {
+  return throughBrowser("brain_browser_read", page === undefined ? { conversation } : { page, conversation }, signal);
 }
 
 /// Finds text on the open page.
-export function browserFind(text: string, signal?: AbortSignal): Promise<string> {
-  return throughBrowser("brain_browser_find", { text }, signal);
+export function browserFind(text: string, conversation: ConversationId, signal?: AbortSignal): Promise<string> {
+  return throughBrowser("brain_browser_find", { text, conversation }, signal);
+}
+
+/** Clicks one element. Anything it sends is held for the person first. */
+export function browserClick(ref: string, conversation: ConversationId, signal?: AbortSignal): Promise<string> {
+  return throughBrowser("brain_browser_click", { ref, conversation }, signal);
+}
+
+/** Fills one field. Enter follows it if it is a single-line field, and anything
+ * that sends is held for the person first. */
+export function browserType(ref: string, text: string, conversation: ConversationId, signal?: AbortSignal): Promise<string> {
+  return throughBrowser("brain_browser_type", { ref, text, conversation }, signal);
 }
 
 /**
- * Ends the session. Called when the chat closes: a browser left running after
- * its window is gone is a window nobody can see and nothing can stop.
+ * The person's yes, and what became of the request: a code and a host, or
+ * nothing at all.
+ *
+ * **Not fenced and not a browser call.** There is no page in it — there are no
+ * stranger's words here at all, only a code this app knows and a host it has
+ * checked — and there is no session to end if the person presses Stop on a
+ * button. The conversation goes with it: a card from another chat is refused on
+ * the other side rather than spent.
+ */
+export function browserAnswer(allow: boolean, id: string, conversation: ConversationId): Promise<string> {
+  // Two calls rather than one over a chosen name: a command name built by a
+  // ternary is a command the app never asks for by name, and the contract
+  // check is right to not see it.
+  return allow
+    ? invoke("brain_browser_confirm", { id, conversation })
+    : invoke("brain_browser_decline", { id, conversation });
+}
+
+/**
+ * Pausa. Kalsa stops driving the browser, and the person's own submissions are
+ * not held while they have it — they are acting, and a held navigation freezes
+ * the page it is holding.
+ *
+ * **Not a browser call and not fenced**: there is no stranger's page in the
+ * answer, and ending the session because somebody paused would be exactly the
+ * opposite of what the button says.
+ */
+export function browserPause(): Promise<void> {
+  return invoke("brain_browser_pause").then(() => undefined);
+}
+
+/**
+ * Riprendi, and the page read fresh — the model must not go on reading a page it
+ * last saw before the person had the window.
+ */
+export async function browserResume(signal?: AbortSignal): Promise<string> {
+  return fence(await invoke("brain_browser_resume", { signal }));
+}
+
+/**
+ * Ends the session. Called when the chat closes and when the person presses
+ * Stop: a browser left running after its window is gone is a window nobody can
+ * see and nothing can stop.
  */
 export async function browserClose(): Promise<void> {
   await invoke("brain_browser_close");

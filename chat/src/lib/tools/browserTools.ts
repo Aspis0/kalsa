@@ -1,14 +1,19 @@
 import type { ToolDefinition } from "./definitions";
 
 /**
- * The three read tools the chat offers in this step, and the two it does not.
+ * The five browser tools: three that read, and two that write.
  *
- * **Open, read and find only.** `browser_click` and `browser_type` exist on the
- * sidecar and are pinned in `tool_pins.json` because they are there, not
- * because they are offered: writing to a site is step 4 and comes with the
- * confirms that guard it. They are listed here so that a call to one is a
- * refusal with a sentence rather than "there is no tool called that", which
- * would leave the model inventing one.
+ * **A write is offered, and a write is held.** `browser_click` and
+ * `browser_type` can send a request, and the answer they give when one is sent
+ * is not the page — it is `awaiting confirm`, an id, and a person deciding. The
+ * model has no way to answer that itself, and is told so in the sidecar's own
+ * instructions, so the offer is honest rather than a promise it cannot keep.
+ *
+ * **Desktop only, and the filter that keeps it that way** is in
+ * `phone/phoneTurn.ts`: `BROWSER_NAMES` is what it reads, so a phone is offered
+ * no browser tool at all. A stranger's phone must not be able to make this
+ * computer drive a window it cannot see — and, before the phone gets the card
+ * too, it must not be able to send a write nobody on the phone was asked about.
  *
  * The descriptions are short and plain, and say what the answer is rather than
  * how to use the browser: the model reads them in every language this app
@@ -57,18 +62,38 @@ export const BROWSER_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "browser_click",
+      description:
+        "Clicks one element on the open page. If that sends anything, it is held for the person to allow first: the answer names the request and says it is waiting, and the page does not move until they decide.",
+      parameters: {
+        type: "object",
+        properties: {
+          ref: { type: "string", description: "The ref of the element, from a read." },
+        },
+        required: ["ref"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "browser_type",
+      description:
+        "Types into one field on the open page, and presses Enter after it if it is a single-line field. If that sends anything, it is held for the person to allow first: the answer names the request and says it is waiting.",
+      parameters: {
+        type: "object",
+        properties: {
+          ref: { type: "string", description: "The ref of the field, from a read." },
+          text: { type: "string", description: "What to write into the field." },
+        },
+        required: ["ref", "text"],
+      },
+    },
+  },
 ];
 
-/** The names of the three above, for the places that ask about them by name. */
+/** The names of the five above, for the places that ask about them by name. */
 export const BROWSER_NAMES: ReadonlySet<string> = new Set(BROWSER_TOOLS.map((tool) => tool.function.name));
-
-/** The two that exist on the sidecar and are not offered yet. */
-export const WITHHELD: Record<string, string> = {
-  browser_click: "Not run: this build does not let Kalsa click. Answer from what the page says.",
-  browser_type: "Not run: this build does not let Kalsa type. Answer from what the page says.",
-};
-
-/** The sentence for a tool the sidecar has and this build does not offer. */
-export function withheld(name: string): string | null {
-  return WITHHELD[name] ?? null;
-}

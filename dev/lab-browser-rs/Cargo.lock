@@ -625,6 +625,8 @@ name = "kalsa-browser"
 version = "0.0.6"
 dependencies = [
  "futures-util",
+ "getrandom 0.2.17",
+ "percent-encoding",
  "playwright-rs",
  "regex",
  "rmcp",

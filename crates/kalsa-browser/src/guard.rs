@@ -253,19 +253,89 @@ fn resolvable_name(url: &str) -> Option<String> {
     }
 }
 
-/// The one route every request meets. A request we refuse is aborted before it
+/// **The one route every request meets.** A request we refuse is aborted before it
 /// reaches the network, so the browser never asks and nothing leaves.
-pub async fn install(context: &BrowserContext, landings: &Landings) -> Result<(), playwright_rs::Error> {
+///
+/// **A write that passes is held, not sent.** Every non-GET — a form post, a
+/// `fetch`, an XHR, a `sendBeacon`, a scripted `requestSubmit()` — is parked in
+/// the hold store with the route that would have dispatched it, and the person is
+/// shown that request. **And a GET carrying a value the person typed into a
+/// secret field is held the same way**, because the method does not change what
+/// the server is told. The route is not answered here: an answer arrives on its
+/// own call, minutes later, long after this handler is gone.
+///
+/// **While the window is paused the route lets everything through.** The person
+/// has the browser, and their own submissions are not ours to hold.
+///
+/// Two writes never reach this route at all: a **submission** is caught in the
+/// page, before the browser has made a request (`src/submit.rs`), and a write
+/// the person has just answered goes past on a one-shot ticket for that method
+/// and address (`Holds::takes_pass`).
+pub async fn install(
+    context: &BrowserContext,
+    landings: &Landings,
+    holds: &crate::hold::Holds,
+) -> Result<(), playwright_rs::Error> {
     landing::watch(context, landings).await?;
+    // What the person typed into a secret field, on this side of the wire. The
+    // catcher fills it as they type (see `submit::CATCHER`) over the binding
+    // below, and the route reads it on **every** request — including the reads,
+    // which is the only way a secret in a query is ever caught.
+    //
+    // **This binding is page-visible, and that is accepted, because it is now
+    // only a reading of *whether* to hold.** A page may call it with any string
+    // it likes, and the worst it can buy is that its own GETs get held: a
+    // nuisance to itself, and a card the person can decline. It used to be more
+    // than that — the list also decided what was taken out of a card, so a page
+    // could register the value it was exfiltrating and have the card say
+    // "typed by you in a password field". **A card no longer hides anything**, so
+    // the same call can no longer put a value in front of the person that is not
+    // the one going out. What is never derivable from here: whether a value is
+    // real at all — it is taken from the request and shown as sent.
+    let typed = holds.typed().await;
+    let recorded = typed.clone();
     context
-        .route("**/*", |route| async move {
-            let request = route.request();
-            match decide(request.url()).await {
-                Verdict::Refused(_) => route.abort(Some("blockedbyclient")).await,
-                Verdict::Allow => match crate::hold::verdict(request.method()) {
-                    crate::hold::Verdict::Allow => route.continue_(None).await,
-                    crate::hold::Verdict::Refused => route.abort(Some("blockedbyclient")).await,
-                },
+        .expose_function("__kalsaTyped", move |args: Vec<serde_json::Value>| {
+            let recorded = recorded.clone();
+            async move {
+                if let (Some(field), Some(value)) =
+                    (args.first().and_then(|field| field.as_u64()), args.get(1).and_then(|value| value.as_str()))
+                {
+                    recorded.record(field, value.to_owned());
+                }
+                serde_json::Value::Null
+            }
+        })
+        .await?;
+    let holding = holds.clone();
+    context
+        .route("**/*", move |route| {
+            let (holding, typed) = (holding.clone(), typed.clone());
+            async move {
+                let request = route.request();
+                if let Verdict::Refused(_) = decide(request.url()).await {
+                    return route.abort(Some("blockedbyclient")).await;
+                }
+                if holding.takes_pass(&request).await {
+                    return route.continue_(None).await;
+                }
+                // **While the person has the window, they are acting, not us.**
+                // Their own submissions are not ours to hold: a held navigation
+                // freezes the page it is holding, which is the one thing a
+                // person cannot be asked to sit through.
+                if holding.paused() {
+                    return route.continue_(None).await;
+                }
+                let typed = typed.values();
+                // A GET is a read, **unless it is carrying a secret**: the same
+                // message to that server as the POST it came from, in a place
+                // nobody looks. Every other GET is a documented residual.
+                if crate::hold::is_read(request.method())
+                    && !crate::secret::carries(request.url(), &typed)
+                {
+                    return route.continue_(None).await;
+                }
+                crate::hold::hold_write(&holding, &request, route).await
             }
         })
         .await

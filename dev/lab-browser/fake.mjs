@@ -93,13 +93,16 @@ const script = {
     return { name: "finish", args: { answer: `${count}` } };
   },
 
-  /** The form: a textbox, two radios-by-click and a checkbox, then submit.
-   *  httpbin's "size" is a radio group, so this is clicks and not select. */
+  /** The form, and the one step of it that sends.
+   *
+   *  httpbin's "size" is a radio group, so that is clicks and not a select, and
+   *  **the name goes last on purpose**: Enter follows a single-line field, so
+   *  typing into the name box submits whatever the form holds at that moment.
+   *  Fill the two choices first and the one write carries all three, which is
+   *  also what a model learns to do here. It is the one task that runs through a
+   *  confirm, so under --fake the harness plays the person and answers it.
+   */
   4(state, page) {
-    if (!state.named) {
-      state.named = true;
-      return { name: "browser_type", args: { ref: refOn(page, 'textbox "Customer name:"'), text: "Marco Rossi" } };
-    }
     if (!state.sized) {
       state.sized = true;
       return { name: "browser_click", args: { ref: refOn(page, 'radio "Medium"') } };
@@ -108,9 +111,9 @@ const script = {
       state.topped = true;
       return { name: "browser_click", args: { ref: refOn(page, 'checkbox "Bacon"') } };
     }
-    if (!state.sent) {
-      state.sent = true;
-      return { name: "browser_click", args: { ref: refOn(page, 'button "Submit order"') } };
+    if (!state.named) {
+      state.named = true;
+      return { name: "browser_type", args: { ref: refOn(page, 'textbox "Customer name:"'), text: "Marco Rossi" } };
     }
     return { name: "finish", args: { answer: "Ho inviato il modulo: Marco Rossi, medium, bacon." } };
   },

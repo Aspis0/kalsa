@@ -83,7 +83,7 @@ export async function runPhoneTurn(
       // refused (fetchProvenanceRefusal, searchQueryRefusal). No sensitive-data
       // detection runs on the phone.
       runTool: (name, args, runSignal, conversation) =>
-        executeToolCall(name, args, runSignal, null, conversation, settings.model, openedFor),
+        executeToolCall(name, args, runSignal, null, conversation, settings.model, openedFor, undefined, settings.webTools),
       onToolRun: sink.toolRun,
       toolPhrases: TABLES[turn.language].tools,
       thinking: loadThinking(settings.model),

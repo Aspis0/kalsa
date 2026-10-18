@@ -111,5 +111,6 @@ export const RUST: {
     storage: () => "Kalsa n'a pas pu lire ou écrire son propre dossier.",
     failed: () => "Kalsa n'a pas pu joindre le navigateur. Réessaie.",
     refused: () => "Kalsa n'a pas voulu ouvrir cela.",
+    no_pending_request: () => "Cette requete n’attend plus de reponse.",
   },
 };

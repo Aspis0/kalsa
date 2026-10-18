@@ -105,7 +105,7 @@ async fn a_closed_window_resets_the_session_and_the_next_call_opens_a_fresh_one(
     first.goto(&base, None).await.expect("the page loads");
     sessions.reset().await;
 
-    let (second, _landings) = sessions.page().await.expect("a fresh window opens");
+    let (second, _landings, _holds) = sessions.page().await.expect("a fresh window opens");
     // The opening route belonged to the window that went, so the fresh one is
     // opened the same way — which is the point: it is a new window, not the old.
     let origin = base.clone();

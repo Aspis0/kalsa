@@ -1,0 +1,174 @@
+.browser-confirm {
+  /* In the flow, not a modal: the turn behind it stays readable and Stop stays
+     clickable. A person is being asked to decide, not to decide *instead of*
+     anything else, so nothing here takes the page. */
+  position: relative;
+  z-index: 25;
+  flex: none;
+  width: calc(100% - 2rem);
+  max-width: 780px;
+  margin: 14px auto 6px;
+  padding: 22px 24px 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 24px 60px -24px var(--sh);
+}
+
+.browser-confirm-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.browser-confirm-title {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+/* A secret field is drawn as dots until the person asks to read it. The value is
+   not blurred, not clipped and not scrolled off: it is simply not rendered, so
+   there is nothing in the DOM, in a screenshot tool or in a copied selection
+   until Show is pressed. */
+.browser-confirm-value.is-secret {
+  letter-spacing: 1px;
+}
+
+/* The Show button. It says what it does to the one field it belongs to, and it
+   is not a link, not a disclosure triangle and not something that reads as
+   decoration: pressing it hands the person their own password back. */
+.browser-confirm-show {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  text-decoration: underline;
+}
+
+.browser-confirm-show[aria-expanded="true"] {
+  color: var(--text);
+}
+
+.browser-confirm-waiting {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* What became of the request they just answered. It sits above the cards in the
+   same panel and says the one thing: the card they pressed is gone, and this is
+   what it did. Quiet, because the news is the sentence and not the styling. */
+.browser-confirm-outcome {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin: 0;
+  padding: 6px 10px;
+}
+
+/* The address is the one thing on the card a person needs to judge a request,
+   so it is shown whole and wraps rather than being elided: "…" where a stranger
+   hides the part that matters is exactly what a phishing page wants. */
+.browser-confirm-where {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.browser-confirm-fields {
+  margin: 14px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.browser-confirm-field {
+  display: grid;
+  grid-template-columns: minmax(80px, 34%) 1fr;
+  gap: 12px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.browser-confirm-field + .browser-confirm-field {
+  border-top: 1px solid var(--line);
+}
+
+.browser-confirm-name {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.browser-confirm-value {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.browser-confirm-none {
+  padding: 9px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.browser-confirm-answers {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.browser-confirm-answer {
+  flex: 1;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.browser-confirm-answer:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+.browser-confirm-answer:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.browser-confirm-answer.is-allow {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.browser-pause {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: calc(100% - 2rem);
+  max-width: 780px;
+  margin: 6px auto 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.browser-pause-button {
+  flex: none;
+  padding: 5px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.browser-pause-button.is-paused {
+  border-color: var(--accent);
+  color: var(--accent);
+}
