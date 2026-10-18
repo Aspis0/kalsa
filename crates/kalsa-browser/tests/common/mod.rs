@@ -271,7 +271,11 @@ pub async fn sessions_watching(
     name: &str,
     base: &str,
 ) -> (kalsa_browser::session::Sessions, Page, kalsa_browser::landing::Landings) {
-    let sessions = kalsa_browser::session::Sessions::new(profile(name));
+    // **Held for as long as the window is.** The guard removes the profile when it
+    // drops, and dropping it at the end of this line would delete the directory
+    // Chrome is running in.
+    let profile = profile(name);
+    let sessions = kalsa_browser::session::Sessions::new(profile.path());
     let (page, landings, _holds) = sessions.page().await.expect("the installed browser starts");
     let base = base.to_string();
     page.route("**/*", move |route| {
@@ -328,12 +332,223 @@ pub async fn confirming_window(name: &str, base: &str) -> (kalsa_browser::sessio
 /// This is what a proof about **two sites** needs. There is no address a browser
 /// can reach from a test that the guard would allow and that is not this
 /// computer's own network, and a name is refused before DNS is even asked.
+/// **No browser proof may name a scheme this machine has an app for.**
+///
+/// A `mailto:` or a `tel:` in a fixture is one keystroke away from handing a
+/// person's address to their mail client: Chromium routes an external protocol
+/// to the operating system before anything becomes a network request, so no
+/// route here can stop it, and the only thing that does is the check in
+/// `input.rs` — which is exactly what a proof is for breaking. It has: an Enter
+/// key reached the browser with a `mailto:` `formaction` on an image button, and
+/// a compose window opened on the machine running the tests, on every run, until
+/// dozens were open at once and the machine stopped responding.
+///
+/// The rule being proved is about the **class** — anything that is not http,
+/// https or relative — so `kalsaprobe://` and `kalsaprobe-call:` prove the same
+/// thing and hand nothing to anyone. This reads the test files themselves
+/// rather than a list somebody has to remember to update, so a fixture cannot
+/// quietly reintroduce one.
+#[test]
+fn no_browser_fixture_names_a_scheme_the_operating_system_handles() {
+    // **Every file under `tests/`, recursively, read at the moment the suite
+    // runs.** A hardcoded list is a list to forget: it left out the files added
+    // since it was written and it never saw `common/` itself, which is where a
+    // shared fixture would live. A fixture dropped in a subdirectory is a fixture
+    // nobody reads the listing of, so the directory is walked rather than listed,
+    // and a new file is covered the day it is written.
+    let root = std::path::Path::new("tests");
+    let mut read = 0_usize;
+    let mut files = Vec::new();
+    for path in rust_files(root) {
+        let source = std::fs::read_to_string(&path).expect("a test file is readable");
+        read += 1;
+        files.push(path.clone());
+        let flat = flatten(&source);
+        for shape in SHAPES_HANDS_OVER.iter().chain(SCHEMES_HANDS_OVER) {
+            let found = first_handed_over(&flat, shape);
+            assert!(
+                found.is_none(),
+                "{} puts {} in {shape}, which a browser will follow; use kalsaprobe://",
+                path.display(),
+                found.unwrap_or_default()
+            );
+        }
+    }
+    assert!(read >= 8, "only {read} test files were read, so the sweep is not seeing the suite");
+    // **And it goes below `tests/`.** A count is no proof of that — the ten files
+    // sitting in `tests/` alone are already past the number above — and a fixture
+    // dropped in `common/` is exactly the shared one nobody re-reads. So the walk
+    // is checked against a file that is *only* reachable by descending.
+    let descended = files.iter().filter(|path| path.parent().is_some_and(|dir| dir.ends_with("common")));
+    assert!(descended.count() > 0, "the sweep never read anything under a subdirectory of tests/: {files:?}");
+}
+
+/// **Every `.rs` file under a directory, however deep.** `read_dir` on `tests/`
+/// alone never saw `common/`, which is where a shared fixture lives and where this
+/// file puts its own.
+fn rust_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    let mut queue = vec![root.to_path_buf()];
+    while let Some(dir) = queue.pop() {
+        let entries = std::fs::read_dir(&dir).unwrap_or_else(|error| panic!("{} is readable: {error}", dir.display()));
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                queue.push(path);
+            } else if path.extension().is_some_and(|one| one == "rs") {
+                out.push(path);
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// **The file's own text, comments dropped and every run of whitespace folded to
+/// one space.** This is what makes the shapes match across lines: an attribute
+/// written as `href =\n  "mailto:…"` is two lines in the file and one shape here,
+/// and matching line by line is what let that shape through.
+fn flatten(source: &str) -> String {
+    let mut out = String::with_capacity(source.len());
+    for line in source.lines() {
+        let line = line.trim_start();
+        // A scheme in a comment is the code talking about one, which is where a
+        // real one belongs: nothing there ever reaches a browser.
+        if line.starts_with("//") {
+            continue;
+        }
+        for word in line.split_whitespace() {
+            out.push_str(word);
+            out.push(' ');
+        }
+    }
+    out
+}
+
+/// The spellings that put a destination in a page, each ending **immediately
+/// before the value**. The value is then read properly — quoted or not, with any
+/// amount of space in between — so `href="mailto:…"`, `href = "mailto:…"` and
+/// `href\n=\n'mailto:…'` are one shape, and a `mailto:` a page merely mentions
+/// further along the line is not mistaken for this attribute's value.
+const SHAPES_HANDS_OVER: &[&str] = &["href", "action", "formaction"];
+
+/// **The ways a page hands an address to the browser without an attribute.**
+/// `window.open` has no `=`, so the shape list would never see it, and a `href`
+/// assignment on `location` is covered by `href=` above.
+const SCHEMES_HANDS_OVER: &[&str] = &["window.open(", "location.assign(", "location.replace("];
+
+/// The schemes the operating system answers for, in one list, so the matcher and
+/// the message cannot disagree.
+const HANDED_OVER: &[&str] = &["mailto:", "tel:", "sms:", "facetime:", "zoommtg:", "itms-apps:", "webcal:", "im:", "msteams:", "slack:", "tg:"];
+
+/// **The matcher has teeth, in every shape the sweep claims to cover.** A
+/// tripwire that cannot be shown to bite is a comment. Every source here is
+/// **built from pieces**, and that is not cleverness: a source written out in full
+/// would be exactly what this sweep forbids in a file under `tests/` — the file
+/// that holds the proof would be the first thing it flagged. The pieces are the
+/// attribute name and the scheme, each harmless on its own.
+#[test]
+fn the_fixture_sweep_finds_every_shape_and_nothing_else() {
+    let caught = [
+        attribute("href", MAIL, '"'),
+        // **An attribute split across lines, spaced and single-quoted.** Matching
+        // one line at a time is what let this through.
+        format!("<a\n  href \n  = \n  '{MAIL}'\n  title='x'>write</a>"),
+        attribute("action", PHONE, '"'),
+        attribute("formaction", MEET, '"'),
+        // `xlink:href` is covered by `href`, and this says so.
+        format!("<a xlink:href='{MEIL}'>write</a>"),
+        // **A call, which has no `=` for the attribute list to find.**
+        format!("window.open('{MAIL}');"),
+        format!("location.assign(\"{PHONE}\");"),
+        format!("location.replace('{CALENDAR}')"),
+        // A `location` assignment is an `href` with a dot in front of it.
+        format!("location.href = \"{MEIL}\";"),
+    ];
+    for source in caught {
+        assert!(shapes(&source).is_some(), "the sweep would let this through: {source}");
+    }
+
+    // **And the near misses**, which are what a matcher this eager gets wrong.
+    let spared = [
+        // The scheme is mentioned by this element, but it is not this
+        // attribute's value — and the browser would follow `/next`.
+        format!("<a href=\"/next\" title=\"see the {MEIL} docs\">next</a>"),
+        // A comment, which is where a real one belongs: nothing in a comment ever
+        // reaches a browser.
+        format!("// <a href=\"{MEIL}\">"),
+        format!("/// href=\"{MEIL}\""),
+        // A list of addresses the code under test is asked about, never opened.
+        format!("\"{MEIL}\","),
+        // The class, with a scheme no machine has a handler for.
+        "<a href=\"kalsaprobe://shop\">shop</a>".to_owned(),
+    ];
+    for source in spared {
+        assert!(shapes(&source).is_none(), "the sweep flagged something harmless: {source}");
+    }
+}
+
+/// An address in an attribute, spelled the way a page spells it.
+fn attribute(name: &str, value: &str, quote: char) -> String {
+    format!("<a {name}={quote}{value}{quote}>write</a>")
+}
+
+/// The schemes, in pieces. **Each is harmless on its own** — a bare address in a
+/// list is where a real one belongs, and nothing here sits in an attribute.
+const MAIL: &str = "mailto:giulia@example.com";
+const PHONE: &str = "tel:+390000000000";
+const MEET: &str = "zoommtg://shop";
+const CALENDAR: &str = "webcal://shop";
+const MEIL: &str = "sms:+390000000000";
+
+/// The first `(shape, scheme)` the sweep would find in a source, read the way it
+/// reads every file in `tests/`.
+fn shapes(source: &str) -> Option<(&'static str, String)> {
+    let flat = flatten(source);
+    SHAPES_HANDS_OVER
+        .iter()
+        .chain(SCHEMES_HANDS_OVER)
+        .find_map(|shape| first_handed_over(&flat, shape).map(|scheme| (*shape, scheme)))
+}
+
+/// The scheme at the first value this shape reaches, if it is one the operating
+/// system answers for. Nothing else counts: only the value that the browser would
+/// actually follow.
+fn first_handed_over(flat: &str, shape: &str) -> Option<String> {
+    for (at, _) in flat.match_indices(shape) {
+        // **The value, properly.** The shape has already taken the attribute name
+        // or the call; what follows is an `=` that may be separated from it by
+        // nothing, a space, or a line break, and then the value — whose quote may
+        // or may not be there. Nothing between here and the value can be confused
+        // with the value.
+        let after = flat[at + shape.len()..].trim_start();
+        let after = after.strip_prefix('=').map_or(after, |rest| rest.trim_start());
+        let value = match after.chars().next() {
+            Some(quote @ ('"' | '\'')) => {
+                let body = &after[quote.len_utf8()..];
+                match body.split(quote).next() {
+                    Some(body) if !body.is_empty() => body,
+                    _ => continue,
+                }
+            }
+            _ => after.split(' ').next().unwrap_or_default(),
+        };
+        for scheme in HANDED_OVER {
+            if value.starts_with(scheme) {
+                return Some(scheme.to_string());
+            }
+        }
+    }
+    None
+}
+
 pub async fn confirming_window_for(
     name: &str,
     base: &str,
     second: Option<&str>,
 ) -> (kalsa_browser::session::Sessions, Page, kalsa_browser::hold::Holds) {
-    let sessions = kalsa_browser::session::Sessions::new(profile(name));
+    let profile = profile(name);
+    let sessions = kalsa_browser::session::Sessions::new(profile.path());
     let (page, _landings, holds) = sessions.page().await.expect("the installed browser starts");
     // A window is bound to the chat driving it, and every card it raises carries
     // that: these tests answer in the same conversation they drove from.
@@ -380,12 +595,138 @@ pub async fn confirming_window_for(
     (sessions, page, holds)
 }
 
-/// A profile directory of our own, thrown away at the end of the test.
-pub fn profile(name: &str) -> String {
-    let dir = std::env::temp_dir().join(format!("kalsa-browser-test-{name}-{}", std::process::id()));
+/// The prefix every profile of ours is named with, and the only thing the sweep
+/// will delete.
+const PROFILE_PREFIX: &str = "kalsa-browser-test-";
+
+/// **A profile directory of our own, removed when the test that made it ends.**
+///
+/// This used to be a `String`, removed only on the way *in*, so every run left a
+/// Chrome profile in the temporary directory — a run that took a dozen tests left
+/// a dozen megabytes nobody would ever collect. The directory is now owned by a
+/// value: it goes when the value does, which is when the test's own locals go.
+///
+/// **It has to be held.** A guard that dropped at the end of the statement that
+/// made it would delete the directory Chrome was running in, so every caller
+/// binds it: `let profile = profile("name");` and passes `&profile`.
+#[derive(Debug)]
+pub struct Profile(String);
+
+impl Profile {
+    /// The path, as a copy, for the APIs that take an owned `String`. **The guard
+    /// still owns the directory**: handing a copy out is not handing it away, and
+    /// the directory goes when this value does.
+    pub fn path(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl std::ops::Deref for Profile {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Drop for Profile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// A profile of our own for this test, and a sweep of what earlier runs left.
+///
+/// **The sweep runs once in the life of the process, not once per profile.** It
+/// walks the temporary directory and asks the kernel about every entry it finds,
+/// which is a fork each; doing that for every test in a suite turned a four-second
+/// run into two minutes. Once is enough — the leftovers it collects are from
+/// earlier runs, and there are no more of them appearing while this one goes.
+pub fn profile(name: &str) -> Profile {
+    static ONCE: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+    ONCE.get_or_init(|| {
+        swept(&std::env::temp_dir());
+    });
+    // **The pid first, so the sweep can tell a live run from a dead one.** A
+    // suite runs many tests in parallel and they share this pid, so "is the pid
+    // that made it still running" is exactly the question worth asking before
+    // deleting somebody's directory.
+    let dir = std::env::temp_dir().join(format!("{PROFILE_PREFIX}{}-{name}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("a profile directory is writable");
-    dir.to_string_lossy().into_owned()
+    Profile(dir.to_string_lossy().into_owned())
+}
+
+/// **What earlier runs left behind, and why this one is safe to delete while
+/// another is running.** A directory named with a pid that is still alive belongs
+/// to a suite in progress and is left alone; one whose pid has gone is a
+/// leftover. A directory from before the pid was in the name cannot be checked
+/// that way, so it is only removed once it has been untouched for a while.
+pub fn swept(root: &std::path::Path) -> usize {
+    let mut removed = 0;
+    let Ok(entries) = std::fs::read_dir(root) else { return 0 };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        let Some(rest) = name.strip_prefix(PROFILE_PREFIX) else { continue };
+        let dead = match rest.split_once('-') {
+            Some((pid, _)) => match pid.parse::<u32>() {
+                Ok(pid) => !process_is_alive(pid),
+                // Old naming, where the pid came last: no way to be sure, so the
+                // age has to answer for it.
+                Err(_) => entry.metadata().is_ok_and(|meta| {
+                    meta.modified().is_ok_and(|when| when.elapsed().ok().is_none_or(|since| since > std::time::Duration::from_secs(3600)))
+                }),
+            },
+            None => false,
+        };
+        if dead && std::fs::remove_dir_all(entry.path()).is_ok() {
+            removed += 1;
+        }
+    }
+    removed
+}
+
+/// Whether a pid is still a process, asked of the kernel with a signal that does
+/// nothing: `kill -0` succeeds only if something is there to be signalled.
+fn process_is_alive(pid: u32) -> bool {
+    std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+#[test]
+fn a_profile_is_removed_when_the_test_that_made_it_ends() {
+    let dir = {
+        let owned = profile("guard");
+        let path = owned.0.clone();
+        assert!(std::path::Path::new(&path).is_dir(), "the profile is there while the test is");
+        path
+    };
+    assert!(!std::path::Path::new(&dir).exists(), "and gone when the guard drops: {dir}");
+}
+
+#[test]
+fn the_sweep_removes_a_dead_runs_profile_and_never_a_live_one() {
+    let root = std::env::temp_dir().join(format!("kalsa-sweep-{}-{}", std::process::id(), std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|since| since.as_nanos())
+        .unwrap_or_default()));
+    std::fs::create_dir_all(&root).expect("a directory to sweep");
+    let dead = root.join(format!("{PROFILE_PREFIX}4294967294-gone"));
+    let live = root.join(format!("{PROFILE_PREFIX}{}-in-flight", std::process::id()));
+    let someone_elses = root.join("not-ours");
+    for dir in [&dead, &live, &someone_elses] {
+        std::fs::create_dir_all(dir).expect("a profile to find");
+    }
+
+    assert_eq!(swept(&root), 1, "exactly the dead run's directory is removed");
+    assert!(!dead.exists(), "a profile of a process that has gone");
+    assert!(live.exists(), "a profile of a run in progress is left alone");
+    assert!(someone_elses.exists(), "and nothing that is not ours");
+    std::fs::remove_dir_all(&root).ok();
 }
 
 /// The browser, our rules installed, and the one address the tests may reach.
@@ -430,8 +771,9 @@ pub async fn browser_allowing_holding(
     base: &str,
     allowed: &str,
 ) -> (Playwright, BrowserContext, Page, kalsa_browser::hold::Holds) {
+    let profile = profile(name);
     let (playwright, context, page, _landings, holds) =
-        launch::start(&profile(name), std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false))).await
+        launch::start(&profile, std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false))).await
             .expect("the installed browser starts");
     let base = base.to_string();
     let allowed = allowed.to_string();
@@ -505,9 +847,10 @@ pub async fn browser_without_our_rules() -> (Playwright, BrowserContext, Page) {
     let mut options = playwright_rs::protocol::BrowserContextOptions::default();
     options.headless = Some(false);
     options.executable_path = Some(executable);
+    let profile = profile("without-our-rules");
     let context = playwright
         .chromium()
-        .launch_persistent_context_with_options(profile("without-our-rules"), options)
+        .launch_persistent_context_with_options(profile.path(), options)
         .await
         .expect("a context");
     let page = context.new_page().await.expect("a page");

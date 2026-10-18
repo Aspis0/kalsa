@@ -10,7 +10,17 @@ mod common;
 use kalsa_browser::input::Refused;
 use kalsa_browser::{input, snapshot};
 use playwright_rs::protocol::{Page, Playwright};
+use std::time::Duration;
 
+/// **Every address in here is one no machine has a handler for.** The rule is
+/// about the *class* — anything that is not http, https or relative — and
+/// `kalsaprobe:` is in the same class as `mailto:`, which is the point: a test
+/// that names a real one proves exactly the same thing and hands the address to
+/// the person's mail client while it runs. That is not a risk worth taking for
+/// a proof, and it has already happened: an Enter key that reached the browser
+/// with a `mailto:` `formaction` opened a compose window on every run of this
+/// file. `mailto:` itself is still refused where no browser is involved, in
+/// `src/input.rs`'s own tests and in `tests/addresses.rs`.
 const SHAPES: &str = r#"
   <form action="/posted">
     <label for="inside">one line inside a form</label>
@@ -30,37 +40,37 @@ const SHAPES: &str = r#"
   <label for="otp">a one time code field</label>
   <input id="otp" type="text" autocomplete="one-time-code">
   <label for="email me">write to giulia</label>
-  <a id="mailto-link" href="mailto:giulia@example.com">write to giulia</a>
+  <a id="mailto-link" href="kalsaprobe://giulia@example.com">write to giulia</a>
   <label for="call me">call the shop</label>
-  <a id="tel-link" href="tel:+390000000000">call the shop</a>
+  <a id="tel-link" href="kalsaprobe-call:+390000000000">call the shop</a>
   <label for="do it">do it now</label>
   <a id="script-link" href="javascript:void(0)">do it now</a>
   <form id="trap" action="https://example.com/collect">
     <label for="sent-away">a form that posts somewhere else</label>
     <input id="sent-away" type="text">
-    <button type="submit" formaction="mailto:shop@example.com">send it</button>
+    <button type="submit" formaction="kalsaprobe://shop">send it</button>
   </form>
   <label for="the swapper">a link that changes on mousedown</label>
-  <a id="swapper" href="/open" onmousedown="this.href='mailto:shop@example.com'">open it</a>
-  <form id="far" action="mailto:shop@example.com">
+  <a id="swapper" href="/open" onmousedown="this.href='kalsaprobe://shop'">open it</a>
+  <form id="far" action="kalsaprobe://shop">
     <label for="traveller">a field attached to the far form</label>
     <input id="traveller" type="text" form="far">
   </form>
-  <map name="office"><area id="office-area" shape="rect" coords="0,0,9,9" href="mailto:shop@example.com" alt="the office map"></map>
+  <map name="office"><area id="office-area" shape="rect" coords="0,0,9,9" href="kalsaprobe://shop" alt="the office map"></map>
   <img id="plan" usemap='#office' alt="a floor plan">
   <svg width="60" height="20" xmlns="http://www.w3.org/2000/svg">
-    <a id="sign" xlink:href="mailto:shop@example.com"><rect width="60" height="20"></rect><text x="2" y="14">the drawn sign</text></a>
+    <a id="sign" xlink:href="kalsaprobe://shop"><rect width="60" height="20"></rect><text x="2" y="14">the drawn sign</text></a>
   </svg>
   <form id="by-image" action="/posted">
     <label for="with-image">a field in the image form</label>
     <input id="with-image" type="text">
-    <input id="picture" type="image" alt="the picture button" src="/x.png" formaction="mailto:shop@example.com">
+    <input id="picture" type="image" alt="the picture button" src="/x.png" formaction="kalsaprobe://shop">
   </form>
-  <form id="icon-form" action="mailto:shop@example.com">
+  <form id="icon-form" action="kalsaprobe://shop">
     <button type="submit"><svg width="20" height="20" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"></rect></svg><span id="icon-text">send the form</span></button>
   </form>
   <form id="labelled" action="/posted">
-    <input id="hidden-submit" type="submit" formaction="mailto:shop@example.com" value="go">
+    <input id="hidden-submit" type="submit" formaction="kalsaprobe://shop" value="go">
     <label id="its-label" for="hidden-submit">a label for a submit input</label>
   </form>
   <form id="odd-method" method="weird" action="/posted">
@@ -102,6 +112,16 @@ async fn ref_of(page: &Page, name: &str) -> String {
     let open = line.find('[').expect("a ref in brackets");
     let close = line[open..].find(']').expect("a closed ref") + open;
     line[open + 1..close].to_string()
+}
+
+/// Opens a page and waits until it has finished loading, so a read taken after
+/// this is a read of the page and not of a half-built one. A one-link page is
+/// small enough that the accessibility tree can be asked for before it is built,
+/// and a read that finds nothing is not a finding about the page.
+async fn settle(page: &Page, url: &str) {
+    page.goto(url, None).await.expect("the page loads");
+    let _ = page.wait_for_load_state(Some(playwright_rs::protocol::WaitUntil::Load)).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
 }
 
 /// The shapes the plan names, asked in the order that costs least: a field that
@@ -212,7 +232,7 @@ async fn a_link_to_another_program_is_refused_before_the_click() {
 #[tokio::test]
 async fn a_refused_fill_never_writes_a_value_the_page_can_see() {
     let (_playwright, page) = page_with_shapes("input-nothing-written").await;
-    // The form's own submitter posts to a mailto:, so this fill is refused for
+    // The form's own submitter posts to another program, so this fill is refused for
     // where it would go — after the field is resolved and after the secret check,
     // and before anything is written.
     let reference = ref_of(&page, "a form that posts somewhere else").await;
@@ -236,25 +256,72 @@ async fn a_refused_fill_never_writes_a_value_the_page_can_see() {
     assert!(typed.is_empty(), "the value landed anyway: {typed:?}");
 }
 
-/// A page that swaps the link's `href` the moment a button goes down on it.
-/// Playwright's own click is mousedown-then-click, so a check followed by a
-/// Playwright click would read `/open` and then follow the mailto. Ours reads
-/// and clicks in one task.
+/// **A page that moves its own link between mousedown and click.** The shape that
+/// got through, and the one the old version of this test claimed to cover while
+/// proving nothing twice: it wrote the page with `set_content`, so the document's
+/// address was `about:blank` and the link was refused as unnameable before any
+/// click happened; and it drove the link with `el.click()`, which fires **no
+/// `mousedown`** — so the handler it was written to catch never ran.
+///
+/// Three steps, and which layer answers each is the point:
+///
+///  1. **A real pointer click.** Mousedown, mouseup, click — and the handler moves
+///     the destination in between, so the address the browser is about to use is
+///     not the one anybody read. The window listener in `external.rs` stops it; the
+///     page does not move. **The destination here is `about:blank` rather than a
+///     scheme with a handler**, and that is the whole trick: a page moved to
+///     `kalsaprobe://` stays where it is whether or not anything refused it, so
+///     "the page did not move" would be a claim about nothing. `about:blank` is a
+///     page this browser opens by itself, so a navigation that was *not* stopped
+///     is visible.
+///  2. **The tool's click on the same page, afterwards.** The handler has run now,
+///     so the address is in the document and the tool refuses it and says why.
+///  3. **An ordinary link on the same page**, which goes — or the rule above would
+///     be "refuse every click".
 #[tokio::test]
-async fn a_link_that_swaps_its_destination_on_mousedown_is_still_refused() {
-    let (base, _arrived) = common::serve(&[common::page("")]).await;
+async fn a_link_that_swaps_its_destination_before_the_click_does_not_go() {
+    let (base, arrived) = common::serve(&[
+        common::page(
+            r#"<a id="swapper" href="/next" onmousedown="this.href = 'about:blank'">open it</a>
+               <a id="plain" href="/next">just next</a>"#
+        ),
+        common::page_at("/next", "<h1>next</h1>"),
+    ])
+    .await;
     let (playwright, _context, page) = common::browser_on("input-swap", &base).await;
-    page.set_content(
-        r#"<a id="swapper" href="/open" onmousedown="this.href='mailto:shop@example.com'">open it</a>"#,
-        None,
-    )
-    .await
-    .expect("the content is set");
+    // **Settled before it is read**: a one-link page is small enough that the
+    // accessibility tree can be asked for before it is built, and a read that
+    // finds nothing is not a finding about the page.
+    settle(&page, &base).await;
     let read = kalsa_browser::snapshot::snapshot(&page, 1).await.expect("the page reads");
-    let reference = ref_of_text(&read, "open it");
+    let swapper = ref_of_text(&read, "open it");
+    let plain = ref_of_text(&read, "just next");
 
-    let refused = input::click(&page, &reference).await.expect_err("the swap is caught");
-    assert_eq!(refused, input::Refused::Destination, "the mailto was not caught");
+    // **1. The pointer click**, which is where the destination moves.
+    let before = arrived.requests().len();
+    let here = page.url();
+    page.locator(format!("aria-ref={swapper}")).click(None).await.expect("the pointer clicks");
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    // **The page is asked where it is first**, because that is the claim: reading
+    // the link afterwards is only possible if the claim holds.
+    assert_eq!(page.url(), here, "a click handler moved the link and the page followed it: {}", page.url());
+    let moved_to: String = page
+        .evaluate::<(), String>("() => document.getElementById('swapper').getAttribute('href')", None)
+        .await
+        .expect("the page answers");
+    assert_eq!(moved_to, "about:blank", "the handler moves the destination on mousedown, as it says it does");
+    assert_eq!(arrived.requests().len(), before, "and nothing went to the server: {:?}", arrived.requests());
+
+    // **2. The tool, on the page as it now is.** The address is in the document,
+    // so this one is refused and the model is told rather than nothing happening.
+    let refused = input::click(&page, &swapper).await.expect_err("the moved address is refused");
+    assert_eq!(refused, input::Refused::Destination, "the tool must refuse the address the page is now offering");
+
+
+    // **3. And an ordinary link on the same page still goes.**
+    input::click(&page, &plain).await.expect("an ordinary address is not a destination");
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    assert_eq!(page.url(), format!("{here}next"), "an ordinary address on the person's own site still goes");
     drop(playwright);
 }
 
@@ -328,12 +395,12 @@ async fn an_svg_link_to_another_program_is_refused() {
 /// submitter: its own `formaction` is where the click goes, so it is read on the
 /// element's own two attributes.
 ///
-/// It is not the default button, and this is the half that is easy to get
-/// wrong: `input type=image` is not a *listed element*, so it is absent from
-/// `form.elements` and is never what Enter submits (measured on the browser
-/// this runs on). A form whose only image button points at `mailto:` is
-/// therefore judged on the form's own action when Enter is pressed — which is
-/// what the browser does, and what the previous version got wrong.
+/// **It is a submit button as well, and this half is the one that matters more.**
+/// `type=image` puts the control in the submit-button state, so Enter in a form
+/// whose first submit control is an image goes with that image's `formaction` —
+/// `form.elements` not listing an image is true and irrelevant. That is proved by
+/// `pressing_enter_in_a_form_whose_image_button_posts_to_another_program_is_refused`,
+/// which is where a mail client used to open.
 #[tokio::test]
 async fn a_clicked_image_button_is_read_for_its_own_action() {
     let (_playwright, page) = page_with_shapes("input-image").await;
@@ -343,17 +410,66 @@ async fn a_clicked_image_button_is_read_for_its_own_action() {
     assert_eq!(refused, input::Refused::Destination);
 }
 
+/// **Enter in a form whose only submit control is an image button goes with
+/// that image's `formaction`.** This is the one that opened the person's mail
+/// client from a plain text field, so it is worth saying what the browser does
+/// rather than what this file used to believe.
+///
+/// It used to believe an image is not a submit button, on the strength of
+/// `form.elements` not listing it — which is true, and is not the question. The
+/// browser finds the default button by association, and `type=image` is one of
+/// the three values that put a control in the submit-button state: Enter in
+/// `#with-image` submitted the form with `formaction="kalsaprobe://..."`, and
+/// with `mailto:` in that attribute it opened a compose window on the machine
+/// running the tests, every run. **A fill into that field is refused**, so the
+/// key is never pressed and there is nothing to hand over.
+///
+/// The safe half is here too: the same form with no `formaction` on the image is
+/// filled and pressed exactly as before, because the rule is about where Enter
+/// would go and not about pictures.
 #[tokio::test]
-async fn pressing_enter_does_not_take_the_image_buttons_action() {
-    let (_playwright, page) = page_with_shapes("input-image").await;
+async fn pressing_enter_in_a_form_whose_image_button_posts_to_another_program_is_refused() {
+    let (_playwright, page) = page_with_shapes("input-image-enter").await;
     let reference = ref_of(&page, "a field in the image form").await;
 
-    // Enter submits the form's own action, `/posted`, which opens nothing. This
-    // must not be refused on the strength of an image that Enter never touches.
-    assert!(
-        input::fill(&page, &reference, "an answer").await.is_ok(),
-        "the image is not Enter's default button, so its action must not refuse the fill"
-    );
+    let refused = input::fill(&page, &reference, "an answer").await.expect_err("the image's own action is refused");
+    assert_eq!(refused, input::Refused::Destination, "Enter would have gone to the image's formaction");
+
+    // **And nothing was typed**, which is the half that actually matters: the
+    // value would have gone out with the address.
+    let typed: String = page
+        .evaluate::<(), String>("() => document.getElementById('with-image').value", None)
+        .await
+        .expect("the page answers");
+    assert!(typed.is_empty(), "an answer was written into a field that would have posted it: {typed:?}");
+}
+
+/// The same form with nothing dangerous on the image is not caught by any of
+/// this: it is filled, Enter is pressed, and the field is filled. A rule that
+/// refused every form with a picture on it would be one nobody keeps.
+///
+/// **Served, not `set_content`.** A document written with `set_content` has
+/// `about:blank` as its address, a relative `action` cannot be resolved against
+/// it, and an action this code cannot name is one it refuses — which is right,
+/// and is why this proof is on a real page.
+#[tokio::test]
+async fn a_form_whose_image_button_posts_nowhere_in_particular_is_filled_and_pressed() {
+    let (base, _arrived) =
+        common::serve(&[common::page(
+            r#"<form id="by-image" action="/posted">
+                 <input id="with-image" type="text">
+                 <input id="picture" type="image" alt="the picture button" src="/x.png">
+               </form>"#,
+        )])
+        .await;
+    let (playwright, _context, page) = common::browser_on("input-image-safe", &base).await;
+    page.goto(&base, None).await.expect("the page loads");
+    let read = kalsa_browser::snapshot::snapshot(&page, 1).await.expect("the page reads");
+    let reference = ref_of_text(&read, "textbox");
+
+    let pressed = input::fill(&page, &reference, "an answer").await.expect("an ordinary image is not a destination");
+    assert!(pressed, "and Enter still goes, or this tool would stop working on a page with a picture on it");
+    drop(playwright);
 }
 
 /// The form's own `method` is where a submit goes when nothing overrides it.
@@ -368,7 +484,7 @@ async fn a_form_with_a_method_the_browser_would_ignore_is_refused() {
 
 /// **An icon inside a submit button submits with the button.** The icon is not
 /// form-associated and has no `form` of its own — reading its attributes checks
-/// nothing — so a `<button formaction="mailto:">` with a picture in it went
+/// nothing — so a `<button formaction="kalsaprobe://">` with a picture in it went
 /// unchecked until the control wrapping the icon was found and judged instead.
 #[tokio::test]
 async fn an_icon_inside_a_button_is_read_through_the_button() {
@@ -398,3 +514,51 @@ async fn the_control_a_label_points_at_is_refused_on_its_own_action() {
     assert_eq!(refused, input::Refused::Destination);
 }
 
+
+/// **A click on a picture inside a link is a click on the link.** The activation
+/// belongs to the anchor, not to the picture — so the tool layer has to read the
+/// chain above the element it was given, and it used to be handed `[el]` and so
+/// judged the picture alone.
+///
+/// Measured on this browser, and the measurement is the proof: the accessibility
+/// tree gives the anchor an **empty name** and the `<img>` inside it the name and
+/// the ref, so a model that reads the page and clicks "the picture inside a link
+/// to another program" is clicking `IMG < A(kalsaprobe://shop)`. The `<span>`
+/// version of this shape is not reachable — a `<span>` gets no ref at all — which
+/// is why the picture is the one this has to be about.
+#[tokio::test]
+async fn a_picture_inside_a_link_to_another_program_is_refused() {
+    let (base, _arrived) = common::serve(&[
+        common::page(
+            r#"<a href="kalsaprobe://shop"><img alt="the picture inside a link to another program" src="/x.png"></a>
+               <a href="/next"><img alt="the picture inside an ordinary link" src="/x.png"></a>"#,
+        ),
+        common::page_at("/next", "<h1>next</h1>"),
+    ])
+    .await;
+    let (playwright, _context, page) = common::browser_on("input-ancestor", &base).await;
+    settle(&page, &base).await;
+    let read = snapshot::snapshot(&page, 1).await.expect("the page reads");
+    let risky = ref_of_text(&read, "the picture inside a link to another program");
+    let ordinary = ref_of_text(&read, "the picture inside an ordinary link");
+
+    // **The ref that name printed is the picture, not the link around it.** If
+    // that ever stops being true this proof is measuring nothing, so it is
+    // asserted rather than assumed.
+    let judged: String = page
+        .locator(format!("aria-ref={risky}"))
+        .evaluate::<String, ()>("el => el.tagName", None)
+        .await
+        .expect("the page answers");
+    assert_eq!(judged, "IMG", "the model is handed the picture, so the picture is all the rule used to see");
+
+    let refused = input::click(&page, &risky).await.expect_err("the link around it is where the click would have gone");
+    assert_eq!(refused, input::Refused::Destination);
+
+    // **And the same picture inside an ordinary link still goes**, or the rule
+    // above would be "refuse every click".
+    input::click(&page, &ordinary).await.expect("an ordinary address is not a destination");
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    assert_eq!(page.url(), format!("{base}/next"), "an ordinary address on the person's own site still goes");
+    drop(playwright);
+}

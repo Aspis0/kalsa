@@ -221,10 +221,18 @@ fn table() -> Vec<Row> {
         .lines()
         .skip(1)
         .filter_map(|line| {
-            let mut words = line.splitn(3, char::is_whitespace);
-            let pid = words.next()?.trim().parse().ok()?;
-            let ppid = words.next()?.trim().parse().ok()?;
-            Some(Row { pid, ppid, command: words.next().unwrap_or_default().trim().to_owned() })
+            // **Split on whitespace, not on the column.** `ps` pads its columns,
+            // and a pad is a field of its own: splitting on each whitespace
+            // character hands the first two fields the padding rather than the
+            // numbers, and a pid that `parse`s from "" is dropped. So this threw
+            // away every row whose pid or ppid did not fill its column — which is
+            // every pid below 10000 — and the proof then reported "nothing was
+            // started" for a browser that was running, whenever the machine
+            // happened to hand it a small pid.
+            let mut words = line.split_whitespace();
+            let pid = words.next()?.parse().ok()?;
+            let ppid = words.next()?.parse().ok()?;
+            Some(Row { pid, ppid, command: words.collect::<Vec<_>>().join(" ") })
         })
         .collect()
 }

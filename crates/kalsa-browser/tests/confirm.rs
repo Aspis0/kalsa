@@ -147,7 +147,7 @@ const LEAKY: &str = r#"
     <input type="hidden" name="note" value="a-script-action">
     <button type="submit">run it</button>
   </form>
-  <form id="mail" action="mailto:someone@shop.example" method="post">
+  <form id="mail" action="kalsaprobe://someone@shop.example" method="post">
     <input type="hidden" name="note" value="a-mail-action">
     <button type="submit">mail it</button>
   </form>
@@ -782,7 +782,10 @@ async fn a_caught_submission_to_a_refused_address_is_never_held() {
     // anything either of these actions would have sent.
     let asked_before = arrived.requests().len();
 
-    for scheme in ["javascript:window.__kalsaRan = true", "mailto:someone@shop.example"] {
+    // **No scheme macOS has an app for.** The rule is about the class, and a real
+    // `mailto:` here would hand the address to the person's mail client the moment a
+    // proof went wrong — which is what happened once. `tests/input.rs` says more.
+    for scheme in ["javascript:window.__kalsaRan = true", "kalsaprobe://someone@shop.example"] {
         // **The product's own decision this time**, not the stand-in: what is
         // being proved is that a caught submission is judged at all.
         let caught = kalsa_browser::submit::Submission {
@@ -923,39 +926,77 @@ async fn a_probe_that_is_not_a_navigation_cannot_spend_the_answer() {
     assert!(!holds.answer_pending().await, "and it spent the answer, once");
 }
 
+/// **What the dispatch calls is whatever `submit` is at that moment**, and that
+/// is the whole of what a page can do to it.
+///
+/// The captured copy of the browser's own `submit` that used to sit in
+/// `window.__kalsaSubmit` is **gone**, on purpose: a global is a function the page
+/// can call itself, with a form of its own, and that call went round the
+/// destination rule in `external.rs` entirely. What is left is better in the way
+/// that matters and weaker in one way that is written down here.
+///
+/// **A page that replaces `submit` costs itself the request.** It cannot stop the
+/// dispatch and it cannot redirect it — the form is ours and the address is the
+/// one the person approved — but the method it replaced is the one the dispatch
+/// ends up calling, so nothing goes, and the answer is **unclear**: the model is
+/// not told it sent something it did not.
 #[tokio::test]
-async fn a_page_that_replaces_submit_does_not_stop_the_approved_request() {
+async fn a_page_that_replaces_submit_costs_itself_the_approved_request() {
     let (base, arrived) = common::serve(&[common::page(LEAKY), common::page_at("/tokens", "<h1>posted</h1>")]).await;
     let (_sessions, page, holds) = common::confirming_window("confirm-replaced-submit", &base).await;
 
-    page.evaluate::<(), ()>("() => { HTMLFormElement.prototype.submit = function () {}; }", None)
-        .await
-        .expect("the page takes submit over");
+    // **The page's own form still works**, or this would only prove that a page
+    // can stop itself.
     let post = ref_of(&page, "post it").await;
     let id = click_holds(&page, &holds, &post).await;
     assert!(is_a_card_id(&id), "the submit is held first: {id}");
-
     assert_eq!(
         holds.answer(&id, common::CHAT, true).await,
         hold::Answer::Spent(Outcome::Sent { host: host_of(&base) }),
-        "and it goes, because the dispatch was never the page's method"
+        "untouched, the approved request goes with what the card showed"
     );
     let body = poll_for_body(&arrived, "/tokens", 20).await.unwrap_or_default();
     assert!(body.contains("listed"), "with what the card showed: {body}");
+
+    // **Back to the fixture**, because the answer above navigated the window to
+    // `/tokens` and the ref this test holds is not on that page.
+    page.goto(&base, None).await.expect("the fixture is open again");
+    // **The ref is read again**, because a ref names an element and the element
+    // that one named went to `/tokens` with the first answer.
+    let post = ref_of(&page, "post it").await;
+
+    // Now the page takes `submit` over, and the second submission cannot go.
+    page.evaluate::<(), ()>("() => { HTMLFormElement.prototype.submit = function () {}; }", None)
+        .await
+        .expect("the page takes submit over");
+    let before = arrived.requests().len();
+    let id = click_holds(&page, &holds, &post).await;
+    assert!(is_a_card_id(&id), "and the next submit is still held: {id}");
+
+    assert_eq!(
+        holds.answer(&id, common::CHAT, true).await,
+        hold::Answer::Spent(Outcome::Ambiguous),
+        "answered yes, nothing went, and that is exactly what unclear means"
+    );
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(arrived.requests().len(), before, "and nothing reached the server afterwards");
 }
 
 /// **A dispatch that could not be carried out is unclear, and revokes itself.**
-/// Taking the captured functions away is the honest version of a page that stops
-/// the dispatch: nothing went, so the model must not be told it did — and the
-/// answer is revoked so no later request can pick it up.
+/// Removing `submit` from the prototype altogether is the honest version of a page
+/// that stops the dispatch: the evaluation throws, nothing goes, so the model must
+/// not be told it did — and the answer is revoked so no later request can pick it
+/// up. This used to be proved by nulling `window.__kalsaSubmit`, which was a
+/// global of ours on the page's own global object; there is no such global to reach
+/// for now, and this is the case that replaces it.
 #[tokio::test]
-async fn a_page_that_takes_the_dispatch_away_is_told_unclear_and_sends_nothing() {
+async fn a_page_that_takes_submit_away_is_told_unclear_and_sends_nothing() {
     let (base, arrived) = common::serve(&[common::page(LEAKY), common::page_at("/tokens", "<h1>posted</h1>")]).await;
     let (_sessions, page, holds) = common::confirming_window("confirm-stolen-dispatch", &base).await;
 
-    page.evaluate::<(), ()>("() => { window.__kalsaSubmit = null; window.__kalsaApply = null; }", None)
+    page.evaluate::<(), ()>("() => { HTMLFormElement.prototype.submit = undefined; }", None)
         .await
-        .expect("the page takes the dispatch away");
+        .expect("the page takes submit away entirely");
     let post = ref_of(&page, "post it").await;
     let id = click_holds(&page, &holds, &post).await;
     assert!(is_a_card_id(&id), "the submit is still held first: {id}");
@@ -1137,7 +1178,7 @@ async fn while_paused_the_persons_own_submit_goes_and_resume_holds_ours_again() 
     // Their submit moved the window, so the model has to come back to the shop —
     // and after a resume, what it does there is held again.
     assert_eq!(page.url(), format!("{base}/order"), "their submit went through, so the page moved");
-    page.goto(&base, None).await.expect("back to the shop");
+    back_to_the_shop(&page, &base).await;
     let _ = page.wait_for_load_state(Some(playwright_rs::protocol::WaitUntil::Load)).await;
     sessions.set_paused(false);
     let buy = ref_of_eventually(&page, "buy it", 20).await;
@@ -1202,7 +1243,7 @@ async fn while_paused_the_persons_navigation_goes_and_the_pages_own_writes_do_no
     // **A GET carrying a secret is still held while paused.** Pausing is about
     // what the person is doing; it is not a permission for the page to mail a
     // passphrase to whoever, and that check sits below the pause on purpose.
-    page.goto(&base, None).await.expect("back to the shop");
+    back_to_the_shop(&page, &base).await;
     let _ = page.wait_for_load_state(Some(playwright_rs::protocol::WaitUntil::Load)).await;
     holds.typed_in(1, "hunter2-the-passphrase").await;
     page.evaluate::<String, ()>(
@@ -1276,7 +1317,7 @@ async fn while_paused_a_login_to_the_person_s_own_site_goes_and_the_same_navigat
 
     // **The same navigation to another site**, with the same value, from a page
     // script. Nothing about the request has changed except where it goes.
-    page.goto(&base, None).await.expect("back to the shop");
+    back_to_the_shop(&page, &base).await;
     holds.typed_in(1, "hunter2-the-passphrase").await;
     page.evaluate::<String, ()>(
         r#"payload => {
@@ -1308,7 +1349,7 @@ async fn while_paused_a_login_to_the_person_s_own_site_goes_and_the_same_navigat
     // secret in its fields, which is where a login form puts it, and reading
     // only the address let a paused navigation post the person's password to
     // another site by putting it in the form instead of the query.
-    page.goto(&base, None).await.expect("back to the shop");
+    back_to_the_shop(&page, &base).await;
     holds.typed_in(1, "hunter2-the-passphrase").await;
     page.evaluate::<String, ()>(
         r#"payload => {
@@ -1333,7 +1374,234 @@ async fn while_paused_a_login_to_the_person_s_own_site_goes_and_the_same_navigat
     assert_eq!(holds.waiting().await, 2, "and both cross-site sends are held as cards");
 }
 
+/// **A body nobody read is a body that may be carrying the person's secret, and a
+/// body read is read all the way down.** Both halves of
+/// `guard::carries_a_typed_secret`, driven through a real browser, with the same
+/// pause and the same typed value throughout and one thing changing per request.
+///
+/// The half that failed open is the first: a body in a form a card cannot be
+/// drawn for — `text/plain`, and a multipart post with a file in it — used to
+/// read as "no secret here", so a paused window waved a **cross-site** send
+/// through on the strength of a body nobody had looked at. The second half is
+/// that reading a body means its names and its values and its bytes, not only a
+/// field whose value happens to be exactly what the person typed.
+///
+/// **What the store reports, and what the wire reports.** A cross-site request
+/// this route refuses is refused with one line and no card, because there is
+/// nothing to ask the person about; a cross-site request it holds is a card.
+/// Both are the product's own answer, and both are read here. Chromium cannot
+/// connect to the second loopback address at all, so for anything cross-site the
+/// **fixture is not** the witness — the store is — while the two same-site posts
+/// are watched on the wire, which is what shows that nothing was over-held.
+#[tokio::test]
+async fn off_site_a_paused_navigation_is_refused_when_its_body_cannot_be_read_and_held_when_it_carries_what_was_typed() {
+    let (bound, arrived) = common::serve_on(
+        "0.0.0.0",
+        &[
+            common::page(SHOP),
+            common::page_at("/opaque-here", "<h1>sent as text/plain</h1>"),
+            common::page_at("/file-here", "<h1>sent with a file in it</h1>"),
+        ],
+    )
+    .await;
+    let base = bound.replace("0.0.0.0", "127.0.0.1");
+    let other = bound.replace("0.0.0.0", "127.0.0.2");
+    let (sessions, page, holds) =
+        common::confirming_window_for("confirm-paused-unreadable", &base, Some(&other)).await;
 
+    sessions.set_paused(true);
+    assert!(sessions.paused(), "the window is paused");
+    page.goto(&base, None).await.expect("the shop loads");
+    holds.typed_in(1, "hunter2-the-passphrase").await;
+
+    // **The same two bodies, on the site the person is already on, go out.** This
+    // is what "fail closed" has to mean: not "held", but "held where the person
+    // is not". A pause that refused these would be the blanket this file exists
+    // to avoid.
+    posting(&page, &base, "text/plain", "/opaque-here", r#"<input name="password" value="hunter2-the-passphrase">"#).await;
+    let opaque = poll_for_body(&arrived, "/opaque-here", 20)
+        .await
+        .expect("the person's own post on their own site went out");
+    assert!(opaque.contains("hunter2-the-passphrase"), "and it carried what they typed: {opaque}");
+
+    posting(
+        &page,
+        &base,
+        "multipart/form-data",
+        "/file-here",
+        r#"<input name="cv" type="file"><input name="note" value="hunter2-the-passphrase">"#,
+    )
+    .await;
+    let with_a_file = poll_for_body(&arrived, "/file-here", 20)
+        .await
+        .expect("a body with a file in it goes on the person's own site too");
+    // **And the bytes really are the shape no card can be drawn for.** An empty
+    // file input is still a file part, which is what makes this the body a card
+    // refuses — said here so the cases below are not resting on the reader's
+    // belief that these requests looked unusual.
+    assert!(
+        with_a_file.contains("filename=") && with_a_file.contains("hunter2-the-passphrase"),
+        "a multipart body with a file part, carrying the typed value beside it: {with_a_file}"
+    );
+    assert!(
+        said(&holds).await.held.is_empty(),
+        "an unreadable body is a bar to cross, not a block: it went out where the person is"
+    );
+
+    // **Off the site, that same body is not sent at all.** The person paused here
+    // is on `127.0.0.1`; this one would have gone to `127.0.0.2`, and nothing in
+    // this code has read what is in it.
+    back_to_the_shop(&page, &base).await;
+    posting(&page, &other, "text/plain", "/opaque", r#"<input name="password" value="hunter2-the-passphrase">"#).await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let store = said(&holds).await;
+    assert!(
+        store.refused.iter().any(|why| why.contains("cannot read")),
+        "a body in a form the person cannot read is refused off-site, in one line and with no card: {:?}",
+        store.refused
+    );
+    assert!(!arrived.asked_for("/opaque"), "and nothing of it went out: {:?}", arrived.requests());
+
+    // **The second shape a card cannot be drawn for**, refused for a second and
+    // better reason: a file is not a field, so there is no card to ask about.
+    back_to_the_shop(&page, &base).await;
+    posting(
+        &page,
+        &other,
+        "multipart/form-data",
+        "/uploaded",
+        r#"<input name="cv" type="file"><input name="note" value="hunter2-the-passphrase">"#,
+    )
+    .await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let store = said(&holds).await;
+    assert!(
+        store.refused.iter().any(|why| why.contains("file")),
+        "and a body carrying a file is refused off-site: {:?}",
+        store.refused
+    );
+
+    // **A body that can be read, carrying a value the secret is *inside* rather
+    // than is**: welded to a suffix, which is what a real secret travels as and
+    // what equality never saw.
+    back_to_the_shop(&page, &base).await;
+    posting(
+        &page,
+        &other,
+        "application/x-www-form-urlencoded",
+        "/welded",
+        r#"<input name="token" value="hunter2-the-passphrase-9f3a">"#,
+    )
+    .await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    assert_eq!(
+        said(&holds).await.held,
+        vec!["/welded".to_owned()],
+        "which is a card, because this one the person could have been shown"
+    );
+
+    // **And the secret as the field's own name**, where the server reads it as
+    // the key. Nobody was looking at names; they are looked at now.
+    back_to_the_shop(&page, &base).await;
+    posting(
+        &page,
+        &other,
+        "application/x-www-form-urlencoded",
+        "/named",
+        r#"<input name="hunter2-the-passphrase" value="1">"#,
+    )
+    .await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    assert_eq!(
+        said(&holds).await.held,
+        vec!["/named".to_owned(), "/welded".to_owned()],
+        "both cross-site sends a card can be drawn for are held as cards"
+    );
+
+    // **And a body with none of theirs in it is neither parked nor refused** — so
+    // the rule is "what is in this body", not "off-site while paused".
+    back_to_the_shop(&page, &base).await;
+    posting(&page, &other, "application/x-www-form-urlencoded", "/clean", r#"<input name="colour" value="blue">"#).await;
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let store = said(&holds).await;
+    assert_eq!(store.held, vec!["/named".to_owned(), "/welded".to_owned()], "nothing new was parked");
+    assert!(store.refused.is_empty(), "and nothing new was refused either: {:?}", store.refused);
+    assert!(
+        page.url().starts_with(&base) || page.url().starts_with("chrome-error://"),
+        "and the person is still where they were: {}",
+        page.url()
+    );
+}
+
+/// What the store says about everything the route has been offered in this
+/// conversation: the requests parked as cards, and the refusals said in one
+/// line. Both are the product's own answers — the first is what the person would
+/// be shown, the second is what the model is told.
+#[derive(Default)]
+struct Said {
+    held: Vec<String>,
+    refused: Vec<String>,
+}
+
+async fn said(holds: &hold::Holds) -> Said {
+    let mut held = Vec::new();
+    for id in holds.ids().await.iter() {
+        if let Some(card) = holds.card(id).await {
+            held.push(path_of(&card.url));
+        }
+    }
+    held.sort();
+    let refused = holds
+        .take_outcomes(common::CHAT)
+        .await
+        .into_iter()
+        .filter_map(|one| match one {
+            hold::Outcome::Unrenderable(why) => Some(why),
+            _ => None,
+        })
+        .collect();
+    Said { held, refused }
+}
+
+/// Back to the shop between two cases. **A navigation the case before it provoked
+/// may still be committing**, and a `goto` that races one fails rather than
+/// navigates — which costs nothing here, because by then that case has been read
+/// and the page only has to be somewhere on this site for the next form to be a
+/// navigation off it.
+async fn back_to_the_shop(page: &Page, base: &str) {
+    let _ = page.goto(base, None).await;
+    let _ = page.wait_for_load_state(Some(playwright_rs::protocol::WaitUntil::Load)).await;
+}
+
+/// The path of an address, without a parser this test crate does not have: what
+/// the cards say about where a held request was going.
+fn path_of(url: &str) -> String {
+    url.split("://")
+        .nth(1)
+        .and_then(|after_scheme| after_scheme.find('/').map(|at| after_scheme[at..].to_owned()))
+        .unwrap_or_else(|| url.to_owned())
+}
+
+/// Submits a form of the person's own, in a kind of post the test chooses, to a
+/// path on `where` — the same three lines a page would write, so every case below
+/// differs from the others in exactly one thing.
+async fn posting(page: &Page, where_: &str, enctype: &str, path: &str, fields: &str) {
+    page.evaluate::<String, ()>(
+        r#"payload => {
+            const [where_, enctype, path, fields] = JSON.parse(payload);
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.enctype = enctype;
+            form.action = where_ + path;
+            form.innerHTML = fields;
+            document.body.appendChild(form);
+            form.requestSubmit();
+        }"#,
+        Some(&serde_json::json!([where_, enctype, path, fields]).to_string()),
+    )
+    .await
+    .ok();
+}
 
 /// **One chat is never told what happened in another.**
 ///
@@ -1382,7 +1650,8 @@ async fn an_outcome_is_told_to_the_conversation_that_caused_it_and_to_no_other()
 #[tokio::test]
 async fn a_paused_browser_refuses_all_five_and_reads_no_arguments() {
     let (base, _arrived) = common::serve(&[common::page(SHOP)]).await;
-    let server = kalsa_browser::mcp::BrowserServer::new(common::profile("pause-all-five"));
+    let profile = common::profile("pause-all-five");
+    let server = kalsa_browser::mcp::BrowserServer::new(profile.path());
     let json = serde_json::json!({});
 
     // Paused through the host-only tool, which is the path the app's own

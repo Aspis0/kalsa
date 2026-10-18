@@ -213,6 +213,11 @@ impl BrowserServer {
 pub struct Said {
     pub refused: bool,
     pub text: String,
+    /// **Whether the window is gone**, which the sentence above cannot say and the
+    /// host has to be able to read. This is the same fact the wire carries as
+    /// `structuredContent.kalsa.gone`; it is here so a proof in this crate can see
+    /// it without parsing JSON.
+    pub gone: bool,
 }
 
 impl Said {
@@ -226,6 +231,13 @@ impl Said {
 /// Flattens a tool's answer into the sentence and the flag, which is all a
 /// proof about a refusal has any business reading.
 fn said(result: CallToolResult) -> Said {
+    let gone = result
+        .structured_content
+        .as_ref()
+        .and_then(|mark| mark.get("kalsa"))
+        .and_then(|kalsa| kalsa.get("gone"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
     let mut text = String::new();
     for part in &result.content {
         if let rmcp::model::ContentBlock::Text(written) = part {
@@ -235,7 +247,7 @@ fn said(result: CallToolResult) -> Said {
             text.push_str(written.text.as_str());
         }
     }
-    Said { refused: result.is_error.unwrap_or(false), text }
+    Said { refused: result.is_error.unwrap_or(false), text, gone }
 }
 
 /// The same shape the router builds its `Parameters` from, so an argument that
@@ -542,7 +554,11 @@ async fn gone(sessions: &Sessions, page: &Page, error: &playwright_rs::Error) ->
     // forgetting the session is what lets the next call open a fresh one instead
     // of asking a dead page. The rule is the session's own.
     sessions.forget_if_gone(error, page).await;
-    view::refused(session::explain(error))
+    // **Marked, not just worded.** The sentence is for the model and says the
+    // window could not be reached; the host needs to know the window is *gone* —
+    // closed by the person, not refused by us — and it cannot tell those apart
+    // from prose. See `view::gone` and the crate README for the shape.
+    view::gone(session::explain(error))
 }
 
 async fn open(sessions: &Sessions, args: OpenArgs) -> CallToolResult {

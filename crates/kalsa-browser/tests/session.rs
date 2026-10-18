@@ -44,7 +44,8 @@ async fn a_window_closed_while_a_call_is_in_flight_is_one_clean_line() {
     let (base, _arrived) =
         common::serve(&[common::page("<h1>slow</h1>").slow(Duration::from_millis(4000))]).await;
     let (playwright, context, page) = common::browser_on("session-inflight", &base).await;
-    let sessions = session::Sessions::new(common::profile("session-inflight-sessions"));
+    let profile = common::profile("session-inflight-sessions");
+    let sessions = session::Sessions::new(profile.path());
 
     let closing = tokio::spawn(async move {
         tokio::time::sleep(Duration::from_millis(300)).await;

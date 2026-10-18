@@ -59,6 +59,11 @@ pub async fn start(
     let holds = Holds::bound_to(paused);
     guard::install(&browser, &landings, &holds).await.map_err(|_| Unavailable::WouldNotStart)?;
     context::close_what_a_route_cannot(&browser).await.map_err(|_| Unavailable::WouldNotStart)?;
+    // **The external-protocol listener, on the context and not on the page**:
+    // Chromium hands a `mailto:` to the operating system before anything becomes
+    // a request, so no route here can refuse it, and the tool layer's check only
+    // covers the elements a model names. See `external.rs` for what was measured.
+    crate::external::install(&browser).await.map_err(|_| Unavailable::WouldNotStart)?;
 
     let page = browser.new_page().await.map_err(|_| Unavailable::WouldNotStart)?;
     // A submission is caught in the page rather than in the route, so this has

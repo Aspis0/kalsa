@@ -25,6 +25,7 @@
 //! before the page runs. Pinning Chrome to what we checked would take a proxy,
 //! which this does not build.
 
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::Duration;
 
@@ -384,20 +385,206 @@ pub fn the_persons_paused_navigation(paused: bool, request: &Request, typed: &[S
 /// let a paused navigation post the person's password to another site by putting
 /// it in the form instead of the query. The body is read as the fields it is —
 /// urlencoded, multipart or JSON — by the same [`crate::body`] the card is drawn
-/// from, and a field is the person's value when the whole of it is what they
-/// typed. **A body in a form a card cannot show is not read**, which can only
-/// under-report here: such a write is held for its own reasons a line below.
+/// from, and by the same [`crate::secret::part_carries`] the address is read by:
+/// a field's **name** and a field's **value** and the **bytes themselves**, so a
+/// secret welded to a suffix, put where the server reads it as the key, or
+/// nested under keys a card never shows is still the same mail.
+///
+/// **A body nobody can read counts as carrying one.** That is the whole of the
+/// fail-closed half, and it is the direction that matters: a body in a form a
+/// card cannot show is a body **nobody has looked at**, so it cannot be called
+/// empty — and a navigation whose body is unreadable goes out only where the
+/// person already is, which is the same bar the readable ones clear.
 fn carries_a_typed_secret(request: &Request, typed: &[String]) -> bool {
     if crate::secret::carries(request.url(), typed) {
         return true;
     }
     let headers = request.headers();
-    let kind = headers.get("content-type").cloned().unwrap_or_default();
-    let body = request.post_data_buffer().unwrap_or_default();
-    match crate::body::show(&kind, &body) {
-        crate::body::Shown::Fields(fields) => fields.iter().any(|field| crate::secret::holds(&field.value, typed)),
-        crate::body::Shown::Refused(_) => false,
+    let content_type = headers.get("content-type").cloned().unwrap_or_default();
+    match request.post_data_buffer() {
+        Some(body) => body_carries_a_typed_secret(&content_type, &body, typed),
+        None => declares_a_body(&headers),
     }
+}
+
+/// Whether what is in this body is one of these values.
+///
+/// **Every piece of the body is asked about**, and a body whose pieces could
+/// not be read is assumed to carry one. Both halves are deliberate and both
+/// fail the same way: towards *held*.
+fn body_carries_a_typed_secret(content_type: &str, body: &[u8], typed: &[String]) -> bool {
+    match crate::body::show(content_type, body) {
+        crate::body::Shown::Fields(fields) => {
+            // **The names, the values, and then the body itself.** The last is
+            // what covers what the fields cannot show: a part that would not
+            // parse is skipped by the parser and is still bytes on the wire, and
+            // a JSON value nested under keys is carried inside a field whose own
+            // name and value are innocent.
+            fields.iter().any(|field| {
+                crate::secret::part_carries(&field.name, typed) || crate::secret::part_carries(&field.value, typed)
+            }) || crate::secret::part_carries(&String::from_utf8_lossy(body), typed)
+        }
+        // **A form the person cannot read is a form nobody has read**, so there
+        // is nothing here to be clean. An opaque kind, a multipart body carrying
+        // a file, a body too large to show — all of them are somebody else's
+        // server and any of them may hold what the person typed.
+        crate::body::Shown::Refused(_) => true,
+    }
+}
+
+/// **Whether these headers say a body was sent and none of it reached us.**
+///
+/// This is what separates a body that *cannot be read* from a request with no
+/// body at all, and getting it wrong in either direction is expensive: read it
+/// as "always a body", and every link a person clicks while paused is held for
+/// carrying a secret it is not carrying; read it as "never a body", and a page
+/// whose payload the driver withheld walks straight off the site with whatever
+/// was in it. So it is asked of the headers, which are the browser's own
+/// account of what it is sending.
+fn declares_a_body(headers: &HashMap<String, String>) -> bool {
+    // **Length, kind, or a body arriving in pieces.** A `content-length` of zero
+    // is an explicit nothing, and is not one of these.
+    headers.get("content-length").is_some_and(|length| length.trim().parse::<u64>().is_ok_and(|count| count > 0))
+        || headers.contains_key("content-type")
+        || headers.contains_key("transfer-encoding")
+}
+
+/// **A body in a form nobody can read is a body that may be carrying what the
+/// person typed** — and the request carrying it goes out only where the person
+/// already is.
+///
+/// This is the fail-closed half, and every one of these was read as *no secret*
+/// before it: an opaque kind, a multipart body with a file in it, and a body too
+/// large for a card are exactly the three bodies `crate::body` refuses, and a
+/// refusal there used to be taken as an all-clear.
+#[test]
+fn a_body_nobody_could_read_may_be_carrying_what_the_person_typed() {
+    let typed = vec!["hunter2".to_owned()];
+    // A kind no card is drawn for, whether or not the secret is in it.
+    assert!(body_carries_a_typed_secret("application/octet-stream", b"\x00\x01\x02\x03", &typed), "an opaque kind");
+    assert!(body_carries_a_typed_secret("text/plain", b"colour=blue", &typed), "and one that reads as text to the browser only");
+    // A multipart body carrying a file.
+    assert!(
+        body_carries_a_typed_secret(
+            "multipart/form-data; boundary=edge",
+            b"--edge\r\nContent-Disposition: form-data; name=\"cv\"; filename=\"cv.txt\"\r\nContent-Type: text/plain\r\n\r\nhello\r\n--edge--\r\n",
+            &typed
+        ),
+        "a body with a file in it"
+    );
+    // And a body past the point a card could show it.
+    let too_large = vec![b'x'; crate::body::MAX_BODY + 1];
+    assert!(body_carries_a_typed_secret("application/x-www-form-urlencoded", &too_large, &typed), "too large to show");
+
+    // **But a body we can read is still judged on what it says**, or this is
+    // simply "every body counts" and a pause holds every navigation a person
+    // makes.
+    assert!(!body_carries_a_typed_secret("application/x-www-form-urlencoded", b"colour=blue", &typed), "a clean body is clean");
+    assert!(!body_carries_a_typed_secret("application/x-www-form-urlencoded", b"", &[]), "and with nothing typed there is nothing to find");
+}
+
+/// **The whole body is asked about: the names, the values, and the bytes.**
+///
+/// Fields alone miss a secret welded to something else (the value check caught
+/// only whole values before), one the page put where the server reads it as the
+/// key, and one the parser could not reach at all — a part that does not parse
+/// is dropped from the field list and is still on the wire.
+#[test]
+fn a_body_is_asked_about_by_its_names_its_values_and_its_own_bytes() {
+    let typed = vec!["hunter2".to_owned()];
+    let form = "application/x-www-form-urlencoded";
+
+    // The value, whole: what this always found.
+    assert!(body_carries_a_typed_secret(form, b"password=hunter2", &typed), "the value");
+    // The value, welded to something else — the same mail to that server.
+    assert!(body_carries_a_typed_secret(form, b"token=hunter2-9f3a", &typed), "a value with a suffix on it");
+    // **The name**, which nobody was looking at: a page that puts the password
+    // where the server reads it as the key sends it just as surely.
+    assert!(body_carries_a_typed_secret(form, b"hunter2=1", &typed), "the name of the field");
+    // **Nested JSON**, where the key a person would recognise is one level down.
+    assert!(
+        body_carries_a_typed_secret("application/json", br#"{"user":{"password":"hunter2"}}"#, &typed),
+        "under keys the card never shows"
+    );
+
+    // **And the bytes themselves**, for what the fields cannot show: a header the
+    // page added to a part, and a part that does not parse at all.
+    let part_header = b"--edge\r\nContent-Disposition: form-data; name=\"note\"\r\nX-Trace: hunter2\r\n\r\nhello\r\n--edge--\r\n";
+    assert!(
+        body_carries_a_typed_secret("multipart/form-data; boundary=edge", part_header, &typed),
+        "a part header the field list does not carry"
+    );
+    let unparsed_part =
+        b"--edge\r\nContent-Disposition: form-data; name=\"note\" hunter2\r\n--edge\r\nContent-Disposition: form-data; name=\"colour\"\r\n\r\nblue\r\n--edge--\r\n";
+    assert!(
+        body_carries_a_typed_secret("multipart/form-data; boundary=edge", unparsed_part, &typed),
+        "a part the parser drops, which is still on the wire"
+    );
+
+    // The near misses, so this is a rule and not a held-everything.
+    assert!(!body_carries_a_typed_secret(form, b"colour=hunter3&note=hunter", &typed), "a near miss, and a half of one");
+    assert!(!body_carries_a_typed_secret("multipart/form-data; boundary=edge", b"--edge\r\nContent-Disposition: form-data; name=\"colour\"\r\n\r\nblue\r\n--edge--\r\n", &typed), "and a clean multipart body is clean");
+}
+
+/// **A secret with a space, an `@` and a `!` in it is the same secret after the
+/// browser has written it into a form.** `a b@c!` goes onto the wire as
+/// `a+b%40c%21`, so a check that only looked at the bytes would read that body as
+/// clean — and a body is mostly bytes.
+///
+/// What finds it is the **decoded field**, in the name as well as in the value,
+/// which is why both are asked about and the whole body is asked about only as a
+/// net underneath them. That is the half of the rule a later edit would find
+/// easiest to lose, so the encoding is in the test rather than in a comment.
+#[test]
+fn a_secret_in_a_field_name_is_found_after_the_browser_has_encoded_it() {
+    let typed = vec!["a b@c!".to_owned()];
+    let form = "application/x-www-form-urlencoded";
+    // What the browser sends for a field *named* that, and for one holding it.
+    let named = b"a+b%40c%21=1";
+    let valued = b"note=a+b%40c%21";
+    // **The bytes alone do not carry it**, which is the whole reason the decoded
+    // field is read at all and the reason the raw text is only a net.
+    assert!(!crate::secret::part_carries("a+b%40c%21=1", &typed), "the raw text is not the secret");
+    assert!(body_carries_a_typed_secret(form, named, &typed), "the field it is the name of is");
+    assert!(body_carries_a_typed_secret(form, valued, &typed), "and so is one it is the value of");
+}
+
+/// **A multipart name is read in lower case** — a part's headers are lowercased
+/// before the name is taken out of them — so a secret with capitals in a name is
+/// *not* found by the name check, and the bytes are what find it.
+///
+/// That is the case the raw-text half exists for, and it is the one that looks
+/// redundant beside a name check that works everywhere else.
+#[test]
+fn a_multipart_name_the_reader_lowercases_is_found_in_the_body_itself() {
+    let typed = vec!["Pass word@1!".to_owned()];
+    let part = b"--edge\r\nContent-Disposition: form-data; name=\"Pass word@1!\"\r\n\r\n1\r\n--edge--\r\n";
+    assert!(body_carries_a_typed_secret("multipart/form-data; boundary=edge", part, &typed));
+    // **And the name the reader takes from it really is the lower-cased one**, so
+    // this is not the name check passing by an accident of spelling.
+    assert!(
+        !crate::secret::part_carries("pass word@1!", &typed),
+        "the name as the reader spells it carries nothing"
+    );
+}
+
+/// **A request with no body is not a body that could not be read** — otherwise
+/// every link a person clicks while paused would be held for carrying a secret
+/// it is not carrying, which is the same as refusing to let a person browse.
+#[test]
+fn whether_a_body_was_sent_is_asked_of_the_headers_and_of_nothing_else() {
+    let headers = |pairs: &[(&str, &str)]| {
+        pairs.iter().map(|(name, value)| (name.to_string(), value.to_string())).collect::<HashMap<String, String>>()
+    };
+    assert!(!declares_a_body(&headers(&[])), "a GET with nothing in it");
+    assert!(
+        !declares_a_body(&headers(&[("content-length", "0"), ("accept", "*/*"), ("user-agent", "chrome")])),
+        "and an explicit zero is an explicit nothing"
+    );
+
+    assert!(declares_a_body(&headers(&[("content-length", "42")])), "a body the driver withheld");
+    assert!(declares_a_body(&headers(&[("content-type", "text/plain")])), "a kind, whether or not anything is behind it");
+    assert!(declares_a_body(&headers(&[("transfer-encoding", "chunked")])), "and one arriving in pieces");
 }
 
 /// Whether this navigation keeps the person where they are: **the same scheme and

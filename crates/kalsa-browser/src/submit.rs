@@ -39,10 +39,21 @@ use playwright_rs::protocol::Page;
 use url::form_urlencoded;
 use serde::Deserialize;
 
+/// **Wrapped, because an init script runs in the page's world.** The password
+/// predicate is a top-level `const` and the catcher holds its state in a block of
+/// its own; both used to be the page's, so a site declaring the same name threw a
+/// `SyntaxError` and we broke it. The whole script is an IIFE, and the only thing
+/// left on `window` is the catcher's state — which Rust's own `ARM` and `TAKE`
+/// have to reach, so it cannot be a closure. It holds no address and no way to
+/// submit: what a page can do to it is described where it is written.
 const CATCHER: &str = r"
-  if (!window.__kalsa) {
+  (() => {
     const held = { armed: false, mark: 0, caught: [], typed: [] };
-    window.__kalsa = held;
+    // Non-enumerable and not reassignable: a page can still read the catcher's
+    // own bookkeeping, and there is no version of this where it cannot — but it
+    // cannot be replaced before a submission, and it does not show up in a page's
+    // own `for (const key in window)`.
+    Object.defineProperty(window, '__kalsa', { value: held, enumerable: false, writable: false, configurable: false });
     // What the **person** typed into a password field, kept here in the page and
     // never handed over as a value. The model is refused password fields
     // (`input.rs`), so anything in this list is theirs and nobody else's — which
@@ -53,7 +64,7 @@ const CATCHER: &str = r"
     // still holds is deleted the moment it has been read. See `FIRE`.
     addEventListener('input', (event) => {
       const el = event.target;
-      if (!el || !window.__kalsaPasswords || !window.__kalsaPasswords(el) || !el.value) return;
+      if (!el || !isSecretField(el) || !el.value) return;
       let seen = held.typed.find((one) => one.el === el);
       const field = seen ? seen.id : held.typed.length;
       if (seen) seen.value = el.value;
@@ -100,7 +111,7 @@ const CATCHER: &str = r"
           if (typeof value !== 'string') { hasFile = true; continue; }
           pairs.push([name, value]);
           const control = Array.from(form.elements || []).find((el) => el && el.name === name);
-          if (control && window.__kalsaPasswords && window.__kalsaPasswords(control)) secrets.push(name);
+          if (control && isSecretField(control)) secrets.push(name);
         }
       } catch (error) {
         // `FormData(form, submitter)` throws when the submitter is not a member
@@ -116,20 +127,15 @@ const CATCHER: &str = r"
       // would have sent on its own.
       held.caught.push({ method, url, enctype, pairs, hasFile, target: attribute(form, 'target') ?? null, secrets });
     }, true);
-  }
+  })();
 ";
 
-// The password-class test lives here as a page function because the `input`
-// listener needs it, and **it is written by `input.rs`**: one definition, so the
-// thing the card hides and the thing a fill refuses cannot drift apart.
-/// **The two functions the dispatch needs, taken before the page runs.** An init
-/// script is evaluated before any of the document's own scripts, so what lands
-/// in `window.__kalsaSubmit` here is the browser's, whatever the page assigns
-/// afterwards.
-const CAPTURED: &str = r"
-  window.__kalsaSubmit = HTMLFormElement.prototype.submit;
-  window.__kalsaApply = Reflect.apply;
-";
+// The password-class test is written into this script from `secret`'s two Rust
+// lists, and it is written *in* rather than assigned to `window`: a page could
+// replace a global before the person types anything, and what this predicate
+// decides is whether what they type is tracked at all. `input.rs` builds the
+// same predicate into its own expressions from the same lists, so the thing the
+// card hides and the thing a fill refuses cannot drift apart either way.
 
 const ARM: &str = "() => { const held = window.__kalsa; held.armed = true; held.mark = held.caught.length; }";
 
@@ -154,18 +160,23 @@ const TAKE: &str = r"() => {
 /// captured, so if the rebuild were ever not what the card showed, the request is
 /// held rather than sent — and the person is told it was unclear.
 ///
-/// `submit()` rather than `requestSubmit()`: it fires no submit event, so the
-/// catcher cannot catch the one the person has already agreed to. **And it is
-/// not the page's `submit`.** A page that assigns
-/// `HTMLFormElement.prototype.submit = () => {}` — which is exactly what a page
-/// does when it submits through its own helper — would otherwise have turned the
-/// dispatch into a no-op after the person had already answered, and the model
-/// would be told it went. So `CATCHED` takes both functions before any page
-/// script runs and this calls them directly, with no method lookup on either.
+/// `submit()`, not `requestSubmit()`: it fires no submit event, so the catcher
+/// cannot catch the one the person has already agreed to, and the page cannot
+/// change the form on the way out.
+///
+/// **There is no captured copy of the browser's `submit` any more, and that is
+/// the point.** It used to be stashed in `window.__kalsaSubmit` before the page
+/// ran, so a dispatch could call it whatever the page did afterwards — but a
+/// global on `window` is a function the page can call itself, with any form it
+/// likes, and that call went round the destination rule in `external.rs`
+/// entirely. Calling `outgoing.submit()` asks for whatever `submit` is at this
+/// moment, which is normally the wrapper `external.rs` installed — so the
+/// dispatch is judged by the same rule as any other click, and **cannot reach a
+/// scheme that is not http or https even if a page built the form**. If the page
+/// replaced `submit` after we installed ours, the dispatch calls the page's, the
+/// route never sees the ticket spent, and this reports [`Fired::Unclear`]: which
+/// is what it is.
 const FIRE: &str = r"(request) => {
-  const submit = window.__kalsaSubmit;
-  const apply = window.__kalsaApply;
-  if (typeof submit !== 'function' || typeof apply !== 'function') return false;
   const outgoing = document.createElement('form');
   outgoing.method = request.method;
   outgoing.action = request.url;
@@ -179,7 +190,7 @@ const FIRE: &str = r"(request) => {
     outgoing.appendChild(field);
   }
   document.body.appendChild(outgoing);
-  apply(submit, outgoing, []);
+  outgoing.submit();
   return true;
 }";
 
@@ -296,9 +307,12 @@ pub fn content_type_of(submission: &Submission) -> String {
 /// after every navigation: a listener on one document dies with that document,
 /// and a window that has navigated once must still catch the next write.
 pub async fn install(page: &Page) -> Result<(), playwright_rs::Error> {
-    page.add_init_script(&crate::secret::classifier_script()).await?;
-    page.add_init_script(CAPTURED).await?;
-    page.add_init_script(CATCHER).await
+    let catcher = format!("{PREDICATE}{CATCHER}", PREDICATE = crate::secret::classifier_declaration());
+    // **One script, not two.** There is no captured `submit` to order against
+    // anything any more: what used to be a second init script is gone, so there
+    // is no window in which this one could take the browser's method before
+    // `external.rs` wrapped it.
+    page.add_init_script(&catcher).await
 }
 
 

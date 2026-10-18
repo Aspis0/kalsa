@@ -68,122 +68,6 @@ fn refused_by(answer: &Answer) -> Option<Refused> {
 ///    `formmethod`, the element's own, and the link of every shape it may be
 ///    inside;
 /// 4. **only then** write, or click.
-const PRELUDE: &str = r"
-  const answer = (verdict, extra) => Object.assign({ verdict, isInput: false, kind: '' }, extra || {});
-  // An address with no scheme in it is fine: the browser resolves it against the
-  // page. An address that cannot be resolved at all is not, and is answered with
-  // something `opens` will not take — a destination we cannot name is a
-  // destination we cannot rule out.
-  const protocolOf = value => {
-    if (value === null || value === undefined || value === '') return '';
-    try { return String(new URL(value, location.href).protocol); } catch (error) { return 'unresolvable'; }
-  };
-  const opens = value => value === '' || value === 'http:' || value === 'https:';
-  // A browser ignores a method it does not know and uses GET. Refusing is
-  // stricter than the browser, and costs a page nothing legitimate.
-  const knownMethod = value => value === '' || value === 'get' || value === 'post' || value === 'dialog';
-  const methodOf = (node, attribute) => node === null || node === undefined
-    ? ''
-    : String(node.getAttribute(attribute) || '').toLowerCase();
-  // The link this element is inside, by every shape a link takes. An HTML
-  // anchor, an image map area, and an SVG anchor — whose href is an
-  // SVGAnimatedString rather than a string, and may live in the xlink
-  // namespace rather than as a plain attribute.
-  const linkHref = el => {
-    const anchor = el.closest('a[href], area[href]');
-    if (anchor !== null) return anchor.getAttribute('href');
-    const svg = el.closest('a');
-    if (svg === null || !svg.namespaceURI || svg.namespaceURI.indexOf('svg') === -1) return null;
-    const drawn = svg.href && svg.href.baseVal;
-    return drawn || svg.getAttribute('xlink:href') || svg.getAttribute('href');
-  };
-  // The form this element would submit, found the way the browser finds it —
-  // and for an element that is not itself form-associated there is no
-  // `el.form` at all, which is the case that used to check nothing:
-  //
-  //  1. **Inside a button or an input.** A `<span>`, an `<svg>` or an `<img>`
-  //     that is a button's icon has no `form` property: it is not form-associated,
-  //     it is *inside* something that is. The control is found with
-  //     `closest('button, input')` and **that control's** form and its own
-  //     `formaction`/`formmethod` are what a click submits with. Reading the
-  //     icon's own (absent) attributes is exactly how a mailto: button with a
-  //     picture in it went unchecked.
-  //  2. **A label, or anything inside one.** `label.control` is the element the
-  //     label is for, and a click anywhere on the label — text, an `<span>`, an
-  //     `<svg>` — activates that element. So it is the *nearest* label that
-  //     decides, found with `closest('label')`: a label inside a button is still
-  //     answered by the button above, and a label for a submit input submits
-  //     with that input whoever was clicked.
-  //  3. **`el.form`** — the browser's own association, so a field whose `form`
-  //     attribute names a form elsewhere on the page is judged by that form and
-  //     `closest('form')` would call it form-less and check nothing at all.
-  //  4. **Ancestry**, as the last resort for anything else.
-  const controlOf = el => {
-    if (el.closest && el.closest('button, input') !== null) return el.closest('button, input');
-    const label = el.closest ? el.closest('label') : null;
-    if (label !== null && label.control) return label.control;
-    return null;
-  };
-  const formOf = el => {
-    const control = controlOf(el);
-    if (control !== null) return control.form || null;
-    return el.form || null;
-  };
-  // The control a click submits with, where the attributes must be read from:
-  // the button or input wrapping an icon, the labelled control, or the element.
-  const submitterEl = el => controlOf(el) || el;
-  // The default button: the control Enter submits with, computed the way the
-  // browser computes it — the first entry of the form's own listed elements,
-  // `form.elements`, that is a submit button and is not disabled. That is where
-  // a form-associated control named by a `form` attribute lives, which a DOM
-  // query would miss, and it skips a disabled button the browser walks past.
-  // `.type` carries the IDL default, so a `<button>` with no attribute reads as
-  // `submit` and an `<input>` with none reads as `text`, which is not one.
-  //
-  // **`input type=image` is not in this list, and cannot be.** The HTML
-  // definition of a *listed element* excludes it, so it is absent from
-  // `form.elements` — measured on the browser this runs on, where a form holds
-  // `text`, `button[type=submit]`, `input[type=submit]` and a bare `<button>` and
-  // omits every image input. That is also correct behaviour, not a gap: an image
-  // submits when it is *activated*, and Enter is not activation, so it is never
-  // the default button. Its own `formaction` is still read on the click path,
-  // because a click on it makes it the submitter.
-  const isDefaultButton = node => {
-    if (node.disabled) return false;
-    const type = String(node.type || '').toLowerCase();
-    if (node.tagName === 'BUTTON') return type === 'submit' || type === '';
-    return node.tagName === 'INPUT' && type === 'submit';
-  };
-  const defaultButtonOf = form => {
-    if (form === null) return null;
-    for (const node of form.elements) {
-      if (isDefaultButton(node)) return node;
-    }
-    return null;
-  };
-  // Every address this action could send the browser to: the form it is
-  // actually associated with, its action and method, the default button's
-  // `formaction` and `formmethod`, the element's own, and the link of every
-  // shape it may be inside. The element's own two are what cover a click: a
-  // clicked submit control *is* the submitter, and that is the one place an
-  // `input type=image` ever submits.
-  const badDestination = el => {
-    const form = formOf(el);
-    const submitter = defaultButtonOf(form);
-    // An icon inside a button submits with the *button*, so the button's own
-    // `formaction` and `formmethod` are what a click on the icon is judged by.
-    const own = submitterEl(el);
-    const href = linkHref(el);
-    return !knownMethod(methodOf(submitter, 'formmethod'))
-      || !knownMethod(methodOf(form, 'method'))
-      || !knownMethod(methodOf(own, 'formmethod'))
-      || !opens(protocolOf(form && form.getAttribute('action')))
-      || !opens(protocolOf(submitter && submitter.getAttribute('formaction')))
-      || !opens(protocolOf(own.getAttribute && own.getAttribute('formaction')))
-      || !(href === null || opens(protocolOf(href)));
-  };
-";
-
 const FILL_BODY: &str = r"
   const editable = el instanceof HTMLTextAreaElement || el.isContentEditable === true;
   if (!(el instanceof HTMLInputElement) && !editable) return answer('unfillable');
@@ -191,13 +75,13 @@ const FILL_BODY: &str = r"
 
   const isInput = el instanceof HTMLInputElement;
   const kind = isInput ? String(el.type).toLowerCase() : '';
-  // The same predicate the catcher uses to know what the *person* typed into a
-  // secret field, generated from one Rust list. Two copies is how a field came
-  // to be refused here and tracked by nobody there.
-  if (window.__kalsaPasswords(el)) return answer('secret');
+  // **The same predicate the catcher asks**, declared above from the same two
+  // Rust lists — written in rather than assigned to `window`, so there is nothing
+  // on the page for a page to replace before the person types.
+  if (isSecretField(el)) return answer('secret');
 
   const here = { isInput, kind };
-  if (badDestination(el)) return answer('destination', here);
+  if (badDestinationOf(el, pathOf(el))) return answer('destination', here);
 
   if (isInput || el instanceof HTMLTextAreaElement) el.value = text;
   else el.textContent = text;
@@ -207,7 +91,7 @@ const FILL_BODY: &str = r"
 ";
 
 const CLICK_BODY: &str = r"
-  if (badDestination(el)) return answer('destination');
+  if (badDestinationOf(el, pathOf(el))) return answer('destination');
 
   el.click();
   return answer('ok');
@@ -224,19 +108,26 @@ const CLICK_BODY: &str = r"
 /// Re-reading closes that; what it cannot close is written down in the crate's
 /// README under Known limits.
 const RECHECK_BODY: &str = r"
-  return answer(badDestination(el) ? 'destination' : 'ok');
+  return answer(badDestinationOf(el, pathOf(el)) ? 'destination' : 'ok');
 ";
 
+/// **The secret predicate is written into the expression, not left in the page.**
+/// It used to be installed as `window.__kalsaPasswords` and read back out of the
+/// page, which is a global a page can replace before the person types anything —
+/// and what it decides is whether a value the person types is tracked at all. So
+/// it is generated from the same two Rust lists, into the same expression, and
+/// there is nothing on the page to replace.
 fn fill_expression() -> String {
-    format!("(el, text) => {{{PRELUDE}{FILL_BODY}}}")
+    let secret = crate::secret::classifier_declaration();
+    format!("(el, text) => {{{}{}{}}}", crate::external::READING, secret, FILL_BODY)
 }
 
 fn click_expression() -> String {
-    format!("(el) => {{{PRELUDE}{CLICK_BODY}}}")
+    format!("(el) => {{{READING}{CLICK_BODY}}}", READING = crate::external::READING)
 }
 
 fn recheck_expression() -> String {
-    format!("(el) => {{{PRELUDE}{RECHECK_BODY}}}")
+    format!("(el) => {{{READING}{RECHECK_BODY}}}", READING = crate::external::READING)
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -295,10 +186,6 @@ pub async fn click(page: &Page, id: &str) -> Result<(), Refused> {
 /// between a fill and a page that acts on it, and it stands because Enter can
 /// now follow a field with no form around it — see `presses_enter`.
 pub async fn fill(page: &Page, id: &str, text: &str) -> Result<bool, Refused> {
-    // The refusal below asks the page the same question the catcher asks, so the
-    // predicate is put on this document first — it is normally already there from
-    // the init script, and putting it again costs one call and cannot drift.
-    let _ = page.evaluate::<(), ()>(&crate::secret::classifier_script(), None).await;
     let element = refs::at(page, id);
     let filled: Answer = element.evaluate::<Answer, &str>(&fill_expression(), Some(text)).await.map_err(|_| Refused::Gone)?;
     if let Some(refused) = refused_by(&filled) {
@@ -317,7 +204,9 @@ pub async fn fill(page: &Page, id: &str, text: &str) -> Result<bool, Refused> {
 
 #[cfg(test)]
 mod tests {
-    use super::{presses_enter, refused_by, Answer, Refused, ONE_LINE};
+
+
+    use super::{click_expression, fill_expression, presses_enter, recheck_expression, refused_by, Answer, Refused, ONE_LINE};
 
     fn answered(verdict: &str, is_input: bool, kind: &str) -> Answer {
         Answer { verdict: verdict.to_string(), is_input, kind: kind.to_string() }
@@ -355,6 +244,44 @@ mod tests {
         assert_eq!(refused_by(&answered("ok", true, "text")), None);
     }
 
+    /// **A click is judged on the whole chain above the element, not on the
+    /// element.** Clicking a picture inside a link activates the link, and the
+    /// element the model is given is not always the link — measured on this
+    /// browser, the accessibility tree gives the anchor an empty name and the
+    /// `<img>` inside it the name and the ref. Handing `[el]` to the rule
+    /// therefore judged the picture, and the link around it was never read.
+    #[test]
+    fn a_click_is_judged_on_the_chain_above_the_element() {
+        const ELEMENT_ALONE: &str = "[el]";
+        for (what, expression) in [
+            ("a click", click_expression()),
+            ("a fill", fill_expression()),
+            ("the recheck before Enter", recheck_expression()),
+        ] {
+            assert!(expression.contains("badDestinationOf(el, pathOf(el))"), "{what} is not judged on the chain above it");
+            assert!(!expression.contains(&format!("badDestinationOf(el, {ELEMENT_ALONE})")), "{what} is judged on the element alone");
+        }
+    }
+
+    /// **Nothing here is a binding in the page's world.** These expressions are
+    /// evaluated, not injected, so their `const`s are already in a function scope
+    /// of our own — but they are built from the same `READING` the window installs
+    /// as an init script, and that one *was* top-level. This is the check that the
+    /// two stay in step: a page's classic script declaring `answer` or `pathOf`
+    /// must not collide with anything we write into it.
+    #[test]
+    fn no_expression_declares_anything_in_the_page() {
+        for (what, expression) in [
+            ("a click", click_expression()),
+            ("a fill", fill_expression()),
+            ("the recheck before Enter", recheck_expression()),
+        ] {
+            assert!(expression.starts_with("(el"), "{what} is not a function expression: {expression}");
+            assert!(expression.ends_with('}'), "{what} has no closing brace");
+            assert!(!expression.contains("window."), "{what} leaves something on the page: {expression}");
+        }
+    }
+
     #[test]
     fn every_refusal_is_one_line_and_says_nothing_the_page_wrote() {
         for refused in [Refused::Password, Refused::NotFillable, Refused::Destination, Refused::Gone] {
@@ -362,121 +289,5 @@ mod tests {
             assert!(reason.chars().count() < 160, "{reason}");
             assert!(!reason.contains('@') && !reason.contains("://"), "{reason}");
         }
-    }
-}
-/// What the destination check reads. Separate from the Enter rule's tests
-/// because they answer different questions: those ask what a fill does, these
-/// ask where a click could go.
-#[cfg(test)]
-mod destinations {
-    use super::{click_expression, fill_expression, recheck_expression, PRELUDE};
-
-    /// The shapes the destination check has to read, each one a way a click has
-    /// gone to another program. Dropping a clause here does not fail a test
-    /// anywhere else: an image map area has no node in the accessibility tree,
-    /// so no read ever names one, and the shape is unreachable from a ref.
-    #[test]
-    fn every_shape_of_link_and_method_is_read() {
-        for clause in [
-            // An HTML anchor, an image map area, and an SVG anchor — whose href
-            // is an SVGAnimatedString and may live in the xlink namespace.
-            "a[href], area[href]",
-            "svg.href && svg.href.baseVal",
-            "getAttribute('xlink:href')",
-            // Three methods: the form's own, the submitter's override, and the
-            // element's. An image button submits like any other submitter.
-            "methodOf(form, 'method')",
-            "methodOf(submitter, 'formmethod')",
-            "methodOf(own, 'formmethod')",
-            // The browser's own association, so a field whose form attribute
-            // names a form elsewhere on the page is judged by that form.
-            "el.form",
-        ] {
-            assert!(PRELUDE.contains(clause), "the destination check no longer reads {clause}");
-        }
-    }
-
-    /// The default button is the browser's, found the browser's way:
-    /// `form.elements` is where a form-associated control outside the form
-    /// itself lives, and `disabled` is what makes a button not the one Enter
-    /// would use.
-    #[test]
-    fn the_default_button_is_the_browsers_and_not_the_first_one_in_the_markup() {
-        for clause in ["form.elements", "node.disabled", "isDefaultButton", "defaultButtonOf(form)"] {
-            assert!(PRELUDE.contains(clause), "the default button is no longer computed as {clause}");
-        }
-        assert!(
-            !PRELUDE.contains("querySelector('button[type=submit]"),
-            "a DOM query misses a form-associated button outside the form and returns a disabled one"
-        );
-    }
-
-    /// An element that is not itself form-associated is judged by the control it
-    /// lives in. A `<span>` or an `<svg>` inside a `<button>` has no `form` of
-    /// its own — reading its attributes checks nothing — so a
-    /// `<button formaction="mailto:">` with a picture in it went unchecked. The
-    /// same is true of anything inside a `<label>`, including the label itself:
-    /// the click lands on the text, and the control is the one it labels, so it
-    /// is found with `closest('label')` and `label.control`.
-    #[test]
-    fn an_element_that_is_not_form_associated_is_judged_by_the_control_it_lives_in() {
-        for clause in [
-            "el.closest('button, input')",
-            "el.closest('label')",
-            "label.control",
-            "control.form",
-            "const submitterEl = el => controlOf(el) || el",
-        ] {
-            assert!(PRELUDE.contains(clause), "the destination check no longer reads {clause}");
-        }
-    }
-
-    /// `input type=image` is **not** a listed element, so it is never in
-    /// `form.elements` and never the default button — Enter is not activation,
-    /// and an image only submits when it is clicked. Asserted as the shape of
-    /// the rule rather than left implicit, because the previous version found
-    /// images with a DOM query and quietly judged the wrong button for Enter.
-    #[test]
-    fn an_image_is_never_the_default_button_but_is_still_read_when_it_is_clicked() {
-        assert!(PRELUDE.contains("is not in this list"), "the rule no longer says why");
-        // Its own formaction and formmethod are read on the element itself,
-        // which is the path a click on it takes.
-        assert!(PRELUDE.contains("own.getAttribute && own.getAttribute('formaction')"), "a clicked image's action is unread");
-        assert!(PRELUDE.contains("methodOf(own, 'formmethod')"), "a clicked image's method is unread");
-        // And `own` is the element or the control wrapping it, so an icon inside
-        // a button is judged by the button.
-        assert!(PRELUDE.contains("const submitterEl = el => controlOf(el) || el"), "the control an icon lives in is not found");
-    }
-
-    /// The check runs again between the write and the key press, and the second
-    /// run is the same check — not a weaker one.
-    #[test]
-    fn enter_is_preceded_by_the_same_check_the_write_was() {
-        let recheck = recheck_expression();
-        assert!(recheck.contains("badDestination(el)"), "the recheck does not re-read the destination");
-        assert!(recheck.contains("const protocolOf"), "the recheck carries its own prelude");
-        assert!(fill_expression().contains("badDestination(el)"), "the write checks what it writes");
-        // And it is a recheck, not a second write.
-        assert!(!recheck.contains("el.value ="), "the recheck must not write again");
-    }
-
-    /// An address that cannot be resolved is not an address with no scheme, and
-    /// `opens` must not take it for one: a destination we cannot name is a
-    /// destination we cannot rule out.
-    #[test]
-    fn an_address_that_cannot_be_resolved_is_not_read_as_scheme_less() {
-        assert!(PRELUDE.contains("return 'unresolvable'"), "an unresolvable address reads as empty");
-        assert!(PRELUDE.contains("value === ''"), "an empty attribute must still read as empty");
-    }
-
-    #[test]
-    fn both_actions_carry_the_same_check_and_the_same_prelude() {
-        let fill = fill_expression();
-        let click = click_expression();
-        for body in [&fill, &click] {
-            assert!(body.contains("badDestination(el)"), "one action skips the destination check");
-        }
-        assert_eq!(fill.matches("const protocolOf").count(), 1);
-        assert_eq!(click.matches("const protocolOf").count(), 1);
     }
 }

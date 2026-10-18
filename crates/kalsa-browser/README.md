@@ -215,6 +215,107 @@ code and believes otherwise.
   submitter is computed the way the browser computes it and why the destination
   is re-read immediately before Enter. Closing this properly needs something in
   front of the browser, like the redirect case below.
+  **The layers above it, and what each one was measured to be worth.** The
+  refusal in `input.rs` covers the elements a model names. Above it,
+  `external.rs` puts the **same rule** — one definition, two callers — on the
+  window, where it answers for every element of every page and every frame:
+  a capture-phase `click` (runs before every handler the page has, and sees
+  clicks out of a shadow tree), a capture **and** bubble-phase `submit`
+  (implicit submission fires this and no click), and a wrapper around
+  `HTMLFormElement.prototype.submit` (a native `submit()` fires no event at
+  all). Both phases are deliberate: captured is the only thing a handler that
+  stops propagation cannot get past, and bubbling on the window is the last
+  moment before the activation and the only one that reads the address *after*
+  the page's own handlers have had their turn with it — a page that answers its
+  own click by pointing its link elsewhere is caught there and nowhere earlier.
+  **An element is judged with everything above it**, in both callers. The window
+  gets that from the event's `composedPath()`; the tool layer has only the
+  element the model named and asks for the chain itself, because a click on a
+  picture inside a link activates the link — and on this browser the picture is
+  what the model gets: the accessibility tree gives the anchor an **empty name**
+  and the `<img>` inside it the name and the ref (`aria-ref` on it resolves to
+  `IMG < A(kalsaprobe://shop)`). Handing the rule `[el]` therefore judged the
+  picture and never read the link, which is the gap
+  `a_picture_inside_a_link_to_another_program_is_refused` was written for.
+  **What does not exist**, measured rather than assumed: the Navigation API is
+  not a layer on this browser (`'navigation' in window` is true and the
+  `navigate` event never arrives — not from an init script, not from a live
+  listener, not for a same-origin http click); there is no Chromium feature to
+  disable the handoff (only `ExternalProtocolDialog` and its checkbox feature
+  exist); and nothing in our command line suppresses a confirmation dialog.
+
+  **What happens once something reaches the handoff: this Chrome asks the
+  person.** Measured with a throwaway app registered for the scheme
+  `kalsaprobetest` — a script that appends to a log and exits, and nothing else —
+  under **our own launch path**, one browser per case because the prompt is modal
+  and would otherwise answer the next case for us. Every shape that reached the
+  handoff put up the same dialog — `Open KalsaSchemeProbe?`, `http://127.0.0.1:PORT
+  wants to open this application.`, an `Always allow …` checkbox, `Cancel` and
+  `Open …` — and **the handler never ran**, because the dialog waits for a click
+  that nobody makes:
+
+  - a page navigating **itself** (`location.href = 'kalsaprobetest://…'`, no click,
+    no event, nothing for any of our layers to read);
+  - a click on a link whose `href` is safe and whose **own handler** then navigates
+    away — the guard reads `href`, allows the click, and the handoff happens after
+    it has stopped looking. This is the blind spot, and it ends in a prompt;
+  - the same self-navigation in a Chrome **we did not launch**, on its own profile,
+    which behaves identically. So this is Chrome's own prompt: **nothing in our
+    flags removes it and nothing adds it**, and there is no flag of ours to drop.
+
+  A link the guard *can* read is refused outright and no dialog appears at all, so
+  the layers here are what removes the prompt from the ordinary cases, and Chrome's
+  own prompt is the backstop for the shapes they cannot see. The ceiling on what a
+  page can reach by navigating itself is therefore **a modal that names the site
+  and waits for the person** — not an app opening behind their back.
+
+  **The one shape with evidence of a silent handoff is `mailto:`, and it is not
+  explained.** A form submitted with a `mailto:` `formaction` opened Mail during a
+  test run with no dialog in front of it, which is what the measurement above says
+  should not happen for any other scheme. There is no scheme list in this build
+  that would account for it — byte-scanning the 519 MB framework binary and all 976
+  resource files finds `snews` nowhere except inside an unrelated anti-spam word
+  blob, and no `mailto;snews;news;` in any form. Whether Chromium exempts
+  `mailto:` from the prompt is **not measured**, because measuring it means handing
+  an address to the person's mail client, which is the one thing these tests are
+  built not to do. If it is exempt, the ceiling for that shape is a **compose
+  window**: an address in a mail client, not a message — nothing is sent, and
+  nothing was filled in by this crate on the way. That is the residue, and it is a
+  window to notice and close rather than a mail to somebody.
+  **That one check was found letting a shape through, and it is written down
+  here because the mistake was a measurement that was true and irrelevant:**
+  `input type=image` is absent from `form.elements`, and this crate used to read
+  the default button out of `form.elements` and conclude that an image is never
+  the button Enter submits with. `image` is one of the three `type` values that
+  put a control in the submit-button state, so Enter in a form whose first
+  submit control is an image goes with **that image's own `formaction`** — and a
+  plain text field was enough to reach it. The default button is now found by
+  association (`node.form`), which is the browser's own answer and the only one
+  that sees an image. A test fixture is a second door into the same hole, so no
+  fixture in `tests/` names a scheme this machine has an app for: a `mailto:` in
+  a page hands the address to the person's mail client the moment a proof goes
+  wrong, which is exactly what happened, and `tests/common/mod.rs` fails the
+  build if one comes back.
+- **How hard a secret is looked for depends on how long it is.** Whole-part
+  equality asks about **every** value the person typed, at any length: a
+  three-digit bank code is short and it is still exactly what it is when it is
+  the whole of a query value. Containment inside a part asks only from
+  `MIN_SECRET` (4) up, and from `PLAIN_CONTAINMENT` (8) up it stops asking
+  where the value stands at all — **while a window is paused it is the page's own
+  script that writes the request, and it decides what the secret is written next
+  to**, so a rule that asks whether the secret stands on a boundary is a rule
+  the page chooses to obey (`x` + secret + `x` is a boundary on both sides). A
+  false positive only holds a request for the person to answer; a false negative
+  is the secret on its way to somebody else's server.
+- **Below eight characters, containment is on a boundary, and that is a trade.**
+  A typed `test` is found in `token=test-9f3a` and in `/api/v2/test/session`, and
+  not in `latest` or `attestation.pdf`. Without that, four ordinary letters typed
+  into a password field make every ordinary address on this computer look like a
+  leak — and a held read is a page that does not load, so a secret nobody guessed
+  the meaning of takes the site down with it. The gap the rule opens is deliberate
+  and stated where it is written: a secret **under eight characters** welded
+  straight to letters or figures (`hunter2x`) is not found by containment. It is
+  still found whole, and still found punctuated.
 - **A secret that is re-encoded before it is sent is a secret this crate cannot
   follow.** `secret::carries` looks for what the person typed **inside** the
   address — in a host label, a path segment, a query name or value, anywhere a
@@ -230,6 +331,22 @@ code and believes otherwise.
   encodings worth decoding and paying for it on every GET; it is a real gap, not
   a rounding error, and it is written here so nobody reads the code above and
   believes otherwise.
+- **A body is read by the same rule, and a body nobody could read is read as
+  carrying one.** `secret::part_carries` is that one rule: whole-part equality at
+  any length, containment from `MIN_SECRET` up — and from `PLAIN_CONTAINMENT` up
+  wherever it stands — asked about a field's **name** as well as its value and
+  about the bytes of the body as a net underneath them — because a secret welded
+  to a suffix, put where the server reads it as the key, or hidden in a multipart
+  part the parser dropped is the same mail either way.
+  The paused-navigation check in `guard.rs` asks it of the address and of the
+  body, and **fails closed**: a body in a form no card can be drawn for (an
+  opaque kind, a file part, one too large to show) and a request whose headers
+  say a body was sent and whose bytes never arrived both count as *may be
+  carrying it*, so such a request goes out only where the person already is. What
+  that costs is stated in `guard.rs`: `form.elements` is not the wire, a name the
+  reader lowercases is only found in the raw text, and a body with a secret
+  percent-encoded into it is found by the decoded field — which is why all three
+  are read.
 - **A multipart form is refused, not approximated.** The browser chooses the
   boundary when it builds the request, so the bytes cannot be written out before
   the card exists, and there is then no way to promise that what goes is what the
@@ -285,3 +402,59 @@ code and believes otherwise.
   applies to such a call is the route guard below and everything in
   `guard.rs`: non-http(s) schemes are refused, private and loopback addresses are
   refused, and the landing record still has to agree before any text is read.
+
+### A closed window, told apart from a refusal
+
+**A tool result can say the window is gone, and the host should read that field
+rather than the sentence.** When the person closes the browser themselves, the
+call that noticed answers with one of our own sentences and forgets the session —
+the same shape as any other refusal, and the host cannot tell from prose that this
+one means "there is no window any more" rather than "Kalsa would not". So the
+answer carries the fact beside the text:
+
+```jsonc
+{
+  "isError": true,
+  "content": [{ "type": "text", "text": "the browser was closed…" }],
+  "structuredContent": { "kalsa": { "gone": true } }
+}
+```
+
+- **Read it at `structuredContent.kalsa.gone === true`.** It is present on exactly
+  one answer — `view::gone`, reached only from `mcp.rs`'s `gone()`, which is
+  called only when the window could not be reached — and **absent on every other
+  result**, so its absence is the normal case and nothing has to be guessed from
+  the text. A mark on any other answer would close a window that is still there,
+  which is the worse failure, and a test asserts it is on only that one.
+- **The text is unchanged and still there for the model.** The mark is added
+  beside it, never in place of it.
+- **In this crate** the same fact is on `mcp::Said::gone`, so a proof here reads it
+  without parsing JSON.
+- **`tool_pins.json` is unaffected.** `kalsa_mcp::digest::tool_digest` hashes a
+  tool's **definition** — name, description and input schema — through
+  `serde_json::to_value(&Tool)`; it never sees a result. A change to a result is
+  therefore not a change to a pin, and no pin needs regenerating for this.
+
+### Accepted, with the backstop that is left
+
+Each of these is a page acting on itself, and each ends the same way: at Chrome's
+own **"Open …?"** dialog, measured in the browser this runs on and written down
+above — the handler is not launched until a person clicks it. That is the backstop
+for all three, and it is the only thing behind the first two.
+
+- **A page that replaces `Event.prototype.preventDefault`, `composedPath`, or
+  calls `stopPropagation` after rewriting its own link.** Our listeners read the
+  address and call `preventDefault`; a page that has replaced the method we would
+  call is choosing not to be stopped, and there is no way to cancel an activation
+  from script once that is true. **Backstop: the dialog**, and the model is
+  watching a window where a dialog has appeared.
+- **A closed shadow root.** `composedPath()` reports a closed root as the host,
+  and an element inside a root nobody has opened is not something a read returns
+  a ref for, so the tool layer cannot be pointed at one. **Backstop: the dialog**,
+  and the tool layer's own refusal of everything it can name.
+- **`window.open` and a `meta refresh` to an external scheme.** Neither fires a
+  click or a submit event we see, and neither is something a read names. **Backstop:
+  the dialog**, exactly as for a page that navigates itself. The fixture sweep in
+  `tests/common/mod.rs` now treats both spellings as a fixture naming a real
+  scheme, so a test cannot reintroduce one — that is about our own proofs, not
+  about a page at runtime.

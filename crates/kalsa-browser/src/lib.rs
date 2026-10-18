@@ -24,6 +24,7 @@ pub mod tools;
 
 mod context;
 mod driver_env;
+mod external;
 mod refs;
 pub mod secret;
 mod tree;
