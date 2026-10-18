@@ -48,6 +48,8 @@ describe("engineCallbackBridge", () => {
       "onMiniapp",
       "onMailCards",
       "onMailDraft",
+      "onBrowserCard",
+      "onBrowserOutcome",
       "onLinksAsText",
       "onModelEmittedText",
       "onThinkingText",

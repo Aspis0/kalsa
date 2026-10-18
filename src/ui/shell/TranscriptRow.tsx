@@ -71,6 +71,7 @@ export const TranscriptRow = memo(function TranscriptRow({
       linksAsText={message.linksAsText}
       mail={message.mail}
       mailDrafts={message.mailDrafts}
+      browserCards={message.browserCards}
       miniapp={message.miniapp}
       onCopy={onCopy}
       onLongPress={onMessageLongPress ? onLongPress : undefined}

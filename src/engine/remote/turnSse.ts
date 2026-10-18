@@ -21,6 +21,11 @@ export type TurnSseEvent =
   | { kind: "tool_run"; id: string; name: string; state: string }
   | { kind: "cards"; cards: unknown }
   | { kind: "draft"; draft: unknown }
+  /** A request held for the person (§3.1). Raw: the card's shape is owned by
+   *  whoever draws it, as `cards` and `draft` are. */
+  | { kind: "browser_card"; card: unknown }
+  /** What became of a card nobody answered (§3.1). */
+  | { kind: "browser_outcome"; outcome: unknown }
   | { kind: "error"; code: string }
   | { kind: "done" }
   | { kind: "ignore" };
@@ -80,6 +85,11 @@ export function parseTurnSseFrame(frame: string): TurnSseEvent {
   }
   if (eventName === "cards") return { kind: "cards", cards: obj };
   if (eventName === "draft") return { kind: "draft", draft: obj };
+  // A card and its outcome ride the turn like a draft does, and like it they
+  // carry nothing the person is not shown: the frame is handed on whole and the
+  // card's shape is checked by the card, once, where it is drawn.
+  if (eventName === "browser_card") return { kind: "browser_card", card: obj };
+  if (eventName === "browser_outcome") return { kind: "browser_outcome", outcome: obj };
   if (eventName === "tool_run") return toolRun(obj);
   // A turn's answer may arrive in pieces that carry no words (an empty delta
   // is how a computer marks a status change); it is still the answer's frame.

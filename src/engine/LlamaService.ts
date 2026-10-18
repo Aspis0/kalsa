@@ -924,6 +924,15 @@ export type EngineCallbacks = {
   onMailCards?: (cards: unknown) => void;
   onMailDraft?: (draft: unknown) => void;
   /**
+   * A request the computer held for the person, and what became of a card
+   * nobody answered (PHONE-CHAT-PROTOCOL §3.1). Unparsed here for the same
+   * reason as the mail above: the card is a stranger's site, and whoever draws
+   * it checks the shape once, next to the drawing. Volatile for the same
+   * reason too — a card is never written to the disk (§6).
+   */
+  onBrowserCard?: (card: unknown) => void;
+  onBrowserOutcome?: (outcome: unknown) => void;
+  /**
    * The answer arrived from the turn route, where a link is shown and never
    * opened by a tap (PHONE-CHAT-PROTOCOL §3). The markdown around it is the
    * phone's own rendering either way; only the link changes.

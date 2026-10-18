@@ -776,6 +776,35 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       reasonPaymentUrgency: "Mittente nuovo chiede un pagamento, con una scadenza",
       reasonHiddenText: "Testo nascosto",
     },
+
+    // Una richiesta che il computer ha trattenuto per far decidere la persona
+    // (PHONE-CHAT-PROTOCOL §3.1). Parole semplici: questa scheda si legge nel
+    // secondo prima di acconsentire a mandare qualcosa a un sito.
+    browser: {
+      title: "Questo sito vuole inviare qualcosa",
+      request: "Richiesta",
+      show: "Mostra",
+      hide: "Nascondi",
+      send: "Invia",
+      decline: "Annulla",
+      answerWithin: "Rispondi entro {time}",
+      expired: "Tempo scaduto. Non è stato inviato nulla.",
+      // Che cosa è successo alla scheda, una volta spesa. `sentTo` è l'unica
+      // riga che nomina un posto, e porta solo il nome nudo del sito.
+      sentTo: "Inviato a {to}",
+      declined: "Hai detto no. Non è stato inviato nulla.",
+      gone: "Il browser è stato chiuso. Non è stato inviato nulla.",
+      unsendable: "Non è arrivato al sito.",
+      unclear: "Kalsa non sa se è stata inviata.",
+      unknown: "Il computer ha chiuso questa richiesta.",
+      failSpent: "Quella richiesta era già stata risposta. Non è stato inviato nulla.",
+      failExpired: "Troppo tardi: quella richiesta è finita. Non è stato inviato nulla.",
+      failBusy: "Un'altra richiesta di questo telefono è già in risposta.",
+      failCancelled: "Sul computer non era rimasto un browser adatto. Non è stato inviato nulla.",
+      failUnavailable: "Questo computer non può rispondere alle richieste del browser.",
+      failUnreadable: "Il computer ha mandato una risposta che Kalsa non ha saputo leggere.",
+      failUncertain: "Kalsa non ha potuto verificare cosa è successo.",
+    },
   },
 
   room: {

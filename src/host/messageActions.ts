@@ -43,6 +43,8 @@ import { useEditMessage } from "./useEditMessage";
 import { useReadAloud } from "./useReadAloud";
 import { useTranslateMessage } from "./useTranslateMessage";
 import type { SendHost } from "./sendHost";
+import { spentBrowserCards } from "./browserCardState";
+import { useBrowserExpiry } from "./useBrowserExpiry";
 
 /** What this hook borrows from the root: the send fence it hands the resend
  *  into, the conversation's messages + shrink guard it truncates, and the two
@@ -98,6 +100,8 @@ export interface MessageActions {
   /** Read-aloud: the id whose chip reads "Stop reading", and the toggle. */
   speakingId: string | null;
   onSpeak: (id: string, text: string) => void;
+  /** A browser card that may no longer be answered gives its values back (§6). */
+  spentBrowserCard: (cardId: string) => void;
   /** The edit modal's draft while open; null closes the modal. */
   edit: { draft: string } | null;
   onEditDraftChange: (draft: string) => void;
@@ -106,6 +110,7 @@ export interface MessageActions {
 }
 
 export function useMessageActions(params: MessageActionsParams): MessageActions {
+  useBrowserExpiry(params.history.setMessages);
   const [menu, setMenu] = useState<MenuPayload | null>(null);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<MenuPayload | null>(null);
@@ -126,6 +131,13 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
       menuCloseTimer.current = null;
     }
   };
+
+  /** Read through the params ref, like every guard here: a card that settles
+   *  during a streaming row must not re-render the transcript from a closure. */
+  const spentBrowserCard = useCallback((cardId: string) => {
+    const history = latest.current.history;
+    history.setMessages((prev) => spentBrowserCards(prev, cardId));
+  }, []);
 
   const closeMenu = useCallback(() => {
     setMenu(null);
@@ -325,6 +337,7 @@ export function useMessageActions(params: MessageActionsParams): MessageActions 
     translating,
     speakingId,
     onSpeak: speak,
+    spentBrowserCard,
     edit: editing === null ? null : { draft: editing.draft },
     onEditDraftChange: (draft: string) => {
       // Keystrokes in the edit modal bump the idle clock (`Chat:4526`).

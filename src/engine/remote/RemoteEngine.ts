@@ -772,6 +772,11 @@ export async function streamRemoteAssistantTurn(
       else if (event.kind === "tool_run") callbacks.onTool?.({ name: event.name });
       else if (event.kind === "cards") callbacks.onMailCards?.(event.cards);
       else if (event.kind === "draft") callbacks.onMailDraft?.(event.draft);
+      // §3.1: a held request and its outcome. Nothing is logged here — a card
+      // is a stranger's site and a stranger's values, and a log line is read by
+      // whoever opens the log.
+      else if (event.kind === "browser_card") callbacks.onBrowserCard?.(event.card);
+      else if (event.kind === "browser_outcome") callbacks.onBrowserOutcome?.(event.outcome);
       else if (event.kind === "turn") {
         console.log("remote.brain.turn", JSON.stringify({ turn: event.turn }));
       }

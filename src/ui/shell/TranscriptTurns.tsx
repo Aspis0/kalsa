@@ -23,12 +23,14 @@ import { ThoughtCloud } from "../thinking/ThoughtCloud";
 import { MiniappCard } from "./MiniappCard";
 import { MailCardList } from "./MailCardList";
 import { MailDraftCard } from "./MailDraftCard";
+import { BrowserConfirmCard } from "./BrowserConfirmCard";
 import { ChipRow, CopyChip, SpeakChip } from "./TranscriptChips";
 import { SourceChips, ToolRows } from "./TranscriptEvidence";
 import { MarkdownBlocks } from "./TranscriptMarkdown";
 import { StreamCaret } from "./StreamCaret";
 import type { TranscriptStyles } from "./TranscriptParts";
 import type { MailCards, MailDraft } from "../../domain/mailPayload";
+import type { BrowserCardEntry } from "../../domain/browserCardPayload";
 import { TranslationUnder } from "./TranslationBlock";
 import type { TranscriptLayout } from "./transcriptLayout";
 import { UserImages } from "./UserImages";
@@ -137,6 +139,7 @@ function AnswerView({
   miniapp,
   mail,
   mailDrafts,
+  browserCards,
   onCopy,
   onLongPress,
   onMiniappOpen,
@@ -165,6 +168,9 @@ function AnswerView({
    *  are gone once the answer is stored. */
   mail?: readonly MailCards[];
   mailDrafts?: readonly MailDraft[];
+  /** The requests held for this phone's person to answer (§3.1): each drawn
+   *  by the card that asks, and never drawn at all on a pairing change. */
+  browserCards?: readonly BrowserCardEntry[];
   /** From the turn route: a link in this answer is shown, never opened. */
   linksAsText?: boolean;
   /** The width the answer got, handed on because the table's own decision
@@ -286,6 +292,12 @@ function AnswerView({
             // Keyed by the draft id: a second draft is a second card, and the
             // first keeps the body the person edited under its own id.
             <MailDraftCard colors={colors} draft={draft} key={draft.draftId} />
+          ))
+        : null}
+      {browserCards
+        ? browserCards.map((entry) => (
+            // Keyed by the card id, like a draft: the same card is the same card.
+            <BrowserConfirmCard colors={colors} entry={entry} key={entry.card.cardId} />
           ))
         : null}
       {sources ? <SourceChips sources={sources} styles={styles} /> : null}

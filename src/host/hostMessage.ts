@@ -4,6 +4,7 @@
  */
 import type { EmissionSource } from "../engine/modelEmittedText";
 import type { MailCards, MailDraft } from "../domain/mailPayload";
+import type { BrowserCardEntry } from "../domain/browserCardPayload";
 
 export type MessageSource = {
   title: string;
@@ -116,6 +117,15 @@ export type Message = {
    */
   mail?: MailCards[];
   mailDrafts?: MailDraft[];
+  /**
+   * The requests the computer held for this phone's person to answer, and what
+   * became of the ones nobody did (PHONE-CHAT-PROTOCOL §3.1). A list, because
+   * one turn can raise more than one, and volatile for the mail's reason and
+   * one more: a card carries a stranger's site and a stranger's values, so it
+   * is held in memory only while it can be answered and never reaches the disk
+   * (§6).
+   */
+  browserCards?: BrowserCardEntry[];
   /** The answer came from the turn route, where a link is shown and never
    *  opened by a tap (PHONE-CHAT-PROTOCOL §3). Survives a reopen: the answer
    *  does, and so does where it came from. */

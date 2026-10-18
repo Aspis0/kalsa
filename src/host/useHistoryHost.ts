@@ -26,7 +26,7 @@ import {
   buildPersistableMessages,
   markStaleRemoteFailures,
   sanitizeHistoryMessages,
-  withoutMail,
+  withoutRemoteCards,
 } from "./historyMessages";
 import {
   getPairingCompletedAt,
@@ -290,7 +290,7 @@ export function useHistoryHost(params: HistoryHostParams): {
     () =>
       subscribePairingCompleted(() => {
         // Mail from the previous pairing goes at once, before the stamp is read.
-        setMessages(withoutMail);
+        setMessages(withoutRemoteCards);
         void getPairingCompletedAt()
           .catch(() => null)
           .then((stamp) => {

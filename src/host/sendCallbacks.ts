@@ -10,6 +10,11 @@
  */
 import { normalizeMiniapp } from "../domain/askAssistant";
 import { normalizeMailCards, normalizeMailDraft } from "../domain/mailPayload";
+import {
+  normalizeBrowserCard,
+  normalizeBrowserOutcome,
+} from "../domain/browserCardPayload";
+import { applyBrowserOutcome } from "./browserCardState";
 import type { EngineTurnCallbacks } from "./engineTurnDeps";
 import type { TurnFence, TurnToken } from "./turnGuards";
 import { toolNameFromActionsPayload } from "./messageMapper";
@@ -37,6 +42,11 @@ export interface RichCallbacks {
     failureReason: string | undefined;
   };
 }
+
+/** §3.1: a phone is asked about at most eight requests at once. The computer
+ *  refuses the ninth and never sends it; this is the phone refusing to draw
+ *  one it could not answer anyway. */
+const MAX_CARDS_PER_MESSAGE = 8;
 
 export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
   const { fence, token, assistantId, setMessages, onToolCapture, t } = ctx;
@@ -164,6 +174,40 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
       // A second draft is a second card, never a swap: a draft id stays
       // sendable for its 30 minutes, and its card keeps its own body.
       patch((message) => ({ ...message, mailDrafts: [...(message.mailDrafts ?? []), draft] }));
+    },
+    // A held request rides the answer like the mail does (PHONE-CHAT-PROTOCOL
+    // §3.1): stored, never ending the stream, dropped whole when the payload
+    // does not carry what the person is being asked to decide on.
+    onBrowserCard: (raw: unknown) => {
+      if (!fence.owns(token)) return;
+      const card = normalizeBrowserCard(raw);
+      if (!card) return;
+      patch((message) => {
+        const cards = message.browserCards ?? [];
+        // **One card per id, whatever the stream does.** A card can cross the
+        // wire twice — a retry on the road, a stream re-read — and a second
+        // copy would draw two cards for one question, each with its own
+        // buttons, over one card id that can only be answered once.
+        if (cards.some((entry) => entry.card.cardId === card.cardId)) return message;
+        // The computer refuses the ninth write and never sends it (§3.1); this
+        // is the phone not drawing a card it has no answer route for. Counted
+        // here, per turn, which is the narrowest reading of "at once".
+        if (cards.length >= MAX_CARDS_PER_MESSAGE) return message;
+        return { ...message, browserCards: [...cards, { card }] };
+      });
+    },
+    onBrowserOutcome: (raw: unknown) => {
+      if (!fence.owns(token)) return;
+      const reported = normalizeBrowserOutcome(raw);
+      if (!reported) return;
+      // **Every message, not just this turn's.** A queued outcome arrives at
+      // the start of this phone's NEXT turn (§3.1) — a turn that raised no
+      // card at all — and the card it closes is sitting on an older answer.
+      setMessages((prev) =>
+        fence.apply(token, prev, (state) =>
+          applyBrowserOutcome(state, reported.cardId, reported.outcome),
+        ),
+      );
     },
     onLinksAsText: () => {
       if (!fence.owns(token)) return;

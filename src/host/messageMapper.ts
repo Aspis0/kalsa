@@ -167,6 +167,10 @@ export function toTranscriptMessage(message: Message, opts: MapperOptions): Tran
     // send. Both are gone once the answer is stored (historyPersistable).
     if (message.mail) mapped.mail = message.mail;
     if (message.mailDrafts) mapped.mailDrafts = message.mailDrafts;
+    // A held request crosses whole: the card draws every field as it would be
+    // sent and holds the answer of its own buttons, so nothing here may
+    // project a field away. Gone once the answer is stored (historyPersistable).
+    if (message.browserCards) mapped.browserCards = message.browserCards;
     if (message.linksAsText) mapped.linksAsText = true;
   } else if (message.edited === true) {
     // The edit badge lives on the user bubble it belongs to (the controller

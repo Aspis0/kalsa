@@ -29,6 +29,7 @@ import { useLabTheme } from "../ui/labTheme";
 import { bottomInsetFor } from "../ui/shell/shellGeometry";
 import { Shell } from "../ui/shell/Shell";
 import { Transcript } from "../ui/shell/Transcript";
+import { BrowserActionsContext } from "../ui/shell/browserActions";
 import { useKeyboardHeight } from "../ui/shell/useKeyboardHeight";
 import type { TranscriptMiniapp } from "../ui/shell/transcriptTypes";
 import type { ComposerArms } from "./composerArms";
@@ -118,6 +119,9 @@ export function HostChatSurface({
   inputBlocked,
 }: ChatSurfaceProps) {
   const { t } = useLocale();
+  // The one host port a browser card needs, and all of it: a card that stops
+  // being answerable gives its values back.
+  const browserActions = { spentBrowserCard: actions.spentBrowserCard };
   const location = hostModelLocation({
     remote: modelHost.remoteActive,
     modelState: modelHost.modelState,
@@ -282,6 +286,7 @@ export function HostChatSurface({
       {showLongChatNudge ? (
         <LongChatNudgeRow colors={colors} onNewChatPress={onNewChatPress} />
       ) : null}
+      <BrowserActionsContext.Provider value={browserActions}>
       <Transcript
         insets={bandInsets}
         messages={view.transcript}
@@ -294,6 +299,7 @@ export function HostChatSurface({
         speakingId={actions.speakingId}
         onSpeak={actions.onSpeak}
       />
+      </BrowserActionsContext.Provider>
     </Shell>
     <HostChatSurfaceOverlays
       bottomInset={insets.bottom}

@@ -32,7 +32,14 @@ export function toTurnMessages(messages: readonly EngineMessage[]): OpenAiChatMe
 
 /** The JSON `POST /kalsa/chat/turn` sends. `reply_for` is a mail id; the
  *  computer refuses anything but digits, so the phone never checks a shape
- *  it did not invent. */
+ *  it did not invent.
+ *
+ *  **No `device`, and there is nowhere to put one** (PHONE-CHAT-PROTOCOL §2):
+ *  the pairing seal hands back a credential and nothing else, so a phone
+ *  cannot name itself or another phone. Which device is asking is resolved by
+ *  the door from the `Authorization` header before the body is even parsed,
+ *  and a `device` in here would be dropped like any other unknown field. That
+ *  is also what makes a card drawable on this turn's phone and no desktop. */
 export function turnBodyJson(args: {
   messages: readonly OpenAiChatMessage[];
   replyFor?: string;

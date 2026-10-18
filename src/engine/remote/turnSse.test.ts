@@ -1,4 +1,4 @@
-import { parseTurnSseFrame } from "./turnSse";
+import { MALFORMED_TURN_FRAME, parseTurnSseFrame } from "./turnSse";
 
 describe("the turn route's named events", () => {
   test("each event the contract names is read as itself", () => {
@@ -30,6 +30,36 @@ describe("the turn route's named events", () => {
     expect(parseTurnSseFrame(`event: draft\ndata: ${JSON.stringify(draft)}\n`)).toEqual({
       kind: "draft",
       draft,
+    });
+  });
+
+  test("a held request and its outcome cross whole, like the cards beside them", () => {
+    const card = {
+      card_id: "3f9c1a77e2b04d5681aa90c3b7e4412d",
+      method: "POST",
+      url: "https://shop.example/checkout",
+      fields: [{ name: "passphrase_2", value: "hunter2", secret: true }],
+      asked_at_ms: 1767225600000,
+      answer_in_ms: 300000,
+    };
+    expect(parseTurnSseFrame(`event: browser_card\ndata: ${JSON.stringify(card)}\n`)).toEqual({
+      kind: "browser_card",
+      card,
+    });
+    const outcome = { card_id: card.card_id, code: "declined" };
+    expect(
+      parseTurnSseFrame(`event: browser_outcome\ndata: ${JSON.stringify(outcome)}\n`),
+    ).toEqual({ kind: "browser_outcome", outcome });
+  });
+
+  test("a browser frame that should have been JSON is the phone's own failure, not a card", () => {
+    expect(parseTurnSseFrame("event: browser_card\ndata: not json\n")).toEqual({
+      kind: "error",
+      code: MALFORMED_TURN_FRAME,
+    });
+    expect(parseTurnSseFrame("event: browser_outcome\ndata: [1,2]\n")).toEqual({
+      kind: "error",
+      code: MALFORMED_TURN_FRAME,
     });
   });
 

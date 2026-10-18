@@ -61,6 +61,10 @@ export function toPersistableHistoryMessages(
     // without offering to act on a mail that may be gone by then.
     delete next.mail;
     delete next.mailDrafts;
+    // A held request is a stranger's site and a stranger's values
+    // (PHONE-CHAT-PROTOCOL §6): only the answer text is kept, and the card
+    // lives in memory for as long as the person may still answer it.
+    delete next.browserCards;
     if (rec.streaming && allowStreamingPartial) {
       next.interrupted = true;
     }

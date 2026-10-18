@@ -784,6 +784,35 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       reasonPaymentUrgency: "New sender wants a payment, with a deadline",
       reasonHiddenText: "Hidden text",
     },
+
+    // A request the computer held for the person to decide on
+    // (PHONE-CHAT-PROTOCOL §3.1). Plain words, no jargon: this card is read
+    // in the second before somebody agrees to send something to a website.
+    browser: {
+      title: "This website wants to send something",
+      request: "Request",
+      show: "Show",
+      hide: "Hide",
+      send: "Send",
+      decline: "Cancel",
+      answerWithin: "Answer within {time}",
+      expired: "Time is up. Nothing was sent.",
+      // What became of the card, once it was spent. `sentTo` is the only line
+      // that names a place, and it carries the bare host and nothing else.
+      sentTo: "Sent to {to}",
+      declined: "You said no. Nothing was sent.",
+      gone: "The browser closed. Nothing was sent.",
+      unsendable: "It did not reach the website.",
+      unclear: "Kalsa can't tell whether it was sent.",
+      unknown: "The computer closed this request.",
+      failSpent: "That request was already answered. Nothing was sent.",
+      failExpired: "Too late: that request is over. Nothing was sent.",
+      failBusy: "Another request from this phone is being answered.",
+      failCancelled: "The computer had no browser open to take it. Nothing was sent.",
+      failUnavailable: "This computer cannot answer browser requests.",
+      failUnreadable: "The computer sent an answer Kalsa could not read.",
+      failUncertain: "Kalsa couldn't confirm what happened.",
+    },
   },
 
   room: {

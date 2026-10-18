@@ -10,6 +10,7 @@ import type { TranslationKey, Locale } from "../../i18n";
 import type { ReactNode } from "react";
 import type { ThemeMode } from "../../theme/design";
 import type { MailCards, MailDraft } from "../../domain/mailPayload";
+import type { BrowserCardEntry } from "../../domain/browserCardPayload";
 import type { StopTone } from "./composerState";
 import type { Insets } from "./shellGeometry";
 
@@ -101,6 +102,11 @@ export type TranscriptMessage = {
    */
   mail?: readonly MailCards[];
   mailDrafts?: readonly MailDraft[];
+  /** The requests held for this phone's person to answer, each with what
+   *  became of it once it was spent (PHONE-CHAT-PROTOCOL §3.1). NEVER
+   *  PERSISTED, like the mail beside it and for one more reason: a card holds
+   *  a stranger's site and a stranger's values (§6). */
+  browserCards?: readonly BrowserCardEntry[];
   /** This answer came from the turn route: a link in it is shown and never
    *  opened by a tap. The markdown around it is untouched. */
   linksAsText?: boolean;

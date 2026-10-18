@@ -70,17 +70,25 @@ export function markStaleRemoteFailures(
   return changed ? next : messages;
 }
 
-/** Mail cards and reply drafts belong to the pairing whose answer brought
- *  them: a pairing change drops them, so a draft built for the old computer
- *  can never be sent through the new one. Volatile, so nothing on disk moves. */
-export function withoutMail(messages: Message[]): Message[] {
+/** Mail cards, reply drafts and held browser requests belong to the pairing
+ *  whose answer brought them: a pairing change drops them, so a draft built for
+ *  the old computer can never be sent through the new one, and a card raised on
+ *  it is never answerable against another. Volatile, so nothing on disk moves. */
+export function withoutRemoteCards(messages: Message[]): Message[] {
   let changed = false;
   const next = messages.map((message) => {
-    if (message.mail === undefined && message.mailDrafts === undefined) return message;
+    if (
+      message.mail === undefined &&
+      message.mailDrafts === undefined &&
+      message.browserCards === undefined
+    ) {
+      return message;
+    }
     changed = true;
     const copy = { ...message };
     delete copy.mail;
     delete copy.mailDrafts;
+    delete copy.browserCards;
     return copy;
   });
   return changed ? next : messages;
