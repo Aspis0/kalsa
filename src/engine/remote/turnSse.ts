@@ -8,6 +8,7 @@
  * name from a newer computer) is ignored, so a pinging turn keeps the
  * watchdog fed and an unknown event cannot end the answer.
  */
+import { normalizeRecap } from "../../domain/recap";
 import { frameLines } from "./openaiSse";
 
 /** The code of a frame that should have been JSON and was not: our own
@@ -26,6 +27,8 @@ export type TurnSseEvent =
   | { kind: "browser_card"; card: unknown }
   /** What became of a card nobody answered (§3.1). */
   | { kind: "browser_outcome"; outcome: unknown }
+  /** What Kalsa did in the turn, in one line (§3.2). Only a valid one crosses. */
+  | { kind: "recap"; text: string }
   | { kind: "error"; code: string }
   | { kind: "done" }
   | { kind: "ignore" };
@@ -60,6 +63,12 @@ function toolRun(obj: Record<string, unknown>): TurnSseEvent {
   };
 }
 
+function recapEvent(payload: string): TurnSseEvent {
+  const parsed = parsedPayload(payload);
+  const text = parsed.ok ? normalizeRecap(parsed.value.text) : null;
+  return text === null ? IGNORE : { kind: "recap", text };
+}
+
 export function parseTurnSseFrame(frame: string): TurnSseEvent {
   let eventName = "";
   const dataLines: string[] = [];
@@ -76,6 +85,9 @@ export function parseTurnSseFrame(frame: string): TurnSseEvent {
   if (eventName === "done") return { kind: "done" };
   const payload = dataLines.join("\n").trim();
   if (!payload) return IGNORE;
+  // §3.2: the recap is a line, not a failure. A recap that is malformed, or that is not
+  // text, is ignored like any other frame the contract does not name, and never ends the turn.
+  if (eventName === "recap") return recapEvent(payload);
   const parsed = parsedPayload(payload);
   if (!parsed.ok) return { kind: "error", code: MALFORMED_TURN_FRAME };
   const obj = parsed.value;

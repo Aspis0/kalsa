@@ -44,6 +44,7 @@ function harnessWithOlderCard() {
           cardId: ID_A,
           method: "POST",
           url: "https://shop.example/checkout",
+          destination: { host: "shop.example", port: null, secure: true },
           fields: [{ name: "passphrase_2", label: null, value: "hunter2", secret: true }],
           deadlineAtMs: 301_000,
         },
@@ -81,6 +82,7 @@ const card = (cardId: string, over: Record<string, unknown> = {}) => ({
   card_id: cardId,
   method: "POST",
   url: "https://shop.example/checkout",
+  destination: { host: "shop.example", port: null, secure: true },
   fields: [{ name: "passphrase_2", label: null, value: "hunter2", secret: true }],
   asked_at_ms: 1767225600000,
   answer_in_ms: 300000,
@@ -103,6 +105,7 @@ describe("a held request on the assistant message", () => {
           cardId: ID_A,
           method: "POST",
           url: "https://shop.example/checkout",
+          destination: { host: "shop.example", port: null, secure: true },
           fields: [{ name: "passphrase_2", label: null, value: "hunter2", secret: true }],
           // Arrival (1 000) plus the budget (300 000) on THIS phone's clock.
           deadlineAtMs: 301_000,

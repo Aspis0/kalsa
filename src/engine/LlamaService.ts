@@ -932,6 +932,8 @@ export type EngineCallbacks = {
    */
   onBrowserCard?: (card: unknown) => void;
   onBrowserOutcome?: (outcome: unknown) => void;
+  /** The turn's one-line account of what it did (PHONE-CHAT-PROTOCOL §3.2). */
+  onRecap?: (text: string) => void;
   /**
    * The answer arrived from the turn route, where a link is shown and never
    * opened by a tap (PHONE-CHAT-PROTOCOL §3). The markdown around it is the

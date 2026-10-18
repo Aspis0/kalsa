@@ -34,10 +34,13 @@ export type BrowserCardField = {
 export type BrowserCard = {
   cardId: string;
   method: string;
-  /** Where it would go, while the card may still be answered, and null once it
-   *  may not (§6): the address is a stranger's site as much as the values are
-   *  a stranger's typing, and a spent card has nothing left to decide. */
+  /** The computer's address for the request, while the card may still be answered,
+   *  and null once it may not (§6). Never shown and never parsed for a host: where
+   *  the request goes is `destination`. */
   url: string | null;
+  /** Where the request goes, as the computer parsed it (§3.1). `null` when the card
+   *  names no destination: it draws without a host and without a way to send. */
+  destination: BrowserDestination | null;
   fields: BrowserCardField[];
   /** When this phone's five minutes are up, on **this phone's** clock,
    *  counted from the moment the card arrived (PHONE-CHAT-PROTOCOL §3.1).
@@ -156,6 +159,7 @@ export function normalizeBrowserCard(raw: unknown, arrivedAtMs = monotonicNowMs(
     cardId,
     method,
     url,
+    destination: readDestination(card.destination),
     fields: parsed as BrowserCardField[],
     deadlineAtMs: arrivedAtMs + answerInMs,
   };
@@ -226,18 +230,30 @@ export function readBrowserAnswer(payload: Record<string, unknown>): BrowserAnsw
   return outcome === null ? { ok: false, errorCode: "browser.unreadable" } : { ok: true, outcome };
 }
 
-/** Where a request goes, as the card names it (§3.1): the bare host, with a port only
- *  when it is not the scheme's default, and whether the connection is plain `http`.
- *  Nothing else of the address is shown: no user, no path, no query. An address the
- *  phone cannot take apart names no host at all. */
-export function destinationOf(url: string): { host: string; insecure: boolean } {
-  const match = /^([a-z][a-z0-9+.-]*):\/\/(?:[^@/?#]*@)?(\[[^\]]*\]|[^:/?#]+)(?::(\d+))?/i.exec(url);
-  if (match === null || !isBareHost(match[2])) return { host: "", insecure: false };
-  const scheme = match[1].toLowerCase();
-  const defaultPort = scheme === "https" ? "443" : scheme === "http" ? "80" : "";
-  const port = match[3];
-  const host = port !== undefined && port !== defaultPort ? `${match[2]}:${port}` : match[2];
-  return { host, insecure: scheme === "http" };
+/** A destination as the computer parsed it (PHONE-CHAT-PROTOCOL §3.1). The host is shown
+ *  exactly as it arrives; a port is shown only when it is not `null`. */
+export type BrowserDestination = {
+  host: string;
+  port: number | null;
+  secure: boolean;
+};
+
+/** A host is at most 253 bytes of printable ASCII (a DNS name in the form the resolver
+ *  is given). */
+const MAX_HOST = 253;
+
+/** The destination the computer sent, or `null` when it is absent or not one the phone
+ *  may draw. Nothing is worked out here: the phone never parses the card's `url` for
+ *  where it goes, because two parsers of one address are two answers. */
+export function readDestination(raw: unknown): BrowserDestination | null {
+  const wire = asObject(raw);
+  if (wire === null) return null;
+  const host = text(wire, "host", MAX_HOST);
+  if (host === null || !/^[\x21-\x7e]+$/.test(host)) return null;
+  const port = wire.port ?? null;
+  const portOk = port === null || (typeof port === "number" && Number.isInteger(port) && port >= 1 && port <= 65535);
+  if (!portOk || typeof wire.secure !== "boolean") return null;
+  return { host, port: port as number | null, secure: wire.secure };
 }
 
 /** The UTF-8 length of a string, which is what the wire bound is in: eighty accented
@@ -271,10 +287,12 @@ export function cleanLabel(raw: string): string | null {
  *  deadline arriving together cannot undo each other. */
 export function stripCardValues(card: BrowserCard): BrowserCard {
   const strippedFields = card.fields.every((one) => one.value === null);
-  if (strippedFields && card.url === null) return card;
+  if (strippedFields && card.url === null && card.destination === null) return card;
   return {
     ...card,
     url: null,
+    // Where it would have gone is the stranger's site too: a spent card keeps no host.
+    destination: null,
     fields: strippedFields
       ? card.fields
       : card.fields.map((one) => (one.value === null ? one : { ...one, value: null })),

@@ -783,6 +783,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     browser: {
       wantsToSend: "{host} vuole inviare:",
       insecure: "Connessione non protetta",
+      noDestination: "Kalsa non sa dove andrebbe",
       show: "Mostra",
       hide: "Nascondi",
       send: "Invia",

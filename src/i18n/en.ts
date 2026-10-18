@@ -791,6 +791,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     browser: {
       wantsToSend: "{host} wants to send:",
       insecure: "Not a secure connection",
+      noDestination: "Kalsa can't tell where this would go",
       show: "Show",
       hide: "Hide",
       send: "Send",

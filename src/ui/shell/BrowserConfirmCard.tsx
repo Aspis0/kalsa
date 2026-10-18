@@ -23,7 +23,6 @@ import { Pressable, Text, View } from "react-native";
 
 import { useLocale } from "../../i18n";
 import {
-  destinationOf,
   isBrowserCardExpired,
   monotonicNowMs,
   SECRET_DOTS,
@@ -114,8 +113,10 @@ export function BrowserConfirmCard({
     async (verb: BrowserAnswerVerb) => {
       // Re-checked at the press and not only on the tick: a card that expired
       // between two renders must not put a request on the road.
+      // No host, no send: a card with no destination can be declined and never sent (§3.1).
       // No host, no press: the buttons are not drawn at all (see browserActions).
-      if (browser === null || pressed || isBrowserCardExpired(card, monotonicNowMs())) return;
+      const sendable = verb === "decline" || card.destination !== null;
+      if (browser === null || !sendable || pressed || isBrowserCardExpired(card, monotonicNowMs())) return;
       setPressed(true);
       // Spent before the answer is even asked: the card is the one thing that
       // knows nobody may answer this any more.
@@ -155,7 +156,12 @@ export function BrowserConfirmCard({
   const filled = card.fields.flatMap((field, index) =>
     field.value === null || field.value === "" ? [] : [{ field, index }],
   );
-  const destination = destinationOf(card.url ?? "");
+  // Where it goes, as the computer parsed it: the host as it arrives, and a port only
+  // when there is one. With no destination there is no host to name at all.
+  const destination = card.destination;
+  const where = destination === null
+    ? null
+    : destination.port === null ? destination.host : `${destination.host}:${destination.port}`;
 
   return (
     <View
@@ -163,9 +169,9 @@ export function BrowserConfirmCard({
       style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}
     >
       <Text style={[type.bodyStrong, { color: colors.ink }]} testID="transcript.browserCard.title">
-        {t("chat.browser.wantsToSend", { host: destination.host })}
+        {where === null ? t("chat.browser.noDestination") : t("chat.browser.wantsToSend", { host: where })}
       </Text>
-      {destination.insecure ? (
+      {destination !== null && !destination.secure ? (
         <Text style={[type.caption, { color: colors.danger }]} testID="transcript.browserCard.insecure">
           {t("chat.browser.insecure")}
         </Text>
@@ -197,7 +203,7 @@ export function BrowserConfirmCard({
       </Text>
       {live && browser !== null ? (
         <View style={styles.buttons}>
-          <Pressable
+          {destination !== null ? <Pressable
             testID="transcript.browserCard.send"
             accessibilityRole="button"
             accessibilityLabel={t("chat.browser.send")}
@@ -210,7 +216,7 @@ export function BrowserConfirmCard({
             ]}
           >
             <Text style={[type.label, { color: colors.onAccent }]}>{t("chat.browser.send")}</Text>
-          </Pressable>
+          </Pressable> : null}
           <Pressable
             testID="transcript.browserCard.decline"
             accessibilityRole="button"

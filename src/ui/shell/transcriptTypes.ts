@@ -107,6 +107,8 @@ export type TranscriptMessage = {
    *  PERSISTED, like the mail beside it and for one more reason: a card holds
    *  a stranger's site and a stranger's values (§6). */
   browserCards?: readonly BrowserCardEntry[];
+  /** What the turn did, in one line, drawn quietly under the answer (§3.2). */
+  recap?: string;
   /** This answer came from the turn route: a link in it is shown and never
    *  opened by a tap. The markdown around it is untouched. */
   linksAsText?: boolean;

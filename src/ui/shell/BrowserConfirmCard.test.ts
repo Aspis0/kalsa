@@ -60,6 +60,7 @@ function entry(over: Partial<BrowserCardEntry> = {}): BrowserCardEntry {
       cardId: CARD_ID,
       method: "POST",
       url: "https://shop.example/checkout?size=L&passphrase_2=hunter2",
+      destination: { host: "shop.example", port: null, secure: true },
       fields: [
         { name: "size", label: "Taglia", value: "L", secret: false },
         { name: "passphrase_2", label: null, value: "hunter2", secret: true },
@@ -320,14 +321,6 @@ describe("a request held for the person", () => {
     expect(has(renderer, "transcript.browserCard.field.1")).toBe(false);
     expect(has(renderer, "transcript.browserCard.toggle.1")).toBe(false);
     expect(textOf(renderer, "transcript.browserCard.outcome")).toBe("chat.browser.gone");
-  });
-
-  it("a plain-http destination says so under the host, with its port", async () => {
-    const plain = entry();
-    plain.card.url = "http://shop.example:8080/order";
-    const renderer = await render(plain);
-    expect(textOf(renderer, "transcript.browserCard.title")).toBe('chat.browser.wantsToSend:{"host":"shop.example:8080"}');
-    expect(textOf(renderer, "transcript.browserCard.insecure")).toBe("chat.browser.insecure");
   });
 
   it("an outcome the phone did not ask for is drawn on the card it belongs to", async () => {

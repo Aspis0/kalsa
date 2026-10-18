@@ -94,4 +94,29 @@ describe("the turn route's named events", () => {
       text: "",
     });
   });
+
+  test("a recap crosses as the turn's line, and its control and format characters are removed", () => {
+    expect(parseTurnSseFrame('event: recap\ndata: {"text":"Kalsa ha: aperto httpbin.org"}\n')).toEqual({
+      kind: "recap",
+      text: "Kalsa ha: aperto httpbin.org",
+    });
+    expect(parseTurnSseFrame('event: recap\ndata: {"text":"ab\\u0007c\\u200Bd"}\n')).toEqual({
+      kind: "recap",
+      text: "ab c d",
+    });
+  });
+
+  test("a recap that is not a valid line is ignored, and never fails the turn", () => {
+    const invalid = [
+      "event: recap\ndata: {oops\n",
+      'event: recap\ndata: {"text":42}\n',
+      'event: recap\ndata: {"text":"\\u0000\\u200B"}\n',
+      'event: recap\ndata: {"line":"not the field"}\n',
+      `event: recap\ndata: {"text":"${"x".repeat(501)}"}\n`,
+      `event: recap\ndata: {"text":"${"é".repeat(251)}"}\n`,
+    ];
+    for (const frame of invalid) {
+      expect(parseTurnSseFrame(frame).kind).toBe("ignore");
+    }
+  });
 });

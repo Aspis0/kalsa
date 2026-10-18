@@ -50,6 +50,7 @@ describe("engineCallbackBridge", () => {
       "onMailDraft",
       "onBrowserCard",
       "onBrowserOutcome",
+      "onRecap",
       "onLinksAsText",
       "onModelEmittedText",
       "onThinkingText",

@@ -18,6 +18,7 @@
  * (`src/engine/historyPersistable.ts`, untouched): the persisted field set
  * IS the hash contract of D2 row 2, and both directions must agree with it.
  */
+import { normalizeRecap } from "../domain/recap";
 import { getStrings, type Locale } from "../i18n";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import {
@@ -155,6 +156,12 @@ export function sanitizeHistoryMessages(
     // reload; the mark is restored only as a strict true, never from a corrupt value.
     if (record.role === "assistant" && record.linksAsText === true) {
       message.linksAsText = true;
+    }
+    // The turn's recap line survives a reopen (§3.2), and only as a valid line: the same
+    // rule the stream applies, so a corrupt record cannot put anything under the answer.
+    const recap = normalizeRecap(record.recap);
+    if (record.role === "assistant" && recap !== null) {
+      message.recap = recap;
     }
     // The stamped date line: replayed byte-identical after a reload, so the
     // KV prefix the turn was sent with stays valid across restarts.

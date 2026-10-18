@@ -209,6 +209,12 @@ export function createRichCallbacks(ctx: RichCallbackCtx): RichCallbacks {
         ),
       );
     },
+    // The turn's one-line account (§3.2): stored on the answer it belongs to, and
+    // never a second line over a first. Validated where it is read, in the parser.
+    onRecap: (text: string) => {
+      if (!fence.owns(token)) return;
+      patch((message) => ({ ...message, recap: text }));
+    },
     onLinksAsText: () => {
       if (!fence.owns(token)) return;
       patch((message) => ({ ...message, linksAsText: true }));

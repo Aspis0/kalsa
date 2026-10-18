@@ -777,6 +777,8 @@ export async function streamRemoteAssistantTurn(
       // whoever opens the log.
       else if (event.kind === "browser_card") callbacks.onBrowserCard?.(event.card);
       else if (event.kind === "browser_outcome") callbacks.onBrowserOutcome?.(event.outcome);
+      // §3.2: what the turn did, in one line. It is drawn under the answer, never as a row.
+      else if (event.kind === "recap") callbacks.onRecap?.(event.text);
       else if (event.kind === "turn") {
         console.log("remote.brain.turn", JSON.stringify({ turn: event.turn }));
       }

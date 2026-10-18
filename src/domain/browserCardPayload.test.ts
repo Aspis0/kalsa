@@ -1,6 +1,6 @@
 import {
   cleanLabel,
-  destinationOf,
+  readDestination,
   isBrowserCardExpired,
   monotonicNowMs,
   normalizeBrowserCard,
@@ -162,27 +162,54 @@ describe("what became of a card", () => {
   });
 });
 
-describe("the destination a card names", () => {
-  test("only the host, with a port only when it is not the scheme's default", () => {
-    expect(destinationOf("https://shop.example/checkout?size=L&passphrase_2=hunter2")).toEqual({
-      host: "shop.example",
-      insecure: false,
+describe("the destination the computer sent", () => {
+  test("a destination is the host as it arrives, the port and whether it is secure", () => {
+    expect(readDestination({ host: "xn--bcher-kva.example", port: null, secure: true })).toEqual({
+      host: "xn--bcher-kva.example",
+      port: null,
+      secure: true,
     });
-    expect(destinationOf("https://shop.example:443/order").host).toBe("shop.example");
-    expect(destinationOf("http://shop.example:8080/x").host).toBe("shop.example:8080");
-    expect(destinationOf("https://user:secret@shop.example:8443/order#top").host).toBe("shop.example:8443");
-    expect(destinationOf("http://[::1]:8080/x").host).toBe("[::1]:8080");
+    expect(readDestination({ host: "shop.example", port: 8080, secure: false })).toEqual({
+      host: "shop.example",
+      port: 8080,
+      secure: false,
+    });
   });
 
-  test("plain http is said to be insecure, and https is not", () => {
-    expect(destinationOf("http://shop.example/order").insecure).toBe(true);
-    expect(destinationOf("https://shop.example/order").insecure).toBe(false);
+  test("a missing port is no port", () => {
+    expect(readDestination({ host: "shop.example", secure: true })?.port).toBeNull();
   });
 
-  test("an address it cannot take apart, or a host that is not bare, names no host", () => {
-    expect(destinationOf("not an address")).toEqual({ host: "", insecure: false });
-    expect(destinationOf("https://sh op.example/").host).toBe("");
-    expect(destinationOf("https://shop.example\u202e/").host).toBe("");
+  test("anything that is not a destination the phone may draw is no destination at all", () => {
+    const bad = [
+      undefined,
+      "shop.example",
+      { host: "", port: null, secure: true },
+      { host: "shop example", port: null, secure: true },
+      { host: "shop.bücher.example", port: null, secure: true },
+      { host: "h".repeat(254), port: null, secure: true },
+      { host: "shop.example", port: 0, secure: true },
+      { host: "shop.example", port: 65536, secure: true },
+      { host: "shop.example", port: 80.5, secure: true },
+      { host: "shop.example", port: "80", secure: true },
+      { host: "shop.example", port: null },
+      { host: "shop.example", port: null, secure: "yes" },
+    ];
+    for (const raw of bad) expect(readDestination(raw)).toBeNull();
+  });
+
+  test("the card carries its destination, and a card with none is still a card", () => {
+    const withIt = normalizeBrowserCard({ ...wire(), destination: { host: "shop.example", port: null, secure: true } });
+    expect(withIt?.destination?.host).toBe("shop.example");
+    const without = normalizeBrowserCard(wire());
+    expect(without).not.toBeNull();
+    expect(without?.destination).toBeNull();
+  });
+
+  test("the phone reads no host from the address: a destination is what decides it", () => {
+    const card = normalizeBrowserCard({ ...wire({ url: "https://evil.example/x" }) });
+    expect(card?.destination).toBeNull();
+    expect(card?.url).toBe("https://evil.example/x");
   });
 });
 

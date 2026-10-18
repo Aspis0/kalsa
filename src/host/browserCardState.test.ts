@@ -20,6 +20,7 @@ function held(cardId: string, deadlineAtMs: number, url: string | null = "https:
       cardId,
       method: "POST",
       url,
+      destination: { host: "shop.example", port: null, secure: true },
       fields: [{ name: "passphrase_2", label: null, value: "hunter2", secret: true }],
       deadlineAtMs,
     },

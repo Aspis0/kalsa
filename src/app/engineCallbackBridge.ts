@@ -27,6 +27,7 @@ export type BridgedUiCallbacks = {
   onMailDraft?: (draft: any) => void;
   onBrowserCard?: (card: any) => void;
   onBrowserOutcome?: (outcome: any) => void;
+  onRecap?: (text: string) => void;
   onLinksAsText?: () => void;
   onActions?: (payload: any) => void;
 };
@@ -42,6 +43,7 @@ const FORWARDED_KEYS = {
   onMailDraft: true,
   onBrowserCard: true,
   onBrowserOutcome: true,
+  onRecap: true,
   onLinksAsText: true,
   onModelEmittedText: true,
   onThinkingText: true,
@@ -81,6 +83,7 @@ export function bridgeEngineCallbacks(
     onMailDraft: (draft) => ui.onMailDraft?.(draft),
     onBrowserCard: (card) => ui.onBrowserCard?.(card),
     onBrowserOutcome: (outcome) => ui.onBrowserOutcome?.(outcome),
+    onRecap: (text) => ui.onRecap?.(text),
     onLinksAsText: () => ui.onLinksAsText?.(),
     onTool: (tool) => ui.onActions?.({ kind: "tool", tool }),
     onDone: hooks.onDone,

@@ -126,6 +126,8 @@ export type Message = {
    * (§6).
    */
   browserCards?: BrowserCardEntry[];
+  /** What the turn did, in one line (PHONE-CHAT-PROTOCOL §3.2). Kept with the answer. */
+  recap?: string;
   /** The answer came from the turn route, where a link is shown and never
    *  opened by a tap (PHONE-CHAT-PROTOCOL §3). Survives a reopen: the answer
    *  does, and so does where it came from. */

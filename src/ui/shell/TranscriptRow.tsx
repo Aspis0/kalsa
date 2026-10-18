@@ -2,6 +2,7 @@ import { memo, useCallback } from "react";
 
 import type { DesignColors } from "../../theme/design";
 import { Answer, UserTurn } from "./TranscriptTurns";
+import { RecapLine } from "./RecapLine";
 import type { TranscriptStyles } from "./TranscriptParts";
 import type { TranscriptLayout } from "./transcriptLayout";
 import type {
@@ -62,31 +63,34 @@ export const TranscriptRow = memo(function TranscriptRow({
       translate={translate}
     />
   ) : (
-    <Answer
-      caret={message.caret}
-      colors={colors}
-      ctas={message.ctas}
-      id={message.id}
-      labels={labels}
-      linksAsText={message.linksAsText}
-      mail={message.mail}
-      mailDrafts={message.mailDrafts}
-      browserCards={message.browserCards}
-      miniapp={message.miniapp}
-      onCopy={onCopy}
-      onLongPress={onMessageLongPress ? onLongPress : undefined}
-      onMiniappOpen={onMiniappOpen}
-      onSpeak={onSpeak ? onSpeakMessage : undefined}
-      readingMeasure={layout.readingMeasure}
-      speaking={speaking}
-      sources={message.sources}
-      stale={message.stale}
-      stop={message.stop}
-      styles={styles}
-      text={message.text}
-      thinking={message.thinking}
-      tools={message.tools}
-      translate={translate}
-    />
+    <>
+      <Answer
+        caret={message.caret}
+        colors={colors}
+        ctas={message.ctas}
+        id={message.id}
+        labels={labels}
+        linksAsText={message.linksAsText}
+        mail={message.mail}
+        mailDrafts={message.mailDrafts}
+        browserCards={message.browserCards}
+        miniapp={message.miniapp}
+        onCopy={onCopy}
+        onLongPress={onMessageLongPress ? onLongPress : undefined}
+        onMiniappOpen={onMiniappOpen}
+        onSpeak={onSpeak ? onSpeakMessage : undefined}
+        readingMeasure={layout.readingMeasure}
+        speaking={speaking}
+        sources={message.sources}
+        stale={message.stale}
+        stop={message.stop}
+        styles={styles}
+        text={message.text}
+        thinking={message.thinking}
+        tools={message.tools}
+        translate={translate}
+      />
+      {message.recap ? <RecapLine id={message.id} styles={styles} text={message.recap} /> : null}
+    </>
   );
 });
